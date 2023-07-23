@@ -2,23 +2,27 @@
   "name": "dockit",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
+  "main": "./dist/src/main.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "vite": "vite",
+    "start": "tsc && concurrently vite \" electron .\" \"tsc -w\"",
+    "build": "vue-tsc --noEmit && vite build && electron-builder",
     "preview": "vite preview",
     "lint:fix": "eslint --fix ./",
     "lint:check": "eslint ./"
   },
   "dependencies": {
+    "concurrently": "^8.2.0",
     "vue": "^3.3.4"
   },
   "devDependencies": {
+    "@types/node": "^20.4.4",
     "@typescript-eslint/eslint-plugin": "^6.1.0",
     "@typescript-eslint/parser": "^6.1.0",
     "@vitejs/plugin-vue": "^4.2.3",
     "electron": "^25.3.1",
     "electron-builder": "^24.4.0",
+    "electron-devtools-installer": "^3.2.0",
     "eslint": "^8.45.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-prettier": "^5.0.0",
