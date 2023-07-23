@@ -1,13 +1,20 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
+    "target": "esnext",
+    "useDefineForClassFields": true,
     "module": "commonjs",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "moduleResolution": "node",
     "strict": true,
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "isolatedModules": false,
+    "esModuleInterop": true,
+    "lib": ["esnext", "dom"],
     "skipLibCheck": true,
-    "outDir": "./dist",
-    "rootDir": "./"
+    "outDir": "dist/src/electron"
   },
-  "include": ["src/**/*"]
+  "include": ["src/electron/**/*"],
+  "references": [{
+    "path": "./tsconfig.node.json"
+  }]
 }

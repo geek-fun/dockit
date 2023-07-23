@@ -1,10 +1,11 @@
 import { app, BrowserWindow, BrowserWindowConstructorOptions, ipcMain } from 'electron';
 import path from 'path';
-import install, { VUEJS3_DEVTOOLS } from 'electron-devtools-installer';
+import install, { VUEJS_DEVTOOLS } from 'electron-devtools-assembler';
 
 const isDev = process.env.APP_ENV === 'dev';
 
 const createWindow = async () => {
+  console.log('isDev', isDev);
   const BrowserWindowOptions: BrowserWindowConstructorOptions = {
     width: 1200,
     minWidth: 900,
@@ -12,7 +13,7 @@ const createWindow = async () => {
     minHeight: 600,
 
     webPreferences: {
-      preload: __dirname + '/preload.js',
+      preload: path.resolve(__dirname, 'preload.js'),
       devTools: isDev,
     },
     show: false,
@@ -25,7 +26,7 @@ const createWindow = async () => {
   // and load the index.html of the app.
   // win.loadFile("index.html");
   await mainWindow.loadURL(
-    isDev ? 'http://localhost:3000' : `file://${path.join(__dirname, './index.html')}`,
+    isDev ? 'http://localhost:5173' : `file://${path.join(__dirname, './index.html')}`,
   );
 
   mainWindow.show();
@@ -58,7 +59,7 @@ app.whenReady().then(async () => {
   // if dev
   if (isDev) {
     try {
-      await install(VUEJS3_DEVTOOLS);
+      await install(VUEJS_DEVTOOLS);
       console.log('Added Extension');
     } catch (err) {
       console.log('Can not install extension!', err);
