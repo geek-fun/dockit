@@ -3,10 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "main": "dist/src/electron/main.js",
+  "description": "A faster, better and more stable NoSQL desktop tools",
   "scripts": {
-    "vite": "vite",
+    "vite:start": "vite",
+    "vite:build": "vue-tsc --noEmit && vite build",
     "start": "tsc && cross-env APP_ENV=dev concurrently vite \" electron .\" \"tsc -w\"",
-    "build": "vue-tsc --noEmit && vite build && electron-builder",
+    "package": "npm run vite:build && tsc && electron-builder",
     "preview": "vite preview",
     "lint:fix": "eslint --fix ./",
     "lint:check": "eslint ./"
@@ -31,5 +33,85 @@
     "typescript": "^5.1.6",
     "vite": "^4.4.6",
     "vue-tsc": "^1.8.6"
+  },
+  "build": {
+    "appId": "YourAppID",
+    "asar": true,
+    "directories": {
+      "buildResources": "assets",
+      "output": "release/${version}"
+    },
+    "files": [
+      "dist"
+    ],
+    "mac": {
+      "artifactName": "${productName}-${version}.${ext}",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "rpm",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "apk",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "pacman",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "freebsd",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}.${ext}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false
+    }
   }
 }
