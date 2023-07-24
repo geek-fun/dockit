@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 /.vscode/
 /release/
+/coverage/
