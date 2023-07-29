@@ -22,7 +22,19 @@ const createWindow = async () => {
   };
 
   const mainWindow = new BrowserWindow(BrowserWindowOptions);
+  console.log('checking vite local startup');
+  for (let i = 0; i < 10; i++) {
+    try {
+      const response = await fetch('http://localhost:5173');
+      if (response.ok) {
+        break;
+      }
+    } catch (e) {
+      /* empty */
+    }
 
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
   // and load the index.html of the app.
   // win.loadFile("index.html");
   await mainWindow.loadURL(
