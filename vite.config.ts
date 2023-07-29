@@ -10,6 +10,12 @@ export default defineConfig({
   plugins: [
     vue(),
     AutoImport({
+      dts: './auto-import.d.ts',
+      eslintrc: {
+        enabled: true,
+        filepath: './.eslintrc-auto-import.json',
+        globalsPropValue: true,
+      },
       imports: [
         'vue',
         'vue-router',

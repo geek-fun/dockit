@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider>
+  <n-config-provider :theme="getTheme">
     <n-loading-bar-provider>
       <n-dialog-provider>
         <n-notification-provider>
@@ -14,10 +14,10 @@
 </template>
 
 <script lang="ts" setup>
-import { defineComponent, h } from 'vue';
 const NaiveProviderContent = defineComponent({
   render() {
     return h('div');
   },
 });
+const getTheme = ''
 </script>

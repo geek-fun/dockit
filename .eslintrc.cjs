@@ -7,6 +7,7 @@ module.exports = {
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:prettier/recommended',
+    './.eslintrc-auto-import.json',
   ],
   parser: '@typescript-eslint/parser',
   parserOptions: {
@@ -16,16 +17,25 @@ module.exports = {
   plugins: ['@typescript-eslint', 'prettier'],
   rules: {
     'prettier/prettier': 'error',
-    '@typescript-eslint/ban-types': [
-      'error',
+    'vue/multi-word-component-names': 'off',
+    'arrow-parens': [2, 'as-needed'],
+    'arrow-spacing': [
+      2,
       {
-        types: {
-          // for codegen un-ban a type that's banned by default
-          '{}': false,
-        },
-        extendDefaults: true,
+        before: true,
+        after: true,
       },
     ],
+    'key-spacing': [
+      2,
+      {
+        beforeColon: false,
+        afterColon: true,
+      },
+    ],
+    'no-var': 'error',
+    'no-console': process.env === 'development' ? 'warn' : 'error',
+    'no-debugger': process.env === 'development' ? 'warn' : 'error',
   },
   ignorePatterns: ['dist'],
 };

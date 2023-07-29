@@ -17,7 +17,12 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/electron/**/*"],
+  "include": [
+    "src/electron/**/*",
+    "src/**/*.d.ts",
+    "src/**/*.vue",
+    "auto-imports.d.ts",
+  ],
   "references": [{
     "path": "./tsconfig.node.json"
   }]
