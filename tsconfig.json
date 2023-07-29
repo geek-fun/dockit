@@ -11,7 +11,11 @@
     "esModuleInterop": true,
     "lib": ["esnext", "dom"],
     "skipLibCheck": true,
-    "outDir": "dist/src/electron"
+    "outDir": "dist/src/electron",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
   "include": ["src/electron/**/*"],
   "references": [{
