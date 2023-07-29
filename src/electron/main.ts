@@ -1,6 +1,7 @@
-import { app, BrowserWindow, BrowserWindowConstructorOptions, ipcMain } from 'electron';
+import { app, BrowserWindow, BrowserWindowConstructorOptions, ipcMain, Menu } from 'electron';
 import path from 'path';
 import install, { VUEJS_DEVTOOLS } from 'electron-devtools-assembler';
+import { menuTempalte } from './menu';
 
 const isDev = process.env.APP_ENV === 'dev';
 
@@ -20,7 +21,8 @@ const createWindow = async () => {
     alwaysOnTop: true,
     frame: true,
   };
-
+  const menu = Menu.buildFromTemplate(menuTempalte);
+  Menu.setApplicationMenu(menu);
   const mainWindow = new BrowserWindow(BrowserWindowOptions);
   console.log('checking vite local startup');
   for (let i = 0; i < 10; i++) {

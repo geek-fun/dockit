@@ -8,13 +8,19 @@ body,
 :root[theme='light'] {
   --bg-color: #fff;
   --text-color: #333;
+  --border-color: #f0f0f0;
+  --theme-color: #36ad6a;
 }
 :root[theme='dark'] {
   --bg-color: #101014;
   --text-color: #f1f1f1;
+  --border-color: #363b41;
+  --theme-color: #36ad6a;
 }
 
 body {
   background-color: var(--bg-color);
   color: var(--text-color);
+  transition: .3s;
+  font-size: 14px;
 }

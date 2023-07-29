@@ -1,30 +1,15 @@
 <template>
   <div class="layout-container">
     <the-aside />
-    <n-button>Default</n-button>
-    <n-button type="tertiary">
-      Tertiary
-    </n-button>
-    <n-button type="primary">
-      Primary
-    </n-button>
-    <n-button type="info">
-      Info
-    </n-button>
-    <n-button type="success">
-      Success
-    </n-button>
-    <n-button type="warning">
-      Warning
-    </n-button>
-    <n-button type="error">
-      Error
-    </n-button>
+    <div class="right-layout">
+      <router-main />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import TheAside from './components/the-aside.vue';
+import RouterMain from '@/components/RouterMain.vue';
 </script>
 
 <style lang="scss" scoped>
@@ -32,5 +17,9 @@ import TheAside from './components/the-aside.vue';
   height: 100%;
   width: 100%;
   display: flex;
+  .right-layout {
+    flex: 1;
+    width: 0;
+  }
 }
 </style>
