@@ -1,0 +1,20 @@
+html,
+body,
+#app,
+.n-config-provider {
+  height: 100%;
+  width: 100%;
+}
+:root[theme='light'] {
+  --bg-color: #fff;
+  --text-color: #333;
+}
+:root[theme='dark'] {
+  --bg-color: #101014;
+  --text-color: #f1f1f1;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
