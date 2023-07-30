@@ -1,4 +1,4 @@
-import { debug } from '@/common/debug';
+import { debug } from '../common/debug';
 
 export const menuTemplate = [
   {

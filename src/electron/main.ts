@@ -2,7 +2,7 @@ import { app, BrowserWindow, BrowserWindowConstructorOptions, ipcMain, Menu } fr
 import path from 'path';
 import install, { VUEJS_DEVTOOLS } from 'electron-devtools-assembler';
 import { menuTemplate } from './menu';
-import { debug } from '@/common/debug';
+import { debug } from '../common/debug';
 
 const isDev = process.env.APP_ENV === 'dev';
 
