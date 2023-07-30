@@ -20,19 +20,19 @@ import { darkTheme } from 'naive-ui';
 const appStore = useAppStore();
 // system theme type
 const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
-let systemTheme = ref(themeMedia.matches)
+let systemTheme = ref(themeMedia.matches);
 themeMedia.addListener(e => {
-  systemTheme.value = e.matches
+  systemTheme.value = e.matches;
 });
 
 const getTheme = computed(() => {
-  let isDark = appStore.themeType === 0 ? !systemTheme.value : appStore.themeType === 1
+  let isDark = appStore.themeType === 0 ? !systemTheme.value : appStore.themeType === 1;
   if (isDark) {
     document.documentElement.setAttribute('theme', 'dark');
-    return darkTheme
+    return darkTheme;
   } else {
     document.documentElement.setAttribute('theme', 'light');
-    return undefined
+    return undefined;
   }
 });
 

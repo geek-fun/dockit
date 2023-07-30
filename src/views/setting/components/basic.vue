@@ -3,9 +3,9 @@
     <div class="title">外观设置</div>
     <div class="theme">
       <div
-        class="theme-item"
         v-for="item in themeTypeList"
         :key="item.type"
+        class="theme-item"
         :class="{
           active: activeType === item.type,
         }"
@@ -21,9 +21,9 @@
 </template>
 
 <script setup lang="ts">
-import lightImg from '@/assets/img/theme-light.png'
-import darkImg from '@/assets/img/theme-dark.png'
-import autoImg from '@/assets/img/theme-auto.png'
+import lightImg from '@/assets/img/theme-light.png';
+import darkImg from '@/assets/img/theme-dark.png';
+import autoImg from '@/assets/img/theme-auto.png';
 import { useAppStore } from '@/store';
 const appStore = useAppStore();
 const activeType = ref(appStore.themeType);
@@ -83,7 +83,7 @@ const setThemeType = (type: number) => {
         height: 32px;
         line-height: 32px;
         text-align: center;
-        transition: .3s;
+        transition: 0.3s;
       }
       &.active {
         position: relative;

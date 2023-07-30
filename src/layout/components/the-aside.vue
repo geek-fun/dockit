@@ -41,11 +41,11 @@
 </template>
 
 <script setup lang="ts">
-import { DataBase, UserAvatar, Settings, Folders, LogoGithub } from '@vicons/carbon';
+import { DataBase, Folders, LogoGithub, Settings, UserAvatar } from '@vicons/carbon';
 import theAsideIcon from './the-aside-icon.vue';
-import { githubLink } from '@/config';
-const router = useRouter()
-// open github lint at default Brower
+
+const router = useRouter();
+// open github lint at default Browser
 const linkToGitHub = () => {};
 // TODO: connect icon click handle
 const connectClick = () => {};
@@ -54,14 +54,14 @@ const fileClick = () => {};
 // TODO: user icon click handle
 const userClick = () => {
   router.push({
-    path: '/'
-  })
+    path: '/',
+  });
 };
 // TODO: setting icon click handle
 const settingClick = () => {
   router.push({
-    path: '/setting'
-  })
+    path: '/setting',
+  });
 };
 </script>
 

@@ -1,12 +1,12 @@
 import { app, BrowserWindow, BrowserWindowConstructorOptions, ipcMain, Menu } from 'electron';
 import path from 'path';
 import install, { VUEJS_DEVTOOLS } from 'electron-devtools-assembler';
-import { menuTempalte } from './menu';
+import { menuTemplate } from './menu';
+import { debug } from '@/common/debug';
 
 const isDev = process.env.APP_ENV === 'dev';
 
 const createWindow = async () => {
-  console.log('isDev', isDev);
   const BrowserWindowOptions: BrowserWindowConstructorOptions = {
     width: 1200,
     minWidth: 900,
@@ -21,10 +21,9 @@ const createWindow = async () => {
     alwaysOnTop: true,
     frame: true,
   };
-  const menu = Menu.buildFromTemplate(menuTempalte);
+  const menu = Menu.buildFromTemplate(menuTemplate);
   Menu.setApplicationMenu(menu);
   const mainWindow = new BrowserWindow(BrowserWindowOptions);
-  console.log('checking vite local startup');
   for (let i = 0; i < 10; i++) {
     try {
       const response = await fetch('http://localhost:5173');
@@ -74,14 +73,14 @@ app.whenReady().then(async () => {
   if (isDev) {
     try {
       await install(VUEJS_DEVTOOLS);
-      console.log('Added Extension');
+      debug('Added Extension');
     } catch (err) {
-      console.log('Can not install extension!', err);
+      debug(`Can not install extension! ${err}`);
     }
   }
 
   createWindow().then(() => {
-    console.log('Window Created');
+    debug('Window Created');
   });
 
   app.on('activate', function () {
