@@ -9,7 +9,7 @@
 
 <script setup lang="ts">
 import TheAside from './components/the-aside.vue';
-import RouterMain from '@/components/RouterMain.vue';
+import RouterMain from '../components/RouterMain.vue';
 </script>
 
 <style lang="scss" scoped>

@@ -10,7 +10,7 @@ const router = createRouter({
       meta: {
         keepAlive: false,
       },
-      component: () => import('@/layout/index.vue'),
+      component: () => import('../layout/index.vue'),
       redirect: '/home',
       children: [
         {
@@ -19,7 +19,7 @@ const router = createRouter({
           meta: {
             keepAlive: false,
           },
-          component: () => import('@/views/home/index.vue'),
+          component: () => import('../views/home/index.vue'),
         },
         {
           name: 'Setting',
@@ -27,7 +27,7 @@ const router = createRouter({
           meta: {
             keepAlive: false,
           },
-          component: () => import('@/views/setting/index.vue'),
+          component: () => import('../views/setting/index.vue'),
         },
       ],
     },

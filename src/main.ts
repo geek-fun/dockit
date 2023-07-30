@@ -3,8 +3,8 @@ import App from './App.vue';
 import router from './router';
 import store from './store';
 
-import '@/styles/normalize.css';
-import '@/styles/theme.scss';
+import './assets/styles/normalize.css';
+import './assets/styles/theme.scss';
 
 const app = createApp(App);
 

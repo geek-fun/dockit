@@ -37,7 +37,7 @@ module.exports = {
       },
     ],
     'no-var': 'error',
-    'no-console': process.env === 'development' ? 'warn' : 'error',
+    'no-console': 'error',
     'no-debugger': process.env === 'development' ? 'warn' : 'error',
   },
   ignorePatterns: ['dist'],

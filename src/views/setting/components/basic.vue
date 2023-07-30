@@ -21,10 +21,10 @@
 </template>
 
 <script setup lang="ts">
-import lightImg from '@/assets/img/theme-light.png';
-import darkImg from '@/assets/img/theme-dark.png';
-import autoImg from '@/assets/img/theme-auto.png';
-import { useAppStore } from '@/store';
+import lightImg from '../../../assets/img/theme-light.png';
+import darkImg from '../../../assets/img/theme-dark.png';
+import autoImg from '../../../assets/img/theme-auto.png';
+import { useAppStore } from '../../../store';
 const appStore = useAppStore();
 const activeType = ref(appStore.themeType);
 const themeTypeList = ref([

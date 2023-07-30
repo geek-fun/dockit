@@ -1,9 +1,6 @@
 <template>
   <div class="setting-container">
-    <n-tabs
-      type="line"
-      placement="left"
-    >
+    <n-tabs type="line" placement="left">
       <n-tab-pane n-tab-pane name="Basic" tab="通用设置">
         <basic-setting />
       </n-tab-pane>
@@ -15,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import BasicSetting from './components/basic.vue'
+import BasicSetting from './components/basic.vue';
 </script>
 
 <style lang="scss" scoped>
