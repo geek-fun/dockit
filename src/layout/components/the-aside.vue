@@ -46,7 +46,9 @@ import theAsideIcon from './the-aside-icon.vue';
 
 const router = useRouter();
 // open github lint at default Browser
-const linkToGitHub = () => {};
+const linkToGitHub = () => {
+  window.electronAPI.openGitHub();
+};
 // TODO: connect icon click handle
 const connectClick = () => {
   router.push({

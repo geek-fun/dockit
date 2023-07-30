@@ -8,3 +8,13 @@ declare module '*.vue' {
 }
 
 declare module '*.css';
+
+export interface IElectronAPI {
+  openGitHub: () => void;
+}
+
+declare global {
+  interface Window {
+    electronAPI: IElectronAPI;
+  }
+}

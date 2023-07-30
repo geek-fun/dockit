@@ -1,8 +1,16 @@
-import { app, BrowserWindow, BrowserWindowConstructorOptions, ipcMain, Menu } from 'electron';
+import {
+  app,
+  shell,
+  BrowserWindow,
+  BrowserWindowConstructorOptions,
+  ipcMain,
+  Menu,
+} from 'electron';
 import path from 'path';
 import install, { VUEJS_DEVTOOLS } from 'electron-devtools-assembler';
 import { menuTemplate } from './menu';
 import { debug } from '../common/debug';
+import { githubLink } from '../config';
 
 const isDev = process.env.APP_ENV === 'dev';
 
@@ -64,6 +72,9 @@ const createWindow = async () => {
     };
   });
 };
+ipcMain.on('open-github', () => {
+  shell.openExternal(githubLink);
+});
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
