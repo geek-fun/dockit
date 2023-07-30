@@ -1,22 +1,36 @@
 <template>
   <div class="basic-setting">
-    <div class="title">外观设置</div>
-    <div class="theme">
-      <div
-        v-for="item in themeTypeList"
-        :key="item.type"
-        class="theme-item"
-        :class="{
-          active: activeType === item.type,
-        }"
-        @click="setThemeType(item.type)"
-      >
-        <div class="img-box">
-          <img :src="item.img" :alt="item.name" />
+    <n-grid cols="4" item-responsive responsive="screen" x-gap="10" y-gap="10">
+      <n-gi span="4">
+        <div class="title">{{ $t('setting.theme') }}</div>
+        <div class="content">
+          <div
+            v-for="item in themeTypeList"
+            :key="item.type"
+            class="content-item"
+            :class="{
+              active: activeType === item.type,
+            }"
+            @click="setThemeType(item.type)"
+          >
+            <div class="img-box">
+              <img :src="item.img" :alt="item.name" />
+            </div>
+            <div class="item-desc">{{ item.name }}</div>
+          </div>
         </div>
-        <div class="item-desc">{{ item.name }}</div>
-      </div>
-    </div>
+      </n-gi>
+      <n-gi span="4">
+        <div class="title">{{ $t('setting.language') }}</div>
+        <div class="content">
+          <n-radio-group v-model:value="langType" name="radiogroup" @update:value="langTypeChange">
+            <n-radio v-for="lang in langTypeList" :key="lang.type" :value="lang.type">
+              {{ lang.name }}
+            </n-radio>
+          </n-radio-group>
+        </div>
+      </n-gi>
+    </n-grid>
   </div>
 </template>
 
@@ -25,6 +39,8 @@ import lightImg from '../../../assets/img/theme-light.png';
 import darkImg from '../../../assets/img/theme-dark.png';
 import autoImg from '../../../assets/img/theme-auto.png';
 import { useAppStore } from '../../../store';
+import i18n from '../../../lang';
+
 const appStore = useAppStore();
 const activeType = ref(appStore.themeType);
 const themeTypeList = ref([
@@ -44,10 +60,34 @@ const themeTypeList = ref([
     name: '月白主题',
   },
 ]);
+const langType = ref(appStore.languageType);
+const langTypeList = ref([
+  {
+    type: 'auto',
+    name: '自动 (FollowOS)',
+  },
+  {
+    type: 'zhCN',
+    name: '简体中文',
+  },
+  {
+    type: 'enUS',
+    name: 'English',
+  },
+]);
 
 const setThemeType = (type: number) => {
   activeType.value = type;
   appStore.setThemeType(type);
+};
+
+const langTypeChange = (value: string) => {
+  langType.value = value;
+  appStore.setLaanguageType(value);
+  if (value === 'auto') {
+    value = navigator.language === 'zh-CN' ? 'zhCN' : 'enUS';
+  }
+  i18n.global.locale = value;
 };
 </script>
 
@@ -57,10 +97,10 @@ const setThemeType = (type: number) => {
     font-weight: bold;
     margin-bottom: 5px;
   }
-  .theme {
+  .content {
     display: flex;
     flex-wrap: wrap;
-    .theme-item {
+    .content-item {
       width: 140px;
       height: 120px;
       margin: 10px;
@@ -109,6 +149,9 @@ const setThemeType = (type: number) => {
           font-weight: bold;
         }
       }
+    }
+    .n-radio {
+      margin: 10px;
     }
   }
 }

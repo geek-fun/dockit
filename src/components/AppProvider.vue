@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :theme="getTheme">
+  <n-config-provider :theme="getTheme" :locale="locale" :date-locale="dateLocale">
     <n-loading-bar-provider>
       <n-dialog-provider>
         <n-notification-provider>
@@ -14,8 +14,9 @@
 </template>
 
 <script lang="ts" setup>
+import { darkTheme, zhCN, dateZhCN, enUS, dateEnUS } from 'naive-ui';
 import { useAppStore } from '../store';
-import { darkTheme } from 'naive-ui';
+import i18n from '../lang';
 
 const appStore = useAppStore();
 // system theme type
@@ -23,6 +24,13 @@ const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
 let systemTheme = ref(themeMedia.matches);
 themeMedia.addListener(e => {
   systemTheme.value = e.matches;
+});
+
+onMounted(() => {
+  let themeType: number = Number(localStorage.getItem('theme-type')) || 0;
+  if (themeType !== appStore.themeType) {
+    appStore.setThemeType(themeType);
+  }
 });
 
 const getTheme = computed(() => {
@@ -36,6 +44,22 @@ const getTheme = computed(() => {
   }
 });
 
+const locale = computed(() => {
+  let langType = appStore.languageType;
+  let langName = langType;
+  if (langType === 'auto') {
+    langName = navigator.language === 'zh-CN' ? 'zhCN' : 'enUS';
+  }
+  return langName === 'zhCN' ? zhCN : enUS;
+});
+const dateLocale = computed(() => {
+  let langType = appStore.languageType;
+  let langName = langType;
+  if (langType === 'auto') {
+    langName = navigator.language === 'zh-CN' ? 'zhCN' : 'enUS';
+  }
+  return langName === 'zhCN' ? dateZhCN : dateEnUS;
+});
 const NaiveProviderContent = defineComponent({
   render() {
     return h('div');

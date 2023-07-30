@@ -3,11 +3,17 @@ export const useAppStore = defineStore('app', {
   state() {
     return {
       themeType: 0, // 0 auto, 1: dark, 2: light
+      languageType: 'auto', // auto || zhCN || enUS
     };
   },
   actions: {
     setThemeType(args: number) {
       this.themeType = args;
+      localStorage.setItem('theme-type', String(args));
+    },
+    setLaanguageType(args: string) {
+      this.languageType = args;
+      localStorage.setItem('lang', String(args));
     },
   },
 });

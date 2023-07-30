@@ -48,7 +48,11 @@ const router = useRouter();
 // open github lint at default Browser
 const linkToGitHub = () => {};
 // TODO: connect icon click handle
-const connectClick = () => {};
+const connectClick = () => {
+  router.push({
+    path: '/',
+  });
+};
 // TODO: file icon click handle
 const fileClick = () => {};
 // TODO: user icon click handle

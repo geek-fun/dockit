@@ -11,15 +11,15 @@ const router = createRouter({
         keepAlive: false,
       },
       component: () => import('../layout/index.vue'),
-      redirect: '/home',
+      redirect: '/connect',
       children: [
         {
-          name: 'Home',
-          path: '/home',
+          name: 'Connect',
+          path: '/connect',
           meta: {
             keepAlive: false,
           },
-          component: () => import('../views/home/index.vue'),
+          component: () => import('../views/connect/index.vue'),
         },
         {
           name: 'Setting',

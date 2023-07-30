@@ -6,9 +6,9 @@ body,
   width: 100%;
 }
 :root[theme='light'] {
-  --bg-color: #fff;
+  --bg-color: #f1f1f1;
   --text-color: #333;
-  --border-color: #f0f0f0;
+  --border-color: #d1d1d1;
   --theme-color: #36ad6a;
 }
 :root[theme='dark'] {
