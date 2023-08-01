@@ -11,7 +11,7 @@ export const useAppStore = defineStore('app', {
       this.themeType = args;
       localStorage.setItem('theme-type', String(args));
     },
-    setLaanguageType(args: string) {
+    setLanguageType(args: string) {
       this.languageType = args;
       localStorage.setItem('lang', String(args));
     },

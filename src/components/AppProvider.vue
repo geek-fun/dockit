@@ -14,9 +14,8 @@
 </template>
 
 <script lang="ts" setup>
-import { darkTheme, zhCN, dateZhCN, enUS, dateEnUS } from 'naive-ui';
+import { darkTheme, dateEnUS, dateZhCN, enUS, zhCN } from 'naive-ui';
 import { useAppStore } from '../store';
-import i18n from '../lang';
 
 const appStore = useAppStore();
 // system theme type
