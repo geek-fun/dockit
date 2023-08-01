@@ -9,7 +9,7 @@
       </div>
       <div class="list-content">
         <n-scrollbar style="height: 100%">
-          <div class="list-item" v-for="(item, index) in 100" :key="index">
+          <div v-for="(item, index) in 100" :key="index" class="list-item">
             {{ item + index }}
           </div>
         </n-scrollbar>
@@ -24,7 +24,7 @@
 import { Add } from '@vicons/carbon';
 import addConnectModal from './components/add-dialog.vue';
 
-const addConnectModalRef = ref(null);
+const addConnectModalRef = ref();
 
 const addConnect = () => {
   addConnectModalRef.value.showMedal();

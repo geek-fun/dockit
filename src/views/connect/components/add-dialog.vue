@@ -75,12 +75,12 @@
 
 <script setup lang="ts">
 import { Close } from '@vicons/carbon';
-let showModal = ref(false);
-let modalTitle = ref('添加连接');
-let testLoading = ref(false);
-let saveLoading = ref(false);
+const showModal = ref(false);
+const modalTitle = ref('添加连接');
+const testLoading = ref(false);
+const saveLoading = ref(false);
 
-let formOriginData = ref({
+const formOriginData = ref({
   name: '',
   host: '',
   port: '',
@@ -89,7 +89,7 @@ let formOriginData = ref({
   database: '',
   linkUrl: '',
 });
-let formData = ref(formOriginData.value);
+const formData = ref(formOriginData.value);
 
 const showMedal = () => {
   showModal.value = true;
@@ -125,4 +125,3 @@ defineExpose({
   }
 }
 </style>
-<style lang="scss" scoped></style>

@@ -12,16 +12,13 @@
     "lib": ["esnext", "dom"],
     "skipLibCheck": true,
     "outDir": "dist/src",
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"]
-    }
+    "baseUrl": "."
   },
   "include": [
     "src/electron/**/*",
     "src/**/*.d.ts",
     "src/**/*.vue",
-    "auto-imports.d.ts",
+    "auto-import.d.ts"
   ],
   "references": [{
     "path": "./tsconfig.node.json"
