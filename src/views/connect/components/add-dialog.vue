@@ -14,45 +14,61 @@
         </n-icon>
       </template>
       <div class="modal-content">
-        <n-form label-placement="left" label-width="60">
+        <n-form label-placement="left" label-width="100">
           <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
             <n-grid-item span="8">
-              <n-form-item label="名称">
-                <n-input v-model:value="formData.name" clearable placeholder="Connect Name" />
+              <n-form-item :label="$t('connection.name')">
+                <n-input
+                  v-model:value="formData.name"
+                  clearable
+                  :placeholder="$t('connection.name')"
+                />
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="5">
-              <n-form-item label="主机">
-                <n-input v-model:value="formData.host" clearable />
+              <n-form-item :label="$t('connection.host')">
+                <n-input
+                  v-model:value="formData.host"
+                  clearable
+                  :placeholder="$t('connection.host')"
+                />
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="3">
-              <n-form-item label="端口">
-                <n-input v-model:value="formData.port" clearable />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item span="8">
-              <n-form-item label="用户名">
-                <n-input v-model:value="formData.userName" clearable />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item span="8">
-              <n-form-item label="密码">
+              <n-form-item :label="$t('connection.port')">
                 <n-input
-                  v-model:value="formData.userPwd"
-                  type="password"
-                  show-password-on="mousedown"
+                  v-model:value="formData.port"
+                  clearable
+                  :placeholder="$t('connection.port')"
                 />
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="8">
-              <n-form-item label="数据库">
-                <n-input v-model:value="formData.database" clearable />
+              <n-form-item :label="$t('connection.username')">
+                <n-input
+                  v-model:value="formData.userName"
+                  clearable
+                  :placeholder="$t('connection.username')"
+                />
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="8">
-              <n-form-item label="URL">
-                <n-input v-model:value="formData.linkUrl" clearable />
+              <n-form-item :label="$t('connection.password')">
+                <n-input
+                  v-model:value="formData.userPwd"
+                  type="password"
+                  show-password-on="mousedown"
+                  :placeholder="$t('connection.password')"
+                />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item span="8">
+              <n-form-item :label="$t('connection.finalUrl')">
+                <n-input
+                  v-model:value="formData.linkUrl"
+                  clearable
+                  :placeholder="$t('connection.finalUrl')"
+                />
               </n-form-item>
             </n-grid-item>
           </n-grid>
@@ -61,11 +77,15 @@
       <template #footer>
         <div class="card-footer">
           <div class="left">
-            <n-button type="info" :loading="testLoading" @click="testConnect">测试连接</n-button>
+            <n-button type="info" :loading="testLoading" @click="testConnect">
+              {{ $t('connection.test') }}
+            </n-button>
           </div>
           <div class="right">
-            <n-button @click="closeModal">取消</n-button>
-            <n-button type="primary" :loading="saveLoading" @click="saveConnect">确定</n-button>
+            <n-button @click="closeModal">{{ $t('form.cancel') }}</n-button>
+            <n-button type="primary" :loading="saveLoading" @click="saveConnect">
+              {{ $t('form.confirm') }}
+            </n-button>
           </div>
         </div>
       </template>
@@ -75,6 +95,7 @@
 
 <script setup lang="ts">
 import { Close } from '@vicons/carbon';
+
 const showModal = ref(false);
 const modalTitle = ref('添加连接');
 const testLoading = ref(false);
@@ -97,7 +118,12 @@ const showMedal = () => {
 const closeModal = () => {
   showModal.value = false;
 };
-const testConnect = () => {
+const testConnect = async () => {
+  const result = await fetch(`${formOriginData.value.host}:${formOriginData.value.port}`, {
+    method: 'GET',
+  });
+  // eslint-disable-next-line no-console
+  console.log(result);
   testLoading.value = !testLoading.value;
 };
 const saveConnect = () => {

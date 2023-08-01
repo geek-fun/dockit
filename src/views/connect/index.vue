@@ -5,7 +5,7 @@
         <n-icon size="28">
           <Add />
         </n-icon>
-        <span>新增连接</span>
+        <span>{{ $t('connection.new') }}</span>
       </div>
       <div class="list-content">
         <n-scrollbar style="height: 100%">
