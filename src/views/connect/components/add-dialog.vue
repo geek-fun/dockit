@@ -141,6 +141,7 @@ const saveConnect = () => {
   saveLoading.value = !saveLoading.value;
   saveConnection({ ...formData.value, port: parseInt(formData.value.port) });
   saveLoading.value = !saveLoading.value;
+  showModal.value = false;
 };
 
 defineExpose({ showMedal });

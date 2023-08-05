@@ -44,14 +44,6 @@ const addConnect = () => addConnectModalRef.value.showMedal();
       background-color: var(--theme-color);
       cursor: pointer;
     }
-    .list-content {
-      flex: 1;
-      height: 0;
-      padding-bottom: 10px;
-      .list-item {
-        margin: 0 10px;
-      }
-    }
   }
   .connect-body {
     flex: 1;
