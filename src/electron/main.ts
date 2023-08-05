@@ -13,25 +13,39 @@ import { debug } from '../common/debug';
 import { githubLink } from '../config';
 
 const isDev = process.env.APP_ENV === 'dev';
+const BrowserWindowOptions: BrowserWindowConstructorOptions = {
+  width: 1200,
+  minWidth: 900,
+  height: 750,
+  minHeight: 600,
+  show: false,
+  alwaysOnTop: true,
+  frame: true,
+  webPreferences: { preload: path.resolve(__dirname, 'preload.js'), devTools: isDev },
+};
 
-const createWindow = async () => {
-  const BrowserWindowOptions: BrowserWindowConstructorOptions = {
-    width: 1200,
-    minWidth: 900,
-    height: 750,
-    minHeight: 600,
+const bypassCors = (mainWindow: BrowserWindow) => {
+  mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+    callback({ requestHeaders: { Origin: '*', ...details.requestHeaders } });
+  });
 
-    webPreferences: {
-      preload: path.resolve(__dirname, 'preload.js'),
-      devTools: isDev,
-    },
-    show: false,
-    alwaysOnTop: true,
-    frame: true,
-  };
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        'Access-Control-Allow-Origin': ['*'],
+        // We use this to bypass headers
+        'Access-Control-Allow-Headers': ['*'],
+        ...details.responseHeaders,
+      },
+    });
+  });
+};
+const createMenu = () => {
   const menu = Menu.buildFromTemplate(menuTemplate);
   Menu.setApplicationMenu(menu);
-  const mainWindow = new BrowserWindow(BrowserWindowOptions);
+};
+
+const loadWindowByUrl = async (mainWindow: BrowserWindow) => {
   for (let i = 0; i < 10; i++) {
     try {
       const response = await fetch('http://localhost:5173');
@@ -44,11 +58,30 @@ const createWindow = async () => {
 
     await new Promise(resolve => setTimeout(resolve, 2000));
   }
-  // and load the index.html of the app.
-  // win.loadFile("index.html");
   await mainWindow.loadURL(
     isDev ? 'http://localhost:5173' : `file://${path.join(__dirname, './index.html')}`,
   );
+};
+const loadDevTools = async () => {
+  // if dev
+  if (isDev) {
+    try {
+      await install(VUEJS_DEVTOOLS);
+      debug('Added Extension');
+    } catch (err) {
+      debug(`Can not install extension! ${err}`);
+    }
+  }
+};
+
+const createWindow = async () => {
+  createMenu();
+  const mainWindow = new BrowserWindow(BrowserWindowOptions);
+
+  bypassCors(mainWindow);
+
+  // and load the index.html of the app.
+  await loadWindowByUrl(mainWindow);
 
   mainWindow.show();
 
@@ -62,16 +95,15 @@ const createWindow = async () => {
     mainWindow.webContents.openDevTools();
   }
 
-  ipcMain.handle('versions', () => {
-    return {
-      node: process.versions.chrome,
-      chrome: process.versions.chrome,
-      electron: process.versions.electron,
-      version: app.getVersion(),
-      name: app.getName(),
-    };
-  });
+  ipcMain.handle('versions', () => ({
+    node: process.versions.chrome,
+    chrome: process.versions.chrome,
+    electron: process.versions.electron,
+    version: app.getVersion(),
+    name: app.getName(),
+  }));
 };
+
 ipcMain.on('open-github', () => {
   shell.openExternal(githubLink);
 });
@@ -80,25 +112,11 @@ ipcMain.on('open-github', () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-  // if dev
-  if (isDev) {
-    try {
-      await install(VUEJS_DEVTOOLS);
-      debug('Added Extension');
-    } catch (err) {
-      debug(`Can not install extension! ${err}`);
-    }
-  }
+  await loadDevTools();
 
-  createWindow().then(() => {
-    debug('Window Created');
-  });
-
-  app.on('activate', function () {
-    // On macOS, it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
-  });
+  createWindow().then(() => debug('Window Created'));
+  // On macOS re-create a window when the dock icon is clicked and there are no other windows open.
+  app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow());
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

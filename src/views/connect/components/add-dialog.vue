@@ -100,31 +100,41 @@ const showModal = ref(false);
 const modalTitle = ref('添加连接');
 const testLoading = ref(false);
 const saveLoading = ref(false);
-
 const formOriginData = ref({
   name: '',
   host: '',
-  port: '',
+  port: '9200',
   userName: '',
   userPwd: '',
   database: '',
   linkUrl: '',
 });
 const formData = ref(formOriginData.value);
-
+const message = useMessage();
 const showMedal = () => {
   showModal.value = true;
 };
 const closeModal = () => {
   showModal.value = false;
 };
+
 const testConnect = async () => {
-  const result = await fetch(`${formOriginData.value.host}:${formOriginData.value.port}`, {
-    method: 'GET',
-  });
-  // eslint-disable-next-line no-console
-  console.log(result);
   testLoading.value = !testLoading.value;
+  try {
+    const result = await fetch(`${formOriginData.value.host}:${formOriginData.value.port}`, {
+      method: 'GET',
+    });
+    if (!result.ok) throw { status: result.status, message: await result.json() };
+    message.success('connect success');
+  } catch (error) {
+    message.error(`status: ${error.status}, details: ${error.message}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 36000000,
+    });
+  } finally {
+    testLoading.value = !testLoading.value;
+  }
 };
 const saveConnect = () => {
   saveLoading.value = false;
