@@ -46,7 +46,7 @@
             <n-grid-item span="8">
               <n-form-item :label="$t('connection.username')">
                 <n-input
-                  v-model:value="formData.userName"
+                  v-model:value="formData.username"
                   clearable
                   :placeholder="$t('connection.username')"
                 />
@@ -55,7 +55,7 @@
             <n-grid-item span="8">
               <n-form-item :label="$t('connection.password')">
                 <n-input
-                  v-model:value="formData.userPwd"
+                  v-model:value="formData.password"
                   type="password"
                   show-password-on="mousedown"
                   :placeholder="$t('connection.password')"
@@ -63,11 +63,11 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="8">
-              <n-form-item :label="$t('connection.finalUrl')">
+              <n-form-item :label="$t('connection.queryParameters')">
                 <n-input
-                  v-model:value="formData.linkUrl"
+                  v-model:value="formData.queryParameters"
                   clearable
-                  :placeholder="$t('connection.finalUrl')"
+                  :placeholder="$t('connection.queryParameters')"
                 />
               </n-form-item>
             </n-grid-item>
@@ -96,6 +96,8 @@
 <script setup lang="ts">
 import { Close } from '@vicons/carbon';
 import { CustomError } from '../../../common/customError';
+import { useConnectionStore } from '../../../store/connectionStore';
+const { testConnection, saveConnection } = useConnectionStore();
 
 const showModal = ref(false);
 const modalTitle = ref('添加连接');
@@ -105,10 +107,9 @@ const formOriginData = ref({
   name: '',
   host: '',
   port: '9200',
-  userName: '',
-  userPwd: '',
-  database: '',
-  linkUrl: '',
+  username: '',
+  password: '',
+  queryParameters: '',
 });
 const formData = ref(formOriginData.value);
 const message = useMessage();
@@ -122,10 +123,7 @@ const closeModal = () => {
 const testConnect = async () => {
   testLoading.value = !testLoading.value;
   try {
-    const result = await fetch(`${formOriginData.value.host}:${formOriginData.value.port}`, {
-      method: 'GET',
-    });
-    if (!result.ok) new CustomError(result.status, await result.json());
+    await testConnection({ ...formData.value, port: parseInt(formData.value.port) });
     message.success('connect success');
   } catch (e) {
     const error = e as CustomError;
@@ -138,12 +136,14 @@ const testConnect = async () => {
     testLoading.value = !testLoading.value;
   }
 };
+
 const saveConnect = () => {
-  saveLoading.value = false;
+  saveLoading.value = !saveLoading.value;
+  saveConnection({ ...formData.value, port: parseInt(formData.value.port) });
+  saveLoading.value = !saveLoading.value;
 };
-defineExpose({
-  showMedal,
-});
+
+defineExpose({ showMedal });
 </script>
 <style lang="scss">
 .add-connect-modal-card {

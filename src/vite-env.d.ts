@@ -12,9 +12,14 @@ declare module '*.css';
 export interface IElectronAPI {
   openGitHub: () => void;
 }
+export interface IStoreAPI {
+  get: <T>(key: string, defaultValue: T) => Promise<T>;
+  set: <T>(key: string, value: T) => Promise<void>;
+}
 
 declare global {
   interface Window {
     electronAPI: IElectronAPI;
+    storeAPI: IStoreAPI;
   }
 }

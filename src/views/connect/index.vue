@@ -7,28 +7,20 @@
         </n-icon>
         <span>{{ $t('connection.new') }}</span>
       </div>
-      <div class="list-content">
-        <n-scrollbar style="height: 100%">
-          <div v-for="(item, index) in 100" :key="index" class="list-item">
-            {{ item + index }}
-          </div>
-        </n-scrollbar>
-      </div>
+      <connect-list />
+      <div class="connect-body"></div>
     </div>
-    <div class="connect-body"></div>
+    <add-connect-modal ref="addConnectModalRef" />
   </div>
-  <add-connect-modal ref="addConnectModalRef" />
 </template>
 
 <script setup lang="ts">
 import { Add } from '@vicons/carbon';
 import addConnectModal from './components/add-dialog.vue';
-
+import connectList from './components/connect-list.vue';
 const addConnectModalRef = ref();
 
-const addConnect = () => {
-  addConnectModalRef.value.showMedal();
-};
+const addConnect = () => addConnectModalRef.value.showMedal();
 </script>
 
 <style lang="scss" scoped>

@@ -14,7 +14,7 @@ const enUS = {
     port: 'Port',
     username: 'Username',
     password: 'Password',
-    finalUrl: 'Final URL',
+    queryParameters: 'query parameters',
   },
   form: {
     confirm: 'Confirm',
@@ -37,7 +37,7 @@ const zhCN = {
     port: '端口号',
     username: '用户名',
     password: '密码',
-    finalUrl: '最终地址',
+    queryParameters: '查询参数',
   },
   form: {
     confirm: '确认',

@@ -11,8 +11,13 @@ import install, { VUEJS_DEVTOOLS } from 'electron-devtools-assembler';
 import { menuTemplate } from './menu';
 import { debug } from '../common/debug';
 import { githubLink } from '../config';
+import Store from 'electron-store';
+import { registerStoreApiListener } from './storeApi';
 
 const isDev = process.env.APP_ENV === 'dev';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const store = new Store();
+
 const BrowserWindowOptions: BrowserWindowConstructorOptions = {
   width: 1200,
   minWidth: 900,
@@ -107,6 +112,7 @@ const createWindow = async () => {
 ipcMain.on('open-github', () => {
   shell.openExternal(githubLink);
 });
+registerStoreApiListener(ipcMain);
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
