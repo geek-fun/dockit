@@ -95,6 +95,7 @@
 
 <script setup lang="ts">
 import { Close } from '@vicons/carbon';
+import { CustomError } from '../../../common/customError';
 
 const showModal = ref(false);
 const modalTitle = ref('添加连接');
@@ -124,10 +125,11 @@ const testConnect = async () => {
     const result = await fetch(`${formOriginData.value.host}:${formOriginData.value.port}`, {
       method: 'GET',
     });
-    if (!result.ok) throw { status: result.status, message: await result.json() };
+    if (!result.ok) new CustomError(result.status, await result.json());
     message.success('connect success');
-  } catch (error) {
-    message.error(`status: ${error.status}, details: ${error.message}`, {
+  } catch (e) {
+    const error = e as CustomError;
+    message.error(`status: ${error.status}, details: ${error.details}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 36000000,
