@@ -43,6 +43,8 @@ import { useConnectionStore } from '../../../store/connectionStore';
 const emits = defineEmits(['edit-connect']);
 
 const appStore = useAppStore();
+const dialog = useDialog();
+const message = useMessage();
 
 const isZhCN = computed(() => {
   return appStore.languageType === 'zhCN';
@@ -92,7 +94,15 @@ const editCconnect = (row: object) => {
 };
 // TODO:delete connect
 const deleteConnect = (row: object) => {
-  console.log(row);
+  dialog.warning({
+    title: isZhCN ? '错误' : 'Warning',
+    content: isZhCN ? '确定删除此连接？' : 'Are you sure to delete this connection?',
+    positiveText: isZhCN ? '确定' : 'Sure',
+    negativeText: isZhCN ? '取消' : 'Cancel',
+    onPositiveClick: () => {
+      message.success('我就知道');
+    },
+  });
 };
 </script>
 
