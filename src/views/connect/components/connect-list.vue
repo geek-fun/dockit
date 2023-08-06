@@ -34,7 +34,6 @@
 </template>
 
 <script setup lang="ts">
-// TODO: fix bug
 import { MoreOutlined } from '@vicons/antd';
 import { ConnectionSignal, ConnectionSignalOff } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
