@@ -8,7 +8,11 @@
         <span>{{ $t('connection.new') }}</span>
       </div>
       <connect-list @edit-connect="editConnectHandler" />
-      <div class="connect-body"></div>
+    </div>
+    <div class="connect-body">
+      <n-config-provider :hljs="hljs">
+        <n-code :code="jsCode" language="javascript" show-line-numbers />
+      </n-config-provider>
     </div>
   </div>
   <add-connect-modal ref="addConnectModalRef" />
@@ -16,8 +20,14 @@
 
 <script setup lang="ts">
 import { Add } from '@vicons/carbon';
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/javascript';
+
 import addConnectModal from './components/add-dialog.vue';
 import connectList from './components/connect-list.vue';
+hljs.registerLanguage('javascript', javascript);
+
+// DOM
 const addConnectModalRef = ref();
 
 const addConnect = () => addConnectModalRef.value.showMedal();
@@ -25,6 +35,10 @@ const addConnect = () => addConnectModalRef.value.showMedal();
 const editConnectHandler = (row: object) => {
   addConnectModalRef.value.showMedal(row);
 };
+
+const jsCode = ref(`
+let java = 'hellow word!'
+`);
 </script>
 
 <style lang="scss" scoped>
@@ -52,6 +66,7 @@ const editConnectHandler = (row: object) => {
   .connect-body {
     flex: 1;
     width: 0;
+    height: 100%;
   }
 }
 </style>
