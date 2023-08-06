@@ -45,19 +45,11 @@ const getTheme = computed(() => {
 
 const locale = computed(() => {
   let langType = appStore.languageType;
-  let langName = langType;
-  if (langType === 'auto') {
-    langName = navigator.language === 'zh-CN' ? 'zhCN' : 'enUS';
-  }
-  return langName === 'zhCN' ? zhCN : enUS;
+  return langType === 'zhCN' ? zhCN : enUS;
 });
 const dateLocale = computed(() => {
   let langType = appStore.languageType;
-  let langName = langType;
-  if (langType === 'auto') {
-    langName = navigator.language === 'zh-CN' ? 'zhCN' : 'enUS';
-  }
-  return langName === 'zhCN' ? dateZhCN : dateEnUS;
+  return langType === 'zhCN' ? dateZhCN : dateEnUS;
 });
 const NaiveProviderContent = defineComponent({
   render() {

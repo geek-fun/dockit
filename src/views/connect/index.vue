@@ -7,11 +7,11 @@
         </n-icon>
         <span>{{ $t('connection.new') }}</span>
       </div>
-      <connect-list />
+      <connect-list @edit-connect="editConnectHandler" />
       <div class="connect-body"></div>
     </div>
-    <add-connect-modal ref="addConnectModalRef" />
   </div>
+  <add-connect-modal ref="addConnectModalRef" />
 </template>
 
 <script setup lang="ts">
@@ -21,6 +21,10 @@ import connectList from './components/connect-list.vue';
 const addConnectModalRef = ref();
 
 const addConnect = () => addConnectModalRef.value.showMedal();
+
+const editConnectHandler = (row: object) => {
+  addConnectModalRef.value.showMedal(row);
+};
 </script>
 
 <style lang="scss" scoped>

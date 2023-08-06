@@ -3,7 +3,7 @@ export const useAppStore = defineStore('app', {
   state() {
     return {
       themeType: 0, // 0 auto, 1: dark, 2: light
-      languageType: 'auto', // auto || zhCN || enUS
+      languageType: 'zhCN', // zhCN || enUS
     };
   },
   actions: {

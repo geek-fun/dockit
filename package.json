@@ -32,6 +32,7 @@
     "@types/node": "^20.4.7",
     "@typescript-eslint/eslint-plugin": "^6.2.1",
     "@typescript-eslint/parser": "^6.2.1",
+    "@vicons/antd": "^0.12.0",
     "@vicons/carbon": "^0.12.0",
     "@vitejs/plugin-vue": "^4.2.3",
     "concurrently": "^8.2.0",

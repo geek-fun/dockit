@@ -10,12 +10,16 @@ body,
   --text-color: #333;
   --border-color: #d1d1d1;
   --theme-color: #36ad6a;
+  --dange-color: #cd2158;
+  --connect-list-hover-bg: rgba(0, 0, 0, 0.05);
 }
 :root[theme='dark'] {
   --bg-color: #101014;
   --text-color: #f1f1f1;
   --border-color: #363b41;
   --theme-color: #36ad6a;
+  --dange-color: #cd2158;
+  --connect-list-hover-bg: rgba(255, 255, 255, 0.05);
 }
 
 body {

@@ -14,10 +14,16 @@
         </n-icon>
       </template>
       <div class="modal-content">
-        <n-form label-placement="left" label-width="100">
+        <n-form
+          ref="connectFormRef"
+          label-placement="left"
+          label-width="100"
+          :model="formData"
+          :rules="formRules"
+        >
           <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
             <n-grid-item span="8">
-              <n-form-item :label="$t('connection.name')">
+              <n-form-item :label="$t('connection.name')" path="name">
                 <n-input
                   v-model:value="formData.name"
                   clearable
@@ -26,7 +32,7 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="5">
-              <n-form-item :label="$t('connection.host')">
+              <n-form-item :label="$t('connection.host')" path="host">
                 <n-input
                   v-model:value="formData.host"
                   clearable
@@ -35,7 +41,7 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="3">
-              <n-form-item :label="$t('connection.port')">
+              <n-form-item :label="$t('connection.port')" path="port">
                 <n-input
                   v-model:value="formData.port"
                   clearable
@@ -44,7 +50,7 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="8">
-              <n-form-item :label="$t('connection.username')">
+              <n-form-item :label="$t('connection.username')" path="username">
                 <n-input
                   v-model:value="formData.username"
                   clearable
@@ -53,7 +59,7 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="8">
-              <n-form-item :label="$t('connection.password')">
+              <n-form-item :label="$t('connection.password')" path="password">
                 <n-input
                   v-model:value="formData.password"
                   type="password"
@@ -63,7 +69,7 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="8">
-              <n-form-item :label="$t('connection.queryParameters')">
+              <n-form-item :label="$t('connection.queryParameters')" path="queryParameters">
                 <n-input
                   v-model:value="formData.queryParameters"
                   clearable
@@ -97,12 +103,18 @@
 import { Close } from '@vicons/carbon';
 import { CustomError } from '../../../common/customError';
 import { useConnectionStore } from '../../../store/connectionStore';
+import { useAppStore } from '../../../store';
 const { testConnection, saveConnection } = useConnectionStore();
+
+const appStore = useAppStore();
+// DOM
+const connectFormRef = ref();
 
 const showModal = ref(false);
 const modalTitle = ref('添加连接');
 const testLoading = ref(false);
 const saveLoading = ref(false);
+
 const formOriginData = ref({
   name: '',
   host: '',
@@ -112,15 +124,78 @@ const formOriginData = ref({
   queryParameters: '',
 });
 const formData = ref(formOriginData.value);
+const formRules = reactive({
+  name: [
+    {
+      required: true,
+      renderMessage: () =>
+        appStore.languageType === 'zhCN' ? '请填写连接名称' : 'Name is required',
+      trigger: ['input', 'blur'],
+    },
+  ],
+  host: [
+    {
+      required: true,
+      renderMessage: () =>
+        appStore.languageType === 'zhCN' ? '请填写主机地址' : 'Hose is required',
+      trigger: ['input', 'blur'],
+    },
+  ],
+  port: [
+    {
+      required: true,
+      renderMessage: () => (appStore.languageType === 'zhCN' ? '请填写端口号' : 'Port is required'),
+      trigger: ['input', 'blur'],
+    },
+  ],
+  username: [
+    {
+      required: true,
+      renderMessage: () =>
+        appStore.languageType === 'zhCN' ? '请填写用户名' : 'Username is required',
+      trigger: ['input', 'blur'],
+    },
+  ],
+  password: [
+    {
+      required: true,
+      renderMessage: () =>
+        appStore.languageType === 'zhCN' ? '请填写密码' : 'Password is required',
+      trigger: ['input', 'blur'],
+    },
+  ],
+  queryParameters: [
+    {
+      required: true,
+      renderMessage: () =>
+        appStore.languageType === 'zhCN' ? '请填写查询参数' : 'queryParameters is required',
+      trigger: ['input', 'blur'],
+    },
+  ],
+});
 const message = useMessage();
-const showMedal = () => {
+
+const showMedal = (obj: object) => {
   showModal.value = true;
+  if (obj) {
+    // TODO:
+    formData.value = { ...obj };
+  }
 };
 const closeModal = () => {
   showModal.value = false;
 };
 
-const testConnect = async () => {
+const formValidation = async (event: MouseEvent): Promise<boolean> => {
+  event.preventDefault();
+  return connectFormRef.value?.validate(errors => {
+    return errors ? false : true;
+  });
+};
+
+const testConnect = async (event: MouseEvent) => {
+  const validation = await formValidation(event);
+  if (validation) return;
   testLoading.value = !testLoading.value;
   try {
     await testConnection({ ...formData.value, port: parseInt(formData.value.port) });
@@ -137,7 +212,8 @@ const testConnect = async () => {
   }
 };
 
-const saveConnect = () => {
+const saveConnect = async (event: MouseEvent) => {
+  await formValidation(event);
   saveLoading.value = !saveLoading.value;
   saveConnection({ ...formData.value, port: parseInt(formData.value.port) });
   saveLoading.value = !saveLoading.value;
