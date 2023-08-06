@@ -19,13 +19,16 @@ import BasicSetting from './components/basic.vue';
 .setting-container {
   height: 100%;
   width: 100%;
-  padding: 15px;
-  box-sizing: border-box;
   :deep(.n-tabs) {
     height: 100%;
+    .n-tabs-nav {
+      padding: 15px 0;
+      border-right: 1px solid var(--border-color);
+    }
     .n-tabs-nav-scroll-content {
       height: 100%;
-      width: 120px;
+      width: 200px;
+      border-right: unset !important;
       .n-tabs-wrapper {
         width: 100%;
       }
@@ -34,7 +37,7 @@ import BasicSetting from './components/basic.vue';
       }
     }
     .n-tab-pane {
-      padding-left: 30px;
+      padding: 15px 0 15px 30px;
     }
   }
 }
