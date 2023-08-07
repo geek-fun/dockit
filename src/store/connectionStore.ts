@@ -6,10 +6,10 @@ export type Connection = {
   id?: number;
   name: string;
   host: string;
-  port: number;
+  port: number | string;
   username?: string;
   password?: string;
-  linkUrl?: '';
+  queryParameters?: string;
 };
 const { storeAPI } = window;
 export const useConnectionStore = defineStore('connectionStore', {

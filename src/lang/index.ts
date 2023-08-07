@@ -15,6 +15,13 @@ const enUS = {
     username: 'Username',
     password: 'Password',
     queryParameters: 'query parameters',
+    add: 'Add connection',
+    testSuccess: 'connect success',
+    formValidation: {
+      nameRequired: 'Name is required',
+      hostRequired: 'Host is required',
+      portRequired: 'Port is required',
+    },
   },
   form: {
     confirm: 'Confirm',
@@ -38,6 +45,13 @@ const zhCN = {
     username: '用户名',
     password: '密码',
     queryParameters: '查询参数',
+    add: '添加连接',
+    testSuccess: '连接成功',
+    formValidation: {
+      nameRequired: '请输入连接名称',
+      hostRequired: '请输入主机地址',
+      portRequired: '请输入端口号',
+    },
   },
   form: {
     confirm: '确认',
@@ -51,12 +65,16 @@ if (langType === 'auto') {
   langName = navigator.language === 'zh-CN' ? 'zhCN' : 'enUS';
 }
 
-const i18n = createI18n({
+const lang = createI18n({
   globalInjection: true,
   locale: langName,
+  legacy: false,
   messages: {
     zhCN,
     enUS,
   },
 });
-export default i18n;
+import { useI18n } from 'vue-i18n';
+const useLang = useI18n;
+
+export { lang, useLang };

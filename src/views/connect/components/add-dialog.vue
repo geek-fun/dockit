@@ -83,13 +83,23 @@
       <template #footer>
         <div class="card-footer">
           <div class="left">
-            <n-button type="info" :loading="testLoading" @click="testConnect">
+            <n-button
+              type="info"
+              :loading="testLoading"
+              :disabled="!validationPassed"
+              @click="testConnect"
+            >
               {{ $t('connection.test') }}
             </n-button>
           </div>
           <div class="right">
             <n-button @click="closeModal">{{ $t('form.cancel') }}</n-button>
-            <n-button type="primary" :loading="saveLoading" @click="saveConnect">
+            <n-button
+              type="primary"
+              :loading="saveLoading"
+              :disabled="!validationPassed"
+              @click="saveConnect"
+            >
               {{ $t('form.confirm') }}
             </n-button>
           </div>
@@ -102,20 +112,21 @@
 <script setup lang="ts">
 import { Close } from '@vicons/carbon';
 import { CustomError } from '../../../common/customError';
-import { useConnectionStore } from '../../../store/connectionStore';
-import { useAppStore } from '../../../store';
-const { testConnection, saveConnection } = useConnectionStore();
+import { Connection, useConnectionStore } from '../../../store/connectionStore';
+import { useLang } from '../../../lang';
+import { FormValidationError } from 'naive-ui';
 
-const appStore = useAppStore();
+const { testConnection, saveConnection } = useConnectionStore();
+const lang = useLang();
 // DOM
 const connectFormRef = ref();
 
 const showModal = ref(false);
-const modalTitle = ref('添加连接');
+const modalTitle = ref(lang.t('connection.add'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
 
-const formOriginData = ref({
+const formData = ref<Connection>({
   name: '',
   host: '',
   port: '9200',
@@ -123,83 +134,55 @@ const formOriginData = ref({
   password: '',
   queryParameters: '',
 });
-const formData = ref(formOriginData.value);
 const formRules = reactive({
   name: [
     {
       required: true,
-      renderMessage: () =>
-        appStore.languageType === 'zhCN' ? '请填写连接名称' : 'Name is required',
+      renderMessage: () => lang.t('connection.formValidation.nameRequired'),
       trigger: ['input', 'blur'],
     },
   ],
   host: [
     {
       required: true,
-      renderMessage: () =>
-        appStore.languageType === 'zhCN' ? '请填写主机地址' : 'Hose is required',
+      renderMessage: () => lang.t('connection.formValidation.hostRequired'),
       trigger: ['input', 'blur'],
     },
   ],
   port: [
     {
       required: true,
-      renderMessage: () => (appStore.languageType === 'zhCN' ? '请填写端口号' : 'Port is required'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-  username: [
-    {
-      required: true,
-      renderMessage: () =>
-        appStore.languageType === 'zhCN' ? '请填写用户名' : 'Username is required',
-      trigger: ['input', 'blur'],
-    },
-  ],
-  password: [
-    {
-      required: true,
-      renderMessage: () =>
-        appStore.languageType === 'zhCN' ? '请填写密码' : 'Password is required',
-      trigger: ['input', 'blur'],
-    },
-  ],
-  queryParameters: [
-    {
-      required: true,
-      renderMessage: () =>
-        appStore.languageType === 'zhCN' ? '请填写查询参数' : 'queryParameters is required',
+      renderMessage: () => lang.t('connection.formValidation.portRequired'),
       trigger: ['input', 'blur'],
     },
   ],
 });
 const message = useMessage();
 
-const showMedal = (obj: object) => {
+const showMedal = (con: Connection | null) => {
   showModal.value = true;
-  if (obj) {
-    // TODO:
-    formData.value = { ...obj };
+  if (con) {
+    formData.value = con;
   }
 };
 const closeModal = () => {
   showModal.value = false;
 };
 
-const formValidation = async (event: MouseEvent): Promise<boolean> => {
-  event.preventDefault();
-  return connectFormRef.value?.validate(errors => {
-    return errors ? false : true;
-  });
-};
+const validationPassed = watch(formData.value, async () => {
+  try {
+    return await connectFormRef.value?.validate((errors: Array<FormValidationError>) => !errors);
+  } catch (e) {
+    return false;
+  }
+});
 
 const testConnect = async (event: MouseEvent) => {
-  const validation = await formValidation(event);
-  if (validation) return;
+  event.preventDefault();
   testLoading.value = !testLoading.value;
   try {
-    await testConnection({ ...formData.value, port: parseInt(formData.value.port) });
-    message.success('connect success');
+    await testConnection({ ...formData.value, port: parseInt(formData.value.port as string) });
+    message.success(lang.t('connection.testSuccess'));
   } catch (e) {
     const error = e as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -213,9 +196,9 @@ const testConnect = async (event: MouseEvent) => {
 };
 
 const saveConnect = async (event: MouseEvent) => {
-  await formValidation(event);
+  event.preventDefault();
   saveLoading.value = !saveLoading.value;
-  saveConnection({ ...formData.value, port: parseInt(formData.value.port) });
+  saveConnection({ ...formData.value, port: parseInt(formData.value.port as string) });
   saveLoading.value = !saveLoading.value;
   showModal.value = false;
 };
