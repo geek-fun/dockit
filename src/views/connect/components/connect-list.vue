@@ -16,7 +16,7 @@
             </n-icon>
           </div>
           <div class="name">{{ con.name }}</div>
-          <div class="opration">
+          <div class="operation">
             <n-dropdown
               trigger="hover"
               :options="options"
@@ -37,70 +37,57 @@
 import { MoreOutlined } from '@vicons/antd';
 import { ConnectionSignal, ConnectionSignalOff } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { useAppStore } from '../../../store';
-import { useConnectionStore } from '../../../store/connectionStore';
+import { Connection, useConnectionStore } from '../../../store/connectionStore';
+import { useLang } from '../../../lang';
 
 const emits = defineEmits(['edit-connect']);
 
-const appStore = useAppStore();
 const dialog = useDialog();
 const message = useMessage();
+const lang = useLang();
 
-const isZhCN = computed(() => {
-  return appStore.languageType === 'zhCN';
-});
 const options = reactive([
-  {
-    key: 1,
-    label: isZhCN.value ? '连接' : 'Connect',
-  },
-  {
-    key: 2,
-    label: isZhCN.value ? '编辑' : 'Edit',
-  },
-  {
-    key: 3,
-    label: isZhCN.value ? '删除' : 'Delete',
-  },
+  { key: 1, label: lang.t('connection.operations.connect') },
+  { key: 2, label: lang.t('connection.operations.edit') },
+  { key: 3, label: lang.t('connection.operations.remove') },
 ]);
 
 const connectionStore = useConnectionStore();
-const { fetchConnections } = connectionStore;
+const { fetchConnections, removeConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
-
 fetchConnections();
 
-// dropdown select handler
-const handleSelect = (key: number, row: object) => {
+const handleSelect = (key: number, connection: Connection) => {
   switch (key) {
     case 1:
-      connectItem(row);
+      establishConnect(connection);
       break;
     case 2:
-      editCconnect(row);
+      editConnect(connection);
       break;
     case 3:
-      deleteConnect(row);
+      removeConnect(connection);
       break;
   }
 };
 // TODO:connect to the item
-const connectItem = (row: object) => {
-  console.log(row);
+const establishConnect = (connection: Connection) => {
+  // eslint-disable-next-line no-console
+  console.log(connection);
 };
 // edit connect info
-const editCconnect = (row: object) => {
-  emits('edit-connect', row);
+const editConnect = (connection: Connection) => {
+  emits('edit-connect', connection);
 };
-// TODO:delete connect
-const deleteConnect = (row: object) => {
+const removeConnect = (connection: Connection) => {
   dialog.warning({
-    title: isZhCN ? '错误' : 'Warning',
-    content: isZhCN ? '确定删除此连接？' : 'Are you sure to delete this connection?',
-    positiveText: isZhCN ? '确定' : 'Sure',
-    negativeText: isZhCN ? '取消' : 'Cancel',
+    title: lang.t('dialogOps.warning'),
+    content: lang.t('dialogOps.removeNotice'),
+    positiveText: lang.t('dialogOps.confirm'),
+    negativeText: lang.t('dialogOps.cancel'),
     onPositiveClick: () => {
-      message.success('我就知道');
+      removeConnection(connection);
+      message.success(lang.t('dialogOps.removeSuccess'));
     },
   });
 };
@@ -111,9 +98,11 @@ const deleteConnect = (row: object) => {
   flex: 1;
   height: 0;
   padding-bottom: 10px;
+
   .scroll-container {
     padding: 0 10px;
   }
+
   .list-item {
     width: 100%;
     height: 32px;
@@ -121,6 +110,7 @@ const deleteConnect = (row: object) => {
     display: flex;
     align-items: center;
     cursor: pointer;
+
     .icon {
       height: 100%;
       width: 22px;
@@ -129,6 +119,7 @@ const deleteConnect = (row: object) => {
       justify-content: center;
       color: var(--dange-color);
     }
+
     .name {
       flex: 1;
       width: 0;
@@ -137,7 +128,8 @@ const deleteConnect = (row: object) => {
       text-overflow: ellipsis;
       white-space: nowrap;
     }
-    .opration {
+
+    .operation {
       height: 100%;
       width: 20px;
       display: none;
@@ -145,19 +137,23 @@ const deleteConnect = (row: object) => {
       justify-content: center;
     }
   }
+
   .list-item + .list-item {
     margin-top: 5px;
   }
+
   .list-item:hover {
     background-color: var(--connect-list-hover-bg);
-    .opration {
+
+    .operation {
       display: flex;
     }
   }
+
   .list-item.active {
     .icon,
     .name,
-    .opration {
+    .operation {
       color: var(--theme-color);
     }
   }

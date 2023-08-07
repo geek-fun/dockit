@@ -22,10 +22,18 @@ const enUS = {
       hostRequired: 'Host is required',
       portRequired: 'Port is required',
     },
+    operations: {
+      connect: 'Connect',
+      edit: 'Edit',
+      remove: 'Remove',
+    },
   },
-  form: {
+  dialogOps: {
+    warning: 'Warning',
+    removeNotice: 'Remove the connection permanently?',
     confirm: 'Confirm',
     cancel: 'Cancel',
+    removeSuccess: 'Connection removed successfully',
   },
 };
 
@@ -52,10 +60,18 @@ const zhCN = {
       hostRequired: '请输入主机地址',
       portRequired: '请输入端口号',
     },
+    operations: {
+      connect: '连接',
+      edit: '编辑',
+      remove: '删除',
+    },
   },
-  form: {
+  dialogOps: {
+    warning: '提示',
+    removeNotice: '确认删除该连接？',
     confirm: '确认',
     cancel: '取消',
+    removeSuccess: '连接删除成功',
   },
 };
 

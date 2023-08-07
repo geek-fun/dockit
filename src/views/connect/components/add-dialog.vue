@@ -93,14 +93,14 @@
             </n-button>
           </div>
           <div class="right">
-            <n-button @click="closeModal">{{ $t('form.cancel') }}</n-button>
+            <n-button @click="closeModal">{{ $t('dialogOps.cancel') }}</n-button>
             <n-button
               type="primary"
               :loading="saveLoading"
               :disabled="!validationPassed"
               @click="saveConnect"
             >
-              {{ $t('form.confirm') }}
+              {{ $t('dialogOps.confirm') }}
             </n-button>
           </div>
         </div>
