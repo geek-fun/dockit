@@ -15,7 +15,7 @@
       </n-config-provider>
     </div>
   </div>
-  <add-connect-modal ref="addConnectModalRef" />
+  <connect-modal ref="connectModalRef" />
 </template>
 
 <script setup lang="ts">
@@ -23,17 +23,18 @@ import { Add } from '@vicons/carbon';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 
-import addConnectModal from './components/add-dialog.vue';
+import ConnectModal from './components/connect-dialog.vue';
 import connectList from './components/connect-list.vue';
+
 hljs.registerLanguage('javascript', javascript);
 
 // DOM
-const addConnectModalRef = ref();
+const connectModalRef = ref();
 
-const addConnect = () => addConnectModalRef.value.showMedal();
+const addConnect = () => connectModalRef.value.showMedal();
 
 const editConnectHandler = (row: object) => {
-  addConnectModalRef.value.showMedal(row);
+  connectModalRef.value.showMedal(row);
 };
 
 const jsCode = ref(`
