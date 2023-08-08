@@ -10,9 +10,7 @@
       <connect-list @edit-connect="editConnectHandler" />
     </div>
     <div class="connect-body">
-      <n-config-provider :hljs="hljs">
-        <n-code :code="jsCode" language="javascript" show-line-numbers />
-      </n-config-provider>
+      <Editor />
     </div>
   </div>
   <connect-modal ref="connectModalRef" />
@@ -20,14 +18,10 @@
 
 <script setup lang="ts">
 import { Add } from '@vicons/carbon';
-import hljs from 'highlight.js/lib/core';
-import javascript from 'highlight.js/lib/languages/javascript';
 
 import ConnectModal from './components/connect-dialog.vue';
 import connectList from './components/connect-list.vue';
-
-hljs.registerLanguage('javascript', javascript);
-
+import Editor from '../editor/index.vue';
 // DOM
 const connectModalRef = ref();
 
@@ -36,10 +30,6 @@ const addConnect = () => connectModalRef.value.showMedal();
 const editConnectHandler = (row: object) => {
   connectModalRef.value.showMedal(row);
 };
-
-const jsCode = ref(`
-let java = 'hellow word!'
-`);
 </script>
 
 <style lang="scss" scoped>

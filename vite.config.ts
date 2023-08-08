@@ -30,6 +30,7 @@ export default defineConfig({
   resolve: {
     alias: {
       'vue-i18n': 'vue-i18n/dist/vue-i18n.cjs.js',
+      'monaco-editor': 'monaco-editor/esm/vs/editor/editor.api.js',
     },
   },
 });

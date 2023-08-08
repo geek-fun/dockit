@@ -24,8 +24,8 @@
         <div class="title">{{ $t('setting.language') }}</div>
         <div class="content">
           <n-radio-group v-model:value="langType" name="radiogroup" @update:value="langTypeChange">
-            <n-radio v-for="lang in langTypeList" :key="lang.type" :value="lang.type">
-              {{ lang.name }}
+            <n-radio v-for="langItem in langTypeList" :key="langItem.type" :value="langItem.type">
+              {{ langItem.name }}
             </n-radio>
           </n-radio-group>
         </div>
@@ -39,7 +39,7 @@ import lightImg from '../../../assets/img/theme-light.png';
 import darkImg from '../../../assets/img/theme-dark.png';
 import autoImg from '../../../assets/img/theme-auto.png';
 import { useAppStore } from '../../../store';
-import i18n from '../../../lang';
+import { lang } from '../../../lang';
 
 const appStore = useAppStore();
 const activeType = ref(appStore.themeType);
@@ -87,7 +87,7 @@ const langTypeChange = (value: string) => {
     value = navigator.language === 'zh-CN' ? 'zhCN' : 'enUS';
   }
   appStore.setLanguageType(value);
-  i18n.global.locale = value;
+  lang.global.locale.value = value;
 };
 </script>
 
