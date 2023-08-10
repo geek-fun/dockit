@@ -1,14 +1,7 @@
-import {
-  app,
-  shell,
-  BrowserWindow,
-  BrowserWindowConstructorOptions,
-  ipcMain,
-  Menu,
-} from 'electron';
+import { app, BrowserWindow, BrowserWindowConstructorOptions, ipcMain, shell } from 'electron';
 import path from 'path';
 import install, { VUEJS_DEVTOOLS } from 'electron-devtools-assembler';
-import { menuTemplate } from './menu';
+import { createMenu } from './menu';
 import { debug } from '../common/debug';
 import { githubLink } from '../config';
 import Store from 'electron-store';
@@ -45,11 +38,6 @@ const bypassCors = (mainWindow: BrowserWindow) => {
     });
   });
 };
-const createMenu = () => {
-  const menu = Menu.buildFromTemplate(menuTemplate);
-  Menu.setApplicationMenu(menu);
-};
-
 const loadWindowByUrl = async (mainWindow: BrowserWindow) => {
   for (let i = 0; i < 10; i++) {
     try {
