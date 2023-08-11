@@ -1,10 +1,10 @@
 <template>
-  <div id="editor" ref="editor"></div>
+  <div id="editor" ref="editorRef"></div>
 </template>
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
 import * as monaco from 'monaco-editor';
-
+import { useAppStore } from './../../store';
+const appStore = useAppStore();
 /**
  * refer https://github.com/wobsoriano/codeplayground
  * https://github.com/wobsoriano/codeplayground/blob/master/src/components/MonacoEditor.vue
@@ -309,10 +309,33 @@ monaco.languages.setMonarchTokensProvider('search', {
     ],
   },
 });
-const editor = ref();
+// DOM
+const editorRef = ref();
 
+const editorView = ref();
+const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
+const systemTheme = ref(themeMedia.matches);
+themeMedia.addListener(e => {
+  systemTheme.value = e.matches;
+});
+
+// set Editoer theme name
+const editorTheme = computed(() => {
+  // 'vs-dark',
+  let isDark = appStore.themeType === 0 ? !systemTheme.value : appStore.themeType === 1;
+  return isDark ? 'vs-dark' : 'vs-light';
+});
+
+watch(
+  () => editorTheme.value,
+  () => {
+    editorView.value.updateOptions({ theme: editorTheme.value });
+  },
+);
 onMounted(() => {
-  monaco.editor.create(editor.value, {
+  editorView.value = monaco.editor.create(editorRef.value, {
+    automaticLayout: true,
+    theme: editorTheme.value,
     value: `// Type source code in your language here...
 GET students/_search
 {
@@ -331,9 +354,9 @@ GET students/_search
 });
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
 #editor {
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
 }
 </style>

@@ -83,11 +83,8 @@ const setThemeType = (type: number) => {
 
 const langTypeChange = (value: string) => {
   langType.value = value;
-  if (value === 'auto') {
-    value = navigator.language === 'zh-CN' ? 'zhCN' : 'enUS';
-  }
   appStore.setLanguageType(value);
-  lang.global.locale.value = value;
+  lang.global.locale.value = appStore.languageName;
 };
 </script>
 

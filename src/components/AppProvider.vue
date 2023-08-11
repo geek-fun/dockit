@@ -44,11 +44,11 @@ const getTheme = computed(() => {
 });
 
 const locale = computed(() => {
-  let langType = appStore.languageType;
+  let langType = appStore.languageName;
   return langType === 'zhCN' ? zhCN : enUS;
 });
 const dateLocale = computed(() => {
-  let langType = appStore.languageType;
+  let langType = appStore.languageName;
   return langType === 'zhCN' ? dateZhCN : dateEnUS;
 });
 const NaiveProviderContent = defineComponent({

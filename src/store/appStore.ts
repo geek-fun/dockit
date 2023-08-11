@@ -3,7 +3,8 @@ export const useAppStore = defineStore('app', {
   state() {
     return {
       themeType: 0, // 0 auto, 1: dark, 2: light
-      languageType: 'zhCN', // zhCN || enUS
+      languageType: 'auto', // 0: auto, 1: zhCN, 2: enUS
+      languageName: 'zhCN', // zhCN || enUS
     };
   },
   actions: {
@@ -14,6 +15,11 @@ export const useAppStore = defineStore('app', {
     setLanguageType(args: string) {
       this.languageType = args;
       localStorage.setItem('lang', String(args));
+      if (args === 'auto') {
+        this.languageName = navigator.language === 'zh-CN' ? 'zhCN' : 'enUS';
+      } else {
+        this.languageName = args;
+      }
     },
   },
 });
