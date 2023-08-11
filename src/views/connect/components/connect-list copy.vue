@@ -11,7 +11,9 @@
           }"
         >
           <div class="icon">
-            <img src="./../../../assets/svg/elasticsearch.svg" />
+            <n-icon size="14">
+              <component :is="con.id === 7 ? ConnectionSignal : ConnectionSignalOff" />
+            </n-icon>
           </div>
           <div class="name">{{ con.name }}</div>
           <div class="operation">
@@ -33,6 +35,7 @@
 
 <script setup lang="ts">
 import { MoreOutlined } from '@vicons/antd';
+import { ConnectionSignal, ConnectionSignalOff } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { Connection, useConnectionStore } from '../../../store/connectionStore';
 import { useLang } from '../../../lang';
@@ -110,16 +113,11 @@ const removeConnect = (connection: Connection) => {
 
     .icon {
       height: 100%;
-      width: 26px;
+      width: 22px;
       display: flex;
       align-items: center;
       justify-content: center;
       color: var(--dange-color);
-      img {
-        height: 18px;
-        width: 18px;
-        filter: grayscale(1);
-      }
     }
 
     .name {
@@ -157,9 +155,6 @@ const removeConnect = (connection: Connection) => {
     .name,
     .operation {
       color: var(--theme-color);
-    }
-    .icon img {
-      filter: unset;
     }
   }
 }
