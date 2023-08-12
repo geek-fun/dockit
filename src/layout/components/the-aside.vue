@@ -24,28 +24,30 @@
 <script setup lang="ts">
 import { DataBase, Folders, LogoGithub, Settings, UserAvatar } from '@vicons/carbon';
 import { useLang } from './../../lang';
+import { useBus } from './../../utils';
 import theAsideIcon from './the-aside-icon.vue';
 const lang = useLang();
 const router = useRouter();
+const route = useRoute();
 
 const mainNavList = ref([
   {
     id: 'connect',
-    path: '/',
+    path: '/connect',
     name: lang.t('aside.connect'),
     icon: markRaw(DataBase),
     isLink: false,
   },
   {
     id: 'file',
-    path: '/',
+    path: '/connect',
     name: lang.t('aside.file'),
     icon: markRaw(Folders),
     isLink: false,
   },
   {
     id: 'github',
-    path: '/',
+    path: '/connect',
     name: lang.t('aside.github'),
     icon: markRaw(LogoGithub),
     isLink: true,
@@ -81,9 +83,13 @@ const navClick = (item: RouteItem) => {
   if (item.isLink && item.id === 'github') {
     window.electronAPI.openGitHub();
   } else {
-    router.push({
-      path: item.path,
-    });
+    if (route.path === item.path) {
+      useBus.emit('pannel-change');
+    } else {
+      router.push({
+        path: item.path,
+      });
+    }
   }
 };
 </script>
