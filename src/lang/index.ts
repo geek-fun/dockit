@@ -1,5 +1,12 @@
 import { createI18n } from 'vue-i18n';
 const enUS = {
+  aside: {
+    connect: 'Connect',
+    file: 'File',
+    github: 'GitHub',
+    user: 'User',
+    setting: 'Setting',
+  },
   setting: {
     basic: 'Basic',
     theme: 'Theme',
@@ -38,6 +45,13 @@ const enUS = {
 };
 
 const zhCN = {
+  aside: {
+    connect: '连接',
+    file: '文件',
+    github: 'GitHub',
+    user: '用户',
+    setting: '设置',
+  },
   setting: {
     basic: '通用设置',
     theme: '主题外观',
