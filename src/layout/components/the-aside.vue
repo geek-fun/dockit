@@ -1,73 +1,90 @@
 <template>
   <div class="left-aside">
-    <div class="nav-list">
-      <the-aside-icon popover-content="连接">
-        <div class="icon-item" @click="connectClick">
+    <div class="main-nav">
+      <the-aside-icon v-for="item in mainNavList" :key="item.path" :popover-content="item.name">
+        <div class="icon-item" @click="navClick(item)">
           <n-icon size="26">
-            <DataBase />
-          </n-icon>
-        </div>
-      </the-aside-icon>
-      <the-aside-icon popover-content="文件">
-        <div class="icon-item" @click="fileClick">
-          <n-icon size="26">
-            <Folders />
-          </n-icon>
-        </div>
-      </the-aside-icon>
-      <the-aside-icon popover-content="GitHub">
-        <div class="icon-item" @click="linkToGitHub">
-          <n-icon size="26">
-            <LogoGithub />
+            <component :is="item.icon" />
           </n-icon>
         </div>
       </the-aside-icon>
     </div>
-    <the-aside-icon popover-content="用户">
-      <div class="icon-item" @click="userClick">
-        <n-icon size="26">
-          <UserAvatar />
-        </n-icon>
-      </div>
-    </the-aside-icon>
-    <the-aside-icon popover-content="设置">
-      <div class="icon-item" @click="settingClick">
-        <n-icon size="26">
-          <Settings />
-        </n-icon>
-      </div>
-    </the-aside-icon>
+    <div class="samll-nav">
+      <the-aside-icon v-for="item in samllNavList" :key="item.path" :popover-content="item.name">
+        <div class="icon-item" @click="navClick(item)">
+          <n-icon size="26">
+            <component :is="item.icon" />
+          </n-icon>
+        </div>
+      </the-aside-icon>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { DataBase, Folders, LogoGithub, Settings, UserAvatar } from '@vicons/carbon';
+import { useLang } from './../../lang';
 import theAsideIcon from './the-aside-icon.vue';
-
+const lang = useLang();
 const router = useRouter();
-// open github lint at default Browser
-const linkToGitHub = () => {
-  window.electronAPI.openGitHub();
-};
-// TODO: connect icon click handle
-const connectClick = () => {
-  router.push({
+
+const mainNavList = ref([
+  {
+    id: 'connect',
     path: '/',
-  });
-};
-// TODO: file icon click handle
-const fileClick = () => {};
-// TODO: user icon click handle
-const userClick = () => {
-  router.push({
+    name: lang.t('aside.connect'),
+    icon: markRaw(DataBase),
+    isLink: false,
+  },
+  {
+    id: 'file',
     path: '/',
-  });
-};
-// TODO: setting icon click handle
-const settingClick = () => {
-  router.push({
+    name: lang.t('aside.file'),
+    icon: markRaw(Folders),
+    isLink: false,
+  },
+  {
+    id: 'github',
+    path: '/',
+    name: lang.t('aside.github'),
+    icon: markRaw(LogoGithub),
+    isLink: true,
+  },
+]);
+
+const samllNavList = ref([
+  {
+    path: '/',
+    id: 'user',
+    icon: markRaw(UserAvatar),
+    name: lang.t('aside.user'),
+    isLink: false,
+  },
+  {
     path: '/setting',
-  });
+    id: 'setting',
+    icon: markRaw(Settings),
+    name: lang.t('aside.setting'),
+    isLink: false,
+  },
+]);
+
+interface RouteItem {
+  path: string;
+  id: string;
+  icon: Component;
+  name: string;
+  isLink: boolean;
+}
+// nav click handler method
+const navClick = (item: RouteItem) => {
+  if (item.isLink && item.id === 'github') {
+    window.electronAPI.openGitHub();
+  } else {
+    router.push({
+      path: item.path,
+    });
+  }
 };
 </script>
 
@@ -75,12 +92,11 @@ const settingClick = () => {
 .left-aside {
   --aside-width: 60px;
   width: var(--aside-width);
-  padding: 10px 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border-color);
-  .nav-list {
+  .main-nav {
     flex: 1;
     height: 0;
   }

@@ -1,6 +1,6 @@
 <template>
   <div class="connect-container">
-    <div class="connect-list">
+    <div class="connect-list" v-if="false">
       <div class="add-connect" @click="addConnect">
         <n-icon size="28">
           <Add />
@@ -22,8 +22,14 @@ import { Add } from '@vicons/carbon';
 import ConnectModal from './components/connect-dialog.vue';
 import connectList from './components/connect-list.vue';
 import Editor from '../editor/index.vue';
+const router = useRouter();
+
 // DOM
 const connectModalRef = ref();
+
+onMounted(() => {
+  
+})
 
 const addConnect = () => connectModalRef.value.showMedal();
 
