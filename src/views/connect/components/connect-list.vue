@@ -7,13 +7,15 @@
           :key="con.id"
           class="list-item"
           :class="{
-            active: con.id === 7,
+            active: con.id === connectedId,
           }"
         >
-          <div class="icon">
-            <img src="./../../../assets/svg/elasticsearch.svg" />
+          <div class="left-box" @click="connectItem(con.id)">
+            <div class="icon">
+              <img src="./../../../assets/svg/elasticsearch.svg" />
+            </div>
+            <div class="name">{{ con.name }}</div>
           </div>
-          <div class="name">{{ con.name }}</div>
           <div class="operation">
             <n-dropdown
               trigger="hover"
@@ -48,7 +50,7 @@ const options = reactive([
   { key: 2, label: lang.t('connection.operations.edit') },
   { key: 3, label: lang.t('connection.operations.remove') },
 ]);
-
+const connectedId = ref();
 const connectionStore = useConnectionStore();
 const { fetchConnections, removeConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
@@ -65,6 +67,11 @@ const handleSelect = (key: number, connection: Connection) => {
     case 3:
       removeConnect(connection);
       break;
+  }
+};
+const connectItem = (id: number | undefined) => {
+  if ((id || id === 0) && connectedId.value !== id) {
+    connectedId.value = id;
   }
 };
 // TODO:connect to the item
@@ -107,28 +114,33 @@ const removeConnect = (connection: Connection) => {
     display: flex;
     align-items: center;
     cursor: pointer;
-
-    .icon {
-      height: 100%;
-      width: 26px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--dange-color);
-      img {
-        height: 18px;
-        width: 18px;
-        filter: grayscale(1);
-      }
-    }
-
-    .name {
+    .left-box {
       flex: 1;
       width: 0;
-      padding: 0 5px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      .icon {
+        height: 100%;
+        width: 26px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--dange-color);
+        img {
+          height: 18px;
+          width: 18px;
+          filter: grayscale(1);
+        }
+      }
+
+      .name {
+        flex: 1;
+        width: 0;
+        padding: 0 5px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
 
     .operation {

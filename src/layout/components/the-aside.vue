@@ -124,17 +124,29 @@ const navClick = (item: RouteItem) => {
   }
   .icon-item {
     height: var(--aside-width);
-    height: 50px;
+    height: 40px;
+    margin: 10px 0;
     display: flex;
+    box-sizing: border-box;
     justify-content: center;
     align-items: center;
     color: var(--text-color);
+    cursor: pointer;
     .n-icon {
-      cursor: pointer;
       opacity: 0.4;
       transition: 0.3s;
     }
     &.active {
+      position: relative;
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 5px;
+        background-color: var(--border-color);
+      }
       .n-icon {
         opacity: 1;
       }

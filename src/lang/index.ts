@@ -23,6 +23,7 @@ const enUS = {
     password: 'Password',
     queryParameters: 'query parameters',
     add: 'Add connection',
+    edit: 'Edit connection',
     testSuccess: 'connect success',
     formValidation: {
       nameRequired: 'Name is required',

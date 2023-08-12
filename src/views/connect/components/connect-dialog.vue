@@ -163,6 +163,7 @@ const showMedal = (con: Connection | null) => {
   showModal.value = true;
   if (con) {
     formData.value = con;
+    modalTitle.value = lang.t('connection.edit');
   }
 };
 const closeModal = () => {

@@ -31,6 +31,12 @@ const isPannelOpen = computed(() => {
   return appStore.connectPannel;
 });
 
+onMounted(() => {
+  if (!appStore.connectPannel) {
+    appStore.setConnectPannel();
+  }
+});
+
 const addConnect = () => connectModalRef.value.showMedal();
 
 const editConnectHandler = (row: object) => {
