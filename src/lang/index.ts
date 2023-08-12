@@ -69,6 +69,7 @@ const zhCN = {
     password: '密码',
     queryParameters: '查询参数',
     add: '添加连接',
+    edit: '编辑连接',
     testSuccess: '连接成功',
     formValidation: {
       nameRequired: '请输入连接名称',
