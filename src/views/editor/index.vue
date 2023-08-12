@@ -3,7 +3,7 @@
 </template>
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
-import { useAppStore } from './../../store';
+import { useAppStore } from '../../store';
 const appStore = useAppStore();
 /**
  * refer https://github.com/wobsoriano/codeplayground
@@ -132,27 +132,16 @@ monaco.languages.setMonarchTokensProvider('search', {
     '*',
     '/',
     '%',
-    '++',
-    '--',
     '<<',
-    '</',
     '>>',
     '>>>',
-    '&',
-    '|',
-    '^',
-    '!',
-    '~',
-    '&&',
-    '||',
-    '?',
-    ':',
-    '=',
     '+=',
     '-=',
     '*=',
-    '**=',
     '/=',
+    '&=',
+    '|=',
+    '^=',
     '%=',
     '<<=',
     '>>=',
@@ -332,11 +321,17 @@ watch(
     editorView.value.updateOptions({ theme: editorTheme.value });
   },
 );
-onMounted(() => {
-  editorView.value = monaco.editor.create(editorRef.value, {
-    automaticLayout: true,
-    theme: editorTheme.value,
-    value: `// Type source code in your language here...
+
+const decorations = [
+  {
+    range: new monaco.Range(2, 1, 2, 1),
+    options: {
+      isWholeLine: true,
+      linesDecorationsClassName: 'execute-button-decoration',
+    },
+  },
+];
+const code = `// Type source code in your language here...
 GET students/_search
 {
   "query": {
@@ -348,15 +343,34 @@ GET students/_search
     }
   }
 }
-`,
+`;
+
+onMounted(() => {
+  const editor = monaco.editor.create(editorRef.value, {
+    automaticLayout: true,
+    theme: editorTheme.value,
+    value: code,
     language: 'search',
+  });
+  editor.createDecorationsCollection(decorations);
+  editorView.value = editor;
+
+  editor.onMouseDown(function (e) {
+    // eslint-disable-next-line no-console
+    console.log('mousedown - ' + JSON.stringify(e));
   });
 });
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
 #editor {
   width: 100%;
   height: 100%;
+}
+.execute-button-decoration {
+  background: red;
+  cursor: pointer;
+  width: 15px !important;
+  margin-left: 3px;
 }
 </style>
