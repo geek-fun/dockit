@@ -1,7 +1,11 @@
 <template>
   <div class="left-aside">
     <div class="main-nav">
-      <the-aside-icon v-for="item in mainNavList" :key="item.path" :popover-content="item.name">
+      <the-aside-icon
+        v-for="item in mainNavList"
+        :key="item.path"
+        :popover-content="$t(`aside.${item.name}`)"
+      >
         <div
           class="icon-item"
           :class="{
@@ -16,7 +20,11 @@
       </the-aside-icon>
     </div>
     <div class="samll-nav">
-      <the-aside-icon v-for="item in samllNavList" :key="item.path" :popover-content="item.name">
+      <the-aside-icon
+        v-for="item in samllNavList"
+        :key="item.path"
+        :popover-content="$t(`aside.${item.name}`)"
+      >
         <div
           class="icon-item"
           :class="{
@@ -35,10 +43,8 @@
 
 <script setup lang="ts">
 import { DataBase, Folders, LogoGithub, Settings, UserAvatar } from '@vicons/carbon';
-import { useLang } from './../../lang';
 import { useAppStore } from './../../store';
 import theAsideIcon from './the-aside-icon.vue';
-const lang = useLang();
 const router = useRouter();
 const route = useRoute();
 const appStore = useAppStore();
@@ -47,21 +53,21 @@ const mainNavList = ref([
   {
     id: 'connect',
     path: '/connect',
-    name: lang.t('aside.connect'),
+    name: 'connect',
     icon: markRaw(DataBase),
     isLink: false,
   },
   {
     id: 'file',
     path: '/',
-    name: lang.t('aside.file'),
+    name: 'file',
     icon: markRaw(Folders),
     isLink: false,
   },
   {
     id: 'github',
     path: '',
-    name: lang.t('aside.github'),
+    name: 'github',
     icon: markRaw(LogoGithub),
     isLink: true,
   },
@@ -72,14 +78,14 @@ const samllNavList = ref([
     path: '/',
     id: 'user',
     icon: markRaw(UserAvatar),
-    name: lang.t('aside.user'),
+    name: 'user',
     isLink: false,
   },
   {
     path: '/setting',
     id: 'setting',
     icon: markRaw(Settings),
-    name: lang.t('aside.setting'),
+    name: 'setting',
     isLink: false,
   },
 ]);
