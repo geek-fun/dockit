@@ -1,6 +1,6 @@
 <template>
   <div class="connect-container">
-    <div class="connect-list" v-if="isPannelOpen">
+    <div v-if="isPannelOpen" class="connect-list">
       <div class="add-connect" @click="addConnect">
         <n-icon size="28">
           <Add />
@@ -21,22 +21,16 @@ import { Add } from '@vicons/carbon';
 import ConnectModal from './components/connect-dialog.vue';
 import connectList from './components/connect-list.vue';
 import Editor from '../editor/index.vue';
-import { useBus } from './../../utils';
+import { useAppStore } from './../../store';
+
+const appStore = useAppStore();
 // DOM
 const connectModalRef = ref();
 
-const isPannelOpen = ref(true);
-
-onMounted(() => {
-  useBus.on('pannel-change', pannelHandler);
-});
-onUnmounted(() => {
-  useBus.off('pannel-change');
+const isPannelOpen = computed(() => {
+  return appStore.connectPannel;
 });
 
-const pannelHandler = () => {
-  isPannelOpen.value = !isPannelOpen.value;
-};
 const addConnect = () => connectModalRef.value.showMedal();
 
 const editConnectHandler = (row: object) => {

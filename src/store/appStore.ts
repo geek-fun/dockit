@@ -5,6 +5,7 @@ export const useAppStore = defineStore('app', {
       themeType: 0, // 0 auto, 1: dark, 2: light
       languageType: 'auto', // 0: auto, 1: zhCN, 2: enUS
       languageName: 'zhCN', // zhCN || enUS
+      connectPannel: true, //
     };
   },
   actions: {
@@ -20,6 +21,9 @@ export const useAppStore = defineStore('app', {
       } else {
         this.languageName = args;
       }
+    },
+    setConnectPannel() {
+      this.connectPannel = !this.connectPannel;
     },
   },
 });

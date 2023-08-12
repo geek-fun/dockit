@@ -2,7 +2,13 @@
   <div class="left-aside">
     <div class="main-nav">
       <the-aside-icon v-for="item in mainNavList" :key="item.path" :popover-content="item.name">
-        <div class="icon-item" @click="navClick(item)">
+        <div
+          class="icon-item"
+          :class="{
+            active: isActive(item),
+          }"
+          @click="navClick(item)"
+        >
           <n-icon size="26">
             <component :is="item.icon" />
           </n-icon>
@@ -11,7 +17,13 @@
     </div>
     <div class="samll-nav">
       <the-aside-icon v-for="item in samllNavList" :key="item.path" :popover-content="item.name">
-        <div class="icon-item" @click="navClick(item)">
+        <div
+          class="icon-item"
+          :class="{
+            active: isActive(item),
+          }"
+          @click="navClick(item)"
+        >
           <n-icon size="26">
             <component :is="item.icon" />
           </n-icon>
@@ -24,11 +36,12 @@
 <script setup lang="ts">
 import { DataBase, Folders, LogoGithub, Settings, UserAvatar } from '@vicons/carbon';
 import { useLang } from './../../lang';
-import { useBus } from './../../utils';
+import { useAppStore } from './../../store';
 import theAsideIcon from './the-aside-icon.vue';
 const lang = useLang();
 const router = useRouter();
 const route = useRoute();
+const appStore = useAppStore();
 
 const mainNavList = ref([
   {
@@ -40,14 +53,14 @@ const mainNavList = ref([
   },
   {
     id: 'file',
-    path: '/connect',
+    path: '/',
     name: lang.t('aside.file'),
     icon: markRaw(Folders),
     isLink: false,
   },
   {
     id: 'github',
-    path: '/connect',
+    path: '',
     name: lang.t('aside.github'),
     icon: markRaw(LogoGithub),
     isLink: true,
@@ -78,13 +91,16 @@ interface RouteItem {
   name: string;
   isLink: boolean;
 }
+const isActive = (item: RouteItem) => {
+  return item.path === route.path;
+};
 // nav click handler method
 const navClick = (item: RouteItem) => {
   if (item.isLink && item.id === 'github') {
     window.electronAPI.openGitHub();
   } else {
     if (route.path === item.path) {
-      useBus.emit('pannel-change');
+      appStore.setConnectPannel();
     } else {
       router.push({
         path: item.path,
@@ -115,8 +131,13 @@ const navClick = (item: RouteItem) => {
     color: var(--text-color);
     .n-icon {
       cursor: pointer;
-      opacity: 0.5;
+      opacity: 0.4;
       transition: 0.3s;
+    }
+    &.active {
+      .n-icon {
+        opacity: 1;
+      }
     }
     &:hover {
       .n-icon {
