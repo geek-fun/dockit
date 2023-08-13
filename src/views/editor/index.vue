@@ -165,7 +165,11 @@ monaco.languages.setMonarchTokensProvider('search', {
 
   // The main tokenizer for our languages
   tokenizer: {
-    root: [[/[{}]/, 'delimiter.bracket'], { include: 'common' }],
+    root: [
+      [/^(GET|DELETE|POST|PUT)\s\w+/, 'action-execute-decoration'],
+      [/[{}]/, 'delimiter.bracket'],
+      { include: 'common' },
+    ],
 
     common: [
       // identifiers and keywords
@@ -298,6 +302,7 @@ monaco.languages.setMonarchTokensProvider('search', {
     ],
   },
 });
+
 // DOM
 const editorRef = ref();
 
@@ -344,7 +349,31 @@ GET students/_search
   }
 }
 `;
+const executionClass = 'action-execute-decoration';
+const refreshActionMarks = (editor: monaco.Editor) => {
+  // Get the model of the editor
+  const model = editor.getModel();
 
+  // Tokenize the entire content of the model
+  const tokens = monaco.editor.tokenize(model!.getValue(), model!.getLanguageId());
+  tokens.forEach((lineTokens, lineNumber) => {
+    lineTokens.forEach(token => {
+      if (token.type === 'action-execute-decoration.search') {
+        const startPos = model!.getPositionAt(token.offset);
+        const endPos = model!.getPositionAt(token.offset + token.length);
+        const range = new monaco.Range(
+          startPos.lineNumber,
+          startPos.column,
+          endPos.lineNumber,
+          endPos.column,
+        );
+        // eslint-disable-next-line no-console
+        console.log({ range, lineNumber, lineTokens, tokenLeng: token.length, endPos });
+        editor.deltaDecorations([], [{ range, options: { className: executionClass } }]);
+      }
+    });
+  });
+};
 onMounted(() => {
   const editor = monaco.editor.create(editorRef.value, {
     automaticLayout: true,
@@ -355,10 +384,12 @@ onMounted(() => {
   editor.createDecorationsCollection(decorations);
   editorView.value = editor;
 
-  editor.onMouseDown(function (e) {
+  editor.onMouseDown(e => {
     // eslint-disable-next-line no-console
     console.log('mousedown - ' + JSON.stringify(e));
   });
+
+  refreshActionMarks(editor);
 });
 </script>
 
@@ -369,6 +400,12 @@ onMounted(() => {
 }
 .execute-button-decoration {
   background: red;
+  cursor: pointer;
+  width: 15px !important;
+  margin-left: 3px;
+}
+.action-execute-decoration {
+  background: blue;
   cursor: pointer;
   width: 15px !important;
   margin-left: 3px;
