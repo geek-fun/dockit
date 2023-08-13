@@ -359,17 +359,14 @@ const refreshActionMarks = (editor: monaco.Editor) => {
   tokens.forEach((lineTokens, lineNumber) => {
     lineTokens.forEach(token => {
       if (token.type === 'action-execute-decoration.search') {
-        const startPos = model!.getPositionAt(token.offset);
-        const endPos = model!.getPositionAt(token.offset + token.length);
-        const range = new monaco.Range(
-          startPos.lineNumber,
-          startPos.column,
-          endPos.lineNumber,
-          endPos.column,
-        );
+        const lineContent = model.getLineContent(lineNumber + 1);
+        const range = new monaco.Range(lineNumber + 1, 0, lineNumber + 1, lineContent.length);
         // eslint-disable-next-line no-console
-        console.log({ range, lineNumber, lineTokens, tokenLeng: token.length, endPos });
-        editor.deltaDecorations([], [{ range, options: { className: executionClass } }]);
+        console.log({ range, lineNumber, lineTokens, lineContent });
+        editor.deltaDecorations(
+          [],
+          [{ range, options: { className: executionClass, isWholeLine: true } }],
+        );
       }
     });
   });
@@ -385,11 +382,10 @@ onMounted(() => {
   editorView.value = editor;
 
   editor.onMouseDown(e => {
+    refreshActionMarks(editor);
     // eslint-disable-next-line no-console
     console.log('mousedown - ' + JSON.stringify(e));
   });
-
-  refreshActionMarks(editor);
 });
 </script>
 
