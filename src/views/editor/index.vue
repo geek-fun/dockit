@@ -327,15 +327,6 @@ watch(
   },
 );
 
-const decorations = [
-  {
-    range: new monaco.Range(2, 1, 2, 1),
-    options: {
-      isWholeLine: true,
-      linesDecorationsClassName: 'execute-button-decoration',
-    },
-  },
-];
 const code = `// Type source code in your language here...
 GET students/_search
 {
@@ -349,27 +340,41 @@ GET students/_search
   }
 }
 `;
-const executionClass = 'action-execute-decoration';
+const executionGutterClass = 'execute-button-decoration';
+
+const executeDecorations = [];
 const refreshActionMarks = (editor: monaco.Editor) => {
   // Get the model of the editor
   const model = editor.getModel();
 
   // Tokenize the entire content of the model
   const tokens = monaco.editor.tokenize(model!.getValue(), model!.getLanguageId());
-  tokens.forEach((lineTokens, lineNumber) => {
+  tokens.forEach((lineTokens, lineIndex) => {
     lineTokens.forEach(token => {
       if (token.type === 'action-execute-decoration.search') {
-        const lineContent = model.getLineContent(lineNumber + 1);
-        const range = new monaco.Range(lineNumber + 1, 0, lineNumber + 1, lineContent.length);
-        // eslint-disable-next-line no-console
-        console.log({ range, lineNumber, lineTokens, lineContent });
-        editor.deltaDecorations(
-          [],
-          [{ range, options: { className: executionClass, isWholeLine: true } }],
-        );
+        const lineNumber = lineIndex + 1;
+        const decoration = {
+          id: `${lineNumber}-1${lineNumber}-1`,
+          range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+          options: {
+            isWholeLine: true,
+            linesDecorationsClassName: executionGutterClass,
+          },
+        };
+        executeDecorations.push(decoration);
+        editor.deltaDecorations([], executeDecorations);
       }
     });
   });
+};
+const executeQueryAction = (
+  editor: monaco.Editor,
+  position: { column: number; lineNumber: number },
+) => {
+  const model = editor.getModel();
+  const lineContent = model.getLineContent(position.lineNumber);
+  // eslint-disable-next-line no-console
+  console.log(`executeQueryAction ${lineContent}`);
 };
 onMounted(() => {
   const editor = monaco.editor.create(editorRef.value, {
@@ -378,13 +383,17 @@ onMounted(() => {
     value: code,
     language: 'search',
   });
-  editor.createDecorationsCollection(decorations);
   editorView.value = editor;
 
   editor.onMouseDown(e => {
     refreshActionMarks(editor);
-    // eslint-disable-next-line no-console
-    console.log('mousedown - ' + JSON.stringify(e));
+    if (
+      e.event.leftButton &&
+      e.target.type === 4 &&
+      Object.values(e.target!.element!.classList).includes(executionGutterClass)
+    ) {
+      executeQueryAction(editor, e.target.position);
+    }
   });
 });
 </script>
@@ -396,12 +405,6 @@ onMounted(() => {
 }
 .execute-button-decoration {
   background: red;
-  cursor: pointer;
-  width: 15px !important;
-  margin-left: 3px;
-}
-.action-execute-decoration {
-  background: blue;
   cursor: pointer;
   width: 15px !important;
   margin-left: 3px;
