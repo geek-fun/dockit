@@ -118,50 +118,13 @@ monaco.languages.setMonarchTokensProvider('search', {
 
   typeKeywords: ['any', 'boolean', 'number', 'object', 'string', 'undefined'],
 
-  operators: [
-    '<=',
-    '>=',
-    '==',
-    '!=',
-    '===',
-    '!==',
-    '=>',
-    '+',
-    '-',
-    '**',
-    '*',
-    '/',
-    '%',
-    '<<',
-    '>>',
-    '>>>',
-    '+=',
-    '-=',
-    '*=',
-    '/=',
-    '&=',
-    '|=',
-    '^=',
-    '%=',
-    '<<=',
-    '>>=',
-    '>>>=',
-    '&=',
-    '|=',
-    '^=',
-    '@',
-  ],
-
   // we include these common regular expressions
-  symbols: /[=><!~?:&|+\-*\/\^%]+/,
+  symbols: /[=><!~?:&|+\-*\\^%]+/,
   escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
   digits: /\d+(_+\d+)*/,
   octaldigits: /[0-7]+(_+[0-7]+)*/,
   binarydigits: /[0-1]+(_+[0-1]+)*/,
   hexdigits: /[[0-9a-fA-F]+(_+[0-9a-fA-F]+)*/,
-
-  regexpctl: /[(){}\[\]\$\^|\-*+?\.]/,
-  regexpesc: /\\(?:[bBdDfnrstvwWn0\\\/]|@regexpctl|c[A-Z]|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4})/,
 
   // The main tokenizer for our languages
   tokenizer: {
@@ -183,122 +146,47 @@ monaco.languages.setMonarchTokensProvider('search', {
           },
         },
       ],
-      [/[A-Z][\w\$]*/, 'type.identifier'], // to show class names nicely
-      // [/[A-Z][\w\$]*/, 'identifier'],
 
       // whitespace
       { include: '@whitespace' },
+      // json block
+      { include: '@json' },
+    ],
 
-      // regular expression: ensure it is terminated before beginning (otherwise it is an opeator)
-      [
-        /\/(?=([^\\\/]|\\.)+\/([gimsuy]*)(\s*)(\.|;|\/|,|\)|\]|\}|$))/,
-        { token: 'regexp', bracket: '@open', next: '@regexp' },
-      ],
+    json: [
+      // JSON strings
+      [/"(?:\\.|[^\\"])*"/, 'string'],
 
-      // delimiters and operators
-      [/[()\[\]]/, '@brackets'],
-      [/[<>](?!@symbols)/, '@brackets'],
-      [
-        /@symbols/,
-        {
-          cases: {
-            '@operators': 'delimiter',
-            '@default': '',
-          },
-        },
-      ],
+      // JSON numbers
+      [/-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, 'number'],
 
-      // numbers
-      [/(@digits)[eE]([\-+]?(@digits))?/, 'number.float'],
-      [/(@digits)\.(@digits)([eE][\-+]?(@digits))?/, 'number.float'],
-      [/0[xX](@hexdigits)/, 'number.hex'],
-      [/0[oO]?(@octaldigits)/, 'number.octal'],
-      [/0[bB](@binarydigits)/, 'number.binary'],
-      [/(@digits)/, 'number'],
+      // JSON booleans
+      [/\b(?:true|false)\b/, 'keyword'],
 
-      // delimiter: after number because of .\d floats
-      [/[;,.]/, 'delimiter'],
+      // JSON null
+      [/\bnull\b/, 'keyword'],
 
-      // strings
-      [/"([^"\\]|\\.)*$/, 'string.invalid'], // non-teminated string
-      [/'([^'\\]|\\.)*$/, 'string.invalid'], // non-teminated string
-      [/"/, 'string', '@string_double'],
-      [/'/, 'string', '@string_single'],
-      [/`/, 'string', '@string_backtick'],
+      // JSON property names
+      [/"(?:\\.|[^\\"])*"(?=\s*:)/, 'key'],
+
+      // JSON punctuation
+      [/[{}[\],:]/, 'delimiter'],
+
+      // JSON whitespace
+      { include: '@whitespace' },
     ],
 
     whitespace: [
       [/[ \t\r\n]+/, ''],
-      [/\/\*\*(?!\/)/, 'comment.doc', '@jsdoc'],
+      [/\/\*\*(?!\/)/, 'comment.doc'],
       [/\/\*/, 'comment', '@comment'],
       [/\/\/.*$/, 'comment'],
     ],
 
     comment: [
-      [/[^\/*]+/, 'comment'],
+      [/[^/*]+/, 'comment'],
       [/\*\//, 'comment', '@pop'],
-      [/[\/*]/, 'comment'],
-    ],
-
-    jsdoc: [
-      [/[^\/*]+/, 'comment.doc'],
-      [/\*\//, 'comment.doc', '@pop'],
-      [/[\/*]/, 'comment.doc'],
-    ],
-
-    // We match regular expression quite precisely
-    regexp: [
-      [
-        /(\{)(\d+(?:,\d*)?)(\})/,
-        ['regexp.escape.control', 'regexp.escape.control', 'regexp.escape.control'],
-      ],
-      [
-        /(\[)(\^?)(?=(?:[^\]\\\/]|\\.)+)/,
-        ['regexp.escape.control', { token: 'regexp.escape.control', next: '@regexrange' }],
-      ],
-      [/(\()(\?:|\?=|\?!)/, ['regexp.escape.control', 'regexp.escape.control']],
-      [/[()]/, 'regexp.escape.control'],
-      [/@regexpctl/, 'regexp.escape.control'],
-      [/[^\\\/]/, 'regexp'],
-      [/@regexpesc/, 'regexp.escape'],
-      [/\\\./, 'regexp.invalid'],
-      [/(\/)([gimsuy]*)/, [{ token: 'regexp', bracket: '@close', next: '@pop' }, 'keyword.other']],
-    ],
-
-    regexrange: [
-      [/-/, 'regexp.escape.control'],
-      [/\^/, 'regexp.invalid'],
-      [/@regexpesc/, 'regexp.escape'],
-      [/[^\]]/, 'regexp'],
-      [/\]/, { token: 'regexp.escape.control', next: '@pop', bracket: '@close' }],
-    ],
-
-    string_double: [
-      [/[^\\"]+/, 'string'],
-      [/@escapes/, 'string.escape'],
-      [/\\./, 'string.escape.invalid'],
-      [/"/, 'string', '@pop'],
-    ],
-
-    string_single: [
-      [/[^\\']+/, 'string'],
-      [/@escapes/, 'string.escape'],
-      [/\\./, 'string.escape.invalid'],
-      [/'/, 'string', '@pop'],
-    ],
-
-    string_backtick: [
-      [/\$\{/, { token: 'delimiter.bracket', next: '@bracketCounting' }],
-      [/[^\\`$]+/, 'string'],
-      [/@escapes/, 'string.escape'],
-      [/\\./, 'string.escape.invalid'],
-      [/`/, 'string', '@pop'],
-    ],
-
-    bracketCounting: [
-      [/\{/, 'delimiter.bracket', '@bracketCounting'],
-      [/\}/, 'delimiter.bracket', '@pop'],
-      { include: 'common' },
+      [/[/*]/, 'comment'],
     ],
   },
 });
@@ -339,10 +227,24 @@ GET students/_search
     }
   }
 }
+
+GET cat/_index
+
+GET students/_search
+{
+  "query": {
+    "bool": {
+      "filter": [
+        { "term":  { "honors": true }},
+        { "range": { "graduation_year": { "gte": 2020, "lte": 2022 }}}
+      ]
+    }
+  }
+}
 `;
 const executionGutterClass = 'execute-button-decoration';
 
-const executeDecorations = [];
+let executeDecorations = [];
 const refreshActionMarks = (editor: monaco.Editor) => {
   // Get the model of the editor
   const model = editor.getModel();
@@ -354,14 +256,24 @@ const refreshActionMarks = (editor: monaco.Editor) => {
       if (token.type === 'action-execute-decoration.search') {
         const lineNumber = lineIndex + 1;
         const decoration = {
-          id: `${lineNumber}-1${lineNumber}-1`,
+          id: lineNumber,
           range: new monaco.Range(lineNumber, 1, lineNumber, 1),
-          options: {
-            isWholeLine: true,
-            linesDecorationsClassName: executionGutterClass,
-          },
+          options: { isWholeLine: true, linesDecorationsClassName: executionGutterClass },
         };
-        executeDecorations.push(decoration);
+        const targetLine = executeDecorations.indexOf(item => item.id === lineNumber);
+        executeDecorations = executeDecorations.map(item => {
+          if (item.id === lineNumber) {
+            return decoration;
+          }
+          return item;
+        });
+        if (targetLine) {
+          executeDecorations.splice(executeDecorations.indexOf(targetLine), 1, decoration);
+        } else {
+          executeDecorations.push(decoration);
+        }
+        executeDecorations = executeDecorations.sort((a, b) => a.id - b.id);
+
         editor.deltaDecorations([], executeDecorations);
       }
     });
@@ -374,8 +286,11 @@ const executeQueryAction = (
   const model = editor.getModel();
   const lineContent = model.getLineContent(position.lineNumber);
   // eslint-disable-next-line no-console
-  console.log(`executeQueryAction ${lineContent}`);
+  console.log(`lineContent ${lineContent}`);
+  // eslint-disable-next-line no-console
+  console.log(`executeQueryAction ${JSON.stringify(executeDecorations)}`);
 };
+
 onMounted(() => {
   const editor = monaco.editor.create(editorRef.value, {
     automaticLayout: true,
@@ -384,7 +299,7 @@ onMounted(() => {
     language: 'search',
   });
   editorView.value = editor;
-
+  // Register language injection rule
   editor.onMouseDown(e => {
     refreshActionMarks(editor);
     if (
