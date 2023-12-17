@@ -3,193 +3,22 @@
 </template>
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
-import { useAppStore } from '../../store';
+import { storeToRefs } from 'pinia';
+import { searchTokensProvider } from '../../common/searchTokensProvider';
+import { useAppStore, useSourceFileStore } from '../../store';
+
 const appStore = useAppStore();
+
+const sourceFileStore = useSourceFileStore();
+const { readSourceFromFile } = sourceFileStore;
+const { defaultFile } = storeToRefs(sourceFileStore);
+readSourceFromFile();
 /**
  * refer https://github.com/wobsoriano/codeplayground
  * https://github.com/wobsoriano/codeplayground/blob/master/src/components/MonacoEditor.vue
  */
 monaco.languages.register({ id: 'search' });
-monaco.languages.setMonarchTokensProvider('search', {
-  // Set defaultToken to invalid to see what you do not tokenize yet
-  defaultToken: 'invalid',
-  tokenPostfix: '.search',
-
-  // keywords of elasticsearch
-  keywords: [
-    'GET',
-    'POST',
-    'PUT',
-    'DELETE',
-    'HEAD',
-    'OPTIONS',
-    'PATCH',
-    'TRACE',
-    'index',
-    'indices',
-    'type',
-    'types',
-    'from',
-    'size',
-    'explain',
-    'analyze',
-    'default_operator',
-    'df',
-    'analyzer',
-    'lenient',
-    'lowercase_expanded_terms',
-    'analyze_wildcard',
-    'all_shards',
-    'allow_no_indices',
-    'expand_wildcards',
-    'preference',
-    'routing',
-    'ignore_unavailable',
-    'allow_no_indices',
-    'ignore_throttled',
-    'search_type',
-    'batched_reduce_size',
-    'ccs_minimize_roundtrips',
-    'max_concurrent_shard_requests',
-    'pre_filter_shard_size',
-    'rest_total_hits_as_int',
-    'scroll',
-    'search_type',
-    'typed_keys',
-    'wait_for_active_shards',
-    'wait_for_completion',
-    'requests_per_second',
-    'slices',
-    'timeout',
-    'terminate_after',
-    'stats',
-    'version',
-    'version_type',
-    'if_seq_no',
-    'if_primary_term',
-    'refresh',
-    'routing',
-    'parent',
-    'preference',
-    'realtime',
-    'refresh',
-    'retry_on_conflict',
-    'timeout',
-    'version',
-    'version_type',
-    'if_seq_no',
-    'if_primary_term',
-    'pipeline',
-    'wait_for_active_shards',
-    'wait_for_completion',
-    'requests_per_second',
-    'slices',
-    'timeout',
-    'terminate_after',
-    'stats',
-    'version',
-    'version_type',
-    'if_seq_no',
-    'if_primary_term',
-    'refresh',
-    'routing',
-    'parent',
-    'preference',
-    'realtime',
-    'refresh',
-    'retry_on_conflict',
-    'timeout',
-    'version',
-    'version_type',
-    'if_seq_no',
-    'if_primary_term',
-    'pipeline',
-    'wait_for_active_shards',
-    'wait_for_completion',
-    'requests_per_second',
-    'slices',
-    'timeout',
-    'terminate_after',
-    'stats',
-    'version',
-    'version_type',
-    '_search',
-  ],
-
-  typeKeywords: ['any', 'boolean', 'number', 'object', 'string', 'undefined'],
-
-  // we include these common regular expressions
-  symbols: /[=><!~?:&|+\-*\\^%]+/,
-  escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
-  digits: /\d+(_+\d+)*/,
-  octaldigits: /[0-7]+(_+[0-7]+)*/,
-  binarydigits: /[0-1]+(_+[0-1]+)*/,
-  hexdigits: /[[0-9a-fA-F]+(_+[0-9a-fA-F]+)*/,
-
-  // The main tokenizer for our languages
-  tokenizer: {
-    root: [
-      [/^(GET|DELETE|POST|PUT)\s\w+/, 'action-execute-decoration'],
-      [/[{}]/, 'delimiter.bracket'],
-      { include: 'common' },
-    ],
-
-    common: [
-      // identifiers and keywords
-      [
-        /[a-z_$][\w$]*/,
-        {
-          cases: {
-            '@typeKeywords': 'keyword',
-            '@keywords': 'keyword',
-            '@default': 'identifier',
-          },
-        },
-      ],
-
-      // whitespace
-      { include: '@whitespace' },
-      // json block
-      { include: '@json' },
-    ],
-
-    json: [
-      // JSON strings
-      [/"(?:\\.|[^\\"])*"/, 'string'],
-
-      // JSON numbers
-      [/-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, 'number'],
-
-      // JSON booleans
-      [/\b(?:true|false)\b/, 'keyword'],
-
-      // JSON null
-      [/\bnull\b/, 'keyword'],
-
-      // JSON property names
-      [/"(?:\\.|[^\\"])*"(?=\s*:)/, 'key'],
-
-      // JSON punctuation
-      [/[{}[\],:]/, 'delimiter'],
-
-      // JSON whitespace
-      { include: '@whitespace' },
-    ],
-
-    whitespace: [
-      [/[ \t\r\n]+/, ''],
-      [/\/\*\*(?!\/)/, 'comment.doc'],
-      [/\/\*/, 'comment', '@comment'],
-      [/\/\/.*$/, 'comment'],
-    ],
-
-    comment: [
-      [/[^/*]+/, 'comment'],
-      [/\*\//, 'comment', '@pop'],
-      [/[/*]/, 'comment'],
-    ],
-  },
-});
+monaco.languages.setMonarchTokensProvider('search', searchTokensProvider);
 
 // DOM
 const editorRef = ref();
@@ -215,33 +44,8 @@ watch(
   },
 );
 
-const code = `// Type source code in your language here...
-GET students/_search
-{
-  "query": {
-    "bool": {
-      "filter": [
-        { "term":  { "honors": true }},
-        { "range": { "graduation_year": { "gte": 2020, "lte": 2022 }}}
-      ]
-    }
-  }
-}
+const code = defaultFile.value;
 
-GET cat/_index
-
-GET students/_search
-{
-  "query": {
-    "bool": {
-      "filter": [
-        { "term":  { "honors": true }},
-        { "range": { "graduation_year": { "gte": 2020, "lte": 2022 }}}
-      ]
-    }
-  }
-}
-`;
 const executionGutterClass = 'execute-button-decoration';
 
 let executeDecorations = [];

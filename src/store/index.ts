@@ -4,3 +4,5 @@ export default store;
 
 export * from './appStore';
 export * from './userStore';
+export * from './connectionStore';
+export * from './sourceFileStore';

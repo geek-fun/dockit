@@ -8,7 +8,7 @@
   "scripts": {
     "vite:start": "vite",
     "vite:build": "vue-tsc --noEmit && vite build",
-    "start": "tsc && cross-env APP_ENV=dev concurrently vite \" electron .\" \"tsc -w\"",
+    "start": "tsc && cross-env APP_ENV=dev DEBUG=dockit concurrently vite \" electron .\" \"tsc -w\"",
     "build": "npm run vite:build && tsc",
     "package": "npm run vite:build && tsc && electron-builder",
     "test": "jest --runInBand --coverage --coverageReporters json-summary text html lcov",

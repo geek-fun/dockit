@@ -36,8 +36,8 @@
 <script setup lang="ts">
 import { MoreOutlined } from '@vicons/antd';
 import { storeToRefs } from 'pinia';
-import { Connection, useConnectionStore } from '../../../store/connectionStore';
 import { useLang } from '../../../lang';
+import { Connection, useConnectionStore } from '../../../store';
 
 const emits = defineEmits(['edit-connect']);
 

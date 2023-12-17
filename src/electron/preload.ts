@@ -13,3 +13,9 @@ contextBridge.exposeInMainWorld('storeAPI', {
   set: async (key: string, value: unknown) =>
     ipcRenderer.invoke('storeAPI', { method: 'SET', key, value }),
 });
+
+contextBridge.exposeInMainWorld('sourceFileAPI', {
+  saveFile: async (content: string) =>
+    ipcRenderer.invoke('sourceFileAPI', { method: 'SAVE_FILE', content }),
+  readFile: async () => ipcRenderer.invoke('sourceFileAPI', { method: 'READ_FILE' }),
+});

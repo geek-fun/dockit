@@ -43,6 +43,16 @@ const menuTemplate = [
     ],
   },
   {
+    label: 'File',
+    submenu: [
+      {
+        label: 'Save',
+        accelerator: 'CmdOrCtrl+S',
+        selector: 'save:',
+      },
+    ],
+  },
+  {
     label: 'Edit',
     submenu: [
       {

@@ -17,9 +17,15 @@ export interface IStoreAPI {
   set: <T>(key: string, value: T) => Promise<void>;
 }
 
+export interface ISourceFileAPI {
+  saveFile: (content: string) => Promise<void>;
+  readFile: () => Promise<string>;
+}
+
 declare global {
   interface Window {
     electronAPI: IElectronAPI;
     storeAPI: IStoreAPI;
+    sourceFileAPI: ISourceFileAPI;
   }
 }
