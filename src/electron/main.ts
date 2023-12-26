@@ -20,7 +20,10 @@ const BrowserWindowOptions: BrowserWindowConstructorOptions = {
   show: false,
   alwaysOnTop: true,
   frame: true,
-  webPreferences: { preload: path.resolve(__dirname, 'preload.js'), devTools: isDev },
+  webPreferences: {
+    preload: path.resolve(__dirname, 'preload.js'),
+    devTools: isDev,
+  },
 };
 
 const bypassCors = (mainWindow: BrowserWindow) => {

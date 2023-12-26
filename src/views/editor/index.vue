@@ -13,6 +13,7 @@ const sourceFileStore = useSourceFileStore();
 const { readSourceFromFile } = sourceFileStore;
 const { defaultFile } = storeToRefs(sourceFileStore);
 readSourceFromFile();
+
 /**
  * refer https://github.com/wobsoriano/codeplayground
  * https://github.com/wobsoriano/codeplayground/blob/master/src/components/MonacoEditor.vue

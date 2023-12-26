@@ -6,11 +6,9 @@
           v-for="con in connections"
           :key="con.id"
           class="list-item"
-          :class="{
-            active: con.id === connectedId,
-          }"
+          :class="{ active: established && con.id === established.id }"
         >
-          <div class="left-box" @click="connectItem(con.id)">
+          <div class="left-box" @click="establishConnect(con)">
             <div class="icon">
               <img src="./../../../assets/svg/elasticsearch.svg" />
             </div>
@@ -50,10 +48,9 @@ const options = reactive([
   { key: 2, label: lang.t('connection.operations.edit') },
   { key: 3, label: lang.t('connection.operations.remove') },
 ]);
-const connectedId = ref();
 const connectionStore = useConnectionStore();
-const { fetchConnections, removeConnection } = connectionStore;
-const { connections } = storeToRefs(connectionStore);
+const { fetchConnections, removeConnection, establishConnection } = connectionStore;
+const { connections, established } = storeToRefs(connectionStore);
 fetchConnections();
 
 const handleSelect = (key: number, connection: Connection) => {
@@ -69,16 +66,14 @@ const handleSelect = (key: number, connection: Connection) => {
       break;
   }
 };
-const connectItem = (id: number | undefined) => {
-  if ((id || id === 0) && connectedId.value !== id) {
-    connectedId.value = id;
-  }
-};
+
 // TODO:connect to the item
 const establishConnect = (connection: Connection) => {
+  establishConnection(connection);
   // eslint-disable-next-line no-console
   console.log(connection);
 };
+
 // edit connect info
 const editConnect = (connection: Connection) => {
   emits('edit-connect', connection);

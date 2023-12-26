@@ -13,9 +13,10 @@ export type Connection = {
 };
 const { storeAPI } = window;
 export const useConnectionStore = defineStore('connectionStore', {
-  state(): { connections: Connection[] } {
+  state(): { connections: Connection[]; established: Connection | null } {
     return {
       connections: [],
+      established: null,
     };
   },
   getters: {},
@@ -53,6 +54,9 @@ export const useConnectionStore = defineStore('connectionStore', {
     removeConnection(connection: Connection) {
       this.connections = this.connections.filter(item => item.id !== connection.id);
       storeAPI.set('connections', pureObject(this.connections));
+    },
+    establishConnection(connection: Connection) {
+      this.established = connection;
     },
   },
 });
