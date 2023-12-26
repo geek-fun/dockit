@@ -25,21 +25,19 @@ export const useConnectionStore = defineStore('connectionStore', {
       this.connections = await storeAPI.get('connections', []);
     },
     async testConnection({ host, port }: Connection) {
-      {
-        try {
-          const result = await fetch(`${host}:${port}`, {
-            method: 'GET',
-          });
-          if (!result.ok) new CustomError(result.status, await result.json());
-        } catch (e) {
-          if (e instanceof CustomError) {
-            throw new CustomError(e.status, e.details);
-          }
-          if (e instanceof Error) {
-            throw new CustomError(500, e.message);
-          }
-          throw new CustomError(500, `unknown error, trace: ${JSON.stringify(e)}`);
+      try {
+        const result = await fetch(`${host}:${port}`, {
+          method: 'GET',
+        });
+        if (!result.ok) new CustomError(result.status, await result.json());
+      } catch (e) {
+        if (e instanceof CustomError) {
+          throw new CustomError(e.status, e.details);
         }
+        if (e instanceof Error) {
+          throw new CustomError(500, e.message);
+        }
+        throw new CustomError(500, `unknown error, trace: ${JSON.stringify(e)}`);
       }
     },
     saveConnection(connection: Connection) {

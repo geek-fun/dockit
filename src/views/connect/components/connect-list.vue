@@ -36,6 +36,8 @@ import { MoreOutlined } from '@vicons/antd';
 import { storeToRefs } from 'pinia';
 import { useLang } from '../../../lang';
 import { Connection, useConnectionStore } from '../../../store';
+import { debug } from '../../../common/debug';
+import { CustomError } from 'src/common/customError';
 
 const emits = defineEmits(['edit-connect']);
 
@@ -49,7 +51,7 @@ const options = reactive([
   { key: 3, label: lang.t('connection.operations.remove') },
 ]);
 const connectionStore = useConnectionStore();
-const { fetchConnections, removeConnection, establishConnection } = connectionStore;
+const { fetchConnections, removeConnection, establishConnection, testConnection } = connectionStore;
 const { connections, established } = storeToRefs(connectionStore);
 fetchConnections();
 
@@ -67,11 +69,19 @@ const handleSelect = (key: number, connection: Connection) => {
   }
 };
 
-// TODO:connect to the item
-const establishConnect = (connection: Connection) => {
-  establishConnection(connection);
-  // eslint-disable-next-line no-console
-  console.log(connection);
+const establishConnect = async (connection: Connection) => {
+  try {
+    await testConnection(connection);
+    establishConnection(connection);
+  } catch (err) {
+    const error = err as CustomError;
+    message.error(`status: ${error.status}, details: ${error.details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 36000000,
+    });
+    debug('connect error');
+  }
 };
 
 // edit connect info
