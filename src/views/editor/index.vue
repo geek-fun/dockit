@@ -48,42 +48,34 @@ watch(
 const code = defaultFile.value;
 
 const executionGutterClass = 'execute-button-decoration';
+const executeDecorationType = 'action-execute-decoration.search';
+type Decoration = {
+  id: number;
+  range: monaco.Range;
+  options: { isWholeLine: boolean; linesDecorationsClassName: string };
+};
+let executeDecorations: Array<Decoration> = [];
 
-let executeDecorations = [];
 const refreshActionMarks = (editor: monaco.Editor) => {
   // Get the model of the editor
   const model = editor.getModel();
 
   // Tokenize the entire content of the model
   const tokens = monaco.editor.tokenize(model!.getValue(), model!.getLanguageId());
-  tokens.forEach((lineTokens, lineIndex) => {
-    lineTokens.forEach(token => {
-      if (token.type === 'action-execute-decoration.search') {
-        const lineNumber = lineIndex + 1;
-        const decoration = {
-          id: lineNumber,
-          range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+  const freshedDecorations = tokens
+    .map(
+      (line, lineIndex) =>
+        line.some(({ type }) => type === executeDecorationType) && {
+          id: lineIndex + 1,
+          range: new monaco.Range(lineIndex + 1, 1, lineIndex + 1, 1),
           options: { isWholeLine: true, linesDecorationsClassName: executionGutterClass },
-        };
-        const targetLine = executeDecorations.indexOf(item => item.id === lineNumber);
-        executeDecorations = executeDecorations.map(item => {
-          if (item.id === lineNumber) {
-            return decoration;
-          }
-          return item;
-        });
-        if (targetLine) {
-          executeDecorations.splice(executeDecorations.indexOf(targetLine), 1, decoration);
-        } else {
-          executeDecorations.push(decoration);
-        }
-        executeDecorations = executeDecorations.sort((a, b) => a.id - b.id);
-
-        editor.deltaDecorations([], executeDecorations);
-      }
-    });
-  });
+        },
+    )
+    .filter(Boolean) as Array<Decoration>;
+  // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
+  executeDecorations = editor.deltaDecorations(executeDecorations, freshedDecorations);
 };
+
 const executeQueryAction = (
   editor: monaco.Editor,
   position: { column: number; lineNumber: number },
@@ -105,8 +97,10 @@ onMounted(() => {
   });
   editorView.value = editor;
   // Register language injection rule
-  editor.onMouseDown(e => {
+  editor.onKeyUp(e => {
     refreshActionMarks(editor);
+  });
+  editor.onMouseDown(e => {
     if (
       e.event.leftButton &&
       e.target.type === 4 &&
@@ -123,6 +117,7 @@ onMounted(() => {
   width: 100%;
   height: 100%;
 }
+
 .execute-button-decoration {
   background: red;
   cursor: pointer;
