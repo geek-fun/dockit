@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
-import { CustomError } from '../common/customError';
-import { pureObject } from '../common/pureObject';
+import { CustomError, pureObject } from '../common';
 
 export type Connection = {
   id?: number;

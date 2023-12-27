@@ -111,7 +111,7 @@
 
 <script setup lang="ts">
 import { Close } from '@vicons/carbon';
-import { CustomError } from '../../../common/customError';
+import { CustomError } from '../../../common';
 import { Connection, useConnectionStore } from '../../../store/connectionStore';
 import { useLang } from '../../../lang';
 import { FormValidationError } from 'naive-ui';

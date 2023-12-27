@@ -2,7 +2,7 @@ import { app, BrowserWindow, BrowserWindowConstructorOptions, ipcMain, shell } f
 import path from 'path';
 import install, { VUEJS_DEVTOOLS } from 'electron-devtools-assembler';
 import { createMenu } from './menu';
-import { debug } from '../common/debug';
+import { debug } from '../common';
 import { githubLink } from '../config';
 import Store from 'electron-store';
 import { registerStoreApiListener } from './storeApi';

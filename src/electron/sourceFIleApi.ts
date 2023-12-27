@@ -2,7 +2,7 @@ import Electron from 'electron';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
-import { debug } from '../common/debug';
+import { debug } from '../common';
 
 export enum sourceFileApiMethods {
   SAVE_FILE = 'SAVE_FILE',

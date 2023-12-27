@@ -36,8 +36,7 @@ import { MoreOutlined } from '@vicons/antd';
 import { storeToRefs } from 'pinia';
 import { useLang } from '../../../lang';
 import { Connection, useConnectionStore } from '../../../store';
-import { debug } from '../../../common/debug';
-import { CustomError } from 'src/common/customError';
+import { debug, CustomError } from '../../../common';
 
 const emits = defineEmits(['edit-connect']);
 

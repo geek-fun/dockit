@@ -4,7 +4,7 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
-import { searchTokensProvider } from '../../common/searchTokensProvider';
+import { searchTokensProvider } from '../../common';
 import { useAppStore, useSourceFileStore } from '../../store';
 
 const appStore = useAppStore();
