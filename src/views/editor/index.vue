@@ -56,13 +56,12 @@ type Decoration = {
 };
 let executeDecorations: Array<Decoration> = [];
 
-const refreshActionMarks = (editor: monaco.Editor) => {
+const getActionMarksDecorations = (editor: monaco.Editor): Array<Decoration> => {
   // Get the model of the editor
   const model = editor.getModel();
-
   // Tokenize the entire content of the model
   const tokens = monaco.editor.tokenize(model!.getValue(), model!.getLanguageId());
-  const freshedDecorations = tokens
+  return tokens
     .map(
       (line, lineIndex) =>
         line.some(({ type }) => type === executeDecorationType) && {
@@ -71,21 +70,48 @@ const refreshActionMarks = (editor: monaco.Editor) => {
           options: { isWholeLine: true, linesDecorationsClassName: executionGutterClass },
         },
     )
-    .filter(Boolean) as Array<Decoration>;
+    .filter(Boolean)
+    .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
+};
+
+const refreshActionMarks = (editor: monaco.Editor) => {
+  const freshedDecorations = getActionMarksDecorations(editor);
   // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
   executeDecorations = editor.deltaDecorations(executeDecorations, freshedDecorations);
 };
+const getAction = (editor: monaco.Editor, startLine: number) => {
+  const model = editor.getModel();
+  const action = model.getLineContent(startLine);
 
+  let payload = '';
+  // Get  non-comment payload
+  for (let lineNumber = startLine + 1; lineNumber <= model.getLineCount(); lineNumber++) {
+    const lineContent = model.getLineContent(lineNumber);
+    if (lineContent.trim() === '') {
+      break;
+    }
+    if (lineContent.trim().startsWith('//')) {
+      continue;
+    }
+    payload += lineContent;
+  }
+
+  return { payload, action };
+};
 const executeQueryAction = (
   editor: monaco.Editor,
   position: { column: number; lineNumber: number },
 ) => {
-  const model = editor.getModel();
-  const lineContent = model.getLineContent(position.lineNumber);
+  const { action, payload } = getAction(editor, position.lineNumber);
+
   // eslint-disable-next-line no-console
-  console.log(`lineContent ${lineContent}`);
-  // eslint-disable-next-line no-console
-  console.log(`executeQueryAction ${JSON.stringify(executeDecorations)}`);
+  console.log(
+    `executeQueryAction ${JSON.stringify({
+      executeDecorations,
+      payload,
+      action,
+    })}`,
+  );
 };
 
 onMounted(() => {
@@ -97,9 +123,7 @@ onMounted(() => {
   });
   editorView.value = editor;
   // Register language injection rule
-  editor.onKeyUp(e => {
-    refreshActionMarks(editor);
-  });
+  editor.onKeyUp(e => refreshActionMarks(editor));
   editor.onMouseDown(e => {
     if (
       e.event.leftButton &&
