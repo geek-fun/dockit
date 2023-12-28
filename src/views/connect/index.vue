@@ -10,7 +10,12 @@
       <connect-list @edit-connect="editConnectHandler" />
     </div>
     <div class="connect-body">
-      <Editor />
+      <div class="table-select">
+        <table-select />
+      </div>
+      <div class="editor-container">
+        <Editor />
+      </div>
     </div>
   </div>
   <connect-modal ref="connectModalRef" />
@@ -20,6 +25,7 @@
 import { Add } from '@vicons/carbon';
 import ConnectModal from './components/connect-dialog.vue';
 import connectList from './components/connect-list.vue';
+import tableSelect from './components/table-select.vue';
 import Editor from '../editor/index.vue';
 import { useAppStore } from './../../store';
 
@@ -70,6 +76,16 @@ const editConnectHandler = (row: object) => {
     flex: 1;
     width: 0;
     height: 100%;
+    display: flex;
+    flex-direction: column;
+    .table-select {
+      height: 40px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .editor-container {
+      flex: 1;
+      height: 0;
+    }
   }
 }
 </style>
