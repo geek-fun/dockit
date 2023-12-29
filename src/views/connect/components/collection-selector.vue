@@ -1,20 +1,32 @@
 <template>
-  <div class="table-select-container">
-    <n-select v-model:value="value" :options="options" placeholder="no table selected" />
+  <div class="collection-selector-container">
+    <n-select
+      :options="options"
+      placeholder="No collection/index selected"
+      @update:value="handleUpdateValue"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-const value = ref(null);
+import { storeToRefs } from 'pinia';
+import { useConnectionStore } from '../../../store';
 
-const options = ref([
-  { label: '1', value: 2 },
-  { label: '2', value: 1 },
-]);
+const connectionStore = useConnectionStore();
+const { establishedIndexNames } = storeToRefs(connectionStore);
+
+// build options list
+const options = computed(() =>
+  establishedIndexNames.value.map(name => ({ label: name, value: name })),
+);
+
+const handleUpdateValue = (value: string) => {
+  connectionStore.selectIndex(value);
+};
 </script>
 
 <style lang="scss" scoped>
-.table-select-container {
+.collection-selector-container {
   height: 100%;
   width: 260px;
   display: flex;

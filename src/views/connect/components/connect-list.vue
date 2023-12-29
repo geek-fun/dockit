@@ -50,7 +50,7 @@ const options = reactive([
   { key: 3, label: lang.t('connection.operations.remove') },
 ]);
 const connectionStore = useConnectionStore();
-const { fetchConnections, removeConnection, establishConnection, testConnection } = connectionStore;
+const { fetchConnections, removeConnection, establishConnection } = connectionStore;
 const { connections, established } = storeToRefs(connectionStore);
 fetchConnections();
 
@@ -70,8 +70,7 @@ const handleSelect = (key: number, connection: Connection) => {
 
 const establishConnect = async (connection: Connection) => {
   try {
-    await testConnection(connection);
-    establishConnection(connection);
+    await establishConnection(connection);
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {

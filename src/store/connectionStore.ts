@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
-import { CustomError, pureObject } from '../common';
+import { pureObject } from '../common';
+import { loadHttpClient } from '../common/httpClient';
 
 export type Connection = {
   id?: number;
@@ -10,34 +11,51 @@ export type Connection = {
   password?: string;
   queryParameters?: string;
 };
+export type ConnectionIndex = {
+  health: string;
+  status: string;
+  index: string;
+  uuid: string;
+  docs: {
+    count: number;
+    deleted: number;
+  };
+  store: {
+    size: string;
+  };
+  pri: {
+    store: {
+      size: string;
+    };
+  };
+};
+
 const { storeAPI } = window;
+
 export const useConnectionStore = defineStore('connectionStore', {
-  state(): { connections: Connection[]; established: Connection | null } {
+  state(): {
+    connections: Connection[];
+    established:
+      | (Connection & { indices: Array<ConnectionIndex>; activeIndex: ConnectionIndex })
+      | null;
+  } {
     return {
       connections: [],
       established: null,
     };
   },
-  getters: {},
+  getters: {
+    establishedIndexNames(state) {
+      return state.established?.indices.map(({ index }) => index) ?? [];
+    },
+  },
   actions: {
     async fetchConnections() {
       this.connections = await storeAPI.get('connections', []);
     },
     async testConnection({ host, port }: Connection) {
-      try {
-        const result = await fetch(`${host}:${port}`, {
-          method: 'GET',
-        });
-        if (!result.ok) new CustomError(result.status, await result.json());
-      } catch (e) {
-        if (e instanceof CustomError) {
-          throw new CustomError(e.status, e.details);
-        }
-        if (e instanceof Error) {
-          throw new CustomError(500, e.message);
-        }
-        throw new CustomError(500, `unknown error, trace: ${JSON.stringify(e)}`);
-      }
+      const client = loadHttpClient(host, parseInt(`${port}`, 10));
+      return await client.get();
     },
     saveConnection(connection: Connection) {
       const index = this.connections.findIndex(item => item.id === connection.id);
@@ -52,37 +70,31 @@ export const useConnectionStore = defineStore('connectionStore', {
       this.connections = this.connections.filter(item => item.id !== connection.id);
       storeAPI.set('connections', pureObject(this.connections));
     },
-    establishConnection(connection: Connection) {
-      this.established = connection;
+    async establishConnection(connection: Connection) {
+      await this.testConnection(connection);
+      const client = loadHttpClient(connection?.host, parseInt(`${connection?.port}`, 10));
+
+      const data = await client.get('/_cat/indices', 'format=json');
+      const indices = data.map(index => ({
+        ...index,
+        docs: {
+          count: parseInt(index['docs.count'], 10),
+          deleted: parseInt(index['docs.deleted'], 10),
+        },
+        store: { size: index['store.size'] },
+      }));
+      this.established = { ...connection, indices };
+    },
+    selectIndex(indexName: string) {
+      this.established = {
+        ...this.established,
+        activeIndex: this.established.indices.find(({ index }) => index === indexName),
+      };
     },
     async searchQDSL(index: string | undefined, qdsl: string) {
-      const url = index
-        ? `${this.established?.host}:${this.established?.port}/${index}/_search`
-        : `${this.established?.host}:${this.established?.port}/_search?`;
+      const client = loadHttpClient(this.established?.host, this.established?.port);
 
-      // eslint-disable-next-line no-console
-      console.log(`searchQDSL_URL ${url}`);
-      try {
-        const response = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: qdsl,
-        });
-        const data = await response.json();
-        if (!response.ok) throw new CustomError(response.status, data);
-        return data;
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.log(`searchQDSL error ${JSON.stringify({ err })}`);
-
-        if (err instanceof CustomError) {
-          throw new CustomError(err.status, err.details);
-        }
-        if (err instanceof Error) {
-          throw new CustomError(500, err.message);
-        }
-        throw new CustomError(500, `unknown error, trace: ${JSON.stringify(err)}`);
-      }
+      return client.post(index ? '/${index}/_search' : '/_search', undefined, JSON.parse(qdsl));
     },
   },
 });

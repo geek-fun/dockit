@@ -11,7 +11,7 @@
     </div>
     <div class="connect-body">
       <div class="table-select">
-        <table-select />
+        <collection-selector />
       </div>
       <div class="editor-container">
         <Editor />
@@ -25,7 +25,7 @@
 import { Add } from '@vicons/carbon';
 import ConnectModal from './components/connect-dialog.vue';
 import connectList from './components/connect-list.vue';
-import tableSelect from './components/table-select.vue';
+import collectionSelector from './components/collection-selector.vue';
 import Editor from '../editor/index.vue';
 import { useAppStore } from './../../store';
 
