@@ -55,5 +55,34 @@ export const useConnectionStore = defineStore('connectionStore', {
     establishConnection(connection: Connection) {
       this.established = connection;
     },
+    async searchQDSL(index: string | undefined, qdsl: string) {
+      const url = index
+        ? `${this.established?.host}:${this.established?.port}/${index}/_search`
+        : `${this.established?.host}:${this.established?.port}/_search?`;
+
+      // eslint-disable-next-line no-console
+      console.log(`searchQDSL_URL ${url}`);
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: qdsl,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new CustomError(response.status, data);
+        return data;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.log(`searchQDSL error ${JSON.stringify({ err })}`);
+
+        if (err instanceof CustomError) {
+          throw new CustomError(err.status, err.details);
+        }
+        if (err instanceof Error) {
+          throw new CustomError(500, err.message);
+        }
+        throw new CustomError(500, `unknown error, trace: ${JSON.stringify(err)}`);
+      }
+    },
   },
 });

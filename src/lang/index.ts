@@ -43,6 +43,9 @@ const enUS = {
     cancel: 'Cancel',
     removeSuccess: 'Connection removed successfully',
   },
+  editor: {
+    establishedRequired: 'Select a DB instance before execute actions',
+  },
 };
 
 const zhCN = {
@@ -88,6 +91,9 @@ const zhCN = {
     confirm: '确认',
     cancel: '取消',
     removeSuccess: '连接删除成功',
+  },
+  editor: {
+    establishedRequired: '请选择执行操作的数据库实例',
   },
 };
 

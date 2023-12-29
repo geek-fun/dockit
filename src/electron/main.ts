@@ -23,6 +23,7 @@ const BrowserWindowOptions: BrowserWindowConstructorOptions = {
   webPreferences: {
     preload: path.resolve(__dirname, 'preload.js'),
     devTools: isDev,
+    webSecurity: false,
   },
 };
 

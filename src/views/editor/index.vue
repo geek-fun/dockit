@@ -4,15 +4,22 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
-import { searchTokensProvider } from '../../common';
-import { useAppStore, useSourceFileStore } from '../../store';
+import { CustomError, searchTokensProvider } from '../../common';
+import { useAppStore, useSourceFileStore, useConnectionStore } from '../../store';
+import { useLang } from '../../lang';
 
 const appStore = useAppStore();
+const message = useMessage();
+const lang = useLang();
 
 const sourceFileStore = useSourceFileStore();
 const { readSourceFromFile } = sourceFileStore;
 const { defaultFile } = storeToRefs(sourceFileStore);
 readSourceFromFile();
+
+const connectionStore = useConnectionStore();
+const { searchQDSL } = connectionStore;
+const { established } = storeToRefs(connectionStore);
 
 /**
  * refer https://github.com/wobsoriano/codeplayground
@@ -54,6 +61,7 @@ type Decoration = {
   range: monaco.Range;
   options: { isWholeLine: boolean; linesDecorationsClassName: string };
 };
+
 let executeDecorations: Array<Decoration> = [];
 
 const getActionMarksDecorations = (editor: monaco.Editor): Array<Decoration> => {
@@ -98,20 +106,40 @@ const getAction = (editor: monaco.Editor, startLine: number) => {
 
   return { payload, action };
 };
-const executeQueryAction = (
+
+const executeQueryAction = async (
   editor: monaco.Editor,
   position: { column: number; lineNumber: number },
 ) => {
   const { action, payload } = getAction(editor, position.lineNumber);
+  try {
+    // eslint-disable-next-line no-console
+    console.log(
+      `executeQueryAction ${JSON.stringify({
+        payload,
+        action,
+      })}`,
+    );
+    if (!established.value) {
+      message.error(lang.t('editor.establishedRequired'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
+      return;
+    }
 
-  // eslint-disable-next-line no-console
-  console.log(
-    `executeQueryAction ${JSON.stringify({
-      executeDecorations,
-      payload,
-      action,
-    })}`,
-  );
+    const data = await searchQDSL(undefined, payload);
+    // eslint-disable-next-line no-console
+    console.log(`data ${JSON.stringify({ data })}`);
+  } catch (err) {
+    const { status, details } = err as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 36000000,
+    });
+  }
 };
 
 onMounted(() => {
@@ -123,14 +151,14 @@ onMounted(() => {
   });
   editorView.value = editor;
   // Register language injection rule
-  editor.onKeyUp(e => refreshActionMarks(editor));
-  editor.onMouseDown(e => {
+  editor.onKeyUp(event => refreshActionMarks(editor));
+  editor.onMouseDown(({ event, target }) => {
     if (
-      e.event.leftButton &&
-      e.target.type === 4 &&
-      Object.values(e.target!.element!.classList).includes(executionGutterClass)
+      event.leftButton &&
+      target.type === 4 &&
+      Object.values(target!.element!.classList).includes(executionGutterClass)
     ) {
-      executeQueryAction(editor, e.target.position);
+      executeQueryAction(editor, target.position);
     }
   });
 });
