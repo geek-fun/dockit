@@ -94,7 +94,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     async searchQDSL(index: string | undefined, qdsl: string) {
       const client = loadHttpClient(this.established?.host, this.established?.port);
 
-      return client.post(index ? '/${index}/_search' : '/_search', undefined, JSON.parse(qdsl));
+      return client.post(index ? `/${index}/_search` : '/_search', undefined, JSON.parse(qdsl));
     },
   },
 });

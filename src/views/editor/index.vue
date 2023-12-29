@@ -129,7 +129,7 @@ const executeQueryAction = async (
       return;
     }
 
-    const data = await searchQDSL(undefined, payload);
+    const data = await searchQDSL(established.value.activeIndex.index, payload);
     // eslint-disable-next-line no-console
     console.log(`data ${JSON.stringify({ data })}`);
   } catch (err) {
