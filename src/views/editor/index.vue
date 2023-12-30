@@ -29,9 +29,39 @@ const { established } = storeToRefs(connectionStore);
  * refer https://github.com/wobsoriano/codeplayground
  * https://github.com/wobsoriano/codeplayground/blob/master/src/components/MonacoEditor.vue
  */
+self.MonacoEnvironment = {
+  async getWorker(_, label) {
+    let worker;
+
+    switch (label) {
+      case 'json':
+        worker = await import('monaco-editor/esm/vs/language/json/json.worker?worker');
+        break;
+      case 'css':
+      case 'scss':
+      case 'less':
+        worker = await import('monaco-editor/esm/vs/language/css/css.worker?worker');
+        break;
+      case 'html':
+      case 'handlebars':
+      case 'razor':
+        worker = await import('monaco-editor/esm/vs/language/html/html.worker?worker');
+        break;
+      case 'typescript':
+      case 'javascript':
+        worker = await import('monaco-editor/esm/vs/language/typescript/ts.worker?worker');
+        break;
+      default:
+        worker = await import('monaco-editor/esm/vs/editor/editor.worker?worker');
+    }
+
+    return new worker.default();
+  },
+};
+monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
+
 monaco.languages.register({ id: 'search' });
 monaco.languages.setMonarchTokensProvider('search', searchTokensProvider);
-
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let displayEditor: Editor | null = null;
 let queryEditor: Editor | null = null;
