@@ -1,5 +1,8 @@
 <template>
-  <div id="editor" ref="editorRef"></div>
+  <div class="editor">
+    <div id="query-editor" ref="queryEditorRef"></div>
+    <div id="display-editor" ref="displayEditorRef"></div>
+  </div>
 </template>
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
@@ -7,6 +10,7 @@ import { storeToRefs } from 'pinia';
 import { CustomError, searchTokensProvider } from '../../common';
 import { useAppStore, useSourceFileStore, useConnectionStore } from '../../store';
 import { useLang } from '../../lang';
+type Editor = ReturnType<typeof monaco.editor.create>;
 
 const appStore = useAppStore();
 const message = useMessage();
@@ -28,10 +32,13 @@ const { established } = storeToRefs(connectionStore);
 monaco.languages.register({ id: 'search' });
 monaco.languages.setMonarchTokensProvider('search', searchTokensProvider);
 
+// https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
+let displayEditor: Editor | null = null;
+let queryEditor: Editor | null = null;
 // DOM
-const editorRef = ref();
+const queryEditorRef = ref();
+const displayEditorRef = ref();
 
-const editorView = ref();
 const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
 const systemTheme = ref(themeMedia.matches);
 themeMedia.addListener(e => {
@@ -48,7 +55,8 @@ const editorTheme = computed(() => {
 watch(
   () => editorTheme.value,
   () => {
-    editorView.value.updateOptions({ theme: editorTheme.value });
+    queryEditor?.updateOptions({ theme: editorTheme.value });
+    displayEditor?.updateOptions({ theme: editorTheme.value });
   },
 );
 
@@ -108,18 +116,14 @@ const getAction = (editor: monaco.Editor, startLine: number) => {
 };
 
 const executeQueryAction = async (
-  editor: monaco.Editor,
+  queryEditor: monaco.Editor,
+  displayEditor: monaco.Editor,
   position: { column: number; lineNumber: number },
 ) => {
-  const { action, payload } = getAction(editor, position.lineNumber);
+  const { action, payload } = getAction(queryEditor, position.lineNumber);
   try {
     // eslint-disable-next-line no-console
-    console.log(
-      `executeQueryAction ${JSON.stringify({
-        payload,
-        action,
-      })}`,
-    );
+    console.log(`execute ${JSON.stringify({ payload, action })}`);
     if (!established.value) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
@@ -130,44 +134,64 @@ const executeQueryAction = async (
     }
 
     const data = await searchQDSL(established.value.activeIndex.index, payload);
-    // eslint-disable-next-line no-console
-    console.log(`data ${JSON.stringify({ data })}`);
+    displayEditor.getModel().setValue(JSON.stringify(data, null, '  '));
   } catch (err) {
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
       closable: true,
       keepAliveOnHover: true,
-      duration: 36000000,
+      duration: 3000,
     });
   }
 };
-
-onMounted(() => {
-  const editor = monaco.editor.create(editorRef.value, {
+const setupQueryEditor = () => {
+  queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
     theme: editorTheme.value,
     value: code,
     language: 'search',
   });
-  editorView.value = editor;
   // Register language injection rule
-  editor.onKeyUp(event => refreshActionMarks(editor));
-  editor.onMouseDown(({ event, target }) => {
+  queryEditor.onKeyUp(event => refreshActionMarks(queryEditor));
+  queryEditor.onMouseDown(({ event, target }) => {
     if (
       event.leftButton &&
       target.type === 4 &&
       Object.values(target!.element!.classList).includes(executionGutterClass)
     ) {
-      executeQueryAction(editor, target.position);
+      executeQueryAction(queryEditor, displayEditor, target.position);
     }
   });
+};
+const setupJsonEditor = () => {
+  displayEditor = monaco.editor.create(displayEditorRef.value, {
+    automaticLayout: true,
+    theme: editorTheme.value,
+    value: '',
+    language: 'json',
+  });
+};
+onMounted(() => {
+  setupQueryEditor();
+  setupJsonEditor();
 });
 </script>
 
 <style lang="scss">
-#editor {
+.editor {
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-flow: row nowrap;
+  #query-editor {
+    width: 50%;
+    height: 100%;
+  }
+  #display-editor {
+    width: 50%;
+    height: 100%;
+    border-left: 1px solid var(--border-color);
+  }
 }
 
 .execute-button-decoration {
