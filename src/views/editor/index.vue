@@ -7,7 +7,7 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
-import { CustomError, searchTokensProvider } from '../../common';
+import { CustomError, Decoration, searchTokensProvider } from '../../common';
 import { useAppStore, useSourceFileStore, useConnectionStore } from '../../store';
 import { useLang } from '../../lang';
 type Editor = ReturnType<typeof monaco.editor.create>;
@@ -91,15 +91,10 @@ watch(
 
 const executionGutterClass = 'execute-button-decoration';
 const executeDecorationType = 'action-execute-decoration.search';
-type Decoration = {
-  id: number;
-  range: monaco.Range;
-  options: { isWholeLine: boolean; linesDecorationsClassName: string };
-};
 
 let executeDecorations: Array<Decoration> = [];
 
-const getActionMarksDecorations = (editor: monaco.Editor): Array<Decoration> => {
+const getActionMarksDecorations = (editor: Editor): Array<Decoration> => {
   // Get the model of the editor
   const model = editor.getModel();
   // Tokenize the entire content of the model
@@ -117,12 +112,12 @@ const getActionMarksDecorations = (editor: monaco.Editor): Array<Decoration> => 
     .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
 };
 
-const refreshActionMarks = (editor: monaco.Editor) => {
+const refreshActionMarks = (editor: Editor) => {
   const freshedDecorations = getActionMarksDecorations(editor);
   // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
   executeDecorations = editor.deltaDecorations(executeDecorations, freshedDecorations);
 };
-const getAction = (editor: monaco.Editor, startLine: number) => {
+const getAction = (editor: Editor, startLine: number) => {
   const model = editor.getModel();
   const action = model.getLineContent(startLine);
 
@@ -143,8 +138,8 @@ const getAction = (editor: monaco.Editor, startLine: number) => {
 };
 
 const executeQueryAction = async (
-  queryEditor: monaco.Editor,
-  displayEditor: monaco.Editor,
+  queryEditor: Editor,
+  displayEditor: Editor,
   position: { column: number; lineNumber: number },
 ) => {
   const { action, payload } = getAction(queryEditor, position.lineNumber);
@@ -171,6 +166,7 @@ const executeQueryAction = async (
     });
   }
 };
+
 const setupQueryEditor = (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
@@ -178,6 +174,7 @@ const setupQueryEditor = (code: string) => {
     value: code,
     language: 'search',
   });
+
   // Register language injection rule
   queryEditor.onKeyUp(event => refreshActionMarks(queryEditor));
   queryEditor.onMouseDown(({ event, target }) => {

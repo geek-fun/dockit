@@ -1,3 +1,15 @@
+type Range = {
+  startLineNumber: number;
+  startColumn: number;
+  endLineNumber: number;
+  endColumn: number;
+};
+export type Decoration = {
+  id: number;
+  range: Range;
+  options: { isWholeLine: boolean; linesDecorationsClassName: string };
+};
+
 export const searchTokensProvider = {
   // Set defaultToken to invalid to see what you do not tokenize yet
   defaultToken: 'invalid',
