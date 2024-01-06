@@ -154,8 +154,7 @@ const executeQueryAction = async (
       });
       return;
     }
-
-    const data = await searchQDSL(established.value.activeIndex.index, payload);
+    const data = await searchQDSL(established.value?.activeIndex?.index, payload);
     displayEditor.getModel().setValue(JSON.stringify(data, null, '  '));
   } catch (err) {
     const { status, details } = err as CustomError;
@@ -176,12 +175,14 @@ const setupQueryEditor = (code: string) => {
   });
 
   // Register language injection rule
-  queryEditor.onKeyUp(event => refreshActionMarks(queryEditor));
+  queryEditor.onKeyUp(event => queryEditor && refreshActionMarks(queryEditor));
   queryEditor.onMouseDown(({ event, target }) => {
     if (
       event.leftButton &&
       target.type === 4 &&
-      Object.values(target!.element!.classList).includes(executionGutterClass)
+      Object.values(target!.element!.classList).includes(executionGutterClass) &&
+      queryEditor &&
+      displayEditor
     ) {
       executeQueryAction(queryEditor, displayEditor, target.position);
     }
