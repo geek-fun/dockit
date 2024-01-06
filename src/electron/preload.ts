@@ -18,4 +18,6 @@ contextBridge.exposeInMainWorld('sourceFileAPI', {
   saveFile: async (content: string) =>
     ipcRenderer.invoke('sourceFileAPI', { method: 'SAVE_FILE', content }),
   readFile: async () => ipcRenderer.invoke('sourceFileAPI', { method: 'READ_FILE' }),
+  onSaveChortcut: (callback: (value: unknown) => void) =>
+    ipcRenderer.on('save-shortcout', (_event, value) => callback(value)),
 });

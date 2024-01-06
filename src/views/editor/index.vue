@@ -17,9 +17,8 @@ const message = useMessage();
 const lang = useLang();
 
 const sourceFileStore = useSourceFileStore();
-const { readSourceFromFile } = sourceFileStore;
+const { readSourceFromFile, saveSourceToFile } = sourceFileStore;
 const { defaultFile } = storeToRefs(sourceFileStore);
-readSourceFromFile();
 
 const connectionStore = useConnectionStore();
 const { searchQDSL } = connectionStore;
@@ -89,8 +88,6 @@ watch(
     displayEditor?.updateOptions({ theme: editorTheme.value });
   },
 );
-
-const code = defaultFile.value;
 
 const executionGutterClass = 'execute-button-decoration';
 const executeDecorationType = 'action-execute-decoration.search';
@@ -174,7 +171,7 @@ const executeQueryAction = async (
     });
   }
 };
-const setupQueryEditor = () => {
+const setupQueryEditor = (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
     theme: editorTheme.value,
@@ -201,9 +198,17 @@ const setupJsonEditor = () => {
     language: 'json',
   });
 };
-onMounted(() => {
-  setupQueryEditor();
+onMounted(async () => {
+  await readSourceFromFile();
+  const code = defaultFile.value;
+  setupQueryEditor(code);
   setupJsonEditor();
+});
+const { sourceFileAPI } = window;
+
+sourceFileAPI.onSaveChortcut(async (_: unknown) => {
+  const content = queryEditor.getModel()!.getValue() || '';
+  await saveSourceToFile(content);
 });
 </script>
 
@@ -213,10 +218,12 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-flow: row nowrap;
+
   #query-editor {
     width: 50%;
     height: 100%;
   }
+
   #display-editor {
     width: 50%;
     height: 100%;

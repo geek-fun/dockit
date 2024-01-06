@@ -73,9 +73,9 @@ const loadDevTools = async () => {
 };
 
 const createWindow = async () => {
-  createMenu();
   const mainWindow = new BrowserWindow(BrowserWindowOptions);
 
+  createMenu(mainWindow);
   bypassCors(mainWindow);
 
   // and load the index.html of the app.
