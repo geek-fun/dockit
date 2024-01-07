@@ -68,6 +68,11 @@ let queryEditor: Editor | null = null;
 const queryEditorRef = ref();
 const displayEditorRef = ref();
 
+const executionGutterClass = 'execute-button-decoration';
+const executeDecorationType = 'action-execute-decoration.search';
+
+let executeDecorations: Array<Decoration> = [];
+
 const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
 const systemTheme = ref(themeMedia.matches);
 themeMedia.addListener(e => {
@@ -88,11 +93,6 @@ watch(
     displayEditor?.updateOptions({ theme: editorTheme.value });
   },
 );
-
-const executionGutterClass = 'execute-button-decoration';
-const executeDecorationType = 'action-execute-decoration.search';
-
-let executeDecorations: Array<Decoration> = [];
 
 const getActionMarksDecorations = (editor: Editor): Array<Decoration> => {
   // Get the model of the editor
@@ -115,13 +115,23 @@ const getActionMarksDecorations = (editor: Editor): Array<Decoration> => {
 const refreshActionMarks = (editor: Editor) => {
   const freshedDecorations = getActionMarksDecorations(editor);
   // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
-  executeDecorations = editor.deltaDecorations(executeDecorations, freshedDecorations);
+  executeDecorations = editor.deltaDecorations(
+    executeDecorations,
+    freshedDecorations,
+  ) as unknown as Decoration[];
 };
+
 const getAction = (editor: Editor, startLine: number) => {
   const model = editor.getModel();
-  const action = model.getLineContent(startLine);
+  if (!model) {
+    return;
+  }
+  const commands = model.getLineContent(startLine).split(/[\/\s]+/);
+  const method = commands[0]?.toUpperCase();
+  const index = commands[1]?.startsWith('_') ? undefined : commands[1];
+  const path = commands.slice(index ? 2 : 1, commands.length).join('/');
 
-  let payload = '';
+  let qdsl = '';
   // Get  non-comment payload
   for (let lineNumber = startLine + 1; lineNumber <= model.getLineCount(); lineNumber++) {
     const lineContent = model.getLineContent(lineNumber);
@@ -131,10 +141,10 @@ const getAction = (editor: Editor, startLine: number) => {
     if (lineContent.trim().startsWith('//')) {
       continue;
     }
-    payload += lineContent;
+    qdsl += lineContent;
   }
 
-  return { payload, action };
+  return { qdsl, method, index, path };
 };
 
 const executeQueryAction = async (
@@ -142,10 +152,13 @@ const executeQueryAction = async (
   displayEditor: Editor,
   position: { column: number; lineNumber: number },
 ) => {
-  const { action, payload } = getAction(queryEditor, position.lineNumber);
+  const action = getAction(queryEditor, position.lineNumber);
+  if (!action) {
+    return;
+  }
   try {
     // eslint-disable-next-line no-console
-    console.log(`execute ${JSON.stringify({ payload, action })}`);
+    console.log(`execute ${JSON.stringify({ action })}`);
     if (!established.value) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
@@ -154,7 +167,10 @@ const executeQueryAction = async (
       });
       return;
     }
-    const data = await searchQDSL(established.value?.activeIndex?.index, payload);
+    const data = await searchQDSL({
+      ...action,
+      index: action.index || established.value?.activeIndex?.index,
+    });
     displayEditor.getModel().setValue(JSON.stringify(data, null, '  '));
   } catch (err) {
     const { status, details } = err as CustomError;
@@ -204,9 +220,8 @@ onMounted(async () => {
 });
 const { sourceFileAPI } = window;
 
-sourceFileAPI.onSaveChortcut(async (_: unknown) => {
-  const content = queryEditor.getModel()!.getValue() || '';
-  await saveSourceToFile(content);
+sourceFileAPI.onSaveChortcut(async () => {
+  await saveSourceToFile(queryEditor.getModel()!.getValue() || '');
 });
 </script>
 

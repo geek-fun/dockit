@@ -49,4 +49,35 @@ export const loadHttpClient = (host: string, port: number) => ({
       throw catchHandler(e);
     }
   },
+  put: async (path: string, queryParameters?: string, payload?: unknown) => {
+    const url = buildURL(host, port, path, queryParameters);
+    try {
+      const result = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
+      const data = await result.json();
+      if (!result.ok) new CustomError(result.status, data);
+      return data;
+    } catch (e) {
+      throw catchHandler(e);
+    }
+  },
+
+  delete: async (path: string, queryParameters?: string, payload?: unknown) => {
+    const url = buildURL(host, port, path, queryParameters);
+    try {
+      const result = await fetch(url, {
+        method: 'delete',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload ? JSON.stringify(payload) : undefined,
+      });
+      const data = await result.json();
+      if (!result.ok) new CustomError(result.status, data);
+      return data;
+    } catch (e) {
+      throw catchHandler(e);
+    }
+  },
 });
