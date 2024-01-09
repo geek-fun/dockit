@@ -20,7 +20,7 @@ export interface IStoreAPI {
 export interface ISourceFileAPI {
   saveFile: (content: string) => Promise<void>;
   readFile: () => Promise<string>;
-  onSaveChortcut: () => string;
+  onSaveShortcut: (fn: () => void) => string;
 }
 
 declare global {

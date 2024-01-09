@@ -27,7 +27,7 @@ import ConnectModal from './components/connect-dialog.vue';
 import connectList from './components/connect-list.vue';
 import collectionSelector from './components/collection-selector.vue';
 import Editor from '../editor/index.vue';
-import { useAppStore } from './../../store';
+import { useAppStore } from '../../store';
 
 const appStore = useAppStore();
 // DOM

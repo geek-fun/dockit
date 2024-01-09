@@ -220,7 +220,10 @@ onMounted(async () => {
 });
 const { sourceFileAPI } = window;
 
-sourceFileAPI.onSaveChortcut(async () => {
+sourceFileAPI.onSaveShortcut(async () => {
+  if (!queryEditor) {
+    return;
+  }
   await saveSourceToFile(queryEditor.getModel()!.getValue() || '');
 });
 </script>

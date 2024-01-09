@@ -19,6 +19,7 @@
     "prepare": "husky install"
   },
   "dependencies": {
+    "buffer": "^6.0.3",
     "debug": "^4.3.4",
     "electron-store": "^8.1.0",
     "monaco-editor": "^0.45.0",
