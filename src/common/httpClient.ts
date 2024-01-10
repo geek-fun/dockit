@@ -42,7 +42,7 @@ const fetchWrapper = async ({
   port: number;
 }) => {
   const authorization =
-    username && password
+    username || password
       ? `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
       : undefined;
 
