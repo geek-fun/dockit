@@ -7,6 +7,7 @@
       :title="modalTitle"
       :bordered="false"
       class="add-connect-modal-card"
+      @mask-click="closeModal"
     >
       <template #header-extra>
         <n-icon size="26" @click="closeModal">
@@ -42,9 +43,10 @@
             </n-grid-item>
             <n-grid-item span="3">
               <n-form-item :label="$t('connection.port')" path="port">
-                <n-input
+                <n-input-number
                   v-model:value="formData.port"
                   clearable
+                  :show-button="false"
                   :placeholder="$t('connection.port')"
                 />
               </n-form-item>
@@ -125,15 +127,15 @@ const showModal = ref(false);
 const modalTitle = ref(lang.t('connection.add'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
-
-const formData = ref<Connection>({
+const defaultFormData = {
   name: '',
   host: '',
-  port: '9200',
+  port: 9200,
   username: '',
   password: '',
   queryParameters: '',
-});
+};
+const formData = ref<Connection>(defaultFormData);
 const formRules = reactive({
   name: [
     {
@@ -159,15 +161,22 @@ const formRules = reactive({
 });
 const message = useMessage();
 
+const cleanUp = () => {
+  formData.value = defaultFormData;
+  modalTitle.value = lang.t('connection.add');
+};
 const showMedal = (con: Connection | null) => {
+  cleanUp();
   showModal.value = true;
   if (con) {
     formData.value = con;
     modalTitle.value = lang.t('connection.edit');
   }
 };
+
 const closeModal = () => {
   showModal.value = false;
+  cleanUp();
 };
 
 const validationPassed = watch(formData.value, async () => {
@@ -182,14 +191,14 @@ const testConnect = async (event: MouseEvent) => {
   event.preventDefault();
   testLoading.value = !testLoading.value;
   try {
-    await testConnection({ ...formData.value, port: parseInt(formData.value.port as string) });
+    await testConnection({ ...formData.value });
     message.success(lang.t('connection.testSuccess'));
   } catch (e) {
     const error = e as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
       closable: true,
       keepAliveOnHover: true,
-      duration: 36000000,
+      duration: 10000,
     });
   } finally {
     testLoading.value = !testLoading.value;
@@ -199,7 +208,7 @@ const testConnect = async (event: MouseEvent) => {
 const saveConnect = async (event: MouseEvent) => {
   event.preventDefault();
   saveLoading.value = !saveLoading.value;
-  saveConnection({ ...formData.value, port: parseInt(formData.value.port as string) });
+  saveConnection(formData.value);
   saveLoading.value = !saveLoading.value;
   showModal.value = false;
 };

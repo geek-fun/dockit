@@ -6,7 +6,7 @@ export type Connection = {
   id?: number;
   name: string;
   host: string;
-  port: number | string;
+  port: number;
   username?: string;
   password?: string;
   queryParameters?: string;
@@ -60,13 +60,10 @@ export const useConnectionStore = defineStore('connectionStore', {
     async fetchConnections() {
       this.connections = await storeAPI.get('connections', []);
     },
-    async testConnection({ port, ...con }: Connection) {
-      const client = loadHttpClient({
-        ...con,
-        port: parseInt(`${port}`, 10),
-      });
+    async testConnection(con: Connection) {
+      const client = loadHttpClient(con);
 
-      return await client.get();
+      return await client.get(undefined, 'format=json');
     },
     saveConnection(connection: Connection) {
       const index = this.connections.findIndex(item => item.id === connection.id);
@@ -83,10 +80,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async establishConnection(connection: Connection) {
       await this.testConnection(connection);
-      const client = loadHttpClient({
-        ...connection,
-        port: parseInt(`${connection.port}`, 10),
-      });
+      const client = loadHttpClient(connection);
 
       const data = await client.get('/_cat/indices', 'format=json');
       const indices = data.map((index: { [key: string]: string }) => ({
@@ -117,10 +111,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       qdsl?: string;
     }) {
       if (!this.established) throw new Error('no connection established');
-      const client = loadHttpClient({
-        ...this.established,
-        port: parseInt(`${this.established.port}`, 10),
-      });
+      const client = loadHttpClient(this.established);
 
       const reqPath = buildPath(index, path);
       const body = qdsl ? JSON.parse(qdsl) : undefined;

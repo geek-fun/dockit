@@ -1,8 +1,12 @@
 import { CustomError } from './customError';
 import { Buffer } from 'buffer';
+import { lang } from '../lang';
 
 const catchHandler = (err: unknown) => {
   if (err instanceof CustomError) {
+    if (err.status === 401) {
+      throw new CustomError(err.status, lang.global.t('connection.unAuthorized'));
+    }
     throw new CustomError(err.status, err.details);
   }
   if (err instanceof Error) {
@@ -18,81 +22,81 @@ const buildURL = (host: string, port: number, path?: string, queryParameters?: s
 
   return url;
 };
-
-export const loadHttpClient = ({
+const fetchWrapper = async ({
+  method,
+  path,
+  queryParameters,
+  payload,
   host,
   port,
   username,
   password,
 }: {
+  method: string;
+  path?: string;
+  queryParameters?: string;
+  payload?: unknown;
+  username?: string;
+  password?: string;
+  host: string;
+  port: number;
+}) => {
+  const authorization =
+    username && password
+      ? `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
+      : undefined;
+
+  const url = buildURL(host, port, path, queryParameters);
+  try {
+    const result = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', authorization } as unknown as Headers,
+      body: payload ? JSON.stringify(payload) : undefined,
+    });
+    if (result.ok) {
+      return await result.json();
+    }
+    throw new CustomError(result.status, await result.text());
+  } catch (e) {
+    throw catchHandler(e);
+  }
+};
+export const loadHttpClient = (con: {
   host: string;
   port: number;
   username?: string;
   password?: string;
 }) => ({
-  get: async (path?: string, queryParameters?: string) => {
-    const authorization =
-      username && password
-        ? `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
-        : undefined;
-    const url = buildURL(host, port, path, queryParameters);
-    try {
-      const result = await fetch(url, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json', authorization } as unknown as Headers,
-      });
-      const data = await result.json();
-      if (!result.ok) new CustomError(result.status, data);
+  get: async (path?: string, queryParameters?: string) =>
+    fetchWrapper({
+      ...con,
+      method: 'GET',
+      path,
+      queryParameters,
+    }),
+  post: async (path: string, queryParameters?: string, payload?: unknown) =>
+    fetchWrapper({
+      ...con,
+      method: 'POST',
+      path,
+      queryParameters,
+      payload,
+    }),
+  put: async (path: string, queryParameters?: string, payload?: unknown) =>
+    fetchWrapper({
+      ...con,
+      method: 'PUT',
+      path,
+      queryParameters,
+      payload,
+    }),
 
-      return data;
-    } catch (e) {
-      throw catchHandler(e);
-    }
-  },
-  post: async (path: string, queryParameters?: string, payload?: unknown) => {
-    const url = buildURL(host, port, path, queryParameters);
-    try {
-      const result = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload ? JSON.stringify(payload) : undefined,
-      });
-      const data = await result.json();
-      if (!result.ok) new CustomError(result.status, data);
-      return data;
-    } catch (e) {
-      throw catchHandler(e);
-    }
-  },
-  put: async (path: string, queryParameters?: string, payload?: unknown) => {
-    const url = buildURL(host, port, path, queryParameters);
-    try {
-      const result = await fetch(url, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload ? JSON.stringify(payload) : undefined,
-      });
-      const data = await result.json();
-      if (!result.ok) new CustomError(result.status, data);
-      return data;
-    } catch (e) {
-      throw catchHandler(e);
-    }
-  },
-
-  delete: async (path: string, queryParameters?: string, payload?: unknown) => {
-    const url = buildURL(host, port, path, queryParameters);
-    try {
-      const result = await fetch(url, {
-        method: 'delete',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload ? JSON.stringify(payload) : undefined,
-      });
-      const data = await result.json();
-      if (!result.ok) new CustomError(result.status, data);
-      return data;
-    } catch (e) {
-      throw catchHandler(e);
-    }
-  },
+  delete: async (path: string, queryParameters?: string, payload?: unknown) =>
+    fetchWrapper({
+      ...con,
+      method: 'DELETE',
+      path,
+      queryParameters,
+      payload,
+    }),
 });

@@ -35,6 +35,7 @@ const enUS = {
       edit: 'Edit',
       remove: 'Remove',
     },
+    unAuthorized: 'Authorization failed, ensure your username and password are correct',
   },
   dialogOps: {
     warning: 'Warning',
@@ -84,6 +85,7 @@ const zhCN = {
       edit: '编辑',
       remove: '删除',
     },
+    unAuthorized: '认证失败，请输入正确的用户名和密码！',
   },
   dialogOps: {
     warning: '提示',
