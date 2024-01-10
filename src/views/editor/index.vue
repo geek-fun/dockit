@@ -60,7 +60,11 @@ self.MonacoEnvironment = {
 monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
 
 monaco.languages.register({ id: 'search' });
-monaco.languages.setMonarchTokensProvider('search', searchTokensProvider);
+
+monaco.languages.setMonarchTokensProvider(
+  'search',
+  searchTokensProvider as monaco.languages.IMonarchLanguage,
+);
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let displayEditor: Editor | null = null;
 let queryEditor: Editor | null = null;
@@ -71,7 +75,7 @@ const displayEditorRef = ref();
 const executionGutterClass = 'execute-button-decoration';
 const executeDecorationType = 'action-execute-decoration.search';
 
-let executeDecorations: Array<Decoration> = [];
+let executeDecorations: Array<Decoration | string> = [];
 
 const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
 const systemTheme = ref(themeMedia.matches);
@@ -116,7 +120,7 @@ const refreshActionMarks = (editor: Editor) => {
   const freshedDecorations = getActionMarksDecorations(editor);
   // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
   executeDecorations = editor.deltaDecorations(
-    executeDecorations,
+    executeDecorations as Array<string>,
     freshedDecorations,
   ) as unknown as Decoration[];
 };
@@ -171,7 +175,7 @@ const executeQueryAction = async (
       ...action,
       index: action.index || established.value?.activeIndex?.index,
     });
-    displayEditor.getModel().setValue(JSON.stringify(data, null, '  '));
+    displayEditor?.getModel()?.setValue(JSON.stringify(data, null, '  '));
   } catch (err) {
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
