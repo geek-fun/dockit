@@ -7,6 +7,7 @@ import { githubLink } from '../config';
 import Store from 'electron-store';
 import { registerStoreApiListener } from './storeApi';
 import { registerSourceFileApiListener } from './sourceFIleApi';
+import { updateElectronApp } from 'update-electron-app';
 
 const isDev = process.env.APP_ENV === 'dev';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -101,6 +102,8 @@ const createWindow = async () => {
     name: app.getName(),
   }));
 };
+
+updateElectronApp();
 
 ipcMain.on('open-github', () => {
   shell.openExternal(githubLink);
