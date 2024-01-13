@@ -16,13 +16,14 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-        node-version: [18.x]
+        node-version: [20.x]
 
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Github checkout
+        uses: actions/checkout@v4
       - name: Install rpm
         run: sudo apt-get install -y rpm
         if: matrix.os == 'ubuntu-latest'

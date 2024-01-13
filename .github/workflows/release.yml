@@ -1,14 +1,17 @@
-name: package release
+name: distributions release
+
 on:
   release:
     branches: [master]
     types: [created]
+
 jobs:
   build:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os.image }}
+    runs-on: ${{ matrix.os }}
+
     steps:
       - name: Github checkout
         uses: actions/checkout@v4
