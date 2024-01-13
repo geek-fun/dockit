@@ -17,7 +17,7 @@
     "lint:fix": "eslint --fix ./",
     "lint:check": "eslint ./",
     "prepare": "husky install",
-    "make": "cross-env APP_ENV=prod electron-forge make"
+    "make": "cross-env APP_ENV=prod npm run build && electron-forge make"
   },
   "dependencies": {
     "buffer": "^6.0.3",

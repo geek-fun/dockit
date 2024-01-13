@@ -4,17 +4,12 @@ const description = 'A faster, better and more stable NoSQL desktop tools';
 module.exports = {
   packagerConfig: {
     asar: true,
-    outDir: 'distributions',
   },
   rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
       config: { authors: author, description },
-    },
-    {
-      name: '@electron-forge/maker-zip',
-      platforms: ['darwin'],
     },
     {
       name: '@electron-forge/maker-dmg',
