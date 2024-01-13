@@ -36,7 +36,7 @@ jobs:
         uses: codecov/codecov-action@v3
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
+      - run: npm run build
       - name: Build Electron app
         run: ./scripts/make-distributions.sh
 
