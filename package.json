@@ -5,6 +5,7 @@
   "main": "dist/src/electron/main.js",
   "description": "A faster, better and more stable NoSQL desktop tools",
   "author": "geekfun <support@geekfun.club>",
+  "license": "Apache-2.0",
   "scripts": {
     "vite:start": "vite",
     "vite:build": "cross-env APP_ENV=prod vue-tsc --noEmit && vite build",
