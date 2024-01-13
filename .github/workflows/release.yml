@@ -1,15 +1,21 @@
 name: distributions release
 
 on:
-  release:
-    branches: [master]
-    types: [created]
+  push:
+    branches:  [master]
+  pull_request:
+    branches:  [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
+        node-version: [20.x]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -18,10 +24,11 @@ jobs:
       - name: Install rpm
         run: sudo apt-get install -y rpm
         if: matrix.os == 'ubuntu-latest'
-      - name: Use Node.js
+      - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
