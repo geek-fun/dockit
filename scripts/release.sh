@@ -3,5 +3,4 @@ set -o pipefail
 
 cd "$(dirname "$0")/.." || exit
 
-
-npx electron-forge publish
+GITHUB_TOKEN="${{ env.GITHUB_TOKEN }}" npx electron-forge publish
