@@ -38,7 +38,7 @@ module.exports = {
       name: '@electron-forge/publisher-github',
       config: {
         repository: {
-          owner: 'geekfun',
+          owner: 'geek-fun',
           name: 'dockit',
         },
         prerelease: true,
