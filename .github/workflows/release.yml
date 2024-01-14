@@ -17,6 +17,14 @@ jobs:
         os: [macos-latest, ubuntu-latest, windows-latest]
         node-version: [20.x]
     runs-on: ${{ matrix.os }}
+    permissions:
+      checks: read
+      contents: read
+      packages: write
+      actions: write
+      repository-projects: read
+      statuses: read
+      deployments: write
 
     steps:
       - name: Github checkout
