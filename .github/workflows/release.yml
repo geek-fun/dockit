@@ -38,6 +38,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
+          name:  artifacts-${{ matrix.os }}
           path: out/make/*
   release:
     needs: pre-release
