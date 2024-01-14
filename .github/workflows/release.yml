@@ -2,16 +2,15 @@ name: distributions release
 
 on:
   push:
-    branches:  [master]
-  pull_request:
-    branches:  [master]
+    tags:
+      - 'v*.*.*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  pre-release:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
@@ -36,7 +35,12 @@ jobs:
       - run: npm run build
       - name: Build app
         run: ./scripts/make-distributions.sh
-      - name: Publish app
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./scripts/release.sh
+  release:
+    - name: Release App
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
+        files: |
+          LICENSE
+          out/make/*
