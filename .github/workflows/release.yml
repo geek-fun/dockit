@@ -35,12 +35,23 @@ jobs:
       - run: npm run build
       - name: Build app
         run: ./scripts/make-distributions.sh
+      - name: Upload artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: out/make/*
   release:
-    - name: Release App
-      uses: "marvinpinto/action-automatic-releases@latest"
-      with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        prerelease: false
-        files: |
-          LICENSE
-          out/make/*
+    needs: pre-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Github checkout
+        uses: actions/checkout@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+      - name: Release App
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            LICENSE
+            out/make/*
