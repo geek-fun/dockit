@@ -45,5 +45,6 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - run: npm run build
       - name: Build Electron app
+        shell: bash
         run: ./scripts/make-distributions.sh
 
