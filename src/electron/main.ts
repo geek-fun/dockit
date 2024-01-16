@@ -1,6 +1,5 @@
 import { app, BrowserWindow, BrowserWindowConstructorOptions, ipcMain, shell } from 'electron';
 import path from 'path';
-import install, { VUEJS_DEVTOOLS } from 'electron-devtools-assembler';
 import { createMenu } from './menu';
 import { debug } from '../common';
 import { githubLink } from '../config';
@@ -65,6 +64,7 @@ const loadDevTools = async () => {
   // if dev
   if (isDev) {
     try {
+      const { default: install, VUEJS_DEVTOOLS } = await import('electron-devtools-assembler');
       await install(VUEJS_DEVTOOLS);
       debug('Added Extension');
     } catch (err) {
