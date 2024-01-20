@@ -3,11 +3,11 @@ import { app, Menu, MenuItemConstructorOptions, BrowserWindow } from 'electron';
 const buildMenuTemplate = (mainWindow: BrowserWindow) =>
   [
     {
-      label: 'dockit',
+      label: 'DocKit',
       submenu: [
         {
-          label: 'About dockit',
-          selector: 'dockit:',
+          label: 'About DocKit',
+          selector: 'DocKit:',
         },
         {
           type: 'separator',
