@@ -1,6 +1,9 @@
 const author = 'geekfun <support@geekfun.club>';
 const homepage = 'https://dockit.geekfun.club';
 const description = 'A faster, better and more stable NoSQL desktop tools';
+const iconICO = './public/dockit.ico';
+const iconPNG = './public/dockit.png';
+
 module.exports = {
   packagerConfig: {
     asar: true,
@@ -9,21 +12,22 @@ module.exports = {
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
-      config: { authors: author, description },
+      config: { authors: author, description, iconUrl: iconICO, setupIcon: iconICO },
     },
     {
       name: '@electron-forge/maker-dmg',
+      config: { icon: iconPNG },
     },
     {
       name: '@electron-forge/maker-deb',
       config: {
-        options: { maintainer: author, homepage },
+        options: { maintainer: author, homepage, icon: iconPNG },
       },
     },
     {
       name: '@electron-forge/maker-rpm',
       config: {
-        options: { homepage },
+        options: { homepage, icon: iconPNG },
       },
     },
   ],
