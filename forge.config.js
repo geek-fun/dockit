@@ -1,13 +1,13 @@
 const author = 'geekfun <support@geekfun.club>';
 const homepage = 'https://dockit.geekfun.club';
 const description = 'A faster, better and more stable NoSQL desktop tools';
-const iconICO = 'dockit.ico';
-const iconPNG = 'dockit.png';
+const iconPath = 'public/dockit';
 
 module.exports = {
   packagerConfig: {
     asar: true,
     productName: 'DocKit',
+    icon: iconPath,
   },
   rebuildConfig: {},
   makers: [
@@ -17,23 +17,23 @@ module.exports = {
         authors: author,
         description,
         iconUrl: 'https://gitee.com/geek-fun/dockit/raw/master/public/dockit.png',
-        setupIcon: iconICO,
+        setupIcon: `${iconPath}.ico`,
       },
     },
     {
       name: '@electron-forge/maker-dmg',
-      config: { icon: 'dockit.icns' },
+      config: { icon: `${iconPath}.icns` },
     },
     {
       name: '@electron-forge/maker-deb',
       config: {
-        options: { maintainer: author, homepage, icon: iconPNG },
+        options: { maintainer: author, homepage, icon: iconPath },
       },
     },
     {
       name: '@electron-forge/maker-rpm',
       config: {
-        options: { homepage, icon: iconPNG },
+        options: { homepage, icon: `${iconPath}.png` },
       },
     },
   ],
