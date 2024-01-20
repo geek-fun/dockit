@@ -12,7 +12,12 @@ module.exports = {
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
-      config: { authors: author, description, iconUrl: iconICO, setupIcon: iconICO },
+      config: {
+        authors: author,
+        description,
+        iconUrl: 'https://gitee.com/geek-fun/dockit/raw/master/public/dockit.png',
+        setupIcon: iconICO,
+      },
     },
     {
       name: '@electron-forge/maker-dmg',
