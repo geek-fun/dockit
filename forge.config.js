@@ -22,7 +22,7 @@ module.exports = {
     },
     {
       name: '@electron-forge/maker-dmg',
-      config: { icon: iconPNG },
+      config: { icon: 'dockit.icns' },
     },
     {
       name: '@electron-forge/maker-deb',

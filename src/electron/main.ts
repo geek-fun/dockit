@@ -25,7 +25,7 @@ const BrowserWindowOptions: BrowserWindowConstructorOptions = {
     devTools: isDev,
     webSecurity: false,
   },
-  icon: path.resolve(__dirname, '../dockit.png'),
+  icon: path.resolve(__dirname, '../../dockit.png'),
 };
 
 const bypassCors = (mainWindow: BrowserWindow) => {
