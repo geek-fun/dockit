@@ -7,6 +7,7 @@ module.exports = {
   packagerConfig: {
     asar: true,
     productName: 'DocKit',
+    icon: iconPath,
   },
   rebuildConfig: {},
   makers: [
@@ -26,7 +27,7 @@ module.exports = {
     {
       name: '@electron-forge/maker-deb',
       config: {
-        options: { maintainer: author, homepage, icon: iconPath },
+        options: { maintainer: author, homepage, icon: `${iconPath}.png` },
       },
     },
     {
