@@ -1,13 +1,12 @@
 const author = 'geekfun <support@geekfun.club>';
 const homepage = 'https://dockit.geekfun.club';
 const description = 'A faster, better and more stable NoSQL desktop tools';
-const iconPath = 'public/dockit';
+const iconPath = './public/dockit';
 
 module.exports = {
   packagerConfig: {
     asar: true,
     productName: 'DocKit',
-    icon: iconPath,
   },
   rebuildConfig: {},
   makers: [
