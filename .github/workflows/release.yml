@@ -56,8 +56,8 @@ jobs:
         run: ls -R ./
       - name: Release App
         uses: "marvinpinto/action-automatic-releases@latest"
-        prerelease: false
         with:
+          prerelease: false
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           files: |
             LICENSE
