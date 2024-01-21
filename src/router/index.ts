@@ -22,6 +22,14 @@ const router = createRouter({
           component: () => import('../views/connect/index.vue'),
         },
         {
+          name: 'History',
+          path: '/history',
+          meta: {
+            keepAlive: false,
+          },
+          component: () => import('../views/history/index.vue'),
+        },
+        {
           name: 'Setting',
           path: '/setting',
           meta: {

@@ -32,6 +32,8 @@
     "electron-store": "^8.1.0",
     "monaco-editor": "^0.45.0",
     "pinia": "^2.1.7",
+    "pinia-plugin-persistedstate": "^3.2.1",
+    "update-electron-app": "^3.0.0",
     "vue": "^3.4.13",
     "vue-i18n": "^9.9.0",
     "vue-router": "^4.2.5"

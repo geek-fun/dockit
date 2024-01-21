@@ -252,9 +252,20 @@ sourceFileAPI.onSaveShortcut(async () => {
 }
 
 .execute-button-decoration {
-  background: red;
   cursor: pointer;
-  width: 15px !important;
-  margin-left: 3px;
+  height: 0 !important;
+  width: 0 !important;
+  margin-top: 3px;
+  margin-left: 8px;
+  border-radius: 3px;
+  border-left-width: 10px;
+  border-top-width: 7px;
+  border-bottom-width: 7px;
+  border-right-width: 0;
+  border-top-color: transparent;
+  border-left-color: var(--theme-color);
+  border-bottom-color: transparent;
+  border-right-color: transparent;
+  border-style: solid;
 }
 </style>

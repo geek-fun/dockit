@@ -69,7 +69,11 @@ const editConnectHandler = (row: object) => {
       border-radius: 5px;
       color: #fff;
       background-color: var(--theme-color);
+      transition: 0.3s;
       cursor: pointer;
+      &:hover {
+        background-color: var(--theme-color-hover);
+      }
     }
   }
   .connect-body {

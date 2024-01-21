@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import { DataBase, Folders, LogoGithub, Settings, UserAvatar } from '@vicons/carbon';
+import { DataBase, Folders, LogoGithub, Settings, UserAvatar, ExpandAll } from '@vicons/carbon';
 import { useAppStore } from './../../store';
 import theAsideIcon from './the-aside-icon.vue';
 const router = useRouter();
@@ -62,6 +62,13 @@ const mainNavList = ref([
     path: '/',
     name: 'file',
     icon: markRaw(Folders),
+    isLink: false,
+  },
+  {
+    id: 'history',
+    path: '/history',
+    name: 'history',
+    icon: markRaw(ExpandAll),
     isLink: false,
   },
   {

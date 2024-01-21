@@ -1,5 +1,10 @@
 <template>
-  <n-config-provider :theme="getTheme" :locale="locale" :date-locale="dateLocale">
+  <n-config-provider
+    :theme="getTheme"
+    :locale="locale"
+    :date-locale="dateLocale"
+    :theme-overrides="naiveThemeOverrides"
+  >
     <n-loading-bar-provider>
       <n-dialog-provider>
         <n-notification-provider>
@@ -16,6 +21,7 @@
 <script lang="ts" setup>
 import { darkTheme, dateEnUS, dateZhCN, enUS, zhCN } from 'naive-ui';
 import { useAppStore } from '../store';
+import { naiveThemeOverrides } from '../assets/theme/naive-theme-overrides';
 
 const appStore = useAppStore();
 // system theme type
