@@ -136,10 +136,7 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
-try {
-  autoUpdater.setFeedURL({
-    url: `https://dockit-eta.vercel.app//update/${process.platform}/${app.getVersion()}`,
-  });
-} catch (err) {
-  /* empty */
-}
+
+autoUpdater.setFeedURL({
+  url: `https://dockit-eta.vercel.app//update/${process.platform}/${app.getVersion()}`,
+});
