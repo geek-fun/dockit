@@ -36,7 +36,10 @@ type Established =
   | null;
 
 const buildPath = (index: string | undefined, path: string | undefined) => {
-  return index && !['_nodes', '_cluster'].includes(path?.split('/')[0] ?? '')
+  return index &&
+    !['_nodes', '_cluster', '_cat', '_bulk', '_aliases', '_analyze'].includes(
+      path?.split('/')[0] ?? '',
+    )
     ? `/${index}/${path}`
     : `/${path}`;
 };

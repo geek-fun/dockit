@@ -171,6 +171,7 @@ const executeQueryAction = async (
       });
       return;
     }
+
     const data = await searchQDSL({
       ...action,
       index: action.index || established.value?.activeIndex?.index,

@@ -77,7 +77,7 @@ jobs:
         if: steps.tag_release.outputs.successful
         with:
           prerelease: false
-          automatic_release_tag: "latest"
+          automatic_release_tag: ${{ steps.tag_release.outputs.version }}
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           files: |
             LICENSE
