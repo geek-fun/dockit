@@ -1,10 +1,10 @@
 import {
   app,
+  autoUpdater,
   BrowserWindow,
   BrowserWindowConstructorOptions,
   ipcMain,
   shell,
-  autoUpdater,
 } from 'electron';
 import path from 'path';
 import { createMenu } from './menu';
@@ -137,6 +137,10 @@ app.on('window-all-closed', () => {
   }
 });
 
-autoUpdater.setFeedURL({
-  url: `https://dockit-eta.vercel.app//update/${process.platform}/${app.getVersion()}`,
-});
+try {
+  autoUpdater.setFeedURL({
+    url: `https://dockit-eta.vercel.app//update/${process.platform}/${app.getVersion()}`,
+  });
+} catch (err) {
+  /* empty */
+}
