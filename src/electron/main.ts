@@ -50,22 +50,25 @@ const bypassCors = (mainWindow: BrowserWindow) => {
     });
   });
 };
-const loadWindowByUrl = async (mainWindow: BrowserWindow) => {
-  for (let i = 0; i < 10; i++) {
-    try {
-      const response = await fetch('http://localhost:5173');
-      if (response.ok) {
-        break;
-      }
-    } catch (e) {
-      /* empty */
-    }
 
-    await new Promise(resolve => setTimeout(resolve, 2000));
+const loadWindowByUrl = async (mainWindow: BrowserWindow) => {
+  if (isDev) {
+    for (let i = 0; i < 10; i++) {
+      try {
+        const response = await fetch('http://localhost:5173');
+        if (response.ok) {
+          break;
+        }
+      } catch (e) {
+        /* empty */
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    await mainWindow.loadURL('http://localhost:5173');
+  } else {
+    await mainWindow.loadURL(`file://${path.join(__dirname, '../../index.html')}`);
   }
-  await mainWindow.loadURL(
-    isDev ? 'http://localhost:5173' : `file://${path.join(__dirname, './index.html')}`,
-  );
 };
 const loadDevTools = async () => {
   // if dev
