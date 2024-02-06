@@ -161,8 +161,6 @@ const executeQueryAction = async (
     return;
   }
   try {
-    // eslint-disable-next-line no-console
-    console.log(`execute ${JSON.stringify({ action })}`);
     if (!established.value) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,

@@ -96,6 +96,19 @@ export const useConnectionStore = defineStore('connectionStore', {
       }));
       this.established = { ...connection, indices };
     },
+    async fetchIndices() {
+      if (!this.established) throw new Error('no connection established');
+      const client = loadHttpClient(this.established as Connection);
+      const data = await client.get('/_cat/indices', 'format=json');
+      this.established!.indices = data.map((index: { [key: string]: string }) => ({
+        ...index,
+        docs: {
+          count: parseInt(index['docs.count'], 10),
+          deleted: parseInt(index['docs.deleted'], 10),
+        },
+        store: { size: index['store.size'] },
+      }));
+    },
     selectIndex(indexName: string) {
       this.established = {
         ...this.established,
@@ -119,8 +132,6 @@ export const useConnectionStore = defineStore('connectionStore', {
       const reqPath = buildPath(index, path);
       const body = qdsl ? JSON.parse(qdsl) : undefined;
 
-      // eslint-disable-next-line no-console
-      console.log('before req', { index, qdsl, method, path });
       const dispatch: { [method: string]: () => Promise<unknown> } = {
         POST: async () => client.post(reqPath, undefined, body),
         PUT: async () => client.put(reqPath, undefined, body),

@@ -81,8 +81,5 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           files: |
             LICENSE
-            out/make/**/*.dmg
-            out/make/**/*.rpm
-            out/make/**/*.deb
-            out/make/**/*.Setup.exe
+            out/make/**/*.{dmg,rpm,deb,Setup.exe}
       

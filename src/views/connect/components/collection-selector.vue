@@ -3,7 +3,11 @@
     <n-select
       :options="options"
       placeholder="No collection/index selected"
+      remote
+      filterable
+      :loading="loadingRef"
       @update:value="handleUpdateValue"
+      @update:show="handleOpen"
     />
   </div>
 </template>
@@ -11,10 +15,15 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { useConnectionStore } from '../../../store';
+import { useLang } from '../../../lang';
+const message = useMessage();
+const lang = useLang();
 
 const connectionStore = useConnectionStore();
-const { establishedIndexNames } = storeToRefs(connectionStore);
+const { establishedIndexNames, established } = storeToRefs(connectionStore);
+const { fetchIndices } = connectionStore;
 
+const loadingRef = ref(false);
 // build options list
 const options = computed(() =>
   establishedIndexNames.value.map(name => ({ label: name, value: name })),
@@ -22,6 +31,21 @@ const options = computed(() =>
 
 const handleUpdateValue = (value: string) => {
   connectionStore.selectIndex(value);
+};
+
+const handleOpen = async (isOpen: boolean) => {
+  if (!isOpen) return;
+  if (!established.value) {
+    message.error(lang.t('editor.establishedRequired'), {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3000,
+    });
+    return;
+  }
+  loadingRef.value = true;
+  await fetchIndices();
+  loadingRef.value = false;
 };
 </script>
 

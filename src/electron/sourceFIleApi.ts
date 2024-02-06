@@ -52,6 +52,6 @@ const sourceFileApi: { [key: string]: (filePath: string, content: string) => unk
 
 export const registerSourceFileApiListener = (ipcMain: Electron.IpcMain) => {
   ipcMain.handle('sourceFileAPI', (_, { content, method }: SourceFileApiInput) =>
-    sourceFileApi[method.toLowerCase()]('./data/default.search', content),
+    sourceFileApi[method.toLowerCase()]('../../data/default.search', content),
   );
 };
