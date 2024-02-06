@@ -32,7 +32,6 @@ import { useAppStore } from '../../store';
 const appStore = useAppStore();
 // DOM
 const connectModalRef = ref();
-
 const isPannelOpen = computed(() => {
   return appStore.connectPannel;
 });
