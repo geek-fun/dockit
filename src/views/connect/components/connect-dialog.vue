@@ -153,6 +153,7 @@ const formRules = reactive({
   ],
   port: [
     {
+      type: 'number',
       required: true,
       renderMessage: () => lang.t('connection.formValidation.portRequired'),
       trigger: ['input', 'blur'],
@@ -187,8 +188,19 @@ const validationPassed = watch(formData.value, async () => {
   }
 });
 
-const testConnect = async (event: MouseEvent) => {
+
+const testConnect = (event: MouseEvent) => {
   event.preventDefault();
+  connectFormRef.value?.validate((errors: boolean) => {
+    if (!errors) {
+      testConnectConfirm()
+    } else {
+      message.error(lang.t('connection.validationFailed'))
+    }
+  })
+};
+
+const testConnectConfirm = async () => {
   testLoading.value = !testLoading.value;
   try {
     await testConnection({ ...formData.value });
@@ -203,10 +215,19 @@ const testConnect = async (event: MouseEvent) => {
   } finally {
     testLoading.value = !testLoading.value;
   }
-};
-
-const saveConnect = async (event: MouseEvent) => {
+}
+const saveConnect = (event: MouseEvent) => {
   event.preventDefault();
+  connectFormRef.value?.validate((errors: boolean) => {
+    if (!errors) {
+      saveConnectConfirm()
+    } else {
+      message.error(lang.t('connection.validationFailed'))
+    }
+  })
+}
+
+const saveConnectConfirm = async () => {
   saveLoading.value = !saveLoading.value;
   saveConnection(formData.value);
   saveLoading.value = !saveLoading.value;

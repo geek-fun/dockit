@@ -38,6 +38,7 @@ export const enUS = {
       edit: 'Edit',
       remove: 'Remove',
     },
+    validationFailed: 'Form validation failed!',
     unAuthorized: 'Authorization failed, ensure your username and password are correct',
   },
   dialogOps: {
