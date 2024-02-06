@@ -188,16 +188,11 @@ const validationPassed = watch(formData.value, async () => {
   }
 });
 
-
 const testConnect = (event: MouseEvent) => {
   event.preventDefault();
-  connectFormRef.value?.validate((errors: boolean) => {
-    if (!errors) {
-      testConnectConfirm()
-    } else {
-      message.error(lang.t('connection.validationFailed'))
-    }
-  })
+  connectFormRef.value?.validate((errors: boolean) =>
+    !errors ? testConnectConfirm() : message.error(lang.t('connection.validationFailed')),
+  );
 };
 
 const testConnectConfirm = async () => {
@@ -215,17 +210,13 @@ const testConnectConfirm = async () => {
   } finally {
     testLoading.value = !testLoading.value;
   }
-}
+};
 const saveConnect = (event: MouseEvent) => {
   event.preventDefault();
-  connectFormRef.value?.validate((errors: boolean) => {
-    if (!errors) {
-      saveConnectConfirm()
-    } else {
-      message.error(lang.t('connection.validationFailed'))
-    }
-  })
-}
+  connectFormRef.value?.validate((errors: boolean) =>
+    !errors ? saveConnectConfirm() : message.error(lang.t('connection.validationFailed')),
+  );
+};
 
 const saveConnectConfirm = async () => {
   saveLoading.value = !saveLoading.value;
