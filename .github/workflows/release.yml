@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: '3.10'
       - run: npm ci
-      - run: npm run build
+      - run: npm run package
       - name: Build app
         shell: bash
         run: ./scripts/make-distributions.sh
