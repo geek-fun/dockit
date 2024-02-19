@@ -13,7 +13,7 @@ platform=$(uname | tr '[:upper:]' '[:lower:]')
 if [[ $platform == mingw64_nt* ]]; then
   platform="win32"
 fi
-
+npm run build
 echo "make distributions, platform: ${platform}"
 
 npx electron-forge make --arch="x64" --platform="${platform}"

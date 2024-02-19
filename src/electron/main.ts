@@ -100,9 +100,9 @@ const createWindow = async () => {
   }, 1000);
 
   // Open the DevTools.
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
-  }
+  // if (isDev) {
+  mainWindow.webContents.openDevTools();
+  // }
 
   ipcMain.handle('versions', () => ({
     node: process.versions.chrome,

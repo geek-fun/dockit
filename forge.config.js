@@ -8,7 +8,7 @@ module.exports = {
     asar: true,
     productName: 'DocKit',
     icon: iconPath,
-    executableName: 'dockit',
+    executableName: 'DocKit',
   },
   rebuildConfig: {},
   makers: [
