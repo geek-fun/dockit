@@ -2,6 +2,7 @@ module.exports = {
   env: {
     node: true,
     es2022: true,
+    browser: true,
   },
   extends: [
     'plugin:vue/base',

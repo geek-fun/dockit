@@ -6,9 +6,9 @@ const iconPath = './public/dockit';
 module.exports = {
   packagerConfig: {
     asar: true,
-    productName: 'dockit',
+    productName: 'DocKit',
     icon: iconPath,
-    executableName: 'dockit',
+    executableName: 'DocKit',
   },
   rebuildConfig: {},
   makers: [
