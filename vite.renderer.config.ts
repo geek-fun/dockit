@@ -1,7 +1,10 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
-import AutoImport from 'unplugin-auto-import/vite';
+// eslint-disable-next-line import/no-unresolved
 import Components from 'unplugin-vue-components/vite';
+// eslint-disable-next-line import/no-unresolved
+import AutoImport from 'unplugin-auto-import/vite';
+// eslint-disable-next-line import/no-unresolved
 import { NaiveUiResolver } from 'unplugin-vue-components/resolvers';
 
 // https://vitejs.dev/config/
@@ -9,7 +12,7 @@ export default defineConfig({
   plugins: [
     vue(),
     AutoImport({
-      dts: './auto-import.d.ts',
+      dts: true,
       eslintrc: {
         enabled: true,
         filepath: './.eslintrc-auto-import.json',
