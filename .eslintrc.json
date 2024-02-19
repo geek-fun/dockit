@@ -16,5 +16,6 @@
     "plugin:prettier/recommended",
     "./.eslintrc-auto-import.json"
   ],
-  "parser": "@typescript-eslint/parser"
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint", "prettier", "eslint-plugin-vue"]
 }
