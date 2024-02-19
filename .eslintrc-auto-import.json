@@ -4,10 +4,14 @@
     "ComponentPublicInstance": true,
     "ComputedRef": true,
     "EffectScope": true,
+    "ExtractDefaultPropTypes": true,
+    "ExtractPropTypes": true,
+    "ExtractPublicPropTypes": true,
     "InjectionKey": true,
     "PropType": true,
     "Ref": true,
     "VNode": true,
+    "WritableComputedRef": true,
     "computed": true,
     "createApp": true,
     "customRef": true,
@@ -67,10 +71,6 @@
     "watch": true,
     "watchEffect": true,
     "watchPostEffect": true,
-    "watchSyncEffect": true,
-    "ExtractDefaultPropTypes": true,
-    "ExtractPropTypes": true,
-    "ExtractPublicPropTypes": true,
-    "WritableComputedRef": true
+    "watchSyncEffect": true
   }
 }

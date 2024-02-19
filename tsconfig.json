@@ -1,26 +1,16 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-    "useDefineForClassFields": true,
+    "target": "ESNext",
     "module": "commonjs",
-    "moduleResolution": "node",
-    "strict": true,
-    "jsx": "preserve",
-    "resolveJsonModule": true,
-    "isolatedModules": false,
-    "esModuleInterop": true,
-    "lib": ["esnext", "dom"],
+    "allowJs": true,
     "skipLibCheck": true,
-    "outDir": "dist/src",
-    "baseUrl": "."
+    "esModuleInterop": true,
+    "noImplicitAny": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "outDir": "dist",
+    "moduleResolution": "node",
+    "resolveJsonModule": true
   },
-  "include": [
-    "src/electron/**/*",
-    "src/**/*.d.ts",
-    "src/**/*.vue",
-    "auto-import.d.ts"
-  ],
-  "references": [{
-    "path": "./tsconfig.node.json"
-  }]
+  "include": ["src"]
 }

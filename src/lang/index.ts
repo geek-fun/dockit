@@ -1,4 +1,4 @@
-import { createI18n } from 'vue-i18n';
+import { createI18n, useI18n } from 'vue-i18n';
 import { enUS } from './enUS';
 import { zhCN } from './zhCN';
 
@@ -17,7 +17,6 @@ const lang = createI18n({
     enUS,
   },
 });
-import { useI18n } from 'vue-i18n';
 const useLang = useI18n;
 
 export { lang, useLang };
