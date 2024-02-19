@@ -28,7 +28,7 @@ const BrowserWindowOptions: BrowserWindowConstructorOptions = {
   frame: true,
   webPreferences: {
     preload: path.resolve(__dirname, 'preload.js'),
-    devTools: isDev,
+    devTools: true,
     webSecurity: false,
   },
   icon: path.resolve(__dirname, '../../dockit.png'),

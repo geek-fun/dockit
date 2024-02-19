@@ -1,7 +1,7 @@
 {
   "name": "dockit",
   "private": true,
-  "version": "0.0.10",
+  "version": "0.0.11",
   "main": "dist/src/electron/main.js",
   "description": "A faster, better and more stable NoSQL desktop tools",
   "author": "geekfun <support@geekfun.club>",
