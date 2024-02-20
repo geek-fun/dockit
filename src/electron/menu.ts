@@ -116,6 +116,18 @@ const buildMenuTemplate = (mainWindow: BrowserWindow) =>
         },
       ],
     },
+    {
+      label: 'Developer',
+      submenu: [
+        {
+          label: 'Toggle Developer Tools',
+          accelerator: 'F12',
+          click: () => {
+            mainWindow.webContents.toggleDevTools();
+          },
+        },
+      ],
+    },
   ] as Array<MenuItemConstructorOptions>;
 
 export const createMenu = (mainWindow: BrowserWindow) => {

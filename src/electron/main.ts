@@ -1,4 +1,4 @@
-import { app, BrowserWindow, autoUpdater, ipcMain, shell } from 'electron';
+import { app, autoUpdater, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'path';
 import { createMenu } from './menu';
 import { debug } from '../common';
@@ -34,16 +34,19 @@ const createWindow = async () => {
     minHeight: 600,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
-      devTools: isDev,
       webSecurity: false,
     },
     icon: path.resolve(__dirname, '../../dockit.png'),
   });
   createMenu(mainWindow);
   // and load the index.html of the app.
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     for (let i = 0; i < 10; i++) {
       try {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
         const response = await fetch(MAIN_WINDOW_VITE_DEV_SERVER_URL);
         if (response.ok) {
           break;
@@ -54,16 +57,15 @@ const createWindow = async () => {
 
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
     await mainWindow.loadFile(
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
-  }
-
-  // Open the DevTools.
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
   }
 
   ipcMain.handle('versions', () => ({
@@ -94,9 +96,9 @@ app.on('window-all-closed', () => {
 
 // On OS X it's common to re-create a window in the app when the
 // dock icon is clicked and there are no other windows open.
-app.on('activate', () => {
+app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    await createWindow();
   }
 });
 
@@ -114,5 +116,6 @@ try {
 } catch (err) {
   /* empty */
 }
+
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
