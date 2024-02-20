@@ -6,6 +6,9 @@ import { githubLink } from '../config';
 import { registerStoreApiListener } from './storeApi';
 import { registerSourceFileApiListener } from './sourceFIleApi';
 
+declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
+declare const MAIN_WINDOW_VITE_NAME: string;
+
 const isDev = process.env.APP_ENV === 'dev';
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
