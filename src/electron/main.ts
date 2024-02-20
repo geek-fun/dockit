@@ -43,13 +43,9 @@ const createWindow = async () => {
   });
   createMenu(mainWindow);
   // and load the index.html of the app.
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     for (let i = 0; i < 10; i++) {
       try {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
         const response = await fetch(MAIN_WINDOW_VITE_DEV_SERVER_URL);
         if (response.ok) {
           break;
@@ -60,13 +56,10 @@ const createWindow = async () => {
 
       await new Promise(resolve => setTimeout(resolve, 2000));
     }
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
+
     await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
     await mainWindow.loadFile(
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }

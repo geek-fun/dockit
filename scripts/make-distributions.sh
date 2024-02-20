@@ -18,3 +18,10 @@ echo "make distributions, platform: ${platform}"
 npx electron-forge make --arch="x64" --platform="${platform}"
 
 npx electron-forge make --arch="arm64" --platform="${platform}"
+
+# rename distributions
+if [[ $platform == "win32" ]]; then
+  version=$(node -p "require('./package.json').version")
+  mv out/make/squirrel.windows/x64/DocKit-${version}\ Setup.exe out/make/squirrel.windows/x64/DocKit-${version}-x64.Setup.exe
+  mv out/make/squirrel.windows/arm64/DocKit-${version}\ Setup.exe out/make/squirrel.windows/arm64/DocKit-${version}-arm64.Setup.exe
+fi
