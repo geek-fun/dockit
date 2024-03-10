@@ -15,9 +15,14 @@ if [[ $platform == mingw64_nt* ]]; then
 fi
 echo "make distributions, platform: ${platform}"
 
-npx electron-forge make --arch="x64" --platform="${platform}"
-
-npx electron-forge make --arch="arm64" --platform="${platform}"
+if [[ $platform == "darwin" ]]; then
+  # make universal distribution for mac
+  npx electron-forge make --arch="universal" --platform="${platform}"
+else
+  # make distributions for windows and linux
+  npx electron-forge make --arch="x64" --platform="${platform}"
+  npx electron-forge make --arch="arm64" --platform="${platform}"
+fi
 
 # rename distributions
 if [[ $platform == "win32" ]]; then
