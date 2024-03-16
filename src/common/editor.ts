@@ -9,7 +9,10 @@ export type Decoration = {
   range: Range;
   options: { isWholeLine: boolean; linesDecorationsClassName: string };
 };
-
+export const executeActions = {
+  regexp: /^(GET|DELETE|POST|PUT)\s\w+/,
+  decorationClassName: 'action-execute-decoration',
+};
 export const searchTokensProvider = {
   // Set defaultToken to invalid to see what you do not tokenize yet
   defaultToken: 'invalid',
@@ -129,7 +132,7 @@ export const searchTokensProvider = {
   // The main tokenizer for our languages
   tokenizer: {
     root: [
-      [/^(GET|DELETE|POST|PUT)\s\w+/, 'action-execute-decoration'],
+      [executeActions.regexp, executeActions.decorationClassName],
       [/[{}]/, 'delimiter.bracket'],
       { include: 'common' },
     ],

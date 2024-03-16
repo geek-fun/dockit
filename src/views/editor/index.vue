@@ -7,7 +7,7 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
-import { CustomError, Decoration, searchTokensProvider } from '../../common';
+import { CustomError, Decoration, executeActions, searchTokensProvider } from '../../common';
 import { useAppStore, useSourceFileStore, useConnectionStore } from '../../store';
 import { useLang } from '../../lang';
 type Editor = ReturnType<typeof monaco.editor.create>;
@@ -65,6 +65,44 @@ monaco.languages.setMonarchTokensProvider(
   'search',
   searchTokensProvider as monaco.languages.IMonarchLanguage,
 );
+
+monaco.languages.registerCodeLensProvider('search', {
+  provideCodeLenses: () => {
+    const model = queryEditor?.getModel();
+    if (!model) {
+      console.log('no model');
+      return;
+    }
+    const codeLens: monaco.languages.CodeLens[] = [];
+    for (let i = 1; i <= model.getLineCount(); i++) {
+      const lineContent = model.getLineContent(i);
+      console.log(
+        'loop lineContent',
+        lineContent,
+        'index',
+        i,
+        'model.getLineCount()',
+        model.getLineCount(),
+      );
+      if (executeActions.regexp.test(lineContent)) {
+        codeLens.push({
+          range: new monaco.Range(i, 1, i, 1),
+          id: `AutoIndent-${i}`,
+          command: {
+            id: `AutoIndent-${i}`,
+            title: 'Auto Indent',
+            arguments: [i],
+          },
+        });
+      }
+    }
+    return { lenses: codeLens, dispose: () => {} };
+  },
+  resolveCodeLens: (model, codeLens) => {
+    return codeLens;
+  },
+});
+
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let displayEditor: Editor | null = null;
 let queryEditor: Editor | null = null;
@@ -206,6 +244,23 @@ const setupQueryEditor = (code: string) => {
       executeQueryAction(queryEditor, displayEditor, target.position);
     }
   });
+
+  queryEditor.addAction({
+    id: 'AutoIndent',
+    label: 'Auto Indent',
+    run: (ed, args) => {
+      console.log('FormatQuery', { ed, args });
+      try {
+        const model = queryEditor?.getModel();
+        if (model) {
+          const formatted = monaco.languages.json.jsonDefaults.format(model.getValue());
+          model.setValue(formatted);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    },
+  });
 };
 const setupJsonEditor = () => {
   displayEditor = monaco.editor.create(displayEditorRef.value, {
@@ -221,6 +276,7 @@ onMounted(async () => {
   setupQueryEditor(code);
   setupJsonEditor();
 });
+
 const { sourceFileAPI } = window;
 
 sourceFileAPI.onSaveShortcut(async () => {
