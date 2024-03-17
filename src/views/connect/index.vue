@@ -1,6 +1,6 @@
 <template>
   <div class="connect-container">
-    <div v-if="isPannelOpen" class="connect-list">
+    <div v-if="connectPanel" class="connect-list">
       <div class="add-connect" @click="addConnect">
         <n-icon size="28">
           <Add />
@@ -22,6 +22,8 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from 'vue';
+import { storeToRefs } from 'pinia';
 import { Add } from '@vicons/carbon';
 import ConnectModal from './components/connect-dialog.vue';
 import connectList from './components/connect-list.vue';
@@ -30,15 +32,15 @@ import Editor from '../editor/index.vue';
 import { useAppStore } from '../../store';
 
 const appStore = useAppStore();
+const { setConnectPanel } = appStore;
+const { connectPanel } = storeToRefs(appStore);
+
 // DOM
 const connectModalRef = ref();
-const isPannelOpen = computed(() => {
-  return appStore.connectPannel;
-});
 
 onMounted(() => {
-  if (!appStore.connectPannel) {
-    appStore.setConnectPannel();
+  if (!connectPanel.value) {
+    setConnectPanel();
   }
 });
 

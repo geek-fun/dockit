@@ -9,10 +9,21 @@ export type Decoration = {
   range: Range;
   options: { isWholeLine: boolean; linesDecorationsClassName: string };
 };
+
 export const executeActions = {
   regexp: /^(GET|DELETE|POST|PUT)\s\w+/,
   decorationClassName: 'action-execute-decoration',
 };
+
+export type SearchToken = {
+  qdsl: string;
+  actionPosition: Range;
+  qdslPosition: Range;
+  method: string;
+  index: string;
+  path: string;
+};
+
 export const searchTokensProvider = {
   // Set defaultToken to invalid to see what you do not tokenize yet
   defaultToken: 'invalid',
@@ -192,4 +203,43 @@ export const searchTokensProvider = {
       [/[/*]/, 'comment'],
     ],
   },
+};
+
+export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent: string }>) => {
+  const commands = lines.filter(({ lineContent }) => executeActions.regexp.test(lineContent));
+
+  return commands.map(({ lineContent, lineNumber }, index, commands) => {
+    const rawCmd = lineContent.split(/[/\s]+/);
+    const method = rawCmd[0]?.toUpperCase();
+    const indexName = rawCmd[1]?.startsWith('_') ? undefined : rawCmd[1];
+    const path = rawCmd.slice(indexName ? 2 : 1, rawCmd.length).join('/');
+    const endLineNumber = commands[index + 1]?.lineNumber
+      ? commands[index + 1]?.lineNumber - 1
+      : lines.length;
+
+    const qdsl = lines
+      .slice(lineNumber, endLineNumber)
+      .map(({ lineContent }) => lineContent)
+      .join('');
+    return {
+      qdsl,
+      method,
+      index: indexName,
+      path,
+      actionPosition: {
+        startLineNumber: lineNumber,
+        endLineNumber: lineNumber,
+        startColumn: 1,
+        endColumn: lineContent.length,
+      },
+      qdslPosition: qdsl
+        ? {
+            startLineNumber: lineNumber + 1,
+            startColumn: 1,
+            endLineNumber: endLineNumber,
+            endColumn: lines[endLineNumber - 1].lineContent.length,
+          }
+        : null,
+    } as SearchToken;
+  });
 };

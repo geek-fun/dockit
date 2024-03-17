@@ -45,10 +45,10 @@ const buildPath = (index: string | undefined, path: string | undefined) => {
 };
 
 export const useConnectionStore = defineStore('connectionStore', {
-  state(): {
+  state: (): {
     connections: Connection[];
     established: Established;
-  } {
+  } => {
     return {
       connections: [],
       established: null,
@@ -69,7 +69,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       return await client.get(undefined, 'format=json');
     },
     saveConnection(connection: Connection) {
-      const index = this.connections.findIndex(item => item.id === connection.id);
+      const index = this.connections.findIndex(({ id }: Connection) => id === connection.id);
       if (index >= 0) {
         this.connections[index] = connection;
       } else {
@@ -78,7 +78,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       storeAPI.set('connections', pureObject(this.connections));
     },
     removeConnection(connection: Connection) {
-      this.connections = this.connections.filter(item => item.id !== connection.id);
+      this.connections = this.connections.filter(({ id }: Connection) => id !== connection.id);
       storeAPI.set('connections', pureObject(this.connections));
     },
     async establishConnection(connection: Connection) {
@@ -112,7 +112,9 @@ export const useConnectionStore = defineStore('connectionStore', {
     selectIndex(indexName: string) {
       this.established = {
         ...this.established,
-        activeIndex: this.established?.indices.find(({ index }) => index === indexName),
+        activeIndex: this.established?.indices.find(
+          ({ index }: { index: string }) => index === indexName,
+        ),
       } as Established;
     },
     async searchQDSL({

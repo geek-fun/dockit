@@ -7,10 +7,18 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
-import { ref, onMounted, watch } from 'vue';
-import { CustomError, Decoration, executeActions, searchTokensProvider } from '../../common';
-import { useAppStore, useSourceFileStore, useConnectionStore, ThemeType } from '../../store';
+import { onMounted, ref, watch } from 'vue';
+import { useMessage } from 'naive-ui';
+import {
+  buildSearchToken,
+  CustomError,
+  Decoration,
+  SearchToken,
+  searchTokensProvider,
+} from '../../common';
+import { useAppStore, useConnectionStore, useSourceFileStore } from '../../store';
 import { useLang } from '../../lang';
+
 type Editor = ReturnType<typeof monaco.editor.create>;
 
 const appStore = useAppStore();
@@ -68,43 +76,6 @@ monaco.languages.setMonarchTokensProvider(
   searchTokensProvider as monaco.languages.IMonarchLanguage,
 );
 
-monaco.languages.registerCodeLensProvider('search', {
-  provideCodeLenses: () => {
-    const model = queryEditor?.getModel();
-    if (!model) {
-      console.log('no model');
-      return;
-    }
-    const codeLens: monaco.languages.CodeLens[] = [];
-    for (let i = 1; i <= model.getLineCount(); i++) {
-      const lineContent = model.getLineContent(i);
-      console.log(
-        'loop lineContent',
-        lineContent,
-        'index',
-        i,
-        'model.getLineCount()',
-        model.getLineCount(),
-      );
-      if (executeActions.regexp.test(lineContent)) {
-        codeLens.push({
-          range: new monaco.Range(i, 1, i, 1),
-          id: `AutoIndent-${i}`,
-          command: {
-            id: `AutoIndent-${i}`,
-            title: 'Auto Indent',
-            arguments: [i],
-          },
-        });
-      }
-    }
-    return { lenses: codeLens, dispose: () => {} };
-  },
-  resolveCodeLens: (model, codeLens) => {
-    return codeLens;
-  },
-});
-
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let displayEditor: Editor | null = null;
 let queryEditor: Editor | null = null;
@@ -112,8 +83,66 @@ let queryEditor: Editor | null = null;
 const queryEditorRef = ref();
 const displayEditorRef = ref();
 
+let searchTokens: SearchToken[] = [];
+
+const getActionMarksDecorations = (searchTokens: SearchToken[]): Array<Decoration> => {
+  return searchTokens
+    .map(({ actionPosition }) => ({
+      id: actionPosition.startLineNumber,
+      range: actionPosition,
+      options: { isWholeLine: true, linesDecorationsClassName: executionGutterClass },
+    }))
+    .filter(Boolean)
+    .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
+};
+
+const refreshActionMarks = (editor: Editor, searchTokens: SearchToken[]) => {
+  const freshedDecorations = getActionMarksDecorations(searchTokens);
+  // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
+  executeDecorations = editor.deltaDecorations(
+    executeDecorations as Array<string>,
+    freshedDecorations,
+  ) as unknown as Decoration[];
+};
+const buildCodeLens = (searchTokens: SearchToken[]) => {
+  return searchTokens.map(({ actionPosition }, index) => {
+    return {
+      range: actionPosition,
+      id: 'AutoIndent',
+      command: {
+        id: 'AutoIndent',
+        title: 'Auto Indent',
+        arguments: [index],
+      },
+    };
+  });
+};
+
+monaco.languages.registerCodeLensProvider('search', {
+  provideCodeLenses: () => {
+    const model = queryEditor?.getModel();
+    if (!model) {
+      return;
+    }
+
+    const lines = Array.from({ length: model.getLineCount() }, (_, i) => ({
+      lineNumber: i + 1,
+      lineContent: model.getLineContent(i + 1),
+    }));
+
+    searchTokens = buildSearchToken(lines);
+
+    refreshActionMarks(queryEditor!, searchTokens);
+
+    return { lenses: buildCodeLens(searchTokens), dispose: () => {} };
+  },
+
+  resolveCodeLens: (model, codeLens) => {
+    return codeLens;
+  },
+});
+
 const executionGutterClass = 'execute-button-decoration';
-const executeDecorationType = 'action-execute-decoration.search';
 
 let executeDecorations: Array<Decoration | string> = [];
 
@@ -124,68 +153,19 @@ watch(themeType, () => {
   displayEditor?.updateOptions({ theme: vsTheme });
 });
 
-const getActionMarksDecorations = (editor: Editor): Array<Decoration> => {
-  // Get the model of the editor
-  const model = editor.getModel();
-  // Tokenize the entire content of the model
-  const tokens = monaco.editor.tokenize(model!.getValue(), model!.getLanguageId());
-  return tokens
-    .map(
-      (line, lineIndex) =>
-        line.some(({ type }) => type === executeDecorationType) && {
-          id: lineIndex + 1,
-          range: new monaco.Range(lineIndex + 1, 1, lineIndex + 1, 1),
-          options: { isWholeLine: true, linesDecorationsClassName: executionGutterClass },
-        },
-    )
-    .filter(Boolean)
-    .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
-};
-
-const refreshActionMarks = (editor: Editor) => {
-  const freshedDecorations = getActionMarksDecorations(editor);
-  // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
-  executeDecorations = editor.deltaDecorations(
-    executeDecorations as Array<string>,
-    freshedDecorations,
-  ) as unknown as Decoration[];
-};
-
-const getAction = (editor: Editor, startLine: number) => {
-  const model = editor.getModel();
-  if (!model) {
-    return;
-  }
-  const commands = model.getLineContent(startLine).split(/[\/\s]+/);
-  const method = commands[0]?.toUpperCase();
-  const index = commands[1]?.startsWith('_') ? undefined : commands[1];
-  const path = commands.slice(index ? 2 : 1, commands.length).join('/');
-
-  let qdsl = '';
-  // Get  non-comment payload
-  for (let lineNumber = startLine + 1; lineNumber <= model.getLineCount(); lineNumber++) {
-    const lineContent = model.getLineContent(lineNumber);
-    if (lineContent.trim() === '') {
-      break;
-    }
-    if (lineContent.trim().startsWith('//')) {
-      continue;
-    }
-    qdsl += lineContent;
-  }
-
-  return { qdsl, method, index, path };
-};
-
 const executeQueryAction = async (
   queryEditor: Editor,
   displayEditor: Editor,
   position: { column: number; lineNumber: number },
 ) => {
-  const action = getAction(queryEditor, position.lineNumber);
+  const action = searchTokens.find(
+    ({ actionPosition }) => actionPosition.startLineNumber === position.lineNumber,
+  );
+
   if (!action) {
     return;
   }
+
   try {
     if (!established.value) {
       message.error(lang.t('editor.establishedRequired'), {
@@ -219,8 +199,6 @@ const setupQueryEditor = (code: string) => {
     language: 'search',
   });
 
-  // Register language injection rule
-  queryEditor.onKeyUp(event => queryEditor && refreshActionMarks(queryEditor));
   queryEditor.onMouseDown(({ event, target }) => {
     if (
       event.leftButton &&

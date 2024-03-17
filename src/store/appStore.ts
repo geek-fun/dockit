@@ -10,7 +10,11 @@ export enum LanguageType {
   EN_US = 'enUS',
 }
 export const useAppStore = defineStore('app', {
-  state: () => {
+  state: (): {
+    themeType: ThemeType;
+    languageType: LanguageType;
+    connectPanel: boolean;
+  } => {
     return {
       themeType: ThemeType.AUTO,
       languageType: LanguageType.AUTO,
@@ -19,7 +23,7 @@ export const useAppStore = defineStore('app', {
   },
   persist: true,
   actions: {
-    setConnectPannel() {
+    setConnectPanel() {
       this.connectPanel = !this.connectPanel;
     },
     getEditorTheme() {

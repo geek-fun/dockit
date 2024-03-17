@@ -42,12 +42,15 @@
 </template>
 
 <script setup lang="ts">
+import { ref, markRaw } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { DataBase, Folders, LogoGithub, Settings, UserAvatar, ExpandAll } from '@vicons/carbon';
-import { useAppStore } from './../../store';
+import { useAppStore } from '../../store';
 import theAsideIcon from './the-aside-icon.vue';
 const router = useRouter();
 const route = useRoute();
 const appStore = useAppStore();
+const { setConnectPanel } = appStore;
 
 const mainNavList = ref([
   {
@@ -113,7 +116,7 @@ const navClick = (item: RouteItem) => {
     window.electronAPI.openGitHub();
   } else {
     if (route.path === item.path) {
-      appStore.setConnectPannel();
+      setConnectPanel();
     } else {
       router.push({
         path: item.path,
