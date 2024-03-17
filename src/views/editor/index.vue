@@ -7,8 +7,9 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
+import { ref, onMounted, watch } from 'vue';
 import { CustomError, Decoration, executeActions, searchTokensProvider } from '../../common';
-import { useAppStore, useSourceFileStore, useConnectionStore } from '../../store';
+import { useAppStore, useSourceFileStore, useConnectionStore, ThemeType } from '../../store';
 import { useLang } from '../../lang';
 type Editor = ReturnType<typeof monaco.editor.create>;
 
@@ -23,7 +24,8 @@ const { defaultFile } = storeToRefs(sourceFileStore);
 const connectionStore = useConnectionStore();
 const { searchQDSL } = connectionStore;
 const { established } = storeToRefs(connectionStore);
-
+const { getEditorTheme } = appStore;
+const { themeType } = storeToRefs(appStore);
 /**
  * refer https://github.com/wobsoriano/codeplayground
  * https://github.com/wobsoriano/codeplayground/blob/master/src/components/MonacoEditor.vue
@@ -115,26 +117,12 @@ const executeDecorationType = 'action-execute-decoration.search';
 
 let executeDecorations: Array<Decoration | string> = [];
 
-const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
-const systemTheme = ref(themeMedia.matches);
-themeMedia.addListener(e => {
-  systemTheme.value = e.matches;
-});
+watch(themeType, () => {
+  const vsTheme = getEditorTheme();
 
-// set Editoer theme name
-const editorTheme = computed(() => {
-  // 'vs-dark',
-  let isDark = appStore.themeType === 0 ? !systemTheme.value : appStore.themeType === 1;
-  return isDark ? 'vs-dark' : 'vs-light';
+  queryEditor?.updateOptions({ theme: vsTheme });
+  displayEditor?.updateOptions({ theme: vsTheme });
 });
-
-watch(
-  () => editorTheme.value,
-  () => {
-    queryEditor?.updateOptions({ theme: editorTheme.value });
-    displayEditor?.updateOptions({ theme: editorTheme.value });
-  },
-);
 
 const getActionMarksDecorations = (editor: Editor): Array<Decoration> => {
   // Get the model of the editor
@@ -226,7 +214,7 @@ const executeQueryAction = async (
 const setupQueryEditor = (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
-    theme: editorTheme.value,
+    theme: getEditorTheme(),
     value: code,
     language: 'search',
   });
@@ -265,7 +253,7 @@ const setupQueryEditor = (code: string) => {
 const setupJsonEditor = () => {
   displayEditor = monaco.editor.create(displayEditorRef.value, {
     automaticLayout: true,
-    theme: editorTheme.value,
+    theme: getEditorTheme(),
     value: '',
     language: 'json',
   });

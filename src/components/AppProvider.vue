@@ -19,44 +19,28 @@
 </template>
 
 <script lang="ts" setup>
+import { computed, defineComponent, h } from 'vue';
 import { darkTheme, dateEnUS, dateZhCN, enUS, zhCN } from 'naive-ui';
-import { useAppStore } from '../store';
+import { storeToRefs } from 'pinia';
+import { LanguageType, ThemeType, useAppStore } from '../store';
 import { naiveThemeOverrides } from '../assets/theme/naive-theme-overrides';
 
 const appStore = useAppStore();
-// system theme type
-const themeMedia = window.matchMedia('(prefers-color-scheme: light)');
-let systemTheme = ref(themeMedia.matches);
-themeMedia.addListener(e => {
-  systemTheme.value = e.matches;
-});
-
-onMounted(() => {
-  let themeType: number = Number(localStorage.getItem('theme-type')) || 0;
-  if (themeType !== appStore.themeType) {
-    appStore.setThemeType(themeType);
-  }
-});
+const { themeType, languageType } = storeToRefs(appStore);
 
 const getTheme = computed(() => {
-  let isDark = appStore.themeType === 0 ? !systemTheme.value : appStore.themeType === 1;
-  if (isDark) {
-    document.documentElement.setAttribute('theme', 'dark');
-    return darkTheme;
-  } else {
-    document.documentElement.setAttribute('theme', 'light');
-    return undefined;
-  }
+  document.documentElement.setAttribute(
+    'theme',
+    themeType.value === ThemeType.DARK ? ThemeType.DARK : ThemeType.LIGHT,
+  );
+  return themeType.value === ThemeType.DARK ? darkTheme : undefined;
 });
 
-const locale = computed(() => {
-  let langType = appStore.languageName;
-  return langType === 'zhCN' ? zhCN : enUS;
-});
-const dateLocale = computed(() => {
-  let langType = appStore.languageName;
-  return langType === 'zhCN' ? dateZhCN : dateEnUS;
-});
+const locale = computed(() => (languageType.value === LanguageType.ZH_CN ? zhCN : enUS));
+const dateLocale = computed(() =>
+  languageType.value === LanguageType.ZH_CN ? dateZhCN : dateEnUS,
+);
+
 const NaiveProviderContent = defineComponent({
   render() {
     return h('div');

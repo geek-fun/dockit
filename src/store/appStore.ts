@@ -1,34 +1,29 @@
 import { defineStore } from 'pinia';
+export enum ThemeType {
+  AUTO = 'auto',
+  DARK = 'dark',
+  LIGHT = 'light',
+}
+export enum LanguageType {
+  AUTO = 'auto',
+  ZH_CN = 'zhCN',
+  EN_US = 'enUS',
+}
 export const useAppStore = defineStore('app', {
-  state() {
+  state: () => {
     return {
-      themeType: 0, // 0 auto, 1: dark, 2: light
-      languageType: 'auto', // 0: auto, 1: zhCN, 2: enUS
-      languageName: 'zhCN', // zhCN || enUS
-      connectPannel: true, //
+      themeType: ThemeType.AUTO,
+      languageType: LanguageType.AUTO,
+      connectPanel: true, //
     };
   },
+  persist: true,
   actions: {
-    setThemeType(args: number) {
-      this.themeType = args;
-      localStorage.setItem('theme-type', String(args));
-    },
-    setLanguageType(args: string) {
-      this.languageType = args;
-      localStorage.setItem('lang', String(args));
-      if (args === 'auto') {
-        this.languageName = navigator.language === 'zh-CN' ? 'zhCN' : 'enUS';
-      } else {
-        this.languageName = args;
-      }
-    },
     setConnectPannel() {
-      this.connectPannel = !this.connectPannel;
+      this.connectPanel = !this.connectPanel;
     },
-  },
-  persist: {
-    // 设置为 true 表示在页面刷新时，Pinia 状态仍然会被保存。
-    paths: ['themeType', 'languageType', 'languageName', 'connectPannel'],
-    storage: localStorage,
+    getEditorTheme() {
+      return this.themeType === ThemeType.DARK ? 'vs-dark' : 'vs-light';
+    },
   },
 });

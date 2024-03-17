@@ -5,18 +5,16 @@
         <div class="title">{{ $t('setting.theme') }}</div>
         <div class="content">
           <div
-            v-for="item in themeTypeList"
-            :key="item.type"
+            v-for="theme in themeTypes"
+            :key="theme.type"
             class="content-item"
-            :class="{
-              active: activeType === item.type,
-            }"
-            @click="setThemeType(item.type)"
+            :class="{ active: themeType === theme.type }"
+            @click="setThemeType(theme.type)"
           >
             <div class="img-box">
-              <img :src="item.img" :alt="item.name" />
+              <img :src="theme.img" :alt="theme.name" />
             </div>
-            <div class="item-desc">{{ $t(`setting.${item.name}`) }}</div>
+            <div class="item-desc">{{ $t(`setting.${theme.name}`) }}</div>
             <div class="item-checked">
               <n-icon :size="18" color="#fff">
                 <CheckOutlined />
@@ -28,8 +26,12 @@
       <n-gi span="4">
         <div class="title">{{ $t('setting.language') }}</div>
         <div class="content">
-          <n-radio-group v-model:value="langType" name="radiogroup" @update:value="langTypeChange">
-            <n-radio v-for="langItem in langTypeList" :key="langItem.type" :value="langItem.type">
+          <n-radio-group
+            v-model:value="languageType"
+            name="radiogroup"
+            @update:value="langTypeChange"
+          >
+            <n-radio v-for="langItem in langTypes" :key="langItem.type" :value="langItem.type">
               {{ langItem.name === 'auto' ? $t('setting.auto') : langItem.name }}
             </n-radio>
           </n-radio-group>
@@ -40,59 +42,36 @@
 </template>
 
 <script setup lang="ts">
+import { storeToRefs } from 'pinia';
 import lightImg from '../../../assets/img/theme-light.png';
 import darkImg from '../../../assets/img/theme-dark.png';
 import autoImg from '../../../assets/img/theme-auto.png';
-import { useAppStore } from '../../../store';
-import { lang } from '../../../lang';
+import { LanguageType, ThemeType, useAppStore } from '../../../store';
 import { CheckOutlined } from '@vicons/antd';
-
-const themeTypeList = [
-  {
-    type: 0,
-    img: autoImg,
-    name: 'auto',
-  },
-  {
-    type: 1,
-    img: darkImg,
-    name: 'dark',
-  },
-  {
-    type: 2,
-    img: lightImg,
-    name: 'light',
-  },
-];
-const langTypeList = [
-  {
-    type: 'auto',
-    name: 'auto',
-  },
-  {
-    type: 'zhCN',
-    name: '简体中文',
-  },
-  {
-    type: 'enUS',
-    name: 'English',
-  },
-];
+import { lang } from '../../../lang';
 
 const appStore = useAppStore();
-const activeType = ref(appStore.themeType);
+const { themeType, languageType } = storeToRefs(appStore);
 
-const langType = ref(appStore.languageType);
+const themeTypes = [
+  { type: ThemeType.AUTO, img: autoImg, name: 'auto' },
+  { type: ThemeType.DARK, img: darkImg, name: 'dark' },
+  { type: ThemeType.LIGHT, img: lightImg, name: 'light' },
+];
+const langTypes = [
+  { type: LanguageType.AUTO, name: 'auto' },
+  { type: LanguageType.ZH_CN, name: '简体中文' },
+  { type: LanguageType.EN_US, name: 'English' },
+];
 
-const setThemeType = (type: number) => {
-  activeType.value = type;
-  appStore.setThemeType(type);
+const setThemeType = (type: ThemeType) => {
+  themeType.value = type;
 };
 
-const langTypeChange = (value: string) => {
-  langType.value = value;
-  appStore.setLanguageType(value);
-  lang.global.locale.value = appStore.languageName;
+const langTypeChange = (value: LanguageType) => {
+  languageType.value = value;
+  lang.global.locale.value =
+    languageType.value === LanguageType.ZH_CN ? LanguageType.ZH_CN : LanguageType.EN_US;
 };
 </script>
 
