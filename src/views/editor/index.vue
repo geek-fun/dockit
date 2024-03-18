@@ -79,6 +79,7 @@ monaco.languages.setMonarchTokensProvider(
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let displayEditor: Editor | null = null;
 let queryEditor: Editor | null = null;
+let autoIndentCmdId: string | null = null;
 // DOM
 const queryEditorRef = ref();
 const displayEditorRef = ref();
@@ -104,19 +105,12 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchToken[]) => {
     freshedDecorations,
   ) as unknown as Decoration[];
 };
-const buildCodeLens = (searchTokens: SearchToken[]) => {
-  return searchTokens.map(({ actionPosition }, index) => {
-    return {
-      range: actionPosition,
-      id: 'AutoIndent',
-      command: {
-        id: 'AutoIndent',
-        title: 'Auto Indent',
-        arguments: [index],
-      },
-    };
-  });
-};
+const buildCodeLens = (searchTokens: SearchToken[]) =>
+  searchTokens.map(({ actionPosition, qdslPosition }, index) => ({
+    range: actionPosition,
+    id: `AutoIndent-${index}`,
+    command: { id: autoIndentCmdId!, title: 'Auto Indent', arguments: [qdslPosition] },
+  }));
 
 monaco.languages.registerCodeLensProvider('search', {
   provideCodeLenses: () => {
@@ -199,6 +193,43 @@ const setupQueryEditor = (code: string) => {
     language: 'search',
   });
 
+  autoIndentCmdId = queryEditor.addCommand(0, (ctx, args) => {
+    console.log('FormatQuery', { ctx, args });
+    if (args) {
+      const { startLineNumber, endLineNumber } = args as {
+        startLineNumber: number;
+        endLineNumber: number;
+      };
+      const model = queryEditor?.getModel();
+
+      if (model) {
+        const content = model.getValueInRange({
+          startLineNumber,
+          startColumn: 1,
+          endLineNumber: endLineNumber,
+          endColumn: model.getLineLength(endLineNumber) + 1,
+        });
+        console.log('content', { endColumn: model.getLineLength(endLineNumber), content });
+        const formatted = JSON.stringify(JSON.parse(content), null, 2);
+        model.pushEditOperations(
+          [],
+          [
+            {
+              range: {
+                startLineNumber,
+                startColumn: 1,
+                endLineNumber,
+                endColumn: model.getLineLength(endLineNumber) + 1,
+              },
+              text: formatted,
+            },
+          ],
+          inverseEditOperations => [],
+        );
+      }
+    }
+  });
+
   queryEditor.onMouseDown(({ event, target }) => {
     if (
       event.leftButton &&
@@ -209,23 +240,6 @@ const setupQueryEditor = (code: string) => {
     ) {
       executeQueryAction(queryEditor, displayEditor, target.position);
     }
-  });
-
-  queryEditor.addAction({
-    id: 'AutoIndent',
-    label: 'Auto Indent',
-    run: (ed, args) => {
-      console.log('FormatQuery', { ed, args });
-      try {
-        const model = queryEditor?.getModel();
-        if (model) {
-          const formatted = monaco.languages.json.jsonDefaults.format(model.getValue());
-          model.setValue(formatted);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    },
   });
 };
 const setupJsonEditor = () => {
