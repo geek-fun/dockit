@@ -194,7 +194,6 @@ const setupQueryEditor = (code: string) => {
   });
 
   autoIndentCmdId = queryEditor.addCommand(0, (ctx, args) => {
-    console.log('FormatQuery', { ctx, args });
     if (args) {
       const { startLineNumber, endLineNumber } = args as {
         startLineNumber: number;
@@ -209,7 +208,6 @@ const setupQueryEditor = (code: string) => {
           endLineNumber: endLineNumber,
           endColumn: model.getLineLength(endLineNumber) + 1,
         });
-        console.log('content', { endColumn: model.getLineLength(endLineNumber), content });
         const formatted = JSON.stringify(JSON.parse(content), null, 2);
         model.pushEditOperations(
           [],

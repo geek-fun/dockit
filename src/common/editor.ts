@@ -213,14 +213,21 @@ export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent:
     const method = rawCmd[0]?.toUpperCase();
     const indexName = rawCmd[1]?.startsWith('_') ? undefined : rawCmd[1];
     const path = rawCmd.slice(indexName ? 2 : 1, rawCmd.length).join('/');
-    const endLineNumber = commands[index + 1]?.lineNumber
+    const nexCommandLineNumber = commands[index + 1]?.lineNumber
       ? commands[index + 1]?.lineNumber - 1
       : lines.length;
+
+    const endLineNumber =
+      lines
+        .slice(lineNumber, nexCommandLineNumber)
+        .reverse()
+        .find(({ lineContent }) => lineContent.trim().endsWith('}'))?.lineNumber || lineNumber;
 
     const qdsl = lines
       .slice(lineNumber, endLineNumber)
       .map(({ lineContent }) => lineContent)
       .join('');
+
     return {
       qdsl,
       method,
@@ -236,8 +243,8 @@ export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent:
         ? {
             startLineNumber: lineNumber + 1,
             startColumn: 1,
-            endLineNumber: endLineNumber,
-            endColumn: lines[endLineNumber - 1].lineContent.length,
+            endLineNumber,
+            endColumn: lines[endLineNumber].lineContent.length,
           }
         : null,
     } as SearchToken;

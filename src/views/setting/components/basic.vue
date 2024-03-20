@@ -66,7 +66,6 @@ const langTypes = [
 ];
 
 const setTheme = (type: ThemeType) => {
-  console.log('setTheme', type);
   setThemeType(type);
 };
 
