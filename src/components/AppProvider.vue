@@ -26,14 +26,19 @@ import { LanguageType, ThemeType, useAppStore } from '../store';
 import { naiveThemeOverrides } from '../assets/theme/naive-theme-overrides';
 
 const appStore = useAppStore();
-const { themeType, languageType } = storeToRefs(appStore);
+const { setUiThemeType } = appStore;
+const { languageType, uiThemeType } = storeToRefs(appStore);
+
+// system theme type
+const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
+setUiThemeType(sysPreferLight.matches ? ThemeType.LIGHT : ThemeType.DARK);
+sysPreferLight.addListener(event =>
+  setUiThemeType(event.matches ? ThemeType.LIGHT : ThemeType.DARK),
+);
 
 const getTheme = computed(() => {
-  document.documentElement.setAttribute(
-    'theme',
-    themeType.value === ThemeType.DARK ? ThemeType.DARK : ThemeType.LIGHT,
-  );
-  return themeType.value === ThemeType.DARK ? darkTheme : undefined;
+  document.documentElement.setAttribute('theme', uiThemeType.value);
+  return uiThemeType.value === ThemeType.DARK ? darkTheme : undefined;
 });
 
 const locale = computed(() => (languageType.value === LanguageType.ZH_CN ? zhCN : enUS));

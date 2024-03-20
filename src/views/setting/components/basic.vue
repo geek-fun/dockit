@@ -9,7 +9,7 @@
             :key="theme.type"
             class="content-item"
             :class="{ active: themeType === theme.type }"
-            @click="setThemeType(theme.type)"
+            @click="setTheme(theme.type)"
           >
             <div class="img-box">
               <img :src="theme.img" :alt="theme.name" />
@@ -51,6 +51,7 @@ import { CheckOutlined } from '@vicons/antd';
 import { lang } from '../../../lang';
 
 const appStore = useAppStore();
+const { setThemeType } = appStore;
 const { themeType, languageType } = storeToRefs(appStore);
 
 const themeTypes = [
@@ -64,8 +65,9 @@ const langTypes = [
   { type: LanguageType.EN_US, name: 'English' },
 ];
 
-const setThemeType = (type: ThemeType) => {
-  themeType.value = type;
+const setTheme = (type: ThemeType) => {
+  console.log('setTheme', type);
+  setThemeType(type);
 };
 
 const langTypeChange = (value: LanguageType) => {

@@ -14,11 +14,13 @@ export const useAppStore = defineStore('app', {
     themeType: ThemeType;
     languageType: LanguageType;
     connectPanel: boolean;
+    uiThemeType: Exclude<ThemeType, ThemeType.AUTO>;
   } => {
     return {
       themeType: ThemeType.AUTO,
       languageType: LanguageType.AUTO,
       connectPanel: true, //
+      uiThemeType: ThemeType.LIGHT,
     };
   },
   persist: true,
@@ -26,8 +28,24 @@ export const useAppStore = defineStore('app', {
     setConnectPanel() {
       this.connectPanel = !this.connectPanel;
     },
+    setThemeType(themeType: ThemeType) {
+      const uiThemType =
+        themeType === ThemeType.AUTO
+          ? window.matchMedia('(prefers-color-scheme: light)').matches
+            ? ThemeType.LIGHT
+            : ThemeType.DARK
+          : themeType;
+      document.documentElement.setAttribute('theme', uiThemType);
+      this.uiThemeType = uiThemType;
+      this.themeType = themeType;
+    },
+    setUiThemeType(sysPrefer: Exclude<ThemeType, ThemeType.AUTO>) {
+      const uiThemType = this.themeType === ThemeType.AUTO ? sysPrefer : this.themeType;
+      document.documentElement.setAttribute('theme', uiThemType);
+      this.uiThemeType = uiThemType;
+    },
     getEditorTheme() {
-      return this.themeType === ThemeType.DARK ? 'vs-dark' : 'vs-light';
+      return this.uiThemeType === ThemeType.DARK ? 'vs-dark' : 'vs-light';
     },
   },
 });
