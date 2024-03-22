@@ -189,21 +189,33 @@ const setupQueryEditor = (code: string) => {
     language: 'search',
   });
 
-  autoIndentCmdId = queryEditor.addCommand(0, (ctx, args) => {
-    if (args) {
-      const { startLineNumber, endLineNumber } = args as {
-        startLineNumber: number;
-        endLineNumber: number;
-      };
+  autoIndentCmdId = queryEditor.addCommand(
+    0,
+    (
+      ctx,
+      args:
+        | {
+            startLineNumber: number;
+            endLineNumber: number;
+          }
+        | undefined,
+    ) => {
+      if (!args) {
+        return;
+      }
       const model = queryEditor?.getModel();
+      if (!model) {
+        return;
+      }
 
-      if (model) {
-        const content = model.getValueInRange({
-          startLineNumber,
-          startColumn: 1,
-          endLineNumber: endLineNumber,
-          endColumn: model.getLineLength(endLineNumber) + 1,
-        });
+      const { startLineNumber, endLineNumber } = args;
+      const content = model.getValueInRange({
+        startLineNumber,
+        startColumn: 1,
+        endLineNumber: endLineNumber,
+        endColumn: model.getLineLength(endLineNumber) + 1,
+      });
+      try {
         const formatted = JSON.stringify(JSON.parse(content), null, 2);
         model.pushEditOperations(
           [],
@@ -220,9 +232,15 @@ const setupQueryEditor = (code: string) => {
           ],
           inverseEditOperations => [],
         );
+      } catch (err) {
+        message.error(lang.t('editor.invalidJson'), {
+          closable: true,
+          keepAliveOnHover: true,
+        });
+        return;
       }
-    }
-  });
+    },
+  );
 
   queryEditor.onMouseDown(({ event, target }) => {
     if (

@@ -50,6 +50,7 @@ export const zhCN = {
   },
   editor: {
     establishedRequired: '请选择执行操作的数据库实例',
+    invalidJson: '无效的 JSON 格式',
   },
   history: {
     empty: '无历史记录',

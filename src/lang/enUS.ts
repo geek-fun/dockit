@@ -50,6 +50,7 @@ export const enUS = {
   },
   editor: {
     establishedRequired: 'Select a DB instance before execute actions',
+    invalidJson: 'Invalid JSON format',
   },
   history: {
     empty: 'No history yet',
