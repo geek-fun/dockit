@@ -1,4 +1,4 @@
-import { app, Menu, MenuItemConstructorOptions, BrowserWindow } from 'electron';
+import { app, dialog, Menu, MenuItemConstructorOptions, BrowserWindow } from 'electron';
 
 const buildMenuTemplate = (mainWindow: BrowserWindow) =>
   [
@@ -7,7 +7,14 @@ const buildMenuTemplate = (mainWindow: BrowserWindow) =>
       submenu: [
         {
           label: 'About DocKit',
-          selector: 'DocKit:',
+          click() {
+            dialog.showMessageBox({
+              title: 'About DocKit',
+              message: `About DocKit v${app.getVersion()}`,
+              detail: '"DocKit - GUI Client for Elasticsearch/OpenSearch',
+              icon: './dockit.png',
+            });
+          },
         },
         {
           type: 'separator',
