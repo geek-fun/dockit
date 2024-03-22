@@ -7,7 +7,7 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
   buildSearchToken,
@@ -106,13 +106,15 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchToken[]) => {
   ) as unknown as Decoration[];
 };
 const buildCodeLens = (searchTokens: SearchToken[]) =>
-  searchTokens.map(({ actionPosition, qdslPosition }, index) => ({
-    range: actionPosition,
-    id: `AutoIndent-${index}`,
-    command: { id: autoIndentCmdId!, title: 'Auto Indent', arguments: [qdslPosition] },
-  }));
+  searchTokens
+    .filter(({ qdslPosition }) => qdslPosition)
+    .map(({ actionPosition, qdslPosition }, index) => ({
+      range: actionPosition,
+      id: `AutoIndent-${index}`,
+      command: { id: autoIndentCmdId!, title: 'Auto Indent', arguments: [qdslPosition] },
+    }));
 
-monaco.languages.registerCodeLensProvider('search', {
+const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
   provideCodeLenses: () => {
     const model = queryEditor?.getModel();
     if (!model) {
@@ -129,10 +131,6 @@ monaco.languages.registerCodeLensProvider('search', {
     refreshActionMarks(queryEditor!, searchTokens);
 
     return { lenses: buildCodeLens(searchTokens), dispose: () => {} };
-  },
-
-  resolveCodeLens: (model, codeLens) => {
-    return codeLens;
   },
 });
 
@@ -165,7 +163,6 @@ const executeQueryAction = async (
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
         keepAliveOnHover: true,
-        duration: 3000,
       });
       return;
     }
@@ -180,7 +177,6 @@ const executeQueryAction = async (
     message.error(`status: ${status}, details: ${details}`, {
       closable: true,
       keepAliveOnHover: true,
-      duration: 3000,
     });
   }
 };
@@ -253,6 +249,10 @@ onMounted(async () => {
   const code = defaultFile.value;
   setupQueryEditor(code);
   setupJsonEditor();
+});
+
+onUnmounted(() => {
+  codeLensProvider.dispose();
 });
 
 const { sourceFileAPI } = window;
