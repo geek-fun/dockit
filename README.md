@@ -7,8 +7,11 @@
 
 [![Node.js CI](https://github.com/geek-fun/dockit/actions/workflows/node.yml/badge.svg)](https://github.com/geek-fun/dockit/actions/workflows/node.yml)
 [![package release](https://github.com/geek-fun/dockit/actions/workflows/release.yml/badge.svg)](https://github.com/geek-fun/dockit/actions/workflows/release.yml)
+[![Known Vulnerabilities](https://snyk.io/test/github/geek-fun/dockit/badge.svg)](https://snyk.io/test/github/geek-fun/dockit)
 [![codecov](https://codecov.io/gh/geek-fun/dockit/branch/master/graph/badge.svg?token=GqlkEVgMvR)](https://codecov.io/gh/geek-fun/dockit)
 [![GitHub version](https://badge.fury.io/gh/geek-fun%2Fdockit.svg)](https://badge.fury.io/gh/geek-fun%2Fdockit)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 
 <strong>DocKit is a modern cross-platform NoSQL/NewSQL GUI client. Explore your data any time from your Mac, Windows, and
 Linux.</strong>
