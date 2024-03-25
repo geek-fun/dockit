@@ -13,6 +13,7 @@ import {
   buildSearchToken,
   CustomError,
   Decoration,
+  defaultCodeSnippet,
   SearchToken,
   searchTokensProvider,
 } from '../../common';
@@ -185,7 +186,7 @@ const setupQueryEditor = (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
     theme: getEditorTheme(),
-    value: code,
+    value: code ? code : defaultCodeSnippet,
     language: 'search',
   });
 
