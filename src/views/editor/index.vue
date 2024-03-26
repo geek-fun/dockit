@@ -7,7 +7,7 @@
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, Ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
   buildSearchToken,
@@ -172,7 +172,7 @@ const executeQueryAction = async (
       ...action,
       index: action.index || established.value?.activeIndex?.index,
     });
-    displayEditor?.getModel()?.setValue(JSON.stringify(data, null, '  '));
+    displayJsonEditor(JSON.stringify(data, null, '  '));
   } catch (err) {
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -255,12 +255,20 @@ const setupQueryEditor = (code: string) => {
     }
   });
 };
+const toggleEditor = (editorRef: Ref, display: string) => {
+  editorRef.value.style.display = display;
+};
+const displayJsonEditor = (content: string) => {
+  toggleEditor(displayEditorRef, 'block');
+  displayEditor?.getModel()?.setValue(content);
+};
 const setupJsonEditor = () => {
   displayEditor = monaco.editor.create(displayEditorRef.value, {
     automaticLayout: true,
     theme: getEditorTheme(),
     value: '',
     language: 'json',
+    minimap: { enabled: false },
   });
 };
 onMounted(async () => {
@@ -268,6 +276,7 @@ onMounted(async () => {
   const code = defaultFile.value;
   setupQueryEditor(code);
   setupJsonEditor();
+  toggleEditor(displayEditorRef, 'none');
 });
 
 onUnmounted(() => {
