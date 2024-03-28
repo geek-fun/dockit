@@ -1,10 +1,11 @@
-import { app, autoUpdater, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import path from 'path';
 import { createMenu } from './menu';
 import { debug } from '../common';
 import { githubLink } from '../config';
 import { registerStoreApiListener } from './storeApi';
 import { registerSourceFileApiListener } from './sourceFIleApi';
+import { registerFetchApiListener } from './fetchApi';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -104,14 +105,7 @@ ipcMain.on('open-github', () => {
 
 registerStoreApiListener(ipcMain);
 registerSourceFileApiListener(ipcMain);
-
-try {
-  autoUpdater.setFeedURL({
-    url: `https://dockit-eta.vercel.app//update/${process.platform}/${app.getVersion()}`,
-  });
-} catch (err) {
-  /* empty */
-}
+registerFetchApiListener(ipcMain);
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.

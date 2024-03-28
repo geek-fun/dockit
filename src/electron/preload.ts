@@ -23,3 +23,8 @@ contextBridge.exposeInMainWorld('sourceFileAPI', {
   onSaveShortcut: (callback: (value: unknown) => void) =>
     ipcRenderer.on('save-shortcout', (_event, value) => callback(value)),
 });
+
+contextBridge.exposeInMainWorld('fetchApi', {
+  fetch: async (url: string, options: unknown) =>
+    ipcRenderer.invoke('fetchApi', { method: 'fetch', url, options }),
+});
