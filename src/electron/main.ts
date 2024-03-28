@@ -1,5 +1,4 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
-import { updateElectronApp } from 'update-electron-app';
 import path from 'path';
 import { createMenu } from './menu';
 import { debug } from '../common';
@@ -107,13 +106,6 @@ ipcMain.on('open-github', () => {
 registerStoreApiListener(ipcMain);
 registerSourceFileApiListener(ipcMain);
 registerFetchApiListener(ipcMain);
-
-try {
-  updateElectronApp();
-} catch (err) {
-  /* empty */
-  console.log('failed to update app', err);
-}
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
