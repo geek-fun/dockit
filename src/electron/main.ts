@@ -1,4 +1,5 @@
-import { app, autoUpdater, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { updateElectronApp } from 'update-electron-app';
 import path from 'path';
 import { createMenu } from './menu';
 import { debug } from '../common';
@@ -108,11 +109,10 @@ registerSourceFileApiListener(ipcMain);
 registerFetchApiListener(ipcMain);
 
 try {
-  autoUpdater.setFeedURL({
-    url: `https://dockit-eta.vercel.app//update/${process.platform}/${app.getVersion()}`,
-  });
+  updateElectronApp();
 } catch (err) {
   /* empty */
+  console.log('failed to update app', err);
 }
 
 // In this file you can include the rest of your app's specific main process
