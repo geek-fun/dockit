@@ -76,6 +76,15 @@ monaco.languages.setMonarchTokensProvider(
   'search',
   searchTokensProvider as monaco.languages.IMonarchLanguage,
 );
+monaco.languages.setLanguageConfiguration('search', {
+  autoClosingPairs: [
+    { open: '{', close: '}' },
+    { open: '[', close: ']' },
+    { open: '(', close: ')' },
+    { open: '"', close: '"' },
+    { open: "'", close: "'" },
+  ],
+});
 
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let displayEditor: Editor | null = null;
