@@ -8,6 +8,7 @@ export type Connection = {
   host: string;
   port: number;
   username?: string;
+  sslCertVerification: boolean;
   password?: string;
   queryParameters?: string;
 };
@@ -85,7 +86,9 @@ export const useConnectionStore = defineStore('connectionStore', {
       await this.testConnection(connection);
       const client = loadHttpClient(connection);
 
-      const data = await client.get('/_cat/indices', 'format=json');
+      const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+        [key: string]: string;
+      }>;
       const indices = data.map((index: { [key: string]: string }) => ({
         ...index,
         docs: {
@@ -99,7 +102,9 @@ export const useConnectionStore = defineStore('connectionStore', {
     async fetchIndices() {
       if (!this.established) throw new Error('no connection established');
       const client = loadHttpClient(this.established as Connection);
-      const data = await client.get('/_cat/indices', 'format=json');
+      const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+        [key: string]: string;
+      }>;
       this.established!.indices = data.map((index: { [key: string]: string }) => ({
         ...index,
         docs: {

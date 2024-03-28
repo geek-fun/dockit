@@ -5,6 +5,7 @@ import { debug } from '../common';
 import { githubLink } from '../config';
 import { registerStoreApiListener } from './storeApi';
 import { registerSourceFileApiListener } from './sourceFIleApi';
+import { registerFetchApiListener } from './fetchApi';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -104,6 +105,7 @@ ipcMain.on('open-github', () => {
 
 registerStoreApiListener(ipcMain);
 registerSourceFileApiListener(ipcMain);
+registerFetchApiListener(ipcMain);
 
 try {
   autoUpdater.setFeedURL({

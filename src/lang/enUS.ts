@@ -25,6 +25,7 @@ export const enUS = {
     username: 'Username',
     password: 'Password',
     queryParameters: 'query parameters',
+    sslCertVerification: 'SSL Certificate Verification',
     add: 'Add connection',
     edit: 'Edit connection',
     testSuccess: 'connect success',
@@ -32,6 +33,7 @@ export const enUS = {
       nameRequired: 'Name is required',
       hostRequired: 'Host is required',
       portRequired: 'Port is required',
+      sslCertOnlyHttps: 'SSL Certificate Verification can only be enabled under HTTPS connection',
     },
     operations: {
       connect: 'Connect',

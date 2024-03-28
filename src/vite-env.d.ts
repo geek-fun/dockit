@@ -24,11 +24,18 @@ export interface ISourceFileAPI {
   readFile: () => Promise<string>;
   onSaveShortcut: (fn: () => void) => string;
 }
+export interface IFetchAPI {
+  fetch: (
+    url: string,
+    options: unknown,
+  ) => Promise<{ data: unknown; status: number; details: string }>;
+}
 
 declare global {
   interface Window {
     electronAPI: IElectronAPI;
     storeAPI: IStoreAPI;
     sourceFileAPI: ISourceFileAPI;
+    fetchApi: IFetchAPI;
   }
 }

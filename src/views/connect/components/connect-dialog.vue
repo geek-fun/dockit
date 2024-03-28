@@ -33,12 +33,37 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="5">
-              <n-form-item :label="$t('connection.host')" path="host">
-                <n-input
-                  v-model:value="formData.host"
-                  clearable
-                  :placeholder="$t('connection.host')"
-                />
+              <n-form-item
+                :label="$t('connection.host')"
+                path="host"
+                :validation-status="hostValidate.status"
+                :feedback="hostValidate.feedback"
+              >
+                <n-input-group>
+                  <n-input
+                    :style="{ width: '80%' }"
+                    clearable
+                    v-model:value="formData.host"
+                    placeholder="http://localhost"
+                  />
+                  <n-popover trigger="hover" placement="top-start">
+                    <template #trigger>
+                      <n-input-group-label
+                        style="cursor: pointer"
+                        @click="switchSSL(!formData.sslCertVerification)"
+                      >
+                        <n-icon
+                          :class="
+                            formData.sslCertVerification ? `ssl-checked-icon` : `ssl-unchecked-icon`
+                          "
+                          size="24"
+                          :component="formData.sslCertVerification ? Locked : Unlocked"
+                        />
+                      </n-input-group-label>
+                    </template>
+                    <span>{{ $t('connection.sslCertVerification') }}</span>
+                  </n-popover>
+                </n-input-group>
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="3">
@@ -112,11 +137,12 @@
 </template>
 
 <script setup lang="ts">
-import { Close } from '@vicons/carbon';
+import { ref, reactive, defineExpose, watch } from 'vue';
+import { Close, Unlocked, Locked } from '@vicons/carbon';
 import { CustomError } from '../../../common';
 import { Connection, useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
-import { FormValidationError } from 'naive-ui';
+import { FormValidationError, FormItemRule } from 'naive-ui';
 
 const { testConnection, saveConnection } = useConnectionStore();
 const lang = useLang();
@@ -127,6 +153,7 @@ const showModal = ref(false);
 const modalTitle = ref(lang.t('connection.add'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
+
 const defaultFormData = {
   name: '',
   host: '',
@@ -134,6 +161,7 @@ const defaultFormData = {
   username: '',
   password: '',
   queryParameters: '',
+  sslCertVerification: true,
 };
 const formData = ref<Connection>(defaultFormData);
 const formRules = reactive({
@@ -147,6 +175,16 @@ const formRules = reactive({
   host: [
     {
       required: true,
+      validator: (rule: FormItemRule, value: string) => {
+        if (value.length >= 'http://'.length) {
+          if (value.startsWith('http://') && formData.value.sslCertVerification) {
+            formData.value.sslCertVerification = false;
+          }
+          switchSSL(formData.value.sslCertVerification);
+        }
+
+        return value !== '';
+      },
       renderMessage: () => lang.t('connection.formValidation.hostRequired'),
       trigger: ['input', 'blur'],
     },
@@ -160,6 +198,20 @@ const formRules = reactive({
     },
   ],
 });
+
+const hostValidate = ref({ status: undefined, feedback: '' });
+
+const switchSSL = (target: boolean) => {
+  if (formData.value.host.startsWith('https') || !target) {
+    formData.value.sslCertVerification = target;
+    hostValidate.value.status = undefined;
+    hostValidate.value.feedback = '';
+  } else {
+    hostValidate.value.status = 'error';
+    hostValidate.value.feedback = lang.t('connection.formValidation.sslCertOnlyHttps');
+  }
+};
+
 const message = useMessage();
 
 const cleanUp = () => {
@@ -234,10 +286,26 @@ defineExpose({ showMedal });
       cursor: pointer;
     }
   }
+  .modal-content {
+    .ssl-unchecked-icon {
+      transition: 0.3s;
+      margin-top: 4px;
+      overflow: hidden;
+      color: var(--dange-color);
+    }
+    .ssl-checked-icon {
+      transition: 0.3s;
+      margin-top: 4px;
+      overflow: hidden;
+      color: var(--theme-color);
+    }
+  }
+
   .n-card__footer {
     .card-footer {
       display: flex;
       justify-content: space-between;
+
       .n-button + .n-button {
         margin-left: 10px;
       }

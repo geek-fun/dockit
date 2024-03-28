@@ -25,6 +25,7 @@ export const zhCN = {
     username: '用户名',
     password: '密码',
     queryParameters: '查询参数',
+    sslCertVerification: 'SSL 证书验证',
     add: '添加连接',
     edit: '编辑连接',
     testSuccess: '连接成功',
@@ -32,6 +33,7 @@ export const zhCN = {
       nameRequired: '请输入连接名称',
       hostRequired: '请输入主机地址',
       portRequired: '请输入端口号',
+      sslCertOnlyHttps: 'SSL 证书验证只能在 HTTPS 连接下开启',
     },
     operations: {
       connect: '连接',
