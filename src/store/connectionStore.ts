@@ -105,7 +105,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
         [key: string]: string;
       }>;
-      this.established!.indices = data.map((index: { [key: string]: string }) => ({
+      this.established.indices = data.map((index: { [key: string]: string }) => ({
         ...index,
         docs: {
           count: parseInt(index['docs.count'], 10),
