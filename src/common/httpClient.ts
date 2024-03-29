@@ -101,3 +101,66 @@ export const loadHttpClient = (con: {
       ssl: con.sslCertVerification,
     }),
 });
+
+const MODEL = 'gpt-3.5-turbo-0125';
+let assistant = null;
+export const loadAiClient = async () => {
+  const headers = {
+    'Content-Type': 'application/json',
+    'OpenAI-Beta': 'assistants=v1',
+    Authorization: `Bearer ${OPENAI_API_KEY}`,
+  };
+  const { data, status, details } = await fetchApi.fetch('https://api.openai.com/v1/assistants', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      instructions: 'You are a personal math tutor. Write and run code to answer math questions.',
+      name: 'Math Tutor',
+      tools: [{ type: 'code_interpreter' }],
+      model: MODEL,
+    }),
+  });
+  assistant = data as { id: string };
+  const { data: thread, status: threadStatus } = await fetchApi.fetch(
+    `https://api.openai.com/v1/assistants/${assistant.id}/threads`,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a personal math tutor. Write and run code to answer math questions.',
+          },
+        ],
+      }),
+    },
+  );
+
+  console.log(`gpt assistant: ${assistant}, thread ${thread}`);
+  if (status !== 200) {
+    throw new CustomError(status, details);
+  }
+  return {
+    suggest: async (fileContent: string, currentLineNumber: number) => {
+      const { data, status, details } = await fetchApi.fetch(
+        `https://api.openai.com/v1/threads/${(thread as { id: string }).id}/messages`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            messages: [
+              {
+                role: 'system',
+                content: fileContent,
+                current_line_number: currentLineNumber,
+              },
+            ],
+          }),
+        },
+      );
+      console.log(`gpt suggest: ${data}, status: ${status}, details: ${details}`);
+      return (data as { choices: Array<{ text: string }> }).choices[0].text.trim();
+    },
+  };
+};

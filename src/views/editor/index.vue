@@ -19,6 +19,7 @@ import {
 } from '../../common';
 import { useAppStore, useConnectionStore, useSourceFileStore } from '../../store';
 import { useLang } from '../../lang';
+import { loadAiClient } from '../../common/httpClient';
 
 type Editor = ReturnType<typeof monaco.editor.create>;
 
@@ -191,13 +192,22 @@ const executeQueryAction = async (
   }
 };
 
-const setupQueryEditor = (code: string) => {
+const { fetchApi } = window;
+let aiClient: {
+  suggest: (text: string, rangeLength: number) => Promise<string>;
+} | null = null;
+
+const setupQueryEditor = async (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
     theme: getEditorTheme(),
     value: code ? code : defaultCodeSnippet,
     language: 'search',
   });
+
+  if (!aiClient) {
+    aiClient = await loadAiClient();
+  }
 
   autoIndentCmdId = queryEditor.addCommand(
     0,
@@ -263,6 +273,35 @@ const setupQueryEditor = (code: string) => {
       executeQueryAction(queryEditor, displayEditor, target.position);
     }
   });
+
+  // Event listener for user input
+  queryEditor.onDidChangeModelContent(async ({ range, rangeLength, text }) => {
+    const suggestion = await aiClient.suggest(text, 0);
+
+    const { status, data, details } = await fetchApi.fetch(
+      'http://your-backend-service/api/suggest',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code: text }),
+      },
+    );
+    if (status !== 200) {
+      message.error(details, {
+        closable: true,
+        keepAliveOnHover: true,
+      });
+      return;
+    }
+    queryEditor.suggest(
+      (data as Array<{ label: string; kind: number }>).map(suggestion => ({
+        label: suggestion.label,
+        kind: monaco.languages.CompletionItemKind[suggestion.kind],
+      })),
+    );
+  });
 };
 const toggleEditor = (editorRef: Ref, display: string) => {
   editorRef.value.style.display = display;
@@ -280,6 +319,7 @@ const setupJsonEditor = () => {
     minimap: { enabled: false },
   });
 };
+
 onMounted(async () => {
   await readSourceFromFile();
   const code = defaultFile.value;
