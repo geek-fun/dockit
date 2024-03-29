@@ -241,7 +241,7 @@ const autoIndentAction = (
   }
 };
 
-const getPointeredAction = (editor: Editor, tokens: Array<SearchToken>) => {
+const getPointerAction = (editor: Editor, tokens: Array<SearchToken>) => {
   if (!editor) {
     return;
   }
@@ -279,18 +279,7 @@ const setupQueryEditor = (code: string) => {
 
   // Auto indent current request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
-    const model = queryEditor?.getModel();
-    if (!model) {
-      return;
-    }
-    const { lineNumber } = queryEditor.getPosition();
-    const { qdslPosition } =
-      searchTokens
-        .filter(({ qdslPosition }) => qdslPosition)
-        .find(
-          ({ qdslPosition: { startLineNumber, endLineNumber } = {} }) =>
-            startLineNumber <= lineNumber && lineNumber <= endLineNumber,
-        ) || {};
+    const { qdslPosition } = getPointerAction(queryEditor, searchTokens) || {};
     autoIndentAction(queryEditor, null, qdslPosition);
   });
 
@@ -301,69 +290,50 @@ const setupQueryEditor = (code: string) => {
 
   // Submit request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-    const model = queryEditor?.getModel();
-    if (!model) {
-      return;
+    const { actionPosition } = getPointerAction(queryEditor, searchTokens) || {};
+    if (actionPosition) {
+      executeQueryAction(queryEditor, displayEditor, {
+        column: actionPosition.startColumn,
+        lineNumber: actionPosition.startLineNumber,
+      });
     }
-    const { lineNumber } = queryEditor.getPosition();
-    const { actionPosition } =
-      searchTokens.find(({ actionPosition: { startLineNumber }, qdslPosition }) =>
-        qdslPosition
-          ? lineNumber >= startLineNumber && lineNumber <= qdslPosition.endLineNumber
-          : startLineNumber === lineNumber,
-      ) || {};
-    if (!actionPosition) {
-      return;
-    }
-    executeQueryAction(queryEditor, displayEditor, {
-      column: actionPosition.startColumn,
-      lineNumber: actionPosition.startLineNumber,
-    });
   });
 
   // Jump to the previous request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.UpArrow, () => {
-    const model = queryEditor?.getModel();
-    if (!model) {
-      return;
-    }
     const { lineNumber, column } = queryEditor.getPosition();
     const { actionPosition } =
       searchTokens
         .filter(({ actionPosition }) => actionPosition)
         .sort((a, b) => b.actionPosition.startLineNumber - a.actionPosition.startLineNumber)
         .find(({ actionPosition: { startLineNumber } }) => startLineNumber < lineNumber) || {};
-    if (!actionPosition) {
-      return;
+
+    if (actionPosition) {
+      queryEditor.revealLine(actionPosition.startLineNumber);
+      queryEditor.setPosition({ column, lineNumber: actionPosition.startLineNumber });
     }
-    queryEditor.revealLine(actionPosition.startLineNumber);
-    queryEditor.setPosition({ column, lineNumber: actionPosition.startLineNumber });
   });
 
   // Jump to the next request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.DownArrow, () => {
-    const model = queryEditor?.getModel();
-    if (!model) {
-      return;
-    }
     const { lineNumber, column } = queryEditor.getPosition();
     const { actionPosition } =
       searchTokens
         .filter(({ actionPosition }) => actionPosition)
         .sort((a, b) => a.actionPosition.startLineNumber - b.actionPosition.startLineNumber)
         .find(({ actionPosition: { startLineNumber } }) => startLineNumber > lineNumber) || {};
-    if (!actionPosition) {
-      return;
+
+    if (actionPosition) {
+      queryEditor.revealLine(actionPosition.startLineNumber);
+      queryEditor.setPosition({ column, lineNumber: actionPosition.startLineNumber });
     }
-    queryEditor.revealLine(actionPosition.startLineNumber);
-    queryEditor.setPosition({ column, lineNumber: actionPosition.startLineNumber });
   });
 
   // Collapse/expand current scope
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyL, () => {
     queryEditor.trigger('keyboard', 'editor.toggleFold', {});
   });
-  //
+
   // Collapse all scopes but the current one
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Digit0, () => {
     queryEditor.trigger('keyboard', 'editor.foldAll', {});
