@@ -226,7 +226,7 @@ export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent:
     const qdsl = lines
       .slice(lineNumber, endLineNumber)
       .map(({ lineContent }) => lineContent)
-      .join('');
+      .join('\n');
 
     return {
       qdsl,

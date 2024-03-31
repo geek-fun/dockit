@@ -137,7 +137,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       const client = loadHttpClient(this.established);
 
       const reqPath = buildPath(index, path);
-      const body = qdsl ? JSON.parse(qdsl) : undefined;
+      const body = qdsl ?? undefined;
 
       const dispatch: { [method: string]: () => Promise<unknown> } = {
         POST: async () => client.post(reqPath, undefined, body),
