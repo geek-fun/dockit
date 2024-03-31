@@ -102,6 +102,9 @@ app.on('activate', async () => {
 ipcMain.on('open-github', () => {
   shell.openExternal(githubLink);
 });
+ipcMain.on('open-link', (_event, link: string) => {
+  shell.openExternal(link);
+});
 
 registerStoreApiListener(ipcMain);
 registerSourceFileApiListener(ipcMain);

@@ -14,7 +14,9 @@ import {
   CustomError,
   Decoration,
   defaultCodeSnippet,
-  SearchToken,
+  EngineType,
+  getActionApiDoc,
+  SearchAction,
   searchTokensProvider,
 } from '../../common';
 import { useAppStore, useConnectionStore, useSourceFileStore } from '../../store';
@@ -94,9 +96,9 @@ let autoIndentCmdId: string | null = null;
 const queryEditorRef = ref();
 const displayEditorRef = ref();
 
-let searchTokens: SearchToken[] = [];
+let searchTokens: SearchAction[] = [];
 
-const getActionMarksDecorations = (searchTokens: SearchToken[]): Array<Decoration> => {
+const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<Decoration> => {
   return searchTokens
     .map(({ actionPosition }) => ({
       id: actionPosition.startLineNumber,
@@ -107,7 +109,7 @@ const getActionMarksDecorations = (searchTokens: SearchToken[]): Array<Decoratio
     .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
 };
 
-const refreshActionMarks = (editor: Editor, searchTokens: SearchToken[]) => {
+const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
   const freshedDecorations = getActionMarksDecorations(searchTokens);
   // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
   executeDecorations = editor.deltaDecorations(
@@ -115,7 +117,7 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchToken[]) => {
     freshedDecorations,
   ) as unknown as Decoration[];
 };
-const buildCodeLens = (searchTokens: SearchToken[]) =>
+const buildCodeLens = (searchTokens: SearchAction[]) =>
   searchTokens
     .filter(({ qdslPosition }) => qdslPosition)
     .map(({ actionPosition, qdslPosition }, index) => ({
@@ -241,7 +243,7 @@ const autoIndentAction = (
   }
 };
 
-const getPointerAction = (editor: Editor, tokens: Array<SearchToken>) => {
+const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
   if (!editor) {
     return;
   }
@@ -338,6 +340,18 @@ const setupQueryEditor = (code: string) => {
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Digit0, () => {
     queryEditor.trigger('keyboard', 'editor.foldAll', {});
     queryEditor.trigger('keyboard', 'editor.unfoldRecursively', {});
+  });
+
+  // Open the documentation for the current action
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash, () => {
+    const docLink = getActionApiDoc(
+      EngineType.ELASTICSEARCH,
+      'current',
+      getPointerAction(queryEditor, searchTokens),
+    );
+    if (docLink) {
+      window.electronAPI.openLink(docLink);
+    }
   });
 };
 const setupJsonEditor = () => {
