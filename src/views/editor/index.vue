@@ -176,7 +176,9 @@ const executeQueryAction = async (
       });
       return;
     }
-
+    if (action.path.includes('_bulk')) {
+      action.qdsl += '\n';
+    }
     const data = await searchQDSL({
       ...action,
       index: action.index || established.value?.activeIndex?.index,
