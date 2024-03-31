@@ -13,6 +13,7 @@ declare module '*.css';
 
 export interface IElectronAPI {
   openGitHub: () => void;
+  openLink: (link: string) => void;
 }
 export interface IStoreAPI {
   get: <T>(key: string, defaultValue: T) => Promise<T>;

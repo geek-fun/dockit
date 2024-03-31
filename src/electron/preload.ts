@@ -8,7 +8,9 @@ contextBridge.exposeInMainWorld('browserWindow', {
 
 contextBridge.exposeInMainWorld('electronAPI', {
   openGitHub: () => ipcRenderer.send('open-github'),
+  openLink: (link: string) => ipcRenderer.send('open-link', link),
 });
+
 contextBridge.exposeInMainWorld('storeAPI', {
   get: async (key: string, defaultValue: unknown) =>
     ipcRenderer.invoke('storeAPI', { method: 'GET', key, value: defaultValue }),
