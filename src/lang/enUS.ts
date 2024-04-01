@@ -58,4 +58,11 @@ export const enUS = {
     empty: 'No history yet',
     emptyDesc: 'History of queries will appear here as you execute Scans and Queries',
   },
+  version: {
+    newVersion: 'New version available',
+    message: 'A new version is available, download it now',
+    download: 'Download',
+    skip: 'Skip this version',
+    later: 'Later',
+  },
 };

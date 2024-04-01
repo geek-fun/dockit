@@ -2,13 +2,10 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('browserWindow', {
-  versions: () => ipcRenderer.invoke('versions'),
-});
-
 contextBridge.exposeInMainWorld('electronAPI', {
   openGitHub: () => ipcRenderer.send('open-github'),
   openLink: (link: string) => ipcRenderer.send('open-link', link),
+  versions: () => ipcRenderer.invoke('versions'),
 });
 
 contextBridge.exposeInMainWorld('storeAPI', {

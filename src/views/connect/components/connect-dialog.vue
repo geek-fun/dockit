@@ -137,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, defineExpose, watch } from 'vue';
+import { ref, reactive, watch } from 'vue';
 import { Close, Unlocked, Locked } from '@vicons/carbon';
 import { CustomError } from '../../../common';
 import { Connection, useConnectionStore } from '../../../store';

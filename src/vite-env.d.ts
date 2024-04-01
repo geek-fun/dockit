@@ -14,6 +14,13 @@ declare module '*.css';
 export interface IElectronAPI {
   openGitHub: () => void;
   openLink: (link: string) => void;
+  versions: () => Promise<{
+    node: string;
+    chrome: string;
+    electron: string;
+    version: string;
+    name: string;
+  }>;
 }
 export interface IStoreAPI {
   get: <T>(key: string, defaultValue: T) => Promise<T>;

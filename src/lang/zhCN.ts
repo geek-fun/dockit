@@ -58,4 +58,11 @@ export const zhCN = {
     empty: '无历史记录',
     emptyDesc: '执行扫描和查询时，查询历史记录将显示在此处',
   },
+  version: {
+    newVersion: '发现新版本',
+    message: '发现新版本，是否立即下载',
+    skip: '跳过该版本',
+    download: '下载',
+    later: '忽略',
+  },
 };
