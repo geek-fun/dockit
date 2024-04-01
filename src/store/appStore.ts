@@ -15,12 +15,14 @@ export const useAppStore = defineStore('app', {
     languageType: LanguageType;
     connectPanel: boolean;
     uiThemeType: Exclude<ThemeType, ThemeType.AUTO>;
+    skipVersion: string;
   } => {
     return {
       themeType: ThemeType.AUTO,
       languageType: LanguageType.AUTO,
       connectPanel: true, //
       uiThemeType: ThemeType.LIGHT,
+      skipVersion: '',
     };
   },
   persist: true,
