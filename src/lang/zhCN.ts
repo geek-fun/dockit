@@ -15,6 +15,13 @@ export const zhCN = {
     auto: '跟随系统',
     dark: '暗黑主题',
     light: '月白主题',
+    ai: {
+      title: 'GPTs配置',
+      others: '其他GPTs',
+      model: '模型',
+      apiKey: 'API密钥',
+      prompt: '提示词',
+    },
   },
   connection: {
     new: '新建连接',

@@ -15,6 +15,13 @@ export const enUS = {
     auto: 'Follow OS',
     dark: 'Dark Theme',
     light: 'Light Theme',
+    ai: {
+      title: 'GPTs',
+      others: 'Other GPTs',
+      model: 'Model',
+      apiKey: 'API Key',
+      prompt: 'Prompt',
+    },
   },
   connection: {
     new: 'New connection',
