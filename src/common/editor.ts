@@ -1,4 +1,4 @@
-type Range = {
+export type Range = {
   startLineNumber: number;
   startColumn: number;
   endLineNumber: number;

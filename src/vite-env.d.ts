@@ -27,7 +27,14 @@ export interface ISourceFileAPI {
 export interface IFetchAPI {
   fetch: (
     url: string,
-    options: unknown,
+    options: {
+      method: string;
+      payload: unknown;
+      headers: {
+        [key: string]: string | number;
+      };
+      agent: { ssl: boolean } | undefined;
+    },
   ) => Promise<{ data: unknown; status: number; details: string }>;
 }
 

@@ -1,13 +1,15 @@
 import Electron from 'electron';
 import fetch from 'node-fetch';
 import { CustomError, debug } from '../common';
-import * as https from 'https';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 type FetchApiOptions = {
   method: string;
-  authorization: string;
+  headers: {
+    [key: string]: string | number;
+  };
+  agent: { ssl: boolean } | undefined;
   payload: string | undefined;
-  ssl: boolean;
 };
 
 export type FetchApiInput = {
@@ -17,16 +19,25 @@ export type FetchApiInput = {
 };
 
 const fetchApi: { [key: string]: (key: string, val: unknown) => unknown } = {
-  fetch: async (url: string, { method, authorization, payload, ssl }: FetchApiOptions) => {
-    const agent = url.startsWith('https')
-      ? new https.Agent({
-          rejectUnauthorized: ssl,
-        })
+  fetch: async (
+    url: string,
+    { method, headers, payload, agent: agentSslConf }: FetchApiOptions,
+  ) => {
+    const sslConfig = url.startsWith('https')
+      ? { rejectUnauthorized: agentSslConf?.ssl }
       : undefined;
+    const agent = process.env.https_proxy
+      ? new HttpsProxyAgent(process.env.https_proxy, { ...sslConfig })
+      : undefined;
+
+    console.log('proxyAgent:', { agent, https_proxy: process.env.https_proxy });
+
     try {
       const result = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', authorization } as unknown as Headers,
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        headers: { 'Content-Type': 'application/json', ...headers } as unknown as Headers,
         body: payload,
         agent,
       });

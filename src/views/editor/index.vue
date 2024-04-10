@@ -14,12 +14,13 @@ import {
   CustomError,
   Decoration,
   defaultCodeSnippet,
+  Range,
   SearchToken,
   searchTokensProvider,
 } from '../../common';
 import { useAppStore, useConnectionStore, useSourceFileStore } from '../../store';
 import { useLang } from '../../lang';
-import { loadAiClient } from '../../common/httpClient';
+import { AiClient, loadAiClient } from '../../common/httpClient';
 
 type Editor = ReturnType<typeof monaco.editor.create>;
 
@@ -116,6 +117,7 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchToken[]) => {
     freshedDecorations,
   ) as unknown as Decoration[];
 };
+
 const buildCodeLens = (searchTokens: SearchToken[]) =>
   searchTokens
     .filter(({ qdslPosition }) => qdslPosition)
@@ -141,7 +143,46 @@ const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
 
     refreshActionMarks(queryEditor!, searchTokens);
 
-    return { lenses: buildCodeLens(searchTokens), dispose: () => {} };
+    return {
+      lenses: buildCodeLens(searchTokens),
+      dispose: () => {},
+    };
+  },
+});
+
+let aiClient: AiClient | null = null;
+
+const fetchSuggestions = async (text: string, range: Range) => {
+  if (!aiClient) {
+    aiClient = await loadAiClient();
+  }
+  return await aiClient.suggest(text, range);
+};
+
+const codeCompletionProvider = monaco.languages.registerCompletionItemProvider('search', {
+  provideCompletionItems: async (model, position, token, context) => {
+    const text = model.getWordUntilPosition(position);
+    console.log('trigger auto completion', { text, position });
+    const suggestion = await fetchSuggestions(text.word, {
+      startLineNumber: position.lineNumber,
+      startColumn: position.column,
+      endLineNumber: position.lineNumber,
+      endColumn: position.column,
+    });
+
+    return {
+      suggestions: suggestion.choices.map(choice => ({
+        label: choice.text.trim(),
+        // kind: monaco.CompletionItemKind.Function,
+        insertText: choice.text.trim(),
+        range: {
+          startLineNumber: position.lineNumber,
+          startColumn: position.column,
+          endLineNumber: position.lineNumber,
+          endColumn: position.column,
+        },
+      })),
+    };
   },
 });
 
@@ -155,6 +196,15 @@ watch(themeType, () => {
   queryEditor?.updateOptions({ theme: vsTheme });
   displayEditor?.updateOptions({ theme: vsTheme });
 });
+
+const toggleEditor = (editorRef: Ref, display: string) => {
+  editorRef.value.style.display = display;
+};
+
+const displayJsonEditor = (content: string) => {
+  toggleEditor(displayEditorRef, 'block');
+  displayEditor?.getModel()?.setValue(content);
+};
 
 const executeQueryAction = async (
   queryEditor: Editor,
@@ -192,11 +242,6 @@ const executeQueryAction = async (
   }
 };
 
-const { fetchApi } = window;
-let aiClient: {
-  suggest: (text: string, rangeLength: number) => Promise<string>;
-} | null = null;
-
 const setupQueryEditor = async (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
@@ -204,10 +249,6 @@ const setupQueryEditor = async (code: string) => {
     value: code ? code : defaultCodeSnippet,
     language: 'search',
   });
-
-  if (!aiClient) {
-    aiClient = await loadAiClient();
-  }
 
   autoIndentCmdId = queryEditor.addCommand(
     0,
@@ -273,43 +314,8 @@ const setupQueryEditor = async (code: string) => {
       executeQueryAction(queryEditor, displayEditor, target.position);
     }
   });
+};
 
-  // Event listener for user input
-  queryEditor.onDidChangeModelContent(async ({ range, rangeLength, text }) => {
-    const suggestion = await aiClient.suggest(text, 0);
-
-    const { status, data, details } = await fetchApi.fetch(
-      'http://your-backend-service/api/suggest',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code: text }),
-      },
-    );
-    if (status !== 200) {
-      message.error(details, {
-        closable: true,
-        keepAliveOnHover: true,
-      });
-      return;
-    }
-    queryEditor.suggest(
-      (data as Array<{ label: string; kind: number }>).map(suggestion => ({
-        label: suggestion.label,
-        kind: monaco.languages.CompletionItemKind[suggestion.kind],
-      })),
-    );
-  });
-};
-const toggleEditor = (editorRef: Ref, display: string) => {
-  editorRef.value.style.display = display;
-};
-const displayJsonEditor = (content: string) => {
-  toggleEditor(displayEditorRef, 'block');
-  displayEditor?.getModel()?.setValue(content);
-};
 const setupJsonEditor = () => {
   displayEditor = monaco.editor.create(displayEditorRef.value, {
     automaticLayout: true,
@@ -323,7 +329,7 @@ const setupJsonEditor = () => {
 onMounted(async () => {
   await readSourceFromFile();
   const code = defaultFile.value;
-  setupQueryEditor(code);
+  await setupQueryEditor(code);
   setupJsonEditor();
   toggleEditor(displayEditorRef, 'none');
 });

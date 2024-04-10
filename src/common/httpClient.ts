@@ -1,6 +1,7 @@
 import { CustomError } from './customError';
 import { Buffer } from 'buffer';
 import { lang } from '../lang';
+import { Range } from './editor';
 
 const { fetchApi } = window;
 
@@ -50,9 +51,11 @@ const fetchWrapper = async ({
   const url = buildURL(host, port, path, queryParameters);
   const { data, status, details } = await fetchApi.fetch(url, {
     method,
-    authorization,
+    headers: {
+      authorization,
+    },
     payload: payload ? JSON.stringify(payload) : undefined,
-    ssl,
+    agent: { ssl },
   });
   return handleFetch({ data, status, details });
 };
@@ -102,31 +105,43 @@ export const loadHttpClient = (con: {
     }),
 });
 
+export interface AiClient {
+  suggest: (fileContent: string, range: Range) => Promise<{ choices: Array<{ text: string }> }>;
+}
+
 const MODEL = 'gpt-3.5-turbo-0125';
-let assistant = null;
+
+const OPENAI_API_KEY = import.meta.env.VITE_OPEN_AI_API_KEY as string;
+
 export const loadAiClient = async () => {
   const headers = {
     'Content-Type': 'application/json',
     'OpenAI-Beta': 'assistants=v1',
     Authorization: `Bearer ${OPENAI_API_KEY}`,
   };
+  console.log(`gpt headers: `, JSON.stringify(headers));
+  // Step 1: Create an Assistant
   const { data, status, details } = await fetchApi.fetch('https://api.openai.com/v1/assistants', {
     method: 'POST',
     headers,
-    body: JSON.stringify({
+    payload: JSON.stringify({
       instructions: 'You are a personal math tutor. Write and run code to answer math questions.',
       name: 'Math Tutor',
       tools: [{ type: 'code_interpreter' }],
       model: MODEL,
     }),
   });
-  assistant = data as { id: string };
+  if (status !== 200) {
+    throw new CustomError(status, details);
+  }
+  const assistant = data as { id: string };
+  // Step 2: Create a Thread
   const { data: thread, status: threadStatus } = await fetchApi.fetch(
-    `https://api.openai.com/v1/assistants/${assistant.id}/threads`,
+    `https://api.openai.com/v1/threads`,
     {
       method: 'POST',
       headers,
-      body: JSON.stringify({
+      payload: JSON.stringify({
         messages: [
           {
             role: 'system',
@@ -138,29 +153,34 @@ export const loadAiClient = async () => {
   );
 
   console.log(`gpt assistant: ${assistant}, thread ${thread}`);
-  if (status !== 200) {
+  if (threadStatus !== 200) {
     throw new CustomError(status, details);
   }
+  const threadId = (thread as { id: string }).id;
   return {
-    suggest: async (fileContent: string, currentLineNumber: number) => {
+    suggest: async (fileContent: string, range: Range) => {
+      // Step 3: Add a Message to the Thread
       const { data, status, details } = await fetchApi.fetch(
-        `https://api.openai.com/v1/threads/${(thread as { id: string }).id}/messages`,
+        `https://api.openai.com/v1/threads/${threadId}).id}/messages`,
         {
           method: 'POST',
           headers,
-          body: JSON.stringify({
+          payload: JSON.stringify({
             messages: [
               {
                 role: 'system',
                 content: fileContent,
-                current_line_number: currentLineNumber,
+                current_line_number: range.startLineNumber,
+                current_column_number: range.startColumn,
+                end_line_number: range.endLineNumber,
+                end_column_number: range.endColumn,
               },
             ],
           }),
         },
       );
       console.log(`gpt suggest: ${data}, status: ${status}, details: ${details}`);
-      return (data as { choices: Array<{ text: string }> }).choices[0].text.trim();
+      return data as { choices: Array<{ text: string }> };
     },
-  };
+  } as AiClient;
 };

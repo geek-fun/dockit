@@ -26,6 +26,7 @@
     "debug": "^4.3.4",
     "electron-squirrel-startup": "^1.0.0",
     "electron-store": "^8.1.0",
+    "https-proxy-agent": "^7.0.4",
     "monaco-editor": "^0.46.0",
     "node-fetch": "^2.7.0",
     "pinia": "^2.1.7",
