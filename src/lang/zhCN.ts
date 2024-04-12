@@ -6,6 +6,7 @@ export const zhCN = {
     github: 'GitHub',
     user: '用户',
     setting: '设置',
+    chatBot: 'AI助手',
   },
   setting: {
     basic: '通用设置',
