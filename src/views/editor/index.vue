@@ -1,8 +1,12 @@
 <template>
-  <div class="editor">
-    <div id="query-editor" ref="queryEditorRef"></div>
-    <div id="display-editor" ref="displayEditorRef"></div>
-  </div>
+  <n-split direction="horizontal" class="editor" v-model:size="queryEditorSize">
+    <template #1>
+      <div id="query-editor" ref="queryEditorRef"></div>
+    </template>
+    <template #2>
+      <div id="display-editor" ref="displayEditorRef"></div>
+    </template>
+  </n-split>
 </template>
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
@@ -263,6 +267,7 @@ const setupQueryEditor = (code: string) => {
     theme: getEditorTheme(),
     value: code ? code : defaultCodeSnippet,
     language: 'search',
+    minimap: { enabled: false },
   });
 
   autoIndentCmdId = queryEditor.addCommand(0, (ctx, args) =>
@@ -356,11 +361,11 @@ const setupQueryEditor = (code: string) => {
     }
   });
 };
-const toggleEditor = (editorRef: Ref, display: string) => {
-  editorRef.value.style.display = display;
-};
+
+const queryEditorSize = ref(1);
+
 const displayJsonEditor = (content: string) => {
-  toggleEditor(displayEditorRef, 'block');
+  queryEditorSize.value = queryEditorSize.value === 1 ? 0.5 : queryEditorSize.value;
   displayEditor?.getModel()?.setValue(content);
 };
 const setupJsonEditor = () => {
@@ -377,7 +382,6 @@ onMounted(async () => {
   const code = defaultFile.value;
   setupQueryEditor(code);
   setupJsonEditor();
-  toggleEditor(displayEditorRef, 'none');
 });
 
 onUnmounted(() => {
@@ -398,16 +402,13 @@ sourceFileAPI.onSaveShortcut(async () => {
 .editor {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-flow: row nowrap;
-
   #query-editor {
-    width: 50%;
+    width: 100%;
     height: 100%;
   }
 
   #display-editor {
-    width: 50%;
+    width: 100%;
     height: 100%;
     border-left: 1px solid var(--border-color);
   }
