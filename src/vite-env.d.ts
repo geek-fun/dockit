@@ -25,6 +25,8 @@ export interface IElectronAPI {
 export interface IStoreAPI {
   get: <T>(key: string, defaultValue: T) => Promise<T>;
   set: <T>(key: string, value: T) => Promise<void>;
+  getSecret: <T>(key: string, defaultValue: T) => Promise<T>;
+  setSecret: <T>(key: string, value: T) => Promise<void>;
 }
 
 export interface ISourceFileAPI {

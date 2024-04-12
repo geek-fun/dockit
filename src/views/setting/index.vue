@@ -4,8 +4,11 @@
       <n-tab-pane n-tab-pane name="Basic" :tab="$t('setting.basic')">
         <basic-setting />
       </n-tab-pane>
+      <n-tab-pane n-tab-pane name="AI" :tab="$t('setting.ai.title')">
+        <aigc />
+      </n-tab-pane>
       <n-tab-pane n-tab-pane name="About" :tab="$t('setting.about')">
-        <basic-setting />
+        <about-us />
       </n-tab-pane>
     </n-tabs>
   </div>
@@ -13,6 +16,8 @@
 
 <script setup lang="ts">
 import BasicSetting from './components/basic.vue';
+import Aigc from './components/aigc.vue';
+import AboutUs from './components/about-us.vue';
 </script>
 
 <style lang="scss" scoped>
@@ -25,6 +30,7 @@ import BasicSetting from './components/basic.vue';
       padding: 15px 0;
       border-right: 1px solid var(--border-color);
     }
+
     .n-tabs-nav-scroll-content {
       height: 100%;
       width: 200px;
