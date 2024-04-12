@@ -105,7 +105,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
         [key: string]: string;
       }>;
-      this.established!.indices = data.map((index: { [key: string]: string }) => ({
+      this.established.indices = data.map((index: { [key: string]: string }) => ({
         ...index,
         docs: {
           count: parseInt(index['docs.count'], 10),
@@ -137,7 +137,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       const client = loadHttpClient(this.established);
 
       const reqPath = buildPath(index, path);
-      const body = qdsl ? JSON.parse(qdsl) : undefined;
+      const body = qdsl ?? undefined;
 
       const dispatch: { [method: string]: () => Promise<unknown> } = {
         POST: async () => client.post(reqPath, undefined, body),

@@ -14,7 +14,9 @@ import {
   CustomError,
   Decoration,
   defaultCodeSnippet,
-  SearchToken,
+  EngineType,
+  getActionApiDoc,
+  SearchAction,
   searchTokensProvider,
 } from '../../common';
 import { useAppStore, useConnectionStore, useSourceFileStore } from '../../store';
@@ -94,9 +96,9 @@ let autoIndentCmdId: string | null = null;
 const queryEditorRef = ref();
 const displayEditorRef = ref();
 
-let searchTokens: SearchToken[] = [];
+let searchTokens: SearchAction[] = [];
 
-const getActionMarksDecorations = (searchTokens: SearchToken[]): Array<Decoration> => {
+const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<Decoration> => {
   return searchTokens
     .map(({ actionPosition }) => ({
       id: actionPosition.startLineNumber,
@@ -107,7 +109,7 @@ const getActionMarksDecorations = (searchTokens: SearchToken[]): Array<Decoratio
     .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
 };
 
-const refreshActionMarks = (editor: Editor, searchTokens: SearchToken[]) => {
+const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
   const freshedDecorations = getActionMarksDecorations(searchTokens);
   // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
   executeDecorations = editor.deltaDecorations(
@@ -115,7 +117,7 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchToken[]) => {
     freshedDecorations,
   ) as unknown as Decoration[];
 };
-const buildCodeLens = (searchTokens: SearchToken[]) =>
+const buildCodeLens = (searchTokens: SearchAction[]) =>
   searchTokens
     .filter(({ qdslPosition }) => qdslPosition)
     .map(({ actionPosition, qdslPosition }, index) => ({
@@ -176,7 +178,9 @@ const executeQueryAction = async (
       });
       return;
     }
-
+    if (action.path.includes('_bulk')) {
+      action.qdsl += '\n';
+    }
     const data = await searchQDSL({
       ...action,
       index: action.index || established.value?.activeIndex?.index,
@@ -190,6 +194,68 @@ const executeQueryAction = async (
     });
   }
 };
+const autoIndentAction = (
+  editor: monaco.editor.IStandaloneCodeEditor,
+  ctx: unknown,
+  qdslPosition:
+    | {
+        startLineNumber: number;
+        endLineNumber: number;
+      }
+    | undefined,
+) => {
+  if (!qdslPosition) {
+    return;
+  }
+  const model = editor?.getModel();
+  if (!model) {
+    return;
+  }
+
+  const { startLineNumber, endLineNumber } = qdslPosition;
+  const content = model.getValueInRange({
+    startLineNumber,
+    startColumn: 1,
+    endLineNumber: endLineNumber,
+    endColumn: model.getLineLength(endLineNumber) + 1,
+  });
+  try {
+    const formatted = JSON.stringify(JSON.parse(content), null, 2);
+    model.pushEditOperations(
+      [],
+      [
+        {
+          range: {
+            startLineNumber,
+            startColumn: 1,
+            endLineNumber,
+            endColumn: model.getLineLength(endLineNumber) + 1,
+          },
+          text: formatted,
+        },
+      ],
+      inverseEditOperations => [],
+    );
+  } catch (err) {
+    message.error(lang.t('editor.invalidJson'), {
+      closable: true,
+      keepAliveOnHover: true,
+    });
+    return;
+  }
+};
+
+const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
+  if (!editor) {
+    return;
+  }
+  const { lineNumber } = editor.getPosition();
+  return tokens.find(({ actionPosition: { startLineNumber }, qdslPosition }) =>
+    qdslPosition
+      ? lineNumber >= startLineNumber && lineNumber <= qdslPosition.endLineNumber
+      : startLineNumber === lineNumber,
+  );
+};
 
 const setupQueryEditor = (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
@@ -199,57 +265,8 @@ const setupQueryEditor = (code: string) => {
     language: 'search',
   });
 
-  autoIndentCmdId = queryEditor.addCommand(
-    0,
-    (
-      ctx,
-      args:
-        | {
-            startLineNumber: number;
-            endLineNumber: number;
-          }
-        | undefined,
-    ) => {
-      if (!args) {
-        return;
-      }
-      const model = queryEditor?.getModel();
-      if (!model) {
-        return;
-      }
-
-      const { startLineNumber, endLineNumber } = args;
-      const content = model.getValueInRange({
-        startLineNumber,
-        startColumn: 1,
-        endLineNumber: endLineNumber,
-        endColumn: model.getLineLength(endLineNumber) + 1,
-      });
-      try {
-        const formatted = JSON.stringify(JSON.parse(content), null, 2);
-        model.pushEditOperations(
-          [],
-          [
-            {
-              range: {
-                startLineNumber,
-                startColumn: 1,
-                endLineNumber,
-                endColumn: model.getLineLength(endLineNumber) + 1,
-              },
-              text: formatted,
-            },
-          ],
-          inverseEditOperations => [],
-        );
-      } catch (err) {
-        message.error(lang.t('editor.invalidJson'), {
-          closable: true,
-          keepAliveOnHover: true,
-        });
-        return;
-      }
-    },
+  autoIndentCmdId = queryEditor.addCommand(0, (ctx, args) =>
+    autoIndentAction(queryEditor, ctx, args),
   );
 
   queryEditor.onMouseDown(({ event, target }) => {
@@ -261,6 +278,81 @@ const setupQueryEditor = (code: string) => {
       displayEditor
     ) {
       executeQueryAction(queryEditor, displayEditor, target.position);
+    }
+  });
+
+  // Auto indent current request
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
+    const { qdslPosition } = getPointerAction(queryEditor, searchTokens) || {};
+    autoIndentAction(queryEditor, null, qdslPosition);
+  });
+
+  // Toggle Autocomplete
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space, () => {
+    queryEditor.trigger('keyboard', 'editor.action.triggerSuggest', {});
+  });
+
+  // Submit request
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+    const { actionPosition } = getPointerAction(queryEditor, searchTokens) || {};
+    if (actionPosition) {
+      executeQueryAction(queryEditor, displayEditor, {
+        column: actionPosition.startColumn,
+        lineNumber: actionPosition.startLineNumber,
+      });
+    }
+  });
+
+  // Jump to the previous request
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.UpArrow, () => {
+    const { lineNumber, column } = queryEditor.getPosition();
+    const { actionPosition } =
+      searchTokens
+        .filter(({ actionPosition }) => actionPosition)
+        .sort((a, b) => b.actionPosition.startLineNumber - a.actionPosition.startLineNumber)
+        .find(({ actionPosition: { startLineNumber } }) => startLineNumber < lineNumber) || {};
+
+    if (actionPosition) {
+      queryEditor.revealLine(actionPosition.startLineNumber);
+      queryEditor.setPosition({ column, lineNumber: actionPosition.startLineNumber });
+    }
+  });
+
+  // Jump to the next request
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.DownArrow, () => {
+    const { lineNumber, column } = queryEditor.getPosition();
+    const { actionPosition } =
+      searchTokens
+        .filter(({ actionPosition }) => actionPosition)
+        .sort((a, b) => a.actionPosition.startLineNumber - b.actionPosition.startLineNumber)
+        .find(({ actionPosition: { startLineNumber } }) => startLineNumber > lineNumber) || {};
+
+    if (actionPosition) {
+      queryEditor.revealLine(actionPosition.startLineNumber);
+      queryEditor.setPosition({ column, lineNumber: actionPosition.startLineNumber });
+    }
+  });
+
+  // Collapse/expand current scope
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyL, () => {
+    queryEditor.trigger('keyboard', 'editor.toggleFold', {});
+  });
+
+  // Collapse all scopes but the current one
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Digit0, () => {
+    queryEditor.trigger('keyboard', 'editor.foldAll', {});
+    queryEditor.trigger('keyboard', 'editor.unfoldRecursively', {});
+  });
+
+  // Open the documentation for the current action
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash, () => {
+    const docLink = getActionApiDoc(
+      EngineType.ELASTICSEARCH,
+      'current',
+      getPointerAction(queryEditor, searchTokens),
+    );
+    if (docLink) {
+      window.electronAPI.openLink(docLink);
     }
   });
 };

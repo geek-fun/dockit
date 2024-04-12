@@ -12,5 +12,8 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    "auto-imports.d.ts"
+  ]
 }
