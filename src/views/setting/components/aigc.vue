@@ -4,15 +4,15 @@
       <n-tab-pane name="OpenAI" tab="OpenAI">
         <n-form class="form-tab-pane">
           <n-form-item-row :label="$t('setting.ai.model')">
-            <n-input v-model="openAi.model" />
+            <n-input v-model:value="openAi.model" />
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.apiKey')">
-            <n-input type="password" v-model="openAi.apiKey" />
+            <n-input type="password" show-password-on="click" v-model:value="openAi.apiKey" />
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.prompt')">
-            <n-input type="textarea" v-model="openAi.prompt" />
+            <n-input type="textarea" v-model:value="openAi.prompt" />
           </n-form-item-row>
-          <n-button type="error" @click="cancel" class="action-button">Cancel</n-button>
+          <n-button type="error" @click="reset" class="action-button">Cancel</n-button>
           <n-button type="success" @click="save" class="action-button">Save</n-button>
           <n-button type="primary" @click="enable" class="action-button">Enable</n-button>
         </n-form>
@@ -25,22 +25,27 @@
 </template>
 
 <script setup lang="ts">
-const openAi = reactive({
-  model: '',
-  apiKey: '',
-  prompt: '',
-});
+import { useAppStore } from '../../../store';
+import { storeToRefs } from 'pinia';
+const appStore = useAppStore();
+const { fetchAigcConfig, saveAigcConfig } = appStore;
+const { aigcConfig } = storeToRefs(appStore);
 
-const cancel = () => {
-  openAi.apiKey = '';
-  openAi.model = '';
-  openAi.prompt = '';
+const openAi = ref({ ...aigcConfig.value.openAi });
+const reset = () => {
+  openAi.value = { apiKey: '', model: '', prompt: '' };
+  aigcConfig.value.openAi = openAi.value;
 };
 
-const save = () => {};
+const save = async () => {
+  await saveAigcConfig({ ...aigcConfig.value, openAi: openAi.value });
+};
 
-const enable = () => {};
-// The rest of your script code
+const enable = async () => {
+  await saveAigcConfig({ ...aigcConfig.value, openAi: openAi.value, enabled: true });
+};
+
+fetchAigcConfig();
 </script>
 
 <style lang="scss" scoped>
