@@ -46,7 +46,7 @@ import { ref, markRaw } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { DataBase, Folders, LogoGithub, Settings, UserAvatar, ExpandAll } from '@vicons/carbon';
 import { useAppStore } from '../../store';
-import theAsideIcon from './the-aside-icon.vue';
+import TheAsideIcon from './the-aside-icon.vue';
 const router = useRouter();
 const route = useRoute();
 const appStore = useAppStore();

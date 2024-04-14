@@ -6,6 +6,7 @@ export const zhCN = {
     github: 'GitHub',
     user: '用户',
     setting: '设置',
+    chatBot: 'AI助手',
   },
   setting: {
     basic: '通用设置',
@@ -15,6 +16,13 @@ export const zhCN = {
     auto: '跟随系统',
     dark: '暗黑主题',
     light: '月白主题',
+    ai: {
+      title: 'GPTs配置',
+      others: '其他GPTs',
+      model: '模型',
+      apiKey: 'API密钥',
+      prompt: '提示词',
+    },
   },
   connection: {
     new: '新建连接',
@@ -57,5 +65,12 @@ export const zhCN = {
   history: {
     empty: '无历史记录',
     emptyDesc: '执行扫描和查询时，查询历史记录将显示在此处',
+  },
+  version: {
+    newVersion: '发现新版本',
+    message: '发现新版本，是否立即下载',
+    skip: '跳过该版本',
+    download: '下载',
+    later: '忽略',
   },
 };

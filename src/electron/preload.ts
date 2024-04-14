@@ -2,18 +2,20 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('browserWindow', {
+contextBridge.exposeInMainWorld('electronAPI', {
+  openGitHub: () => ipcRenderer.send('open-github'),
+  openLink: (link: string) => ipcRenderer.send('open-link', link),
   versions: () => ipcRenderer.invoke('versions'),
 });
 
-contextBridge.exposeInMainWorld('electronAPI', {
-  openGitHub: () => ipcRenderer.send('open-github'),
-});
 contextBridge.exposeInMainWorld('storeAPI', {
   get: async (key: string, defaultValue: unknown) =>
     ipcRenderer.invoke('storeAPI', { method: 'GET', key, value: defaultValue }),
   set: async (key: string, value: unknown) =>
     ipcRenderer.invoke('storeAPI', { method: 'SET', key, value }),
+  getSecret: async (key: string) => ipcRenderer.invoke('storeAPI', { method: 'GET_SECRET', key }),
+  setSecret: async (key: string, value: unknown) =>
+    ipcRenderer.invoke('storeAPI', { method: 'SET_SECRET', key, value }),
 });
 
 contextBridge.exposeInMainWorld('sourceFileAPI', {

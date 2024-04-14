@@ -6,6 +6,7 @@ export const enUS = {
     github: 'GitHub',
     user: 'User',
     setting: 'Setting',
+    chatBot: 'AI Assistant',
   },
   setting: {
     basic: 'Basic',
@@ -15,6 +16,13 @@ export const enUS = {
     auto: 'Follow OS',
     dark: 'Dark Theme',
     light: 'Light Theme',
+    ai: {
+      title: 'GPTs',
+      others: 'Other GPTs',
+      model: 'Model',
+      apiKey: 'API Key',
+      prompt: 'Prompt',
+    },
   },
   connection: {
     new: 'New connection',
@@ -57,5 +65,12 @@ export const enUS = {
   history: {
     empty: 'No history yet',
     emptyDesc: 'History of queries will appear here as you execute Scans and Queries',
+  },
+  version: {
+    newVersion: 'New version available',
+    message: 'A new version is available, download it now',
+    download: 'Download',
+    skip: 'Skip this version',
+    later: 'Later',
   },
 };

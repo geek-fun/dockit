@@ -36,7 +36,7 @@ const fetchWrapper = async ({
   method: string;
   path?: string;
   queryParameters?: string;
-  payload?: unknown;
+  payload?: string;
   username?: string;
   password?: string;
   host: string;
@@ -75,7 +75,7 @@ export const loadHttpClient = (con: {
       queryParameters,
       ssl: con.sslCertVerification,
     }),
-  post: async (path: string, queryParameters?: string, payload?: unknown) =>
+  post: async (path: string, queryParameters?: string, payload?: string) =>
     fetchWrapper({
       ...con,
       method: 'POST',
@@ -84,7 +84,7 @@ export const loadHttpClient = (con: {
       payload,
       ssl: con.sslCertVerification,
     }),
-  put: async (path: string, queryParameters?: string, payload?: unknown) =>
+  put: async (path: string, queryParameters?: string, payload?: string) =>
     fetchWrapper({
       ...con,
       method: 'PUT',
@@ -94,7 +94,7 @@ export const loadHttpClient = (con: {
       ssl: con.sslCertVerification,
     }),
 
-  delete: async (path: string, queryParameters?: string, payload?: unknown) =>
+  delete: async (path: string, queryParameters?: string, payload?: string) =>
     fetchWrapper({
       ...con,
       method: 'DELETE',
