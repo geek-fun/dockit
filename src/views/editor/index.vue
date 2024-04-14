@@ -1,13 +1,17 @@
 <template>
-  <div class="editor">
-    <div id="query-editor" ref="queryEditorRef"></div>
-    <div id="display-editor" ref="displayEditorRef"></div>
-  </div>
+  <n-split direction="horizontal" class="editor" v-model:size="queryEditorSize">
+    <template #1>
+      <div id="query-editor" ref="queryEditorRef"></div>
+    </template>
+    <template #2>
+      <div id="display-editor" ref="displayEditorRef"></div>
+    </template>
+  </n-split>
 </template>
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, Ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
   buildSearchToken,
@@ -185,7 +189,7 @@ const executeQueryAction = async (
       ...action,
       index: action.index || established.value?.activeIndex?.index,
     });
-    displayEditor?.getModel()?.setValue(JSON.stringify(data, null, '  '));
+    displayJsonEditor(JSON.stringify(data, null, '  '));
   } catch (err) {
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -263,6 +267,7 @@ const setupQueryEditor = (code: string) => {
     theme: getEditorTheme(),
     value: code ? code : defaultCodeSnippet,
     language: 'search',
+    minimap: { enabled: false },
   });
 
   autoIndentCmdId = queryEditor.addCommand(0, (ctx, args) =>
@@ -356,12 +361,20 @@ const setupQueryEditor = (code: string) => {
     }
   });
 };
+
+const queryEditorSize = ref(1);
+
+const displayJsonEditor = (content: string) => {
+  queryEditorSize.value = queryEditorSize.value === 1 ? 0.5 : queryEditorSize.value;
+  displayEditor?.getModel()?.setValue(content);
+};
 const setupJsonEditor = () => {
   displayEditor = monaco.editor.create(displayEditorRef.value, {
     automaticLayout: true,
     theme: getEditorTheme(),
     value: '',
     language: 'json',
+    minimap: { enabled: false },
   });
 };
 onMounted(async () => {
@@ -389,16 +402,13 @@ sourceFileAPI.onSaveShortcut(async () => {
 .editor {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-flow: row nowrap;
-
   #query-editor {
-    width: 50%;
+    width: 100%;
     height: 100%;
   }
 
   #display-editor {
-    width: 50%;
+    width: 100%;
     height: 100%;
     border-left: 1px solid var(--border-color);
   }

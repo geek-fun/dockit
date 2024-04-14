@@ -6,6 +6,7 @@ export const enUS = {
     github: 'GitHub',
     user: 'User',
     setting: 'Setting',
+    chatBot: 'AI Assistant',
   },
   setting: {
     basic: 'Basic',
