@@ -11,9 +11,25 @@
   >
     <template #header-extra></template>
     <div class="message-list-box">
-      <n-scrollbar :style="scrollBarStyle">
+      <n-scrollbar ref="scrollbar" :style="scrollBarStyle">
         <div v-for="msg in messages" :key="msg.id">
-          <pre v-text="msg.content"></pre>
+          <div
+            :class="[
+              msg.role === ChatMessageRole.USER ? 'message-item-container-user' : '',
+              'message-item-container',
+            ]"
+          >
+            <div class="message-item-header">
+              <n-icon size="26">
+                <bot v-if="msg.role === ChatMessageRole.BOT" />
+                <face-cool v-else />
+              </n-icon>
+              <span>{{ msg.role }}</span>
+            </div>
+            <div class="message-item-content">
+              <pre v-text="msg.content"></pre>
+            </div>
+          </div>
         </div>
       </n-scrollbar>
     </div>
@@ -63,9 +79,9 @@
 
 <script setup lang="ts">
 import { markRaw, ref } from 'vue';
-import { ChatBot, SendAlt } from '@vicons/carbon';
+import { ChatBot, SendAlt, Bot, FaceCool } from '@vicons/carbon';
 import TheAsideIcon from './the-aside-icon.vue';
-import { useChatStore } from '../../store';
+import { ChatMessageRole, useChatStore } from '../../store';
 
 const chatStore = useChatStore();
 const { sendMessage } = chatStore;
@@ -90,18 +106,19 @@ const smallNavList = ref([
 ]);
 
 const message = ref(''); // to hold the message
+const scrollbar = ref(null);
 
 const submitMsg = async () => {
   if (message.value.trim().length < 1) return;
   await sendMessage(message.value);
   console.log('submitMsg', message.value);
+  scrollbar.value.scrollTo({ top: 999999 });
   message.value = '';
 };
 
 const msgBoxHeight = ref(449);
 const scrollBarStyle = computed(() => `max-height: ${msgBoxHeight.value}px`);
-console.log('msgBoxHeight', msgBoxHeight);
-// Function to update window's height
+
 const updateHeight = () => {
   if (chatBot.value.active) {
     const chatMsgContent = document.querySelector('.chat-box-container .message-list-box');
@@ -165,11 +182,35 @@ onUnmounted(() => {
     margin: 0;
     padding: 0;
   }
+
   .message-list-box {
     height: 100%;
     padding: 0;
     margin: 0;
+    .message-item-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      padding: 10px;
+      .message-item-header {
+        display: flex;
+        align-items: center;
+        span {
+          font-weight: bold;
+        }
+        .n-icon {
+          margin-right: 10px;
+        }
+      }
+    }
+    .message-item-container-user {
+      background-color: var(--bg-color);
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+    }
   }
+
   .message-box {
     background-color: var(--border-color);
 
