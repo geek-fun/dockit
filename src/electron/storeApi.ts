@@ -65,8 +65,10 @@ const storeApi: { [key: string]: (key: string, val: unknown) => unknown } = {
   },
 };
 
-export const registerStoreApiListener = (ipcMain: Electron.IpcMain) => {
+const registerStoreApiListener = (ipcMain: Electron.IpcMain) => {
   ipcMain.handle('storeAPI', (_, { method, key, value }: StoreApiInput) =>
     storeApi[method.toLowerCase()](key, value),
   );
 };
+
+export { registerStoreApiListener, storeApi };

@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
 
@@ -28,6 +29,20 @@ export interface IStoreAPI {
   getSecret: <T>(key: string, defaultValue: T) => Promise<T>;
   setSecret: <T>(key: string, value: T) => Promise<void>;
 }
+export interface IChatBotAPI {
+  initialize: ({
+    question,
+    apiKey,
+    prompt,
+    model,
+  }: {
+    question: string;
+    apiKey: string;
+    prompt: string;
+    model: string;
+  }) => Promise<{ assistantId: string; threadId: string }>;
+  ask: (question: string) => Promise<void>;
+}
 
 export interface ISourceFileAPI {
   saveFile: (content: string) => Promise<void>;
@@ -54,5 +69,6 @@ declare global {
     storeAPI: IStoreAPI;
     sourceFileAPI: ISourceFileAPI;
     fetchApi: IFetchAPI;
+    chatBotApi: IChatBotAPI;
   }
 }

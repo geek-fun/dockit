@@ -30,3 +30,7 @@ contextBridge.exposeInMainWorld('fetchApi', {
   fetch: async (url: string, options: unknown) =>
     ipcRenderer.invoke('fetchApi', { method: 'fetch', url, options }),
 });
+
+contextBridge.exposeInMainWorld('chatBotApi', {
+  ask: async (question: string) => ipcRenderer.invoke('chatBotApi', { method: 'ASK', question }),
+});

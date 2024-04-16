@@ -107,12 +107,13 @@ const smallNavList = ref([
 
 const message = ref(''); // to hold the message
 const scrollbar = ref(null);
-
+const { chatBotApi } = window;
 const submitMsg = async () => {
   if (message.value.trim().length < 1) return;
   await sendMessage(message.value);
   console.log('submitMsg', message.value);
   scrollbar.value.scrollTo({ top: 999999 });
+  await chatBotApi.ask(message.value);
   message.value = '';
 };
 

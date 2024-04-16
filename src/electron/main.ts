@@ -6,6 +6,7 @@ import { githubLink } from '../config';
 import { registerStoreApiListener } from './storeApi';
 import { registerSourceFileApiListener } from './sourceFIleApi';
 import { registerFetchApiListener } from './fetchApi';
+import { registerChatBotApiListener } from './chatBotApi';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -109,6 +110,7 @@ ipcMain.on('open-link', (_event, link: string) => {
 registerStoreApiListener(ipcMain);
 registerSourceFileApiListener(ipcMain);
 registerFetchApiListener(ipcMain);
+registerChatBotApiListener(ipcMain);
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.
