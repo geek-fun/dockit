@@ -32,5 +32,18 @@ contextBridge.exposeInMainWorld('fetchApi', {
 });
 
 contextBridge.exposeInMainWorld('chatBotApi', {
-  ask: async (question: string) => ipcRenderer.invoke('chatBotApi', { method: 'ASK', question }),
+  initialize: async (args: { apiKey: string; prompt: string; model: string }) =>
+    ipcRenderer.invoke('chatBotApi', { method: 'INITIALIZE', ...args }),
+  ask: async ({
+    question,
+    apiKey,
+    assistantId,
+    threadId,
+  }: {
+    apiKey: string;
+    question: string;
+    assistantId: string;
+    threadId: string;
+  }) =>
+    ipcRenderer.invoke('chatBotApi', { method: 'ASK', question, apiKey, assistantId, threadId }),
 });

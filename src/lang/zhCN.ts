@@ -22,6 +22,11 @@ export const zhCN = {
       model: '模型',
       apiKey: 'API密钥',
       prompt: '提示词',
+      form: {
+        reset: '重置',
+        save: '保存并启用',
+      },
+      missing: 'GPT 未配置或未启用',
     },
   },
   connection: {

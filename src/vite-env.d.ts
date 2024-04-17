@@ -36,12 +36,16 @@ export interface IChatBotAPI {
     prompt,
     model,
   }: {
-    question: string;
     apiKey: string;
     prompt: string;
     model: string;
   }) => Promise<{ assistantId: string; threadId: string }>;
-  ask: (question: string) => Promise<void>;
+  ask: (args: {
+    question: string;
+    assistantId: string;
+    threadId: string;
+    apiKey: string;
+  }) => Promise<void>;
 }
 
 export interface ISourceFileAPI {

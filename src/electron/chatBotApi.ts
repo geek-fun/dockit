@@ -13,35 +13,40 @@ export type ChatBotApiInput = {
   apiKey?: string;
   prompt?: string;
   model?: string;
+  assistantId?: string;
+  threadId?: string;
 };
 
 const ASSISTANT_NAME = 'dockit-assistant';
 
+const createOpenaiClient = ({ apiKey }: { apiKey: string }) => {
+  const httpAgent = process.env.https_proxy
+    ? new HttpsProxyAgent(process.env.https_proxy)
+    : undefined;
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  return new OpenAI({ httpAgent, apiKey, fetch });
+};
+
 const chatBotApi = {
   initialize: async ({
-    apiKey,
+    openai,
     prompt,
     model,
   }: {
-    apiKey: string;
+    openai: OpenAI;
     prompt: string;
     model: string;
   }) => {
-    const httpAgent = process.env.https_proxy
-      ? new HttpsProxyAgent(process.env.https_proxy)
-      : undefined;
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    const openai = new OpenAI({ httpAgent, apiKey, fetch });
-
     const assistant = await openai.beta.assistants.create({
       name: ASSISTANT_NAME,
       instructions: prompt,
       model: model,
     });
     const thread = await openai.beta.threads.create();
+    console.log(`thread: ${thread}, assistant: ${assistant}`);
 
-    return { openai, assistant, thread };
+    return { assistantId: assistant.id, threadId: thread.id };
   },
   ask: async ({
     openai,
@@ -64,29 +69,33 @@ const chatBotApi = {
       );
   },
 };
+
 const registerChatBotApiListener = (ipcMain: Electron.IpcMain) => {
-  let instance: {
-    openai: OpenAI;
-    assistant: OpenAI.Beta.Assistants.Assistant;
-    thread: OpenAI.Beta.Threads.Thread;
-  };
+  let openai: OpenAI;
+
   ipcMain.handle(
     'chatBotApi',
-    async (_, { method, question, apiKey, prompt, model }: ChatBotApiInput) => {
-      if (method === ChatBotApiMethods.INITIALIZE.toLowerCase()) {
-        instance = await chatBotApi.initialize({ apiKey, prompt, model });
-        // @TODO implement openai stateful client
-      }
-      if (method === ChatBotApiMethods.ASK.toLowerCase()) {
-        if (!instance) {
-          throw new Error('internal error');
-        }
-        await chatBotApi.ask({
-          openai: instance.openai,
-          assistantId: instance.assistant.id,
-          threadId: instance.thread.id,
-          question: question,
+    async (
+      _,
+      { method, question, apiKey, prompt, model, assistantId, threadId }: ChatBotApiInput,
+    ) => {
+      console.log(`chatBotApi method: ${method}`);
+      if (method === ChatBotApiMethods.INITIALIZE) {
+        openai = createOpenaiClient({ apiKey });
+
+        const { assistantId, threadId } = await chatBotApi.initialize({
+          openai,
+          prompt,
+          model,
         });
+        console.log(`assistantId: ${assistantId}, threadId: ${threadId}`);
+        return { assistantId, threadId };
+      }
+      if (method === ChatBotApiMethods.ASK) {
+        if (!openai) {
+          openai = createOpenaiClient({ apiKey });
+        }
+        await chatBotApi.ask({ openai, assistantId, threadId, question: question });
       }
     },
   );

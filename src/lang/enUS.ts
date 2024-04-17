@@ -22,6 +22,11 @@ export const enUS = {
       model: 'Model',
       apiKey: 'API Key',
       prompt: 'Prompt',
+      form: {
+        reset: 'Reset',
+        save: 'Save & Enable',
+      },
+      missing: 'GPT is not configured or not enabled',
     },
   },
   connection: {

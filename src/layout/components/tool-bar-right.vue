@@ -11,8 +11,11 @@
   >
     <template #header-extra></template>
     <div class="message-list-box">
+      <n-alert v-if="chatBotNotification.enabled" :type="chatBotNotification.level">
+        {{ chatBotNotification.message }}
+      </n-alert>
       <n-scrollbar ref="scrollbar" :style="scrollBarStyle">
-        <div v-for="msg in messages" :key="msg.id">
+        <div v-for="msg in chats[0]?.messages" :key="msg.id">
           <div
             :class="[
               msg.role === ChatMessageRole.USER ? 'message-item-container-user' : '',
@@ -79,16 +82,18 @@
 
 <script setup lang="ts">
 import { markRaw, ref } from 'vue';
-import { ChatBot, SendAlt, Bot, FaceCool } from '@vicons/carbon';
+import { Bot, ChatBot, FaceCool, SendAlt } from '@vicons/carbon';
 import TheAsideIcon from './the-aside-icon.vue';
 import { ChatMessageRole, useChatStore } from '../../store';
+import { storeToRefs } from 'pinia';
 
 const chatStore = useChatStore();
 const { sendMessage } = chatStore;
-const { messages } = toRefs(chatStore);
-
+const { chats } = storeToRefs(chatStore);
 const selectedItemId = ref(-1);
 const chatBot = ref({ active: false });
+
+const chatBotNotification = ref({ enabled: false, level: '', message: '' });
 
 const navClick = (item: any) => {
   selectedItemId.value = item.id;
@@ -107,13 +112,18 @@ const smallNavList = ref([
 
 const message = ref(''); // to hold the message
 const scrollbar = ref(null);
-const { chatBotApi } = window;
 const submitMsg = async () => {
+  chatBotNotification.value = { enabled: false, level: '', message: '' };
   if (message.value.trim().length < 1) return;
-  await sendMessage(message.value);
+  sendMessage(message.value).catch(err => {
+    chatBotNotification.value = {
+      enabled: true,
+      level: 'error',
+      message: err.message,
+    };
+  });
   console.log('submitMsg', message.value);
   scrollbar.value.scrollTo({ top: 999999 });
-  await chatBotApi.ask(message.value);
   message.value = '';
 };
 
