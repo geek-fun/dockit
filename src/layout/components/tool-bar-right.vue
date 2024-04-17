@@ -88,7 +88,7 @@ import { ChatMessageRole, useChatStore } from '../../store';
 import { storeToRefs } from 'pinia';
 
 const chatStore = useChatStore();
-const { sendMessage } = chatStore;
+const { sendMessage, fetchChats } = chatStore;
 const { chats } = storeToRefs(chatStore);
 const selectedItemId = ref(-1);
 const chatBot = ref({ active: false });
@@ -145,6 +145,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', updateHeight);
 });
+fetchChats();
 </script>
 
 <style scoped>

@@ -46,6 +46,22 @@ export interface IChatBotAPI {
     threadId: string;
     apiKey: string;
   }) => Promise<void>;
+  onMessageReceived: (
+    fn: (value: {
+      msgEvent: string;
+      delta?: {
+        content: Array<{
+          index: number;
+          type: string;
+          text: {
+            value: string;
+            annotations: Array<string>;
+          };
+        }>;
+      };
+      message: string;
+    }) => void,
+  ) => void;
 }
 
 export interface ISourceFileAPI {

@@ -53,24 +53,44 @@ const chatBotApi = {
     assistantId,
     threadId,
     question,
+    mainWindow,
   }: {
     openai: OpenAI;
     assistantId: string;
     threadId: string;
     question: string;
+    mainWindow: Electron.BrowserWindow;
   }) => {
     await openai.beta.threads.messages.create(threadId, { role: 'user', content: question });
 
     openai.beta.threads.runs
       .stream(threadId, { assistant_id: assistantId })
-      .on('textCreated', text => console.log('textCreated, text:', text))
-      .on('textDelta', (textDelta, snapshot) =>
-        console.log('textDelta, textDelta:', JSON.stringify({ textDelta, snapshot })),
+      .on('messageCreated', message =>
+        mainWindow.webContents.send('chat-bot-api-message-delta', {
+          msgEvent: 'messageCreated',
+          message,
+        }),
+      )
+      .on('messageDelta', (delta, snapshot) => {
+        console.log('messageDelta, delta:', delta, 'snapshot:', snapshot);
+        mainWindow.webContents.send('chat-bot-api-message-delta', {
+          msgEvent: 'messageDelta',
+          delta,
+        });
+      })
+      .on('messageDone', message =>
+        mainWindow.webContents.send('chat-bot-api-message-delta', {
+          msgEvent: 'messageDone',
+          message,
+        }),
       );
   },
 };
 
-const registerChatBotApiListener = (ipcMain: Electron.IpcMain) => {
+const registerChatBotApiListener = (
+  ipcMain: Electron.IpcMain,
+  mainWindow: Electron.BrowserWindow,
+) => {
   let openai: OpenAI;
 
   ipcMain.handle(
@@ -79,7 +99,6 @@ const registerChatBotApiListener = (ipcMain: Electron.IpcMain) => {
       _,
       { method, question, apiKey, prompt, model, assistantId, threadId }: ChatBotApiInput,
     ) => {
-      console.log(`chatBotApi method: ${method}`);
       if (method === ChatBotApiMethods.INITIALIZE) {
         openai = createOpenaiClient({ apiKey });
 
@@ -95,7 +114,7 @@ const registerChatBotApiListener = (ipcMain: Electron.IpcMain) => {
         if (!openai) {
           openai = createOpenaiClient({ apiKey });
         }
-        await chatBotApi.ask({ openai, assistantId, threadId, question: question });
+        await chatBotApi.ask({ openai, assistantId, threadId, question: question, mainWindow });
       }
     },
   );

@@ -46,4 +46,6 @@ contextBridge.exposeInMainWorld('chatBotApi', {
     threadId: string;
   }) =>
     ipcRenderer.invoke('chatBotApi', { method: 'ASK', question, apiKey, assistantId, threadId }),
+  onMessageReceived: (callback: (value: unknown) => void) =>
+    ipcRenderer.on('chat-bot-api-message-delta', (_event, value) => callback(value)),
 });

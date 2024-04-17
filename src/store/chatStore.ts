@@ -7,12 +7,23 @@ enum MessageStatus {
   SENDING = 'SENDING',
   SENT = 'SENT',
   FAILED = 'FAILED',
+  RECEIVED = 'RECEIVED',
 }
 export enum ChatMessageRole {
   USER = 'USER',
   BOT = 'BOT',
 }
 const { chatBotApi, storeAPI } = window;
+
+let receiveRegistration = false;
+
+const getOpenAiConfig = async () => {
+  const { openAi } = await storeAPI.getSecret('aigcConfig', { openAi: undefined });
+  if (!openAi) {
+    throw new Error(lang.global.t('setting.ai.missing'));
+  }
+  return openAi;
+};
 
 export const useChatStore = defineStore('chat', {
   state: (): {
@@ -28,30 +39,45 @@ export const useChatStore = defineStore('chat', {
       assistantId: string;
       threadId: string;
     }>;
-    openaiConfig: { apiKey: string; model: string; prompt: string };
   } => {
     return {
       chats: [],
-      openaiConfig: { apiKey: '', model: '', prompt: '' },
     };
   },
   actions: {
+    async fetchChats() {
+      const chats = await storeAPI.get('chats', undefined);
+      this.chats = chats ?? [];
+    },
     async sendMessage(content: string) {
-      const chat = this.chats[0];
+      if (!receiveRegistration) {
+        console.log('register onMessageReceived');
+        chatBotApi.onMessageReceived(({ delta, msgEvent }) => {
+          console.log('onMessageReceived', delta, msgEvent);
+          if (msgEvent === 'messageCreated') {
+            this.chats[0].messages.push({
+              id: ulid(),
+              status: MessageStatus.RECEIVED,
+              role: ChatMessageRole.BOT,
+              content: '',
+            });
+          } else if (msgEvent === 'messageDelta') {
+            const messageChunk = delta.content.map(({ text }) => text.value).join('');
+            this.chats[0].messages[this.chats[0].messages.length - 1].content += messageChunk;
+          } else if (msgEvent === 'messageDone') {
+            storeAPI.set('chats', pureObject(this.chats));
+          }
+        });
+        receiveRegistration = true;
+      }
 
-      if (!chat) {
-        const { openAi } = await storeAPI.getSecret('aigcConfig', { openAi: undefined });
-        console.log('openAi', openAi);
-        if (!openAi) {
-          throw new Error(lang.global.t('setting.ai.missing'));
-        }
-        this.openaiConfig = openAi;
+      if (!this.chats[0]) {
         const chats = await storeAPI.get('chats', undefined);
         if (chats) {
           this.chats = chats;
         } else {
           try {
-            const { assistantId, threadId } = await chatBotApi.initialize(openAi);
+            const { assistantId, threadId } = await chatBotApi.initialize(await getOpenAiConfig());
             this.chats.push({ id: ulid(), type: 'openai', messages: [], assistantId, threadId });
             await storeAPI.set('chats', pureObject(this.chats));
           } catch (err) {
@@ -69,11 +95,12 @@ export const useChatStore = defineStore('chat', {
       });
       await storeAPI.set('chats', pureObject(this.chats));
       try {
+        const openaiConfig = await getOpenAiConfig();
         await chatBotApi.ask({
           question: content,
           assistantId,
           threadId,
-          apiKey: this.openaiConfig.apiKey,
+          apiKey: openaiConfig.apiKey,
         });
       } catch (err) {
         messages[messages.length - 1].status = MessageStatus.FAILED;
