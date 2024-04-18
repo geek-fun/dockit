@@ -21,7 +21,7 @@ export type FetchApiInput = {
 const fetchApi: { [key: string]: (key: string, val: unknown) => unknown } = {
   fetch: async (
     url: string,
-    { method, headers, payload, agent: agentSslConf }: FetchApiOptions,
+    { method, headers: inputHeaders, payload, agent: agentSslConf }: FetchApiOptions,
   ) => {
     const sslConfig = url.startsWith('https')
       ? { rejectUnauthorized: agentSslConf?.ssl }
@@ -30,17 +30,11 @@ const fetchApi: { [key: string]: (key: string, val: unknown) => unknown } = {
       ? new HttpsProxyAgent(process.env.https_proxy, { ...sslConfig })
       : undefined;
 
-    console.log('proxyAgent:', { agent, https_proxy: process.env.https_proxy });
-
+    const headers = JSON.parse(
+      JSON.stringify({ 'Content-Type': 'application/json', ...inputHeaders }),
+    );
     try {
-      const result = await fetch(url, {
-        method,
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        headers: { 'Content-Type': 'application/json', ...headers } as unknown as Headers,
-        body: payload,
-        agent,
-      });
+      const result = await fetch(url, { method, headers, body: payload, agent });
       if (result.ok) {
         return { status: result.status, data: await result.json() };
       }
