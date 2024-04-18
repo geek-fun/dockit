@@ -156,41 +156,41 @@ const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
   },
 });
 
-let aiClient: AiClient | null = null;
-
-const fetchSuggestions = async (text: string, range: Range) => {
-  if (!aiClient) {
-    aiClient = await loadAiClient();
-  }
-  return await aiClient.suggest(text, range);
-};
-
-const codeCompletionProvider = monaco.languages.registerCompletionItemProvider('search', {
-  provideCompletionItems: async (model, position, token, context) => {
-    const text = model.getWordUntilPosition(position);
-    console.log('trigger auto completion', { text, position });
-    const suggestion = await fetchSuggestions(text.word, {
-      startLineNumber: position.lineNumber,
-      startColumn: position.column,
-      endLineNumber: position.lineNumber,
-      endColumn: position.column,
-    });
-
-    return {
-      suggestions: suggestion.choices.map(choice => ({
-        label: choice.text.trim(),
-        // kind: monaco.CompletionItemKind.Function,
-        insertText: choice.text.trim(),
-        range: {
-          startLineNumber: position.lineNumber,
-          startColumn: position.column,
-          endLineNumber: position.lineNumber,
-          endColumn: position.column,
-        },
-      })),
-    };
-  },
-});
+// let aiClient: AiClient | null = null;
+//
+// const fetchSuggestions = async (text: string, range: Range) => {
+//   if (!aiClient) {
+//     aiClient = await loadAiClient();
+//   }
+//   return await aiClient.suggest(text, range);
+// };
+//
+// const codeCompletionProvider = monaco.languages.registerCompletionItemProvider('search', {
+//   provideCompletionItems: async (model, position, token, context) => {
+//     const text = model.getWordUntilPosition(position);
+//     console.log('trigger auto completion', { text, position });
+//     const suggestion = await fetchSuggestions(text.word, {
+//       startLineNumber: position.lineNumber,
+//       startColumn: position.column,
+//       endLineNumber: position.lineNumber,
+//       endColumn: position.column,
+//     });
+//
+//     return {
+//       suggestions: suggestion.choices.map(choice => ({
+//         label: choice.text.trim(),
+//         // kind: monaco.CompletionItemKind.Function,
+//         insertText: choice.text.trim(),
+//         range: {
+//           startLineNumber: position.lineNumber,
+//           startColumn: position.column,
+//           endLineNumber: position.lineNumber,
+//           endColumn: position.column,
+//         },
+//       })),
+//     };
+//   },
+// });
 
 const executionGutterClass = 'execute-button-decoration';
 

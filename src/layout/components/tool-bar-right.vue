@@ -9,11 +9,7 @@
       footer: 'segmented',
     }"
   >
-    <template #header-extra></template>
     <div class="message-list-box">
-      <n-alert v-if="chatBotNotification.enabled" :type="chatBotNotification.level">
-        {{ chatBotNotification.message }}
-      </n-alert>
       <n-scrollbar ref="scrollbar" :style="scrollBarStyle">
         <div v-for="msg in chats[0]?.messages" :key="msg.id">
           <div
@@ -33,6 +29,11 @@
               <pre v-text="msg.content"></pre>
             </div>
           </div>
+        </div>
+        <div v-if="chatBotNotification.enabled">
+          <n-alert :type="chatBotNotification.level">
+            {{ chatBotNotification.message }}
+          </n-alert>
         </div>
       </n-scrollbar>
     </div>
@@ -121,8 +122,8 @@ const submitMsg = async () => {
       level: 'error',
       message: err.message,
     };
+    scrollbar.value.scrollTo({ top: 999999 });
   });
-  console.log('submitMsg', message.value);
   scrollbar.value.scrollTo({ top: 999999 });
   message.value = '';
 };
@@ -145,7 +146,9 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', updateHeight);
 });
-fetchChats();
+fetchChats().then(() => {
+  scrollbar.value.scrollTo({ top: 999999 });
+});
 </script>
 
 <style scoped>
@@ -202,7 +205,6 @@ fetchChats();
     margin: 0;
 
     .message-item-container {
-      width: 100%;
       display: flex;
       flex-direction: column;
       justify-content: space-around;
@@ -226,6 +228,13 @@ fetchChats();
       background-color: var(--bg-color);
       border-top: 1px solid var(--border-color);
       border-bottom: 1px solid var(--border-color);
+    }
+    .message-item-content > pre {
+      width: 100%;
+      margin: 0;
+      padding: 0;
+      white-space: pre-wrap;
+      text-wrap: wrap;
     }
   }
 
