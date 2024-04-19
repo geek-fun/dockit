@@ -244,6 +244,7 @@ const executeQueryAction = async (
     });
   }
 };
+
 const autoIndentAction = (
   editor: monaco.editor.IStandaloneCodeEditor,
   ctx: unknown,

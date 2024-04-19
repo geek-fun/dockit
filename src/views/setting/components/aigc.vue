@@ -10,7 +10,11 @@
             <n-input type="password" show-password-on="click" v-model:value="openAi.apiKey" />
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.prompt')">
-            <n-input type="textarea" v-model:value="openAi.prompt" />
+            <n-input
+              type="textarea"
+              v-model:value="openAi.prompt"
+              :placeholder="$t('setting.ai.defaultPrompt')"
+            />
           </n-form-item-row>
           <n-button type="error" @click="reset" class="action-button">
             {{ $t('setting.ai.form.reset') }}

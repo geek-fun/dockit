@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { ulid } from 'ulidx';
 import { lang } from '../lang';
 import { pureObject } from '../common';
+import { useConnectionStore } from './connectionStore';
 
 enum MessageStatus {
   SENDING = 'SENDING',
@@ -94,10 +95,16 @@ export const useChatStore = defineStore('chat', {
         content,
       });
       await storeAPI.set('chats', pureObject(this.chats));
+      const connectionStore = useConnectionStore();
+      const index = connectionStore.$state.established?.activeIndex;
+      const question = index
+        ? `user's question: ${content} some context: the indexName - ${index.index}, the indexMapping - ${index.mapping}`
+        : `user's question: ${content}`;
       try {
         const openaiConfig = await getOpenAiConfig();
+
         await chatBotApi.ask({
-          question: content,
+          question,
           assistantId,
           threadId,
           apiKey: openaiConfig.apiKey,
