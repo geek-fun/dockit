@@ -3,11 +3,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { defineProps, ref, watch } from 'vue';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js'; // https://highlightjs.org
 import 'highlight.js/styles/default.css';
-import { Bot } from '@vicons/carbon';
+
 const props = defineProps({
   markdown: {
     type: String,
@@ -27,24 +27,20 @@ const md = new MarkdownIt({
     }
 
     return `
-      <pre>
-        <div class='code-actions'>
-        <n-tooltip trigger='hover'>
-          <template #trigger>
-            <n-button>
-            <bot/>
-            <n-icon>
-    </n-icon></n-button>
-          </template>
-            Copy Code Block
-        </n-tooltip>
-          <button>Insert Code Block at Cursor</button>
+    <div class="code-actions">
+        <svg class="code-action-copy" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><path d="M28 10v18H10V10h18m0-2H10a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2z" fill="currentColor"></path><path d="M4 18H2V4a2 2 0 0 1 2-2h14v2H4z" fill="currentColor"></path></svg>
+        <svg class="code-action-insert" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><path d="M28 12H10a2.002 2.002 0 0 1-2-2V4a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zM10 4v6h18V4z" fill="currentColor"></path><path d="M28 30H10a2.002 2.002 0 0 1-2-2v-6a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zm-18-8v6h18v-6z" fill="currentColor"></path><path d="M9 16l-5.586-5.586L2 11.828L6.172 16L2 20.172l1.414 1.414L9 16z" fill="currentColor"></path></svg>
         </div>
         <code class='hljs'>${highlightedCode}</code>
-      </pre>
     `;
   },
 });
+
+md.renderer.rules.code_block = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+  const code = token.content.trim();
+  return `${code}`;
+};
 
 watch(
   () => props.markdown,
@@ -58,32 +54,26 @@ watch(
 
 <style lang="scss">
 pre {
-  position: relative;
-  padding: 15px;
-  border-radius: 5px;
-
-  &:hover {
-    .code-actions {
-      display: flex;
-    }
-  }
+  margin: 0;
+  padding: 0;
   .code-actions {
-    position: absolute;
-    right: 0;
-    top: 0;
-    display: none;
+    float: right;
+    width: 40px;
+    height: 18px;
+    display: flex;
     border-radius: 5px;
-    padding: 5px;
-
-    button {
-      margin: 0 5px;
-      padding: 5px 10px;
-      border: none;
-      border-radius: 3px;
+    .code-action-copy {
+      width: 18px;
+      height: 18px;
+      fill: #000;
       cursor: pointer;
-
-      &:hover {
-      }
+      margin-right: 5px;
+    }
+    .code-action-insert {
+      width: 18px;
+      height: 18px;
+      fill: #000;
+      cursor: pointer;
     }
   }
 }

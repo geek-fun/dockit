@@ -52,6 +52,7 @@
     "@electron-forge/publisher-github": "^7.2.0",
     "@types/debug": "^4.1.12",
     "@types/jest": "^29.5.12",
+    "@types/markdown-it": "^14.0.1",
     "@types/node": "^20.11.19",
     "@types/node-fetch": "^2.6.11",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
