@@ -18,15 +18,13 @@ import {
   CustomError,
   Decoration,
   defaultCodeSnippet,
-  Range,
   EngineType,
   getActionApiDoc,
   SearchAction,
   searchTokensProvider,
 } from '../../common';
-import { useAppStore, useConnectionStore, useSourceFileStore } from '../../store';
+import { useAppStore, useChatStore, useConnectionStore, useSourceFileStore } from '../../store';
 import { useLang } from '../../lang';
-import { AiClient, loadAiClient } from '../../common/httpClient';
 
 type Editor = ReturnType<typeof monaco.editor.create>;
 
@@ -43,6 +41,9 @@ const { searchQDSL } = connectionStore;
 const { established } = storeToRefs(connectionStore);
 const { getEditorTheme } = appStore;
 const { themeType } = storeToRefs(appStore);
+
+const chatStore = useChatStore();
+const { insertBoard } = storeToRefs(chatStore);
 /**
  * refer https://github.com/wobsoriano/codeplayground
  * https://github.com/wobsoriano/codeplayground/blob/master/src/components/MonacoEditor.vue
@@ -201,6 +202,27 @@ watch(themeType, () => {
 
   queryEditor?.updateOptions({ theme: vsTheme });
   displayEditor?.updateOptions({ theme: vsTheme });
+});
+watch(insertBoard, () => {
+  if (queryEditor) {
+    // add event to handle chatbot-code-actions
+    const position = queryEditor.getPosition();
+    queryEditor.getModel()?.pushEditOperations(
+      [],
+      [
+        {
+          range: new monaco.Range(
+            position.lineNumber,
+            position.column,
+            position.lineNumber,
+            position.column,
+          ),
+          text: insertBoard.value,
+        },
+      ],
+      () => null,
+    );
+  }
 });
 
 const toggleEditor = (editorRef: Ref, display: string) => {
@@ -452,6 +474,7 @@ sourceFileAPI.onSaveShortcut(async () => {
 .editor {
   width: 100%;
   height: 100%;
+
   #query-editor {
     width: 100%;
     height: 100%;

@@ -4,9 +4,11 @@
 
 <script setup lang="ts">
 import { defineProps, ref, watch } from 'vue';
+import { storeToRefs } from 'pinia';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js'; // https://highlightjs.org
 import 'highlight.js/styles/default.css';
+import { useChatStore } from '../store';
 
 const props = defineProps({
   markdown: {
@@ -14,6 +16,9 @@ const props = defineProps({
     required: true,
   },
 });
+
+const chatStore = useChatStore();
+const { insertBoard } = storeToRefs(chatStore);
 
 const parsedMarkdown = ref('');
 const md = new MarkdownIt({
@@ -56,10 +61,11 @@ watch(
 onMounted(() => {
   document.addEventListener('chatbot-code-actions', event => {
     const { detail } = event as unknown as { detail: { action: string; code: string } };
-    // add the code to the clipboard
-
-    console.log('Copy icon clicked', detail.action);
-    console.log('code:', atob(detail.code));
+    if (detail.action === 'copy') {
+      navigator.clipboard.writeText(atob(detail.code));
+    } else if (detail.action === 'insert') {
+      insertBoard.value = atob(detail.code);
+    }
   });
 });
 </script>

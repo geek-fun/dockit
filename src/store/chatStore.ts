@@ -40,9 +40,11 @@ export const useChatStore = defineStore('chat', {
       assistantId: string;
       threadId: string;
     }>;
+    insertBoard: string;
   } => {
     return {
       chats: [],
+      insertBoard: '',
     };
   },
   actions: {
