@@ -14,6 +14,7 @@ const props = defineProps({
     required: true,
   },
 });
+
 const parsedMarkdown = ref('');
 const md = new MarkdownIt({
   highlight: function (str, lang) {
@@ -25,20 +26,22 @@ const md = new MarkdownIt({
     } else {
       highlightedCode = md.utils.escapeHtml(str);
     }
-
+    const encodedCode = btoa(str);
     return `
     <div class="code-actions">
-        <svg class="code-action-copy" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><path d="M28 10v18H10V10h18m0-2H10a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2z" fill="currentColor"></path><path d="M4 18H2V4a2 2 0 0 1 2-2h14v2H4z" fill="currentColor"></path></svg>
-        <svg class="code-action-insert" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><path d="M28 12H10a2.002 2.002 0 0 1-2-2V4a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zM10 4v6h18V4z" fill="currentColor"></path><path d="M28 30H10a2.002 2.002 0 0 1-2-2v-6a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zm-18-8v6h18v-6z" fill="currentColor"></path><path d="M9 16l-5.586-5.586L2 11.828L6.172 16L2 20.172l1.414 1.414L9 16z" fill="currentColor"></path></svg>
-        </div>
-        <code class='hljs'>${highlightedCode}</code>
+        <svg class="code-action-copy"  onclick="document.dispatchEvent(new CustomEvent('chatbot-code-actions', {detail: {code: '${encodedCode}', action: 'copy'}}))"    xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><path d="M28 10v18H10V10h18m0-2H10a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2z" fill="currentColor"></path><path d="M4 18H2V4a2 2 0 0 1 2-2h14v2H4z" fill="currentColor"></path></svg>
+        <svg class="code-action-insert" onclick="document.dispatchEvent(new CustomEvent('chatbot-code-actions', {detail: {code: '${encodedCode}', action: 'insert'}}))"   xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><path d="M28 12H10a2.002 2.002 0 0 1-2-2V4a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zM10 4v6h18V4z" fill="currentColor"></path><path d="M28 30H10a2.002 2.002 0 0 1-2-2v-6a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zm-18-8v6h18v-6z" fill="currentColor"></path><path d="M9 16l-5.586-5.586L2 11.828L6.172 16L2 20.172l1.414 1.414L9 16z" fill="currentColor"></path></svg>
+    </div>
+    <code class='hljs'>${highlightedCode}</code>
+
     `;
   },
 });
 
-md.renderer.rules.code_block = function (tokens, idx, options, env, self) {
+md.renderer.rules['code'] = (tokens, idx, options, env, self) => {
   const token = tokens[idx];
   const code = token.content.trim();
+  console.log('code block', code);
   return `${code}`;
 };
 
@@ -50,6 +53,15 @@ watch(
   },
   { immediate: true },
 );
+onMounted(() => {
+  document.addEventListener('chatbot-code-actions', event => {
+    const { detail } = event as unknown as { detail: { action: string; code: string } };
+    // add the code to the clipboard
+
+    console.log('Copy icon clicked', detail.action);
+    console.log('code:', atob(detail.code));
+  });
+});
 </script>
 
 <style lang="scss">
@@ -65,14 +77,12 @@ pre {
     .code-action-copy {
       width: 18px;
       height: 18px;
-      fill: #000;
       cursor: pointer;
       margin-right: 5px;
     }
     .code-action-insert {
       width: 18px;
       height: 18px;
-      fill: #000;
       cursor: pointer;
     }
   }
