@@ -48,4 +48,10 @@ contextBridge.exposeInMainWorld('chatBotApi', {
     ipcRenderer.invoke('chatBotApi', { method: 'ASK', question, apiKey, assistantId, threadId }),
   onMessageReceived: (callback: (value: unknown) => void) =>
     ipcRenderer.on('chat-bot-api-message-delta', (_event, value) => callback(value)),
+  modifyAssistant: async (args: {
+    apiKey: string;
+    prompt: string;
+    model: string;
+    assistantId: string;
+  }) => ipcRenderer.invoke('chatBotApi', { method: 'MODIFY_ASSISTANT', ...args }),
 });

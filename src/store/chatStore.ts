@@ -52,6 +52,21 @@ export const useChatStore = defineStore('chat', {
       const chats = await storeAPI.get('chats', undefined);
       this.chats = chats ?? [];
     },
+    async modifyAssistant() {
+      const { assistantId } = this.chats[0] || {};
+      console.log('assistantId in useChatStore', assistantId);
+      if (!assistantId) {
+        return;
+      }
+      const { apiKey, prompt, model } = await getOpenAiConfig();
+      await chatBotApi.modifyAssistant({
+        apiKey,
+        prompt: prompt ?? lang.global.t('setting.ai.defaultPrompt'),
+        model,
+        assistantId,
+      });
+      console.log('modifyAssistant done');
+    },
     async sendMessage(content: string) {
       if (!receiveRegistration) {
         console.log('register onMessageReceived');

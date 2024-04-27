@@ -62,6 +62,17 @@ export interface IChatBotAPI {
       message: string;
     }) => void,
   ) => void;
+  modifyAssistant: ({
+    apiKey,
+    prompt,
+    model,
+    assistantId,
+  }: {
+    apiKey: string;
+    prompt: string;
+    model: string;
+    assistantId: string;
+  }) => Promise<void>;
 }
 
 export interface ISourceFileAPI {

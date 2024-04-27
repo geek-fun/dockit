@@ -32,11 +32,15 @@
 </template>
 
 <script setup lang="ts">
-import { useAppStore } from '../../../store';
+import { useAppStore, useChatStore } from '../../../store';
 import { storeToRefs } from 'pinia';
+
 const appStore = useAppStore();
 const { fetchAigcConfig, saveAigcConfig } = appStore;
 const { aigcConfig } = storeToRefs(appStore);
+
+const chatStore = useChatStore();
+const { fetchChats, modifyAssistant } = chatStore;
 
 const openAi = ref({ ...aigcConfig.value.openAi });
 const reset = async () => {
@@ -46,9 +50,13 @@ const reset = async () => {
 
 const save = async () => {
   await saveAigcConfig({ ...aigcConfig.value, openAi: openAi.value, enabled: true });
+  await modifyAssistant();
 };
 
-fetchAigcConfig();
+fetchAigcConfig().then(() => {
+  openAi.value = { ...aigcConfig.value.openAi };
+});
+fetchChats();
 </script>
 
 <style lang="scss" scoped>

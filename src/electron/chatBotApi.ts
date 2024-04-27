@@ -5,6 +5,7 @@ import fetch from 'node-fetch';
 export enum ChatBotApiMethods {
   ASK = 'ASK',
   INITIALIZE = 'INITIALIZE',
+  MODIFY_ASSISTANT = 'MODIFY_ASSISTANT',
 }
 
 export type ChatBotApiInput = {
@@ -85,6 +86,30 @@ const chatBotApi = {
         }),
       );
   },
+  modifyAssistant: async ({
+    apiKey,
+    prompt,
+    model,
+    assistantId,
+  }: {
+    apiKey: string;
+    prompt: string;
+    model: string;
+    assistantId: string;
+  }) => {
+    // get the assistant by assistantId
+    const openai = createOpenaiClient({ apiKey });
+    const assistant = await openai.beta.assistants.retrieve(assistantId);
+    if (!assistant) {
+      throw new Error('Assistant not found');
+    }
+    console.log(`assistant: ${assistant}`);
+    await openai.beta.assistants.update(assistantId, {
+      name: ASSISTANT_NAME,
+      model,
+      instructions: prompt,
+    });
+  },
 };
 
 const registerChatBotApiListener = (
@@ -115,6 +140,10 @@ const registerChatBotApiListener = (
           openai = createOpenaiClient({ apiKey });
         }
         await chatBotApi.ask({ openai, assistantId, threadId, question: question, mainWindow });
+      }
+      console.log(`method: ${method}, apiKey: ${apiKey}, prompt: ${prompt}, model: ${model}`);
+      if (method === ChatBotApiMethods.MODIFY_ASSISTANT) {
+        await chatBotApi.modifyAssistant({ apiKey, prompt, model, assistantId });
       }
     },
   );
