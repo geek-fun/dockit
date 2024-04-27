@@ -73,7 +73,6 @@ import MarkdownRender from '../../components/MarkdownRender.vue';
 const chatStore = useChatStore();
 const { sendMessage, fetchChats } = chatStore;
 const { chats } = storeToRefs(chatStore);
-const chatBot = ref({ active: false });
 
 const chatBotNotification = ref({ enabled: false, level: '', message: '' });
 
@@ -97,13 +96,11 @@ const submitMsg = async () => {
 };
 
 const msgBoxHeight = ref(449);
-const scrollBarStyle = computed(() => `max-height: ${msgBoxHeight.value}px`);
+const scrollBarStyle = computed(() => `height: ${msgBoxHeight.value}px`);
 
 const updateHeight = () => {
-  if (chatBot.value.active) {
-    const chatMsgContent = document.querySelector('.chat-box-container .message-list-box');
-    msgBoxHeight.value = chatMsgContent.clientHeight;
-  }
+  const chatMsgContent = document.querySelector('.chat-box-container .message-list-box');
+  msgBoxHeight.value = chatMsgContent.clientHeight;
 };
 
 onMounted(() => {
