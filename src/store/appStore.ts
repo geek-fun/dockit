@@ -37,7 +37,6 @@ export const useAppStore = defineStore('app', {
   actions: {
     async fetchAigcConfig() {
       this.aigcConfig = await storeAPI.getSecret('aigcConfig', { openAi: {} });
-      console.log('aigcConfig', this.aigcConfig);
     },
     setConnectPanel() {
       this.connectPanel = !this.connectPanel;

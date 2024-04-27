@@ -54,7 +54,6 @@ export const useChatStore = defineStore('chat', {
     },
     async modifyAssistant() {
       const { assistantId } = this.chats[0] || {};
-      console.log('assistantId in useChatStore', assistantId);
       if (!assistantId) {
         return;
       }
@@ -65,13 +64,10 @@ export const useChatStore = defineStore('chat', {
         model,
         assistantId,
       });
-      console.log('modifyAssistant done');
     },
     async sendMessage(content: string) {
       if (!receiveRegistration) {
-        console.log('register onMessageReceived');
         chatBotApi.onMessageReceived(({ delta, msgEvent }) => {
-          console.log('onMessageReceived', delta, msgEvent);
           if (msgEvent === 'messageCreated') {
             this.chats[0].messages.push({
               id: ulid(),
@@ -99,7 +95,6 @@ export const useChatStore = defineStore('chat', {
             this.chats.push({ id: ulid(), type: 'openai', messages: [], assistantId, threadId });
             await storeAPI.set('chats', pureObject(this.chats));
           } catch (err) {
-            console.error(err);
             throw new Error(err.message);
           }
         }

@@ -169,7 +169,6 @@ const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
 // const codeCompletionProvider = monaco.languages.registerCompletionItemProvider('search', {
 //   provideCompletionItems: async (model, position, token, context) => {
 //     const text = model.getWordUntilPosition(position);
-//     console.log('trigger auto completion', { text, position });
 //     const suggestion = await fetchSuggestions(text.word, {
 //       startLineNumber: position.lineNumber,
 //       startColumn: position.column,

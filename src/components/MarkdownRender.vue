@@ -46,7 +46,6 @@ const md = new MarkdownIt({
 md.renderer.rules['code'] = (tokens, idx, options, env, self) => {
   const token = tokens[idx];
   const code = token.content.trim();
-  console.log('code block', code);
   return `${code}`;
 };
 
@@ -54,7 +53,6 @@ watch(
   () => props.markdown,
   newMarkdown => {
     parsedMarkdown.value = md.render(`${newMarkdown}`);
-    console.log('new markdown', newMarkdown);
   },
   { immediate: true },
 );

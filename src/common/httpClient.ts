@@ -119,7 +119,6 @@ export const loadAiClient = async () => {
     'OpenAI-Beta': 'assistants=v1',
     Authorization: `Bearer ${OPENAI_API_KEY}`,
   };
-  console.log(`gpt headers: `, JSON.stringify(headers));
   // Step 1: Create an Assistant
   const { data, status, details } = await fetchApi.fetch('https://api.openai.com/v1/assistants', {
     method: 'POST',
@@ -152,7 +151,6 @@ export const loadAiClient = async () => {
     },
   );
 
-  console.log(`gpt assistant: ${assistant}, thread ${thread}`);
   if (threadStatus !== 200) {
     throw new CustomError(status, details);
   }
@@ -179,7 +177,6 @@ export const loadAiClient = async () => {
           }),
         },
       );
-      console.log(`gpt suggest: ${data}, status: ${status}, details: ${details}`);
       return data as { choices: Array<{ text: string }> };
     },
   } as AiClient;

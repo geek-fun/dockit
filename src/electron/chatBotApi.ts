@@ -45,7 +45,6 @@ const chatBotApi = {
       model: model,
     });
     const thread = await openai.beta.threads.create();
-    console.log(`thread: ${thread}, assistant: ${assistant}`);
 
     return { assistantId: assistant.id, threadId: thread.id };
   },
@@ -73,7 +72,6 @@ const chatBotApi = {
         }),
       )
       .on('messageDelta', (delta, snapshot) => {
-        console.log('messageDelta, delta:', delta, 'snapshot:', snapshot);
         mainWindow.webContents.send('chat-bot-api-message-delta', {
           msgEvent: 'messageDelta',
           delta,
@@ -103,7 +101,6 @@ const chatBotApi = {
     if (!assistant) {
       throw new Error('Assistant not found');
     }
-    console.log(`assistant: ${assistant}`);
     await openai.beta.assistants.update(assistantId, {
       name: ASSISTANT_NAME,
       model,
@@ -132,7 +129,6 @@ const registerChatBotApiListener = (
           prompt,
           model,
         });
-        console.log(`assistantId: ${assistantId}, threadId: ${threadId}`);
         return { assistantId, threadId };
       }
       if (method === ChatBotApiMethods.ASK) {
@@ -141,7 +137,6 @@ const registerChatBotApiListener = (
         }
         await chatBotApi.ask({ openai, assistantId, threadId, question: question, mainWindow });
       }
-      console.log(`method: ${method}, apiKey: ${apiKey}, prompt: ${prompt}, model: ${model}`);
       if (method === ChatBotApiMethods.MODIFY_ASSISTANT) {
         await chatBotApi.modifyAssistant({ apiKey, prompt, model, assistantId });
       }
