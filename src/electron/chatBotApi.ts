@@ -71,7 +71,7 @@ const chatBotApi = {
           message,
         }),
       )
-      .on('messageDelta', (delta, snapshot) => {
+      .on('messageDelta', delta => {
         mainWindow.webContents.send('chat-bot-api-message-delta', {
           msgEvent: 'messageDelta',
           delta,

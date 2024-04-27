@@ -120,7 +120,7 @@ export const loadAiClient = async () => {
     Authorization: `Bearer ${OPENAI_API_KEY}`,
   };
   // Step 1: Create an Assistant
-  const { data, status, details } = await fetchApi.fetch('https://api.openai.com/v1/assistants', {
+  const { status, details } = await fetchApi.fetch('https://api.openai.com/v1/assistants', {
     method: 'POST',
     headers,
     payload: JSON.stringify({
@@ -133,7 +133,6 @@ export const loadAiClient = async () => {
   if (status !== 200) {
     throw new CustomError(status, details);
   }
-  const assistant = data as { id: string };
   // Step 2: Create a Thread
   const { data: thread, status: threadStatus } = await fetchApi.fetch(
     `https://api.openai.com/v1/threads`,
@@ -158,7 +157,7 @@ export const loadAiClient = async () => {
   return {
     suggest: async (fileContent: string, range: Range) => {
       // Step 3: Add a Message to the Thread
-      const { data, status, details } = await fetchApi.fetch(
+      const { data } = await fetchApi.fetch(
         `https://api.openai.com/v1/threads/${threadId}).id}/messages`,
         {
           method: 'POST',
