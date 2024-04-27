@@ -7,8 +7,8 @@ import { defineProps, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js'; // https://highlightjs.org
-import 'highlight.js/styles/default.css';
-import { useChatStore } from '../store';
+
+import { useAppStore, useChatStore } from '../store';
 
 const props = defineProps({
   markdown: {
@@ -16,6 +16,20 @@ const props = defineProps({
     required: true,
   },
 });
+const appStore = useAppStore();
+const { uiThemeType } = storeToRefs(appStore);
+
+watch(
+  () => uiThemeType.value,
+  async () => {
+    if (uiThemeType.value === 'dark') {
+      await import('highlight.js/styles/atom-one-dark.css');
+    } else {
+      await import('highlight.js/styles/atom-one-light.css');
+    }
+  },
+  { immediate: true },
+);
 
 const chatStore = useChatStore();
 const { insertBoard } = storeToRefs(chatStore);
