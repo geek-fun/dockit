@@ -21,6 +21,7 @@ export type ConnectionIndex = {
     count: number;
     deleted: number;
   };
+  mapping: { [key: string]: unknown };
   store: {
     size: string;
   };
@@ -114,12 +115,17 @@ export const useConnectionStore = defineStore('connectionStore', {
         store: { size: index['store.size'] },
       }));
     },
-    selectIndex(indexName: string) {
+    async selectIndex(indexName: string) {
+      const client = loadHttpClient(this.established);
+
+      // get the index mapping
+      const mapping = await client.get(`/${indexName}/_mapping`, 'format=json');
+      const activeIndex = this.established?.indices.find(
+        ({ index }: { index: string }) => index === indexName,
+      );
       this.established = {
         ...this.established,
-        activeIndex: this.established?.indices.find(
-          ({ index }: { index: string }) => index === indexName,
-        ),
+        activeIndex: { ...activeIndex, mapping },
       } as Established;
     },
     async searchQDSL({
@@ -135,6 +141,23 @@ export const useConnectionStore = defineStore('connectionStore', {
     }) {
       if (!this.established) throw new Error('no connection established');
       const client = loadHttpClient(this.established);
+      // refresh the index mapping
+      try {
+        if (index && index !== this.established.activeIndex?.index) {
+          const newIndex = this.established.indices.find(
+            ({ index: indexName }: ConnectionIndex) => indexName === index,
+          );
+          if (!newIndex) {
+            return;
+          }
+          if (!newIndex.mapping) {
+            newIndex.mapping = await client.get(`/${index}/_mapping`, 'format=json');
+          }
+          this.established = { ...this.established, activeIndex: newIndex };
+        }
+      } catch (err) {
+        console.error('failed to refresh index mapping', err);
+      }
 
       const reqPath = buildPath(index, path);
       const body = qdsl ?? undefined;

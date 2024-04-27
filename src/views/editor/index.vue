@@ -23,7 +23,7 @@ import {
   SearchAction,
   searchTokensProvider,
 } from '../../common';
-import { useAppStore, useConnectionStore, useSourceFileStore } from '../../store';
+import { useAppStore, useChatStore, useConnectionStore, useSourceFileStore } from '../../store';
 import { useLang } from '../../lang';
 
 type Editor = ReturnType<typeof monaco.editor.create>;
@@ -41,6 +41,9 @@ const { searchQDSL } = connectionStore;
 const { established } = storeToRefs(connectionStore);
 const { getEditorTheme } = appStore;
 const { themeType } = storeToRefs(appStore);
+
+const chatStore = useChatStore();
+const { insertBoard } = storeToRefs(chatStore);
 /**
  * refer https://github.com/wobsoriano/codeplayground
  * https://github.com/wobsoriano/codeplayground/blob/master/src/components/MonacoEditor.vue
@@ -121,6 +124,7 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
     freshedDecorations,
   ) as unknown as Decoration[];
 };
+
 const buildCodeLens = (searchTokens: SearchAction[]) =>
   searchTokens
     .filter(({ qdslPosition }) => qdslPosition)
@@ -146,9 +150,47 @@ const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
 
     refreshActionMarks(queryEditor!, searchTokens);
 
-    return { lenses: buildCodeLens(searchTokens), dispose: () => {} };
+    return {
+      lenses: buildCodeLens(searchTokens),
+      dispose: () => {},
+    };
   },
 });
+
+// let aiClient: AiClient | null = null;
+//
+// const fetchSuggestions = async (text: string, range: Range) => {
+//   if (!aiClient) {
+//     aiClient = await loadAiClient();
+//   }
+//   return await aiClient.suggest(text, range);
+// };
+//
+// const codeCompletionProvider = monaco.languages.registerCompletionItemProvider('search', {
+//   provideCompletionItems: async (model, position, token, context) => {
+//     const text = model.getWordUntilPosition(position);
+//     const suggestion = await fetchSuggestions(text.word, {
+//       startLineNumber: position.lineNumber,
+//       startColumn: position.column,
+//       endLineNumber: position.lineNumber,
+//       endColumn: position.column,
+//     });
+//
+//     return {
+//       suggestions: suggestion.choices.map(choice => ({
+//         label: choice.text.trim(),
+//         // kind: monaco.CompletionItemKind.Function,
+//         insertText: choice.text.trim(),
+//         range: {
+//           startLineNumber: position.lineNumber,
+//           startColumn: position.column,
+//           endLineNumber: position.lineNumber,
+//           endColumn: position.column,
+//         },
+//       })),
+//     };
+//   },
+// });
 
 const executionGutterClass = 'execute-button-decoration';
 
@@ -160,6 +202,31 @@ watch(themeType, () => {
   queryEditor?.updateOptions({ theme: vsTheme });
   displayEditor?.updateOptions({ theme: vsTheme });
 });
+watch(insertBoard, () => {
+  if (queryEditor) {
+    // add event to handle chatbot-code-actions
+    const position = queryEditor.getPosition();
+    queryEditor.getModel()?.pushEditOperations(
+      [],
+      [
+        {
+          range: new monaco.Range(
+            position.lineNumber,
+            position.column,
+            position.lineNumber,
+            position.column,
+          ),
+          text: insertBoard.value,
+        },
+      ],
+      () => null,
+    );
+  }
+});
+
+const toggleEditor = (editorRef: Ref, display: string) => {
+  editorRef.value.style.display = display;
+};
 
 const executeQueryAction = async (
   queryEditor: Editor,
@@ -198,6 +265,7 @@ const executeQueryAction = async (
     });
   }
 };
+
 const autoIndentAction = (
   editor: monaco.editor.IStandaloneCodeEditor,
   ctx: unknown,
@@ -261,7 +329,7 @@ const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
   );
 };
 
-const setupQueryEditor = (code: string) => {
+const setupQueryEditor = async (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
     theme: getEditorTheme(),
@@ -368,6 +436,7 @@ const displayJsonEditor = (content: string) => {
   queryEditorSize.value = queryEditorSize.value === 1 ? 0.5 : queryEditorSize.value;
   displayEditor?.getModel()?.setValue(content);
 };
+
 const setupJsonEditor = () => {
   displayEditor = monaco.editor.create(displayEditorRef.value, {
     automaticLayout: true,
@@ -377,11 +446,13 @@ const setupJsonEditor = () => {
     minimap: { enabled: false },
   });
 };
+
 onMounted(async () => {
   await readSourceFromFile();
   const code = defaultFile.value;
-  setupQueryEditor(code);
+  await setupQueryEditor(code);
   setupJsonEditor();
+  toggleEditor(displayEditorRef, 'none');
 });
 
 onUnmounted(() => {
@@ -402,6 +473,7 @@ sourceFileAPI.onSaveShortcut(async () => {
 .editor {
   width: 100%;
   height: 100%;
+
   #query-editor {
     width: 100%;
     height: 100%;

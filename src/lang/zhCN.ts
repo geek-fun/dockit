@@ -22,6 +22,13 @@ export const zhCN = {
       model: '模型',
       apiKey: 'API密钥',
       prompt: '提示词',
+      form: {
+        reset: '重置',
+        save: '保存并启用',
+      },
+      missing: 'GPT 未配置或未启用',
+      defaultPrompt:
+        '您是一名个人数据库开发者，熟悉 Elasticsearch 和 OpenSearch，用户会问一些问题，例如：列出数据库中的所有索引, 用户会提供相关的索引名称、索引映射，您的任务是编写查询 DSL 查询来回答这些问题。',
     },
   },
   connection: {

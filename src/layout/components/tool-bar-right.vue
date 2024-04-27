@@ -1,63 +1,5 @@
 <template>
-  <n-card
-    v-if="chatBot.active"
-    class="chat-box-container"
-    :title="$t('aside.chatBot')"
-    content-class="chat-box-content"
-    :segmented="{
-      content: true,
-      footer: 'segmented',
-    }"
-  >
-    <template #header-extra></template>
-    <div class="message-list-box">
-      <n-scrollbar ref="scrollbar" :style="scrollBarStyle">
-        <div v-for="msg in messages" :key="msg.id">
-          <div
-            :class="[
-              msg.role === ChatMessageRole.USER ? 'message-item-container-user' : '',
-              'message-item-container',
-            ]"
-          >
-            <div class="message-item-header">
-              <n-icon size="26">
-                <bot v-if="msg.role === ChatMessageRole.BOT" />
-                <face-cool v-else />
-              </n-icon>
-              <span>{{ msg.role }}</span>
-            </div>
-            <div class="message-item-content">
-              <pre v-text="msg.content"></pre>
-            </div>
-          </div>
-        </div>
-      </n-scrollbar>
-    </div>
-    <template #footer>
-      <div class="message-box">
-        <n-input
-          v-model:value="message"
-          type="textarea"
-          :autosize="{
-            minRows: 3,
-          }"
-          placeholder="Type your message here..."
-        />
-        <n-button-group class="message-action-box">
-          <n-button text>
-            <template #icon></template>
-          </n-button>
-          <n-button text @click="submitMsg">
-            <template #icon>
-              <n-icon size="26">
-                <send-alt />
-              </n-icon>
-            </template>
-          </n-button>
-        </n-button-group>
-      </div>
-    </template>
-  </n-card>
+  <chatbot-box v-if="chatBot.active" />
   <div class="tool-bar-right">
     <the-aside-icon
       v-for="item in smallNavList"
@@ -79,14 +21,9 @@
 
 <script setup lang="ts">
 import { markRaw, ref } from 'vue';
-import { ChatBot, SendAlt, Bot, FaceCool } from '@vicons/carbon';
+import { ChatBot } from '@vicons/carbon';
 import TheAsideIcon from './the-aside-icon.vue';
-import { ChatMessageRole, useChatStore } from '../../store';
-
-const chatStore = useChatStore();
-const { sendMessage } = chatStore;
-const { messages } = toRefs(chatStore);
-
+import ChatbotBox from './chatbot-box.vue';
 const selectedItemId = ref(-1);
 const chatBot = ref({ active: false });
 
@@ -104,36 +41,6 @@ const smallNavList = ref([
     name: 'chatBot',
   },
 ]);
-
-const message = ref(''); // to hold the message
-const scrollbar = ref(null);
-
-const submitMsg = async () => {
-  if (message.value.trim().length < 1) return;
-  await sendMessage(message.value);
-  console.log('submitMsg', message.value);
-  scrollbar.value.scrollTo({ top: 999999 });
-  message.value = '';
-};
-
-const msgBoxHeight = ref(449);
-const scrollBarStyle = computed(() => `max-height: ${msgBoxHeight.value}px`);
-
-const updateHeight = () => {
-  if (chatBot.value.active) {
-    const chatMsgContent = document.querySelector('.chat-box-container .message-list-box');
-    msgBoxHeight.value = chatMsgContent.clientHeight;
-  }
-};
-
-onMounted(() => {
-  window.addEventListener('resize', updateHeight);
-  updateHeight();
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateHeight);
-});
 </script>
 
 <style scoped>
@@ -175,51 +82,5 @@ onUnmounted(() => {
     }
   }
 }
-
-.chat-box-container {
-  width: 500px;
-  .n-card__content {
-    margin: 0;
-    padding: 0;
-  }
-
-  .message-list-box {
-    height: 100%;
-    padding: 0;
-    margin: 0;
-    .message-item-container {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-around;
-      padding: 10px;
-      .message-item-header {
-        display: flex;
-        align-items: center;
-        span {
-          font-weight: bold;
-        }
-        .n-icon {
-          margin-right: 10px;
-        }
-      }
-    }
-    .message-item-container-user {
-      background-color: var(--bg-color);
-      border-top: 1px solid var(--border-color);
-      border-bottom: 1px solid var(--border-color);
-    }
-  }
-
-  .message-box {
-    background-color: var(--border-color);
-
-    .message-action-box {
-      display: flex;
-      justify-content: space-between;
-      height: 20px;
-      padding: 10px;
-    }
-  }
-}
 </style>
+s

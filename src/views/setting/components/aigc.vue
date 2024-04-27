@@ -10,11 +10,18 @@
             <n-input type="password" show-password-on="click" v-model:value="openAi.apiKey" />
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.prompt')">
-            <n-input type="textarea" v-model:value="openAi.prompt" />
+            <n-input
+              type="textarea"
+              v-model:value="openAi.prompt"
+              :placeholder="$t('setting.ai.defaultPrompt')"
+            />
           </n-form-item-row>
-          <n-button type="error" @click="reset" class="action-button">Cancel</n-button>
-          <n-button type="success" @click="save" class="action-button">Save</n-button>
-          <n-button type="primary" @click="enable" class="action-button">Enable</n-button>
+          <n-button type="error" @click="reset" class="action-button">
+            {{ $t('setting.ai.form.reset') }}
+          </n-button>
+          <n-button type="success" @click="save" class="action-button">
+            {{ $t('setting.ai.form.save') }}
+          </n-button>
         </n-form>
       </n-tab-pane>
       <n-tab-pane :name="$t('setting.ai.others')" :tab="$t('setting.ai.others')">
@@ -25,27 +32,31 @@
 </template>
 
 <script setup lang="ts">
-import { useAppStore } from '../../../store';
+import { useAppStore, useChatStore } from '../../../store';
 import { storeToRefs } from 'pinia';
+
 const appStore = useAppStore();
 const { fetchAigcConfig, saveAigcConfig } = appStore;
 const { aigcConfig } = storeToRefs(appStore);
 
+const chatStore = useChatStore();
+const { fetchChats, modifyAssistant } = chatStore;
+
 const openAi = ref({ ...aigcConfig.value.openAi });
-const reset = () => {
+const reset = async () => {
   openAi.value = { apiKey: '', model: '', prompt: '' };
-  aigcConfig.value.openAi = openAi.value;
+  await saveAigcConfig({ ...aigcConfig.value, openAi: openAi.value, enabled: false });
 };
 
 const save = async () => {
-  await saveAigcConfig({ ...aigcConfig.value, openAi: openAi.value });
-};
-
-const enable = async () => {
   await saveAigcConfig({ ...aigcConfig.value, openAi: openAi.value, enabled: true });
+  await modifyAssistant();
 };
 
-fetchAigcConfig();
+fetchAigcConfig().then(() => {
+  openAi.value = { ...aigcConfig.value.openAi };
+});
+fetchChats();
 </script>
 
 <style lang="scss" scoped>

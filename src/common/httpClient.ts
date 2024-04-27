@@ -50,9 +50,11 @@ const fetchWrapper = async ({
   const url = buildURL(host, port, path, queryParameters);
   const { data, status, details } = await fetchApi.fetch(url, {
     method,
-    authorization,
-    payload,
-    ssl,
+    headers: {
+      authorization,
+    },
+    payload: payload ? JSON.stringify(payload) : undefined,
+    agent: { ssl },
   });
   return handleFetch({ data, status, details });
 };

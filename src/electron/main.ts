@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, IpcMain, shell } from 'electron';
 import path from 'path';
 import { createMenu } from './menu';
 import { debug } from '../common';
@@ -6,6 +6,7 @@ import { githubLink } from '../config';
 import { registerStoreApiListener } from './storeApi';
 import { registerSourceFileApiListener } from './sourceFIleApi';
 import { registerFetchApiListener } from './fetchApi';
+import { registerChatBotApiListener } from './chatBotApi';
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -29,19 +30,22 @@ const loadDevTools = async () => {
   }
 };
 
-const createWindow = async () => {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 1200,
-    minWidth: 900,
-    height: 750,
-    minHeight: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      webSecurity: false,
-    },
-    icon: path.resolve(__dirname, '../../dockit.png'),
-  });
+const registerListeners = (ipcMain: IpcMain, mainWindow: BrowserWindow) => {
+  registerStoreApiListener(ipcMain);
+  registerSourceFileApiListener(ipcMain);
+  registerFetchApiListener(ipcMain);
+  registerChatBotApiListener(ipcMain, mainWindow);
+
+  ipcMain.handle('versions', () => ({
+    node: process.versions.chrome,
+    chrome: process.versions.chrome,
+    electron: process.versions.electron,
+    version: app.getVersion(),
+    name: app.getName(),
+  }));
+};
+
+const renderMainWindow = async (mainWindow: BrowserWindow) => {
   createMenu(mainWindow);
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
@@ -64,21 +68,30 @@ const createWindow = async () => {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
     );
   }
+};
 
-  ipcMain.handle('versions', () => ({
-    node: process.versions.chrome,
-    chrome: process.versions.chrome,
-    electron: process.versions.electron,
-    version: app.getVersion(),
-    name: app.getName(),
-  }));
+const createWindow = () => {
+  // Create the browser window.
+  return new BrowserWindow({
+    width: 1200,
+    minWidth: 900,
+    height: 750,
+    minHeight: 600,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: false,
+    },
+    icon: path.resolve(__dirname, '../../dockit.png'),
+  });
 };
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', async () => {
-  await createWindow();
+  const mainWindow = createWindow();
+  await renderMainWindow(mainWindow);
+  registerListeners(ipcMain, mainWindow);
   await loadDevTools();
 });
 
@@ -95,7 +108,8 @@ app.on('window-all-closed', () => {
 // dock icon is clicked and there are no other windows open.
 app.on('activate', async () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    await createWindow();
+    const mainWindow = createWindow();
+    await renderMainWindow(mainWindow);
   }
 });
 
@@ -105,10 +119,6 @@ ipcMain.on('open-github', () => {
 ipcMain.on('open-link', (_event, link: string) => {
   shell.openExternal(link);
 });
-
-registerStoreApiListener(ipcMain);
-registerSourceFileApiListener(ipcMain);
-registerFetchApiListener(ipcMain);
 
 // In this file you can include the rest of your app's specific main process
 // code. You can also put them in separate files and import them here.

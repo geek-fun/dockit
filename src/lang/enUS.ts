@@ -22,6 +22,13 @@ export const enUS = {
       model: 'Model',
       apiKey: 'API Key',
       prompt: 'Prompt',
+      form: {
+        reset: 'Reset',
+        save: 'Save & Enable',
+      },
+      missing: 'GPT is not configured or not enabled',
+      defaultPrompt:
+        'You are a personal database developer, familiar with Elasticsearch and OpenSearch,  users will ask the questions like: list all indices in database,  the user will provide you the related index name, index mapping, your responsibility is to write Query DSL queries to answer questions.',
     },
   },
   connection: {

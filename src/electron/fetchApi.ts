@@ -1,13 +1,15 @@
 import Electron from 'electron';
 import fetch from 'node-fetch';
 import { CustomError, debug } from '../common';
-import * as https from 'https';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 type FetchApiOptions = {
   method: string;
-  authorization: string;
+  headers: {
+    [key: string]: string | number;
+  };
+  agent: { ssl: boolean } | undefined;
   payload: string | undefined;
-  ssl: boolean;
 };
 
 export type FetchApiInput = {
@@ -17,19 +19,22 @@ export type FetchApiInput = {
 };
 
 const fetchApi: { [key: string]: (key: string, val: unknown) => unknown } = {
-  fetch: async (url: string, { method, authorization, payload, ssl }: FetchApiOptions) => {
-    const agent = url.startsWith('https')
-      ? new https.Agent({
-          rejectUnauthorized: ssl,
-        })
+  fetch: async (
+    url: string,
+    { method, headers: inputHeaders, payload, agent: agentSslConf }: FetchApiOptions,
+  ) => {
+    const sslConfig = url.startsWith('https')
+      ? { rejectUnauthorized: agentSslConf?.ssl }
       : undefined;
+    const agent = process.env.https_proxy
+      ? new HttpsProxyAgent(process.env.https_proxy, { ...sslConfig })
+      : undefined;
+
+    const headers = JSON.parse(
+      JSON.stringify({ 'Content-Type': 'application/json', ...inputHeaders }),
+    );
     try {
-      const result = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', authorization } as unknown as Headers,
-        body: payload,
-        agent,
-      });
+      const result = await fetch(url, { method, headers, body: payload, agent });
       if (result.ok) {
         return { status: result.status, data: await result.json() };
       }
