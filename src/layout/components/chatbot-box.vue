@@ -96,10 +96,14 @@ const submitMsg = async () => {
 };
 
 const msgBoxHeight = ref(449);
-const scrollBarStyle = computed(() => `height: ${msgBoxHeight.value}px`);
+const scrollBarStyle = computed(() => `max-height: ${msgBoxHeight.value}px`);
 
 const updateHeight = () => {
   const chatMsgContent = document.querySelector('.chat-box-container .message-list-box');
+  if (chatMsgContent.clientHeight > window.innerHeight - 200) {
+    msgBoxHeight.value = 449;
+    return;
+  }
   msgBoxHeight.value = chatMsgContent.clientHeight;
 };
 

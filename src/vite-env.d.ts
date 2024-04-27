@@ -73,6 +73,7 @@ export interface IChatBotAPI {
     model: string;
     assistantId: string;
   }) => Promise<void>;
+  findAssistant: (args: { apiKey: string; assistantId: string }) => Promise<unknown>;
 }
 
 export interface ISourceFileAPI {

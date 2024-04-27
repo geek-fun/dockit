@@ -6,6 +6,7 @@ export enum ChatBotApiMethods {
   ASK = 'ASK',
   INITIALIZE = 'INITIALIZE',
   MODIFY_ASSISTANT = 'MODIFY_ASSISTANT',
+  FIND_ASSISTANT = 'FIND_ASSISTANT',
 }
 
 export type ChatBotApiInput = {
@@ -107,6 +108,18 @@ const chatBotApi = {
       instructions: prompt,
     });
   },
+  findAssistant: async ({ apiKey, assistantId }: { apiKey: string; assistantId: string }) => {
+    try {
+      const openai = createOpenaiClient({ apiKey });
+      return await openai.beta.assistants.retrieve(assistantId);
+    } catch ({ status, details }) {
+      if (status === 404) {
+        return undefined;
+      } else {
+        throw new Error(`Error finding assistant, details: ${details}`);
+      }
+    }
+  },
 };
 
 const registerChatBotApiListener = (
@@ -131,14 +144,20 @@ const registerChatBotApiListener = (
         });
         return { assistantId, threadId };
       }
+
       if (method === ChatBotApiMethods.ASK) {
         if (!openai) {
           openai = createOpenaiClient({ apiKey });
         }
         await chatBotApi.ask({ openai, assistantId, threadId, question: question, mainWindow });
       }
+
       if (method === ChatBotApiMethods.MODIFY_ASSISTANT) {
         await chatBotApi.modifyAssistant({ apiKey, prompt, model, assistantId });
+      }
+
+      if (method === ChatBotApiMethods.FIND_ASSISTANT) {
+        return await chatBotApi.findAssistant({ apiKey, assistantId });
       }
     },
   );

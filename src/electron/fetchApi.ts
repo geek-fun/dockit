@@ -34,7 +34,12 @@ const fetchApi: { [key: string]: (key: string, val: unknown) => unknown } = {
       JSON.stringify({ 'Content-Type': 'application/json', ...inputHeaders }),
     );
     try {
-      const result = await fetch(url, { method, headers, body: payload, agent });
+      const result = await fetch(url, {
+        method,
+        headers,
+        body: payload ? JSON.parse(payload) : undefined,
+        agent,
+      });
       if (result.ok) {
         return { status: result.status, data: await result.json() };
       }

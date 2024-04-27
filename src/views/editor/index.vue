@@ -157,41 +157,6 @@ const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
   },
 });
 
-// let aiClient: AiClient | null = null;
-//
-// const fetchSuggestions = async (text: string, range: Range) => {
-//   if (!aiClient) {
-//     aiClient = await loadAiClient();
-//   }
-//   return await aiClient.suggest(text, range);
-// };
-//
-// const codeCompletionProvider = monaco.languages.registerCompletionItemProvider('search', {
-//   provideCompletionItems: async (model, position, token, context) => {
-//     const text = model.getWordUntilPosition(position);
-//     const suggestion = await fetchSuggestions(text.word, {
-//       startLineNumber: position.lineNumber,
-//       startColumn: position.column,
-//       endLineNumber: position.lineNumber,
-//       endColumn: position.column,
-//     });
-//
-//     return {
-//       suggestions: suggestion.choices.map(choice => ({
-//         label: choice.text.trim(),
-//         // kind: monaco.CompletionItemKind.Function,
-//         insertText: choice.text.trim(),
-//         range: {
-//           startLineNumber: position.lineNumber,
-//           startColumn: position.column,
-//           endLineNumber: position.lineNumber,
-//           endColumn: position.column,
-//         },
-//       })),
-//     };
-//   },
-// });
-
 const executionGutterClass = 'execute-button-decoration';
 
 let executeDecorations: Array<Decoration | string> = [];
@@ -224,10 +189,6 @@ watch(insertBoard, () => {
   }
 });
 
-const toggleEditor = (editorRef: Ref, display: string) => {
-  editorRef.value.style.display = display;
-};
-
 const executeQueryAction = async (
   queryEditor: Editor,
   displayEditor: Editor,
@@ -256,6 +217,7 @@ const executeQueryAction = async (
       ...action,
       index: action.index || established.value?.activeIndex?.index,
     });
+    console.log('get response data: ', data);
     displayJsonEditor(JSON.stringify(data, null, '  '));
   } catch (err) {
     const { status, details } = err as CustomError;
@@ -329,7 +291,7 @@ const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
   );
 };
 
-const setupQueryEditor = async (code: string) => {
+const setupQueryEditor = (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
     theme: getEditorTheme(),
@@ -450,9 +412,8 @@ const setupJsonEditor = () => {
 onMounted(async () => {
   await readSourceFromFile();
   const code = defaultFile.value;
-  await setupQueryEditor(code);
+  setupQueryEditor(code);
   setupJsonEditor();
-  toggleEditor(displayEditorRef, 'none');
 });
 
 onUnmounted(() => {
