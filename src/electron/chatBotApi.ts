@@ -116,7 +116,7 @@ const chatBotApi = {
       if (status === 404) {
         return undefined;
       } else {
-        throw new Error(`Error finding assistant, details: ${details}`);
+        throw new Error(`Error finding assistant, status: ${status}, details: ${details}`);
       }
     }
   },

@@ -115,9 +115,17 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', updateHeight);
 });
-fetchChats().then(() => {
-  scrollbar.value.scrollTo({ top: 999999 });
-});
+fetchChats()
+  .then(() => {
+    scrollbar.value.scrollTo({ top: 999999 });
+  })
+  .catch(err => {
+    chatBotNotification.value = {
+      enabled: true,
+      level: 'error',
+      message: err.message,
+    };
+  });
 </script>
 
 <style lang="scss" scoped>
