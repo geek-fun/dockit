@@ -16,6 +16,10 @@
               :placeholder="$t('setting.ai.defaultPrompt')"
             />
           </n-form-item-row>
+          <n-divider />
+          <n-form-item-row :label="$t('setting.ai.proxy')">
+            <n-input v-model:value="openAi.httpProxy" placeholder="http://127.0.0.1:7890" />
+          </n-form-item-row>
           <n-button type="error" @click="reset" class="action-button">
             {{ $t('setting.ai.form.reset') }}
           </n-button>
@@ -44,7 +48,7 @@ const { fetchChats, modifyAssistant } = chatStore;
 
 const openAi = ref({ ...aigcConfig.value.openAi });
 const reset = async () => {
-  openAi.value = { apiKey: '', model: '', prompt: '' };
+  openAi.value = { apiKey: '', model: '', prompt: '', httpProxy: '' };
   await saveAigcConfig({ ...aigcConfig.value, openAi: openAi.value, enabled: false });
 };
 

@@ -32,21 +32,16 @@ contextBridge.exposeInMainWorld('fetchApi', {
 });
 
 contextBridge.exposeInMainWorld('chatBotApi', {
-  initialize: async (args: { apiKey: string; prompt: string; model: string }) =>
+  initialize: async (args: { apiKey: string; prompt: string; model: string; httpProxy?: string }) =>
     ipcRenderer.invoke('chatBotApi', { method: 'INITIALIZE', ...args }),
 
-  ask: async ({
-    question,
-    apiKey,
-    assistantId,
-    threadId,
-  }: {
+  ask: async (args: {
     apiKey: string;
     question: string;
     assistantId: string;
     threadId: string;
-  }) =>
-    ipcRenderer.invoke('chatBotApi', { method: 'ASK', question, apiKey, assistantId, threadId }),
+    httpProxy?: string;
+  }) => ipcRenderer.invoke('chatBotApi', { ...args, method: 'ASK' }),
 
   onMessageReceived: (callback: (value: unknown) => void) =>
     ipcRenderer.on('chat-bot-api-message-delta', (_event, value) => callback(value)),
@@ -56,8 +51,9 @@ contextBridge.exposeInMainWorld('chatBotApi', {
     prompt: string;
     model: string;
     assistantId: string;
+    httpProxy?: string;
   }) => ipcRenderer.invoke('chatBotApi', { method: 'MODIFY_ASSISTANT', ...args }),
 
-  findAssistant: async (args: { apiKey: string; assistantId: string }) =>
+  findAssistant: async (args: { apiKey: string; assistantId: string; httpProxy?: string }) =>
     ipcRenderer.invoke('chatBotApi', { method: 'FIND_ASSISTANT', ...args }),
 });

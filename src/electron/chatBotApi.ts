@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import fetch from 'node-fetch';
+import { isEmpty } from 'lodash';
 
 export enum ChatBotApiMethods {
   ASK = 'ASK',
@@ -17,14 +18,14 @@ export type ChatBotApiInput = {
   model?: string;
   assistantId?: string;
   threadId?: string;
+  httpProxy?: string;
 };
 
 const ASSISTANT_NAME = 'dockit-assistant';
 
-const createOpenaiClient = ({ apiKey }: { apiKey: string }) => {
-  const httpAgent = process.env.https_proxy
-    ? new HttpsProxyAgent(process.env.https_proxy)
-    : undefined;
+const createOpenaiClient = ({ apiKey, httpProxy }: { apiKey: string; httpProxy?: string }) => {
+  const proxy = !isEmpty(httpProxy) ? httpProxy : process.env.https_proxy;
+  const httpAgent = !isEmpty(proxy) ? new HttpsProxyAgent(proxy) : undefined;
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore
   return new OpenAI({ httpAgent, apiKey, fetch });
@@ -90,14 +91,16 @@ const chatBotApi = {
     prompt,
     model,
     assistantId,
+    httpProxy,
   }: {
     apiKey: string;
     prompt: string;
     model: string;
+    httpProxy?: string;
     assistantId: string;
   }) => {
     // get the assistant by assistantId
-    const openai = createOpenaiClient({ apiKey });
+    const openai = createOpenaiClient({ apiKey, httpProxy });
     const assistant = await openai.beta.assistants.retrieve(assistantId);
     if (!assistant) {
       throw new Error('Assistant not found');
@@ -108,9 +111,17 @@ const chatBotApi = {
       instructions: prompt,
     });
   },
-  findAssistant: async ({ apiKey, assistantId }: { apiKey: string; assistantId: string }) => {
+  findAssistant: async ({
+    apiKey,
+    assistantId,
+    httpProxy,
+  }: {
+    apiKey: string;
+    assistantId: string;
+    httpProxy?: string;
+  }) => {
     try {
-      const openai = createOpenaiClient({ apiKey });
+      const openai = createOpenaiClient({ apiKey, httpProxy });
       return await openai.beta.assistants.retrieve(assistantId);
     } catch ({ status, details }) {
       if (status === 404) {
@@ -132,10 +143,19 @@ const registerChatBotApiListener = (
     'chatBotApi',
     async (
       _,
-      { method, question, apiKey, prompt, model, assistantId, threadId }: ChatBotApiInput,
+      {
+        method,
+        question,
+        apiKey,
+        prompt,
+        model,
+        assistantId,
+        threadId,
+        httpProxy,
+      }: ChatBotApiInput,
     ) => {
       if (method === ChatBotApiMethods.INITIALIZE) {
-        openai = createOpenaiClient({ apiKey });
+        openai = createOpenaiClient({ apiKey, httpProxy });
 
         const { assistantId, threadId } = await chatBotApi.initialize({
           openai,
@@ -147,17 +167,17 @@ const registerChatBotApiListener = (
 
       if (method === ChatBotApiMethods.ASK) {
         if (!openai) {
-          openai = createOpenaiClient({ apiKey });
+          openai = createOpenaiClient({ apiKey, httpProxy });
         }
         await chatBotApi.ask({ openai, assistantId, threadId, question: question, mainWindow });
       }
 
       if (method === ChatBotApiMethods.MODIFY_ASSISTANT) {
-        await chatBotApi.modifyAssistant({ apiKey, prompt, model, assistantId });
+        await chatBotApi.modifyAssistant({ apiKey, prompt, model, assistantId, httpProxy });
       }
 
       if (method === ChatBotApiMethods.FIND_ASSISTANT) {
-        return await chatBotApi.findAssistant({ apiKey, assistantId });
+        return await chatBotApi.findAssistant({ apiKey, assistantId, httpProxy });
       }
     },
   );

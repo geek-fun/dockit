@@ -28,6 +28,7 @@
     "electron-store": "^8.1.0",
     "highlight.js": "^11.9.0",
     "https-proxy-agent": "^7.0.4",
+    "lodash": "^4.17.21",
     "markdown-it": "^14.1.0",
     "monaco-editor": "^0.46.0",
     "node-fetch": "^2.7.0",

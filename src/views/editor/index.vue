@@ -217,7 +217,7 @@ const executeQueryAction = async (
       ...action,
       index: action.index || established.value?.activeIndex?.index,
     });
-    console.log('get response data: ', data);
+
     displayJsonEditor(JSON.stringify(data, null, '  '));
   } catch (err) {
     const { status, details } = err as CustomError;
