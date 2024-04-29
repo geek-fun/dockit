@@ -35,16 +35,19 @@ export interface IChatBotAPI {
     apiKey,
     prompt,
     model,
+    httpProxy,
   }: {
     apiKey: string;
     prompt: string;
     model: string;
+    httpProxy?: string;
   }) => Promise<{ assistantId: string; threadId: string }>;
   ask: (args: {
     question: string;
     assistantId: string;
     threadId: string;
     apiKey: string;
+    httpProxy?: string;
   }) => Promise<void>;
   onMessageReceived: (
     fn: (value: {
@@ -66,14 +69,20 @@ export interface IChatBotAPI {
     apiKey,
     prompt,
     model,
+    httpProxy,
     assistantId,
   }: {
     apiKey: string;
     prompt: string;
     model: string;
+    httpProxy?: string;
     assistantId: string;
   }) => Promise<void>;
-  findAssistant: (args: { apiKey: string; assistantId: string }) => Promise<unknown>;
+  findAssistant: (args: {
+    apiKey: string;
+    assistantId: string;
+    httpProxy?: string;
+  }) => Promise<unknown>;
 }
 
 export interface ISourceFileAPI {

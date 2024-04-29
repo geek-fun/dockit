@@ -50,14 +50,12 @@ export const useChatStore = defineStore('chat', {
   actions: {
     async fetchChats() {
       const chats = await storeAPI.get('chats', undefined);
-      console.log('chats', JSON.stringify({ chats }));
       if (!chats || !chats.length) {
         return;
       }
       const { assistantId } = chats[0];
-      const { apiKey } = await getOpenAiConfig();
-      const assistant = await chatBotApi.findAssistant({ apiKey, assistantId });
-      console.log('assistant', JSON.stringify({ assistant }));
+      const { apiKey, httpProxy } = await getOpenAiConfig();
+      const assistant = await chatBotApi.findAssistant({ apiKey, assistantId, httpProxy });
       if (!assistant) {
         this.chats = [];
         await storeAPI.set('chats', []);
@@ -70,12 +68,13 @@ export const useChatStore = defineStore('chat', {
       if (!assistantId) {
         return;
       }
-      const { apiKey, prompt, model } = await getOpenAiConfig();
+      const { apiKey, prompt, model, httpProxy } = await getOpenAiConfig();
       await chatBotApi.modifyAssistant({
         apiKey,
         prompt: prompt ?? lang.global.t('setting.ai.defaultPrompt'),
         model,
         assistantId,
+        httpProxy,
       });
     },
     async sendMessage(content: string) {
@@ -97,18 +96,18 @@ export const useChatStore = defineStore('chat', {
         });
         receiveRegistration = true;
       }
-
+      const { apiKey, prompt, model, httpProxy } = await getOpenAiConfig();
       if (!this.chats[0]) {
         const chats = await storeAPI.get('chats', undefined);
         if (chats && chats.length) {
           this.chats = chats;
         } else {
           try {
-            const { apiKey, prompt, model } = await getOpenAiConfig();
             const { assistantId, threadId } = await chatBotApi.initialize({
               apiKey,
               model,
               prompt: prompt ?? lang.global.t('setting.ai.defaultPrompt'),
+              httpProxy,
             });
             this.chats.push({ id: ulid(), type: 'openai', messages: [], assistantId, threadId });
             await storeAPI.set('chats', pureObject(this.chats));
@@ -131,13 +130,12 @@ export const useChatStore = defineStore('chat', {
         ? `user's question: ${content} context: indexName - ${index.index}, indexMapping - ${index.mapping}`
         : `user's question: ${content}`;
       try {
-        const openaiConfig = await getOpenAiConfig();
-
         await chatBotApi.ask({
           question,
           assistantId,
           threadId,
-          apiKey: openaiConfig.apiKey,
+          apiKey,
+          httpProxy,
         });
       } catch (err) {
         messages[messages.length - 1].status = MessageStatus.FAILED;

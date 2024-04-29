@@ -21,7 +21,7 @@ export const useAppStore = defineStore('app', {
     uiThemeType: Exclude<ThemeType, ThemeType.AUTO>;
     skipVersion: string;
     aigcConfig: {
-      openAi: { apiKey?: string; model?: string; prompt?: string };
+      openAi: { apiKey?: string; model?: string; prompt?: string; httpProxy?: string };
     };
   } => {
     return {

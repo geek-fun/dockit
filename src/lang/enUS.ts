@@ -22,6 +22,7 @@ export const enUS = {
       model: 'Model',
       apiKey: 'API Key',
       prompt: 'Prompt',
+      proxy: 'Network Proxy',
       form: {
         reset: 'Reset',
         save: 'Save & Enable',
