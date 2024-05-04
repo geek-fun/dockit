@@ -85,4 +85,13 @@ export const zhCN = {
     download: '下载',
     later: '忽略',
   },
+  login: {
+    title: '登录',
+    name: '用户名',
+    password: '密码',
+    forget: '忘记密码？',
+    register: '没有账号？立即注册',
+    enterName: '请输入用户名',
+    enterPwd: '请输入密码',
+  },
 };

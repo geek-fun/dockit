@@ -1,30 +1,25 @@
 <template>
-  <n-card
-    class="chat-box-container"
-    :title="$t('aside.chatBot')"
-    content-class="chat-box-content"
-    :segmented="{
-      content: true,
-      footer: 'segmented',
-    }"
-  >
-    <div class="message-list-box">
-      <n-scrollbar ref="scrollbar" :style="scrollBarStyle">
+  <div class="chat-box-container">
+    <div class="header-title">
+      {{ $t('aside.chatBot') }}
+    </div>
+    <div class="message-list">
+      <n-scrollbar ref="scrollbarRef" style="height: 100%">
         <div v-for="msg in chats[0]?.messages" :key="msg.id">
           <div
             :class="[
-              msg.role === ChatMessageRole.USER ? 'message-item-container-user' : '',
-              'message-item-container',
+              'message-row',
+              msg.role === ChatMessageRole.USER ? 'user' : '',
             ]"
           >
-            <div class="message-item-header">
+            <div class="message-row-header">
               <n-icon size="26">
                 <bot v-if="msg.role === ChatMessageRole.BOT" />
                 <face-cool v-else />
               </n-icon>
               <span>{{ msg.role }}</span>
             </div>
-            <div class="message-item-content">
+            <div class="message-row-content">
               <markdown-render :markdown="msg.content" />
             </div>
           </div>
@@ -36,52 +31,53 @@
         </div>
       </n-scrollbar>
     </div>
-    <template #footer>
-      <div class="message-box">
+    <div class="message-footer">
+      <div class="chat-input">
         <n-input
-          v-model:value="message"
+          v-model:value="chatMsg"
           type="textarea"
           :autosize="{
             minRows: 3,
+            maxRows: 6,
           }"
+          @keyup.enter="submitMsg"
           placeholder="Type your message here..."
         />
-        <n-button-group class="message-action-box">
-          <n-button text>
-            <template #icon></template>
-          </n-button>
-          <n-button text @click="submitMsg">
-            <template #icon>
-              <n-icon size="26">
-                <send-alt />
-              </n-icon>
-            </template>
-          </n-button>
-        </n-button-group>
       </div>
-    </template>
-  </n-card>
+      <div class="footer-opration">
+        <n-button type="primary" :disabled="!chatMsg" @click="submitMsg">
+          <n-icon size="26">
+            <SendAlt />
+          </n-icon>
+        </n-button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ChatMessageRole, useChatStore } from '../../store';
-import { ref } from 'vue';
-import { Bot, FaceCool, SendAlt } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
+import { Bot, SendAlt } from '@vicons/carbon';
+import { ChatMessageRole, useChatStore } from '../../store';
 import MarkdownRender from '../../components/MarkdownRender.vue';
 
 const chatStore = useChatStore();
-const { sendMessage, fetchChats } = chatStore;
 const { chats } = storeToRefs(chatStore);
+const { sendMessage, fetchChats } = chatStore;
 
-const chatBotNotification = ref({ enabled: false, level: '', message: '' });
-
-const message = ref(''); // to hold the message
-const scrollbar = ref(null);
-const submitMsg = async () => {
+const scrollbarRef = ref(null);
+const chatMsg = ref(''); // 聊天消息
+const chatBotNotification = ref({
+  enabled: false,
+  level: '',
+  message: '',
+});
+// 提交消息
+const submitMsg = () => {
+  console.log(chatMsg.value);
   chatBotNotification.value = { enabled: false, level: '', message: '' };
-  if (message.value.trim().length < 1) return;
-  sendMessage(message.value)
+  if (!chatMsg.value.trim().length) return;
+  sendMessage(chatMsg.value)
     .catch(err => {
       chatBotNotification.value = {
         enabled: true,
@@ -90,34 +86,13 @@ const submitMsg = async () => {
       };
     })
     .finally(() => {
-      scrollbar.value.scrollTo({ top: 999999 });
+      scrollbarRef.value.scrollTo({ top: 999999 });
     });
-  message.value = '';
+  chatMsg.value = '';
 };
-
-const msgBoxHeight = ref(449);
-const scrollBarStyle = computed(() => `max-height: ${msgBoxHeight.value}px`);
-
-const updateHeight = () => {
-  const chatMsgContent = document.querySelector('.chat-box-container .message-list-box');
-  if (chatMsgContent.clientHeight > window.innerHeight - 200) {
-    msgBoxHeight.value = 449;
-    return;
-  }
-  msgBoxHeight.value = chatMsgContent.clientHeight;
-};
-
-onMounted(() => {
-  window.addEventListener('resize', updateHeight);
-  updateHeight();
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateHeight);
-});
 fetchChats()
   .then(() => {
-    scrollbar.value.scrollTo({ top: 999999 });
+    scrollbarRef.value.scrollTo({ top: 999999 });
   })
   .catch(err => {
     chatBotNotification.value = {
@@ -130,60 +105,74 @@ fetchChats()
 
 <style lang="scss" scoped>
 .chat-box-container {
-  width: 500px;
-
-  .n-card__content {
-    margin: 0;
-    padding: 0;
+  height: 100%;
+  width: 460px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border-color);
+  .header-title {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 15px;
+    font-size: 18px;
+    font-weight: bold;
+    border-bottom: 1px solid var(--border-color);
   }
-
-  .message-list-box {
-    height: 100%;
-    padding: 0;
-    margin: 0;
-
-    .message-item-container {
+  .message-list {
+    flex: 1;
+    height: 0;
+    padding: 10px;
+    .message-row {
       display: flex;
       flex-direction: column;
       justify-content: space-around;
       padding: 10px;
-
-      .message-item-header {
+      &.user {
+        background-color: var(--bg-color);
+        border-top: 1px solid var(--border-color);
+        border-bottom: 1px solid var(--border-color);
+      }
+      &-header {
         display: flex;
         align-items: center;
-
         span {
           font-weight: bold;
         }
-
         .n-icon {
           margin-right: 10px;
         }
       }
-    }
-
-    .message-item-container-user {
-      background-color: var(--bg-color);
-      border-top: 1px solid var(--border-color);
-      border-bottom: 1px solid var(--border-color);
-    }
-    .message-item-content > pre {
-      width: 100%;
-      margin: 0;
-      padding: 0;
-      white-space: pre-wrap;
-      text-wrap: wrap;
+      &-content {
+        pre {
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          white-space: pre-wrap;
+          text-wrap: wrap;
+        }
+      }
     }
   }
-
-  .message-box {
-    background-color: var(--border-color);
-
-    .message-action-box {
-      display: flex;
-      justify-content: space-between;
-      height: 20px;
-      padding: 10px;
+  .message-footer {
+    padding: 0 10px 10px 10px;
+    position: relative;
+    z-index: 1;
+    .chat-input {
+      height: fit-content;
+    }
+    .footer-opration {
+      position: absolute;
+      bottom: 13px;
+      right: 13px;
+      z-index: 2;
+      height: 30px;
+      .n-button {
+        width: 40px;
+        height: 100%;
+        padding: 0;
+        margin: 0;
+        color: #fff;
+      }
     }
   }
 }

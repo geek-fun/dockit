@@ -85,4 +85,13 @@ export const enUS = {
     skip: 'Skip this version',
     later: 'Later',
   },
+  login: {
+    title: 'Log In',
+    name: 'User Name',
+    password: 'User Password',
+    forget: 'Forgot password?',
+    register: 'No account? Register Now',
+    enterName: 'Please enter one user name',
+    enterPwd: 'Please enter password',
+  },
 };
