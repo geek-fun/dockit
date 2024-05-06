@@ -6,12 +6,7 @@
     <div class="message-list">
       <n-scrollbar ref="scrollbarRef" style="height: 100%">
         <div v-for="msg in chats[0]?.messages" :key="msg.id">
-          <div
-            :class="[
-              'message-row',
-              msg.role === ChatMessageRole.USER ? 'user' : '',
-            ]"
-          >
+          <div :class="['message-row', msg.role === ChatMessageRole.USER ? 'user' : '']">
             <div class="message-row-header">
               <n-icon size="26">
                 <bot v-if="msg.role === ChatMessageRole.BOT" />
@@ -40,7 +35,6 @@
             minRows: 3,
             maxRows: 6,
           }"
-          @keyup.enter="submitMsg"
           placeholder="Type your message here..."
         />
       </div>
@@ -57,7 +51,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Bot, SendAlt } from '@vicons/carbon';
+import { Bot, SendAlt, FaceCool } from '@vicons/carbon';
 import { ChatMessageRole, useChatStore } from '../../store';
 import MarkdownRender from '../../components/MarkdownRender.vue';
 
