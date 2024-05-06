@@ -1,19 +1,16 @@
 import { createApp } from 'vue';
 import App from './App.vue';
 import store from './store';
-import { setupRouter } from './router';
+import { router } from './router';
 import { lang } from './lang';
 
 import './assets/styles/normalize.css';
 import './assets/styles/theme.scss';
 
-async function bootstrap() {
-  const app = createApp(App);
+const app = createApp(App);
 
-  setupRouter(app);
-  app.use(store);
-  app.use(lang);
+app.use(router);
+app.use(store);
+app.use(lang);
 
-  app.mount('#app');
-}
-bootstrap();
+app.mount('#app');

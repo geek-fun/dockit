@@ -1,14 +1,67 @@
 import { createMemoryHistory, createRouter } from 'vue-router';
-import { basicRoutes } from './basic';
-import { createRouterGuards } from './guards';
 
-export const router = createRouter({
+import { useUserStore } from '../store';
+
+const LOGIN_PATH = '/login';
+
+const router = createRouter({
   history: createMemoryHistory(),
   scrollBehavior: () => ({ left: 0, top: 0 }),
-  routes: basicRoutes,
+  routes: [
+    {
+      path: '/login',
+      name: 'Login',
+      meta: {
+        keepAlive: false,
+      },
+      component: () => import('../views/login/index.vue'),
+    },
+    {
+      path: '/',
+      name: 'Layout',
+      meta: {
+        keepAlive: false,
+      },
+      component: () => import('../layout/index.vue'),
+      redirect: '/connect',
+      children: [
+        {
+          name: 'Connect',
+          path: '/connect',
+          meta: {
+            keepAlive: false,
+          },
+          component: () => import('../views/connect/index.vue'),
+        },
+        {
+          name: 'History',
+          path: '/history',
+          meta: {
+            keepAlive: false,
+          },
+          component: () => import('../views/history/index.vue'),
+        },
+        {
+          name: 'Setting',
+          path: '/setting',
+          meta: {
+            keepAlive: false,
+          },
+          component: () => import('../views/setting/index.vue'),
+        },
+      ],
+    },
+  ],
 });
 
-export async function setupRouter(app: App) {
-  createRouterGuards(router);
-  app.use(router);
-}
+router.beforeEach(async (to, from, next) => {
+  const userStore = useUserStore();
+  const token = userStore.getToken;
+  if (to.meta.requiresAuth && !token) {
+    next(LOGIN_PATH);
+  } else {
+    next();
+  }
+});
+
+export { router };
