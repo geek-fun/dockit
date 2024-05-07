@@ -46,14 +46,10 @@ const md = new MarkdownIt({
       highlightedCode = md.utils.escapeHtml(str);
     }
     const encodedCode = btoa(str);
-    return `
-    <div class="code-actions">
-        <svg class="code-action-copy"  onclick="document.dispatchEvent(new CustomEvent('chatbot-code-actions', {detail: {code: '${encodedCode}', action: 'copy'}}))"    xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><path d="M28 10v18H10V10h18m0-2H10a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2z" fill="currentColor"></path><path d="M4 18H2V4a2 2 0 0 1 2-2h14v2H4z" fill="currentColor"></path></svg>
-        <svg class="code-action-insert" onclick="document.dispatchEvent(new CustomEvent('chatbot-code-actions', {detail: {code: '${encodedCode}', action: 'insert'}}))"   xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><path d="M28 12H10a2.002 2.002 0 0 1-2-2V4a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zM10 4v6h18V4z" fill="currentColor"></path><path d="M28 30H10a2.002 2.002 0 0 1-2-2v-6a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zm-18-8v6h18v-6z" fill="currentColor"></path><path d="M9 16l-5.586-5.586L2 11.828L6.172 16L2 20.172l1.414 1.414L9 16z" fill="currentColor"></path></svg>
-    </div>
-    <code class='hljs'>${highlightedCode}</code>
-
-    `;
+    return `<span class="code-actions">
+      <svg class="code-action-copy"  onclick="document.dispatchEvent(new CustomEvent('chatbot-code-actions', {detail: {code: '${encodedCode}', action: 'copy'}}))"    xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><path d="M28 10v18H10V10h18m0-2H10a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2z" fill="currentColor"></path><path d="M4 18H2V4a2 2 0 0 1 2-2h14v2H4z" fill="currentColor"></path></svg>
+      <svg class="code-action-insert" onclick="document.dispatchEvent(new CustomEvent('chatbot-code-actions', {detail: {code: '${encodedCode}', action: 'insert'}}))"   xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><path d="M28 12H10a2.002 2.002 0 0 1-2-2V4a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zM10 4v6h18V4z" fill="currentColor"></path><path d="M28 30H10a2.002 2.002 0 0 1-2-2v-6a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zm-18-8v6h18v-6z" fill="currentColor"></path><path d="M9 16l-5.586-5.586L2 11.828L6.172 16L2 20.172l1.414 1.414L9 16z" fill="currentColor"></path></svg>
+    </span><code class='hljs'>${highlightedCode}</code>`;
   },
 });
 
@@ -86,22 +82,27 @@ onMounted(() => {
 pre {
   margin: 0;
   padding: 0;
-  .code-actions {
-    float: right;
-    width: 40px;
-    height: 18px;
-    display: flex;
-    border-radius: 5px;
-    .code-action-copy {
-      width: 18px;
+  code.language-json {
+    position: relative;
+    .code-actions {
+      position: absolute;
+      top: 10px;
+      right: 10px;
       height: 18px;
-      cursor: pointer;
-      margin-right: 5px;
-    }
-    .code-action-insert {
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
+      display: flex;
+      border-radius: 5px;
+      .code-action-copy {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        margin-right: 5px;
+      }
+      .code-action-insert {
+        width: 18px;
+        height: 18px;
+        margin-left: 5px;
+        cursor: pointer;
+      }
     }
   }
 }
