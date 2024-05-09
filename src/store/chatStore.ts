@@ -18,7 +18,7 @@ const { chatBotApi, storeAPI } = window;
 
 let receiveRegistration = false;
 
-const getOpenAiConfig = async () => {
+export const getOpenAiConfig = async () => {
   const { openAi } = await storeAPI.getSecret('aigcConfig', { openAi: undefined });
   if (!openAi) {
     throw new Error(lang.global.t('setting.ai.missing'));

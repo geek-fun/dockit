@@ -20,7 +20,9 @@ export const zhCN = {
       title: 'GPTs配置',
       others: '其他GPTs',
       model: '模型',
+      modelPlaceholder: '请输入GPT模型名称',
       apiKey: 'API密钥',
+      apiKeyPlaceholder: '请输入API密钥',
       prompt: '提示词',
       proxy: '网络代理',
       form: {
@@ -60,6 +62,7 @@ export const zhCN = {
       edit: '编辑',
       remove: '删除',
     },
+    selectIndex: '未选择集合/索引',
     validationFailed: '表单验证失败！',
     unAuthorized: '认证失败，请输入正确的用户名和密码！',
   },

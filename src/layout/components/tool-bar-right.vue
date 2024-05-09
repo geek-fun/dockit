@@ -22,14 +22,25 @@
 <script setup lang="ts">
 import { markRaw, ref } from 'vue';
 import { ChatBot } from '@vicons/carbon';
+import { getOpenAiConfig } from './../../store'
+import { useLang } from './../../lang'
 import TheAsideIcon from './the-aside-icon.vue';
 import ChatbotBox from './chatbot-box.vue';
+
+const lang = useLang();
+const message = useMessage();
+
 const selectedItemId = ref(-1);
 const chatBot = ref({ active: false });
 
-const navClick = (item: any) => {
+const navClick = async (item: any) => {
   selectedItemId.value = item.id;
   if (item.id === 'chat-bot') {
+    const { apiKey } = await getOpenAiConfig();
+    if (!apiKey) {
+      message.error(lang.t('setting.ai.missing'));
+      return false;
+    }
     chatBot.value.active = !chatBot.value.active;
   }
 };

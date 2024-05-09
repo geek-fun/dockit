@@ -68,7 +68,6 @@ const chatBotNotification = ref({
 });
 // 提交消息
 const submitMsg = () => {
-  console.log(chatMsg.value);
   chatBotNotification.value = { enabled: false, level: '', message: '' };
   if (!chatMsg.value.trim().length) return;
   sendMessage(chatMsg.value)

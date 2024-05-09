@@ -4,10 +4,18 @@
       <n-tab-pane name="OpenAI" tab="OpenAI">
         <n-form class="form-tab-pane">
           <n-form-item-row :label="$t('setting.ai.model')">
-            <n-input v-model:value="openAi.model" />
+            <n-input
+              v-model:value="openAi.model"
+              :placeholder="$t('setting.ai.modelPlaceholder')"
+            />
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.apiKey')">
-            <n-input type="password" show-password-on="click" v-model:value="openAi.apiKey" />
+            <n-input
+              type="password"
+              show-password-on="click"
+              v-model:value="openAi.apiKey"
+              :placeholder="$t('setting.ai.apiKeyPlaceholder')"
+            />
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.prompt')">
             <n-input

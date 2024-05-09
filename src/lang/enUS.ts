@@ -20,7 +20,9 @@ export const enUS = {
       title: 'GPTs',
       others: 'Other GPTs',
       model: 'Model',
+      modelPlaceholder: 'Please enter the GPT model name',
       apiKey: 'API Key',
+      apiKeyPlaceholder: 'Please enter the API Key',
       prompt: 'Prompt',
       proxy: 'Network Proxy',
       form: {
@@ -60,6 +62,7 @@ export const enUS = {
       edit: 'Edit',
       remove: 'Remove',
     },
+    selectIndex: 'No collection/index selected',
     validationFailed: 'Form validation failed!',
     unAuthorized: 'Authorization failed, ensure your username and password are correct',
   },
