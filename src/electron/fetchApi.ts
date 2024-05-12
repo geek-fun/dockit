@@ -40,7 +40,6 @@ const fetchApi: { [key: string]: (key: string, val: unknown) => unknown } = {
         body: payload ? JSON.parse(payload) : undefined,
         agent,
       });
-      console.log('fetchApi fetch result:', result.headers.get('content-type'));
       if (result.ok) {
         const data = result.headers.get('content-type').includes('application/json')
           ? await result.json()

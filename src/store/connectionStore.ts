@@ -151,7 +151,6 @@ export const useConnectionStore = defineStore('connectionStore', {
             if (!newIndex.mapping) {
               newIndex.mapping = await client.get(`/${index}/_mapping`, 'format=json');
             }
-            console.log('update active index', newIndex);
             this.established = { ...this.established, activeIndex: newIndex };
           }
         }
