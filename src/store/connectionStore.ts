@@ -147,13 +147,13 @@ export const useConnectionStore = defineStore('connectionStore', {
           const newIndex = this.established.indices.find(
             ({ index: indexName }: ConnectionIndex) => indexName === index,
           );
-          if (!newIndex) {
-            return;
+          if (newIndex) {
+            if (!newIndex.mapping) {
+              newIndex.mapping = await client.get(`/${index}/_mapping`, 'format=json');
+            }
+            console.log('update active index', newIndex);
+            this.established = { ...this.established, activeIndex: newIndex };
           }
-          if (!newIndex.mapping) {
-            newIndex.mapping = await client.get(`/${index}/_mapping`, 'format=json');
-          }
-          this.established = { ...this.established, activeIndex: newIndex };
         }
       } catch (err) {
         console.error('failed to refresh index mapping', err);
