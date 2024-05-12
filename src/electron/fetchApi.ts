@@ -41,7 +41,11 @@ const fetchApi: { [key: string]: (key: string, val: unknown) => unknown } = {
         agent,
       });
       if (result.ok) {
-        return { status: result.status, data: await result.json() };
+        const data = result.headers.get('content-type').includes('application/json')
+          ? await result.json()
+          : (await result.text())?.split('\n')?.filter(Boolean);
+
+        return { status: result.status, data };
       }
       throw new CustomError(result.status, await result.text());
     } catch (e) {
