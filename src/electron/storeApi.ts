@@ -53,10 +53,10 @@ const storeApi: { [key: string]: (key: string, val: unknown) => unknown } = {
     store.set(key, value);
   },
 
-  get_secret: (key: string) => {
+  get_secret: (key: string, defaultValue: unknown) => {
     const encryptedValue = store.get(key, '');
 
-    return encryptedValue ? JSON.parse(decryptValue(encryptedValue as string)) : undefined;
+    return encryptedValue ? JSON.parse(decryptValue(encryptedValue as string)) : defaultValue;
   },
 
   set_secret: (key: string, value: unknown) => {

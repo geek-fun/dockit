@@ -13,7 +13,8 @@ contextBridge.exposeInMainWorld('storeAPI', {
     ipcRenderer.invoke('storeAPI', { method: 'GET', key, value: defaultValue }),
   set: async (key: string, value: unknown) =>
     ipcRenderer.invoke('storeAPI', { method: 'SET', key, value }),
-  getSecret: async (key: string) => ipcRenderer.invoke('storeAPI', { method: 'GET_SECRET', key }),
+  getSecret: async (key: string, value: unknown) =>
+    ipcRenderer.invoke('storeAPI', { method: 'GET_SECRET', key, value }),
   setSecret: async (key: string, value: unknown) =>
     ipcRenderer.invoke('storeAPI', { method: 'SET_SECRET', key, value }),
 });

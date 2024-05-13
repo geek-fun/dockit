@@ -23,6 +23,8 @@
           <n-alert :type="chatBotNotification.level">
             {{ chatBotNotification.message }}
           </n-alert>
+          <br/>
+          <n-button  v-if="chatBotNotification.code === ErrorCodes.MISSING_GPT_CONFIG" @click="configGpt" strong secondary type="primary">{{ $t('setting.ai.configGpt') }}</n-button>
         </div>
       </n-scrollbar>
     </div>
@@ -54,10 +56,13 @@ import { storeToRefs } from 'pinia';
 import { Bot, SendAlt, FaceCool } from '@vicons/carbon';
 import { ChatMessageRole, useChatStore } from '../../store';
 import MarkdownRender from '../../components/MarkdownRender.vue';
+import { ErrorCodes } from '../../common';
 
 const chatStore = useChatStore();
 const { chats } = storeToRefs(chatStore);
 const { sendMessage, fetchChats } = chatStore;
+
+const router = useRouter();
 
 const scrollbarRef = ref(null);
 const chatMsg = ref(''); // 聊天消息
@@ -65,10 +70,11 @@ const chatBotNotification = ref({
   enabled: false,
   level: '',
   message: '',
+  code: 0,
 });
 // 提交消息
 const submitMsg = () => {
-  chatBotNotification.value = { enabled: false, level: '', message: '' };
+  chatBotNotification.value = { enabled: false, level: '', message: '', code: 0 };
   if (!chatMsg.value.trim().length) return;
   sendMessage(chatMsg.value)
     .catch(err => {
@@ -76,6 +82,7 @@ const submitMsg = () => {
         enabled: true,
         level: 'error',
         message: err.message,
+        code: 0,
       };
     })
     .finally(() => {
@@ -83,15 +90,24 @@ const submitMsg = () => {
     });
   chatMsg.value = '';
 };
+
+const configGpt = () => {
+
+  router.push({ path: '/setting', replace: true })
+}
+
 fetchChats()
   .then(() => {
+    console.log('fetch chats then');
+    
     scrollbarRef.value.scrollTo({ top: 999999 });
   })
   .catch(err => {
     chatBotNotification.value = {
       enabled: true,
       level: 'error',
-      message: err.message,
+      message: err.details,
+      code: err.status
     };
   });
 </script>
