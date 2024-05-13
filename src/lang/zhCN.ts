@@ -18,6 +18,7 @@ export const zhCN = {
     light: '月白主题',
     ai: {
       title: 'GPTs配置',
+      configGpt: '前往配置GPT',
       others: '其他GPTs',
       model: '模型',
       modelPlaceholder: '请输入GPT模型名称',

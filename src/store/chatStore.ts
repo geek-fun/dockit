@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ulid } from 'ulidx';
 import { lang } from '../lang';
-import { pureObject } from '../common';
+import { CustomError, pureObject, ErrorCodes } from '../common';
 import { useConnectionStore } from './connectionStore';
 
 enum MessageStatus {
@@ -19,9 +19,9 @@ const { chatBotApi, storeAPI } = window;
 let receiveRegistration = false;
 
 export const getOpenAiConfig = async () => {
-  const { openAi } = await storeAPI.getSecret('aigcConfig', { openAi: undefined });
+  const { openAi } = await storeAPI.getSecret('aigcConfig', { openAi: null });
   if (!openAi) {
-    throw new Error(lang.global.t('setting.ai.missing'));
+    throw new CustomError(ErrorCodes.MISSING_GPT_CONFIG, lang.global.t('setting.ai.missing'));
   }
   return openAi;
 };
@@ -50,11 +50,11 @@ export const useChatStore = defineStore('chat', {
   actions: {
     async fetchChats() {
       const chats = await storeAPI.get('chats', undefined);
+      const { apiKey, httpProxy } = await getOpenAiConfig();
       if (!chats || !chats.length) {
         return;
       }
       const { assistantId } = chats[0];
-      const { apiKey, httpProxy } = await getOpenAiConfig();
       const assistant = await chatBotApi.findAssistant({ apiKey, assistantId, httpProxy });
       if (!assistant) {
         this.chats = [];

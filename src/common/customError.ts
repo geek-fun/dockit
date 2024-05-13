@@ -6,3 +6,7 @@ export class CustomError extends Error {
     super();
   }
 }
+
+export enum ErrorCodes {
+  MISSING_GPT_CONFIG = 999,
+}
