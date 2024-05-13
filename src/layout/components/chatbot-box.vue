@@ -23,8 +23,15 @@
           <n-alert :type="chatBotNotification.level">
             {{ chatBotNotification.message }}
           </n-alert>
-          <br/>
-          <n-button  v-if="chatBotNotification.code === ErrorCodes.MISSING_GPT_CONFIG" @click="configGpt" strong secondary type="primary">{{ $t('setting.ai.configGpt') }}</n-button>
+          <br />
+          <n-button
+            v-if="chatBotNotification.code === ErrorCodes.MISSING_GPT_CONFIG"
+            @click="configGpt"
+            strong
+            secondary
+            type="primary"
+            >{{ $t('setting.ai.configGpt') }}</n-button
+          >
         </div>
       </n-scrollbar>
     </div>
@@ -92,14 +99,11 @@ const submitMsg = () => {
 };
 
 const configGpt = () => {
-
-  router.push({ path: '/setting', replace: true })
-}
+  router.push({ path: '/setting', replace: true });
+};
 
 fetchChats()
   .then(() => {
-    console.log('fetch chats then');
-    
     scrollbarRef.value.scrollTo({ top: 999999 });
   })
   .catch(err => {
@@ -107,7 +111,7 @@ fetchChats()
       enabled: true,
       level: 'error',
       message: err.details,
-      code: err.status
+      code: err.status,
     };
   });
 </script>
