@@ -2,7 +2,7 @@
   "name": "DocKit",
   "productName": "DocKit",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "A faster, better and more stable NoSQL desktop tools",
   "author": "geekfun <support@geekfun.club>",
   "license": "Apache-2.0",
