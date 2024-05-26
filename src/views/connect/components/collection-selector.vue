@@ -2,7 +2,7 @@
   <div class="collection-selector-container">
     <n-select
       :options="options"
-      placeholder="No collection/index selected"
+      :placeholder="$t('connection.selectIndex')"
       remote
       filterable
       :loading="loadingRef"

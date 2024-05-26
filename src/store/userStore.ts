@@ -1,13 +1,24 @@
 import { defineStore } from 'pinia';
 
 export const useUserStore = defineStore('user', {
-  state() {
-    return {
-      userInfo: {
-        id: 1,
-      },
-    };
+  state: () => ({
+    accessToken: '', // 访问令牌
+  }),
+  getters: {
+    getToken(): string {
+      return this.accessToken;
+    },
   },
-  getters: {},
-  actions: {},
+  actions: {
+    setToken(accessToken: string): void {
+      this.accessToken = accessToken;
+    },
+    resetToken(): void {
+      this.accessToken = '';
+    },
+  },
+  persist: {
+    paths: ['accessToken'],
+    storage: localStorage,
+  },
 });

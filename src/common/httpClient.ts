@@ -2,17 +2,16 @@ import { CustomError } from './customError';
 import { Buffer } from 'buffer';
 import { lang } from '../lang';
 
-const catchHandler = (err: unknown) => {
-  if (err instanceof CustomError) {
-    if (err.status === 401) {
-      throw new CustomError(err.status, lang.global.t('connection.unAuthorized'));
-    }
-    throw new CustomError(err.status, err.details);
+const { fetchApi } = window;
+
+const handleFetch = (result: { data: unknown; status: number; details: string }) => {
+  if ([404, 400].includes(result.status) || (result.status >= 200 && result.status < 300)) {
+    return result.data || JSON.parse(result.details);
   }
-  if (err instanceof Error) {
-    throw new CustomError(500, err.message);
+  if (result.status === 401) {
+    throw new CustomError(result.status, lang.global.t('connection.unAuthorized'));
   }
-  throw new CustomError(500, `unknown error, trace: ${JSON.stringify(err)}`);
+  throw new CustomError(result.status, result.details);
 };
 
 const buildURL = (host: string, port: number, path?: string, queryParameters?: string) => {
@@ -31,15 +30,17 @@ const fetchWrapper = async ({
   port,
   username,
   password,
+  ssl,
 }: {
   method: string;
   path?: string;
   queryParameters?: string;
-  payload?: unknown;
+  payload?: string;
   username?: string;
   password?: string;
   host: string;
   port: number;
+  ssl: boolean;
 }) => {
   const authorization =
     username || password
@@ -47,25 +48,23 @@ const fetchWrapper = async ({
       : undefined;
 
   const url = buildURL(host, port, path, queryParameters);
-  try {
-    const result = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json', authorization } as unknown as Headers,
-      body: payload ? JSON.stringify(payload) : undefined,
-    });
-    if (result.ok) {
-      return await result.json();
-    }
-    throw new CustomError(result.status, await result.text());
-  } catch (e) {
-    throw catchHandler(e);
-  }
+  const { data, status, details } = await fetchApi.fetch(url, {
+    method,
+    headers: {
+      authorization,
+    },
+    payload: payload ? JSON.stringify(payload) : undefined,
+    agent: { ssl },
+  });
+  return handleFetch({ data, status, details });
 };
+
 export const loadHttpClient = (con: {
   host: string;
   port: number;
   username?: string;
   password?: string;
+  sslCertVerification: boolean;
 }) => ({
   get: async (path?: string, queryParameters?: string) =>
     fetchWrapper({
@@ -73,30 +72,34 @@ export const loadHttpClient = (con: {
       method: 'GET',
       path,
       queryParameters,
+      ssl: con.sslCertVerification,
     }),
-  post: async (path: string, queryParameters?: string, payload?: unknown) =>
+  post: async (path: string, queryParameters?: string, payload?: string) =>
     fetchWrapper({
       ...con,
       method: 'POST',
       path,
       queryParameters,
       payload,
+      ssl: con.sslCertVerification,
     }),
-  put: async (path: string, queryParameters?: string, payload?: unknown) =>
+  put: async (path: string, queryParameters?: string, payload?: string) =>
     fetchWrapper({
       ...con,
       method: 'PUT',
       path,
       queryParameters,
       payload,
+      ssl: con.sslCertVerification,
     }),
 
-  delete: async (path: string, queryParameters?: string, payload?: unknown) =>
+  delete: async (path: string, queryParameters?: string, payload?: string) =>
     fetchWrapper({
       ...con,
       method: 'DELETE',
       path,
       queryParameters,
       payload,
+      ssl: con.sslCertVerification,
     }),
 });

@@ -1,22 +1,29 @@
 <template>
-  <div class="editor">
-    <div id="query-editor" ref="queryEditorRef"></div>
-    <div id="display-editor" ref="displayEditorRef"></div>
-  </div>
+  <n-split direction="horizontal" class="editor" v-model:size="queryEditorSize">
+    <template #1>
+      <div id="query-editor" ref="queryEditorRef"></div>
+    </template>
+    <template #2>
+      <div id="display-editor" ref="displayEditorRef"></div>
+    </template>
+  </n-split>
 </template>
 <script setup lang="ts">
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, Ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
   buildSearchToken,
   CustomError,
   Decoration,
-  SearchToken,
+  defaultCodeSnippet,
+  EngineType,
+  getActionApiDoc,
+  SearchAction,
   searchTokensProvider,
 } from '../../common';
-import { useAppStore, useConnectionStore, useSourceFileStore } from '../../store';
+import { useAppStore, useChatStore, useConnectionStore, useSourceFileStore } from '../../store';
 import { useLang } from '../../lang';
 
 type Editor = ReturnType<typeof monaco.editor.create>;
@@ -34,6 +41,9 @@ const { searchQDSL } = connectionStore;
 const { established } = storeToRefs(connectionStore);
 const { getEditorTheme } = appStore;
 const { themeType } = storeToRefs(appStore);
+
+const chatStore = useChatStore();
+const { insertBoard } = storeToRefs(chatStore);
 /**
  * refer https://github.com/wobsoriano/codeplayground
  * https://github.com/wobsoriano/codeplayground/blob/master/src/components/MonacoEditor.vue
@@ -75,6 +85,15 @@ monaco.languages.setMonarchTokensProvider(
   'search',
   searchTokensProvider as monaco.languages.IMonarchLanguage,
 );
+monaco.languages.setLanguageConfiguration('search', {
+  autoClosingPairs: [
+    { open: '{', close: '}' },
+    { open: '[', close: ']' },
+    { open: '(', close: ')' },
+    { open: '"', close: '"' },
+    { open: "'", close: "'" },
+  ],
+});
 
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let displayEditor: Editor | null = null;
@@ -84,9 +103,9 @@ let autoIndentCmdId: string | null = null;
 const queryEditorRef = ref();
 const displayEditorRef = ref();
 
-let searchTokens: SearchToken[] = [];
+let searchTokens: SearchAction[] = [];
 
-const getActionMarksDecorations = (searchTokens: SearchToken[]): Array<Decoration> => {
+const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<Decoration> => {
   return searchTokens
     .map(({ actionPosition }) => ({
       id: actionPosition.startLineNumber,
@@ -97,7 +116,7 @@ const getActionMarksDecorations = (searchTokens: SearchToken[]): Array<Decoratio
     .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
 };
 
-const refreshActionMarks = (editor: Editor, searchTokens: SearchToken[]) => {
+const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
   const freshedDecorations = getActionMarksDecorations(searchTokens);
   // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
   executeDecorations = editor.deltaDecorations(
@@ -105,7 +124,8 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchToken[]) => {
     freshedDecorations,
   ) as unknown as Decoration[];
 };
-const buildCodeLens = (searchTokens: SearchToken[]) =>
+
+const buildCodeLens = (searchTokens: SearchAction[]) =>
   searchTokens
     .filter(({ qdslPosition }) => qdslPosition)
     .map(({ actionPosition, qdslPosition }, index) => ({
@@ -130,7 +150,10 @@ const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
 
     refreshActionMarks(queryEditor!, searchTokens);
 
-    return { lenses: buildCodeLens(searchTokens), dispose: () => {} };
+    return {
+      lenses: buildCodeLens(searchTokens),
+      dispose: () => {},
+    };
   },
 });
 
@@ -143,6 +166,27 @@ watch(themeType, () => {
 
   queryEditor?.updateOptions({ theme: vsTheme });
   displayEditor?.updateOptions({ theme: vsTheme });
+});
+watch(insertBoard, () => {
+  if (queryEditor) {
+    // add event to handle chatbot-code-actions
+    const position = queryEditor.getPosition();
+    queryEditor.getModel()?.pushEditOperations(
+      [],
+      [
+        {
+          range: new monaco.Range(
+            position.lineNumber,
+            position.column,
+            position.lineNumber,
+            position.column,
+          ),
+          text: insertBoard.value,
+        },
+      ],
+      () => null,
+    );
+  }
 });
 
 const executeQueryAction = async (
@@ -166,12 +210,15 @@ const executeQueryAction = async (
       });
       return;
     }
-
+    if (action.path.includes('_bulk')) {
+      action.qdsl += '\n';
+    }
     const data = await searchQDSL({
       ...action,
       index: action.index || established.value?.activeIndex?.index,
     });
-    displayEditor?.getModel()?.setValue(JSON.stringify(data, null, '  '));
+
+    displayJsonEditor(JSON.stringify(data, null, '  '));
   } catch (err) {
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -181,65 +228,80 @@ const executeQueryAction = async (
   }
 };
 
+const autoIndentAction = (
+  editor: monaco.editor.IStandaloneCodeEditor,
+  ctx: unknown,
+  qdslPosition:
+    | {
+        startLineNumber: number;
+        endLineNumber: number;
+      }
+    | undefined,
+) => {
+  if (!qdslPosition) {
+    return;
+  }
+  const model = editor?.getModel();
+  if (!model) {
+    return;
+  }
+
+  const { startLineNumber, endLineNumber } = qdslPosition;
+  const content = model.getValueInRange({
+    startLineNumber,
+    startColumn: 1,
+    endLineNumber: endLineNumber,
+    endColumn: model.getLineLength(endLineNumber) + 1,
+  });
+  try {
+    const formatted = JSON.stringify(JSON.parse(content), null, 2);
+    model.pushEditOperations(
+      [],
+      [
+        {
+          range: {
+            startLineNumber,
+            startColumn: 1,
+            endLineNumber,
+            endColumn: model.getLineLength(endLineNumber) + 1,
+          },
+          text: formatted,
+        },
+      ],
+      inverseEditOperations => [],
+    );
+  } catch (err) {
+    message.error(lang.t('editor.invalidJson'), {
+      closable: true,
+      keepAliveOnHover: true,
+    });
+    return;
+  }
+};
+
+const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
+  if (!editor) {
+    return;
+  }
+  const { lineNumber } = editor.getPosition();
+  return tokens.find(({ actionPosition: { startLineNumber }, qdslPosition }) =>
+    qdslPosition
+      ? lineNumber >= startLineNumber && lineNumber <= qdslPosition.endLineNumber
+      : startLineNumber === lineNumber,
+  );
+};
+
 const setupQueryEditor = (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
     theme: getEditorTheme(),
-    value: code,
+    value: code ? code : defaultCodeSnippet,
     language: 'search',
+    minimap: { enabled: false },
   });
 
-  autoIndentCmdId = queryEditor.addCommand(
-    0,
-    (
-      ctx,
-      args:
-        | {
-            startLineNumber: number;
-            endLineNumber: number;
-          }
-        | undefined,
-    ) => {
-      if (!args) {
-        return;
-      }
-      const model = queryEditor?.getModel();
-      if (!model) {
-        return;
-      }
-
-      const { startLineNumber, endLineNumber } = args;
-      const content = model.getValueInRange({
-        startLineNumber,
-        startColumn: 1,
-        endLineNumber: endLineNumber,
-        endColumn: model.getLineLength(endLineNumber) + 1,
-      });
-      try {
-        const formatted = JSON.stringify(JSON.parse(content), null, 2);
-        model.pushEditOperations(
-          [],
-          [
-            {
-              range: {
-                startLineNumber,
-                startColumn: 1,
-                endLineNumber,
-                endColumn: model.getLineLength(endLineNumber) + 1,
-              },
-              text: formatted,
-            },
-          ],
-          inverseEditOperations => [],
-        );
-      } catch (err) {
-        message.error(lang.t('editor.invalidJson'), {
-          closable: true,
-          keepAliveOnHover: true,
-        });
-        return;
-      }
-    },
+  autoIndentCmdId = queryEditor.addCommand(0, (ctx, args) =>
+    autoIndentAction(queryEditor, ctx, args),
   );
 
   queryEditor.onMouseDown(({ event, target }) => {
@@ -253,15 +315,100 @@ const setupQueryEditor = (code: string) => {
       executeQueryAction(queryEditor, displayEditor, target.position);
     }
   });
+
+  // Auto indent current request
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
+    const { qdslPosition } = getPointerAction(queryEditor, searchTokens) || {};
+    autoIndentAction(queryEditor, null, qdslPosition);
+  });
+
+  // Toggle Autocomplete
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space, () => {
+    queryEditor.trigger('keyboard', 'editor.action.triggerSuggest', {});
+  });
+
+  // Submit request
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+    const { actionPosition } = getPointerAction(queryEditor, searchTokens) || {};
+    if (actionPosition) {
+      executeQueryAction(queryEditor, displayEditor, {
+        column: actionPosition.startColumn,
+        lineNumber: actionPosition.startLineNumber,
+      });
+    }
+  });
+
+  // Jump to the previous request
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.UpArrow, () => {
+    const { lineNumber, column } = queryEditor.getPosition();
+    const { actionPosition } =
+      searchTokens
+        .filter(({ actionPosition }) => actionPosition)
+        .sort((a, b) => b.actionPosition.startLineNumber - a.actionPosition.startLineNumber)
+        .find(({ actionPosition: { startLineNumber } }) => startLineNumber < lineNumber) || {};
+
+    if (actionPosition) {
+      queryEditor.revealLine(actionPosition.startLineNumber);
+      queryEditor.setPosition({ column, lineNumber: actionPosition.startLineNumber });
+    }
+  });
+
+  // Jump to the next request
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.DownArrow, () => {
+    const { lineNumber, column } = queryEditor.getPosition();
+    const { actionPosition } =
+      searchTokens
+        .filter(({ actionPosition }) => actionPosition)
+        .sort((a, b) => a.actionPosition.startLineNumber - b.actionPosition.startLineNumber)
+        .find(({ actionPosition: { startLineNumber } }) => startLineNumber > lineNumber) || {};
+
+    if (actionPosition) {
+      queryEditor.revealLine(actionPosition.startLineNumber);
+      queryEditor.setPosition({ column, lineNumber: actionPosition.startLineNumber });
+    }
+  });
+
+  // Collapse/expand current scope
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyL, () => {
+    queryEditor.trigger('keyboard', 'editor.toggleFold', {});
+  });
+
+  // Collapse all scopes but the current one
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Digit0, () => {
+    queryEditor.trigger('keyboard', 'editor.foldAll', {});
+    queryEditor.trigger('keyboard', 'editor.unfoldRecursively', {});
+  });
+
+  // Open the documentation for the current action
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash, () => {
+    const docLink = getActionApiDoc(
+      EngineType.ELASTICSEARCH,
+      'current',
+      getPointerAction(queryEditor, searchTokens),
+    );
+    if (docLink) {
+      window.electronAPI.openLink(docLink);
+    }
+  });
 };
+
+const queryEditorSize = ref(1);
+
+const displayJsonEditor = (content: string) => {
+  queryEditorSize.value = queryEditorSize.value === 1 ? 0.5 : queryEditorSize.value;
+  displayEditor?.getModel()?.setValue(content);
+};
+
 const setupJsonEditor = () => {
   displayEditor = monaco.editor.create(displayEditorRef.value, {
     automaticLayout: true,
     theme: getEditorTheme(),
     value: '',
     language: 'json',
+    minimap: { enabled: false },
   });
 };
+
 onMounted(async () => {
   await readSourceFromFile();
   const code = defaultFile.value;
@@ -287,16 +434,14 @@ sourceFileAPI.onSaveShortcut(async () => {
 .editor {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-flow: row nowrap;
 
   #query-editor {
-    width: 50%;
+    width: 100%;
     height: 100%;
   }
 
   #display-editor {
-    width: 50%;
+    width: 100%;
     height: 100%;
     border-left: 1px solid var(--border-color);
   }

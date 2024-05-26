@@ -10,7 +10,10 @@
     "baseUrl": ".",
     "outDir": "dist",
     "moduleResolution": "node",
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
   },
-  "include": ["src"]
+  "include": [
+    "src",
+    "auto-imports.d.ts"
+  ]
 }

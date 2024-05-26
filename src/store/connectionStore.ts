@@ -8,6 +8,7 @@ export type Connection = {
   host: string;
   port: number;
   username?: string;
+  sslCertVerification: boolean;
   password?: string;
   queryParameters?: string;
 };
@@ -20,6 +21,7 @@ export type ConnectionIndex = {
     count: number;
     deleted: number;
   };
+  mapping: { [key: string]: unknown };
   store: {
     size: string;
   };
@@ -85,7 +87,9 @@ export const useConnectionStore = defineStore('connectionStore', {
       await this.testConnection(connection);
       const client = loadHttpClient(connection);
 
-      const data = await client.get('/_cat/indices', 'format=json');
+      const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+        [key: string]: string;
+      }>;
       const indices = data.map((index: { [key: string]: string }) => ({
         ...index,
         docs: {
@@ -99,8 +103,10 @@ export const useConnectionStore = defineStore('connectionStore', {
     async fetchIndices() {
       if (!this.established) throw new Error('no connection established');
       const client = loadHttpClient(this.established as Connection);
-      const data = await client.get('/_cat/indices', 'format=json');
-      this.established!.indices = data.map((index: { [key: string]: string }) => ({
+      const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+        [key: string]: string;
+      }>;
+      this.established.indices = data.map((index: { [key: string]: string }) => ({
         ...index,
         docs: {
           count: parseInt(index['docs.count'], 10),
@@ -109,12 +115,17 @@ export const useConnectionStore = defineStore('connectionStore', {
         store: { size: index['store.size'] },
       }));
     },
-    selectIndex(indexName: string) {
+    async selectIndex(indexName: string) {
+      const client = loadHttpClient(this.established);
+
+      // get the index mapping
+      const mapping = await client.get(`/${indexName}/_mapping`, 'format=json');
+      const activeIndex = this.established?.indices.find(
+        ({ index }: { index: string }) => index === indexName,
+      );
       this.established = {
         ...this.established,
-        activeIndex: this.established?.indices.find(
-          ({ index }: { index: string }) => index === indexName,
-        ),
+        activeIndex: { ...activeIndex, mapping },
       } as Established;
     },
     async searchQDSL({
@@ -130,9 +141,25 @@ export const useConnectionStore = defineStore('connectionStore', {
     }) {
       if (!this.established) throw new Error('no connection established');
       const client = loadHttpClient(this.established);
+      // refresh the index mapping
+      try {
+        if (index && index !== this.established.activeIndex?.index) {
+          const newIndex = this.established.indices.find(
+            ({ index: indexName }: ConnectionIndex) => indexName === index,
+          );
+          if (newIndex) {
+            if (!newIndex.mapping) {
+              newIndex.mapping = await client.get(`/${index}/_mapping`, 'format=json');
+            }
+            this.established = { ...this.established, activeIndex: newIndex };
+          }
+        }
+      } catch (err) {
+        console.error('failed to refresh index mapping', err);
+      }
 
       const reqPath = buildPath(index, path);
-      const body = qdsl ? JSON.parse(qdsl) : undefined;
+      const body = qdsl ?? undefined;
 
       const dispatch: { [method: string]: () => Promise<unknown> } = {
         POST: async () => client.post(reqPath, undefined, body),
