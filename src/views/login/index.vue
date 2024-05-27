@@ -2,21 +2,13 @@
   <div class="login-container">
     <div class="login-form-content">
       <h1>DocKit</h1>
-      <n-form
-        ref="loginFormRef"
-        :model="loginForm"
-        :rules="loginRules"
-        :show-label="false"
-      >
+      <n-form ref="loginFormRef" :model="loginForm" :rules="loginRules" :show-label="false">
         <n-form-item path="name">
-          <n-input
-            v-model:value="loginForm.name"
-            clearable
-            :placeholder="$t('login.enterName')"
-          />
+          <n-input v-model:value="loginForm.name" clearable :placeholder="$t('login.enterName')" />
         </n-form-item>
         <n-form-item path="password">
-          <n-input v-model:value="loginForm.password"
+          <n-input
+            v-model:value="loginForm.password"
             type="password"
             show-password-on="mousedown"
             :placeholder="$t('login.enterPwd')"
@@ -35,46 +27,45 @@
 </template>
 
 <script setup lang="ts">
-import { FormRules } from 'naive-ui'
-import { useUserStore } from './../../store'
-import { router } from './../../router';
-import { useLang } from './../../lang';
+import { useUserStore } from '../../store';
+import { router } from '../../router';
+import { useLang } from '../../lang';
 
-const userStore = useUserStore()
+const userStore = useUserStore();
 const lang = useLang();
 
 const loginFormRef = ref(null);
 const loginForm = ref({
   name: '',
   password: '',
-})
-const loginRules: FormRules = ref({
+});
+
+const loginRules = ref({
   name: [
     {
       required: true,
       message: lang.t('login.enterName'),
       trigger: ['input', 'blur'],
-    }
+    },
   ],
   password: [
     {
       required: true,
       message: lang.t('login.enterPwd'),
       trigger: ['input', 'blur'],
-    }
-  ]
-})
+    },
+  ],
+});
 
 const handleLogin = (e: MouseEvent) => {
-  e.preventDefault()
-  loginFormRef.value.validate((errors) => {
+  e.preventDefault();
+  loginFormRef.value.validate(errors => {
     if (!errors) {
-      userStore.setToken('setToken')
-      router.push('/')
+      userStore.setToken('setToken');
+      router.push('/');
     }
-  })
-}
-
+  });
+};
 </script>
 
 <style lang="scss" scoped>
