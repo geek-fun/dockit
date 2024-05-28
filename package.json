@@ -32,7 +32,7 @@
     "markdown-it": "^14.1.0",
     "monaco-editor": "^0.46.0",
     "node-fetch": "^2.7.0",
-    "openai": "^4.35.0",
+    "openai": "^4.42.0",
     "pinia": "^2.1.7",
     "pinia-plugin-persistedstate": "^3.2.1",
     "ulidx": "^2.3.0",
