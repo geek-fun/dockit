@@ -104,7 +104,7 @@ jobs:
             LICENSE
             out/make/**/*.{dmg,rpm,deb,Setup.exe}
       - name: Distribute artifacts to R2
-        uses: ryand56/r2-upload-action@latest
+        uses: ryand56/r2-upload-action@master
         if: steps.tag_release.outputs.successful
         with:
           r2-account-id:  ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
