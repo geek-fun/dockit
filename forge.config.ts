@@ -4,10 +4,8 @@ import { MakerDeb } from '@electron-forge/maker-deb';
 import { MakerRpm } from '@electron-forge/maker-rpm';
 import { MakerDMG } from '@electron-forge/maker-dmg';
 import { VitePlugin } from '@electron-forge/plugin-vite';
+import { version, author, description, homepage } from './package.json';
 
-const author = 'geekfun <support@geekfun.club>';
-const homepage = 'https://dockit.geekfun.club';
-const description = 'A faster, better and more stable NoSQL desktop tools';
 const iconPath = './public/dockit';
 
 const config: ForgeConfig = {
@@ -32,6 +30,7 @@ const config: ForgeConfig = {
         maintainer: author,
         homepage,
         icon: `${iconPath}.png`,
+        version,
       },
     }),
     new MakerDMG({ icon: `${iconPath}.icns` }),
