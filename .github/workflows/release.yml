@@ -61,7 +61,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ matrix.os }}
-          path: out/make/**/*.{dmg,rpm,deb,Setup.exe}
+          path: out/make/*
   release:
     needs: pre-release
     runs-on: ubuntu-latest
