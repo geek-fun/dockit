@@ -63,7 +63,7 @@ jobs:
         with:
           product_path: out/make/**/*.dmg
           apple_id: ${{ secrets.APPLE_ID }}
-          apple_id_password: ${{ secrets.APPLE_ID_PASSWORD }}
+          password: ${{ secrets.APPLE_ID_PASSWORD }}
           team_id: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload artifacts
