@@ -40,6 +40,11 @@ jobs:
       - name: Build app
         shell: bash
         run: ./scripts/make-distributions.sh
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
       - name: Sign files with Trusted Signing
         if: matrix.os == 'windows-latest'
         uses: azure/trusted-signing-action@v0.3.19
@@ -56,17 +61,6 @@ jobs:
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
-      - name: Release App to Mac App Store
-        uses: GuillaumeFalourd/notary-tools@v1
-        # if: steps.tag_release.outputs.successful
-        if: matrix.os == 'macos-latest'
-        with:
-          product_path: out/make/**/*.dmg
-          apple_id: ${{ secrets.APPLE_ID }}
-          password: ${{ secrets.APPLE_ID_PASSWORD }}
-          team_id: ${{ secrets.APPLE_TEAM_ID }}
-          xcode_path: /Applications/Xcode_15.4.app
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
