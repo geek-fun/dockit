@@ -65,6 +65,7 @@ jobs:
           apple_id: ${{ secrets.APPLE_ID }}
           password: ${{ secrets.APPLE_ID_PASSWORD }}
           team_id: ${{ secrets.APPLE_TEAM_ID }}
+          xcode_path: /Applications/Xcode_15.4.app
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
