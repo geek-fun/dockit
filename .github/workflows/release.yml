@@ -56,6 +56,15 @@ jobs:
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
+      - name: Release App to Mac App Store
+        uses: GuillaumeFalourd/notary-tools@v1
+        # if: steps.tag_release.outputs.successful
+        if: matrix.os == 'macos-latest'
+        with:
+          product_path: out/make/**/*.dmg
+          apple_id: ${{ secrets.APPLE_ID }}
+          apple_id_password: ${{ secrets.APPLE_ID_PASSWORD }}
+          team_id: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -93,7 +102,7 @@ jobs:
             ${{ steps.changelog.outputs.compareurl }}
 
             ${{ steps.changelog.outputs.changelog }}
-      - name: Release App
+      - name: Release App to GitHub
         uses: "marvinpinto/action-automatic-releases@latest"
         if: steps.tag_release.outputs.successful
         with:
@@ -103,6 +112,7 @@ jobs:
           files: |
             LICENSE
             out/make/**/*.{dmg,rpm,deb,Setup.exe}
+
       - name: Distribute artifacts to R2
         uses: ryand56/r2-upload-action@master
         if: steps.tag_release.outputs.successful
