@@ -108,13 +108,13 @@ jobs:
             LICENSE
             out/make/**/*.{dmg,rpm,deb,Setup.exe}
 
-      - name: Distribute artifacts to R2
-        uses: ryand56/r2-upload-action@master
-        if: steps.tag_release.outputs.successful
-        with:
-          r2-account-id:  ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
-          r2-bucket: ${{ secrets.CLOUDFLARE_ARTIFACTS_R2 }}
-          source-dir: out/make/
-          destination-dir: dockit
+#      - name: Distribute artifacts to R2
+#        uses: ryand56/r2-upload-action@master
+#        if: steps.tag_release.outputs.successful
+#        with:
+#          r2-account-id:  ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+#          r2-access-key-id: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+#          r2-secret-access-key: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+#          r2-bucket: ${{ secrets.CLOUDFLARE_ARTIFACTS_R2 }}
+#          source-dir: out/make/
+#          destination-dir: dockit

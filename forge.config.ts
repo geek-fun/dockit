@@ -13,12 +13,15 @@ const config: ForgeConfig = {
     asar: true,
     icon: iconPath,
     executableName: 'DocKit',
-    osxSign: {},
-    osxNotarize: {
-      appleId: process.env.APPLE_ID,
-      appleIdPassword: process.env.APPLE_ID_PASSWORD,
-      teamId: process.env.APPLE_TEAM_ID,
-    },
+    appBundleId: 'club.geekfun.dockit',
+    // osxSign: {
+    //   identity: 'Developer ID Application: Lisheng Zi (Z44247ZSR9)',
+    // },
+    // osxNotarize: {
+    //   appleId: process.env.APPLE_ID,
+    //   appleIdPassword: process.env.APPLE_ID_PASSWORD,
+    //   teamId: process.env.APPLE_TEAM_ID,
+    // },
   },
   rebuildConfig: {},
   makers: [
@@ -27,6 +30,7 @@ const config: ForgeConfig = {
       description,
       iconUrl: 'https://gitee.com/geek-fun/dockit/raw/master/public/dockit.png',
       setupIcon: `${iconPath}.ico`,
+      noDelta: true, // Disables delta updates
     }),
     new MakerRpm({
       options: { homepage, icon: `${iconPath}.png` },
