@@ -9,9 +9,10 @@
   </n-split>
 </template>
 <script setup lang="ts">
+import { open } from '@tauri-apps/api/shell';
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
-import { onMounted, onUnmounted, ref, Ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
   buildSearchToken,
@@ -387,7 +388,7 @@ const setupQueryEditor = (code: string) => {
       getPointerAction(queryEditor, searchTokens),
     );
     if (docLink) {
-      window.electronAPI.openLink(docLink);
+      open(docLink);
     }
   });
 };
@@ -420,9 +421,7 @@ onUnmounted(() => {
   codeLensProvider.dispose();
 });
 
-const { sourceFileAPI } = window;
-
-sourceFileAPI.onSaveShortcut(async () => {
+window.addEventListener('saveFile', async () => {
   if (!queryEditor) {
     return;
   }

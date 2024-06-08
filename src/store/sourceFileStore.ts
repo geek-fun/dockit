@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
+import { sourceFileApi } from '../datasources';
 
-const { sourceFileAPI } = window;
+const sourceFilePath = 'search/default.search';
+
 export const useSourceFileStore = defineStore('sourceFileStore', {
   state(): { defaultFile: string } {
     return {
@@ -10,11 +12,11 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
   getters: {},
   actions: {
     async readSourceFromFile() {
-      this.defaultFile = await sourceFileAPI.readFile();
+      this.defaultFile = await sourceFileApi.readFile(sourceFilePath);
     },
     async saveSourceToFile(content: string) {
       this.defaultFile = content;
-      await sourceFileAPI.saveFile(content);
+      await sourceFileApi.saveFile(sourceFilePath, content);
     },
   },
 });

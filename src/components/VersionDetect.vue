@@ -24,9 +24,10 @@
 </template>
 
 <script setup lang="ts">
+import { getVersion } from '@tauri-apps/api/app';
+import { open } from '@tauri-apps/api/shell';
 import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { NModal, NButton } from 'naive-ui';
 import { useAppStore } from '../store';
 
 const platforms: { [key: string]: string } = {
@@ -44,8 +45,8 @@ const dialogVisible = ref(false);
 const version = ref('');
 const link = ref({ name: '', url: '' });
 
-const download = () => {
-  window.electronAPI.openLink(link.value.url);
+const download = async () => {
+  await open(link.value.url);
   dialogVisible.value = false;
 };
 
@@ -73,6 +74,7 @@ const getLatestReleaseInfo = async (): Promise<{
   return { version: data.tag_name, assets };
 };
 const getLatestLink = async () => {
+  //@ts-ignore
   const { architecture, platform } = await window.navigator.userAgentData.getHighEntropyValues([
     'architecture',
   ]);
@@ -86,13 +88,13 @@ const getLatestLink = async () => {
 onMounted(async () => {
   try {
     const { version: newVersion } = await getLatestReleaseInfo();
-    const { version: currentVersion } = await window.electronAPI.versions();
+    const currentVersion = await getVersion();
     if (newVersion.endsWith(currentVersion) && skipVersion.value !== newVersion) return;
 
     const assetsLink = await getLatestLink();
     if (link) {
       version.value = newVersion;
-      link.value = assetsLink;
+      link.value = assetsLink as { name: string; url: string };
       dialogVisible.value = true;
     }
   } catch (error) {

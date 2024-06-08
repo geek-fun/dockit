@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { pureObject } from '../common';
-
+import { storeApi } from '../datasources';
 export enum ThemeType {
   AUTO = 'auto',
   DARK = 'dark',
@@ -12,7 +12,7 @@ export enum LanguageType {
   ZH_CN = 'zhCN',
   EN_US = 'enUS',
 }
-const { storeAPI } = window;
+
 export const useAppStore = defineStore('app', {
   state: (): {
     themeType: ThemeType;
@@ -36,7 +36,7 @@ export const useAppStore = defineStore('app', {
   persist: true,
   actions: {
     async fetchAigcConfig() {
-      this.aigcConfig = await storeAPI.getSecret('aigcConfig', { openAi: {} });
+      this.aigcConfig = await storeApi.getSecret('aigcConfig', { openAi: {} });
     },
     setConnectPanel() {
       this.connectPanel = !this.connectPanel;
@@ -62,7 +62,7 @@ export const useAppStore = defineStore('app', {
     },
     async saveAigcConfig(config: { [key: string]: unknown }) {
       this.aigcConfig = config;
-      await storeAPI.setSecret('aigcConfig', pureObject(config));
+      await storeApi.setSecret('aigcConfig', pureObject(config));
     },
   },
 });

@@ -3,6 +3,7 @@ import { ulid } from 'ulidx';
 import { lang } from '../lang';
 import { CustomError, pureObject, ErrorCodes } from '../common';
 import { useConnectionStore } from './connectionStore';
+import { storeApi } from '../datasources';
 
 enum MessageStatus {
   SENDING = 'SENDING',
@@ -14,12 +15,11 @@ export enum ChatMessageRole {
   USER = 'USER',
   BOT = 'BOT',
 }
-const { chatBotApi, storeAPI } = window;
 
 let receiveRegistration = false;
 
 export const getOpenAiConfig = async () => {
-  const { openAi } = await storeAPI.getSecret('aigcConfig', { openAi: null });
+  const { openAi } = await storeApi.getSecret('aigcConfig', { openAi: null });
   if (!openAi) {
     throw new CustomError(ErrorCodes.MISSING_GPT_CONFIG, lang.global.t('setting.ai.missing'));
   }
@@ -49,7 +49,7 @@ export const useChatStore = defineStore('chat', {
   },
   actions: {
     async fetchChats() {
-      const chats = await storeAPI.get('chats', undefined);
+      const chats = await storeApi.get('chats', undefined);
       const { apiKey, httpProxy } = await getOpenAiConfig();
       if (!chats || !chats.length) {
         return;
@@ -58,7 +58,7 @@ export const useChatStore = defineStore('chat', {
       const assistant = await chatBotApi.findAssistant({ apiKey, assistantId, httpProxy });
       if (!assistant) {
         this.chats = [];
-        await storeAPI.set('chats', []);
+        await storeApi.set('chats', []);
         return;
       }
       this.chats = chats ?? [];
@@ -98,7 +98,7 @@ export const useChatStore = defineStore('chat', {
       }
       const { apiKey, prompt, model, httpProxy } = await getOpenAiConfig();
       if (!this.chats[0]) {
-        const chats = await storeAPI.get('chats', undefined);
+        const chats = await storeApi.get('chats', undefined);
         if (chats && chats.length) {
           this.chats = chats;
         } else {
@@ -110,7 +110,7 @@ export const useChatStore = defineStore('chat', {
               httpProxy,
             });
             this.chats.push({ id: ulid(), type: 'openai', messages: [], assistantId, threadId });
-            await storeAPI.set('chats', pureObject(this.chats));
+            await storeApi.set('chats', pureObject(this.chats));
           } catch (err) {
             throw new Error(err.message);
           }
@@ -123,7 +123,7 @@ export const useChatStore = defineStore('chat', {
         role: ChatMessageRole.USER,
         content,
       });
-      await storeAPI.set('chats', pureObject(this.chats));
+      await storeApi.set('chats', pureObject(this.chats));
       const connectionStore = useConnectionStore();
       const index = connectionStore.$state.established?.activeIndex;
       const question = index
@@ -139,7 +139,7 @@ export const useChatStore = defineStore('chat', {
         });
       } catch (err) {
         messages[messages.length - 1].status = MessageStatus.FAILED;
-        await storeAPI.set('chats', pureObject(this.chats));
+        await storeApi.set('chats', pureObject(this.chats));
         throw new Error(err.message);
       }
     },
