@@ -66,6 +66,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       console.log('connections', this.connections);
     },
     async testConnection(con: Connection) {
+      console.log('testConnection', con);
       const client = loadHttpClient(con);
 
       return await client.get(undefined, 'format=json');
@@ -137,7 +138,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       method: string;
       path: string;
       index?: string;
-      qdsl?: string;
+      qdsl?: { [key: string]: unknown };
     }) {
       if (!this.established) throw new Error('no connection established');
       const client = loadHttpClient(this.established);

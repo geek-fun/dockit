@@ -1,5 +1,5 @@
-import { CustomError, debug } from '../common';
-import { fetch, HttpVerb } from '@tauri-apps/api/http';
+import { base64Encode, CustomError, debug } from '../common';
+import { fetch, HttpVerb, Body } from '@tauri-apps/api/http';
 import { lang } from '../lang';
 
 type FetchApiOptions = {
@@ -8,11 +8,12 @@ type FetchApiOptions = {
     [key: string]: string | number | undefined;
   };
   agent: { ssl: boolean } | undefined;
-  payload: string | undefined;
+  payload: unknown;
 };
 
 const handleFetch = (result: { data: unknown; status: number; details: string | undefined }) => {
   if ([404, 400].includes(result.status) || (result.status >= 200 && result.status < 300)) {
+    console.log('fetchApi.handleFetch', { result });
     return result.data || JSON.parse(result.details || '');
   }
   if (result.status === 401) {
@@ -43,26 +44,29 @@ const fetchWrapper = async ({
   method: string;
   path?: string;
   queryParameters?: string;
-  payload?: string;
+  payload?: unknown;
   username?: string;
   password?: string;
   host: string;
   port: number;
   ssl: boolean;
 }) => {
-  const authorization =
-    username || password
-      ? `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`
-      : undefined;
+  try {
+    const authorization =
+      username || password ? `Basic ${base64Encode(`${username}:${password}`)}` : undefined;
 
-  const url = buildURL(host, port, path, queryParameters);
-  const { data, status, details } = await fetchRequest(url, {
-    method: method as HttpVerb,
-    headers: { authorization },
-    payload: payload ? JSON.stringify(payload) : undefined,
-    agent: { ssl },
-  });
-  return handleFetch({ data, status, details });
+    const url = buildURL(host, port, path, queryParameters);
+    const { data, status, details } = await fetchRequest(url, {
+      method: method as HttpVerb,
+      headers: { Authorization: authorization },
+      payload,
+      agent: { ssl },
+    });
+    return handleFetch({ data, status, details });
+  } catch (err) {
+    console.log('fetchWrapper error:', err);
+    throw err;
+  }
 };
 
 const fetchRequest = async (
@@ -83,7 +87,7 @@ const fetchRequest = async (
     const result = await fetch(url, {
       method,
       headers,
-      body: payload ? JSON.parse(payload) : undefined,
+      body: payload ? Body.json(payload) : undefined,
       // agent,
     });
     if (result.ok) {
@@ -93,12 +97,20 @@ const fetchRequest = async (
 
       return { status: result.status, data };
     }
+    console.log('fetchApi.fetch', { url, method, headers, payload, agentSslConf, result });
     throw new CustomError(result.status, result.data as string);
   } catch (e) {
     const error = e as CustomError;
+    const details = error.details || error.message;
     debug('error encountered while node-fetch fetch target:', e);
-    console.log('error encountered while node-fetch fetch target:', e);
-    return { status: error.status || 500, details: error.details || error.message };
+    console.log('error encountered while node-fetch fetch target:', {
+      status: error.status || 500,
+      details: JSON.stringify(error),
+    });
+    return {
+      status: error.status || 500,
+      details: typeof details === 'string' ? details : JSON.stringify(details),
+    };
   }
 };
 
@@ -117,7 +129,7 @@ const loadHttpClient = (con: {
       queryParameters,
       ssl: con.sslCertVerification,
     }),
-  post: async (path: string, queryParameters?: string, payload?: string) =>
+  post: async (path: string, queryParameters?: string, payload?: unknown) =>
     fetchWrapper({
       ...con,
       method: 'POST',
@@ -126,7 +138,7 @@ const loadHttpClient = (con: {
       payload,
       ssl: con.sslCertVerification,
     }),
-  put: async (path: string, queryParameters?: string, payload?: string) =>
+  put: async (path: string, queryParameters?: string, payload?: unknown) =>
     fetchWrapper({
       ...con,
       method: 'PUT',
@@ -136,7 +148,7 @@ const loadHttpClient = (con: {
       ssl: con.sslCertVerification,
     }),
 
-  delete: async (path: string, queryParameters?: string, payload?: string) =>
+  delete: async (path: string, queryParameters?: string, payload?: unknown) =>
     fetchWrapper({
       ...con,
       method: 'DELETE',
