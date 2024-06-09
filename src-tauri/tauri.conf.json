@@ -22,6 +22,11 @@
         "writeFile": true,
         "exists": true,
         "scope": ["$APPDATA/search/*"]
+      },
+      "http": {
+        "all": true,
+        "request": true,
+        "scope": ["http://*/*", "https://*/*"]
       }
     },
     "windows": [

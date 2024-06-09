@@ -4,20 +4,24 @@ const store = new Store('.store.dat');
 
 const storeApi = {
   get: async (key: string, defaultValue: unknown) => {
-    return store.get(key) || defaultValue;
+    const val = (await store.get(key)) || defaultValue;
+    console.log('storeApi.get', { key, defaultValue, val });
+    return val;
   },
 
   set: async (key: string, value: unknown) => {
-    return store.set(key, value);
+    console.log('storeApi.set', { key, value });
+    return await store.set(key, value);
   },
   getSecret: async (key: string, defaultValue: unknown) => {
-    const encryptedValue = store.get(key) || defaultValue;
-
+    const encryptedValue = (await store.get(key)) || defaultValue;
+    console.log('storeApi.getSecret', { key, encryptedValue });
     return encryptedValue;
   },
   setSecret: async (key: string, value: unknown) => {
     const encryptedValue = value;
-    store.set(key, encryptedValue);
+    console.log('storeApi.setSecret', { key, encryptedValue });
+    await store.set(key, encryptedValue);
   },
 };
 

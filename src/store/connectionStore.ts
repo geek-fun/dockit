@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { pureObject } from '../common';
-import { loadHttpClient } from '../common/httpClient';
-import { storeApi } from '../datasources';
+import { storeApi, loadHttpClient } from '../datasources';
 
 export type Connection = {
   id?: number;
@@ -63,7 +62,8 @@ export const useConnectionStore = defineStore('connectionStore', {
   },
   actions: {
     async fetchConnections() {
-      this.connections = await storeApi.get('connections', []);
+      this.connections = (await storeApi.get('connections', [])) as Connection[];
+      console.log('connections', this.connections);
     },
     async testConnection(con: Connection) {
       const client = loadHttpClient(con);

@@ -1,17 +1,24 @@
-import { CustomError } from './customError';
-import { Buffer } from 'buffer';
+import { CustomError, debug } from '../common';
+import { fetch, HttpVerb } from '@tauri-apps/api/http';
 import { lang } from '../lang';
 
-const { fetchApi } = window;
+type FetchApiOptions = {
+  method: HttpVerb;
+  headers: {
+    [key: string]: string | number | undefined;
+  };
+  agent: { ssl: boolean } | undefined;
+  payload: string | undefined;
+};
 
-const handleFetch = (result: { data: unknown; status: number; details: string }) => {
+const handleFetch = (result: { data: unknown; status: number; details: string | undefined }) => {
   if ([404, 400].includes(result.status) || (result.status >= 200 && result.status < 300)) {
-    return result.data || JSON.parse(result.details);
+    return result.data || JSON.parse(result.details || '');
   }
   if (result.status === 401) {
     throw new CustomError(result.status, lang.global.t('connection.unAuthorized'));
   }
-  throw new CustomError(result.status, result.details);
+  throw new CustomError(result.status, result.details || '');
 };
 
 const buildURL = (host: string, port: number, path?: string, queryParameters?: string) => {
@@ -21,6 +28,7 @@ const buildURL = (host: string, port: number, path?: string, queryParameters?: s
 
   return url;
 };
+
 const fetchWrapper = async ({
   method,
   path,
@@ -48,18 +56,53 @@ const fetchWrapper = async ({
       : undefined;
 
   const url = buildURL(host, port, path, queryParameters);
-  const { data, status, details } = await fetchApi.fetch(url, {
-    method,
-    headers: {
-      authorization,
-    },
+  const { data, status, details } = await fetchRequest(url, {
+    method: method as HttpVerb,
+    headers: { authorization },
     payload: payload ? JSON.stringify(payload) : undefined,
     agent: { ssl },
   });
   return handleFetch({ data, status, details });
 };
 
-export const loadHttpClient = (con: {
+const fetchRequest = async (
+  url: string,
+  { method, headers: inputHeaders, payload, agent: agentSslConf }: FetchApiOptions,
+) => {
+  // const sslConfig = url.startsWith('https') ? { rejectUnauthorized: agentSslConf?.ssl } : undefined;
+  // const agent = process.env.https_proxy
+  //   ? new HttpsProxyAgent(process.env.https_proxy, { ...sslConfig })
+  //   : undefined;
+
+  console.log('fetchApi.fetch', { url, method, headers: inputHeaders, payload, agentSslConf });
+
+  const headers = JSON.parse(
+    JSON.stringify({ 'Content-Type': 'application/json', ...inputHeaders }),
+  );
+  try {
+    const result = await fetch(url, {
+      method,
+      headers,
+      body: payload ? JSON.parse(payload) : undefined,
+      // agent,
+    });
+    if (result.ok) {
+      const data = result.headers['content-type']?.includes('application/json')
+        ? result.data
+        : (result.data as string)?.split('\n')?.filter(Boolean);
+
+      return { status: result.status, data };
+    }
+    throw new CustomError(result.status, result.data as string);
+  } catch (e) {
+    const error = e as CustomError;
+    debug('error encountered while node-fetch fetch target:', e);
+    console.log('error encountered while node-fetch fetch target:', e);
+    return { status: error.status || 500, details: error.details || error.message };
+  }
+};
+
+const loadHttpClient = (con: {
   host: string;
   port: number;
   username?: string;
@@ -103,3 +146,5 @@ export const loadHttpClient = (con: {
       ssl: con.sslCertVerification,
     }),
 });
+
+export { loadHttpClient };
