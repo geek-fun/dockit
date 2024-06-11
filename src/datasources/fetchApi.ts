@@ -100,12 +100,15 @@ const fetchRequest = async (
     console.log('fetchApi.fetch', { url, method, headers, payload, agentSslConf, result });
     throw new CustomError(result.status, result.data as string);
   } catch (e) {
-    const error = e as CustomError;
+    const error = typeof e == 'string' ? new CustomError(500, e) : (e as CustomError);
     const details = error.details || error.message;
     debug('error encountered while node-fetch fetch target:', e);
     console.log('error encountered while node-fetch fetch target:', {
       status: error.status || 500,
-      details: JSON.stringify(error),
+      details,
+      e,
+      et: typeof e,
+      error,
     });
     return {
       status: error.status || 500,

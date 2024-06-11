@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { pureObject } from '../common';
-import { storeApi } from '../datasources';
+import { storeApi, chatBotApi } from '../datasources';
+import { lang } from '../lang';
 export enum ThemeType {
   AUTO = 'auto',
   DARK = 'dark',
@@ -12,7 +13,13 @@ export enum LanguageType {
   ZH_CN = 'zhCN',
   EN_US = 'enUS',
 }
-
+type OpenAiConfig = {
+  apiKey: string;
+  model: string;
+  prompt?: string;
+  httpProxy?: string;
+  enabled: boolean;
+};
 export const useAppStore = defineStore('app', {
   state: (): {
     themeType: ThemeType;
@@ -21,7 +28,7 @@ export const useAppStore = defineStore('app', {
     uiThemeType: Exclude<ThemeType, ThemeType.AUTO>;
     skipVersion: string;
     aigcConfig: {
-      openAi: { apiKey?: string; model?: string; prompt?: string; httpProxy?: string };
+      openAi: OpenAiConfig;
     };
   } => {
     return {
@@ -30,7 +37,7 @@ export const useAppStore = defineStore('app', {
       connectPanel: true, //
       uiThemeType: ThemeType.LIGHT,
       skipVersion: '',
-      aigcConfig: { openAi: {} },
+      aigcConfig: { openAi: {} as unknown as OpenAiConfig },
     };
   },
   persist: true,
@@ -60,9 +67,14 @@ export const useAppStore = defineStore('app', {
     getEditorTheme() {
       return this.uiThemeType === ThemeType.DARK ? 'vs-dark' : 'vs-light';
     },
-    async saveAigcConfig(config: { [key: string]: unknown }) {
-      this.aigcConfig = config;
-      await storeApi.setSecret('aigcConfig', pureObject(config));
+    async saveAigcConfig({ openAi }: { openAi: OpenAiConfig }) {
+      if (openAi.enabled && !(await chatBotApi.validateConfig(openAi))) {
+        throw new Error(lang.global.t('setting.ai.invalid'));
+      }
+
+      this.aigcConfig = { openAi };
+
+      await storeApi.setSecret('aigcConfig', pureObject({ openAi }));
     },
   },
 });

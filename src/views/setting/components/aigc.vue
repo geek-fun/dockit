@@ -46,6 +46,7 @@
 <script setup lang="ts">
 import { useAppStore, useChatStore } from '../../../store';
 import { storeToRefs } from 'pinia';
+import { useMessage } from 'naive-ui';
 
 const appStore = useAppStore();
 const { fetchAigcConfig, saveAigcConfig } = appStore;
@@ -53,16 +54,30 @@ const { aigcConfig } = storeToRefs(appStore);
 
 const chatStore = useChatStore();
 const { fetchChats, modifyAssistant } = chatStore;
+const message = useMessage();
 
 const openAi = ref({ ...aigcConfig.value.openAi });
+
+const messageWrapper = async (fn: () => Promise<void>) =>
+  fn()
+    .then(() => message.success(''))
+    .catch(err => {
+      message.error((err as Error).message, {
+        closable: true,
+        keepAliveOnHover: true,
+      });
+    });
+
 const reset = async () => {
-  openAi.value = { apiKey: '', model: '', prompt: '', httpProxy: '' };
-  await saveAigcConfig({ ...aigcConfig.value, openAi: openAi.value, enabled: false });
+  openAi.value = { apiKey: '', model: '', prompt: '', httpProxy: '', enabled: false };
+  await messageWrapper(() => saveAigcConfig({ ...aigcConfig.value, openAi: openAi.value }));
 };
 
 const save = async () => {
-  await saveAigcConfig({ ...aigcConfig.value, openAi: openAi.value, enabled: true });
-  await modifyAssistant();
+  await messageWrapper(async () => {
+    await saveAigcConfig({ ...aigcConfig.value, openAi: { ...openAi.value, enabled: true } });
+    await modifyAssistant();
+  });
 };
 
 fetchAigcConfig().then(() => {
@@ -74,6 +89,7 @@ fetchChats();
 <style lang="scss" scoped>
 .form-tab-pane {
   width: 96%;
+
   .action-button {
     margin-right: 10px;
   }
