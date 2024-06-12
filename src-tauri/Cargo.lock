@@ -699,6 +699,8 @@ name = "dockit"
 version = "0.0.0"
 dependencies = [
  "async-openai",
+ "http 0.2.12",
+ "log",
  "reqwest 0.12.4",
  "serde",
  "serde_json",

@@ -1,9 +1,9 @@
 import { base64Encode, CustomError, debug } from '../common';
-import { fetch, HttpVerb, Body } from '@tauri-apps/api/http';
 import { lang } from '../lang';
+import { invoke } from '@tauri-apps/api/tauri';
 
 type FetchApiOptions = {
-  method: HttpVerb;
+  method: string;
   headers: {
     [key: string]: string | number | undefined;
   };
@@ -57,8 +57,8 @@ const fetchWrapper = async ({
 
     const url = buildURL(host, port, path, queryParameters);
     const { data, status, details } = await fetchRequest(url, {
-      method: method as HttpVerb,
-      headers: { Authorization: authorization },
+      method,
+      headers: { authorization },
       payload,
       agent: { ssl },
     });
@@ -73,10 +73,7 @@ const fetchRequest = async (
   url: string,
   { method, headers: inputHeaders, payload, agent: agentSslConf }: FetchApiOptions,
 ) => {
-  // const sslConfig = url.startsWith('https') ? { rejectUnauthorized: agentSslConf?.ssl } : undefined;
-  // const agent = process.env.https_proxy
-  //   ? new HttpsProxyAgent(process.env.https_proxy, { ...sslConfig })
-  //   : undefined;
+  const agent = { ssl: url.startsWith('https') && agentSslConf?.ssl };
 
   console.log('fetchApi.fetch', { url, method, headers: inputHeaders, payload, agentSslConf });
 
@@ -84,21 +81,21 @@ const fetchRequest = async (
     JSON.stringify({ 'Content-Type': 'application/json', ...inputHeaders }),
   );
   try {
-    const result = await fetch(url, {
-      method,
-      headers,
-      body: payload ? Body.json(payload) : undefined,
-      // agent,
-    });
-    if (result.ok) {
-      const data = result.headers['content-type']?.includes('application/json')
-        ? result.data
-        : (result.data as string)?.split('\n')?.filter(Boolean);
+    const { status, message, data } = JSON.parse(
+      await invoke<string>('fetch_api', {
+        url,
+        options: { method, headers, body: payload ? JSON.stringify(payload) : undefined, agent },
+      }),
+    ) as { status: number; message: string; data: unknown };
 
-      return { status: result.status, data };
+    if (status >= 200 && status < 300) {
+      const parsedData =
+        typeof data === 'object' ? data : (data as string)?.split('\n')?.filter(Boolean);
+
+      return { status, message, data: parsedData };
     }
-    console.log('fetchApi.fetch', { url, method, headers, payload, agentSslConf, result });
-    throw new CustomError(result.status, result.data as string);
+    console.log('fetchApi.fetch', { url, method, headers, payload, agentSslConf });
+    throw new CustomError(status, message);
   } catch (e) {
     const error = typeof e == 'string' ? new CustomError(500, e) : (e as CustomError);
     const details = error.details || error.message;
