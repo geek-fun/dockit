@@ -7,7 +7,6 @@ use std::option::Option;
 use std::str::FromStr;
 
 use async_openai::{Client, config::OpenAIConfig};
-use log::log;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
 use serde_json::json;
@@ -71,19 +70,6 @@ where
         .collect()
 }
 
-//
-// fn convert_hashmap_to_headermap(hashmap: HashMap<String, String>) -> HeaderMap {
-//     let mut header_map = HeaderMap::new();
-//     for (key, value) in hashmap {
-//         if let Ok(header_name) = HeaderName::from_bytes(key.as_bytes()) {
-//             if let Ok(header_value) = HeaderValue::from_str(&value) {
-//                 header_map.insert::<HeaderName>(header_name, header_value);
-//             }
-//         }
-//     }
-//     header_map
-// }
-//
 static mut OPENAI_CLIENT: Option<Client<OpenAIConfig>> = None;
 
 #[tauri::command]
