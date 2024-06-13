@@ -29,104 +29,104 @@ const ASSISTANT_NAME = 'dockit-assistant';
 // };
 
 const chatBotApi = {
-  // initialize: async ({
-  //   openai,
-  //   prompt,
-  //   model,
-  // }: {
-  //   openai: OpenAI;
-  //   prompt: string;
-  //   model: string;
-  // }) => {
-  //   const assistant = await openai.beta.assistants.create({
-  //     name: ASSISTANT_NAME,
-  //     instructions: prompt,
-  //     model: model,
-  //   });
-  //   const thread = await openai.beta.threads.create();
-  //
-  //   return { assistantId: assistant.id, threadId: thread.id };
-  // },
-  // ask: async ({
-  //   openai,
-  //   assistantId,
-  //   threadId,
-  //   question,
-  //   mainWindow,
-  // }: {
-  //   openai: OpenAI;
-  //   assistantId: string;
-  //   threadId: string;
-  //   question: string;
-  // }) => {
-  //   await openai.beta.threads.messages.create(threadId, { role: 'user', content: question });
-  //
-  //   openai.beta.threads.runs
-  //     .stream(threadId, { assistant_id: assistantId })
-  //     .on('messageCreated', message =>
-  //       mainWindow.webContents.send('chat-bot-api-message-delta', {
-  //         msgEvent: 'messageCreated',
-  //         message,
-  //       }),
-  //     )
-  //     .on('messageDelta', delta => {
-  //       mainWindow.webContents.send('chat-bot-api-message-delta', {
-  //         msgEvent: 'messageDelta',
-  //         delta,
-  //       });
-  //     })
-  //     .on('messageDone', message =>
-  //       mainWindow.webContents.send('chat-bot-api-message-delta', {
-  //         msgEvent: 'messageDone',
-  //         message,
-  //       }),
-  //     );
-  // },
-  // modifyAssistant: async ({
-  //   apiKey,
-  //   prompt,
-  //   model,
-  //   assistantId,
-  //   httpProxy,
-  // }: {
-  //   apiKey: string;
-  //   prompt: string;
-  //   model: string;
-  //   httpProxy?: string;
-  //   assistantId: string;
-  // }) => {
-  //   // get the assistant by assistantId
-  //   const openai = createOpenaiClient({ apiKey, httpProxy });
-  //   const assistant = await openai.beta.assistants.retrieve(assistantId);
-  //   if (!assistant) {
-  //     throw new Error('Assistant not found');
-  //   }
-  //   await openai.beta.assistants.update(assistantId, {
-  //     name: ASSISTANT_NAME,
-  //     model,
-  //     instructions: prompt,
-  //   });
-  // },
-  // findAssistant: async ({
-  //   apiKey,
-  //   assistantId,
-  //   httpProxy,
-  // }: {
-  //   apiKey: string;
-  //   assistantId: string;
-  //   httpProxy?: string;
-  // }) => {
-  //   try {
-  //     const openai = createOpenaiClient({ apiKey, httpProxy });
-  //     return await openai.beta.assistants.retrieve(assistantId);
-  //   } catch ({ status, details }) {
-  //     if (status === 404) {
-  //       return undefined;
-  //     } else {
-  //       throw new Error(`Error finding assistant, status: ${status}, details: ${details}`);
-  //     }
-  //   }
-  // },
+  createAssistant: async ({
+    apiKey,
+    prompt,
+    model,
+    httpProxy,
+  }: {
+    apiKey: string;
+    prompt: string;
+    model: string;
+    httpProxy?: string;
+  }) => {
+    // const openai = createOpenaiClient({ apiKey, httpProxy });
+    // const { assistantId, threadId } = await chatBotApi.initialize({ openai, prompt, model });
+    // return { assistantId, threadId };
+    return await invoke('create_assistant', { apiKey, prompt, model, httpProxy });
+  },
+
+  modifyAssistant: async ({
+    apiKey,
+    prompt,
+    model,
+    assistantId,
+    httpProxy,
+  }: {
+    apiKey: string;
+    prompt: string;
+    model: string;
+    httpProxy?: string;
+    assistantId: string;
+  }) => {
+    // get the assistant by assistantId
+    const assistant = await invoke('find_assistant', {
+      apiKey,
+      assistantId,
+      model,
+      httpProxy,
+    });
+    if (!assistant) {
+      throw new Error('Assistant not found');
+    }
+    await invoke('modify_assistant', { apiKey, assistantId, model, prompt, httpProxy });
+  },
+  findAssistant: async ({
+    apiKey,
+    assistantId,
+    model,
+    httpProxy,
+  }: {
+    apiKey: string;
+    assistantId: string;
+    model: string;
+    httpProxy?: string;
+  }) => {
+    try {
+      return await invoke('find_assistant', { apiKey, assistantId, model, httpProxy });
+    } catch (err) {
+      const error = err as Error;
+      // if (error.=== 404) {
+      //   return undefined;
+      // } else {
+      throw new Error(
+        `Error finding assistant, status:, details: ${error.message}, stack: ${error.stack}`,
+      );
+      // }
+    }
+  },
+  chatAssistant: async ({
+    assistantId,
+    threadId,
+    question,
+  }: {
+    assistantId: string;
+    threadId: string;
+    question: string;
+  }) => {
+    await openai.beta.threads.messages.create(threadId, { role: 'user', content: question });
+
+    openai.beta.threads.runs
+      .stream(threadId, { assistant_id: assistantId })
+      .on('messageCreated', message =>
+        mainWindow.webContents.send('chat-bot-api-message-delta', {
+          msgEvent: 'messageCreated',
+          message,
+        }),
+      )
+      .on('messageDelta', delta => {
+        mainWindow.webContents.send('chat-bot-api-message-delta', {
+          msgEvent: 'messageDelta',
+          delta,
+        });
+      })
+      .on('messageDone', message =>
+        mainWindow.webContents.send('chat-bot-api-message-delta', {
+          msgEvent: 'messageDone',
+          message,
+        }),
+      );
+  },
   validateConfig: async ({
     apiKey,
     model,

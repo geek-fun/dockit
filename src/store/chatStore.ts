@@ -3,7 +3,7 @@ import { ulid } from 'ulidx';
 import { lang } from '../lang';
 import { CustomError, pureObject, ErrorCodes } from '../common';
 import { useConnectionStore } from './connectionStore';
-import { storeApi } from '../datasources';
+import { chatBotApi, storeApi } from '../datasources';
 
 enum MessageStatus {
   SENDING = 'SENDING',
@@ -25,23 +25,20 @@ export const getOpenAiConfig = async () => {
   }
   return openAi;
 };
-
+type Chat = {
+  id: string;
+  type: string;
+  assistantId: string;
+  threadId: string;
+  messages: Array<{
+    id: string;
+    status: MessageStatus;
+    content: string;
+    role: ChatMessageRole;
+  }>;
+};
 export const useChatStore = defineStore('chat', {
-  state: (): {
-    chats: Array<{
-      id: string;
-      type: string;
-      assistantId: string;
-      threadId: string;
-      messages: Array<{
-        id: string;
-        status: MessageStatus;
-        content: string;
-        role: ChatMessageRole;
-      }>;
-    }>;
-    insertBoard: string;
-  } => {
+  state: (): { chats: Array<Chat>; insertBoard: string } => {
     return {
       chats: [],
       insertBoard: '',
@@ -49,13 +46,13 @@ export const useChatStore = defineStore('chat', {
   },
   actions: {
     async fetchChats() {
-      const chats = await storeApi.get('chats', undefined);
-      const { apiKey, httpProxy } = await getOpenAiConfig();
+      const chats = await storeApi.get<Array<Chat>>('chats', []);
+      const { apiKey, httpProxy, model } = await getOpenAiConfig();
       if (!chats || !chats.length) {
         return;
       }
       const { assistantId } = chats[0];
-      const assistant = await chatBotApi.findAssistant({ apiKey, assistantId, httpProxy });
+      const assistant = await chatBotApi.findAssistant({ apiKey, assistantId, httpProxy, model });
       if (!assistant) {
         this.chats = [];
         await storeApi.set('chats', []);
@@ -77,6 +74,7 @@ export const useChatStore = defineStore('chat', {
         httpProxy,
       });
     },
+
     async sendMessage(content: string) {
       if (!receiveRegistration) {
         chatBotApi.onMessageReceived(({ delta, msgEvent }) => {
@@ -103,7 +101,7 @@ export const useChatStore = defineStore('chat', {
           this.chats = chats;
         } else {
           try {
-            const { assistantId, threadId } = await chatBotApi.initialize({
+            const { assistantId, threadId } = await chatBotApi.createAssistant({
               apiKey,
               model,
               prompt: prompt ?? lang.global.t('setting.ai.defaultPrompt'),
@@ -130,7 +128,7 @@ export const useChatStore = defineStore('chat', {
         ? `user's question: ${content} context: indexName - ${index.index}, indexMapping - ${index.mapping}`
         : `user's question: ${content}`;
       try {
-        await chatBotApi.ask({
+        await chatBotApi.chatAssistant({
           question,
           assistantId,
           threadId,
