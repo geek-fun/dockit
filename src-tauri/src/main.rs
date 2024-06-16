@@ -145,17 +145,18 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
             let body = resp.text().await;
             match body {
                 Ok(body) => {
+                    let data: serde_json::Value = serde_json::from_str(&body).unwrap_or(json!(null));
                     let message = if is_success {
                         "Success".to_string()
                     } else {
                         "Failed to fetch API".to_string()
                     };
-                    let data: serde_json::Value = serde_json::from_str(&body).unwrap_or(json!(null));
                     let result = json!({
                         "status": status_code,
                         "message": message,
                         "data": data
                     });
+                    println!("build response structure rust,result: {:?}",result);
                     Ok(result.to_string())
                 }
                 Err(e) => {
