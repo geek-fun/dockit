@@ -14,10 +14,10 @@ const storeApi = {
     await store.set(key, value);
     await store.save();
   },
-  getSecret: async (key: string, defaultValue: unknown) => {
+  getSecret: async <T>(key: string, defaultValue: T) => {
     const encryptedValue = (await store.get(key)) || defaultValue;
     console.log('storeApi.getSecret', { key, encryptedValue });
-    return encryptedValue;
+    return encryptedValue as T;
   },
   setSecret: async (key: string, value: unknown) => {
     const encryptedValue = value;

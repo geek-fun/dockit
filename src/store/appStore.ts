@@ -13,7 +13,7 @@ export enum LanguageType {
   ZH_CN = 'zhCN',
   EN_US = 'enUS',
 }
-type OpenAiConfig = {
+export type OpenAiConfig = {
   apiKey: string;
   model: string;
   prompt?: string;
@@ -43,7 +43,9 @@ export const useAppStore = defineStore('app', {
   persist: true,
   actions: {
     async fetchAigcConfig() {
-      this.aigcConfig = await storeApi.getSecret('aigcConfig', { openAi: {} });
+      this.aigcConfig = await storeApi.getSecret<{ openAi: OpenAiConfig }>('aigcConfig', {
+        openAi: {},
+      });
     },
     setConnectPanel() {
       this.connectPanel = !this.connectPanel;

@@ -21,6 +21,7 @@ reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["full"] }
 http = "0.2.12"
 log = "0.4.21"
+futures = "0.3.30"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

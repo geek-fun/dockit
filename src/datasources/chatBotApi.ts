@@ -1,32 +1,8 @@
 import { invoke } from '@tauri-apps/api/tauri';
+import { listen } from '@tauri-apps/api/event';
+import { tauriClient } from './ApiClients.ts';
 
-export enum ChatBotApiMethods {
-  ASK = 'ASK',
-  INITIALIZE = 'INITIALIZE',
-  MODIFY_ASSISTANT = 'MODIFY_ASSISTANT',
-  FIND_ASSISTANT = 'FIND_ASSISTANT',
-}
-
-export type ChatBotApiInput = {
-  method: ChatBotApiMethods;
-  question?: string;
-  apiKey?: string;
-  prompt?: string;
-  model?: string;
-  assistantId?: string;
-  threadId?: string;
-  httpProxy?: string;
-};
-
-const ASSISTANT_NAME = 'dockit-assistant';
-//
-// const createOpenaiClient = ({ apiKey, httpProxy }: { apiKey: string; httpProxy?: string }) => {
-//   const proxy = !isEmpty(httpProxy) ? httpProxy : process.env.https_proxy;
-//   const httpAgent = !isEmpty(proxy) ? new HttpsProxyAgent(proxy) : undefined;
-//   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-//   // @ts-ignore
-//   return new OpenAI({ httpAgent, apiKey, fetch });
-// };
+let receiveRegistration = false;
 
 const chatBotApi = {
   createAssistant: async ({
@@ -39,11 +15,13 @@ const chatBotApi = {
     prompt: string;
     model: string;
     httpProxy?: string;
-  }) => {
-    // const openai = createOpenaiClient({ apiKey, httpProxy });
-    // const { assistantId, threadId } = await chatBotApi.initialize({ openai, prompt, model });
-    // return { assistantId, threadId };
-    return await invoke('create_assistant', { apiKey, prompt, model, httpProxy });
+  }): Promise<{ assistantId: string; threadId: string }> => {
+    return await tauriClient.invoke('create_assistant', {
+      apiKey,
+      instructions: prompt,
+      model,
+      httpProxy,
+    });
   },
 
   modifyAssistant: async ({
@@ -59,17 +37,23 @@ const chatBotApi = {
     httpProxy?: string;
     assistantId: string;
   }) => {
-    // get the assistant by assistantId
-    const assistant = await invoke('find_assistant', {
-      apiKey,
-      assistantId,
+    const assistant = tauriClient.invoke('modify_assistant', {
+      api_key: apiKey,
+      assistant_id: assistantId,
       model,
-      httpProxy,
+      instructions: prompt,
+      http_proxy: httpProxy,
     });
+
     if (!assistant) {
       throw new Error('Assistant not found');
     }
-    await invoke('modify_assistant', { apiKey, assistantId, model, prompt, httpProxy });
+    await tauriClient.invoke('modify_assistant', {
+      api_key: apiKey,
+      assistant_id: assistantId,
+      http_proxy: httpProxy,
+      model,
+    });
   },
   findAssistant: async ({
     apiKey,
@@ -82,50 +66,65 @@ const chatBotApi = {
     model: string;
     httpProxy?: string;
   }) => {
-    try {
-      return await invoke('find_assistant', { apiKey, assistantId, model, httpProxy });
-    } catch (err) {
-      const error = err as Error;
-      // if (error.=== 404) {
-      //   return undefined;
-      // } else {
-      throw new Error(
-        `Error finding assistant, status:, details: ${error.message}, stack: ${error.stack}`,
-      );
-      // }
-    }
+    console.log('findAssistant', { apiKey, assistantId, model, httpProxy });
+    return await tauriClient.invoke('find_assistant', {
+      apiKey,
+      assistantId,
+      model,
+      httpProxy,
+    });
   },
-  chatAssistant: async ({
-    assistantId,
-    threadId,
-    question,
-  }: {
-    assistantId: string;
-    threadId: string;
-    question: string;
-  }) => {
-    await openai.beta.threads.messages.create(threadId, { role: 'user', content: question });
-
-    openai.beta.threads.runs
-      .stream(threadId, { assistant_id: assistantId })
-      .on('messageCreated', message =>
-        mainWindow.webContents.send('chat-bot-api-message-delta', {
-          msgEvent: 'messageCreated',
-          message,
-        }),
-      )
-      .on('messageDelta', delta => {
-        mainWindow.webContents.send('chat-bot-api-message-delta', {
-          msgEvent: 'messageDelta',
-          delta,
-        });
-      })
-      .on('messageDone', message =>
-        mainWindow.webContents.send('chat-bot-api-message-delta', {
-          msgEvent: 'messageDone',
-          message,
-        }),
-      );
+  chatAssistant: async (
+    {
+      assistantId,
+      threadId,
+      question,
+    }: {
+      assistantId: string;
+      threadId: string;
+      question: string;
+    },
+    callback: (event: unknown) => void,
+  ) => {
+    console.log('start chatAssistant');
+    if (!receiveRegistration) {
+      console.log('register chatbot-message event');
+      await listen<string>('chatbot-message', event => {
+        console.log(`Got error in window ${event.windowLabel}, payload: ${event.payload}`);
+        callback(event);
+      });
+      receiveRegistration = true;
+    }
+    console.log('invoke chat_assistant', { assistantId, threadId, question });
+    const chat_assistant = await tauriClient.invoke('chat_assistant', {
+      assistant_id: assistantId,
+      thread_id: threadId,
+      question,
+    });
+    console.log('chat_assistant', chat_assistant);
+    //
+    // await openai.beta.threads.messages.create(threadId, { role: 'user', content: question });
+    //
+    // openai.beta.threads.runs
+    //   .stream(threadId, { assistant_id: assistantId })
+    //   .on('messageCreated', message =>
+    //     mainWindow.webContents.send('chat-bot-api-message-delta', {
+    //       msgEvent: 'messageCreated',
+    //       message,
+    //     }),
+    //   )
+    //   .on('messageDelta', delta => {
+    //     mainWindow.webContents.send('chat-bot-api-message-delta', {
+    //       msgEvent: 'messageDelta',
+    //       delta,
+    //     });
+    //   })
+    //   .on('messageDone', message =>
+    //     mainWindow.webContents.send('chat-bot-api-message-delta', {
+    //       msgEvent: 'messageDone',
+    //       message,
+    //     }),
+    //   );
   },
   validateConfig: async ({
     apiKey,
@@ -137,7 +136,7 @@ const chatBotApi = {
     httpProxy?: string;
   }) => {
     try {
-      await invoke('create_openai_client', { apiKey, model, httpProxy });
+      await invoke('create_openai_client', { apiKey, model, http_proxy: httpProxy });
       return true;
     } catch (err) {
       return false;

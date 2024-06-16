@@ -7,7 +7,8 @@ use std::option::Option;
 use std::str::FromStr;
 
 use async_openai::{Client, config::OpenAIConfig};
-use async_openai::types::{AssistantStreamEvent, CreateAssistantRequest, CreateAssistantToolResources, CreateMessageRequest, CreateRunRequest, CreateThreadRequest, MessageRole, ModifyAssistantRequest, RunObject, ToolsOutputs};
+use async_openai::types::{AssistantStreamEvent, CreateAssistantRequest, CreateMessageRequest, CreateRunRequest, CreateThreadRequest, MessageRole, ModifyAssistantRequest};
+use futures::StreamExt;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
 use serde_json::json;
@@ -333,31 +334,6 @@ async fn create_assistant(api_key: String, model: String, instructions: String, 
 }
 
 
-async fn handle_requires_action(client: Client<OpenAIConfig>, run_object: RunObject) {
-    let mut tool_outputs: Vec<ToolsOutputs> = vec![];
-    if let Some(ref required_action) = run_object.required_action {
-        for tool in &required_action.submit_tool_outputs.tool_calls {
-            if tool.function.name == "get_current_temperature" {
-                tool_outputs.push(ToolsOutputs {
-                    tool_call_id: Some(tool.id.clone()),
-                    output: Some("57".into()),
-                })
-            }
-
-            if tool.function.name == "get_rain_probability" {
-                tool_outputs.push(ToolsOutputs {
-                    tool_call_id: Some(tool.id.clone()),
-                    output: Some("0.06".into()),
-                })
-            }
-        }
-
-        if let Err(e) = submit_tool_outputs(client, run_object, tool_outputs).await {
-            eprintln!("Error on submitting tool outputs: {e}");
-        }
-    }
-}
-
 #[tauri::command]
 async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: String, question: String) -> Result<String, String> {
     let openai_client = match unsafe { OPENAI_CLIENT.as_ref() } {
@@ -371,6 +347,7 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
             return Err(result.to_string());
         }
     };
+    println!("start sending message to openai");
     let _message = openai_client
         .threads()
         .messages(&thread_id)
@@ -388,36 +365,51 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
             stream: Some(true),
             ..Default::default()
         })
-        .await?;
+        .await
+        .map_err(|e| e.to_string())?; // Convert the error to a string
 
-    let mut task_handle = None;
+    println!("event_stream start");
+
+    // let mut task_handle = None;
     while let Some(event) = event_stream.next().await {
         match event {
             Ok(event) => match event {
                 AssistantStreamEvent::ThreadRunRequiresAction(run_object) => {
-                    println!("thread.run.requires_action: run_id:{}", run_object.id);
-                    let client = openai_client.clone();
-                    task_handle = Some(tokio::spawn(async move {
-                        handle_requires_action(client, run_object).await
-                    }));
+                    println!("thread.run.requires_action: run_object:{:?}", run_object);
                 }
-                _ => println!("\nEvent: {event:?}\n"),
+                event => {
+                    println!("\nEvent: {event:?}\n, {:?}", event);
+                    window.emit("chatbot-message", format!("{:?}", event) ).unwrap();
+                }
             },
             Err(e) => {
                 eprintln!("Error: {e}");
+                return Err("Failed to get stream response".to_string());
             }
         }
+        println!("while loop outer");
+        // match event {
+        //     Ok(event) => match event {
+        //         AssistantStreamEvent::ThreadRunRequiresAction(run_object) => {
+        //             println!("thread.run.requires_action: run_object:{:?}", run_object);
+        //         }
+        //         _ => println!("\nEvent: {event:?}\n"),
+        //     },
+        //     Err(e) => {
+        //         eprintln!("Error: {e}");
+        //     }
+        // }
     }
 
     // wait for task to handle required action and submit tool outputs
-    if let Some(task_handle) = task_handle {
-        let _ = tokio::join!(task_handle);
-    }
+    // if let Some(task_handle) = task_handle {
+    //     let _ = tokio::join!(task_handle);
+    // }
 
     // clean up
-    client.threads().delete(&thread.id).await?;
-    client.assistants().delete(&assistant.id).await?;
-
+    // client.threads().delete(&thread.id).await?;
+    // client.assistants().delete(&assistant.id).await?;
+    //
     Ok("Success".to_string())
 
     // Send the initial message
@@ -431,23 +423,23 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
     // }, thread_id.clone(), assistant_id.clone()).await;
     //
     // Poll for new messages
-    loop {
-        let new_messages = openai_client.threads().retrieve(&thread_id).await;
-        match new_messages {
-            Ok(new_messages) => {
-                for message in new_messages.messages {
-                    // Emit new message event to the frontend
-                    window.emit("new-message", Some(message.content)).unwrap();
-                }
-            }
-            Err(e) => {
-                println!("Error retrieving messages: {}", e);
-            }
-        }
-
-        // Wait before polling again
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-    }
+    // loop {
+    //     let new_messages = openai_client.threads().retrieve(&thread_id).await;
+    //     match new_messages {
+    //         Ok(new_messages) => {
+    //             for message in new_messages.messages {
+    //                 // Emit new message event to the frontend
+    //                 window.emit("new-message", Some(message.content)).unwrap();
+    //             }
+    //         }
+    //         Err(e) => {
+    //             println!("Error retrieving messages: {}", e);
+    //         }
+    //     }
+    //
+    //     // Wait before polling again
+    //     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    // }
 }
 
 fn main() {
@@ -463,7 +455,7 @@ fn main() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![create_openai_client,fetch_api,find_assistant, modify_assistant, create_assistant])
+        .invoke_handler(tauri::generate_handler![create_openai_client,fetch_api,find_assistant, modify_assistant, create_assistant,chat_assistant])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
