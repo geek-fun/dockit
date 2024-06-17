@@ -1,5 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+mod menu;
 
 use std::collections::HashMap;
 use std::env;
@@ -457,6 +458,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![create_openai_client,fetch_api,find_assistant, modify_assistant, create_assistant,chat_assistant])
+        .menu(menu::create_menu())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
