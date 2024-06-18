@@ -1,10 +1,17 @@
-import { writeTextFile, BaseDirectory, exists, readTextFile } from '@tauri-apps/api/fs';
+import { BaseDirectory, createDir, exists, readTextFile, writeTextFile } from '@tauri-apps/api/fs';
 
 import { debug } from '../common';
 
 const saveFile = async (filePath: string, content: string) => {
   try {
-    await writeTextFile(filePath, content, { dir: BaseDirectory.AppConfig, append: true });
+    const folderPath = filePath.substring(0, filePath.lastIndexOf('/'));
+    console.log('folderPath', folderPath);
+
+    if (!(await exists(folderPath, { dir: BaseDirectory.AppData }))) {
+      console.log('file not exists');
+      await createDir(folderPath, { dir: BaseDirectory.AppData, recursive: true });
+    }
+    await writeTextFile(filePath, content, { dir: BaseDirectory.AppConfig, append: false });
     debug('save file success');
   } catch (err) {
     debug(`saveFile error: ${err}`);

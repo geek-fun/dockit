@@ -1,6 +1,6 @@
-import { register } from '@tauri-apps/api/globalShortcut';
-import { debug } from './debug.ts';
+import { register, unregister } from '@tauri-apps/api/globalShortcut';
+await unregister('CommandOrControl+S');
 await register('CommandOrControl+S', () => {
-  debug('CommandOrControl+S is pressed');
+  console.log('CommandOrControl+S is pressed');
   window.dispatchEvent(new Event('saveFile'));
 });

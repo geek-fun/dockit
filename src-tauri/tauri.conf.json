@@ -20,13 +20,22 @@
         "all": false,
         "readFile": true,
         "writeFile": true,
+        "createDir": true,
         "exists": true,
-        "scope": ["$APPDATA/search/*"]
+        "scope": [
+          "$APPDATA/**/*"
+        ]
       },
       "http": {
         "all": true,
         "request": true,
-        "scope": ["http://*/*", "https://*/*"]
+        "scope": [
+          "http://*/*",
+          "https://*/*"
+        ]
+      },
+      "globalShortcut": {
+        "all": true
       }
     },
     "windows": [
@@ -36,7 +45,8 @@
         "title": "DocKit",
         "width": 1200,
         "height": 750
-      }],
+      }
+    ],
     "security": {
       "csp": null
     },

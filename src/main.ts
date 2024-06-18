@@ -4,6 +4,7 @@ import store from './store';
 import { router } from './router';
 import { lang } from './lang';
 
+import './common/shortcuts.ts';
 import './assets/styles/normalize.css';
 import './assets/styles/theme.scss';
 
