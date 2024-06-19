@@ -16,12 +16,21 @@ const chatBotApi = {
     model: string;
     httpProxy?: string;
   }): Promise<{ assistantId: string; threadId: string }> => {
-    return await tauriClient.invoke('create_assistant', {
-      apiKey,
-      instructions: prompt,
-      model,
-      httpProxy,
-    });
+    try {
+      const {
+        data: { assistant_id, thread_id },
+      } = await tauriClient.invoke('create_assistant', {
+        apiKey,
+        model,
+        instructions: prompt,
+        httpProxy,
+      });
+
+      return { assistantId: assistant_id as string, threadId: thread_id as string };
+    } catch (err) {
+      console.log('createAssistant error', JSON.stringify(err));
+      throw err;
+    }
   },
 
   modifyAssistant: async ({
@@ -37,22 +46,22 @@ const chatBotApi = {
     httpProxy?: string;
     assistantId: string;
   }) => {
-    const assistant = tauriClient.invoke('modify_assistant', {
-      api_key: apiKey,
-      assistant_id: assistantId,
+    const assistant = tauriClient.invoke('find_assistant', {
+      apiKey,
+      assistantId,
       model,
-      instructions: prompt,
-      http_proxy: httpProxy,
+      httpProxy,
     });
 
     if (!assistant) {
       throw new Error('Assistant not found');
     }
     await tauriClient.invoke('modify_assistant', {
-      api_key: apiKey,
-      assistant_id: assistantId,
-      http_proxy: httpProxy,
+      apiKey,
+      assistantId,
       model,
+      instructions: prompt,
+      httpProxy,
     });
   },
   findAssistant: async ({
@@ -97,8 +106,8 @@ const chatBotApi = {
     }
     console.log('invoke chat_assistant', { assistantId, threadId, question });
     const chat_assistant = await tauriClient.invoke('chat_assistant', {
-      assistant_id: assistantId,
-      thread_id: threadId,
+      assistantId,
+      threadId,
       question,
     });
     console.log('chat_assistant', chat_assistant);
@@ -136,7 +145,7 @@ const chatBotApi = {
     httpProxy?: string;
   }) => {
     try {
-      await invoke('create_openai_client', { apiKey, model, http_proxy: httpProxy });
+      await invoke('create_openai_client', { apiKey, model, httpProxy });
       return true;
     } catch (err) {
       return false;

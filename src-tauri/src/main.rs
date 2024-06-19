@@ -158,7 +158,7 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
                         "message": message,
                         "data": data
                     });
-                    println!("build response structure rust,result: {:?}",result);
+                    println!("build response structure rust,result: {:?}", result);
                     Ok(result.to_string())
                 }
                 Err(e) => {
@@ -230,7 +230,7 @@ async fn find_assistant(api_key: String, assistant_id: String, model: String, ht
 static ASSISTANT_NAME: &str = "dockit-assistant";
 
 #[tauri::command]
-async fn modify_assistant(api_key: String, assistant_id: String, model: String, instruction: String, http_proxy: Option<String>) -> Result<String, String> {
+async fn modify_assistant(api_key: String, assistant_id: String, model: String, instructions: String, http_proxy: Option<String>) -> Result<String, String> {
     let openai_client = match unsafe { OPENAI_CLIENT.as_ref() } {
         Some(client) => client.clone(),
         None => {
@@ -252,7 +252,7 @@ async fn modify_assistant(api_key: String, assistant_id: String, model: String, 
     let assistant = openai_client.assistants().update(&assistant_id, ModifyAssistantRequest {
         name: Option::from(ASSISTANT_NAME.to_string()),
         model: Some(model),
-        instructions: Some(instruction),
+        instructions: Some(instructions),
         ..Default::default()
     }).await;
 
@@ -305,7 +305,8 @@ async fn create_assistant(api_key: String, model: String, instructions: String, 
         instructions: Some(instructions),
         ..Default::default()
     }).await;
-    if !assistant.is_ok() {
+    if assistant.is_err() {
+        // if !assistant.is_ok() {
         let result = json!({
         "status": 500,
         "message":"Failed to create assistant".to_string(),
@@ -315,7 +316,7 @@ async fn create_assistant(api_key: String, model: String, instructions: String, 
     }
     // Step 2: Create a Thread
     let thread = openai_client.threads().create(CreateThreadRequest::default()).await;
-    if !thread.is_ok() {
+    if thread.is_err() {
         let result = json!({
         "status": 500,
         "message":"Failed to create thread".to_string(),
@@ -333,7 +334,7 @@ async fn create_assistant(api_key: String, model: String, instructions: String, 
         }
     });
 
-    return Ok(result.to_string());
+   return  Ok(result.to_string());
 }
 
 
@@ -382,7 +383,7 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                 }
                 event => {
                     println!("\nEvent: {event:?}\n, {:?}", event);
-                    window.emit("chatbot-message", format!("{:?}", event) ).unwrap();
+                    window.emit("chatbot-message", format!("{:?}", event)).unwrap();
                 }
             },
             Err(e) => {
@@ -445,7 +446,7 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
     // }
 }
 
-static  mut DEV_TOOLS_OPEN: bool = false;
+static mut DEV_TOOLS_OPEN: bool = false;
 
 fn main() {
     tauri::Builder::default()

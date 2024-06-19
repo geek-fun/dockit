@@ -10,19 +10,20 @@ export class ApiClientError extends Error {
   }
 }
 
+type ApiClientResponse = {
+  status: number;
+  message: string;
+  data: { [key: string]: unknown };
+};
 export const tauriClient = {
-  invoke: async (command: string, payload: unknown) => {
+  invoke: async (command: string, payload: unknown): Promise<ApiClientResponse> => {
     try {
-      const { status, data, message } = await invoke<{
-        status: number;
-        message: string;
-        data: { [key: string]: unknown };
-      }>(command, payload as InvokeArgs);
-      if (status !== 200) {
-        throw new ApiClientError(status, message);
-      }
-      return data as { assistantId: string; threadId: string };
+      const result = await invoke<string>(command, payload as InvokeArgs);
+      const { status, message, data } = JSON.parse(result) as ApiClientResponse;
+      console.log('tauriClient.invoke result', { status, message, data });
+      return { status, message, data };
     } catch (err) {
+      console.log('tauriClient.invoke error', err);
       const status = get(err, 'status', get(err, 'code', 500));
       const message = get(err, 'message', err) as string;
       const stack = get(err, 'stack', get(err, 'details', ''));

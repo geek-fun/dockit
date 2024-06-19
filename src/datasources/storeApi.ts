@@ -4,6 +4,10 @@ const store = new Store('.store.dat');
 
 const storeApi = {
   get: async <T>(key: string, defaultValue: T): Promise<T> => {
+    // if (key === 'chats') {
+    //   await store.set(key, null);
+    //   await store.save();
+    // }
     const val = (await store.get(key)) ?? defaultValue;
     console.log('storeApi.get', { key, defaultValue, val, vals: await store.get(key) });
     return val as T;
