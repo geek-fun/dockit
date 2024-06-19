@@ -1,7 +1,8 @@
 use serde_json::Value::String;
-use tauri::{AboutMetadata, CustomMenuItem, Submenu};
+use tauri::{AboutMetadata, CustomMenuItem, EventLoopMessage, Manager, Submenu, Window, WindowMenuEvent, Wry};
 use tauri::Menu;
 use tauri::MenuItem;
+use crate::DEV_TOOLS_OPEN;
 
 pub fn create_menu() -> Menu {
     let about_menu = Submenu::new("DocKit", Menu::new()
@@ -14,8 +15,10 @@ pub fn create_menu() -> Menu {
         .add_native_item(MenuItem::ShowAll)
         .add_native_item(MenuItem::Separator)
         .add_native_item(MenuItem::Quit));
+
     let file_menu = Submenu::new("File", Menu::new()
-        .add_item(CustomMenuItem::new("save".to_string(), "Save")));
+        .add_item(CustomMenuItem::new("save".to_string(), "Save").accelerator("CommandOrControl+S")));
+
     let edit_menu = Submenu::new("Edit", Menu::new()
         .add_native_item(MenuItem::Undo)
         .add_native_item(MenuItem::Redo)
@@ -24,6 +27,7 @@ pub fn create_menu() -> Menu {
         .add_native_item(MenuItem::Copy)
         .add_native_item(MenuItem::Paste)
         .add_native_item(MenuItem::SelectAll));
+
     let window_menu = Submenu::new("Window", Menu::new()
         .add_native_item(MenuItem::Minimize)
         .add_native_item(MenuItem::EnterFullScreen)
@@ -32,7 +36,7 @@ pub fn create_menu() -> Menu {
         .add_item(CustomMenuItem::new("front".to_string(), "Front")));
 
     let developer_menu = Submenu::new("Developer", Menu::new()
-        .add_item(CustomMenuItem::new("toggle_dev_tools".to_string(), "Toggle Developer Tools")),
+        .add_item(CustomMenuItem::new("toggle_dev_tools".to_string(), "Toggle Developer Tools").accelerator("F12")),
     );
 
     Menu::new()
@@ -41,4 +45,28 @@ pub fn create_menu() -> Menu {
         .add_submenu(edit_menu)
         .add_submenu(window_menu)
         .add_submenu(developer_menu)
+}
+
+pub fn menu_event_handler (event: WindowMenuEvent<Wry>) {
+    let window = event.window();
+    match event.menu_item_id() {
+        "save" => {
+            // handle save event
+            window.emit_all("saveFile", ()).unwrap();
+        }
+        "toggle_dev_tools" => unsafe {
+            match DEV_TOOLS_OPEN {
+                true => {
+                    window.close_devtools();
+                    DEV_TOOLS_OPEN = false;
+                }
+                false => {
+                    window.open_devtools();
+                    DEV_TOOLS_OPEN = true;
+                }
+            }
+            println!("Toggled dev tools: {}", DEV_TOOLS_OPEN);
+        }
+        _ => { }
+    }
 }

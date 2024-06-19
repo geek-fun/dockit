@@ -10,6 +10,7 @@
 </template>
 <script setup lang="ts">
 import { open } from '@tauri-apps/api/shell';
+import { listen } from '@tauri-apps/api/event';
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
@@ -421,8 +422,8 @@ onMounted(async () => {
 onUnmounted(() => {
   codeLensProvider.dispose();
 });
-
-window.addEventListener('saveFile', async () => {
+listen('saveFile', async event => {
+  console.log('saveFile triggered on listen', { event });
   if (!queryEditor) {
     return;
   }

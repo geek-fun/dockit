@@ -1,6 +1,5 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-mod menu;
 
 use std::collections::HashMap;
 use std::env;
@@ -14,6 +13,8 @@ use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
 use serde_json::json;
 use tauri::Manager;
+
+mod menu;
 
 fn create_http_client(proxy: Option<String>, ssl: Option<bool>) -> reqwest::Client {
     let mut builder = reqwest::ClientBuilder::new().user_agent("async-openai");
@@ -444,21 +445,15 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
     // }
 }
 
+static  mut DEV_TOOLS_OPEN: bool = false;
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_system_info::init())
-        .setup(|app| {
-            #[cfg(debug_assertions)] // only include this code on debug builds
-            {
-                let window = app.get_window("main").unwrap();
-                window.open_devtools();
-                window.close_devtools();
-            }
-            Ok(())
-        })
         .invoke_handler(tauri::generate_handler![create_openai_client,fetch_api,find_assistant, modify_assistant, create_assistant,chat_assistant])
         .menu(menu::create_menu())
+        .on_menu_event(menu::menu_event_handler)
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
