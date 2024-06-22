@@ -7,7 +7,7 @@ use std::option::Option;
 use std::str::FromStr;
 
 use async_openai::{Client, config::OpenAIConfig};
-use async_openai::types::{AssistantStreamEvent, CreateAssistantRequest, CreateMessageRequest, CreateRunRequest, CreateThreadRequest, MessageRole, ModifyAssistantRequest};
+use async_openai::types::{AssistantStreamEvent, CreateAssistantRequest, CreateMessageRequest, CreateRunRequest, CreateThreadRequest, MessageObject, MessageRole, ModifyAssistantRequest};
 use futures::StreamExt;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
@@ -334,7 +334,7 @@ async fn create_assistant(api_key: String, model: String, instructions: String, 
         }
     });
 
-   return  Ok(result.to_string());
+    return Ok(result.to_string());
 }
 
 
@@ -378,8 +378,50 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
     while let Some(event) = event_stream.next().await {
         match event {
             Ok(event) => match event {
-                AssistantStreamEvent::ThreadRunRequiresAction(run_object) => {
-                    println!("thread.run.requires_action: run_object:{:?}", run_object);
+                AssistantStreamEvent::ThreadRunCreated(run_object) => {
+                    println!("thread.run.thread_run_created: run_object:{:?}", run_object);
+                }
+                AssistantStreamEvent::ThreadMessageCreated(msg_object) => {
+                    let msg = json!({
+                        "role": msg_object.role,
+                        "content": msg_object.content,
+                        "state": msg_object.status
+                    });
+                    window.emit("chatbot-message", msg.to_string()).unwrap();
+                    println!("thread.run.thread_message_created: msg_object:{:?}", msg_object);
+                }
+                AssistantStreamEvent::ThreadMessageDelta(msg_object) => {
+                    println!("thread.run.thread_message_delta: msg_object:{:?}", msg_object);
+                    let msg = json!({
+                        "role": msg_object.delta.role,
+                        "content": msg_object.delta.content,
+                        "state": "IN_PROGRESS"
+                    });
+                    window.emit("chatbot-message", msg.to_string()).unwrap();
+                }
+                AssistantStreamEvent::ThreadMessageCompleted(msg_object) => {
+                    let msg = json!({
+                        "role": msg_object.role,
+                        "content": msg_object.content,
+                        "state":  msg_object.status
+                    });
+                    window.emit("chatbot-message", msg.to_string()).unwrap();
+                    println!("thread.run.thread_message_completed: msg_object:{:?}", msg_object);
+                }
+                AssistantStreamEvent::ThreadRunInProgress(run_object) => {
+                    println!("thread.run.thread_run_in_progress: run_object:{:?}", run_object);
+                }
+                AssistantStreamEvent::ThreadRunFailed(run_object) => {
+                    println!("thread.run.thread_run_completed: run_object:{:?}", run_object);
+                    let result = json!({
+                    "status": 500,
+                    "message": run_object.last_error,
+                    "data":Option::<serde_json::Value>::None,
+                });
+                    return Err(result.to_string());
+                }
+                AssistantStreamEvent::ThreadRunQueued(run_object) => {
+                    println!("thread.run.thread_run_queued: run_object:{:?}", run_object);
                 }
                 event => {
                     println!("\nEvent: {event:?}\n, {:?}", event);
@@ -387,11 +429,17 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                 }
             },
             Err(e) => {
-                eprintln!("Error: {e}");
-                return Err("Failed to get stream response".to_string());
+                let result = json!({
+                    "status": 500,
+                    "message":"Failed to get stream response".to_string(),
+                    "data":Option::<serde_json::Value>::None,
+                });
+                eprintln!("Error: {:?}", e);
+                return Err(result.to_string());
             }
         }
         println!("while loop outer");
+
         // match event {
         //     Ok(event) => match event {
         //         AssistantStreamEvent::ThreadRunRequiresAction(run_object) => {
@@ -405,6 +453,13 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
         // }
     }
 
+    let result = json!({
+            "status": 200,
+            "message":"Success".to_string(),
+            "data":Option::<serde_json::Value>::None,
+        });
+    Ok(result.to_string())
+
     // wait for task to handle required action and submit tool outputs
     // if let Some(task_handle) = task_handle {
     //     let _ = tokio::join!(task_handle);
@@ -414,7 +469,6 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
     // client.threads().delete(&thread.id).await?;
     // client.assistants().delete(&assistant.id).await?;
     //
-    Ok("Success".to_string())
 
     // Send the initial message
     // let response = openai_client.threads().run(CreateThreadRequest {

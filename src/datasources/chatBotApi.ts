@@ -99,8 +99,10 @@ const chatBotApi = {
     if (!receiveRegistration) {
       console.log('register chatbot-message event');
       await listen<string>('chatbot-message', event => {
-        console.log(`Got error in window ${event.windowLabel}, payload: ${event.payload}`);
-        callback(event);
+        console.log(
+          `Receive chatbot-message in window ${event.windowLabel}, payload: ${event.payload}`,
+        );
+        callback(event.payload);
       });
       receiveRegistration = true;
     }

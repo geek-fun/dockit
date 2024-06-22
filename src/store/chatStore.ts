@@ -139,7 +139,9 @@ export const useChatStore = defineStore('chat', {
             question,
           },
           (event: unknown) => {
-            console.log('chatStore received event:', event);
+            console.log('chatStore received event:', typeof event);
+            const message = JSON.parse(event as string);
+            console.log('chatStore received message:', message);
             //     if (msgEvent === 'messageCreated') {
             //       this.chats[0].messages.push({
             //         id: ulid(),
