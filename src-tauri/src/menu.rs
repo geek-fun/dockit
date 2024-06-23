@@ -1,7 +1,7 @@
-use serde_json::Value::String;
-use tauri::{AboutMetadata, CustomMenuItem, EventLoopMessage, Manager, Submenu, Window, WindowMenuEvent, Wry};
+use tauri::{AboutMetadata, CustomMenuItem, Manager, Submenu, WindowMenuEvent, Wry};
 use tauri::Menu;
 use tauri::MenuItem;
+
 use crate::DEV_TOOLS_OPEN;
 
 pub fn create_menu() -> Menu {

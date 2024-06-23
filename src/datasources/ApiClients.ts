@@ -1,5 +1,4 @@
-import { InvokeArgs, invoke } from '@tauri-apps/api/tauri';
-import { get } from 'lodash';
+import { invoke, InvokeArgs } from '@tauri-apps/api/tauri';
 
 export class ApiClientError extends Error {
   public status: number;
@@ -22,18 +21,12 @@ export const tauriClient = {
     try {
       const result = await invoke<string>(command, payload as InvokeArgs);
       const { status, message, data } = JSON.parse(result) as ApiClientResponse;
-      console.log('tauriClient.invoke result', { status, message, data });
+      console.log('tauriClient.invoke', { command, result: { status, message, data } });
       return { status, message, data };
     } catch (err) {
-      console.log('tauriClient.invoke error', err);
-      const status = get(err, 'status', get(err, 'code', 500));
-      const message = get(err, 'message', err) as string;
-      const stack = get(err, 'stack', get(err, 'details', ''));
-      console.log('tauriClient.invoke', { status, message, stack });
-      if (err instanceof ApiClientError) {
-        throw err;
-      }
-      throw new ApiClientError(status, message);
+      const { status, message, data } = JSON.parse(err as string) as ApiClientResponse;
+      console.log('tauriClient.invoke error', { command, result: { status, message, data } });
+      throw new ApiClientError(status, message, JSON.stringify(data));
     }
   },
 };

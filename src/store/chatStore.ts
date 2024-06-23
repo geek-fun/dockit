@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia';
 import { ulid } from 'ulidx';
 import { lang } from '../lang';
-import { CustomError, pureObject, ErrorCodes } from '../common';
+import { CustomError, ErrorCodes, pureObject } from '../common';
 import { useConnectionStore } from './connectionStore';
 import { chatBotApi, storeApi } from '../datasources';
 import { OpenAiConfig } from './appStore.ts';
+import { ApiClientError } from '../datasources/ApiClients.ts';
 
 enum MessageStatus {
   SENDING = 'SENDING',
@@ -54,13 +55,18 @@ export const useChatStore = defineStore('chat', {
         return;
       }
       const { assistantId } = chats[0];
-      const assistant = await chatBotApi.findAssistant({ apiKey, assistantId, httpProxy, model });
-      if (!assistant) {
-        this.chats = [];
-        await storeApi.set('chats', []);
-        return;
+      try {
+        const assistant = await chatBotApi.findAssistant({ apiKey, assistantId, httpProxy, model });
+        this.chats = assistant ? chats : [];
+        await storeApi.set('chats', pureObject(this.chats));
+      } catch (err) {
+        if ((err as ApiClientError).status === 404) {
+          this.chats = [];
+          await storeApi.set('chats', pureObject(this.chats));
+        } else {
+          throw err;
+        }
       }
-      this.chats = chats ?? [];
     },
     async modifyAssistant() {
       const { assistantId } = this.chats[0] || {};
@@ -138,24 +144,22 @@ export const useChatStore = defineStore('chat', {
             threadId,
             question,
           },
-          (event: unknown) => {
+          event => {
             console.log('chatStore received event:', typeof event);
-            const message = JSON.parse(event as string);
-            console.log('chatStore received message:', message);
-            //     if (msgEvent === 'messageCreated') {
-            //       this.chats[0].messages.push({
-            //         id: ulid(),
-            //         status: MessageStatus.RECEIVED,
-            //         role: ChatMessageRole.BOT,
-            //         content: '',
-            //       });
-            //     } else if (msgEvent === 'messageDelta') {
-            //       const messageChunk = delta.content.map(({ text }) => text.value).join('');
-            //       this.chats[0].messages[this.chats[0].messages.length - 1].content += messageChunk;
-            //     } else if (msgEvent === 'messageDone') {
-            //       storeAPI.set('chats', pureObject(this.chats));
-            //     }
-            //   });
+
+            if (event.state.toUpperCase() === 'CREATED') {
+              this.chats[0].messages.push({
+                id: ulid(),
+                status: MessageStatus.RECEIVED,
+                role: ChatMessageRole.BOT,
+                content: '',
+              });
+            } else if (event.state.toUpperCase() === 'IN_PROGRESS') {
+              const messageChunk = event.content.map(({ text }) => text.value).join('');
+              this.chats[0].messages[this.chats[0].messages.length - 1].content += messageChunk;
+            } else if (event.state.toUpperCase() === 'COMPLETED') {
+              storeApi.set('chats', pureObject(this.chats));
+            }
           },
         );
       } catch (err) {

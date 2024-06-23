@@ -7,14 +7,15 @@ use std::option::Option;
 use std::str::FromStr;
 
 use async_openai::{Client, config::OpenAIConfig};
-use async_openai::types::{AssistantStreamEvent, CreateAssistantRequest, CreateMessageRequest, CreateRunRequest, CreateThreadRequest, MessageObject, MessageRole, ModifyAssistantRequest};
-use futures::StreamExt;
+use async_openai::types::{AssistantStreamEvent, CreateAssistantRequest, CreateMessageRequest, CreateRunRequest, CreateThreadRequest, MessageRole, ModifyAssistantRequest};
+use futures::{ StreamExt};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
 use serde_json::json;
-use tauri::Manager;
 
 mod menu;
+
+static OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
 
 fn create_http_client(proxy: Option<String>, ssl: Option<bool>) -> reqwest::Client {
     let mut builder = reqwest::ClientBuilder::new().user_agent("async-openai");
@@ -40,7 +41,7 @@ fn create_http_client(proxy: Option<String>, ssl: Option<bool>) -> reqwest::Clie
 
 async fn validate_openai(api_key: &str, model: &str, proxy: Option<String>) -> bool {
     let http_client = create_http_client(proxy, None);
-    let url = format!("https://api.openai.com/v1/engines/{}", model);
+    let url = format!("{}/engines/{}", OPENAI_BASE_URL, model);
 
     let resp = http_client.get(&url)
         .header("Authorization", format!("Bearer {}", api_key))
@@ -48,14 +49,11 @@ async fn validate_openai(api_key: &str, model: &str, proxy: Option<String>) -> b
         .await;
 
     match resp {
-        Ok(response) => {
-            if response.status().is_success() {
-                true
-            } else {
-                false
-            }
+        Ok(response) => { response.status().is_success() }
+        Err(err) => {
+            println!("Failed to validate OpenAI API Key or Model: {:?}", err);
+            false
         }
-        Err(_) => false,
     }
 }
 
@@ -79,9 +77,11 @@ static mut OPENAI_CLIENT: Option<Client<OpenAIConfig>> = None;
 #[tauri::command]
 async fn create_openai_client(api_key: String, model: String, http_proxy: Option<String>) -> Result<String, String> {
     let is_valid = validate_openai(&api_key, &model, http_proxy.clone()).await;
-    if !is_valid { return Err("Invalid OpenAI API Key or Model".into()); }
+    if !is_valid {
+        return Err("Invalid OpenAI API Key or Model".into());
+    }
 
-    let config = OpenAIConfig::new().with_api_key(api_key);
+    let config = OpenAIConfig::new().with_api_key(api_key).with_api_base(OPENAI_BASE_URL);
     let proxy_url = match http_proxy {
         Some(proxy) => {
             if proxy.is_empty() { env::var("HTTPS_PROXY").ok() } else { Some(proxy.clone()) }
@@ -216,10 +216,24 @@ async fn find_assistant(api_key: String, assistant_id: String, model: String, ht
             Ok(result.to_string())
         }
         Err(e) => {
-            println!("error to get assistant {}", e);
+            match &e {
+                async_openai::error::OpenAIError::ApiError(e) => {
+                    let message = e.message.clone();
+                    if message.starts_with("No assistant found") {
+                        let result = json!({
+                            "status": 404,
+                            "message": message,
+                            "data": Option::<serde_json::Value>::None,
+                        });
+                        return Err(result.to_string());
+                    }
+                }
+                _ => {}
+            }
+
             let result = json!({
                 "status": 500,
-                "message":"Success".to_string(),
+                "message": e.to_string(),
                 "data":Option::<serde_json::Value>::None,
             });
             Err(result.to_string())
@@ -378,14 +392,11 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
     while let Some(event) = event_stream.next().await {
         match event {
             Ok(event) => match event {
-                AssistantStreamEvent::ThreadRunCreated(run_object) => {
-                    println!("thread.run.thread_run_created: run_object:{:?}", run_object);
-                }
                 AssistantStreamEvent::ThreadMessageCreated(msg_object) => {
                     let msg = json!({
-                        "role": msg_object.role,
+                        "role": "BOT",
                         "content": msg_object.content,
-                        "state": msg_object.status
+                        "state": "CREATED"
                     });
                     window.emit("chatbot-message", msg.to_string()).unwrap();
                     println!("thread.run.thread_message_created: msg_object:{:?}", msg_object);
@@ -393,7 +404,7 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                 AssistantStreamEvent::ThreadMessageDelta(msg_object) => {
                     println!("thread.run.thread_message_delta: msg_object:{:?}", msg_object);
                     let msg = json!({
-                        "role": msg_object.delta.role,
+                        "role": "BOT",
                         "content": msg_object.delta.content,
                         "state": "IN_PROGRESS"
                     });
@@ -401,15 +412,12 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                 }
                 AssistantStreamEvent::ThreadMessageCompleted(msg_object) => {
                     let msg = json!({
-                        "role": msg_object.role,
+                        "role": "BOT",
                         "content": msg_object.content,
-                        "state":  msg_object.status
+                        "state": "COMPLETED"
                     });
                     window.emit("chatbot-message", msg.to_string()).unwrap();
                     println!("thread.run.thread_message_completed: msg_object:{:?}", msg_object);
-                }
-                AssistantStreamEvent::ThreadRunInProgress(run_object) => {
-                    println!("thread.run.thread_run_in_progress: run_object:{:?}", run_object);
                 }
                 AssistantStreamEvent::ThreadRunFailed(run_object) => {
                     println!("thread.run.thread_run_completed: run_object:{:?}", run_object);
@@ -420,12 +428,8 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                 });
                     return Err(result.to_string());
                 }
-                AssistantStreamEvent::ThreadRunQueued(run_object) => {
-                    println!("thread.run.thread_run_queued: run_object:{:?}", run_object);
-                }
                 event => {
                     println!("\nEvent: {event:?}\n, {:?}", event);
-                    window.emit("chatbot-message", format!("{:?}", event)).unwrap();
                 }
             },
             Err(e) => {

@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import { tauriClient } from './ApiClients.ts';
+import { ChatMessageRole } from '../store';
 
 let receiveRegistration = false;
 
@@ -93,7 +94,11 @@ const chatBotApi = {
       threadId: string;
       question: string;
     },
-    callback: (event: unknown) => void,
+    callback: (event: {
+      role: ChatMessageRole;
+      content: Array<{ text: { value: string } }>;
+      state: string;
+    }) => void,
   ) => {
     console.log('start chatAssistant');
     if (!receiveRegistration) {
@@ -102,40 +107,16 @@ const chatBotApi = {
         console.log(
           `Receive chatbot-message in window ${event.windowLabel}, payload: ${event.payload}`,
         );
-        callback(event.payload);
+        callback(JSON.parse(event.payload));
       });
       receiveRegistration = true;
     }
     console.log('invoke chat_assistant', { assistantId, threadId, question });
-    const chat_assistant = await tauriClient.invoke('chat_assistant', {
+    await tauriClient.invoke('chat_assistant', {
       assistantId,
       threadId,
       question,
     });
-    console.log('chat_assistant', chat_assistant);
-    //
-    // await openai.beta.threads.messages.create(threadId, { role: 'user', content: question });
-    //
-    // openai.beta.threads.runs
-    //   .stream(threadId, { assistant_id: assistantId })
-    //   .on('messageCreated', message =>
-    //     mainWindow.webContents.send('chat-bot-api-message-delta', {
-    //       msgEvent: 'messageCreated',
-    //       message,
-    //     }),
-    //   )
-    //   .on('messageDelta', delta => {
-    //     mainWindow.webContents.send('chat-bot-api-message-delta', {
-    //       msgEvent: 'messageDelta',
-    //       delta,
-    //     });
-    //   })
-    //   .on('messageDone', message =>
-    //     mainWindow.webContents.send('chat-bot-api-message-delta', {
-    //       msgEvent: 'messageDone',
-    //       message,
-    //     }),
-    //   );
   },
   validateConfig: async ({
     apiKey,
