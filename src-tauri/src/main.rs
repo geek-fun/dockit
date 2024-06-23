@@ -438,19 +438,6 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                 return Err(result.to_string());
             }
         }
-        println!("while loop outer");
-
-        // match event {
-        //     Ok(event) => match event {
-        //         AssistantStreamEvent::ThreadRunRequiresAction(run_object) => {
-        //             println!("thread.run.requires_action: run_object:{:?}", run_object);
-        //         }
-        //         _ => println!("\nEvent: {event:?}\n"),
-        //     },
-        //     Err(e) => {
-        //         eprintln!("Error: {e}");
-        //     }
-        // }
     }
 
     let result = json!({
@@ -459,45 +446,6 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
             "data":Option::<serde_json::Value>::None,
         });
     Ok(result.to_string())
-
-    // wait for task to handle required action and submit tool outputs
-    // if let Some(task_handle) = task_handle {
-    //     let _ = tokio::join!(task_handle);
-    // }
-
-    // clean up
-    // client.threads().delete(&thread.id).await?;
-    // client.assistants().delete(&assistant.id).await?;
-    //
-
-    // Send the initial message
-    // let response = openai_client.threads().run(CreateThreadRequest {
-    //     messages: Some(vec![CreateMessageRequest {
-    //         role: "user".to_string(),
-    //         content: question,
-    //         ..Default::default()
-    //     }]),
-    //     ..Default::default()
-    // }, thread_id.clone(), assistant_id.clone()).await;
-    //
-    // Poll for new messages
-    // loop {
-    //     let new_messages = openai_client.threads().retrieve(&thread_id).await;
-    //     match new_messages {
-    //         Ok(new_messages) => {
-    //             for message in new_messages.messages {
-    //                 // Emit new message event to the frontend
-    //                 window.emit("new-message", Some(message.content)).unwrap();
-    //             }
-    //         }
-    //         Err(e) => {
-    //             println!("Error retrieving messages: {}", e);
-    //         }
-    //     }
-    //
-    //     // Wait before polling again
-    //     tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-    // }
 }
 
 static mut DEV_TOOLS_OPEN: bool = false;
