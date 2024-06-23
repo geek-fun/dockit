@@ -22,12 +22,8 @@
 <script setup lang="ts">
 import { markRaw, ref } from 'vue';
 import { ChatBot } from '@vicons/carbon';
-import { useLang } from './../../lang'
 import TheAsideIcon from './the-aside-icon.vue';
 import ChatbotBox from './chatbot-box.vue';
-
-const lang = useLang();
-const message = useMessage();
 
 const selectedItemId = ref(-1);
 const chatBot = ref({ active: false });

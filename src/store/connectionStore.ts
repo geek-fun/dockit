@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { pureObject } from '../common';
-import { storeApi, loadHttpClient } from '../datasources';
+import { loadHttpClient, storeApi } from '../datasources';
 
 export type Connection = {
   id?: number;
@@ -98,7 +98,7 @@ export const useConnectionStore = defineStore('connectionStore', {
           deleted: parseInt(index['docs.deleted'], 10),
         },
         store: { size: index['store.size'] },
-      }));
+      })) as ConnectionIndex[];
       this.established = { ...connection, indices };
     },
     async fetchIndices() {
@@ -114,10 +114,10 @@ export const useConnectionStore = defineStore('connectionStore', {
           deleted: parseInt(index['docs.deleted'], 10),
         },
         store: { size: index['store.size'] },
-      }));
+      })) as ConnectionIndex[];
     },
     async selectIndex(indexName: string) {
-      const client = loadHttpClient(this.established);
+      const client = loadHttpClient(this.established as Connection);
 
       // get the index mapping
       const mapping = await client.get(`/${indexName}/_mapping`, 'format=json');

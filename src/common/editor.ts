@@ -343,6 +343,7 @@ POST _bulk
 {"name": "Document 1"}
 {"delete": {"_index": "dockit_sample_index", "_id": "2"}}
 `;
+
 export enum ActionType {
   POST_INDEX = 'POST_INDEX',
   POST_SEARCH = 'POST_SEARCH',
@@ -410,6 +411,7 @@ const actionRegexMap: { [key in ActionType]: RegExp } = {
   PUT_ENRICH_POLICY: /PUT \/_enrich\/policy\/\w+/,
   PUT_TEMPLATE: /PUT \/_template\/\w+/,
 };
+
 export enum EngineType {
   ELASTICSEARCH = 'ELASTICSEARCH',
   OPENSEARCH = 'OPENSEARCH',
@@ -417,7 +419,7 @@ export enum EngineType {
 
 export const getActionApiDoc = (engine: EngineType, version: string, action: SearchAction) => {
   const { APIS } = getDocLinks(engine, version);
-  const matchedAction = Object.entries(actionRegexMap).find(([, regex]: [ActionType, RegExp]) =>
+  const matchedAction = Object.entries(actionRegexMap).find(([, regex]) =>
     `${action.method} /${action.path}`.match(regex),
   );
 

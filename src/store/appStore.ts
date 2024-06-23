@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { pureObject } from '../common';
-import { storeApi, chatBotApi } from '../datasources';
+import { chatBotApi, storeApi } from '../datasources';
 import { lang } from '../lang';
+
 export enum ThemeType {
   AUTO = 'auto',
   DARK = 'dark',
@@ -44,7 +45,7 @@ export const useAppStore = defineStore('app', {
   actions: {
     async fetchAigcConfig() {
       this.aigcConfig = await storeApi.getSecret<{ openAi: OpenAiConfig }>('aigcConfig', {
-        openAi: {},
+        openAi: {} as unknown as OpenAiConfig,
       });
     },
     setConnectPanel() {

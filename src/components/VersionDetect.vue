@@ -26,7 +26,6 @@
 <script setup lang="ts">
 import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/api/shell';
-import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAppStore } from '../store';
 

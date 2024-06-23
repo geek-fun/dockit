@@ -30,8 +30,8 @@
             strong
             secondary
             type="primary"
-            >{{ $t('setting.ai.configGpt') }}</n-button
-          >
+            >{{ $t('setting.ai.configGpt') }}
+          </n-button>
         </div>
       </n-scrollbar>
     </div>
@@ -73,15 +73,20 @@ const router = useRouter();
 
 const scrollbarRef = ref(null);
 const chatMsg = ref(''); // 聊天消息
-const chatBotNotification = ref({
+const chatBotNotification = ref<{
+  enabled: boolean;
+  level: 'default' | 'success' | 'error' | 'warning' | 'info' | undefined;
+  message: string;
+  code: number;
+}>({
   enabled: false,
-  level: '',
+  level: undefined,
   message: '',
   code: 0,
 });
 // 提交消息
 const submitMsg = () => {
-  chatBotNotification.value = { enabled: false, level: '', message: '', code: 0 };
+  chatBotNotification.value = { enabled: false, level: undefined, message: '', code: 0 };
   if (!chatMsg.value.trim().length) return;
   sendMessage(chatMsg.value)
     .catch(err => {
@@ -93,6 +98,7 @@ const submitMsg = () => {
       };
     })
     .finally(() => {
+      // @ts-ignore
       scrollbarRef.value.scrollTo({ top: 999999 });
     });
   chatMsg.value = '';
@@ -104,7 +110,8 @@ const configGpt = () => {
 
 fetchChats()
   .then(() => {
-    scrollbarRef.value.scrollTo({ top: 999999 });
+    // @ts-ignore
+    scrollbarRef?.value?.scrollTo({ top: 999999 });
   })
   .catch(err => {
     chatBotNotification.value = {
@@ -123,6 +130,7 @@ fetchChats()
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border-color);
+
   .header-title {
     height: 40px;
     line-height: 40px;
@@ -131,30 +139,37 @@ fetchChats()
     font-weight: bold;
     border-bottom: 1px solid var(--border-color);
   }
+
   .message-list {
     flex: 1;
     height: 0;
     padding: 10px;
+
     .message-row {
       display: flex;
       flex-direction: column;
       justify-content: space-around;
       padding: 10px;
+
       &.user {
         background-color: var(--bg-color);
         border-top: 1px solid var(--border-color);
         border-bottom: 1px solid var(--border-color);
       }
+
       &-header {
         display: flex;
         align-items: center;
+
         span {
           font-weight: bold;
         }
+
         .n-icon {
           margin-right: 10px;
         }
       }
+
       &-content {
         pre {
           width: 100%;
@@ -166,19 +181,23 @@ fetchChats()
       }
     }
   }
+
   .message-footer {
     padding: 0 10px 10px 10px;
     position: relative;
     z-index: 1;
+
     .chat-input {
       height: fit-content;
     }
+
     .footer-opration {
       position: absolute;
       bottom: 13px;
       right: 13px;
       z-index: 2;
       height: 30px;
+
       .n-button {
         width: 40px;
         height: 100%;
