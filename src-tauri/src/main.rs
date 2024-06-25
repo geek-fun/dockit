@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 use async_openai::{Client, config::OpenAIConfig};
 use async_openai::types::{AssistantStreamEvent, CreateAssistantRequest, CreateMessageRequest, CreateRunRequest, CreateThreadRequest, MessageRole, ModifyAssistantRequest};
-use futures::{ StreamExt};
+use futures::{StreamExt};
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
 use serde_json::json;
@@ -17,10 +17,24 @@ mod menu;
 
 static OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
 
-fn create_http_client(proxy: Option<String>, ssl: Option<bool>) -> reqwest::Client {
-    let mut builder = reqwest::ClientBuilder::new().user_agent("async-openai");
+fn get_proxy(http_proxy: Option<String>) -> Option<String> {
+    let sys_proxy= env::var("HTTPS_PROXY").ok().or(env::var("https_proxy").ok());
+    let proxy_url = match http_proxy {
+        Some(proxy) => {
+            if proxy.is_empty() { sys_proxy } else { Some(proxy.clone()) }
+        }
+        None => sys_proxy
+    };
+    println!("proxy_url: {:?}", proxy_url);
+    return proxy_url;
+}
 
-    if let Some(proxy_url) = proxy {
+
+fn create_http_client(proxy: Option<String>, ssl: Option<bool>) -> reqwest::Client {
+    let mut builder = reqwest::ClientBuilder::new()
+        .danger_accept_invalid_certs(!ssl.unwrap_or(true));
+
+    if let Some(proxy_url) = get_proxy(proxy) {
         match reqwest::Proxy::https(&proxy_url) {
             Ok(proxy) => {
                 builder = builder.proxy(proxy);
@@ -31,10 +45,6 @@ fn create_http_client(proxy: Option<String>, ssl: Option<bool>) -> reqwest::Clie
             }
         };
     }
-
-    builder = builder.danger_accept_invalid_certs(
-        ssl.map_or(false, |ssl_validate| !ssl_validate)
-    );
 
     return builder.build().unwrap();
 }
@@ -82,15 +92,8 @@ async fn create_openai_client(api_key: String, model: String, http_proxy: Option
     }
 
     let config = OpenAIConfig::new().with_api_key(api_key).with_api_base(OPENAI_BASE_URL);
-    let proxy_url = match http_proxy {
-        Some(proxy) => {
-            if proxy.is_empty() { env::var("HTTPS_PROXY").ok() } else { Some(proxy.clone()) }
-        }
-        None => env::var("HTTPS_PROXY").ok(),
-    };
 
-
-    let http_client = create_http_client(proxy_url, None);
+    let http_client = create_http_client(http_proxy, None);
     unsafe {
         OPENAI_CLIENT = Option::from(Client::with_config(config).with_http_client(http_client));
     }
@@ -104,6 +107,7 @@ static mut FETCH_INSECURE_CLIENT: Option<reqwest::Client> = None;
 #[derive(Deserialize)]
 struct Agent {
     ssl: bool,
+    http_proxy: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -120,21 +124,23 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
         match options.agent.ssl {
             true => {
                 if FETCH_SECURE_CLIENT.is_none() {
-                    FETCH_SECURE_CLIENT = Option::from(create_http_client(None, Some(true)));
+                    FETCH_SECURE_CLIENT = Option::from(create_http_client(options.agent.http_proxy, Some(options.agent.ssl)));
                 }
                 FETCH_SECURE_CLIENT.as_ref().unwrap()
             }
             false => {
+                println!("Insecure client used");
                 if FETCH_INSECURE_CLIENT.is_none() {
-                    FETCH_INSECURE_CLIENT = Option::from(create_http_client(None, Some(false)));
+                    FETCH_INSECURE_CLIENT = Option::from(create_http_client(options.agent.http_proxy, Some(options.agent.ssl)));
                 }
                 FETCH_INSECURE_CLIENT.as_ref().unwrap()
             }
         }
     };
-    // let headers = convert_hashmap_to_headermap(options.headers);
-    println!("Fetching API: {}, {}", url, options.method);
-    let response = client.request(reqwest::Method::from_bytes(options.method.as_bytes()).unwrap(), &url)
+
+    println!("Fetching API: {}, {}, {:?}", url, reqwest::Method::from_bytes(options.method.as_bytes()).unwrap(), options.headers);
+    let response = client
+        .request(reqwest::Method::from_bytes(options.method.as_bytes()).unwrap(), &url)
         .headers(headermap_from_hashmap(options.headers.iter()))
         .body(options.body.unwrap_or_default())
         .send()
@@ -151,6 +157,7 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
                     let message = if is_success {
                         "Success".to_string()
                     } else {
+                        println!("error message: {:?}", body);
                         "Failed to fetch API".to_string()
                     };
                     let result = json!({
