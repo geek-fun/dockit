@@ -459,8 +459,6 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
     Ok(result.to_string())
 }
 
-static mut DEV_TOOLS_OPEN: bool = false;
-
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::default().build())

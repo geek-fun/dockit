@@ -2,8 +2,6 @@ use tauri::{AboutMetadata, CustomMenuItem, Manager, Submenu, WindowMenuEvent, Wr
 use tauri::Menu;
 use tauri::MenuItem;
 
-use crate::DEV_TOOLS_OPEN;
-
 pub fn create_menu() -> Menu {
     let about_menu = Submenu::new("DocKit", Menu::new()
         .add_native_item(MenuItem::About("DocKit".into(), AboutMetadata::default()))
@@ -47,26 +45,21 @@ pub fn create_menu() -> Menu {
         .add_submenu(developer_menu)
 }
 
-pub fn menu_event_handler (event: WindowMenuEvent<Wry>) {
+pub fn menu_event_handler(event: WindowMenuEvent<Wry>) {
     let window = event.window();
     match event.menu_item_id() {
         "save" => {
             // handle save event
             window.emit_all("saveFile", ()).unwrap();
         }
-        "toggle_dev_tools" => unsafe {
-            match DEV_TOOLS_OPEN {
-                true => {
-                    window.close_devtools();
-                    DEV_TOOLS_OPEN = false;
-                }
-                false => {
-                    window.open_devtools();
-                    DEV_TOOLS_OPEN = true;
-                }
+        "toggle_dev_tools" => {
+            #[cfg(debug_assertions)]
+            if window.is_devtools_open() {
+                window.close_devtools();
+            } else {
+                window.open_devtools();
             }
-            println!("Toggled dev tools: {}", DEV_TOOLS_OPEN);
         }
-        _ => { }
+        _ => {}
     }
 }
