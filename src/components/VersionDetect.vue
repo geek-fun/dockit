@@ -14,9 +14,9 @@
         <div class="action-button-group">
           <n-button type="warning" secondary @click="skip">{{ $t('version.skip') }}</n-button>
           <n-button type="tertiary" secondary @click="later">{{ $t('version.later') }}</n-button>
-          <n-button type="primary" secondary @click="download">{{
-            $t('version.download')
-          }}</n-button>
+          <n-button type="primary" secondary @click="download"
+            >{{ $t('version.download') }}
+          </n-button>
         </div>
       </template>
     </n-card>
@@ -29,14 +29,6 @@ import { open } from '@tauri-apps/api/shell';
 import { storeToRefs } from 'pinia';
 import { useAppStore } from '../store';
 
-const platforms: { [key: string]: string } = {
-  macos_x86: 'universal.dmg',
-  macos_arm: 'universal.dmg',
-  windows_x86: 'x64.Setup.exe',
-  windows_arm: 'arm64.Setup.exe',
-  linux_x86: '_amd64.deb',
-  linux_arm: '_arm64.deb',
-};
 const appStore = useAppStore();
 const { skipVersion } = storeToRefs(appStore);
 
@@ -73,15 +65,7 @@ const getLatestReleaseInfo = async (): Promise<{
   return { version: data.tag_name, assets };
 };
 const getLatestLink = async () => {
-  //@ts-ignore
-  const { architecture, platform } = await window.navigator.userAgentData.getHighEntropyValues([
-    'architecture',
-  ]);
-  const { assets } = await getLatestReleaseInfo();
-
-  return assets.find(item =>
-    item.name.endsWith(platforms[`${platform}_${architecture}`.toLowerCase()]),
-  );
+  return 'https://github.com/geek-fun/dockit/releases';
 };
 
 onMounted(async () => {
@@ -93,7 +77,7 @@ onMounted(async () => {
     const assetsLink = await getLatestLink();
     if (link) {
       version.value = newVersion;
-      link.value = assetsLink as { name: string; url: string };
+      link.value = { name: newVersion, url: assetsLink } as { name: string; url: string };
       dialogVisible.value = true;
     }
   } catch (error) {
@@ -111,6 +95,7 @@ onMounted(async () => {
   .version-info-box {
     margin: 20px 0;
   }
+
   .action-button-group {
     margin-left: 50px;
     display: flex;

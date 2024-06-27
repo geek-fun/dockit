@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { pureObject } from '../common';
 import { chatBotApi, storeApi } from '../datasources';
 import { lang } from '../lang';
+import { staticInfo, StaticInfo } from 'tauri-plugin-system-info-api';
 
 export enum ThemeType {
   AUTO = 'auto',
@@ -23,6 +24,7 @@ export type OpenAiConfig = {
 };
 export const useAppStore = defineStore('app', {
   state: (): {
+    sysInfo: {};
     themeType: ThemeType;
     languageType: LanguageType;
     connectPanel: boolean;
@@ -33,6 +35,7 @@ export const useAppStore = defineStore('app', {
     };
   } => {
     return {
+      sysInfo: {},
       themeType: ThemeType.AUTO,
       languageType: LanguageType.AUTO,
       connectPanel: true, //
@@ -43,6 +46,12 @@ export const useAppStore = defineStore('app', {
   },
   persist: true,
   actions: {
+    async fetchSysInfo() {
+      const { name } = StaticInfo.parse(await staticInfo());
+      this.sysInfo = {
+        name,
+      };
+    },
     async fetchAigcConfig() {
       this.aigcConfig = await storeApi.getSecret<{ openAi: OpenAiConfig }>('aigcConfig', {
         openAi: {} as unknown as OpenAiConfig,
