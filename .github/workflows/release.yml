@@ -40,6 +40,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev gcc-aarch64-linux-gnu
+          ls -la /usr/include
       - name: install frontend dependencies
         run: npm ci --legacy-peer-deps
       - run: npm run lint:check
@@ -82,7 +83,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_CONFIG_ALLOW_CROSS: 1
-#          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          OPENSSL_DIR: /usr/include/openssl
           #          APPLE_ID: ${{ secrets.APPLE_ID }}
           #          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           #          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
