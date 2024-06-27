@@ -18,6 +18,7 @@ export const enUS = {
     light: 'Light Theme',
     ai: {
       title: 'GPTs',
+      configGpt: 'Configure GPT',
       others: 'Other GPTs',
       model: 'Model',
       modelPlaceholder: 'Please enter the GPT model name',
