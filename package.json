@@ -2,7 +2,7 @@
   "name": "dockit",
   "private": true,
   "type": "module",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "A faster, better and more stable NoSQL desktop tools",
   "author": "geekfun <support@geekfun.club>",
   "homepage": "ttps://dockit.geekfun.club",
@@ -19,7 +19,8 @@
     "lint:fix": "eslint --fix ./",
     "lint:check": "eslint ./",
     "test": "jest --runInBand --coverage --coverageReporters json-summary text html lcov",
-    "test:ci": "jest --runInBand --ci --coverage --coverageReporters json-summary text html lcov"
+    "test:ci": "jest --runInBand --ci --coverage --coverageReporters json-summary text html lcov",
+    "build:macos": "tauri build -t universal-apple-darwin"
   },
   "dependencies": {
     "@tauri-apps/api": "^1",
