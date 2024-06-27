@@ -16,6 +16,10 @@ jobs:
         include:
           - args: '--target universal-apple-darwin'
             os: 'macos-latest'
+          - args: '--target aarch64-pc-windows-msvc,x86_64-pc-windows-msvc'
+            os: 'windows-latest'
+          - args: '--target aarch64-unknown-linux-gnu,x86_64-unknown-linux-gnu'
+            os: 'ubuntu-latest'
         node-version: [20.x]
     runs-on: ${{ matrix.os }}
 
@@ -51,6 +55,17 @@ jobs:
         id: changelog
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+#      - name: import windows certificate
+#        if: matrix.os == 'windows-latest'
+#        env:
+#          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+#          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+#        run: |
+#          New-Item -ItemType directory -Path certificate
+#          Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
+#          certutil -decode certificate/tempCert.txt certificate/certificate.pfx
+#          Remove-Item -path certificate -include tempCert.txt
+#          Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
       - name: Tag Release
         uses: jaywcjlove/create-tag-action@main
         id: tag_release
