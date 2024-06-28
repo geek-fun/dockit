@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
         include:
           - os: 'macos-latest'
             args: '--target universal-apple-darwin'
@@ -21,15 +21,19 @@ jobs:
           - os: 'windows-latest'
             args: '--target aarch64-pc-windows-msvc'
             target: 'aarch64-pc-windows-msvc'
+            aarch64: true
           - os: 'windows-latest'
             args: '--target x86_64-pc-windows-msvc'
             target: 'x86_64-pc-windows-msvc'
+            x86_64: true
           - os: 'ubuntu-latest'
             args: '--target aarch64-unknown-linux-gnu'
             target: 'aarch64-unknown-linux-gnu'
+            aarch64: true
           - os: 'ubuntu-latest'
             args: '--target x86_64-unknown-linux-gnu'
             target: 'x86_64-unknown-linux-gnu'
+            x86_64: true
         node-version: [20.x]
     runs-on: ${{ matrix.os }}
 
