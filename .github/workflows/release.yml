@@ -14,12 +14,21 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         include:
-          - args: '--target universal-apple-darwin'
-            os: 'macos-latest'
-          - args: '--target aarch64-pc-windows-msvc' #,x86_64-pc-windows-msvc'
-            os: 'windows-latest'
-          - args: '--target x86_64-unknown-linux-gnu' # x86_64-unknown-linux-gnu,aarch64-unknown-linux-gnu
-            os: 'ubuntu-latest'
+          - os: 'macos-latest'
+            args: '--target universal-apple-darwin'
+            target: 'aarch64-apple-darwin,x86_64-apple-darwin'
+          - os: 'windows-latest'
+            args: '--target aarch64-pc-windows-msvc'
+            target: 'aarch64-pc-windows-msvc'
+          - os: 'windows-latest'
+            args: '--target x86_64-pc-windows-msvc'
+            target: 'x86_64-pc-windows-msvc'
+          - os: 'ubuntu-latest'
+            args: '--target aarch64-unknown-linux-gnu'
+            target: 'aarch64-unknown-linux-gnu'
+          - os: 'ubuntu-latest'
+            args: '--target x86_64-unknown-linux-gnu'
+            target: 'x86_64-unknown-linux-gnu'
         node-version: [20.x]
     runs-on: ${{ matrix.os }}
 
@@ -29,7 +38,7 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.os == 'windows-latest' && 'aarch64-pc-windows-msvc,x86_64-pc-windows-msvc' || matrix.os == 'ubuntu-latest' && 'aarch64-unknown-linux-gnu,x86_64-unknown-linux-gnu' }}
+          targets: ${{ matrix.target }}
       - name: Use Node.js 20.x
         uses: actions/setup-node@v4
         with:
