@@ -171,5 +171,5 @@ jobs:
 #          r2-access-key-id: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
 #          r2-secret-access-key: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
 #          r2-bucket: ${{ secrets.CLOUDFLARE_ARTIFACTS_R2 }}
-#          source-dir: out/make/
+#          source-dir: src-tauri/target/**/*
 #          destination-dir: dockit
