@@ -11,6 +11,7 @@ concurrency:
 jobs:
   pre-release:
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         include:
@@ -120,7 +121,7 @@ jobs:
           endpoint: https://eus.codesigning.azure.net/
           trusted-signing-account-name: geek-fun
           certificate-profile-name: geek-fun
-          files-folder: ${{ github.workspace }}\src-tauri\target\release\bundle\nsis\
+          files-folder: ${{ github.workspace }}\src-tauri\target\
           files-folder-depth: 7
           files-folder-filter: exe
           file-digest: SHA256
