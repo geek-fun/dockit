@@ -2,7 +2,7 @@ name: distributions release
 
 on:
   pull_request:
-    branches:  [master]
+    branches: [ master ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        os: [ macos-latest, windows-latest, ubuntu-latest ]
         include:
           - os: 'macos-latest'
             args: '--target universal-apple-darwin'
@@ -34,7 +34,7 @@ jobs:
             args: '--target x86_64-unknown-linux-gnu'
             target: 'x86_64-unknown-linux-gnu'
             x86_64: true
-        node-version: [20.x]
+        node-version: [ 20.x ]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -69,17 +69,17 @@ jobs:
         id: changelog
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-#      - name: import windows certificate
-#        if: matrix.os == 'windows-latest'
-#        env:
-#          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-#          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-#        run: |
-#          New-Item -ItemType directory -Path certificate
-#          Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
-#          certutil -decode certificate/tempCert.txt certificate/certificate.pfx
-#          Remove-Item -path certificate -include tempCert.txt
-#          Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
+      #      - name: import windows certificate
+      #        if: matrix.os == 'windows-latest'
+      #        env:
+      #          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      #          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      #        run: |
+      #          New-Item -ItemType directory -Path certificate
+      #          Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
+      #          certutil -decode certificate/tempCert.txt certificate/certificate.pfx
+      #          Remove-Item -path certificate -include tempCert.txt
+      #          Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
       - name: Tag Release
         uses: jaywcjlove/create-tag-action@main
         id: tag_release
@@ -90,7 +90,7 @@ jobs:
             ${{ steps.changelog.outputs.compareurl }}
 
             ${{ steps.changelog.outputs.changelog }}
-      - name: Release App
+      - name: Build Distribution Artifacts
         uses: tauri-apps/tauri-action@v0
         if: steps.tag_release.outputs.successful
         env:
@@ -100,21 +100,21 @@ jobs:
           #          APPLE_ID: ${{ secrets.APPLE_ID }}
           #          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           #          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-#          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-#          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-#          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+        #          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+        #          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        #          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         with:
-          tagName: ${{ steps.tag_release.outputs.version }}
-          releaseName: ${{ steps.tag_release.outputs.version }}
-          appVersion: "${{ steps.tag_release.outputs.versionNumber }}"
+#          tagName: ${{ steps.tag_release.outputs.version }}
+#          releaseName: ${{ steps.tag_release.outputs.version }}
+#          appVersion: "${{ steps.tag_release.outputs.versionNumber }}"
           args: ${{ matrix.args }}
-          releaseBody: |
-            ${{ steps.changelog.outputs.compareurl }}
-
-            ${{ steps.changelog.outputs.changelog }}
-
-          releaseDraft: true
-          prerelease: true
+#          releaseBody: |
+#            ${{ steps.changelog.outputs.compareurl }}
+#
+#            ${{ steps.changelog.outputs.changelog }}
+#
+#          releaseDraft: true
+#          prerelease: true
       - name: Sign files with Trusted Signing
         if: matrix.os == 'windows-latest'
         uses: azure/trusted-signing-action@v0.3.19
@@ -131,15 +131,33 @@ jobs:
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
-
-      - name: Upload Signed files Distributions
+      - name: Upload Distribution Artifacts
         uses: actions/upload-artifact@v4
-        if: matrix.os == 'windows-latest'
         with:
-          path: ${{ github.workspace }}\src-tauri\target\**\*.exe
-          compression-level: 0
+          name: artifacts-${{ matrix.os }}
+          path: |
+            src-tauri/target/**/*.{dmg,rpm,deb}
+            src-tauri/target/**/*?{setup.exe}
+  release:
+    needs: pre-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Distribution Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: src-tauri/target
+          merge-multiple: true
+      - name: Release App
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.pre-release.steps.tag_release.outputs.version }}
+          name: ${{ needs.pre-release.steps.tag_release.outputs.version }}
+          body: |
+            ${{ needs.pre-release.steps.changelog.outputs.compareurl }}
 
-
+            ${{ needs.pre-release.steps.changelog.outputs.changelog }}
+          files: |
+            src-tauri/target/**/*
 #      - name: Distribute artifacts to R2
 #        uses: ryand56/r2-upload-action@master
 #        if: steps.tag_release.outputs.successful
