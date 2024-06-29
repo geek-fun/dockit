@@ -3,7 +3,8 @@ name: distributions release
 on:
   pull_request:
     branches: [ master ]
-
+  push:
+    branches: [ master ]
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -125,9 +126,9 @@ jobs:
           endpoint: https://eus.codesigning.azure.net/
           trusted-signing-account-name: geek-fun
           certificate-profile-name: geek-fun
-          files-folder: ${{ github.workspace }}\src-tauri\target\
+          files-folder: ${{ github.workspace }}\src-tauri\target\${{ matrix.target }}\release\bundle\nsis\
           files-folder-depth: 7
-          files-folder-filter: setup.exe
+          files-folder-filter: exe
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
