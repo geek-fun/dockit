@@ -136,7 +136,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ matrix.os }}
-          path: src-tauri/target/**/*.{dmg,rpm,deb,exe}
+          path: ${{ github.workspace }}/src-tauri/target/**/*.{dmg,rpm,deb,exe}
 
   release:
     needs: pre-release
@@ -173,8 +173,7 @@ jobs:
             ${{ steps.changelog.outputs.compareurl }}
 
             ${{ steps.changelog.outputs.changelog }}
-          files: |
-            src-tauri/target/**/*
+          files: ${{ github.workspace }}/src-tauri/target/**/*
 #      - name: Distribute artifacts to R2
 #        uses: ryand56/r2-upload-action@master
 #        if: steps.tag_release.outputs.successful
