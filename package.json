@@ -2,7 +2,7 @@
   "name": "dockit",
   "private": true,
   "type": "module",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "A faster, better and more stable NoSQL desktop tools",
   "author": "geekfun <support@geekfun.club>",
   "homepage": "ttps://dockit.geekfun.club",

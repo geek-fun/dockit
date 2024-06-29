@@ -1,8 +1,6 @@
 name: distributions release
 run-name: ${{ github.event.head_commit.message }}
 on:
-  pull_request:
-    branches: [ master ]
   push:
     branches: [ master ]
 concurrency:
@@ -128,6 +126,7 @@ jobs:
 
       - name: Release App
         uses: softprops/action-gh-release@v2
+        if: steps.tag_release.outputs.successful
         with:
           tag_name: ${{ steps.tag_release.outputs.version }}
           name: ${{ steps.tag_release.outputs.version }}
@@ -138,8 +137,8 @@ jobs:
           files: ${{ github.workspace }}/artifacts/**/*
 
       - name: Distribute Binaries to R2
+        if: steps.tag_release.outputs.successful
         uses: ryand56/r2-upload-action@master
-#        if: steps.tag_release.outputs.successful
         with:
           r2-account-id:  ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
