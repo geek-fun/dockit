@@ -26,11 +26,7 @@ const generateKey = async () => {
     false,
     ['encrypt', 'decrypt'],
   );
-  console.log('cryptoKey', {
-    baseKey,
-    cryptoKey,
-    iv: Array.from(iv, byte => String.fromCodePoint(byte)).join(''),
-  });
+
   return { cryptoKey, iv };
 };
 

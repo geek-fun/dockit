@@ -119,7 +119,6 @@ export const useChatStore = defineStore('chat', {
             this.chats.push({ id: ulid(), type: 'openai', messages: [], assistantId, threadId });
             await storeApi.set('chats', pureObject(this.chats));
           } catch (err) {
-            console.log('createAssistant error', err);
             throw new Error((err as Error).message);
           }
         }
@@ -145,8 +144,6 @@ export const useChatStore = defineStore('chat', {
             question,
           },
           event => {
-            console.log('chatStore received event:', typeof event);
-
             if (event.state.toUpperCase() === 'CREATED') {
               this.chats[0].messages.push({
                 id: ulid(),
@@ -163,7 +160,6 @@ export const useChatStore = defineStore('chat', {
           },
         );
       } catch (err) {
-        console.log('chatAssistant error', err);
         messages[messages.length - 1].status = MessageStatus.FAILED;
         await storeApi.set('chats', pureObject(this.chats));
         throw new Error((err as Error).message);

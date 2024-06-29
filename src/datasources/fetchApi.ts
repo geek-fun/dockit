@@ -13,7 +13,6 @@ type FetchApiOptions = {
 
 const handleFetch = (result: { data: unknown; status: number; details: string | undefined }) => {
   if ([404, 400].includes(result.status) || (result.status >= 200 && result.status < 300)) {
-    console.log('fetchApi.handleFetch', { result });
     return result.data || JSON.parse(result.details || '');
   }
   if (result.status === 401) {
@@ -64,7 +63,6 @@ const fetchWrapper = async ({
     });
     return handleFetch({ data, status, details });
   } catch (err) {
-    console.log('fetchWrapper error:', err);
     throw err;
   }
 };
@@ -74,8 +72,6 @@ const fetchRequest = async (
   { method, headers: inputHeaders, payload, agent: agentSslConf }: FetchApiOptions,
 ) => {
   const agent = { ssl: url.startsWith('https') && agentSslConf?.ssl };
-
-  console.log('fetchApi.fetch', { url, method, headers: inputHeaders, payload, agentSslConf });
 
   const headers = JSON.parse(
     JSON.stringify({ 'Content-Type': 'application/json', ...inputHeaders }),
@@ -94,19 +90,11 @@ const fetchRequest = async (
 
       return { status, message, data: parsedData };
     }
-    console.log('fetchApi.fetch', { url, method, headers, payload, agentSslConf });
     throw new CustomError(status, message);
   } catch (e) {
     const error = typeof e == 'string' ? new CustomError(500, e) : (e as CustomError);
     const details = error.details || error.message;
     debug('error encountered while node-fetch fetch target:', e);
-    console.log('error encountered while node-fetch fetch target:', {
-      status: error.status || 500,
-      details,
-      e,
-      et: typeof e,
-      error,
-    });
     return {
       status: error.status || 500,
       details: typeof details === 'string' ? details : JSON.stringify(details),

@@ -63,10 +63,8 @@ export const useConnectionStore = defineStore('connectionStore', {
   actions: {
     async fetchConnections() {
       this.connections = (await storeApi.get('connections', [])) as Connection[];
-      console.log('connections', this.connections);
     },
     async testConnection(con: Connection) {
-      console.log('testConnection', con);
       const client = loadHttpClient(con);
 
       return await client.get(undefined, 'format=json');

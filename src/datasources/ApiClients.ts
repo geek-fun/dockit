@@ -21,11 +21,9 @@ export const tauriClient = {
     try {
       const result = await invoke<string>(command, payload as InvokeArgs);
       const { status, message, data } = JSON.parse(result) as ApiClientResponse;
-      console.log('tauriClient.invoke', { command, result: { status, message, data } });
       return { status, message, data };
     } catch (err) {
       const { status, message, data } = JSON.parse(err as string) as ApiClientResponse;
-      console.log('tauriClient.invoke error', { command, result: { status, message, data } });
       throw new ApiClientError(status, message, JSON.stringify(data));
     }
   },

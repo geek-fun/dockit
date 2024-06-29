@@ -5,10 +5,8 @@ import { debug } from '../common';
 const saveFile = async (filePath: string, content: string) => {
   try {
     const folderPath = filePath.substring(0, filePath.lastIndexOf('/'));
-    console.log('folderPath', folderPath);
 
     if (!(await exists(folderPath, { dir: BaseDirectory.AppData }))) {
-      console.log('file not exists');
       await createDir(folderPath, { dir: BaseDirectory.AppData, recursive: true });
     }
     await writeTextFile(filePath, content, { dir: BaseDirectory.AppConfig, append: false });

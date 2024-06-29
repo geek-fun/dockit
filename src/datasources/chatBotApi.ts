@@ -29,7 +29,6 @@ const chatBotApi = {
 
       return { assistantId: assistant_id as string, threadId: thread_id as string };
     } catch (err) {
-      console.log('createAssistant error', JSON.stringify(err));
       throw err;
     }
   },
@@ -76,7 +75,6 @@ const chatBotApi = {
     model: string;
     httpProxy?: string;
   }) => {
-    console.log('findAssistant', { apiKey, assistantId, model, httpProxy });
     return await tauriClient.invoke('find_assistant', {
       apiKey,
       assistantId,
@@ -100,18 +98,12 @@ const chatBotApi = {
       state: string;
     }) => void,
   ) => {
-    console.log('start chatAssistant');
     if (!receiveRegistration) {
-      console.log('register chatbot-message event');
       await listen<string>('chatbot-message', event => {
-        console.log(
-          `Receive chatbot-message in window ${event.windowLabel}, payload: ${event.payload}`,
-        );
         callback(JSON.parse(event.payload));
       });
       receiveRegistration = true;
     }
-    console.log('invoke chat_assistant', { assistantId, threadId, question });
     await tauriClient.invoke('chat_assistant', {
       assistantId,
       threadId,

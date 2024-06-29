@@ -446,8 +446,8 @@ onMounted(async () => {
 onUnmounted(() => {
   codeLensProvider.dispose();
 });
+// @ts-ignore
 listen('saveFile', async event => {
-  console.log('saveFile triggered on listen', { event });
   if (!queryEditor) {
     return;
   }

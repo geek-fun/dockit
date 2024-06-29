@@ -25,7 +25,6 @@ fn get_proxy(http_proxy: Option<String>) -> Option<String> {
         }
         None => sys_proxy
     };
-    println!("proxy_url: {:?}", proxy_url);
     return proxy_url;
 }
 
@@ -38,7 +37,6 @@ fn create_http_client(proxy: Option<String>, ssl: Option<bool>) -> reqwest::Clie
         match reqwest::Proxy::https(&proxy_url) {
             Ok(proxy) => {
                 builder = builder.proxy(proxy);
-                println!("Proxy set to: {}", proxy_url);
             }
             Err(e) => {
                 println!("Failed to create proxy: {}", e);
@@ -61,7 +59,6 @@ async fn validate_openai(api_key: &str, model: &str, proxy: Option<String>) -> b
     match resp {
         Ok(response) => { response.status().is_success() }
         Err(err) => {
-            println!("Failed to validate OpenAI API Key or Model: {:?}", err);
             false
         }
     }
@@ -129,7 +126,6 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
                 FETCH_SECURE_CLIENT.as_ref().unwrap()
             }
             false => {
-                println!("Insecure client used");
                 if FETCH_INSECURE_CLIENT.is_none() {
                     FETCH_INSECURE_CLIENT = Option::from(create_http_client(options.agent.http_proxy, Some(options.agent.ssl)));
                 }
@@ -138,7 +134,6 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
         }
     };
 
-    println!("Fetching API: {}, {}, {:?}", url, reqwest::Method::from_bytes(options.method.as_bytes()).unwrap(), options.headers);
     let response = client
         .request(reqwest::Method::from_bytes(options.method.as_bytes()).unwrap(), &url)
         .headers(headermap_from_hashmap(options.headers.iter()))
@@ -157,7 +152,6 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
                     let message = if is_success {
                         "Success".to_string()
                     } else {
-                        println!("error message: {:?}", body);
                         "Failed to fetch API".to_string()
                     };
                     let result = json!({
@@ -165,7 +159,6 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
                         "message": message,
                         "data": data
                     });
-                    println!("build response structure rust,result: {:?}", result);
                     Ok(result.to_string())
                 }
                 Err(e) => {
@@ -184,7 +177,6 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
                 "message": format!("Failed to fetch API {}", e),
                 "data": Option::<serde_json::Value>::None,
             });
-            println!("{}", e);
             Err(result.to_string())
         }
     }
@@ -289,7 +281,6 @@ async fn modify_assistant(api_key: String, assistant_id: String, model: String, 
             Ok(result.to_string())
         }
         Err(e) => {
-            println!("error to get assistant {}", e);
             let result = json!({
                 "status": 500,
                 "message":"Success".to_string(),
@@ -372,7 +363,6 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
             return Err(result.to_string());
         }
     };
-    println!("start sending message to openai");
     let _message = openai_client
         .threads()
         .messages(&thread_id)
@@ -393,7 +383,6 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
         .await
         .map_err(|e| e.to_string())?; // Convert the error to a string
 
-    println!("event_stream start");
 
     // let mut task_handle = None;
     while let Some(event) = event_stream.next().await {
@@ -406,10 +395,8 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                         "state": "CREATED"
                     });
                     window.emit("chatbot-message", msg.to_string()).unwrap();
-                    println!("thread.run.thread_message_created: msg_object:{:?}", msg_object);
                 }
                 AssistantStreamEvent::ThreadMessageDelta(msg_object) => {
-                    println!("thread.run.thread_message_delta: msg_object:{:?}", msg_object);
                     let msg = json!({
                         "role": "BOT",
                         "content": msg_object.delta.content,
@@ -424,10 +411,8 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                         "state": "COMPLETED"
                     });
                     window.emit("chatbot-message", msg.to_string()).unwrap();
-                    println!("thread.run.thread_message_completed: msg_object:{:?}", msg_object);
                 }
                 AssistantStreamEvent::ThreadRunFailed(run_object) => {
-                    println!("thread.run.thread_run_completed: run_object:{:?}", run_object);
                     let result = json!({
                     "status": 500,
                     "message": run_object.last_error,
@@ -436,7 +421,6 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                     return Err(result.to_string());
                 }
                 event => {
-                    println!("\nEvent: {event:?}\n, {:?}", event);
                 }
             },
             Err(e) => {
@@ -445,7 +429,6 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                     "message":"Failed to get stream response".to_string(),
                     "data":Option::<serde_json::Value>::None,
                 });
-                eprintln!("Error: {:?}", e);
                 return Err(result.to_string());
             }
         }
