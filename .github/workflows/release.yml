@@ -65,58 +65,19 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - run: npm run build
-      #      - name: Generate changelog
-      #        uses: jaywcjlove/changelog-generator@main
-      #        id: changelog
-      #        with:
-      #          token: ${{ secrets.GITHUB_TOKEN }}
-      #      - name: import windows certificate
-      #        if: matrix.os == 'windows-latest'
-      #        env:
-      #          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-      #          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-      #        run: |
-      #          New-Item -ItemType directory -Path certificate
-      #          Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
-      #          certutil -decode certificate/tempCert.txt certificate/certificate.pfx
-      #          Remove-Item -path certificate -include tempCert.txt
-      #          Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
-      #      - name: Tag Release
-      #        uses: jaywcjlove/create-tag-action@main
-      #        id: tag_release
-      #        with:
-      #          prerelease: true
-      #          token: ${{ secrets.GITHUB_TOKEN }}
-      #          body: |
-      #            ${{ steps.changelog.outputs.compareurl }}
-      #
-      #            ${{ steps.changelog.outputs.changelog }}
-      - name: Build Distribution Artifacts
+      - name: Build Distribution Binaries
         uses: tauri-apps/tauri-action@v0
-        #        if: steps.tag_release.outputs.successful
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_CONFIG_ALLOW_CROSS: 1
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          #          APPLE_ID: ${{ secrets.APPLE_ID }}
-          #          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          #          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         with:
-          #          tagName: ${{ steps.tag_release.outputs.version }}
-          #          releaseName: ${{ steps.tag_release.outputs.version }}
-          #          appVersion: "${{ steps.tag_release.outputs.versionNumber }}"
           args: ${{ matrix.args }}
-      #          releaseBody: |
-      #            ${{ steps.changelog.outputs.compareurl }}
-      #
-      #            ${{ steps.changelog.outputs.changelog }}
-      #
-      #          releaseDraft: true
-      #          prerelease: true
-      - name: Sign files with Trusted Signing
+
+      - name: Sign Binaries with Trusted Signing
         if: matrix.os == 'windows-latest'
         uses: azure/trusted-signing-action@v0.3.19
         with:
@@ -132,7 +93,7 @@ jobs:
           file-digest: SHA256
           timestamp-rfc3161: http://timestamp.acs.microsoft.com
           timestamp-digest: SHA256
-      - name: Upload Distribution Artifacts
+      - name: Upload Distribution Binaries
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ matrix.os }}
@@ -148,7 +109,7 @@ jobs:
     steps:
       - name: Github checkout
         uses: actions/checkout@v4
-      - name: Download Distribution Artifacts
+      - name: Download Distribution Binaries
         uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -171,15 +132,12 @@ jobs:
           tag_name: ${{ steps.tag_release.outputs.version }}
           name: ${{ steps.tag_release.outputs.version }}
           body: |
-            ${{ steps.chnagelog.outputs.tag }}
-            ${{ steps.chnagelog.outputs.version }}
-            
             ${{ steps.changelog.outputs.compareurl }}
 
             ${{ steps.changelog.outputs.changelog }}
           files: ${{ github.workspace }}/artifacts/**/*
 
-      - name: Distribute artifacts to R2
+      - name: Distribute Binaries to R2
         uses: ryand56/r2-upload-action@master
 #        if: steps.tag_release.outputs.successful
         with:
@@ -187,5 +145,5 @@ jobs:
           r2-access-key-id: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
           r2-bucket: ${{ secrets.CLOUDFLARE_ARTIFACTS_R2 }}
-          source-dir: ${{ github.workspace }}/artifacts/**/*
+          source-dir: ${{ github.workspace }}/artifacts/
           destination-dir: dockit
