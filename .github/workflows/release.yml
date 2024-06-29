@@ -143,6 +143,8 @@ jobs:
     needs: pre-release
     runs-on: ubuntu-latest
     steps:
+      - name: Github checkout
+        uses: actions/checkout@v4
       - name: Download Distribution Artifacts
         uses: actions/download-artifact@v4
         with:
