@@ -153,12 +153,22 @@ jobs:
         id: changelog
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag Release
+        uses: jaywcjlove/create-tag-action@main
+        id: tag_release
+        with:
+          prerelease: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Release App
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.chnagelog.outputs.tag }}
-          name: ${{ steps.chnagelog.outputs.version }}
+          tag_name: ${{ steps.tag_release.outputs.version }}
+          name: ${{ steps.tag_release.outputs.version }}
           body: |
+            ${{ steps.chnagelog.outputs.tag }}
+            ${{ steps.chnagelog.outputs.version }}
+            
             ${{ steps.changelog.outputs.compareurl }}
 
             ${{ steps.changelog.outputs.changelog }}
