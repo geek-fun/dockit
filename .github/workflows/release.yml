@@ -65,11 +65,11 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - run: npm run build
-#      - name: Generate changelog
-#        uses: jaywcjlove/changelog-generator@main
-#        id: changelog
-#        with:
-#          token: ${{ secrets.GITHUB_TOKEN }}
+      #      - name: Generate changelog
+      #        uses: jaywcjlove/changelog-generator@main
+      #        id: changelog
+      #        with:
+      #          token: ${{ secrets.GITHUB_TOKEN }}
       #      - name: import windows certificate
       #        if: matrix.os == 'windows-latest'
       #        env:
@@ -81,19 +81,19 @@ jobs:
       #          certutil -decode certificate/tempCert.txt certificate/certificate.pfx
       #          Remove-Item -path certificate -include tempCert.txt
       #          Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
-#      - name: Tag Release
-#        uses: jaywcjlove/create-tag-action@main
-#        id: tag_release
-#        with:
-#          prerelease: true
-#          token: ${{ secrets.GITHUB_TOKEN }}
-#          body: |
-#            ${{ steps.changelog.outputs.compareurl }}
-#
-#            ${{ steps.changelog.outputs.changelog }}
+      #      - name: Tag Release
+      #        uses: jaywcjlove/create-tag-action@main
+      #        id: tag_release
+      #        with:
+      #          prerelease: true
+      #          token: ${{ secrets.GITHUB_TOKEN }}
+      #          body: |
+      #            ${{ steps.changelog.outputs.compareurl }}
+      #
+      #            ${{ steps.changelog.outputs.changelog }}
       - name: Build Distribution Artifacts
         uses: tauri-apps/tauri-action@v0
-#        if: steps.tag_release.outputs.successful
+        #        if: steps.tag_release.outputs.successful
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PKG_CONFIG_ALLOW_CROSS: 1
@@ -101,21 +101,21 @@ jobs:
           #          APPLE_ID: ${{ secrets.APPLE_ID }}
           #          APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           #          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        #          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-        #          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        #          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
         with:
-#          tagName: ${{ steps.tag_release.outputs.version }}
-#          releaseName: ${{ steps.tag_release.outputs.version }}
-#          appVersion: "${{ steps.tag_release.outputs.versionNumber }}"
+          #          tagName: ${{ steps.tag_release.outputs.version }}
+          #          releaseName: ${{ steps.tag_release.outputs.version }}
+          #          appVersion: "${{ steps.tag_release.outputs.versionNumber }}"
           args: ${{ matrix.args }}
-#          releaseBody: |
-#            ${{ steps.changelog.outputs.compareurl }}
-#
-#            ${{ steps.changelog.outputs.changelog }}
-#
-#          releaseDraft: true
-#          prerelease: true
+      #          releaseBody: |
+      #            ${{ steps.changelog.outputs.compareurl }}
+      #
+      #            ${{ steps.changelog.outputs.changelog }}
+      #
+      #          releaseDraft: true
+      #          prerelease: true
       - name: Sign files with Trusted Signing
         if: matrix.os == 'windows-latest'
         uses: azure/trusted-signing-action@v0.3.19
@@ -136,9 +136,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifacts-${{ matrix.os }}
-          path: |
-            src-tauri/target/**/*.{dmg,rpm,deb}
-            src-tauri/target/**/*?{setup.exe}
+          path: src-tauri/target/**/*.{dmg,rpm,deb,exe}
+
   release:
     needs: pre-release
     runs-on: ubuntu-latest
