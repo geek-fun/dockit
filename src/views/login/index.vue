@@ -59,7 +59,8 @@ const loginRules = ref({
 
 const handleLogin = (e: MouseEvent) => {
   e.preventDefault();
-  loginFormRef.value.validate(errors => {
+  // @ts-ignore
+  loginFormRef.value?.validate((errors: unknown) => {
     if (!errors) {
       userStore.setToken('setToken');
       router.push('/');

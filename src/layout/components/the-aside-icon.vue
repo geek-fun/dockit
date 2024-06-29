@@ -7,8 +7,5 @@
   </n-popover>
 </template>
 <script lang="ts" setup>
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const props = defineProps({
-  popoverContent: String,
-});
+defineProps({ popoverContent: String });
 </script>

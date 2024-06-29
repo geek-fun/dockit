@@ -22,7 +22,6 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { Add } from '@vicons/carbon';
 import ConnectModal from './components/connect-dialog.vue';

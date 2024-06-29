@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { pureObject } from '../common';
-import { loadHttpClient } from '../common/httpClient';
+import { loadHttpClient, storeApi } from '../datasources';
 
 export type Connection = {
   id?: number;
@@ -32,7 +32,6 @@ export type ConnectionIndex = {
   };
 };
 
-const { storeAPI } = window;
 type Established =
   | (Connection & { indices: Array<ConnectionIndex>; activeIndex?: ConnectionIndex })
   | null;
@@ -63,25 +62,25 @@ export const useConnectionStore = defineStore('connectionStore', {
   },
   actions: {
     async fetchConnections() {
-      this.connections = await storeAPI.get('connections', []);
+      this.connections = (await storeApi.get('connections', [])) as Connection[];
     },
     async testConnection(con: Connection) {
       const client = loadHttpClient(con);
 
       return await client.get(undefined, 'format=json');
     },
-    saveConnection(connection: Connection) {
+    async saveConnection(connection: Connection) {
       const index = this.connections.findIndex(({ id }: Connection) => id === connection.id);
       if (index >= 0) {
         this.connections[index] = connection;
       } else {
         this.connections.push({ ...connection, id: this.connections.length + 1 });
       }
-      storeAPI.set('connections', pureObject(this.connections));
+      await storeApi.set('connections', pureObject(this.connections));
     },
-    removeConnection(connection: Connection) {
+    async removeConnection(connection: Connection) {
       this.connections = this.connections.filter(({ id }: Connection) => id !== connection.id);
-      storeAPI.set('connections', pureObject(this.connections));
+      await storeApi.set('connections', pureObject(this.connections));
     },
     async establishConnection(connection: Connection) {
       await this.testConnection(connection);
@@ -97,7 +96,7 @@ export const useConnectionStore = defineStore('connectionStore', {
           deleted: parseInt(index['docs.deleted'], 10),
         },
         store: { size: index['store.size'] },
-      }));
+      })) as ConnectionIndex[];
       this.established = { ...connection, indices };
     },
     async fetchIndices() {
@@ -113,10 +112,10 @@ export const useConnectionStore = defineStore('connectionStore', {
           deleted: parseInt(index['docs.deleted'], 10),
         },
         store: { size: index['store.size'] },
-      }));
+      })) as ConnectionIndex[];
     },
     async selectIndex(indexName: string) {
-      const client = loadHttpClient(this.established);
+      const client = loadHttpClient(this.established as Connection);
 
       // get the index mapping
       const mapping = await client.get(`/${indexName}/_mapping`, 'format=json');
@@ -137,7 +136,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       method: string;
       path: string;
       index?: string;
-      qdsl?: string;
+      qdsl?: { [key: string]: unknown };
     }) {
       if (!this.established) throw new Error('no connection established');
       const client = loadHttpClient(this.established);

@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js'; // https://highlightjs.org
@@ -52,7 +52,7 @@ const md = new MarkdownIt({
     </span><code class='hljs'>${highlightedCode}</code>`;
   },
 });
-
+// @ts-ignore
 md.renderer.rules['code'] = (tokens, idx, options, env, self) => {
   const token = tokens[idx];
   const code = token.content.trim();

@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia';
 import { pureObject } from '../common';
+import { chatBotApi, storeApi } from '../datasources';
+import { lang } from '../lang';
+import { staticInfo, StaticInfo } from 'tauri-plugin-system-info-api';
 
 export enum ThemeType {
   AUTO = 'auto',
@@ -12,31 +15,47 @@ export enum LanguageType {
   ZH_CN = 'zhCN',
   EN_US = 'enUS',
 }
-const { storeAPI } = window;
+export type OpenAiConfig = {
+  apiKey: string;
+  model: string;
+  prompt?: string;
+  httpProxy?: string;
+  enabled: boolean;
+};
 export const useAppStore = defineStore('app', {
   state: (): {
+    sysInfo: {};
     themeType: ThemeType;
     languageType: LanguageType;
     connectPanel: boolean;
     uiThemeType: Exclude<ThemeType, ThemeType.AUTO>;
     skipVersion: string;
     aigcConfig: {
-      openAi: { apiKey?: string; model?: string; prompt?: string; httpProxy?: string };
+      openAi: OpenAiConfig;
     };
   } => {
     return {
+      sysInfo: {},
       themeType: ThemeType.AUTO,
       languageType: LanguageType.AUTO,
       connectPanel: true, //
       uiThemeType: ThemeType.LIGHT,
       skipVersion: '',
-      aigcConfig: { openAi: {} },
+      aigcConfig: { openAi: {} as unknown as OpenAiConfig },
     };
   },
   persist: true,
   actions: {
+    async fetchSysInfo() {
+      const { name } = StaticInfo.parse(await staticInfo());
+      this.sysInfo = {
+        name,
+      };
+    },
     async fetchAigcConfig() {
-      this.aigcConfig = await storeAPI.getSecret('aigcConfig', { openAi: {} });
+      this.aigcConfig = await storeApi.getSecret<{ openAi: OpenAiConfig }>('aigcConfig', {
+        openAi: {} as unknown as OpenAiConfig,
+      });
     },
     setConnectPanel() {
       this.connectPanel = !this.connectPanel;
@@ -60,9 +79,14 @@ export const useAppStore = defineStore('app', {
     getEditorTheme() {
       return this.uiThemeType === ThemeType.DARK ? 'vs-dark' : 'vs-light';
     },
-    async saveAigcConfig(config: { [key: string]: unknown }) {
-      this.aigcConfig = config;
-      await storeAPI.setSecret('aigcConfig', pureObject(config));
+    async saveAigcConfig({ openAi }: { openAi: OpenAiConfig }) {
+      if (openAi.enabled && !(await chatBotApi.validateConfig(openAi))) {
+        throw new Error(lang.global.t('setting.ai.invalid'));
+      }
+
+      this.aigcConfig = { openAi };
+
+      await storeApi.setSecret('aigcConfig', pureObject({ openAi }));
     },
   },
 });

@@ -137,12 +137,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue';
-import { Close, Unlocked, Locked } from '@vicons/carbon';
+import { reactive, ref, watch } from 'vue';
+import { Close, Locked, Unlocked } from '@vicons/carbon';
 import { CustomError } from '../../../common';
 import { Connection, useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
-import { FormValidationError, FormItemRule } from 'naive-ui';
+import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 
 const { testConnection, saveConnection } = useConnectionStore();
 const lang = useLang();
@@ -164,7 +164,8 @@ const defaultFormData = {
   sslCertVerification: true,
 };
 const formData = ref<Connection>(defaultFormData);
-const formRules = reactive({
+const formRules = reactive<FormRules>({
+  // @ts-ignore
   name: [
     {
       required: true,
@@ -175,7 +176,7 @@ const formRules = reactive({
   host: [
     {
       required: true,
-      validator: (rule: FormItemRule, value: string) => {
+      validator: (_: FormItemRule, value: string) => {
         if (value.length >= 'http://'.length) {
           if (value.startsWith('http://') && formData.value.sslCertVerification) {
             formData.value.sslCertVerification = false;
@@ -199,7 +200,10 @@ const formRules = reactive({
   ],
 });
 
-const hostValidate = ref({ status: undefined, feedback: '' });
+const hostValidate = ref<{
+  status: 'error' | undefined;
+  feedback: string;
+}>({ status: undefined, feedback: '' });
 
 const switchSSL = (target: boolean) => {
   if (formData.value.host.startsWith('https') || !target) {
@@ -286,6 +290,7 @@ defineExpose({ showMedal });
       cursor: pointer;
     }
   }
+
   .modal-content {
     .ssl-unchecked-icon {
       transition: 0.3s;
@@ -293,6 +298,7 @@ defineExpose({ showMedal });
       overflow: hidden;
       color: var(--dange-color);
     }
+
     .ssl-checked-icon {
       transition: 0.3s;
       margin-top: 4px;

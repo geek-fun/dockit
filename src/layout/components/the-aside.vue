@@ -43,6 +43,7 @@
 
 <script setup lang="ts">
 import { ref, markRaw } from 'vue';
+import { open } from '@tauri-apps/api/shell';
 import { useRouter, useRoute } from 'vue-router';
 import { DataBase, Folders, LogoGithub, Settings, UserAvatar, ExpandAll } from '@vicons/carbon';
 import { useAppStore } from '../../store';
@@ -113,7 +114,7 @@ const isActive = (item: RouteItem) => {
 // nav click handler method
 const navClick = (item: RouteItem) => {
   if (item.isLink && item.id === 'github') {
-    window.electronAPI.openGitHub();
+    open('https://github.com/geek-fun/dockit');
   } else {
     if (route.path === item.path) {
       setConnectPanel();

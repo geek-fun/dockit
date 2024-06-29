@@ -9,9 +9,11 @@
   </n-split>
 </template>
 <script setup lang="ts">
+import { open } from '@tauri-apps/api/shell';
+import { listen } from '@tauri-apps/api/event';
 import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
-import { onMounted, onUnmounted, ref, Ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
 import {
   buildSearchToken,
@@ -54,23 +56,28 @@ self.MonacoEnvironment = {
 
     switch (label) {
       case 'json':
+        // @ts-ignore
         worker = await import('monaco-editor/esm/vs/language/json/json.worker?worker');
         break;
       case 'css':
       case 'scss':
       case 'less':
+        // @ts-ignore
         worker = await import('monaco-editor/esm/vs/language/css/css.worker?worker');
         break;
       case 'html':
       case 'handlebars':
       case 'razor':
+        // @ts-ignore
         worker = await import('monaco-editor/esm/vs/language/html/html.worker?worker');
         break;
       case 'typescript':
       case 'javascript':
+        // @ts-ignore
         worker = await import('monaco-editor/esm/vs/language/typescript/ts.worker?worker');
         break;
       default:
+        // @ts-ignore
         worker = await import('monaco-editor/esm/vs/editor/editor.worker?worker');
     }
 
@@ -171,6 +178,9 @@ watch(insertBoard, () => {
   if (queryEditor) {
     // add event to handle chatbot-code-actions
     const position = queryEditor.getPosition();
+    if (!position) {
+      return;
+    }
     queryEditor.getModel()?.pushEditOperations(
       [],
       [
@@ -190,7 +200,6 @@ watch(insertBoard, () => {
 });
 
 const executeQueryAction = async (
-  queryEditor: Editor,
   displayEditor: Editor,
   position: { column: number; lineNumber: number },
 ) => {
@@ -215,10 +224,11 @@ const executeQueryAction = async (
     }
     const data = await searchQDSL({
       ...action,
+      qdsl: action.qdsl ? JSON.parse(action.qdsl) : undefined,
       index: action.index || established.value?.activeIndex?.index,
     });
 
-    displayJsonEditor(JSON.stringify(data, null, '  '));
+    displayJsonEditor(displayEditor, JSON.stringify(data, null, '  '));
   } catch (err) {
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -230,6 +240,7 @@ const executeQueryAction = async (
 
 const autoIndentAction = (
   editor: monaco.editor.IStandaloneCodeEditor,
+  // @ts-ignore
   ctx: unknown,
   qdslPosition:
     | {
@@ -238,11 +249,8 @@ const autoIndentAction = (
       }
     | undefined,
 ) => {
-  if (!qdslPosition) {
-    return;
-  }
   const model = editor?.getModel();
-  if (!model) {
+  if (!qdslPosition || !model) {
     return;
   }
 
@@ -268,6 +276,7 @@ const autoIndentAction = (
           text: formatted,
         },
       ],
+      // @ts-ignore
       inverseEditOperations => [],
     );
   } catch (err) {
@@ -280,10 +289,11 @@ const autoIndentAction = (
 };
 
 const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
-  if (!editor) {
+  const { lineNumber } = editor?.getPosition() || {};
+  if (lineNumber === undefined || lineNumber === null) {
     return;
   }
-  const { lineNumber } = editor.getPosition();
+
   return tokens.find(({ actionPosition: { startLineNumber }, qdslPosition }) =>
     qdslPosition
       ? lineNumber >= startLineNumber && lineNumber <= qdslPosition.endLineNumber
@@ -299,9 +309,12 @@ const setupQueryEditor = (code: string) => {
     language: 'search',
     minimap: { enabled: false },
   });
+  if (!queryEditor) {
+    return;
+  }
 
   autoIndentCmdId = queryEditor.addCommand(0, (ctx, args) =>
-    autoIndentAction(queryEditor, ctx, args),
+    autoIndentAction(queryEditor!, ctx, args),
   );
 
   queryEditor.onMouseDown(({ event, target }) => {
@@ -312,26 +325,26 @@ const setupQueryEditor = (code: string) => {
       queryEditor &&
       displayEditor
     ) {
-      executeQueryAction(queryEditor, displayEditor, target.position);
+      executeQueryAction(displayEditor, target.position);
     }
   });
 
   // Auto indent current request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
-    const { qdslPosition } = getPointerAction(queryEditor, searchTokens) || {};
-    autoIndentAction(queryEditor, null, qdslPosition);
+    const { qdslPosition } = getPointerAction(queryEditor!, searchTokens) || {};
+    autoIndentAction(queryEditor!, null, qdslPosition);
   });
 
   // Toggle Autocomplete
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space, () => {
-    queryEditor.trigger('keyboard', 'editor.action.triggerSuggest', {});
+    queryEditor!.trigger('keyboard', 'editor.action.triggerSuggest', {});
   });
 
   // Submit request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-    const { actionPosition } = getPointerAction(queryEditor, searchTokens) || {};
+    const { actionPosition } = getPointerAction(queryEditor!, searchTokens) || {};
     if (actionPosition) {
-      executeQueryAction(queryEditor, displayEditor, {
+      executeQueryAction(displayEditor!, {
         column: actionPosition.startColumn,
         lineNumber: actionPosition.startLineNumber,
       });
@@ -340,43 +353,57 @@ const setupQueryEditor = (code: string) => {
 
   // Jump to the previous request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.UpArrow, () => {
-    const { lineNumber, column } = queryEditor.getPosition();
+    const position = queryEditor?.getPosition();
+    if (!position) {
+      return;
+    }
     const { actionPosition } =
       searchTokens
         .filter(({ actionPosition }) => actionPosition)
         .sort((a, b) => b.actionPosition.startLineNumber - a.actionPosition.startLineNumber)
-        .find(({ actionPosition: { startLineNumber } }) => startLineNumber < lineNumber) || {};
+        .find(({ actionPosition: { startLineNumber } }) => startLineNumber < position.lineNumber) ||
+      {};
 
     if (actionPosition) {
-      queryEditor.revealLine(actionPosition.startLineNumber);
-      queryEditor.setPosition({ column, lineNumber: actionPosition.startLineNumber });
+      queryEditor!.revealLine(actionPosition.startLineNumber);
+      queryEditor!.setPosition({
+        column: position.column,
+        lineNumber: actionPosition.startLineNumber,
+      });
     }
   });
 
   // Jump to the next request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.DownArrow, () => {
-    const { lineNumber, column } = queryEditor.getPosition();
+    const position = queryEditor?.getPosition();
+    if (!position) {
+      return;
+    }
     const { actionPosition } =
       searchTokens
         .filter(({ actionPosition }) => actionPosition)
         .sort((a, b) => a.actionPosition.startLineNumber - b.actionPosition.startLineNumber)
-        .find(({ actionPosition: { startLineNumber } }) => startLineNumber > lineNumber) || {};
+        .find(({ actionPosition: { startLineNumber } }) => startLineNumber > position.lineNumber) ||
+      {};
 
     if (actionPosition) {
-      queryEditor.revealLine(actionPosition.startLineNumber);
-      queryEditor.setPosition({ column, lineNumber: actionPosition.startLineNumber });
+      queryEditor!.revealLine(actionPosition.startLineNumber);
+      queryEditor!.setPosition({
+        column: position.column,
+        lineNumber: actionPosition.startLineNumber,
+      });
     }
   });
 
   // Collapse/expand current scope
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyL, () => {
-    queryEditor.trigger('keyboard', 'editor.toggleFold', {});
+    queryEditor!.trigger('keyboard', 'editor.toggleFold', {});
   });
 
   // Collapse all scopes but the current one
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Digit0, () => {
-    queryEditor.trigger('keyboard', 'editor.foldAll', {});
-    queryEditor.trigger('keyboard', 'editor.unfoldRecursively', {});
+    queryEditor!.trigger('keyboard', 'editor.foldAll', {});
+    queryEditor!.trigger('keyboard', 'editor.unfoldRecursively', {});
   });
 
   // Open the documentation for the current action
@@ -384,17 +411,17 @@ const setupQueryEditor = (code: string) => {
     const docLink = getActionApiDoc(
       EngineType.ELASTICSEARCH,
       'current',
-      getPointerAction(queryEditor, searchTokens),
+      getPointerAction(queryEditor!, searchTokens)!,
     );
     if (docLink) {
-      window.electronAPI.openLink(docLink);
+      open(docLink);
     }
   });
 };
 
 const queryEditorSize = ref(1);
 
-const displayJsonEditor = (content: string) => {
+const displayJsonEditor = (displayEditor: Editor, content: string) => {
   queryEditorSize.value = queryEditorSize.value === 1 ? 0.5 : queryEditorSize.value;
   displayEditor?.getModel()?.setValue(content);
 };
@@ -419,10 +446,8 @@ onMounted(async () => {
 onUnmounted(() => {
   codeLensProvider.dispose();
 });
-
-const { sourceFileAPI } = window;
-
-sourceFileAPI.onSaveShortcut(async () => {
+// @ts-ignore
+listen('saveFile', async event => {
   if (!queryEditor) {
     return;
   }
