@@ -57,10 +57,8 @@ async fn validate_openai(api_key: &str, model: &str, proxy: Option<String>) -> b
         .await;
 
     match resp {
-        Ok(response) => { response.status().is_success() }
-        Err(err) => {
-            false
-        }
+        Ok(response) =>  response.status().is_success(),
+        Err(_err) => false
     }
 }
 
@@ -283,7 +281,7 @@ async fn modify_assistant(api_key: String, assistant_id: String, model: String, 
         Err(e) => {
             let result = json!({
                 "status": 500,
-                "message":"Success".to_string(),
+                "message": e.to_string(),
                 "data":Option::<serde_json::Value>::None,
             });
             Err(result.to_string())
@@ -420,10 +418,10 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                 });
                     return Err(result.to_string());
                 }
-                event => {
+                _event => {
                 }
             },
-            Err(e) => {
+            Err(_e) => {
                 let result = json!({
                     "status": 500,
                     "message":"Failed to get stream response".to_string(),
