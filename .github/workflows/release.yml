@@ -107,6 +107,15 @@ jobs:
     steps:
       - name: Github checkout
         uses: actions/checkout@v4
+      - run: echo "previous_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo '')" >> $GITHUB_ENV
+      - name: Tag Release
+        uses: jaywcjlove/create-tag-action@main
+        if: env.previous_tag
+        id: tag_release
+        with:
+          prerelease: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          package-path: ./package.json
       - name: Download Distribution Binaries
         uses: actions/download-artifact@v4
         with:
@@ -117,13 +126,6 @@ jobs:
         id: changelog
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Tag Release
-        uses: jaywcjlove/create-tag-action@main
-        id: tag_release
-        with:
-          prerelease: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Release App
         uses: softprops/action-gh-release@v2
         if: steps.tag_release.outputs.successful
