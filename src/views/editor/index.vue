@@ -11,24 +11,24 @@
 <script setup lang="ts">
 import { open } from '@tauri-apps/api/shell';
 import { listen } from '@tauri-apps/api/event';
-import * as monaco from 'monaco-editor';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
+import { CustomError } from '../../common';
+import { useAppStore, useChatStore, useConnectionStore, useSourceFileStore } from '../../store';
+import { useLang } from '../../lang';
 import {
   buildSearchToken,
-  CustomError,
   Decoration,
   defaultCodeSnippet,
   EngineType,
   getActionApiDoc,
+  Monaco,
+  monaco,
   SearchAction,
-  searchTokensProvider,
-} from '../../common';
-import { useAppStore, useChatStore, useConnectionStore, useSourceFileStore } from '../../store';
-import { useLang } from '../../lang';
+} from '../../common/monaco';
 
-type Editor = ReturnType<typeof monaco.editor.create>;
+type Editor = ReturnType<Monaco>;
 
 const appStore = useAppStore();
 const message = useMessage();
@@ -46,62 +46,6 @@ const { themeType } = storeToRefs(appStore);
 
 const chatStore = useChatStore();
 const { insertBoard } = storeToRefs(chatStore);
-/**
- * refer https://github.com/wobsoriano/codeplayground
- * https://github.com/wobsoriano/codeplayground/blob/master/src/components/MonacoEditor.vue
- */
-self.MonacoEnvironment = {
-  async getWorker(_, label) {
-    let worker;
-
-    switch (label) {
-      case 'json':
-        // @ts-ignore
-        worker = await import('monaco-editor/esm/vs/language/json/json.worker?worker');
-        break;
-      case 'css':
-      case 'scss':
-      case 'less':
-        // @ts-ignore
-        worker = await import('monaco-editor/esm/vs/language/css/css.worker?worker');
-        break;
-      case 'html':
-      case 'handlebars':
-      case 'razor':
-        // @ts-ignore
-        worker = await import('monaco-editor/esm/vs/language/html/html.worker?worker');
-        break;
-      case 'typescript':
-      case 'javascript':
-        // @ts-ignore
-        worker = await import('monaco-editor/esm/vs/language/typescript/ts.worker?worker');
-        break;
-      default:
-        // @ts-ignore
-        worker = await import('monaco-editor/esm/vs/editor/editor.worker?worker');
-    }
-
-    return new worker.default();
-  },
-};
-monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
-
-monaco.languages.register({ id: 'search' });
-
-monaco.languages.setMonarchTokensProvider(
-  'search',
-  searchTokensProvider as monaco.languages.IMonarchLanguage,
-);
-monaco.languages.setLanguageConfiguration('search', {
-  autoClosingPairs: [
-    { open: '{', close: '}' },
-    { open: '[', close: ']' },
-    { open: '(', close: ')' },
-    { open: '"', close: '"' },
-    { open: "'", close: "'" },
-  ],
-});
-
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let displayEditor: Editor | null = null;
 let queryEditor: Editor | null = null;
@@ -224,7 +168,7 @@ const executeQueryAction = async (
     }
     const data = await searchQDSL({
       ...action,
-      qdsl: action.qdsl ? JSON.parse(action.qdsl) : undefined,
+      qdsl: action.qdsl ?? undefined,
       index: action.index || established.value?.activeIndex?.index,
     });
 

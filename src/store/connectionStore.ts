@@ -136,7 +136,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       method: string;
       path: string;
       index?: string;
-      qdsl?: { [key: string]: unknown };
+      qdsl?: string;
     }) {
       if (!this.established) throw new Error('no connection established');
       const client = loadHttpClient(this.established);
@@ -158,14 +158,13 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
 
       const reqPath = buildPath(index, path);
-      const body = qdsl ?? undefined;
 
       const dispatch: { [method: string]: () => Promise<unknown> } = {
-        POST: async () => client.post(reqPath, undefined, body),
-        PUT: async () => client.put(reqPath, undefined, body),
-        DELETE: async () => client.delete(reqPath, undefined, body),
+        POST: async () => client.post(reqPath, undefined, qdsl),
+        PUT: async () => client.put(reqPath, undefined, qdsl),
+        DELETE: async () => client.delete(reqPath, undefined, qdsl),
         GET: async () =>
-          body ? client.post(reqPath, undefined, body) : client.get(reqPath, 'format=json'),
+          qdsl ? client.post(reqPath, undefined, qdsl) : client.get(reqPath, 'format=json'),
       };
       return dispatch[method]();
     },

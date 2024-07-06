@@ -8,7 +8,7 @@ type FetchApiOptions = {
     [key: string]: string | number | undefined;
   };
   agent: { ssl: boolean } | undefined;
-  payload: unknown;
+  payload?: string;
 };
 
 const handleFetch = (result: { data: unknown; status: number; details: string | undefined }) => {
@@ -43,7 +43,7 @@ const fetchWrapper = async ({
   method: string;
   path?: string;
   queryParameters?: string;
-  payload?: unknown;
+  payload?: string;
   username?: string;
   password?: string;
   host: string;
@@ -80,7 +80,7 @@ const fetchRequest = async (
     const { status, message, data } = JSON.parse(
       await invoke<string>('fetch_api', {
         url,
-        options: { method, headers, body: payload ? JSON.stringify(payload) : undefined, agent },
+        options: { method, headers, body: payload ?? undefined, agent },
       }),
     ) as { status: number; message: string; data: unknown };
 
@@ -117,7 +117,7 @@ const loadHttpClient = (con: {
       queryParameters,
       ssl: con.sslCertVerification,
     }),
-  post: async (path: string, queryParameters?: string, payload?: unknown) =>
+  post: async (path: string, queryParameters?: string, payload?: string) =>
     fetchWrapper({
       ...con,
       method: 'POST',
@@ -126,7 +126,7 @@ const loadHttpClient = (con: {
       payload,
       ssl: con.sslCertVerification,
     }),
-  put: async (path: string, queryParameters?: string, payload?: unknown) =>
+  put: async (path: string, queryParameters?: string, payload?: string) =>
     fetchWrapper({
       ...con,
       method: 'PUT',
@@ -136,7 +136,7 @@ const loadHttpClient = (con: {
       ssl: con.sslCertVerification,
     }),
 
-  delete: async (path: string, queryParameters?: string, payload?: unknown) =>
+  delete: async (path: string, queryParameters?: string, payload?: string) =>
     fetchWrapper({
       ...con,
       method: 'DELETE',
