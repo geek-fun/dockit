@@ -1,15 +1,110 @@
-import { executeActions } from './editor';
+const xJson = {
+  id: 'xjson',
+  rules: {
+    defaultToken: 'invalid',
+    tokenPostfix: '',
+    escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
+    tokenizer: {
+      root: [
+        [
+          /("(?:[^"]*_)?script"|"inline"|"source")(\s*?)(:)(\s*?)(""")/,
+          [
+            'variable',
+            'whitespace',
+            'ace.punctuation.colon',
+            'whitespace',
+            {
+              token: 'punctuation.start_triple_quote',
+              nextEmbedded: 'painless',
+              next: 'my_painless',
+            },
+          ],
+        ],
+        [
+          /(:)(\s*?)(""")(sql)/,
+          [
+            'ace.punctuation.colon',
+            'whitespace',
+            'punctuation.start_triple_quote',
+            {
+              token: 'punctuation.start_triple_quote.lang_marker',
+              nextEmbedded: 'opensearchql',
+              next: 'my_sql',
+            },
+          ],
+        ],
+        [/{/, { token: 'paren.lparen', next: '@push' }],
+        [/}/, { token: 'paren.rparen', next: '@pop' }],
+        [/[[(]/, { token: 'paren.lparen' }],
+        [/[\])]/, { token: 'paren.rparen' }],
+        [/,/, { token: 'punctuation.comma' }],
+        [/:/, { token: 'punctuation.colon' }],
+        [/\s+/, { token: 'whitespace' }],
+        [/["](?:(?:\\.)|(?:[^"\\]))*?["]\s*(?=:)/, { token: 'variable' }],
+        [/"""/, { token: 'string_literal', next: 'string_literal' }],
+        [/0[xX][0-9a-fA-F]+\b/, { token: 'constant.numeric' }],
+        [/[+-]?\d+(?:(?:\.\d*)?(?:[eE][+-]?\d+)?)?\b/, { token: 'constant.numeric' }],
+        [/(?:true|false)\b/, { token: 'constant.language.boolean' }],
+        // strings
+        [/"([^"\\]|\\.)*$/, 'string.invalid'], // non-teminated string
+        [
+          /"/,
+          {
+            token: 'string.quote',
+            bracket: '@open',
+            next: '@string',
+          },
+        ],
+        [/['](?:(?:\\.)|(?:[^'\\]))*?[']/, { token: 'invalid' }],
+        [/.+?/, { token: 'text' }],
+        [/\/\/.*$/, { token: 'invalid' }],
+      ],
 
-export interface LangModuleType {
-  id: string;
-  lexerRules?: unknown;
-  languageConfiguration?: unknown;
-  getSuggestionProvider?: unknown;
-}
+      my_painless: [
+        [
+          /"""/,
+          {
+            token: 'punctuation.end_triple_quote',
+            nextEmbedded: '@pop',
+            next: '@pop',
+          },
+        ],
+      ],
 
-export const searchLang: LangModuleType = {
+      my_sql: [
+        [
+          /"""/,
+          {
+            token: 'punctuation.end_triple_quote',
+            nextEmbedded: '@pop',
+            next: '@pop',
+          },
+        ],
+      ],
+
+      string: [
+        [/[^\\"]+/, 'string'],
+        [/@escapes/, 'string.escape'],
+        [/\\./, 'string.escape.invalid'],
+        [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }],
+      ],
+
+      string_literal: [
+        [/"""/, { token: 'punctuation.end_triple_quote', next: '@pop' }],
+        [/./, { token: 'multi_string' }],
+      ],
+    },
+  },
+};
+export const executeActions = {
+  regexp: /^(GET|DELETE|POST|PUT)\s\w+/,
+  decorationClassName: 'action-execute-decoration',
+};
+
+export const search = {
   id: 'search',
-  lexerRules: {
+  rules: {
+    // Set defaultToken to invalid to see what you do not tokenize yet
     defaultToken: 'invalid',
     tokenPostfix: '.search',
 
@@ -188,107 +283,9 @@ export const searchLang: LangModuleType = {
       ],
     },
   },
-  languageConfiguration: {
-    brackets: [
-      ['{', '}'],
-      ['[', ']'],
-    ],
-    autoClosingPairs: [
-      { open: '{', close: '}' },
-      { open: '[', close: ']' },
-      { open: '"', close: '"' },
-    ],
-  },
 };
-// @ts-ignore
-const xjsonLexerRules = {
-  json_root: [
-    { include: '@comments' },
-    // { include: '@variables' },
-    // { include: '@json' },
-    { regex: /("\${\w+}")/, action: { token: 'variable.template' } },
-    [
-      /("(?:[^"]*_)?script"|"inline"|"source")(\s*?)(:)(\s*?)(""")/,
-      [
-        'variable',
-        'whitespace',
-        'ace.punctuation.colon',
-        'whitespace',
-        {
-          token: 'punctuation.start_triple_quote',
-          nextEmbedded: 'painless',
-          next: 'my_painless',
-        },
-      ],
-    ],
-    [
-      /(:)(\s*?)(""")(sql)/,
-      [
-        'ace.punctuation.colon',
-        'whitespace',
-        'punctuation.start_triple_quote',
-        {
-          token: 'punctuation.start_triple_quote.lang_marker',
-          nextEmbedded: 'esql',
-          next: 'my_sql',
-        },
-      ],
-    ],
-    [/{/, { token: 'paren.lparen', next: '@push' }],
-    [/}/, { token: 'paren.rparen', next: '@pop' }],
-    [/[[(]/, { token: 'paren.lparen' }],
-    [/[\])]/, { token: 'paren.rparen' }],
-    [/,/, { token: 'punctuation.comma' }],
-    [/:/, { token: 'punctuation.colon' }],
-    [/\s+/, { token: 'whitespace' }],
-    [/["](?:(?:\\.)|(?:[^"\\]))*?["]\s*(?=:)/, { token: 'variable' }],
-    [/"""/, { token: 'string_literal', next: 'string_literal' }],
-    [/0[xX][0-9a-fA-F]+\b/, { token: 'constant.numeric' }],
-    [/[+-]?\d+(?:(?:\.\d*)?(?:[eE][+-]?\d+)?)?\b/, { token: 'constant.numeric' }],
-    [/(?:true|false)\b/, { token: 'constant.language.boolean' }],
-    // strings
-    [/"([^"\\]|\\.)*$/, 'string.invalid'], // non-terminated string
-    [
-      /"/,
-      {
-        token: 'string.quote',
-        bracket: '@open',
-        next: '@string',
-      },
-    ],
-    [/['](?:(?:\\.)|(?:[^'\\]))*?[']/, { token: 'invalid' }],
-    [/.+?/, { token: 'text' }],
-    [/\/\/.*$/, { token: 'invalid' }],
-  ],
-  my_painless: [
-    [
-      /"""/,
-      {
-        token: 'punctuation.end_triple_quote',
-        nextEmbedded: '@pop',
-        next: '@pop',
-      },
-    ],
-  ],
-  my_sql: [
-    [
-      /"""/,
-      {
-        token: 'punctuation.end_triple_quote',
-        nextEmbedded: '@pop',
-        next: '@pop',
-      },
-    ],
-  ],
-  string: [
-    [/[^\\"]+/, 'string'],
-    [/@escapes/, 'string.escape'],
-    [/\\./, 'string.escape.invalid'],
-    [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }],
-  ],
-  string_literal: [
-    [/"""/, { token: 'punctuation.end_triple_quote', next: '@pop' }],
-    [/\\""""/, { token: 'punctuation.end_triple_quote', next: '@pop' }],
-    [/./, { token: 'multi_string' }],
-  ],
+
+export const registerLexerRules = (m: un) => {
+  // m.languages.register({ id: xJson.id });
+  // m.languages.setMonarchTokensProvider(xJson.id, xJson.rules);
 };
