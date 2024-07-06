@@ -1,27 +1,26 @@
-// import 'monaco-editor/esm/vs/base/common/worker/simpleWorker';
-// import 'monaco-editor/esm/vs/base/worker/defaultWorkerFactory';
-//
-// import 'monaco-editor/esm/vs/editor/browser/controller/coreCommands.js';
-// import 'monaco-editor/esm/vs/editor/browser/widget/codeEditorWidget.js';
-//
-// import 'monaco-editor/esm/vs/editor/contrib/wordOperations/wordOperations.js';
-//
-// import 'monaco-editor/esm/vs/editor/contrib/suggest/suggestController.js';
-// import 'monaco-editor/esm/vs/editor/contrib/hover/hover.js';
-// import 'monaco-editor/esm/vs/editor/contrib/parameterHints/parameterHints.js';
-// import 'monaco-editor/esm/vs/language/json/json.worker.js';
-/* eslint-disable-next-line @osd/eslint/module_migration */
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
+import * as monaco from 'monaco-editor';
 
-import { search } from './lexerRules.ts';
+import { search, executeActions } from './lexerRules.ts';
 import { monacoEnvironment } from './environment.ts';
+import { buildSearchToken } from './tokenlizer.ts';
 
 self.MonacoEnvironment = monacoEnvironment;
 
+monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
 monaco.languages.register({ id: search.id });
 monaco.languages.setMonarchTokensProvider(
   search.id,
   search.rules as monaco.languages.IMonarchLanguage,
 );
-
-export { monaco };
+monaco.languages.setLanguageConfiguration('search', {
+  autoClosingPairs: [
+    { open: '{', close: '}' },
+    { open: '[', close: ']' },
+    { open: '(', close: ')' },
+    { open: '"', close: '"' },
+    { open: "'", close: "'" },
+  ],
+});
+export * from './type.ts';
+export { monaco, executeActions, buildSearchToken };
+export * from './referDoc.ts';

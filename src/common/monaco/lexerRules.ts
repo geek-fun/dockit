@@ -1,4 +1,4 @@
-const xJson = {
+export const xJson = {
   id: 'xjson',
   rules: {
     defaultToken: 'invalid',
@@ -283,9 +283,4 @@ export const search = {
       ],
     },
   },
-};
-
-export const registerLexerRules = (m: un) => {
-  // m.languages.register({ id: xJson.id });
-  // m.languages.setMonarchTokensProvider(xJson.id, xJson.rules);
 };

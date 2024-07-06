@@ -14,20 +14,21 @@ import { listen } from '@tauri-apps/api/event';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
+import { CustomError } from '../../common';
+import { useAppStore, useChatStore, useConnectionStore, useSourceFileStore } from '../../store';
+import { useLang } from '../../lang';
 import {
   buildSearchToken,
-  CustomError,
   Decoration,
   defaultCodeSnippet,
   EngineType,
   getActionApiDoc,
+  Monaco,
+  monaco,
   SearchAction,
-} from '../../common';
-import { useAppStore, useChatStore, useConnectionStore, useSourceFileStore } from '../../store';
-import { useLang } from '../../lang';
-import { monaco } from '../../common/monaco';
+} from '../../common/monaco';
 
-type Editor = ReturnType<typeof monaco.editor.create>;
+type Editor = ReturnType<Monaco>;
 
 const appStore = useAppStore();
 const message = useMessage();
