@@ -168,7 +168,7 @@ const executeQueryAction = async (
     }
     const data = await searchQDSL({
       ...action,
-      qdsl: action.qdsl ? JSON.parse(action.qdsl) : undefined,
+      qdsl: action.qdsl ?? undefined,
       index: action.index || established.value?.activeIndex?.index,
     });
 
