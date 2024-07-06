@@ -118,11 +118,13 @@ jobs:
           package-path: ./package.json
       - name: Download Distribution Binaries
         uses: actions/download-artifact@v4
+        if: steps.tag_release.outputs.successful
         with:
           path: artifacts
           merge-multiple: true
       - name: Generate changelog
         uses: jaywcjlove/changelog-generator@main
+        if: steps.tag_release.outputs.successful
         id: changelog
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
