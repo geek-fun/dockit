@@ -26,30 +26,34 @@ monaco.languages.registerCompletionItemProvider(search.id, {
       endLineNumber: position.lineNumber,
       endColumn: position.column,
     });
-    const matches = new Map<RegExp, string>([
+
+    const methods = new Map<RegExp, string>([
       [/^ge?t?$/gi, 'GET '],
       [/^put?$/gi, 'PUT '],
       [/^pos?t?$/gi, 'POST '],
       [/^de?l?e?t?e?$/gi, 'DELETE '],
     ]);
-    const matchKey = Array.from(matches.keys()).find(regex => regex.test(textUntilPosition));
-    if (!matchKey) {
+    const matchedMethodKey = Array.from(methods.keys()).find(regex =>
+      regex.test(textUntilPosition),
+    );
+    if (!matchedMethodKey) {
       return;
     }
-    const word = matches.get(matchKey);
+
+    const method = methods.get(matchedMethodKey);
     const range = {
       startLineNumber: position.lineNumber,
       endLineNumber: position.lineNumber,
-      startColumn: position.column - word!.length,
+      startColumn: position.column - method!.length,
       endColumn: position.column,
     };
 
     return {
       suggestions: [
         {
-          label: word,
-          kind: monaco.languages.CompletionItemKind.Keyword,
-          insertText: word,
+          label: method,
+          kind: monaco.languages.CompletionItemKind.Constant,
+          insertText: method,
           range: range,
         },
       ],
