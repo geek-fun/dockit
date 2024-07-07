@@ -3,6 +3,10 @@ run-name: ${{ github.event.head_commit.message }}
 on:
   push:
     branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
