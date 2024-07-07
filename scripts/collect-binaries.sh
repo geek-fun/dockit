@@ -3,16 +3,19 @@ set -o pipefail
 
 cd "$(dirname "$0")/.." || exit
 
-if [ ! -d artifacts ]; then
-  mkdir artifacts
-fi
 
 VERSION=$(node -p "require('./package.json').version")
 PLATFORM=${PLATFORM:-"macos-latest"}
 
-if [[ $PLATFORM == "windows-latest" ]]; then
-  mv src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe artifacts/
+if [ ! -d artifacts ]; then
+  mkdir artifacts
 fi
+
+if [[ $PLATFORM == "windows-latest" ]]; then
+  mv src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe artifacts\
+
+fi
+
 if [[ $PLATFORM == "macos-latest" ]]; then
   mv src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg artifacts/
 fi
