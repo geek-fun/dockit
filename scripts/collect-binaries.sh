@@ -12,10 +12,9 @@ if [ ! -d artifacts ]; then
 fi
 
 if [[ $PLATFORM == "windows-latest" ]]; then
-  ls -l src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis
+  echo $(ls -l src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis)
   mv src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe artifacts\
-  ls -l artifacts
-
+  echo $(ls -l artifacts)
 fi
 
 if [[ $PLATFORM == "macos-latest" ]]; then
