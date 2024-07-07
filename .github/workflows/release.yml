@@ -108,6 +108,8 @@ jobs:
       - name: Github checkout
         uses: actions/checkout@v4
       - run: echo "previous_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo '')" >> $GITHUB_ENV
+      - name: Test
+        run: echo $previous_tag; echo ${{ env.previous_tag }}
       - name: Tag Release
         uses: jaywcjlove/create-tag-action@main
         if: env.previous_tag
