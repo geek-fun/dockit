@@ -28,8 +28,9 @@ Linux.</strong>
 * Multi engines support,Support Elasticsearch, OpenSearch, and more to come
 ## Roadmap
 
-- [ ] ZincSearch support
-- [ ] Multi-file support
+- [ ] MongoDB support
+- [ ] DynamoDB support
+- [ ] TBC
 
 ## Installation
 
@@ -39,8 +40,8 @@ Available to download for free from [here](https://github.com/geek-fun/dockit/re
 
 ### Prerequisites
 
-* Node.js >= 16
-* NPM >= 9
+* Node.js >= 20
+* NPM >= 10
 
 ### Clone the code
 
@@ -57,8 +58,16 @@ npm install
 ### Compile and run
 
 ```bash
-npm start
+npm run tauri dev
 ```
 ## About
+### Wechat Official Account
+<img src="docs/images/wechat_official.png" alt="wechat official account qr code" width="360" />
 
 ### Sponsor
+If this project helpful for you, feel free to buy me a cup of coffee ☕️.
+
+* Wechat Sponsor
+
+<img src="docs/images/wechat_ponsor.jpg" alt="wechat sponsor qr code" width="200" />
+
