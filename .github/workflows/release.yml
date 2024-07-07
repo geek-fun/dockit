@@ -99,6 +99,7 @@ jobs:
         env:
           PLATFORM: ${{ matrix.os }}
         run: ./scripts/collect-binaries.sh
+        shell: bash
       - name: Upload Distribution Binaries
         uses: actions/upload-artifact@v4
         with:
