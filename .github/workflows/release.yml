@@ -3,8 +3,6 @@ run-name: ${{ github.event.head_commit.message }}
 on:
   push:
     branches: [ master ]
-  pull_request:
-    branches: [ master ]
 
 
 concurrency:
@@ -112,15 +110,12 @@ jobs:
     steps:
       - name: Github checkout
         uses: actions/checkout@v4
-      - run: echo "previous_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo '')" >> "$GITHUB_ENV"
       - name: Tag Release
         uses: jaywcjlove/create-tag-action@main
-        if: env.previous_tag
         id: tag_release
         with:
           prerelease: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          package-path: ./package.json
       - name: Download Distribution Binaries
         uses: actions/download-artifact@v4
         if: steps.tag_release.outputs.successful
