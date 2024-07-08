@@ -109,3 +109,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+/artifacts/
