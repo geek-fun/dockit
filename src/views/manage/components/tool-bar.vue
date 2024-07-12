@@ -22,8 +22,14 @@
         @update:show="handleIndexOpen"
       />
     </div>
-    <n-tabs class="manage-container" type="line" animated justify-content="end">
-      <n-tab-pane :name="$t('manage.home')" :tab="$t('manage.home')" />
+    <n-tabs
+      class="manage-container"
+      type="line"
+      animated
+      justify-content="end"
+      @update:value="handleManageTabChange"
+    >
+      <n-tab-pane :name="$t('manage.cluster')" :tab="$t('manage.cluster')" />
       <n-tab-pane :name="$t('manage.nodes')" :tab="$t('manage.nodes')" />
       <n-tab-pane :name="$t('manage.shards')" :tab="$t('manage.shards')" />
       <n-tab-pane :name="$t('manage.indices')" :tab="$t('manage.indices')" />
@@ -45,6 +51,8 @@ const { fetchIndices, fetchConnections, selectIndex, establishConnection } = con
 
 const indexLoadingRef = ref(false);
 const connectionLoadingRef = ref(false);
+
+const emits = defineEmits(['switch-manage-tab']);
 
 // build options list
 const indexOptions = computed(() =>
@@ -92,6 +100,10 @@ const handleConnectionUpdate = async (connectionName: string) => {
       duration: 36000000,
     });
   }
+};
+
+const handleManageTabChange = (tabName: string) => {
+  emits('switch-manage-tab', tabName);
 };
 </script>
 

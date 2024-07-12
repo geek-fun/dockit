@@ -43,7 +43,6 @@ export const enUS = {
   },
   manage: {
     cluster: 'CLUSTER',
-    home: 'HOME',
     nodes: 'NODES',
     shards: 'SHARDS',
     indices: 'INDICES',

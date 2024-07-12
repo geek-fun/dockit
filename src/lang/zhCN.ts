@@ -42,7 +42,7 @@ export const zhCN = {
     },
   },
   manage: {
-    home: '首页',
+    cluster: '集群',
     nodes: '节点',
     shards: '分片',
     indices: '索引',
