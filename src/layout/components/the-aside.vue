@@ -45,7 +45,15 @@
 import { ref, markRaw } from 'vue';
 import { open } from '@tauri-apps/api/shell';
 import { useRouter, useRoute } from 'vue-router';
-import { DataBase, Folders, LogoGithub, Settings, UserAvatar, ExpandAll } from '@vicons/carbon';
+import {
+  DataBase,
+  Folders,
+  LogoGithub,
+  Settings,
+  UserAvatar,
+  ExpandAll,
+  ToolKit,
+} from '@vicons/carbon';
 import { useAppStore } from '../../store';
 import TheAsideIcon from './the-aside-icon.vue';
 const router = useRouter();
@@ -54,6 +62,13 @@ const appStore = useAppStore();
 const { setConnectPanel } = appStore;
 
 const mainNavList = ref([
+  {
+    id: 'manage',
+    path: '/manage',
+    name: 'manage',
+    icon: markRaw(ToolKit),
+    isLink: false,
+  },
   {
     id: 'connect',
     path: '/connect',

@@ -83,7 +83,7 @@ const editConnectHandler = (row: object) => {
     display: flex;
     flex-direction: column;
     .table-select {
-      height: 40px;
+      height: var(--tool-bar-height);
       border-bottom: 1px solid var(--border-color);
     }
     .editor-container {

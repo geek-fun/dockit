@@ -1,5 +1,6 @@
 export const enUS = {
   aside: {
+    manage: 'Manage',
     connect: 'Connect',
     file: 'File',
     history: 'History',
@@ -40,6 +41,13 @@ export const enUS = {
         remove the slash at the start of the path, the body is a JSON object and its optional and should start as new line if it represents, you can use the provided index name and index mapping in the body to answer the question.`,
     },
   },
+  manage: {
+    cluster: 'CLUSTER',
+    home: 'HOME',
+    nodes: 'NODES',
+    shards: 'SHARDS',
+    indices: 'INDICES',
+  },
   connection: {
     new: 'New connection',
     test: 'Test connection',
@@ -65,6 +73,7 @@ export const enUS = {
       remove: 'Remove',
     },
     selectIndex: 'No collection/index selected',
+    selectConnection: 'No Connection selected',
     validationFailed: 'Form validation failed!',
     unAuthorized: 'Authorization failed, ensure your username and password are correct',
   },
