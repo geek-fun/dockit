@@ -120,6 +120,8 @@ jobs:
             ${{ steps.changelog.outputs.compareurl }}
             
             ${{ steps.changelog.outputs.changelog }}
+
+      - run: echo "successful - ${{ steps.create_tag.outputs.successful }}"
       - name: Download Distribution Binaries
         uses: actions/download-artifact@v4
         if: steps.tag_release.outputs.successful

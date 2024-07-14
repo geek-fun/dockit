@@ -67,11 +67,8 @@ npm run tauri dev
 ### Sponsor
 If this project helpful for you, feel free to buy me a cup of coffee ☕️.
 
-* Wechat Sponsor
+* Github Sponsor  
+  [![Sponsor](https://img.shields.io/badge/-Sponsor-fafbfc?logo=GitHub-Sponsors)](https://github.com/sponsors/[geek-fun])
 
+* Wechat Sponsor  
 <img src="docs/images/wechat_ponsor.jpg" alt="wechat sponsor qr code" width="200" />
-
-
-* Github Sponsor
-
-<iframe src="https://github.com/sponsors/geek-fun/card" title="Sponsor geek-fun" height="225" width="600" style="border: 0;"></iframe>
