@@ -1,9 +1,7 @@
 name: distributions release
-run-name: ${{ github.event.head_commit.message }}
 on:
   push:
     branches: [ master ]
-
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -116,21 +114,25 @@ jobs:
         with:
           prerelease: true
           token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            ${{ steps.changelog.outputs.compareurl }}
+            
+            ${{ steps.changelog.outputs.changelog }}
       - name: Download Distribution Binaries
         uses: actions/download-artifact@v4
-        if: steps.tag_release.outputs.successful
+        if: steps.tag_release.outputs.successful == 'true'
         with:
           path: artifacts
           merge-multiple: true
       - name: Generate changelog
         uses: jaywcjlove/changelog-generator@main
-        if: steps.tag_release.outputs.successful
+        if: steps.tag_release.outputs.successful == 'true'
         id: changelog
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Release App
         uses: softprops/action-gh-release@v2
-        if: steps.tag_release.outputs.successful
+        if: steps.tag_release.outputs.successful == 'true'
         with:
           tag_name: ${{ steps.tag_release.outputs.version }}
           name: ${{ steps.tag_release.outputs.version }}
@@ -142,7 +144,7 @@ jobs:
             ${{ github.workspace }}/artifacts/**/*
 
       - name: Distribute Binaries to R2
-        if: steps.tag_release.outputs.successful
+        if: steps.tag_release.outputs.successful == 'true'
         uses: ryand56/r2-upload-action@master
         with:
           r2-account-id:  ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
