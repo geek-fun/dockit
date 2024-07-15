@@ -3,7 +3,7 @@
     <tool-bar @switch-manage-tab="handleManageTabChange" />
     <cluster-state
       class="state-container"
-      :cluster="established"
+      :cluster="established?.rawClusterState"
       v-if="activeTab === $t('manage.cluster')"
     />
     <node-state class="state-container" v-if="activeTab === $t('manage.nodes')" />
@@ -20,12 +20,13 @@ import { lang } from '../../lang';
 const activeTab = ref(lang.global.t('manage.cluster'));
 
 const connectionStore = useConnectionStore();
+const { fetchClusterState } = connectionStore;
 
 const { established } = storeToRefs(connectionStore);
-
 const handleManageTabChange = (tab: string) => {
   activeTab.value = tab;
 };
+fetchClusterState();
 </script>
 
 <style lang="scss" scoped>

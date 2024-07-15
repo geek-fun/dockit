@@ -47,7 +47,8 @@ const lang = useLang();
 
 const connectionStore = useConnectionStore();
 const { establishedIndexNames, established, connections } = storeToRefs(connectionStore);
-const { fetchIndices, fetchConnections, selectIndex, establishConnection } = connectionStore;
+const { fetchIndices, fetchConnections, selectIndex, establishConnection, fetchClusterState } =
+  connectionStore;
 
 const indexLoadingRef = ref(false);
 const connectionLoadingRef = ref(false);
@@ -92,6 +93,7 @@ const handleConnectionUpdate = async (connectionName: string) => {
   }
   try {
     await establishConnection(connection);
+    await fetchClusterState();
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {

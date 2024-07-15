@@ -2,6 +2,213 @@ import { defineStore } from 'pinia';
 import { pureObject } from '../common';
 import { loadHttpClient, storeApi } from '../datasources';
 
+export type RawClusterState = {
+  cluster_name: string;
+  cluster_uuid: string;
+  version: number;
+  state_uuid: string;
+  master_node: string;
+  nodes: {
+    [nodeId: string]: {
+      name: string;
+      ephemeral_id: string;
+      transport_address: string;
+      external_id: string;
+      attributes: {
+        zone_id: string;
+        'ml.allocated_processors_double': string;
+        'ml.allocated_processors': string;
+        zone: string;
+        'ml.machine_memory': string;
+        'xpack.installed': string;
+        'ml.max_jvm_size': string;
+      };
+      roles: Array<string>;
+      version: string;
+    };
+  };
+  transport_versions: Array<{ node_id: string; transport_version: string }>;
+  metadata: {
+    cluster_uuid: string;
+    cluster_uuid_committed: boolean;
+    cluster_coordination: {
+      term: number;
+      last_committed_config: Array<string>;
+      last_accepted_config: Array<string>;
+      voting_config_exclusions: Array<string>;
+    };
+    templates: {
+      [key: string]: unknown;
+    };
+    indices: {
+      [key: string]: unknown;
+    };
+    ingest: {
+      [key: string]: unknown;
+    };
+    data_stream: {
+      [key: string]: unknown;
+    };
+    component_template: {
+      [key: string]: unknown;
+    };
+    index_template: {
+      [key: string]: unknown;
+    };
+    repositories: {
+      [key: string]: unknown;
+    };
+    'index-graveyard': {
+      [key: string]: unknown;
+    };
+    persistent_tasks: {
+      [key: string]: unknown;
+    };
+    index_lifecycle: {
+      [key: string]: unknown;
+    };
+    reserved_state: {
+      [key: string]: unknown;
+    };
+  };
+  routing_table: {
+    indices: {
+      [key: string]: {
+        shards: {
+          [key: string]: Array<{
+            state: string;
+            primary: boolean;
+            node: string;
+            relocating_node: string;
+            shard: number;
+            index: string;
+            allocation_id: {
+              id: string;
+            };
+            recovery_source: {
+              type: string;
+              index: {
+                uuid: string;
+                name: string;
+              };
+              node: {
+                id: string;
+              };
+              restore_source: {
+                repository: string;
+                snapshot: string;
+              };
+            };
+            unassigned_info: {
+              reason: string;
+            };
+            allocation: {
+              id: {
+                id: string;
+              };
+            };
+          }>;
+        };
+      };
+    };
+  };
+  routing_nodes: {
+    unassigned: Array<{
+      state: string;
+      primary: boolean;
+      node: string;
+      relocating_node: string;
+      shard: number;
+      index: string;
+      allocation_id: {
+        id: string;
+      };
+      recovery_source: {
+        type: string;
+        index: {
+          uuid: string;
+          name: string;
+        };
+        node: {
+          id: string;
+        };
+        restore_source: {
+          repository: string;
+          snapshot: string;
+        };
+      };
+      unassigned_info: {
+        reason: string;
+      };
+      allocation: {
+        id: {
+          id: string;
+        };
+      };
+    }>;
+    nodes: {
+      [key: string]: {
+        node: string;
+        shards: {
+          [key: string]: Array<{
+            state: string;
+            primary: boolean;
+            node: string;
+            relocating_node: string;
+            shard: number;
+            index: string;
+            allocation_id: {
+              id: string;
+            };
+            recovery_source: {
+              type: string;
+              index: {
+                uuid: string;
+                name: string;
+              };
+              node: {
+                id: string;
+              };
+              restore_source: {
+                repository: string;
+                snapshot: string;
+              };
+            };
+            unassigned_info: {
+              reason: string;
+            };
+            allocation: {
+              id: {
+                id: string;
+              };
+            };
+          }>;
+        };
+      };
+    };
+  };
+  snapshots: {
+    [key: string]: unknown;
+  };
+  health: {
+    disk: {
+      high_watermark: string;
+      high_max_headroom: string;
+      flood_stage_watermark: string;
+      flood_stage_max_headroom: string;
+      frozen_flood_stage_watermark: string;
+      frozen_flood_stage_max_headroom: string;
+    };
+    shard_limits: {
+      max_shards_per_node: number;
+      max_shards_per_node_frozen: number;
+    };
+  };
+  snapshot_deletions: {
+    snapshot_deletions: Array<string>;
+  };
+};
+
 export type Connection = {
   id?: number;
   name: string;
@@ -11,6 +218,7 @@ export type Connection = {
   sslCertVerification: boolean;
   password?: string;
   queryParameters?: string;
+  rawClusterState?: RawClusterState;
 };
 export type ConnectionIndex = {
   health: string;
@@ -63,6 +271,14 @@ export const useConnectionStore = defineStore('connectionStore', {
   actions: {
     async fetchConnections() {
       this.connections = (await storeApi.get('connections', [])) as Connection[];
+    },
+    async fetchClusterState() {
+      if (!this.established) return;
+      const client = loadHttpClient(this.established as Connection);
+      this.established.rawClusterState = (await client.get(
+        '/_cluster/state',
+        'format=json',
+      )) as RawClusterState;
     },
     async testConnection(con: Connection) {
       const client = loadHttpClient(con);

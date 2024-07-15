@@ -13,8 +13,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 
-<strong>DocKit is a modern cross-platform NoSQL/NewSQL GUI client. Explore your data any time from your Mac, Windows, and
-Linux.</strong>
+<strong>DocKit is a desktop client designed for NoSQL database, support Elasticsearch and OpenSearch across Mac, windows and Linux.</strong>
 </div>
 
 ## Client
