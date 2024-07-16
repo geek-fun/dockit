@@ -3,7 +3,7 @@
     <tool-bar @switch-manage-tab="handleManageTabChange" />
     <cluster-state
       class="state-container"
-      :cluster="established?.rawClusterState"
+      :cluster="established?.rawClusterState as RawClusterStats"
       v-if="activeTab === $t('manage.cluster')"
     />
     <node-state class="state-container" v-if="activeTab === $t('manage.nodes')" />
@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import ToolBar from './components/tool-bar.vue';
 import ClusterState from './components/cluster-state.vue';
-import { useConnectionStore } from '../../store';
+import { RawClusterStats, useConnectionStore } from '../../store';
 import { storeToRefs } from 'pinia';
 import NodeState from './components/node-state.vue';
 import { lang } from '../../lang';

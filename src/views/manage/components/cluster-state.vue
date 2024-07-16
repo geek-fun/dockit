@@ -9,55 +9,35 @@
       <p>id: {{ props.cluster?.cluster_uuid }}</p>
     </n-card>
     <n-card class="cluster-item-box cluster-nodes-box">
-      <p>{{ $t('manage.nodes') }}: {{ clusterState.cluster.count }}</p>
-      <p>master: {{ clusterState.cluster.masterNode }}</p>
-      <p>data: {{ clusterState.cluster.dataNode }}</p>
+      <p>{{ $t('manage.nodes') }}: {{ props.cluster?.nodes.count.total }}</p>
+      <p>master: {{ props.cluster?.nodes.count.master }}</p>
+      <p>data: {{ props.cluster?.nodes.count.data }}</p>
     </n-card>
     <n-card class="cluster-item-box cluster-shards-box">
-      <p>{{ $t('manage.shards') }}: {{ clusterState.shards.count }}</p>
-      xxxx
+      <p>{{ $t('manage.shards') }}: {{ props.cluster?.indices.shards.total }}</p>
+      <p>primaries: {{ props.cluster?.indices.shards.primaries }}</p>
+      <p>
+        replicas:
+        {{
+          (props.cluster?.indices?.shards?.total || 0) -
+          (props.cluster?.indices.shards?.primaries || 0)
+        }}
+      </p>
     </n-card>
     <n-card class="cluster-item-box cluster-indices-box">
-      <p>{{ $t('manage.indices') }}: {{ clusterState.indices.count }}</p>
-      xxxx
+      <p>{{ $t('manage.indices') }}: {{ props.cluster?.indices.count }}</p>
+      <p>docs: {{ props.cluster?.indices.docs.count }}</p>
+      <p>size: {{ prettyBytes(props.cluster?.indices.store.size_in_bytes || 0) }}</p>
     </n-card>
   </div>
 </template>
 
 <script setup lang="ts">
+import prettyBytes from 'pretty-bytes';
 import { CheckmarkOutline } from '@vicons/carbon';
-import { RawClusterState } from '../../../store';
+import { RawClusterStats } from '../../../store';
 
-const props = defineProps<{ cluster: RawClusterState | null }>();
-
-const clusterState = computed(() => {
-  const nodes = Object.entries(props.cluster?.nodes || {}).map(([key, value]) => ({
-    id: key,
-    ...value,
-  }));
-  // const shards = Object.entries(props.cluster?.shards || {}).map(([key, value]) => ({
-  //   id: key,
-  //   ...value,
-  // }));
-  const indices = Object.entries(props.cluster?.metadata.indices || {}).map(([key, value]) => ({
-    id: key,
-    ...(value as Object),
-  }));
-
-  return {
-    cluster: {
-      count: nodes.length,
-      masterNode: nodes.filter(node => node).length,
-      dataNode: nodes.filter(node => node).length,
-    },
-    shards: {
-      count: 1,
-    },
-    indices: {
-      count: indices.length,
-    },
-  };
-});
+const props = defineProps<{ cluster: RawClusterStats | null }>();
 </script>
 
 <style lang="scss" scoped>
