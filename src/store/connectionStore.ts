@@ -12,6 +12,7 @@ export type RawClusterStats = {
       master: number;
       data: number;
     };
+    versions: Array<string>;
   };
   indices: {
     count: number;

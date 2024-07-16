@@ -3,10 +3,15 @@
     <n-card class="cluster-item-box cluster-cluster-box">
       <p>
         <span>{{ $t('manage.cluster') }}</span>
-        <n-icon size="24" class="status-icon"><CheckmarkOutline /></n-icon>
+        <n-icon size="24" class="status-icon">
+          <CheckmarkOutline v-if="props.cluster?.status == 'green'" />
+          <WarningAlt v-else-if="props.cluster?.status == 'yellow'" />
+          <MisuseOutline v-else-if="props.cluster?.status == 'red'" />
+        </n-icon>
       </p>
       <p>name: {{ props.cluster?.cluster_name }}</p>
       <p>id: {{ props.cluster?.cluster_uuid }}</p>
+      <p>version: {{ props.cluster?.nodes.versions }}</p>
     </n-card>
     <n-card class="cluster-item-box cluster-nodes-box">
       <p>{{ $t('manage.nodes') }}: {{ props.cluster?.nodes.count.total }}</p>
@@ -34,7 +39,7 @@
 
 <script setup lang="ts">
 import prettyBytes from 'pretty-bytes';
-import { CheckmarkOutline } from '@vicons/carbon';
+import { CheckmarkOutline, WarningAlt, MisuseOutline } from '@vicons/carbon';
 import { RawClusterStats } from '../../../store';
 
 const props = defineProps<{ cluster: RawClusterStats | null }>();
