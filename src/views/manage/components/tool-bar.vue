@@ -11,16 +11,6 @@
         @update:show="handleConnectionOpen"
         @update:value="handleConnectionUpdate"
       />
-      <n-select
-        :options="indexOptions"
-        :placeholder="$t('connection.selectIndex')"
-        remote
-        filterable
-        :default-value="established?.activeIndex?.index"
-        :loading="indexLoadingRef"
-        @update:value="selectIndex"
-        @update:show="handleIndexOpen"
-      />
     </div>
     <n-tabs
       class="manage-container"
@@ -40,44 +30,21 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { useConnectionStore } from '../../../store';
-import { useLang } from '../../../lang';
 import { CustomError } from '../../../common';
+
 const message = useMessage();
-const lang = useLang();
 
 const connectionStore = useConnectionStore();
-const { establishedIndexNames, established, connections } = storeToRefs(connectionStore);
-const { fetchIndices, fetchConnections, selectIndex, establishConnection, fetchClusterState } =
-  connectionStore;
+const { established, connections } = storeToRefs(connectionStore);
+const { fetchConnections, establishConnection, fetchClusterState } = connectionStore;
 
-const indexLoadingRef = ref(false);
 const connectionLoadingRef = ref(false);
 
 const emits = defineEmits(['switch-manage-tab']);
 
-// build options list
-const indexOptions = computed(() =>
-  establishedIndexNames.value.map(name => ({ label: name, value: name })),
-);
-
 const connectionOptions = computed(() =>
   connections.value.map(({ name }) => ({ label: name, value: name })),
 );
-
-const handleIndexOpen = async (isOpen: boolean) => {
-  if (!isOpen) return;
-  if (!established.value) {
-    message.error(lang.t('editor.establishedRequired'), {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3000,
-    });
-    return;
-  }
-  indexLoadingRef.value = true;
-  await fetchIndices();
-  indexLoadingRef.value = false;
-};
 
 const handleConnectionOpen = async (isOpen: boolean) => {
   if (!isOpen) return;
@@ -117,10 +84,7 @@ const handleManageTabChange = (tabName: string) => {
   align-items: center;
   border-bottom: 1px solid var(--border-color);
   .tool-bar-selector {
-    width: 100%;
     height: 100%;
-    display: flex;
-    align-items: center;
     :deep(.n-select) {
       .n-base-selection {
         .n-base-selection-label {

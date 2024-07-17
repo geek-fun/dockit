@@ -1,9 +1,9 @@
 <template>
   <div class="manage-state-container">
     <n-card class="cluster-item-box cluster-cluster-box">
-      <p>
+      <p :class="clusterStatusClass">
         <span>{{ $t('manage.cluster') }}</span>
-        <n-icon size="24" class="status-icon">
+        <n-icon size="24">
           <CheckmarkOutline v-if="props.cluster?.status == 'green'" />
           <WarningAlt v-else-if="props.cluster?.status == 'yellow'" />
           <MisuseOutline v-else-if="props.cluster?.status == 'red'" />
@@ -43,6 +43,12 @@ import { CheckmarkOutline, WarningAlt, MisuseOutline } from '@vicons/carbon';
 import { RawClusterStats } from '../../../store';
 
 const props = defineProps<{ cluster: RawClusterStats | null }>();
+
+const clusterStatusClass = computed(() => {
+  if (!props.cluster) return '';
+  return `cluster-status-color-${props.cluster.status}`;
+});
+const emits = defineEmits(['switch-manage-tab']);
 </script>
 
 <style lang="scss" scoped>
@@ -51,21 +57,37 @@ const props = defineProps<{ cluster: RawClusterStats | null }>();
   flex-direction: row;
   justify-content: space-around;
   margin-top: 10px;
+
   .n-card {
     max-width: 300px;
   }
+
   .cluster-item-box p:first-of-type {
     font-size: 28px;
     font-weight: bold;
     margin-block: 0;
     color: #2478ec;
   }
+
   .cluster-cluster-box p:first-of-type {
     color: #36ad6a;
+
     span {
       height: 100%;
       margin-right: 10px;
     }
+  }
+
+  .cluster-status-color-green {
+    color: #36ad6a;
+  }
+
+  .cluster-status-color-yellow {
+    color: #f1c40f;
+  }
+
+  .cluster-status-color-red {
+    color: #e74c3c;
   }
 }
 </style>
