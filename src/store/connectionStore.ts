@@ -2,6 +2,20 @@ import { defineStore } from 'pinia';
 import { pureObject } from '../common';
 import { loadHttpClient, storeApi } from '../datasources';
 
+export type SearchNode = {
+  ip: string;
+  name: string;
+  roles: Array<string>;
+  master: string;
+  heap: {
+    percent: string;
+  };
+  ram: {
+    percent: string;
+  };
+  cpu: string;
+};
+
 export type RawClusterStats = {
   cluster_name: string;
   cluster_uuid: string;
@@ -12,6 +26,7 @@ export type RawClusterStats = {
       master: number;
       data: number;
     };
+    instances: Array<SearchNode>;
     versions: Array<string>;
   };
   indices: {
@@ -134,6 +149,58 @@ export const useConnectionStore = defineStore('connectionStore', {
         store: { size: index['store.size'] },
       })) as ConnectionIndex[];
       this.established = { ...connection, indices };
+    },
+    async fetchNodes() {
+      if (!this.established) return;
+      const client = loadHttpClient(this.established as Connection);
+      try {
+        const data = await client.get('/_cat/nodes', 'format=json');
+        this.established.rawClusterState!.nodes.instances = data.map(
+          (node: {
+            ip: string;
+            name: string;
+            'node.role': string;
+            master: string;
+            'heap.percent': string;
+            'ram.percent': string;
+            cpu: string;
+          }) => ({
+            ip: node.ip,
+            name: node.name,
+            roles: node['node.role']
+              .split('')
+              .map((char: string) => {
+                switch (char) {
+                  case 'd':
+                    return 'data';
+                  case 'i':
+                    return 'ingest';
+                  case 'm':
+                    return 'master';
+                  case 'l':
+                    return 'ml';
+                  case 'r':
+                    return 'remote_cluster_client';
+                  case 't':
+                    return 'transform';
+                  default:
+                    return '';
+                }
+              })
+              .filter((role: string) => role !== ''),
+            master: node.master,
+            heap: {
+              percent: node['heap.percent'],
+            },
+            ram: {
+              percent: node['ram.percent'],
+            },
+            cpu: node.cpu,
+          }),
+        );
+      } catch (err) {
+        console.error('failed to fetch nodes', err);
+      }
     },
     async fetchIndices() {
       if (!this.established) throw new Error('no connection established');
