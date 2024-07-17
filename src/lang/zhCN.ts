@@ -1,5 +1,6 @@
 export const zhCN = {
   aside: {
+    manage: '管理',
     connect: '连接',
     file: '文件',
     history: '历史',
@@ -40,6 +41,12 @@ export const zhCN = {
         删除路径开头的斜杠，body 是一个 JSON 对象，如果表示，它是可选的，并且应该从新行开始，您可以在 body 中使用提供的索引名称和索引映射来回答问题。`,
     },
   },
+  manage: {
+    cluster: '集群',
+    nodes: '节点',
+    shards: '分片',
+    indices: '索引',
+  },
   connection: {
     new: '新建连接',
     test: '测试连接',
@@ -65,6 +72,7 @@ export const zhCN = {
       remove: '删除',
     },
     selectIndex: '未选择集合/索引',
+    selectConnection: '未选择连接',
     validationFailed: '表单验证失败！',
     unAuthorized: '认证失败，请输入正确的用户名和密码！',
   },

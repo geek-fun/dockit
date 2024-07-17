@@ -2,6 +2,33 @@ import { defineStore } from 'pinia';
 import { pureObject } from '../common';
 import { loadHttpClient, storeApi } from '../datasources';
 
+export type RawClusterStats = {
+  cluster_name: string;
+  cluster_uuid: string;
+  status: string;
+  nodes: {
+    count: {
+      total: number;
+      master: number;
+      data: number;
+    };
+    versions: Array<string>;
+  };
+  indices: {
+    count: number;
+    shards: {
+      total: number;
+      primaries: number;
+    };
+    docs: {
+      count: number;
+    };
+    store: {
+      size_in_bytes: number;
+    };
+  };
+};
+
 export type Connection = {
   id?: number;
   name: string;
@@ -11,6 +38,7 @@ export type Connection = {
   sslCertVerification: boolean;
   password?: string;
   queryParameters?: string;
+  rawClusterState?: RawClusterStats;
 };
 export type ConnectionIndex = {
   health: string;
@@ -63,6 +91,14 @@ export const useConnectionStore = defineStore('connectionStore', {
   actions: {
     async fetchConnections() {
       this.connections = (await storeApi.get('connections', [])) as Connection[];
+    },
+    async fetchClusterState() {
+      if (!this.established) return;
+      const client = loadHttpClient(this.established as Connection);
+      this.established.rawClusterState = (await client.get(
+        '/_cluster/stats',
+        'format=json',
+      )) as RawClusterStats;
     },
     async testConnection(con: Connection) {
       const client = loadHttpClient(con);
