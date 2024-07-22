@@ -46,6 +46,19 @@ export const enUS = {
     nodes: 'NODES',
     shards: 'SHARDS',
     indices: 'INDICES',
+    masterNode: 'Master Node',
+    masterEligible: 'Master Eligible Node',
+    dataNode: 'Data Node',
+    ingestNode: 'Ingest Node',
+    coordinatingNode: 'Coordinating Node',
+    node: {
+      statistic: {
+        heap: 'Heap',
+        ram: 'RAM',
+        disk: 'Disk',
+        title: 'Node Statistics',
+      },
+    },
   },
   connection: {
     new: 'New connection',

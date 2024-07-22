@@ -46,6 +46,19 @@ export const zhCN = {
     nodes: '节点',
     shards: '分片',
     indices: '索引',
+    masterNode: '主节点',
+    masterEligible: '可选主节点',
+    dataNode: '数据节点',
+    ingestNode: 'Ingest 节点',
+    coordinatingNode: '协调节点',
+    node: {
+      statistic: {
+        heap: '堆内存',
+        ram: '内存',
+        disk: '磁盘',
+        title: '节点统计',
+      },
+    },
   },
   connection: {
     new: '新建连接',

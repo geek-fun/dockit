@@ -2,6 +2,16 @@ import { defineStore } from 'pinia';
 import { pureObject } from '../common';
 import { loadHttpClient, storeApi } from '../datasources';
 
+export enum NodeRoleEnum {
+  DATA = 'DATA',
+  INGEST = 'INGEST',
+  MASTER_ELIGIBLE = 'MASTER_ELIGIBLE',
+  ML = 'ML',
+  REMOTE_CLUSTER_CLIENT = 'REMOTE_CLUSTER_CLIENT',
+  TRANSFORM = 'TRANSFORM',
+  COORDINATING = 'COORDINATING',
+}
+
 export type SearchNode = {
   ip: string;
   name: string;
@@ -172,23 +182,25 @@ export const useConnectionStore = defineStore('connectionStore', {
               .map((char: string) => {
                 switch (char) {
                   case 'd':
-                    return 'data';
+                    return NodeRoleEnum.DATA;
                   case 'i':
-                    return 'ingest';
+                    return NodeRoleEnum.INGEST;
                   case 'm':
-                    return 'master';
+                    return NodeRoleEnum.MASTER_ELIGIBLE;
                   case 'l':
-                    return 'ml';
+                    return NodeRoleEnum.ML;
                   case 'r':
-                    return 'remote_cluster_client';
+                    return NodeRoleEnum.REMOTE_CLUSTER_CLIENT;
                   case 't':
-                    return 'transform';
+                    return NodeRoleEnum.TRANSFORM;
+                  case '-':
+                    return NodeRoleEnum.COORDINATING;
                   default:
                     return '';
                 }
               })
               .filter((role: string) => role !== ''),
-            master: node.master,
+            master: node.master === '*',
             heap: {
               percent: node['heap.percent'],
             },
@@ -201,6 +213,60 @@ export const useConnectionStore = defineStore('connectionStore', {
       } catch (err) {
         console.error('failed to fetch nodes', err);
       }
+    },
+    async fetchNodeState(nodeName: string) {
+      const client = loadHttpClient(this.established as Connection);
+      const data = await client.get(
+        `/_cat/nodes`,
+        'format=json&bytes=b&h=ip,id,name,heap.percent,heap.current,heap.max,ram.percent,ram.current,ram.max,node.role,master,cpu,load_1m,load_5m,load_15m,disk.used_percent,disk.used,disk.total,shard_stats.total_count,mappings.total_count&full_id=true',
+      );
+      console.log('/_cat/nodes', data);
+      return Object.entries<{
+        ip: string;
+        name: string;
+        version: string;
+        'heap.percent': string;
+        'heap.current': string;
+        'heap.max': string;
+        'ram.percent': string;
+        'ram.current': string;
+        'ram.max': string;
+        'disk.used_percent': string;
+        'disk.used': string;
+        'disk.total': string;
+        'shard_stats.total_count': string;
+        'mappings.total_count': string;
+        cpu: string;
+      }>(data)
+        .map(([id, node]) => ({
+          id,
+          version: node.version,
+          ip: node.ip,
+          cpu: node.cpu,
+          name: node.name,
+          heap: {
+            percent: parseInt(node['heap.percent']),
+            current: parseInt(node['heap.current']),
+            max: parseInt(node['heap.max']),
+          },
+          ram: {
+            percent: parseInt(node['ram.percent']),
+            current: parseInt(node['ram.current']),
+            max: parseInt(node['ram.max']),
+          },
+          disk: {
+            percent: parseInt(node['disk.used_percent']),
+            current: parseInt(node['disk.used']),
+            max: parseInt(node['disk.total']),
+          },
+          shard: {
+            total: parseInt(node['shard_stats.total_count']),
+          },
+          mapping: {
+            total: parseInt(node['mappings.total_count']),
+          },
+        }))
+        .find(({ name }) => name === nodeName);
     },
     async fetchIndices() {
       if (!this.established) throw new Error('no connection established');
