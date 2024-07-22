@@ -51,17 +51,17 @@
     </n-scrollbar>
     <div class="node-state-bar">
       <div v-for="stateItem in nodeStats" :key="stateItem.key" class="node-state-bar-item">
-        <p>{{ stateItem.key }}</p>
+        <p>{{ $t(`manage.node.${stateItem.key}`) }}</p>
         <p>{{ stateItem.value }}</p>
       </div>
     </div>
     <div class="node-statistic-container">
-      <h3>{{ $t('manage.node.statistic.title') }}</h3>
+      <h3>{{ $t('manage.node.statisticTitle') }}</h3>
       <div class="node-statistic-metric-container">
         <div v-for="progress in nodeStatistics">
           <n-progress type="circle" :percentage="progress.percent" :offset-degree="progress.max">
             <div style="text-align: center">
-              <p>{{ $t(`manage.node.statistic.${progress.name}`) }}</p>
+              <p>{{ $t(`manage.node.${progress.name}`) }}</p>
               <p>{{ progress.percent }} %</p>
             </div>
           </n-progress>

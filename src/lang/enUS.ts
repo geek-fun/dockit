@@ -52,12 +52,13 @@ export const enUS = {
     ingestNode: 'Ingest Node',
     coordinatingNode: 'Coordinating Node',
     node: {
-      statistic: {
-        heap: 'Heap',
-        ram: 'RAM',
-        disk: 'Disk',
-        title: 'Node Statistics',
-      },
+      ip: 'IP Address',
+      heap: 'Heap',
+      ram: 'RAM',
+      disk: 'Disk',
+      shards: 'Shards',
+      mappings: 'Mappings',
+      statisticTitle: 'Node Statistics',
     },
   },
   connection: {

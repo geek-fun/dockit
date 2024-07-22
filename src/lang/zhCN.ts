@@ -52,12 +52,13 @@ export const zhCN = {
     ingestNode: 'Ingest 节点',
     coordinatingNode: '协调节点',
     node: {
-      statistic: {
-        heap: '堆内存',
-        ram: '内存',
-        disk: '磁盘',
-        title: '节点统计',
-      },
+      ip: 'IP 地址',
+      heap: '堆内存',
+      ram: '内存',
+      disk: '磁盘',
+      shards: '分片',
+      mappings: '映射',
+      statisticTitle: '节点统计',
     },
   },
   connection: {
