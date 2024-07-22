@@ -1,7 +1,14 @@
 <template>
   <div class="manage-state-container">
-    <n-card class="cluster-item-box cluster-cluster-box">
-      <p :class="clusterStatusClass">
+    <n-card
+      class="cluster-item-box cluster-cluster-box"
+      :class="{
+        'cluster-status-color-green': props.cluster?.status == 'green',
+        'cluster-status-color-yellow': props.cluster?.status == 'yellow',
+        'cluster-status-color-red': props.cluster?.status == 'red',
+      }"
+    >
+      <p>
         <span>{{ $t('manage.cluster') }}</span>
         <n-icon size="24">
           <CheckmarkOutline v-if="props.cluster?.status == 'green'" />
@@ -44,10 +51,6 @@ import { RawClusterStats } from '../../../store';
 
 const props = defineProps<{ cluster: RawClusterStats | null }>();
 
-const clusterStatusClass = computed(() => {
-  if (!props.cluster) return '';
-  return `cluster-status-color-${props.cluster.status}`;
-});
 const emits = defineEmits(['switch-manage-tab']);
 </script>
 
@@ -78,15 +81,15 @@ const emits = defineEmits(['switch-manage-tab']);
     }
   }
 
-  .cluster-status-color-green {
+  .cluster-status-color-green p:first-of-type {
     color: #36ad6a;
   }
 
-  .cluster-status-color-yellow {
+  .cluster-status-color-yellow p:first-of-type {
     color: #f1c40f;
   }
 
-  .cluster-status-color-red {
+  .cluster-status-color-red p:first-of-type {
     color: #e74c3c;
   }
 }
