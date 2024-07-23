@@ -23,7 +23,7 @@
     "build:macos": "tauri build -t universal-apple-darwin"
   },
   "dependencies": {
-    "@tauri-apps/api": "^1",
+    "@tauri-apps/api": "^1.6.0",
     "debug": "^4.3.5",
     "highlight.js": "^11.9.0",
     "lodash": "^4.17.21",
