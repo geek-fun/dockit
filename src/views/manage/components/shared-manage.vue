@@ -1,74 +1,74 @@
 <template>
-  <n-data-table :columns="columns" :data="data" :pagination="pagination" :bordered="false" />
+  <main class="shard-container">
+    <n-card class="shard-item" v-for="node in nodeWithShards" :key="node.name" :title="node.name">
+      <div v-for="nodeIndex in node.indices">
+        <h3>{{ nodeIndex.index }}</h3>
+        <n-card class="shard-item" v-for="shard in nodeIndex.shards" :key="shard.shard">
+          <p>shard: {{ shard.shard }}</p>
+          <p>state: {{ shard.state }}</p>
+          <p>node: {{ shard.node }}</p>
+          <p>index: {{ shard.index }}</p>
+        </n-card>
+      </div>
+    </n-card>
+  </main>
 </template>
 
-<script lang="ts">
-import { defineComponent, h } from 'vue';
-import { NButton, useMessage } from 'naive-ui';
-import type { DataTableColumns } from 'naive-ui';
+<script setup lang="ts">
+import { storeToRefs } from 'pinia';
+import { Shard, useConnectionStore } from '../../../store';
 
-interface Song {
-  no: number;
-  title: string;
-  length: string;
-}
+const connectionStore = useConnectionStore();
+const { fetchNodes, fetchShards } = connectionStore;
+const { established } = storeToRefs(connectionStore);
 
-function createColumns({ play }: { play: (row: Song) => void }): DataTableColumns<Song> {
-  return [
-    {
-      title: 'No',
-      key: 'no',
-      width: 50,
-    },
-    {
-      title: 'Title',
-      key: 'title',
-      resizable: true,
-    },
-    {
-      title: 'Length',
-      key: 'length',
-      resizable: true,
-      minWidth: 50,
-      maxWidth: 100,
-    },
-    {
-      title: 'Action',
-      key: 'actions',
-      render(row) {
-        return h(
-          NButton,
-          {
-            strong: true,
-            tertiary: true,
-            size: 'small',
-            onClick: () => play(row),
-          },
-          { default: () => 'Play' },
-        );
-      },
-    },
-  ];
-}
+type NodeWithShard = {
+  name: string;
+  indices: Array<{
+    index: string;
+    shards: Array<Shard>;
+  }>;
+};
 
-const data: Song[] = [
-  { no: 3, title: 'Wonderwall', length: '4:18' },
-  { no: 4, title: "Don't Look Back in Anger", length: '4:48' },
-  { no: 12, title: 'Champagne Supernova', length: '7:27' },
-];
+const nodeWithShards = ref<Array<NodeWithShard>>([]);
 
-export default defineComponent({
-  setup() {
-    const message = useMessage();
-    return {
-      data,
-      columns: createColumns({
-        play(row: Song) {
-          message.info(`Play ${row.title}`);
-        },
-      }),
-      pagination: false as const,
-    };
-  },
+const refreshShards = async (): Promise<Array<NodeWithShard>> => {
+  const nodes = established.value?.rawClusterState?.nodes.instances;
+  if (!nodes) return [];
+
+  const shards = await fetchShards();
+  const nodeIndices = [{ name: null }, ...nodes].map(node => {
+    const nodeShards = shards?.filter(shard => shard.node === node.name);
+    if (!nodeShards) return;
+
+    const indices = Array.from(new Set(nodeShards.map(shard => shard.index))).map(index => ({
+      index,
+      shards: nodeShards.filter(shard => shard.index === index),
+    }));
+
+    return { name: node.name || 'unassigned', indices };
+  });
+  console.log('nodeIndices', nodeIndices);
+
+  return nodeIndices as Array<NodeWithShard>;
+};
+
+onMounted(async () => {
+  await fetchNodes();
+  nodeWithShards.value = (await refreshShards()) || [];
 });
+fetchNodes();
 </script>
+
+<style lang="scss" scoped>
+.shard-container {
+  display: flex;
+  justify-content: space-around;
+  padding-top: 20px;
+
+  .shard-item {
+    width: 200px;
+    height: 400px;
+  }
+}
+</style>

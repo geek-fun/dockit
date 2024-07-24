@@ -50,8 +50,6 @@ import { CheckmarkOutline, WarningAlt, MisuseOutline } from '@vicons/carbon';
 import { RawClusterStats } from '../../../store';
 
 const props = defineProps<{ cluster: RawClusterStats | null }>();
-
-const emits = defineEmits(['switch-manage-tab']);
 </script>
 
 <style lang="scss" scoped>

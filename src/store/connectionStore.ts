@@ -12,6 +12,26 @@ export enum NodeRoleEnum {
   COORDINATING = 'COORDINATING',
 }
 
+export enum ShardStateEnum {
+  UNASSIGNED = 'UNASSIGNED',
+  INITIALIZING = 'INITIALIZING',
+  STARTED = 'STARTED',
+  RELOCATING = 'RELOCATING',
+}
+export type Shard = {
+  ip: string;
+  index: string;
+  shard: string;
+  node: string;
+  docs: string;
+  store: string;
+  prirep: string;
+  state: ShardStateEnum;
+  unassigned: {
+    reason: string;
+  };
+};
+
 export type SearchNode = {
   ip: string;
   name: string;
@@ -165,51 +185,53 @@ export const useConnectionStore = defineStore('connectionStore', {
       const client = loadHttpClient(this.established as Connection);
       try {
         const data = await client.get('/_cat/nodes', 'format=json');
-        this.established.rawClusterState!.nodes.instances = data.map(
-          (node: {
-            ip: string;
-            name: string;
-            'node.role': string;
-            master: string;
-            'heap.percent': string;
-            'ram.percent': string;
-            cpu: string;
-          }) => ({
-            ip: node.ip,
-            name: node.name,
-            roles: node['node.role']
-              .split('')
-              .map((char: string) => {
-                switch (char) {
-                  case 'd':
-                    return NodeRoleEnum.DATA;
-                  case 'i':
-                    return NodeRoleEnum.INGEST;
-                  case 'm':
-                    return NodeRoleEnum.MASTER_ELIGIBLE;
-                  case 'l':
-                    return NodeRoleEnum.ML;
-                  case 'r':
-                    return NodeRoleEnum.REMOTE_CLUSTER_CLIENT;
-                  case 't':
-                    return NodeRoleEnum.TRANSFORM;
-                  case '-':
-                    return NodeRoleEnum.COORDINATING;
-                  default:
-                    return '';
-                }
-              })
-              .filter((role: string) => role !== ''),
-            master: node.master === '*',
-            heap: {
-              percent: node['heap.percent'],
-            },
-            ram: {
-              percent: node['ram.percent'],
-            },
-            cpu: node.cpu,
-          }),
-        );
+        this.established.rawClusterState!.nodes.instances = data
+          .map(
+            (node: {
+              ip: string;
+              name: string;
+              'node.role': string;
+              master: string;
+              'heap.percent': string;
+              'ram.percent': string;
+              cpu: string;
+            }) => ({
+              ip: node.ip,
+              name: node.name,
+              roles: node['node.role']
+                .split('')
+                .map((char: string) => {
+                  switch (char) {
+                    case 'd':
+                      return NodeRoleEnum.DATA;
+                    case 'i':
+                      return NodeRoleEnum.INGEST;
+                    case 'm':
+                      return NodeRoleEnum.MASTER_ELIGIBLE;
+                    case 'l':
+                      return NodeRoleEnum.ML;
+                    case 'r':
+                      return NodeRoleEnum.REMOTE_CLUSTER_CLIENT;
+                    case 't':
+                      return NodeRoleEnum.TRANSFORM;
+                    case '-':
+                      return NodeRoleEnum.COORDINATING;
+                    default:
+                      return '';
+                  }
+                })
+                .filter((role: string) => role !== ''),
+              master: node.master === '*',
+              heap: {
+                percent: node['heap.percent'],
+              },
+              ram: {
+                percent: node['ram.percent'],
+              },
+              cpu: node.cpu,
+            }),
+          )
+          .sort((a: SearchNode, b: SearchNode) => a.name.localeCompare(b.name));
       } catch (err) {
         console.error('failed to fetch nodes', err);
       }
@@ -220,7 +242,6 @@ export const useConnectionStore = defineStore('connectionStore', {
         `/_cat/nodes`,
         'format=json&bytes=b&h=ip,id,name,heap.percent,heap.current,heap.max,ram.percent,ram.current,ram.max,node.role,master,cpu,load_1m,load_5m,load_15m,disk.used_percent,disk.used,disk.total,shard_stats.total_count,mappings.total_count&full_id=true',
       );
-      console.log('/_cat/nodes', data);
       return Object.entries<{
         ip: string;
         name: string;
@@ -267,6 +288,20 @@ export const useConnectionStore = defineStore('connectionStore', {
           },
         }))
         .find(({ name }) => name === nodeName);
+    },
+    async fetchShards() {
+      if (!this.established) return;
+      const client = loadHttpClient(this.established as Connection);
+      try {
+        const data = await client.get(
+          '/_cat/shards',
+          'format=json&h=ip,index,shard,node,docs,store,prirep,state,unassigned.reason&s=index:asc',
+        );
+        console.log('/_cat/shards', data);
+        return data as Shard[];
+      } catch (err) {
+        console.error('failed to fetch shards', err);
+      }
     },
     async fetchIndices() {
       if (!this.established) throw new Error('no connection established');
