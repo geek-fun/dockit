@@ -1,15 +1,25 @@
 <template>
   <main class="shard-container">
-    <n-card class="shard-item" v-for="node in nodeWithShards" :key="node.name" :title="node.name">
-      <div v-for="nodeIndex in node.indices">
-        <h3>{{ nodeIndex.index }}</h3>
-        <n-card class="shard-item" v-for="shard in nodeIndex.shards" :key="shard.shard">
-          <p>shard: {{ shard.shard }}</p>
-          <p>state: {{ shard.state }}</p>
-          <p>node: {{ shard.node }}</p>
-          <p>index: {{ shard.index }}</p>
-        </n-card>
-      </div>
+    <n-card v-for="node in nodeWithShards" :key="node.name" :title="node.name">
+      <n-collapse>
+        <n-collapse-item
+          v-for="nodeIndex in node.indices"
+          :title="nodeIndex.index"
+          :name="nodeIndex.index"
+          class="shard-collapse-container"
+        >
+          <n-button
+            v-for="shard in nodeIndex.shards"
+            strong
+            :secondary="shard.prirep == 'p'"
+            type="primary"
+            :dashed="shard.prirep == 'r'"
+            class="shard-box"
+          >
+            {{ shard.prirep }}{{ shard.shard }}
+          </n-button>
+        </n-collapse-item>
+      </n-collapse>
     </n-card>
   </main>
 </template>
@@ -43,7 +53,9 @@ const refreshShards = async (): Promise<Array<NodeWithShard>> => {
 
     const indices = Array.from(new Set(nodeShards.map(shard => shard.index))).map(index => ({
       index,
-      shards: nodeShards.filter(shard => shard.index === index),
+      shards: nodeShards
+        .filter(shard => shard.index === index)
+        .sort((a, b) => a.prirep.localeCompare(b.prirep)),
     }));
 
     return { name: node.name || 'unassigned', indices };
@@ -65,10 +77,9 @@ fetchNodes();
   display: flex;
   justify-content: space-around;
   padding-top: 20px;
-
-  .shard-item {
-    width: 200px;
-    height: 400px;
+  gap: 15px;
+  .shard-box {
+    margin: 5px;
   }
 }
 </style>

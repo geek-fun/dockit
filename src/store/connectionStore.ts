@@ -18,6 +18,7 @@ export enum ShardStateEnum {
   STARTED = 'STARTED',
   RELOCATING = 'RELOCATING',
 }
+
 export type Shard = {
   ip: string;
   index: string;
@@ -289,7 +290,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         }))
         .find(({ name }) => name === nodeName);
     },
-    async fetchShards() {
+    async fetchShards(includeHidden: boolean = false) {
       if (!this.established) return;
       const client = loadHttpClient(this.established as Connection);
       try {
@@ -297,8 +298,13 @@ export const useConnectionStore = defineStore('connectionStore', {
           '/_cat/shards',
           'format=json&h=ip,index,shard,node,docs,store,prirep,state,unassigned.reason&s=index:asc',
         );
-        console.log('/_cat/shards', data);
-        return data as Shard[];
+
+        const filteredData = includeHidden
+          ? data
+          : data.filter((shard: Shard) => !shard.index.startsWith('.'));
+
+        console.log('/_cat/shards', { data, filteredData });
+        return filteredData as Shard[];
       } catch (err) {
         console.error('failed to fetch shards', err);
       }
