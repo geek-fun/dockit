@@ -33,6 +33,108 @@ export type Shard = {
   };
 };
 
+export type ShardState = {
+  index: string;
+  shard: string;
+  prirep: string;
+  state: ShardStateEnum;
+  docs: {
+    count: number;
+  };
+  store: {
+    size: number;
+  };
+  dataset: {
+    size: number;
+  };
+  ip: string;
+  id: string;
+  node: string;
+  completion: {
+    size: number;
+  };
+  denseVector: {
+    valueCount: string;
+  };
+  fielddata: {
+    memorySize: number;
+    evictions: string;
+  };
+  flush: {
+    total: string;
+    totalTime: string;
+  };
+  get: {
+    current: string;
+    time: string;
+    total: string;
+    existsTime: string;
+    existsTotal: string;
+    missingTime: string;
+    missingTotal: string;
+  };
+  indexing: {
+    deleteCurrent: string;
+    deleteTime: string;
+    deleteTotal: string;
+    indexCurrent: string;
+    indexTime: string;
+    indexTotal: string;
+    indexFailed: string;
+  };
+  merges: {
+    current: string;
+    currentDocs: string;
+    currentSize: string;
+    total: string;
+    totalDocs: string;
+    totalSize: string;
+    totalTime: string;
+  };
+  queryCache: {
+    memorySize: string;
+    evictions: string;
+  };
+  refresh: {
+    total: string;
+    time: string;
+  };
+  search: {
+    fetchCurrent: string;
+    fetchTime: string;
+    fetchTotal: string;
+    openContexts: string;
+    queryCurrent: string;
+    queryTime: string;
+    queryTotal: string;
+    scrollCurrent: string;
+    scrollTime: string;
+    scrollTotal: string;
+  };
+  segments: {
+    count: string;
+    memory: string;
+    indexWriterMemory: string;
+    versionMapMemory: string;
+    fixedBitsetMemory: string;
+  };
+  seqNo: {
+    globalCheckpoint: string;
+    localCheckpoint: string;
+    max: string;
+  };
+  suggest: {
+    current: string;
+    time: string;
+    total: string;
+  };
+  unassigned: {
+    at: string;
+    details: string;
+    for: string;
+    reason: string;
+  };
+};
 export type SearchNode = {
   ip: string;
   name: string;
@@ -296,7 +398,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       try {
         const data = await client.get(
           '/_cat/shards',
-          'format=json&h=ip,index,shard,node,docs,store,prirep,state,unassigned.reason&s=index:asc',
+          'format=json&h=ip,index,shard,node,docs,store,prirep,state,unassigned.reason&s=index:asc&bytes=b',
         );
 
         const filteredData = includeHidden
@@ -305,6 +407,188 @@ export const useConnectionStore = defineStore('connectionStore', {
 
         console.log('/_cat/shards', { data, filteredData });
         return filteredData as Shard[];
+      } catch (err) {
+        console.error('failed to fetch shards', err);
+      }
+    },
+    async getShardState(indexName: string) {
+      if (!this.established) return;
+      const client = loadHttpClient(this.established as Connection);
+      try {
+        const data = await client.get(
+          `/_cat/shards/${indexName}`,
+          'format=json&h=index,shard,prirep,state,docs,store,dataset.size,ip,id,node,completion.size,dense_vector.value_count,fielddata.memory_size,fielddata.evictions,flush.total,flush.total_time,get.current,get.time,get.total,get.exists_time,get.exists_total,get.missing_time,get.missing_total,indexing.delete_current,indexing.delete_time,indexing.delete_total,indexing.index_current,indexing.index_time,indexing.index_total,indexing.index_failed,merges.current,merges.current_docs,merges.current_size,merges.total,merges.total_docs,merges.total_size,merges.total_time,query_cache.memory_size,query_cache.evictions,recoverysource.type,refresh.total,refresh.time,search.fetch_current,search.fetch_time,search.fetch_total,search.open_contexts,search.query_current,search.query_time,search.query_total,search.scroll_current,search.scroll_time,search.scroll_total,segments.count,segments.memory,segments.index_writer_memory,segments.version_map_memory,segments.fixed_bitset_memory,seq_no.global_checkpoint,seq_no.local_checkpoint,seq_no.max,suggest.current,suggest.time,suggest.total,sync_id,unassigned.at,unassigned.details,unassigned.for,unassigned.reason&s=index:asc&bytes=b',
+        );
+        console.log(`/_cat/shards/${indexName}`, { data });
+        const result = data
+          .map(
+            ({
+              'dataset.size': dataSetSize,
+              'completion.size': completionSize,
+              'dense_vector.value_count': denseVectorValueCount,
+              'fielddata.memory_size': fielddataMemorySize,
+              'fielddata.evictions': fielddataEvictions,
+              'flush.total': flushTotal,
+              'flush.total_time': flushTotalTime,
+              'get.current': getCurrent,
+              'get.time': getTime,
+              'get.total': getTotal,
+              'get.exists_time': getExistsTime,
+              'get.exists_total': getExistsTotal,
+              'get.missing_time': getMissingTime,
+              'get.missing_total': getMissingTotal,
+              'indexing.delete_current': indexingDeleteCurrent,
+              'indexing.delete_time': indexingDeleteTime,
+              'indexing.delete_total': indexingDeleteTotal,
+              'indexing.index_current': indexingIndexCurrent,
+              'indexing.index_time': indexingIndexTime,
+              'indexing.index_total': indexingIndexTotal,
+              'indexing.index_failed': indexingIndexFailed,
+              'merges.current': mergesCurrent,
+              'merges.current_docs': mergesCurrentDocs,
+              'merges.current_size': mergesCurrentSize,
+              'merges.total': mergesTotal,
+              'merges.total_docs': mergesTotalDocs,
+              'merges.total_size': mergesTotalSize,
+              'merges.total_time': mergesTotalTime,
+              'query_cache.memory_size': queryCacheMemorySize,
+              'query_cache.evictions': queryCacheEvictions,
+              'refresh.total': refreshTotal,
+              'refresh.time': refreshTime,
+              'search.fetch_current': searchFetchCurrent,
+              'search.fetch_time': searchFetchTime,
+              'search.fetch_total': searchFetchTotal,
+              'search.open_contexts': searchOpenContexts,
+              'search.query_current': searchQueryCurrent,
+              'search.query_time': searchQueryTime,
+              'search.query_total': searchQueryTotal,
+              'search.scroll_current': searchScrollCurrent,
+              'search.scroll_time': searchScrollTime,
+              'search.scroll_total': searchScrollTotal,
+              'segments.count': segmentsCount,
+              'segments.memory': segmentsMemory,
+              'segments.index_writer_memory': segmentsIndexWriterMemory,
+              'segments.version_map_memory': segmentsVersionMapMemory,
+              'segments.fixed_bitset_memory': segmentsFixedBitsetMemory,
+              'seq_no.global_checkpoint': seqNoGlobalCheckpoint,
+              'seq_no.local_checkpoint': seqNoLocalCheckpoint,
+              'seq_no.max': seqNoMax,
+              'suggest.current': suggestCurrent,
+              'suggest.time': suggestTime,
+              'suggest.total': suggestTotal,
+              'unassigned.at': unassignedAt,
+              'unassigned.details': unassignedDetails,
+              'unassigned.for': unassignedFor,
+              'unassigned.reason': unassignedReason,
+              'recoverysource.type': recoverysourceType,
+              ...others
+            }: {
+              [key: string]: string;
+            }) => ({
+              ...others,
+              dataset: {
+                size: parseInt(dataSetSize || '0'),
+              },
+              completion: {
+                size: parseInt(completionSize || '0'),
+              },
+              denseVector: {
+                valueCount: denseVectorValueCount,
+              },
+              docs: {
+                count: parseInt(others.docs || '0', 10),
+              },
+              store: {
+                size: parseInt(others.store || '0'),
+              },
+              fielddata: {
+                memorySize: parseInt(fielddataMemorySize || '0'),
+                evictions: fielddataEvictions,
+              },
+              flush: {
+                total: flushTotal,
+                totalTime: flushTotalTime,
+              },
+              get: {
+                current: getCurrent,
+                time: getTime,
+                total: getTotal,
+                existsTime: getExistsTime,
+                existsTotal: getExistsTotal,
+                missingTime: getMissingTime,
+                missingTotal: getMissingTotal,
+              },
+              indexing: {
+                deleteCurrent: indexingDeleteCurrent,
+                deleteTime: indexingDeleteTime,
+                deleteTotal: indexingDeleteTotal,
+                indexCurrent: indexingIndexCurrent,
+                indexTime: indexingIndexTime,
+                indexTotal: indexingIndexTotal,
+                indexFailed: indexingIndexFailed,
+              },
+              merges: {
+                current: mergesCurrent,
+                currentDocs: mergesCurrentDocs,
+                currentSize: mergesCurrentSize,
+                total: mergesTotal,
+                totalDocs: mergesTotalDocs,
+                totalSize: mergesTotalSize,
+                totalTime: mergesTotalTime,
+              },
+              queryCache: {
+                memorySize: queryCacheMemorySize,
+                evictions: queryCacheEvictions,
+              },
+              refresh: {
+                total: refreshTotal,
+                time: refreshTime,
+              },
+              search: {
+                fetchCurrent: searchFetchCurrent,
+                fetchTime: searchFetchTime,
+                fetchTotal: searchFetchTotal,
+                openContexts: searchOpenContexts,
+                queryCurrent: searchQueryCurrent,
+                queryTime: searchQueryTime,
+                queryTotal: searchQueryTotal,
+                scrollCurrent: searchScrollCurrent,
+                scrollTime: searchScrollTime,
+                scrollTotal: searchScrollTotal,
+              },
+              segments: {
+                count: segmentsCount,
+                memory: segmentsMemory,
+                indexWriterMemory: segmentsIndexWriterMemory,
+                versionMapMemory: segmentsVersionMapMemory,
+                fixedBitsetMemory: segmentsFixedBitsetMemory,
+              },
+              seqNo: {
+                globalCheckpoint: seqNoGlobalCheckpoint,
+                localCheckpoint: seqNoLocalCheckpoint,
+                max: seqNoMax,
+              },
+              suggest: {
+                current: suggestCurrent,
+                time: suggestTime,
+                total: suggestTotal,
+              },
+              unassigned: {
+                at: unassignedAt,
+                details: unassignedDetails,
+                for: unassignedFor,
+                reason: unassignedReason,
+              },
+              recoverySource: {
+                type: recoverysourceType,
+              },
+            }),
+          )
+          .sort(
+            (a: ShardState, b: ShardState) =>
+              a.node?.localeCompare(b.node) || a.prirep.localeCompare(b.prirep),
+          );
+        return { index: indexName, shards: result };
       } catch (err) {
         console.error('failed to fetch shards', err);
       }
