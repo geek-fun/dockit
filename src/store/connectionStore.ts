@@ -506,8 +506,8 @@ export const useConnectionStore = defineStore('connectionStore', {
                 evictions: parseInt(fielddataEvictions || '0'),
               },
               flush: {
-                total: flushTotal,
-                totalTime: flushTotalTime,
+                total: parseInt(flushTotal || '0'),
+                totalTime: flushTotalTime ?? '',
               },
               get: {
                 current: getCurrent,
@@ -569,9 +569,9 @@ export const useConnectionStore = defineStore('connectionStore', {
                 max: seqNoMax,
               },
               suggest: {
-                current: suggestCurrent,
-                time: suggestTime,
-                total: suggestTotal,
+                current: parseInt(suggestCurrent || '0'),
+                time: suggestTime ?? '',
+                total: parseInt(suggestTotal || '0'),
               },
               unassigned: {
                 at: unassignedAt,
