@@ -58,7 +58,7 @@ export type ShardState = {
   };
   fielddata: {
     memorySize: number;
-    evictions: string;
+    evictions: number;
   };
   flush: {
     total: string;
@@ -86,14 +86,14 @@ export type ShardState = {
     current: string;
     currentDocs: string;
     currentSize: string;
-    total: string;
-    totalDocs: string;
-    totalSize: string;
+    total: number;
+    totalDocs: number;
+    totalSize: number;
     totalTime: string;
   };
   queryCache: {
-    memorySize: string;
-    evictions: string;
+    memorySize: number;
+    evictions: number;
   };
   refresh: {
     total: string;
@@ -112,11 +112,11 @@ export type ShardState = {
     scrollTotal: string;
   };
   segments: {
-    count: string;
-    memory: string;
-    indexWriterMemory: string;
-    versionMapMemory: string;
-    fixedBitsetMemory: string;
+    count: number;
+    memory: number;
+    indexWriterMemory: number;
+    versionMapMemory: number;
+    fixedBitsetMemory: number;
   };
   seqNo: {
     globalCheckpoint: string;
@@ -503,7 +503,7 @@ export const useConnectionStore = defineStore('connectionStore', {
               },
               fielddata: {
                 memorySize: parseInt(fielddataMemorySize || '0'),
-                evictions: fielddataEvictions,
+                evictions: parseInt(fielddataEvictions || '0'),
               },
               flush: {
                 total: flushTotal,
@@ -531,14 +531,14 @@ export const useConnectionStore = defineStore('connectionStore', {
                 current: mergesCurrent,
                 currentDocs: mergesCurrentDocs,
                 currentSize: mergesCurrentSize,
-                total: mergesTotal,
-                totalDocs: mergesTotalDocs,
-                totalSize: mergesTotalSize,
+                total: parseInt(mergesTotal || '0'),
+                totalDocs: parseInt(mergesTotalDocs || '0'),
+                totalSize: parseInt(mergesTotalSize || '0'),
                 totalTime: mergesTotalTime,
               },
               queryCache: {
-                memorySize: queryCacheMemorySize,
-                evictions: queryCacheEvictions,
+                memorySize: parseInt(queryCacheMemorySize || '0'),
+                evictions: parseInt(queryCacheEvictions || '0'),
               },
               refresh: {
                 total: refreshTotal,
@@ -557,11 +557,11 @@ export const useConnectionStore = defineStore('connectionStore', {
                 scrollTotal: searchScrollTotal,
               },
               segments: {
-                count: segmentsCount,
-                memory: segmentsMemory,
-                indexWriterMemory: segmentsIndexWriterMemory,
-                versionMapMemory: segmentsVersionMapMemory,
-                fixedBitsetMemory: segmentsFixedBitsetMemory,
+                count: parseInt(segmentsCount || '0'),
+                memory: parseInt(segmentsMemory || '0'),
+                indexWriterMemory: parseInt(segmentsIndexWriterMemory || '0'),
+                versionMapMemory: parseInt(segmentsVersionMapMemory || '0'),
+                fixedBitsetMemory: parseInt(segmentsFixedBitsetMemory || '0'),
               },
               seqNo: {
                 globalCheckpoint: seqNoGlobalCheckpoint,

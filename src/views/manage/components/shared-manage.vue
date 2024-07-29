@@ -26,7 +26,7 @@
         </n-scrollbar>
       </n-card>
     </div>
-    <n-tag type="success"> Yes It Is </n-tag>
+    <n-tag type="success"> Yes It Is</n-tag>
     <n-card v-if="indexShards" :title="indexShards.index">
       <template #header-extra>
         shards: {{ indexShards.shards.filter(shard => shard.prirep === 'p').length }}/{{
@@ -45,19 +45,195 @@
           class="shard-item-box"
         >
           <p>shard: {{ shard.prirep }}{{ shard.shard }} node: {{ shard.node }}</p>
-          <p>docs: {{ shard.docs.count }}</p>
-          <p>memory:</p>
-          <p>completion: {{ prettyBytes(shard.completion.size) }}</p>
-          <p>disk:</p>
-          <p>
+          <n-tag type="success">
+            docs: {{ shard.docs.count }}
+            <template #icon>
+              <n-icon :component="Document" />
+            </template>
+          </n-tag>
+
+          <n-tag type="success">
             size: {{ prettyBytes(shard.store.size) }}, dataset:{{ prettyBytes(shard.dataset.size) }}
-          </p>
-          <p>fielddata</p>
-          <p>
-            memorySize:{{ prettyBytes(shard.fielddata.memorySize) }}, evictions:{{
-              shard.fielddata.evictions
-            }}e
-          </p>
+            <template #icon>
+              <n-icon :component="VmdkDisk" />
+            </template>
+          </n-tag>
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                {{ prettyBytes(shard.completion.size) }}
+                <template #icon>
+                  <n-icon :component="Memory" />
+                </template>
+              </n-tag>
+            </template>
+            <span>
+              completion: completion.size is the size of the memory used by the completion data
+              structure,completion data structure in Elasticsearch is a highly efficient mechanism
+              for providing real-time search suggestions.
+            </span>
+          </n-popover>
+
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                size:{{ prettyBytes(shard.fielddata.memorySize) }}, evictions:{{
+                  shard.fielddata.evictions
+                }}
+                <template #icon>
+                  <n-icon :component="Memory" />
+                </template>
+              </n-tag>
+            </template>
+            <span>
+              fielddata memory_size and evictions Elasticsearch used for sorting and aggregations on
+              text fields
+            </span>
+          </n-popover>
+
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                size:{{ prettyBytes(shard.queryCache.memorySize) }}, evictions:{{
+                  shard.queryCache.evictions
+                }}
+                <template #icon>
+                  <n-icon :component="Layers" />
+                </template>
+              </n-tag>
+            </template>
+            <span> queryCache </span>
+          </n-popover>
+
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                success: {{ shard.get.existsTotal }},{{ shard.get.existsTime }} failure:
+                {{ shard.get.missingTotal }},{{ shard.get.missingTime }}
+                <template #icon>
+                  <n-icon :component="QueryQueue" />
+                </template>
+              </n-tag>
+            </template>
+            <span> GET OPERATION</span>
+          </n-popover>
+
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                <p>
+                  index: {{ shard.indexing.indexTime }}delete:{{ shard.indexing.deleteTotal }},{{
+                    shard.indexing.deleteTime
+                  }}
+                  failures:
+                  {{ shard.indexing.indexFailed }}
+                </p>
+                <template #icon>
+                  <n-icon :component="Insert" />
+                </template>
+              </n-tag>
+            </template>
+            <span> INDEXING OPERATION</span>
+          </n-popover>
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                <p>
+                  fetch: {{ shard.search.fetchTotal }}/{{ shard.search.fetchTime }},query:
+                  {{ shard.search.queryTotal }}/{{ shard.search.queryTime }},scroll:{{
+                    shard.search.scrollTotal
+                  }}/{{ shard.search.scrollTime }},open:
+                  {{ shard.search.openContexts }}
+                </p>
+                <template #icon>
+                  <n-icon :component="SearchLocate" />
+                </template>
+              </n-tag>
+            </template>
+            <span>SEARCH OPERATION</span>
+          </n-popover>
+
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                <p>
+                  complete {{ shard.merges.total }}, {{ prettyBytes(shard.merges.totalSize) }},{{
+                    shard.merges.totalDocs
+                  }}
+                  docs,
+                  {{ shard.merges.totalTime }}
+                </p>
+                <template #icon>
+                  <n-icon :component="ShapeExcept" />
+                </template>
+              </n-tag>
+            </template>
+            <span> MERGES OPERATION</span>
+          </n-popover>
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                <p>{{ shard.refresh.total }},{{ shard.refresh.time }}</p>
+                <template #icon>
+                  <n-icon :component="ShapeExcept" />
+                </template>
+              </n-tag>
+            </template>
+            <span>refresh</span>
+          </n-popover>
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                <p>{{ shard.flush.total }},{{ shard.flush.time }}</p>
+                <template #icon>
+                  <n-icon :component="ShapeExcept" />
+                </template>
+              </n-tag>
+            </template>
+            <span>flush</span>
+          </n-popover>
+
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                <p>
+                  {{ shard.segments.count }}/{{ prettyBytes(shard.segments.memory) }},writer:
+                  {{ prettyBytes(shard.segments.indexWriterMemory) }},version_map:{{
+                    prettyBytes(shard.segments.versionMapMemory)
+                  }}, fixed_bitset:{{ prettyBytes(shard.segments.fixedBitsetMemory) }}
+                </p>
+                <template #icon>
+                  <n-icon :component="Application" />
+                </template>
+              </n-tag>
+            </template>
+            <span>segments</span>
+          </n-popover>
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                <p>
+                  max:{{ shard.seqNo.max }},global: {{ shard.seqNo.globalCheckpoint }}, local:
+                  {{ shard.seqNo.localCheckpoint }}
+                </p>
+                <template #icon>
+                  <n-icon :component="Application" />
+                </template>
+              </n-tag>
+            </template>
+            <span>seq_no</span>
+          </n-popover>
+          <n-popover trigger="hover" :delay="500" :duration="500">
+            <template #trigger>
+              <n-tag type="success">
+                <p>{{ shard.suggest.total }}/{{ shard.suggest.time }}</p>
+                <template #icon>
+                  <n-icon :component="AiResults" />
+                </template>
+              </n-tag>
+            </template>
+            <span>suggest</span>
+          </n-popover>
         </n-button>
       </div>
     </n-card>
@@ -68,6 +244,18 @@
 import { storeToRefs } from 'pinia';
 import { Shard, ShardState, useConnectionStore } from '../../../store';
 import prettyBytes from 'pretty-bytes';
+import {
+  Document,
+  VmdkDisk,
+  Insert,
+  QueryQueue,
+  Layers,
+  ShapeExcept,
+  SearchLocate,
+  Application,
+  AiResults,
+} from '@vicons/carbon';
+import { Memory } from '@vicons/fa';
 
 const connectionStore = useConnectionStore();
 const { fetchNodes, fetchShards, getShardState } = connectionStore;
@@ -137,13 +325,20 @@ fetchNodes();
   gap: 10px;
   justify-content: flex-start;
   flex-wrap: wrap;
+
   .shard-item-box {
     margin: 0;
     padding: 0;
-    width: 300px;
-    height: 300px;
+    width: 400px;
+    height: 400px;
+    text-wrap: wrap;
     cursor: default;
+
+    .n-tag {
+      margin: 5px;
+    }
   }
+
   :deep(.n-button) {
     .n-button__content {
       display: block;
