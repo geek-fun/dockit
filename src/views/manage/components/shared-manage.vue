@@ -1,71 +1,59 @@
 <template>
-  <main>
-    <div class="shard-container">
-      <n-card v-for="node in nodeWithShards" :key="node.name" :title="node.name">
-        <n-scrollbar style="max-height: 400px">
-          <n-collapse>
-            <n-collapse-item
-              v-for="nodeIndex in node.indices"
-              :title="nodeIndex.index"
-              :name="nodeIndex.index"
-              class="shard-collapse-container"
-            >
-              <n-button
-                v-for="shard in nodeIndex.shards"
-                strong
-                :secondary="shard.prirep == 'p'"
-                type="primary"
-                :dashed="shard.prirep == 'r'"
-                class="shard-box"
-                @click="handleShardClick(shard)"
-              >
-                {{ shard.prirep }}{{ shard.shard }}
-              </n-button>
-            </n-collapse-item>
-          </n-collapse>
-        </n-scrollbar>
-      </n-card>
+  <main class="shard-container">
+    <div class="shard-table-container">
+      <n-data-table
+        :columns="nodeShardsTable?.columns"
+        :data="nodeShardsTable?.data"
+        :bordered="false"
+        max-height="400"
+      />
     </div>
-    <n-divider />
-    <n-card v-if="indexShards" :title="indexShards.index">
-      <template #header-extra>
-        shards: {{ indexShards.shards.filter(shard => shard.prirep === 'p').length }}/{{
-          indexShards.shards.filter(shard => shard.prirep === 'r').length
-        }}, unassigned: {{ indexShards.shards.filter(shard => !shard.node).length }}
-      </template>
-      <div class="shard-list-container">
-        <n-button
-          strong
-          tag="div"
-          :type="shard.node ? 'primary' : 'warning'"
-          :dashed="shard.prirep == 'r'"
-          :secondary="shard.prirep == 'p'"
-          v-for="shard in indexShards.shards"
-          :title="shard.prirep + shard.shard"
-          class="shard-item-box"
+
+    <div v-if="indexShards" class="shard-statistic-container">
+      <h3 class="shard-statistic-title">
+        <span>{{ indexShards.index }}</span
+        ><span
+          >shards: {{ indexShards.shards.filter(shard => shard.prirep === 'p').length }}/{{
+            indexShards.shards.filter(shard => shard.prirep === 'r').length
+          }}, unassigned: {{ indexShards.shards.filter(shard => !shard.node).length }}</span
         >
-          <h3 class="shard-detail-title">
-            shard: {{ shard.prirep }}{{ shard.shard }} node: {{ shard.node }}
-          </h3>
-          <n-popover
-            trigger="hover"
-            :delay="500"
-            :duration="500"
-            v-for="shardsDetail in shard.details"
+      </h3>
+      <div class="shard-list-scrollbar-box">
+        <n-scrollbar style="height: 100%">
+          <n-button
+            strong
+            tag="div"
+            :type="shard.node ? 'primary' : 'warning'"
+            :dashed="shard.prirep == 'r'"
+            :secondary="shard.prirep == 'p'"
+            v-for="shard in indexShards.shards"
+            :title="shard.prirep + shard.shard"
+            class="shard-item-box"
           >
-            <template #trigger>
-              <n-tag :type="shardsDetail.tagType">
-                {{ shardsDetail.content }}
-                <template #icon>
-                  <n-icon :component="shardsDetail.icon" />
-                </template>
-              </n-tag>
-            </template>
-            <span> {{ shardsDetail.desc }} </span>
-          </n-popover>
-        </n-button>
+            <h3 class="shard-detail-title">
+              shard: {{ shard.prirep }}{{ shard.shard }} node: {{ shard.node }}
+            </h3>
+
+            <n-popover
+              trigger="hover"
+              :delay="500"
+              :duration="500"
+              v-for="shardsDetail in shard.details"
+            >
+              <template #trigger>
+                <n-tag :type="shardsDetail.tagType">
+                  {{ shardsDetail.content }}
+                  <template #icon>
+                    <n-icon :component="shardsDetail.icon" />
+                  </template>
+                </n-tag>
+              </template>
+              <span> {{ shardsDetail.desc }} </span>
+            </n-popover>
+          </n-button>
+        </n-scrollbar>
       </div>
-    </n-card>
+    </div>
   </main>
 </template>
 
@@ -89,17 +77,15 @@ import {
   LaunchStudy1,
 } from '@vicons/carbon';
 import { Memory } from '@vicons/fa';
+import { NButton } from 'naive-ui';
 
 const connectionStore = useConnectionStore();
 const { fetchNodes, fetchShards, getShardState } = connectionStore;
 const { established } = storeToRefs(connectionStore);
 
 type NodeWithShard = {
-  name: string;
-  indices: Array<{
-    index: string;
-    shards: Array<Shard>;
-  }>;
+  columns: Array<{ title: string; key: string }>;
+  data: Array<unknown>;
 };
 type IndexShard = ShardState & {
   details: Array<{
@@ -109,33 +95,54 @@ type IndexShard = ShardState & {
     tagType: 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error';
   }>;
 };
-const nodeWithShards = ref<Array<NodeWithShard>>([]);
+const nodeShardsTable = ref<NodeWithShard>();
 const indexShards = ref<{
   index: string;
   shards: Array<IndexShard>;
 }>();
 
-const refreshShards = async (): Promise<Array<NodeWithShard>> => {
+const refreshShards = async (): Promise<NodeWithShard> => {
   const nodes = established.value?.rawClusterState?.nodes.instances;
-  if (!nodes) return [];
+  if (!nodes) return { columns: [], data: [] };
 
   const shards = await fetchShards();
-  const nodeIndices = [{ name: null }, ...nodes].map(node => {
-    const nodeShards = shards?.filter(shard => shard.node === node.name);
-    if (!nodeShards) return;
+  const columns = [{ name: 'index' }, { name: 'unassigned' }, ...nodes].map(column => ({
+    title: column.name,
+    key: column.name,
+    render(row) {
+      if (column.name === 'index') return row.index;
+      return row[column.name].map((shard: Shard) =>
+        h(
+          NButton,
+          {
+            strong: true,
+            type: 'primary',
+            secondary: shard.prirep == 'p',
+            dashed: shard.prirep == 'r',
+            onClick: () => handleShardClick(row),
+            class: 'shard-box',
+          },
+          `${shard.prirep}${shard.shard}`,
+        ),
+      );
+    },
+  }));
 
-    const indices = Array.from(new Set(nodeShards.map(shard => shard.index))).map(index => ({
-      index,
-      shards: nodeShards
-        .filter(shard => shard.index === index)
-        .sort((a, b) => a.prirep.localeCompare(b.prirep)),
-    }));
+  const data = Array.from(new Set(shards?.map(shard => shard.index))).map(index => ({
+    index,
+    unassigned: shards?.filter(shard => !shard.node && shard.index === index),
+    ...(nodes || []).reduce(
+      (acc, node) => ({
+        ...acc,
+        [node.name]: shards?.filter(shard => shard.node && shard.index === index),
+      }),
+      {},
+    ),
+  }));
 
-    return { name: node.name || 'unassigned', indices };
-  });
-  console.log('nodeIndices', nodeIndices);
+  console.log('refreshShards', { columns, data });
 
-  return nodeIndices as Array<NodeWithShard>;
+  return { columns, data };
 };
 
 const handleShardClick = async (shard: Shard) => {
@@ -251,51 +258,73 @@ const handleShardClick = async (shard: Shard) => {
 
 onMounted(async () => {
   await fetchNodes();
-  nodeWithShards.value = (await refreshShards()) || [];
+  nodeShardsTable.value = await refreshShards();
 });
 fetchNodes();
 </script>
 
 <style lang="scss" scoped>
 .shard-container {
+  height: 100%;
+  width: 100%;
   display: flex;
-  justify-content: space-around;
-  padding-top: 20px;
-  gap: 15px;
-
-  .shard-box {
-    margin: 5px;
-  }
-}
-
-.shard-list-container {
-  display: flex;
+  flex-direction: column;
   gap: 10px;
-  justify-content: flex-start;
-  flex-wrap: wrap;
 
-  .shard-item-box {
-    margin: 0;
-    padding: 0;
-    width: 500px;
-    height: 500px;
-    text-wrap: wrap;
-    cursor: default;
-    overflow: hidden;
+  .shard-table-container {
+    display: flex;
+    justify-content: space-around;
+    padding-top: 20px;
+    gap: 15px;
 
-    .n-tag {
-      margin: 5px;
-    }
-
-    .shard-detail-title {
-      margin-left: 5px;
+    :deep(.n-data-table-tbody) {
+      .shard-box {
+        margin: 5px;
+      }
     }
   }
 
-  :deep(.n-button) {
-    .n-button__content {
-      display: block;
-      text-align: left;
+  .shard-statistic-container {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--card-bg-color);
+    .shard-statistic-title {
+      margin: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .shard-list-scrollbar-box {
+      flex: 1;
+      height: 0;
+      gap: 5px;
+
+      :deep(.n-button) {
+        .n-button__content {
+          display: block;
+          text-align: left;
+        }
+      }
+
+      .shard-item-box {
+        margin: 10px;
+        padding: 0;
+        width: 500px;
+        height: 500px;
+        text-wrap: wrap;
+        cursor: default;
+        overflow: hidden;
+
+        .n-tag {
+          margin: 5px;
+        }
+
+        .shard-detail-title {
+          margin-left: 5px;
+        }
+      }
     }
   }
 }

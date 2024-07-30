@@ -396,10 +396,12 @@ export const useConnectionStore = defineStore('connectionStore', {
       if (!this.established) return;
       const client = loadHttpClient(this.established as Connection);
       try {
-        const data = await client.get(
-          '/_cat/shards',
-          'format=json&h=ip,index,shard,node,docs,store,prirep,state,unassigned.reason&s=index:asc&bytes=b',
-        );
+        const data = (
+          await client.get(
+            '/_cat/shards',
+            'format=json&h=ip,index,shard,node,docs,store,prirep,state,unassigned.reason&s=index:asc&bytes=b',
+          )
+        ).sort((a: { prirep: string }, b: { prirep: string }) => a.prirep.localeCompare(b.prirep));
 
         const filteredData = includeHidden
           ? data

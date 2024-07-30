@@ -33,6 +33,8 @@ fetchClusterState();
 
 <style lang="scss" scoped>
 .manage-container {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   .state-container {
