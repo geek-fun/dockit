@@ -52,7 +52,7 @@ import {
   Settings,
   UserAvatar,
   ExpandAll,
-  ToolKit,
+  Equalizer,
 } from '@vicons/carbon';
 import { useAppStore } from '../../store';
 import TheAsideIcon from './the-aside-icon.vue';
@@ -66,7 +66,7 @@ const mainNavList = ref([
     id: 'manage',
     path: '/manage',
     name: 'manage',
-    icon: markRaw(ToolKit),
+    icon: markRaw(Equalizer),
     isLink: false,
   },
   {
@@ -90,6 +90,13 @@ const mainNavList = ref([
     icon: markRaw(ExpandAll),
     isLink: false,
   },
+  // {
+  //   id: 'import-export',
+  //   path: '/import-export',
+  //   name: 'import-export',
+  //   icon: markRaw(SaveSeries),
+  //   isLink: false,
+  // },
   {
     id: 'github',
     path: '',

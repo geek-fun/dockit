@@ -85,7 +85,9 @@ const { established } = storeToRefs(connectionStore);
 
 type NodeWithShard = {
   columns: Array<{ title: string; key: string }>;
-  data: Array<unknown>;
+  data: Array<{
+    [key: string]: Shard[] | string;
+  }>;
 };
 type IndexShard = ShardState & {
   details: Array<{
@@ -109,7 +111,7 @@ const refreshShards = async (): Promise<NodeWithShard> => {
   const columns = [{ name: 'index' }, { name: 'unassigned' }, ...nodes].map(column => ({
     title: column.name,
     key: column.name,
-    render(row) {
+    render(row: { [key: string]: Array<Shard> }) {
       if (column.name === 'index') return row.index;
       return row[column.name].map((shard: Shard) =>
         h(
@@ -119,7 +121,7 @@ const refreshShards = async (): Promise<NodeWithShard> => {
             type: 'primary',
             secondary: shard.prirep == 'p',
             dashed: shard.prirep == 'r',
-            onClick: () => handleShardClick(row),
+            onClick: () => handleShardClick(row as unknown as Shard),
             class: 'shard-box',
           },
           `${shard.prirep}${shard.shard}`,
@@ -142,13 +144,12 @@ const refreshShards = async (): Promise<NodeWithShard> => {
 
   console.log('refreshShards', { columns, data });
 
-  return { columns, data };
+  return { columns, data } as NodeWithShard;
 };
 
 const handleShardClick = async (shard: Shard) => {
-  const indexss = await getShardState(shard.index);
-  console.log('handleShardClick', { shard, indexss });
-  const shards = indexss?.shards.map((shard: ShardState) => ({
+  const indexes = await getShardState(shard.index);
+  const shards = indexes?.shards.map((shard: ShardState) => ({
     ...shard,
     details: [
       {
@@ -253,7 +254,7 @@ const handleShardClick = async (shard: Shard) => {
     ].filter(Boolean),
   }));
 
-  indexShards.value = { ...indexss, shards } as { index: string; shards: Array<IndexShard> };
+  indexShards.value = { ...indexes, shards } as { index: string; shards: Array<IndexShard> };
 };
 
 onMounted(async () => {
