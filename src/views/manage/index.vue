@@ -8,6 +8,7 @@
     />
     <node-state class="state-container" v-if="activeTab === $t('manage.nodes')" />
     <shared-manage class="state-container" v-if="activeTab === $t('manage.shards')" />
+    <index-manage class="state-container" v-if="activeTab === $t('manage.indices')" />
   </div>
 </template>
 
@@ -19,6 +20,7 @@ import { storeToRefs } from 'pinia';
 import NodeState from './components/node-state.vue';
 import SharedManage from './components/shared-manage.vue';
 import { lang } from '../../lang';
+import IndexManage from './components/index-manage.vue';
 const activeTab = ref(lang.global.t('manage.cluster'));
 
 const connectionStore = useConnectionStore();
