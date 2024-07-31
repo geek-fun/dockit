@@ -50,8 +50,6 @@ import { CheckmarkOutline, WarningAlt, MisuseOutline } from '@vicons/carbon';
 import { RawClusterStats } from '../../../store';
 
 const props = defineProps<{ cluster: RawClusterStats | null }>();
-
-const emits = defineEmits(['switch-manage-tab']);
 </script>
 
 <style lang="scss" scoped>
@@ -59,10 +57,10 @@ const emits = defineEmits(['switch-manage-tab']);
   display: flex;
   flex-direction: row;
   justify-content: space-around;
-  margin-top: 10px;
 
   .n-card {
     max-width: 300px;
+    max-height: 300px;
   }
 
   .cluster-item-box p:first-of-type {

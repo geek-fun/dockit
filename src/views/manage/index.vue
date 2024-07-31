@@ -7,6 +7,7 @@
       v-if="activeTab === $t('manage.cluster')"
     />
     <node-state class="state-container" v-if="activeTab === $t('manage.nodes')" />
+    <shared-manage class="state-container" v-if="activeTab === $t('manage.shards')" />
   </div>
 </template>
 
@@ -16,6 +17,7 @@ import ClusterState from './components/cluster-state.vue';
 import { useConnectionStore } from '../../store';
 import { storeToRefs } from 'pinia';
 import NodeState from './components/node-state.vue';
+import SharedManage from './components/shared-manage.vue';
 import { lang } from '../../lang';
 const activeTab = ref(lang.global.t('manage.cluster'));
 
@@ -31,6 +33,8 @@ fetchClusterState();
 
 <style lang="scss" scoped>
 .manage-container {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   .state-container {

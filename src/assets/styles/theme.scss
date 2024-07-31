@@ -17,6 +17,7 @@ body,
   --border-color: #d1d1d1;
   --gray-color: #999;
   --connect-list-hover-bg: rgba(0, 0, 0, 0.05);
+  --card-bg-color: #FFF;
 }
 :root[theme='dark'] {
   --bg-color: #101014;
@@ -24,6 +25,7 @@ body,
   --border-color: #363b41;
   --gray-color: #c1c1c1;
   --connect-list-hover-bg: rgba(255, 255, 255, 0.05);
+  --card-bg-color: #000000;
 }
 
 body {
