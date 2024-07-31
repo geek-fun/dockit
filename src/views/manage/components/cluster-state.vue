@@ -57,10 +57,10 @@ const props = defineProps<{ cluster: RawClusterStats | null }>();
   display: flex;
   flex-direction: row;
   justify-content: space-around;
-  margin-top: 10px;
 
   .n-card {
     max-width: 300px;
+    max-height: 300px;
   }
 
   .cluster-item-box p:first-of-type {

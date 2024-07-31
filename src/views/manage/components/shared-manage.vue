@@ -5,7 +5,7 @@
         :columns="nodeShardsTable?.columns"
         :data="nodeShardsTable?.data"
         :bordered="false"
-        max-height="400"
+        max-height="300"
       />
     </div>
 
@@ -274,8 +274,7 @@ fetchNodes();
   .shard-table-container {
     display: flex;
     justify-content: space-around;
-    padding-top: 20px;
-    gap: 15px;
+    gap: 10px;
 
     :deep(.n-data-table-tbody) {
       .shard-box {
@@ -290,6 +289,7 @@ fetchNodes();
     display: flex;
     flex-direction: column;
     background-color: var(--card-bg-color);
+
     .shard-statistic-title {
       margin: 10px 20px;
       display: flex;
@@ -311,8 +311,8 @@ fetchNodes();
       .shard-item-box {
         margin: 10px;
         padding: 0;
-        width: 500px;
-        height: 500px;
+        width: 450px;
+        height: 450px;
         text-wrap: wrap;
         cursor: default;
         overflow: hidden;

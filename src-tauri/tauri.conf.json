@@ -44,8 +44,8 @@
         "fullscreen": false,
         "resizable": true,
         "title": "DocKit",
-        "width": 1200,
-        "height": 750
+        "width": 1600,
+        "height": 1000
       }
     ],
     "security": {
