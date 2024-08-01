@@ -22,14 +22,35 @@
         <n-button type="default" tertiary @click="refresh">
           <template #icon>
             <n-icon>
-              <Rotate360 />
+              <Renew />
             </n-icon>
           </template>
           Refresh
         </n-button>
-        <n-button secondary type="success"> New Index</n-button>
-        <n-button secondary type="success"> New Alias</n-button>
-        <n-button secondary type="success"> New Template</n-button>
+        <n-button secondary type="success">
+          <template #icon>
+            <n-icon>
+              <Add />
+            </n-icon>
+          </template>
+          New Index
+        </n-button>
+        <n-button secondary type="success">
+          <template #icon>
+            <n-icon>
+              <Add />
+            </n-icon>
+          </template>
+          New Alias
+        </n-button>
+        <n-button secondary type="success">
+          <template #icon>
+            <n-icon>
+              <Add />
+            </n-icon>
+          </template>
+          New Template
+        </n-button>
       </div>
     </template>
   </n-tabs>
@@ -39,7 +60,7 @@
 import { storeToRefs } from 'pinia';
 import { ClusterAlias, ClusterIndex, IndexHealth, useClusterManageStore } from '../../../store';
 import { NButton, NIcon, NDropdown } from 'naive-ui';
-import { Rotate360, SettingsAdjust, Delete } from '@vicons/carbon';
+import { Renew, SettingsAdjust, Unlink, ArrowsHorizontal, Add } from '@vicons/carbon';
 
 const message = useMessage();
 
@@ -125,7 +146,12 @@ const aliasesTable = computed(() => {
                         {
                           label: 'detach',
                           key: 'detach',
-                          icon: () => h(NIcon, { color: 'red' }, { default: () => h(Delete) }),
+                          icon: () => h(NIcon, { color: 'red' }, { default: () => h(Unlink) }),
+                        },
+                        {
+                          label: 'switch',
+                          key: 'switch',
+                          icon: () => h(NIcon, {}, { default: () => h(ArrowsHorizontal) }),
                         },
                       ],
                     },
