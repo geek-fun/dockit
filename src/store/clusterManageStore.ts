@@ -47,7 +47,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     aliases: [],
   }),
   getters: {
-    aliasesWithIndices(): Array<ClusterAlias | { indices: Array<ClusterAlias> }> {
+    aliasesWithIndices(): Array<{ alias: string; indices: Array<ClusterAlias> }> {
       return Array.from(new Set(this.aliases.map(alias => alias.alias))).map(alias => ({
         alias,
         indices: this.aliases.filter(a => a.alias === alias),
@@ -65,7 +65,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       const { established } = useConnectionStore();
       if (!established) throw new Error(lang.global.t('connection.selectConnection'));
       const client = loadHttpClient(established);
-      const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+      const data = (await client.get('/_cat/indices', 'format=json&s=index')) as Array<{
         [key: string]: string;
       }>;
 
@@ -89,7 +89,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       const { established } = useConnectionStore();
       if (!established) throw new Error(lang.global.t('connection.selectConnection'));
       const client = loadHttpClient(established);
-      const data = (await client.get('/_cat/aliases', 'format=json')) as Array<{
+      const data = (await client.get('/_cat/aliases', 'format=json&s=alias')) as Array<{
         [key: string]: string;
       }>;
       console.log(data);
