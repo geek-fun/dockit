@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { loadHttpClient } from '../datasources';
 import { lang } from '../lang';
 import { useConnectionStore } from './connectionStore.ts';
+import { CustomError } from '../common';
 
 export enum IndexHealth {
   GREEN = 'green',
@@ -103,6 +104,40 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         },
         isWriteIndex: alias['is_write_index'] === 'true',
       }));
+    },
+    async createIndex({
+      indexName,
+      shards,
+      replicas,
+    }: {
+      indexName: string;
+      shards?: number | null;
+      replicas?: number | null;
+    }) {
+      const { established } = useConnectionStore();
+      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
+      const client = loadHttpClient(established);
+      const settings =
+        shards || replicas ? { number_of_shards: shards, number_of_replicas: replicas } : undefined;
+
+      try {
+        const response = await client.put(
+          `/${indexName}`,
+          undefined,
+          settings ? JSON.stringify({ settings }) : undefined,
+        );
+        if (response.status >= 300) {
+          throw new CustomError(
+            response.status,
+            `${response.error.type}: ${response.error.reason}`,
+          );
+        }
+      } catch (err) {
+        throw new CustomError(
+          err instanceof CustomError ? err.status : 500,
+          err instanceof CustomError ? err.details : (err as Error).message,
+        );
+      }
     },
   },
 });

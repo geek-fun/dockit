@@ -60,6 +60,14 @@ export const enUS = {
       mappings: 'Mappings',
       statisticTitle: 'Node Statistics',
     },
+    index: {
+      newIndexForm: {
+        title: 'Create Index',
+        indexName: 'Index Name',
+        shards: 'Number of Shards',
+        replicas: 'Number of Replicas',
+      },
+    },
   },
   connection: {
     new: 'New connection',
@@ -93,9 +101,11 @@ export const enUS = {
   dialogOps: {
     warning: 'Warning',
     removeNotice: 'Remove the connection permanently?',
+    create: 'Create',
     confirm: 'Confirm',
     cancel: 'Cancel',
     removeSuccess: 'Connection removed successfully',
+    createSuccess: 'Created successfully',
   },
   editor: {
     establishedRequired: 'Select a DB instance before execute actions',
