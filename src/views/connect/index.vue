@@ -18,13 +18,13 @@
       </div>
     </div>
   </div>
-  <connect-modal ref="connectModalRef" />
+  <connect-dialog ref="connectDialogRef" />
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { Add } from '@vicons/carbon';
-import ConnectModal from './components/connect-dialog.vue';
+import ConnectDialog from './components/connect-dialog.vue';
 import connectList from './components/connect-list.vue';
 import collectionSelector from './components/collection-selector.vue';
 import Editor from '../editor/index.vue';
@@ -35,7 +35,7 @@ const { setConnectPanel } = appStore;
 const { connectPanel } = storeToRefs(appStore);
 
 // DOM
-const connectModalRef = ref();
+const connectDialogRef = ref();
 
 onMounted(() => {
   if (!connectPanel.value) {
@@ -43,10 +43,10 @@ onMounted(() => {
   }
 });
 
-const addConnect = () => connectModalRef.value.showMedal();
+const addConnect = () => connectDialogRef.value.showMedal();
 
 const editConnectHandler = (row: object) => {
-  connectModalRef.value.showMedal(row);
+  connectDialogRef.value.showMedal(row);
 };
 </script>
 
@@ -55,11 +55,13 @@ const editConnectHandler = (row: object) => {
   height: 100%;
   width: 100%;
   display: flex;
+
   .connect-list {
     width: 200px;
     border-right: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
+
     .add-connect {
       height: 30px;
       margin: 10px;
@@ -71,21 +73,25 @@ const editConnectHandler = (row: object) => {
       background-color: var(--theme-color);
       transition: 0.3s;
       cursor: pointer;
+
       &:hover {
         background-color: var(--theme-color-hover);
       }
     }
   }
+
   .connect-body {
     flex: 1;
     width: 0;
     height: 100%;
     display: flex;
     flex-direction: column;
+
     .table-select {
       height: var(--tool-bar-height);
       border-bottom: 1px solid var(--border-color);
     }
+
     .editor-container {
       flex: 1;
       height: 0;

@@ -66,6 +66,8 @@ export const enUS = {
         indexName: 'Index Name',
         shards: 'Number of Shards',
         replicas: 'Number of Replicas',
+        bodyJsonRequired: 'Body is not a valid JSON format',
+        indexRequired: 'Index name is required',
       },
     },
   },

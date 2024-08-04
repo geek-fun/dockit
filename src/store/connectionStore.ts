@@ -407,7 +407,6 @@ export const useConnectionStore = defineStore('connectionStore', {
           ? data
           : data.filter((shard: Shard) => !shard.index.startsWith('.'));
 
-        console.log('/_cat/shards', { data, filteredData });
         return filteredData as Shard[];
       } catch (err) {
         console.error('failed to fetch shards', err);
@@ -421,7 +420,7 @@ export const useConnectionStore = defineStore('connectionStore', {
           `/_cat/shards/${indexName}`,
           'format=json&h=index,shard,prirep,state,docs,store,dataset.size,ip,id,node,completion.size,dense_vector.value_count,fielddata.memory_size,fielddata.evictions,flush.total,flush.total_time,get.current,get.time,get.total,get.exists_time,get.exists_total,get.missing_time,get.missing_total,indexing.delete_current,indexing.delete_time,indexing.delete_total,indexing.index_current,indexing.index_time,indexing.index_total,indexing.index_failed,merges.current,merges.current_docs,merges.current_size,merges.total,merges.total_docs,merges.total_size,merges.total_time,query_cache.memory_size,query_cache.evictions,recoverysource.type,refresh.total,refresh.time,search.fetch_current,search.fetch_time,search.fetch_total,search.open_contexts,search.query_current,search.query_time,search.query_total,search.scroll_current,search.scroll_time,search.scroll_total,segments.count,segments.memory,segments.index_writer_memory,segments.version_map_memory,segments.fixed_bitset_memory,seq_no.global_checkpoint,seq_no.local_checkpoint,seq_no.max,suggest.current,suggest.time,suggest.total,sync_id,unassigned.at,unassigned.details,unassigned.for,unassigned.reason&s=index:asc&bytes=b',
         );
-        console.log(`/_cat/shards/${indexName}`, { data });
+
         const result = data
           .map(
             ({

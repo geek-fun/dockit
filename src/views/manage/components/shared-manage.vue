@@ -142,8 +142,6 @@ const refreshShards = async (): Promise<NodeWithShard> => {
     ),
   }));
 
-  console.log('refreshShards', { columns, data });
-
   return { columns, data } as NodeWithShard;
 };
 

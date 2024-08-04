@@ -93,7 +93,6 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       const data = (await client.get('/_cat/aliases', 'format=json&s=alias')) as Array<{
         [key: string]: string;
       }>;
-      console.log(data);
       this.aliases = data.map((alias: { [key: string]: string }) => ({
         alias: alias.alias,
         index: alias.index,
@@ -109,23 +108,55 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       indexName,
       shards,
       replicas,
+      master_timeout,
+      timeout,
+      wait_for_active_shards,
+      body,
     }: {
       indexName: string;
       shards?: number | null;
       replicas?: number | null;
+      master_timeout?: number | null;
+      timeout?: number | null;
+      wait_for_active_shards?: number | null;
+      body?: string | null;
     }) {
       const { established } = useConnectionStore();
       if (!established) throw new Error(lang.global.t('connection.selectConnection'));
       const client = loadHttpClient(established);
-      const settings =
-        shards || replicas ? { number_of_shards: shards, number_of_replicas: replicas } : undefined;
+
+      const queryParams = new URLSearchParams();
+      [
+        { key: 'master_timeout', value: master_timeout },
+        { key: 'wait_for_active_shards', value: wait_for_active_shards },
+        { key: 'timeout', value: timeout },
+      ].forEach(param => {
+        if (param.value !== null && param.value !== undefined) {
+          queryParams.append(param.key, param.value.toString());
+        }
+      });
+
+      const parsedBody = body ? JSON.parse(body) : undefined;
+
+      const payload =
+        parsedBody || shards || replicas
+          ? JSON.stringify({
+              ...parsedBody,
+              settings: {
+                number_of_shards: shards,
+                number_of_replicas: replicas,
+                ...(parsedBody?.settings || {}),
+              },
+            })
+          : undefined;
 
       try {
         const response = await client.put(
           `/${indexName}`,
-          undefined,
-          settings ? JSON.stringify({ settings }) : undefined,
+          queryParams.toString() ?? undefined,
+          payload,
         );
+
         if (response.status >= 300) {
           throw new CustomError(
             response.status,
@@ -133,11 +164,14 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
           );
         }
       } catch (err) {
+        console.error('Error creating index', err);
         throw new CustomError(
           err instanceof CustomError ? err.status : 500,
           err instanceof CustomError ? err.details : (err as Error).message,
         );
       }
+      // refresh data
+      Promise.all([this.fetchIndices(), this.fetchAliases()]).catch();
     },
   },
 });
