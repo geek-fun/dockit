@@ -132,7 +132,10 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         { key: 'timeout', value: timeout },
       ].forEach(param => {
         if (param.value !== null && param.value !== undefined) {
-          queryParams.append(param.key, param.value.toString());
+          queryParams.append(
+            param.key,
+            param.value.toString() + (param.key !== 'wait_for_active_shards' ? 's' : ''),
+          );
         }
       });
 
@@ -188,7 +191,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       indexName: string;
       master_timeout: number | null;
       timeout: number | null;
-      is_write_index: boolean | null;
+      is_write_index?: boolean;
       filter: { [key: string]: unknown };
       routing: number | null;
       search_routing: number | null;
@@ -204,7 +207,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         { key: 'timeout', value: timeout },
       ].forEach(param => {
         if (param.value !== null && param.value !== undefined) {
-          queryParams.append(param.key, param.value.toString());
+          queryParams.append(param.key, param.value.toString() + 's');
         }
       });
       const payload = {

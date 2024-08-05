@@ -63,12 +63,20 @@
               <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
                 <n-grid-item span="4">
                   <n-form-item label="master_timeout" path="master_timeout">
-                    <n-input-number v-model:value="formData.master_timeout" clearable />
+                    <n-input-number v-model:value="formData.master_timeout" clearable>
+                      <template #suffix>
+                        <span>s</span>
+                      </template>
+                    </n-input-number>
                   </n-form-item>
                 </n-grid-item>
                 <n-grid-item span="4">
                   <n-form-item label="timeout" path="timeout">
-                    <n-input-number v-model:value="formData.timeout" clearable />
+                    <n-input-number v-model:value="formData.timeout" clearable>
+                      <template #suffix>
+                        <span>s</span>
+                      </template>
+                    </n-input-number>
                   </n-form-item>
                 </n-grid-item>
                 <n-grid-item span="4">

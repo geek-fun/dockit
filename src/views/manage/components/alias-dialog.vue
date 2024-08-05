@@ -48,12 +48,20 @@
               <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
                 <n-grid-item span="4">
                   <n-form-item label="master_timeout" path="master_timeout">
-                    <n-input-number v-model:value="formData.master_timeout" clearable />
+                    <n-input-number v-model:value="formData.master_timeout" clearable>
+                      <template #suffix>
+                        <span>s</span>
+                      </template>
+                    </n-input-number>
                   </n-form-item>
                 </n-grid-item>
                 <n-grid-item span="4">
                   <n-form-item label="timeout" path="timeout">
-                    <n-input-number v-model:value="formData.timeout" clearable />
+                    <n-input-number v-model:value="formData.timeout" clearable>
+                      <template #suffix>
+                        <span>s</span>
+                      </template>
+                    </n-input-number>
                   </n-form-item>
                 </n-grid-item>
                 <n-grid-item span="4">
@@ -136,7 +144,7 @@ const defaultFormData = {
   replicas: null,
   master_timeout: null,
   timeout: null,
-  is_write_index: null,
+  is_write_index: undefined,
   filter: null,
   routing: null,
   search_routing: null,
@@ -148,7 +156,7 @@ const formData = ref<{
   indexName: string;
   master_timeout: number | null;
   timeout: number | null;
-  is_write_index: boolean | null;
+  is_write_index?: boolean;
   filter: string | null;
   routing: number | null;
   search_routing: number | null;
