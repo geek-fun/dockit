@@ -1,11 +1,11 @@
 <template>
-  <n-modal v-model:show="showIndexModal">
+  <n-modal v-model:show="showModal">
     <n-card
       :bordered="false"
       role="dialog"
       aria-modal="true"
       style="width: 800px"
-      :title="$t('manage.index.newIndexForm.title')"
+      :title="$t('manage.index.newAliasForm.title')"
       @mask-click="closeModal"
     >
       <template #header-extra>
@@ -24,37 +24,22 @@
         >
           <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
             <n-grid-item span="8">
-              <n-form-item :label="$t('manage.index.newIndexForm.indexName')" path="indexName">
+              <n-form-item :label="$t('manage.index.newAliasForm.aliasName')" path="aliasName">
                 <n-input
                   :input-props="{
                     autocorrect: 'off',
                     autocapitalize: 'off',
                     autocomplete: 'disabled',
                   }"
-                  v-model:value="formData.indexName"
+                  v-model:value="formData.aliasName"
                   clearable
-                  :placeholder="$t('manage.index.newIndexForm.indexName')"
+                  :placeholder="$t('manage.index.newAliasForm.aliasName')"
                 />
               </n-form-item>
             </n-grid-item>
-
-            <n-grid-item span="4">
-              <n-form-item :label="$t('manage.index.newIndexForm.shards')" path="shards">
-                <n-input-number
-                  v-model:value="formData.shards"
-                  clearable
-                  :placeholder="$t('manage.index.newIndexForm.shards')"
-                />
-              </n-form-item>
-            </n-grid-item>
-
-            <n-grid-item span="4">
-              <n-form-item :label="$t('manage.index.newIndexForm.replicas')" path="replicas">
-                <n-input-number
-                  v-model:value="formData.replicas"
-                  clearable
-                  :placeholder="$t('manage.index.newIndexForm.replicas')"
-                />
+            <n-grid-item span="8">
+              <n-form-item :label="$t('manage.index.newAliasForm.indexName')" path="indexName">
+                <n-select v-model:value="formData.indexName" clearable :options="indices" />
               </n-form-item>
             </n-grid-item>
           </n-grid>
@@ -72,14 +57,29 @@
                   </n-form-item>
                 </n-grid-item>
                 <n-grid-item span="4">
-                  <n-form-item label="wait_for_active_shards" path="wait_for_active_shards">
-                    <n-input-number v-model:value="formData.wait_for_active_shards" clearable />
+                  <n-form-item label="is_write_index" path="is_write_index">
+                    <n-switch v-model:value="formData.is_write_index" clearable />
+                  </n-form-item>
+                </n-grid-item>
+                <n-grid-item span="4">
+                  <n-form-item label="routing" path="routing">
+                    <n-input-number v-model:value="formData.routing" clearable />
+                  </n-form-item>
+                </n-grid-item>
+                <n-grid-item span="4">
+                  <n-form-item label="search_routing" path="search_routing">
+                    <n-input-number v-model:value="formData.search_routing" clearable />
+                  </n-form-item>
+                </n-grid-item>
+                <n-grid-item span="4">
+                  <n-form-item label="index_routing" path="index_routing">
+                    <n-input-number v-model:value="formData.index_routing" clearable />
                   </n-form-item>
                 </n-grid-item>
                 <n-grid-item span="8">
-                  <n-form-item label="body" path="body">
+                  <n-form-item label="filter" path="filter">
                     <n-input
-                      v-model:value="formData.body"
+                      v-model:value="formData.filter"
                       clearable
                       type="textarea"
                       :autosize="{
@@ -112,6 +112,7 @@
 </template>
 
 <script setup lang="ts">
+import { storeToRefs } from 'pinia';
 import { FormRules, FormValidationError, NButton, NIcon, FormItemRule } from 'naive-ui';
 import { Close } from '@vicons/carbon';
 import { CustomError } from '../../../common';
@@ -119,58 +120,72 @@ import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
 
 const clusterManageStore = useClusterManageStore();
-const { createIndex } = clusterManageStore;
-
+const { createAlias } = clusterManageStore;
+const { indexWithAliases } = storeToRefs(clusterManageStore);
 const lang = useLang();
 const message = useMessage();
 
-const showIndexModal = ref(false);
+const showModal = ref(false);
 const createLoading = ref(false);
 const formRef = ref();
 
 const defaultFormData = {
+  aliasName: '',
   indexName: '',
   shards: null,
   replicas: null,
   master_timeout: null,
-  wait_for_active_shards: null,
   timeout: null,
-  body: null,
+  is_write_index: null,
+  filter: null,
+  routing: null,
+  search_routing: null,
+  index_routing: null,
 };
 
 const formData = ref<{
+  aliasName: string;
   indexName: string;
-  shards: number | null;
-  replicas: number | null;
   master_timeout: number | null;
-  wait_for_active_shards: number | null;
   timeout: number | null;
-  body: string | null;
+  is_write_index: boolean | null;
+  filter: string | null;
+  routing: number | null;
+  search_routing: number | null;
+  index_routing: number | null;
 }>({ ...defaultFormData });
 
 const toggleModal = () => {
-  if (showIndexModal.value) {
+  if (showModal.value) {
     closeModal();
   } else {
-    showIndexModal.value = true;
+    showModal.value = true;
   }
 };
 const closeModal = () => {
-  showIndexModal.value = false;
+  showModal.value = false;
   formData.value = { ...defaultFormData };
 };
 
 const formRules = reactive<FormRules>({
   // @ts-ignore
-  indexName: [
+  aliasName: [
     {
       required: true,
-      renderMessage: () => lang.t('manage.index.newIndexForm.indexRequired'),
+      renderMessage: () => lang.t('manage.index.newAliasForm.aliasRequired'),
       trigger: ['input', 'blur'],
     },
   ],
-  // validate body should be a json
-  body: [
+  indexName: [
+    {
+      required: true,
+      renderMessage: () => lang.t('manage.index.newAliasForm.indexRequired'),
+      trigger: ['input', 'blur'],
+    },
+  ],
+
+  // validate filter should be a json
+  filter: [
     {
       required: false,
       validator: (_: FormItemRule, value: string) => {
@@ -182,7 +197,7 @@ const formRules = reactive<FormRules>({
           return false;
         }
       },
-      renderMessage: () => lang.t('manage.index.newIndexForm.bodyJsonRequired'),
+      renderMessage: () => lang.t('manage.index.newAliasForm.filterJsonRequired'),
       trigger: ['input', 'blur'],
     },
   ],
@@ -196,7 +211,10 @@ const submitCreate = async (event: MouseEvent) => {
     }
     createLoading.value = !createLoading.value;
     try {
-      await createIndex(formData.value);
+      await createAlias({
+        ...formData.value,
+        filter: formData.value.filter ? JSON.parse(formData.value.filter) : undefined,
+      });
       message.success(lang.t('dialogOps.createSuccess'));
     } catch (err) {
       message.error((err as CustomError).details, {
@@ -220,6 +238,13 @@ const validationPassed = watch(formData.value, async () => {
     return false;
   }
 });
+
+const indices = computed(() =>
+  indexWithAliases.value.map(index => ({
+    label: index.index,
+    value: index.index,
+  })),
+);
 
 defineExpose({ toggleModal });
 </script>

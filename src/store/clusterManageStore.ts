@@ -54,7 +54,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         indices: this.aliases.filter(a => a.alias === alias),
       }));
     },
-    indexWithAliases(): Array<ClusterIndex | { aliases: Array<ClusterAlias> }> {
+    indexWithAliases(): Array<ClusterIndex & { aliases: Array<ClusterAlias> }> {
       return this.indices.map(index => ({
         ...index,
         aliases: this.aliases.filter(alias => alias.index === index.index),
@@ -165,6 +165,81 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         }
       } catch (err) {
         console.error('Error creating index', err);
+        throw new CustomError(
+          err instanceof CustomError ? err.status : 500,
+          err instanceof CustomError ? err.details : (err as Error).message,
+        );
+      }
+      // refresh data
+      Promise.all([this.fetchIndices(), this.fetchAliases()]).catch();
+    },
+    async createAlias({
+      aliasName,
+      indexName,
+      master_timeout,
+      timeout,
+      is_write_index,
+      filter,
+      routing,
+      search_routing,
+      index_routing,
+    }: {
+      aliasName: string;
+      indexName: string;
+      master_timeout: number | null;
+      timeout: number | null;
+      is_write_index: boolean | null;
+      filter: { [key: string]: unknown };
+      routing: number | null;
+      search_routing: number | null;
+      index_routing: number | null;
+    }) {
+      const { established } = useConnectionStore();
+      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
+      const client = loadHttpClient(established);
+
+      const queryParams = new URLSearchParams();
+      [
+        { key: 'master_timeout', value: master_timeout },
+        { key: 'timeout', value: timeout },
+      ].forEach(param => {
+        if (param.value !== null && param.value !== undefined) {
+          queryParams.append(param.key, param.value.toString());
+        }
+      });
+      const payload = {
+        actions: [
+          {
+            add: {
+              index: indexName,
+              alias: aliasName,
+              ...(is_write_index !== null && is_write_index !== undefined
+                ? { is_write_index }
+                : {}),
+              ...(filter ? { filter } : {}),
+              ...(routing ? { routing: `${routing}` } : {}),
+              ...(search_routing ? { search_routing: `${search_routing}` } : {}),
+              ...(index_routing ? { index_routing: `${index_routing}` } : {}),
+            },
+          },
+        ],
+      };
+      console.log('payload', payload);
+      try {
+        const response = await client.post(
+          `/_aliases`,
+          queryParams.toString() ?? undefined,
+          JSON.stringify(payload),
+        );
+
+        if (response.status >= 300) {
+          throw new CustomError(
+            response.status,
+            `${response.error.type}: ${response.error.reason}`,
+          );
+        }
+      } catch (err) {
+        console.error('Error creating alias', err);
         throw new CustomError(
           err instanceof CustomError ? err.status : 500,
           err instanceof CustomError ? err.details : (err as Error).message,

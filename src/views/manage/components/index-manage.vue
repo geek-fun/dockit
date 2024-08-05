@@ -28,7 +28,7 @@
             </template>
             Refresh
           </n-button>
-          <n-button secondary type="success" @click="toggleIndexModal">
+          <n-button secondary type="success" @click="toggleModal('index')">
             <template #icon>
               <n-icon>
                 <Add />
@@ -36,7 +36,7 @@
             </template>
             New Index
           </n-button>
-          <n-button secondary type="success">
+          <n-button secondary type="success" @click="toggleModal('alias')">
             <template #icon>
               <n-icon>
                 <Add />
@@ -56,6 +56,7 @@
       </template>
     </n-tabs>
     <index-dialog ref="indexDialogRef" />
+    <alias-dialog ref="aliasDialogRef" />
   </main>
 </template>
 
@@ -65,13 +66,17 @@ import { ClusterAlias, ClusterIndex, IndexHealth, useClusterManageStore } from '
 import { NButton, NDropdown, NIcon } from 'naive-ui';
 import { Add, ArrowsHorizontal, Renew, SettingsAdjust, Unlink } from '@vicons/carbon';
 import IndexDialog from './index-dialog.vue';
+import AliasDialog from './alias-dialog.vue';
 
 const message = useMessage();
 
 const clusterManageStore = useClusterManageStore();
 const { fetchIndices, fetchAliases } = clusterManageStore;
 const { indexWithAliases, aliasesWithIndices } = storeToRefs(clusterManageStore);
+
 const indexDialogRef = ref();
+const aliasDialogRef = ref();
+
 const indexTable = computed(() => {
   return {
     columns: [
@@ -189,8 +194,9 @@ const refresh = async () => {
   );
 };
 
-const toggleIndexModal = () => {
-  indexDialogRef.value.toggleIndexModal();
+const toggleModal = (target: string) => {
+  if (target === 'index') indexDialogRef.value.toggleModal();
+  if (target === 'alias') aliasDialogRef.value.toggleModal();
 };
 
 onMounted(async () => {

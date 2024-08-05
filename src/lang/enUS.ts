@@ -69,6 +69,14 @@ export const enUS = {
         bodyJsonRequired: 'Body is not a valid JSON format',
         indexRequired: 'Index name is required',
       },
+      newAliasForm: {
+        title: 'Create Alias',
+        aliasName: 'Alias Name',
+        indexName: 'Index Name',
+        aliasRequired: 'Alias name is required',
+        indexRequired: 'Index name is required',
+        filterJsonRequired: 'Filter is not a valid JSON format',
+      },
     },
   },
   connection: {
