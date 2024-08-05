@@ -42,10 +42,23 @@ export type ClusterAlias = {
   isWriteIndex: boolean;
 };
 
+export type ClusterTemplate = {
+  name: string;
+  index_patterns: Array<string>;
+  order: number;
+  version: number;
+  composed_of: Array<string>;
+};
+
 export const useClusterManageStore = defineStore('clusterManageStore', {
-  state: (): { indices: Array<ClusterIndex>; aliases: Array<ClusterAlias> } => ({
+  state: (): {
+    indices: Array<ClusterIndex>;
+    aliases: Array<ClusterAlias>;
+    templates: Array<ClusterTemplate>;
+  } => ({
     indices: [],
     aliases: [],
+    templates: [],
   }),
   getters: {
     aliasesWithIndices(): Array<{ alias: string; indices: Array<ClusterAlias> }> {
@@ -102,6 +115,22 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
           search: alias['routing.search'],
         },
         isWriteIndex: alias['is_write_index'] === 'true',
+      }));
+    },
+    async fetchTemplates() {
+      const { established } = useConnectionStore();
+      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
+      const client = loadHttpClient(established);
+      const data = (await client.get('/_cat/templates', 'format=json')) as Array<{
+        [key: string]: string;
+      }>;
+      console.log('templates', data);
+      this.templates = data.map((template: { [key: string]: string }) => ({
+        name: template.name,
+        order: parseInt(template.order, 10),
+        version: parseInt(template.version, 10),
+        index_patterns: template.index_patterns.slice(1, -1).split(',').filter(Boolean),
+        composed_of: template.composed_of.slice(1, -1).split(',').filter(Boolean),
       }));
     },
     async createIndex({

@@ -17,7 +17,14 @@
           max-height="400"
         />
       </n-tab-pane>
-      <n-tab-pane name="templates" tab="TEMPLATES"> TEMPLATES</n-tab-pane>
+      <n-tab-pane name="templates" tab="TEMPLATES">
+        <n-data-table
+          :columns="templateTable.columns"
+          :data="templateTable.data"
+          :bordered="false"
+          max-height="400"
+        />
+      </n-tab-pane>
       <template #suffix>
         <div class="tab-action-group">
           <n-button type="default" tertiary @click="refresh">
@@ -63,7 +70,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { ClusterAlias, ClusterIndex, IndexHealth, useClusterManageStore } from '../../../store';
-import { NButton, NDropdown, NIcon } from 'naive-ui';
+import { NButton, NDropdown, NIcon, NTag } from 'naive-ui';
 import { Add, ArrowsHorizontal, Renew, SettingsAdjust, Unlink } from '@vicons/carbon';
 import IndexDialog from './index-dialog.vue';
 import AliasDialog from './alias-dialog.vue';
@@ -71,8 +78,8 @@ import AliasDialog from './alias-dialog.vue';
 const message = useMessage();
 
 const clusterManageStore = useClusterManageStore();
-const { fetchIndices, fetchAliases } = clusterManageStore;
-const { indexWithAliases, aliasesWithIndices } = storeToRefs(clusterManageStore);
+const { fetchIndices, fetchAliases, fetchTemplates } = clusterManageStore;
+const { indexWithAliases, aliasesWithIndices, templates } = storeToRefs(clusterManageStore);
 
 const indexDialogRef = ref();
 const aliasDialogRef = ref();
@@ -184,12 +191,38 @@ const aliasesTable = computed(() => {
   };
 });
 
+const templateTable = computed(() => {
+  return {
+    columns: [
+      { title: 'Template Name', dataIndex: 'name', key: 'name' },
+      { title: 'Order', dataIndex: 'order', key: 'order' },
+      { title: 'Version', dataIndex: 'version', key: 'version' },
+      {
+        title: 'Index Patterns',
+        dataIndex: 'index_patterns',
+        key: 'index_patterns',
+        render: ({ index_patterns }: { index_patterns: Array<string> }) =>
+          index_patterns?.map(pattern => h(NTag, null, { default: () => pattern })),
+      },
+
+      {
+        title: 'Composed Of',
+        dataIndex: 'composed_of',
+        key: 'composed_of',
+        render: ({ composed_of }: { composed_of: Array<string> }) =>
+          composed_of?.map(composed => h(NTag, null, { default: () => composed })),
+      },
+    ],
+    data: templates.value,
+  };
+});
+
 const handleTabSwitch = (event: unknown) => {
   console.log('tab-switch', event);
 };
 
 const refresh = async () => {
-  await Promise.all([fetchIndices(), fetchAliases()]).catch(err =>
+  await Promise.all([fetchIndices(), fetchAliases(), fetchTemplates()]).catch(err =>
     message.error(err.message, { closable: true, keepAliveOnHover: true }),
   );
 };
