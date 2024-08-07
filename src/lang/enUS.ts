@@ -60,6 +60,32 @@ export const enUS = {
       mappings: 'Mappings',
       statisticTitle: 'Node Statistics',
     },
+    index: {
+      newIndexForm: {
+        title: 'Create Index',
+        indexName: 'Index Name',
+        shards: 'Number of Shards',
+        replicas: 'Number of Replicas',
+        bodyJsonRequired: 'Body is not a valid JSON format',
+        indexRequired: 'Index name is required',
+      },
+      newAliasForm: {
+        title: 'Create Alias',
+        aliasName: 'Alias Name',
+        indexName: 'Index Name',
+        aliasRequired: 'Alias name is required',
+        indexRequired: 'Index name is required',
+        filterJsonRequired: 'Filter is not a valid JSON format',
+      },
+      newTemplateForm: {
+        title: 'Create Template',
+        indexTemplate: 'Index Template',
+        templateName: 'Template Name',
+        componentTemplate: 'Component Template',
+        templateRequired: 'Template name is required',
+        bodyJsonRequired: 'Request Body is not a valid JSON format',
+      },
+    },
   },
   connection: {
     new: 'New connection',
@@ -93,9 +119,11 @@ export const enUS = {
   dialogOps: {
     warning: 'Warning',
     removeNotice: 'Remove the connection permanently?',
+    create: 'Create',
     confirm: 'Confirm',
     cancel: 'Cancel',
     removeSuccess: 'Connection removed successfully',
+    createSuccess: 'Created successfully',
   },
   editor: {
     establishedRequired: 'Select a DB instance before execute actions',

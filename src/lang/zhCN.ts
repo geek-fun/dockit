@@ -60,6 +60,32 @@ export const zhCN = {
       mappings: '映射',
       statisticTitle: '节点统计',
     },
+    index: {
+      newIndexForm: {
+        title: '创建索引',
+        indexName: '索引名称',
+        shards: '分片数量',
+        replicas: '副本数量',
+        bodyJsonRequired: 'Body 不是有效的 JSON 格式',
+        indexRequired: '索引名称是必需的',
+      },
+      newAliasForm: {
+        title: '创建别名',
+        aliasName: '别名名称',
+        indexName: '索引名称',
+        aliasRequired: '别名名称是必需的',
+        indexRequired: '未选择索引',
+        filterJsonRequired: '过滤器不是有效的 JSON 格式',
+      },
+      newTemplateForm: {
+        title: '创建模板',
+        templateName: '模板名称',
+        indexTemplate: '索引模板',
+        componentTemplate: '组件模板',
+        templateRequired: '模板名称是必需的',
+        bodyJsonRequired: '请求体不是有效的 JSON 格式',
+      },
+    },
   },
   connection: {
     new: '新建连接',
@@ -93,9 +119,11 @@ export const zhCN = {
   dialogOps: {
     warning: '提示',
     removeNotice: '确认删除该连接？',
+    create: '创建',
     confirm: '确认',
     cancel: '取消',
     removeSuccess: '连接删除成功',
+    createSuccess: '创建成功',
   },
   editor: {
     establishedRequired: '请选择执行操作的数据库实例',

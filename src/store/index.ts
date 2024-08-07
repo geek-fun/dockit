@@ -11,3 +11,4 @@ export * from './userStore';
 export * from './connectionStore';
 export * from './sourceFileStore';
 export * from './chatStore';
+export * from './clusterManageStore';
