@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { loadHttpClient } from '../datasources';
 import { lang } from '../lang';
 import { useConnectionStore } from './connectionStore.ts';
-import { CustomError } from '../common';
+import { CustomError, optionalToNullableInt } from '../common';
 
 export enum IndexHealth {
   GREEN = 'green',
@@ -42,13 +42,30 @@ export type ClusterAlias = {
   isWriteIndex: boolean;
 };
 
-export type ClusterTemplate = {
+export enum TemplateType {
+  INDEX_TEMPLATE = 'INDEX_TEMPLATE',
+  COMPONENT_TEMPLATE = 'COMPONENT_TEMPLATE',
+}
+
+type ComponentTemplate = {
   name: string;
+  type: TemplateType;
+  version: number | null;
+  alias_count: number | null;
+  mapping_count: number | null;
+  settings_count: number | null;
+  metadata_count: number | null;
+  included_in: Array<string>;
+};
+type IndexTemplate = {
+  name: string;
+  type: TemplateType;
   index_patterns: Array<string>;
-  order: number;
-  version: number;
+  order: number | null;
+  version: number | null;
   composed_of: Array<string>;
 };
+export type ClusterTemplate = ComponentTemplate | IndexTemplate;
 
 export const useClusterManageStore = defineStore('clusterManageStore', {
   state: (): {
@@ -121,17 +138,43 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       const { established } = useConnectionStore();
       if (!established) throw new Error(lang.global.t('connection.selectConnection'));
       const client = loadHttpClient(established);
-      const data = (await client.get('/_cat/templates', 'format=json')) as Array<{
-        [key: string]: string;
-      }>;
-      console.log('templates', data);
-      this.templates = data.map((template: { [key: string]: string }) => ({
-        name: template.name,
-        order: parseInt(template.order, 10),
-        version: parseInt(template.version, 10),
-        index_patterns: template.index_patterns.slice(1, -1).split(',').filter(Boolean),
-        composed_of: template.composed_of.slice(1, -1).split(',').filter(Boolean),
-      }));
+      const fetchIndexTemplates = async () => {
+        const data = (await client.get('/_cat/templates', 'format=json')) as Array<{
+          [key: string]: string;
+        }>;
+        console.log('templates', data);
+        return data.map((template: { [key: string]: string }) => ({
+          name: template.name,
+          type: TemplateType.INDEX_TEMPLATE,
+          order: optionalToNullableInt(template.order),
+          version: optionalToNullableInt(template.version),
+          index_patterns: template.index_patterns.slice(1, -1).split(',').filter(Boolean),
+          composed_of: template.composed_of.slice(1, -1).split(',').filter(Boolean),
+        }));
+      };
+      const fetchComponentTemplates = async () => {
+        const data = (await client.get('/_cat/component_templates', 'format=json')) as Array<{
+          [key: string]: string;
+        }>;
+        console.log('component templates', data);
+        return data.map((template: { [key: string]: string }) => ({
+          name: template.name,
+          type: TemplateType.COMPONENT_TEMPLATE,
+          version: optionalToNullableInt(template.version),
+          alias_count: optionalToNullableInt(template.alias_count),
+          mapping_count: optionalToNullableInt(template.mapping_count),
+          settings_count: optionalToNullableInt(template.settings_count),
+          metadata_count: optionalToNullableInt(template.metadata_count),
+          included_in: template.included_in.slice(1, -1).split(',').filter(Boolean),
+        }));
+      };
+
+      const [indexTemplates, componentTemplates] = await Promise.all([
+        fetchIndexTemplates(),
+        fetchComponentTemplates(),
+      ]);
+
+      this.templates = [...indexTemplates, ...componentTemplates];
     },
     async createIndex({
       indexName,

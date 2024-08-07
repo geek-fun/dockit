@@ -83,7 +83,7 @@ export const enUS = {
         templateName: 'Template Name',
         componentTemplate: 'Component Template',
         templateRequired: 'Template name is required',
-        bodyJsonRequired: 'Body is not a valid JSON format',
+        bodyJsonRequired: 'Request Body is not a valid JSON format',
       },
     },
   },

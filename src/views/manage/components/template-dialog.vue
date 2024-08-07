@@ -14,7 +14,10 @@
         </n-icon>
       </template>
       <n-tabs justify-content="space-evenly" type="line" @update:value="handleTabSwitch">
-        <n-tab-pane name="_index_template" :tab="$t('manage.index.newTemplateForm.indexTemplate')">
+        <n-tab-pane
+          :name="TemplateType.INDEX_TEMPLATE"
+          :tab="$t('manage.index.newTemplateForm.indexTemplate')"
+        >
           <n-form
             ref="indexFormRef"
             label-placement="left"
@@ -69,7 +72,7 @@
           </n-form>
         </n-tab-pane>
         <n-tab-pane
-          name="_component_template"
+          :name="TemplateType.COMPONENT_TEMPLATE"
           :tab="$t('manage.index.newTemplateForm.componentTemplate')"
         >
           <n-form
@@ -147,7 +150,7 @@
 import { FormRules, FormValidationError, NButton, NIcon, FormItemRule } from 'naive-ui';
 import { Close } from '@vicons/carbon';
 import { CustomError } from '../../../common';
-import { useClusterManageStore } from '../../../store';
+import { TemplateType, useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
 
 const clusterManageStore = useClusterManageStore();
@@ -161,11 +164,7 @@ const createLoading = ref(false);
 const indexFormRef = ref();
 const componentFormRef = ref();
 
-enum TemplateType {
-  IndexTemplate = '_index_template',
-  ComponentTemplate = '_component_template',
-}
-const templateType = ref(TemplateType.IndexTemplate);
+const templateType = ref(TemplateType.INDEX_TEMPLATE);
 
 const defaultFormData = {
   name: '',
@@ -235,7 +234,7 @@ const validateRules = async () => {
       (errors: Array<FormValidationError>) => !errors,
     );
     console.log('validateRules trigger templateType.value', { indexFormValid, componentFormValid });
-    return templateType.value === '_index_template'
+    return templateType.value === TemplateType.INDEX_TEMPLATE
       ? await indexFormRef.value?.validate((errors: Array<FormValidationError>) => !errors)
       : await componentFormRef.value?.validate((errors: Array<FormValidationError>) => !errors);
   } catch (e) {
@@ -253,7 +252,7 @@ const submitCreate = async (event: MouseEvent) => {
   createLoading.value = !createLoading.value;
   try {
     await createTemplate({
-      ...(templateType.value === TemplateType.IndexTemplate
+      ...(templateType.value === TemplateType.INDEX_TEMPLATE
         ? indexFormData.value
         : componentFormData.value),
       type: templateType.value,

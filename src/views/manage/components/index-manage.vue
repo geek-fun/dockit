@@ -198,8 +198,20 @@ const templateTable = computed(() => {
   return {
     columns: [
       { title: 'Template Name', dataIndex: 'name', key: 'name' },
+      { title: 'Type', dataIndex: 'type', key: 'type' },
       { title: 'Order', dataIndex: 'order', key: 'order' },
       { title: 'Version', dataIndex: 'version', key: 'version' },
+      { title: 'Mappings', dataIndex: 'mapping_count', key: 'mapping_count' },
+      { title: 'Settings', dataIndex: 'settings_count', key: 'settings_count' },
+      { title: 'Aliases', dataIndex: 'alias_count', key: 'alias_count' },
+      { title: 'Metadata', dataIndex: 'metadata', key: 'metadata' },
+      {
+        title: 'Included In',
+        dataIndex: 'included_in',
+        key: 'included_in',
+        render: ({ included_in }: { included_in: Array<string> }) =>
+          included_in?.map(included => h(NTag, null, { default: () => included })),
+      },
       {
         title: 'Index Patterns',
         dataIndex: 'index_patterns',
@@ -207,7 +219,6 @@ const templateTable = computed(() => {
         render: ({ index_patterns }: { index_patterns: Array<string> }) =>
           index_patterns?.map(pattern => h(NTag, null, { default: () => pattern })),
       },
-
       {
         title: 'Composed Of',
         dataIndex: 'composed_of',
