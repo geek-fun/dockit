@@ -227,13 +227,6 @@ const componentFormRules = reactive<FormRules>({ ...formRules });
 
 const validateRules = async () => {
   try {
-    const indexFormValid = await indexFormRef.value?.validate(
-      (errors: Array<FormValidationError>) => !errors,
-    );
-    const componentFormValid = await componentFormRef.value?.validate(
-      (errors: Array<FormValidationError>) => !errors,
-    );
-    console.log('validateRules trigger templateType.value', { indexFormValid, componentFormValid });
     return templateType.value === TemplateType.INDEX_TEMPLATE
       ? await indexFormRef.value?.validate((errors: Array<FormValidationError>) => !errors)
       : await componentFormRef.value?.validate((errors: Array<FormValidationError>) => !errors);

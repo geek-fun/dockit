@@ -142,7 +142,6 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         const data = (await client.get('/_cat/templates', 'format=json')) as Array<{
           [key: string]: string;
         }>;
-        console.log('templates', data);
         return data.map((template: { [key: string]: string }) => ({
           name: template.name,
           type: TemplateType.INDEX_TEMPLATE,
@@ -156,7 +155,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         const data = (await client.get('/_cat/component_templates', 'format=json')) as Array<{
           [key: string]: string;
         }>;
-        console.log('component templates', data);
+
         return data.map((template: { [key: string]: string }) => ({
           name: template.name,
           type: TemplateType.COMPONENT_TEMPLATE,
@@ -239,7 +238,6 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
           );
         }
       } catch (err) {
-        console.error('Error creating index', err);
         throw new CustomError(
           err instanceof CustomError ? err.status : 500,
           err instanceof CustomError ? err.details : (err as Error).message,
@@ -299,7 +297,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
           },
         ],
       };
-      console.log('payload', payload);
+
       try {
         const response = await client.post(
           `/_aliases`,
@@ -314,7 +312,6 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
           );
         }
       } catch (err) {
-        console.error('Error creating alias', err);
         throw new CustomError(
           err instanceof CustomError ? err.status : 500,
           err instanceof CustomError ? err.details : (err as Error).message,
@@ -351,14 +348,13 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
           );
         }
       });
-      console.log('createTemplate', { name, type });
+
       try {
         const response = await client.put(
           `/${type}/${name}`,
           queryParams.toString(),
           body ?? undefined,
         );
-        console.log('response', response);
         if (response.status >= 300) {
           throw new CustomError(
             response.status,
@@ -366,7 +362,6 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
           );
         }
       } catch (err) {
-        console.error('Error creating template', JSON.stringify(err));
         throw new CustomError(
           err instanceof CustomError ? err.status : 500,
           err instanceof CustomError ? err.details : (err as Error).message,

@@ -1,6 +1,6 @@
 <template>
   <main>
-    <n-tabs type="segment" animated @update:value="handleTabSwitch">
+    <n-tabs type="segment" animated>
       <n-tab-pane name="indices" tab="INDICES">
         <n-data-table
           :columns="indexTable.columns"
@@ -230,10 +230,6 @@ const templateTable = computed(() => {
     data: templates.value,
   };
 });
-
-const handleTabSwitch = (event: unknown) => {
-  console.log('tab-switch', event);
-};
 
 const refresh = async () => {
   await Promise.all([fetchIndices(), fetchAliases(), fetchTemplates()]).catch(err =>

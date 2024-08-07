@@ -335,9 +335,7 @@ export const useConnectionStore = defineStore('connectionStore', {
             }),
           )
           .sort((a: SearchNode, b: SearchNode) => a.name.localeCompare(b.name));
-      } catch (err) {
-        console.error('failed to fetch nodes', err);
-      }
+      } catch (err) {}
     },
     async fetchNodeState(nodeName: string) {
       const client = loadHttpClient(this.established as Connection);
@@ -408,9 +406,7 @@ export const useConnectionStore = defineStore('connectionStore', {
           : data.filter((shard: Shard) => !shard.index.startsWith('.'));
 
         return filteredData as Shard[];
-      } catch (err) {
-        console.error('failed to fetch shards', err);
-      }
+      } catch (err) {}
     },
     async getShardState(indexName: string) {
       if (!this.established) return;
@@ -590,9 +586,7 @@ export const useConnectionStore = defineStore('connectionStore', {
               a.node?.localeCompare(b.node) || a.prirep.localeCompare(b.prirep),
           );
         return { index: indexName, shards: result };
-      } catch (err) {
-        console.error('failed to fetch shards', err);
-      }
+      } catch (err) {}
     },
     async fetchIndices() {
       if (!this.established) throw new Error('no connection established');
@@ -648,9 +642,7 @@ export const useConnectionStore = defineStore('connectionStore', {
             this.established = { ...this.established, activeIndex: newIndex };
           }
         }
-      } catch (err) {
-        console.error('failed to refresh index mapping', err);
-      }
+      } catch (err) {}
 
       const reqPath = buildPath(index, path);
 
