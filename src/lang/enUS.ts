@@ -77,6 +77,14 @@ export const enUS = {
         indexRequired: 'Index name is required',
         filterJsonRequired: 'Filter is not a valid JSON format',
       },
+      newTemplateForm: {
+        title: 'Create Template',
+        indexTemplate: 'Index Template',
+        templateName: 'Template Name',
+        componentTemplate: 'Component Template',
+        templateRequired: 'Template name is required',
+        bodyJsonRequired: 'Body is not a valid JSON format',
+      },
     },
   },
   connection: {

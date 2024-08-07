@@ -51,7 +51,7 @@
             </template>
             New Alias
           </n-button>
-          <n-button secondary type="success">
+          <n-button secondary type="success" @click="toggleModal('template')">
             <template #icon>
               <n-icon>
                 <Add />
@@ -64,6 +64,7 @@
     </n-tabs>
     <index-dialog ref="indexDialogRef" />
     <alias-dialog ref="aliasDialogRef" />
+    <template-dialog ref="templateDialogRef" />
   </main>
 </template>
 
@@ -74,6 +75,7 @@ import { NButton, NDropdown, NIcon, NTag } from 'naive-ui';
 import { Add, ArrowsHorizontal, Renew, SettingsAdjust, Unlink } from '@vicons/carbon';
 import IndexDialog from './index-dialog.vue';
 import AliasDialog from './alias-dialog.vue';
+import TemplateDialog from './template-dialog.vue';
 
 const message = useMessage();
 
@@ -83,6 +85,7 @@ const { indexWithAliases, aliasesWithIndices, templates } = storeToRefs(clusterM
 
 const indexDialogRef = ref();
 const aliasDialogRef = ref();
+const templateDialogRef = ref();
 
 const indexTable = computed(() => {
   return {
@@ -230,6 +233,7 @@ const refresh = async () => {
 const toggleModal = (target: string) => {
   if (target === 'index') indexDialogRef.value.toggleModal();
   if (target === 'alias') aliasDialogRef.value.toggleModal();
+  if (target === 'template') templateDialogRef.value.toggleModal();
 };
 
 onMounted(async () => {

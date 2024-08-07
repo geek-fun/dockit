@@ -280,5 +280,57 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       // refresh data
       Promise.all([this.fetchIndices(), this.fetchAliases()]).catch();
     },
+    async createTemplate({
+      name,
+      type,
+      create,
+      master_timeout,
+      body,
+    }: {
+      name: string;
+      type: string;
+      create?: boolean | null;
+      master_timeout: number | null;
+      body: string | null;
+    }) {
+      const { established } = useConnectionStore();
+      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
+      const client = loadHttpClient(established);
+      const queryParams = new URLSearchParams();
+      [
+        { key: 'master_timeout', value: master_timeout },
+        { key: 'create', value: create },
+      ].forEach(param => {
+        if (param.value !== null && param.value !== undefined) {
+          queryParams.append(
+            param.key,
+            param.value.toString() + (param.key !== 'create' ? 's' : ''),
+          );
+        }
+      });
+      console.log('createTemplate', { name, type });
+      try {
+        const response = await client.put(
+          `/${type}/${name}`,
+          queryParams.toString(),
+          body ?? undefined,
+        );
+        console.log('response', response);
+        if (response.status >= 300) {
+          throw new CustomError(
+            response.status,
+            `${response.error.type}: ${response.error.reason}`,
+          );
+        }
+      } catch (err) {
+        console.error('Error creating template', JSON.stringify(err));
+        throw new CustomError(
+          err instanceof CustomError ? err.status : 500,
+          err instanceof CustomError ? err.details : (err as Error).message,
+        );
+      }
+      // refresh data
+      await this.fetchTemplates();
+    },
   },
 });
