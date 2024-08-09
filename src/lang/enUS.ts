@@ -61,6 +61,16 @@ export const enUS = {
       statisticTitle: 'Node Statistics',
     },
     index: {
+      actions: {
+        deleteIndex: 'Delete Index',
+        closeIndex: 'Close Index',
+        openIndex: 'Open Index',
+        removeAlias: 'Remove Alias',
+        switchAlias: 'Switch Alias',
+        deleteIndexWarning: 'Are you sure you want to delete the index',
+        closeIndexWarning: 'Are you sure you want to close the index',
+        removeAliasWarning: 'Are you sure you want to remove the alias',
+      },
       newIndexForm: {
         title: 'Create Index',
         indexName: 'Index Name',
@@ -84,6 +94,12 @@ export const enUS = {
         componentTemplate: 'Component Template',
         templateRequired: 'Template name is required',
         bodyJsonRequired: 'Request Body is not a valid JSON format',
+      },
+      switchAliasForm: {
+        title: 'Switch Alias',
+        aliasName: 'Alias Name',
+        sourceIndex: 'Source Index',
+        targetIndex: 'Target Index',
       },
     },
   },
@@ -122,8 +138,12 @@ export const enUS = {
     create: 'Create',
     confirm: 'Confirm',
     cancel: 'Cancel',
-    removeSuccess: 'Connection removed successfully',
+    removeSuccess: 'removed successfully',
     createSuccess: 'Created successfully',
+    deleteSuccess: 'Deleted successfully',
+    closeSuccess: 'Closed successfully',
+    openSuccess: 'Opened successfully',
+    switchSuccess: 'Switched successfully',
   },
   editor: {
     establishedRequired: 'Select a DB instance before execute actions',
