@@ -9,14 +9,6 @@
           max-height="400"
         />
       </n-tab-pane>
-      <n-tab-pane name="aliases" tab="ALIASES">
-        <n-data-table
-          :columns="aliasesTable.columns"
-          :data="aliasesTable.data"
-          :bordered="false"
-          max-height="400"
-        />
-      </n-tab-pane>
       <n-tab-pane name="templates" tab="TEMPLATES">
         <n-data-table
           :columns="templateTable.columns"
@@ -65,6 +57,7 @@
     <index-dialog ref="indexDialogRef" />
     <alias-dialog ref="aliasDialogRef" />
     <template-dialog ref="templateDialogRef" />
+    <switch-alias-dialog ref="switchAliasDialogRef" />
   </main>
 </template>
 
@@ -88,19 +81,28 @@ import AliasDialog from './alias-dialog.vue';
 import TemplateDialog from './template-dialog.vue';
 import { useLang } from '../../../lang';
 import { CustomError } from '../../../common';
+import SwitchAliasDialog from './switch-alias-dialog.vue';
 
 const message = useMessage();
 const dialog = useDialog();
 const lang = useLang();
 
 const clusterManageStore = useClusterManageStore();
-const { fetchIndices, fetchAliases, fetchTemplates, deleteIndex, closeIndex, openIndex } =
-  clusterManageStore;
-const { indexWithAliases, aliasesWithIndices, templates } = storeToRefs(clusterManageStore);
+const {
+  fetchIndices,
+  fetchAliases,
+  fetchTemplates,
+  deleteIndex,
+  closeIndex,
+  openIndex,
+  removeAlias,
+} = clusterManageStore;
+const { indexWithAliases, templates } = storeToRefs(clusterManageStore);
 
 const indexDialogRef = ref();
 const aliasDialogRef = ref();
 const templateDialogRef = ref();
+const switchAliasDialogRef = ref();
 
 const indexTable = computed(() => {
   return {
@@ -120,12 +122,57 @@ const indexTable = computed(() => {
       },
       { title: 'status', dataIndex: 'status', key: 'status' },
       {
-        title: 'aliases',
+        title: 'Aliases',
         dataIndex: 'aliases',
         key: 'aliases',
-        render({ aliases }: { aliases: Array<ClusterAlias> }) {
-          return aliases.map(alias => alias.alias).join(', ');
-        },
+        resizable: true,
+        render: ({ aliases }: { aliases: Array<ClusterAlias> }) =>
+          aliases.map(alias =>
+            h(
+              NButton,
+              {
+                strong: true,
+                type: 'default',
+                tertiary: true,
+                iconPlacement: 'right',
+                style: 'margin-right: 8px',
+              },
+              {
+                default: () => `${alias.alias}`,
+                icon: () =>
+                  h(
+                    NDropdown,
+                    {
+                      trigger: 'click',
+                      placement: 'bottom-end',
+                      onSelect: event => handleAction(event, alias.index, alias.alias),
+                      options: [
+                        {
+                          label: lang.t('manage.index.actions.removeAlias'),
+                          key: 'removeAlias',
+                          icon: () => h(NIcon, { color: 'red' }, { default: () => h(Unlink) }),
+                        },
+                        {
+                          label: lang.t('manage.index.actions.switchAlias'),
+                          key: 'switchAlias',
+                          icon: () => h(NIcon, {}, { default: () => h(ArrowsHorizontal) }),
+                        },
+                      ],
+                    },
+                    {
+                      default: () =>
+                        h(
+                          NIcon,
+                          {},
+                          {
+                            default: () => h(SettingsAdjust),
+                          },
+                        ),
+                    },
+                  ),
+              },
+            ),
+          ),
       },
       {
         title: 'Docs',
@@ -190,66 +237,6 @@ const indexTable = computed(() => {
   };
 });
 
-const aliasesTable = computed(() => {
-  return {
-    columns: [
-      { title: 'Alias', dataIndex: 'alias', key: 'alias' },
-      {
-        title: 'Indices',
-        dataIndex: 'indices',
-        key: 'indices',
-        render: ({ indices }: { indices: Array<ClusterAlias> }) =>
-          indices.map(index =>
-            h(
-              NButton,
-              {
-                strong: true,
-                type: 'default',
-                tertiary: true,
-                iconPlacement: 'right',
-                style: 'margin-right: 8px',
-              },
-              {
-                default: () => `${index.index}`,
-                icon: () =>
-                  h(
-                    NDropdown,
-                    {
-                      trigger: 'click',
-                      placement: 'bottom-end',
-                      options: [
-                        {
-                          label: 'detach',
-                          key: 'detach',
-                          icon: () => h(NIcon, { color: 'red' }, { default: () => h(Unlink) }),
-                        },
-                        {
-                          label: 'switch',
-                          key: 'switch',
-                          icon: () => h(NIcon, {}, { default: () => h(ArrowsHorizontal) }),
-                        },
-                      ],
-                    },
-                    {
-                      default: () =>
-                        h(
-                          NIcon,
-                          {},
-                          {
-                            default: () => h(SettingsAdjust),
-                          },
-                        ),
-                    },
-                  ),
-              },
-            ),
-          ),
-      },
-    ],
-    data: aliasesWithIndices.value,
-  };
-});
-
 const templateTable = computed(() => {
   return {
     columns: [
@@ -299,7 +286,8 @@ const toggleModal = (target: string) => {
   if (target === 'template') templateDialogRef.value.toggleModal();
 };
 
-const handleAction = async (action: string, indexName: string) => {
+const handleAction = async (action: string, indexName: string, aliasName?: string) => {
+  console.log('action', { action, indexName, aliasName });
   if (action === 'deleteIndex') {
     dialog.warning({
       title: lang.t('dialogOps.warning'),
@@ -349,6 +337,28 @@ const handleAction = async (action: string, indexName: string) => {
         keepAliveOnHover: true,
       });
     }
+  } else if (action === 'removeAlias') {
+    dialog.warning({
+      title: lang.t('dialogOps.warning'),
+      content: lang.t('manage.index.actions.removeAliasWarning') + ` ${indexName}@${aliasName} ?`,
+      positiveText: lang.t('dialogOps.confirm'),
+      negativeText: lang.t('dialogOps.cancel'),
+      onPositiveClick: async () => {
+        try {
+          await removeAlias(indexName, aliasName as string);
+          await refresh();
+          message.success(lang.t('dialogOps.removeSuccess'));
+        } catch (err) {
+          message.error((err as CustomError).details, {
+            closable: true,
+            keepAliveOnHover: true,
+            duration: 7200,
+          });
+        }
+      },
+    });
+  } else if (action === 'switchAlias') {
+    switchAliasDialogRef.value.toggleModal(aliasName, indexName);
   }
 };
 

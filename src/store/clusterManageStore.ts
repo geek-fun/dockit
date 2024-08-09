@@ -425,5 +425,59 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         );
       }
     },
+    async removeAlias(indexName: string, aliasName: string) {
+      const { established } = useConnectionStore();
+      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
+      const client = loadHttpClient(established);
+      try {
+        const response = await client.delete(`/${indexName}/_alias/${aliasName}`);
+        if (response.status >= 300) {
+          throw new CustomError(
+            response.status,
+            `${response.error.type}: ${response.error.reason}`,
+          );
+        }
+      } catch (err) {
+        throw new CustomError(
+          err instanceof CustomError ? err.status : 500,
+          err instanceof CustomError ? err.details : (err as Error).message,
+        );
+      }
+    },
+    async switchAlias(aliasName: string, sourceIndexName: string, targetIndexName: string) {
+      const { established } = useConnectionStore();
+      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
+      const client = loadHttpClient(established);
+      const payload = {
+        actions: [
+          {
+            remove: {
+              index: sourceIndexName,
+              alias: aliasName,
+            },
+          },
+          {
+            add: {
+              index: targetIndexName,
+              alias: aliasName,
+            },
+          },
+        ],
+      };
+      try {
+        const response = await client.post(`/_aliases`, undefined, JSON.stringify(payload));
+        if (response.status >= 300) {
+          throw new CustomError(
+            response.status,
+            `${response.error.type}: ${response.error.reason}`,
+          );
+        }
+      } catch (err) {
+        throw new CustomError(
+          err instanceof CustomError ? err.status : 500,
+          err instanceof CustomError ? err.details : (err as Error).message,
+        );
+      }
+    },
   },
 });
