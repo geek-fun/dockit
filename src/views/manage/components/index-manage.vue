@@ -72,15 +72,30 @@
 import { storeToRefs } from 'pinia';
 import { ClusterAlias, ClusterIndex, IndexHealth, useClusterManageStore } from '../../../store';
 import { NButton, NDropdown, NIcon, NTag } from 'naive-ui';
-import { Add, ArrowsHorizontal, Renew, SettingsAdjust, Unlink } from '@vicons/carbon';
+import {
+  Add,
+  ArrowsHorizontal,
+  Renew,
+  SettingsAdjust,
+  Unlink,
+  OverflowMenuHorizontal,
+  Delete,
+  Locked,
+  Unlocked,
+} from '@vicons/carbon';
 import IndexDialog from './index-dialog.vue';
 import AliasDialog from './alias-dialog.vue';
 import TemplateDialog from './template-dialog.vue';
+import { useLang } from '../../../lang';
+import { CustomError } from '../../../common';
 
 const message = useMessage();
+const dialog = useDialog();
+const lang = useLang();
 
 const clusterManageStore = useClusterManageStore();
-const { fetchIndices, fetchAliases, fetchTemplates } = clusterManageStore;
+const { fetchIndices, fetchAliases, fetchTemplates, deleteIndex, closeIndex, openIndex } =
+  clusterManageStore;
 const { indexWithAliases, aliasesWithIndices, templates } = storeToRefs(clusterManageStore);
 
 const indexDialogRef = ref();
@@ -129,6 +144,47 @@ const indexTable = computed(() => {
         },
       },
       { title: 'Storage', dataIndex: 'storage', key: 'storage' },
+      {
+        title: 'Actions',
+        dataIndex: 'actions',
+        key: 'actions',
+        render(index: ClusterIndex) {
+          return h(
+            NDropdown,
+            {
+              trigger: 'click',
+              placement: 'bottom-end',
+              onSelect: event => handleAction(event, index.index),
+              options: [
+                {
+                  label: lang.t('manage.index.actions.deleteIndex'),
+                  key: 'deleteIndex',
+                  icon: () => h(NIcon, { color: 'red' }, { default: () => h(Delete) }),
+                },
+                index.status === 'open'
+                  ? {
+                      label: lang.t('manage.index.actions.closeIndex'),
+                      key: 'closIndex',
+                      icon: () => h(NIcon, { color: 'yellow' }, { default: () => h(Locked) }),
+                    }
+                  : {
+                      label: lang.t('manage.index.actions.openIndex'),
+                      key: 'openIndex',
+                      icon: () => h(NIcon, { color: 'green' }, { default: () => h(Unlocked) }),
+                    },
+              ],
+            },
+            {
+              default: () =>
+                h(
+                  NIcon,
+                  { style: 'cursor: pointer' },
+                  { default: () => h(OverflowMenuHorizontal) },
+                ),
+            },
+          );
+        },
+      },
     ],
     data: indexWithAliases.value,
   };
@@ -241,6 +297,59 @@ const toggleModal = (target: string) => {
   if (target === 'index') indexDialogRef.value.toggleModal();
   if (target === 'alias') aliasDialogRef.value.toggleModal();
   if (target === 'template') templateDialogRef.value.toggleModal();
+};
+
+const handleAction = async (action: string, indexName: string) => {
+  if (action === 'deleteIndex') {
+    dialog.warning({
+      title: lang.t('dialogOps.warning'),
+      content: lang.t('manage.index.actions.deleteIndexWarning') + `:${indexName} ?`,
+      positiveText: lang.t('dialogOps.confirm'),
+      negativeText: lang.t('dialogOps.cancel'),
+      onPositiveClick: async () => {
+        try {
+          await deleteIndex(indexName);
+          await refresh();
+          message.success(lang.t('dialogOps.deleteSuccess'));
+        } catch (err) {
+          message.error((err as CustomError).details, {
+            closable: true,
+            keepAliveOnHover: true,
+          });
+        }
+      },
+    });
+  } else if (action === 'closIndex') {
+    dialog.warning({
+      title: lang.t('dialogOps.warning'),
+      content: lang.t('manage.index.actions.closeIndexWarning') + `:${indexName} ?`,
+      positiveText: lang.t('dialogOps.confirm'),
+      negativeText: lang.t('dialogOps.cancel'),
+      onPositiveClick: async () => {
+        try {
+          await closeIndex(indexName);
+          await refresh();
+          message.success(lang.t('dialogOps.closeSuccess'));
+        } catch (err) {
+          message.error((err as CustomError).details, {
+            closable: true,
+            keepAliveOnHover: true,
+          });
+        }
+      },
+    });
+  } else if (action === 'openIndex') {
+    try {
+      await openIndex(indexName);
+      await refresh();
+      message.success(lang.t('dialogOps.openSuccess'));
+    } catch (err) {
+      message.error((err as CustomError).details, {
+        closable: true,
+        keepAliveOnHover: true,
+      });
+    }
+  }
 };
 
 onMounted(async () => {

@@ -61,6 +61,13 @@ export const enUS = {
       statisticTitle: 'Node Statistics',
     },
     index: {
+      actions: {
+        deleteIndex: 'Delete Index',
+        closeIndex: 'Close Index',
+        openIndex: 'Open Index',
+        deleteIndexWarning: 'Are you sure you want to delete the index',
+        closeIndexWarning: 'Are you sure you want to close the index',
+      },
       newIndexForm: {
         title: 'Create Index',
         indexName: 'Index Name',
@@ -124,6 +131,9 @@ export const enUS = {
     cancel: 'Cancel',
     removeSuccess: 'Connection removed successfully',
     createSuccess: 'Created successfully',
+    deleteSuccess: 'Deleted successfully',
+    closeSuccess: 'Closed successfully',
+    openSuccess: 'Opened successfully',
   },
   editor: {
     establishedRequired: 'Select a DB instance before execute actions',
