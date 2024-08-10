@@ -272,6 +272,19 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         aliases: this.aliases.filter(alias => alias.index === index.index),
       }));
     },
+    nodesWithShards(): Array<{ [key: string]: Shard[] | string }> {
+      return Array.from(new Set(this.shards?.map(shard => shard.index))).map(index => ({
+        index,
+        unassigned: this.shards?.filter(shard => !shard.node && shard.index === index),
+        ...this.nodes.reduce(
+          (acc, node) => ({
+            ...acc,
+            [node.name]: this.shards?.filter(shard => shard.node && shard.index === index),
+          }),
+          {},
+        ),
+      }));
+    },
   },
   actions: {
     async fetchCluster() {

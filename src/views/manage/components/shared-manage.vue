@@ -78,72 +78,66 @@ import {
 } from '@vicons/carbon';
 import { Memory } from '@vicons/fa';
 import { NButton } from 'naive-ui';
+import { TableColumn } from 'naive-ui/es/data-table/src/interface';
 
 const clusterManageStore = useClusterManageStore();
 const { fetchNodes, fetchShards, getShardState } = clusterManageStore;
-const { nodes, shards } = storeToRefs(clusterManageStore);
+const { shards, nodesWithShards } = storeToRefs(clusterManageStore);
 
-type NodeWithShard = {
-  columns: Array<{ title: string; key: string }>;
-  data: Array<{
-    [key: string]: Shard[] | string;
-  }>;
-};
 type IndexShard = ShardState & {
   details: Array<{
-    icon: () => unknown;
+    icon: () => Component;
     content: string;
     desc: string;
     tagType: 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error';
   }>;
 };
-const nodeShardsTable = ref<NodeWithShard>();
+
+const nodeShardsTable = computed(() => {
+  const nodes = shards.value
+    .filter(shard => shard.node)
+    .reduce(
+      (acc, shard) => {
+        if (acc.some(node => node.name === shard.node)) {
+          return acc;
+        }
+        return [...acc, { name: shard.node }];
+      },
+      [{ name: 'index' }, { name: 'unassigned' }] as Array<{ name: string }>,
+    );
+  return {
+    columns: nodes.map(column => ({
+      title: column.name,
+      key: column.name,
+      render(row: { [key: string]: Array<Shard> }) {
+        if (column.name === 'index') return row.index;
+        return row[column.name].map((shard: Shard) =>
+          h(
+            NButton,
+            {
+              strong: true,
+              type: 'primary',
+              secondary: shard.prirep == 'p',
+              dashed: shard.prirep == 'r',
+              onClick: () => handleShardClick(row as unknown as Shard),
+              class: 'shard-box',
+            },
+            {
+              default: () => `${shard.prirep}${shard.shard}`,
+            },
+          ),
+        );
+      },
+    })) as TableColumn[],
+    data: nodesWithShards.value,
+  };
+});
 const indexShards = ref<{
   index: string;
   shards: Array<IndexShard>;
 }>();
-
-const refreshShards = async (): Promise<NodeWithShard> => {
-  if (!nodes.value) return { columns: [], data: [] };
-
-  await fetchShards();
-  const columns = [{ name: 'index' }, { name: 'unassigned' }, ...nodes.value].map(column => ({
-    title: column.name,
-    key: column.name,
-    render(row: { [key: string]: Array<Shard> }) {
-      if (column.name === 'index') return row.index;
-      return row[column.name].map((shard: Shard) =>
-        h(
-          NButton,
-          {
-            strong: true,
-            type: 'primary',
-            secondary: shard.prirep == 'p',
-            dashed: shard.prirep == 'r',
-            onClick: () => handleShardClick(row as unknown as Shard),
-            class: 'shard-box',
-          },
-          {
-            default: () => `${shard.prirep}${shard.shard}`,
-          },
-        ),
-      );
-    },
-  }));
-
-  const data = Array.from(new Set(shards.value?.map(shard => shard.index))).map(index => ({
-    index,
-    unassigned: shards.value?.filter(shard => !shard.node && shard.index === index),
-    ...(nodes.value || []).reduce(
-      (acc, node) => ({
-        ...acc,
-        [node.name]: shards.value?.filter(shard => shard.node && shard.index === index),
-      }),
-      {},
-    ),
-  }));
-
-  return { columns, data } as NodeWithShard;
+const refreshShards = async () => {
+  await Promise.all([fetchNodes(), fetchShards()]);
 };
 
 const handleShardClick = async (shard: Shard) => {
@@ -256,11 +250,7 @@ const handleShardClick = async (shard: Shard) => {
   indexShards.value = { ...indexes, shards } as { index: string; shards: Array<IndexShard> };
 };
 
-onMounted(async () => {
-  await fetchNodes();
-  nodeShardsTable.value = await refreshShards();
-});
-fetchNodes();
+refreshShards();
 </script>
 
 <style lang="scss" scoped>

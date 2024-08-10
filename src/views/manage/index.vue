@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import ToolBar from './components/tool-bar.vue';
 import ClusterState from './components/cluster-state.vue';
-import { useClusterManageStore } from '../../store';
+import { useClusterManageStore, useConnectionStore } from '../../store';
 import { storeToRefs } from 'pinia';
 import NodeState from './components/node-state.vue';
 import SharedManage from './components/shared-manage.vue';
@@ -24,9 +24,16 @@ import IndexManage from './components/index-manage.vue';
 
 const activeTab = ref(lang.global.t('manage.cluster'));
 
+const connectionStore = useConnectionStore();
+const { established } = storeToRefs(connectionStore);
+
 const clusterManageStore = useClusterManageStore();
-const { fetchCluster } = clusterManageStore;
+const { fetchCluster, fetchIndices, fetchAliases, fetchNodes, fetchShards } = clusterManageStore;
 const { cluster } = storeToRefs(clusterManageStore);
+
+watch(established, async () => {
+  await Promise.all([fetchCluster(), fetchIndices(), fetchAliases(), fetchNodes(), fetchShards()]);
+});
 
 const handleManageTabChange = (tab: string) => {
   activeTab.value = tab;
