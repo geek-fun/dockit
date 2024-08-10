@@ -1,6 +1,6 @@
 <template>
   <main>
-    <n-tabs type="segment" animated>
+    <n-tabs type="segment" animated @update:value="refresh">
       <n-tab-pane name="indices" tab="INDICES">
         <n-data-table
           :columns="indexTable.columns"
