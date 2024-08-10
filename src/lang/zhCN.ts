@@ -61,6 +61,16 @@ export const zhCN = {
       statisticTitle: '节点统计',
     },
     index: {
+      actions: {
+        deleteIndex: '删除索引',
+        closeIndex: '关闭索引',
+        openIndex: '开启索引',
+        removeAlias: '移除别名',
+        switchAlias: '切换别名',
+        deleteIndexWarning: '是否确定要删除索引',
+        closeIndexWarning: '是否确定要关闭索引',
+        removeAliasWarning: '是否确定要移除索引别名',
+      },
       newIndexForm: {
         title: '创建索引',
         indexName: '索引名称',
@@ -84,6 +94,12 @@ export const zhCN = {
         componentTemplate: '组件模板',
         templateRequired: '模板名称是必需的',
         bodyJsonRequired: '请求体不是有效的 JSON 格式',
+      },
+      switchAliasForm: {
+        title: '切换别名',
+        aliasName: '别名名称',
+        sourceIndex: '源索引',
+        targetIndex: '目标索引',
       },
     },
   },
@@ -122,8 +138,12 @@ export const zhCN = {
     create: '创建',
     confirm: '确认',
     cancel: '取消',
-    removeSuccess: '连接删除成功',
+    removeSuccess: '移除成功',
     createSuccess: '创建成功',
+    deleteSuccess: '删除成功',
+    closeSuccess: '关闭成功',
+    openSuccess: '开启成功',
+    switchSuccess: '切换成功',
   },
   editor: {
     establishedRequired: '请选择执行操作的数据库实例',

@@ -5,7 +5,7 @@
         <n-card
           class="node-item"
           hoverable
-          v-for="node in established?.rawClusterState?.nodes.instances"
+          v-for="node in nodes"
           :key="node.name"
           :title="node.name"
           @click="handleNodeClick(node.name)"
@@ -74,13 +74,14 @@
 
 <script setup lang="ts">
 import prettyBytes from 'pretty-bytes';
-import { NodeRoleEnum, useConnectionStore } from '../../../store';
+import { NodeRoleEnum, useClusterManageStore } from '../../../store';
 import { storeToRefs } from 'pinia';
-import { StarFilled, Star, FolderMoveTo, VmdkDisk, Network3 } from '@vicons/carbon';
+import { FolderMoveTo, Network3, Star, StarFilled, VmdkDisk } from '@vicons/carbon';
 
-const connectionStore = useConnectionStore();
-const { fetchNodes, fetchNodeState } = connectionStore;
-const { established } = storeToRefs(connectionStore);
+const clusterManageStore = useClusterManageStore();
+const { fetchNodes, fetchNodeState } = clusterManageStore;
+const { nodes } = storeToRefs(clusterManageStore);
+
 type NodeStats = {
   key: string;
   value: string | number;
@@ -158,10 +159,12 @@ fetchNodes();
     justify-content: space-around;
     text-align: center;
   }
+
   .node-statistic-container {
     > h3 {
       margin: 20px;
     }
+
     .node-statistic-metric-container {
       display: flex;
       justify-content: space-around;

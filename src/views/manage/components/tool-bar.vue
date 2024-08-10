@@ -29,14 +29,17 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { useConnectionStore } from '../../../store';
+import { useClusterManageStore, useConnectionStore } from '../../../store';
 import { CustomError } from '../../../common';
 
 const message = useMessage();
 
 const connectionStore = useConnectionStore();
 const { established, connections } = storeToRefs(connectionStore);
-const { fetchConnections, establishConnection, fetchClusterState } = connectionStore;
+const { fetchConnections, establishConnection } = connectionStore;
+
+const clusterManageStore = useClusterManageStore();
+const { fetchCluster } = clusterManageStore;
 
 const connectionLoadingRef = ref(false);
 
@@ -60,7 +63,7 @@ const handleConnectionUpdate = async (connectionName: string) => {
   }
   try {
     await establishConnection(connection);
-    await fetchClusterState();
+    await fetchCluster();
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -83,8 +86,10 @@ const handleManageTabChange = (tabName: string) => {
   display: flex;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
+
   .tool-bar-selector {
     height: 100%;
+
     :deep(.n-select) {
       .n-base-selection {
         .n-base-selection-label {
@@ -107,6 +112,7 @@ const handleManageTabChange = (tabName: string) => {
       }
     }
   }
+
   .manage-container {
     margin-right: 10px;
     height: 100%;

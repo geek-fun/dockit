@@ -21,7 +21,7 @@
               @select="(args: number) => handleSelect(args, con)"
             >
               <n-icon size="20">
-                <MoreOutlined />
+                <OverflowMenuVertical />
               </n-icon>
             </n-dropdown>
           </div>
@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { MoreOutlined } from '@vicons/antd';
+import { OverflowMenuVertical } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { useLang } from '../../../lang';
 import { Connection, useConnectionStore } from '../../../store';

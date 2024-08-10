@@ -1,18 +1,10 @@
 <template>
   <main>
-    <n-tabs type="segment" animated>
+    <n-tabs type="segment" animated @update:value="refresh">
       <n-tab-pane name="indices" tab="INDICES">
         <n-data-table
           :columns="indexTable.columns"
           :data="indexTable.data"
-          :bordered="false"
-          max-height="400"
-        />
-      </n-tab-pane>
-      <n-tab-pane name="aliases" tab="ALIASES">
-        <n-data-table
-          :columns="aliasesTable.columns"
-          :data="aliasesTable.data"
           :bordered="false"
           max-height="400"
         />
@@ -65,6 +57,7 @@
     <index-dialog ref="indexDialogRef" />
     <alias-dialog ref="aliasDialogRef" />
     <template-dialog ref="templateDialogRef" />
+    <switch-alias-dialog ref="switchAliasDialogRef" />
   </main>
 </template>
 
@@ -72,20 +65,44 @@
 import { storeToRefs } from 'pinia';
 import { ClusterAlias, ClusterIndex, IndexHealth, useClusterManageStore } from '../../../store';
 import { NButton, NDropdown, NIcon, NTag } from 'naive-ui';
-import { Add, ArrowsHorizontal, Renew, SettingsAdjust, Unlink } from '@vicons/carbon';
+import {
+  Add,
+  ArrowsHorizontal,
+  Renew,
+  SettingsAdjust,
+  Unlink,
+  OverflowMenuHorizontal,
+  Delete,
+  Locked,
+  Unlocked,
+} from '@vicons/carbon';
 import IndexDialog from './index-dialog.vue';
 import AliasDialog from './alias-dialog.vue';
 import TemplateDialog from './template-dialog.vue';
+import { useLang } from '../../../lang';
+import { CustomError } from '../../../common';
+import SwitchAliasDialog from './switch-alias-dialog.vue';
 
 const message = useMessage();
+const dialog = useDialog();
+const lang = useLang();
 
 const clusterManageStore = useClusterManageStore();
-const { fetchIndices, fetchAliases, fetchTemplates } = clusterManageStore;
-const { indexWithAliases, aliasesWithIndices, templates } = storeToRefs(clusterManageStore);
+const {
+  fetchIndices,
+  fetchAliases,
+  fetchTemplates,
+  deleteIndex,
+  closeIndex,
+  openIndex,
+  removeAlias,
+} = clusterManageStore;
+const { indexWithAliases, templates } = storeToRefs(clusterManageStore);
 
 const indexDialogRef = ref();
 const aliasDialogRef = ref();
 const templateDialogRef = ref();
+const switchAliasDialogRef = ref();
 
 const indexTable = computed(() => {
   return {
@@ -105,45 +122,12 @@ const indexTable = computed(() => {
       },
       { title: 'status', dataIndex: 'status', key: 'status' },
       {
-        title: 'aliases',
+        title: 'Aliases',
         dataIndex: 'aliases',
         key: 'aliases',
-        render({ aliases }: { aliases: Array<ClusterAlias> }) {
-          return aliases.map(alias => alias.alias).join(', ');
-        },
-      },
-      {
-        title: 'Docs',
-        dataIndex: 'docs',
-        key: 'docs',
-        render({ docs }: ClusterIndex) {
-          return docs.count;
-        },
-      },
-      {
-        title: 'shards',
-        dataIndex: 'shards',
-        key: 'shards',
-        render({ shards }: ClusterIndex) {
-          return `${shards.primary}p/${shards.replica}r`;
-        },
-      },
-      { title: 'Storage', dataIndex: 'storage', key: 'storage' },
-    ],
-    data: indexWithAliases.value,
-  };
-});
-
-const aliasesTable = computed(() => {
-  return {
-    columns: [
-      { title: 'Alias', dataIndex: 'alias', key: 'alias' },
-      {
-        title: 'Indices',
-        dataIndex: 'indices',
-        key: 'indices',
-        render: ({ indices }: { indices: Array<ClusterAlias> }) =>
-          indices.map(index =>
+        resizable: true,
+        render: ({ aliases }: { aliases: Array<ClusterAlias> }) =>
+          aliases.map(alias =>
             h(
               NButton,
               {
@@ -154,22 +138,23 @@ const aliasesTable = computed(() => {
                 style: 'margin-right: 8px',
               },
               {
-                default: () => `${index.index}`,
+                default: () => `${alias.alias}`,
                 icon: () =>
                   h(
                     NDropdown,
                     {
                       trigger: 'click',
                       placement: 'bottom-end',
+                      onSelect: event => handleAction(event, alias.index, alias.alias),
                       options: [
                         {
-                          label: 'detach',
-                          key: 'detach',
+                          label: lang.t('manage.index.actions.removeAlias'),
+                          key: 'removeAlias',
                           icon: () => h(NIcon, { color: 'red' }, { default: () => h(Unlink) }),
                         },
                         {
-                          label: 'switch',
-                          key: 'switch',
+                          label: lang.t('manage.index.actions.switchAlias'),
+                          key: 'switchAlias',
                           icon: () => h(NIcon, {}, { default: () => h(ArrowsHorizontal) }),
                         },
                       ],
@@ -189,8 +174,66 @@ const aliasesTable = computed(() => {
             ),
           ),
       },
+      {
+        title: 'Docs',
+        dataIndex: 'docs',
+        key: 'docs',
+        render({ docs }: ClusterIndex) {
+          return docs.count;
+        },
+      },
+      {
+        title: 'shards',
+        dataIndex: 'shards',
+        key: 'shards',
+        render({ shards }: ClusterIndex) {
+          return `${shards.primary}p/${shards.replica}r`;
+        },
+      },
+      { title: 'Storage', dataIndex: 'storage', key: 'storage' },
+      {
+        title: 'Actions',
+        dataIndex: 'actions',
+        key: 'actions',
+        render(index: ClusterIndex) {
+          return h(
+            NDropdown,
+            {
+              trigger: 'click',
+              placement: 'bottom-end',
+              onSelect: event => handleAction(event, index.index),
+              options: [
+                {
+                  label: lang.t('manage.index.actions.deleteIndex'),
+                  key: 'deleteIndex',
+                  icon: () => h(NIcon, { color: 'red' }, { default: () => h(Delete) }),
+                },
+                index.status === 'open'
+                  ? {
+                      label: lang.t('manage.index.actions.closeIndex'),
+                      key: 'closIndex',
+                      icon: () => h(NIcon, { color: 'yellow' }, { default: () => h(Locked) }),
+                    }
+                  : {
+                      label: lang.t('manage.index.actions.openIndex'),
+                      key: 'openIndex',
+                      icon: () => h(NIcon, { color: 'green' }, { default: () => h(Unlocked) }),
+                    },
+              ],
+            },
+            {
+              default: () =>
+                h(
+                  NIcon,
+                  { style: 'cursor: pointer' },
+                  { default: () => h(OverflowMenuHorizontal) },
+                ),
+            },
+          );
+        },
+      },
     ],
-    data: aliasesWithIndices.value,
+    data: indexWithAliases.value,
   };
 });
 
@@ -241,6 +284,82 @@ const toggleModal = (target: string) => {
   if (target === 'index') indexDialogRef.value.toggleModal();
   if (target === 'alias') aliasDialogRef.value.toggleModal();
   if (target === 'template') templateDialogRef.value.toggleModal();
+};
+
+const handleAction = async (action: string, indexName: string, aliasName?: string) => {
+  console.log('action', { action, indexName, aliasName });
+  if (action === 'deleteIndex') {
+    dialog.warning({
+      title: lang.t('dialogOps.warning'),
+      content: lang.t('manage.index.actions.deleteIndexWarning') + `:${indexName} ?`,
+      positiveText: lang.t('dialogOps.confirm'),
+      negativeText: lang.t('dialogOps.cancel'),
+      onPositiveClick: async () => {
+        try {
+          await deleteIndex(indexName);
+          await refresh();
+          message.success(lang.t('dialogOps.deleteSuccess'));
+        } catch (err) {
+          message.error((err as CustomError).details, {
+            closable: true,
+            keepAliveOnHover: true,
+          });
+        }
+      },
+    });
+  } else if (action === 'closIndex') {
+    dialog.warning({
+      title: lang.t('dialogOps.warning'),
+      content: lang.t('manage.index.actions.closeIndexWarning') + `:${indexName} ?`,
+      positiveText: lang.t('dialogOps.confirm'),
+      negativeText: lang.t('dialogOps.cancel'),
+      onPositiveClick: async () => {
+        try {
+          await closeIndex(indexName);
+          await refresh();
+          message.success(lang.t('dialogOps.closeSuccess'));
+        } catch (err) {
+          message.error((err as CustomError).details, {
+            closable: true,
+            keepAliveOnHover: true,
+          });
+        }
+      },
+    });
+  } else if (action === 'openIndex') {
+    try {
+      await openIndex(indexName);
+      await refresh();
+      message.success(lang.t('dialogOps.openSuccess'));
+    } catch (err) {
+      message.error((err as CustomError).details, {
+        closable: true,
+        keepAliveOnHover: true,
+      });
+    }
+  } else if (action === 'removeAlias') {
+    dialog.warning({
+      title: lang.t('dialogOps.warning'),
+      content: lang.t('manage.index.actions.removeAliasWarning') + ` ${indexName}@${aliasName} ?`,
+      positiveText: lang.t('dialogOps.confirm'),
+      negativeText: lang.t('dialogOps.cancel'),
+      onPositiveClick: async () => {
+        try {
+          await removeAlias(indexName, aliasName as string);
+          await refresh();
+          message.success(lang.t('dialogOps.removeSuccess'));
+        } catch (err) {
+          message.error((err as CustomError).details, {
+            closable: true,
+            keepAliveOnHover: true,
+            duration: 7200,
+          });
+        }
+      },
+    });
+  } else if (action === 'switchAlias') {
+    switchAliasDialogRef.value.toggleModal(aliasName, indexName);
+  }
 };
 
 onMounted(async () => {
