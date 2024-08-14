@@ -4,10 +4,12 @@ export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent:
   const commands = lines.filter(({ lineContent }) => executeActions.regexp.test(lineContent));
 
   return commands.map(({ lineContent, lineNumber }, index, commands) => {
-    const rawCmd = lineContent.split(/[/\s]+/);
+    const [rawPath, queryParams] = lineContent.split('?');
+    const rawCmd = rawPath.split(/[\/\s]+/);
     const method = rawCmd[0]?.toUpperCase();
     const indexName = rawCmd[1]?.startsWith('_') ? undefined : rawCmd[1];
     const path = rawCmd.slice(indexName ? 2 : 1, rawCmd.length).join('/');
+
     const nexCommandLineNumber = commands[index + 1]?.lineNumber
       ? commands[index + 1]?.lineNumber - 1
       : lines.length;
@@ -28,6 +30,7 @@ export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent:
       method,
       index: indexName,
       path,
+      queryParams,
       actionPosition: {
         startLineNumber: lineNumber,
         endLineNumber: lineNumber,
