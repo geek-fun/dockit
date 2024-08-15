@@ -19,6 +19,7 @@ export type SearchAction = {
   method: string;
   index: string;
   path: string;
+  queryParams: string | null;
 };
 
 export enum ActionType {

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { pureObject } from '../common';
 import { loadHttpClient, storeApi } from '../datasources';
+
 export type Connection = {
   id?: number;
   name: string;
@@ -131,14 +132,17 @@ export const useConnectionStore = defineStore('connectionStore', {
       path,
       index,
       qdsl,
+      queryParams,
     }: {
       method: string;
       path: string;
+      queryParams?: string;
       index?: string;
       qdsl?: string;
     }) {
       if (!this.established) throw new Error('no connection established');
       const client = loadHttpClient(this.established);
+      const queryParameters = queryParams ? `${queryParams}&format=json` : 'format=json';
       // refresh the index mapping
       try {
         if (index && index !== this.established.activeIndex?.index) {
@@ -147,7 +151,7 @@ export const useConnectionStore = defineStore('connectionStore', {
           );
           if (newIndex) {
             if (!newIndex.mapping) {
-              newIndex.mapping = await client.get(`/${index}/_mapping`, 'format=json');
+              newIndex.mapping = await client.get(`/${index}/_mapping`, queryParameters);
             }
             this.established = { ...this.established, activeIndex: newIndex };
           }
@@ -157,11 +161,11 @@ export const useConnectionStore = defineStore('connectionStore', {
       const reqPath = buildPath(index, path);
 
       const dispatch: { [method: string]: () => Promise<unknown> } = {
-        POST: async () => client.post(reqPath, undefined, qdsl),
-        PUT: async () => client.put(reqPath, undefined, qdsl),
-        DELETE: async () => client.delete(reqPath, undefined, qdsl),
+        POST: async () => client.post(reqPath, queryParameters, qdsl),
+        PUT: async () => client.put(reqPath, queryParameters, qdsl),
+        DELETE: async () => client.delete(reqPath, queryParameters, qdsl),
         GET: async () =>
-          qdsl ? client.post(reqPath, undefined, qdsl) : client.get(reqPath, 'format=json'),
+          qdsl ? client.post(reqPath, queryParams, qdsl) : client.get(reqPath, queryParameters),
       };
       return dispatch[method]();
     },
