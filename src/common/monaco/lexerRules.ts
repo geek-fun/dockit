@@ -100,7 +100,8 @@ export const executeActions = {
   regexp: /^(GET|DELETE|POST|PUT)\s\w+/,
   decorationClassName: 'action-execute-decoration',
 };
-const keywords = [
+
+export const keywords = [
   'GET',
   'POST',
   'PUT',
@@ -198,6 +199,7 @@ const keywords = [
   'version',
   'version_type',
   '_search',
+  '_cat',
   '_count',
   '_mapping',
   '_cluster',
