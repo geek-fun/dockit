@@ -1,10 +1,10 @@
 <template>
   <n-split direction="horizontal" class="editor" v-model:size="queryEditorSize">
     <template #1>
-      <div id="query-editor" ref="queryEditorRef"></div>
+      <div id="query-editor" ref="queryEditorRef" />
     </template>
     <template #2>
-      <div id="display-editor" ref="displayEditorRef"></div>
+      <display-editor id="display-editor" ref="displayEditorRef" />
     </template>
   </n-split>
 </template>
@@ -17,18 +17,18 @@ import { useMessage } from 'naive-ui';
 import { CustomError } from '../../common';
 import { useAppStore, useChatStore, useConnectionStore, useSourceFileStore } from '../../store';
 import { useLang } from '../../lang';
+import DisplayEditor from './display-editor.vue';
+
 import {
   buildSearchToken,
   Decoration,
   defaultCodeSnippet,
+  Editor,
   EngineType,
   getActionApiDoc,
-  Monaco,
   monaco,
   SearchAction,
 } from '../../common/monaco';
-
-type Editor = ReturnType<Monaco>;
 
 const appStore = useAppStore();
 const message = useMessage();
@@ -47,7 +47,6 @@ const { themeType } = storeToRefs(appStore);
 const chatStore = useChatStore();
 const { insertBoard } = storeToRefs(chatStore);
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
-let displayEditor: Editor | null = null;
 let queryEditor: Editor | null = null;
 let autoIndentCmdId: string | null = null;
 // DOM
@@ -114,9 +113,7 @@ let executeDecorations: Array<Decoration | string> = [];
 
 watch(themeType, () => {
   const vsTheme = getEditorTheme();
-
   queryEditor?.updateOptions({ theme: vsTheme });
-  displayEditor?.updateOptions({ theme: vsTheme });
 });
 watch(insertBoard, () => {
   if (queryEditor) {
@@ -143,10 +140,7 @@ watch(insertBoard, () => {
   }
 });
 
-const executeQueryAction = async (
-  displayEditor: Editor,
-  position: { column: number; lineNumber: number },
-) => {
+const executeQueryAction = async (position: { column: number; lineNumber: number }) => {
   const action = searchTokens.find(
     ({ actionPosition }) => actionPosition.startLineNumber === position.lineNumber,
   );
@@ -173,7 +167,7 @@ const executeQueryAction = async (
       index: action.index || established.value?.activeIndex?.index,
     });
 
-    displayJsonEditor(displayEditor, JSON.stringify(data, null, '  '));
+    displayJsonEditor(JSON.stringify(data, null, '  '));
   } catch (err) {
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -267,10 +261,9 @@ const setupQueryEditor = (code: string) => {
       event.leftButton &&
       target.type === 4 &&
       Object.values(target!.element!.classList).includes(executionGutterClass) &&
-      queryEditor &&
-      displayEditor
+      queryEditor
     ) {
-      executeQueryAction(displayEditor, target.position);
+      executeQueryAction(target.position);
     }
   });
 
@@ -289,7 +282,7 @@ const setupQueryEditor = (code: string) => {
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
     const { actionPosition } = getPointerAction(queryEditor!, searchTokens) || {};
     if (actionPosition) {
-      executeQueryAction(displayEditor!, {
+      executeQueryAction({
         column: actionPosition.startColumn,
         lineNumber: actionPosition.startLineNumber,
       });
@@ -366,30 +359,21 @@ const setupQueryEditor = (code: string) => {
 
 const queryEditorSize = ref(1);
 
-const displayJsonEditor = (displayEditor: Editor, content: string) => {
+const displayJsonEditor = (content: string) => {
   queryEditorSize.value = queryEditorSize.value === 1 ? 0.5 : queryEditorSize.value;
-  displayEditor?.getModel()?.setValue(content);
-};
-
-const setupJsonEditor = () => {
-  displayEditor = monaco.editor.create(displayEditorRef.value, {
-    automaticLayout: true,
-    theme: getEditorTheme(),
-    value: '',
-    language: 'json',
-    minimap: { enabled: false },
-  });
+  displayEditorRef.value.display(content);
 };
 
 onMounted(async () => {
   await readSourceFromFile();
   const code = defaultFile.value;
   setupQueryEditor(code);
-  setupJsonEditor();
 });
 
 onUnmounted(() => {
   codeLensProvider.dispose();
+  queryEditor?.dispose();
+  displayEditorRef.value.dispose();
 });
 // @ts-ignore
 listen('saveFile', async event => {
