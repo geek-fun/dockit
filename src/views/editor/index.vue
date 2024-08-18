@@ -384,7 +384,7 @@ listen('saveFile', async event => {
 });
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .editor {
   width: 100%;
   height: 100%;
@@ -401,7 +401,7 @@ listen('saveFile', async event => {
   }
 }
 
-.execute-button-decoration {
+:deep(.execute-button-decoration) {
   cursor: pointer;
   height: 0 !important;
   width: 0 !important;
@@ -417,5 +417,12 @@ listen('saveFile', async event => {
   border-bottom-color: transparent;
   border-right-color: transparent;
   border-style: solid;
+}
+
+:deep(.mtk19) {
+  color: #00756c;
+}
+:deep(.mtk1) {
+  color: #c80a68;
 }
 </style>
