@@ -62,3 +62,4 @@ export enum EngineType {
 }
 
 export type Monaco = typeof monaco.editor.create;
+export type Editor = ReturnType<Monaco>;
