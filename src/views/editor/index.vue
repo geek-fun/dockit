@@ -422,7 +422,7 @@ listen('saveFile', async event => {
 :deep(.mtk19) {
   color: #00756c;
 }
-:deep(.mtk1) {
+:deep(.mtk22) {
   color: #c80a68;
 }
 </style>

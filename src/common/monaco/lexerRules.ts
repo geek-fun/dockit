@@ -20,6 +20,12 @@ export const keywords = [
   'size',
   'explain',
   'analyze',
+  'query',
+  'filter',
+  'aggs',
+  'sort',
+  'match',
+  'match_all',
   'default_operator',
   'df',
   'analyzer',
@@ -134,7 +140,7 @@ export const search = {
     // The main tokenizer for our languages
     tokenizer: {
       root: [
-        [/^(GET|POST|PUT|DELETE)(\s+[a-zA-Z0-9_\/-?\-&,]*)/, ['operators', 'regexp']],
+        [/^(GET|POST|PUT|DELETE)(\s+[a-zA-Z0-9_\/-?\-&,]*)/, ['type', 'regexp']],
         {
           regex: '{',
           action: {
