@@ -20,14 +20,19 @@ import { useLang } from '../../lang';
 import DisplayEditor from './display-editor.vue';
 
 import {
+  buildCodeLens,
   buildSearchToken,
   Decoration,
   defaultCodeSnippet,
   Editor,
   EngineType,
+  executionGutterClass,
+  formatQDSL,
   getActionApiDoc,
+  getActionMarksDecorations,
   monaco,
   SearchAction,
+  transformQDSL,
 } from '../../common/monaco';
 
 const appStore = useAppStore();
@@ -54,17 +59,7 @@ const queryEditorRef = ref();
 const displayEditorRef = ref();
 
 let searchTokens: SearchAction[] = [];
-
-const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<Decoration> => {
-  return searchTokens
-    .map(({ actionPosition }) => ({
-      id: actionPosition.startLineNumber,
-      range: actionPosition,
-      options: { isWholeLine: true, linesDecorationsClassName: executionGutterClass },
-    }))
-    .filter(Boolean)
-    .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
-};
+let executeDecorations: Array<Decoration | string> = [];
 
 const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
   const freshedDecorations = getActionMarksDecorations(searchTokens);
@@ -74,15 +69,6 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
     freshedDecorations,
   ) as unknown as Decoration[];
 };
-
-const buildCodeLens = (searchTokens: SearchAction[]) =>
-  searchTokens
-    .filter(({ qdslPosition }) => qdslPosition)
-    .map(({ actionPosition, qdslPosition }, index) => ({
-      range: actionPosition,
-      id: `AutoIndent-${index}`,
-      command: { id: autoIndentCmdId!, title: 'Auto Indent', arguments: [qdslPosition] },
-    }));
 
 const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
   provideCodeLenses: () => {
@@ -101,15 +87,11 @@ const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
     refreshActionMarks(queryEditor!, searchTokens);
 
     return {
-      lenses: buildCodeLens(searchTokens),
+      lenses: buildCodeLens(searchTokens, autoIndentCmdId!),
       dispose: () => {},
     };
   },
 });
-
-const executionGutterClass = 'execute-button-decoration';
-
-let executeDecorations: Array<Decoration | string> = [];
 
 watch(themeType, () => {
   const vsTheme = getEditorTheme();
@@ -157,13 +139,11 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
       });
       return;
     }
-    if (action.path.includes('_bulk')) {
-      action.qdsl += '\n';
-    }
+
     const data = await searchQDSL({
       ...action,
       queryParams: action.queryParams ?? undefined,
-      qdsl: action.qdsl ?? undefined,
+      qdsl: transformQDSL(action),
       index: action.index || established.value?.activeIndex?.index,
     });
 
@@ -194,14 +174,9 @@ const autoIndentAction = (
   }
 
   const { startLineNumber, endLineNumber } = qdslPosition;
-  const content = model.getValueInRange({
-    startLineNumber,
-    startColumn: 1,
-    endLineNumber: endLineNumber,
-    endColumn: model.getLineLength(endLineNumber) + 1,
-  });
+
   try {
-    const formatted = JSON.stringify(JSON.parse(content), null, 2);
+    const formatted = formatQDSL(searchTokens, model, qdslPosition);
     model.pushEditOperations(
       [],
       [
@@ -371,16 +346,16 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  codeLensProvider.dispose();
+  codeLensProvider?.dispose();
   queryEditor?.dispose();
-  displayEditorRef.value.dispose();
+  displayEditorRef?.value?.dispose();
 });
 // @ts-ignore
 listen('saveFile', async event => {
   if (!queryEditor) {
     return;
   }
-  await saveSourceToFile(queryEditor.getModel()!.getValue() || '');
+  await saveSourceToFile(queryEditor?.getModel()?.getValue() || '');
 });
 </script>
 
@@ -422,6 +397,7 @@ listen('saveFile', async event => {
 :deep(.mtk19) {
   color: #00756c;
 }
+
 :deep(.mtk22) {
   color: #c80a68;
 }

@@ -26,6 +26,7 @@
     "@tauri-apps/api": "^1.6.0",
     "debug": "^4.3.6",
     "highlight.js": "^11.10.0",
+    "json5": "^2.2.3",
     "lodash": "^4.17.21",
     "markdown-it": "^14.1.0",
     "monaco-editor": "^0.50.0",

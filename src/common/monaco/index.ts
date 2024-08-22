@@ -2,7 +2,6 @@ import * as monaco from 'monaco-editor';
 
 import { executeActions, search } from './lexerRules.ts';
 import { monacoEnvironment } from './environment.ts';
-import { buildSearchToken } from './tokenlizer.ts';
 import { searchCompletionProvider } from './completion.ts';
 
 self.MonacoEnvironment = monacoEnvironment;
@@ -24,5 +23,6 @@ monaco.languages.registerCompletionItemProvider(search.id, {
 });
 
 export * from './type.ts';
-export { monaco, executeActions, buildSearchToken };
+export { monaco, executeActions };
+export * from './tokenlizer.ts';
 export * from './referDoc.ts';

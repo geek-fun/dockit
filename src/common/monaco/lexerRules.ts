@@ -170,7 +170,7 @@ export const search = {
       ],
       xjson: [
         [
-          /("(?:[^"]*_)?script"|"inline"|"source")(\s*?)(:)(\s*?)(""")/,
+          /["']?(.*_?script|inline|source)["']?(\s*?)(:)(\s*?)("""|''')/,
           [
             'variable',
             'whitespace',
@@ -184,7 +184,7 @@ export const search = {
           ],
         ],
         [
-          /(:)(\s*?)(""")(sql)/,
+          /(:)(\s*?)("""|''')(sql)/,
           [
             'delimiter',
             'whitespace',
@@ -204,28 +204,30 @@ export const search = {
         [/:/, { token: 'delimiter' }],
         [/\s+/, { token: 'whitespace' }],
         [/["](?:(?:\\.)|(?:[^"\\]))*?["]\s*(?=:)/, { token: 'variable' }],
-        [/"""/, { token: 'string_literal', next: 'string_literal' }],
+        [/['](?:(?:\\.)|(?:[^'\\]))*?[']\s*(?=:)/, { token: 'variable' }],
+        [/[^"'.\\/]*?\s*(?=:)/, { token: 'variable' }],
+        [/"""|'''/, { token: 'string_literal', next: 'string_literal' }],
         [/0[xX][0-9a-fA-F]+\b/, { token: 'constant.numeric' }],
         [/[+-]?\d+(?:(?:\.\d*)?(?:[eE][+-]?\d+)?)?\b/, { token: 'constant.numeric' }],
         [/(?:true|false)\b/, { token: 'constant.language.boolean' }],
         // strings
-        [/"([^"\\]|\\.)*$/, 'string.invalid'], // non-teminated string
+        [/["']([^'"\\]|\\.)*$/, 'string.invalid'], // non-teminated string
         [
-          /"/,
+          /["']/,
           {
             token: 'string.quote',
             bracket: '@open',
             next: '@string',
           },
         ],
-        [/['](?:(?:\\.)|(?:[^'\\]))*?[']/, { token: 'invalid' }],
+        { include: '@whitespace' },
         [/.+?/, { token: 'text' }],
         [/\/\/.*$/, { token: 'invalid' }],
       ],
 
       search_painless: [
         [
-          /"""/,
+          /"""|'''/,
           {
             token: 'punctuation.end_triple_quote',
             nextEmbedded: '@pop',
@@ -236,7 +238,7 @@ export const search = {
 
       search_sql: [
         [
-          /"""/,
+          /"""|'''/,
           {
             token: 'punctuation.end_triple_quote',
             nextEmbedded: '@pop',
@@ -246,14 +248,14 @@ export const search = {
       ],
 
       string: [
-        [/[^\\"]+/, 'string'],
+        [/[^\\"']+/, 'string'],
         [/@escapes/, 'string.escape'],
         [/\\./, 'string.escape.invalid'],
-        [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }],
+        [/["']/, { token: 'string.quote', bracket: '@close', next: '@pop' }],
       ],
 
       string_literal: [
-        [/"""/, { token: 'punctuation.end_triple_quote', next: '@pop' }],
+        [/"""|'''/, { token: 'punctuation.end_triple_quote', next: '@pop' }],
         [/./, { token: 'multi_string' }],
       ],
 
