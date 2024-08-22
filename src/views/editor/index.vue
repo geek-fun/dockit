@@ -18,7 +18,6 @@ import { CustomError } from '../../common';
 import { useAppStore, useChatStore, useConnectionStore, useSourceFileStore } from '../../store';
 import { useLang } from '../../lang';
 import DisplayEditor from './display-editor.vue';
-import JSON5 from 'json5';
 
 import {
   buildCodeLens,
