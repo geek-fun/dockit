@@ -220,8 +220,7 @@ export const search = {
             next: '@string',
           },
         ],
-        // [/['](?:(?:\\.)|(?:[^'\\]))*?[']/, { token: 'invalid' }],
-        { include: 'common' },
+        { include: '@whitespace' },
         [/.+?/, { token: 'text' }],
         [/\/\/.*$/, { token: 'invalid' }],
       ],
@@ -249,10 +248,10 @@ export const search = {
       ],
 
       string: [
-        [/[^\\"]+/, 'string'],
+        [/[^\\"']+/, 'string'],
         [/@escapes/, 'string.escape'],
         [/\\./, 'string.escape.invalid'],
-        [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }],
+        [/["']/, { token: 'string.quote', bracket: '@close', next: '@pop' }],
       ],
 
       string_literal: [
