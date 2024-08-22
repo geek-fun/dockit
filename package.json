@@ -37,7 +37,7 @@
     "ulidx": "^2.3.0",
     "vue": "^3.4.34",
     "vue-i18n": "^9.13.1",
-    "vue-router": "^4.4.0"
+    "vue-router": "^4.4.2"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1",
