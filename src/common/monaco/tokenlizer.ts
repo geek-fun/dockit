@@ -1,4 +1,6 @@
-import { executeActions, SearchAction } from './';
+import { Decoration, executeActions, monaco, SearchAction } from './';
+import JSON5 from 'json5';
+import { CustomError } from '../customError.ts';
 
 export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent: string }>) => {
   const commands = lines.filter(({ lineContent }) => executeActions.regexp.test(lineContent));
@@ -47,4 +49,65 @@ export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent:
         : null,
     } as SearchAction;
   });
+};
+export const executionGutterClass = 'execute-button-decoration';
+export const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<Decoration> => {
+  return searchTokens
+    .map(({ actionPosition }) => ({
+      id: actionPosition.startLineNumber,
+      range: actionPosition,
+      options: { isWholeLine: true, linesDecorationsClassName: executionGutterClass },
+    }))
+    .filter(Boolean)
+    .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
+};
+export const buildCodeLens = (searchTokens: SearchAction[], autoIndentCmdId: string) =>
+  searchTokens
+    .filter(({ qdslPosition }) => qdslPosition)
+    .map(({ actionPosition, qdslPosition }, index) => ({
+      range: actionPosition,
+      id: `AutoIndent-${index}`,
+      command: { id: autoIndentCmdId!, title: 'Auto Indent', arguments: [qdslPosition] },
+    }));
+
+export const formatQDSL = (
+  searchTokens: SearchAction[],
+  model: monaco.editor.ITextModel,
+  qdslPosition: { startLineNumber: number; endLineNumber: number },
+) => {
+  const { startLineNumber, endLineNumber } = qdslPosition;
+  const content = model.getValueInRange({
+    startLineNumber,
+    startColumn: 1,
+    endLineNumber: endLineNumber,
+    endColumn: model.getLineLength(endLineNumber) + 1,
+  });
+
+  const bulkAction = searchTokens.find(
+    ({ qdslPosition: position, path }) =>
+      path.includes('_bulk') && position.startLineNumber === qdslPosition.startLineNumber,
+  );
+
+  if (!bulkAction) {
+    return JSON5.stringify(JSON5.parse(content), null, 2);
+  }
+  const lines = content.split('\n').map(line => JSON5.parse(line));
+  return lines.map(line => JSON5.stringify(line)).join('\n');
+};
+
+export const transformQDSL = (action: SearchAction) => {
+  try {
+    const bulkAction = action.path.includes('_bulk');
+    if (bulkAction) {
+      const dsql = action.qdsl
+        .split('\n')
+        .map(line => JSON.stringify(JSON5.parse(line)))
+        .join('\n');
+      return `${dsql}\n`;
+    }
+
+    return action.qdsl ? JSON.stringify(JSON5.parse(action.qdsl), null, 2) : undefined;
+  } catch (err) {
+    throw new CustomError(400, (err as Error).message);
+  }
 };

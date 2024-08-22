@@ -9,7 +9,6 @@ const provideMethodCompletionItems = (lineContent: string) => {
     [/^de?l?e?t?e?$/gi, 'DELETE '],
   ]);
   const matchedMethodKey = Array.from(methods.keys()).find(regex => regex.test(lineContent));
-  console.log('matchedMethodKey', { matchedMethodKey, lineContent });
   if (!matchedMethodKey) {
     return null;
   }

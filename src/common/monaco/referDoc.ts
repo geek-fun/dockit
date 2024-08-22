@@ -5,10 +5,14 @@ export const defaultCodeSnippet = `
 GET _cluster/health
 
 // Cluster State
-GET _cluster/state
+GET _cluster/stats
+// Nodes Info
+GET _nodes
+// Nodes Info
+GET _nodes/event-es-8-node
 
 // Nodes Info
-GET _nodes/info
+GET _nodes
 
 // Create Index
 PUT dockit_sample_index
@@ -20,25 +24,32 @@ DELETE dockit_sample_index
 // Get Mapping
 GET dockit_sample_index/_mapping
 
-
-// Put Mapping
-PUT dockit_sample_index/_mapping
+GET dockit_sample_index/_search
 {
-  "properties": {
-    "name": {
-      "type": "text"
-    }
+  query: {
+    // support comments
+    match_all: {}
   }
 }
 
+// Put Mapping
+
+PUT dockit_sample_index/_mapping
+{
+  properties: {
+    name: {
+      type: 'text',
+    }
+  }
+}
 // Aliases
 POST _aliases
 {
-  "actions": [
+  actions: [
     {
-      "add": {
-        "index": "dockit_sample_index",
-        "alias": "dockit_sample_index_alias"
+      add: {
+        index: 'dockit_sample_index',
+        alias: 'dockit_sample_index_alias'
       }
     }
   ]
@@ -47,16 +58,16 @@ POST _aliases
 // Indexing Documents
 POST dockit_sample_index/_doc/1
 {
-  "name": "Elasticsearch",
-  "category": "Search Engine"
+  name: 'Elasticsearch',
+  category: 'Search Engine'
 }
 
 // Searching
 POST dockit_sample_index/_search
 {
-  "query": {
-    "match": {
-      "name": "Elasticsearch"
+  query: {
+    match: {
+      name: 'Elasticsearch'
     }
   }
 }
@@ -64,9 +75,9 @@ POST dockit_sample_index/_search
 // Count
 POST dockit_sample_index/_count
 {
-  "query": {
-    "term": {
-      "category.keyword": "Search Engine"
+  query: {
+    term: {
+      'category.keyword': 'Search Engine'
     }
   }
 }
@@ -77,20 +88,22 @@ GET dockit_sample_index/_doc/1
 // Update Document
 POST dockit_sample_index/_update/1
 {
-  "doc": {
-    "category": "Search Engine"
-  }
+  doc: {
+    category: 'Search Engine'
+  },
 }
 
 // Delete Document
 DELETE dockit_sample_index/_doc/1
 
+GET _cat/indices
 
 // Bulk API
 POST _bulk
-{"index": {"_index": "dockit_sample_index", "_id": "1"}}
-{"name": "Document 1"}
-{"delete": {"_index": "dockit_sample_index", "_id": "2"}}
+{index:{_index:'dockit_sample_index',_id:'1'}}
+{name:'Document 1'}
+{delete:{_index:'dockit_sample_index',_id:'2'}}
+
 `;
 
 const actionRegexMap: { [key in ActionType]: RegExp } = {

@@ -287,7 +287,6 @@ const toggleModal = (target: string) => {
 };
 
 const handleAction = async (action: string, indexName: string, aliasName?: string) => {
-  console.log('action', { action, indexName, aliasName });
   if (action === 'deleteIndex') {
     dialog.warning({
       title: lang.t('dialogOps.warning'),
