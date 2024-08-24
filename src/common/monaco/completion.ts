@@ -1,5 +1,5 @@
 import * as monaco from 'monaco-editor';
-import { keywords } from './lexerRules.ts';
+import { keywords } from './keywords.ts';
 
 const provideMethodCompletionItems = (lineContent: string) => {
   const methods = new Map<RegExp, string>([
@@ -29,9 +29,7 @@ const provideMethodCompletionItems = (lineContent: string) => {
 const provideKeywordCompletionItems = (lineContent: string) => {
   const word = lineContent.split(/[ /]+/).pop() || '';
   const suggestions = keywords
-    .filter(keyword => {
-      return keyword.startsWith(word);
-    })
+    .filter(keyword => keyword.startsWith(word))
     .map(keyword => ({
       label: keyword,
       kind: monaco.languages.CompletionItemKind.Keyword,
