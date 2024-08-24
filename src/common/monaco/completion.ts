@@ -1,7 +1,7 @@
 import * as monaco from 'monaco-editor';
 import { keywords } from './keywords.ts';
 
-const provideMethodCompletionItems = (lineContent: string) => {
+const providePathCompletionItems = (lineContent: string) => {
   const methods = new Map<RegExp, string>([
     [/^ge?t?$/gi, 'GET '],
     [/^put?$/gi, 'PUT '],
@@ -26,7 +26,7 @@ const provideMethodCompletionItems = (lineContent: string) => {
   };
 };
 
-const provideKeywordCompletionItems = (lineContent: string) => {
+const provideQDSLCompletionItems = (lineContent: string) => {
   const word = lineContent.split(/[ /]+/).pop() || '';
   const suggestions = keywords
     .filter(keyword => keyword.startsWith(word))
@@ -49,12 +49,22 @@ export const searchCompletionProvider = (
     endColumn: position.column,
   });
 
-  const methodCompletions = provideMethodCompletionItems(textUntilPosition);
+  if (textUntilPosition.endsWith('"') || textUntilPosition.endsWith("'")) {
+    return {
+      suggestions: keywords.map(keyword => ({
+        label: keyword,
+        kind: monaco.languages.CompletionItemKind.Keyword,
+        insertText: keyword,
+      })),
+    };
+  }
+
+  const methodCompletions = providePathCompletionItems(textUntilPosition);
   if (methodCompletions) {
     return methodCompletions;
   }
-  const keywordCompletions = provideKeywordCompletionItems(textUntilPosition);
 
+  const keywordCompletions = provideQDSLCompletionItems(textUntilPosition);
   if (keywordCompletions) {
     return keywordCompletions;
   }

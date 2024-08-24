@@ -260,8 +260,8 @@ const dsql = {
 //   _search_sort,
 // };
 
-const keywords = Object.entries(dsql)
-  .reduce((acc, [, value]) => [...acc, ...value], [] as string[])
-  .filter(Boolean);
+const keywords = Array.from(
+  new Set(Object.entries(dsql).reduce((acc, [, value]) => [...acc, ...value], [] as string[])),
+).filter(Boolean);
 
 export { keywords };
