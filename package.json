@@ -35,7 +35,7 @@
     "pretty-bytes": "^6.1.1",
     "tauri-plugin-store-api": "github:tauri-apps/tauri-plugin-store#v1",
     "tauri-plugin-system-info-api": "^1.0.2",
-    "ulidx": "^2.3.0",
+    "ulidx": "^2.4.0",
     "vue": "^3.4.35",
     "vue-i18n": "^9.13.1",
     "vue-router": "^4.4.2"
