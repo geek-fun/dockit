@@ -2,7 +2,7 @@ import * as monaco from 'monaco-editor';
 
 import { executeActions, search } from './lexerRules.ts';
 import { monacoEnvironment } from './environment.ts';
-import { searchCompletionProvider } from './completion.ts';
+import { searchCompletionProvider, searchResolveCompletionItem } from './completion.ts';
 
 self.MonacoEnvironment = monacoEnvironment;
 
@@ -20,6 +20,7 @@ monaco.languages.registerCompletionItemProvider(search.id, {
   triggerCharacters: ['g', 'p', 'd', '"', "'", ' '],
   // @ts-ignore
   provideCompletionItems: searchCompletionProvider,
+  resolveCompletionItem: searchResolveCompletionItem,
 });
 
 export * from './type.ts';

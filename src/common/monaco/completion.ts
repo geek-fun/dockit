@@ -38,10 +38,7 @@ const provideQDSLCompletionItems = (lineContent: string) => {
   return { suggestions };
 };
 
-export const searchCompletionProvider = (
-  model: monaco.editor.ITextModel,
-  position: monaco.Position,
-) => {
+const searchCompletionProvider = (model: monaco.editor.ITextModel, position: monaco.Position) => {
   const textUntilPosition = model.getValueInRange({
     startLineNumber: position.lineNumber,
     startColumn: 1,
@@ -54,7 +51,13 @@ export const searchCompletionProvider = (
       suggestions: keywords.map(keyword => ({
         label: keyword,
         kind: monaco.languages.CompletionItemKind.Keyword,
-        insertText: keyword,
+        insertText: `${keyword}${textUntilPosition.charAt(textUntilPosition.length - 1)}`,
+        range: new monaco.Range(
+          position.lineNumber,
+          position.column,
+          position.lineNumber,
+          position.column + 1,
+        ),
       })),
     };
   }
@@ -69,3 +72,17 @@ export const searchCompletionProvider = (
     return keywordCompletions;
   }
 };
+
+const searchResolveCompletionItem = (item: monaco.languages.CompletionItem) => {
+  if (item.kind !== monaco.languages.CompletionItemKind.Keyword) {
+    return item;
+  }
+
+  return {
+    ...item,
+    insertText: `${item.insertText}: {\n\t$0\n},`,
+    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+  };
+};
+
+export { searchCompletionProvider, searchResolveCompletionItem };
