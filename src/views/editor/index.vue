@@ -374,6 +374,10 @@ listen('saveFile', async event => {
   border-style: solid;
 }
 
+:deep(.mtk14, .mtk19) {
+  color: #00756c;
+}
+
 :deep(.mtk19) {
   color: #00756c;
 }
