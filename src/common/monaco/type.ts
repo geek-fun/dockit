@@ -14,8 +14,7 @@ export type Decoration = {
 
 export type SearchAction = {
   qdsl: string;
-  actionPosition: Range;
-  qdslPosition: Range;
+  position: Range;
   method: string;
   index: string;
   path: string;

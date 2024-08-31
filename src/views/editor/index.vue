@@ -124,7 +124,7 @@ watch(insertBoard, () => {
 
 const executeQueryAction = async (position: { column: number; lineNumber: number }) => {
   const action = searchTokens.find(
-    ({ actionPosition }) => actionPosition.startLineNumber === position.lineNumber,
+    ({ position: actionPosition }) => actionPosition.startLineNumber === position.lineNumber,
   );
 
   if (!action) {
@@ -157,32 +157,22 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
   }
 };
 
-const autoIndentAction = (
-  editor: monaco.editor.IStandaloneCodeEditor,
-  // @ts-ignore
-  ctx: unknown,
-  qdslPosition:
-    | {
-        startLineNumber: number;
-        endLineNumber: number;
-      }
-    | undefined,
-) => {
+const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor) => {
   const model = editor?.getModel();
-  if (!qdslPosition || !model) {
+  const { position } = getPointerAction(editor!, searchTokens) || {};
+  if (!position || !model) {
     return;
   }
-
-  const { startLineNumber, endLineNumber } = qdslPosition;
+  const { startLineNumber, endLineNumber } = position;
 
   try {
-    const formatted = formatQDSL(searchTokens, model, qdslPosition);
+    const formatted = formatQDSL(searchTokens, model, position);
     model.pushEditOperations(
       [],
       [
         {
           range: {
-            startLineNumber,
+            startLineNumber: startLineNumber + 1,
             startColumn: 1,
             endLineNumber,
             endColumn: model.getLineLength(endLineNumber) + 1,
@@ -207,11 +197,11 @@ const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
   if (lineNumber === undefined || lineNumber === null) {
     return;
   }
+  console.log('getPointerAction', { lineNumber });
 
-  return tokens.find(({ actionPosition: { startLineNumber }, qdslPosition }) =>
-    qdslPosition
-      ? lineNumber >= startLineNumber && lineNumber <= qdslPosition.endLineNumber
-      : startLineNumber === lineNumber,
+  return tokens.find(
+    ({ position: { startLineNumber, endLineNumber } }) =>
+      lineNumber >= startLineNumber && lineNumber <= endLineNumber,
   );
 };
 
@@ -227,9 +217,7 @@ const setupQueryEditor = (code: string) => {
     return;
   }
 
-  autoIndentCmdId = queryEditor.addCommand(0, (ctx, args) =>
-    autoIndentAction(queryEditor!, ctx, args),
-  );
+  autoIndentCmdId = queryEditor.addCommand(0, () => autoIndentAction(queryEditor!));
 
   queryEditor.onMouseDown(({ event, target }) => {
     if (
@@ -244,8 +232,7 @@ const setupQueryEditor = (code: string) => {
 
   // Auto indent current request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
-    const { qdslPosition } = getPointerAction(queryEditor!, searchTokens) || {};
-    autoIndentAction(queryEditor!, null, qdslPosition);
+    autoIndentAction(queryEditor!);
   });
 
   // Toggle Autocomplete
@@ -255,12 +242,9 @@ const setupQueryEditor = (code: string) => {
 
   // Submit request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-    const { actionPosition } = getPointerAction(queryEditor!, searchTokens) || {};
-    if (actionPosition) {
-      executeQueryAction({
-        column: actionPosition.startColumn,
-        lineNumber: actionPosition.startLineNumber,
-      });
+    const { position } = getPointerAction(queryEditor!, searchTokens) || {};
+    if (position) {
+      executeQueryAction({ column: position.startColumn, lineNumber: position.startLineNumber });
     }
   });
 
@@ -270,18 +254,16 @@ const setupQueryEditor = (code: string) => {
     if (!position) {
       return;
     }
-    const { actionPosition } =
-      searchTokens
-        .filter(({ actionPosition }) => actionPosition)
-        .sort((a, b) => b.actionPosition.startLineNumber - a.actionPosition.startLineNumber)
-        .find(({ actionPosition: { startLineNumber } }) => startLineNumber < position.lineNumber) ||
-      {};
+    const action = searchTokens
+      .filter(({ position }) => position)
+      .sort((a, b) => b.position.startLineNumber - a.position.startLineNumber)
+      .find(({ position: { startLineNumber } }) => startLineNumber < position.lineNumber);
 
-    if (actionPosition) {
-      queryEditor!.revealLine(actionPosition.startLineNumber);
+    if (action) {
+      queryEditor!.revealLine(action.position.startLineNumber);
       queryEditor!.setPosition({
         column: position.column,
-        lineNumber: actionPosition.startLineNumber,
+        lineNumber: action.position.startLineNumber,
       });
     }
   });
@@ -292,18 +274,16 @@ const setupQueryEditor = (code: string) => {
     if (!position) {
       return;
     }
-    const { actionPosition } =
-      searchTokens
-        .filter(({ actionPosition }) => actionPosition)
-        .sort((a, b) => a.actionPosition.startLineNumber - b.actionPosition.startLineNumber)
-        .find(({ actionPosition: { startLineNumber } }) => startLineNumber > position.lineNumber) ||
-      {};
+    const action = searchTokens
+      .filter(({ position }) => position)
+      .sort((a, b) => a.position.startLineNumber - b.position.startLineNumber)
+      .find(({ position: { startLineNumber } }) => startLineNumber > position.lineNumber);
 
-    if (actionPosition) {
-      queryEditor!.revealLine(actionPosition.startLineNumber);
+    if (action) {
+      queryEditor!.revealLine(action.position.startLineNumber);
       queryEditor!.setPosition({
         column: position.column,
-        lineNumber: actionPosition.startLineNumber,
+        lineNumber: action.position.startLineNumber,
       });
     }
   });

@@ -196,6 +196,256 @@ const _search_query_indices = ['indices', 'no_match_query'];
 
 const _search_sort = ['type', 'order', 'mode', 'missing', 'nested', '_script'];
 
+const dsqlTree = {
+  _search: {
+    label: '_search',
+    kind: 'constant',
+    children: {
+      query: {
+        label: 'query',
+        kind: 'keyword',
+        snippet: `query: {\n\t$0\n},`,
+        children: {
+          match: {
+            label: 'match',
+            kind: 'keyword',
+            snippet: `match: {\n\t$0\n},`,
+            children: {},
+          },
+          match_all: {
+            label: 'match_all',
+            kind: 'keyword',
+            snippet: `match_all: {\n\t$0\n},`,
+            children: {},
+          },
+          match_none: {
+            label: 'match_none',
+            kind: 'keyword',
+            snippet: `match_none: {\n\t$0\n},`,
+            children: {},
+          },
+          match_phrase: {
+            label: 'match_phrase',
+            kind: 'keyword',
+            snippet: `match_phrase: {\n\t$0\n},`,
+            children: {},
+          },
+          match_phrase_prefix: {
+            label: 'match_phrase_prefix',
+            kind: 'keyword',
+            snippet: `match_phrase_prefix: {\n\t$0\n},`,
+            children: {},
+          },
+          multi_match: {
+            label: 'multi_match',
+            kind: 'keyword',
+            snippet: `multi_match: {\n\t$0\n},`,
+            children: {},
+          },
+          term: {
+            label: 'term',
+            kind: 'keyword',
+            snippet: `term: {\n\t$0\n},`,
+            children: {},
+          },
+          terms: {
+            label: 'terms',
+            kind: 'keyword',
+            snippet: `terms: {\n\t$0\n},`,
+            children: {},
+          },
+          query_string: {
+            label: 'query_string',
+            kind: 'keyword',
+            snippet: `query_string: {\n\t$0\n},`,
+            children: {},
+          },
+          ids: {
+            label: 'ids',
+            kind: 'keyword',
+            snippet: `ids: {\n\t$0\n},`,
+            children: {},
+          },
+          prefix: {
+            label: 'prefix',
+            kind: 'keyword',
+            snippet: `prefix: {\n\t$0\n},`,
+            children: {},
+          },
+          wildcard: {
+            label: 'wildcard',
+            kind: 'keyword',
+            snippet: `wildcard: {\n\t$0\n},`,
+            children: {},
+          },
+          fuzzy: {
+            label: 'fuzzy',
+            kind: 'keyword',
+            snippet: `fuzzy: {\n\t$0\n},`,
+            children: {},
+          },
+          fuzzy_like_this: {
+            label: 'fuzzy_like_this',
+            kind: 'keyword',
+            snippet: `fuzzy_like_this: {\n\t$0\n},`,
+            children: {},
+          },
+          fuzzy_like_this_field: {
+            label: 'fuzzy_like_this_field',
+            kind: 'keyword',
+            snippet: `fuzzy_like_this_field: {\n\t$0\n},`,
+            children: {},
+          },
+          more_like_this: {
+            label: 'more_like_this',
+            kind: 'keyword',
+            snippet: `more_like_this: {\n\t$0\n},`,
+            children: {},
+          },
+          more_like_this_field: {
+            label: 'more_like_this_field',
+            kind: 'keyword',
+            snippet: `more_like_this_field: {\n\t$0\n},`,
+            children: {},
+          },
+          range: {
+            label: 'range',
+            kind: 'keyword',
+            snippet: `range: {\n\t$0\n},`,
+            children: {},
+          },
+          dismax: {
+            label: 'dismax',
+            kind: 'keyword',
+            snippet: `dismax: {\n\t$0\n},`,
+            children: {},
+          },
+          regexp: {
+            label: 'regexp',
+            kind: 'keyword',
+            snippet: `regexp: {\n\t$0\n},`,
+            children: {},
+          },
+          bool: {
+            label: 'bool',
+            kind: 'keyword',
+            snippet: `bool: {\n\t$0\n},`,
+            children: {},
+          },
+          boosting: {
+            label: 'boosting',
+            kind: 'keyword',
+            snippet: `boosting: {\n\t$0\n},`,
+            children: {},
+          },
+          constant_score: {
+            label: 'constant_score',
+            kind: 'keyword',
+            snippet: `constant_score: {\n\t$0\n},`,
+            children: {},
+          },
+          indices: {
+            label: 'indices',
+            kind: 'keyword',
+            snippet: `indices: {\n\t$0\n},`,
+            children: {},
+          },
+          default_operator: {
+            label: 'default_operator',
+            kind: 'keyword',
+            snippet: 'default_operator: $1',
+            children: {},
+          },
+          df: {
+            label: 'df',
+            kind: 'keyword',
+            snippet: 'df: $1',
+            children: {},
+          },
+          analyzer: {
+            label: 'analyzer',
+            kind: 'keyword',
+            snippet: 'analyzer: $1',
+            children: {},
+          },
+          sort: {
+            label: 'sort',
+            kind: 'keyword',
+            snippet: 'sort: $1',
+            children: {},
+          },
+          boost: {
+            label: 'boost',
+            kind: 'keyword',
+            snippet: 'boost: $1',
+            children: {},
+          },
+        },
+      },
+      from: {
+        label: 'from',
+        kind: 'keyword',
+        snippet: 'from: $1',
+      },
+      size: {
+        label: 'size',
+        kind: 'keyword',
+        snippet: 'size: $1',
+      },
+      aggs: {
+        label: 'aggs',
+        kind: 'keyword',
+        snippet: `aggs: {\n\t$0\n},`,
+      },
+      sort: {
+        label: 'sort',
+        kind: 'keyword',
+        snippet: 'sort: $1',
+      },
+      indices: {
+        label: 'indices',
+        kind: 'keyword',
+        snippet: 'indices: $1',
+      },
+      type: {
+        label: 'type',
+        kind: 'keyword',
+        snippet: 'type: $1',
+      },
+      version: {
+        label: 'version',
+        kind: 'keyword',
+        snippet: 'version: $1',
+      },
+      min_score: {
+        label: 'min_score',
+        kind: 'keyword',
+        snippet: 'min_score: $1',
+      },
+      fields: {
+        label: 'fields',
+        kind: 'keyword',
+        snippet: 'fields: $1',
+      },
+      script_fields: {
+        label: 'script_fields',
+        kind: 'keyword',
+        snippet: 'script_fields: ```\n\t$0\n```',
+      },
+      partial_fields: {
+        label: 'partial_fields',
+        kind: 'keyword',
+        snippet: 'partial_fields: ```\n\t$0\n```',
+      },
+      highlight: {
+        label: 'highlight',
+        kind: 'keyword',
+        snippet: `highlight: {\n\t$0\n},`,
+      },
+    },
+  },
+};
+
 const dsql = {
   methods,
   paths,
@@ -264,4 +514,4 @@ const keywords = Array.from(
   new Set(Object.entries(dsql).reduce((acc, [, value]) => [...acc, ...value], [] as string[])),
 ).filter(Boolean);
 
-export { keywords, dsql };
+export { keywords, dsql, dsqlTree };
