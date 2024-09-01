@@ -37,24 +37,6 @@ const paths = [
   '_shards:',
 ];
 
-const _search = [
-  'from',
-  'size',
-  'query',
-  'explain',
-  'analyze',
-  'aggs',
-  'sort',
-  'indices',
-  'type',
-  'version',
-  'min_score',
-  'fields',
-  'script_fields',
-  'partial_fields',
-  'highlight',
-];
-
 const _search_query = [
   'match',
   'match_all',
@@ -98,8 +80,6 @@ const _search_highlight = [
   'boundary_scanner',
   'boundary_scanner_locale',
 ];
-
-const _search_query_terms = ['minimum_match'];
 
 const _search_query_match_all = ['boost'];
 const _search_query_match_none = [..._search_query_match_all];
@@ -256,19 +236,59 @@ const dsqlTree: {
           },
           match_all: {
             label: 'match_all',
-            snippet: `match_all: {\n\t$0\n},`,
+            snippet: `match_all: {$0},`,
+            children: {
+              boost: {
+                label: 'boost',
+                snippet: 'boost: $1',
+              },
+            },
           },
           match_none: {
             label: 'match_none',
-            snippet: `match_none: {\n\t$0\n},`,
+            snippet: `match_none: {$0},`,
+            children: {
+              boost: {
+                label: 'boost',
+                snippet: 'boost: $1',
+              },
+            },
           },
           match_phrase: {
             label: 'match_phrase',
             snippet: `match_phrase: {\n\t$0\n},`,
+            children: {
+              query: {
+                label: 'query',
+                snippet: 'query: $1',
+              },
+              slop: {
+                label: 'slop',
+                snippet: 'slop: $1',
+              },
+              analyzer: {
+                label: 'analyzer',
+                snippet: 'analyzer: $1',
+              },
+            },
           },
           match_phrase_prefix: {
             label: 'match_phrase_prefix',
             snippet: `match_phrase_prefix: {\n\t$0\n},`,
+            children: {
+              max_expansions: {
+                label: 'max_expansions',
+                snippet: 'max_expansions: $1',
+              },
+              query: {
+                label: 'query',
+                snippet: 'query: $1',
+              },
+              analyzer: {
+                label: 'analyzer',
+                snippet: 'analyzer: $1',
+              },
+            },
           },
           multi_match: {
             label: 'multi_match',
@@ -276,7 +296,19 @@ const dsqlTree: {
           },
           term: {
             label: 'term',
-            snippet: `term: {\n\t$0\n},`,
+            snippet: `term: {\n\t$0FIELD: {\n\tvalue: 'VALUE'\n}\n},`,
+            children: {
+              '*': {
+                label: '*',
+                snippet: `*: {\n\t$0\n},`,
+                children: {
+                  boost: {
+                    label: 'boost',
+                    snippet: 'boost: $1',
+                  },
+                },
+              },
+            },
           },
           terms: {
             label: 'terms',
@@ -442,11 +474,8 @@ const getSubDsqlTree = (action: string, path: Array<string>) => {
 
 const dsql = {
   methods,
-  paths,
-  _search,
   _search_query,
   _search_highlight,
-  _search_query_terms,
   _search_query_match_all,
   _search_query_match_none,
   _search_query_match,
@@ -470,6 +499,7 @@ const dsql = {
   _search_query_indices,
   _search_sort,
 };
+
 //
 // const dsqlState = []
 // const dsqlTree = {
@@ -508,4 +538,4 @@ const keywords = Array.from(
   new Set(Object.entries(dsql).reduce((acc, [, value]) => [...acc, ...value], [] as string[])),
 ).filter(Boolean);
 
-export { keywords, dsql, dsqlTree, getSubDsqlTree };
+export { keywords, paths, dsqlTree, getSubDsqlTree };

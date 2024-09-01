@@ -1,5 +1,5 @@
 import * as monaco from 'monaco-editor';
-import { dsql, getSubDsqlTree } from './keywords.ts';
+import { dsql, getSubDsqlTree, paths } from './keywords.ts';
 import { searchTokens } from './tokenlizer.ts';
 
 const providePathCompletionItems = (lineContent: string) => {
@@ -26,7 +26,7 @@ const providePathCompletionItems = (lineContent: string) => {
   const word = lineContent.split(/[ /]+/).pop() || '';
   if (isPathMatch) {
     return {
-      suggestions: dsql.paths
+      suggestions: paths
         .filter(p => p.startsWith(word))
         .map(keyword => ({
           label: keyword,
@@ -44,29 +44,17 @@ const getQueryTreePath = (actionBlockContent: string) => {
     .replace(/\/\/.*?\n|\/\*[\s\S]*?\*\//g, '')
 
     .split(/[{\[]/)
-    .forEach(conten => {
-      if (conten.trim().match(/[\w.]+:$/)) {
-        pathStack.push(conten.trim());
-      } else if (conten.trim().match(/[}\]]/)) {
-        pathStack.pop();
+    .forEach(item => {
+      const pureItem = item.replace(/\s+/g, '');
+      if (/[}\]]/.test(pureItem)) {
+        console.log('pop', pathStack.pop());
+      }
+      if (/[\w.]+:$/.test(pureItem)) {
+        pathStack.push(pureItem);
       }
     });
 
-  return pathStack.map(path => path.replace(/:$/, ''));
-  /**
-   * {
-   *   "version": true,
-   *   "query": {
-   *    "bool": {
-   *      "must_not": [
-   *        {}
-   *      ],
-   *
-   *      "must": [
-   *        {
-   *          "match": {
-   *
-   */
+  return pathStack.map(path => path.replace(/[:},\s]+/g, ''));
 };
 
 const provideQDSLCompletionItems = (
