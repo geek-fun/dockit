@@ -41,6 +41,8 @@ const getQueryTreePath = (actionBlockContent: string) => {
   const pathStack: string[] = [];
   actionBlockContent
     .replace(/['"]/g, '')
+    .replace(/\/\/.*?\n|\/\*[\s\S]*?\*\//g, '')
+
     .split(/[{\[]/)
     .forEach(conten => {
       if (conten.trim().match(/[\w.]+:$/)) {
@@ -103,26 +105,28 @@ const provideQDSLCompletionItems = (
     return;
   }
 
-  const suggestions = Object.entries(dsqlSubTree.children).map(([, value]) => ({
-    label: value.label,
-    kind: monaco.languages.CompletionItemKind.Keyword,
-    ...{
-      insertText: closureIndex === -1 ? value.snippet : value.label,
-      insertTextRules:
-        closureIndex === -1
-          ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-          : monaco.languages.CompletionItemInsertTextRule.None,
-      range:
-        closureIndex === -1
-          ? undefined
-          : new monaco.Range(
-              position.lineNumber,
-              position.column - 1,
-              position.lineNumber,
-              closureIndex,
-            ),
-    },
-  }));
+  const suggestions = Object.entries(dsqlSubTree?.children ?? {})
+    .filter(([key]) => key !== '*')
+    .map(([, value]) => ({
+      label: value.label,
+      kind: monaco.languages.CompletionItemKind.Keyword,
+      ...{
+        insertText: closureIndex < 0 ? value.snippet : value.label,
+        insertTextRules:
+          closureIndex < 0
+            ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+            : monaco.languages.CompletionItemInsertTextRule.None,
+        range:
+          closureIndex < 0
+            ? undefined
+            : new monaco.Range(
+                position.lineNumber,
+                position.column,
+                position.lineNumber,
+                closureIndex,
+              ),
+      },
+    }));
 
   // const suggestions = keywords
   //   .filter(keyword => keyword.startsWith(word))

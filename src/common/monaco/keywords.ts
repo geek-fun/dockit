@@ -202,7 +202,7 @@ const _search_sort = ['type', 'order', 'mode', 'missing', 'nested', '_script'];
 const dsqlTree: {
   [key: string]: {
     label: string;
-    children: {
+    children?: {
       [key: string]: DsqlTreeItem;
     };
   };
@@ -216,150 +216,157 @@ const dsqlTree: {
         children: {
           match: {
             label: 'match',
-            snippet: `match: {\n\t$0\n},`,
-            children: {},
+            snippet: `match: {\n\t$0FIELD:'TEXT'\n},`,
+            children: {
+              '*': {
+                label: '*',
+                snippet: `*: {\n\t$0\n},`,
+                children: {
+                  operator: {
+                    label: 'operator',
+                    snippet: 'operator: $1',
+                  },
+                  fuzziness: {
+                    label: 'fuzziness',
+                    snippet: 'fuzziness: $1',
+                  },
+                  analyzer: {
+                    label: 'analyzer',
+                    snippet: 'analyzer: $1',
+                  },
+                  prefix_length: {
+                    label: 'prefix_length',
+                    snippet: 'prefix_length: $1',
+                  },
+                  max_expansions: {
+                    label: 'max_expansions',
+                    snippet: 'max_expansions: $1',
+                  },
+                  cutoff_frequency: {
+                    label: 'cutoff_frequency',
+                    snippet: 'cutoff_frequency: $1',
+                  },
+                  query: {
+                    label: 'query',
+                    snippet: 'query: $1',
+                  },
+                },
+              },
+            },
           },
           match_all: {
             label: 'match_all',
             snippet: `match_all: {\n\t$0\n},`,
-            children: {},
           },
           match_none: {
             label: 'match_none',
             snippet: `match_none: {\n\t$0\n},`,
-            children: {},
           },
           match_phrase: {
             label: 'match_phrase',
             snippet: `match_phrase: {\n\t$0\n},`,
-            children: {},
           },
           match_phrase_prefix: {
             label: 'match_phrase_prefix',
             snippet: `match_phrase_prefix: {\n\t$0\n},`,
-            children: {},
           },
           multi_match: {
             label: 'multi_match',
             snippet: `multi_match: {\n\t$0\n},`,
-            children: {},
           },
           term: {
             label: 'term',
             snippet: `term: {\n\t$0\n},`,
-            children: {},
           },
           terms: {
             label: 'terms',
             snippet: `terms: {\n\t$0\n},`,
-            children: {},
           },
           query_string: {
             label: 'query_string',
             snippet: `query_string: {\n\t$0\n},`,
-            children: {},
           },
           ids: {
             label: 'ids',
             snippet: `ids: {\n\t$0\n},`,
-            children: {},
           },
           prefix: {
             label: 'prefix',
             snippet: `prefix: {\n\t$0\n},`,
-            children: {},
           },
           wildcard: {
             label: 'wildcard',
             snippet: `wildcard: {\n\t$0\n},`,
-            children: {},
           },
           fuzzy: {
             label: 'fuzzy',
             snippet: `fuzzy: {\n\t$0\n},`,
-            children: {},
           },
           fuzzy_like_this: {
             label: 'fuzzy_like_this',
             snippet: `fuzzy_like_this: {\n\t$0\n},`,
-            children: {},
           },
           fuzzy_like_this_field: {
             label: 'fuzzy_like_this_field',
             snippet: `fuzzy_like_this_field: {\n\t$0\n},`,
-            children: {},
           },
           more_like_this: {
             label: 'more_like_this',
             snippet: `more_like_this: {\n\t$0\n},`,
-            children: {},
           },
           more_like_this_field: {
             label: 'more_like_this_field',
             snippet: `more_like_this_field: {\n\t$0\n},`,
-            children: {},
           },
           range: {
             label: 'range',
 
             snippet: `range: {\n\t$0\n},`,
-            children: {},
           },
           dismax: {
             label: 'dismax',
             snippet: `dismax: {\n\t$0\n},`,
-            children: {},
           },
           regexp: {
             label: 'regexp',
             snippet: `regexp: {\n\t$0\n},`,
-            children: {},
           },
           bool: {
             label: 'bool',
 
             snippet: `bool: {\n\t$0\n},`,
-            children: {},
           },
           boosting: {
             label: 'boosting',
             snippet: `boosting: {\n\t$0\n},`,
-            children: {},
           },
           constant_score: {
             label: 'constant_score',
             snippet: `constant_score: {\n\t$0\n},`,
-            children: {},
           },
           indices: {
             label: 'indices',
             snippet: `indices: {\n\t$0\n},`,
-            children: {},
           },
           default_operator: {
             label: 'default_operator',
             snippet: 'default_operator: $1',
-            children: {},
           },
           df: {
             label: 'df',
             snippet: 'df: $1',
-            children: {},
           },
           analyzer: {
             label: 'analyzer',
             snippet: 'analyzer: $1',
-            children: {},
           },
           sort: {
             label: 'sort',
             snippet: 'sort: $1',
-            children: {},
           },
           boost: {
             label: 'boost',
             snippet: 'boost: $1',
-            children: {},
           },
         },
       },
@@ -416,7 +423,21 @@ const dsqlTree: {
 };
 
 const getSubDsqlTree = (action: string, path: Array<string>) => {
-  return get(dsqlTree, [action, ...path].join('.children.'));
+  let subTree = get(dsqlTree, action);
+  console.log('getSubDsqlTree', { action, path, subTree });
+  if (!subTree) {
+    return;
+  }
+  for (const key of path) {
+    const newSubTree = get(subTree, `children.${key}`) || get(subTree, 'children.*');
+    if (newSubTree) {
+      subTree = newSubTree;
+    } else {
+      return;
+    }
+  }
+
+  return subTree;
 };
 
 const dsql = {
