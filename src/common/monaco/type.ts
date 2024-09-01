@@ -21,6 +21,12 @@ export type SearchAction = {
   queryParams: string | null;
 };
 
+export type DsqlTreeItem = {
+  label: string;
+  snippet: string;
+  children?: { [key: string]: DsqlTreeItem };
+};
+
 export enum ActionType {
   POST_INDEX = 'POST_INDEX',
   POST_SEARCH = 'POST_SEARCH',

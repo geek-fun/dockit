@@ -2,7 +2,7 @@ import { Decoration, executeActions, monaco, SearchAction } from './';
 import JSON5 from 'json5';
 import { CustomError } from '../customError.ts';
 
-let searchTokens: SearchAction[] = [];
+export let searchTokens: SearchAction[] = [];
 
 export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent: string }>) => {
   const commands = lines.filter(({ lineContent }) => executeActions.regexp.test(lineContent));

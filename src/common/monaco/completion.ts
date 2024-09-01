@@ -1,5 +1,6 @@
 import * as monaco from 'monaco-editor';
-import { dsql, keywords } from './keywords.ts';
+import { dsql, getSubDsqlTree } from './keywords.ts';
+import { searchTokens } from './tokenlizer.ts';
 
 const providePathCompletionItems = (lineContent: string) => {
   const methods = new Map<RegExp, string>([
@@ -36,42 +37,120 @@ const providePathCompletionItems = (lineContent: string) => {
   }
 };
 
+const getQueryTreePath = (actionBlockContent: string) => {
+  const pathStack: string[] = [];
+  actionBlockContent
+    .replace(/['"]/g, '')
+    .split(/[{\[]/)
+    .forEach(conten => {
+      if (conten.trim().match(/[\w.]+:$/)) {
+        pathStack.push(conten.trim());
+      } else if (conten.trim().match(/[}\]]/)) {
+        pathStack.pop();
+      }
+    });
+
+  return pathStack.map(path => path.replace(/:$/, ''));
+  /**
+   * {
+   *   "version": true,
+   *   "query": {
+   *    "bool": {
+   *      "must_not": [
+   *        {}
+   *      ],
+   *
+   *      "must": [
+   *        {
+   *          "match": {
+   *
+   */
+};
+
 const provideQDSLCompletionItems = (
   textUntilPosition: string,
   lineContent: string,
   position: monaco.Position,
+  model: monaco.editor.ITextModel,
 ) => {
   const word = textUntilPosition.split(/[ /]+/).pop() || '';
-  const closureIndex = getClosureIndex(lineContent, textUntilPosition);
+  const closureIndex = isReplaceCompletion(lineContent, textUntilPosition);
   console.log('closureIndex', { closureIndex, word, textUntilPosition, lineContent });
 
-  const suggestions = keywords
-    .filter(keyword => keyword.startsWith(word))
-    .map(keyword => ({
-      label: keyword,
-      insertText: keyword,
-      kind: monaco.languages.CompletionItemKind.Keyword,
-      ...{
-        insertTextRules:
-          closureIndex === -1
-            ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-            : monaco.languages.CompletionItemInsertTextRule.None,
-        range:
-          closureIndex === -1
-            ? undefined
-            : new monaco.Range(
-                position.lineNumber,
-                position.column - 1,
-                position.lineNumber,
-                closureIndex,
-              ),
-      },
-    }));
+  const action = searchTokens.find(
+    ({ position: { startLineNumber, endLineNumber } }) =>
+      position.lineNumber > startLineNumber && position.lineNumber < endLineNumber,
+  );
+  if (!action) {
+    return;
+  }
+
+  const actionBlockContent = model.getValueInRange({
+    startLineNumber: action?.position.startLineNumber + 1,
+    endLineNumber: position.lineNumber,
+    startColumn: 1,
+    endColumn: position.column,
+  });
+  const queryTreePath = getQueryTreePath(actionBlockContent);
+  const queryAction = action.path.split('/')?.pop()?.replace(/\?.*/g, '');
+
+  if (!queryAction) {
+    return;
+  }
+
+  const dsqlSubTree = getSubDsqlTree(queryAction, queryTreePath);
+  if (!dsqlSubTree) {
+    return;
+  }
+
+  const suggestions = Object.entries(dsqlSubTree.children).map(([, value]) => ({
+    label: value.label,
+    kind: monaco.languages.CompletionItemKind.Keyword,
+    ...{
+      insertText: closureIndex === -1 ? value.snippet : value.label,
+      insertTextRules:
+        closureIndex === -1
+          ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+          : monaco.languages.CompletionItemInsertTextRule.None,
+      range:
+        closureIndex === -1
+          ? undefined
+          : new monaco.Range(
+              position.lineNumber,
+              position.column - 1,
+              position.lineNumber,
+              closureIndex,
+            ),
+    },
+  }));
+
+  // const suggestions = keywords
+  //   .filter(keyword => keyword.startsWith(word))
+  //   .map(keyword => ({
+  //     label: keyword,
+  //     insertText: keyword,
+  //     kind: monaco.languages.CompletionItemKind.Keyword,
+  //     ...{
+  //       insertTextRules:
+  //         closureIndex === -1
+  //           ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+  //           : monaco.languages.CompletionItemInsertTextRule.None,
+  //       range:
+  //         closureIndex === -1
+  //           ? undefined
+  //           : new monaco.Range(
+  //               position.lineNumber,
+  //               position.column - 1,
+  //               position.lineNumber,
+  //               closureIndex,
+  //             ),
+  //     },
+  //   }));
 
   return { suggestions };
 };
 
-const getClosureIndex = (lineContent: string, textUntilPosition: string) => {
+const isReplaceCompletion = (lineContent: string, textUntilPosition: string) => {
   const matches = lineContent?.substring(textUntilPosition.length)?.match(/[,":]/);
   if (matches && matches[0]) {
     return (
@@ -92,44 +171,35 @@ const searchCompletionProvider = (model: monaco.editor.ITextModel, position: mon
     endColumn: position.column,
   });
   const lineContent = model.getLineContent(position.lineNumber);
-
-  if (textUntilPosition.endsWith('"') || textUntilPosition.endsWith("'")) {
-    return {
-      suggestions: keywords.map(keyword => ({
-        label: keyword,
-        kind: monaco.languages.CompletionItemKind.Keyword,
-        insertText: `${keyword}${textUntilPosition.charAt(textUntilPosition.length - 1)}`,
-        range: new monaco.Range(
-          position.lineNumber,
-          position.column,
-          position.lineNumber,
-          position.column + 1,
-        ),
-      })),
-    };
-  }
+  console.log('searchCompletionProvider', { textUntilPosition, lineContent });
 
   const methodCompletions = providePathCompletionItems(textUntilPosition);
   if (methodCompletions) {
     return methodCompletions;
   }
 
-  const keywordCompletions = provideQDSLCompletionItems(textUntilPosition, lineContent, position);
+  const keywordCompletions = provideQDSLCompletionItems(
+    textUntilPosition,
+    lineContent,
+    position,
+    model,
+  );
+
   if (keywordCompletions) {
     return keywordCompletions;
   }
 };
+//
+// const searchResolveCompletionItem = (item: monaco.languages.CompletionItem) => {
+//   console.log('searchResolveCompletionItem', item);
+//   if (item.insertTextRules !== monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet) {
+//     return item;
+//   }
+//
+//   return {
+//     ...item,
+//     insertText: `${item.insertText}: {\n\t$0\n},`,
+//   };
+// };
 
-const searchResolveCompletionItem = (item: monaco.languages.CompletionItem) => {
-  console.log('searchResolveCompletionItem', item);
-  if (item.insertTextRules !== monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet) {
-    return item;
-  }
-
-  return {
-    ...item,
-    insertText: `${item.insertText}: {\n\t$0\n},`,
-  };
-};
-
-export { searchCompletionProvider, searchResolveCompletionItem };
+export { searchCompletionProvider };
