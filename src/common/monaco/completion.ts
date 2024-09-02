@@ -1,6 +1,7 @@
 import * as monaco from 'monaco-editor';
-import { dsql, getSubDsqlTree, paths } from './keywords.ts';
+import { paths } from './keywords.ts';
 import { searchTokens } from './tokenlizer.ts';
+import { getSubDsqlTree } from './dsql';
 
 const providePathCompletionItems = (lineContent: string) => {
   const methods = new Map<RegExp, string>([
