@@ -17,9 +17,10 @@ monaco.languages.setLanguageConfiguration(
   search.languageConfiguration as monaco.languages.LanguageConfiguration,
 );
 monaco.languages.registerCompletionItemProvider(search.id, {
-  triggerCharacters: ['g', 'p', 'd'],
+  triggerCharacters: ['g', 'p', 'd', '"', "'", ' '],
   // @ts-ignore
   provideCompletionItems: searchCompletionProvider,
+  // resolveCompletionItem: searchResolveCompletionItem,
 });
 
 export * from './type.ts';

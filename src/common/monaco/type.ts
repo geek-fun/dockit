@@ -14,12 +14,17 @@ export type Decoration = {
 
 export type SearchAction = {
   qdsl: string;
-  actionPosition: Range;
-  qdslPosition: Range;
+  position: Range;
   method: string;
   index: string;
   path: string;
   queryParams: string | null;
+};
+
+export type DsqlTreeItem = {
+  label: string;
+  snippet: string;
+  children?: { [key: string]: DsqlTreeItem };
 };
 
 export enum ActionType {

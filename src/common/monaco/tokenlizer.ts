@@ -2,10 +2,12 @@ import { Decoration, executeActions, monaco, SearchAction } from './';
 import JSON5 from 'json5';
 import { CustomError } from '../customError.ts';
 
+export let searchTokens: SearchAction[] = [];
+
 export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent: string }>) => {
   const commands = lines.filter(({ lineContent }) => executeActions.regexp.test(lineContent));
 
-  return commands.map(({ lineContent, lineNumber }, index, commands) => {
+  searchTokens = commands.map(({ lineContent, lineNumber }, index, commands) => {
     const [rawPath, queryParams] = lineContent.split('?');
     const rawCmd = rawPath.split(/[\/\s]+/);
     const method = rawCmd[0]?.toUpperCase();
@@ -33,29 +35,23 @@ export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent:
       index: indexName,
       path,
       queryParams,
-      actionPosition: {
+      position: {
         startLineNumber: lineNumber,
-        endLineNumber: lineNumber,
+        endLineNumber,
         startColumn: 1,
-        endColumn: lineContent.length,
+        endColumn: lines[endLineNumber].lineContent.length,
       },
-      qdslPosition: qdsl
-        ? {
-            startLineNumber: lineNumber + 1,
-            startColumn: 1,
-            endLineNumber,
-            endColumn: lines[endLineNumber].lineContent.length,
-          }
-        : null,
     } as SearchAction;
   });
+
+  return searchTokens;
 };
 export const executionGutterClass = 'execute-button-decoration';
 export const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<Decoration> => {
   return searchTokens
-    .map(({ actionPosition }) => ({
-      id: actionPosition.startLineNumber,
-      range: actionPosition,
+    .map(({ position }) => ({
+      id: position.startLineNumber,
+      range: { ...position, endLineNumber: position.startLineNumber },
       options: { isWholeLine: true, linesDecorationsClassName: executionGutterClass },
     }))
     .filter(Boolean)
@@ -63,31 +59,33 @@ export const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<D
 };
 export const buildCodeLens = (searchTokens: SearchAction[], autoIndentCmdId: string) =>
   searchTokens
-    .filter(({ qdslPosition }) => qdslPosition)
-    .map(({ actionPosition, qdslPosition }, index) => ({
-      range: actionPosition,
+    .filter(({ qdsl }) => qdsl)
+    .map(({ position }, index) => ({
+      range: { ...position, endLineNumber: position.startLineNumber },
       id: `AutoIndent-${index}`,
-      command: { id: autoIndentCmdId!, title: 'Auto Indent', arguments: [qdslPosition] },
+      command: {
+        id: autoIndentCmdId!,
+        title: 'Auto Indent',
+        arguments: [{ ...position, startLineNumber: position.startLineNumber + 1 }],
+      },
     }));
 
 export const formatQDSL = (
   searchTokens: SearchAction[],
   model: monaco.editor.ITextModel,
-  qdslPosition: { startLineNumber: number; endLineNumber: number },
+  position: { startLineNumber: number; endLineNumber: number },
 ) => {
-  const { startLineNumber, endLineNumber } = qdslPosition;
+  const { startLineNumber, endLineNumber } = position;
   const content = model.getValueInRange({
-    startLineNumber,
+    startLineNumber: startLineNumber + 1,
     startColumn: 1,
     endLineNumber: endLineNumber,
     endColumn: model.getLineLength(endLineNumber) + 1,
   });
 
   const bulkAction = searchTokens.find(
-    ({ qdslPosition: position, path }) =>
-      path.includes('_bulk') && position.startLineNumber === qdslPosition.startLineNumber,
+    ({ path, position }) => path.includes('_bulk') && position.startLineNumber === startLineNumber,
   );
-
   if (!bulkAction) {
     return JSON5.stringify(JSON5.parse(content), null, 2);
   }
