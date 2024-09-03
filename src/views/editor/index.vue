@@ -197,7 +197,6 @@ const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
   if (lineNumber === undefined || lineNumber === null) {
     return;
   }
-  console.log('getPointerAction', { lineNumber });
 
   return tokens.find(
     ({ position: { startLineNumber, endLineNumber } }) =>

@@ -26,39 +26,35 @@ const dsqlTree: {
           ...specializedQueries,
           ...fullTextQueries,
           ...compoundQueries,
-          indices: {
-            label: 'indices',
-            snippet: `indices: {\n\t$0\n},`,
-          },
           default_operator: {
             label: 'default_operator',
-            snippet: 'default_operator: $1',
+            snippet: 'default_operator: $0',
           },
           df: {
             label: 'df',
-            snippet: 'df: $1',
+            snippet: 'df: $0',
           },
           analyzer: {
             label: 'analyzer',
-            snippet: 'analyzer: $1',
+            snippet: 'analyzer: $0',
           },
           sort: {
             label: 'sort',
-            snippet: 'sort: $1',
+            snippet: 'sort: $0',
           },
           boost: {
             label: 'boost',
-            snippet: 'boost: $1',
+            snippet: 'boost: $0',
           },
         },
       },
       from: {
         label: 'from',
-        snippet: 'from: $1',
+        snippet: 'from: $0',
       },
       size: {
         label: 'size',
-        snippet: 'size: $1',
+        snippet: 'size: $0',
       },
       aggs: {
         label: 'aggs',
@@ -66,27 +62,23 @@ const dsqlTree: {
       },
       sort: {
         label: 'sort',
-        snippet: 'sort: $1',
-      },
-      indices: {
-        label: 'indices',
-        snippet: 'indices: $1',
+        snippet: 'sort: $0',
       },
       type: {
         label: 'type',
-        snippet: 'type: $1',
+        snippet: 'type: $0',
       },
       version: {
         label: 'version',
-        snippet: 'version: $1',
+        snippet: 'version: $0',
       },
       min_score: {
         label: 'min_score',
-        snippet: 'min_score: $1',
+        snippet: 'min_score: $0',
       },
       fields: {
         label: 'fields',
-        snippet: 'fields: $1',
+        snippet: 'fields: $0',
       },
       script_fields: {
         label: 'script_fields',
@@ -106,7 +98,6 @@ const dsqlTree: {
 
 const getSubDsqlTree = (action: string, path: Array<string>) => {
   let subTree = get(dsqlTree, action);
-  console.log('getSubDsqlTree', { action, path, subTree });
   if (!subTree) {
     return;
   }
@@ -121,5 +112,22 @@ const getSubDsqlTree = (action: string, path: Array<string>) => {
 
   return subTree;
 };
+const getKeywordsFromDsqlTree = (tree: typeof dsqlTree): Array<string> => {
+  return Array.from(
+    new Set(
+      Object.entries(tree)
+        .map(([key, value]) => {
+          if (key === '*') {
+            return getKeywordsFromDsqlTree(value.children ?? {});
+          }
+          if (value.children) {
+            return [key, ...getKeywordsFromDsqlTree(value.children)];
+          }
+          return [key];
+        })
+        .flat(),
+    ),
+  );
+};
 
-export { dsqlTree, getSubDsqlTree };
+export { dsqlTree, getSubDsqlTree, getKeywordsFromDsqlTree };

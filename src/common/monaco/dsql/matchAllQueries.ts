@@ -5,7 +5,7 @@ export const matchAllQueries = {
     children: {
       boost: {
         label: 'boost',
-        snippet: 'boost: $1',
+        snippet: 'boost: $0',
       },
     },
   },

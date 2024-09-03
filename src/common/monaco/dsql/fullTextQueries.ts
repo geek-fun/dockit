@@ -9,31 +9,31 @@ export const fullTextQueries = {
         children: {
           operator: {
             label: 'operator',
-            snippet: 'operator: $1',
+            snippet: 'operator: $0',
           },
           fuzziness: {
             label: 'fuzziness',
-            snippet: 'fuzziness: $1',
+            snippet: 'fuzziness: $0',
           },
           analyzer: {
             label: 'analyzer',
-            snippet: 'analyzer: $1',
+            snippet: 'analyzer: $0',
           },
           prefix_length: {
             label: 'prefix_length',
-            snippet: 'prefix_length: $1',
+            snippet: 'prefix_length: $0',
           },
           max_expansions: {
             label: 'max_expansions',
-            snippet: 'max_expansions: $1',
+            snippet: 'max_expansions: $0',
           },
           cutoff_frequency: {
             label: 'cutoff_frequency',
-            snippet: 'cutoff_frequency: $1',
+            snippet: 'cutoff_frequency: $0',
           },
           query: {
             label: 'query',
-            snippet: 'query: $1',
+            snippet: 'query: $0',
           },
         },
       },
@@ -49,15 +49,15 @@ export const fullTextQueries = {
         children: {
           query: {
             label: 'query',
-            snippet: 'query: $1',
+            snippet: 'query: $0',
           },
           slop: {
             label: 'slop',
-            snippet: 'slop: $1',
+            snippet: 'slop: $0',
           },
           analyzer: {
             label: 'analyzer',
-            snippet: 'analyzer: $1',
+            snippet: 'analyzer: $0',
           },
         },
       },
@@ -73,15 +73,15 @@ export const fullTextQueries = {
         children: {
           max_expansions: {
             label: 'max_expansions',
-            snippet: 'max_expansions: $1',
+            snippet: 'max_expansions: $0',
           },
           query: {
             label: 'query',
-            snippet: 'query: $1',
+            snippet: 'query: $0',
           },
           analyzer: {
             label: 'analyzer',
-            snippet: 'analyzer: $1',
+            snippet: 'analyzer: $0',
           },
         },
       },
@@ -97,19 +97,19 @@ export const fullTextQueries = {
       },
       use_dis_max: {
         label: 'use_dis_max',
-        snippet: 'use_dis_max: $1',
+        snippet: 'use_dis_max: $0',
       },
       tie_breaker: {
         label: 'tie_breaker',
-        snippet: 'tie_breaker: $1',
+        snippet: 'tie_breaker: $0',
       },
       boost: {
         label: 'boost',
-        snippet: 'boost: $1',
+        snippet: 'boost: $0',
       },
       query: {
         label: 'query',
-        snippet: 'query: $1',
+        snippet: 'query: $0',
       },
     },
   },
@@ -119,31 +119,31 @@ export const fullTextQueries = {
     children: {
       query: {
         label: 'query',
-        snippet: 'query: $1',
+        snippet: 'query: $0',
       },
       default_field: {
         label: 'default_field',
-        snippet: 'default_field: $1',
+        snippet: 'default_field: $0',
       },
       default_operator: {
         label: 'default_operator',
-        snippet: 'default_operator: $1',
+        snippet: 'default_operator: $0',
       },
       df: {
         label: 'df',
-        snippet: 'df: $1',
+        snippet: 'df: $0',
       },
       analyzer: {
         label: 'analyzer',
-        snippet: 'analyzer: $1',
+        snippet: 'analyzer: $0',
       },
       sort: {
         label: 'sort',
-        snippet: 'sort: $1',
+        snippet: 'sort: $0',
       },
       boost: {
         label: 'boost',
-        snippet: 'boost: $1',
+        snippet: 'boost: $0',
       },
     },
   },

@@ -47,12 +47,9 @@ const getQueryTreePath = (actionBlockContent: string) => {
     .split(/[{\[]/)
     .forEach(item => {
       const pureItem = item.replace(/\s+/g, '');
-      if (/[}\]]/.test(pureItem)) {
-        console.log('pop', pathStack.pop());
-      }
-      if (/[\w.]+:$/.test(pureItem)) {
-        pathStack.push(pureItem);
-      }
+
+      /[}\]]/.test(pureItem) && pathStack.pop();
+      /[\w.]+:$/.test(pureItem) && pathStack.push(pureItem.split(',').pop() || '');
     });
 
   return pathStack.map(path => path.replace(/[:},\s]+/g, ''));
@@ -64,9 +61,8 @@ const provideQDSLCompletionItems = (
   position: monaco.Position,
   model: monaco.editor.ITextModel,
 ) => {
-  const word = textUntilPosition.split(/[ /]+/).pop() || '';
+  // const word = textUntilPosition.split(/[ /]+/).pop() || '';
   const closureIndex = isReplaceCompletion(lineContent, textUntilPosition);
-  console.log('closureIndex', { closureIndex, word, textUntilPosition, lineContent });
 
   const action = searchTokens.find(
     ({ position: { startLineNumber, endLineNumber } }) =>
@@ -82,14 +78,15 @@ const provideQDSLCompletionItems = (
     startColumn: 1,
     endColumn: position.column,
   });
-  const queryTreePath = getQueryTreePath(actionBlockContent);
   const queryAction = action.path.split('/')?.pop()?.replace(/\?.*/g, '');
 
   if (!queryAction) {
     return;
   }
 
+  const queryTreePath = getQueryTreePath(actionBlockContent);
   const dsqlSubTree = getSubDsqlTree(queryAction, queryTreePath);
+  console.log('dsqlSubTree', { queryAction, queryTreePath, dsqlSubTree });
   if (!dsqlSubTree) {
     return;
   }
@@ -117,29 +114,6 @@ const provideQDSLCompletionItems = (
       },
     }));
 
-  // const suggestions = keywords
-  //   .filter(keyword => keyword.startsWith(word))
-  //   .map(keyword => ({
-  //     label: keyword,
-  //     insertText: keyword,
-  //     kind: monaco.languages.CompletionItemKind.Keyword,
-  //     ...{
-  //       insertTextRules:
-  //         closureIndex === -1
-  //           ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-  //           : monaco.languages.CompletionItemInsertTextRule.None,
-  //       range:
-  //         closureIndex === -1
-  //           ? undefined
-  //           : new monaco.Range(
-  //               position.lineNumber,
-  //               position.column - 1,
-  //               position.lineNumber,
-  //               closureIndex,
-  //             ),
-  //     },
-  //   }));
-
   return { suggestions };
 };
 
@@ -164,7 +138,6 @@ const searchCompletionProvider = (model: monaco.editor.ITextModel, position: mon
     endColumn: position.column,
   });
   const lineContent = model.getLineContent(position.lineNumber);
-  console.log('searchCompletionProvider', { textUntilPosition, lineContent });
 
   const methodCompletions = providePathCompletionItems(textUntilPosition);
   if (methodCompletions) {

@@ -1,7 +1,12 @@
+import { matchAllQueries } from './matchAllQueries.ts';
+import { termLevelQueries } from './termLevelQueries.ts';
+import { specializedQueries } from './specializedQueries.ts';
+import { fullTextQueries } from './fullTextQueries.ts';
+
 export const compoundQueries = {
-  dismax: {
-    label: 'dismax',
-    snippet: `dismax: {\n\ttie_breaker: 0.7,\n\tboost: 1.2,\n\tqueries: [$0]\n},`,
+  dis_max: {
+    label: 'dis_max',
+    snippet: `dis_max: {\n\ttie_breaker: 0.7,\n\tboost: 1.2,\n\tqueries: [$0]\n},`,
     children: {
       '*': {
         label: '*',
@@ -9,16 +14,22 @@ export const compoundQueries = {
         children: {
           tie_breaker: {
             label: 'tie_breaker',
-            snippet: 'tie_breaker: $1',
+            snippet: 'tie_breaker: $0',
           },
           boost: {
             label: 'boost',
-            snippet: 'boost: $1',
+            snippet: 'boost: $0',
           },
-          queries: {
-            label: 'queries',
-            snippet: 'queries: $1',
-          },
+        },
+      },
+      queries: {
+        label: 'queries',
+        snippet: 'queries: $0',
+        children: {
+          ...matchAllQueries,
+          ...termLevelQueries,
+          ...specializedQueries,
+          ...fullTextQueries,
         },
       },
     },
@@ -31,39 +42,37 @@ export const compoundQueries = {
         label: 'must',
         snippet: `must: [\n\t{\n\t\t$0\n\t}\n],`,
         children: {
-          term: {
-            label: 'term',
-            snippet: `term: {\n\t$0FIELD: {\n\t\tvalue: 'VALUE'\n\t}\n},`,
-          },
-          terms: {
-            label: 'terms',
-            snippet: `terms: {\n\t$0FIELD: []\n},`,
-          },
+          ...matchAllQueries,
+          ...termLevelQueries,
+          ...specializedQueries,
+          ...fullTextQueries,
         },
       },
       filter: {
         label: 'filter',
-        snippet: 'filter: $1',
+        snippet: `filter: [\n\t{\n\t\t$0\n\t}\n],`,
+        children: {
+          ...matchAllQueries,
+          ...termLevelQueries,
+          ...specializedQueries,
+          ...fullTextQueries,
+        },
       },
       should: {
         label: 'should',
-        snippet: 'should: $1',
+        snippet: 'should: [\n\t{\n\t\t$0\n\t}\n],',
       },
       must_not: {
         label: 'must_not',
-        snippet: 'must_not: $1',
+        snippet: 'must_not: [\n\t{\n\t\t$0\n\t}\n]',
       },
       minimum_should_match: {
         label: 'minimum_should_match',
-        snippet: 'minimum_should_match: $1',
-      },
-      disable_coord: {
-        label: 'disable_coord',
-        snippet: 'disable_coord: $1',
+        snippet: 'minimum_should_match: 1$0',
       },
       boost: {
         label: 'boost',
-        snippet: 'boost: $1',
+        snippet: 'boost: 1$0',
       },
     },
   },
@@ -73,6 +82,6 @@ export const compoundQueries = {
   },
   constant_score: {
     label: 'constant_score',
-    snippet: `constant_score: {\n\t$0\n},`,
+    snippet: `constant_score: {\n\tfilter: {$0},\n\tboost: 1.2\n},`,
   },
 };

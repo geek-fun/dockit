@@ -86,7 +86,6 @@ export const formatQDSL = (
   const bulkAction = searchTokens.find(
     ({ path, position }) => path.includes('_bulk') && position.startLineNumber === startLineNumber,
   );
-  console.log('formatDSL', { bulkAction, content });
   if (!bulkAction) {
     return JSON5.stringify(JSON5.parse(content), null, 2);
   }

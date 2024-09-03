@@ -10,23 +10,23 @@ export const termLevelQueries = {
         children: {
           value: {
             label: 'value',
-            snippet: 'value: $1',
+            snippet: 'value: $0',
           },
           boost: {
             label: 'boost',
-            snippet: 'boost: $1',
+            snippet: 'boost: $0',
           },
           min_similarity: {
             label: 'min_similarity',
-            snippet: 'min_similarity: $1',
+            snippet: 'min_similarity: $0',
           },
           prefix_length: {
             label: 'prefix_length',
-            snippet: 'prefix_length: $1',
+            snippet: 'prefix_length: $0',
           },
           max_expansions: {
             label: 'max_expansions',
-            snippet: 'max_expansions: $1',
+            snippet: 'max_expansions: $0',
           },
         },
       },
@@ -50,31 +50,31 @@ export const termLevelQueries = {
         children: {
           gte: {
             label: 'gte',
-            snippet: 'gte: $1',
+            snippet: 'gte: $0',
           },
           gt: {
             label: 'gt',
-            snippet: 'gt: $1',
+            snippet: 'gt: $0',
           },
           lte: {
             label: 'lte',
-            snippet: 'lte: $1',
+            snippet: 'lte: $0',
           },
           lt: {
             label: 'lt',
-            snippet: 'lt: $1',
+            snippet: 'lt: $0',
           },
           format: {
             label: 'format',
-            snippet: 'format: $1',
+            snippet: 'format: $0',
           },
           time_zone: {
             label: 'time_zone',
-            snippet: 'time_zone: $1',
+            snippet: 'time_zone: $0',
           },
           boost: {
             label: 'boost',
-            snippet: 'boost: $1',
+            snippet: 'boost: $0',
           },
         },
       },
@@ -94,7 +94,7 @@ export const termLevelQueries = {
         children: {
           boost: {
             label: 'boost',
-            snippet: 'boost: $1',
+            snippet: 'boost: $0',
           },
         },
       },
@@ -115,15 +115,15 @@ export const termLevelQueries = {
         children: {
           value: {
             label: 'value',
-            snippet: 'value: $1',
+            snippet: 'value: $0',
           },
           boost: {
             label: 'boost',
-            snippet: 'boost: $1',
+            snippet: 'boost: $0',
           },
           rewrite: {
             label: 'rewrite',
-            snippet: 'rewrite: $1',
+            snippet: 'rewrite: $0',
           },
         },
       },
