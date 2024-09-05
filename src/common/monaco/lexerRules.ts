@@ -109,7 +109,6 @@ export const search = {
           },
         ],
         { include: '@whitespace' },
-        [/\/\/.*$/, { token: 'invalid', log: 'found invalid $0 in state $S0' }],
         [/\/\/.*$/, { token: 'invalid' }],
       ],
 
