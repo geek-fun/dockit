@@ -62,11 +62,11 @@ let searchTokens: SearchAction[] = [];
 let executeDecorations: Array<Decoration | string> = [];
 
 const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
-  const freshedDecorations = getActionMarksDecorations(searchTokens);
+  const freshDecorations = getActionMarksDecorations(searchTokens);
   // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
   executeDecorations = editor.deltaDecorations(
     executeDecorations as Array<string>,
-    freshedDecorations,
+    freshDecorations,
   ) as unknown as Decoration[];
 };
 
@@ -383,5 +383,12 @@ listen('saveFile', async event => {
 
 :deep(.mtk22) {
   color: #c80a68;
+}
+
+:deep(.mtk11) {
+  color: #cd3131;
+  text-decoration: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: #cd3131;
 }
 </style>

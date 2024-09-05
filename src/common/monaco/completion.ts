@@ -86,7 +86,6 @@ const provideQDSLCompletionItems = (
 
   const queryTreePath = getQueryTreePath(actionBlockContent);
   const dsqlSubTree = getSubDsqlTree(queryAction, queryTreePath);
-  console.log('dsqlSubTree', { queryAction, queryTreePath, dsqlSubTree });
   if (!dsqlSubTree) {
     return;
   }
@@ -155,17 +154,5 @@ const searchCompletionProvider = (model: monaco.editor.ITextModel, position: mon
     return keywordCompletions;
   }
 };
-//
-// const searchResolveCompletionItem = (item: monaco.languages.CompletionItem) => {
-//   console.log('searchResolveCompletionItem', item);
-//   if (item.insertTextRules !== monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet) {
-//     return item;
-//   }
-//
-//   return {
-//     ...item,
-//     insertText: `${item.insertText}: {\n\t$0\n},`,
-//   };
-// };
 
 export { searchCompletionProvider };

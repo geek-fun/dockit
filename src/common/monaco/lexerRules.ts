@@ -33,7 +33,7 @@ export const search = {
           regex: '{',
           action: {
             token: 'paren.lparen',
-            next: 'xjson',
+            next: 'json5',
           },
         },
         { include: 'common' },
@@ -54,9 +54,9 @@ export const search = {
         // whitespace
         { include: '@whitespace' },
         // json block
-        { include: '@xjson' },
+        { include: '@json5' },
       ],
-      xjson: [
+      json5: [
         [
           /["']?(.*_?script|inline|source)["']?(\s*?)(:)(\s*?)("""|''')/,
           [
@@ -109,7 +109,6 @@ export const search = {
           },
         ],
         { include: '@whitespace' },
-        [/.+?/, { token: 'text' }],
         [/\/\/.*$/, { token: 'invalid' }],
       ],
 
