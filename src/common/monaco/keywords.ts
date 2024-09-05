@@ -36,12 +36,8 @@ const paths = [
   '_shards:',
 ];
 
-const _search_sort = ['type', 'order', 'mode', 'missing', 'nested', '_script'];
-
 const dsqlKeywords = getKeywordsFromDsqlTree(dsqlTree);
 
-const keywords = Array.from(
-  new Set([...methods, ...paths, ...dsqlKeywords, ..._search_sort]),
-).filter(Boolean);
+const keywords = Array.from(new Set([...methods, ...paths, ...dsqlKeywords])).filter(Boolean);
 
 export { keywords, paths };
