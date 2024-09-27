@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^1.6.0",
-    "debug": "^4.3.6",
+    "debug": "^4.3.7",
     "highlight.js": "^11.10.0",
     "json5": "^2.2.3",
     "lodash": "^4.17.21",
