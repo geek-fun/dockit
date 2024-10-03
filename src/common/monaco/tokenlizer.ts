@@ -57,8 +57,22 @@ export const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<D
     .filter(Boolean)
     .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
 };
-export const buildCodeLens = (searchTokens: SearchAction[], autoIndentCmdId: string) =>
-  searchTokens
+export const buildCodeLens = (
+  searchTokens: SearchAction[],
+  autoIndentCmdId: string,
+  copyAsCurlCmdId: string,
+) => {
+  const copyCurl = searchTokens.map(({ position }, index) => ({
+    range: { ...position, endLineNumber: position.startLineNumber },
+    id: `CopyAsCurl-${index}`,
+    command: {
+      id: copyAsCurlCmdId!,
+      title: 'Copy as CURL',
+      arguments: [{ ...position, startLineNumber: position.startLineNumber + 1 }],
+    },
+  }));
+
+  const autoIndent = searchTokens
     .filter(({ qdsl }) => qdsl)
     .map(({ position }, index) => ({
       range: { ...position, endLineNumber: position.startLineNumber },
@@ -69,6 +83,9 @@ export const buildCodeLens = (searchTokens: SearchAction[], autoIndentCmdId: str
         arguments: [{ ...position, startLineNumber: position.startLineNumber + 1 }],
       },
     }));
+
+  return [...autoIndent, ...copyCurl];
+};
 
 export const formatQDSL = (
   searchTokens: SearchAction[],
@@ -108,4 +125,42 @@ export const transformQDSL = (action: SearchAction) => {
   } catch (err) {
     throw new CustomError(400, (err as Error).message);
   }
+};
+
+export const transformToCurl = (
+  action: SearchAction,
+  connection: {
+    host: string;
+    port: number;
+    sslCertVerification: boolean;
+    username?: string;
+    password?: string;
+  } | null,
+) => {
+  const { username, password, host, port } = connection ?? {
+    username: '',
+    password: '',
+    host: 'http://localhost',
+    port: 9200,
+  };
+  const { method, index, path, queryParams, qdsl } = action;
+  const url = new URL(`${index}/${path}`, `${host}:${port}`);
+
+  if (username || password) {
+    url.username = username as string;
+    url.password = password as string;
+  }
+
+  if (queryParams) {
+    const params = new URLSearchParams(queryParams);
+    params.forEach((value, key) => {
+      url.searchParams.append(key, value);
+    });
+  }
+
+  const curlCmd = `curl -X ${method} '${url.href}' -H 'Content-Type: application/json' -d '${qdsl}'`;
+
+  console.log('cmd', curlCmd);
+
+  return curlCmd;
 };

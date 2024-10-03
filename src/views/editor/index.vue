@@ -33,6 +33,7 @@ import {
   monaco,
   SearchAction,
   transformQDSL,
+  transformToCurl,
 } from '../../common/monaco';
 
 const appStore = useAppStore();
@@ -54,6 +55,7 @@ const { insertBoard } = storeToRefs(chatStore);
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let queryEditor: Editor | null = null;
 let autoIndentCmdId: string | null = null;
+let copyCurlCmdId: string | null = null;
 // DOM
 const queryEditorRef = ref();
 const displayEditorRef = ref();
@@ -87,7 +89,7 @@ const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
     refreshActionMarks(queryEditor!, searchTokens);
 
     return {
-      lenses: buildCodeLens(searchTokens, autoIndentCmdId!),
+      lenses: buildCodeLens(searchTokens, autoIndentCmdId!, copyCurlCmdId!),
       dispose: () => {},
     };
   },
@@ -192,6 +194,19 @@ const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor) => {
   }
 };
 
+const copyCurlAction = () => {
+  const { position } = getPointerAction(queryEditor!, searchTokens) || {};
+  console.log('copyCurlAction', position);
+  if (position) {
+    const action = searchTokens.find(
+      ({ position: { startLineNumber } }) => startLineNumber === position.startLineNumber,
+    );
+    if (action) {
+      navigator.clipboard.writeText(transformToCurl(action, established.value));
+    }
+  }
+};
+
 const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
   const { lineNumber } = editor?.getPosition() || {};
   if (lineNumber === undefined || lineNumber === null) {
@@ -217,6 +232,7 @@ const setupQueryEditor = (code: string) => {
   }
 
   autoIndentCmdId = queryEditor.addCommand(0, () => autoIndentAction(queryEditor!));
+  copyCurlCmdId = queryEditor.addCommand(0, () => copyCurlAction());
 
   queryEditor.onMouseDown(({ event, target }) => {
     if (
