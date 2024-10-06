@@ -1,4 +1,4 @@
-import { Decoration, executeActions, monaco, SearchAction } from './';
+import { Decoration, Editor, executeActions, monaco, Range, SearchAction } from './';
 import JSON5 from 'json5';
 import { CustomError } from '../customError.ts';
 
@@ -46,6 +46,23 @@ export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent:
 
   return searchTokens;
 };
+export const getPositionAction = (position: Range) => {
+  return searchTokens.find(({ position: { startLineNumber, endLineNumber } }) => {
+    return position.startLineNumber >= startLineNumber && position.endLineNumber <= endLineNumber;
+  });
+};
+export const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
+  const { lineNumber } = editor?.getPosition() || {};
+  if (lineNumber === undefined || lineNumber === null) {
+    return;
+  }
+
+  return tokens.find(
+    ({ position: { startLineNumber, endLineNumber } }) =>
+      lineNumber >= startLineNumber && lineNumber <= endLineNumber,
+  );
+};
+
 export const executionGutterClass = 'execute-button-decoration';
 export const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<Decoration> => {
   return searchTokens
@@ -57,8 +74,22 @@ export const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<D
     .filter(Boolean)
     .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
 };
-export const buildCodeLens = (searchTokens: SearchAction[], autoIndentCmdId: string) =>
-  searchTokens
+export const buildCodeLens = (
+  searchTokens: SearchAction[],
+  autoIndentCmdId: string,
+  copyAsCurlCmdId: string,
+) => {
+  const copyCurl = searchTokens.map(({ position }, index) => ({
+    range: { ...position, endLineNumber: position.startLineNumber },
+    id: `CopyAsCurl-${index}`,
+    command: {
+      id: copyAsCurlCmdId!,
+      title: 'Copy as CURL',
+      arguments: [position],
+    },
+  }));
+
+  const autoIndent = searchTokens
     .filter(({ qdsl }) => qdsl)
     .map(({ position }, index) => ({
       range: { ...position, endLineNumber: position.startLineNumber },
@@ -69,6 +100,9 @@ export const buildCodeLens = (searchTokens: SearchAction[], autoIndentCmdId: str
         arguments: [{ ...position, startLineNumber: position.startLineNumber + 1 }],
       },
     }));
+
+  return [...autoIndent, ...copyCurl];
+};
 
 export const formatQDSL = (
   searchTokens: SearchAction[],
@@ -93,19 +127,50 @@ export const formatQDSL = (
   return lines.map(line => JSON5.stringify(line)).join('\n');
 };
 
-export const transformQDSL = (action: SearchAction) => {
+export const transformQDSL = ({ path, qdsl }: Pick<SearchAction, 'path' | 'qdsl'>) => {
   try {
-    const bulkAction = action.path.includes('_bulk');
+    const bulkAction = path.includes('_bulk');
     if (bulkAction) {
-      const dsql = action.qdsl
+      const bulkQdsl = qdsl
         .split('\n')
         .map(line => JSON.stringify(JSON5.parse(line)))
         .join('\n');
-      return `${dsql}\n`;
+      return `${bulkQdsl}\n`;
     }
 
-    return action.qdsl ? JSON.stringify(JSON5.parse(action.qdsl), null, 2) : undefined;
+    return qdsl ? JSON.stringify(JSON5.parse(qdsl), null, 2) : undefined;
   } catch (err) {
     throw new CustomError(400, (err as Error).message);
   }
+};
+
+export const transformToCurl = ({
+  method,
+  headers,
+  qdsl,
+  url,
+  ssl,
+}: {
+  url: string;
+  method: string;
+  headers: { [key: string]: string };
+  qdsl: string;
+  ssl: boolean | undefined;
+}) => {
+  let curlCmd = `curl -X ${method} '${url}'`;
+
+  if (url.startsWith('https') && ssl === false) {
+    curlCmd += ' --insecure';
+  }
+
+  if (headers) {
+    curlCmd += Object.entries(headers)
+      .map(([key, value]) => ` -H '${key}: ${value}'`)
+      .join('');
+  }
+  if (qdsl) {
+    curlCmd += ` -d '${transformQDSL({ path: url, qdsl })}'`;
+  }
+
+  return curlCmd;
 };

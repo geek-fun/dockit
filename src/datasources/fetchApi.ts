@@ -1,4 +1,4 @@
-import { base64Encode, CustomError, debug } from '../common';
+import { buildAuthHeader, buildURL, CustomError, debug } from '../common';
 import { lang } from '../lang';
 import { invoke } from '@tauri-apps/api/tauri';
 
@@ -19,14 +19,6 @@ const handleFetch = (result: { data: unknown; status: number; details: string | 
     throw new CustomError(result.status, lang.global.t('connection.unAuthorized'));
   }
   throw new CustomError(result.status, result.details || '');
-};
-
-const buildURL = (host: string, port: number, path?: string, queryParameters?: string) => {
-  let url = `${host}:${port}`;
-  url += path ?? '';
-  url += queryParameters ? `?${queryParameters}` : '';
-
-  return url;
 };
 
 const fetchWrapper = async ({
@@ -51,13 +43,10 @@ const fetchWrapper = async ({
   ssl: boolean;
 }) => {
   try {
-    const authorization =
-      username || password ? `Basic ${base64Encode(`${username}:${password}`)}` : undefined;
-
-    const url = buildURL(host, port, path, queryParameters);
+    const url = buildURL(host, port, undefined, path, queryParameters);
     const { data, status, details } = await fetchRequest(url, {
       method,
-      headers: { authorization },
+      headers: { ...buildAuthHeader(username, password) },
       payload,
       agent: { ssl },
     });

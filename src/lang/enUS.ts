@@ -148,6 +148,8 @@ export const enUS = {
   editor: {
     establishedRequired: 'Select a DB instance before execute actions',
     invalidJson: 'Invalid JSON format',
+    copySuccess: 'Copied to clipboard',
+    copyFailure: 'Failed to copy to clipboard',
   },
   history: {
     empty: 'No history yet',

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
-import { pureObject } from '../common';
+import { buildAuthHeader, buildURL, pureObject } from '../common';
 import { loadHttpClient, storeApi } from '../datasources';
+import { SearchAction, transformToCurl } from '../common/monaco';
 
 export type Connection = {
   id?: number;
@@ -85,7 +86,6 @@ export const useConnectionStore = defineStore('connectionStore', {
     async establishConnection(connection: Connection) {
       await this.testConnection(connection);
       const client = loadHttpClient(connection);
-
       const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
         [key: string]: string;
       }>;
@@ -168,6 +168,23 @@ export const useConnectionStore = defineStore('connectionStore', {
           qdsl ? client.post(reqPath, queryParams, qdsl) : client.get(reqPath, queryParameters),
       };
       return dispatch[method]();
+    },
+    queryToCurl({ method, path, index, qdsl, queryParams }: SearchAction) {
+      const { username, password, host, port, sslCertVerification } = this.established ?? {
+        host: 'http://localhost',
+        port: 9200,
+        username: undefined,
+        password: undefined,
+      };
+      const params = queryParams ? `${queryParams}&format=json` : 'format=json';
+      const url = buildURL(host, port, index, path, params);
+
+      const headers = {
+        'Content-Type': 'application/json',
+        ...buildAuthHeader(username, password),
+      };
+
+      return transformToCurl({ method, headers, url, ssl: sslCertVerification, qdsl });
     },
   },
 });
