@@ -30,6 +30,8 @@ import {
   formatQDSL,
   getActionApiDoc,
   getActionMarksDecorations,
+  getPointerAction,
+  getPositionAction,
   monaco,
   Range,
   SearchAction,
@@ -159,16 +161,17 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
   }
 };
 
-const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor) => {
+const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor, position: Range) => {
   const model = editor?.getModel();
-  const { position } = getPointerAction(editor!, searchTokens) || {};
-  if (!position || !model) {
+  const action = getPositionAction(position);
+
+  if (!action || !model) {
     return;
   }
-  const { startLineNumber, endLineNumber } = position;
+  const { startLineNumber, endLineNumber } = action.position;
 
   try {
-    const formatted = formatQDSL(searchTokens, model, position);
+    const formatted = formatQDSL(searchTokens, model, action.position);
     model.pushEditOperations(
       [],
       [
@@ -195,9 +198,7 @@ const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor) => {
 };
 
 const copyCurlAction = (position: Range) => {
-  const action = searchTokens.find(
-    ({ position: { startLineNumber } }) => startLineNumber === position.startLineNumber,
-  );
+  const action = getPositionAction(position);
   if (!action) {
     return;
   }
@@ -212,18 +213,6 @@ const copyCurlAction = (position: Range) => {
   }
 };
 
-const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
-  const { lineNumber } = editor?.getPosition() || {};
-  if (lineNumber === undefined || lineNumber === null) {
-    return;
-  }
-
-  return tokens.find(
-    ({ position: { startLineNumber, endLineNumber } }) =>
-      lineNumber >= startLineNumber && lineNumber <= endLineNumber,
-  );
-};
-
 const setupQueryEditor = (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
@@ -236,7 +225,7 @@ const setupQueryEditor = (code: string) => {
     return;
   }
 
-  autoIndentCmdId = queryEditor.addCommand(0, () => autoIndentAction(queryEditor!));
+  autoIndentCmdId = queryEditor.addCommand(0, (...args) => autoIndentAction(queryEditor!, args[1]));
   copyCurlCmdId = queryEditor.addCommand(0, (...args) => copyCurlAction(args[1]));
 
   queryEditor.onMouseDown(({ event, target }) => {
@@ -252,7 +241,10 @@ const setupQueryEditor = (code: string) => {
 
   // Auto indent current request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
-    autoIndentAction(queryEditor!);
+    const { position } = getPointerAction(queryEditor!, searchTokens) || {};
+    if (position) {
+      autoIndentAction(queryEditor!, position);
+    }
   });
 
   // Toggle Autocomplete

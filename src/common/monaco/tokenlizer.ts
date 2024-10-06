@@ -1,4 +1,4 @@
-import { Decoration, executeActions, monaco, SearchAction } from './';
+import { Decoration, Editor, executeActions, monaco, Range, SearchAction } from './';
 import JSON5 from 'json5';
 import { CustomError } from '../customError.ts';
 
@@ -46,6 +46,23 @@ export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent:
 
   return searchTokens;
 };
+export const getPositionAction = (position: Range) => {
+  return searchTokens.find(({ position: { startLineNumber, endLineNumber } }) => {
+    return position.startLineNumber >= startLineNumber && position.endLineNumber <= endLineNumber;
+  });
+};
+export const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
+  const { lineNumber } = editor?.getPosition() || {};
+  if (lineNumber === undefined || lineNumber === null) {
+    return;
+  }
+
+  return tokens.find(
+    ({ position: { startLineNumber, endLineNumber } }) =>
+      lineNumber >= startLineNumber && lineNumber <= endLineNumber,
+  );
+};
+
 export const executionGutterClass = 'execute-button-decoration';
 export const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<Decoration> => {
   return searchTokens
