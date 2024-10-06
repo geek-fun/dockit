@@ -33,7 +33,6 @@ import {
   monaco,
   SearchAction,
   transformQDSL,
-  transformToCurl,
 } from '../../common/monaco';
 
 const appStore = useAppStore();
@@ -45,7 +44,7 @@ const { readSourceFromFile, saveSourceToFile } = sourceFileStore;
 const { defaultFile } = storeToRefs(sourceFileStore);
 
 const connectionStore = useConnectionStore();
-const { searchQDSL } = connectionStore;
+const { searchQDSL, queryToCurl } = connectionStore;
 const { established } = storeToRefs(connectionStore);
 const { getEditorTheme } = appStore;
 const { themeType } = storeToRefs(appStore);
@@ -196,13 +195,13 @@ const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor) => {
 
 const copyCurlAction = () => {
   const { position } = getPointerAction(queryEditor!, searchTokens) || {};
-  console.log('copyCurlAction', position);
+
   if (position) {
     const action = searchTokens.find(
       ({ position: { startLineNumber } }) => startLineNumber === position.startLineNumber,
     );
     if (action) {
-      navigator.clipboard.writeText(transformToCurl(action, established.value));
+      navigator.clipboard.writeText(queryToCurl(action));
     }
   }
 };

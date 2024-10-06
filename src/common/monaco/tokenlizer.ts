@@ -110,57 +110,50 @@ export const formatQDSL = (
   return lines.map(line => JSON5.stringify(line)).join('\n');
 };
 
-export const transformQDSL = (action: SearchAction) => {
+export const transformQDSL = ({ path, qdsl }: Pick<SearchAction, 'path' | 'qdsl'>) => {
   try {
-    const bulkAction = action.path.includes('_bulk');
+    const bulkAction = path.includes('_bulk');
     if (bulkAction) {
-      const dsql = action.qdsl
+      const bulkQdsl = qdsl
         .split('\n')
         .map(line => JSON.stringify(JSON5.parse(line)))
         .join('\n');
-      return `${dsql}\n`;
+      return `${bulkQdsl}\n`;
     }
 
-    return action.qdsl ? JSON.stringify(JSON5.parse(action.qdsl), null, 2) : undefined;
+    return qdsl ? JSON.stringify(JSON5.parse(qdsl), null, 2) : undefined;
   } catch (err) {
     throw new CustomError(400, (err as Error).message);
   }
 };
 
-export const transformToCurl = (
-  action: SearchAction,
-  connection: {
-    host: string;
-    port: number;
-    sslCertVerification: boolean;
-    username?: string;
-    password?: string;
-  } | null,
-) => {
-  const { username, password, host, port } = connection ?? {
-    username: '',
-    password: '',
-    host: 'http://localhost',
-    port: 9200,
-  };
-  const { method, index, path, queryParams, qdsl } = action;
-  const url = new URL(`${index}/${path}`, `${host}:${port}`);
+export const transformToCurl = ({
+  method,
+  headers,
+  qdsl,
+  url,
+  ssl,
+}: {
+  url: string;
+  method: string;
+  headers: { [key: string]: string };
+  qdsl: string;
+  ssl: boolean;
+}) => {
+  let curlCmd = `curl -X ${method} '${url}'`;
 
-  if (username || password) {
-    url.username = username as string;
-    url.password = password as string;
+  if (url.startsWith('https') && !ssl) {
+    curlCmd += ' --insecure';
   }
 
-  if (queryParams) {
-    const params = new URLSearchParams(queryParams);
-    params.forEach((value, key) => {
-      url.searchParams.append(key, value);
-    });
+  if (headers) {
+    curlCmd += Object.entries(headers)
+      .map(([key, value]) => ` -H '${key}: ${value}'`)
+      .join('');
   }
-
-  const curlCmd = `curl -X ${method} '${url.href}' -H 'Content-Type: application/json' -d '${qdsl}'`;
-
-  console.log('cmd', curlCmd);
+  if (qdsl) {
+    curlCmd += ` -d '${transformQDSL({ path: url, qdsl })}'`;
+  }
 
   return curlCmd;
 };
