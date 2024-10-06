@@ -138,11 +138,11 @@ export const transformToCurl = ({
   method: string;
   headers: { [key: string]: string };
   qdsl: string;
-  ssl: boolean;
+  ssl: boolean | undefined;
 }) => {
   let curlCmd = `curl -X ${method} '${url}'`;
 
-  if (url.startsWith('https') && !ssl) {
+  if (url.startsWith('https') && ssl === false) {
     curlCmd += ' --insecure';
   }
 
