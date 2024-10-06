@@ -148,6 +148,8 @@ export const zhCN = {
   editor: {
     establishedRequired: '请选择执行操作的数据库实例',
     invalidJson: '无效的 JSON 格式',
+    copySuccess: '已复制到粘贴板',
+    copyFailure: '复制失败',
   },
   history: {
     empty: '无历史记录',

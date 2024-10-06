@@ -201,7 +201,15 @@ const copyCurlAction = () => {
       ({ position: { startLineNumber } }) => startLineNumber === position.startLineNumber,
     );
     if (action) {
-      navigator.clipboard.writeText(queryToCurl(action));
+      try {
+        navigator.clipboard.writeText(queryToCurl(action));
+        message.success(lang.t('editor.copySuccess'));
+      } catch (err) {
+        message.error(`${lang.t('editor.copyFailed')}: ${JSON.stringify(err)}`, {
+          closable: true,
+          keepAliveOnHover: true,
+        });
+      }
     }
   }
 };
