@@ -31,6 +31,7 @@ import {
   getActionApiDoc,
   getActionMarksDecorations,
   monaco,
+  Range,
   SearchAction,
   transformQDSL,
 } from '../../common/monaco';
@@ -193,24 +194,21 @@ const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor) => {
   }
 };
 
-const copyCurlAction = () => {
-  const { position } = getPointerAction(queryEditor!, searchTokens) || {};
-
-  if (position) {
-    const action = searchTokens.find(
-      ({ position: { startLineNumber } }) => startLineNumber === position.startLineNumber,
-    );
-    if (action) {
-      try {
-        navigator.clipboard.writeText(queryToCurl(action));
-        message.success(lang.t('editor.copySuccess'));
-      } catch (err) {
-        message.error(`${lang.t('editor.copyFailed')}: ${JSON.stringify(err)}`, {
-          closable: true,
-          keepAliveOnHover: true,
-        });
-      }
-    }
+const copyCurlAction = (position: Range) => {
+  const action = searchTokens.find(
+    ({ position: { startLineNumber } }) => startLineNumber === position.startLineNumber,
+  );
+  if (!action) {
+    return;
+  }
+  try {
+    navigator.clipboard.writeText(queryToCurl(action));
+    message.success(lang.t('editor.copySuccess'));
+  } catch (err) {
+    message.error(`${lang.t('editor.copyFailed')}: ${JSON.stringify(err)}`, {
+      closable: true,
+      keepAliveOnHover: true,
+    });
   }
 };
 
@@ -239,7 +237,7 @@ const setupQueryEditor = (code: string) => {
   }
 
   autoIndentCmdId = queryEditor.addCommand(0, () => autoIndentAction(queryEditor!));
-  copyCurlCmdId = queryEditor.addCommand(0, () => copyCurlAction());
+  copyCurlCmdId = queryEditor.addCommand(0, (...args) => copyCurlAction(args[1]));
 
   queryEditor.onMouseDown(({ event, target }) => {
     if (

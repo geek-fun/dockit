@@ -68,7 +68,7 @@ export const buildCodeLens = (
     command: {
       id: copyAsCurlCmdId!,
       title: 'Copy as CURL',
-      arguments: [{ ...position, startLineNumber: position.startLineNumber + 1 }],
+      arguments: [position],
     },
   }));
 
