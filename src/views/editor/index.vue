@@ -148,7 +148,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
       ...action,
       queryParams: action.queryParams ?? undefined,
       qdsl: transformQDSL(action),
-      index: action.index || established.value?.activeIndex?.index,
+      index: action.index,
     });
 
     displayJsonEditor(JSON.stringify(data, null, '  '));
