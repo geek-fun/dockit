@@ -37,13 +37,21 @@ type Established =
   | (Connection & { indices: Array<ConnectionIndex>; activeIndex?: ConnectionIndex })
   | null;
 
-const buildPath = (index: string | undefined, path: string | undefined) => {
-  return index &&
-    !['_nodes', '_cluster', '_cat', '_bulk', '_aliases', '_analyze'].includes(
-      path?.split('/')[0] ?? '',
-    )
-    ? `/${index}/${path}`
-    : `/${path}`;
+const buildPath = (
+  index: string | undefined,
+  path: string | undefined,
+  established: Established,
+) => {
+  const pathAction = path?.split('/')[0] ?? '';
+  if (['_nodes', '_cluster', '_cat', '_aliases', '_analyze'].includes(pathAction)) {
+    return `/${path}`;
+  }
+  if (index && ['_search', '_msearch', '_bulk'].includes(pathAction)) {
+    return `/${index}/${path}`;
+  }
+  const indexName = index ?? established?.activeIndex?.index;
+
+  return indexName ? `/${indexName}/${path}` : `/${path}`;
 };
 
 export const useConnectionStore = defineStore('connectionStore', {
@@ -158,7 +166,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         }
       } catch (err) {}
 
-      const reqPath = buildPath(index, path);
+      const reqPath = buildPath(index, path, this.established);
 
       const dispatch: { [method: string]: () => Promise<unknown> } = {
         POST: async () => client.post(reqPath, queryParameters, qdsl),
@@ -177,7 +185,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         password: undefined,
       };
       const params = queryParams ? `${queryParams}&format=json` : 'format=json';
-      const url = buildURL(host, port, index, path, params);
+      const url = buildURL(host, port, buildPath(index, path, this.established), params);
 
       const headers = {
         'Content-Type': 'application/json',
