@@ -57,20 +57,21 @@ export const search = {
         { include: '@json5' },
       ],
       json5: [
-        [
-          /["']?(.*_?script|inline|source)["']?(\s*?)(:)(\s*?)("""|''')/,
-          [
-            'variable',
-            'whitespace',
-            'delimiter',
-            'whitespace',
-            {
-              token: 'punctuation.start_triple_quote',
-              nextEmbedded: 'painless',
-              next: 'search_painless',
-            },
-          ],
-        ],
+        // @TODO add painless highlighting & tokenization support
+        // [
+        //   /["']?(.*_?script|inline|source)["']?(\s*?)(:)(\s*?)("""|''')/,
+        //   [
+        //     'variable',
+        //     'whitespace',
+        //     'delimiter',
+        //     'whitespace',
+        //     {
+        //       token: 'punctuation.start_triple_quote',
+        //       nextEmbedded: 'painless',
+        //       next: 'search_painless',
+        //     },
+        //   ],
+        // ],
         [
           /(:)(\s*?)("""|''')(sql)/,
           [
