@@ -127,6 +127,11 @@ export const formatQDSL = (
   return lines.map(line => JSON5.stringify(line)).join('\n');
 };
 
+const replaceTripleQuotes = (value: string) =>
+  value
+    .replace(/'''(.*?)'''/gs, (_, match) => JSON.stringify(match))
+    .replace(/"""(.*?)"""/gs, (_, match) => JSON.stringify(match));
+
 export const transformQDSL = ({ path, qdsl }: Pick<SearchAction, 'path' | 'qdsl'>) => {
   try {
     const bulkAction = path.includes('_bulk');
@@ -137,8 +142,11 @@ export const transformQDSL = ({ path, qdsl }: Pick<SearchAction, 'path' | 'qdsl'
         .join('\n');
       return `${bulkQdsl}\n`;
     }
+    console.log('qdsl:', qdsl);
 
-    return qdsl ? JSON.stringify(JSON5.parse(qdsl), null, 2) : undefined;
+    console.log('replaced-qdsl:', replaceTripleQuotes(qdsl));
+
+    return qdsl ? JSON.stringify(JSON5.parse(replaceTripleQuotes(qdsl)), null, 2) : undefined;
   } catch (err) {
     throw new CustomError(400, (err as Error).message);
   }
