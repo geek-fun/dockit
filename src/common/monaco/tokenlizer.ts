@@ -142,9 +142,6 @@ export const transformQDSL = ({ path, qdsl }: Pick<SearchAction, 'path' | 'qdsl'
         .join('\n');
       return `${bulkQdsl}\n`;
     }
-    console.log('qdsl:', qdsl);
-
-    console.log('replaced-qdsl:', replaceTripleQuotes(qdsl));
 
     return qdsl ? JSON.stringify(JSON5.parse(replaceTripleQuotes(qdsl)), null, 2) : undefined;
   } catch (err) {
@@ -177,7 +174,8 @@ export const transformToCurl = ({
       .join('');
   }
   if (qdsl) {
-    curlCmd += ` -d '${transformQDSL({ path: url, qdsl })}'`;
+    const qdslCmd = transformQDSL({ path: url, qdsl })?.replace(/'/g, "'\\''");
+    curlCmd += ` -d '${qdslCmd}'`;
   }
 
   return curlCmd;
