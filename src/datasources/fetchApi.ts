@@ -1,6 +1,7 @@
 import { buildAuthHeader, buildURL, CustomError, debug } from '../common';
 import { lang } from '../lang';
 import { invoke } from '@tauri-apps/api/tauri';
+import { get } from 'lodash';
 
 type FetchApiOptions = {
   method: string;
@@ -17,6 +18,9 @@ const handleFetch = (result: { data: unknown; status: number; details: string | 
   }
   if (result.status === 401) {
     throw new CustomError(result.status, lang.global.t('connection.unAuthorized'));
+  }
+  if (result.status === 403) {
+    throw new CustomError(result.status, get(result, 'data.error.reason', result.details || ''));
   }
   throw new CustomError(result.status, result.details || '');
 };
