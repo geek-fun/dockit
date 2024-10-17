@@ -1,7 +1,7 @@
 import { keywords } from './keywords.ts';
 
 export const executeActions = {
-  regexp: /^(GET|DELETE|POST|PUT)\s\w+/,
+  regexp: /^(GET|DELETE|POST|PUT)\s+[a-zA-Z0-9_\/-?\-&,.]*/,
   decorationClassName: 'action-execute-decoration',
 };
 
@@ -28,7 +28,7 @@ export const search = {
     // The main tokenizer for our languages
     tokenizer: {
       root: [
-        [/^(GET|POST|PUT|DELETE)(\s+[a-zA-Z0-9_\/-?\-&,]*)/, ['type', 'regexp']],
+        [/^(GET|POST|PUT|DELETE)(\s+[a-zA-Z0-9_\/-?\-&,.]*)/, ['type', 'regexp']],
         {
           regex: '{',
           action: {
