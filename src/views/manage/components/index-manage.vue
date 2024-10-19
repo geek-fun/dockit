@@ -281,11 +281,14 @@ const handleRefresh = async () => {
   try {
     await refresh();
   } catch (err) {
-    message.error(`status: ${err.status}, details: ${err.details}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3000,
-    });
+    message.error(
+      `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
+      {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      },
+    );
   }
 };
 const toggleModal = (target: string) => {
