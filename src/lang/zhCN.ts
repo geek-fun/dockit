@@ -111,6 +111,7 @@ export const zhCN = {
     port: '端口号',
     username: '用户名',
     password: '密码',
+    indexName: '索引/别名',
     queryParameters: '查询参数',
     sslCertVerification: 'SSL 证书验证',
     add: '添加连接',

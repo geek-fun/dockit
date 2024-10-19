@@ -111,6 +111,7 @@ export const enUS = {
     port: 'Port',
     username: 'Username',
     password: 'Password',
+    indexName: 'Index/Alias',
     queryParameters: 'query parameters',
     sslCertVerification: 'SSL Certificate Verification',
     add: 'Add connection',

@@ -11,6 +11,7 @@ export type Connection = {
   username?: string;
   sslCertVerification: boolean;
   password?: string;
+  indexName?: string;
   queryParameters?: string;
 };
 export type ConnectionIndex = {
@@ -76,7 +77,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     async testConnection(con: Connection) {
       const client = loadHttpClient(con);
 
-      return await client.get(undefined, 'format=json');
+      return await client.get(con.indexName ?? undefined, 'format=json');
     },
     async saveConnection(connection: Connection) {
       const index = this.connections.findIndex(({ id }: Connection) => id === connection.id);
