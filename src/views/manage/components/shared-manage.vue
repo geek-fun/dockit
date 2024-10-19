@@ -79,10 +79,12 @@ import {
 import { Memory } from '@vicons/fa';
 import { NButton } from 'naive-ui';
 import { TableColumn } from 'naive-ui/es/data-table/src/interface';
+import { CustomError } from '../../../common';
 
 const clusterManageStore = useClusterManageStore();
 const { fetchNodes, fetchShards, getShardState } = clusterManageStore;
 const { shards, nodesWithShards } = storeToRefs(clusterManageStore);
+const message = useMessage();
 
 type IndexShard = ShardState & {
   details: Array<{
@@ -136,8 +138,20 @@ const indexShards = ref<{
   index: string;
   shards: Array<IndexShard>;
 }>();
+
 const refreshShards = async () => {
-  await Promise.all([fetchNodes(), fetchShards()]);
+  try {
+    await Promise.all([fetchNodes(), fetchShards()]);
+  } catch (err) {
+    message.error(
+      `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
+      {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      },
+    );
+  }
 };
 
 const handleShardClick = async (shard: Shard) => {

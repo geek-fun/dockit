@@ -19,26 +19,62 @@ import { useClusterManageStore, useConnectionStore } from '../../store';
 import { storeToRefs } from 'pinia';
 import NodeState from './components/node-state.vue';
 import SharedManage from './components/shared-manage.vue';
-import { lang } from '../../lang';
+import { useLang } from '../../lang';
 import IndexManage from './components/index-manage.vue';
+import { CustomError } from '../../common';
 
-const activeTab = ref(lang.global.t('manage.cluster'));
+const lang = useLang();
+
+const activeTab = ref(lang.t('manage.cluster'));
 
 const connectionStore = useConnectionStore();
 const { established } = storeToRefs(connectionStore);
+
+const message = useMessage();
 
 const clusterManageStore = useClusterManageStore();
 const { fetchCluster, fetchIndices, fetchAliases, fetchNodes, fetchShards } = clusterManageStore;
 const { cluster } = storeToRefs(clusterManageStore);
 
 watch(established, async () => {
-  await Promise.all([fetchCluster(), fetchIndices(), fetchAliases(), fetchNodes(), fetchShards()]);
+  try {
+    await Promise.all([
+      fetchCluster(),
+      fetchIndices(),
+      fetchAliases(),
+      fetchNodes(),
+      fetchShards(),
+    ]);
+  } catch (err) {
+    message.error(
+      `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
+      {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      },
+    );
+    cluster.value = null;
+  }
 });
 
 const handleManageTabChange = (tab: string) => {
   activeTab.value = tab;
 };
-fetchCluster().catch(() => {});
+
+fetchCluster().catch(err =>
+  !established.value?.id
+    ? message.warning(lang.t('editor.establishedRequired'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      })
+    : message.error(`status: ${err.status}, details: ${err.details}`, {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      }),
+);
 </script>
 
 <style lang="scss" scoped>

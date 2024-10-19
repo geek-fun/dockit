@@ -82,6 +82,8 @@ const clusterManageStore = useClusterManageStore();
 const { fetchNodes, fetchNodeState } = clusterManageStore;
 const { nodes } = storeToRefs(clusterManageStore);
 
+const message = useMessage();
+
 type NodeStats = {
   key: string;
   value: string | number;
@@ -120,7 +122,16 @@ const handleNodeClick = async (nodeName: string) => {
     { name: 'heap', ...heap },
   ];
 };
-fetchNodes();
+
+onMounted(() => {
+  fetchNodes().catch(err => {
+    message.error(`status: ${err.status}, details: ${err.details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3000,
+    });
+  });
+});
 </script>
 
 <style scoped lang="scss">
