@@ -19,7 +19,7 @@
       </n-tab-pane>
       <template #suffix>
         <div class="tab-action-group">
-          <n-button type="default" tertiary @click="refresh">
+          <n-button type="default" tertiary @click="handleRefresh">
             <template #icon>
               <n-icon>
                 <Renew />
@@ -275,11 +275,22 @@ const templateTable = computed(() => {
 });
 
 const refresh = async () => {
-  await Promise.all([fetchIndices(), fetchAliases(), fetchTemplates()]).catch(err =>
-    message.error(err.message, { closable: true, keepAliveOnHover: true }),
-  );
+  await Promise.all([fetchIndices(), fetchAliases(), fetchTemplates()]);
 };
-
+const handleRefresh = async () => {
+  try {
+    await refresh();
+  } catch (err) {
+    message.error(
+      `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
+      {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      },
+    );
+  }
+};
 const toggleModal = (target: string) => {
   if (target === 'index') indexDialogRef.value.toggleModal();
   if (target === 'alias') aliasDialogRef.value.toggleModal();
@@ -362,7 +373,7 @@ const handleAction = async (action: string, indexName: string, aliasName?: strin
 };
 
 onMounted(async () => {
-  await refresh();
+  await handleRefresh();
 });
 </script>
 

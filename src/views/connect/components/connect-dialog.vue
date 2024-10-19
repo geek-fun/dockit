@@ -96,6 +96,15 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="8">
+              <n-form-item :label="$t('connection.indexName')" path="indexName">
+                <n-input
+                  v-model:value="formData.indexName"
+                  clearable
+                  :placeholder="$t('connection.indexName')"
+                />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item span="8">
               <n-form-item :label="$t('connection.queryParameters')" path="queryParameters">
                 <n-input
                   v-model:value="formData.queryParameters"
@@ -160,6 +169,7 @@ const defaultFormData = {
   port: 9200,
   username: '',
   password: '',
+  indexName: undefined,
   queryParameters: '',
   sslCertVerification: true,
 };

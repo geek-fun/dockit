@@ -11,6 +11,7 @@ export type Connection = {
   username?: string;
   sslCertVerification: boolean;
   password?: string;
+  indexName?: string;
   queryParameters?: string;
 };
 export type ConnectionIndex = {
@@ -76,7 +77,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     async testConnection(con: Connection) {
       const client = loadHttpClient(con);
 
-      return await client.get(undefined, 'format=json');
+      return await client.get(con.indexName ?? undefined, 'format=json');
     },
     async saveConnection(connection: Connection) {
       const index = this.connections.findIndex(({ id }: Connection) => id === connection.id);
@@ -94,18 +95,22 @@ export const useConnectionStore = defineStore('connectionStore', {
     async establishConnection(connection: Connection) {
       await this.testConnection(connection);
       const client = loadHttpClient(connection);
-      const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
-        [key: string]: string;
-      }>;
-      const indices = data.map((index: { [key: string]: string }) => ({
-        ...index,
-        docs: {
-          count: parseInt(index['docs.count'], 10),
-          deleted: parseInt(index['docs.deleted'], 10),
-        },
-        store: { size: index['store.size'] },
-      })) as ConnectionIndex[];
-      this.established = { ...connection, indices };
+      try {
+        const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+          [key: string]: string;
+        }>;
+        const indices = data.map((index: { [key: string]: string }) => ({
+          ...index,
+          docs: {
+            count: parseInt(index['docs.count'], 10),
+            deleted: parseInt(index['docs.deleted'], 10),
+          },
+          store: { size: index['store.size'] },
+        })) as ConnectionIndex[];
+        this.established = { ...connection, indices };
+      } catch (err) {
+        this.established = { ...connection, indices: [] };
+      }
     },
     async fetchIndices() {
       if (!this.established) throw new Error('no connection established');

@@ -16,6 +16,8 @@
 import { storeToRefs } from 'pinia';
 import { useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
+import { CustomError } from '../../../common';
+
 const message = useMessage();
 const lang = useLang();
 
@@ -44,7 +46,19 @@ const handleOpen = async (isOpen: boolean) => {
     return;
   }
   loadingRef.value = true;
-  await fetchIndices();
+  try {
+    await fetchIndices();
+  } catch (err) {
+    message.error(
+      `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
+      {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      },
+    );
+  }
+
   loadingRef.value = false;
 };
 </script>
@@ -56,16 +70,19 @@ const handleOpen = async (isOpen: boolean) => {
   display: flex;
   align-items: center;
   border-right: 1px solid var(--border-color);
+
   :deep(.n-select) {
     .n-base-selection {
       .n-base-selection-label {
         background-color: unset;
       }
+
       .n-base-selection__border,
       .n-base-selection__state-border {
         border: unset;
       }
     }
+
     .n-base-selection:hover,
     .n-base-selection--active,
     .n-base-selection--focus {
