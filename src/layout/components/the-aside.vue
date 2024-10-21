@@ -78,7 +78,7 @@ const mainNavList = ref([
   },
   {
     id: 'file',
-    path: '/',
+    path: '/file',
     name: 'file',
     icon: markRaw(Folders),
     isLink: false,

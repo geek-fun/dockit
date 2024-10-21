@@ -57,6 +57,14 @@ const router = createRouter({
           },
           component: () => import('../views/setting/index.vue'),
         },
+        {
+          name: 'File',
+          path: '/file',
+          meta: {
+            keepAlive: false,
+          },
+          component: () => import('../views/file/index.vue'),
+        },
       ],
     },
   ],
