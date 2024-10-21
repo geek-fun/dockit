@@ -41,9 +41,7 @@ const toolBarList = [
 
 const handleToolBarAction = async (id: ToolBarAction) => {
   if (id === ToolBarAction.ADD_DOCUMENT) {
-    console.log('Add Document');
   } else if (id === ToolBarAction.ADD_FOLDER) {
-    console.log('Add Folder');
   } else if (id === ToolBarAction.OPEN_FOLDER) {
     try {
       const selectedFiles = await open({
@@ -54,7 +52,6 @@ const handleToolBarAction = async (id: ToolBarAction) => {
     } catch (error) {
       console.error('Failed to open file dialog:', error);
     }
-    console.log(id);
   }
 };
 </script>
