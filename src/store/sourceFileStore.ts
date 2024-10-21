@@ -1,8 +1,9 @@
 import { open } from '@tauri-apps/api/dialog';
-import { readDir } from '@tauri-apps/api/fs';
+import { exists, readDir } from '@tauri-apps/api/fs';
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
+import { get } from 'lodash';
 
 const sourceFilePath = 'search/default.search';
 
@@ -24,7 +25,7 @@ export type FileItem = {
 };
 
 export const useSourceFileStore = defineStore('sourceFileStore', {
-  state(): { defaultFile: string; folderPath: string; fileList: FileItem[] } {
+  state(): { defaultFile: string; folderPath?: string; fileList: FileItem[] } {
     return {
       defaultFile: '',
       folderPath: '',
@@ -40,26 +41,33 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
       this.defaultFile = content;
       await sourceFileApi.saveFile(sourceFilePath, content);
     },
-    async openFolder() {
+    async openFolder(path?: string) {
+      this.folderPath = path;
       try {
-        this.folderPath = (await open({
-          recursive: true,
-          directory: true,
-        })) as string;
-        if (this.folderPath) {
-          const files = (await readDir(this.folderPath as string)).sort((a, b) => {
+        this.folderPath = path ?? ((await open({ recursive: true, directory: true })) as string);
+
+        if (!(await exists(this.folderPath))) {
+          throw new CustomError(404, 'Folder not found');
+        }
+
+        this.fileList = (await readDir(this.folderPath as string))
+          .sort((a, b) => {
             if (a.children && !b.children) return -1;
             if (!a.children && b.children) return 1;
             return a?.name?.localeCompare(b?.name ?? '') || 0;
-          });
-          this.fileList = files.map(file => ({
+          })
+          .map(file => ({
             path: file.path,
             name: file.name,
             type: file.children ? FileType.FOLDER : FileType.FILE,
           }));
-        }
+
+        this.folderPath = path;
       } catch (error) {
-        throw new CustomError(500, (error as Error).message);
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
       }
     },
   },
