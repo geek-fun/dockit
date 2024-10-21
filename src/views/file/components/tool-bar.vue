@@ -12,14 +12,11 @@
 </template>
 
 <script setup lang="ts">
-import { open } from '@tauri-apps/api/dialog';
 import { DocumentAdd, FolderAdd, FolderOpen } from '@vicons/carbon';
+import { ToolBarAction, useSourceFileStore } from '../../../store';
 
-enum ToolBarAction {
-  ADD_DOCUMENT = 'ADD_DOCUMENT',
-  ADD_FOLDER = 'ADD_FOLDER',
-  OPEN_FOLDER = 'OPEN_FOLDER',
-}
+const fileStore = useSourceFileStore();
+const { openFolder } = fileStore;
 
 const toolBarList = [
   {
@@ -43,15 +40,7 @@ const handleToolBarAction = async (id: ToolBarAction) => {
   if (id === ToolBarAction.ADD_DOCUMENT) {
   } else if (id === ToolBarAction.ADD_FOLDER) {
   } else if (id === ToolBarAction.OPEN_FOLDER) {
-    try {
-      const selectedFiles = await open({
-        multiple: false,
-        directory: true,
-      });
-      console.log('Selected files:', selectedFiles);
-    } catch (error) {
-      console.error('Failed to open file dialog:', error);
-    }
+    await openFolder();
   }
 };
 </script>

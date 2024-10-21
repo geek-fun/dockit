@@ -1,10 +1,11 @@
 <template>
   <tool-bar />
-  <div class="file-container">file</div>
+  <file-list />
 </template>
 
 <script setup lang="ts">
 import ToolBar from './components/tool-bar.vue';
+import FileList from './components/file-list.vue';
 </script>
 
 <style lang="scss" scoped>
