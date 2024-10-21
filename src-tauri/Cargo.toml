@@ -11,7 +11,7 @@ edition = "2021"
 tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
-tauri = { version = "1.7", features = [ "fs-create-dir", "global-shortcut-all", "http-all", "fs-exists", "fs-read-file", "fs-write-file", "shell-open"] }
+tauri = { version = "1.7", features = [ "dialog-open", "fs-create-dir", "global-shortcut-all", "http-all", "fs-exists", "fs-read-file", "fs-write-file", "shell-open"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }

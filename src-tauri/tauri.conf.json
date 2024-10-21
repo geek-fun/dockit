@@ -37,6 +37,9 @@
       },
       "globalShortcut": {
         "all": true
+      },
+      "dialog": {
+        "open": true
       }
     },
     "windows": [
