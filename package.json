@@ -37,7 +37,7 @@
     "tauri-plugin-system-info-api": "^1.0.2",
     "ulidx": "^2.4.0",
     "vue": "^3.5.8",
-    "vue-i18n": "^9.14.0",
+    "vue-i18n": "^9.14.1",
     "vue-router": "^4.4.5"
   },
   "devDependencies": {
