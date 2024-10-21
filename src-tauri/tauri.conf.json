@@ -23,6 +23,7 @@
         "writeFile": true,
         "createDir": true,
         "exists": true,
+        "readDir": true,
         "scope": [
           "$APPDATA/**/*"
         ]
