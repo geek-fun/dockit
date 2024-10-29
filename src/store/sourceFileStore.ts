@@ -48,15 +48,15 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
     },
 
     async openFolder(path?: string) {
-      this.folderPath = path;
       try {
-        this.folderPath = path ?? ((await open({ recursive: true, directory: true })) as string);
+        const selectedPath =
+          path ?? ((await open({ recursive: true, directory: true, defaultPath: path })) as string);
 
-        if (!(await exists(this.folderPath))) {
+        if (!(await exists(selectedPath))) {
           throw new CustomError(404, 'Folder not found');
         }
 
-        this.fileList = (await readDir(this.folderPath as string))
+        this.fileList = (await readDir(selectedPath))
           .sort((a, b) => {
             if (a.children && !b.children) return -1;
             if (!a.children && b.children) return 1;
@@ -68,7 +68,7 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
             type: file.children ? FileType.FOLDER : FileType.FILE,
           }));
 
-        this.folderPath = path;
+        this.folderPath = selectedPath;
       } catch (error) {
         throw new CustomError(
           get(error, 'status', 500),

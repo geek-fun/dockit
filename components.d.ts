@@ -10,6 +10,8 @@ declare module 'vue' {
     AppProvider: typeof import('./src/components/AppProvider.vue')['default']
     MarkdownRender: typeof import('./src/components/MarkdownRender.vue')['default']
     NAlert: typeof import('naive-ui')['NAlert']
+    NBreadcrumb: typeof import('naive-ui')['NBreadcrumb']
+    NBreadcrumbItem: typeof import('naive-ui')['NBreadcrumbItem']
     NButton: typeof import('naive-ui')['NButton']
     NCard: typeof import('naive-ui')['NCard']
     NCollapse: typeof import('naive-ui')['NCollapse']

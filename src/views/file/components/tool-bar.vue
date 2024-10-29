@@ -8,15 +8,23 @@
       </template>
       {{ toolBar.title }}
     </n-tooltip>
+    <n-breadcrumb>
+      <n-breadcrumb-item v-if="folderPath" v-for="path in folderPath?.split('/')">
+        <n-icon :component="Folder" />
+        {{ path }}
+      </n-breadcrumb-item>
+    </n-breadcrumb>
   </div>
 </template>
 
 <script setup lang="ts">
-import { DocumentAdd, FolderAdd, FolderOpen } from '@vicons/carbon';
+import { DocumentAdd, FolderAdd, FolderOpen, Folder } from '@vicons/carbon';
+import { storeToRefs } from 'pinia';
 import { ToolBarAction, useSourceFileStore } from '../../../store';
 
 const fileStore = useSourceFileStore();
 const { openFolder } = fileStore;
+const { folderPath } = storeToRefs(fileStore);
 
 const toolBarList = [
   {
