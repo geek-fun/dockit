@@ -9,6 +9,7 @@
   </n-split>
 </template>
 <script setup lang="ts">
+import { useRoute } from 'vue-router';
 import { open } from '@tauri-apps/api/shell';
 import { listen } from '@tauri-apps/api/event';
 import { storeToRefs } from 'pinia';
@@ -42,9 +43,11 @@ const appStore = useAppStore();
 const message = useMessage();
 const lang = useLang();
 
+const route = useRoute();
+
 const sourceFileStore = useSourceFileStore();
 const { readSourceFromFile, saveSourceToFile } = sourceFileStore;
-const { defaultFile } = storeToRefs(sourceFileStore);
+const { fileContent } = storeToRefs(sourceFileStore);
 
 const connectionStore = useConnectionStore();
 const { searchQDSL, queryToCurl } = connectionStore;
@@ -331,9 +334,23 @@ const displayJsonEditor = (content: string) => {
   displayEditorRef.value.display(content);
 };
 
+const unlistenSaveFile = ref<Function>();
+const saveFileListener = async () => {
+  unlistenSaveFile.value = await listen('saveFile', async () => {
+    if (!queryEditor) {
+      return;
+    }
+    await saveSourceToFile(
+      queryEditor?.getModel()?.getValue() || '',
+      route.params.filePath as string,
+    );
+  });
+};
+
 onMounted(async () => {
-  await readSourceFromFile();
-  const code = defaultFile.value;
+  await readSourceFromFile(route.params.filePath as string);
+  const code = fileContent.value;
+  await saveFileListener();
   setupQueryEditor(code);
 });
 
@@ -341,13 +358,9 @@ onUnmounted(() => {
   codeLensProvider?.dispose();
   queryEditor?.dispose();
   displayEditorRef?.value?.dispose();
-});
-// @ts-ignore
-listen('saveFile', async event => {
-  if (!queryEditor) {
-    return;
+  if (unlistenSaveFile?.value) {
+    unlistenSaveFile.value();
   }
-  await saveSourceToFile(queryEditor?.getModel()?.getValue() || '');
 });
 </script>
 

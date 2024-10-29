@@ -25,22 +25,28 @@ export type FileItem = {
 };
 
 export const useSourceFileStore = defineStore('sourceFileStore', {
-  state(): { defaultFile: string; folderPath?: string; fileList: FileItem[] } {
+  state(): { fileContent: string; filePath: string; folderPath?: string; fileList: FileItem[] } {
     return {
-      defaultFile: '',
+      fileContent: '',
+      filePath: '',
       folderPath: '',
       fileList: [],
     };
   },
   getters: {},
   actions: {
-    async readSourceFromFile() {
-      this.defaultFile = await sourceFileApi.readFile(sourceFilePath);
+    async readSourceFromFile(path: string | undefined) {
+      this.filePath = path && path !== ':filePath' ? path : sourceFilePath;
+      this.fileContent = await sourceFileApi.readFile(this.filePath);
     },
-    async saveSourceToFile(content: string) {
-      this.defaultFile = content;
-      await sourceFileApi.saveFile(sourceFilePath, content);
+    async saveSourceToFile(content: string, path: string | undefined) {
+      if (path && path !== ':filePath' && path !== this.filePath) {
+        this.filePath = path;
+      }
+      this.fileContent = content;
+      await sourceFileApi.saveFile(this.filePath, content);
     },
+
     async openFolder(path?: string) {
       this.folderPath = path;
       try {

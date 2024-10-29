@@ -13,10 +13,15 @@
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { FileItem, FileType, useSourceFileStore } from '../../../store';
 import { Folder } from '@vicons/carbon';
+import { useLang } from '../../../lang';
 
+const router = useRouter();
+const message = useMessage();
+const lang = useLang();
 const fileStore = useSourceFileStore();
 const { openFolder } = fileStore;
 const { fileList } = storeToRefs(fileStore);
@@ -30,7 +35,19 @@ enum ClickType {
 
 const handleClick = async (type: ClickType, file: FileItem) => {
   if (type === ClickType.DOUBLE) {
-    await openFolder(file.path);
+    if (file.type === FileType.FOLDER) {
+      await openFolder(file.path);
+    } else {
+      if (file.path.endsWith('.search')) {
+        router.push({ name: 'Connect', params: { filePath: file.path } });
+      } else {
+        message.error(lang.t('editor.unsupportedFile'), {
+          closable: true,
+          keepAliveOnHover: true,
+          duration: 3600,
+        });
+      }
+    }
   } else {
     activeRef.value = file;
   }

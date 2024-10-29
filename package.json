@@ -45,6 +45,7 @@
     "@types/debug": "^4.1.12",
     "@types/jest": "^29.5.12",
     "@types/markdown-it": "^14.1.1",
+    "@types/lodash": "^4.17.12",
     "@typescript-eslint/eslint-plugin": "^7.14.1",
     "@typescript-eslint/parser": "^7.14.1",
     "@vicons/antd": "^0.12.0",

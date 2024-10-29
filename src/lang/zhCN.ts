@@ -151,6 +151,7 @@ export const zhCN = {
     invalidJson: '无效的 JSON 格式',
     copySuccess: '已复制到粘贴板',
     copyFailure: '复制失败',
+    unsupportedFile: 'DocKit不支持该文件类型',
   },
   history: {
     empty: '无历史记录',

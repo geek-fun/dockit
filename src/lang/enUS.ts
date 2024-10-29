@@ -151,6 +151,7 @@ export const enUS = {
     invalidJson: 'Invalid JSON format',
     copySuccess: 'Copied to clipboard',
     copyFailure: 'Failed to copy to clipboard',
+    unsupportedFile: 'DocKit does not support this file type',
   },
   history: {
     empty: 'No history yet',

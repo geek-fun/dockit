@@ -1,11 +1,10 @@
-import { createMemoryHistory, createRouter } from 'vue-router';
-
+import { createRouter, createWebHistory } from 'vue-router';
 import { useUserStore } from '../store';
 
 const LOGIN_PATH = '/login';
 
 const router = createRouter({
-  history: createMemoryHistory(),
+  history: createWebHistory(),
   scrollBehavior: () => ({ left: 0, top: 0 }),
   routes: [
     {
@@ -23,11 +22,11 @@ const router = createRouter({
         keepAlive: false,
       },
       component: () => import('../layout/index.vue'),
-      redirect: '/connect',
+      redirect: '/connect/:filePath?',
       children: [
         {
           name: 'Connect',
-          path: '/connect',
+          path: '/connect/:filePath?',
           meta: {
             keepAlive: false,
           },
