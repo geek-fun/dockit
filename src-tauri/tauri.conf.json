@@ -24,9 +24,7 @@
         "createDir": true,
         "exists": true,
         "readDir": true,
-        "scope": [
-          "$APPDATA/**/*"
-        ]
+        "scope": ["*/**"]
       },
       "http": {
         "all": true,

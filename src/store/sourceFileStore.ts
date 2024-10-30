@@ -33,6 +33,7 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
       fileList: [],
     };
   },
+  persist: true,
   getters: {},
   actions: {
     async readSourceFromFile(path: string | undefined) {
@@ -57,6 +58,7 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
         }
 
         this.fileList = (await readDir(selectedPath))
+          .filter(file => !file.name?.startsWith('.'))
           .sort((a, b) => {
             if (a.children && !b.children) return -1;
             if (!a.children && b.children) return 1;
