@@ -18,42 +18,50 @@
         {{ path }}
       </n-breadcrumb-item>
     </n-breadcrumb>
+    <new-file-dialog ref="newFileDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { DocumentAdd, FolderAdd, FolderOpen, Folder } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { ToolBarAction, useSourceFileStore } from '../../../store';
+import { FileType, ToolBarAction, useSourceFileStore } from '../../../store';
 import { CustomError } from '../../../common';
+import { useLang } from '../../../lang';
 
 const fileStore = useSourceFileStore();
 const { openFolder } = fileStore;
 const { folderPath } = storeToRefs(fileStore);
+import NewFileDialog from './new-file-dialog.vue';
 
 const message = useMessage();
+const lang = useLang();
+
+const newFileDialogRef = ref();
 
 const toolBarList = [
   {
     id: ToolBarAction.ADD_DOCUMENT,
     icon: DocumentAdd,
-    title: 'Add Document',
+    title: lang.t('file.newFile'),
   },
   {
     id: ToolBarAction.ADD_FOLDER,
     icon: FolderAdd,
-    title: 'Add Folder',
+    title: lang.t('file.newFolder'),
   },
   {
     id: ToolBarAction.OPEN_FOLDER,
     icon: FolderOpen,
-    title: 'Open Folder',
+    title: lang.t('file.open'),
   },
 ];
 
 const handleToolBarAction = async (id: ToolBarAction) => {
   if (id === ToolBarAction.ADD_DOCUMENT) {
+    newFileDialogRef.value.showModal(FileType.FILE);
   } else if (id === ToolBarAction.ADD_FOLDER) {
+    newFileDialogRef.value.showModal(FileType.FOLDER);
   } else if (id === ToolBarAction.OPEN_FOLDER) {
     await openFolder();
   }
@@ -91,6 +99,7 @@ const handleBreadcrumb = async (index: number) => {
     display: flex;
     align-items: flex-start;
   }
+
   .tool-bar-path-breadcrumb {
     overflow: scroll;
     scrollbar-width: none; /* For Firefox */

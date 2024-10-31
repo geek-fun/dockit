@@ -34,6 +34,7 @@ const readFromFile = async (filePath: string) => {
 const sourceFileApi = {
   saveFile: (filePath: string, content: string) => saveFile(filePath, content),
   readFile: (filePath: string) => readFromFile(filePath),
+  createFolder: (folderPath: string) => createDir(folderPath),
 };
 
 export { sourceFileApi };

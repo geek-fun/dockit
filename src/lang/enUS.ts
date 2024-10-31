@@ -153,6 +153,12 @@ export const enUS = {
     copyFailure: 'Failed to copy to clipboard',
     unsupportedFile: 'DocKit does not support this file type',
   },
+  file: {
+    newFile: 'New File',
+    newFolder: 'New Folder',
+    open: 'Open Folder',
+    name: 'Name',
+  },
   history: {
     empty: 'No history yet',
     emptyDesc: 'History of queries will appear here as you execute Scans and Queries',

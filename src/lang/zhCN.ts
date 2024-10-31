@@ -153,6 +153,13 @@ export const zhCN = {
     copyFailure: '复制失败',
     unsupportedFile: 'DocKit不支持该文件类型',
   },
+  file: {
+    newFile: '新建文件',
+    newFolder: '新建文件夹',
+    open: '打开文件夹',
+    name: '名称',
+    validationFailed: '表单验证失败！',
+  },
   history: {
     empty: '无历史记录',
     emptyDesc: '执行扫描和查询时，查询历史记录将显示在此处',

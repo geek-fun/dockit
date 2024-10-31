@@ -78,5 +78,14 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
         );
       }
     },
+    async createFileOrFolder(action: ToolBarAction, name: string) {
+      const targetPath = `${this.folderPath}/${name}`;
+      if (action === ToolBarAction.ADD_DOCUMENT) {
+        await sourceFileApi.saveFile(targetPath, '');
+      } else {
+        await sourceFileApi.createFolder(targetPath);
+      }
+      await this.openFolder(this.folderPath);
+    },
   },
 });
