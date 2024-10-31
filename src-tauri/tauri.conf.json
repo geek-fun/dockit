@@ -24,6 +24,9 @@
         "createDir": true,
         "exists": true,
         "readDir": true,
+        "removeDir": true,
+        "removeFile": true,
+        "renameFile": true,
         "scope": ["*/**"]
       },
       "http": {

@@ -159,6 +159,11 @@ export const zhCN = {
     open: '打开文件夹',
     name: '名称',
     validationFailed: '表单验证失败！',
+    contextMenu: {
+      open: '打开',
+      rename: '重命名',
+      delete: '删除',
+    },
   },
   history: {
     empty: '无历史记录',

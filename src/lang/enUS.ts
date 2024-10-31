@@ -157,6 +157,11 @@ export const enUS = {
     newFile: 'New File',
     newFolder: 'New Folder',
     open: 'Open Folder',
+    contextMenu: {
+      open: 'Open',
+      rename: 'Rename',
+      delete: 'Delete',
+    },
     name: 'Name',
   },
   history: {

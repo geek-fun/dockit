@@ -4,11 +4,18 @@
     class="file-item"
     @click="handleClick(ClickType.SINGLE, file)"
     @dblclick="handleClick(ClickType.DOUBLE, file)"
+    @contextmenu.prevent="showContextMenu($event, file)"
   >
     <n-icon size="30" v-if="file.type === FileType.FOLDER" color="#0e7a0d">
       <Folder />
     </n-icon>
     <span class="file-item-name">{{ file.name }}</span>
+    <context-menu
+      v-if="contextMenuVisible"
+      :position="contextMenuPosition"
+      :file="selectedFile"
+      @close-context-menu="handleCloseContextMenu"
+    />
   </div>
 </template>
 
@@ -18,6 +25,7 @@ import { storeToRefs } from 'pinia';
 import { FileItem, FileType, useSourceFileStore } from '../../../store';
 import { Folder } from '@vicons/carbon';
 import { useLang } from '../../../lang';
+import ContextMenu from './context-menu.vue';
 
 const router = useRouter();
 const message = useMessage();
@@ -52,6 +60,34 @@ const handleClick = async (type: ClickType, file: FileItem) => {
     activeRef.value = file;
   }
 };
+
+const selectedFile = ref<FileItem>();
+const contextMenuVisible = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+
+const showContextMenu = (event: MouseEvent, file: FileItem) => {
+  selectedFile.value = file;
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY };
+  contextMenuVisible.value = true;
+};
+
+const handleClickOutside = (event: MouseEvent) => {
+  if (!(event.target as HTMLElement).closest('.context-menu')) {
+    contextMenuVisible.value = false;
+  }
+};
+const handleCloseContextMenu = () => {
+  console.log(`handleCloseContextMenu`);
+  contextMenuVisible.value = false;
+  console.log(`handleCloseContextMenu: ${contextMenuVisible.value}`);
+};
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside);
+});
 </script>
 
 <style lang="scss" scoped>

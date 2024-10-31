@@ -87,5 +87,13 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
       }
       await this.openFolder(this.folderPath);
     },
+    async deleteFileOrFolder(path: string) {
+      await sourceFileApi.deleteFileOrFolder(path);
+      await this.openFolder(this.folderPath);
+    },
+    async renameFileOrFolder(oldPath: string, newPath: string) {
+      await sourceFileApi.renameFileOrFolder(oldPath, newPath);
+      await this.openFolder(this.folderPath);
+    },
   },
 });

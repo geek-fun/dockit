@@ -1,6 +1,15 @@
-import { BaseDirectory, createDir, exists, readTextFile, writeTextFile } from '@tauri-apps/api/fs';
+import {
+  BaseDirectory,
+  createDir,
+  exists,
+  readTextFile,
+  removeDir,
+  removeFile,
+  renameFile,
+  writeTextFile,
+} from '@tauri-apps/api/fs';
 
-import { debug } from '../common';
+import { CustomError, debug } from '../common';
 
 const saveFile = async (filePath: string, content: string) => {
   try {
@@ -31,10 +40,33 @@ const readFromFile = async (filePath: string) => {
   }
 };
 
+const deleteFileOrFolder = async (filePath: string) => {
+  try {
+    await Promise.any([removeFile(filePath), removeDir(filePath, { recursive: true })]);
+    debug('delete file or folder success');
+  } catch (err) {
+    console.log(`deleteFileOrFolder error`, JSON.stringify(err));
+    debug(`deleteFileOrFolder error: ${err}`);
+    throw new CustomError(500, JSON.stringify(err));
+  }
+};
+
+const renameFileOrFolder = async (oldPath: string, newPath: string) => {
+  try {
+    await renameFile(oldPath, newPath);
+    debug('rename file or folder success');
+  } catch (err) {
+    debug(`renameFileOrFolder error: ${err}`);
+    throw new CustomError(500, JSON.stringify(err));
+  }
+};
+
 const sourceFileApi = {
   saveFile: (filePath: string, content: string) => saveFile(filePath, content),
   readFile: (filePath: string) => readFromFile(filePath),
   createFolder: (folderPath: string) => createDir(folderPath),
+  deleteFileOrFolder,
+  renameFileOrFolder,
 };
 
 export { sourceFileApi };
