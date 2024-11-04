@@ -1,21 +1,24 @@
 <template>
-  <div
-    v-for="file in fileList"
-    class="file-item"
-    @click="handleClick(ClickType.SINGLE, file)"
-    @dblclick="handleClick(ClickType.DOUBLE, file)"
-    @contextmenu.prevent="showContextMenu($event, file)"
-  >
-    <n-icon size="30" v-if="file.type === FileType.FOLDER" color="#0e7a0d">
-      <Folder />
-    </n-icon>
-    <span class="file-item-name">{{ file.name }}</span>
-    <context-menu
-      v-if="contextMenuVisible"
-      :position="contextMenuPosition"
-      :file="selectedFile"
-      @close-context-menu="handleCloseContextMenu"
-    />
+  <div @contextmenu.prevent="showContextMenu($event, undefined)" class="file-container">
+    <div
+      v-for="file in fileList"
+      class="file-item"
+      @click="handleClick(ClickType.SINGLE, file)"
+      @dblclick="handleClick(ClickType.DOUBLE, file)"
+      @contextmenu.prevent="showContextMenu($event, file)"
+    >
+      <n-icon size="30" v-if="file.type === FileType.FOLDER" color="#0e7a0d">
+        <Folder />
+      </n-icon>
+      <span class="file-item-name">{{ file.name }}</span>
+      <context-menu
+        v-if="contextMenuVisible"
+        :position="contextMenuPosition"
+        :file="selectedFile"
+        @close-context-menu="handleCloseContextMenu"
+      />
+      <new-file-dialog ref="newFileDialogRef" />
+    </div>
   </div>
 </template>
 
@@ -26,6 +29,7 @@ import { FileItem, FileType, useSourceFileStore } from '../../../store';
 import { Folder } from '@vicons/carbon';
 import { useLang } from '../../../lang';
 import ContextMenu from './context-menu.vue';
+import NewFileDialog from './new-file-dialog.vue';
 
 const router = useRouter();
 const message = useMessage();
@@ -65,7 +69,7 @@ const selectedFile = ref<FileItem>();
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 
-const showContextMenu = (event: MouseEvent, file: FileItem) => {
+const showContextMenu = (event: MouseEvent, file?: FileItem) => {
   selectedFile.value = file;
   contextMenuPosition.value = { x: event.clientX, y: event.clientY };
   contextMenuVisible.value = true;
@@ -91,14 +95,19 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
-.file-item {
-  display: flex;
-  align-items: center;
-  padding: 5px 10px;
-  cursor: pointer;
+.file-container {
+  width: 100%;
+  height: 100%;
 
-  .file-item-name {
-    margin-left: 5px;
+  .file-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    cursor: pointer;
+
+    .file-item-name {
+      margin-left: 5px;
+    }
   }
 }
 </style>

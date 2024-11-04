@@ -1,9 +1,7 @@
 <template>
   <div class="context-menu" :style="{ top: `${position?.y}px`, left: `${position?.x}px` }">
     <ul>
-      <li @click="handleAction(Action.OPEN)">{{ $t('file.contextMenu.open') }}</li>
-      <li @click="handleAction(Action.RENAME)">{{ $t('file.contextMenu.rename') }}</li>
-      <li @click="handleAction(Action.DELETE)">{{ $t('file.contextMenu.delete') }}</li>
+      <li v-for="action in actions" @click="handleAction(action.action)">{{ action.label }}</li>
     </ul>
   </div>
 </template>
@@ -25,11 +23,32 @@ const message = useMessage();
 const fileStore = useSourceFileStore();
 const { openFolder, deleteFileOrFolder } = fileStore;
 
+const newFileDialogRef = ref();
+
 enum Action {
   OPEN = 'OPEN',
   RENAME = 'RENAME',
   DELETE = 'DELETE',
+  NEW_FILE = 'NEW_FILE',
+  NEW_FOLDER = 'NEW_FOLDER',
 }
+
+const actions = ref<Array<{ label: string; action: Action }>>([]);
+
+watchEffect(() => {
+  if (props.file) {
+    actions.value = [
+      { label: lang.t('file.contextMenu.open'), action: Action.OPEN },
+      { label: lang.t('file.contextMenu.rename'), action: Action.RENAME },
+      { label: lang.t('file.contextMenu.delete'), action: Action.DELETE },
+    ];
+  } else {
+    actions.value = [
+      { label: lang.t('file.newFile'), action: Action.NEW_FILE },
+      { label: lang.t('file.newFolder'), action: Action.NEW_FOLDER },
+    ];
+  }
+});
 
 const emits = defineEmits(['close-context-menu']);
 
@@ -53,6 +72,10 @@ const handleAction = async (action: Action) => {
       // await renameFileOrFolder(props.file?.path);
     } else if (action === Action.DELETE) {
       await deleteFileOrFolder(props.file?.path);
+    } else if (action === Action.NEW_FILE) {
+      newFileDialogRef.value.showModal(FileType.FILE);
+    } else if (action === Action.NEW_FOLDER) {
+      newFileDialogRef.value.showModal(FileType.FOLDER);
     }
   } catch (error) {
     message.error(
