@@ -8,33 +8,21 @@
       </template>
       {{ toolBar.title }}
     </n-tooltip>
-    <n-breadcrumb class="tool-bar-path-breadcrumb">
-      <n-breadcrumb-item
-        v-if="folderPath"
-        v-for="(path, index) in folderPath?.split('/')"
-        @click="handleBreadcrumb(index)"
-      >
-        <n-icon :component="Folder" v-if="index !== 0" />
-        {{ path }}
-      </n-breadcrumb-item>
-    </n-breadcrumb>
+    <path-breadcrumb />
     <new-file-dialog ref="newFileDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { DocumentAdd, FolderAdd, FolderOpen, Folder } from '@vicons/carbon';
-import { storeToRefs } from 'pinia';
+import { DocumentAdd, FolderAdd, FolderOpen } from '@vicons/carbon';
 import { FileType, ToolBarAction, useSourceFileStore } from '../../../store';
-import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
+import NewFileDialog from './new-file-dialog.vue';
+import PathBreadcrumb from '../../../components/PathBreadcrumb.vue';
 
 const fileStore = useSourceFileStore();
 const { openFolder } = fileStore;
-const { folderPath } = storeToRefs(fileStore);
-import NewFileDialog from './new-file-dialog.vue';
 
-const message = useMessage();
 const lang = useLang();
 
 const newFileDialogRef = ref();
@@ -66,23 +54,6 @@ const handleToolBarAction = async (id: ToolBarAction) => {
     await openFolder();
   }
 };
-
-const handleBreadcrumb = async (index: number) => {
-  const subPath = folderPath?.value
-    ?.split('/')
-    .splice(0, index + 1)
-    .join('/');
-  try {
-    await openFolder(subPath);
-  } catch (error) {
-    const { status, details } = error as CustomError;
-    message.error(`status: ${status}, details: ${details}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3600,
-    });
-  }
-};
 </script>
 
 <style lang="scss" scoped>
@@ -98,16 +69,6 @@ const handleBreadcrumb = async (index: number) => {
     cursor: pointer;
     display: flex;
     align-items: flex-start;
-  }
-
-  .tool-bar-path-breadcrumb {
-    overflow: scroll;
-    scrollbar-width: none; /* For Firefox */
-    -ms-overflow-style: none; /* For Internet Explorer and Edge */
-
-    &::-webkit-scrollbar {
-      display: none; /* For Chrome, Safari, and Opera */
-    }
   }
 }
 </style>

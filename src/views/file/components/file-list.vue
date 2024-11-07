@@ -75,8 +75,10 @@ const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 
 const showContextMenu = (event: MouseEvent, file?: FileItem) => {
+  // Prevent the event from propagating further
+  event.stopPropagation();
   selectedFile.value = file;
-  contextMenuPosition.value = { x: event.clientX, y: event.clientY };
+  contextMenuPosition.value = { x: event.layerX, y: event.layerY };
   contextMenuVisible.value = true;
 };
 
@@ -137,6 +139,10 @@ onUnmounted(() => {
 
       .file-item-name {
         margin-left: 5px;
+      }
+
+      &:hover {
+        background-color: var(--connect-list-hover-bg);
       }
     }
   }

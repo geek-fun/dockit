@@ -17,6 +17,9 @@
         "all": false,
         "open": true
       },
+      "path": {
+        "all": true
+      },
       "fs": {
         "all": false,
         "readFile": true,
@@ -27,7 +30,9 @@
         "removeDir": true,
         "removeFile": true,
         "renameFile": true,
-        "scope": ["*/**"]
+        "scope": [
+          "*/**"
+        ]
       },
       "http": {
         "all": true,

@@ -152,6 +152,7 @@ export const enUS = {
     copySuccess: 'Copied to clipboard',
     copyFailure: 'Failed to copy to clipboard',
     unsupportedFile: 'DocKit does not support this file type',
+    loadDefault: 'Load default code snippet',
   },
   file: {
     newFile: 'New File',

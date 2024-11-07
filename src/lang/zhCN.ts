@@ -152,6 +152,7 @@ export const zhCN = {
     copySuccess: '已复制到粘贴板',
     copyFailure: '复制失败',
     unsupportedFile: 'DocKit不支持该文件类型',
+    loadDefault: '加载默认代码片段',
   },
   file: {
     newFile: '新建文件',

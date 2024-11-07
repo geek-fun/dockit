@@ -1,11 +1,12 @@
 import { open } from '@tauri-apps/api/dialog';
 import { exists, readDir } from '@tauri-apps/api/fs';
+import { appLocalDataDir } from '@tauri-apps/api/path';
+
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
 import { get } from 'lodash';
-
-const sourceFilePath = 'search/default.search';
+import { defaultCodeSnippet } from '../common/monaco';
 
 export enum ToolBarAction {
   ADD_DOCUMENT = 'ADD_DOCUMENT',
@@ -33,11 +34,10 @@ export enum ContextMenuAction {
 }
 
 export const useSourceFileStore = defineStore('sourceFileStore', {
-  state(): { fileContent: string; filePath: string; folderPath?: string; fileList: FileItem[] } {
+  state(): { fileContent: string; filePath: string; fileList: FileItem[] } {
     return {
       fileContent: '',
       filePath: '',
-      folderPath: '',
       fileList: [],
     };
   },
@@ -45,8 +45,12 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
   getters: {},
   actions: {
     async readSourceFromFile(path: string | undefined) {
-      this.filePath = path && path !== ':filePath' ? path : sourceFilePath;
-      this.fileContent = await sourceFileApi.readFile(this.filePath);
+      const appLocalDataDirPath = `${await appLocalDataDir()}/search/default.search`;
+
+      this.filePath = path && path !== ':filePath' ? path : appLocalDataDirPath;
+      const fileContent = await sourceFileApi.readFile(this.filePath);
+      this.fileContent =
+        !fileContent && this.filePath === appLocalDataDirPath ? defaultCodeSnippet : fileContent;
     },
     async saveSourceToFile(content: string, path: string | undefined) {
       if (path && path !== ':filePath' && path !== this.filePath) {
@@ -78,7 +82,7 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
             type: file.children ? FileType.FOLDER : FileType.FILE,
           }));
 
-        this.folderPath = selectedPath;
+        this.filePath = selectedPath;
       } catch (error) {
         throw new CustomError(
           get(error, 'status', 500),
@@ -87,21 +91,25 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
       }
     },
     async createFileOrFolder(action: ToolBarAction, name: string) {
-      const targetPath = `${this.folderPath}/${name}`;
+      const path = this.filePath.endsWith('.search')
+        ? this.filePath.substring(0, this.filePath.lastIndexOf('/'))
+        : this.filePath;
+
+      const targetPath = `${path}/${name}`;
       if (action === ToolBarAction.ADD_DOCUMENT) {
         await sourceFileApi.saveFile(targetPath, '');
       } else {
         await sourceFileApi.createFolder(targetPath);
       }
-      await this.openFolder(this.folderPath);
+      await this.openFolder(this.filePath);
     },
     async deleteFileOrFolder(path: string) {
       await sourceFileApi.deleteFileOrFolder(path);
-      await this.openFolder(this.folderPath);
+      await this.openFolder(this.filePath);
     },
     async renameFileOrFolder(oldPath: string, newPath: string) {
       await sourceFileApi.renameFileOrFolder(oldPath, newPath);
-      await this.openFolder(this.folderPath);
+      await this.openFolder(this.filePath);
     },
   },
 });

@@ -24,7 +24,6 @@ import {
   buildCodeLens,
   buildSearchToken,
   Decoration,
-  defaultCodeSnippet,
   Editor,
   EngineType,
   executionGutterClass,
@@ -220,7 +219,7 @@ const setupQueryEditor = (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
     theme: getEditorTheme(),
-    value: code ? code : defaultCodeSnippet,
+    value: code,
     language: 'search',
     minimap: { enabled: false },
   });

@@ -93,7 +93,6 @@ const showMedal = (fileType: FileType) => {
     modalTitle.value = lang.t('file.newFile');
   }
   showModal.value = true;
-  console.log('showModal:', showModal.value);
 };
 
 const closeModal = () => {
