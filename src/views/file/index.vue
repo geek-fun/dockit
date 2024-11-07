@@ -1,6 +1,8 @@
 <template>
-  <tool-bar />
-  <file-list />
+  <div class="file-container">
+    <tool-bar />
+    <file-list />
+  </div>
 </template>
 
 <script setup lang="ts">

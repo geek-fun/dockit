@@ -24,6 +24,14 @@ export type FileItem = {
   type: FileType;
 };
 
+export enum ContextMenuAction {
+  CONTEXT_MENU_ACTION_OPEN = 'CONTEXT_MENU_ACTION_OPEN',
+  CONTEXT_MENU_ACTION_RENAME = 'CONTEXT_MENU_ACTION_RENAME',
+  CONTEXT_MENU_ACTION_DELETE = 'CONTEXT_MENU_ACTION_DELETE',
+  CONTEXT_MENU_ACTION_NEW_FILE = 'CONTEXT_MENU_ACTION_NEW_FILE',
+  CONTEXT_MENU_ACTION_NEW_FOLDER = 'CONTEXT_MENU_ACTION_NEW_FOLDER',
+}
+
 export const useSourceFileStore = defineStore('sourceFileStore', {
   state(): { fileContent: string; filePath: string; folderPath?: string; fileList: FileItem[] } {
     return {
