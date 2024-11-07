@@ -60,7 +60,6 @@ const editConnectHandler = (row: object) => {
   connectDialogRef.value.showMedal(row);
 };
 const handleLoadAction = async () => {
-  console.log('load');
   await readSourceFromFile(undefined);
 };
 </script>

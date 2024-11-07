@@ -45,8 +45,6 @@ const deleteFileOrFolder = async (filePath: string) => {
     await Promise.any([removeFile(filePath), removeDir(filePath, { recursive: true })]);
     debug('delete file or folder success');
   } catch (err) {
-    console.log(`deleteFileOrFolder error`, JSON.stringify(err));
-    debug(`deleteFileOrFolder error: ${err}`);
     throw new CustomError(500, JSON.stringify(err));
   }
 };

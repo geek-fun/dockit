@@ -336,16 +336,22 @@ const displayJsonEditor = (content: string) => {
 const unlistenSaveFile = ref<Function>();
 const saveFileListener = async () => {
   unlistenSaveFile.value = await listen('saveFile', async () => {
-    if (!queryEditor) {
+    const model = queryEditor?.getModel();
+    if (!model) {
       return;
     }
-    await saveSourceToFile(
-      queryEditor?.getModel()?.getValue() || '',
-      route.params.filePath as string,
-    );
+    await saveSourceToFile(model.getValue() || '');
   });
 };
 
+watch(
+  () => fileContent.value,
+  async () => {
+    if (queryEditor) {
+      queryEditor.setValue(fileContent.value);
+    }
+  },
+);
 onMounted(async () => {
   await readSourceFromFile(route.params.filePath as string);
   const code = fileContent.value;

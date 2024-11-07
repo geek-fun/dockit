@@ -69,6 +69,11 @@ const handleToolBarAction = async (id: ToolBarAction) => {
     cursor: pointer;
     display: flex;
     align-items: flex-start;
+    color: gray;
+
+    &:hover {
+      color: lightcyan;
+    }
   }
 }
 </style>

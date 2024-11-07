@@ -52,7 +52,7 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
       this.fileContent =
         !fileContent && this.filePath === appLocalDataDirPath ? defaultCodeSnippet : fileContent;
     },
-    async saveSourceToFile(content: string, path: string | undefined) {
+    async saveSourceToFile(content: string, path?: string | undefined) {
       if (path && path !== ':filePath' && path !== this.filePath) {
         this.filePath = path;
       }
