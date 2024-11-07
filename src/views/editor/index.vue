@@ -9,6 +9,7 @@
   </n-split>
 </template>
 <script setup lang="ts">
+import { useRoute } from 'vue-router';
 import { open } from '@tauri-apps/api/shell';
 import { listen } from '@tauri-apps/api/event';
 import { storeToRefs } from 'pinia';
@@ -23,7 +24,6 @@ import {
   buildCodeLens,
   buildSearchToken,
   Decoration,
-  defaultCodeSnippet,
   Editor,
   EngineType,
   executionGutterClass,
@@ -42,9 +42,11 @@ const appStore = useAppStore();
 const message = useMessage();
 const lang = useLang();
 
+const route = useRoute();
+
 const sourceFileStore = useSourceFileStore();
 const { readSourceFromFile, saveSourceToFile } = sourceFileStore;
-const { defaultFile } = storeToRefs(sourceFileStore);
+const { fileContent } = storeToRefs(sourceFileStore);
 
 const connectionStore = useConnectionStore();
 const { searchQDSL, queryToCurl } = connectionStore;
@@ -217,7 +219,7 @@ const setupQueryEditor = (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     automaticLayout: true,
     theme: getEditorTheme(),
-    value: code ? code : defaultCodeSnippet,
+    value: code,
     language: 'search',
     minimap: { enabled: false },
   });
@@ -331,9 +333,29 @@ const displayJsonEditor = (content: string) => {
   displayEditorRef.value.display(content);
 };
 
+const unlistenSaveFile = ref<Function>();
+const saveFileListener = async () => {
+  unlistenSaveFile.value = await listen('saveFile', async () => {
+    const model = queryEditor?.getModel();
+    if (!model) {
+      return;
+    }
+    await saveSourceToFile(model.getValue() || '');
+  });
+};
+
+watch(
+  () => fileContent.value,
+  async () => {
+    if (queryEditor) {
+      queryEditor.setValue(fileContent.value);
+    }
+  },
+);
 onMounted(async () => {
-  await readSourceFromFile();
-  const code = defaultFile.value;
+  await readSourceFromFile(route.params.filePath as string);
+  const code = fileContent.value;
+  await saveFileListener();
   setupQueryEditor(code);
 });
 
@@ -341,13 +363,9 @@ onUnmounted(() => {
   codeLensProvider?.dispose();
   queryEditor?.dispose();
   displayEditorRef?.value?.dispose();
-});
-// @ts-ignore
-listen('saveFile', async event => {
-  if (!queryEditor) {
-    return;
+  if (unlistenSaveFile?.value) {
+    unlistenSaveFile.value();
   }
-  await saveSourceToFile(queryEditor?.getModel()?.getValue() || '');
 });
 </script>
 

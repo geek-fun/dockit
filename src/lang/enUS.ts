@@ -151,6 +151,19 @@ export const enUS = {
     invalidJson: 'Invalid JSON format',
     copySuccess: 'Copied to clipboard',
     copyFailure: 'Failed to copy to clipboard',
+    unsupportedFile: 'DocKit does not support this file type',
+    loadDefault: 'Load default code snippet',
+  },
+  file: {
+    newFile: 'New File',
+    newFolder: 'New Folder',
+    open: 'Open Folder',
+    contextMenu: {
+      open: 'Open',
+      rename: 'Rename',
+      delete: 'Delete',
+    },
+    name: 'Name',
   },
   history: {
     empty: 'No history yet',

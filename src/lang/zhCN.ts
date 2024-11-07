@@ -151,6 +151,20 @@ export const zhCN = {
     invalidJson: '无效的 JSON 格式',
     copySuccess: '已复制到粘贴板',
     copyFailure: '复制失败',
+    unsupportedFile: 'DocKit不支持该文件类型',
+    loadDefault: '加载默认代码片段',
+  },
+  file: {
+    newFile: '新建文件',
+    newFolder: '新建文件夹',
+    open: '打开文件夹',
+    name: '名称',
+    validationFailed: '表单验证失败！',
+    contextMenu: {
+      open: '打开',
+      rename: '重命名',
+      delete: '删除',
+    },
   },
   history: {
     empty: '无历史记录',

@@ -8,50 +8,50 @@
       </template>
       {{ toolBar.title }}
     </n-tooltip>
+    <path-breadcrumb />
+    <new-file-dialog ref="newFileDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { open } from '@tauri-apps/api/dialog';
 import { DocumentAdd, FolderAdd, FolderOpen } from '@vicons/carbon';
+import { FileType, ToolBarAction, useSourceFileStore } from '../../../store';
+import { useLang } from '../../../lang';
+import NewFileDialog from './new-file-dialog.vue';
+import PathBreadcrumb from '../../../components/PathBreadcrumb.vue';
 
-enum ToolBarAction {
-  ADD_DOCUMENT = 'ADD_DOCUMENT',
-  ADD_FOLDER = 'ADD_FOLDER',
-  OPEN_FOLDER = 'OPEN_FOLDER',
-}
+const fileStore = useSourceFileStore();
+const { openFolder } = fileStore;
+
+const lang = useLang();
+
+const newFileDialogRef = ref();
 
 const toolBarList = [
   {
     id: ToolBarAction.ADD_DOCUMENT,
     icon: DocumentAdd,
-    title: 'Add Document',
+    title: lang.t('file.newFile'),
   },
   {
     id: ToolBarAction.ADD_FOLDER,
     icon: FolderAdd,
-    title: 'Add Folder',
+    title: lang.t('file.newFolder'),
   },
   {
     id: ToolBarAction.OPEN_FOLDER,
     icon: FolderOpen,
-    title: 'Open Folder',
+    title: lang.t('file.open'),
   },
 ];
 
 const handleToolBarAction = async (id: ToolBarAction) => {
   if (id === ToolBarAction.ADD_DOCUMENT) {
+    newFileDialogRef.value.showModal(FileType.FILE);
   } else if (id === ToolBarAction.ADD_FOLDER) {
+    newFileDialogRef.value.showModal(FileType.FOLDER);
   } else if (id === ToolBarAction.OPEN_FOLDER) {
-    try {
-      const selectedFiles = await open({
-        multiple: false,
-        directory: true,
-      });
-      console.log('Selected files:', selectedFiles);
-    } catch (error) {
-      console.error('Failed to open file dialog:', error);
-    }
+    await openFolder();
   }
 };
 </script>
@@ -68,17 +68,11 @@ const handleToolBarAction = async (id: ToolBarAction) => {
     margin: 0 5px;
     cursor: pointer;
     display: flex;
-    align-items: center;
-
-    .n-icon {
-      opacity: 0.4;
-      transition: 0.3s;
-    }
+    align-items: flex-start;
+    color: gray;
 
     &:hover {
-      .n-icon {
-        opacity: 0.9;
-      }
+      color: lightcyan;
     }
   }
 }

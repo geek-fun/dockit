@@ -17,14 +17,21 @@
         "all": false,
         "open": true
       },
+      "path": {
+        "all": true
+      },
       "fs": {
         "all": false,
         "readFile": true,
         "writeFile": true,
         "createDir": true,
         "exists": true,
+        "readDir": true,
+        "removeDir": true,
+        "removeFile": true,
+        "renameFile": true,
         "scope": [
-          "$APPDATA/**/*"
+          "*/**"
         ]
       },
       "http": {
