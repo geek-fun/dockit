@@ -165,6 +165,7 @@ export const zhCN = {
       rename: '重命名',
       delete: '删除',
     },
+    rename: '重命名',
   },
   history: {
     empty: '无历史记录',
