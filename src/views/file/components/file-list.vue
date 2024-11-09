@@ -3,8 +3,8 @@
     <n-scrollbar style="height: 100%">
       <div class="scroll-container">
         <div
-          v-for="file in fileList"
-          class="file-item"
+          v-for="(file, index) in fileList"
+          :class="getClass(file, index)"
           @click="handleClick(ClickType.SINGLE, file)"
           @dblclick="handleClick(ClickType.DOUBLE, file)"
           @contextmenu.prevent="showContextMenu($event, file)"
@@ -42,7 +42,7 @@ const fileStore = useSourceFileStore();
 const { openFolder, deleteFileOrFolder } = fileStore;
 const { fileList } = storeToRefs(fileStore);
 
-const activeRef = ref({} as FileItem);
+const activeRef = ref<FileItem>();
 
 enum ClickType {
   SINGLE = 'SINGLE',
@@ -50,6 +50,7 @@ enum ClickType {
 }
 
 const handleClick = async (type: ClickType, file: FileItem) => {
+  activeRef.value = file;
   if (type === ClickType.DOUBLE) {
     if (file.type === FileType.FOLDER) {
       await openFolder(file.path);
@@ -64,8 +65,6 @@ const handleClick = async (type: ClickType, file: FileItem) => {
         });
       }
     }
-  } else {
-    activeRef.value = file;
   }
 };
 
@@ -77,6 +76,7 @@ const contextMenuPosition = ref({ x: 0, y: 0 });
 const showContextMenu = (event: MouseEvent, file?: FileItem) => {
   // Prevent the event from propagating further
   event.stopPropagation();
+  activeRef.value = file;
   selectedFile.value = file;
   contextMenuPosition.value = { x: event.layerX, y: event.layerY };
   contextMenuVisible.value = true;
@@ -114,6 +114,16 @@ const handleContextMenu = (action: ContextMenuAction) => {
     newFileDialogRef.value.showModal(FileType.FOLDER);
   }
 };
+
+const getClass = (file: FileItem, index: number) => {
+  if (activeRef.value === file) {
+    return 'file-item-active';
+  } else if (index === fileList.value.length - 1) {
+    return 'file-item';
+  } else {
+    return 'file-item-hover';
+  }
+};
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
 });
@@ -140,10 +150,19 @@ onUnmounted(() => {
       .file-item-name {
         margin-left: 5px;
       }
+    }
+
+    .file-item-hover {
+      @extend .file-item;
 
       &:hover {
         background-color: var(--connect-list-hover-bg);
       }
+    }
+
+    .file-item-active {
+      @extend .file-item;
+      background-color: var(--connect-list-hover-bg);
     }
   }
 }

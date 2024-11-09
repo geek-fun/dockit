@@ -55,7 +55,7 @@ const handleAction = async (action: ContextMenuAction) => {
   position: absolute;
   background-color: var(--bg-color);
   border: 1px solid var(--border-color);
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 1px rgba(0, 0, 0, 0.1);
   z-index: 1000;
 
   ul {
