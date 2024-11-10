@@ -174,6 +174,7 @@ export const enUS = {
   backup: {
     backup: 'Backup',
     restore: 'Restore',
+    restoreSourceDesc: 'Click or drag a file to this area to upload your JSON/CSV file',
   },
   version: {
     newVersion: 'New version available',

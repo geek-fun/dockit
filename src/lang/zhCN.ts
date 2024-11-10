@@ -175,6 +175,7 @@ export const zhCN = {
   backup: {
     backup: '备份',
     restore: '恢复',
+    restoreSourceDesc: '点击或拖动文件到此区域上传您的 JSON/CSV 文件',
   },
   version: {
     newVersion: '发现新版本',
