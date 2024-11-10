@@ -53,9 +53,11 @@ import {
   UserAvatar,
   ExpandAll,
   Equalizer,
+  ImportExport,
 } from '@vicons/carbon';
 import { useAppStore } from '../../store';
 import TheAsideIcon from './the-aside-icon.vue';
+
 const router = useRouter();
 const route = useRoute();
 const appStore = useAppStore();
@@ -90,13 +92,13 @@ const mainNavList = ref([
     icon: markRaw(ExpandAll),
     isLink: false,
   },
-  // {
-  //   id: 'import-export',
-  //   path: '/import-export',
-  //   name: 'import-export',
-  //   icon: markRaw(SaveSeries),
-  //   isLink: false,
-  // },
+  {
+    id: 'backup-restore',
+    path: '/backup-restore',
+    name: 'backupRestore',
+    icon: markRaw(ImportExport),
+    isLink: false,
+  },
   {
     id: 'github',
     path: '',
@@ -130,6 +132,7 @@ interface RouteItem {
   name: string;
   isLink: boolean;
 }
+
 const isActive = (item: RouteItem) => {
   return item.path === route.path;
 };
@@ -157,10 +160,12 @@ const navClick = (item: RouteItem) => {
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border-color);
+
   .main-nav {
     flex: 1;
     height: 0;
   }
+
   .icon-item {
     height: var(--aside-width);
     height: 40px;
@@ -171,12 +176,15 @@ const navClick = (item: RouteItem) => {
     align-items: center;
     color: var(--text-color);
     cursor: pointer;
+
     .n-icon {
       opacity: 0.4;
       transition: 0.3s;
     }
+
     &.active {
       position: relative;
+
       &::before {
         content: '';
         position: absolute;
@@ -186,10 +194,12 @@ const navClick = (item: RouteItem) => {
         width: 5px;
         background-color: var(--border-color);
       }
+
       .n-icon {
         opacity: 1;
       }
     }
+
     &:hover {
       .n-icon {
         opacity: 0.9;

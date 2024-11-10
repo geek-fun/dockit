@@ -64,6 +64,14 @@ const router = createRouter({
           },
           component: () => import('../views/file/index.vue'),
         },
+        {
+          name: 'BackupRestore',
+          path: '/backup-restore',
+          meta: {
+            keepAlive: false,
+          },
+          component: () => import('../views/backup-restore/index.vue'),
+        },
       ],
     },
   ],

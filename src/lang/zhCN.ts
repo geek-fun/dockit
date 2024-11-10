@@ -8,6 +8,7 @@ export const zhCN = {
     user: '用户',
     setting: '设置',
     chatBot: 'AI助手',
+    backupRestore: '备份/恢复',
   },
   setting: {
     basic: '通用设置',
@@ -170,6 +171,10 @@ export const zhCN = {
   history: {
     empty: '无历史记录',
     emptyDesc: '执行扫描和查询时，查询历史记录将显示在此处',
+  },
+  backup: {
+    backup: '备份',
+    restore: '恢复',
   },
   version: {
     newVersion: '发现新版本',

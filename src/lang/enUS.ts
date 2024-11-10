@@ -8,6 +8,7 @@ export const enUS = {
     user: 'User',
     setting: 'Setting',
     chatBot: 'AI Assistant',
+    backupRestore: 'Backup/Restore',
   },
   setting: {
     basic: 'Basic',
@@ -169,6 +170,10 @@ export const enUS = {
   history: {
     empty: 'No history yet',
     emptyDesc: 'History of queries will appear here as you execute Scans and Queries',
+  },
+  backup: {
+    backup: 'Backup',
+    restore: 'Restore',
   },
   version: {
     newVersion: 'New version available',
