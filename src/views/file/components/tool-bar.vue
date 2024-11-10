@@ -72,7 +72,7 @@ const handleToolBarAction = async (id: ToolBarAction) => {
     color: gray;
 
     &:hover {
-      color: lightcyan;
+      color: var(--theme-color);
     }
   }
 }
