@@ -29,6 +29,7 @@
                   v-model:value="formData.name"
                   clearable
                   :placeholder="$t('connection.name')"
+                  :input-props="inputProps"
                 />
               </n-form-item>
             </n-grid-item>
@@ -45,6 +46,7 @@
                     clearable
                     v-model:value="formData.host"
                     placeholder="http://localhost"
+                    :input-props="inputProps"
                   />
                   <n-popover trigger="hover" placement="top-start">
                     <template #trigger>
@@ -82,6 +84,7 @@
                   v-model:value="formData.username"
                   clearable
                   :placeholder="$t('connection.username')"
+                  :input-props="inputProps"
                 />
               </n-form-item>
             </n-grid-item>
@@ -92,6 +95,7 @@
                   type="password"
                   show-password-on="mousedown"
                   :placeholder="$t('connection.password')"
+                  :input-props="inputProps"
                 />
               </n-form-item>
             </n-grid-item>
@@ -101,6 +105,7 @@
                   v-model:value="formData.indexName"
                   clearable
                   :placeholder="$t('connection.indexName')"
+                  :input-props="inputProps"
                 />
               </n-form-item>
             </n-grid-item>
@@ -110,6 +115,7 @@
                   v-model:value="formData.queryParameters"
                   clearable
                   :placeholder="$t('connection.queryParameters')"
+                  :input-props="inputProps"
                 />
               </n-form-item>
             </n-grid-item>
@@ -148,7 +154,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
 import { Close, Locked, Unlocked } from '@vicons/carbon';
-import { CustomError } from '../../../common';
+import { CustomError, inputProps } from '../../../common';
 import { Connection, useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
 import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';

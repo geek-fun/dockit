@@ -16,7 +16,7 @@
       </template>
       <div class="modal-content">
         <n-form
-          ref="connectFormRef"
+          ref="fileFormRef"
           label-placement="left"
           label-width="100"
           :model="formData"
@@ -25,7 +25,18 @@
           <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
             <n-grid-item span="8">
               <n-form-item :label="$t('file.name')" path="path">
-                <n-input v-model:value="formData.path" clearable :placeholder="$t('file.name')" />
+                <n-input
+                  v-model:value="formData.path"
+                  clearable
+                  :input-props="{
+                    autocapitalize: 'off',
+                    autocomplete: 'off',
+                    // @ts-ignore
+                    spellCheck: false,
+                    autocorrect: 'off',
+                  }"
+                  :placeholder="$t('file.name')"
+                />
               </n-form-item>
             </n-grid-item>
           </n-grid>
@@ -60,7 +71,7 @@ const lang = useLang();
 const fileStore = useSourceFileStore();
 const { createFileOrFolder, renameFileOrFolder } = fileStore;
 
-const connectFormRef = ref();
+const fileFormRef = ref();
 const showModal = ref(false);
 const modalTitle = ref('');
 const saveLoading = ref(false);
@@ -107,7 +118,7 @@ const closeModal = () => {
 
 const validationPassed = watch(formData.value, async () => {
   try {
-    return await connectFormRef.value?.validate((errors: Array<FormValidationError>) => !errors);
+    return await fileFormRef.value?.validate((errors: Array<FormValidationError>) => !errors);
   } catch (e) {
     return false;
   }
@@ -115,7 +126,7 @@ const validationPassed = watch(formData.value, async () => {
 
 const submitNewFile = (event: MouseEvent) => {
   event.preventDefault();
-  connectFormRef.value?.validate(async (errors: boolean) => {
+  fileFormRef.value?.validate(async (errors: boolean) => {
     try {
       if (!errors) {
         saveLoading.value = true;

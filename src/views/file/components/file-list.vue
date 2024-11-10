@@ -134,6 +134,7 @@ onUnmounted(() => {
   flex: 1;
   height: 0;
   padding-bottom: 10px;
+  background-color: var(--bg-color-secondary);
 
   .scroll-container {
     .file-item {
