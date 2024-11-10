@@ -26,11 +26,7 @@
             <n-grid-item span="8">
               <n-form-item :label="$t('manage.index.newIndexForm.indexName')" path="indexName">
                 <n-input
-                  :input-props="{
-                    autocorrect: 'off',
-                    autocapitalize: 'off',
-                    autocomplete: 'disabled',
-                  }"
+                  :input-props="inputProps"
                   v-model:value="formData.indexName"
                   clearable
                   :placeholder="$t('manage.index.newIndexForm.indexName')"
@@ -122,7 +118,7 @@
 <script setup lang="ts">
 import { FormRules, FormValidationError, NButton, NIcon, FormItemRule } from 'naive-ui';
 import { Close } from '@vicons/carbon';
-import { CustomError } from '../../../common';
+import { CustomError, inputProps } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
 

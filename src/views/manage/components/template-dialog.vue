@@ -30,11 +30,7 @@
               <n-grid-item span="8">
                 <n-form-item :label="$t('manage.index.newTemplateForm.templateName')" path="name">
                   <n-input
-                    :input-props="{
-                      autocorrect: 'off',
-                      autocapitalize: 'off',
-                      autocomplete: 'disabled',
-                    }"
+                    :input-props="inputProps"
                     v-model:value="indexFormData.name"
                     clearable
                     :placeholder="$t('manage.index.newTemplateForm.templateName')"
@@ -87,11 +83,7 @@
               <n-grid-item span="8">
                 <n-form-item :label="$t('manage.index.newTemplateForm.templateName')" path="name">
                   <n-input
-                    :input-props="{
-                      autocorrect: 'off',
-                      autocapitalize: 'off',
-                      autocomplete: 'disabled',
-                    }"
+                    :input-props="inputProps"
                     v-model:value="componentFormData.name"
                     clearable
                     :placeholder="$t('manage.index.newTemplateForm.templateName')"
@@ -149,7 +141,7 @@
 <script setup lang="ts">
 import { FormRules, FormValidationError, NButton, NIcon, FormItemRule } from 'naive-ui';
 import { Close } from '@vicons/carbon';
-import { CustomError } from '../../../common';
+import { CustomError, inputProps } from '../../../common';
 import { TemplateType, useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
 

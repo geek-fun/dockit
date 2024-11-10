@@ -7,6 +7,7 @@
             <n-input
               v-model:value="openAi.model"
               :placeholder="$t('setting.ai.modelPlaceholder')"
+              :input-props="inputProps"
             />
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.apiKey')">
@@ -15,6 +16,7 @@
               show-password-on="click"
               v-model:value="openAi.apiKey"
               :placeholder="$t('setting.ai.apiKeyPlaceholder')"
+              :input-props="inputProps"
             />
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.prompt')">
@@ -22,11 +24,16 @@
               type="textarea"
               v-model:value="openAi.prompt"
               :placeholder="$t('setting.ai.defaultPrompt')"
+              :input-props="inputProps"
             />
           </n-form-item-row>
           <n-divider />
           <n-form-item-row :label="$t('setting.ai.proxy')">
-            <n-input v-model:value="openAi.httpProxy" placeholder="http://127.0.0.1:7890" />
+            <n-input
+              v-model:value="openAi.httpProxy"
+              placeholder="http://127.0.0.1:7890"
+              :input-props="inputProps"
+            />
           </n-form-item-row>
           <n-button type="error" @click="reset" class="action-button">
             {{ $t('setting.ai.form.reset') }}
@@ -47,6 +54,7 @@
 import { useAppStore, useChatStore } from '../../../store';
 import { storeToRefs } from 'pinia';
 import { useMessage } from 'naive-ui';
+import { inputProps } from '../../../common';
 
 const appStore = useAppStore();
 const { fetchAigcConfig, saveAigcConfig } = appStore;

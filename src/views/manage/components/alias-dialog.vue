@@ -26,11 +26,7 @@
             <n-grid-item span="8">
               <n-form-item :label="$t('manage.index.newAliasForm.aliasName')" path="aliasName">
                 <n-input
-                  :input-props="{
-                    autocorrect: 'off',
-                    autocapitalize: 'off',
-                    autocomplete: 'disabled',
-                  }"
+                  :input-props="inputProps"
                   v-model:value="formData.aliasName"
                   clearable
                   :placeholder="$t('manage.index.newAliasForm.aliasName')"
@@ -123,7 +119,7 @@
 import { storeToRefs } from 'pinia';
 import { FormRules, FormValidationError, NButton, NIcon, FormItemRule } from 'naive-ui';
 import { Close } from '@vicons/carbon';
-import { CustomError } from '../../../common';
+import { CustomError, inputProps } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
 

@@ -4,7 +4,12 @@
       <h1>DocKit</h1>
       <n-form ref="loginFormRef" :model="loginForm" :rules="loginRules" :show-label="false">
         <n-form-item path="name">
-          <n-input v-model:value="loginForm.name" clearable :placeholder="$t('login.enterName')" />
+          <n-input
+            v-model:value="loginForm.name"
+            clearable
+            :placeholder="$t('login.enterName')"
+            :input-props="inputProps"
+          />
         </n-form-item>
         <n-form-item path="password">
           <n-input
@@ -12,6 +17,7 @@
             type="password"
             show-password-on="mousedown"
             :placeholder="$t('login.enterPwd')"
+            :input-props="inputProps"
           />
         </n-form-item>
         <n-button type="primary" @click="handleLogin">
@@ -30,6 +36,7 @@
 import { useUserStore } from '../../store';
 import { router } from '../../router';
 import { useLang } from '../../lang';
+import { inputProps } from '../../common';
 
 const userStore = useUserStore();
 const lang = useLang();

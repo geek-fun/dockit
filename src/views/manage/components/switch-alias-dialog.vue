@@ -25,13 +25,13 @@
           <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
             <n-grid-item span="8">
               <n-form-item :label="$t('manage.index.switchAliasForm.aliasName')" path="aliasName">
-                <n-input v-model:value="formData.aliasName" disabled />
+                <n-input v-model:value="formData.aliasName" disabled :input-props="inputProps" />
               </n-form-item>
               <n-form-item
                 :label="$t('manage.index.switchAliasForm.sourceIndex')"
                 path="sourceIndex"
               >
-                <n-input v-model:value="formData.sourceIndex" disabled />
+                <n-input v-model:value="formData.sourceIndex" disabled :input-props="inputProps" />
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="8">
@@ -66,7 +66,7 @@
 import { storeToRefs } from 'pinia';
 import { FormRules, FormValidationError, NButton, NIcon } from 'naive-ui';
 import { Close } from '@vicons/carbon';
-import { CustomError } from '../../../common';
+import { CustomError, inputProps } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
 
