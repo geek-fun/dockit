@@ -88,7 +88,7 @@ const handleClickOutside = (event: MouseEvent) => {
   }
 };
 
-const handleContextMenu = (action: ContextMenuAction) => {
+const handleContextMenu = async (action: ContextMenuAction) => {
   contextMenuVisible.value = false;
   if (action === ContextMenuAction.CONTEXT_MENU_ACTION_OPEN) {
     if (selectedFile.value?.type === FileType.FOLDER) {
@@ -104,14 +104,10 @@ const handleContextMenu = (action: ContextMenuAction) => {
         });
       }
     }
-  } else if (action === ContextMenuAction.CONTEXT_MENU_ACTION_RENAME) {
-    // renameFileOrFolder(selectedFile.value?.path);
   } else if (action === ContextMenuAction.CONTEXT_MENU_ACTION_DELETE) {
     deleteFileOrFolder(selectedFile.value?.path ?? '');
-  } else if (action === ContextMenuAction.CONTEXT_MENU_ACTION_NEW_FILE) {
-    newFileDialogRef.value.showModal(FileType.FILE);
-  } else if (action === ContextMenuAction.CONTEXT_MENU_ACTION_NEW_FOLDER) {
-    newFileDialogRef.value.showModal(FileType.FOLDER);
+  } else {
+    newFileDialogRef.value.showModal(action, selectedFile.value);
   }
 };
 

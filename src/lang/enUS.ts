@@ -163,6 +163,7 @@ export const enUS = {
       rename: 'Rename',
       delete: 'Delete',
     },
+    rename: 'Rename',
     name: 'Name',
   },
   history: {

@@ -53,17 +53,18 @@ import { reactive, ref, watch } from 'vue';
 import { Close } from '@vicons/carbon';
 import { useLang } from '../../../lang';
 import { FormRules, FormValidationError } from 'naive-ui';
-import { FileType, ToolBarAction, useSourceFileStore } from '../../../store';
+import { ContextMenuAction, FileItem, ToolBarAction, useSourceFileStore } from '../../../store';
 import { CustomError } from '../../../common';
 
 const lang = useLang();
 const fileStore = useSourceFileStore();
-const { createFileOrFolder } = fileStore;
+const { createFileOrFolder, renameFileOrFolder } = fileStore;
 
 const connectFormRef = ref();
 const showModal = ref(false);
 const modalTitle = ref('');
 const saveLoading = ref(false);
+const selectedFileRef = ref<FileItem>();
 
 const defaultFormData = { path: '' };
 const formData = ref<{ path: string }>(defaultFormData);
@@ -85,12 +86,16 @@ const cleanUp = () => {
   modalTitle.value = '';
 };
 
-const showMedal = (fileType: FileType) => {
+const showMedal = (action: ContextMenuAction, selectedFile?: FileItem) => {
   cleanUp();
-  if (fileType === FileType.FOLDER) {
+  selectedFileRef.value = selectedFile;
+  if (action === ContextMenuAction.CONTEXT_MENU_ACTION_NEW_FOLDER) {
     modalTitle.value = lang.t('file.newFolder');
-  } else {
+  } else if (action === ContextMenuAction.CONTEXT_MENU_ACTION_NEW_FILE) {
     modalTitle.value = lang.t('file.newFile');
+  } else if (action === ContextMenuAction.CONTEXT_MENU_ACTION_RENAME) {
+    modalTitle.value = lang.t('file.rename');
+    formData.value.path = selectedFile?.name ?? '';
   }
   showModal.value = true;
 };
@@ -114,12 +119,20 @@ const submitNewFile = (event: MouseEvent) => {
     try {
       if (!errors) {
         saveLoading.value = true;
-        await createFileOrFolder(
-          modalTitle.value === lang.t('file.newFolder')
-            ? ToolBarAction.ADD_FOLDER
-            : ToolBarAction.ADD_DOCUMENT,
-          formData.value.path,
-        );
+        if (modalTitle.value === lang.t('file.newFile')) {
+          await createFileOrFolder(ToolBarAction.ADD_DOCUMENT, formData.value.path);
+        } else if (modalTitle.value === lang.t('file.newFolder')) {
+          await createFileOrFolder(ToolBarAction.ADD_FOLDER, formData.value.path);
+        } else if (modalTitle.value === lang.t('file.rename')) {
+          const folderPath = selectedFileRef.value?.path.substring(
+            0,
+            selectedFileRef.value?.path.lastIndexOf('/'),
+          );
+          await renameFileOrFolder(
+            selectedFileRef.value?.path ?? '',
+            `${folderPath}/${formData.value.path}`,
+          );
+        }
       } else {
         message.error(lang.t('file.newFileFailed'), {
           closable: true,

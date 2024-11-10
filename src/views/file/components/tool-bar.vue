@@ -15,7 +15,7 @@
 
 <script setup lang="ts">
 import { DocumentAdd, FolderAdd, FolderOpen } from '@vicons/carbon';
-import { FileType, ToolBarAction, useSourceFileStore } from '../../../store';
+import { ContextMenuAction, ToolBarAction, useSourceFileStore } from '../../../store';
 import { useLang } from '../../../lang';
 import NewFileDialog from './new-file-dialog.vue';
 import PathBreadcrumb from '../../../components/PathBreadcrumb.vue';
@@ -47,9 +47,9 @@ const toolBarList = [
 
 const handleToolBarAction = async (id: ToolBarAction) => {
   if (id === ToolBarAction.ADD_DOCUMENT) {
-    newFileDialogRef.value.showModal(FileType.FILE);
+    newFileDialogRef.value.showModal(ContextMenuAction.CONTEXT_MENU_ACTION_NEW_FILE);
   } else if (id === ToolBarAction.ADD_FOLDER) {
-    newFileDialogRef.value.showModal(FileType.FOLDER);
+    newFileDialogRef.value.showModal(ContextMenuAction.CONTEXT_MENU_ACTION_NEW_FOLDER);
   } else if (id === ToolBarAction.OPEN_FOLDER) {
     await openFolder();
   }
