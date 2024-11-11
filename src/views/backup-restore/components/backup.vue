@@ -1,13 +1,13 @@
 <template>
-  <div class="backup-panel-container">
-    <n-card title="Source Data">
-      <n-form
-        ref="fileFormRef"
-        label-placement="left"
-        label-width="100"
-        :model="backupFormData"
-        :rules="backupFormRules"
-      >
+  <n-form
+    ref="fileFormRef"
+    label-placement="left"
+    label-width="100"
+    :model="backupFormData"
+    :rules="backupFormRules"
+  >
+    <div class="backup-panel-container">
+      <n-card title="Source Data">
         <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
           <n-grid-item span="8">
             <n-form-item :label="$t('backup.backupForm.connection')" path="connection">
@@ -39,45 +39,40 @@
             </n-form-item>
           </n-grid-item>
         </n-grid>
-      </n-form>
-    </n-card>
-    <div class="backup-action-container">
-      <n-tooltip trigger="hover">
-        <template #trigger>
-          <n-icon size="48">
-            <ZoomArea />
-          </n-icon>
-        </template>
-        Validate Config
-      </n-tooltip>
-      <n-tooltip trigger="hover">
-        <template #trigger>
-          <n-icon size="48">
-            <DocumentExport />
-          </n-icon>
-        </template>
-        Execute Backup
-      </n-tooltip>
-    </div>
-    <n-card title="Backup Location">
-      <n-form
-        ref="fileFormRef"
-        label-placement="left"
-        label-width="100"
-        :model="backupFormData"
-        :rules="backupFormRules"
-      >
+      </n-card>
+      <div class="backup-action-container">
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-icon size="48" @click="handleValidate">
+              <ZoomArea />
+            </n-icon>
+          </template>
+          Validate Config
+        </n-tooltip>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-icon size="48">
+              <DocumentExport />
+            </n-icon>
+          </template>
+          Execute Backup
+        </n-tooltip>
+      </div>
+      <n-card title="Backup Location">
         <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
           <n-grid-item span="8">
             <n-form-item :label="$t('backup.backupForm.backupFolder')" path="backupFolder">
-              <n-button dashed icon-placement="right">
-                <template #icon>
-                  <n-icon>
-                    <FolderDetails />
-                  </n-icon>
-                </template>
-                Select Folder
-              </n-button>
+              <div>
+                <n-button dashed icon-placement="right" @click="selectFolder">
+                  <template #icon>
+                    <n-icon>
+                      <FolderDetails />
+                    </n-icon>
+                  </template>
+                  Select Folder
+                </n-button>
+                <n-p v-if="folderPath">{{ folderPath }}</n-p>
+              </div>
             </n-form-item>
           </n-grid-item>
           <n-grid-item span="8">
@@ -91,25 +86,29 @@
             </n-form-item>
           </n-grid-item>
         </n-grid>
-      </n-form>
-    </n-card>
-  </div>
+      </n-card>
+    </div>
+  </n-form>
 </template>
 
 <script setup lang="ts">
 import { FormRules } from 'naive-ui';
 import { DocumentExport, FolderDetails, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { useConnectionStore } from '../../../store';
+import { useBackupRestoreStore, useConnectionStore } from '../../../store';
 import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 
+const message = useMessage();
+const lang = useLang();
+const fileFormRef = ref();
 const connectionStore = useConnectionStore();
 const { fetchConnections, fetchIndices, establishConnection, selectIndex } = connectionStore;
 const { established, connections, establishedIndexNames } = storeToRefs(connectionStore);
 
-const message = useMessage();
-const lang = useLang();
+const backupRestoreStore = useBackupRestoreStore();
+const { selectFolder } = backupRestoreStore;
+const { folderPath } = storeToRefs(backupRestoreStore);
 
 const defaultFormData = {
   connection: '',
@@ -128,13 +127,28 @@ const backupFormRules = reactive<FormRules>({
   connection: [
     {
       required: true,
-      renderMessage: () => lang.t('connection.formValidation.nameRequired'),
+      renderMessage: () => lang.t('backup.backupForm.connectionRequired'),
       trigger: ['input', 'blur'],
     },
   ],
   index: [
     {
       required: true,
+      renderMessage: () => lang.t('backup.backupForm.indexRequired'),
+      trigger: ['input', 'blur'],
+    },
+  ],
+  backupFolder: [
+    {
+      required: true,
+      renderMessage: () => lang.t('backup.backupForm.backupFolderRequired'),
+      trigger: ['input', 'blur'],
+    },
+  ],
+  backupFileName: [
+    {
+      required: true,
+      renderMessage: () => lang.t('backup.backupForm.backupFileNameRequired'),
       trigger: ['input', 'blur'],
     },
   ],
@@ -203,6 +217,14 @@ const handleSelectUpdate = async (value: string, target: string) => {
   } else if (target === 'index') {
     selectIndex(value);
   }
+};
+
+const handleValidate = () => {
+  fileFormRef.value?.validate((errors: boolean) =>
+    errors
+      ? message.error(lang.t('backup.backupForm.validationFailed'))
+      : message.success(lang.t('connection.validationPassed')),
+  );
 };
 </script>
 

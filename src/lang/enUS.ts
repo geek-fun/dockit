@@ -180,6 +180,12 @@ export const enUS = {
       index: 'Index',
       backupFolder: 'Location',
       backupFileName: 'File Name',
+      connectionRequired: 'Please select a Connection',
+      indexRequired: 'Please select an Index',
+      backupFolderRequired: 'Please select Backup Folder',
+      backupFileNameRequired: 'Please enter Backup File Name',
+      validationFailed: 'Backup Config validation failed!',
+      validationPassed: 'Backup Config validation passed!',
     },
   },
   version: {

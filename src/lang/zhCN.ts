@@ -181,6 +181,12 @@ export const zhCN = {
       index: '选择索引',
       backupFolder: '文件夹',
       backupFileName: '文件名',
+      connectionRequired: '请选择连接',
+      indexRequired: '请选择索引',
+      backupFolderRequired: '请选择备份文件夹',
+      backupFileNameRequired: '请输入备份文件名',
+      validationFailed: '备份操作配置校验失败！',
+      validationPassed: '备份操作配置校验通过！',
     },
   },
   version: {
