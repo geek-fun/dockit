@@ -19,6 +19,7 @@
                 :loading="loadingRefs.connection"
                 remote
                 filterable
+                @update:value="(value: string) => handleSelectUpdate(value, 'connection')"
                 @update:show="(isOpen: boolean) => handleOpen(isOpen, 'connection')"
               />
             </n-form-item>
@@ -32,15 +33,11 @@
                 remote
                 filterable
                 :loading="loadingRefs.index"
+                @update:value="(value: string) => handleSelectUpdate(value, 'index')"
                 @update:show="(isOpen: boolean) => handleOpen(isOpen, 'index')"
               />
             </n-form-item>
           </n-grid-item>
-          <n-gi :span="24">
-            <div style="display: flex; justify-content: flex-end">
-              <n-button round type="primary"> Validate</n-button>
-            </div>
-          </n-gi>
         </n-grid>
       </n-form>
     </n-card>
@@ -93,11 +90,6 @@
               />
             </n-form-item>
           </n-grid-item>
-          <n-gi :span="24">
-            <div style="display: flex; justify-content: flex-end">
-              <n-button round type="primary"> Validate</n-button>
-            </div>
-          </n-gi>
         </n-grid>
       </n-form>
     </n-card>
@@ -113,7 +105,7 @@ import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 
 const connectionStore = useConnectionStore();
-const { fetchConnections, fetchIndices } = connectionStore;
+const { fetchConnections, fetchIndices, establishConnection, selectIndex } = connectionStore;
 const { established, connections, establishedIndexNames } = storeToRefs(connectionStore);
 
 const message = useMessage();
@@ -162,19 +154,19 @@ const indexOptions = computed(() =>
 
 const handleOpen = async (isOpen: boolean, target: string) => {
   if (!isOpen) return;
-  if (!established.value) {
-    message.error(lang.t('editor.establishedRequired'), {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3000,
-    });
-    return;
-  }
   if (target === 'connection') {
     loadingRefs.value.connection = true;
     await fetchConnections();
     loadingRefs.value.connection = false;
   } else if (target === 'index') {
+    if (!established.value) {
+      message.error(lang.t('editor.establishedRequired'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
+      return;
+    }
     loadingRefs.value.index = true;
     try {
       await fetchIndices();
@@ -189,6 +181,27 @@ const handleOpen = async (isOpen: boolean, target: string) => {
       );
     }
     loadingRefs.value.index = false;
+  }
+};
+
+const handleSelectUpdate = async (value: string, target: string) => {
+  if (target === 'connection') {
+    const connection = connections.value.find(({ name }) => name === value);
+    if (!connection) {
+      return;
+    }
+    try {
+      await establishConnection(connection);
+    } catch (err) {
+      const error = err as CustomError;
+      message.error(`status: ${error.status}, details: ${error.details}`, {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3600,
+      });
+    }
+  } else if (target === 'index') {
+    selectIndex(value);
   }
 };
 </script>
