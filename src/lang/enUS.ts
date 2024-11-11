@@ -175,6 +175,12 @@ export const enUS = {
     backup: 'Backup',
     restore: 'Restore',
     restoreSourceDesc: 'Click or drag a file to this area to upload your JSON/CSV file',
+    backupForm: {
+      connection: 'Connection',
+      index: 'Index',
+      backupFolder: 'Location',
+      backupFileName: 'File Name',
+    },
   },
   version: {
     newVersion: 'New version available',
