@@ -69,6 +69,9 @@ export const useConnectionStore = defineStore('connectionStore', {
     establishedIndexNames(state) {
       return state.established?.indices.map(({ index }) => index) ?? [];
     },
+    establishedIndexOptions(state) {
+      return state.established?.indices.map(({ index }) => ({ label: index, value: index })) ?? [];
+    },
   },
   actions: {
     async fetchConnections() {

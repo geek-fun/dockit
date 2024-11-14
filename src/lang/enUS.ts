@@ -175,6 +175,7 @@ export const enUS = {
     backup: 'Backup',
     restore: 'Restore',
     restoreSourceDesc: 'Click or drag a file to this area to upload your JSON/CSV file',
+    backupToFileSuccess: 'Successfully backed up to file',
     backupForm: {
       connection: 'Connection',
       index: 'Index',
@@ -186,6 +187,7 @@ export const enUS = {
       backupFileNameRequired: 'Please enter Backup File Name',
       validationFailed: 'Backup Config validation failed!',
       validationPassed: 'Backup Config validation passed!',
+      backupFileTypeInvalid: 'Backup file type is invalid',
     },
   },
   version: {

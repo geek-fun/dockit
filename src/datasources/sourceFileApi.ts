@@ -11,14 +11,14 @@ import {
 
 import { CustomError, debug } from '../common';
 
-const saveFile = async (filePath: string, content: string) => {
+const saveFile = async (filePath: string, content: string, append: boolean) => {
   try {
     const folderPath = filePath.substring(0, filePath.lastIndexOf('/'));
 
     if (!(await exists(folderPath, { dir: BaseDirectory.AppData }))) {
       await createDir(folderPath, { dir: BaseDirectory.AppData, recursive: true });
     }
-    await writeTextFile(filePath, content, { dir: BaseDirectory.AppConfig, append: false });
+    await writeTextFile(filePath, content, { dir: BaseDirectory.AppConfig, append });
     debug('save file success');
   } catch (err) {
     debug(`saveFile error: ${err}`);
@@ -60,7 +60,8 @@ const renameFileOrFolder = async (oldPath: string, newPath: string) => {
 };
 
 const sourceFileApi = {
-  saveFile: (filePath: string, content: string) => saveFile(filePath, content),
+  saveFile: (filePath: string, content: string, append = false) =>
+    saveFile(filePath, content, append),
   readFile: (filePath: string) => readFromFile(filePath),
   createFolder: (folderPath: string) => createDir(folderPath),
   deleteFileOrFolder,

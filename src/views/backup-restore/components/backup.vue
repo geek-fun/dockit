@@ -27,7 +27,7 @@
           <n-grid-item span="8">
             <n-form-item :label="$t('backup.backupForm.index')" path="index">
               <n-select
-                :options="indexOptions"
+                :options="establishedIndexOptions"
                 :placeholder="$t('connection.selectIndex')"
                 v-model:value="backupFormData.index"
                 remote
@@ -51,7 +51,7 @@
         </n-tooltip>
         <n-tooltip trigger="hover">
           <template #trigger>
-            <n-icon size="48">
+            <n-icon size="48" @click="submitBackup">
               <DocumentExport />
             </n-icon>
           </template>
@@ -77,12 +77,23 @@
           </n-grid-item>
           <n-grid-item span="8">
             <n-form-item :label="$t('backup.backupForm.backupFileName')" path="backupFileName">
-              <n-input
-                v-model:value="backupFormData.backupFileName"
-                clearable
-                :input-props="inputProps"
-                :placeholder="$t('backup.backupForm.backupFileName')"
-              />
+              <n-input-group>
+                <n-input
+                  v-model:value="backupFormData.backupFileName"
+                  clearable
+                  :input-props="inputProps"
+                  :placeholder="$t('backup.backupForm.backupFileName')"
+                  :style="{ width: '70%' }"
+                />
+                <n-select
+                  :style="{ width: '30%' }"
+                  v-model:value="backupFormData.backupFileType"
+                  :options="[
+                    { label: 'json', value: 'json' },
+                    { label: 'csv', value: 'csv' },
+                  ]"
+                />
+              </n-input-group>
             </n-form-item>
           </n-grid-item>
         </n-grid>
@@ -103,24 +114,32 @@ const message = useMessage();
 const lang = useLang();
 const fileFormRef = ref();
 const connectionStore = useConnectionStore();
-const { fetchConnections, fetchIndices, establishConnection, selectIndex } = connectionStore;
-const { established, connections, establishedIndexNames } = storeToRefs(connectionStore);
+const {
+  fetchConnections,
+  fetchIndices,
+  establishConnection,
+  selectIndex,
+  establishedIndexOptions,
+} = connectionStore;
+const { established, connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
-const { selectFolder } = backupRestoreStore;
+const { selectFolder, backupToFile } = backupRestoreStore;
 const { folderPath } = storeToRefs(backupRestoreStore);
 
 const defaultFormData = {
   connection: '',
   index: '',
-  backupFolder: '',
+  backupFolder: folderPath.value,
   backupFileName: '',
+  backupFileType: 'json',
 };
 const backupFormData = ref<{
   connection: string;
   index: string;
   backupFolder: string;
   backupFileName: string;
+  backupFileType: string;
 }>(defaultFormData);
 const backupFormRules = reactive<FormRules>({
   // @ts-ignore
@@ -152,6 +171,14 @@ const backupFormRules = reactive<FormRules>({
       trigger: ['input', 'blur'],
     },
   ],
+  // backupFileType: [
+  //   {
+  //     required: true,
+  //     validator: (_, value) => ['csv', 'json'].includes(value),
+  //     renderMessage: () => lang.t('backup.backupForm.backupFileTypeRequired'),
+  //     trigger: ['input', 'blur'],
+  //   },
+  // ],
 });
 const loadingRefs = ref<{ connection: boolean; index: boolean }>({
   connection: false,
@@ -160,10 +187,6 @@ const loadingRefs = ref<{ connection: boolean; index: boolean }>({
 
 const connectionOptions = computed(() =>
   connections.value.map(({ name }) => ({ label: name, value: name })),
-);
-
-const indexOptions = computed(() =>
-  establishedIndexNames.value.map(name => ({ label: name, value: name })),
 );
 
 const handleOpen = async (isOpen: boolean, target: string) => {
@@ -220,11 +243,38 @@ const handleSelectUpdate = async (value: string, target: string) => {
 };
 
 const handleValidate = () => {
+  console.log('validate', backupFormData.value);
   fileFormRef.value?.validate((errors: boolean) =>
     errors
       ? message.error(lang.t('backup.backupForm.validationFailed'))
       : message.success(lang.t('connection.validationPassed')),
   );
+};
+
+const submitBackup = async () => {
+  console.log('submitBackup start');
+  const isPass = fileFormRef.value?.validate((errors: boolean) => {
+    if (errors) {
+      message.error(lang.t('backup.backupForm.validationFailed'));
+      return false;
+    }
+    return true;
+  });
+
+  console.log('submitBackup', isPass);
+  const connection = connections.value.find(({ name }) => name === backupFormData.value.connection);
+  if (!isPass || !connection) return;
+  try {
+    const filePath = await backupToFile({ ...backupFormData.value, connection });
+    message.success(lang.t('backup.backupToFileSuccess') + `: ${filePath}`);
+  } catch (err) {
+    const error = err as CustomError;
+    message.error(`status: ${error.status}, details: ${error.details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3600,
+    });
+  }
 };
 </script>
 
