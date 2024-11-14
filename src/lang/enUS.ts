@@ -8,6 +8,7 @@ export const enUS = {
     user: 'User',
     setting: 'Setting',
     chatBot: 'AI Assistant',
+    backupRestore: 'Backup/Restore',
   },
   setting: {
     basic: 'Basic',
@@ -169,6 +170,23 @@ export const enUS = {
   history: {
     empty: 'No history yet',
     emptyDesc: 'History of queries will appear here as you execute Scans and Queries',
+  },
+  backup: {
+    backup: 'Backup',
+    restore: 'Restore',
+    restoreSourceDesc: 'Click or drag a file to this area to upload your JSON/CSV file',
+    backupForm: {
+      connection: 'Connection',
+      index: 'Index',
+      backupFolder: 'Location',
+      backupFileName: 'File Name',
+      connectionRequired: 'Please select a Connection',
+      indexRequired: 'Please select an Index',
+      backupFolderRequired: 'Please select Backup Folder',
+      backupFileNameRequired: 'Please enter Backup File Name',
+      validationFailed: 'Backup Config validation failed!',
+      validationPassed: 'Backup Config validation passed!',
+    },
   },
   version: {
     newVersion: 'New version available',

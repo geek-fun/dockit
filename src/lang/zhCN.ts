@@ -8,6 +8,7 @@ export const zhCN = {
     user: '用户',
     setting: '设置',
     chatBot: 'AI助手',
+    backupRestore: '备份/恢复',
   },
   setting: {
     basic: '通用设置',
@@ -170,6 +171,23 @@ export const zhCN = {
   history: {
     empty: '无历史记录',
     emptyDesc: '执行扫描和查询时，查询历史记录将显示在此处',
+  },
+  backup: {
+    backup: '备份',
+    restore: '恢复',
+    restoreSourceDesc: '点击或拖动文件到此区域上传您的 JSON/CSV 文件',
+    backupForm: {
+      connection: '选择连接',
+      index: '选择索引',
+      backupFolder: '文件夹',
+      backupFileName: '文件名',
+      connectionRequired: '请选择连接',
+      indexRequired: '请选择索引',
+      backupFolderRequired: '请选择备份文件夹',
+      backupFileNameRequired: '请输入备份文件名',
+      validationFailed: '备份操作配置校验失败！',
+      validationPassed: '备份操作配置校验通过！',
+    },
   },
   version: {
     newVersion: '发现新版本',
