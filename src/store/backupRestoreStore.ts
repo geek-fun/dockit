@@ -5,7 +5,7 @@ import { CustomError } from '../common';
 import { get } from 'lodash';
 import { Connection } from './connectionStore.ts';
 import { loadHttpClient, sourceFileApi } from '../datasources';
-// import { loadHttpClient } from '../datasources';
+
 export type typeBackupInput = {
   connection: Connection;
   index: string;
@@ -73,7 +73,6 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
             }),
           );
           if (response.status && response.status !== 200) {
-            console.error(response);
             throw new CustomError(
               response.status,
               get(
