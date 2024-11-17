@@ -27,7 +27,7 @@
           <n-grid-item span="8">
             <n-form-item :label="$t('backup.backupForm.index')" path="index">
               <n-select
-                :options="establishedIndexOptions"
+                :options="indexOptions"
                 :placeholder="$t('connection.selectIndex')"
                 v-model:value="backupFormData.index"
                 remote
@@ -114,13 +114,7 @@ const message = useMessage();
 const lang = useLang();
 const fileFormRef = ref();
 const connectionStore = useConnectionStore();
-const {
-  fetchConnections,
-  fetchIndices,
-  establishConnection,
-  selectIndex,
-  establishedIndexOptions,
-} = connectionStore;
+const { fetchConnections, fetchIndices, establishConnection, selectIndex } = connectionStore;
 const { established, connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
@@ -180,14 +174,26 @@ const backupFormRules = reactive<FormRules>({
   //   },
   // ],
 });
-const loadingRefs = ref<{ connection: boolean; index: boolean }>({
-  connection: false,
-  index: false,
-});
 
 const connectionOptions = computed(() =>
   connections.value.map(({ name }) => ({ label: name, value: name })),
 );
+
+const indexOptions = ref<Array<{ label: string; value: string }>>([]);
+watch(established, () => {
+  if (!established.value) {
+    indexOptions.value = [];
+    backupFormData.value.index = '';
+    return;
+  }
+  indexOptions.value =
+    established.value?.indices.map(({ index }) => ({ label: index, value: index })) ?? [];
+});
+
+const loadingRefs = ref<{ connection: boolean; index: boolean }>({
+  connection: false,
+  index: false,
+});
 
 const handleOpen = async (isOpen: boolean, target: string) => {
   if (!isOpen) return;

@@ -51,8 +51,6 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
             }),
           );
 
-          console.log('es response', response);
-
           const hits = response.hits.hits;
           if (hits.length === 0) {
             hasMore = false;
@@ -67,6 +65,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
         }
         return filePath;
       } catch (error) {
+        sourceFileApi.deleteFileOrFolder(filePath).catch();
         throw new CustomError(
           get(error, 'status', 500),
           get(error, 'details', get(error, 'message', '')),
