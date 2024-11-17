@@ -39,11 +39,23 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
         );
       }
     },
+    async checkFileExist(input: Omit<typeBackupInput, 'connection'>) {
+      const filePath = `/${input.backupFolder}/${input.backupFileName}.${input.backupFileType}`;
+      try {
+        return await sourceFileApi.exists(filePath);
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
     async backupToFile(input: typeBackupInput) {
       const client = loadHttpClient(input.connection);
       const filePath = `${input.backupFolder}/${input.backupFileName}.${input.backupFileType}`;
       let searchAfter: any[] | undefined = undefined;
       let hasMore = true;
+
       try {
         this.backupProgress = {
           complete: 0,
@@ -60,6 +72,17 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
               sort: [{ _doc: 'asc' }],
             }),
           );
+          if (response.status && response.status !== 200) {
+            console.error(response);
+            throw new CustomError(
+              response.status,
+              get(
+                response,
+                'details',
+                get(response, 'message', JSON.stringify(get(response, 'error.root_cause', ''))),
+              ),
+            );
+          }
 
           const hits = response.hits.hits;
 
@@ -77,7 +100,6 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
         }
         return filePath;
       } catch (error) {
-        sourceFileApi.deleteFileOrFolder(filePath).catch();
         throw new CustomError(
           get(error, 'status', 500),
           get(error, 'details', get(error, 'message', '')),

@@ -146,6 +146,7 @@ export const enUS = {
     closeSuccess: 'Closed successfully',
     openSuccess: 'Opened successfully',
     switchSuccess: 'Switched successfully',
+    overwriteFile: 'File already exists, do you want to overwrite it?',
   },
   editor: {
     establishedRequired: 'Select a DB instance before execute actions',

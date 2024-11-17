@@ -102,12 +102,10 @@
       </div>
       <n-progress
         type="line"
-        v-if="backupProgress"
-        :percentage="
-          parseFloat(((backupProgress.complete / backupProgress.total) * 100).toFixed(2))
-        "
+        v-if="backupProgressPercents"
+        :percentage="backupProgressPercents ?? 0"
         indicator-placement="inside"
-        :processing="backupProgress.complete < backupProgress.total"
+        :processing="backupProgressPercents < 100"
         class="backup-progress-bar"
       />
     </n-form>
@@ -118,19 +116,21 @@
 import { FormRules } from 'naive-ui';
 import { DocumentExport, FolderDetails, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { useBackupRestoreStore, useConnectionStore } from '../../../store';
+import { typeBackupInput, useBackupRestoreStore, useConnectionStore } from '../../../store';
 import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 
 const message = useMessage();
+const dialog = useDialog();
 const lang = useLang();
+
 const fileFormRef = ref();
 const connectionStore = useConnectionStore();
 const { fetchConnections, fetchIndices, establishConnection, selectIndex } = connectionStore;
 const { established, connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
-const { selectFolder, backupToFile } = backupRestoreStore;
+const { selectFolder, backupToFile, checkFileExist } = backupRestoreStore;
 const { folderPath, backupProgress } = storeToRefs(backupRestoreStore);
 
 const defaultFormData = {
@@ -183,6 +183,13 @@ const backupFormRules = reactive<FormRules>({
 const connectionOptions = computed(() =>
   connections.value.map(({ name }) => ({ label: name, value: name })),
 );
+const backupProgressPercents = computed(() => {
+  if (!backupProgress.value) return null;
+  const percents = parseFloat(
+    ((backupProgress.value.complete / backupProgress.value.total) * 100).toFixed(2),
+  );
+  return isNaN(percents) ? null : percents;
+});
 
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
 watch(established, () => {
@@ -260,7 +267,19 @@ const handleValidate = () => {
       : message.success(lang.t('connection.validationPassed')),
   );
 };
-
+const saveBackup = async (backupInput: typeBackupInput) => {
+  try {
+    const filePath = await backupToFile(backupInput);
+    message.success(lang.t('backup.backupToFileSuccess') + `: ${filePath}`);
+  } catch (err) {
+    const error = err as CustomError;
+    message.error(`status: ${error.status}, details: ${error.details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3600,
+    });
+  }
+};
 const submitBackup = async () => {
   const isPass = fileFormRef.value?.validate((errors: boolean) => {
     if (errors) {
@@ -272,9 +291,24 @@ const submitBackup = async () => {
 
   const connection = connections.value.find(({ name }) => name === backupFormData.value.connection);
   if (!isPass || !connection) return;
+  const backupInput = { ...backupFormData.value, connection };
   try {
-    const filePath = await backupToFile({ ...backupFormData.value, connection });
-    message.success(lang.t('backup.backupToFileSuccess') + `: ${filePath}`);
+    const isExist = await checkFileExist(backupFormData.value);
+    if (!isExist) {
+      await saveBackup(backupInput);
+      return;
+    }
+
+    dialog.warning({
+      title: lang.t('dialogOps.warning'),
+      content: lang.t('dialogOps.overwriteFile'),
+      positiveText: lang.t('dialogOps.confirm'),
+      negativeText: lang.t('dialogOps.cancel'),
+      onPositiveClick: async () => {
+        await saveBackup(backupInput);
+      },
+      onNegativeClick: () => {},
+    });
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {

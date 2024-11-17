@@ -66,6 +66,7 @@ const sourceFileApi = {
   createFolder: (folderPath: string) => createDir(folderPath),
   deleteFileOrFolder,
   renameFileOrFolder,
+  exists: (filePath: string) => exists(filePath),
 };
 
 export { sourceFileApi };
