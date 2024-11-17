@@ -146,6 +146,7 @@ export const zhCN = {
     closeSuccess: '关闭成功',
     openSuccess: '开启成功',
     switchSuccess: '切换成功',
+    overwriteFile: '文件已存在，确定覆盖？',
   },
   editor: {
     establishedRequired: '请选择执行操作的数据库实例',
@@ -176,6 +177,7 @@ export const zhCN = {
     backup: '备份',
     restore: '恢复',
     restoreSourceDesc: '点击或拖动文件到此区域上传您的 JSON/CSV 文件',
+    backupToFileSuccess: '成功备份到文件',
     backupForm: {
       connection: '选择连接',
       index: '选择索引',
@@ -187,6 +189,7 @@ export const zhCN = {
       backupFileNameRequired: '请输入备份文件名',
       validationFailed: '备份操作配置校验失败！',
       validationPassed: '备份操作配置校验通过！',
+      backupFileTypeInvalid: '备份文件类型无效',
     },
   },
   version: {

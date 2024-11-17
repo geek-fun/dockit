@@ -69,6 +69,12 @@ export const useConnectionStore = defineStore('connectionStore', {
     establishedIndexNames(state) {
       return state.established?.indices.map(({ index }) => index) ?? [];
     },
+    establishedIndexOptions(state) {
+      return state.established?.indices.map(({ index }) => ({ label: index, value: index })) ?? [];
+    },
+    connectionOptions(state) {
+      return state.connections.map(({ name }) => ({ label: name, value: name }));
+    },
   },
   actions: {
     async fetchConnections() {
@@ -93,8 +99,15 @@ export const useConnectionStore = defineStore('connectionStore', {
       await storeApi.set('connections', pureObject(this.connections));
     },
     async establishConnection(connection: Connection) {
-      await this.testConnection(connection);
+      try {
+        await this.testConnection(connection);
+      } catch (err) {
+        this.established = null;
+        throw err;
+      }
+
       const client = loadHttpClient(connection);
+
       try {
         const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
           [key: string]: string;

@@ -102,12 +102,13 @@ const loadHttpClient = (con: {
   password?: string;
   sslCertVerification: boolean;
 }) => ({
-  get: async (path?: string, queryParameters?: string) =>
+  get: async (path?: string, queryParameters?: string, payload?: string) =>
     fetchWrapper({
       ...con,
       method: 'GET',
       path,
       queryParameters,
+      payload,
       ssl: con.sslCertVerification,
     }),
   post: async (path: string, queryParameters?: string, payload?: string) =>
