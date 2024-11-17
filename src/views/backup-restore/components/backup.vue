@@ -1,105 +1,117 @@
 <template>
-  <n-form
-    ref="fileFormRef"
-    label-placement="left"
-    label-width="100"
-    :model="backupFormData"
-    :rules="backupFormRules"
-  >
-    <div class="backup-panel-container">
-      <n-card title="Source Data">
-        <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
-          <n-grid-item span="8">
-            <n-form-item :label="$t('backup.backupForm.connection')" path="connection">
-              <n-select
-                :options="connectionOptions"
-                :placeholder="$t('connection.selectConnection')"
-                v-model:value="backupFormData.connection"
-                :default-value="established?.name"
-                :loading="loadingRefs.connection"
-                remote
-                filterable
-                @update:value="(value: string) => handleSelectUpdate(value, 'connection')"
-                @update:show="(isOpen: boolean) => handleOpen(isOpen, 'connection')"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item span="8">
-            <n-form-item :label="$t('backup.backupForm.index')" path="index">
-              <n-select
-                :options="indexOptions"
-                :placeholder="$t('connection.selectIndex')"
-                v-model:value="backupFormData.index"
-                remote
-                filterable
-                :loading="loadingRefs.index"
-                @update:value="(value: string) => handleSelectUpdate(value, 'index')"
-                @update:show="(isOpen: boolean) => handleOpen(isOpen, 'index')"
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-      </n-card>
-      <div class="backup-action-container">
-        <n-tooltip trigger="hover">
-          <template #trigger>
-            <n-icon size="48" @click="handleValidate">
-              <ZoomArea />
-            </n-icon>
-          </template>
-          Validate Config
-        </n-tooltip>
-        <n-tooltip trigger="hover">
-          <template #trigger>
-            <n-icon size="48" @click="submitBackup">
-              <DocumentExport />
-            </n-icon>
-          </template>
-          Execute Backup
-        </n-tooltip>
-      </div>
-      <n-card title="Backup Location">
-        <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
-          <n-grid-item span="8">
-            <n-form-item :label="$t('backup.backupForm.backupFolder')" path="backupFolder">
-              <div>
-                <n-button dashed icon-placement="right" @click="selectFolder">
-                  <template #icon>
-                    <n-icon>
-                      <FolderDetails />
-                    </n-icon>
-                  </template>
-                  Select Folder
-                </n-button>
-                <n-p v-if="folderPath">{{ folderPath }}</n-p>
-              </div>
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item span="8">
-            <n-form-item :label="$t('backup.backupForm.backupFileName')" path="backupFileName">
-              <n-input-group>
-                <n-input
-                  v-model:value="backupFormData.backupFileName"
-                  clearable
-                  :input-props="inputProps"
-                  :placeholder="$t('backup.backupForm.backupFileName')"
-                  :style="{ width: '70%' }"
-                />
+  <div class="backup-panel-container">
+    <n-form
+      ref="fileFormRef"
+      label-placement="left"
+      label-width="100"
+      :model="backupFormData"
+      :rules="backupFormRules"
+    >
+      <div class="backup-form-container">
+        <n-card title="Source Data">
+          <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
+            <n-grid-item span="8">
+              <n-form-item :label="$t('backup.backupForm.connection')" path="connection">
                 <n-select
-                  :style="{ width: '30%' }"
-                  v-model:value="backupFormData.backupFileType"
-                  :options="[
-                    { label: 'json', value: 'json' },
-                    { label: 'csv', value: 'csv' },
-                  ]"
+                  :options="connectionOptions"
+                  :placeholder="$t('connection.selectConnection')"
+                  v-model:value="backupFormData.connection"
+                  :default-value="established?.name"
+                  :loading="loadingRefs.connection"
+                  remote
+                  filterable
+                  @update:value="(value: string) => handleSelectUpdate(value, 'connection')"
+                  @update:show="(isOpen: boolean) => handleOpen(isOpen, 'connection')"
                 />
-              </n-input-group>
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-      </n-card>
-    </div>
-  </n-form>
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item span="8">
+              <n-form-item :label="$t('backup.backupForm.index')" path="index">
+                <n-select
+                  :options="indexOptions"
+                  :placeholder="$t('connection.selectIndex')"
+                  v-model:value="backupFormData.index"
+                  remote
+                  filterable
+                  :loading="loadingRefs.index"
+                  @update:value="(value: string) => handleSelectUpdate(value, 'index')"
+                  @update:show="(isOpen: boolean) => handleOpen(isOpen, 'index')"
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+        </n-card>
+        <div class="backup-action-container">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-icon size="48" @click="handleValidate">
+                <ZoomArea />
+              </n-icon>
+            </template>
+            Validate Config
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-icon size="48" @click="submitBackup">
+                <DocumentExport />
+              </n-icon>
+            </template>
+            Execute Backup
+          </n-tooltip>
+        </div>
+        <n-card title="Backup Location">
+          <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
+            <n-grid-item span="8">
+              <n-form-item :label="$t('backup.backupForm.backupFolder')" path="backupFolder">
+                <div>
+                  <n-button dashed icon-placement="right" @click="selectFolder">
+                    <template #icon>
+                      <n-icon>
+                        <FolderDetails />
+                      </n-icon>
+                    </template>
+                    Select Folder
+                  </n-button>
+                  <n-p v-if="folderPath">{{ folderPath }}</n-p>
+                </div>
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item span="8">
+              <n-form-item :label="$t('backup.backupForm.backupFileName')" path="backupFileName">
+                <n-input-group>
+                  <n-input
+                    v-model:value="backupFormData.backupFileName"
+                    clearable
+                    :input-props="inputProps"
+                    :placeholder="$t('backup.backupForm.backupFileName')"
+                    :style="{ width: '70%' }"
+                  />
+                  <n-select
+                    :style="{ width: '30%' }"
+                    v-model:value="backupFormData.backupFileType"
+                    :options="[
+                      { label: 'json', value: 'json' },
+                      { label: 'csv', value: 'csv' },
+                    ]"
+                  />
+                </n-input-group>
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+        </n-card>
+      </div>
+      <n-progress
+        type="line"
+        v-if="backupProgress"
+        :percentage="
+          parseFloat(((backupProgress.complete / backupProgress.total) * 100).toFixed(2))
+        "
+        indicator-placement="inside"
+        :processing="backupProgress.complete < backupProgress.total"
+        class="backup-progress-bar"
+      />
+    </n-form>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -119,7 +131,7 @@ const { established, connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
 const { selectFolder, backupToFile } = backupRestoreStore;
-const { folderPath } = storeToRefs(backupRestoreStore);
+const { folderPath, backupProgress } = storeToRefs(backupRestoreStore);
 
 const defaultFormData = {
   connection: '',
@@ -135,6 +147,7 @@ const backupFormData = ref<{
   backupFileName: string;
   backupFileType: string;
 }>(defaultFormData);
+
 const backupFormRules = reactive<FormRules>({
   // @ts-ignore
   connection: [
@@ -165,14 +178,6 @@ const backupFormRules = reactive<FormRules>({
       trigger: ['input', 'blur'],
     },
   ],
-  // backupFileType: [
-  //   {
-  //     required: true,
-  //     validator: (_, value) => ['csv', 'json'].includes(value),
-  //     renderMessage: () => lang.t('backup.backupForm.backupFileTypeRequired'),
-  //     trigger: ['input', 'blur'],
-  //   },
-  // ],
 });
 
 const connectionOptions = computed(() =>
@@ -249,7 +254,6 @@ const handleSelectUpdate = async (value: string, target: string) => {
 };
 
 const handleValidate = () => {
-  console.log('validate', backupFormData.value);
   fileFormRef.value?.validate((errors: boolean) =>
     errors
       ? message.error(lang.t('backup.backupForm.validationFailed'))
@@ -258,7 +262,6 @@ const handleValidate = () => {
 };
 
 const submitBackup = async () => {
-  console.log('submitBackup start');
   const isPass = fileFormRef.value?.validate((errors: boolean) => {
     if (errors) {
       message.error(lang.t('backup.backupForm.validationFailed'));
@@ -267,7 +270,6 @@ const submitBackup = async () => {
     return true;
   });
 
-  console.log('submitBackup', isPass);
   const connection = connections.value.find(({ name }) => name === backupFormData.value.connection);
   if (!isPass || !connection) return;
   try {
@@ -282,28 +284,37 @@ const submitBackup = async () => {
     });
   }
 };
+
+watch(backupFormData, () => (backupProgress.value = null), { deep: true });
 </script>
 
 <style lang="scss" scoped>
 .backup-panel-container {
-  display: flex;
-  justify-content: space-around;
   margin: 10px 20px;
 
-  .backup-action-container {
+  .backup-form-container {
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    margin: 10px;
+    justify-content: space-around;
 
-    & > i {
-      cursor: pointer;
-      margin: 10px 5px;
+    .backup-action-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      margin: 10px;
 
-      &:hover {
-        color: var(--theme-color-hover);
+      & > i {
+        cursor: pointer;
+        margin: 10px 5px;
+
+        &:hover {
+          color: var(--theme-color-hover);
+        }
       }
     }
+  }
+
+  .backup-progress-bar {
+    margin-top: 20px;
   }
 }
 </style>

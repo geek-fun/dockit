@@ -15,10 +15,15 @@ export type typeBackupInput = {
 };
 
 export const useBackupRestoreStore = defineStore('backupRestoreStore', {
-  state(): { folderPath: string; fileName: string } {
+  state(): {
+    folderPath: string;
+    fileName: string;
+    backupProgress: { complete: number; total: number } | null;
+  } {
     return {
       folderPath: '',
       fileName: '',
+      backupProgress: null,
     };
   },
   persist: true,
@@ -40,6 +45,11 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
       let searchAfter: any[] | undefined = undefined;
       let hasMore = true;
       try {
+        this.backupProgress = {
+          complete: 0,
+          total: (await client.get(`/${input.index}/_count`)).count,
+        };
+
         while (hasMore) {
           const response = await client.get(
             `/${input.index}/_search`,
@@ -52,6 +62,8 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
           );
 
           const hits = response.hits.hits;
+
+          this.backupProgress.complete += hits.length;
           if (hits.length === 0) {
             hasMore = false;
           } else {
