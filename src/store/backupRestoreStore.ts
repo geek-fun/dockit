@@ -61,6 +61,8 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
           complete: 0,
           total: (await client.get(`/${input.index}/_count`)).count,
         };
+        const backupIndexMapping = await client.get(`/${input.index}/_mapping`);
+        console.log('backupIndexMapping', backupIndexMapping);
 
         while (hasMore) {
           const response = await client.get(
