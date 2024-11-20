@@ -1,6 +1,6 @@
 <template>
-  <div>
-    <div class="backup-panel-container">
+  <div class="restore-panel-container">
+    <div class="restore-form-container">
       <n-card title="source">
         <n-upload
           multiple
@@ -20,9 +20,25 @@
           </n-upload-dragger>
         </n-upload>
       </n-card>
-      <n-icon size="48">
-        <DocumentExport />
-      </n-icon>
+      <div class="restore-action-container">
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-icon size="48" @click="handleValidate">
+              <ZoomArea />
+            </n-icon>
+          </template>
+          Validate Config
+        </n-tooltip>
+        <n-tooltip trigger="hover">
+          <template #trigger>
+            <n-icon size="48" @click="submitBackup">
+              <DocumentExport />
+            </n-icon>
+          </template>
+          Execute Backup
+        </n-tooltip>
+      </div>
+
       <n-card title="target"></n-card>
     </div>
   </div>
@@ -30,7 +46,7 @@
 
 <script setup lang="ts">
 import { FormRules } from 'naive-ui';
-import { DocumentExport, FileStorage } from '@vicons/carbon';
+import { DocumentExport, FileStorage, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { typeBackupInput, useBackupRestoreStore, useConnectionStore } from '../../../store';
 import { CustomError } from '../../../common';
@@ -246,14 +262,14 @@ watch(backupFormData, () => (backupProgress.value = null), { deep: true });
 </script>
 
 <style lang="scss" scoped>
-.backup-panel-container {
+.restore-panel-container {
   margin: 10px 20px;
 
-  .backup-form-container {
+  .restore-form-container {
     display: flex;
     justify-content: space-around;
 
-    .backup-action-container {
+    .restore-action-container {
       display: flex;
       flex-direction: column;
       justify-content: center;

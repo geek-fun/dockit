@@ -6,6 +6,7 @@
       label-width="100"
       :model="backupFormData"
       :rules="backupFormRules"
+      style="width: 100%"
     >
       <div class="backup-form-container">
         <n-card title="Source Data">
