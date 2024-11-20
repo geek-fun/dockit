@@ -305,7 +305,14 @@ const submitBackup = async () => {
       positiveText: lang.t('dialogOps.confirm'),
       negativeText: lang.t('dialogOps.cancel'),
       onPositiveClick: async () => {
-        await saveBackup(backupInput);
+        saveBackup(backupInput).catch(err => {
+          const error = err as CustomError;
+          message.error(`status: ${error.status}, details: ${error.details}`, {
+            closable: true,
+            keepAliveOnHover: true,
+            duration: 3600,
+          });
+        });
       },
       onNegativeClick: () => {},
     });

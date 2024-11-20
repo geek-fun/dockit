@@ -55,14 +55,16 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
       const filePath = `${input.backupFolder}/${input.backupFileName}.${input.backupFileType}`;
       let searchAfter: any[] | undefined = undefined;
       let hasMore = true;
+      let appendFile = false;
 
       try {
         this.backupProgress = {
           complete: 0,
           total: (await client.get(`/${input.index}/_count`)).count,
         };
-        const backupIndexMapping = await client.get(`/${input.index}/_mapping`);
-        console.log('backupIndexMapping', backupIndexMapping);
+        const { [input.index]: backupIndexMapping } = await client.get(`/${input.index}/_mapping`);
+        const csvHeaders = buildCsvHeaders(backupIndexMapping);
+        let dataToWrite = input.backupFileType === 'json' ? '' : csvHeaders.join(',') + '\r\n';
 
         while (hasMore) {
           const response = await client.get(
@@ -92,11 +94,13 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
             hasMore = false;
           } else {
             searchAfter = hits[hits.length - 1].sort;
-            const dataToWrite =
+            dataToWrite +=
               input.backupFileType === 'json'
                 ? JSON.stringify(hits)
-                : JSON.stringify(convertToCsv(hits));
-            await sourceFileApi.saveFile(filePath, dataToWrite, true);
+                : convertToCsv(csvHeaders, hits);
+            await sourceFileApi.saveFile(filePath, dataToWrite, appendFile);
+            dataToWrite = '';
+            appendFile = true;
           }
         }
         return filePath;
@@ -110,28 +114,29 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
   },
 });
 
-const flattenObject = (obj: any, parent: string = '', res: any = {}) => {
-  for (let key in obj) {
-    const propName = parent ? `${parent}.${key}` : key;
-    if (typeof obj[key] === 'object' && obj[key] !== null) {
-      flattenObject(obj[key], propName, res);
-    } else {
-      res[propName] = obj[key];
-    }
-  }
-  return res;
+const buildCsvHeaders = ({
+  mappings,
+}: {
+  mappings: {
+    properties: {
+      [key: string]: unknown;
+    };
+  };
+}) => {
+  return Object.keys(mappings.properties);
 };
 
-const convertToCsv = (data: any[]) => {
-  if (data.length === 0) {
-    return { headers: [], data: [] };
-  }
-
-  const flattenedData = data.map(row => flattenObject(row));
-  const headers = Array.from(new Set(flattenedData.flatMap(row => Object.keys(row))));
-  const csvRows = flattenedData.map(row =>
-    headers.map(header => JSON.stringify(row[header] ?? '')).join(','),
-  );
-
-  return { headers, data: csvRows };
+const convertToCsv = (headers: Array<string>, data: unknown[]) => {
+  return data
+    .map(item =>
+      headers
+        .map(header => {
+          const data = get(item, `_source.${header}`, null);
+          return data === null || !['object', 'symbol', 'function'].includes(typeof data)
+            ? data
+            : JSON.stringify(data);
+        })
+        .join(','),
+    )
+    .join('\r\n');
 };
