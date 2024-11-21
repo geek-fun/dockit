@@ -1,14 +1,16 @@
 <template>
   <div class="restore-panel-container">
-    <div class="restore-form-container">
-      <n-card title="source">
-        <n-upload
-          multiple
-          directory-dnd
-          action="https://www.mocky.io/v2/5e4bafc63100007100d8b70f"
-          :max="5"
-        >
-          <n-upload-dragger>
+    <n-form
+      ref="fileFormRef"
+      label-placement="left"
+      label-width="100"
+      :model="restoreFormData"
+      :rules="restoreFormRules"
+      style="width: 100%"
+    >
+      <div class="restore-form-container">
+        <n-card title="source">
+          <div class="file-upload-zone" @click="handleFileUpload">
             <div style="margin-bottom: 12px">
               <n-icon size="48" :depth="3">
                 <FileStorage />
@@ -17,36 +19,74 @@
             <n-text style="font-size: 16px">
               {{ $t('backup.restoreSourceDesc') }}
             </n-text>
-          </n-upload-dragger>
-        </n-upload>
-      </n-card>
-      <div class="restore-action-container">
-        <n-tooltip trigger="hover">
-          <template #trigger>
-            <n-icon size="48" @click="handleValidate">
-              <ZoomArea />
-            </n-icon>
-          </template>
-          Validate Config
-        </n-tooltip>
-        <n-tooltip trigger="hover">
-          <template #trigger>
-            <n-icon size="48" @click="submitBackup">
-              <DocumentExport />
-            </n-icon>
-          </template>
-          Execute Backup
-        </n-tooltip>
-      </div>
+          </div>
+          <div v-if="restoreFormData.restoreFile" class="restore-file-display">
+            <p>{{ restoreFormData.restoreFile }}</p>
 
-      <n-card title="target"></n-card>
-    </div>
+            <n-icon
+              size="28"
+              class="clear-button"
+              @click="(() => (restoreFormData.restoreFile = ''))()"
+            >
+              <Close />
+            </n-icon>
+          </div>
+        </n-card>
+        <div class="restore-action-container">
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-icon size="48" @click="handleValidate">
+                <ZoomArea />
+              </n-icon>
+            </template>
+            Validate Config
+          </n-tooltip>
+          <n-tooltip trigger="hover">
+            <template #trigger>
+              <n-icon size="48" @click="submitBackup">
+                <DocumentExport />
+              </n-icon>
+            </template>
+            Execute Restore
+          </n-tooltip>
+        </div>
+
+        <n-card title="target">
+          <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
+            <n-grid-item span="8">
+              <n-form-item :label="$t('backup.backupForm.connection')" path="connection">
+                <n-select
+                  :options="connectionOptions"
+                  :placeholder="$t('connection.selectConnection')"
+                  v-model:value="restoreFormData.connection"
+                  :default-value="established?.name"
+                  :loading="loadingRefs.connection"
+                  remote
+                  filterable
+                  @update:value="(value: string) => handleSelectUpdate(value, 'connection')"
+                  @update:show="(isOpen: boolean) => handleOpen(isOpen, 'connection')"
+                />
+              </n-form-item>
+            </n-grid-item>
+            <n-grid-item span="8">
+              <n-form-item :label="$t('backup.backupForm.index')" path="index">
+                <n-input
+                  v-model:value="restoreFormData.index"
+                  type="text"
+                  :placeholder="$t('connection.selectIndex')"
+                />
+              </n-form-item>
+            </n-grid-item>
+          </n-grid>
+        </n-card>
+      </div>
+    </n-form>
   </div>
 </template>
 
 <script setup lang="ts">
 import { FormRules } from 'naive-ui';
-import { DocumentExport, FileStorage, ZoomArea } from '@vicons/carbon';
+import { DocumentExport, FileStorage, ZoomArea, Close } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { typeBackupInput, useBackupRestoreStore, useConnectionStore } from '../../../store';
 import { CustomError } from '../../../common';
@@ -62,25 +102,22 @@ const { fetchConnections, fetchIndices, establishConnection, selectIndex } = con
 const { established, connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
-const { selectFolder, backupToFile, checkFileExist } = backupRestoreStore;
-const { folderPath, backupProgress } = storeToRefs(backupRestoreStore);
+const { backupToFile, checkFileExist, selectFile } = backupRestoreStore;
+const { backupProgress, restoreFile } = storeToRefs(backupRestoreStore);
 
 const defaultFormData = {
   connection: '',
   index: '',
-  backupFolder: folderPath.value,
-  backupFileName: '',
-  backupFileType: 'json',
+  restoreFile: '',
 };
-const backupFormData = ref<{
+
+const restoreFormData = ref<{
   connection: string;
   index: string;
-  backupFolder: string;
-  backupFileName: string;
-  backupFileType: string;
+  restoreFile: string;
 }>(defaultFormData);
 
-const backupFormRules = reactive<FormRules>({
+const restoreFormRules = reactive<FormRules>({
   // @ts-ignore
   connection: [
     {
@@ -96,17 +133,10 @@ const backupFormRules = reactive<FormRules>({
       trigger: ['input', 'blur'],
     },
   ],
-  backupFolder: [
+  restoreFile: [
     {
       required: true,
       renderMessage: () => lang.t('backup.backupForm.backupFolderRequired'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-  backupFileName: [
-    {
-      required: true,
-      renderMessage: () => lang.t('backup.backupForm.backupFileNameRequired'),
       trigger: ['input', 'blur'],
     },
   ],
@@ -115,6 +145,7 @@ const backupFormRules = reactive<FormRules>({
 const connectionOptions = computed(() =>
   connections.value.map(({ name }) => ({ label: name, value: name })),
 );
+
 const backupProgressPercents = computed(() => {
   if (!backupProgress.value) return null;
   const percents = parseFloat(
@@ -123,11 +154,26 @@ const backupProgressPercents = computed(() => {
   return isNaN(percents) ? null : percents;
 });
 
+const handleFileUpload = async () => {
+  try {
+    await selectFile();
+    restoreFormData.value.restoreFile = restoreFile.value;
+    console.log('handleFileUpload', restoreFormData.value);
+  } catch (err) {
+    const error = err as CustomError;
+    message.error(`status: ${error.status}, details: ${error.details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3600,
+    });
+  }
+};
+
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
 watch(established, () => {
   if (!established.value) {
     indexOptions.value = [];
-    backupFormData.value.index = '';
+    restoreFormData.value.index = '';
     return;
   }
   indexOptions.value =
@@ -221,11 +267,13 @@ const submitBackup = async () => {
     return true;
   });
 
-  const connection = connections.value.find(({ name }) => name === backupFormData.value.connection);
+  const connection = connections.value.find(
+    ({ name }) => name === restoreFormData.value.connection,
+  );
   if (!isPass || !connection) return;
-  const backupInput = { ...backupFormData.value, connection };
+  const backupInput = { ...restoreFormData.value, connection };
   try {
-    const isExist = await checkFileExist(backupFormData.value);
+    const isExist = await checkFileExist(restoreFormData.value);
     if (!isExist) {
       await saveBackup(backupInput);
       return;
@@ -258,7 +306,7 @@ const submitBackup = async () => {
   }
 };
 
-watch(backupFormData, () => (backupProgress.value = null), { deep: true });
+watch(restoreFormData, () => (backupProgress.value = null), { deep: true });
 </script>
 
 <style lang="scss" scoped>
@@ -284,6 +332,53 @@ watch(backupFormData, () => (backupProgress.value = null), { deep: true });
         }
       }
     }
+
+    .file-upload-zone {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      margin: 20px;
+      padding: 20px;
+      border: 1px dashed var(--border-color);
+      border-radius: 5px;
+      cursor: pointer;
+      transition: border-color 0.3s;
+      background-color: var(--card-bg-color);
+
+      &:hover {
+        border-color: var(--theme-color-hover);
+      }
+    }
+  }
+
+  .restore-file-display {
+    display: flex;
+    justify-content: space-between;
+
+    &:hover {
+      border-radius: 5px;
+      border: 1px solid var(--border-color);
+      background-color: var(--theme-color-hover);
+      opacity: 0.7;
+
+      .clear-button {
+        display: block;
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+  }
+
+  .clear-button {
+    display: none;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    opacity: 0.8;
+    align-self: center;
   }
 
   .backup-progress-bar {

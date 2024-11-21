@@ -19,11 +19,13 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
     folderPath: string;
     fileName: string;
     backupProgress: { complete: number; total: number } | null;
+    restoreFile: string;
   } {
     return {
       folderPath: '',
       fileName: '',
       backupProgress: null,
+      restoreFile: '',
     };
   },
   persist: true,
@@ -32,6 +34,16 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
     async selectFolder() {
       try {
         this.folderPath = (await open({ recursive: true, directory: true })) as string;
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+    async selectFile() {
+      try {
+        this.restoreFile = (await open({ multiple: false, directory: false })) as string;
       } catch (error) {
         throw new CustomError(
           get(error, 'status', 500),
