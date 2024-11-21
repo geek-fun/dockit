@@ -102,7 +102,7 @@ const { fetchConnections, establishConnection } = connectionStore;
 const { established, connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
-const { selectFile } = backupRestoreStore;
+const { selectFile, restoreFromFile } = backupRestoreStore;
 const { backupProgress, restoreFile } = storeToRefs(backupRestoreStore);
 
 const defaultFormData = {
@@ -222,6 +222,7 @@ const submitRestore = async () => {
   if (!isPass || !connection) return;
   const restoreInput = { ...restoreFormData.value, connection };
   try {
+    await restoreFromFile(restoreInput);
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
