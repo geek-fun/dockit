@@ -43,7 +43,7 @@
           </n-tooltip>
           <n-tooltip trigger="hover">
             <template #trigger>
-              <n-icon size="48" @click="submitBackup">
+              <n-icon size="48" @click="submitRestore">
                 <DocumentExport />
               </n-icon>
             </template>
@@ -73,7 +73,7 @@
                 <n-input
                   v-model:value="restoreFormData.index"
                   type="text"
-                  :placeholder="$t('connection.selectIndex')"
+                  :placeholder="$t('backup.backupForm.index')"
                 />
               </n-form-item>
             </n-grid-item>
@@ -86,9 +86,9 @@
 
 <script setup lang="ts">
 import { FormRules } from 'naive-ui';
-import { DocumentExport, FileStorage, ZoomArea, Close } from '@vicons/carbon';
+import { Close, DocumentExport, FileStorage, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { typeBackupInput, useBackupRestoreStore, useConnectionStore } from '../../../store';
+import { useBackupRestoreStore, useConnectionStore } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 
@@ -98,11 +98,11 @@ const lang = useLang();
 
 const fileFormRef = ref();
 const connectionStore = useConnectionStore();
-const { fetchConnections, fetchIndices, establishConnection, selectIndex } = connectionStore;
+const { fetchConnections, establishConnection } = connectionStore;
 const { established, connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
-const { backupToFile, checkFileExist, selectFile } = backupRestoreStore;
+const { selectFile } = backupRestoreStore;
 const { backupProgress, restoreFile } = storeToRefs(backupRestoreStore);
 
 const defaultFormData = {
@@ -146,7 +146,7 @@ const connectionOptions = computed(() =>
   connections.value.map(({ name }) => ({ label: name, value: name })),
 );
 
-const backupProgressPercents = computed(() => {
+const restoreProgressPercents = computed(() => {
   if (!backupProgress.value) return null;
   const percents = parseFloat(
     ((backupProgress.value.complete / backupProgress.value.total) * 100).toFixed(2),
@@ -169,21 +169,7 @@ const handleFileUpload = async () => {
   }
 };
 
-const indexOptions = ref<Array<{ label: string; value: string }>>([]);
-watch(established, () => {
-  if (!established.value) {
-    indexOptions.value = [];
-    restoreFormData.value.index = '';
-    return;
-  }
-  indexOptions.value =
-    established.value?.indices.map(({ index }) => ({ label: index, value: index })) ?? [];
-});
-
-const loadingRefs = ref<{ connection: boolean; index: boolean }>({
-  connection: false,
-  index: false,
-});
+const loadingRefs = ref<{ connection: boolean }>({ connection: false });
 
 const handleOpen = async (isOpen: boolean, target: string) => {
   if (!isOpen) return;
@@ -191,29 +177,6 @@ const handleOpen = async (isOpen: boolean, target: string) => {
     loadingRefs.value.connection = true;
     await fetchConnections();
     loadingRefs.value.connection = false;
-  } else if (target === 'index') {
-    if (!established.value) {
-      message.error(lang.t('editor.establishedRequired'), {
-        closable: true,
-        keepAliveOnHover: true,
-        duration: 3000,
-      });
-      return;
-    }
-    loadingRefs.value.index = true;
-    try {
-      await fetchIndices();
-    } catch (err) {
-      message.error(
-        `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
-        {
-          closable: true,
-          keepAliveOnHover: true,
-          duration: 3000,
-        },
-      );
-    }
-    loadingRefs.value.index = false;
   }
 };
 
@@ -233,8 +196,6 @@ const handleSelectUpdate = async (value: string, target: string) => {
         duration: 3600,
       });
     }
-  } else if (target === 'index') {
-    selectIndex(value);
   }
 };
 
@@ -245,20 +206,8 @@ const handleValidate = () => {
       : message.success(lang.t('connection.validationPassed')),
   );
 };
-const saveBackup = async (backupInput: typeBackupInput) => {
-  try {
-    const filePath = await backupToFile(backupInput);
-    message.success(lang.t('backup.backupToFileSuccess') + `: ${filePath}`);
-  } catch (err) {
-    const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3600,
-    });
-  }
-};
-const submitBackup = async () => {
+
+const submitRestore = async () => {
   const isPass = fileFormRef.value?.validate((errors: boolean) => {
     if (errors) {
       message.error(lang.t('backup.backupForm.validationFailed'));
@@ -271,31 +220,8 @@ const submitBackup = async () => {
     ({ name }) => name === restoreFormData.value.connection,
   );
   if (!isPass || !connection) return;
-  const backupInput = { ...restoreFormData.value, connection };
+  const restoreInput = { ...restoreFormData.value, connection };
   try {
-    const isExist = await checkFileExist(restoreFormData.value);
-    if (!isExist) {
-      await saveBackup(backupInput);
-      return;
-    }
-
-    dialog.warning({
-      title: lang.t('dialogOps.warning'),
-      content: lang.t('dialogOps.overwriteFile'),
-      positiveText: lang.t('dialogOps.confirm'),
-      negativeText: lang.t('dialogOps.cancel'),
-      onPositiveClick: async () => {
-        saveBackup(backupInput).catch(err => {
-          const error = err as CustomError;
-          message.error(`status: ${error.status}, details: ${error.details}`, {
-            closable: true,
-            keepAliveOnHover: true,
-            duration: 3600,
-          });
-        });
-      },
-      onNegativeClick: () => {},
-    });
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -364,6 +290,7 @@ watch(restoreFormData, () => (backupProgress.value = null), { deep: true });
 
       .clear-button {
         display: block;
+
         &:hover {
           opacity: 1;
         }
