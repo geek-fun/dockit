@@ -25,12 +25,14 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
     folderPath: string;
     fileName: string;
     backupProgress: { complete: number; total: number } | null;
+    restoreProgress: { complete: number; total: number } | null;
     restoreFile: string;
   } {
     return {
       folderPath: '',
       fileName: '',
       backupProgress: null,
+      restoreProgress: null,
       restoreFile: '',
     };
   },
@@ -150,14 +152,19 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
             _score: number;
             _source: unknown;
           }> = JSON.parse(data);
-          for (const hit of hits) {
-            const response = await client.post(
-              `/${input.index}/_doc/${hit._id}`,
-              undefined,
-              JSON.stringify(hit._source),
-            );
+          this.restoreProgress = {
+            complete: 0,
+            total: hits.length,
+          };
+          const bulkSize = 1000;
+          for (let i = 0; i < hits.length; i += bulkSize) {
+            const bulkData = hits
+              .slice(i, i + bulkSize)
+              .flatMap(hit => [{ index: { _index: input.index, _id: hit._id } }, hit._source])
+              .map(item => JSON.stringify(item));
 
-            console.log('restore json result:', { response, hit });
+            const response = await client.post(`/_bulk`, undefined, bulkData.join('\r\n') + '\r\n');
+
             if (response.status && response.status !== 200) {
               throw new CustomError(
                 response.status,
@@ -168,6 +175,8 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
                 ),
               );
             }
+
+            this.restoreProgress.complete += bulkData.length / 2;
           }
         } else {
           const lines = data.split('\r\n');

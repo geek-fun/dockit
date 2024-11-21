@@ -178,6 +178,7 @@ export const zhCN = {
     restore: '恢复',
     restoreSourceDesc: '点击或拖动文件到此区域上传您的 JSON/CSV 文件',
     backupToFileSuccess: '成功备份到文件',
+    restoreFromFileSuccess: '成功从文件恢复',
     backupForm: {
       connection: '选择连接',
       index: '选择索引',

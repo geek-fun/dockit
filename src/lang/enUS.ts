@@ -177,6 +177,7 @@ export const enUS = {
     restore: 'Restore',
     restoreSourceDesc: 'Click or drag a file to this area to upload your JSON/CSV file',
     backupToFileSuccess: 'Successfully backed up to file',
+    restoreFromFileSuccess: 'Successfully restored from file',
     backupForm: {
       connection: 'Connection',
       index: 'Index',

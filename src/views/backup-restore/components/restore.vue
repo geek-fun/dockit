@@ -80,6 +80,14 @@
           </n-grid>
         </n-card>
       </div>
+      <n-progress
+        type="line"
+        v-if="restoreProgressPercents"
+        :percentage="restoreProgressPercents ?? 0"
+        indicator-placement="inside"
+        :processing="restoreProgressPercents < 100"
+        class="backup-progress-bar"
+      />
     </n-form>
   </div>
 </template>
@@ -93,7 +101,6 @@ import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 
 const message = useMessage();
-const dialog = useDialog();
 const lang = useLang();
 
 const fileFormRef = ref();
@@ -103,7 +110,7 @@ const { established, connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
 const { selectFile, restoreFromFile } = backupRestoreStore;
-const { backupProgress, restoreFile } = storeToRefs(backupRestoreStore);
+const { restoreProgress, restoreFile } = storeToRefs(backupRestoreStore);
 
 const defaultFormData = {
   connection: '',
@@ -147,9 +154,9 @@ const connectionOptions = computed(() =>
 );
 
 const restoreProgressPercents = computed(() => {
-  if (!backupProgress.value) return null;
+  if (!restoreProgress.value) return null;
   const percents = parseFloat(
-    ((backupProgress.value.complete / backupProgress.value.total) * 100).toFixed(2),
+    ((restoreProgress.value.complete / restoreProgress.value.total) * 100).toFixed(2),
   );
   return isNaN(percents) ? null : percents;
 });
@@ -223,6 +230,7 @@ const submitRestore = async () => {
   const restoreInput = { ...restoreFormData.value, connection };
   try {
     await restoreFromFile(restoreInput);
+    message.success(lang.t('backup.restoreFromFileSuccess'));
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -233,7 +241,7 @@ const submitRestore = async () => {
   }
 };
 
-watch(restoreFormData, () => (backupProgress.value = null), { deep: true });
+watch(restoreFormData, () => (restoreProgress.value = null), { deep: true });
 </script>
 
 <style lang="scss" scoped>
