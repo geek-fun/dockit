@@ -101,6 +101,7 @@ import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 
 const message = useMessage();
+const dialog = useDialog();
 const lang = useLang();
 
 const fileFormRef = ref();
@@ -226,19 +227,49 @@ const submitRestore = async () => {
   const connection = connections.value.find(
     ({ name }) => name === restoreFormData.value.connection,
   );
+
   if (!isPass || !connection) return;
+
   const restoreInput = { ...restoreFormData.value, connection };
-  try {
-    await restoreFromFile(restoreInput);
-    message.success(lang.t('backup.restoreFromFileSuccess'));
-  } catch (err) {
-    const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3600,
-    });
+
+  const index = established.value?.indices.find(
+    ({ index }) => index === restoreFormData.value.index,
+  );
+
+  if (!index) {
+    try {
+      await restoreFromFile(restoreInput);
+      message.success(lang.t('backup.restoreFromFileSuccess'));
+    } catch (err) {
+      const error = err as CustomError;
+      message.error(`status: ${error.status}, details: ${error.details}`, {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3600,
+      });
+    }
+    return;
   }
+
+  dialog.warning({
+    title: lang.t('dialogOps.warning'),
+    content: lang.t('dialogOps.overwriteIndex'),
+    positiveText: lang.t('dialogOps.confirm'),
+    negativeText: lang.t('dialogOps.cancel'),
+    onPositiveClick: async () => {
+      restoreFromFile(restoreInput)
+        .then(() => message.success(lang.t('backup.restoreFromFileSuccess')))
+        .catch(err => {
+          const error = err as CustomError;
+          message.error(`status: ${error.status}, details: ${error.details}`, {
+            closable: true,
+            keepAliveOnHover: true,
+            duration: 3600,
+          });
+        });
+    },
+    onNegativeClick: () => {},
+  });
 };
 
 watch(restoreFormData, () => (restoreProgress.value = null), { deep: true });

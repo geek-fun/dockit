@@ -147,6 +147,7 @@ export const zhCN = {
     openSuccess: '开启成功',
     switchSuccess: '切换成功',
     overwriteFile: '文件已存在，确定覆盖？',
+    overwriteIndex: '索引已存在，确定覆盖？',
   },
   editor: {
     establishedRequired: '请选择执行操作的数据库实例',
