@@ -6,7 +6,7 @@ import { get } from 'lodash';
 import { Connection } from './connectionStore.ts';
 import { loadHttpClient, sourceFileApi } from '../datasources';
 
-export type typeBackupInput = {
+export type BackupInput = {
   connection: Connection;
   index: string;
   backupFolder: string;
@@ -14,16 +14,26 @@ export type typeBackupInput = {
   backupFileType: string;
 };
 
+export type RestoreInput = {
+  connection: Connection;
+  index: string;
+  restoreFile: string;
+};
+
 export const useBackupRestoreStore = defineStore('backupRestoreStore', {
   state(): {
     folderPath: string;
     fileName: string;
     backupProgress: { complete: number; total: number } | null;
+    restoreProgress: { complete: number; total: number } | null;
+    restoreFile: string;
   } {
     return {
       folderPath: '',
       fileName: '',
       backupProgress: null,
+      restoreProgress: null,
+      restoreFile: '',
     };
   },
   persist: true,
@@ -39,7 +49,26 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
         );
       }
     },
-    async checkFileExist(input: Omit<typeBackupInput, 'connection'>) {
+    async selectFile() {
+      try {
+        this.restoreFile = (await open({
+          multiple: false,
+          directory: false,
+          filters: [
+            {
+              name: 'Backup/Restore Files',
+              extensions: ['csv', 'json'],
+            },
+          ],
+        })) as string;
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+    async checkFileExist(input: Omit<BackupInput, 'connection'>) {
       const filePath = `/${input.backupFolder}/${input.backupFileName}.${input.backupFileType}`;
       try {
         return await sourceFileApi.exists(filePath);
@@ -50,7 +79,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
         );
       }
     },
-    async backupToFile(input: typeBackupInput) {
+    async backupToFile(input: BackupInput) {
       const client = loadHttpClient(input.connection);
       const filePath = `${input.backupFolder}/${input.backupFileName}.${input.backupFileType}`;
       let searchAfter: any[] | undefined = undefined;
@@ -111,8 +140,104 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
         );
       }
     },
+    async restoreFromFile(input: RestoreInput) {
+      const fileType = input.restoreFile.split('.').pop();
+      const client = loadHttpClient(input.connection);
+      const bulkSize = 1000;
+      let data: string;
+      try {
+        data = await sourceFileApi.readFile(input.restoreFile);
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+
+      try {
+        if (fileType === 'json') {
+          const hits: Array<{
+            _index: string;
+            _id: string;
+            _score: number;
+            _source: unknown;
+          }> = JSON.parse(data);
+          this.restoreProgress = {
+            complete: 0,
+            total: hits.length,
+          };
+          for (let i = 0; i < hits.length; i += bulkSize) {
+            const bulkData = hits
+              .slice(i, i + bulkSize)
+              .flatMap(hit => [{ index: { _index: input.index, _id: hit._id } }, hit._source])
+              .map(item => JSON.stringify(item));
+
+            await bulkRequest(client, bulkData);
+
+            this.restoreProgress.complete += bulkData.length / 2;
+          }
+        } else if (fileType === 'csv') {
+          const lines = data.split('\r\n');
+          const headers = lines[0].split(',');
+          this.restoreProgress = {
+            complete: 0,
+            total: lines.length - 1,
+          };
+
+          for (let i = 1; i < lines.length; i += bulkSize) {
+            const bulkData = lines
+              .slice(i, i + bulkSize)
+              .flatMap(line => {
+                const values = line.split(',');
+                const body = headers.reduce(
+                  (acc, header, index) => {
+                    let value = values[index];
+                    try {
+                      value = JSON.parse(value);
+                    } catch (e) {
+                      // value is not a JSON string, keep it as is
+                    }
+                    acc[header] = value;
+                    return acc;
+                  },
+                  {} as { [key: string]: unknown },
+                );
+
+                return [{ index: { _index: input.index } }, body];
+              })
+              .map(item => JSON.stringify(item));
+
+            await bulkRequest(client, bulkData);
+
+            this.restoreProgress.complete += bulkData.length / 2;
+          }
+        } else {
+          throw new CustomError(400, 'Unsupported file type');
+        }
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
   },
 });
+
+const bulkRequest = async (client: { post: Function }, bulkData: Array<unknown>) => {
+  const response = await client.post(`/_bulk`, undefined, bulkData.join('\r\n') + '\r\n');
+
+  if (response.status && response.status !== 200) {
+    throw new CustomError(
+      response.status,
+      get(
+        response,
+        'details',
+        get(response, 'message', JSON.stringify(get(response, 'error.root_cause', ''))),
+      ),
+    );
+  }
+};
 
 const buildCsvHeaders = ({
   mappings,

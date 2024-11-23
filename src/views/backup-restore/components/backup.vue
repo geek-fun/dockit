@@ -6,6 +6,7 @@
       label-width="100"
       :model="backupFormData"
       :rules="backupFormRules"
+      style="width: 100%"
     >
       <div class="backup-form-container">
         <n-card title="Source Data">
@@ -116,7 +117,7 @@
 import { FormRules } from 'naive-ui';
 import { DocumentExport, FolderDetails, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { typeBackupInput, useBackupRestoreStore, useConnectionStore } from '../../../store';
+import { BackupInput, useBackupRestoreStore, useConnectionStore } from '../../../store';
 import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 
@@ -267,7 +268,7 @@ const handleValidate = () => {
       : message.success(lang.t('connection.validationPassed')),
   );
 };
-const saveBackup = async (backupInput: typeBackupInput) => {
+const saveBackup = async (backupInput: BackupInput) => {
   try {
     const filePath = await backupToFile(backupInput);
     message.success(lang.t('backup.backupToFileSuccess') + `: ${filePath}`);

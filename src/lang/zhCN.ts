@@ -147,6 +147,7 @@ export const zhCN = {
     openSuccess: '开启成功',
     switchSuccess: '切换成功',
     overwriteFile: '文件已存在，确定覆盖？',
+    overwriteIndex: '索引已存在，确定覆盖？',
   },
   editor: {
     establishedRequired: '请选择执行操作的数据库实例',
@@ -178,6 +179,7 @@ export const zhCN = {
     restore: '恢复',
     restoreSourceDesc: '点击或拖动文件到此区域上传您的 JSON/CSV 文件',
     backupToFileSuccess: '成功备份到文件',
+    restoreFromFileSuccess: '成功从文件恢复',
     backupForm: {
       connection: '选择连接',
       index: '选择索引',
