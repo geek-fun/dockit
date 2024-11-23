@@ -134,6 +134,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
     async restoreFromFile(input: RestoreInput) {
       const fileType = input.restoreFile.split('.').pop();
       const client = loadHttpClient(input.connection);
+      const bulkSize = 1000;
       let data: string;
       try {
         data = await sourceFileApi.readFile(input.restoreFile);
@@ -156,40 +157,53 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
             complete: 0,
             total: hits.length,
           };
-          const bulkSize = 1000;
           for (let i = 0; i < hits.length; i += bulkSize) {
             const bulkData = hits
               .slice(i, i + bulkSize)
               .flatMap(hit => [{ index: { _index: input.index, _id: hit._id } }, hit._source])
               .map(item => JSON.stringify(item));
 
-            const response = await client.post(`/_bulk`, undefined, bulkData.join('\r\n') + '\r\n');
+            await bulkRequest(client, bulkData);
 
-            if (response.status && response.status !== 200) {
-              throw new CustomError(
-                response.status,
-                get(
-                  response,
-                  'details',
-                  get(response, 'message', JSON.stringify(get(response, 'error.root_cause', ''))),
-                ),
-              );
-            }
+            this.restoreProgress.complete += bulkData.length / 2;
+          }
+        } else if (fileType === 'csv') {
+          const lines = data.split('\r\n');
+          const headers = lines[0].split(',');
+          this.restoreProgress = {
+            complete: 0,
+            total: lines.length - 1,
+          };
+
+          for (let i = 1; i < lines.length; i += bulkSize) {
+            const bulkData = lines
+              .slice(i, i + bulkSize)
+              .flatMap(line => {
+                const values = line.split(',');
+                const body = headers.reduce(
+                  (acc, header, index) => {
+                    let value = values[index];
+                    try {
+                      value = JSON.parse(value);
+                    } catch (e) {
+                      // value is not a JSON string, keep it as is
+                    }
+                    acc[header] = value;
+                    return acc;
+                  },
+                  {} as { [key: string]: unknown },
+                );
+
+                return [{ index: { _index: input.index } }, body];
+              })
+              .map(item => JSON.stringify(item));
+
+            await bulkRequest(client, bulkData);
 
             this.restoreProgress.complete += bulkData.length / 2;
           }
         } else {
-          const lines = data.split('\r\n');
-          const headers = lines[0].split(',');
-          for (let i = 1; i < lines.length; i++) {
-            const line = lines[i];
-            const values = line.split(',');
-            const body = headers.reduce((acc, header, index) => {
-              acc[header] = values[index];
-              return acc;
-            }, {});
-            await client.post(`/${input.index}/_doc`, JSON.stringify(body));
-          }
+          throw new CustomError(400, 'Unsupported file type');
         }
       } catch (error) {
         throw new CustomError(
@@ -200,6 +214,21 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
     },
   },
 });
+
+const bulkRequest = async (client: { post: Function }, bulkData: Array<unknown>) => {
+  const response = await client.post(`/_bulk`, undefined, bulkData.join('\r\n') + '\r\n');
+
+  if (response.status && response.status !== 200) {
+    throw new CustomError(
+      response.status,
+      get(
+        response,
+        'details',
+        get(response, 'message', JSON.stringify(get(response, 'error.root_cause', ''))),
+      ),
+    );
+  }
+};
 
 const buildCsvHeaders = ({
   mappings,

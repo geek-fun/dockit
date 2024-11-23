@@ -73,6 +73,7 @@
                 <n-input
                   v-model:value="restoreFormData.index"
                   type="text"
+                  :input-props="inputProps"
                   :placeholder="$t('backup.backupForm.index')"
                 />
               </n-form-item>
@@ -97,7 +98,7 @@ import { FormRules } from 'naive-ui';
 import { Close, DocumentExport, FileStorage, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { useBackupRestoreStore, useConnectionStore } from '../../../store';
-import { CustomError } from '../../../common';
+import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 
 const message = useMessage();
