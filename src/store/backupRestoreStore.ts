@@ -51,7 +51,16 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
     },
     async selectFile() {
       try {
-        this.restoreFile = (await open({ multiple: false, directory: false })) as string;
+        this.restoreFile = (await open({
+          multiple: false,
+          directory: false,
+          filters: [
+            {
+              name: 'Backup/Restore Files',
+              extensions: ['csv', 'json'],
+            },
+          ],
+        })) as string;
       } catch (error) {
         throw new CustomError(
           get(error, 'status', 500),
