@@ -77,12 +77,7 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
 };
 
 const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
-  provideCodeLenses: () => {
-    const model = queryEditor?.getModel();
-    if (!model) {
-      return;
-    }
-
+  provideCodeLenses: (model, _) => {
     const lines = Array.from({ length: model.getLineCount() }, (_, i) => ({
       lineNumber: i + 1,
       lineContent: model.getLineContent(i + 1),
@@ -217,10 +212,11 @@ const copyCurlAction = (position: Range) => {
 
 const setupQueryEditor = (code: string) => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
-    automaticLayout: true,
     theme: getEditorTheme(),
     value: code,
     language: 'search',
+    automaticLayout: true,
+    scrollBeyondLastLine: false,
     minimap: { enabled: false },
   });
   if (!queryEditor) {
