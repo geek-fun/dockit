@@ -10,7 +10,8 @@
         >
           <div class="left-box" @click="establishConnect(con)">
             <div class="icon">
-              <img src="./../../../assets/svg/elasticsearch.svg" />
+              <img v-if="con.type === DatabaseType.ELASTICSEARCH" src="../../../assets/svg/elasticsearch.svg" />
+              <img v-else-if="con.type === DatabaseType.DYNAMODB" src="../../../assets/svg/dynamodb.svg" />
             </div>
             <div class="name">{{ con.name }}</div>
           </div>
@@ -37,6 +38,7 @@ import { storeToRefs } from 'pinia';
 import { useLang } from '../../../lang';
 import { Connection, useConnectionStore } from '../../../store';
 import { debug, CustomError } from '../../../common';
+import { DatabaseType } from '../../../common/constants';
 
 const emits = defineEmits(['edit-connect']);
 
@@ -123,16 +125,16 @@ const removeConnect = (connection: Connection) => {
       display: flex;
       align-items: center;
       .icon {
-        height: 100%;
-        width: 26px;
+        height: 24px;
+        width: 24px;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--dange-color);
+        margin-right: 8px;
+        
         img {
-          height: 18px;
-          width: 18px;
-          filter: grayscale(1);
+          width: 24px;
+          height: 24px;
         }
       }
 
@@ -174,7 +176,7 @@ const removeConnect = (connection: Connection) => {
       color: var(--theme-color);
     }
     .icon img {
-      filter: unset;
+      filter: brightness(1.2);
     }
   }
 }
