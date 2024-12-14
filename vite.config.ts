@@ -3,11 +3,13 @@ import vue from '@vitejs/plugin-vue';
 import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { NaiveUiResolver } from 'unplugin-vue-components/resolvers';
+import svgLoader from 'vite-svg-loader';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
+    svgLoader(),
     AutoImport({
       dts: './auto-import.d.ts',
       eslintrc: {
@@ -58,4 +60,9 @@ export default defineConfig({
     // produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
   },
+  resolve: {
+    alias: {
+      '@': '/src'
+    }
+  }
 });

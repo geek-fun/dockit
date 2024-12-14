@@ -23,6 +23,8 @@
     "build:macos": "tauri build -t universal-apple-darwin"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.705.0",
+    "@aws-sdk/lib-dynamodb": "^3.705.0",
     "@tauri-apps/api": "^1.6.0",
     "debug": "^4.3.7",
     "highlight.js": "^11.10.0",
@@ -67,6 +69,7 @@
     "unplugin-auto-import": "^0.17.6",
     "unplugin-vue-components": "^0.27.1",
     "vite": "^5.3.1",
+    "vite-svg-loader": "^5.1.0",
     "vue-tsc": "^2.0.22"
   }
 }

@@ -1,12 +1,11 @@
 <template>
-  <app-provider>
-    <router-main />
-    <version-detect />
-  </app-provider>
+  <n-config-provider>
+    <n-message-provider>
+      <router-view></router-view>
+    </n-message-provider>
+  </n-config-provider>
 </template>
 
 <script setup lang="ts">
-import AppProvider from './components/AppProvider.vue';
-import RouterMain from './components/RouterMain.vue';
-import VersionDetect from './components/VersionDetect.vue';
+import { NConfigProvider, NMessageProvider } from 'naive-ui';
 </script>
