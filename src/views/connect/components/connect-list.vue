@@ -10,8 +10,11 @@
         >
           <div class="left-box" @click="establishConnect(con)">
             <div class="icon">
-              <img v-if="con.type === DatabaseType.ELASTICSEARCH" src="../../../assets/svg/elasticsearch.svg" />
-              <img v-else-if="con.type === DatabaseType.DYNAMODB" src="../../../assets/svg/dynamodb.svg" />
+              <img 
+                :src="con.type === DatabaseType.ELASTICSEARCH 
+                  ? '../../../assets/svg/elasticsearch.svg' 
+                  : '../../../assets/svg/dynamodb.svg'"
+              />
             </div>
             <div class="name">{{ con.name }}</div>
           </div>
@@ -86,6 +89,10 @@ const establishConnect = async (connection: Connection) => {
 
 // edit connect info
 const editConnect = (connection: Connection) => {
+  if (!connection.type) {
+    console.error('Connection type is missing');
+    return;
+  }
   emits('edit-connect', connection);
 };
 const removeConnect = (connection: Connection) => {

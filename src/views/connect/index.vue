@@ -62,7 +62,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { useConnectionStore } from '../../store/connectionStore';
+import { Connection, useConnectionStore } from '../../store/connectionStore';
 import { DatabaseType } from '../../common/constants';
 import ConnectDialog from './components/connect-dialog.vue';
 import DynamodbConnectDialog from './components/dynamodb-connect-dialog.vue';
@@ -110,15 +110,20 @@ const getDatabaseTypeLabel = (type: DatabaseType) => {
   return type === DatabaseType.ELASTICSEARCH ? 'Elasticsearch' : 'DynamoDB';
 };
 
-const editConnection = (connection: ElasticsearchConnection | DynamoDBConnection) => {
+const editConnection = (connection: Connection) => {
+  if (!connection.type) {
+    console.error('Connection type is missing');
+    return;
+  }
+  
   if (connection.type === DatabaseType.ELASTICSEARCH) {
-    esConnectDialog.value.showMedal(connection);
+    esConnectDialog.value?.showMedal(connection);
   } else if (connection.type === DatabaseType.DYNAMODB) {
-    dynamodbConnectDialog.value.showMedal(connection);
+    dynamodbConnectDialog.value?.showMedal(connection);
   }
 };
 
-const deleteConnection = async (connection: ElasticsearchConnection | DynamoDBConnection) => {
+const deleteConnection = async (connection: Connection) => {
   try {
     await connectionStore.removeConnection(connection);
     message.success(lang.t('connection.deleteSuccess'));
