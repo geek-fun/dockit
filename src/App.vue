@@ -9,4 +9,5 @@
 
 <script setup lang="ts">
 import { NConfigProvider, NMessageProvider } from 'naive-ui';
+import VersionDetect from './components/VersionDetect.vue';
 </script>
