@@ -155,36 +155,35 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
     },
     async establishConnection(connection: Connection) {
-      if (connection.type !== DatabaseType.ELASTICSEARCH) {
-        throw new Error('Operation only supported for Elasticsearch connections');
-      }
+      if (connection.type === DatabaseType.ELASTICSEARCH) {
+        try {
+          await this.testElasticsearchConnection(connection);
+          const client = loadHttpClient(connection);
+          let indices: ConnectionIndex[] = [];
 
-      try {
-        await this.testElasticsearchConnection(connection);
-      } catch (err) {
-        this.established = null;
-        throw err;
-      }
-
-      const client = loadHttpClient(connection);
-      let indices: ConnectionIndex[] = [];
-
-      try {
-        const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
-          [key: string]: string;
-        }>;
-        
-        indices = data.map((index) => ({
-          ...index,
-          docs: {
-            count: parseInt(index['docs.count'], 10),
-            deleted: parseInt(index['docs.deleted'], 10),
-          },
-          store: { size: index['store.size'] },
-        })) as ConnectionIndex[];
-        this.established = { ...connection, indices };
-      } catch (err) {
-        this.established = { ...connection, indices: [] };
+          try {
+            const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+              [key: string]: string;
+            }>;
+            
+            indices = data.map((index) => ({
+              ...index,
+              docs: {
+                count: parseInt(index['docs.count'], 10),
+                deleted: parseInt(index['docs.deleted'], 10),
+              },
+              store: { size: index['store.size'] },
+            })) as ConnectionIndex[];
+            this.established = { ...connection, indices };
+          } catch (err) {
+            this.established = { ...connection, indices: [] };
+          }
+        } catch (err) {
+          console.warn('Failed to establish elasticsearch connection:', err);
+          this.established = { ...connection, indices: [] };
+        }
+      } else if (connection.type === DatabaseType.DYNAMODB) {
+        this.established = {...connection, indices: [], activeIndex: undefined};
       }
     },
     async fetchIndices() {
