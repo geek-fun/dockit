@@ -304,9 +304,20 @@ const saveConnect = (event: MouseEvent) => {
 
 const saveConnectConfirm = async () => {
   saveLoading.value = !saveLoading.value;
-  saveConnection(formData.value);
-  saveLoading.value = !saveLoading.value;
-  showModal.value = false;
+  try {
+    await saveConnection(formData.value);
+    message.success(lang.t('connection.saveSuccess'));
+  } catch (e) {
+    const error = e as CustomError;
+    message.error(`status: ${error.status}, details: ${error.details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 10000,
+    });
+  } finally {
+    saveLoading.value = !saveLoading.value;
+    showModal.value = false;
+  }
 };
 
 defineExpose({ showMedal });
