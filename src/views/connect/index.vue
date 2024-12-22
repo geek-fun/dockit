@@ -66,12 +66,15 @@ import { Connection, useConnectionStore } from '../../store/connectionStore';
 import { DatabaseType } from '../../common/constants';
 import ConnectDialog from './components/connect-dialog.vue';
 import DynamodbConnectDialog from './components/dynamodb-connect-dialog.vue';
-import  dynamoDB  from '../../assets/svg/dynamoDB.svg'
-import  elasticsearch from '../../assets/svg/elasticsearch.svg'
+import { useLang } from '../../lang';
+import dynamoDB from '../../assets/svg/dynamoDB.svg';
+import elasticsearch from '../../assets/svg/elasticsearch.svg';
 
 const connectionStore = useConnectionStore();
 const { connections } = storeToRefs(connectionStore);
 
+const message = useMessage();
+const lang = useLang();
 const showTypeSelect = ref(false);
 const esConnectDialog = ref();
 const dynamodbConnectDialog = ref();
