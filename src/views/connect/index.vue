@@ -69,6 +69,9 @@ import DynamodbConnectDialog from './components/dynamodb-connect-dialog.vue';
 import { useLang } from '../../lang';
 import dynamoDB from '../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../assets/svg/elasticsearch.svg';
+import { useSourceFileStore } from '../../store';
+const fileStore = useSourceFileStore();
+const { readSourceFromFile } = fileStore;
 
 const connectionStore = useConnectionStore();
 const { connections } = storeToRefs(connectionStore);
@@ -139,7 +142,8 @@ const deleteConnection = async (connection: Connection) => {
   }
 };
 
-// ... rest of the component code
+const handleLoadAction = async () => {	
+  await readSourceFromFile(undefined);}
 </script>
 
 <style lang="scss" scoped>
