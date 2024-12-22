@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { loadHttpClient } from '../datasources';
 import { lang } from '../lang';
-import { Connection, DatabaseType, useConnectionStore } from './connectionStore.ts';
+import { DatabaseType, useConnectionStore } from './connectionStore.ts';
 import { CustomError, optionalToNullableInt } from '../common';
 
 export enum IndexHealth {

@@ -38,7 +38,6 @@ const activeTab = ref(lang.t('manage.cluster'));
 const connectionStore = useConnectionStore();
 const { established } = storeToRefs(connectionStore);
 
-const message = useMessage();
 
 const clusterManageStore = useClusterManageStore();
 const { fetchCluster, fetchIndices, fetchAliases, fetchNodes, fetchShards } = clusterManageStore;
