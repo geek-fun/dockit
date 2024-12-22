@@ -104,20 +104,13 @@ export const useConnectionStore = defineStore('connectionStore', {
     async fetchConnections() {
       try {
         const connections = await storeApi.get('connections', []) as Connection[];
-        this.connections = connections.map(conn => {
-          if ('host' in conn && 'port' in conn) {
-            return { ...conn, type: DatabaseType.ELASTICSEARCH };
-          } else if ('region' in conn && 'accessKeyId' in conn) {
-            return { ...conn, type: DatabaseType.DYNAMODB };
-          }
-          return conn;
-        });
+        this.connections = connections;
       } catch (error) {
         console.error('Error fetching connections:', error);
         this.connections = [];
       }
     },
-    async testConnection(con: ElasticsearchConnection) {
+    async testElasticsearchConnection(con: ElasticsearchConnection) {
       const client = loadHttpClient(con);
 
       return await client.get(con.indexName ?? undefined, 'format=json');
@@ -135,7 +128,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         }
         
         try {
-          await storeApi.set('connections', pureObject(this.connections));
+          await storeApi.set('connections', this.connections);
         } catch (error) {
           console.warn('Failed to persist connections:', error);
         }
@@ -161,6 +154,10 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
     },
     async establishConnection(connection: Connection) {
+      if (connection.type !== DatabaseType.ELASTICSEARCH) {
+        throw new Error('Operation only supported for Elasticsearch connections');
+      }
+
       try {
         await this.testElasticsearchConnection(connection);
       } catch (err) {
@@ -169,12 +166,14 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
 
       const client = loadHttpClient(connection);
+      let indices: ConnectionIndex[] = [];
 
       try {
         const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
           [key: string]: string;
         }>;
-        const indices = data.map((index: { [key: string]: string }) => ({
+        
+        indices = data.map((index) => ({
           ...index,
           docs: {
             count: parseInt(index['docs.count'], 10),
@@ -189,7 +188,10 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async fetchIndices() {
       if (!this.established) throw new Error('no connection established');
-      const client = loadHttpClient(this.established as ElasticsearchConnection);
+      if (this.established.type !== DatabaseType.ELASTICSEARCH) {
+        throw new Error('Operation only supported for Elasticsearch connections');
+      }
+      const client = loadHttpClient(this.established);
       const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
         [key: string]: string;
       }>;
@@ -229,6 +231,9 @@ export const useConnectionStore = defineStore('connectionStore', {
       qdsl?: string;
     }) {
       if (!this.established) throw new Error('no connection established');
+      if (this.established.type !== DatabaseType.ELASTICSEARCH) {
+        throw new Error('Operation only supported for Elasticsearch connections');
+      }
       const client = loadHttpClient(this.established);
       const queryParameters = queryParams ? `${queryParams}&format=json` : 'format=json';
       // refresh the index mapping
@@ -258,11 +263,15 @@ export const useConnectionStore = defineStore('connectionStore', {
       return dispatch[method]();
     },
     queryToCurl({ method, path, index, qdsl, queryParams }: SearchAction) {
+      if (this.established?.type !== DatabaseType.ELASTICSEARCH) {
+        throw new Error('Operation only supported for Elasticsearch connections');
+      }
       const { username, password, host, port, sslCertVerification } = this.established ?? {
         host: 'http://localhost',
         port: 9200,
         username: undefined,
         password: undefined,
+        sslCertVerification: false
       };
       const params = queryParams ? `${queryParams}&format=json` : 'format=json';
       const url = buildURL(host, port, buildPath(index, path, this.established), params);
