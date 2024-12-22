@@ -3,7 +3,7 @@ import { open } from '@tauri-apps/api/dialog';
 import { defineStore } from 'pinia';
 import { CustomError } from '../common';
 import { get } from 'lodash';
-import { Connection } from './connectionStore.ts';
+import { Connection, DatabaseType } from './connectionStore.ts';
 import { loadHttpClient, sourceFileApi } from '../datasources';
 
 export type BackupInput = {
@@ -80,7 +80,16 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
       }
     },
     async backupToFile(input: BackupInput) {
-      const client = loadHttpClient(input.connection);
+      let client;
+      if (input.connection.type === DatabaseType.ELASTICSEARCH) {
+        client = loadHttpClient({
+          host: input.connection.host,
+          port: input.connection.port,
+          sslCertVerification: input.connection.sslCertVerification,
+        });
+      } else {
+        throw new CustomError(400, 'Unsupported connection type');
+      }
       const filePath = `${input.backupFolder}/${input.backupFileName}.${input.backupFileType}`;
       let searchAfter: any[] | undefined = undefined;
       let hasMore = true;
@@ -141,8 +150,17 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
       }
     },
     async restoreFromFile(input: RestoreInput) {
+      let client;
+      if (input.connection.type === DatabaseType.ELASTICSEARCH) {
+        client = loadHttpClient({
+          host: input.connection.host,
+          port: input.connection.port,
+          sslCertVerification: input.connection.sslCertVerification,
+        });
+      } else {
+        throw new CustomError(400, 'Unsupported connection type');
+      }
       const fileType = input.restoreFile.split('.').pop();
-      const client = loadHttpClient(input.connection);
       const bulkSize = 1000;
       let data: string;
       try {

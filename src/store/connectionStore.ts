@@ -111,6 +111,9 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
     },
     async testElasticsearchConnection(con: ElasticsearchConnection) {
+      if (con.type !== DatabaseType.ELASTICSEARCH) {
+        throw new Error('Unsupported connection type');
+      }
       const client = loadHttpClient(con);
 
       return await client.get(con.indexName ?? undefined, 'format=json');

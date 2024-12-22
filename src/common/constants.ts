@@ -4,7 +4,7 @@ export enum DatabaseType {
 }
 
 export interface BaseConnection {
-  id?: string;
+  id?: number;
   name: string;
   type: DatabaseType;
 }
