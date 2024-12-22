@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { buildAuthHeader, buildURL, pureObject } from '../common';
 import { loadHttpClient, storeApi } from '../datasources';
 import { SearchAction, transformToCurl } from '../common/monaco';
-import { DynamoDBClient, ListTablesCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, ListTablesCommand } from '@aws-sdk/client-dynamodb
 
 export enum DatabaseType {
   ELASTICSEARCH = 'elasticsearch',
@@ -286,23 +286,10 @@ export const useConnectionStore = defineStore('connectionStore', {
       return transformToCurl({ method, headers, url, ssl: sslCertVerification, qdsl });
     },
     async testDynamoDBConnection(connection: DynamoDBConnection) {
-      const client = new DynamoDBClient({
-        region: connection.region,
-        credentials: {
-          accessKeyId: connection.accessKeyId,
-          secretAccessKey: connection.secretAccessKey,
-        },
-      });
-      
-      try {
-        await client.send(new ListTablesCommand({}));
-        return true;
-      } catch (error) {
-        if (error instanceof Error) {
-          throw new Error(error.message);
-        }
-        throw new Error('Unknown error occurred while testing connection');
-      }
+      // test later, should send request to rust backend
+      console.log('test connect to ',connection.type)
+      return undefined;
+
     },
     validateConnection(connection: Connection): boolean {
       if (connection.type === DatabaseType.ELASTICSEARCH) {

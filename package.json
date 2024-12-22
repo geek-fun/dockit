@@ -23,8 +23,6 @@
     "build:macos": "tauri build -t universal-apple-darwin"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.705.0",
-    "@aws-sdk/lib-dynamodb": "^3.705.0",
     "@tauri-apps/api": "^1.6.0",
     "debug": "^4.3.7",
     "highlight.js": "^11.10.0",
