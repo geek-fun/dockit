@@ -115,25 +115,26 @@ export const useConnectionStore = defineStore('connectionStore', {
 
       return await client.get(con.indexName ?? undefined, 'format=json');
     },
-    async saveConnection(connection:Connection) {
+    async saveConnection(connection: Connection) {
+      console.log('Saving connection:', connection);
       try {
+        const newConnection = {
+          ...connection,
+          type: 'host' in connection ? DatabaseType.ELASTICSEARCH : DatabaseType.DYNAMODB,
+          id: connection.id || this.connections.length + 1
+        } as Connection;
+
         if (connection.id) {
           const index = this.connections.findIndex(c => c.id === connection.id);
           if (index !== -1) {
-            this.connections[index] = connection;
+            this.connections[index] = newConnection;
           }
         } else {
-          connection.id = this.connections.length + 1;
-          this.connections.push(connection);
+          this.connections.push(newConnection);
         }
         
-        try {
-          await storeApi.set('connections', this.connections);
-        } catch (error) {
-          console.warn('Failed to persist connections:', error);
-        }
-        
-        return connection;
+        await storeApi.set('connections', pureObject(this.connections));
+        return newConnection;
       } catch (error) {
         console.error('Error saving connection:', error);
         throw error;
@@ -302,5 +303,21 @@ export const useConnectionStore = defineStore('connectionStore', {
         throw new Error('Unknown error occurred while testing connection');
       }
     },
+    validateConnection(connection: Connection): boolean {
+      if (connection.type === DatabaseType.ELASTICSEARCH) {
+        return !!(
+          connection.host &&
+          connection.port &&
+          typeof connection.sslCertVerification === 'boolean'
+        );
+      } else if (connection.type === DatabaseType.DYNAMODB) {
+        return !!(
+          connection.region &&
+          connection.accessKeyId &&
+          connection.secretAccessKey
+        );
+      }
+      return false;
+    }
   },
 });

@@ -10,11 +10,7 @@
         >
           <div class="left-box" @click="establishConnect(con)">
             <div class="icon">
-              <img 
-                :src="con.type === DatabaseType.ELASTICSEARCH 
-                  ? '../../../assets/svg/elasticsearch.svg' 
-                  : '../../../assets/svg/dynamodb.svg'"
-              />
+              <img :src="ICON_PATHS[con.type]" />
             </div>
             <div class="name">{{ con.name }}</div>
           </div>
@@ -107,6 +103,11 @@ const removeConnect = (connection: Connection) => {
     },
   });
 };
+
+const ICON_PATHS = {
+  [DatabaseType.ELASTICSEARCH]: new URL('../../../assets/svg/elasticsearch.svg', import.meta.url).href,
+  [DatabaseType.DYNAMODB]: new URL('../../../assets/svg/dynamodb.svg', import.meta.url).href
+} as const;
 </script>
 
 <style lang="scss" scoped>
