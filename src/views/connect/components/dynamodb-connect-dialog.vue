@@ -205,25 +205,15 @@ const testConnect = async () => {
 };
 
 const saveConnect = async () => {
-  try {
-    saveLoading.value = true;
-    await connectionStore.saveConnection(formData.value);
+  saveLoading.value = true;
+  const result = await connectionStore.saveConnection(formData.value);
+  if (result.success) {
     message.success(lang.t('connection.saveSuccess'));
     closeModal();
-  } catch (error) {
-    if (!(error instanceof Error && error.message.includes('__TAURI_IPC__'))) {
-      if (error instanceof Error) {
-        message.error(error.message);
-      } else {
-        message.error(lang.t('connection.unknownError'));
-      }
-    } else {
-      message.success(lang.t('connection.saveSuccess'));
-      closeModal();
-    }
-  } finally {
-    saveLoading.value = false;
+  } else {
+    message.error(result.message);
   }
+  saveLoading.value = false;
 };
 
 defineExpose({ showMedal });

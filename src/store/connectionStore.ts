@@ -115,8 +115,7 @@ export const useConnectionStore = defineStore('connectionStore', {
 
       return await client.get(con.indexName ?? undefined, 'format=json');
     },
-    async saveConnection(connection: Connection) {
-      console.log('Saving connection:', connection);
+    async saveConnection(connection: Connection): Promise<{ success: boolean; message: string }> {
       try {
         const newConnection = {
           ...connection,
@@ -134,10 +133,10 @@ export const useConnectionStore = defineStore('connectionStore', {
         }
         
         await storeApi.set('connections', pureObject(this.connections));
-        return newConnection;
+        return { success: true, message: 'Connection saved successfully' };
       } catch (error) {
         console.error('Error saving connection:', error);
-        throw error;
+        return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
       }
     },
     async removeConnection(connection: Connection) {
