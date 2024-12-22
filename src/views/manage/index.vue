@@ -31,6 +31,7 @@ import { useLang } from '../../lang';
 import IndexManage from './components/index-manage.vue';
 import { DatabaseType } from '../../store/connectionStore';
 
+const message = useMessage();
 const lang = useLang();
 
 const activeTab = ref(lang.t('manage.cluster'));
@@ -62,6 +63,20 @@ watch(established, async () => {
 const handleManageTabChange = (tab: string) => {
   activeTab.value = tab;
 };
+
+fetchCluster().catch(err =>	
+  !established.value?.id	
+    ? message.warning(lang.t('editor.establishedRequired'), {	
+        closable: true,	
+        keepAliveOnHover: true,	
+        duration: 3000,	
+      })	
+    : message.error(`status: ${err.status}, details: ${err.details}`, {	
+        closable: true,	
+        keepAliveOnHover: true,	
+        duration: 3000,	
+      }),	
+);
 </script>
 
 <style lang="scss" scoped>
