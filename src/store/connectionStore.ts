@@ -2,7 +2,6 @@ import { defineStore } from 'pinia';
 import { buildAuthHeader, buildURL, pureObject } from '../common';
 import { loadHttpClient, storeApi } from '../datasources';
 import { SearchAction, transformToCurl } from '../common/monaco';
-import { DynamoDBClient, ListTablesCommand } from '@aws-sdk/client-dynamodb
 
 export enum DatabaseType {
   ELASTICSEARCH = 'elasticsearch',

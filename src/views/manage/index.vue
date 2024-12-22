@@ -12,10 +12,10 @@
       <index-manage class="state-container" v-if="activeTab === $t('manage.indices')" />
     </template>
     <div v-else-if="established?.type === DatabaseType.DYNAMODB" class="empty-state">
-      <n-empty description="功能完善中" />
+      <n-empty :description="$t('manage.emptyDynamodb')" />
     </div>
     <div v-else class="empty-state">
-      <n-empty description="请先建立连接" />
+      <n-empty :description="$t('manage.emptyNoConnection')" />
     </div>
   </div>
 </template>
@@ -31,8 +31,10 @@ import { useLang } from '../../lang';
 import IndexManage from './components/index-manage.vue';
 import { DatabaseType } from '../../store/connectionStore';
 
+
 const message = useMessage();
 const lang = useLang();
+
 
 const activeTab = ref(lang.t('manage.cluster'));
 

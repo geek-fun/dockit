@@ -103,6 +103,8 @@ export const enUS = {
         targetIndex: 'Target Index',
       },
     },
+    emptyDynamodb: 'Still in development',
+    emptyNoConnection: 'Please establish connection first'
   },
   connection: {
     new: 'New connection',
