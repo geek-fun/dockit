@@ -167,7 +167,7 @@ const lang = useLang();
 const connectFormRef = ref();
 
 const showModal = ref(false);
-const modalTitle = ref(lang.t('connection.add'));
+const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
 
@@ -244,7 +244,7 @@ const message = useMessage();
 
 const cleanUp = () => {
   formData.value = defaultFormData;
-  modalTitle.value = lang.t('connection.add');
+  modalTitle.value = lang.t('connection.new');
 };
 const showMedal = (con: Connection | null) => {
   cleanUp();
