@@ -1,20 +1,14 @@
 import { monaco } from './index.ts';
 
-export type Range = {
-  startLineNumber: number;
-  startColumn: number;
-  endLineNumber: number;
-  endColumn: number;
-};
 export type Decoration = {
   id: number;
-  range: Range;
+  range: monaco.Range;
   options: { isWholeLine: boolean; linesDecorationsClassName: string };
 };
 
 export type SearchAction = {
   qdsl: string;
-  position: Range;
+  position: monaco.Range;
   method: string;
   index: string;
   path: string;

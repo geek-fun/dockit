@@ -28,12 +28,10 @@ import {
   EngineType,
   executionGutterClass,
   formatQDSL,
+  getAction,
   getActionApiDoc,
   getActionMarksDecorations,
-  getPointerAction,
-  getPositionAction,
   monaco,
-  Range,
   SearchAction,
   transformQDSL,
 } from '../../common/monaco';
@@ -66,6 +64,7 @@ const displayEditorRef = ref();
 
 let searchTokens: SearchAction[] = [];
 let executeDecorations: Array<Decoration | string> = [];
+let currentAction: SearchAction | undefined = undefined;
 
 const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
   const freshDecorations = getActionMarksDecorations(searchTokens);
@@ -77,18 +76,41 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
 };
 
 const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
-  provideCodeLenses: (model, _) => {
-    const lines = Array.from({ length: model.getLineCount() }, (_, i) => ({
-      lineNumber: i + 1,
-      lineContent: model.getLineContent(i + 1),
-    }));
+  onDidChange: (listener, thisArg) => {
+    console.log('codeLensProvider onDidChange');
+    const model = queryEditor!.getModel();
+    return queryEditor!.onMouseDown(() => {
+      console.log('onDidChange onMouseLeave');
+      if (!model) {
+        return;
+      }
+      const lines = Array.from({ length: model.getLineCount() }, (_, i) => ({
+        lineNumber: i + 1,
+        lineContent: model.getLineContent(i + 1),
+      }));
 
-    searchTokens = buildSearchToken(lines);
+      searchTokens = buildSearchToken(lines);
 
-    refreshActionMarks(queryEditor!, searchTokens);
+      refreshActionMarks(queryEditor!, searchTokens);
+      const position = queryEditor!.getPosition();
+
+      if (!position) {
+        return;
+      }
+      const newAction = getAction(position);
+      if (newAction === currentAction) {
+        return;
+      }
+      currentAction = newAction;
+      return listener(thisArg);
+    });
+  },
+  provideCodeLenses: () => {
+    const position = queryEditor!.getPosition();
+    const lenses = position ? buildCodeLens(position, autoIndentCmdId!, copyCurlCmdId!) : [];
 
     return {
-      lenses: buildCodeLens(searchTokens, autoIndentCmdId!, copyCurlCmdId!),
+      lenses,
       dispose: () => {},
     };
   },
@@ -158,9 +180,9 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
   }
 };
 
-const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor, position: Range) => {
+const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor, position: monaco.Range) => {
   const model = editor?.getModel();
-  const action = getPositionAction(position);
+  const action = getAction(position);
 
   if (!action || !model) {
     return;
@@ -194,8 +216,8 @@ const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor, position:
   }
 };
 
-const copyCurlAction = (position: Range) => {
-  const action = getPositionAction(position);
+const copyCurlAction = (position: monaco.Range) => {
+  const action = getAction(position);
   if (!action) {
     return;
   }
@@ -239,7 +261,7 @@ const setupQueryEditor = (code: string) => {
 
   // Auto indent current request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
-    const { position } = getPointerAction(queryEditor!, searchTokens) || {};
+    const { position } = getAction(queryEditor!.getPosition()) || {};
     if (position) {
       autoIndentAction(queryEditor!, position);
     }
@@ -252,7 +274,7 @@ const setupQueryEditor = (code: string) => {
 
   // Submit request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
-    const { position } = getPointerAction(queryEditor!, searchTokens) || {};
+    const { position } = getAction(queryEditor!.getPosition()) ?? {};
     if (position) {
       executeQueryAction({ column: position.startColumn, lineNumber: position.startLineNumber });
     }
@@ -314,7 +336,7 @@ const setupQueryEditor = (code: string) => {
     const docLink = getActionApiDoc(
       EngineType.ELASTICSEARCH,
       'current',
-      getPointerAction(queryEditor!, searchTokens)!,
+      getAction(queryEditor?.getPosition()) as SearchAction,
     );
     if (docLink) {
       open(docLink);
@@ -356,6 +378,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  console.log('editor onUnmounted');
   codeLensProvider?.dispose();
   queryEditor?.dispose();
   displayEditorRef?.value?.dispose();
