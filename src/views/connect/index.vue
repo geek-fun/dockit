@@ -2,11 +2,6 @@
   <n-dialog-provider>
     <div class="connect-container">
       <div class="connect-list">
-        <div class="connect-header">
-          <n-button type="primary" @click="showDatabaseTypeSelect">
-            {{ $t('connection.new') }}
-          </n-button>
-        </div>
         <connect-list @edit-connect="editConnectHandler" />
       </div>
 
@@ -78,6 +73,7 @@
       
       <es-connect-dialog ref="esConnectDialog" />
       <dynamodb-connect-dialog ref="dynamodbConnectDialog" />
+      <floating-add-button @add="showDatabaseTypeSelect" />
     </div>
   </n-dialog-provider>
 </template>
@@ -97,6 +93,7 @@ import collectionSelector from './components/collection-selector.vue';
 import EsConnectDialog from './components/es-connect-dialog.vue';
 import ConnectList from './components/connect-list.vue';
 import DynamodbConnectDialog from './components/dynamodb-connect-dialog.vue';
+import FloatingAddButton from './components/floating-add-button.vue';
 
 
 const connectionStore = useConnectionStore();
@@ -159,11 +156,11 @@ const handleLoadAction = async () => {
     width: 25%;
     display: flex;
     flex-direction: column;
-    background-color: rgb(250, 250, 252);
+    background-color: var(--n-color);
+    border-right: 1px solid var(--n-border-color);
     
     .connect-header {
       padding: 16px;
-      background-color: rgb(250, 250, 252);
       border-bottom: 1px solid var(--n-border-color);
     }
   }
@@ -177,14 +174,7 @@ const handleLoadAction = async () => {
     position: relative;
     
     &::after {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 1px;
-      background-color: var(--n-border-color);
-      z-index: 1;
+      display: none;
     }
     
     .connect-toolbar {
@@ -192,6 +182,7 @@ const handleLoadAction = async () => {
       padding: 0 16px;
       display: flex;
       align-items: center;
+      border-bottom: 1px solid var(--n-border-color);
     }
 
     .editor-container {
