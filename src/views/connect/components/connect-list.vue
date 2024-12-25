@@ -1,43 +1,57 @@
 <template>
   <div class="list-content">
-    <n-scrollbar style="height: 100%">
-      <div class="scroll-container">
-        <div
-          v-for="con in connections"
-          :key="con.id"
-          class="list-item"
-          :class="{ active: established && con.id === established.id }"
+    <n-list class="connection-list">
+        <n-list-item 
+          v-for="connection in connections" 
+          :key="connection.id" 
+          class="connection-item"
+          @dblclick="() => establishConnect(connection)"
         >
-          <div class="left-box" @click="establishConnect(con)">
-            <div class="icon">
-              <img :src="ICON_PATHS[con.type]" />
-            </div>
-            <div class="name">{{ con.name }}</div>
-          </div>
-          <div class="operation">
-            <n-dropdown
-              trigger="hover"
-              :options="options"
-              @select="(args: number) => handleSelect(args, con)"
-            >
-              <n-icon size="20">
-                <OverflowMenuVertical />
+          <n-thing>
+            <template #avatar>
+              <n-icon size="24">
+                <component :is="getDatabaseIcon(connection.type)" />
               </n-icon>
-            </n-dropdown>
-          </div>
-        </div>
-      </div>
-    </n-scrollbar>
+            </template>
+            <template #header>
+              {{ connection.name }}
+            </template>
+            <template #description>
+              {{ getDatabaseTypeLabel(connection.type) }}
+            </template>
+          </n-thing>
+          <template #suffix>
+            <div class="dropdown-wrapper">
+              <n-dropdown
+                trigger="hover"
+                :options="getDropdownOptions(connection)"
+                placement="bottom-start"
+              >
+                <n-button text>
+                  <template #icon>
+                    <n-icon size="18">
+                      <OverflowMenuVertical />
+                    </n-icon>
+                  </template>
+                </n-button>
+              </n-dropdown>
+            </div>
+          </template>
+        </n-list-item>
+      </n-list>
   </div>
 </template>
 
 <script setup lang="ts">
 import { OverflowMenuVertical } from '@vicons/carbon';
+import { NButton, NDropdown, NIcon, NList, NListItem, NThing, useDialog, useMessage } from 'naive-ui';
 import { storeToRefs } from 'pinia';
-import { useLang } from '../../../lang';
-import { Connection, useConnectionStore } from '../../../store';
-import { debug, CustomError } from '../../../common';
+import dynamoDB from '../../../assets/svg/dynamoDB.svg';
+import elasticsearch from '../../../assets/svg/elasticsearch.svg';
+import { CustomError } from '../../../common';
 import { DatabaseType } from '../../../common/constants';
+import { useLang } from '../../../lang';
+import { Connection, useConnectionStore } from '../../../store/connectionStore';
 
 const emits = defineEmits(['edit-connect']);
 
@@ -45,41 +59,58 @@ const dialog = useDialog();
 const message = useMessage();
 const lang = useLang();
 
-const options = reactive([
-  { key: 1, label: lang.t('connection.operations.connect') },
-  { key: 2, label: lang.t('connection.operations.edit') },
-  { key: 3, label: lang.t('connection.operations.remove') },
-]);
 const connectionStore = useConnectionStore();
 const { fetchConnections, removeConnection, establishConnection } = connectionStore;
-const { connections, established } = storeToRefs(connectionStore);
+const { connections } = storeToRefs(connectionStore);
 fetchConnections();
 
-const handleSelect = (key: number, connection: Connection) => {
-  switch (key) {
-    case 1:
-      establishConnect(connection);
-      break;
-    case 2:
-      editConnect(connection);
-      break;
-    case 3:
-      removeConnect(connection);
-      break;
-  }
+const getDatabaseIcon = (type: DatabaseType) => {
+  return type === DatabaseType.ELASTICSEARCH ? elasticsearch : dynamoDB;
 };
+
+const getDatabaseTypeLabel = (type: DatabaseType) => {
+  return type === DatabaseType.ELASTICSEARCH ? 'Elasticsearch' : 'DynamoDB';
+};
+
+const getDropdownOptions = (connection: Connection) => [
+  {
+    label: lang.t('connection.operations.connect'),
+    key: 'connect',
+    props: {
+      onClick: () => establishConnect(connection)
+    }
+  },
+  {
+    label: lang.t('connection.operations.edit'),
+    key: 'edit',
+    props: {
+      onClick: () => editConnect(connection)
+    }
+  },
+  {
+    label: lang.t('connection.operations.remove'),
+    key: 'remove',
+    props: {
+      onClick: () => removeConnect(connection)
+    }
+  }
+];
 
 const establishConnect = async (connection: Connection) => {
   try {
     await establishConnection(connection);
+    message.success(lang.t('connection.connectSuccess'));
   } catch (err) {
-    const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
-      closable: true,
+    if (err instanceof Error) {
+      message.error(err.message);
+    } else {
+      const error = err as CustomError;
+      message.error(`status: ${error.status}, details: ${error.details}`, {
+        closable: true,
       keepAliveOnHover: true,
       duration: 36000000,
     });
-    debug('connect error');
+    }
   }
 };
 
@@ -97,17 +128,17 @@ const removeConnect = (connection: Connection) => {
     content: lang.t('dialogOps.removeNotice'),
     positiveText: lang.t('dialogOps.confirm'),
     negativeText: lang.t('dialogOps.cancel'),
-    onPositiveClick: () => {
-      removeConnection(connection);
-      message.success(lang.t('dialogOps.removeSuccess'));
+    onPositiveClick: async () => {
+      try {
+        await removeConnection(connection);
+        message.success(lang.t('dialogOps.removeSuccess'));
+      } catch (error) {
+        message.error(lang.t('connection.unknownError'));
+      }
     },
   });
 };
 
-const ICON_PATHS = {
-  [DatabaseType.ELASTICSEARCH]: new URL('../../../assets/svg/elasticsearch.svg', import.meta.url).href,
-  [DatabaseType.DYNAMODB]: new URL('../../../assets/svg/dynamodb.svg', import.meta.url).href
-} as const;
 </script>
 
 <style lang="scss" scoped>
@@ -116,75 +147,29 @@ const ICON_PATHS = {
   height: 0;
   padding-bottom: 10px;
 
-  .scroll-container {
-    padding: 0 10px;
-  }
+  .connection-list {
+    .connection-item {
+      position: relative;
+      cursor: pointer;
+      
+      &:hover {
+        background-color: var(--connect-list-hover-bg);
+      }
+      
+      .dropdown-wrapper {
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
 
-  .list-item {
-    width: 100%;
-    height: 32px;
-    border-radius: 5px;
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    .left-box {
-      flex: 1;
-      width: 0;
-      display: flex;
-      align-items: center;
-      .icon {
-        height: 24px;
-        width: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 8px;
-        
-        img {
-          width: 24px;
-          height: 24px;
+      &:hover {
+        .dropdown-wrapper {
+          opacity: 1;
         }
       }
 
-      .name {
-        flex: 1;
-        width: 0;
-        padding: 0 5px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+      &:active {
+        background-color: var(--connect-list-active-bg, #e6e6e6);
       }
-    }
-
-    .operation {
-      height: 100%;
-      width: 20px;
-      display: none;
-      align-items: center;
-      justify-content: center;
-    }
-  }
-
-  .list-item + .list-item {
-    margin-top: 5px;
-  }
-
-  .list-item:hover {
-    background-color: var(--connect-list-hover-bg);
-
-    .operation {
-      display: flex;
-    }
-  }
-
-  .list-item.active {
-    .icon,
-    .name,
-    .operation {
-      color: var(--theme-color);
-    }
-    .icon img {
-      filter: brightness(1.2);
     }
   }
 }

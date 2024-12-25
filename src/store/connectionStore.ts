@@ -129,9 +129,13 @@ export const useConnectionStore = defineStore('connectionStore', {
           const index = this.connections.findIndex(c => c.id === connection.id);
           if (index !== -1) {
             this.connections[index] = newConnection;
+            if (this.established?.id === connection.id) {
+              this.established = null;
+            }
           }
         } else {
           this.connections.push(newConnection);
+          this.established = null;
         }
         
         await storeApi.set('connections', pureObject(this.connections));
@@ -143,10 +147,14 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async removeConnection(connection: Connection) {
       try {
-        this.connections = this.connections.filter(c => c.id !== connection.id);
-        
+        const isEstablishedConnection = this.established?.id === connection.id;
+        const updatedConnections = this.connections.filter(c => c.id !== connection.id);
+        this.connections = updatedConnections;
+        if (isEstablishedConnection) {
+          this.established = null;
+        }
         try {
-          await storeApi.set('connections', pureObject(this.connections));
+          await storeApi.set('connections', pureObject(updatedConnections));
         } catch (error) {
           console.warn('Failed to persist connections after removal:', error);
         }

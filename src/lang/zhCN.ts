@@ -103,6 +103,7 @@ export const zhCN = {
         targetIndex: '目标索引',
       },
     },
+    emptyNoConnection: '请先建立连接',
     emptyDynamodb: '功能完善中',
   },
   connection: {
@@ -120,6 +121,7 @@ export const zhCN = {
     deleteSuccess: '删除成功',
     testSuccess: '测试连接成功',
     saveSuccess: '保存成功',
+    edit: '编辑配置',
     selectDatabase: '请选择数据库类型',
     region: '区域',
     accessKeyId: 'Access Key ID',
@@ -143,7 +145,6 @@ export const zhCN = {
     selectConnection: '未选择连接',
     validationFailed: '表单验证失败！',
     unAuthorized: '认证失败，请输入正确的用户名和密码！',
-    emptyNoConnection: '请先建立连接',
     emptyState: {
       noConnections: '暂无可用连接',
       pleaseSelect: '请选择一个连接'

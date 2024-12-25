@@ -104,6 +104,7 @@ export const enUS = {
       },
     },
     emptyDynamodb: 'Still in development',
+    emptyNoConnection: 'Please establish connection first',
   },
   connection: {
     new: 'New connection',
@@ -120,6 +121,7 @@ export const enUS = {
     deleteSuccess: 'Delete success',
     testSuccess: 'Test connect success',
     saveSuccess: 'Save success',
+    edit: 'Edit configuration', 
     selectDatabase: 'Please select database type',
     region: 'Region',
     accessKeyId: 'Access Key ID',
@@ -143,7 +145,6 @@ export const enUS = {
     selectConnection: 'No Connection selected',
     validationFailed: 'Form validation failed!',
     unAuthorized: 'Authorization failed, ensure your username and password are correct',
-    emptyNoConnection: 'Please establish connection first',
     emptyState: {
       noConnections: 'No connections available',
       pleaseSelect: 'Please select a connection'
