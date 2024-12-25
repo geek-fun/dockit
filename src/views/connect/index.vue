@@ -157,7 +157,7 @@ const handleLoadAction = async () => {
     display: flex;
     flex-direction: column;
     background-color: var(--n-color);
-    border-right: 1px solid var(--n-border-color);
+    border-right: 1px solid var(--border-color);
     
     .connect-header {
       padding: 16px;
