@@ -26,13 +26,9 @@
               :options="getDropdownOptions(connection)"
               placement="bottom-start"
             >
-              <n-button text>
-                <template #icon>
-                  <n-icon size="18">
-                    <OverflowMenuVertical />
-                  </n-icon>
-                </template>
-              </n-button>
+            <n-icon size="20">	         
+                <OverflowMenuVertical />
+              </n-icon>
             </n-dropdown>
           </div>
         </div>
@@ -43,7 +39,7 @@
 
 <script setup lang="ts">
 import { OverflowMenuVertical } from '@vicons/carbon';
-import { NButton, NDropdown, NIcon, useDialog, useMessage } from 'naive-ui';
+import { NDropdown, NIcon, useDialog, useMessage } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
@@ -146,7 +142,7 @@ const removeConnect = (connection: Connection) => {
   padding-bottom: 10px;
 
   .scroll-container {
-    padding: 8px;
+    padding: 0 10px;	
   }
 
   .list-item {
