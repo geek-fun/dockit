@@ -43,7 +43,7 @@ const handleAddClick = () => {
 
 <style lang="scss" scoped>
 .floating-button-container {
-  position: fixed;
+  position: absolute;
   right: 48px;
   bottom: 48px;
   display: flex;

@@ -151,9 +151,10 @@ const handleLoadAction = async () => {
   width: 100%;
   display: flex;
   overflow: hidden;
+  position: relative;
 
   .connect-list {
-    width: 25%;
+    width: 20%;
     display: flex;
     flex-direction: column;
     background-color: var(--n-color);

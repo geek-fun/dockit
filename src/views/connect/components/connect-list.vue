@@ -1,44 +1,43 @@
 <template>
   <div class="list-content">
-    <n-list class="connection-list">
-        <n-list-item 
-          v-for="connection in connections" 
-          :key="connection.id" 
-          class="connection-item"
+    <n-scrollbar style="height: 100%">
+      <div class="scroll-container">
+        <div
+          v-for="connection in connections"
+          :key="connection.id"
+          class="list-item"
+          :class="{ active: established && connection.id === established.id }"
           @dblclick="() => establishConnect(connection)"
         >
-          <n-thing>
-            <template #avatar>
+          <div class="left-box">
+            <div class="icon">
               <n-icon size="24">
                 <component :is="getDatabaseIcon(connection.type)" />
               </n-icon>
-            </template>
-            <template #header>
-              {{ connection.name }}
-            </template>
-            <template #description>
-              {{ getDatabaseTypeLabel(connection.type) }}
-            </template>
-          </n-thing>
-          <template #suffix>
-            <div class="dropdown-wrapper">
-              <n-dropdown
-                trigger="hover"
-                :options="getDropdownOptions(connection)"
-                placement="bottom-start"
-              >
-                <n-button text>
-                  <template #icon>
-                    <n-icon size="18">
-                      <OverflowMenuVertical />
-                    </n-icon>
-                  </template>
-                </n-button>
-              </n-dropdown>
             </div>
-          </template>
-        </n-list-item>
-      </n-list>
+            <div class="content">
+              <div class="name">{{ connection.name }}</div>
+              <div class="type">{{ getDatabaseTypeLabel(connection.type) }}</div>
+            </div>
+          </div>
+          <div class="operation">
+            <n-dropdown
+              trigger="hover"
+              :options="getDropdownOptions(connection)"
+              placement="bottom-start"
+            >
+              <n-button text>
+                <template #icon>
+                  <n-icon size="18">
+                    <OverflowMenuVertical />
+                  </n-icon>
+                </template>
+              </n-button>
+            </n-dropdown>
+          </div>
+        </div>
+      </div>
+    </n-scrollbar>
   </div>
 </template>
 
@@ -147,28 +146,81 @@ const removeConnect = (connection: Connection) => {
   height: 0;
   padding-bottom: 10px;
 
-  .connection-list {
-    .connection-item {
-      position: relative;
-      cursor: pointer;
-      
-      &:hover {
-        background-color: var(--connect-list-hover-bg);
-      }
-      
-      .dropdown-wrapper {
-        opacity: 0;
-        transition: opacity 0.2s ease;
-      }
+  .scroll-container {
+    padding: 8px;
+  }
 
-      &:hover {
-        .dropdown-wrapper {
-          opacity: 1;
+  .list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    background-color: var(--bg-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: var(--connect-list-hover-bg);
+    }
+
+    &.active {
+      background-color: var(--connect-list-hover-bg);
+    }
+
+    .left-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+
+      .icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-color);
+
+        img {
+          height: 18px;
+          width: 18px;
+          filter: grayscale(1);
         }
       }
 
-      &:active {
-        background-color: var(--connect-list-active-bg, #e6e6e6);
+      .content {
+        flex: 1;
+        min-width: 0;
+
+        .name {
+          font-size: 14px;
+          color: var(--text-color);
+          margin-bottom: 4px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .type {
+          font-size: 12px;
+          color: var(--text-color);
+        }
+      }
+    }
+
+    .operation {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+
+      .n-button {
+        padding: 0 4px;
+      }
+    }
+
+    &:hover {
+      .operation {
+        opacity: 1;
       }
     }
   }
