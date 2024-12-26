@@ -1,30 +1,29 @@
 import { defineStore } from 'pinia';
 import { buildAuthHeader, buildURL, pureObject } from '../common';
-import { loadHttpClient, storeApi } from '../datasources';
 import { SearchAction, transformToCurl } from '../common/monaco';
+import { loadHttpClient, storeApi } from '../datasources';
 
 export enum DatabaseType {
   ELASTICSEARCH = 'elasticsearch',
   DYNAMODB = 'dynamodb'
 }
 
-export interface BaseConnection {
+export type BaseConnection = {
   id?: number;
   name: string;
   type: DatabaseType;
 }
 
-
-export interface DynamoDBConnection extends BaseConnection {
+export type DynamoDBConnection = BaseConnection & {
   type: DatabaseType.DYNAMODB;
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
 }
 
-export type Connection = ElasticsearchConnection | DynamoDBConnection; 
+export type Connection = ElasticsearchConnection | DynamoDBConnection;
 
-export interface ElasticsearchConnection extends BaseConnection {
+export type ElasticsearchConnection = BaseConnection & {
   type: DatabaseType.ELASTICSEARCH;
   host: string;
   port: number;

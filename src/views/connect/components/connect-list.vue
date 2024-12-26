@@ -48,9 +48,8 @@ import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
 import { CustomError } from '../../../common';
-import { DatabaseType } from '../../../common/constants';
 import { useLang } from '../../../lang';
-import { Connection, useConnectionStore } from '../../../store/connectionStore';
+import { Connection, DatabaseType, useConnectionStore } from '../../../store/connectionStore';
 
 const emits = defineEmits(['edit-connect']);
 

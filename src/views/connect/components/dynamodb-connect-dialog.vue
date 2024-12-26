@@ -86,12 +86,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue';
 import { Close } from '@vicons/carbon';
+import { reactive, ref } from 'vue';
 import { inputProps } from '../../../common';
-import { DatabaseType, DynamoDBConnection } from '../../../common/constants';
-import { useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
+import { useConnectionStore } from '../../../store';
+import { DatabaseType, DynamoDBConnection } from '../../../store/connectionStore';
 
 const connectionStore = useConnectionStore();
 const lang = useLang();
