@@ -13,9 +13,9 @@
         </template>
         <template v-else>
           <div class="connect-toolbar">
-            <n-breadcrumb>
-              <n-breadcrumb-item>{{ established.name }}</n-breadcrumb-item>
-            </n-breadcrumb>
+            <div class="breadcrumb">
+              <span class="breadcrumb-item">{{ established.name }}</span>
+            </div>
           </div>
           <div class="editor-container">
             <template v-if="established.type === DatabaseType.ELASTICSEARCH">
@@ -80,7 +80,7 @@
 
 <script setup lang="ts">
 import { AiStatus } from '@vicons/carbon';
-import { NBreadcrumb, NBreadcrumbItem, NDialogProvider, NTabPane, NTabs } from 'naive-ui';
+import { NDialogProvider, NTabPane, NTabs } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
 import dynamoDB from '../../assets/svg/dynamoDB.svg';
@@ -90,9 +90,9 @@ import { useSourceFileStore } from '../../store';
 import { Connection, useConnectionStore } from '../../store/connectionStore';
 import Editor from '../editor/index.vue';
 import collectionSelector from './components/collection-selector.vue';
-import EsConnectDialog from './components/es-connect-dialog.vue';
 import ConnectList from './components/connect-list.vue';
 import DynamodbConnectDialog from './components/dynamodb-connect-dialog.vue';
+import EsConnectDialog from './components/es-connect-dialog.vue';
 import FloatingAddButton from './components/floating-add-button.vue';
 
 
@@ -184,6 +184,13 @@ const handleLoadAction = async () => {
       display: flex;
       align-items: center;
       border-bottom: 1px solid var(--n-border-color);
+
+      .breadcrumb {
+        .breadcrumb-item {
+          color: var(--text-color);
+          font-size: 14px;
+        }
+      }
     }
 
     .editor-container {

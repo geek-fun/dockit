@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { OverflowMenuVertical } from '@vicons/carbon';
-import { NButton, NDropdown, NIcon, NList, NListItem, NThing, useDialog, useMessage } from 'naive-ui';
+import { NButton, NDropdown, NIcon, useDialog, useMessage } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
@@ -60,7 +60,7 @@ const lang = useLang();
 
 const connectionStore = useConnectionStore();
 const { fetchConnections, removeConnection, establishConnection } = connectionStore;
-const { connections } = storeToRefs(connectionStore);
+const { connections, established } = storeToRefs(connectionStore);
 fetchConnections();
 
 const getDatabaseIcon = (type: DatabaseType) => {
