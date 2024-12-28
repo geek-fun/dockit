@@ -33,6 +33,7 @@ import {
   getActionMarksDecorations,
   monaco,
   SearchAction,
+  searchTokens,
   transformQDSL,
 } from '../../common/monaco';
 
@@ -62,7 +63,6 @@ let copyCurlCmdId: string | null = null;
 const queryEditorRef = ref();
 const displayEditorRef = ref();
 
-let searchTokens: SearchAction[] = [];
 let executeDecorations: Array<Decoration | string> = [];
 let currentAction: SearchAction | undefined = undefined;
 
@@ -77,32 +77,29 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
 
 const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
   onDidChange: (listener, thisArg) => {
-    console.log('codeLensProvider onDidChange');
     const model = queryEditor!.getModel();
-    return queryEditor!.onMouseDown(() => {
-      console.log('onDidChange onMouseLeave');
-      if (!model) {
-        return;
-      }
-      const lines = Array.from({ length: model.getLineCount() }, (_, i) => ({
-        lineNumber: i + 1,
-        lineContent: model.getLineContent(i + 1),
-      }));
-
-      searchTokens = buildSearchToken(lines);
-
+    // refresh at first loading
+    if (model) {
+      buildSearchToken(model);
       refreshActionMarks(queryEditor!, searchTokens);
-      const position = queryEditor!.getPosition();
+    }
+    return queryEditor!.onDidChangeCursorPosition(acc => {
+      // only updates the searchTokens when content edited, past, redo, undo
+      if ([0, 4, 6, 5].includes(acc.reason)) {
+        if (!model) {
+          return;
+        }
 
-      if (!position) {
-        return;
+        buildSearchToken(model);
+
+        refreshActionMarks(queryEditor!, searchTokens);
       }
-      const newAction = getAction(position);
-      if (newAction === currentAction) {
-        return;
+
+      const newAction = getAction(acc.position);
+      if (newAction && newAction !== currentAction) {
+        currentAction = newAction;
+        return listener(thisArg);
       }
-      currentAction = newAction;
-      return listener(thisArg);
     });
   },
   provideCodeLenses: () => {
@@ -378,7 +375,6 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-  console.log('editor onUnmounted');
   codeLensProvider?.dispose();
   queryEditor?.dispose();
   displayEditorRef?.value?.dispose();

@@ -5,7 +5,12 @@ import { CustomError } from '../customError.ts';
 
 export let searchTokens: SearchAction[] = [];
 
-export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent: string }>) => {
+export const buildSearchToken = (model: monaco.editor.IModel) => {
+  const lines = Array.from({ length: model.getLineCount() }, (_, i) => ({
+    lineNumber: i + 1,
+    lineContent: model.getLineContent(i + 1),
+  }));
+
   const commands = lines.filter(({ lineContent }) => executeActions.regexp.test(lineContent));
 
   searchTokens = commands.map(({ lineContent, lineNumber }, index, commands) => {
@@ -75,7 +80,6 @@ export const buildCodeLens = (
   copyAsCurlCmdId: string,
 ): Array<monaco.languages.CodeLens> => {
   const action = getAction(position);
-  console.log('buildCodeLens triggered, action', { action, position, searchTokens });
   if (!action) {
     return [];
   }
