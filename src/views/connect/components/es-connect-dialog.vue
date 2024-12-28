@@ -57,7 +57,9 @@
                         >
                           <n-icon
                             :class="
-                              formData.sslCertVerification ? `ssl-checked-icon` : `ssl-unchecked-icon`
+                              formData.sslCertVerification
+                                ? `ssl-checked-icon`
+                                : `ssl-unchecked-icon`
                             "
                             size="24"
                             :component="formData.sslCertVerification ? Locked : Unlocked"
@@ -100,26 +102,26 @@
                 </n-form-item>
               </n-grid-item>
               <n-grid-item span="8">
-              <n-form-item :label="$t('connection.username')" path="username">
-                <n-input
-                  v-model:value="formData.username"
-                  clearable
-                  :placeholder="$t('connection.username')"
-                  :input-props="inputProps"
-                />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item span="8">
-              <n-form-item :label="$t('connection.password')" path="password">
-                <n-input
-                  v-model:value="formData.password"
-                  type="password"
-                  show-password-on="mousedown"
-                  :placeholder="$t('connection.password')"
-                  :input-props="inputProps"
-                />
-              </n-form-item>
-            </n-grid-item>
+                <n-form-item :label="$t('connection.username')" path="username">
+                  <n-input
+                    v-model:value="formData.username"
+                    clearable
+                    :placeholder="$t('connection.username')"
+                    :input-props="inputProps"
+                  />
+                </n-form-item>
+              </n-grid-item>
+              <n-grid-item span="8">
+                <n-form-item :label="$t('connection.password')" path="password">
+                  <n-input
+                    v-model:value="formData.password"
+                    type="password"
+                    show-password-on="mousedown"
+                    :placeholder="$t('connection.password')"
+                    :input-props="inputProps"
+                  />
+                </n-form-item>
+              </n-grid-item>
             </template>
           </n-grid>
         </n-form>
@@ -157,11 +159,17 @@
 import { reactive, ref, watch } from 'vue';
 import { Close, Locked, Unlocked } from '@vicons/carbon';
 import { CustomError, inputProps } from '../../../common';
-import { Connection, DatabaseType, ElasticsearchConnection, useConnectionStore } from '../../../store';
+import {
+  Connection,
+  DatabaseType,
+  ElasticsearchConnection,
+  useConnectionStore,
+} from '../../../store';
 import { useLang } from '../../../lang';
 import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 
-const { testElasticsearchConnection,testDynamoDBConnection, saveConnection } = useConnectionStore();
+const { testElasticsearchConnection, testDynamoDBConnection, saveConnection } =
+  useConnectionStore();
 const lang = useLang();
 // DOM
 const connectFormRef = ref();
@@ -200,12 +208,12 @@ const formRules = reactive<FormRules>({
           if (value.length >= 'http://'.length) {
             if (value.startsWith('http://') && formData.value.sslCertVerification) {
               formData.value.sslCertVerification = false;
+            }
+            switchSSL(formData.value.sslCertVerification);
           }
-          switchSSL(formData.value.sslCertVerification);
-        }
 
-        return value !== '';
-      }
+          return value !== '';
+        }
       },
       renderMessage: () => lang.t('connection.formValidation.hostRequired'),
       trigger: ['input', 'blur'],
@@ -279,7 +287,8 @@ const testConnectConfirm = async () => {
   testLoading.value = !testLoading.value;
   try {
     if (formData.value.type === DatabaseType.ELASTICSEARCH) {
-      await testElasticsearchConnection(formData.value );
+      console.log('test es connection');
+      await testElasticsearchConnection(formData.value);
     } else if (formData.value.type === DatabaseType.DYNAMODB) {
       await testDynamoDBConnection(formData.value);
     }

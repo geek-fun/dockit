@@ -76,7 +76,6 @@ const fetchRequest = async (
         options: { method, headers, body: payload ?? undefined, agent },
       }),
     ) as { status: number; message: string; data: unknown };
-
     if (status >= 200 && status < 500) {
       const parsedData =
         typeof data === 'object' ? data : (data as string)?.split('\n')?.filter(Boolean);

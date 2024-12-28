@@ -1,10 +1,16 @@
-import { Decoration, Editor, executeActions, monaco, Range, SearchAction } from './';
+import { Decoration, executeActions, monaco, SearchAction } from './';
 import JSON5 from 'json5';
+import { get } from 'lodash';
 import { CustomError } from '../customError.ts';
 
 export let searchTokens: SearchAction[] = [];
 
-export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent: string }>) => {
+export const buildSearchToken = (model: monaco.editor.IModel) => {
+  const lines = Array.from({ length: model.getLineCount() }, (_, i) => ({
+    lineNumber: i + 1,
+    lineContent: model.getLineContent(i + 1),
+  }));
+
   const commands = lines.filter(({ lineContent }) => executeActions.regexp.test(lineContent));
 
   searchTokens = commands.map(({ lineContent, lineNumber }, index, commands) => {
@@ -39,28 +45,22 @@ export const buildSearchToken = (lines: Array<{ lineNumber: number; lineContent:
         startLineNumber: lineNumber,
         endLineNumber,
         startColumn: 1,
-        endColumn: lines[endLineNumber].lineContent.length,
+        endColumn: get(lines, `[${endLineNumber}].lineContent.length`, 0),
       },
     } as SearchAction;
   });
 
   return searchTokens;
 };
-export const getPositionAction = (position: Range) => {
-  return searchTokens.find(({ position: { startLineNumber, endLineNumber } }) => {
-    return position.startLineNumber >= startLineNumber && position.endLineNumber <= endLineNumber;
-  });
-};
-export const getPointerAction = (editor: Editor, tokens: Array<SearchAction>) => {
-  const { lineNumber } = editor?.getPosition() || {};
-  if (lineNumber === undefined || lineNumber === null) {
-    return;
+export const getAction = (position: monaco.Range | monaco.Position | null | undefined) => {
+  if (!position) {
+    return undefined;
   }
-
-  return tokens.find(
-    ({ position: { startLineNumber, endLineNumber } }) =>
-      lineNumber >= startLineNumber && lineNumber <= endLineNumber,
-  );
+  const startLine = get(position, 'startLineNumber', get(position, 'lineNumber', -1));
+  const endLine = get(position, 'endLineNumber', get(position, 'lineNumber', -1));
+  return searchTokens.find(({ position: { startLineNumber, endLineNumber } }) => {
+    return startLine >= startLineNumber && endLine <= endLineNumber;
+  });
 };
 
 export const executionGutterClass = 'execute-button-decoration';
@@ -75,33 +75,36 @@ export const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<D
     .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
 };
 export const buildCodeLens = (
-  searchTokens: SearchAction[],
+  position: monaco.Position,
   autoIndentCmdId: string,
   copyAsCurlCmdId: string,
-) => {
-  const copyCurl = searchTokens.map(({ position }, index) => ({
-    range: { ...position, endLineNumber: position.startLineNumber },
-    id: `CopyAsCurl-${index}`,
+): Array<monaco.languages.CodeLens> => {
+  const action = getAction(position);
+  if (!action) {
+    return [];
+  }
+
+  const copyCurl = {
+    range: action.position,
+    id: `CopyAsCurl`,
     command: {
       id: copyAsCurlCmdId!,
       title: 'Copy as CURL',
       arguments: [position],
     },
-  }));
+  };
 
-  const autoIndent = searchTokens
-    .filter(({ qdsl }) => qdsl)
-    .map(({ position }, index) => ({
-      range: { ...position, endLineNumber: position.startLineNumber },
-      id: `AutoIndent-${index}`,
-      command: {
-        id: autoIndentCmdId!,
-        title: 'Auto Indent',
-        arguments: [{ ...position, startLineNumber: position.startLineNumber + 1 }],
-      },
-    }));
+  const autoIndent = action.qdsl && {
+    range: action.position,
+    id: `AutoIndent`,
+    command: {
+      id: autoIndentCmdId!,
+      title: 'Auto Indent',
+      arguments: [{ ...action.position, startLineNumber: action.position.startLineNumber + 1 }],
+    },
+  };
 
-  return [...autoIndent, ...copyCurl];
+  return [autoIndent, copyCurl].filter(Boolean) as Array<monaco.languages.CodeLens>;
 };
 
 export const formatQDSL = (
