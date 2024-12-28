@@ -33,52 +33,73 @@
                 />
               </n-form-item>
             </n-grid-item>
-            <n-grid-item span="5">
-              <n-form-item
-                :label="$t('connection.host')"
-                path="host"
-                :validation-status="hostValidate.status"
-                :feedback="hostValidate.feedback"
-              >
-                <n-input-group>
-                  <n-input
-                    :style="{ width: '80%' }"
+            <template v-if="formData.type === DatabaseType.ELASTICSEARCH">
+              <n-grid-item span="5">
+                <n-form-item
+                  :label="$t('connection.host')"
+                  path="host"
+                  :validation-status="hostValidate.status"
+                  :feedback="hostValidate.feedback"
+                >
+                  <n-input-group>
+                    <n-input
+                      :style="{ width: '80%' }"
+                      clearable
+                      v-model:value="formData.host"
+                      placeholder="http://localhost"
+                      :input-props="inputProps"
+                    />
+                    <n-popover trigger="hover" placement="top-start">
+                      <template #trigger>
+                        <n-input-group-label
+                          style="cursor: pointer"
+                          @click="switchSSL(!formData.sslCertVerification)"
+                        >
+                          <n-icon
+                            :class="
+                              formData.sslCertVerification ? `ssl-checked-icon` : `ssl-unchecked-icon`
+                            "
+                            size="24"
+                            :component="formData.sslCertVerification ? Locked : Unlocked"
+                          />
+                        </n-input-group-label>
+                      </template>
+                      <span>{{ $t('connection.sslCertVerification') }}</span>
+                    </n-popover>
+                  </n-input-group>
+                </n-form-item>
+              </n-grid-item>
+              <n-grid-item span="3">
+                <n-form-item :label="$t('connection.port')" path="port">
+                  <n-input-number
+                    v-model:value="formData.port"
                     clearable
-                    v-model:value="formData.host"
-                    placeholder="http://localhost"
+                    :show-button="false"
+                    :placeholder="$t('connection.port')"
+                  />
+                </n-form-item>
+              </n-grid-item>
+              <n-grid-item span="8">
+                <n-form-item :label="$t('connection.indexName')" path="indexName">
+                  <n-input
+                    v-model:value="formData.indexName"
+                    clearable
+                    :placeholder="$t('connection.indexName')"
                     :input-props="inputProps"
                   />
-                  <n-popover trigger="hover" placement="top-start">
-                    <template #trigger>
-                      <n-input-group-label
-                        style="cursor: pointer"
-                        @click="switchSSL(!formData.sslCertVerification)"
-                      >
-                        <n-icon
-                          :class="
-                            formData.sslCertVerification ? `ssl-checked-icon` : `ssl-unchecked-icon`
-                          "
-                          size="24"
-                          :component="formData.sslCertVerification ? Locked : Unlocked"
-                        />
-                      </n-input-group-label>
-                    </template>
-                    <span>{{ $t('connection.sslCertVerification') }}</span>
-                  </n-popover>
-                </n-input-group>
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item span="3">
-              <n-form-item :label="$t('connection.port')" path="port">
-                <n-input-number
-                  v-model:value="formData.port"
-                  clearable
-                  :show-button="false"
-                  :placeholder="$t('connection.port')"
-                />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item span="8">
+                </n-form-item>
+              </n-grid-item>
+              <n-grid-item span="8">
+                <n-form-item :label="$t('connection.queryParameters')" path="queryParameters">
+                  <n-input
+                    v-model:value="formData.queryParameters"
+                    clearable
+                    :placeholder="$t('connection.queryParameters')"
+                    :input-props="inputProps"
+                  />
+                </n-form-item>
+              </n-grid-item>
+              <n-grid-item span="8">
               <n-form-item :label="$t('connection.username')" path="username">
                 <n-input
                   v-model:value="formData.username"
@@ -99,26 +120,7 @@
                 />
               </n-form-item>
             </n-grid-item>
-            <n-grid-item span="8">
-              <n-form-item :label="$t('connection.indexName')" path="indexName">
-                <n-input
-                  v-model:value="formData.indexName"
-                  clearable
-                  :placeholder="$t('connection.indexName')"
-                  :input-props="inputProps"
-                />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item span="8">
-              <n-form-item :label="$t('connection.queryParameters')" path="queryParameters">
-                <n-input
-                  v-model:value="formData.queryParameters"
-                  clearable
-                  :placeholder="$t('connection.queryParameters')"
-                  :input-props="inputProps"
-                />
-              </n-form-item>
-            </n-grid-item>
+            </template>
           </n-grid>
         </n-form>
       </div>
@@ -155,17 +157,17 @@
 import { reactive, ref, watch } from 'vue';
 import { Close, Locked, Unlocked } from '@vicons/carbon';
 import { CustomError, inputProps } from '../../../common';
-import { Connection, useConnectionStore } from '../../../store';
+import { Connection, DatabaseType, ElasticsearchConnection, useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
 import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 
-const { testConnection, saveConnection } = useConnectionStore();
+const { testElasticsearchConnection,testDynamoDBConnection, saveConnection } = useConnectionStore();
 const lang = useLang();
 // DOM
 const connectFormRef = ref();
 
 const showModal = ref(false);
-const modalTitle = ref(lang.t('connection.add'));
+const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
 
@@ -178,6 +180,7 @@ const defaultFormData = {
   indexName: undefined,
   queryParameters: '',
   sslCertVerification: true,
+  type: DatabaseType.ELASTICSEARCH as const,
 };
 const formData = ref<Connection>(defaultFormData);
 const formRules = reactive<FormRules>({
@@ -193,14 +196,16 @@ const formRules = reactive<FormRules>({
     {
       required: true,
       validator: (_: FormItemRule, value: string) => {
-        if (value.length >= 'http://'.length) {
-          if (value.startsWith('http://') && formData.value.sslCertVerification) {
-            formData.value.sslCertVerification = false;
+        if (formData.value.type === DatabaseType.ELASTICSEARCH) {
+          if (value.length >= 'http://'.length) {
+            if (value.startsWith('http://') && formData.value.sslCertVerification) {
+              formData.value.sslCertVerification = false;
           }
           switchSSL(formData.value.sslCertVerification);
         }
 
         return value !== '';
+      }
       },
       renderMessage: () => lang.t('connection.formValidation.hostRequired'),
       trigger: ['input', 'blur'],
@@ -222,13 +227,16 @@ const hostValidate = ref<{
 }>({ status: undefined, feedback: '' });
 
 const switchSSL = (target: boolean) => {
-  if (formData.value.host.startsWith('https') || !target) {
-    formData.value.sslCertVerification = target;
-    hostValidate.value.status = undefined;
-    hostValidate.value.feedback = '';
-  } else {
-    hostValidate.value.status = 'error';
-    hostValidate.value.feedback = lang.t('connection.formValidation.sslCertOnlyHttps');
+  if (formData.value.type === DatabaseType.ELASTICSEARCH) {
+    const elasticsearchConnection = formData.value as ElasticsearchConnection;
+    if (elasticsearchConnection.host.startsWith('https') || !target) {
+      elasticsearchConnection.sslCertVerification = target;
+      hostValidate.value.status = undefined;
+      hostValidate.value.feedback = '';
+    } else {
+      hostValidate.value.status = 'error';
+      hostValidate.value.feedback = lang.t('connection.formValidation.sslCertOnlyHttps');
+    }
   }
 };
 
@@ -236,7 +244,7 @@ const message = useMessage();
 
 const cleanUp = () => {
   formData.value = defaultFormData;
-  modalTitle.value = lang.t('connection.add');
+  modalTitle.value = lang.t('connection.new');
 };
 const showMedal = (con: Connection | null) => {
   cleanUp();
@@ -270,7 +278,11 @@ const testConnect = (event: MouseEvent) => {
 const testConnectConfirm = async () => {
   testLoading.value = !testLoading.value;
   try {
-    await testConnection({ ...formData.value });
+    if (formData.value.type === DatabaseType.ELASTICSEARCH) {
+      await testElasticsearchConnection(formData.value );
+    } else if (formData.value.type === DatabaseType.DYNAMODB) {
+      await testDynamoDBConnection(formData.value);
+    }
     message.success(lang.t('connection.testSuccess'));
   } catch (e) {
     const error = e as CustomError;
@@ -292,9 +304,20 @@ const saveConnect = (event: MouseEvent) => {
 
 const saveConnectConfirm = async () => {
   saveLoading.value = !saveLoading.value;
-  saveConnection(formData.value);
-  saveLoading.value = !saveLoading.value;
-  showModal.value = false;
+  try {
+    await saveConnection(formData.value);
+    message.success(lang.t('connection.saveSuccess'));
+  } catch (e) {
+    const error = e as CustomError;
+    message.error(`status: ${error.status}, details: ${error.details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 10000,
+    });
+  } finally {
+    saveLoading.value = !saveLoading.value;
+    showModal.value = false;
+  }
 };
 
 defineExpose({ showMedal });

@@ -103,6 +103,8 @@ export const zhCN = {
         targetIndex: '目标索引',
       },
     },
+    emptyNoConnection: '请先建立连接',
+    emptyDynamodb: '功能完善中',
   },
   connection: {
     new: '新建连接',
@@ -115,14 +117,24 @@ export const zhCN = {
     indexName: '索引/别名',
     queryParameters: '查询参数',
     sslCertVerification: 'SSL 证书验证',
-    add: '添加连接',
-    edit: '编辑连接',
-    testSuccess: '连接成功',
+    connectSuccess: '连接成功',
+    deleteSuccess: '删除成功',
+    testSuccess: '测试连接成功',
+    saveSuccess: '保存成功',
+    edit: '编辑配置',
+    selectDatabase: '请选择数据库类型',
+    region: '区域',
+    accessKeyId: 'Access Key ID',
+    secretAccessKey: 'Secret Access Key',
+    selectRegion: '请选择区域',
     formValidation: {
       nameRequired: '请输入连接名称',
       hostRequired: '请输入主机地址',
       portRequired: '请输入端口号',
       sslCertOnlyHttps: 'SSL 证书验证只能在 HTTPS 连接下开启',
+      regionRequired: '请选择区域',
+      accessKeyIdRequired: '请输入Access Key ID',
+      secretAccessKeyRequired: '请输入Secret Access Key',
     },
     operations: {
       connect: '连接',
@@ -133,6 +145,14 @@ export const zhCN = {
     selectConnection: '未选择连接',
     validationFailed: '表单验证失败！',
     unAuthorized: '认证失败，请输入正确的用户名和密码！',
+    emptyState: {
+      noConnections: '暂无可用连接',
+      pleaseSelect: '请选择一个连接'
+    },
+    dynamodb: {
+      queryComingSoon: 'DynamoDB 查询功能开发中...',
+      tablesComingSoon: 'DynamoDB 表管理功能开发中...'
+    }
   },
   dialogOps: {
     warning: '提示',
@@ -177,7 +197,7 @@ export const zhCN = {
   backup: {
     backup: '备份',
     restore: '恢复',
-    restoreSourceDesc: '点击或拖动文件到此区域上传您的 JSON/CSV 文件',
+    restoreSourceDesc: '点击或拖动文件到此区域上传您的 JSON/CSV 文件',	
     backupToFileSuccess: '成功备份到文件',
     restoreFromFileSuccess: '成功从文件恢复',
     backupForm: {

@@ -103,6 +103,8 @@ export const enUS = {
         targetIndex: 'Target Index',
       },
     },
+    emptyDynamodb: 'Still in development',
+    emptyNoConnection: 'Please establish connection first',
   },
   connection: {
     new: 'New connection',
@@ -115,14 +117,24 @@ export const enUS = {
     indexName: 'Index/Alias',
     queryParameters: 'query parameters',
     sslCertVerification: 'SSL Certificate Verification',
-    add: 'Add connection',
-    edit: 'Edit connection',
-    testSuccess: 'connect success',
+    connectSuccess: 'Connect success',
+    deleteSuccess: 'Delete success',
+    testSuccess: 'Test connect success',
+    saveSuccess: 'Save success',
+    edit: 'Edit configuration', 
+    selectDatabase: 'Please select database type',
+    region: 'Region',
+    accessKeyId: 'Access Key ID',
+    secretAccessKey: 'Secret Access Key',
+    selectRegion: 'Please select region',
     formValidation: {
       nameRequired: 'Name is required',
       hostRequired: 'Host is required',
       portRequired: 'Port is required',
       sslCertOnlyHttps: 'SSL Certificate Verification can only be enabled under HTTPS connection',
+      regionRequired: 'Please select region',
+      accessKeyIdRequired: 'Please enter Access Key ID',
+      secretAccessKeyRequired: 'Please enter Secret Access Key',
     },
     operations: {
       connect: 'Connect',
@@ -133,6 +145,14 @@ export const enUS = {
     selectConnection: 'No Connection selected',
     validationFailed: 'Form validation failed!',
     unAuthorized: 'Authorization failed, ensure your username and password are correct',
+    emptyState: {
+      noConnections: 'No connections available',
+      pleaseSelect: 'Please select a connection'
+    },
+    dynamodb: {
+      queryComingSoon: 'DynamoDB query interface coming soon...',
+      tablesComingSoon: 'DynamoDB tables management coming soon...'
+    }
   },
   dialogOps: {
     warning: 'Warning',
