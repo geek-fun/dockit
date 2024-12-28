@@ -13,5 +13,5 @@ export const buildURL = (
   queryParameters?: string,
 ) => {
   const trimmedPath = path?.startsWith('/') ? path.slice(1) : path;
-  return `${host}:${port}/${trimmedPath}${queryParameters ? `?${queryParameters}` : ''}`;
+  return `${host}:${port}${trimmedPath ? `/${trimmedPath}` : ''}${queryParameters ? `?${queryParameters}` : ''}`;
 };

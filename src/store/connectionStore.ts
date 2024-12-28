@@ -5,21 +5,21 @@ import { loadHttpClient, storeApi } from '../datasources';
 
 export enum DatabaseType {
   ELASTICSEARCH = 'elasticsearch',
-  DYNAMODB = 'dynamodb'
+  DYNAMODB = 'dynamodb',
 }
 
 export type BaseConnection = {
   id?: number;
   name: string;
   type: DatabaseType;
-}
+};
 
 export type DynamoDBConnection = BaseConnection & {
   type: DatabaseType.DYNAMODB;
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
-}
+};
 
 export type Connection = ElasticsearchConnection | DynamoDBConnection;
 
@@ -32,7 +32,7 @@ export type ElasticsearchConnection = BaseConnection & {
   password?: string;
   indexName?: string;
   queryParameters?: string;
-}
+};
 
 export type ConnectionIndex = {
   health: string;
@@ -101,8 +101,7 @@ export const useConnectionStore = defineStore('connectionStore', {
   actions: {
     async fetchConnections() {
       try {
-        const connections = await storeApi.get('connections', []) as Connection[];
-        this.connections = connections;
+        this.connections = (await storeApi.get('connections', [])) as Connection[];
       } catch (error) {
         console.error('Error fetching connections:', error);
         this.connections = [];
@@ -121,7 +120,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         const newConnection = {
           ...connection,
           type: 'host' in connection ? DatabaseType.ELASTICSEARCH : DatabaseType.DYNAMODB,
-          id: connection.id || this.connections.length + 1
+          id: connection.id || this.connections.length + 1,
         } as Connection;
 
         if (connection.id) {
@@ -136,12 +135,15 @@ export const useConnectionStore = defineStore('connectionStore', {
           this.connections.push(newConnection);
           this.established = null;
         }
-        
+
         await storeApi.set('connections', pureObject(this.connections));
         return { success: true, message: 'Connection saved successfully' };
       } catch (error) {
         console.error('Error saving connection:', error);
-        return { success: false, message: error instanceof Error ? error.message : 'Unknown error' };
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Unknown error',
+        };
       }
     },
     async removeConnection(connection: Connection) {
@@ -173,8 +175,8 @@ export const useConnectionStore = defineStore('connectionStore', {
             const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
               [key: string]: string;
             }>;
-            
-            indices = data.map((index) => ({
+
+            indices = data.map(index => ({
               ...index,
               docs: {
                 count: parseInt(index['docs.count'], 10),
@@ -191,7 +193,7 @@ export const useConnectionStore = defineStore('connectionStore', {
           this.established = { ...connection, indices: [] };
         }
       } else if (connection.type === DatabaseType.DYNAMODB) {
-        this.established = {...connection, indices: [], activeIndex: undefined};
+        this.established = { ...connection, indices: [], activeIndex: undefined };
       }
     },
     async fetchIndices() {
@@ -279,7 +281,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         port: 9200,
         username: undefined,
         password: undefined,
-        sslCertVerification: false
+        sslCertVerification: false,
       };
       const params = queryParams ? `${queryParams}&format=json` : 'format=json';
       const url = buildURL(host, port, buildPath(index, path, this.established), params);
@@ -293,9 +295,8 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async testDynamoDBConnection(connection: DynamoDBConnection) {
       // test later, should send request to rust backend
-      console.log('test connect to ',connection.type)
+      console.log('test connect to ', connection.type);
       return undefined;
-
     },
     validateConnection(connection: Connection): boolean {
       if (connection.type === DatabaseType.ELASTICSEARCH) {
@@ -305,13 +306,9 @@ export const useConnectionStore = defineStore('connectionStore', {
           typeof connection.sslCertVerification === 'boolean'
         );
       } else if (connection.type === DatabaseType.DYNAMODB) {
-        return !!(
-          connection.region &&
-          connection.accessKeyId &&
-          connection.secretAccessKey
-        );
+        return !!(connection.region && connection.accessKeyId && connection.secretAccessKey);
       }
       return false;
-    }
+    },
   },
 });
