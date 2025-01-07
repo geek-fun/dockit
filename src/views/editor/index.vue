@@ -204,6 +204,7 @@ const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor, position:
       // @ts-ignore
       inverseEditOperations => [],
     );
+    editor.setPosition({ lineNumber: startLineNumber + 1, column: 1 });
   } catch (err) {
     message.error(lang.t('editor.invalidJson'), {
       closable: true,
