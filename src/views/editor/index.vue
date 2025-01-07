@@ -152,6 +152,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
   }
 
   try {
+    displayJsonEditor('');
     if (!established.value) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
