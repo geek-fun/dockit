@@ -134,19 +134,22 @@ const replaceTripleQuotes = (value: string) =>
   value
     .replace(/'''(.*?)'''/gs, (_, match) => JSON.stringify(match))
     .replace(/"""(.*?)"""/gs, (_, match) => JSON.stringify(match));
+const replaceComments = (value: string) => value.replace(/\/\/.*/g, '').trim();
 
 export const transformQDSL = ({ path, qdsl }: Pick<SearchAction, 'path' | 'qdsl'>) => {
   try {
+    const puredDsl = replaceTripleQuotes(replaceComments(qdsl));
     const bulkAction = path.includes('_bulk');
     if (bulkAction) {
-      const bulkQdsl = qdsl
+      const bulkQdsl = puredDsl
         .split('\n')
         .map(line => JSON.stringify(JSON5.parse(line)))
         .join('\n');
       return `${bulkQdsl}\n`;
     }
+    console.log('qdsl', replaceComments(qdsl).trim());
 
-    return qdsl ? JSON.stringify(JSON5.parse(replaceTripleQuotes(qdsl)), null, 2) : undefined;
+    return puredDsl ? JSON.stringify(JSON5.parse(puredDsl), null, 2) : undefined;
   } catch (err) {
     throw new CustomError(400, (err as Error).message);
   }
