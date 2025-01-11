@@ -65,7 +65,7 @@ const getLatestReleaseInfo = async (): Promise<{
   return { version: data.tag_name, assets };
 };
 const getLatestLink = async () => {
-  return 'https://github.com/geek-fun/dockit/releases';
+  return 'https://dockit.geekfun.club/download.html';
 };
 
 onMounted(async () => {
