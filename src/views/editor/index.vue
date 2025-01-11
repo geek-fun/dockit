@@ -65,6 +65,7 @@ const displayEditorRef = ref();
 
 let executeDecorations: Array<Decoration | string> = [];
 let currentAction: SearchAction | undefined = undefined;
+let saveInterval: NodeJS.Timeout;
 
 const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
   const freshDecorations = getActionMarksDecorations(searchTokens);
@@ -346,6 +347,23 @@ const setupQueryEditor = (code: string) => {
       open(docLink);
     }
   });
+
+  // Set up autosave interval
+  saveInterval = setInterval(async () => {
+    const model = queryEditor?.getModel();
+    if (!model) {
+      return;
+    }
+    const position = queryEditor?.getPosition();
+    const currentContent = model.getValue();
+
+    if (currentContent !== fileContent.value) {
+      await saveSourceToFile(currentContent);
+      if (position) {
+        queryEditor?.setPosition(position);
+      }
+    }
+  }, 5000);
 };
 
 const queryEditorSize = ref(1);
@@ -366,14 +384,6 @@ const saveFileListener = async () => {
   });
 };
 
-watch(
-  () => fileContent.value,
-  async () => {
-    if (queryEditor) {
-      queryEditor.setValue(fileContent.value);
-    }
-  },
-);
 onMounted(async () => {
   await readSourceFromFile(route.params.filePath as string);
   const code = fileContent.value;
@@ -388,6 +398,7 @@ onUnmounted(() => {
   if (unlistenSaveFile?.value) {
     unlistenSaveFile.value();
   }
+  clearInterval(saveInterval);
 });
 </script>
 
