@@ -179,5 +179,9 @@ export const search = {
       { open: `'`, close: `'` },
       { open: '"', close: '"' },
     ],
+    comments: {
+      lineComment: '//',
+      blockComment: ['/*', '*/'],
+    },
   },
 };

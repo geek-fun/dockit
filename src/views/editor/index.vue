@@ -258,6 +258,11 @@ const setupQueryEditor = (code: string) => {
     }
   });
 
+  // comments/uncomment line or block
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash, () => {
+    queryEditor!.trigger('keyboard', 'editor.action.commentLine', {});
+  });
+
   // Auto indent current request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
     const { position } = getAction(queryEditor!.getPosition()) || {};
@@ -331,7 +336,7 @@ const setupQueryEditor = (code: string) => {
   });
 
   // Open the documentation for the current action
-  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash, () => {
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
     const docLink = getActionApiDoc(
       EngineType.ELASTICSEARCH,
       'current',
