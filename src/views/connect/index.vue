@@ -17,39 +17,10 @@
               <span class="breadcrumb-item">{{ established.name }}</span>
             </div>
           </div>
-          <div class="editor-container">
-            <template v-if="established.type === DatabaseType.ELASTICSEARCH">
-              <div class="es-editor">
-                <div class="toolbar">
-                  <collection-selector />
-                  <n-tooltip trigger="hover">
-                    <template #trigger>
-                      <n-icon size="20" class="action-load-icon" @click="handleLoadAction">
-                        <AiStatus />
-                      </n-icon>
-                    </template>
-                    {{ $t('editor.loadDefault') }}
-                  </n-tooltip>
-                  <path-breadcrumb :clickable="false" />
-                </div>
-                <div class="es-editor-container">
-                  <Editor />
-                </div>
-              </div>
-            </template>
-            <template v-else-if="established.type === DatabaseType.DYNAMODB">
-              <div class="dynamo-editor">
-                <n-tabs type="segment">
-                  <n-tab-pane name="query" tab="Query">
-                    <n-empty :description="$t('connection.dynamodb.queryComingSoon')" />
-                  </n-tab-pane>
-                  <n-tab-pane name="tables" tab="Tables">
-                    <n-empty :description="$t('connection.dynamodb.tablesComingSoon')" />
-                  </n-tab-pane>
-                </n-tabs>
-              </div>
-            </template>
-          </div>
+          <query-tabs
+            :database-type="established.type"
+            :established="!!established"
+          />
         </template>
       </div>
 
@@ -79,26 +50,20 @@
 </template>
 
 <script setup lang="ts">
-import { AiStatus } from '@vicons/carbon';
-import { NDialogProvider, NTabPane, NTabs } from 'naive-ui';
+import { NDialogProvider } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
 import dynamoDB from '../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../assets/svg/elasticsearch.svg';
-import { useSourceFileStore } from '../../store';
 import { Connection, DatabaseType, useConnectionStore } from '../../store/connectionStore';
-import Editor from '../editor/index.vue';
-import collectionSelector from './components/collection-selector.vue';
 import ConnectList from './components/connect-list.vue';
 import DynamodbConnectDialog from './components/dynamodb-connect-dialog.vue';
 import EsConnectDialog from './components/es-connect-dialog.vue';
 import FloatingAddButton from './components/floating-add-button.vue';
-
+import QueryTabs from './components/query-tabs.vue';
 
 const connectionStore = useConnectionStore();
 const { connections, established } = storeToRefs(connectionStore);
-const fileStore = useSourceFileStore();
-const { readSourceFromFile } = fileStore;
 
 const showTypeSelect = ref(false);
 const esConnectDialog = ref();
@@ -136,10 +101,6 @@ const selectDatabaseType = (type: DatabaseType) => {
   } else if (type === DatabaseType.DYNAMODB) {
     dynamodbConnectDialog.value.showMedal(null);
   }
-};
-
-const handleLoadAction = async () => {
-  await readSourceFromFile(undefined);
 };
 
 </script>
@@ -190,58 +151,6 @@ const handleLoadAction = async () => {
           font-size: 14px;
         }
       }
-    }
-
-    .editor-container {
-      flex: 1;
-      overflow: hidden;
-      padding: 16px;
-      position: relative;
-
-      .es-editor {
-        width: 100%;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        position: absolute;
-        left: 16px;
-        right: 16px;
-        top: 16px;
-        bottom: 16px;
-        
-        .toolbar {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 16px;
-          flex-shrink: 0;
-        }
-        
-        .es-editor-container {
-          flex: 1;
-          height: 0;
-        }
-      }
-
-      .dynamo-editor {
-        width: 100%;
-        
-        :deep(.n-tabs) {
-          height: 100%;
-
-          .n-tab-pane {
-            height: calc(100% - 40px);
-            padding: 16px 0;
-          }
-        }
-      }
-    }
-
-    .empty-container {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
   }
 }
