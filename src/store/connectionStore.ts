@@ -9,9 +9,14 @@ export enum DatabaseType {
 }
 
 export type BaseConnection = {
-  id?: number;
+  id: string;
   name: string;
   type: DatabaseType;
+  tabs: Array<{
+    name: string;
+    index: number;
+  }>;
+  activeTab?: string;
 };
 
 export type DynamoDBConnection = BaseConnection & {
@@ -32,6 +37,11 @@ export type ElasticsearchConnection = BaseConnection & {
   password?: string;
   indexName?: string;
   queryParameters?: string;
+  tabs: Array<{
+    name: string;
+    index: number;
+  }>;
+  activeTab?: string;
 };
 
 export type ConnectionIndex = {
@@ -120,7 +130,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         const newConnection = {
           ...connection,
           type: 'host' in connection ? DatabaseType.ELASTICSEARCH : DatabaseType.DYNAMODB,
-          id: connection.id || this.connections.length + 1,
+          id: connection.id || `${this.connections.length + 1}`,
         } as Connection;
 
         if (connection.id) {
@@ -259,7 +269,7 @@ export const useConnectionStore = defineStore('connectionStore', {
             this.established = { ...this.established, activeIndex: newIndex };
           }
         }
-      } catch (err) {}
+      } catch (err) { }
 
       const reqPath = buildPath(index, path, this.established);
 
@@ -309,6 +319,18 @@ export const useConnectionStore = defineStore('connectionStore', {
         return !!(connection.region && connection.accessKeyId && connection.secretAccessKey);
       }
       return false;
+    },
+    updateConnectionTabs(connectionId: string, tabs: Array<{ name: string, index: number }>) {
+      const connection = this.connections.find(c => c.id === connectionId);
+      if (connection) {
+        connection.tabs = tabs;
+      }
+    },
+    updateConnectionActiveTab(connectionId: string, activeTab: string) {
+      const connection = this.connections.find(c => c.id === connectionId);
+      if (connection) {
+        connection.activeTab = activeTab;
+      }
     },
   },
 });
