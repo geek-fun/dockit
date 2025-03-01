@@ -1,69 +1,70 @@
 <template>
-  <n-dialog-provider>
-    <div class="connect-container">
-      <div class="connect-list">
-        <connect-list @edit-connect="editConnectHandler" />
-      </div>
+  <n-tabs
+    v-model:value="currentPanelName"
+    type="card"
+    :addable="false"
+    :closable="closableRef"
+    class="connect-tab-container"
+    @close="handleClose"
+    @add="handleAdd"
+  >
+    <n-tab-pane
+      v-for="panel in panelsRef"
+      :key="panel.id"
+      :name="panel.name"
+      class="tab-pane-container"
+    >
+      <Editor v-if="panel.editor" />
+      <connect-list v-else class="ssh-list" @edit-connect="editConnectHandler" />
+    </n-tab-pane>
+  </n-tabs>
+  <div class="connect-container">
+    <n-modal v-model:show="showTypeSelect">
+      <n-card style="width: 400px" :title="$t('connection.selectDatabase')">
+        <n-space vertical>
+          <n-button
+            v-for="type in databaseTypes"
+            :key="type.value"
+            block
+            @click="selectDatabaseType(type.value)"
+          >
+            <template #icon>
+              <component :is="type.icon" />
+            </template>
+            {{ type.label }}
+          </n-button>
+        </n-space>
+      </n-card>
+    </n-modal>
 
-      <div class="connect-body">
-        <template v-if="!established || !connections.length">
-          <div class="empty-container">
-            <n-empty :description="$t('connection.emptyState.pleaseSelect')" />
-          </div>
-        </template>
-        <template v-else>
-          <div class="connect-toolbar">
-            <div class="breadcrumb">
-              <span class="breadcrumb-item">{{ established.name }}</span>
-            </div>
-          </div>
-          <query-tabs
-            :database-type="established.type"
-            :established="!!established"
-          />
-        </template>
-      </div>
-
-      <n-modal v-model:show="showTypeSelect">
-        <n-card style="width: 400px" :title="$t('connection.selectDatabase')">
-          <n-space vertical>
-            <n-button
-              v-for="type in databaseTypes"
-              :key="type.value"
-              block
-              @click="selectDatabaseType(type.value)"
-            >
-              <template #icon>
-                <component :is="type.icon" />
-              </template>
-              {{ type.label }}
-            </n-button>
-          </n-space>
-        </n-card>
-      </n-modal>
-      
-      <es-connect-dialog ref="esConnectDialog" />
-      <dynamodb-connect-dialog ref="dynamodbConnectDialog" />
-      <floating-add-button @add="showDatabaseTypeSelect" />
-    </div>
-  </n-dialog-provider>
+    <floating-menu @add="showDatabaseTypeSelect" />
+    <es-connect-dialog ref="esConnectDialog" />
+    <dynamodb-connect-dialog ref="dynamodbConnectDialog" />
+  </div>
 </template>
 
 <script setup lang="ts">
-import { NDialogProvider } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
 import dynamoDB from '../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../assets/svg/elasticsearch.svg';
-import { Connection, DatabaseType, useConnectionStore } from '../../store/connectionStore';
+import { Connection, DatabaseType, useConnectionStore } from '../../store';
 import ConnectList from './components/connect-list.vue';
 import DynamodbConnectDialog from './components/dynamodb-connect-dialog.vue';
 import EsConnectDialog from './components/es-connect-dialog.vue';
-import FloatingAddButton from './components/floating-add-button.vue';
-import QueryTabs from './components/query-tabs.vue';
+import FloatingMenu from './components/floating-menu.vue';
+import Editor from '../editor/index.vue';
 
 const connectionStore = useConnectionStore();
-const { connections, established } = storeToRefs(connectionStore);
+const { established } = storeToRefs(connectionStore);
+
+type Panel = {
+  id: number;
+  name: string;
+  editor?: Connection;
+};
+const currentPanelName = ref('home');
+const panelsRef = ref<Array<Panel>>([{ id: 0, name: 'home' }]);
 
 const showTypeSelect = ref(false);
 const esConnectDialog = ref();
@@ -103,55 +104,36 @@ const selectDatabaseType = (type: DatabaseType) => {
   }
 };
 
+const closableRef = computed(() => {
+  return panelsRef.value.length > 1;
+});
+
+const handleAdd = () => {
+  const exists = panelsRef.value.filter(panel => panel.name.startsWith('SSH List'));
+  const name = !exists.length ? 'SSH List' : `SSH List-${exists.length}`;
+
+  panelsRef.value.push({ id: panelsRef.value.length, name });
+  currentPanelName.value = name;
+};
+
+const handleClose = (name: string) => {
+  const { value: panels } = panelsRef;
+  const nameIndex = panels.findIndex(({ name: panelName }) => panelName === name);
+  if (!~nameIndex) return;
+  panels.splice(nameIndex, 1);
+  if (name === currentPanelName.value) {
+    currentPanelName.value = panels[Math.min(nameIndex, panels.length - 1)].name;
+  }
+};
 </script>
 
 <style lang="scss" scoped>
-.connect-container {
-  height: 100%;
+.connect-tab-container {
   width: 100%;
-  display: flex;
-  overflow: hidden;
-  position: relative;
-
-  .connect-list {
-    width: 20%;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--n-color);
-    border-right: 1px solid var(--border-color);
-    
-    .connect-header {
-      padding: 16px;
-      border-bottom: 1px solid var(--n-border-color);
-    }
-  }
-
-  .connect-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background-color: var(--n-color);
-    position: relative;
-    
-    &::after {
-      display: none;
-    }
-    
-    .connect-toolbar {
-      height: 48px;
-      padding: 0 16px;
-      display: flex;
-      align-items: center;
-      border-bottom: 1px solid var(--n-border-color);
-
-      .breadcrumb {
-        .breadcrumb-item {
-          color: var(--text-color);
-          font-size: 14px;
-        }
-      }
-    }
+  height: 100%;
+  .tab-pane-container {
+    height: 100%;
+    width: 100%;
   }
 }
 </style>

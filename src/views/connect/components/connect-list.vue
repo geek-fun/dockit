@@ -1,51 +1,41 @@
 <template>
-  <div class="list-content">
-    <n-scrollbar style="height: 100%">
-      <div class="scroll-container">
-        <div
-          v-for="connection in connections"
-          :key="connection.id"
-          class="list-item"
-          :class="{ active: established && connection.id === established.id }"
-          @dblclick="() => establishConnect(connection)"
-        >
-          <div class="left-box">
-            <div class="icon">
-              <n-icon size="24">
-                <component :is="getDatabaseIcon(connection.type)" />
-              </n-icon>
-            </div>
-            <div class="content">
-              <div class="name">{{ connection.name }}</div>
-              <div class="type">{{ getDatabaseTypeLabel(connection.type) }}</div>
-            </div>
-          </div>
-          <div class="operation">
-            <n-dropdown
-              trigger="hover"
-              :options="getDropdownOptions(connection)"
-              placement="bottom-start"
-            >
-            <n-icon size="20">	         
-                <OverflowMenuVertical />
-              </n-icon>
-            </n-dropdown>
-          </div>
+  <div class="connection-list-body">
+    <n-card
+      v-for="connection in connections"
+      :key="connection.id"
+      :title="connection.name"
+      hoverable
+      :class="{ active: established && connection.id === established.id }"
+    >
+      <template #header-extra>
+        <n-icon size="24">
+          <component :is="getDatabaseIcon(connection.type)" />
+        </n-icon>
+        <div class="operation" @click.stop="">
+          <n-dropdown
+            trigger="click"
+            :options="options"
+            @select="(args: string) => handleSelect(args, connection)"
+          >
+            <n-icon size="25">
+              <MoreOutlined />
+            </n-icon>
+          </n-dropdown>
         </div>
-      </div>
-    </n-scrollbar>
+      </template>
+    </n-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { OverflowMenuVertical } from '@vicons/carbon';
 import { NDropdown, NIcon, useDialog, useMessage } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
-import { Connection, DatabaseType, useConnectionStore } from '../../../store/connectionStore';
+import { Connection, DatabaseType, useConnectionStore } from '../../../store';
+import { MoreOutlined } from '@vicons/antd';
 
 const emits = defineEmits(['edit-connect']);
 
@@ -62,33 +52,25 @@ const getDatabaseIcon = (type: DatabaseType) => {
   return type === DatabaseType.ELASTICSEARCH ? elasticsearch : dynamoDB;
 };
 
-const getDatabaseTypeLabel = (type: DatabaseType) => {
-  return type === DatabaseType.ELASTICSEARCH ? 'Elasticsearch' : 'DynamoDB';
-};
+const options = reactive([
+  { key: 'connect', label: lang.t('connection.operations.connect') },
+  { key: 'edit', label: lang.t('connection.operations.edit') },
+  { key: 'remove', label: lang.t('connection.operations.remove') },
+]);
 
-const getDropdownOptions = (connection: Connection) => [
-  {
-    label: lang.t('connection.operations.connect'),
-    key: 'connect',
-    props: {
-      onClick: () => establishConnect(connection)
-    }
-  },
-  {
-    label: lang.t('connection.operations.edit'),
-    key: 'edit',
-    props: {
-      onClick: () => editConnect(connection)
-    }
-  },
-  {
-    label: lang.t('connection.operations.remove'),
-    key: 'remove',
-    props: {
-      onClick: () => removeConnect(connection)
-    }
+const handleSelect = (key: string, connection: Connection) => {
+  switch (key) {
+    case 'connect':
+      establishConnect(connection);
+      break;
+    case 'edit':
+      editConnect(connection);
+      break;
+    case 'remove':
+      removeConnect(connection);
+      break;
   }
-];
+};
 
 const establishConnect = async (connection: Connection) => {
   try {
@@ -101,9 +83,9 @@ const establishConnect = async (connection: Connection) => {
       const error = err as CustomError;
       message.error(`status: ${error.status}, details: ${error.details}`, {
         closable: true,
-      keepAliveOnHover: true,
-      duration: 36000000,
-    });
+        keepAliveOnHover: true,
+        duration: 36000000,
+      });
     }
   }
 };
@@ -132,92 +114,21 @@ const removeConnect = (connection: Connection) => {
     },
   });
 };
-
 </script>
 
 <style lang="scss" scoped>
-.list-content {
-  flex: 1;
-  height: 0;
-  padding-bottom: 10px;
+.connection-list-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px;
+}
 
-  .scroll-container {
-    padding: 0 10px;	
-  }
+.n-card {
+  max-width: 300px;
+}
 
-  .list-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px;
-    margin-bottom: 8px;
-    border-radius: 4px;
-    background-color: var(--bg-color);
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-
-    &:hover {
-      background-color: var(--connect-list-hover-bg);
-    }
-
-    &.active {
-      background-color: var(--connect-list-hover-bg);
-    }
-
-    .left-box {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex: 1;
-      min-width: 0;
-
-      .icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--text-color);
-
-        img {
-          height: 18px;
-          width: 18px;
-          filter: grayscale(1);
-        }
-      }
-
-      .content {
-        flex: 1;
-        min-width: 0;
-
-        .name {
-          font-size: 14px;
-          color: var(--text-color);
-          margin-bottom: 4px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .type {
-          font-size: 12px;
-          color: var(--text-color);
-        }
-      }
-    }
-
-    .operation {
-      opacity: 0;
-      transition: opacity 0.2s ease;
-
-      .n-button {
-        padding: 0 4px;
-      }
-    }
-
-    &:hover {
-      .operation {
-        opacity: 1;
-      }
-    }
-  }
+.connection-list-body .n-card:hover {
+  cursor: pointer;
 }
 </style>
