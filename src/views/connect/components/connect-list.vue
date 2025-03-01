@@ -24,6 +24,29 @@
         </div>
       </template>
     </n-card>
+    <div class="connect-container">
+      <n-modal v-model:show="showTypeSelect">
+        <n-card style="width: 400px" :title="$t('connection.selectDatabase')">
+          <n-space vertical>
+            <n-button
+              v-for="type in databaseTypes"
+              :key="type.value"
+              block
+              @click="selectDatabaseType(type.value)"
+            >
+              <template #icon>
+                <component :is="type.icon" />
+              </template>
+              {{ type.label }}
+            </n-button>
+          </n-space>
+        </n-card>
+      </n-modal>
+
+      <floating-menu @add="showDatabaseTypeSelect" />
+      <es-connect-dialog ref="esConnectDialog" />
+      <dynamodb-connect-dialog ref="dynamodbConnectDialog" />
+    </div>
   </div>
 </template>
 
@@ -36,8 +59,11 @@ import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import { Connection, DatabaseType, useConnectionStore } from '../../../store';
 import { MoreOutlined } from '@vicons/antd';
+import FloatingMenu from './floating-menu.vue';
+import EsConnectDialog from './es-connect-dialog.vue';
+import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
 
-const emits = defineEmits(['edit-connect', 'tab-panel']);
+const emits = defineEmits(['tab-panel']);
 
 const dialog = useDialog();
 const message = useMessage();
@@ -100,7 +126,11 @@ const editConnect = (connection: Connection) => {
     console.error('Connection type is missing');
     return;
   }
-  emits('edit-connect', connection);
+  if (connection.type === DatabaseType.ELASTICSEARCH) {
+    esConnectDialog.value.showMedal(connection);
+  } else if (connection.type === DatabaseType.DYNAMODB) {
+    dynamodbConnectDialog.value.showMedal(connection);
+  }
 };
 
 const removeConnect = (connection: Connection) => {
@@ -118,6 +148,36 @@ const removeConnect = (connection: Connection) => {
       }
     },
   });
+};
+
+const showTypeSelect = ref(false);
+const esConnectDialog = ref();
+const dynamodbConnectDialog = ref();
+
+const databaseTypes = [
+  {
+    label: 'Elasticsearch',
+    value: DatabaseType.ELASTICSEARCH,
+    icon: elasticsearch,
+  },
+  {
+    label: 'DynamoDB',
+    value: DatabaseType.DYNAMODB,
+    icon: dynamoDB,
+  },
+];
+
+const showDatabaseTypeSelect = () => {
+  showTypeSelect.value = true;
+};
+
+const selectDatabaseType = (type: DatabaseType) => {
+  showTypeSelect.value = false;
+  if (type === DatabaseType.ELASTICSEARCH) {
+    esConnectDialog.value.showMedal(null);
+  } else if (type === DatabaseType.DYNAMODB) {
+    dynamodbConnectDialog.value.showMedal(null);
+  }
 };
 </script>
 

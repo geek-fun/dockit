@@ -14,48 +14,16 @@
       class="tab-pane-container"
     >
       <Editor v-if="panel.connection" />
-      <connect-list v-else @edit-connect="editConnectHandler" @tab-panel="tabPanelHandler" />
+      <connect-list v-else @tab-panel="tabPanelHandler" />
     </n-tab-pane>
   </n-tabs>
-  <div class="connect-container">
-    <n-modal v-model:show="showTypeSelect">
-      <n-card style="width: 400px" :title="$t('connection.selectDatabase')">
-        <n-space vertical>
-          <n-button
-            v-for="type in databaseTypes"
-            :key="type.value"
-            block
-            @click="selectDatabaseType(type.value)"
-          >
-            <template #icon>
-              <component :is="type.icon" />
-            </template>
-            {{ type.label }}
-          </n-button>
-        </n-space>
-      </n-card>
-    </n-modal>
-
-    <floating-menu @add="showDatabaseTypeSelect" />
-    <es-connect-dialog ref="esConnectDialog" />
-    <dynamodb-connect-dialog ref="dynamodbConnectDialog" />
-  </div>
 </template>
 
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
-import dynamoDB from '../../assets/svg/dynamoDB.svg';
-import elasticsearch from '../../assets/svg/elasticsearch.svg';
-import { Connection, DatabaseType, useConnectionStore } from '../../store';
+import { Connection } from '../../store';
 import ConnectList from './components/connect-list.vue';
-import DynamodbConnectDialog from './components/dynamodb-connect-dialog.vue';
-import EsConnectDialog from './components/es-connect-dialog.vue';
-import FloatingMenu from './components/floating-menu.vue';
 import Editor from '../editor/index.vue';
-
-const connectionStore = useConnectionStore();
-const { established } = storeToRefs(connectionStore);
 
 type Panel = {
   id: number;
@@ -65,23 +33,6 @@ type Panel = {
 
 const currentPanelName = ref('home');
 const panelsRef = ref<Array<Panel>>([{ id: 0, name: 'home' }]);
-
-const showTypeSelect = ref(false);
-const esConnectDialog = ref();
-const dynamodbConnectDialog = ref();
-
-const databaseTypes = [
-  {
-    label: 'Elasticsearch',
-    value: DatabaseType.ELASTICSEARCH,
-    icon: elasticsearch,
-  },
-  {
-    label: 'DynamoDB',
-    value: DatabaseType.DYNAMODB,
-    icon: dynamoDB,
-  },
-];
 
 const tabPanelHandler = async ({
   action,
@@ -97,27 +48,6 @@ const tabPanelHandler = async ({
     panelsRef.value.push({ id: panelsRef.value.length + 1, name: panelName, connection });
 
     currentPanelName.value = panelName;
-  }
-};
-
-const editConnectHandler = (connection: Connection) => {
-  if (connection.type === DatabaseType.ELASTICSEARCH) {
-    esConnectDialog.value.showMedal(connection);
-  } else if (connection.type === DatabaseType.DYNAMODB) {
-    dynamodbConnectDialog.value.showMedal(connection);
-  }
-};
-
-const showDatabaseTypeSelect = () => {
-  showTypeSelect.value = true;
-};
-
-const selectDatabaseType = (type: DatabaseType) => {
-  showTypeSelect.value = false;
-  if (type === DatabaseType.ELASTICSEARCH) {
-    esConnectDialog.value.showMedal(null);
-  } else if (type === DatabaseType.DYNAMODB) {
-    dynamodbConnectDialog.value.showMedal(null);
   }
 };
 
