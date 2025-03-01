@@ -37,7 +37,7 @@ import { useLang } from '../../../lang';
 import { Connection, DatabaseType, useConnectionStore } from '../../../store';
 import { MoreOutlined } from '@vicons/antd';
 
-const emits = defineEmits(['edit-connect']);
+const emits = defineEmits(['edit-connect', 'tab-panel']);
 
 const dialog = useDialog();
 const message = useMessage();
@@ -76,12 +76,16 @@ const establishConnect = async (connection: Connection) => {
   try {
     await establishConnection(connection);
     message.success(lang.t('connection.connectSuccess'));
+    emits('tab-panel', { action: 'ADD_PANEL', connection });
   } catch (err) {
-    if (err instanceof Error) {
-      message.error(err.message);
+    if (err instanceof CustomError) {
+      message.error(`status: ${err.status}, details: ${err.details}`, {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 36000000,
+      });
     } else {
-      const error = err as CustomError;
-      message.error(`status: ${error.status}, details: ${error.details}`, {
+      message.error(lang.t('connection.unknownError') + `details: ${err}`, {
         closable: true,
         keepAliveOnHover: true,
         duration: 36000000,
@@ -98,6 +102,7 @@ const editConnect = (connection: Connection) => {
   }
   emits('edit-connect', connection);
 };
+
 const removeConnect = (connection: Connection) => {
   dialog.warning({
     title: lang.t('dialogOps.warning'),

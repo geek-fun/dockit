@@ -176,30 +176,26 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async establishConnection(connection: Connection) {
       if (connection.type === DatabaseType.ELASTICSEARCH) {
+        await this.testElasticsearchConnection(connection);
+        const client = loadHttpClient(connection);
+        let indices: ConnectionIndex[] = [];
+
         try {
-          await this.testElasticsearchConnection(connection);
-          const client = loadHttpClient(connection);
-          let indices: ConnectionIndex[] = [];
+          const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+            [key: string]: string;
+          }>;
 
-          try {
-            const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
-              [key: string]: string;
-            }>;
-
-            indices = data.map(index => ({
-              ...index,
-              docs: {
-                count: parseInt(index['docs.count'], 10),
-                deleted: parseInt(index['docs.deleted'], 10),
-              },
-              store: { size: index['store.size'] },
-            })) as ConnectionIndex[];
-            this.established = { ...connection, indices };
-          } catch (err) {
-            this.established = { ...connection, indices: [] };
-          }
+          indices = data.map(index => ({
+            ...index,
+            docs: {
+              count: parseInt(index['docs.count'], 10),
+              deleted: parseInt(index['docs.deleted'], 10),
+            },
+            store: { size: index['store.size'] },
+          })) as ConnectionIndex[];
+          this.established = { ...connection, indices };
         } catch (err) {
-          console.warn('Failed to establish elasticsearch connection:', err);
+          console.warn('Failed to get indices of established connection:', err);
           this.established = { ...connection, indices: [] };
         }
       } else if (connection.type === DatabaseType.DYNAMODB) {
@@ -269,7 +265,7 @@ export const useConnectionStore = defineStore('connectionStore', {
             this.established = { ...this.established, activeIndex: newIndex };
           }
         }
-      } catch (err) { }
+      } catch (err) {}
 
       const reqPath = buildPath(index, path, this.established);
 
@@ -320,7 +316,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
       return false;
     },
-    updateConnectionTabs(connectionId: string, tabs: Array<{ name: string, index: number }>) {
+    updateConnectionTabs(connectionId: string, tabs: Array<{ name: string; index: number }>) {
       const connection = this.connections.find(c => c.id === connectionId);
       if (connection) {
         connection.tabs = tabs;

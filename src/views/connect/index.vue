@@ -6,7 +6,6 @@
     :closable="closableRef"
     class="connect-tab-container"
     @close="handleClose"
-    @add="handleAdd"
   >
     <n-tab-pane
       v-for="panel in panelsRef"
@@ -14,8 +13,8 @@
       :name="panel.name"
       class="tab-pane-container"
     >
-      <Editor v-if="panel.editor" />
-      <connect-list v-else class="ssh-list" @edit-connect="editConnectHandler" />
+      <Editor v-if="panel.connection" />
+      <connect-list v-else @edit-connect="editConnectHandler" @tab-panel="tabPanelHandler" />
     </n-tab-pane>
   </n-tabs>
   <div class="connect-container">
@@ -61,8 +60,9 @@ const { established } = storeToRefs(connectionStore);
 type Panel = {
   id: number;
   name: string;
-  editor?: Connection;
+  connection?: Connection;
 };
+
 const currentPanelName = ref('home');
 const panelsRef = ref<Array<Panel>>([{ id: 0, name: 'home' }]);
 
@@ -82,6 +82,23 @@ const databaseTypes = [
     icon: dynamoDB,
   },
 ];
+
+const tabPanelHandler = async ({
+  action,
+  connection,
+}: {
+  action: 'ADD_PANEL';
+  connection: Connection;
+}) => {
+  if (action === 'ADD_PANEL') {
+    const exists = panelsRef.value.filter(panelItem => panelItem.connection?.id === connection.id);
+    const panelName = !exists.length ? connection.name : `${connection.name}-${exists.length}`;
+
+    panelsRef.value.push({ id: panelsRef.value.length + 1, name: panelName, connection });
+
+    currentPanelName.value = panelName;
+  }
+};
 
 const editConnectHandler = (connection: Connection) => {
   if (connection.type === DatabaseType.ELASTICSEARCH) {
@@ -108,14 +125,6 @@ const closableRef = computed(() => {
   return panelsRef.value.length > 1;
 });
 
-const handleAdd = () => {
-  const exists = panelsRef.value.filter(panel => panel.name.startsWith('SSH List'));
-  const name = !exists.length ? 'SSH List' : `SSH List-${exists.length}`;
-
-  panelsRef.value.push({ id: panelsRef.value.length, name });
-  currentPanelName.value = name;
-};
-
 const handleClose = (name: string) => {
   const { value: panels } = panelsRef;
   const nameIndex = panels.findIndex(({ name: panelName }) => panelName === name);
@@ -131,6 +140,7 @@ const handleClose = (name: string) => {
 .connect-tab-container {
   width: 100%;
   height: 100%;
+
   .tab-pane-container {
     height: 100%;
     width: 100%;

@@ -8,12 +8,7 @@
       closable
       addable
     >
-      <n-tab-pane
-        v-for="tab in tabs"
-        :key="tab.name"
-        :name="tab.name"
-        :tab="`Query ${tab.index}`"
-      >
+      <n-tab-pane v-for="tab in tabs" :key="tab.name" :name="tab.name" :tab="`Query ${tab.index}`">
         <div class="editor-container">
           <template v-if="databaseType === DatabaseType.ELASTICSEARCH">
             <div class="es-editor">
@@ -56,7 +51,7 @@
 import { AiStatus } from '@vicons/carbon';
 import { NTabPane, NTabs } from 'naive-ui';
 import { ref, watch } from 'vue';
-import { DatabaseType, useConnectionStore } from '../../../store/connectionStore';
+import { DatabaseType, useConnectionStore } from '../../../store';
 import Editor from '../../editor/index.vue';
 import collectionSelector from './collection-selector.vue';
 import { useSourceFileStore } from '../../../store';
@@ -70,25 +65,30 @@ const connectionStore = useConnectionStore();
 const fileStore = useSourceFileStore();
 const { readSourceFromFile } = fileStore;
 
-
 const activeTab = ref('');
-const tabs = ref<Array<{name: string, index: number}>>([]);
+const tabs = ref<Array<{ name: string; index: number }>>([]);
 
-watch(() => props.established, (newVal) => {
-  if (newVal && connectionStore.established) {
-    if (!connectionStore.established.tabs?.length) {
-      const newTabName = 'tab-1';
-      const newTabs = [{
-        name: newTabName,
-        index: 1
-      }];
-      connectionStore.updateConnectionTabs(connectionStore.established.id, newTabs);
-      connectionStore.updateConnectionActiveTab(connectionStore.established.id, newTabName);
+watch(
+  () => props.established,
+  newVal => {
+    if (newVal && connectionStore.established) {
+      if (!connectionStore.established.tabs?.length) {
+        const newTabName = 'tab-1';
+        const newTabs = [
+          {
+            name: newTabName,
+            index: 1,
+          },
+        ];
+        connectionStore.updateConnectionTabs(connectionStore.established.id, newTabs);
+        connectionStore.updateConnectionActiveTab(connectionStore.established.id, newTabName);
+      }
+      tabs.value = connectionStore.established.tabs || [];
+      activeTab.value = connectionStore.established.activeTab || '';
     }
-    tabs.value = connectionStore.established.tabs || [];
-    activeTab.value = connectionStore.established.activeTab || '';
-  }
-}, { immediate: true });
+  },
+  { immediate: true },
+);
 
 const handleCloseTab = (name: string) => {
   const index = tabs.value.findIndex(tab => tab.name === name);
@@ -108,7 +108,7 @@ const handleAddTab = () => {
   const newTabName = `tab-${tabs.value.length + 1}`;
   tabs.value.push({
     name: newTabName,
-    index: tabs.value.length + 1
+    index: tabs.value.length + 1,
   });
   activeTab.value = newTabName;
   if (connectionStore.established) {
@@ -121,7 +121,7 @@ const handleLoadAction = async () => {
   await readSourceFromFile(undefined);
 };
 
-watch(activeTab, (newVal) => {
+watch(activeTab, newVal => {
   if (connectionStore.established && newVal) {
     connectionStore.updateConnectionActiveTab(connectionStore.established.id, newVal);
   }
@@ -145,17 +145,17 @@ watch(activeTab, (newVal) => {
     flex: 1;
     display: flex;
     flex-direction: column;
-    
+
     .n-tabs-nav {
       padding: 8px 8px 0;
       background: var(--n-color);
-      
+
       .tab-prefix {
         display: flex;
         align-items: center;
         gap: 8px;
         padding: 0 12px;
-        
+
         .tab-name {
           font-size: 14px;
           color: var(--text-color);
@@ -171,7 +171,7 @@ watch(activeTab, (newVal) => {
 
     .n-tab-pane {
       height: 100%;
-      
+
       .editor-container {
         height: 100%;
         padding: 0;
@@ -181,7 +181,7 @@ watch(activeTab, (newVal) => {
           height: 100%;
           display: flex;
           flex-direction: column;
-          
+
           .toolbar {
             display: flex;
             align-items: center;
@@ -189,7 +189,7 @@ watch(activeTab, (newVal) => {
             margin-bottom: 16px;
             flex-shrink: 0;
           }
-          
+
           .es-editor-container {
             flex: 1;
             height: 0;
@@ -201,7 +201,7 @@ watch(activeTab, (newVal) => {
           width: 100%;
           height: 100%;
           padding: 16px;
-          
+
           :deep(.n-tabs) {
             height: 100%;
 
@@ -222,4 +222,4 @@ watch(activeTab, (newVal) => {
   align-items: center;
   justify-content: center;
 }
-</style> 
+</style>
