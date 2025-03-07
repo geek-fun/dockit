@@ -78,7 +78,10 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
 
 const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
   onDidChange: (listener, thisArg) => {
-    const model = queryEditor!.getModel();
+    if (!queryEditor) {
+      return { dispose: () => {} } as monaco.IDisposable;
+    }
+    const model = queryEditor.getModel();
     // refresh at first loading
     if (model) {
       buildSearchToken(model);

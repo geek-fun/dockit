@@ -1,19 +1,33 @@
 <template>
   <n-tabs
-    v-model:value="currentPanelName"
     type="card"
     :addable="false"
-    :closable="closableRef"
+    :value="activePanelName"
     class="connect-tab-container"
-    @close="handleClose"
+    @close="value => handleTabChange(value, 'CLOSE')"
+    @update:value="value => handleTabChange(value, 'CHANGE')"
   >
     <n-tab-pane
-      v-for="panel in panelsRef"
+      v-for="(panel, index) in panels"
+      :closable="index > 0"
       :key="panel.id"
       :name="panel.name"
       class="tab-pane-container"
     >
-      <template v-if="panel.connection && panel.connection.type === DatabaseType.ELASTICSEARCH">
+      <connect-list v-if="panel.id === 0" @tab-panel="tabPanelHandler" />
+      <template v-else-if="panel.connection && panel.connection.type === DatabaseType.DYNAMODB">
+        <div class="dynamo-editor">
+          <n-tabs type="segment">
+            <n-tab-pane name="query" tab="Query">
+              <n-empty :description="$t('connection.dynamodb.queryComingSoon')" />
+            </n-tab-pane>
+            <n-tab-pane name="tables" tab="Tables">
+              <n-empty :description="$t('connection.dynamodb.tablesComingSoon')" />
+            </n-tab-pane>
+          </n-tabs>
+        </div>
+      </template>
+      <template v-else>
         <div class="es-editor">
           <div class="toolbar">
             <collection-selector />
@@ -32,43 +46,37 @@
           </div>
         </div>
       </template>
-      <template v-else-if="panel.connection && panel.connection.type === DatabaseType.DYNAMODB">
-        <div class="dynamo-editor">
-          <n-tabs type="segment">
-            <n-tab-pane name="query" tab="Query">
-              <n-empty :description="$t('connection.dynamodb.queryComingSoon')" />
-            </n-tab-pane>
-            <n-tab-pane name="tables" tab="Tables">
-              <n-empty :description="$t('connection.dynamodb.tablesComingSoon')" />
-            </n-tab-pane>
-          </n-tabs>
-        </div>
-      </template>
-
-      <connect-list v-else @tab-panel="tabPanelHandler" />
     </n-tab-pane>
   </n-tabs>
 </template>
 
 <script setup lang="ts">
+import { storeToRefs } from 'pinia';
 import { AiStatus } from '@vicons/carbon';
-import { ref } from 'vue';
-import { Connection, DatabaseType, useSourceFileStore } from '../../store';
+import { Connection, DatabaseType, usePanelStore, useSourceFileStore } from '../../store';
 import ConnectList from './components/connect-list.vue';
 import Editor from '../editor/index.vue';
 import CollectionSelector from './components/collection-selector.vue';
 
-type Panel = {
-  id: number;
-  name: string;
-  connection?: Connection;
-};
+const route = useRoute();
 
 const fileStore = useSourceFileStore();
 const { readSourceFromFile } = fileStore;
 
-const currentPanelName = ref('home');
-const panelsRef = ref<Array<Panel>>([{ id: 0, name: 'home' }]);
+const panelStore = usePanelStore();
+const { establishPanel, closePanel, setActivePanel } = panelStore;
+const { panels, activePanelId } = storeToRefs(panelStore);
+
+const activePanelName = computed(
+  () => panels.value.find(panel => panel.id === activePanelId.value)?.name,
+);
+
+watch(activePanelName, name => {
+  const panel = panels.value.find(panel => panel.name === name);
+  if (panel) {
+    setActivePanel(panel);
+  }
+});
 
 const tabPanelHandler = async ({
   action,
@@ -78,34 +86,30 @@ const tabPanelHandler = async ({
   connection: Connection;
 }) => {
   if (action === 'ADD_PANEL') {
-    const exists = panelsRef.value.filter(panelItem => panelItem.connection?.id === connection.id);
-    const panelName = !exists.length ? connection.name : `${connection.name}-${exists.length}`;
-
-    panelsRef.value.push({ id: panelsRef.value.length + 1, name: panelName, connection });
-
-    currentPanelName.value = panelName;
+    establishPanel(connection);
   }
 };
 
-const closableRef = computed(() => {
-  return panelsRef.value.length > 1;
-});
-
-const handleClose = (name: string) => {
-  const { value: panels } = panelsRef;
-  const nameIndex = panels.findIndex(({ name: panelName }) => panelName === name);
-  if (!~nameIndex) return;
-  // @todo save file content before close
-  panels.splice(nameIndex, 1);
-
-  if (name === currentPanelName.value) {
-    currentPanelName.value = panels[Math.min(nameIndex, panels.length - 1)].name;
+const handleTabChange = (panelName: string, action: 'CHANGE' | 'CLOSE') => {
+  const panel = panels.value.find(panel => panel.name === panelName);
+  if (action === 'CHANGE') {
+    if (panel) {
+      setActivePanel(panel);
+    }
+  } else if (action === 'CLOSE') {
+    closePanel(panel);
   }
 };
 
 const handleLoadAction = async () => {
   await readSourceFromFile(undefined);
 };
+
+onMounted(async () => {
+  if (route.params.filePath && route.params.filePath !== ':filePath') {
+    establishPanel(route.params.filePath as string);
+  }
+});
 </script>
 
 <style lang="scss" scoped>
@@ -117,31 +121,38 @@ const handleLoadAction = async () => {
     height: 100%;
     width: 100%;
     padding: 0;
+
     .es-editor {
       height: 100%;
       display: flex;
       flex-direction: column;
+
       .toolbar {
         display: flex;
         align-items: center;
         padding: 8px;
+
         .action-load-icon {
           cursor: pointer;
           margin-left: 8px;
         }
       }
+
       .es-editor-container {
         flex: 1;
         overflow: hidden;
         position: relative;
       }
     }
+
     .dynamo-editor {
       height: 100%;
       display: flex;
       flex-direction: column;
+
       .n-tabs {
         flex: 1;
+
         .n-tabs-nav {
           background: var(--n-color);
         }
