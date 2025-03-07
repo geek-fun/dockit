@@ -13,3 +13,4 @@ export * from './sourceFileStore';
 export * from './chatStore';
 export * from './clusterManageStore';
 export * from './backupRestoreStore';
+export * from './panelStore';

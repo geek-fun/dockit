@@ -21,6 +21,7 @@ declare module 'vue' {
     NDialogProvider: typeof import('naive-ui')['NDialogProvider']
     NDivider: typeof import('naive-ui')['NDivider']
     NEmpty: typeof import('naive-ui')['NEmpty']
+    NFloatButton: typeof import('naive-ui')['NFloatButton']
     NForm: typeof import('naive-ui')['NForm']
     NFormItem: typeof import('naive-ui')['NFormItem']
     NFormItemRow: typeof import('naive-ui')['NFormItemRow']
@@ -55,6 +56,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterMain: typeof import('./src/components/RouterMain.vue')['default']
     RouterView: typeof import('vue-router')['RouterView']
+    TabView: typeof import('./src/components/TabView.vue')['default']
     VersionDetect: typeof import('./src/components/VersionDetect.vue')['default']
   }
 }
