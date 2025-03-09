@@ -8,7 +8,8 @@ import {
   renameFile,
   writeTextFile,
 } from '@tauri-apps/api/fs';
-import { homeDir } from '@tauri-apps/api/path';
+
+import { homeDir, isAbsolute } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/api/dialog';
 import { CustomError, debug } from '../common';
 
@@ -74,7 +75,13 @@ const sourceFileApi = {
       defaultPath: defaultPath ?? (await homeDir()),
     })) as string;
   },
-  exists: (filePath: string) => exists(filePath, { dir: BaseDirectory.Home }),
+  exists: async (filePath: string) => {
+    if (await exists(filePath, { dir: BaseDirectory.Home })) {
+      return (await isAbsolute(filePath)) ? filePath : `${await homeDir()}/${filePath}`;
+    } else {
+      return false;
+    }
+  },
 };
 
 export { sourceFileApi };

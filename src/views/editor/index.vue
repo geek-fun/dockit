@@ -9,14 +9,13 @@
   </n-split>
 </template>
 <script setup lang="ts">
-import { useRoute } from 'vue-router';
 import { open } from '@tauri-apps/api/shell';
 import { listen } from '@tauri-apps/api/event';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
 import { CustomError } from '../../common';
-import { useAppStore, useChatStore, useConnectionStore, useSourceFileStore } from '../../store';
+import { useAppStore, useChatStore, useConnectionStore, useTabStore } from '../../store';
 import { useLang } from '../../lang';
 import DisplayEditor from './display-editor.vue';
 
@@ -41,11 +40,9 @@ const appStore = useAppStore();
 const message = useMessage();
 const lang = useLang();
 
-const route = useRoute();
-
-const sourceFileStore = useSourceFileStore();
-const { readSourceFromFile, saveSourceToFile } = sourceFileStore;
-const { fileContent } = storeToRefs(sourceFileStore);
+const tabStore = useTabStore();
+const { saveFile, checkFileExists } = tabStore;
+const { activePanel } = storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
 const { searchQDSL, queryToCurl } = connectionStore;
@@ -65,7 +62,6 @@ const displayEditorRef = ref();
 
 let executeDecorations: Array<Decoration | string> = [];
 let currentAction: SearchAction | undefined = undefined;
-let saveInterval: NodeJS.Timeout;
 
 const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
   const freshDecorations = getActionMarksDecorations(searchTokens);
@@ -79,7 +75,9 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
 const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
   onDidChange: (listener, thisArg) => {
     if (!queryEditor) {
-      return { dispose: () => {} } as monaco.IDisposable;
+      return {
+        dispose: () => {},
+      } as monaco.IDisposable;
     }
     const model = queryEditor.getModel();
     // refresh at first loading
@@ -121,6 +119,7 @@ watch(themeType, () => {
   const vsTheme = getEditorTheme();
   queryEditor?.updateOptions({ theme: vsTheme });
 });
+
 watch(insertBoard, () => {
   if (queryEditor) {
     // add event to handle chatbot-code-actions
@@ -235,10 +234,10 @@ const copyCurlAction = (position: monaco.Range) => {
   }
 };
 
-const setupQueryEditor = (code: string) => {
+const setupQueryEditor = () => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     theme: getEditorTheme(),
-    value: code,
+    value: activePanel.value.content ?? '',
     language: 'search',
     automaticLayout: true,
     scrollBeyondLastLine: false,
@@ -350,23 +349,6 @@ const setupQueryEditor = (code: string) => {
       open(docLink);
     }
   });
-
-  // Set up autosave interval
-  saveInterval = setInterval(async () => {
-    const model = queryEditor?.getModel();
-    if (!model) {
-      return;
-    }
-    const position = queryEditor?.getPosition();
-    const currentContent = model.getValue();
-
-    if (currentContent !== fileContent.value) {
-      await saveSourceToFile(currentContent);
-      if (position) {
-        queryEditor?.setPosition(position);
-      }
-    }
-  }, 5000);
 };
 
 const queryEditorSize = ref(1);
@@ -376,30 +358,48 @@ const displayJsonEditor = (content: string) => {
   displayEditorRef.value.display(content);
 };
 
-const unlistenSaveFile = ref<Function>();
-const saveFileListener = async () => {
-  unlistenSaveFile.value = await listen('saveFile', async () => {
+const unListenSaveFile = ref<Function>();
+let saveInterval: NodeJS.Timeout;
+
+const setupFileListener = async () => {
+  // listen for saveFile event
+  unListenSaveFile.value = await listen('saveFile', async () => {
     const model = queryEditor?.getModel();
     if (!model) {
       return;
     }
-    await saveSourceToFile(model.getValue() || '');
+    await saveFile(undefined, model.getValue() || '');
   });
+
+  // Set up autosave interval if the file exists
+  if (await checkFileExists(undefined)) {
+    saveInterval = setInterval(async () => {
+      const model = queryEditor?.getModel();
+      if (!model) {
+        return;
+      }
+      const position = queryEditor?.getPosition();
+      const currentContent = model.getValue();
+
+      await saveFile(undefined, currentContent);
+      if (position) {
+        queryEditor?.setPosition(position);
+      }
+    }, 5000);
+  }
 };
 
 onMounted(async () => {
-  await readSourceFromFile(route.params.filePath as string);
-  const code = fileContent.value;
-  await saveFileListener();
-  setupQueryEditor(code);
+  setupQueryEditor();
+  await setupFileListener();
 });
 
-onUnmounted(() => {
+onUnmounted(async () => {
   codeLensProvider?.dispose();
   queryEditor?.dispose();
   displayEditorRef?.value?.dispose();
-  if (unlistenSaveFile?.value) {
-    unlistenSaveFile.value();
+  if (unListenSaveFile?.value) {
+    await unListenSaveFile.value();
   }
   clearInterval(saveInterval);
 });

@@ -2,6 +2,7 @@ import { Connection } from './connectionStore.ts';
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
+import { defaultCodeSnippet } from '../common/monaco';
 
 type Panel = {
   id: number;
@@ -11,22 +12,24 @@ type Panel = {
   content?: string;
 };
 
+const homePanel = { id: 0, name: 'home', file: '' };
+
 export const useTabStore = defineStore('panel', {
   state: (): {
-    activePanelId: number;
     panels: Array<Panel>;
+    activePanel: Panel;
   } => ({
-    activePanelId: 0,
-    panels: [{ id: 0, name: 'home', file: '' }],
+    activePanel: homePanel,
+    panels: [homePanel],
   }),
   getters: {},
   actions: {
-    establishPanel(connectionOrFile: Connection | string): void {
+    async establishPanel(connectionOrFile: Connection | string): Promise<void> {
       const isFile = typeof connectionOrFile == 'string';
       if (isFile) {
-        const exists = this.panels.find(panelItem => panelItem.file === connectionOrFile);
-        if (exists) {
-          this.activePanelId = exists.id;
+        const activePanel = this.panels.find(panelItem => panelItem.file === connectionOrFile);
+        if (activePanel) {
+          this.activePanel = activePanel;
         } else {
           const newPanel: Panel = {
             id: this.panels.length + 1,
@@ -34,33 +37,40 @@ export const useTabStore = defineStore('panel', {
             file: connectionOrFile,
           };
           this.panels.push(newPanel);
-          this.activePanelId = newPanel.id;
+          this.activePanel = newPanel;
         }
       } else {
         const exists = this.panels.filter(
           panelItem => panelItem.connection?.id === connectionOrFile.id,
         );
-        const panelName = !exists.length
-          ? connectionOrFile.name
-          : `${connectionOrFile.name}-${exists.length}`;
+        const fileName = !exists.length
+          ? `${connectionOrFile.name}.search`
+          : `${connectionOrFile.name}-${exists.length}.search`;
 
         const newPanel: Panel = {
           id: this.panels.length + 1,
-          name: panelName,
+          name: fileName,
           connection: connectionOrFile,
-          file: `${panelName}.search`,
+          file: fileName,
         };
 
         this.panels.push(newPanel);
-        this.activePanelId = newPanel.id;
+        this.activePanel = newPanel;
+      }
+
+      if (await this.checkFileExists(this.activePanel)) {
+        this.activePanel.content = await sourceFileApi.readFile(this.activePanel.file);
+      } else {
+        this.activePanel.content = defaultCodeSnippet;
       }
     },
+
     async checkFileExists(panel: Panel | undefined) {
-      if (!panel) return;
+      let checkPanel = panel ?? this.activePanel;
+      if (!checkPanel) return false;
       try {
-        return await sourceFileApi.exists(panel.file);
+        return await sourceFileApi.exists(checkPanel.file);
       } catch (err) {
-        console.log('error isabs', err);
         throw err;
       }
     },
@@ -74,32 +84,39 @@ export const useTabStore = defineStore('panel', {
         const selectedIndex = this.panels.findIndex(({ id }) => id === panel.id);
 
         this.panels.splice(selectedIndex, 1);
-        if (panel.id === this.activePanelId) {
-          this.activePanelId = Math.min(selectedIndex, this.panels.length - 1);
+        if (panel.id === this.activePanel?.id) {
+          this.activePanel = this.panels[Math.min(selectedIndex, this.panels.length - 1)];
         }
       } catch (err) {
         throw new CustomError(500, (err as Error).message);
       }
     },
-    setActivePanel(panelId: number, content: string): void {
+    setActivePanel(panelId: number): void {
       const selectedPanel = this.panels.find(({ id }) => id === panelId);
       if (!selectedPanel) return;
-      selectedPanel.content = content;
-      this.activePanelId = selectedPanel.id;
+      this.activePanel = selectedPanel;
     },
 
-    async saveFile(panel: Panel, content: string): Promise<void> {
-      let filePath = panel.file;
+    async saveFile(panel: Panel | undefined, content: string): Promise<void> {
+      let checkPanel = panel ?? this.activePanel;
+      if (!checkPanel || checkPanel.content === content) return;
+
+      let filePath = checkPanel.file;
       if (!(await sourceFileApi.exists(filePath))) {
         const selectedFolder = await sourceFileApi.selectFolder();
         filePath = `${selectedFolder}/${filePath}`;
-        console.log(`selectedFolder:${selectedFolder}, filePath:${filePath}`);
         if (!filePath) {
           throw new CustomError(404, 'Folder not found');
         }
       }
 
+      checkPanel.file = filePath;
+
       await sourceFileApi.saveFile(filePath, content);
+    },
+    loadDefaultSnippet() {
+      if (!this.activePanel) return;
+      this.activePanel.content = defaultCodeSnippet;
     },
   },
   persist: {

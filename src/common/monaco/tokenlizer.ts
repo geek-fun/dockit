@@ -147,7 +147,6 @@ export const transformQDSL = ({ path, qdsl }: Pick<SearchAction, 'path' | 'qdsl'
         .join('\n');
       return `${bulkQdsl}\n`;
     }
-    console.log('qdsl', replaceComments(qdsl).trim());
 
     return puredDsl ? JSON.stringify(JSON5.parse(puredDsl), null, 2) : undefined;
   } catch (err) {

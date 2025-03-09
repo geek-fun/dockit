@@ -2,7 +2,7 @@
   <n-tabs
     type="card"
     :addable="false"
-    :value="activePanelName"
+    :value="activePanel.name"
     class="connect-tab-container"
     @close="value => handleTabChange(value, 'CLOSE')"
     @update:value="value => handleTabChange(value, 'CHANGE')"
@@ -33,7 +33,7 @@
             <collection-selector />
             <n-tooltip trigger="hover">
               <template #trigger>
-                <n-icon size="20" class="action-load-icon" @click="handleLoadAction">
+                <n-icon size="20" class="action-load-icon" @click="loadDefaultSnippet">
                   <AiStatus />
                 </n-icon>
               </template>
@@ -53,7 +53,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { AiStatus } from '@vicons/carbon';
-import { Connection, DatabaseType, useSourceFileStore, useTabStore } from '../../store';
+import { Connection, DatabaseType, useTabStore } from '../../store';
 import ConnectList from './components/connect-list.vue';
 import Editor from '../editor/index.vue';
 import CollectionSelector from './components/collection-selector.vue';
@@ -64,23 +64,10 @@ const dialog = useDialog();
 const message = useMessage();
 const lang = useLang();
 
-const fileStore = useSourceFileStore();
-const { readSourceFromFile } = fileStore;
-
 const tabStore = useTabStore();
-const { establishPanel, closePanel, setActivePanel, checkFileExists } = tabStore;
-const { panels, activePanelId } = storeToRefs(tabStore);
-
-const activePanelName = computed(
-  () => panels.value.find(panel => panel.id === activePanelId.value)?.name,
-);
-
-watch(activePanelName, name => {
-  const panel = panels.value.find(panel => panel.name === name);
-  if (panel) {
-    setActivePanel(panel.id, panel.content ?? '');
-  }
-});
+const { establishPanel, closePanel, setActivePanel, checkFileExists, loadDefaultSnippet } =
+  tabStore;
+const { panels, activePanel } = storeToRefs(tabStore);
 
 const tabPanelHandler = async ({
   action,
@@ -100,9 +87,7 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
     return;
   }
   if (action === 'CHANGE') {
-    if (panel) {
-      setActivePanel(panel.id, panel.content ?? '');
-    }
+    setActivePanel(panel.id);
   } else if (action === 'CLOSE') {
     const exists = await checkFileExists(panel);
     if (!exists) {
@@ -125,10 +110,6 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
       });
     }
   }
-};
-
-const handleLoadAction = async () => {
-  await readSourceFromFile(undefined);
 };
 
 onMounted(async () => {
