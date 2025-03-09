@@ -30,16 +30,7 @@
       <template v-else>
         <div class="es-editor">
           <div class="toolbar">
-            <collection-selector />
-            <n-tooltip trigger="hover">
-              <template #trigger>
-                <n-icon size="20" class="action-load-icon" @click="loadDefaultSnippet">
-                  <AiStatus />
-                </n-icon>
-              </template>
-              {{ $t('editor.loadDefault') }}
-            </n-tooltip>
-            <path-breadcrumb :clickable="false" />
+            <tool-bar />
           </div>
           <div class="es-editor-container">
             <Editor />
@@ -52,11 +43,10 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { AiStatus } from '@vicons/carbon';
 import { Connection, DatabaseType, useTabStore } from '../../store';
 import ConnectList from './components/connect-list.vue';
 import Editor from '../editor/index.vue';
-import CollectionSelector from './components/collection-selector.vue';
+import ToolBar from '../../components/tool-bar.vue';
 import { useLang } from '../../lang';
 
 const route = useRoute();
@@ -65,8 +55,7 @@ const message = useMessage();
 const lang = useLang();
 
 const tabStore = useTabStore();
-const { establishPanel, closePanel, setActivePanel, checkFileExists, loadDefaultSnippet } =
-  tabStore;
+const { establishPanel, closePanel, setActivePanel, checkFileExists } = tabStore;
 const { panels, activePanel } = storeToRefs(tabStore);
 
 const tabPanelHandler = async ({
@@ -135,17 +124,6 @@ onMounted(async () => {
       height: 100%;
       display: flex;
       flex-direction: column;
-
-      .toolbar {
-        display: flex;
-        align-items: center;
-        padding: 8px;
-
-        .action-load-icon {
-          cursor: pointer;
-          margin-left: 8px;
-        }
-      }
 
       .es-editor-container {
         flex: 1;
