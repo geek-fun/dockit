@@ -53,19 +53,23 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { AiStatus } from '@vicons/carbon';
-import { Connection, DatabaseType, usePanelStore, useSourceFileStore } from '../../store';
+import { Connection, DatabaseType, useSourceFileStore, useTabStore } from '../../store';
 import ConnectList from './components/connect-list.vue';
 import Editor from '../editor/index.vue';
 import CollectionSelector from './components/collection-selector.vue';
+import { useLang } from '../../lang';
 
 const route = useRoute();
+const dialog = useDialog();
+const message = useMessage();
+const lang = useLang();
 
 const fileStore = useSourceFileStore();
 const { readSourceFromFile } = fileStore;
 
-const panelStore = usePanelStore();
-const { establishPanel, closePanel, setActivePanel } = panelStore;
-const { panels, activePanelId } = storeToRefs(panelStore);
+const tabStore = useTabStore();
+const { establishPanel, closePanel, setActivePanel, checkFileExists } = tabStore;
+const { panels, activePanelId } = storeToRefs(tabStore);
 
 const activePanelName = computed(
   () => panels.value.find(panel => panel.id === activePanelId.value)?.name,
@@ -74,7 +78,7 @@ const activePanelName = computed(
 watch(activePanelName, name => {
   const panel = panels.value.find(panel => panel.name === name);
   if (panel) {
-    setActivePanel(panel);
+    setActivePanel(panel.id, panel.content ?? '');
   }
 });
 
@@ -90,14 +94,36 @@ const tabPanelHandler = async ({
   }
 };
 
-const handleTabChange = (panelName: string, action: 'CHANGE' | 'CLOSE') => {
+const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') => {
   const panel = panels.value.find(panel => panel.name === panelName);
+  if (!panel) {
+    return;
+  }
   if (action === 'CHANGE') {
     if (panel) {
-      setActivePanel(panel);
+      setActivePanel(panel.id, panel.content ?? '');
     }
   } else if (action === 'CLOSE') {
-    closePanel(panel);
+    const exists = await checkFileExists(panel);
+    if (!exists) {
+      dialog.warning({
+        title: lang.t('file.saveFileBeforeClose.title'),
+        content: lang.t('file.saveFileBeforeClose.content'),
+        positiveText: lang.t('file.saveFileBeforeClose.positiveText'),
+        negativeText: lang.t('file.saveFileBeforeClose.negativeText'),
+        onPositiveClick: async () => {
+          try {
+            closePanel(panel, true);
+            message.success(lang.t('file.saveFileBeforeClose.success'));
+          } catch (err) {
+            message.error(lang.t('file.saveFileBeforeClose.failed') + ': ' + err);
+          }
+        },
+        onNegativeClick: () => {
+          closePanel(panel, true);
+        },
+      });
+    }
   }
 };
 

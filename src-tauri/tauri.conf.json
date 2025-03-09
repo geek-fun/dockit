@@ -31,7 +31,7 @@
         "removeFile": true,
         "renameFile": true,
         "scope": [
-          "*/**"
+          "$HOME/**"
         ]
       },
       "http": {

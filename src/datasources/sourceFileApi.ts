@@ -8,7 +8,8 @@ import {
   renameFile,
   writeTextFile,
 } from '@tauri-apps/api/fs';
-
+import { homeDir } from '@tauri-apps/api/path';
+import { open } from '@tauri-apps/api/dialog';
 import { CustomError, debug } from '../common';
 
 const saveFile = async (filePath: string, content: string, append: boolean) => {
@@ -66,7 +67,14 @@ const sourceFileApi = {
   createFolder: (folderPath: string) => createDir(folderPath),
   deleteFileOrFolder,
   renameFileOrFolder,
-  exists: (filePath: string) => exists(filePath),
+  selectFolder: async (defaultPath?: string) => {
+    return (await open({
+      recursive: true,
+      directory: true,
+      defaultPath: defaultPath ?? (await homeDir()),
+    })) as string;
+  },
+  exists: (filePath: string) => exists(filePath, { dir: BaseDirectory.Home }),
 };
 
 export { sourceFileApi };

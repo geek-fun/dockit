@@ -188,6 +188,14 @@ export const enUS = {
     },
     rename: 'Rename',
     name: 'Name',
+    saveFileBeforeClose: {
+      title: 'Warning',
+      content: 'File does not persist, do you want to save it first?',
+      positiveText: 'Save',
+      negativeText: 'Delete',
+      success: 'File saved successfully',
+      failed: 'Failed to save file',
+    },
   },
   history: {
     empty: 'No history yet',

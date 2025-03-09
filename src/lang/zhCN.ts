@@ -189,6 +189,14 @@ export const zhCN = {
       delete: '删除',
     },
     rename: '重命名',
+    saveFileBeforeClose: {
+      title: '注意',
+      content: '文件不存在，是否先保存？',
+      positiveText: '保存',
+      negativeText: '删除',
+      success: '文件保存成功',
+      failed: '文件保存失败',
+    },
   },
   history: {
     empty: '无历史记录',
