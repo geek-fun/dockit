@@ -31,7 +31,9 @@
         "removeFile": true,
         "renameFile": true,
         "scope": [
-          "*/**"
+          "$HOME/**",
+          "$HOME/**/.*",
+          "$HOME/.dockit/**/*"
         ]
       },
       "http": {

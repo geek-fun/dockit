@@ -287,7 +287,6 @@ const testConnectConfirm = async () => {
   testLoading.value = !testLoading.value;
   try {
     if (formData.value.type === DatabaseType.ELASTICSEARCH) {
-      console.log('test es connection');
       await testElasticsearchConnection(formData.value);
     } else if (formData.value.type === DatabaseType.DYNAMODB) {
       await testDynamoDBConnection(formData.value);

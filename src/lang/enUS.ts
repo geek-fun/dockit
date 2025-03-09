@@ -121,7 +121,7 @@ export const enUS = {
     deleteSuccess: 'Delete success',
     testSuccess: 'Test connect success',
     saveSuccess: 'Save success',
-    edit: 'Edit configuration', 
+    edit: 'Edit configuration',
     selectDatabase: 'Please select database type',
     region: 'Region',
     accessKeyId: 'Access Key ID',
@@ -147,12 +147,12 @@ export const enUS = {
     unAuthorized: 'Authorization failed, ensure your username and password are correct',
     emptyState: {
       noConnections: 'No connections available',
-      pleaseSelect: 'Please select a connection'
+      pleaseSelect: 'Please select a connection',
     },
     dynamodb: {
       queryComingSoon: 'DynamoDB query interface coming soon...',
-      tablesComingSoon: 'DynamoDB tables management coming soon...'
-    }
+      tablesComingSoon: 'DynamoDB tables management coming soon...',
+    },
   },
   dialogOps: {
     warning: 'Warning',
@@ -174,7 +174,7 @@ export const enUS = {
     invalidJson: 'Invalid JSON format',
     copySuccess: 'Copied to clipboard',
     copyFailure: 'Failed to copy to clipboard',
-    unsupportedFile: 'DocKit does not support this file type',
+    unsupportedFile: 'DocKit only supports file end with .search file',
     loadDefault: 'Load default code snippet',
   },
   file: {
@@ -188,6 +188,14 @@ export const enUS = {
     },
     rename: 'Rename',
     name: 'Name',
+    saveFileBeforeClose: {
+      title: 'Warning',
+      content: 'File does not persist, do you want to save it first?',
+      positiveText: 'Save',
+      negativeText: 'Delete',
+      success: 'File saved successfully',
+      failed: 'Failed to save file',
+    },
   },
   history: {
     empty: 'No history yet',

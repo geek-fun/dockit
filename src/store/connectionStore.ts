@@ -4,8 +4,8 @@ import { SearchAction, transformToCurl } from '../common/monaco';
 import { loadHttpClient, storeApi } from '../datasources';
 
 export enum DatabaseType {
-  ELASTICSEARCH = 'elasticsearch',
-  DYNAMODB = 'dynamodb',
+  ELASTICSEARCH = 'ELASTICSEARCH',
+  DYNAMODB = 'DYNAMODB',
 }
 
 export type BaseConnection = {
@@ -101,7 +101,11 @@ export const useConnectionStore = defineStore('connectionStore', {
   actions: {
     async fetchConnections() {
       try {
-        this.connections = (await storeApi.get('connections', [])) as Connection[];
+        const fetchedConnections = (await storeApi.get('connections', [])) as Connection[];
+        this.connections = fetchedConnections.map(connection => ({
+          ...connection,
+          type: connection.type?.toUpperCase() ?? DatabaseType.ELASTICSEARCH,
+        })) as Connection[];
       } catch (error) {
         console.error('Error fetching connections:', error);
         this.connections = [];
@@ -166,30 +170,26 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async establishConnection(connection: Connection) {
       if (connection.type === DatabaseType.ELASTICSEARCH) {
+        await this.testElasticsearchConnection(connection);
+        const client = loadHttpClient(connection);
+        let indices: ConnectionIndex[] = [];
+
         try {
-          await this.testElasticsearchConnection(connection);
-          const client = loadHttpClient(connection);
-          let indices: ConnectionIndex[] = [];
+          const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+            [key: string]: string;
+          }>;
 
-          try {
-            const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
-              [key: string]: string;
-            }>;
-
-            indices = data.map(index => ({
-              ...index,
-              docs: {
-                count: parseInt(index['docs.count'], 10),
-                deleted: parseInt(index['docs.deleted'], 10),
-              },
-              store: { size: index['store.size'] },
-            })) as ConnectionIndex[];
-            this.established = { ...connection, indices };
-          } catch (err) {
-            this.established = { ...connection, indices: [] };
-          }
+          indices = data.map(index => ({
+            ...index,
+            docs: {
+              count: parseInt(index['docs.count'], 10),
+              deleted: parseInt(index['docs.deleted'], 10),
+            },
+            store: { size: index['store.size'] },
+          })) as ConnectionIndex[];
+          this.established = { ...connection, indices };
         } catch (err) {
-          console.warn('Failed to establish elasticsearch connection:', err);
+          console.warn('Failed to get indices of established connection:', err);
           this.established = { ...connection, indices: [] };
         }
       } else if (connection.type === DatabaseType.DYNAMODB) {

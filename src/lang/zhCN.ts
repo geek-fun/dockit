@@ -147,12 +147,12 @@ export const zhCN = {
     unAuthorized: '认证失败，请输入正确的用户名和密码！',
     emptyState: {
       noConnections: '暂无可用连接',
-      pleaseSelect: '请选择一个连接'
+      pleaseSelect: '请选择一个连接',
     },
     dynamodb: {
       queryComingSoon: 'DynamoDB 查询功能开发中...',
-      tablesComingSoon: 'DynamoDB 表管理功能开发中...'
-    }
+      tablesComingSoon: 'DynamoDB 表管理功能开发中...',
+    },
   },
   dialogOps: {
     warning: '提示',
@@ -174,7 +174,7 @@ export const zhCN = {
     invalidJson: '无效的 JSON 格式',
     copySuccess: '已复制到粘贴板',
     copyFailure: '复制失败',
-    unsupportedFile: 'DocKit不支持该文件类型',
+    unsupportedFile: 'DocKit仅支持以 .search 结尾的文件',
     loadDefault: '加载默认代码片段',
   },
   file: {
@@ -189,6 +189,14 @@ export const zhCN = {
       delete: '删除',
     },
     rename: '重命名',
+    saveFileBeforeClose: {
+      title: '注意',
+      content: '文件不存在，是否先保存？',
+      positiveText: '保存',
+      negativeText: '删除',
+      success: '文件保存成功',
+      failed: '文件保存失败',
+    },
   },
   history: {
     empty: '无历史记录',
@@ -197,7 +205,7 @@ export const zhCN = {
   backup: {
     backup: '备份',
     restore: '恢复',
-    restoreSourceDesc: '点击或拖动文件到此区域上传您的 JSON/CSV 文件',	
+    restoreSourceDesc: '点击或拖动文件到此区域上传您的 JSON/CSV 文件',
     backupToFileSuccess: '成功备份到文件',
     restoreFromFileSuccess: '成功从文件恢复',
     backupForm: {

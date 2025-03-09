@@ -16,6 +16,7 @@ const props = defineProps({
     required: true,
   },
 });
+
 const appStore = useAppStore();
 const { uiThemeType } = storeToRefs(appStore);
 

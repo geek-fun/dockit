@@ -167,7 +167,6 @@ const handleFileUpload = async () => {
   try {
     await selectFile();
     restoreFormData.value.restoreFile = restoreFile.value;
-    console.log('handleFileUpload', restoreFormData.value);
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
