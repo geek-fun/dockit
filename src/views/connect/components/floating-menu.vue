@@ -5,24 +5,24 @@
     menu-trigger="click"
     bottom="40px"
     right="80px"
-    width="40px"
-    height="40px"
+    width="50px"
+    height="50px"
   >
-    <n-icon size="24">
+    <n-icon size="32">
       <Add />
     </n-icon>
     <template #menu>
-      <n-float-button @click="handleAddClick">
-        <n-icon size="24">
+      <n-float-button @click="handleAddClick" type="primary" width="50px" height="50px">
+        <n-icon size="32">
           <Add />
         </n-icon>
-        <template #description>Add Connection</template>
+        <!--        <template #description>New Connection</template>-->
       </n-float-button>
-      <n-float-button>
-        <n-icon size="24">
-          <Add />
-        </n-icon>
-      </n-float-button>
+      <!--      <n-float-button>-->
+      <!--        <n-icon size="24">-->
+      <!--          <Add />-->
+      <!--        </n-icon>-->
+      <!--      </n-float-button>-->
     </template>
   </n-float-button>
 </template>
