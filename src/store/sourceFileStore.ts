@@ -1,12 +1,10 @@
 import { open } from '@tauri-apps/api/dialog';
 import { exists, readDir } from '@tauri-apps/api/fs';
-import { appLocalDataDir } from '@tauri-apps/api/path';
 
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
 import { get } from 'lodash';
-import { defaultCodeSnippet } from '../common/monaco';
 
 export enum ToolBarAction {
   ADD_DOCUMENT = 'ADD_DOCUMENT',
@@ -44,22 +42,6 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
   persist: true,
   getters: {},
   actions: {
-    async readSourceFromFile(path: string | undefined) {
-      const appLocalDataDirPath = `${await appLocalDataDir()}/search/default.search`;
-
-      this.filePath = path && path !== ':filePath' ? path : appLocalDataDirPath;
-      const fileContent = await sourceFileApi.readFile(this.filePath);
-      this.fileContent =
-        !fileContent && this.filePath === appLocalDataDirPath ? defaultCodeSnippet : fileContent;
-    },
-    async saveSourceToFile(content: string, path?: string | undefined) {
-      if (path && path !== ':filePath' && path !== this.filePath) {
-        this.filePath = path;
-      }
-      this.fileContent = content;
-      await sourceFileApi.saveFile(this.filePath, content);
-    },
-
     async openFolder(path?: string) {
       try {
         const selectedPath =
