@@ -4,19 +4,14 @@ import { SearchAction, transformToCurl } from '../common/monaco';
 import { loadHttpClient, storeApi } from '../datasources';
 
 export enum DatabaseType {
-  ELASTICSEARCH = 'elasticsearch',
-  DYNAMODB = 'dynamodb',
+  ELASTICSEARCH = 'ELASTICSEARCH',
+  DYNAMODB = 'DYNAMODB',
 }
 
 export type BaseConnection = {
-  id: string;
+  id?: number;
   name: string;
   type: DatabaseType;
-  tabs: Array<{
-    name: string;
-    index: number;
-  }>;
-  activeTab?: string;
 };
 
 export type DynamoDBConnection = BaseConnection & {
@@ -37,11 +32,6 @@ export type ElasticsearchConnection = BaseConnection & {
   password?: string;
   indexName?: string;
   queryParameters?: string;
-  tabs: Array<{
-    name: string;
-    index: number;
-  }>;
-  activeTab?: string;
 };
 
 export type ConnectionIndex = {
@@ -111,7 +101,11 @@ export const useConnectionStore = defineStore('connectionStore', {
   actions: {
     async fetchConnections() {
       try {
-        this.connections = (await storeApi.get('connections', [])) as Connection[];
+        const fetchedConnections = (await storeApi.get('connections', [])) as Connection[];
+        this.connections = fetchedConnections.map(connection => ({
+          ...connection,
+          type: connection.type?.toUpperCase() ?? DatabaseType.ELASTICSEARCH,
+        })) as Connection[];
       } catch (error) {
         console.error('Error fetching connections:', error);
         this.connections = [];
@@ -130,7 +124,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         const newConnection = {
           ...connection,
           type: 'host' in connection ? DatabaseType.ELASTICSEARCH : DatabaseType.DYNAMODB,
-          id: connection.id || `${this.connections.length + 1}`,
+          id: connection.id || this.connections.length + 1,
         } as Connection;
 
         if (connection.id) {
@@ -315,18 +309,6 @@ export const useConnectionStore = defineStore('connectionStore', {
         return !!(connection.region && connection.accessKeyId && connection.secretAccessKey);
       }
       return false;
-    },
-    updateConnectionTabs(connectionId: string, tabs: Array<{ name: string; index: number }>) {
-      const connection = this.connections.find(c => c.id === connectionId);
-      if (connection) {
-        connection.tabs = tabs;
-      }
-    },
-    updateConnectionActiveTab(connectionId: string, activeTab: string) {
-      const connection = this.connections.find(c => c.id === connectionId);
-      if (connection) {
-        connection.activeTab = activeTab;
-      }
     },
   },
 });

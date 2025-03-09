@@ -105,9 +105,11 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
           }
         },
         onNegativeClick: () => {
-          closePanel(panel, true);
+          closePanel(panel, false);
         },
       });
+    } else {
+      closePanel(panel, true);
     }
   }
 };

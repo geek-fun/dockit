@@ -35,6 +35,7 @@ export const useTabStore = defineStore('panel', {
             id: this.panels.length + 1,
             name: connectionOrFile,
             file: connectionOrFile,
+            content: await sourceFileApi.readFile(connectionOrFile),
           };
           this.panels.push(newPanel);
           this.activePanel = newPanel;
@@ -43,25 +44,29 @@ export const useTabStore = defineStore('panel', {
         const exists = this.panels.filter(
           panelItem => panelItem.connection?.id === connectionOrFile.id,
         );
-        const fileName = !exists.length
+
+        let fileName = !exists.length
           ? `${connectionOrFile.name}.search`
           : `${connectionOrFile.name}-${exists.length}.search`;
+        let content = defaultCodeSnippet;
+
+        if (await sourceFileApi.exists(fileName)) {
+          content = await sourceFileApi.readFile(fileName);
+        } else if (await sourceFileApi.exists(`.dockit/${fileName}`)) {
+          fileName = `.dockit/${fileName}`;
+          content = await sourceFileApi.readFile(fileName);
+        }
 
         const newPanel: Panel = {
           id: this.panels.length + 1,
           name: fileName,
           connection: connectionOrFile,
           file: fileName,
+          content,
         };
 
         this.panels.push(newPanel);
         this.activePanel = newPanel;
-      }
-
-      if (await this.checkFileExists(this.activePanel)) {
-        this.activePanel.content = await sourceFileApi.readFile(this.activePanel.file);
-      } else {
-        this.activePanel.content = defaultCodeSnippet;
       }
     },
 
@@ -91,6 +96,7 @@ export const useTabStore = defineStore('panel', {
         throw new CustomError(500, (err as Error).message);
       }
     },
+
     setActivePanel(panelId: number): void {
       const selectedPanel = this.panels.find(({ id }) => id === panelId);
       if (!selectedPanel) return;
@@ -99,7 +105,7 @@ export const useTabStore = defineStore('panel', {
 
     async saveFile(panel: Panel | undefined, content: string): Promise<void> {
       let checkPanel = panel ?? this.activePanel;
-      if (!checkPanel || checkPanel.content === content) return;
+      if (!checkPanel) return;
 
       let filePath = checkPanel.file;
       if (!(await sourceFileApi.exists(filePath))) {
@@ -111,6 +117,7 @@ export const useTabStore = defineStore('panel', {
       }
 
       checkPanel.file = filePath;
+      checkPanel.content = content;
 
       await sourceFileApi.saveFile(filePath, content);
     },

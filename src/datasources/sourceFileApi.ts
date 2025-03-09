@@ -9,7 +9,7 @@ import {
   writeTextFile,
 } from '@tauri-apps/api/fs';
 
-import { homeDir, isAbsolute } from '@tauri-apps/api/path';
+import { homeDir } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/api/dialog';
 import { CustomError, debug } from '../common';
 
@@ -17,10 +17,10 @@ const saveFile = async (filePath: string, content: string, append: boolean) => {
   try {
     const folderPath = filePath.substring(0, filePath.lastIndexOf('/'));
 
-    if (!(await exists(folderPath, { dir: BaseDirectory.AppData }))) {
-      await createDir(folderPath, { dir: BaseDirectory.AppData, recursive: true });
+    if (!(await exists(folderPath, { dir: BaseDirectory.Home }))) {
+      await createDir(folderPath, { dir: BaseDirectory.Home, recursive: true });
     }
-    await writeTextFile(filePath, content, { dir: BaseDirectory.AppConfig, append });
+    await writeTextFile(filePath, content, { dir: BaseDirectory.Home, append });
     debug('save file success');
   } catch (err) {
     debug(`saveFile error: ${err}`);
@@ -29,13 +29,13 @@ const saveFile = async (filePath: string, content: string, append: boolean) => {
 };
 
 const readFromFile = async (filePath: string) => {
-  if (!(await exists(filePath, { dir: BaseDirectory.AppData }))) {
+  if (!(await exists(filePath, { dir: BaseDirectory.Home }))) {
     debug('File does not exist. Creating a new file...');
     return '';
   }
 
   try {
-    return await readTextFile(filePath, { dir: BaseDirectory.AppConfig });
+    return await readTextFile(filePath, { dir: BaseDirectory.Home });
   } catch (err) {
     debug(`readFromFile error: ${err}`);
     throw err;
@@ -61,6 +61,20 @@ const renameFileOrFolder = async (oldPath: string, newPath: string) => {
   }
 };
 
+const selectFolder = async (basePath?: string) => {
+  const defaultPath = basePath ?? `.dockit`;
+
+  if (!(await exists(defaultPath, { dir: BaseDirectory.Home }))) {
+    await createDir(defaultPath, { dir: BaseDirectory.Home, recursive: true });
+  }
+
+  return (await open({
+    recursive: true,
+    directory: true,
+    defaultPath: `${await homeDir()}/${defaultPath}`,
+  })) as string;
+};
+
 const sourceFileApi = {
   saveFile: (filePath: string, content: string, append = false) =>
     saveFile(filePath, content, append),
@@ -68,20 +82,8 @@ const sourceFileApi = {
   createFolder: (folderPath: string) => createDir(folderPath),
   deleteFileOrFolder,
   renameFileOrFolder,
-  selectFolder: async (defaultPath?: string) => {
-    return (await open({
-      recursive: true,
-      directory: true,
-      defaultPath: defaultPath ?? (await homeDir()),
-    })) as string;
-  },
-  exists: async (filePath: string) => {
-    if (await exists(filePath, { dir: BaseDirectory.Home })) {
-      return (await isAbsolute(filePath)) ? filePath : `${await homeDir()}/${filePath}`;
-    } else {
-      return false;
-    }
-  },
+  selectFolder,
+  exists: async (filePath: string) => await exists(filePath, { dir: BaseDirectory.Home }),
 };
 
 export { sourceFileApi };
