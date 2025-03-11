@@ -1,13 +1,11 @@
 <template>
-  <n-modal v-model:show="showModal">
+  <n-modal v-model:show="showModal" @after-leave="closeModal">
     <n-card
       style="width: 600px"
       role="dialog"
-      aria-modal="true"
       :title="modalTitle"
       :bordered="false"
       class="add-connect-modal-card"
-      @mask-click="closeModal"
     >
       <template #header-extra>
         <n-icon size="26" @click="closeModal">
@@ -88,10 +86,11 @@
 <script setup lang="ts">
 import { Close } from '@vicons/carbon';
 import { reactive, ref } from 'vue';
+import { cloneDeep } from 'lodash';
 import { inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 import { useConnectionStore } from '../../../store';
-import { DatabaseType, DynamoDBConnection } from '../../../store/connectionStore';
+import { DatabaseType, DynamoDBConnection } from '../../../store';
 
 const connectionStore = useConnectionStore();
 const lang = useLang();
@@ -125,7 +124,7 @@ const defaultFormData: DynamoDBConnection = {
   secretAccessKey: '',
 };
 
-const formData = ref<DynamoDBConnection>({ ...defaultFormData });
+const formData = ref<DynamoDBConnection>(cloneDeep(defaultFormData));
 
 const formRules = reactive({
   name: [
@@ -160,13 +159,7 @@ const formRules = reactive({
 
 const message = useMessage();
 
-const cleanUp = () => {
-  formData.value = { ...defaultFormData };
-  modalTitle.value = lang.t('connection.new');
-};
-
 const showMedal = (con: DynamoDBConnection | null) => {
-  cleanUp();
   showModal.value = true;
   if (con) {
     formData.value = { ...con };
@@ -176,7 +169,8 @@ const showMedal = (con: DynamoDBConnection | null) => {
 
 const closeModal = () => {
   showModal.value = false;
-  cleanUp();
+  formData.value = cloneDeep(defaultFormData);
+  modalTitle.value = lang.t('connection.new');
 };
 
 const validationPassed = computed(() => {

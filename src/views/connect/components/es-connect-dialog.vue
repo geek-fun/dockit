@@ -1,13 +1,11 @@
 <template>
-  <n-modal v-model:show="showModal">
+  <n-modal v-model:show="showModal" @after-leave="closeModal">
     <n-card
       style="width: 600px"
       role="dialog"
-      aria-modal="true"
       :title="modalTitle"
       :bordered="false"
       class="add-connect-modal-card"
-      @mask-click="closeModal"
     >
       <template #header-extra>
         <n-icon size="26" @click="closeModal">
@@ -158,6 +156,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
 import { Close, Locked, Unlocked } from '@vicons/carbon';
+import { cloneDeep } from 'lodash';
 import { CustomError, inputProps } from '../../../common';
 import {
   Connection,
@@ -190,7 +189,7 @@ const defaultFormData = {
   sslCertVerification: true,
   type: DatabaseType.ELASTICSEARCH as const,
 };
-const formData = ref<Connection>(defaultFormData);
+const formData = ref<Connection>(cloneDeep(defaultFormData));
 const formRules = reactive<FormRules>({
   // @ts-ignore
   name: [
@@ -250,12 +249,7 @@ const switchSSL = (target: boolean) => {
 
 const message = useMessage();
 
-const cleanUp = () => {
-  formData.value = defaultFormData;
-  modalTitle.value = lang.t('connection.new');
-};
 const showMedal = (con: Connection | null) => {
-  cleanUp();
   showModal.value = true;
   if (con) {
     formData.value = con;
@@ -265,7 +259,8 @@ const showMedal = (con: Connection | null) => {
 
 const closeModal = () => {
   showModal.value = false;
-  cleanUp();
+  formData.value = cloneDeep(defaultFormData);
+  modalTitle.value = lang.t('connection.new');
 };
 
 const validationPassed = watch(formData.value, async () => {
