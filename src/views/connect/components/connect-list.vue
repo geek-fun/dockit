@@ -1,53 +1,58 @@
 <template>
-  <div class="connection-list-body">
-    <n-card
-      v-for="connection in connections"
-      :key="connection.id"
-      :title="connection.name"
-      hoverable
-      :class="{ active: established && connection.id === established.id }"
-    >
-      <template #header-extra>
-        <n-icon size="24">
-          <component :is="getDatabaseIcon(connection.type)" />
-        </n-icon>
-        <div class="operation" @click.stop="">
-          <n-dropdown
-            trigger="click"
-            :options="options"
-            @select="(args: string) => handleSelect(args, connection)"
+  <div class="connection-list-container">
+    <div class="connection-scroll-container">
+      <n-infinite-scroll style="height: 100%">
+        <div class="connection-list-body">
+          <n-card
+            v-for="connection in connections"
+            :key="connection.id"
+            :title="connection.name"
+            hoverable
+            :class="{ active: established && connection.id === established.id }"
           >
-            <n-icon size="25">
-              <MoreOutlined />
-            </n-icon>
-          </n-dropdown>
+            <template #header-extra>
+              <n-icon size="24">
+                <component :is="getDatabaseIcon(connection.type)" />
+              </n-icon>
+              <div class="operation" @click.stop="">
+                <n-dropdown
+                  trigger="click"
+                  :options="options"
+                  @select="(args: string) => handleSelect(args, connection)"
+                >
+                  <n-icon size="25">
+                    <MoreOutlined />
+                  </n-icon>
+                </n-dropdown>
+              </div>
+            </template>
+          </n-card>
         </div>
-      </template>
-    </n-card>
-    <div class="connect-container">
-      <n-modal v-model:show="showTypeSelect">
-        <n-card style="width: 400px" :title="$t('connection.selectDatabase')">
-          <n-space vertical>
-            <n-button
-              v-for="type in databaseTypes"
-              :key="type.value"
-              block
-              @click="selectDatabaseType(type.value)"
-            >
-              <template #icon>
-                <component :is="type.icon" />
-              </template>
-              {{ type.label }}
-            </n-button>
-          </n-space>
-        </n-card>
-      </n-modal>
-
-      <floating-menu @add="showDatabaseTypeSelect" />
-      <es-connect-dialog ref="esConnectDialog" />
-      <dynamodb-connect-dialog ref="dynamodbConnectDialog" />
+      </n-infinite-scroll>
     </div>
   </div>
+
+  <n-modal v-model:show="showTypeSelect">
+    <n-card style="width: 400px" :title="$t('connection.selectDatabase')">
+      <n-space vertical>
+        <n-button
+          v-for="type in databaseTypes"
+          :key="type.value"
+          block
+          @click="selectDatabaseType(type.value)"
+        >
+          <template #icon>
+            <component :is="type.icon" />
+          </template>
+          {{ type.label }}
+        </n-button>
+      </n-space>
+    </n-card>
+  </n-modal>
+
+  <floating-menu @add="showDatabaseTypeSelect" />
+  <es-connect-dialog ref="esConnectDialog" />
+  <dynamodb-connect-dialog ref="dynamodbConnectDialog" />
 </template>
 
 <script setup lang="ts">
@@ -182,18 +187,30 @@ const selectDatabaseType = (type: DatabaseType) => {
 </script>
 
 <style lang="scss" scoped>
-.connection-list-body {
+.connection-list-container {
+  width: 100%;
+  height: 100%;
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 16px;
-}
+  flex-direction: column;
 
-.n-card {
-  max-width: 300px;
-}
+  .connection-scroll-container {
+    flex: 1;
+    height: 0;
 
-.connection-list-body .n-card:hover {
-  cursor: pointer;
+    .connection-list-body {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 16px;
+
+      .n-card {
+        max-width: 300px;
+      }
+
+      .n-card:hover {
+        cursor: pointer;
+      }
+    }
+  }
 }
 </style>

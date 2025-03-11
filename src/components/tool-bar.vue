@@ -31,7 +31,6 @@
       </template>
       {{ $t('editor.loadDefault') }}
     </n-tooltip>
-    <div class="tool-bar-placeholder"></div>
   </div>
 </template>
 
@@ -136,23 +135,25 @@ const handleSearch = async (input: string, type: 'CONNECTION' | 'INDEX') => {
 <style lang="scss" scoped>
 .collection-selector-container {
   width: 100%;
-  height: 45px;
-  line-height: 40px;
+  height: 30px;
   display: flex;
-  align-items: start;
+  margin: 0;
+  padding: 0;
+  justify-content: flex-start;
   border-right: 1px solid var(--border-color);
 
   .action-load-icon {
     cursor: pointer;
     padding: 0;
-    line-height: 50px;
   }
 
   :deep(.n-select) {
-    flex: 1;
-
+    margin: 0;
+    padding: 0;
+    max-width: 300px;
     .n-base-selection {
       .n-base-selection-label {
+        height: unset;
         background-color: unset;
       }
 
@@ -170,10 +171,6 @@ const handleSearch = async (input: string, type: 'CONNECTION' | 'INDEX') => {
         box-shadow: unset;
       }
     }
-  }
-
-  .tool-bar-placeholder {
-    flex-grow: 3;
   }
 }
 </style>

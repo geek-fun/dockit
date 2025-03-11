@@ -116,9 +116,8 @@ onMounted(async () => {
   height: 100%;
 
   .tab-pane-container {
-    height: 100%;
     width: 100%;
-    padding: 0;
+    height: 100%;
 
     .es-editor {
       height: 100%;

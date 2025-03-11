@@ -84,4 +84,3 @@ const smallNavList = ref([
   }
 }
 </style>
-s
