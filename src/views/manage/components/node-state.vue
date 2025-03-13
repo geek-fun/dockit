@@ -77,6 +77,7 @@ import prettyBytes from 'pretty-bytes';
 import { NodeRoleEnum, useClusterManageStore } from '../../../store';
 import { storeToRefs } from 'pinia';
 import { FolderMoveTo, Network3, Star, StarFilled, VmdkDisk } from '@vicons/carbon';
+import { CustomError } from '../../../common';
 
 const clusterManageStore = useClusterManageStore();
 const { fetchNodes, fetchNodeState } = clusterManageStore;
@@ -123,14 +124,17 @@ const handleNodeClick = async (nodeName: string) => {
   ];
 };
 
-onMounted(() => {
-  fetchNodes().catch(err => {
-    message.error(`status: ${err.status}, details: ${err.details}`, {
+onMounted(async () => {
+  try {
+    await fetchNodes();
+  } catch (err) {
+    const { status, details } = err as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3000,
     });
-  });
+  }
 });
 </script>
 
