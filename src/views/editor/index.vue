@@ -372,21 +372,21 @@ const saveModelValueToFile = async () => {
 const setupFileListener = async () => {
   // listen for saveFile event
   unListenSaveFile.value = await listen('saveFile', async () => {
-    console.log('saveFile event received');
     await saveModelValueToFile();
   });
 
   /**
    * listen for saveFile event in windows
+   * @TODO verify on windows
    * @see https://github.com/tauri-apps/wry/issues/451
    */
   const saveShortcutWin = await isRegistered('Control+S');
   if (!saveShortcutWin) {
     await register('Control+S', async () => {
-      console.log('Shortcut Control+S triggered');
       await saveModelValueToFile();
     });
   }
+
   // Set up autosave interval if the file exists
   if (await checkFileExists(undefined)) {
     saveInterval = setInterval(async () => {
