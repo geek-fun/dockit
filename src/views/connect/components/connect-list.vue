@@ -9,6 +9,7 @@
             :title="connection.name"
             hoverable
             :class="{ active: established && connection.id === established.id }"
+            @dblclick="handleSelect('connect', connection)"
           >
             <template #header-extra>
               <n-icon size="24">

@@ -23,24 +23,20 @@
 <script setup lang="ts">
 import ToolBar from './components/tool-bar.vue';
 import ClusterState from './components/cluster-state.vue';
-import { useClusterManageStore, useConnectionStore } from '../../store';
+import { useClusterManageStore, useConnectionStore, DatabaseType } from '../../store';
 import { storeToRefs } from 'pinia';
 import NodeState from './components/node-state.vue';
 import SharedManage from './components/shared-manage.vue';
 import { useLang } from '../../lang';
 import IndexManage from './components/index-manage.vue';
-import { DatabaseType } from '../../store/connectionStore';
-
 
 const message = useMessage();
 const lang = useLang();
-
 
 const activeTab = ref(lang.t('manage.cluster'));
 
 const connectionStore = useConnectionStore();
 const { established } = storeToRefs(connectionStore);
-
 
 const clusterManageStore = useClusterManageStore();
 const { fetchCluster, fetchIndices, fetchAliases, fetchNodes, fetchShards } = clusterManageStore;
@@ -66,18 +62,18 @@ const handleManageTabChange = (tab: string) => {
   activeTab.value = tab;
 };
 
-fetchCluster().catch(err =>	
-  !established.value?.id	
-    ? message.warning(lang.t('editor.establishedRequired'), {	
-        closable: true,	
-        keepAliveOnHover: true,	
-        duration: 3000,	
-      })	
-    : message.error(`status: ${err.status}, details: ${err.details}`, {	
-        closable: true,	
-        keepAliveOnHover: true,	
-        duration: 3000,	
-      }),	
+fetchCluster().catch(err =>
+  !established.value?.id
+    ? message.warning(lang.t('editor.establishedRequired'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      })
+    : message.error(`status: ${err.status}, details: ${err.details}`, {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      }),
 );
 </script>
 

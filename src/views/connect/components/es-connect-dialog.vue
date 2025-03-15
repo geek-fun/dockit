@@ -252,7 +252,7 @@ const message = useMessage();
 const showMedal = (con: Connection | null) => {
   showModal.value = true;
   if (con) {
-    formData.value = con;
+    formData.value = cloneDeep(con);
     modalTitle.value = lang.t('connection.edit');
   }
 };

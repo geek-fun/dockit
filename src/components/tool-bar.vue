@@ -135,22 +135,26 @@ const handleSearch = async (input: string, type: 'CONNECTION' | 'INDEX') => {
 <style lang="scss" scoped>
 .collection-selector-container {
   width: 100%;
-  height: 30px;
+  height: 35px;
+  line-height: 40px;
   display: flex;
   margin: 0;
   padding: 0;
   justify-content: flex-start;
   border-right: 1px solid var(--border-color);
-
+  border-bottom: 1px solid var(--border-color);
   .action-load-icon {
     cursor: pointer;
     padding: 0;
+    margin-left: 10px;
+    line-height: 40px;
   }
 
   :deep(.n-select) {
     margin: 0;
     padding: 0;
     max-width: 300px;
+    border-right: 1px solid var(--border-color);
     .n-base-selection {
       .n-base-selection-label {
         height: unset;

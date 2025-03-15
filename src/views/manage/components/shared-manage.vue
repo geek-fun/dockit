@@ -264,7 +264,9 @@ const handleShardClick = async (shard: Shard) => {
   indexShards.value = { ...indexes, shards } as { index: string; shards: Array<IndexShard> };
 };
 
-refreshShards();
+onMounted(async () => {
+  await refreshShards();
+});
 </script>
 
 <style lang="scss" scoped>
