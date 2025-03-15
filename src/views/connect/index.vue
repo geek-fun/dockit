@@ -29,9 +29,7 @@
       </template>
       <template v-else>
         <div class="es-editor">
-          <div class="toolbar">
-            <tool-bar />
-          </div>
+          <tool-bar />
           <div class="es-editor-container">
             <Editor />
           </div>
@@ -114,11 +112,23 @@ onMounted(async () => {
 .connect-tab-container {
   width: 100%;
   height: 100%;
+  :deep(.n-tab-pane) {
+    padding: 0;
+  }
+
+  :deep(.n-tabs-wrapper) {
+    .n-tabs-tab-wrapper {
+      background-color: var(--bg-color);
+      .n-tabs-tab--active {
+        background-color: var(--bg-color-secondary);
+      }
+    }
+  }
 
   .tab-pane-container {
     width: 100%;
     height: 100%;
-
+    background-color: var(--bg-color-secondary);
     .es-editor {
       height: 100%;
       display: flex;
@@ -138,10 +148,6 @@ onMounted(async () => {
 
       .n-tabs {
         flex: 1;
-
-        .n-tabs-nav {
-          background: var(--n-color);
-        }
       }
     }
   }
