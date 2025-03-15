@@ -18,7 +18,7 @@ import { CustomError } from '../../common';
 import { useAppStore, useChatStore, useConnectionStore, useTabStore } from '../../store';
 import { useLang } from '../../lang';
 import DisplayEditor from './display-editor.vue';
-import { register } from '@tauri-apps/api/globalShortcut';
+import { register, isRegistered, unregister } from '@tauri-apps/api/globalShortcut';
 import {
   buildCodeLens,
   buildSearchToken,
@@ -380,11 +380,13 @@ const setupFileListener = async () => {
    * listen for saveFile event in windows
    * @see https://github.com/tauri-apps/wry/issues/451
    */
-  await register('Control+S', async () => {
-    console.log('Shortcut Control+S triggered');
-    await saveModelValueToFile();
-  });
-
+  const saveShortcutWin = await isRegistered('Control+S');
+  if (!saveShortcutWin) {
+    await register('Control+S', async () => {
+      console.log('Shortcut Control+S triggered');
+      await saveModelValueToFile();
+    });
+  }
   // Set up autosave interval if the file exists
   if (await checkFileExists(undefined)) {
     saveInterval = setInterval(async () => {
@@ -406,6 +408,10 @@ const setupFileListener = async () => {
 const cleanupFileListener = async () => {
   if (unListenSaveFile?.value) {
     await unListenSaveFile.value();
+  }
+  const saveShortcutWin = await isRegistered('Control+S');
+  if (saveShortcutWin) {
+    await unregister('Control+S');
   }
   clearInterval(saveInterval);
 };
