@@ -18,7 +18,7 @@ import { CustomError } from '../../common';
 import { useAppStore, useChatStore, useConnectionStore, useTabStore } from '../../store';
 import { useLang } from '../../lang';
 import DisplayEditor from './display-editor.vue';
-
+import { register } from '@tauri-apps/api/globalShortcut';
 import {
   buildCodeLens,
   buildSearchToken,
@@ -361,14 +361,28 @@ const displayJsonEditor = (content: string) => {
 const unListenSaveFile = ref<Function>();
 let saveInterval: NodeJS.Timeout;
 
+const saveModelValueToFile = async () => {
+  const model = queryEditor?.getModel();
+  if (!model) {
+    return;
+  }
+  await saveFile(undefined, model.getValue() || '');
+};
+
 const setupFileListener = async () => {
   // listen for saveFile event
   unListenSaveFile.value = await listen('saveFile', async () => {
-    const model = queryEditor?.getModel();
-    if (!model) {
-      return;
-    }
-    await saveFile(undefined, model.getValue() || '');
+    console.log('saveFile event received');
+    await saveModelValueToFile();
+  });
+
+  /**
+   * listen for saveFile event in windows
+   * @see https://github.com/tauri-apps/wry/issues/451
+   */
+  await register('Control+S', async () => {
+    console.log('Shortcut Control+S triggered');
+    await saveModelValueToFile();
   });
 
   // Set up autosave interval if the file exists
@@ -389,6 +403,13 @@ const setupFileListener = async () => {
   }
 };
 
+const cleanupFileListener = async () => {
+  if (unListenSaveFile?.value) {
+    await unListenSaveFile.value();
+  }
+  clearInterval(saveInterval);
+};
+
 onMounted(async () => {
   setupQueryEditor();
   await setupFileListener();
@@ -398,10 +419,8 @@ onUnmounted(async () => {
   codeLensProvider?.dispose();
   queryEditor?.dispose();
   displayEditorRef?.value?.dispose();
-  if (unListenSaveFile?.value) {
-    await unListenSaveFile.value();
-  }
-  clearInterval(saveInterval);
+
+  await cleanupFileListener();
 });
 </script>
 
