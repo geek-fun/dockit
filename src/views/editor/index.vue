@@ -41,7 +41,7 @@ const message = useMessage();
 const lang = useLang();
 
 const tabStore = useTabStore();
-const { saveFile, checkFileExists } = tabStore;
+const { saveFile, checkFileExists,refreshPanel } = tabStore;
 const { activePanel } = storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
@@ -247,6 +247,15 @@ const setupQueryEditor = () => {
     return;
   }
 
+queryEditor.onDidChangeModelContent((_changes) => {
+  const model = queryEditor?.getModel();
+  if (!model) {
+    return;
+  }
+  const currentContent = model.getValue();
+  refreshPanel(currentContent);
+  });
+
   autoIndentCmdId = queryEditor.addCommand(0, (...args) => autoIndentAction(queryEditor!, args[1]));
   copyCurlCmdId = queryEditor.addCommand(0, (...args) => copyCurlAction(args[1]));
 
@@ -417,16 +426,17 @@ const cleanupFileListener = async () => {
 };
 
 onMounted(async () => {
+  console.log('editor mounted');
   setupQueryEditor();
   await setupFileListener();
 });
 
 onUnmounted(async () => {
+  console.log('editor unmounted');
+  await cleanupFileListener();
   codeLensProvider?.dispose();
   queryEditor?.dispose();
   displayEditorRef?.value?.dispose();
-
-  await cleanupFileListener();
 });
 </script>
 

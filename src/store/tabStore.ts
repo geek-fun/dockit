@@ -103,6 +103,10 @@ export const useTabStore = defineStore('panel', {
       this.activePanel = selectedPanel;
     },
 
+    refreshPanel(editorContent = '') {
+    this.activePanel.content = editorContent;
+    },
+
     async saveFile(panel: Panel | undefined, content: string): Promise<void> {
       let checkPanel = panel ?? this.activePanel;
       if (!checkPanel) return;
