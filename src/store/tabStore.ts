@@ -84,7 +84,7 @@ export const useTabStore = defineStore('panel', {
       if (!panel) return;
       try {
         if (saveFile) {
-          await this.saveFile(panel, panel.content || '');
+          await this.saveContent(panel, panel.content || '', true);
         }
         const selectedIndex = this.panels.findIndex(({ id }) => id === panel.id);
 
@@ -93,6 +93,8 @@ export const useTabStore = defineStore('panel', {
           this.activePanel = this.panels[Math.min(selectedIndex, this.panels.length - 1)];
         }
       } catch (err) {
+        console.log(err);
+        console.log('err str', JSON.stringify(err));
         throw new CustomError(500, (err as Error).message);
       }
     },
@@ -103,16 +105,14 @@ export const useTabStore = defineStore('panel', {
       this.activePanel = selectedPanel;
     },
 
-    refreshPanel(editorContent = '') {
-    this.activePanel.content = editorContent;
-    },
-
-    async saveFile(panel: Panel | undefined, content: string): Promise<void> {
+    async saveContent(panel: Panel | undefined, content: string, validateFilePath = false): Promise<void> {
       let checkPanel = panel ?? this.activePanel;
       if (!checkPanel) return;
+      checkPanel.content = content;
 
       let filePath = checkPanel.file;
-      if (!(await sourceFileApi.exists(filePath))) {
+
+      if (!(await sourceFileApi.exists(filePath)) && validateFilePath) {
         const selectedFolder = await sourceFileApi.selectFolder();
         filePath = `${selectedFolder}/${filePath}`;
         if (!filePath) {
@@ -121,10 +121,11 @@ export const useTabStore = defineStore('panel', {
       }
 
       checkPanel.file = filePath;
-      checkPanel.content = content;
-
-      await sourceFileApi.saveFile(filePath, content);
+      if (await sourceFileApi.exists(filePath)) {
+        await sourceFileApi.saveFile(filePath, content);
+      }
     },
+
     loadDefaultSnippet() {
       if (!this.activePanel) return;
       this.activePanel.content = defaultCodeSnippet;

@@ -41,7 +41,7 @@ const message = useMessage();
 const lang = useLang();
 
 const tabStore = useTabStore();
-const { saveFile, checkFileExists,refreshPanel } = tabStore;
+const { saveContent, checkFileExists } = tabStore;
 const { activePanel } = storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
@@ -248,12 +248,7 @@ const setupQueryEditor = () => {
   }
 
 queryEditor.onDidChangeModelContent((_changes) => {
-  const model = queryEditor?.getModel();
-  if (!model) {
-    return;
-  }
-  const currentContent = model.getValue();
-  refreshPanel(currentContent);
+  saveModelContent(false);
   });
 
   autoIndentCmdId = queryEditor.addCommand(0, (...args) => autoIndentAction(queryEditor!, args[1]));
@@ -367,21 +362,20 @@ const displayJsonEditor = (content: string) => {
   displayEditorRef.value.display(content);
 };
 
-const unListenSaveFile = ref<Function>();
-let saveInterval: NodeJS.Timeout;
+const saveFileListener = ref<Function>();
 
-const saveModelValueToFile = async () => {
+const saveModelContent = async (validateFile: boolean) => {
   const model = queryEditor?.getModel();
   if (!model) {
     return;
   }
-  await saveFile(undefined, model.getValue() || '');
+await saveContent(undefined, model.getValue() || '', validateFile);
 };
 
 const setupFileListener = async () => {
   // listen for saveFile event
-  unListenSaveFile.value = await listen('saveFile', async () => {
-    await saveModelValueToFile();
+  saveFileListener.value = await listen('saveFile', async () => {
+    await saveModelContent(true);
   });
 
   /**
@@ -392,37 +386,19 @@ const setupFileListener = async () => {
   const saveShortcutWin = await isRegistered('Control+S');
   if (!saveShortcutWin) {
     await register('Control+S', async () => {
-      await saveModelValueToFile();
+      await saveModelContent(true);
     });
-  }
-
-  // Set up autosave interval if the file exists
-  if (await checkFileExists(undefined)) {
-    saveInterval = setInterval(async () => {
-      const model = queryEditor?.getModel();
-      if (!model) {
-        return;
-      }
-      const position = queryEditor?.getPosition();
-      const currentContent = model.getValue();
-
-      await saveFile(undefined, currentContent);
-      if (position) {
-        queryEditor?.setPosition(position);
-      }
-    }, 5000);
   }
 };
 
 const cleanupFileListener = async () => {
-  if (unListenSaveFile?.value) {
-    await unListenSaveFile.value();
+  if (saveFileListener?.value) {
+    await saveFileListener.value();
   }
   const saveShortcutWin = await isRegistered('Control+S');
   if (saveShortcutWin) {
     await unregister('Control+S');
   }
-  clearInterval(saveInterval);
 };
 
 onMounted(async () => {

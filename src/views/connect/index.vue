@@ -77,6 +77,7 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
     setActivePanel(panel.id);
   } else if (action === 'CLOSE') {
     const exists = await checkFileExists(panel);
+    console.log('close exists check', exists);
     if (!exists) {
       dialog.warning({
         title: lang.t('file.saveFileBeforeClose.title'),
