@@ -426,13 +426,11 @@ const cleanupFileListener = async () => {
 };
 
 onMounted(async () => {
-  console.log('editor mounted');
   setupQueryEditor();
   await setupFileListener();
 });
 
 onUnmounted(async () => {
-  console.log('editor unmounted');
   await cleanupFileListener();
   codeLensProvider?.dispose();
   queryEditor?.dispose();
