@@ -64,7 +64,7 @@ const tabPanelHandler = async ({
   connection: Connection;
 }) => {
   if (action === 'ADD_PANEL') {
-    establishPanel(connection);
+    await establishPanel(connection);
   }
 };
 
@@ -77,6 +77,7 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
     setActivePanel(panel.id);
   } else if (action === 'CLOSE') {
     const exists = await checkFileExists(panel);
+    console.log('close exists check', exists);
     if (!exists) {
       dialog.warning({
         title: lang.t('file.saveFileBeforeClose.title'),
@@ -85,25 +86,25 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
         negativeText: lang.t('file.saveFileBeforeClose.negativeText'),
         onPositiveClick: async () => {
           try {
-            closePanel(panel, true);
+            await closePanel(panel, true);
             message.success(lang.t('file.saveFileBeforeClose.success'));
           } catch (err) {
             message.error(lang.t('file.saveFileBeforeClose.failed') + ': ' + err);
           }
         },
-        onNegativeClick: () => {
-          closePanel(panel, false);
+        onNegativeClick:async () => {
+        await closePanel(panel, false);
         },
       });
     } else {
-      closePanel(panel, true);
+      await closePanel(panel, true);
     }
   }
 };
 
 onMounted(async () => {
   if (route.params.filePath && route.params.filePath !== ':filePath') {
-    establishPanel(route.params.filePath as string);
+    await establishPanel(route.params.filePath as string);
   }
 });
 </script>
