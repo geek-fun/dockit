@@ -18,7 +18,7 @@ import { CustomError } from '../../common';
 import { useAppStore, useChatStore, useConnectionStore, useTabStore } from '../../store';
 import { useLang } from '../../lang';
 import DisplayEditor from './display-editor.vue';
-import { register, isRegistered, unregister } from '@tauri-apps/api/globalShortcut';
+import { isRegistered, register, unregister } from '@tauri-apps/api/globalShortcut';
 import {
   buildCodeLens,
   buildSearchToken,
@@ -33,7 +33,7 @@ import {
   monaco,
   SearchAction,
   searchTokens,
-  transformQDSL,
+  transformQDSL
 } from '../../common/monaco';
 
 const appStore = useAppStore();
@@ -41,7 +41,7 @@ const message = useMessage();
 const lang = useLang();
 
 const tabStore = useTabStore();
-const { saveContent, checkFileExists } = tabStore;
+const { saveContent } = tabStore;
 const { activePanel } = storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
