@@ -1,5 +1,5 @@
 import { open } from '@tauri-apps/api/dialog';
-import { exists, readDir } from '@tauri-apps/api/fs';
+import { exists } from '@tauri-apps/api/fs';
 
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
@@ -35,7 +35,7 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
   state(): { fileContent: string; filePath: string; fileList: FileItem[] } {
     return {
       fileContent: '',
-      filePath: '',
+      filePath: '.dockit',
       fileList: [],
     };
   },
@@ -51,18 +51,7 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
           throw new CustomError(404, 'Folder not found');
         }
 
-        this.fileList = (await readDir(selectedPath))
-          .filter(file => !file.name?.startsWith('.'))
-          .sort((a, b) => {
-            if (a.children && !b.children) return -1;
-            if (!a.children && b.children) return 1;
-            return a?.name?.localeCompare(b?.name ?? '') || 0;
-          })
-          .map(file => ({
-            path: file.path,
-            name: file.name,
-            type: file.children ? FileType.FOLDER : FileType.FILE,
-          }));
+        await this.fetchFileList(selectedPath);
 
         this.filePath = selectedPath;
       } catch (error) {
@@ -89,9 +78,21 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
       await sourceFileApi.deleteFileOrFolder(path);
       await this.openFolder(this.filePath);
     },
+
     async renameFileOrFolder(oldPath: string, newPath: string) {
       await sourceFileApi.renameFileOrFolder(oldPath, newPath);
       await this.openFolder(this.filePath);
+    },
+
+    async fetchFileList(inputPath?: string) {
+      try {
+        this.fileList = await sourceFileApi.readDir(inputPath ?? this.filePath);
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
     },
   },
 });

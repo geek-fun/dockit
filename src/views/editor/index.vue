@@ -14,7 +14,7 @@ import { listen } from '@tauri-apps/api/event';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
-import { CustomError } from '../../common';
+import { CustomError, debug } from '../../common';
 import { useAppStore, useChatStore, useConnectionStore, useTabStore } from '../../store';
 import { useLang } from '../../lang';
 import DisplayEditor from './display-editor.vue';
@@ -403,9 +403,13 @@ const setupFileListener = async () => {
    */
   const saveShortcutWin = await isRegistered('Control+S');
   if (!saveShortcutWin) {
-    await register('Control+S', async () => {
-      await saveModelContent(true, true, true);
-    });
+    try {
+      await register('Control+S', async () => {
+        await saveModelContent(true, true, true);
+      });
+    } catch (err) {
+      debug(`register shortcut error: ${err}`);
+    }
   }
 };
 

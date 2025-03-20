@@ -39,7 +39,7 @@ const router = useRouter();
 const message = useMessage();
 const lang = useLang();
 const fileStore = useSourceFileStore();
-const { openFolder, deleteFileOrFolder } = fileStore;
+const { openFolder, deleteFileOrFolder, fetchFileList } = fileStore;
 const { fileList } = storeToRefs(fileStore);
 
 const activeRef = ref<FileItem>();
@@ -120,6 +120,9 @@ const getClass = (file: FileItem, index: number) => {
     return 'file-item-hover';
   }
 };
+
+fetchFileList();
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
 });

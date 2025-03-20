@@ -2,6 +2,7 @@ import {
   BaseDirectory,
   createDir,
   exists,
+  readDir,
   readTextFile,
   removeDir,
   removeFile,
@@ -12,6 +13,7 @@ import {
 import { homeDir } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/api/dialog';
 import { CustomError, debug } from '../common';
+import { FileType } from '../store';
 
 const saveFile = async (filePath: string, content: string, append: boolean) => {
   try {
@@ -61,11 +63,16 @@ const renameFileOrFolder = async (oldPath: string, newPath: string) => {
   }
 };
 
-const selectFolder = async (basePath?: string) => {
-  const defaultPath = basePath ?? `.dockit`;
+const getRelativePath = async (filePath?: string) => {
+  const defaultPath = filePath ?? `.dockit`;
   const homeDirectory = await homeDir();
 
-  const targetPath = `${homeDirectory}/${defaultPath.replace(homeDirectory, '')}`;
+  return `${homeDirectory}${defaultPath.replace(homeDirectory, '')}`;
+};
+
+const selectFolder = async (basePath?: string) => {
+  const homeDirectory = await homeDir();
+  const targetPath = await getRelativePath(basePath);
 
   if (!(await exists(targetPath, { dir: BaseDirectory.Home }))) {
     await createDir(targetPath, { dir: BaseDirectory.Home, recursive: true });
@@ -75,11 +82,30 @@ const selectFolder = async (basePath?: string) => {
     await open({
       recursive: true,
       directory: true,
-      defaultPath: `${homeDirectory}/${defaultPath}`,
+      defaultPath: targetPath,
     })
   )
     ?.toString()
     .replace(homeDirectory, '');
+};
+
+const readDirs = async (filePath?: string) => {
+  const targetPath = await getRelativePath(filePath);
+  const fileList = await readDir(targetPath, { dir: BaseDirectory.Home });
+  const homeDirectory = await homeDir();
+
+  return (fileList ?? [])
+    .filter(file => !file.name?.startsWith('.'))
+    .sort((a, b) => {
+      if (a.children && !b.children) return -1;
+      if (!a.children && b.children) return 1;
+      return a?.name?.localeCompare(b?.name ?? '') || 0;
+    })
+    .map(file => ({
+      path: file.path?.replace(homeDirectory, ''),
+      name: file.name?.replace(homeDirectory, '') ?? '',
+      type: file.children ? FileType.FOLDER : FileType.FILE,
+    }));
 };
 
 const sourceFileApi = {
@@ -91,6 +117,7 @@ const sourceFileApi = {
   renameFileOrFolder,
   selectFolder,
   exists: async (filePath: string) => await exists(filePath, { dir: BaseDirectory.Home }),
+  readDir: readDirs,
 };
 
 export { sourceFileApi };
