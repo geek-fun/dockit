@@ -77,7 +77,6 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
     setActivePanel(panel.id);
   } else if (action === 'CLOSE') {
     const exists = await checkFileExists(panel);
-    console.log('close exists check', exists);
     if (!exists) {
       dialog.warning({
         title: lang.t('file.saveFileBeforeClose.title'),
@@ -87,13 +86,13 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
         onPositiveClick: async () => {
           try {
             await closePanel(panel, true);
-            message.success(lang.t('file.saveFileBeforeClose.success'));
+            message.success(lang.t('dialogOps.fileSaveSuccess'));
           } catch (err) {
-            message.error(lang.t('file.saveFileBeforeClose.failed') + ': ' + err);
+            message.error(lang.t('dialogOps.fileSaveFailed') + 'err: ' + err);
           }
         },
-        onNegativeClick:async () => {
-        await closePanel(panel, false);
+        onNegativeClick: async () => {
+          await closePanel(panel, false);
         },
       });
     } else {

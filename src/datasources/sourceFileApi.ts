@@ -63,16 +63,23 @@ const renameFileOrFolder = async (oldPath: string, newPath: string) => {
 
 const selectFolder = async (basePath?: string) => {
   const defaultPath = basePath ?? `.dockit`;
+  const homeDirectory = await homeDir();
 
-  if (!(await exists(defaultPath, { dir: BaseDirectory.Home }))) {
-    await createDir(defaultPath, { dir: BaseDirectory.Home, recursive: true });
+  const targetPath = `${homeDirectory}/${defaultPath.replace(homeDirectory, '')}`;
+
+  if (!(await exists(targetPath, { dir: BaseDirectory.Home }))) {
+    await createDir(targetPath, { dir: BaseDirectory.Home, recursive: true });
   }
 
-  return (await open({
-    recursive: true,
-    directory: true,
-    defaultPath: `${await homeDir()}/${defaultPath}`,
-  })) as string;
+  return (
+    await open({
+      recursive: true,
+      directory: true,
+      defaultPath: `${homeDirectory}/${defaultPath}`,
+    })
+  )
+    ?.toString()
+    .replace(homeDirectory, '');
 };
 
 const sourceFileApi = {

@@ -33,7 +33,7 @@ import {
   monaco,
   SearchAction,
   searchTokens,
-  transformQDSL
+  transformQDSL,
 } from '../../common/monaco';
 
 const appStore = useAppStore();
@@ -247,8 +247,8 @@ const setupQueryEditor = () => {
     return;
   }
 
-queryEditor.onDidChangeModelContent((_changes) => {
-  saveModelContent(false);
+  queryEditor.onDidChangeModelContent(_changes => {
+    saveModelContent(false, false, false);
   });
 
   autoIndentCmdId = queryEditor.addCommand(0, (...args) => autoIndentAction(queryEditor!, args[1]));
@@ -364,18 +364,36 @@ const displayJsonEditor = (content: string) => {
 
 const saveFileListener = ref<Function>();
 
-const saveModelContent = async (validateFile: boolean) => {
+const saveModelContent = async (
+  validateFile: boolean,
+  displayError: boolean,
+  displaySuccess: boolean,
+) => {
   const model = queryEditor?.getModel();
   if (!model) {
     return;
   }
-await saveContent(undefined, model.getValue() || '', validateFile);
+  try {
+    await saveContent(undefined, model.getValue() || '', validateFile);
+    if (displaySuccess) {
+      message.success(lang.t('dialogOps.fileSaveSuccess'), {
+        duration: 1000,
+      });
+    }
+  } catch (err) {
+    if (displayError) {
+      message.error((err as CustomError).details, {
+        closable: true,
+        keepAliveOnHover: true,
+      });
+    }
+  }
 };
 
 const setupFileListener = async () => {
   // listen for saveFile event
   saveFileListener.value = await listen('saveFile', async () => {
-    await saveModelContent(true);
+    await saveModelContent(true, true, true);
   });
 
   /**
@@ -386,7 +404,7 @@ const setupFileListener = async () => {
   const saveShortcutWin = await isRegistered('Control+S');
   if (!saveShortcutWin) {
     await register('Control+S', async () => {
-      await saveModelContent(true);
+      await saveModelContent(true, true, true);
     });
   }
 };

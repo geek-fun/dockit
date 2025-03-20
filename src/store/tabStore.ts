@@ -3,6 +3,7 @@ import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
 import { defaultCodeSnippet } from '../common/monaco';
+import { lang } from '../lang';
 
 type Panel = {
   id: number;
@@ -93,8 +94,6 @@ export const useTabStore = defineStore('panel', {
           this.activePanel = this.panels[Math.min(selectedIndex, this.panels.length - 1)];
         }
       } catch (err) {
-        console.log(err);
-        console.log('err str', JSON.stringify(err));
         throw new CustomError(500, (err as Error).message);
       }
     },
@@ -105,25 +104,33 @@ export const useTabStore = defineStore('panel', {
       this.activePanel = selectedPanel;
     },
 
-    async saveContent(panel: Panel | undefined, content: string, validateFilePath = false): Promise<void> {
+    async saveContent(
+      panel: Panel | undefined,
+      content: string,
+      validateFilePath = false,
+    ): Promise<void> {
       let checkPanel = panel ?? this.activePanel;
       if (!checkPanel) return;
       checkPanel.content = content;
 
+      if (!validateFilePath && !(await sourceFileApi.exists(checkPanel.file))) {
+        return;
+      }
+
       let filePath = checkPanel.file;
 
-      if (!(await sourceFileApi.exists(filePath)) && validateFilePath) {
+      if (!(await sourceFileApi.exists(filePath))) {
         const selectedFolder = await sourceFileApi.selectFolder();
-        filePath = `${selectedFolder}/${filePath}`;
-        if (!filePath) {
-          throw new CustomError(404, 'Folder not found');
+        if (selectedFolder === null || selectedFolder === undefined) {
+          throw new CustomError(404, lang.global.t('file.folderSelectCancel'));
         }
+
+        filePath = `${selectedFolder}/${filePath}`;
       }
 
+      await sourceFileApi.saveFile(filePath, content);
+
       checkPanel.file = filePath;
-      if (await sourceFileApi.exists(filePath)) {
-        await sourceFileApi.saveFile(filePath, content);
-      }
     },
 
     loadDefaultSnippet() {
