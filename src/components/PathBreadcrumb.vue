@@ -16,11 +16,11 @@
 
 <script setup lang="ts">
 import { Folder } from '@vicons/carbon';
-import { useSourceFileStore } from '../store';
+import { useFileStore } from '../store';
 import { storeToRefs } from 'pinia';
 import { CustomError } from '../common';
 
-const fileStore = useSourceFileStore();
+const fileStore = useFileStore();
 const { openFolder } = fileStore;
 const { filePath } = storeToRefs(fileStore);
 

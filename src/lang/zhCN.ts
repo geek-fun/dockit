@@ -168,6 +168,8 @@ export const zhCN = {
     switchSuccess: '切换成功',
     overwriteFile: '文件已存在，确定覆盖？',
     overwriteIndex: '索引已存在，确定覆盖？',
+    fileSaveSuccess: '文件保存成功',
+    fileSaveFailed: '文件保存失败',
   },
   editor: {
     establishedRequired: '请选择执行操作的数据库实例',
@@ -194,9 +196,8 @@ export const zhCN = {
       content: '文件不存在，是否先保存？',
       positiveText: '保存',
       negativeText: '删除',
-      success: '文件保存成功',
-      failed: '文件保存失败',
     },
+    folderSelectCancel: '文件夹选择已取消',
   },
   history: {
     empty: '无历史记录',

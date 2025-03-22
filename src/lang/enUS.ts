@@ -168,6 +168,8 @@ export const enUS = {
     switchSuccess: 'Switched successfully',
     overwriteFile: 'File already exists, do you want to overwrite it?',
     overwriteIndex: 'Index already exists, confirm to overwrite?',
+    fileSaveSuccess: 'File saved successfully',
+    fileSaveFailed: 'Failed to save file!',
   },
   editor: {
     establishedRequired: 'Select a DB instance before execute actions',
@@ -193,9 +195,8 @@ export const enUS = {
       content: 'File does not persist, do you want to save it first?',
       positiveText: 'Save',
       negativeText: 'Delete',
-      success: 'File saved successfully',
-      failed: 'Failed to save file',
     },
+    folderSelectCancel: 'Folder selection canceled',
   },
   history: {
     empty: 'No history yet',

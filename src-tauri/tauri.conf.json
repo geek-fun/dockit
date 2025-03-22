@@ -13,6 +13,9 @@
     "macOSPrivateApi": false,
     "allowlist": {
       "all": false,
+      "os": {
+        "all": true
+      },
       "shell": {
         "all": false,
         "open": true
@@ -31,6 +34,7 @@
         "removeFile": true,
         "renameFile": true,
         "scope": [
+          "**/*",
           "$HOME/**",
           "$HOME/**/.*",
           "$HOME/.dockit/**/*"
