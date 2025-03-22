@@ -42,7 +42,7 @@ const lang = useLang();
 
 const tabStore = useTabStore();
 const { saveContent } = tabStore;
-const { activePanel } = storeToRefs(tabStore);
+const { activePanel, defaultSnippet } = storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
 const { searchQDSL, queryToCurl } = connectionStore;
@@ -412,6 +412,10 @@ const setupFileListener = async () => {
     }
   }
 };
+
+watch(defaultSnippet, () => {
+  queryEditor?.getModel()?.setValue(activePanel.value.content ?? '');
+});
 
 const cleanupFileListener = async () => {
   if (saveFileListener?.value) {

@@ -19,9 +19,11 @@ export const useTabStore = defineStore('panel', {
   state: (): {
     panels: Array<Panel>;
     activePanel: Panel;
+    defaultSnippet: number;
   } => ({
     activePanel: homePanel,
     panels: [homePanel],
+    defaultSnippet: 0,
   }),
   getters: {},
   actions: {
@@ -135,6 +137,7 @@ export const useTabStore = defineStore('panel', {
 
     loadDefaultSnippet() {
       if (!this.activePanel) return;
+      this.defaultSnippet += 1;
       this.activePanel.content = defaultCodeSnippet;
     },
   },
