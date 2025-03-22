@@ -64,11 +64,11 @@ import { reactive, ref, watch } from 'vue';
 import { Close } from '@vicons/carbon';
 import { useLang } from '../../../lang';
 import { FormRules, FormValidationError } from 'naive-ui';
-import { ContextMenuAction, FileItem, ToolBarAction, useSourceFileStore } from '../../../store';
+import { ContextMenuAction, FileItem, ToolBarAction, useFileStore } from '../../../store';
 import { CustomError } from '../../../common';
 
 const lang = useLang();
-const fileStore = useSourceFileStore();
+const fileStore = useFileStore();
 const { createFileOrFolder, renameFileOrFolder } = fileStore;
 
 const fileFormRef = ref();

@@ -29,7 +29,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
-import { ContextMenuAction, FileItem, FileType, useSourceFileStore } from '../../../store';
+import { ContextMenuAction, FileItem, FileType, useFileStore } from '../../../store';
 import { Folder } from '@vicons/carbon';
 import { useLang } from '../../../lang';
 import ContextMenu from './context-menu.vue';
@@ -38,7 +38,7 @@ import NewFileDialog from './new-file-dialog.vue';
 const router = useRouter();
 const message = useMessage();
 const lang = useLang();
-const fileStore = useSourceFileStore();
+const fileStore = useFileStore();
 const { openFolder, deleteFileOrFolder, fetchFileList } = fileStore;
 const { fileList } = storeToRefs(fileStore);
 

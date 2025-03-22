@@ -15,12 +15,12 @@
 
 <script setup lang="ts">
 import { DocumentAdd, FolderAdd, FolderOpen } from '@vicons/carbon';
-import { ContextMenuAction, ToolBarAction, useSourceFileStore } from '../../../store';
+import { ContextMenuAction, ToolBarAction, useFileStore } from '../../../store';
 import { useLang } from '../../../lang';
 import NewFileDialog from './new-file-dialog.vue';
 import PathBreadcrumb from '../../../components/PathBreadcrumb.vue';
 
-const fileStore = useSourceFileStore();
+const fileStore = useFileStore();
 const { openFolder } = fileStore;
 
 const lang = useLang();

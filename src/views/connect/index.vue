@@ -46,6 +46,7 @@ import ConnectList from './components/connect-list.vue';
 import Editor from '../editor/index.vue';
 import ToolBar from '../../components/tool-bar.vue';
 import { useLang } from '../../lang';
+import { CustomError } from '../../common';
 
 const route = useRoute();
 const dialog = useDialog();
@@ -88,7 +89,9 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
             await closePanel(panel, true);
             message.success(lang.t('dialogOps.fileSaveSuccess'));
           } catch (err) {
-            message.error(lang.t('dialogOps.fileSaveFailed') + 'err: ' + err);
+            message.error(
+              lang.t('dialogOps.fileSaveFailed') + `details: ${(err as CustomError).details}`,
+            );
           }
         },
         onNegativeClick: async () => {

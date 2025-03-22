@@ -1,4 +1,3 @@
-import { open } from '@tauri-apps/api/dialog';
 import { exists } from '@tauri-apps/api/fs';
 
 import { defineStore } from 'pinia';
@@ -31,7 +30,7 @@ export enum ContextMenuAction {
   CONTEXT_MENU_ACTION_NEW_FOLDER = 'CONTEXT_MENU_ACTION_NEW_FOLDER',
 }
 
-export const useSourceFileStore = defineStore('sourceFileStore', {
+export const useFileStore = defineStore('fileStore', {
   state(): { fileContent: string; filePath: string; fileList: FileItem[] } {
     return {
       fileContent: '',
@@ -44,8 +43,7 @@ export const useSourceFileStore = defineStore('sourceFileStore', {
   actions: {
     async openFolder(path?: string) {
       try {
-        const selectedPath =
-          path ?? ((await open({ recursive: true, directory: true, defaultPath: path })) as string);
+        const selectedPath = (await sourceFileApi.selectFolder(path)) ?? this.filePath;
 
         if (!(await exists(selectedPath))) {
           throw new CustomError(404, 'Folder not found');

@@ -9,7 +9,7 @@ type Panel = {
   id: number;
   name: string;
   connection?: Connection;
-  file: string;
+  file?: string;
   content?: string;
 };
 
@@ -34,11 +34,13 @@ export const useTabStore = defineStore('panel', {
         if (activePanel) {
           this.activePanel = activePanel;
         } else {
+          const fileInfo = await sourceFileApi.getFileInfo(connectionOrFile);
+
           const newPanel: Panel = {
             id: this.panels.length + 1,
-            name: connectionOrFile,
-            file: connectionOrFile,
-            content: await sourceFileApi.readFile(connectionOrFile),
+            name: fileInfo!.displayPath,
+            file: fileInfo!.path,
+            content: await sourceFileApi.readFile(fileInfo!.path),
           };
           this.panels.push(newPanel);
           this.activePanel = newPanel;
@@ -53,18 +55,16 @@ export const useTabStore = defineStore('panel', {
           : `${connectionOrFile.name}-${exists.length}.search`;
         let content = defaultCodeSnippet;
 
-        if (await sourceFileApi.exists(fileName)) {
-          content = await sourceFileApi.readFile(fileName);
-        } else if (await sourceFileApi.exists(`.dockit/${fileName}`)) {
-          fileName = `.dockit/${fileName}`;
-          content = await sourceFileApi.readFile(fileName);
+        const fileInfo = await sourceFileApi.getFileInfo(fileName);
+        if (fileInfo) {
+          content = await sourceFileApi.readFile(fileInfo.path);
         }
 
         const newPanel: Panel = {
           id: this.panels.length + 1,
-          name: fileName,
+          name: fileInfo?.displayPath ?? fileName,
           connection: connectionOrFile,
-          file: fileName,
+          file: fileInfo?.path,
           content,
         };
 
@@ -75,7 +75,7 @@ export const useTabStore = defineStore('panel', {
 
     async checkFileExists(panel: Panel | undefined) {
       let checkPanel = panel ?? this.activePanel;
-      if (!checkPanel) return false;
+      if (!checkPanel?.file) return false;
       try {
         return await sourceFileApi.exists(checkPanel.file);
       } catch (err) {
@@ -96,7 +96,7 @@ export const useTabStore = defineStore('panel', {
           this.activePanel = this.panels[Math.min(selectedIndex, this.panels.length - 1)];
         }
       } catch (err) {
-        throw new CustomError(500, (err as Error).message);
+        throw err instanceof CustomError ? err : new CustomError(500, (err as Error).message);
       }
     },
 
@@ -115,11 +115,14 @@ export const useTabStore = defineStore('panel', {
       if (!checkPanel) return;
       checkPanel.content = content;
 
-      if (!validateFilePath && !(await sourceFileApi.exists(checkPanel.file))) {
+      if (
+        !validateFilePath &&
+        !(!checkPanel.file || (await sourceFileApi.exists(checkPanel.file)))
+      ) {
         return;
       }
 
-      let filePath = checkPanel.file;
+      let filePath = checkPanel.file ?? checkPanel.name;
 
       if (!(await sourceFileApi.exists(filePath))) {
         const selectedFolder = await sourceFileApi.selectFolder();
