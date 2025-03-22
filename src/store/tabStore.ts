@@ -30,12 +30,11 @@ export const useTabStore = defineStore('panel', {
     async establishPanel(connectionOrFile: Connection | string): Promise<void> {
       const isFile = typeof connectionOrFile == 'string';
       if (isFile) {
-        const activePanel = this.panels.find(panelItem => panelItem.file === connectionOrFile);
+        const fileInfo = await sourceFileApi.getFileInfo(connectionOrFile);
+        const activePanel = this.panels.find(({file}) => file === fileInfo?.path);
         if (activePanel) {
           this.activePanel = activePanel;
         } else {
-          const fileInfo = await sourceFileApi.getFileInfo(connectionOrFile);
-
           const newPanel: Panel = {
             id: this.panels.length + 1,
             name: fileInfo!.displayPath,
@@ -59,7 +58,6 @@ export const useTabStore = defineStore('panel', {
         if (fileInfo) {
           content = await sourceFileApi.readFile(fileInfo.path);
         }
-
         const newPanel: Panel = {
           id: this.panels.length + 1,
           name: fileInfo?.displayPath ?? fileName,

@@ -11,7 +11,7 @@ import {
 } from '@tauri-apps/api/fs';
 import { platform } from '@tauri-apps/api/os';
 
-import { homeDir, isAbsolute, basename } from '@tauri-apps/api/path';
+import { homeDir, isAbsolute, basename,sep } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/api/dialog';
 import { CustomError, debug } from '../common';
 import { FileType } from '../store';
@@ -19,7 +19,7 @@ import { FileType } from '../store';
 const DEFAULT_FOLDER = '.dockit';
 const saveFile = async (filePath: string, content: string, append: boolean) => {
   try {
-    const folderPath = filePath.substring(0, filePath.lastIndexOf('/'));
+    const folderPath = filePath.substring(0, filePath.lastIndexOf(sep));
 
     if (!(await exists(folderPath, { dir: BaseDirectory.Home }))) {
       await createDir(folderPath, { dir: BaseDirectory.Home, recursive: true });
@@ -104,7 +104,7 @@ const readDirs = async (filePath?: string) => {
       .map(async file => ({
         path: file.path,
         name: file.name,
-        displayPath: await displayPath(file.path),
+        displayPath: await getDisplayPath(file.path),
         type: file.children ? FileType.FOLDER : FileType.FILE,
       })),
   );
@@ -144,15 +144,15 @@ const getSysEmoji = async (): Promise<string> => {
   return emoji;
 };
 
-const displayPath = async (filePath?: string) => {
+const getDisplayPath = async (filePath?: string) => {
   if (!filePath) return '';
 
   const homeDirectory = await homeDir();
   const sysEmoji = await getSysEmoji();
 
   if (filePath.startsWith(homeDirectory)) {
-    return filePath.replace(homeDirectory, `${sysEmoji}/`).replace(/\//g, '/');
-  } else return filePath.replace(/\//g, '/');
+    return filePath.replace(homeDirectory, `${sysEmoji}/`).replace(/\\/g, '/');
+} else return filePath.replace(/\\/g, '/');
 };
 
 const getFileInfo = async (filePath: string) => {
@@ -165,20 +165,20 @@ const getFileInfo = async (filePath: string) => {
     if (!(await exists(await getRelativePath(filePath), { dir: BaseDirectory.Home })))
       return undefined;
 
-    return { name: fileName, path: filePath, displayPath: await displayPath(filePath) };
+    return { name: fileName, path: filePath, displayPath: await getDisplayPath(filePath) };
   }
 
   // file exists in specified folder
   if (await exists(filePath, { dir: BaseDirectory.Home })) {
     const path = `${homeFolder}${filePath}`;
 
-    return { name: fileName, path, displayPath: await displayPath(path) };
+    return { name: fileName, path, displayPath: await getDisplayPath(path) };
   }
   // file exists in default folder
-  if (await exists(`${DEFAULT_FOLDER}/${filePath}`, { dir: BaseDirectory.Home })) {
-    const path = `${homeFolder}${DEFAULT_FOLDER}/${filePath}`;
+  if (await exists(`${DEFAULT_FOLDER}${sep}${filePath}`, { dir: BaseDirectory.Home })) {
+    const path = `${homeFolder}${DEFAULT_FOLDER}${sep}${filePath}`;
 
-    return { name: fileName, path, displayPath: await displayPath(path) };
+    return { name: fileName, path, displayPath: await getDisplayPath(path) };
   }
 
   return undefined;
