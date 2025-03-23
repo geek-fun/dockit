@@ -9,7 +9,7 @@
           @dblclick="handleClick(ClickType.DOUBLE, file)"
           @contextmenu.prevent="showContextMenu($event, file)"
         >
-          <n-icon size="30" v-if="file.type === FileType.FOLDER" color="#0e7a0d">
+          <n-icon size="30" v-if="file.type === PathTypeEnum.FOLDER" color="#0e7a0d">
             <Folder />
           </n-icon>
           <span class="file-item-name">{{ file.name }}</span>
@@ -29,31 +29,32 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
-import { ContextMenuAction, FileItem, FileType, useSourceFileStore } from '../../../store';
+import { ContextMenuAction, useFileStore } from '../../../store';
 import { Folder } from '@vicons/carbon';
 import { useLang } from '../../../lang';
 import ContextMenu from './context-menu.vue';
 import NewFileDialog from './new-file-dialog.vue';
+import { PathInfo, PathTypeEnum } from '../../../datasources';
 
 const router = useRouter();
 const message = useMessage();
 const lang = useLang();
-const fileStore = useSourceFileStore();
-const { openFolder, deleteFileOrFolder } = fileStore;
+const fileStore = useFileStore();
+const { deleteFileOrFolder, changeDirectory } = fileStore;
 const { fileList } = storeToRefs(fileStore);
 
-const activeRef = ref<FileItem>();
+const activeRef = ref<PathInfo>();
 
 enum ClickType {
   SINGLE = 'SINGLE',
   DOUBLE = 'DOUBLE',
 }
 
-const handleClick = async (type: ClickType, file: FileItem) => {
+const handleClick = async (type: ClickType, file: PathInfo) => {
   activeRef.value = file;
   if (type === ClickType.DOUBLE) {
-    if (file.type === FileType.FOLDER) {
-      await openFolder(file.path);
+    if (file.type === PathTypeEnum.FOLDER) {
+      await changeDirectory(file.path);
     } else {
       if (file.path.endsWith('.search')) {
         router.push({ name: 'Connect', params: { filePath: file.path } });
@@ -68,12 +69,12 @@ const handleClick = async (type: ClickType, file: FileItem) => {
   }
 };
 
-const selectedFile = ref<FileItem>();
+const selectedFile = ref<PathInfo>();
 const newFileDialogRef = ref();
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 
-const showContextMenu = (event: MouseEvent, file?: FileItem) => {
+const showContextMenu = (event: MouseEvent, file?: PathInfo) => {
   // Prevent the event from propagating further
   event.stopPropagation();
   activeRef.value = file;
@@ -91,8 +92,8 @@ const handleClickOutside = (event: MouseEvent) => {
 const handleContextMenu = async (action: ContextMenuAction) => {
   contextMenuVisible.value = false;
   if (action === ContextMenuAction.CONTEXT_MENU_ACTION_OPEN) {
-    if (selectedFile.value?.type === FileType.FOLDER) {
-      openFolder(selectedFile.value?.path);
+    if (selectedFile.value?.type === PathTypeEnum.FOLDER) {
+      await changeDirectory(selectedFile.value?.path);
     } else {
       if (selectedFile.value?.path.endsWith('.search')) {
         router.push({ name: 'Connect', params: { filePath: selectedFile.value?.path } });
@@ -111,7 +112,7 @@ const handleContextMenu = async (action: ContextMenuAction) => {
   }
 };
 
-const getClass = (file: FileItem, index: number) => {
+const getClass = (file: PathInfo, index: number) => {
   if (activeRef.value === file) {
     return 'file-item-active';
   } else if (index === fileList.value.length - 1) {
@@ -120,6 +121,9 @@ const getClass = (file: FileItem, index: number) => {
     return 'file-item-hover';
   }
 };
+
+changeDirectory();
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside);
 });

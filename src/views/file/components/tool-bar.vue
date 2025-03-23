@@ -15,13 +15,13 @@
 
 <script setup lang="ts">
 import { DocumentAdd, FolderAdd, FolderOpen } from '@vicons/carbon';
-import { ContextMenuAction, ToolBarAction, useSourceFileStore } from '../../../store';
+import { ContextMenuAction, ToolBarAction, useFileStore } from '../../../store';
 import { useLang } from '../../../lang';
 import NewFileDialog from './new-file-dialog.vue';
-import PathBreadcrumb from '../../../components/PathBreadcrumb.vue';
+import PathBreadcrumb from '../../../components/path-breadcrumb.vue';
 
-const fileStore = useSourceFileStore();
-const { openFolder } = fileStore;
+const fileStore = useFileStore();
+const { selectDirectory } = fileStore;
 
 const lang = useLang();
 
@@ -51,7 +51,7 @@ const handleToolBarAction = async (id: ToolBarAction) => {
   } else if (id === ToolBarAction.ADD_FOLDER) {
     newFileDialogRef.value.showModal(ContextMenuAction.CONTEXT_MENU_ACTION_NEW_FOLDER);
   } else if (id === ToolBarAction.OPEN_FOLDER) {
-    await openFolder();
+    await selectDirectory();
   }
 };
 </script>

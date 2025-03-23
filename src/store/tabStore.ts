@@ -3,12 +3,13 @@ import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
 import { defaultCodeSnippet } from '../common/monaco';
+import { lang } from '../lang';
 
 type Panel = {
   id: number;
   name: string;
   connection?: Connection;
-  file: string;
+  file?: string;
   content?: string;
 };
 
@@ -18,24 +19,27 @@ export const useTabStore = defineStore('panel', {
   state: (): {
     panels: Array<Panel>;
     activePanel: Panel;
+    defaultSnippet: number;
   } => ({
     activePanel: homePanel,
     panels: [homePanel],
+    defaultSnippet: 0,
   }),
   getters: {},
   actions: {
     async establishPanel(connectionOrFile: Connection | string): Promise<void> {
       const isFile = typeof connectionOrFile == 'string';
       if (isFile) {
-        const activePanel = this.panels.find(panelItem => panelItem.file === connectionOrFile);
+        const fileInfo = await sourceFileApi.getPathInfo(connectionOrFile);
+        const activePanel = this.panels.find(({ file }) => file === fileInfo?.path);
         if (activePanel) {
           this.activePanel = activePanel;
         } else {
           const newPanel: Panel = {
             id: this.panels.length + 1,
-            name: connectionOrFile,
-            file: connectionOrFile,
-            content: await sourceFileApi.readFile(connectionOrFile),
+            name: fileInfo!.displayPath,
+            file: fileInfo!.path,
+            content: await sourceFileApi.readFile(fileInfo!.path),
           };
           this.panels.push(newPanel);
           this.activePanel = newPanel;
@@ -50,18 +54,15 @@ export const useTabStore = defineStore('panel', {
           : `${connectionOrFile.name}-${exists.length}.search`;
         let content = defaultCodeSnippet;
 
-        if (await sourceFileApi.exists(fileName)) {
-          content = await sourceFileApi.readFile(fileName);
-        } else if (await sourceFileApi.exists(`.dockit/${fileName}`)) {
-          fileName = `.dockit/${fileName}`;
-          content = await sourceFileApi.readFile(fileName);
+        const fileInfo = await sourceFileApi.getPathInfo(fileName);
+        if (fileInfo) {
+          content = await sourceFileApi.readFile(fileInfo.path);
         }
-
         const newPanel: Panel = {
           id: this.panels.length + 1,
-          name: fileName,
+          name: fileInfo?.displayPath ?? fileName,
           connection: connectionOrFile,
-          file: fileName,
+          file: fileInfo?.path,
           content,
         };
 
@@ -72,7 +73,7 @@ export const useTabStore = defineStore('panel', {
 
     async checkFileExists(panel: Panel | undefined) {
       let checkPanel = panel ?? this.activePanel;
-      if (!checkPanel) return false;
+      if (!checkPanel?.file) return false;
       try {
         return await sourceFileApi.exists(checkPanel.file);
       } catch (err) {
@@ -93,9 +94,7 @@ export const useTabStore = defineStore('panel', {
           this.activePanel = this.panels[Math.min(selectedIndex, this.panels.length - 1)];
         }
       } catch (err) {
-        console.log(err);
-        console.log('err str', JSON.stringify(err));
-        throw new CustomError(500, (err as Error).message);
+        throw err instanceof CustomError ? err : new CustomError(500, (err as Error).message);
       }
     },
 
@@ -105,29 +104,41 @@ export const useTabStore = defineStore('panel', {
       this.activePanel = selectedPanel;
     },
 
-    async saveContent(panel: Panel | undefined, content: string, validateFilePath = false): Promise<void> {
+    async saveContent(
+      panel: Panel | undefined,
+      content: string,
+      validateFilePath = false,
+    ): Promise<void> {
       let checkPanel = panel ?? this.activePanel;
       if (!checkPanel) return;
       checkPanel.content = content;
 
-      let filePath = checkPanel.file;
-
-      if (!(await sourceFileApi.exists(filePath)) && validateFilePath) {
-        const selectedFolder = await sourceFileApi.selectFolder();
-        filePath = `${selectedFolder}/${filePath}`;
-        if (!filePath) {
-          throw new CustomError(404, 'Folder not found');
-        }
+      if (
+        !validateFilePath &&
+        !(!checkPanel.file || (await sourceFileApi.exists(checkPanel.file)))
+      ) {
+        return;
       }
+
+      let filePath = checkPanel.file ?? checkPanel.name;
+
+      if (!(await sourceFileApi.exists(filePath))) {
+        const selectedFolder = await sourceFileApi.selectFolder();
+        if (selectedFolder === null || selectedFolder === undefined) {
+          throw new CustomError(404, lang.global.t('file.folderSelectCancel'));
+        }
+
+        filePath = `${selectedFolder}/${filePath}`;
+      }
+
+      await sourceFileApi.saveFile(filePath, content);
 
       checkPanel.file = filePath;
-      if (await sourceFileApi.exists(filePath)) {
-        await sourceFileApi.saveFile(filePath, content);
-      }
     },
 
     loadDefaultSnippet() {
       if (!this.activePanel) return;
+      this.defaultSnippet += 1;
       this.activePanel.content = defaultCodeSnippet;
     },
   },

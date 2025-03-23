@@ -14,7 +14,7 @@ import { listen } from '@tauri-apps/api/event';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
-import { CustomError } from '../../common';
+import { CustomError, debug } from '../../common';
 import { useAppStore, useChatStore, useConnectionStore, useTabStore } from '../../store';
 import { useLang } from '../../lang';
 import DisplayEditor from './display-editor.vue';
@@ -33,7 +33,7 @@ import {
   monaco,
   SearchAction,
   searchTokens,
-  transformQDSL
+  transformQDSL,
 } from '../../common/monaco';
 
 const appStore = useAppStore();
@@ -42,7 +42,7 @@ const lang = useLang();
 
 const tabStore = useTabStore();
 const { saveContent } = tabStore;
-const { activePanel } = storeToRefs(tabStore);
+const { activePanel, defaultSnippet } = storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
 const { searchQDSL, queryToCurl } = connectionStore;
@@ -247,8 +247,8 @@ const setupQueryEditor = () => {
     return;
   }
 
-queryEditor.onDidChangeModelContent((_changes) => {
-  saveModelContent(false);
+  queryEditor.onDidChangeModelContent(_changes => {
+    saveModelContent(false, false, false);
   });
 
   autoIndentCmdId = queryEditor.addCommand(0, (...args) => autoIndentAction(queryEditor!, args[1]));
@@ -364,32 +364,58 @@ const displayJsonEditor = (content: string) => {
 
 const saveFileListener = ref<Function>();
 
-const saveModelContent = async (validateFile: boolean) => {
+const saveModelContent = async (
+  validateFile: boolean,
+  displayError: boolean,
+  displaySuccess: boolean,
+) => {
   const model = queryEditor?.getModel();
   if (!model) {
     return;
   }
-await saveContent(undefined, model.getValue() || '', validateFile);
+  try {
+    await saveContent(undefined, model.getValue() || '', validateFile);
+    if (displaySuccess) {
+      message.success(lang.t('dialogOps.fileSaveSuccess'), {
+        duration: 1000,
+      });
+    }
+  } catch (err) {
+    if (displayError) {
+      message.error((err as CustomError).details, {
+        closable: true,
+        keepAliveOnHover: true,
+      });
+    }
+  }
 };
 
 const setupFileListener = async () => {
   // listen for saveFile event
   saveFileListener.value = await listen('saveFile', async () => {
-    await saveModelContent(true);
+    await saveModelContent(true, true, true);
   });
 
   /**
    * listen for saveFile event in windows
-   * @TODO verify on windows
    * @see https://github.com/tauri-apps/wry/issues/451
    */
-  const saveShortcutWin = await isRegistered('Control+S');
-  if (!saveShortcutWin) {
-    await register('Control+S', async () => {
-      await saveModelContent(true);
-    });
-  }
+   const saveShortcutWin = await isRegistered('Control+S');
+   if (saveShortcutWin) {
+     await unregister('Control+S');
+   }
+    try {
+      await register('Control+S', async () => {
+        await saveModelContent(true, true, true);
+      });
+    } catch (err) {
+      debug(`register shortcut error: ${err}`);
+    }
 };
+
+watch(defaultSnippet, () => {
+  queryEditor?.getModel()?.setValue(activePanel.value.content ?? '');
+});
 
 const cleanupFileListener = async () => {
   if (saveFileListener?.value) {
