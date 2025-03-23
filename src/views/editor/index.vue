@@ -400,17 +400,17 @@ const setupFileListener = async () => {
    * listen for saveFile event in windows
    * @see https://github.com/tauri-apps/wry/issues/451
    */
-   const saveShortcutWin = await isRegistered('Control+S');
-   if (saveShortcutWin) {
-     await unregister('Control+S');
-   }
-    try {
-      await register('Control+S', async () => {
-        await saveModelContent(true, true, true);
-      });
-    } catch (err) {
-      debug(`register shortcut error: ${err}`);
-    }
+  const saveShortcutWin = await isRegistered('Control+S');
+  if (saveShortcutWin) {
+    await unregister('Control+S');
+  }
+  try {
+    await register('Control+S', async () => {
+      await saveModelContent(true, true, true);
+    });
+  } catch (err) {
+    debug(`register shortcut error: ${err}`);
+  }
 };
 
 watch(defaultSnippet, () => {

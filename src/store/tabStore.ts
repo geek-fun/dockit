@@ -113,27 +113,23 @@ export const useTabStore = defineStore('panel', {
       if (!checkPanel) return;
       checkPanel.content = content;
 
-      if (
-        !validateFilePath &&
-        !(!checkPanel.file || (await sourceFileApi.exists(checkPanel.file)))
-      ) {
-        return;
-      }
+      let targetPath = checkPanel.file ?? checkPanel.name;
+      const isExists = await sourceFileApi.exists(targetPath);
 
-      let filePath = checkPanel.file ?? checkPanel.name;
+      if (!isExists) {
+        if (!validateFilePath) return;
 
-      if (!(await sourceFileApi.exists(filePath))) {
         const selectedFolder = await sourceFileApi.selectFolder();
         if (selectedFolder === null || selectedFolder === undefined) {
           throw new CustomError(404, lang.global.t('file.folderSelectCancel'));
         }
 
-        filePath = `${selectedFolder}/${filePath}`;
+        targetPath = `${selectedFolder}/${targetPath}`;
       }
 
-      await sourceFileApi.saveFile(filePath, content);
+      await sourceFileApi.saveFile(targetPath, content);
 
-      checkPanel.file = filePath;
+      checkPanel.file = targetPath;
     },
 
     loadDefaultSnippet() {
