@@ -30,8 +30,8 @@ export const useTabStore = defineStore('panel', {
     async establishPanel(connectionOrFile: Connection | string): Promise<void> {
       const isFile = typeof connectionOrFile == 'string';
       if (isFile) {
-        const fileInfo = await sourceFileApi.getFileInfo(connectionOrFile);
-        const activePanel = this.panels.find(({file}) => file === fileInfo?.path);
+        const fileInfo = await sourceFileApi.getPathInfo(connectionOrFile);
+        const activePanel = this.panels.find(({ file }) => file === fileInfo?.path);
         if (activePanel) {
           this.activePanel = activePanel;
         } else {
@@ -54,7 +54,7 @@ export const useTabStore = defineStore('panel', {
           : `${connectionOrFile.name}-${exists.length}.search`;
         let content = defaultCodeSnippet;
 
-        const fileInfo = await sourceFileApi.getFileInfo(fileName);
+        const fileInfo = await sourceFileApi.getPathInfo(fileName);
         if (fileInfo) {
           content = await sourceFileApi.readFile(fileInfo.path);
         }

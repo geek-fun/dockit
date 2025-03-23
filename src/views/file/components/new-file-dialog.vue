@@ -62,10 +62,12 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
 import { Close } from '@vicons/carbon';
-import { useLang } from '../../../lang';
 import { FormRules, FormValidationError } from 'naive-ui';
-import { ContextMenuAction, FileItem, ToolBarAction, useFileStore } from '../../../store';
+import { cloneDeep } from 'lodash';
+import { useLang } from '../../../lang';
+import { ContextMenuAction, ToolBarAction, useFileStore } from '../../../store';
 import { CustomError } from '../../../common';
+import { PathInfo } from '../../../datasources';
 
 const lang = useLang();
 const fileStore = useFileStore();
@@ -75,10 +77,10 @@ const fileFormRef = ref();
 const showModal = ref(false);
 const modalTitle = ref('');
 const saveLoading = ref(false);
-const selectedFileRef = ref<FileItem>();
+const selectedFileRef = ref<PathInfo>();
 
 const defaultFormData = { path: '' };
-const formData = ref<{ path: string }>(defaultFormData);
+const formData = ref<{ path: string }>(cloneDeep(defaultFormData));
 const formRules = reactive<FormRules>({
   // @ts-ignore
   path: [
@@ -93,11 +95,11 @@ const formRules = reactive<FormRules>({
 const message = useMessage();
 
 const cleanUp = () => {
-  formData.value = defaultFormData;
+  formData.value = cloneDeep(defaultFormData);
   modalTitle.value = '';
 };
 
-const showMedal = (action: ContextMenuAction, selectedFile?: FileItem) => {
+const showMedal = (action: ContextMenuAction, selectedFile?: PathInfo) => {
   cleanUp();
   selectedFileRef.value = selectedFile;
   if (action === ContextMenuAction.CONTEXT_MENU_ACTION_NEW_FOLDER) {

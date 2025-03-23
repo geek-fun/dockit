@@ -46,7 +46,7 @@ declare module 'vue' {
     NTabs: typeof import('naive-ui')['NTabs']
     NTag: typeof import('naive-ui')['NTag']
     NTooltip: typeof import('naive-ui')['NTooltip']
-    PathBreadcrumb: typeof import('./src/components/PathBreadcrumb.vue')['default']
+    PathBreadcrumb: typeof import('./src/components/path-breadcrumb.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterMain: typeof import('./src/components/RouterMain.vue')['default']
     RouterView: typeof import('vue-router')['RouterView']

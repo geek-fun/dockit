@@ -1,7 +1,5 @@
-import { exists } from '@tauri-apps/api/fs';
-
 import { defineStore } from 'pinia';
-import { sourceFileApi } from '../datasources';
+import { PathInfo, sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
 import { get } from 'lodash';
 
@@ -10,17 +8,6 @@ export enum ToolBarAction {
   ADD_FOLDER = 'ADD_FOLDER',
   OPEN_FOLDER = 'OPEN_FOLDER',
 }
-
-export enum FileType {
-  FILE = 'FILE',
-  FOLDER = 'FOLDER',
-}
-
-export type FileItem = {
-  path: string;
-  name: string | undefined;
-  type: FileType;
-};
 
 export enum ContextMenuAction {
   CONTEXT_MENU_ACTION_OPEN = 'CONTEXT_MENU_ACTION_OPEN',
@@ -31,27 +18,35 @@ export enum ContextMenuAction {
 }
 
 export const useFileStore = defineStore('fileStore', {
-  state(): { fileContent: string; filePath: string; fileList: FileItem[] } {
+  state(): {
+    fileContent: string;
+    fileList: PathInfo[];
+    activePath: PathInfo | undefined;
+  } {
     return {
       fileContent: '',
-      filePath: '.dockit',
+      activePath: undefined,
       fileList: [],
     };
   },
   persist: true,
-  getters: {},
+  getters: {
+    breadCrumbPath: (state): string => {
+      return state.activePath?.displayPath ?? '';
+    },
+  },
   actions: {
-    async openFolder(path?: string) {
+    async selectDirectory(path?: string) {
       try {
-        const selectedPath = (await sourceFileApi.selectFolder(path)) ?? this.filePath;
+        const selectedPath = await sourceFileApi.selectFolder(path);
 
-        if (!(await exists(selectedPath))) {
-          throw new CustomError(404, 'Folder not found');
-        }
+        const pathInfo = await sourceFileApi.getPathInfo(
+          selectedPath ?? this.activePath?.path ?? '',
+        );
 
-        await this.fetchFileList(selectedPath);
+        await this.fetchFileList(pathInfo?.path);
 
-        this.filePath = selectedPath;
+        this.activePath = pathInfo;
       } catch (error) {
         throw new CustomError(
           get(error, 'status', 500),
@@ -59,32 +54,55 @@ export const useFileStore = defineStore('fileStore', {
         );
       }
     },
+
+    async changeDirectory(path?: string) {
+      try {
+        const pathInfo = await sourceFileApi.getPathInfo(
+          path ?? this.activePath?.path ?? '.dockit',
+        );
+        if (!pathInfo) {
+          throw new CustomError(404, 'Folder not found');
+        }
+
+        await this.fetchFileList(pathInfo.path);
+
+        this.activePath = pathInfo;
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+
     async createFileOrFolder(action: ToolBarAction, name: string) {
-      const path = this.filePath.endsWith('.search')
-        ? this.filePath.substring(0, this.filePath.lastIndexOf('/'))
-        : this.filePath;
+      const path = this.activePath?.path.endsWith('.search')
+        ? this.activePath?.path.substring(0, this.activePath?.path.lastIndexOf('/'))
+        : this.activePath?.path;
 
       const targetPath = `${path}/${name}`;
+
       if (action === ToolBarAction.ADD_DOCUMENT) {
         await sourceFileApi.saveFile(targetPath, '');
       } else {
         await sourceFileApi.createFolder(targetPath);
       }
-      await this.openFolder(this.filePath);
+      await this.fetchFileList(this.activePath?.path);
     },
+
     async deleteFileOrFolder(path: string) {
       await sourceFileApi.deleteFileOrFolder(path);
-      await this.openFolder(this.filePath);
+      await this.fetchFileList(this.activePath?.path);
     },
 
     async renameFileOrFolder(oldPath: string, newPath: string) {
       await sourceFileApi.renameFileOrFolder(oldPath, newPath);
-      await this.openFolder(this.filePath);
+      await this.fetchFileList(this.activePath?.path);
     },
 
     async fetchFileList(inputPath?: string) {
       try {
-        this.fileList = await sourceFileApi.readDir(inputPath ?? this.filePath);
+        this.fileList = await sourceFileApi.readDir(inputPath ?? this.activePath?.path);
       } catch (error) {
         throw new CustomError(
           get(error, 'status', 500),

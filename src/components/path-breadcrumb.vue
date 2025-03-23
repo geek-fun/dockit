@@ -1,14 +1,18 @@
 <template>
   <n-breadcrumb class="tool-bar-path-breadcrumb">
     <n-breadcrumb-item
-      v-if="props.clickable && filePath"
-      v-for="(path, index) in filePath?.split('/')"
+      v-if="props.clickable && breadCrumbPath"
+      v-for="(path, index) in breadCrumbPath?.split('/')"
       @click="handleBreadcrumb(index)"
     >
       <n-icon :component="Folder" v-if="index !== 0" />
       {{ path }}
     </n-breadcrumb-item>
-    <n-breadcrumb-item v-else v-for="path in filePath?.split('/')" :clickable="props.clickable">
+    <n-breadcrumb-item
+      v-else
+      v-for="path in breadCrumbPath?.split('/')"
+      :clickable="props.clickable"
+    >
       {{ path }}
     </n-breadcrumb-item>
   </n-breadcrumb>
@@ -21,20 +25,21 @@ import { storeToRefs } from 'pinia';
 import { CustomError } from '../common';
 
 const fileStore = useFileStore();
-const { openFolder } = fileStore;
-const { filePath } = storeToRefs(fileStore);
+const { changeDirectory } = fileStore;
+const { breadCrumbPath } = storeToRefs(fileStore);
 
 const props = defineProps({ clickable: { type: Boolean, default: true } });
 
 const message = useMessage();
 
 const handleBreadcrumb = async (index: number) => {
-  const subPath = filePath?.value
+  const subPath = breadCrumbPath?.value
     ?.split('/')
     .splice(0, index + 1)
     .join('/');
+
   try {
-    await openFolder(subPath);
+    await changeDirectory(subPath);
   } catch (error) {
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -54,6 +59,12 @@ const handleBreadcrumb = async (index: number) => {
 
   &::-webkit-scrollbar {
     display: none; /* For Chrome, Safari, and Opera */
+  }
+
+  :deep(.n-breadcrumb-item__link) {
+    .n-breadcrumb-item__separator {
+      margin: 0 1px;
+    }
   }
 }
 </style>

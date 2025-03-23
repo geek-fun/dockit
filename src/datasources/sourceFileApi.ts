@@ -11,12 +11,110 @@ import {
 } from '@tauri-apps/api/fs';
 import { platform } from '@tauri-apps/api/os';
 
-import { homeDir, isAbsolute, basename,sep } from '@tauri-apps/api/path';
+import { homeDir, isAbsolute, basename, sep, extname } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/api/dialog';
 import { CustomError, debug } from '../common';
-import { FileType } from '../store';
+
+export enum PathTypeEnum {
+  FILE = 'FILE',
+  FOLDER = 'FOLDER',
+}
+
+export type PathInfo = {
+  name: string;
+  path: string;
+  displayPath: string;
+  type: PathTypeEnum;
+};
 
 const DEFAULT_FOLDER = '.dockit';
+
+const getSysEmoji = async (): Promise<string> => {
+  const os = await platform();
+  let emoji = '';
+
+  switch (os) {
+    case 'linux':
+      emoji = '🏠︎'; // Penguin emoji for Linux
+      break;
+    case 'darwin':
+    case 'ios':
+      emoji = ''; // Green apple emoji for macOS
+      break;
+    case 'freebsd':
+    case 'dragonfly':
+    case 'netbsd':
+    case 'openbsd':
+      emoji = '🐡'; // Blowfish emoji for OpenBSD
+      break;
+    case 'solaris':
+      emoji = '☀️'; // Sun emoji for Solaris
+      break;
+    case 'android':
+      emoji = '🤖'; // Robot emoji for Android
+      break;
+    case 'win32':
+      emoji = '⊞'; // Window emoji for Windows
+      break;
+    default:
+      emoji = '🏠︎'; // Globe emoji for other OS
+  }
+
+  return emoji;
+};
+const getFileType = async (filePath: string): Promise<PathTypeEnum> =>
+  (await extname(filePath).catch(() => undefined)) ? PathTypeEnum.FILE : PathTypeEnum.FOLDER;
+
+const getRelativePath = async (filePath?: string) => {
+  const defaultPath = filePath ?? DEFAULT_FOLDER;
+  const homeDirectory = await homeDir();
+  const emoji = await getSysEmoji();
+
+  return defaultPath.startsWith(homeDirectory) || defaultPath.startsWith(emoji)
+    ? defaultPath.replace(homeDirectory, '').replace(`${emoji}/`, '')
+    : defaultPath;
+};
+
+const getPathInfo = async (filePath: string): Promise<PathInfo | undefined> => {
+  const homeFolder = await homeDir();
+
+  const fileName = await basename(filePath);
+  const fileType = await getFileType(filePath);
+
+  const targetPath = await getRelativePath(filePath);
+  const absolute = await isAbsolute(targetPath);
+
+  if (absolute) {
+    if (!(await exists(targetPath, { dir: BaseDirectory.Home }))) return undefined;
+
+    return {
+      name: fileName,
+      path: filePath,
+      type: fileType,
+      displayPath: await getDisplayPath(filePath),
+    };
+  }
+
+  // file exists in specified folder
+  if (await exists(targetPath, { dir: BaseDirectory.Home })) {
+    const path = `${homeFolder}${targetPath}`;
+
+    return { name: fileName, path, displayPath: await getDisplayPath(path), type: fileType };
+  }
+
+  // file exists in default folder
+  if (
+    !targetPath.startsWith(DEFAULT_FOLDER) &&
+    (await exists(`${DEFAULT_FOLDER}${sep}${targetPath}`, { dir: BaseDirectory.Home }))
+  ) {
+    const path = `${homeFolder}${DEFAULT_FOLDER}${sep}${targetPath}`;
+
+    return { name: fileName, path, displayPath: await getDisplayPath(path), type: fileType };
+  }
+
+  return undefined;
+};
+
 const saveFile = async (filePath: string, content: string, append: boolean) => {
   try {
     const folderPath = filePath.substring(0, filePath.lastIndexOf(sep));
@@ -28,6 +126,20 @@ const saveFile = async (filePath: string, content: string, append: boolean) => {
     debug('save file success');
   } catch (err) {
     debug(`saveFile error: ${err}`);
+    throw err;
+  }
+};
+
+const createFolder = async (folderPath: string) => {
+  try {
+    const targetPath = await getRelativePath(folderPath);
+
+    if (!(await exists(targetPath, { dir: BaseDirectory.Home }))) {
+      await createDir(targetPath, { dir: BaseDirectory.Home, recursive: true });
+      debug('create folder success');
+    }
+  } catch (err) {
+    debug(`createFolder error: ${err}`);
     throw err;
   }
 };
@@ -65,16 +177,6 @@ const renameFileOrFolder = async (oldPath: string, newPath: string) => {
   }
 };
 
-const getRelativePath = async (filePath?: string) => {
-  const defaultPath = filePath ?? DEFAULT_FOLDER;
-  const homeDirectory = await homeDir();
-  const emoji = await getSysEmoji();
-
-  return defaultPath.startsWith(homeDirectory) || defaultPath.startsWith(emoji)
-    ? defaultPath.replace(homeDirectory, '').replace(`${emoji}/`, '')
-    : defaultPath;
-};
-
 const selectFolder = async (basePath?: string) => {
   const homeDirectory = await homeDir();
   const targetPath = await getRelativePath(basePath);
@@ -89,7 +191,7 @@ const selectFolder = async (basePath?: string) => {
   return (await open({ recursive: true, directory: true, defaultPath }))?.toString();
 };
 
-const readDirs = async (filePath?: string) => {
+const readDirs = async (filePath?: string): Promise<Array<PathInfo>> => {
   const targetPath = await getRelativePath(filePath);
   const fileList = await readDir(targetPath, { dir: BaseDirectory.Home });
 
@@ -103,45 +205,11 @@ const readDirs = async (filePath?: string) => {
       })
       .map(async file => ({
         path: file.path,
-        name: file.name,
+        name: file.name ?? '',
         displayPath: await getDisplayPath(file.path),
-        type: file.children ? FileType.FOLDER : FileType.FILE,
+        type: file.children ? PathTypeEnum.FOLDER : PathTypeEnum.FILE,
       })),
   );
-};
-
-const getSysEmoji = async (): Promise<string> => {
-  const os = await platform();
-  let emoji = '';
-
-  switch (os) {
-    case 'linux':
-      emoji = '🏠︎'; // Penguin emoji for Linux
-      break;
-    case 'darwin':
-    case 'ios':
-      emoji = ''; // Green apple emoji for macOS
-      break;
-    case 'freebsd':
-    case 'dragonfly':
-    case 'netbsd':
-    case 'openbsd':
-      emoji = '🐡'; // Blowfish emoji for OpenBSD
-      break;
-    case 'solaris':
-      emoji = '☀️'; // Sun emoji for Solaris
-      break;
-    case 'android':
-      emoji = '🤖'; // Robot emoji for Android
-      break;
-    case 'win32':
-      emoji = '⊞'; // Window emoji for Windows
-      break;
-    default:
-      emoji = '🏠︎'; // Globe emoji for other OS
-  }
-
-  return emoji;
 };
 
 const getDisplayPath = async (filePath?: string) => {
@@ -152,49 +220,20 @@ const getDisplayPath = async (filePath?: string) => {
 
   if (filePath.startsWith(homeDirectory)) {
     return filePath.replace(homeDirectory, `${sysEmoji}/`).replace(/\\/g, '/');
-} else return filePath.replace(/\\/g, '/');
-};
-
-const getFileInfo = async (filePath: string) => {
-  const absolute = await isAbsolute(filePath);
-  const homeFolder = await homeDir();
-
-  const fileName = await basename(filePath);
-
-  if (absolute) {
-    if (!(await exists(await getRelativePath(filePath), { dir: BaseDirectory.Home })))
-      return undefined;
-
-    return { name: fileName, path: filePath, displayPath: await getDisplayPath(filePath) };
-  }
-
-  // file exists in specified folder
-  if (await exists(filePath, { dir: BaseDirectory.Home })) {
-    const path = `${homeFolder}${filePath}`;
-
-    return { name: fileName, path, displayPath: await getDisplayPath(path) };
-  }
-  // file exists in default folder
-  if (await exists(`${DEFAULT_FOLDER}${sep}${filePath}`, { dir: BaseDirectory.Home })) {
-    const path = `${homeFolder}${DEFAULT_FOLDER}${sep}${filePath}`;
-
-    return { name: fileName, path, displayPath: await getDisplayPath(path) };
-  }
-
-  return undefined;
+  } else return filePath.replace(/\\/g, '/');
 };
 
 const sourceFileApi = {
   saveFile: (filePath: string, content: string, append = false) =>
     saveFile(filePath, content, append),
   readFile: (filePath: string) => readFromFile(filePath),
-  createFolder: (folderPath: string) => createDir(folderPath),
+  createFolder,
   deleteFileOrFolder,
   renameFileOrFolder,
   selectFolder,
   exists: async (filePath: string) => await exists(filePath, { dir: BaseDirectory.Home }),
   readDir: readDirs,
-  getFileInfo,
+  getPathInfo,
 };
 
 export { sourceFileApi };
