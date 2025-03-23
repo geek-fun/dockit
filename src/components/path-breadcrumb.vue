@@ -61,10 +61,8 @@ const handleBreadcrumb = async (index: number) => {
     display: none; /* For Chrome, Safari, and Opera */
   }
 
-  :deep(.n-breadcrumb-item__link) {
-    .n-breadcrumb-item__separator {
-      margin: 0 1px;
-    }
+  :deep(.n-breadcrumb-item__separator) {
+    margin: 0 1px;
   }
 }
 </style>
