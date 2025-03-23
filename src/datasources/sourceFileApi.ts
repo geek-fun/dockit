@@ -78,7 +78,7 @@ const getRelativePath = async (filePath?: string) => {
 const getPathInfo = async (filePath: string): Promise<PathInfo | undefined> => {
   const homeFolder = await homeDir();
 
-  const fileName = await basename(filePath);
+  const fileName = await basename(filePath).catch(() => undefined);
   const fileType = await getFileType(filePath);
 
   const targetPath = await getRelativePath(filePath);
