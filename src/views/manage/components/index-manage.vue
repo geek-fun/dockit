@@ -124,8 +124,7 @@ const handleFilter = (key: string, value: string) => {
 
 const filterProps = (key: string) => ({
   filter: true,
-  renderFilterMenu(actions: { hide: () => void }) {
-    console.log('renderFilterMenu, actions:', actions);
+  renderFilterMenu(_: { hide: () => void }) {
     return h(NInput, {
       value: filtersRef.value[key],
       placeholder: `type to filter ${key}`,
@@ -199,16 +198,7 @@ const indexTableColumns = ref([
                     },
                   ],
                 },
-                {
-                  default: () =>
-                    h(
-                      NIcon,
-                      {},
-                      {
-                        default: () => h(SettingsAdjust),
-                      },
-                    ),
-                },
+                { default: () => h(NIcon, {}, { default: () => h(SettingsAdjust) }) },
               ),
           },
         ),
