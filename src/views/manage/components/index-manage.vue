@@ -3,8 +3,8 @@
     <n-tabs type="segment" animated @update:value="refresh">
       <n-tab-pane name="indices" tab="INDICES">
         <n-data-table
-          :columns="indexTable.columns"
-          :data="indexTable.data"
+          :columns="indexTableColumns"
+          :data="indexTableData"
           :bordered="false"
           max-height="400"
         />
@@ -63,8 +63,9 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { get } from 'lodash';
 import { ClusterAlias, ClusterIndex, IndexHealth, useClusterManageStore } from '../../../store';
-import { NButton, NDropdown, NIcon, NTag } from 'naive-ui';
+import { NButton, NDropdown, NIcon, NTag, NInput } from 'naive-ui';
 import {
   Add,
   ArrowsHorizontal,
@@ -75,12 +76,13 @@ import {
   Delete,
   Locked,
   Unlocked,
+  Search,
 } from '@vicons/carbon';
 import IndexDialog from './index-dialog.vue';
 import AliasDialog from './alias-dialog.vue';
 import TemplateDialog from './template-dialog.vue';
 import { useLang } from '../../../lang';
-import { CustomError } from '../../../common';
+import { CustomError, inputProps } from '../../../common';
 import SwitchAliasDialog from './switch-alias-dialog.vue';
 
 const message = useMessage();
@@ -104,138 +106,169 @@ const aliasDialogRef = ref();
 const templateDialogRef = ref();
 const switchAliasDialogRef = ref();
 
-const indexTable = computed(() => {
-  return {
-    columns: [
-      { title: 'Index', dataIndex: 'index', key: 'index' },
-      { title: 'UUID', dataIndex: 'uuid', key: 'uuid' },
-      {
-        title: 'health',
-        dataIndex: 'health',
-        key: 'health',
-        render({ health }: ClusterIndex) {
-          return (
-            (health === IndexHealth.GREEN ? '🟢' : health === IndexHealth.YELLOW ? '🟡' : '🔴') +
-            ` ${health}`
-          );
-        },
-      },
-      { title: 'status', dataIndex: 'status', key: 'status' },
-      {
-        title: 'Aliases',
-        dataIndex: 'aliases',
-        key: 'aliases',
-        resizable: true,
-        render: ({ aliases }: { aliases: Array<ClusterAlias> }) =>
-          aliases.map(alias =>
-            h(
-              NButton,
-              {
-                strong: true,
-                type: 'default',
-                tertiary: true,
-                iconPlacement: 'right',
-                style: 'margin-right: 8px',
-              },
-              {
-                default: () => `${alias.alias}`,
-                icon: () =>
-                  h(
-                    NDropdown,
-                    {
-                      trigger: 'click',
-                      placement: 'bottom-end',
-                      onSelect: event => handleAction(event, alias.index, alias.alias),
-                      options: [
-                        {
-                          label: lang.t('manage.index.actions.removeAlias'),
-                          key: 'removeAlias',
-                          icon: () => h(NIcon, { color: 'red' }, { default: () => h(Unlink) }),
-                        },
-                        {
-                          label: lang.t('manage.index.actions.switchAlias'),
-                          key: 'switchAlias',
-                          icon: () => h(NIcon, {}, { default: () => h(ArrowsHorizontal) }),
-                        },
-                      ],
-                    },
-                    {
-                      default: () =>
-                        h(
-                          NIcon,
-                          {},
-                          {
-                            default: () => h(SettingsAdjust),
-                          },
-                        ),
-                    },
-                  ),
-              },
-            ),
-          ),
-      },
-      {
-        title: 'Docs',
-        dataIndex: 'docs',
-        key: 'docs',
-        render({ docs }: ClusterIndex) {
-          return docs.count;
-        },
-      },
-      {
-        title: 'shards',
-        dataIndex: 'shards',
-        key: 'shards',
-        render({ shards }: ClusterIndex) {
-          return `${shards.primary}p/${shards.replica}r`;
-        },
-      },
-      { title: 'Storage', dataIndex: 'storage', key: 'storage' },
-      {
-        title: 'Actions',
-        dataIndex: 'actions',
-        key: 'actions',
-        render(index: ClusterIndex) {
-          return h(
-            NDropdown,
-            {
-              trigger: 'click',
-              placement: 'bottom-end',
-              onSelect: event => handleAction(event, index.index),
-              options: [
-                {
-                  label: lang.t('manage.index.actions.deleteIndex'),
-                  key: 'deleteIndex',
-                  icon: () => h(NIcon, { color: 'red' }, { default: () => h(Delete) }),
-                },
-                index.status === 'open'
-                  ? {
-                      label: lang.t('manage.index.actions.closeIndex'),
-                      key: 'closIndex',
-                      icon: () => h(NIcon, { color: 'yellow' }, { default: () => h(Locked) }),
-                    }
-                  : {
-                      label: lang.t('manage.index.actions.openIndex'),
-                      key: 'openIndex',
-                      icon: () => h(NIcon, { color: 'green' }, { default: () => h(Unlocked) }),
-                    },
-              ],
-            },
-            {
-              default: () =>
-                h(
-                  NIcon,
-                  { style: 'cursor: pointer' },
-                  { default: () => h(OverflowMenuHorizontal) },
-                ),
-            },
-          );
-        },
-      },
-    ],
-    data: indexWithAliases.value,
-  };
+const indexTableData = ref(indexWithAliases.value);
+
+const filtersRef = ref<{ [key: string]: string }>({
+  index: '',
+  uuid: '',
+  health: '',
+  status: '',
 });
+
+const handleFilter = (key: string, value: string) => {
+  filtersRef.value[key] = value;
+  indexTableData.value = indexWithAliases.value.filter((item: ClusterIndex) =>
+    get(item, key, '').toLowerCase().includes(value.toLowerCase()),
+  );
+};
+
+const filterProps = (key: string) => ({
+  filter: true,
+  renderFilterMenu(actions: { hide: () => void }) {
+    console.log('renderFilterMenu, actions:', actions);
+    return h(NInput, {
+      value: filtersRef.value[key],
+      placeholder: `type to filter ${key}`,
+      clearable: true,
+      size: 'small',
+      'on-update:value': (value: string) => handleFilter(key, value),
+      'input-props': inputProps,
+    });
+  },
+  renderFilterIcon() {
+    return h(NIcon, {}, { default: () => h(Search) });
+  },
+});
+
+const indexTableColumns = ref([
+  {
+    title: 'Index',
+    dataIndex: 'index',
+    key: 'index',
+    ...filterProps('index'),
+  },
+  { title: 'UUID', dataIndex: 'uuid', key: 'uuid', ...filterProps('uuid') },
+  {
+    title: 'health',
+    dataIndex: 'health',
+    key: 'health',
+    ...filterProps('health'),
+    render({ health }: ClusterIndex) {
+      return (
+        (health === IndexHealth.GREEN ? '🟢' : health === IndexHealth.YELLOW ? '🟡' : '🔴') +
+        ` ${health}`
+      );
+    },
+  },
+  { title: 'status', dataIndex: 'status', key: 'status', ...filterProps('status') },
+  {
+    title: 'Aliases',
+    dataIndex: 'aliases',
+    key: 'aliases',
+    resizable: true,
+    render: ({ aliases }: { aliases: Array<ClusterAlias> }) =>
+      aliases.map(alias =>
+        h(
+          NButton,
+          {
+            strong: true,
+            type: 'default',
+            tertiary: true,
+            iconPlacement: 'right',
+            style: 'margin-right: 8px',
+          },
+          {
+            default: () => `${alias.alias}`,
+            icon: () =>
+              h(
+                NDropdown,
+                {
+                  trigger: 'click',
+                  placement: 'bottom-end',
+                  onSelect: event => handleAction(event, alias.index, alias.alias),
+                  options: [
+                    {
+                      label: lang.t('manage.index.actions.removeAlias'),
+                      key: 'removeAlias',
+                      icon: () => h(NIcon, { color: 'red' }, { default: () => h(Unlink) }),
+                    },
+                    {
+                      label: lang.t('manage.index.actions.switchAlias'),
+                      key: 'switchAlias',
+                      icon: () => h(NIcon, {}, { default: () => h(ArrowsHorizontal) }),
+                    },
+                  ],
+                },
+                {
+                  default: () =>
+                    h(
+                      NIcon,
+                      {},
+                      {
+                        default: () => h(SettingsAdjust),
+                      },
+                    ),
+                },
+              ),
+          },
+        ),
+      ),
+  },
+  {
+    title: 'Docs',
+    dataIndex: 'docs',
+    key: 'docs',
+    render({ docs }: ClusterIndex) {
+      return docs.count;
+    },
+  },
+  {
+    title: 'shards',
+    dataIndex: 'shards',
+    key: 'shards',
+    render({ shards }: ClusterIndex) {
+      return `${shards.primary}p/${shards.replica}r`;
+    },
+  },
+  { title: 'Storage', dataIndex: 'storage', key: 'storage' },
+  {
+    title: 'Actions',
+    dataIndex: 'actions',
+    key: 'actions',
+    render(index: ClusterIndex) {
+      return h(
+        NDropdown,
+        {
+          trigger: 'click',
+          placement: 'bottom-end',
+          onSelect: event => handleAction(event, index.index),
+          options: [
+            {
+              label: lang.t('manage.index.actions.deleteIndex'),
+              key: 'deleteIndex',
+              icon: () => h(NIcon, { color: 'red' }, { default: () => h(Delete) }),
+            },
+            index.status === 'open'
+              ? {
+                  label: lang.t('manage.index.actions.closeIndex'),
+                  key: 'closIndex',
+                  icon: () => h(NIcon, { color: 'yellow' }, { default: () => h(Locked) }),
+                }
+              : {
+                  label: lang.t('manage.index.actions.openIndex'),
+                  key: 'openIndex',
+                  icon: () => h(NIcon, { color: 'green' }, { default: () => h(Unlocked) }),
+                },
+          ],
+        },
+        {
+          default: () =>
+            h(NIcon, { style: 'cursor: pointer' }, { default: () => h(OverflowMenuHorizontal) }),
+        },
+      );
+    },
+  },
+]);
 
 const templateTable = computed(() => {
   return {
