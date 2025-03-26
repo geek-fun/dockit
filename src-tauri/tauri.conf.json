@@ -1,4 +1,9 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "DocKit",
+  "mainBinaryName": "DocKit",
+  "version": "../package.json",
+  "identifier": "club.geekfun.dockit",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -22,10 +27,6 @@
       "icons/icon.ico"
     ]
   },
-  "productName": "DocKit",
-  "mainBinaryName": "DocKit",
-  "version": "../package.json",
-  "identifier": "club.geekfun.dockit",
   "plugins": {},
   "app": {
     "macOSPrivateApi": false,
