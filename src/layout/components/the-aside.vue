@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { ref, markRaw } from 'vue';
-import { open } from '@tauri-apps/api/shell';
+import { open } from '@tauri-apps/plugin-shell';
 import { useRouter, useRoute } from 'vue-router';
 import {
   DataBase,

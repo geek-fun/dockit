@@ -23,7 +23,7 @@
     "build:macos": "tauri build -t universal-apple-darwin"
   },
   "dependencies": {
-    "@tauri-apps/api": "^1.6.0",
+    "@tauri-apps/api": "^2.4.0",
     "debug": "^4.4.0",
     "highlight.js": "^11.11.1",
     "json5": "^2.2.3",
@@ -41,7 +41,7 @@
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^1",
+    "@tauri-apps/cli": "^2.4.0",
     "@types/debug": "^4.1.12",
     "@types/jest": "^29.5.14",
     "@types/lodash": "^4.17.12",

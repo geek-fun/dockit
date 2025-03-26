@@ -1,6 +1,6 @@
 import { buildAuthHeader, buildURL, CustomError, debug } from '../common';
 import { lang } from '../lang';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { get } from 'lodash';
 
 type FetchApiOptions = {

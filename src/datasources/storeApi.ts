@@ -1,4 +1,4 @@
-import { Store } from 'tauri-plugin-store-api';
+import { Store } from '@tauri-apps/plugin-store';
 
 const store = new Store('.store.dat');
 const storeApi = {
