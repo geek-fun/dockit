@@ -29,7 +29,7 @@
       </template>
       <template v-else>
         <div class="es-editor">
-          <tool-bar />
+          <tool-bar type="EDITOR" />
           <div class="es-editor-container">
             <Editor />
           </div>

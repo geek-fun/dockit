@@ -11,8 +11,8 @@
       </n-tab-pane>
       <n-tab-pane name="templates" tab="TEMPLATES">
         <n-data-table
-          :columns="templateTable.columns"
-          :data="templateTable.data"
+          :columns="templateTableColumns"
+          :data="templateTableData"
           :bordered="false"
           max-height="400"
         />
@@ -107,19 +107,29 @@ const templateDialogRef = ref();
 const switchAliasDialogRef = ref();
 
 const indexTableData = ref(indexWithAliases.value);
+const templateTableData = ref(templates.value);
 
 const filtersRef = ref<{ [key: string]: string }>({
   index: '',
   uuid: '',
   health: '',
   status: '',
+  name: '', // for template table
+  type: '', // for template table
 });
 
 const handleFilter = (key: string, value: string) => {
   filtersRef.value[key] = value;
-  indexTableData.value = indexWithAliases.value.filter((item: ClusterIndex) =>
-    get(item, key, '').toLowerCase().includes(value.toLowerCase()),
-  );
+
+  if (['name', 'type'].includes(key)) {
+    templateTableData.value = templates.value.filter(item =>
+      get(item, key, '').toLowerCase().includes(value.toLowerCase()),
+    );
+  } else {
+    indexTableData.value = indexWithAliases.value.filter(item =>
+      get(item, key, '').toLowerCase().includes(value.toLowerCase()),
+    );
+  }
 };
 
 const filterProps = (key: string) => ({
@@ -260,46 +270,42 @@ const indexTableColumns = ref([
   },
 ]);
 
-const templateTable = computed(() => {
-  return {
-    columns: [
-      { title: 'Template Name', dataIndex: 'name', key: 'name' },
-      { title: 'Type', dataIndex: 'type', key: 'type' },
-      { title: 'Order', dataIndex: 'order', key: 'order' },
-      { title: 'Version', dataIndex: 'version', key: 'version' },
-      { title: 'Mappings', dataIndex: 'mapping_count', key: 'mapping_count' },
-      { title: 'Settings', dataIndex: 'settings_count', key: 'settings_count' },
-      { title: 'Aliases', dataIndex: 'alias_count', key: 'alias_count' },
-      { title: 'Metadata', dataIndex: 'metadata', key: 'metadata' },
-      {
-        title: 'Included In',
-        dataIndex: 'included_in',
-        key: 'included_in',
-        render: ({ included_in }: { included_in: Array<string> }) =>
-          included_in?.map(included => h(NTag, null, { default: () => included })),
-      },
-      {
-        title: 'Index Patterns',
-        dataIndex: 'index_patterns',
-        key: 'index_patterns',
-        render: ({ index_patterns }: { index_patterns: Array<string> }) =>
-          index_patterns?.map(pattern => h(NTag, null, { default: () => pattern })),
-      },
-      {
-        title: 'Composed Of',
-        dataIndex: 'composed_of',
-        key: 'composed_of',
-        render: ({ composed_of }: { composed_of: Array<string> }) =>
-          composed_of?.map(composed => h(NTag, null, { default: () => composed })),
-      },
-    ],
-    data: templates.value,
-  };
-});
+const templateTableColumns = ref([
+  { title: 'Template Name', dataIndex: 'name', key: 'name', ...filterProps('name') },
+  { title: 'Type', dataIndex: 'type', key: 'type', ...filterProps('type') },
+  { title: 'Order', dataIndex: 'order', key: 'order' },
+  { title: 'Version', dataIndex: 'version', key: 'version' },
+  { title: 'Mappings', dataIndex: 'mapping_count', key: 'mapping_count' },
+  { title: 'Settings', dataIndex: 'settings_count', key: 'settings_count' },
+  { title: 'Aliases', dataIndex: 'alias_count', key: 'alias_count' },
+  { title: 'Metadata', dataIndex: 'metadata', key: 'metadata' },
+  {
+    title: 'Included In',
+    dataIndex: 'included_in',
+    key: 'included_in',
+    render: ({ included_in }: { included_in: Array<string> }) =>
+      included_in?.map(included => h(NTag, null, { default: () => included })),
+  },
+  {
+    title: 'Index Patterns',
+    dataIndex: 'index_patterns',
+    key: 'index_patterns',
+    render: ({ index_patterns }: { index_patterns: Array<string> }) =>
+      index_patterns?.map(pattern => h(NTag, null, { default: () => pattern })),
+  },
+  {
+    title: 'Composed Of',
+    dataIndex: 'composed_of',
+    key: 'composed_of',
+    render: ({ composed_of }: { composed_of: Array<string> }) =>
+      composed_of?.map(composed => h(NTag, null, { default: () => composed })),
+  },
+]);
 
 const refresh = async () => {
   await Promise.all([fetchIndices(), fetchAliases(), fetchTemplates()]);
 };
+
 const handleRefresh = async () => {
   try {
     await refresh();
@@ -314,6 +320,7 @@ const handleRefresh = async () => {
     );
   }
 };
+
 const toggleModal = (target: string) => {
   if (target === 'index') indexDialogRef.value.toggleModal();
   if (target === 'alias') aliasDialogRef.value.toggleModal();

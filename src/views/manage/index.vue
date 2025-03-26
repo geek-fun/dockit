@@ -1,6 +1,6 @@
 <template>
   <div class="manage-container">
-    <tool-bar @switch-manage-tab="handleManageTabChange" />
+    <tool-bar type="MANAGE" @switch-manage-tab="handleManageTabChange" />
     <template v-if="established?.type === DatabaseType.ELASTICSEARCH">
       <cluster-state
         class="state-container"
@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import ToolBar from './components/tool-bar.vue';
+import ToolBar from '../../components/tool-bar.vue';
 import ClusterState from './components/cluster-state.vue';
 import { useClusterManageStore, useConnectionStore, DatabaseType } from '../../store';
 import { storeToRefs } from 'pinia';
