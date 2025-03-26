@@ -1,5 +1,5 @@
 <template>
-  <div class="collection-selector-container">
+  <div class="tool-bar-container">
     <n-select
       :options="options.connection"
       :placeholder="$t('connection.selectConnection')"
@@ -13,6 +13,7 @@
       @search="input => handleSearch(input, 'CONNECTION')"
     />
     <n-select
+      v-if="props.type === 'EDITOR'"
       :options="options.index"
       :placeholder="$t('connection.selectIndex')"
       :input-props="inputProps"
@@ -23,7 +24,7 @@
       @update:show="isOpen => handleOpen(isOpen, 'INDEX')"
       @search="input => handleSearch(input, 'INDEX')"
     />
-    <n-tooltip trigger="hover">
+    <n-tooltip v-if="props.type === 'EDITOR'" trigger="hover">
       <template #trigger>
         <n-icon size="20" class="action-load-icon" @click="loadDefaultSnippet">
           <AiStatus />
@@ -31,6 +32,19 @@
       </template>
       {{ $t('editor.loadDefault') }}
     </n-tooltip>
+    <n-tabs
+      v-if="props.type === 'MANAGE'"
+      class="manage-container"
+      type="line"
+      animated
+      justify-content="end"
+      @update:value="handleManageTabChange"
+    >
+      <n-tab-pane :name="$t('manage.cluster')" :tab="$t('manage.cluster')" />
+      <n-tab-pane :name="$t('manage.nodes')" :tab="$t('manage.nodes')" />
+      <n-tab-pane :name="$t('manage.shards')" :tab="$t('manage.shards')" />
+      <n-tab-pane :name="$t('manage.indices')" :tab="$t('manage.indices')" />
+    </n-tabs>
   </div>
 </template>
 
@@ -47,6 +61,11 @@ const lang = useLang();
 const connectionStore = useConnectionStore();
 const { fetchConnections, fetchIndices, establishConnection } = connectionStore;
 const { connections, establishedIndexNames, established } = storeToRefs(connectionStore);
+
+const props = defineProps({
+  type: String,
+});
+const emits = defineEmits(['switch-manage-tab']);
 
 const tabStore = useTabStore();
 const { loadDefaultSnippet } = tabStore;
@@ -71,6 +90,7 @@ const options = computed(
 
 const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX') => {
   if (!isOpen) return;
+  filterRef.value = { connection: '', index: '' }; // reset filters for each time it open
   if (type === 'CONNECTION') {
     loadingRef.value.connection = true;
     await fetchConnections();
@@ -130,10 +150,14 @@ const handleSearch = async (input: string, type: 'CONNECTION' | 'INDEX') => {
     filterRef.value.index = input;
   }
 };
+
+const handleManageTabChange = (tabName: string) => {
+  emits('switch-manage-tab', tabName);
+};
 </script>
 
 <style lang="scss" scoped>
-.collection-selector-container {
+.tool-bar-container {
   width: 100%;
   height: 35px;
   line-height: 40px;
@@ -143,6 +167,7 @@ const handleSearch = async (input: string, type: 'CONNECTION' | 'INDEX') => {
   justify-content: flex-start;
   border-right: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
+
   .action-load-icon {
     cursor: pointer;
     padding: 0;
@@ -150,11 +175,16 @@ const handleSearch = async (input: string, type: 'CONNECTION' | 'INDEX') => {
     line-height: 40px;
   }
 
+  .manage-container {
+    margin-right: 10px;
+  }
+
   :deep(.n-select) {
     margin: 0;
     padding: 0;
     max-width: 300px;
     border-right: 1px solid var(--border-color);
+
     .n-base-selection {
       .n-base-selection-label {
         height: unset;
