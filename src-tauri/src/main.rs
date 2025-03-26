@@ -6,9 +6,12 @@ use std::env;
 use std::option::Option;
 use std::str::FromStr;
 
-use async_openai::{Client, config::OpenAIConfig};
-use async_openai::types::{AssistantStreamEvent, CreateAssistantRequest, CreateMessageRequest, CreateRunRequest, CreateThreadRequest, MessageRole, ModifyAssistantRequest};
-use futures::{StreamExt};
+use async_openai::types::{
+    AssistantStreamEvent, CreateAssistantRequest, CreateMessageRequest, CreateRunRequest,
+    CreateThreadRequest, MessageRole, ModifyAssistantRequest,
+};
+use async_openai::{config::OpenAIConfig, Client};
+use futures::StreamExt;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
 use serde_json::json;
@@ -18,20 +21,25 @@ mod menu;
 static OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
 
 fn get_proxy(http_proxy: Option<String>) -> Option<String> {
-    let sys_proxy= env::var("HTTPS_PROXY").ok().or(env::var("https_proxy").ok());
+    let sys_proxy = env::var("HTTPS_PROXY")
+        .ok()
+        .or(env::var("https_proxy").ok());
     let proxy_url = match http_proxy {
         Some(proxy) => {
-            if proxy.is_empty() { sys_proxy } else { Some(proxy.clone()) }
+            if proxy.is_empty() {
+                sys_proxy
+            } else {
+                Some(proxy.clone())
+            }
         }
-        None => sys_proxy
+        None => sys_proxy,
     };
     return proxy_url;
 }
 
-
 fn create_http_client(proxy: Option<String>, ssl: Option<bool>) -> reqwest::Client {
-    let mut builder = reqwest::ClientBuilder::new()
-        .danger_accept_invalid_certs(!ssl.unwrap_or(true));
+    let mut builder =
+        reqwest::ClientBuilder::new().danger_accept_invalid_certs(!ssl.unwrap_or(true));
 
     if let Some(proxy_url) = get_proxy(proxy) {
         match reqwest::Proxy::https(&proxy_url) {
@@ -51,25 +59,30 @@ async fn validate_openai(api_key: &str, model: &str, proxy: Option<String>) -> b
     let http_client = create_http_client(proxy, None);
     let url = format!("{}/engines/{}", OPENAI_BASE_URL, model);
 
-    let resp = http_client.get(&url)
+    let resp = http_client
+        .get(&url)
         .header("Authorization", format!("Bearer {}", api_key))
         .send()
         .await;
 
     match resp {
-        Ok(response) =>  response.status().is_success(),
-        Err(_err) => false
+        Ok(response) => response.status().is_success(),
+        Err(_err) => false,
     }
 }
 
-
 fn headermap_from_hashmap<'a, I, S>(headers: I) -> HeaderMap
 where
-    I: Iterator<Item=(S, S)> + 'a,
+    I: Iterator<Item = (S, S)> + 'a,
     S: AsRef<str> + 'a,
 {
     headers
-        .map(|(name, val)| (HeaderName::from_str(name.as_ref()), HeaderValue::from_str(val.as_ref())))
+        .map(|(name, val)| {
+            (
+                HeaderName::from_str(name.as_ref()),
+                HeaderValue::from_str(val.as_ref()),
+            )
+        })
         // We ignore the errors here. If you want to get a list of failed conversions, you can use Iterator::partition
         // to help you out here
         .filter(|(k, v)| k.is_ok() && v.is_ok())
@@ -80,13 +93,19 @@ where
 static mut OPENAI_CLIENT: Option<Client<OpenAIConfig>> = None;
 
 #[tauri::command]
-async fn create_openai_client(api_key: String, model: String, http_proxy: Option<String>) -> Result<String, String> {
+async fn create_openai_client(
+    api_key: String,
+    model: String,
+    http_proxy: Option<String>,
+) -> Result<String, String> {
     let is_valid = validate_openai(&api_key, &model, http_proxy.clone()).await;
     if !is_valid {
         return Err("Invalid OpenAI API Key or Model".into());
     }
 
-    let config = OpenAIConfig::new().with_api_key(api_key).with_api_base(OPENAI_BASE_URL);
+    let config = OpenAIConfig::new()
+        .with_api_key(api_key)
+        .with_api_base(OPENAI_BASE_URL);
 
     let http_client = create_http_client(http_proxy, None);
     unsafe {
@@ -119,13 +138,19 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
         match options.agent.ssl {
             true => {
                 if FETCH_SECURE_CLIENT.is_none() {
-                    FETCH_SECURE_CLIENT = Option::from(create_http_client(options.agent.http_proxy, Some(options.agent.ssl)));
+                    FETCH_SECURE_CLIENT = Option::from(create_http_client(
+                        options.agent.http_proxy,
+                        Some(options.agent.ssl),
+                    ));
                 }
                 FETCH_SECURE_CLIENT.as_ref().unwrap()
             }
             false => {
                 if FETCH_INSECURE_CLIENT.is_none() {
-                    FETCH_INSECURE_CLIENT = Option::from(create_http_client(options.agent.http_proxy, Some(options.agent.ssl)));
+                    FETCH_INSECURE_CLIENT = Option::from(create_http_client(
+                        options.agent.http_proxy,
+                        Some(options.agent.ssl),
+                    ));
                 }
                 FETCH_INSECURE_CLIENT.as_ref().unwrap()
             }
@@ -133,7 +158,10 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
     };
 
     let response = client
-        .request(reqwest::Method::from_bytes(options.method.as_bytes()).unwrap(), &url)
+        .request(
+            reqwest::Method::from_bytes(options.method.as_bytes()).unwrap(),
+            &url,
+        )
         .headers(headermap_from_hashmap(options.headers.iter()))
         .body(options.body.unwrap_or_default())
         .send()
@@ -146,7 +174,8 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
             let body = resp.text().await;
             match body {
                 Ok(body) => {
-                    let data: serde_json::Value = serde_json::from_str(&body).unwrap_or(json!(null));
+                    let data: serde_json::Value =
+                        serde_json::from_str(&body).unwrap_or(json!(null));
                     let message = if is_success {
                         "Success".to_string()
                     } else {
@@ -181,7 +210,12 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
 }
 
 #[tauri::command]
-async fn find_assistant(api_key: String, assistant_id: String, model: String, http_proxy: Option<String>) -> Result<String, String> {
+async fn find_assistant(
+    api_key: String,
+    assistant_id: String,
+    model: String,
+    http_proxy: Option<String>,
+) -> Result<String, String> {
     let openai_client = match unsafe { OPENAI_CLIENT.as_ref() } {
         Some(client) => client.clone(),
         None => {
@@ -241,7 +275,13 @@ async fn find_assistant(api_key: String, assistant_id: String, model: String, ht
 static ASSISTANT_NAME: &str = "dockit-assistant";
 
 #[tauri::command]
-async fn modify_assistant(api_key: String, assistant_id: String, model: String, instructions: String, http_proxy: Option<String>) -> Result<String, String> {
+async fn modify_assistant(
+    api_key: String,
+    assistant_id: String,
+    model: String,
+    instructions: String,
+    http_proxy: Option<String>,
+) -> Result<String, String> {
     let openai_client = match unsafe { OPENAI_CLIENT.as_ref() } {
         Some(client) => client.clone(),
         None => {
@@ -260,12 +300,18 @@ async fn modify_assistant(api_key: String, assistant_id: String, model: String, 
         }
     };
 
-    let assistant = openai_client.assistants().update(&assistant_id, ModifyAssistantRequest {
-        name: Option::from(ASSISTANT_NAME.to_string()),
-        model: Some(model),
-        instructions: Some(instructions),
-        ..Default::default()
-    }).await;
+    let assistant = openai_client
+        .assistants()
+        .update(
+            &assistant_id,
+            ModifyAssistantRequest {
+                name: Option::from(ASSISTANT_NAME.to_string()),
+                model: Some(model),
+                instructions: Some(instructions),
+                ..Default::default()
+            },
+        )
+        .await;
 
     match assistant {
         Ok(assistant) => {
@@ -290,7 +336,12 @@ async fn modify_assistant(api_key: String, assistant_id: String, model: String, 
 }
 
 #[tauri::command]
-async fn create_assistant(api_key: String, model: String, instructions: String, http_proxy: Option<String>) -> Result<String, String> {
+async fn create_assistant(
+    api_key: String,
+    model: String,
+    instructions: String,
+    http_proxy: Option<String>,
+) -> Result<String, String> {
     let openai_client = match unsafe { OPENAI_CLIENT.as_ref() } {
         Some(client) => client.clone(),
         None => {
@@ -309,29 +360,35 @@ async fn create_assistant(api_key: String, model: String, instructions: String, 
         }
     };
     // Step 1: Create assistant
-    let assistant = openai_client.assistants().create(CreateAssistantRequest {
-        name: Option::from(ASSISTANT_NAME.to_string()),
-        model,
-        instructions: Some(instructions),
-        ..Default::default()
-    }).await;
+    let assistant = openai_client
+        .assistants()
+        .create(CreateAssistantRequest {
+            name: Option::from(ASSISTANT_NAME.to_string()),
+            model,
+            instructions: Some(instructions),
+            ..Default::default()
+        })
+        .await;
     if assistant.is_err() {
         // if !assistant.is_ok() {
         let result = json!({
-        "status": 500,
-        "message":"Failed to create assistant".to_string(),
-        "data":Option::<serde_json::Value>::None,
-    });
+            "status": 500,
+            "message":"Failed to create assistant".to_string(),
+            "data":Option::<serde_json::Value>::None,
+        });
         return Err(result.to_string());
     }
     // Step 2: Create a Thread
-    let thread = openai_client.threads().create(CreateThreadRequest::default()).await;
+    let thread = openai_client
+        .threads()
+        .create(CreateThreadRequest::default())
+        .await;
     if thread.is_err() {
         let result = json!({
-        "status": 500,
-        "message":"Failed to create thread".to_string(),
-        "data":Option::<serde_json::Value>::None,
-    });
+            "status": 500,
+            "message":"Failed to create thread".to_string(),
+            "data":Option::<serde_json::Value>::None,
+        });
         return Err(result.to_string());
     }
     let result = json!(
@@ -347,9 +404,13 @@ async fn create_assistant(api_key: String, model: String, instructions: String, 
     return Ok(result.to_string());
 }
 
-
 #[tauri::command]
-async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: String, question: String) -> Result<String, String> {
+async fn chat_assistant(
+    window: tauri::Window,
+    assistant_id: String,
+    thread_id: String,
+    question: String,
+) -> Result<String, String> {
     let openai_client = match unsafe { OPENAI_CLIENT.as_ref() } {
         Some(client) => client.clone(),
         None => {
@@ -381,7 +442,6 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
         .await
         .map_err(|e| e.to_string())?; // Convert the error to a string
 
-
     // let mut task_handle = None;
     while let Some(event) = event_stream.next().await {
         match event {
@@ -412,14 +472,13 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
                 }
                 AssistantStreamEvent::ThreadRunFailed(run_object) => {
                     let result = json!({
-                    "status": 500,
-                    "message": run_object.last_error,
-                    "data":Option::<serde_json::Value>::None,
-                });
+                        "status": 500,
+                        "message": run_object.last_error,
+                        "data":Option::<serde_json::Value>::None,
+                    });
                     return Err(result.to_string());
                 }
-                _event => {
-                }
+                _event => {}
             },
             Err(_e) => {
                 let result = json!({
@@ -433,18 +492,32 @@ async fn chat_assistant(window: tauri::Window, assistant_id: String, thread_id: 
     }
 
     let result = json!({
-            "status": 200,
-            "message":"Success".to_string(),
-            "data":Option::<serde_json::Value>::None,
-        });
+        "status": 200,
+        "message":"Success".to_string(),
+        "data":Option::<serde_json::Value>::None,
+    });
     Ok(result.to_string())
 }
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .plugin(tauri_plugin_system_info::init())
-        .invoke_handler(tauri::generate_handler![create_openai_client,fetch_api,find_assistant, modify_assistant, create_assistant,chat_assistant])
+        .invoke_handler(tauri::generate_handler![
+            create_openai_client,
+            fetch_api,
+            find_assistant,
+            modify_assistant,
+            create_assistant,
+            chat_assistant
+        ])
         .menu(menu::create_menu())
         .on_menu_event(menu::menu_event_handler)
         .run(tauri::generate_context!())

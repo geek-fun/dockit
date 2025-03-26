@@ -8,11 +8,11 @@ import {
   removeFile,
   renameFile,
   writeTextFile,
-} from '@tauri-apps/api/fs';
-import { platform } from '@tauri-apps/api/os';
+} from '@tauri-apps/plugin-fs';
+import { platform } from '@tauri-apps/plugin-os';
 
 import { homeDir, isAbsolute, basename, sep, extname } from '@tauri-apps/api/path';
-import { open } from '@tauri-apps/api/dialog';
+import { open } from '@tauri-apps/plugin-dialog';
 import { CustomError, debug } from '../common';
 
 export enum PathTypeEnum {
