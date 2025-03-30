@@ -6,6 +6,9 @@ use std::env;
 use std::option::Option;
 use std::str::FromStr;
 
+
+use tauri::Emitter;
+
 use async_openai::types::{
     AssistantStreamEvent, CreateAssistantRequest, CreateMessageRequest, CreateRunRequest,
     CreateThreadRequest, MessageRole, ModifyAssistantRequest,
@@ -501,7 +504,6 @@ async fn chat_assistant(
 
 fn main() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_store::Builder::new().build())
@@ -518,8 +520,10 @@ fn main() {
             create_assistant,
             chat_assistant
         ])
-        .menu(menu::create_menu())
-        .on_menu_event(menu::menu_event_handler)
+        .setup(|app| {
+            menu::create_menu(app)?;
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
