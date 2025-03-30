@@ -245,7 +245,6 @@ export const useConnectionStore = defineStore('connectionStore', {
         throw new Error('Operation only supported for Elasticsearch connections');
       }
       const client = loadHttpClient(this.established);
-      const queryParameters = queryParams ? `${queryParams}&format=json` : 'format=json';
       // refresh the index mapping
       try {
         if (index && index !== this.established.activeIndex?.index) {
@@ -254,7 +253,7 @@ export const useConnectionStore = defineStore('connectionStore', {
           );
           if (newIndex) {
             if (!newIndex.mapping) {
-              newIndex.mapping = await client.get(`/${index}/_mapping`, queryParameters);
+              newIndex.mapping = await client.get(`/${index}/_mapping`, 'format=json');
             }
             this.established = { ...this.established, activeIndex: newIndex };
           }
@@ -264,11 +263,11 @@ export const useConnectionStore = defineStore('connectionStore', {
       const reqPath = buildPath(index, path, this.established);
 
       const dispatch: { [method: string]: () => Promise<unknown> } = {
-        POST: async () => client.post(reqPath, queryParameters, qdsl),
-        PUT: async () => client.put(reqPath, queryParameters, qdsl),
-        DELETE: async () => client.delete(reqPath, queryParameters, qdsl),
+        POST: async () => client.post(reqPath, queryParams, qdsl),
+        PUT: async () => client.put(reqPath, queryParams, qdsl),
+        DELETE: async () => client.delete(reqPath, queryParams, qdsl),
         GET: async () =>
-          qdsl ? client.post(reqPath, queryParams, qdsl) : client.get(reqPath, queryParameters),
+          qdsl ? client.post(reqPath, queryParams, qdsl) : client.get(reqPath, queryParams),
       };
       return dispatch[method]();
     },

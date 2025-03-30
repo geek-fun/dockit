@@ -4,7 +4,7 @@
       <div id="query-editor" ref="queryEditorRef" />
     </template>
     <template #2>
-      <display-editor id="display-editor" ref="displayEditorRef" />
+      <DisplayEditor id="display-editor" ref="displayRef" />
     </template>
   </n-split>
 </template>
@@ -58,7 +58,7 @@ let autoIndentCmdId: string | null = null;
 let copyCurlCmdId: string | null = null;
 // DOM
 const queryEditorRef = ref();
-const displayEditorRef = ref();
+const displayRef = ref();
 
 let executeDecorations: Array<Decoration | string> = [];
 let currentAction: SearchAction | undefined = undefined;
@@ -155,7 +155,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
   }
 
   try {
-    displayJsonEditor('');
+    showDisplayEditor('');
     if (!established.value) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
@@ -171,7 +171,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
       index: action.index,
     });
 
-    displayJsonEditor(JSON.stringify(data, null, '  '));
+    showDisplayEditor(data);
   } catch (err) {
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -367,9 +367,9 @@ const setupQueryEditor = () => {
 
 const queryEditorSize = ref(1);
 
-const displayJsonEditor = (content: string) => {
+const showDisplayEditor = (content: unknown) => {
   queryEditorSize.value = queryEditorSize.value === 1 ? 0.5 : queryEditorSize.value;
-  displayEditorRef.value.display(content);
+  displayRef.value.display(content);
 };
 
 const saveFileListener = ref<Function>();
@@ -426,7 +426,7 @@ onUnmounted(async () => {
   await cleanupFileListener();
   codeLensProvider?.dispose();
   queryEditor?.dispose();
-  displayEditorRef?.value?.dispose();
+  displayRef?.value?.dispose();
 });
 </script>
 

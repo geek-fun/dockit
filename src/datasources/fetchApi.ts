@@ -77,10 +77,7 @@ const fetchRequest = async (
       }),
     ) as { status: number; message: string; data: unknown };
     if (status >= 200 && status < 500) {
-      const parsedData =
-        typeof data === 'object' ? data : (data as string)?.split('\n')?.filter(Boolean);
-
-      return { status, message, data: parsedData };
+      return { status, message, data };
     }
     throw new CustomError(status, message);
   } catch (e) {
