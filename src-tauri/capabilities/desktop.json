@@ -9,8 +9,17 @@
     "main"
   ],
   "permissions": [
-    "global-shortcut:default",
     "os:default",
-    "store:default"
+    "core:default",
+    "store:default",
+    "shell:default",
+    "dialog:default",
+    "global-shortcut:default",
+    "fs:default",
+    "fs:allow-home-read-recursive",
+    "fs:allow-home-write-recursive",
+    "global-shortcut:allow-is-registered",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister"
   ]
 }

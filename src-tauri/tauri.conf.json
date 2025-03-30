@@ -27,11 +27,16 @@
       "icons/icon.ico"
     ]
   },
-  "plugins": {},
+  "plugins": {
+    "fs": {
+      "requireLiteralLeadingDot": false
+    }
+  },
   "app": {
     "macOSPrivateApi": false,
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": ["desktop-capability"]
     },
     "windows": [
       {

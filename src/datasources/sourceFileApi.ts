@@ -10,7 +10,7 @@ import {
 } from '@tauri-apps/plugin-fs';
 import { platform } from '@tauri-apps/plugin-os';
 
-import { homeDir, isAbsolute, basename, sep, extname } from '@tauri-apps/api/path';
+import { homeDir, isAbsolute, basename, sep, extname, join } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
 import { CustomError, debug } from '../common';
 
@@ -68,7 +68,7 @@ const getFileType = async (filePath: string): Promise<PathTypeEnum> =>
 
 const getRelativePath = async (filePath?: string) => {
   const defaultPath = filePath ?? DEFAULT_FOLDER;
-  const homeDirectory = await homeDir();
+  const homeDirectory = `${await homeDir()}${separator}`;
   const emoji = await getSysEmoji();
 
   return defaultPath.startsWith(homeDirectory) || defaultPath.startsWith(emoji)
@@ -77,7 +77,7 @@ const getRelativePath = async (filePath?: string) => {
 };
 
 const getPathInfo = async (filePath: string): Promise<PathInfo | undefined> => {
-  const homeFolder = await homeDir();
+  const homeFolder = `${await homeDir()}${separator}`;
 
   const fileName = await basename(filePath).catch(() => '');
   const fileType = await getFileType(filePath);
@@ -193,23 +193,27 @@ const selectFolder = async (basePath?: string) => {
 };
 
 const readDirs = async (filePath?: string): Promise<Array<PathInfo>> => {
+  const homeFolder = await homeDir();
   const targetPath = await getRelativePath(filePath);
   const entries = await readDir(targetPath, { baseDir: BaseDirectory.Home });
+  const absolute = await isAbsolute(targetPath);
 
-  const fileList = await Promise.all(
+  return await Promise.all(
     (entries ?? [])
       .filter(entry => !entry.name?.startsWith('.'))
-      .sort((a, b) => (a.isDirectory ? 1 : a.name.localeCompare(b.name)))
-      .map(async entry => ({
-        path: entry.name,
-        name: entry.name ?? '',
-        displayPath: await getDisplayPath(entry.name),
-        type: entry.isDirectory ? PathTypeEnum.FOLDER : PathTypeEnum.FILE,
-      })),
-  );
+      .sort((a, b) => {
+        if (a.isDirectory) return -1;
+        if (b.isDirectory) return 1;
+        return a.name?.localeCompare(b.name ?? '') ?? 0;
+      })
+      .map(async entry => {
+        const absPath = await join(absolute ? '' : homeFolder, targetPath, entry.name);
+        const displayPath = await getDisplayPath(absPath);
+        const type = entry.isDirectory ? PathTypeEnum.FOLDER : PathTypeEnum.FILE;
 
-  console.log('fileList', fileList);
-  return fileList;
+        return { path: absPath, name: entry.name, displayPath, type };
+      }),
+  );
 };
 
 const getDisplayPath = async (filePath?: string) => {
@@ -219,7 +223,7 @@ const getDisplayPath = async (filePath?: string) => {
   const sysEmoji = await getSysEmoji();
 
   if (filePath.startsWith(homeDirectory)) {
-    return filePath.replace(homeDirectory, `${sysEmoji}/`).replace(/\\/g, '/');
+    return filePath.replace(homeDirectory, `${sysEmoji}`).replace(/\\/g, '/');
   } else return filePath.replace(/\\/g, '/');
 };
 
