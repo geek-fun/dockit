@@ -55,8 +55,9 @@ pub fn create_menu(app: &App) -> Result<(), Error> {
         let window = app_handle.get_webview_window("main").unwrap();
 
         match event.id().0.as_str() {
-            "save" => { }
-            "close" => { }
+            "save" => {
+                window.emit("saveFile", ()).unwrap();
+             }
             "toggle_dev_tools" => {
                 #[cfg(debug_assertions)]
                 if window.is_devtools_open() {
@@ -65,9 +66,7 @@ pub fn create_menu(app: &App) -> Result<(), Error> {
                     window.open_devtools();
                 }
             }
-            _ => {
-                println!("unexpected menu event");
-            }
+            _ => { }
         }
     });
 
