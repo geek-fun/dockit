@@ -8,22 +8,30 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.5", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "1.7", features = [ "os-all", "path-all", "fs-remove-dir", "fs-remove-file", "fs-rename-file", "fs-read-dir", "dialog-open", "fs-create-dir", "global-shortcut-all", "http-all", "fs-exists", "fs-read-file", "fs-write-file", "shell-open"] }
+tauri = { version = "2", features = [] }
+tauri-plugin-store = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-os = "2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"
-tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
-tauri-plugin-system-info = { git = "https://github.com/HuakunShen/tauri-plugin-system-info", branch = "v1" } # use v2 branch for Tauri v2 plugin
+
+tauri-plugin-system-info = { git = "https://github.com/HuakunShen/tauri-plugin-system-info", branch = "v2" } # use v2 branch for Tauri v2 plugin
+
 async-openai = { version = "0.23.3" }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tokio = { version = "1", features = ["full"] }
 http = "0.2.12"
 log = "0.4.22"
 futures = "0.3.30"
-
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
+
+[target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
+tauri-plugin-global-shortcut = "2"
 

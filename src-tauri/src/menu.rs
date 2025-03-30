@@ -1,65 +1,74 @@
-use tauri::{AboutMetadata, CustomMenuItem, Manager, Submenu, WindowMenuEvent, Wry};
-use tauri::Menu;
-use tauri::MenuItem;
+use tauri::{App, Error, Emitter, Manager};
+use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItem};
 
-pub fn create_menu() -> Menu {
-    let about_menu = Submenu::new("DocKit", Menu::new()
-        .add_native_item(MenuItem::About("DocKit".into(), AboutMetadata::default()))
-        .add_native_item(MenuItem::Separator)
-        .add_native_item(MenuItem::Services)
-        .add_native_item(MenuItem::Separator)
-        .add_native_item(MenuItem::Hide)
-        .add_native_item(MenuItem::HideOthers)
-        .add_native_item(MenuItem::ShowAll)
-        .add_native_item(MenuItem::Separator)
-        .add_native_item(MenuItem::Quit));
+pub fn create_menu(app: &App) -> Result<(), Error> {
+    let about_menu = SubmenuBuilder::new(app, "DocKit")
+        .about(None) // Provide the required argument
+        .separator()
+        .services()
+        .separator()
+        .hide()
+        .hide_others()
+        .show_all()
+        .separator()
+        .quit()
+        .build()?; // Unwrap the Result
 
-    let file_menu = Submenu::new("File", Menu::new()
-        .add_item(CustomMenuItem::new("save".to_string(), "Save").accelerator("CommandOrControl+S")));
+    let file_menu = SubmenuBuilder::new(app, "File")
+        .item(&MenuItem::with_id(app, "save", &"Save".to_string(), true, Some("CommandOrControl+S")).unwrap())
+        .build()?; // Unwrap the Result
 
-    let edit_menu = Submenu::new("Edit", Menu::new()
-        .add_native_item(MenuItem::Undo)
-        .add_native_item(MenuItem::Redo)
-        .add_native_item(MenuItem::Separator)
-        .add_native_item(MenuItem::Cut)
-        .add_native_item(MenuItem::Copy)
-        .add_native_item(MenuItem::Paste)
-        .add_native_item(MenuItem::SelectAll));
+    let edit_menu = SubmenuBuilder::new(app, "Edit")
+        .undo()
+        .redo()
+        .separator()
+        .cut()
+        .copy()
+        .paste()
+        .select_all()
+        .build()?; // Unwrap the Result
 
-    let window_menu = Submenu::new("Window", Menu::new()
-        .add_native_item(MenuItem::Minimize)
-        .add_native_item(MenuItem::EnterFullScreen)
-        .add_native_item(MenuItem::CloseWindow)
-        .add_native_item(MenuItem::Separator)
-        .add_item(CustomMenuItem::new("front".to_string(), "Front")));
+    let window_menu = SubmenuBuilder::new(app, "Window")
+        .minimize()
+        .fullscreen()
+        .close_window()
+        .separator()
+        .build()?; // Unwrap the Result
 
-    let developer_menu = Submenu::new("Developer", Menu::new()
-        .add_item(CustomMenuItem::new("toggle_dev_tools".to_string(), "Toggle Developer Tools").accelerator("F12")),
-    );
+    let developer_menu = SubmenuBuilder::new(app, "Developer")
+        .item(&MenuItem::with_id(app, "toggle_dev_tools", &"Toggle Developer Tools".to_string(), true, Some("F12")).unwrap())
+        .build()?; // Unwrap the Result
 
-    Menu::new()
-        .add_submenu(about_menu)
-        .add_submenu(file_menu)
-        .add_submenu(edit_menu)
-        .add_submenu(window_menu)
-        .add_submenu(developer_menu)
-}
+    let menu = MenuBuilder::new(app)
+        .item(&about_menu)
+        .item(&file_menu)
+        .item(&edit_menu)
+        .item(&window_menu)
+        .item(&developer_menu)
+        .build()?; // Use the `?` operator
 
-pub fn menu_event_handler(event: WindowMenuEvent<Wry>) {
-    let window = event.window();
-    match event.menu_item_id() {
-        "save" => {
-            // handle save event
-            window.emit_all("saveFile", ()).unwrap();
-        }
-        "toggle_dev_tools" => {
-            #[cfg(debug_assertions)]
-            if window.is_devtools_open() {
-                window.close_devtools();
-            } else {
-                window.open_devtools();
+    app.set_menu(menu)?; // Set the built menu
+
+    app.on_menu_event(move |app_handle: &tauri::AppHandle, event| {
+//         println!("menu event: {:?}", event.id());
+
+        let window = app_handle.get_webview_window("main").unwrap();
+
+        match event.id().0.as_str() {
+            "save" => {
+                window.emit("saveFile", ()).unwrap();
+             }
+            "toggle_dev_tools" => {
+                #[cfg(debug_assertions)]
+                if window.is_devtools_open() {
+                    window.close_devtools();
+                } else {
+                    window.open_devtools();
+                }
             }
+            _ => { }
         }
-        _ => {}
-    }
+    });
+
+    Ok(())
 }

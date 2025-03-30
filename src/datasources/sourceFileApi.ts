@@ -1,19 +1,20 @@
 import {
   BaseDirectory,
-  createDir,
+  mkdir,
   exists,
   readDir,
   readTextFile,
-  removeDir,
-  removeFile,
-  renameFile,
+  remove,
+  rename,
   writeTextFile,
-} from '@tauri-apps/api/fs';
-import { platform } from '@tauri-apps/api/os';
+} from '@tauri-apps/plugin-fs';
+import { platform } from '@tauri-apps/plugin-os';
 
-import { homeDir, isAbsolute, basename, sep, extname } from '@tauri-apps/api/path';
-import { open } from '@tauri-apps/api/dialog';
+import { homeDir, isAbsolute, basename, sep, extname, join } from '@tauri-apps/api/path';
+import { open } from '@tauri-apps/plugin-dialog';
 import { CustomError, debug } from '../common';
+
+const separator = sep();
 
 export enum PathTypeEnum {
   FILE = 'FILE',
@@ -30,14 +31,14 @@ export type PathInfo = {
 const DEFAULT_FOLDER = '.dockit';
 
 const getSysEmoji = async (): Promise<string> => {
-  const os = await platform();
+  const os = platform();
   let emoji = '';
 
   switch (os) {
     case 'linux':
       emoji = '🏠︎'; // Penguin emoji for Linux
       break;
-    case 'darwin':
+    case 'macos':
     case 'ios':
       emoji = ''; // Green apple emoji for macOS
       break;
@@ -53,7 +54,7 @@ const getSysEmoji = async (): Promise<string> => {
     case 'android':
       emoji = '🤖'; // Robot emoji for Android
       break;
-    case 'win32':
+    case 'windows':
       emoji = '⊞'; // Window emoji for Windows
       break;
     default:
@@ -67,7 +68,7 @@ const getFileType = async (filePath: string): Promise<PathTypeEnum> =>
 
 const getRelativePath = async (filePath?: string) => {
   const defaultPath = filePath ?? DEFAULT_FOLDER;
-  const homeDirectory = await homeDir();
+  const homeDirectory = `${await homeDir()}${separator}`;
   const emoji = await getSysEmoji();
 
   return defaultPath.startsWith(homeDirectory) || defaultPath.startsWith(emoji)
@@ -76,7 +77,7 @@ const getRelativePath = async (filePath?: string) => {
 };
 
 const getPathInfo = async (filePath: string): Promise<PathInfo | undefined> => {
-  const homeFolder = await homeDir();
+  const homeFolder = `${await homeDir()}${separator}`;
 
   const fileName = await basename(filePath).catch(() => '');
   const fileType = await getFileType(filePath);
@@ -85,7 +86,7 @@ const getPathInfo = async (filePath: string): Promise<PathInfo | undefined> => {
   const absolute = await isAbsolute(targetPath);
 
   if (absolute) {
-    if (!(await exists(targetPath, { dir: BaseDirectory.Home }))) return undefined;
+    if (!(await exists(targetPath, { baseDir: BaseDirectory.Home }))) return undefined;
 
     return {
       name: fileName,
@@ -96,7 +97,7 @@ const getPathInfo = async (filePath: string): Promise<PathInfo | undefined> => {
   }
 
   // file exists in specified folder
-  if (await exists(targetPath, { dir: BaseDirectory.Home })) {
+  if (await exists(targetPath, { baseDir: BaseDirectory.Home })) {
     const path = `${homeFolder}${targetPath}`;
 
     return { name: fileName, path, displayPath: await getDisplayPath(path), type: fileType };
@@ -105,9 +106,9 @@ const getPathInfo = async (filePath: string): Promise<PathInfo | undefined> => {
   // file exists in default folder
   if (
     !targetPath.startsWith(DEFAULT_FOLDER) &&
-    (await exists(`${DEFAULT_FOLDER}${sep}${targetPath}`, { dir: BaseDirectory.Home }))
+    (await exists(`${DEFAULT_FOLDER}${separator}${targetPath}`, { baseDir: BaseDirectory.Home }))
   ) {
-    const path = `${homeFolder}${DEFAULT_FOLDER}${sep}${targetPath}`;
+    const path = `${homeFolder}${DEFAULT_FOLDER}${separator}${targetPath}`;
 
     return { name: fileName, path, displayPath: await getDisplayPath(path), type: fileType };
   }
@@ -117,12 +118,12 @@ const getPathInfo = async (filePath: string): Promise<PathInfo | undefined> => {
 
 const saveFile = async (filePath: string, content: string, append: boolean) => {
   try {
-    const folderPath = filePath.substring(0, filePath.lastIndexOf(sep));
+    const folderPath = filePath.substring(0, filePath.lastIndexOf(separator));
 
-    if (!(await exists(folderPath, { dir: BaseDirectory.Home }))) {
-      await createDir(folderPath, { dir: BaseDirectory.Home, recursive: true });
+    if (!(await exists(folderPath, { baseDir: BaseDirectory.Home }))) {
+      await mkdir(folderPath, { baseDir: BaseDirectory.Home, recursive: true });
     }
-    await writeTextFile(filePath, content, { dir: BaseDirectory.Home, append });
+    await writeTextFile(filePath, content, { baseDir: BaseDirectory.Home, append });
     debug('save file success');
   } catch (err) {
     debug(`saveFile error: ${err}`);
@@ -134,8 +135,8 @@ const createFolder = async (folderPath: string) => {
   try {
     const targetPath = await getRelativePath(folderPath);
 
-    if (!(await exists(targetPath, { dir: BaseDirectory.Home }))) {
-      await createDir(targetPath, { dir: BaseDirectory.Home, recursive: true });
+    if (!(await exists(targetPath, { baseDir: BaseDirectory.Home }))) {
+      await mkdir(targetPath, { baseDir: BaseDirectory.Home, recursive: true });
       debug('create folder success');
     }
   } catch (err) {
@@ -145,13 +146,13 @@ const createFolder = async (folderPath: string) => {
 };
 
 const readFromFile = async (filePath: string) => {
-  if (!(await exists(filePath, { dir: BaseDirectory.Home }))) {
+  if (!(await exists(filePath, { baseDir: BaseDirectory.Home }))) {
     debug('File does not exist. Creating a new file...');
     return '';
   }
 
   try {
-    return await readTextFile(filePath, { dir: BaseDirectory.Home });
+    return await readTextFile(filePath, { baseDir: BaseDirectory.Home });
   } catch (err) {
     debug(`readFromFile error: ${err}`);
     throw err;
@@ -160,7 +161,7 @@ const readFromFile = async (filePath: string) => {
 
 const deleteFileOrFolder = async (filePath: string) => {
   try {
-    await Promise.any([removeFile(filePath), removeDir(filePath, { recursive: true })]);
+    await Promise.any([remove(filePath), remove(filePath, { recursive: true })]);
     debug('delete file or folder success');
   } catch (err) {
     throw new CustomError(500, JSON.stringify(err));
@@ -169,7 +170,7 @@ const deleteFileOrFolder = async (filePath: string) => {
 
 const renameFileOrFolder = async (oldPath: string, newPath: string) => {
   try {
-    await renameFile(oldPath, newPath);
+    await rename(oldPath, newPath);
     debug('rename file or folder success');
   } catch (err) {
     debug(`renameFileOrFolder error: ${err}`);
@@ -181,8 +182,8 @@ const selectFolder = async (basePath?: string) => {
   const homeDirectory = await homeDir();
   const targetPath = await getRelativePath(basePath);
 
-  if (!(await exists(targetPath, { dir: BaseDirectory.Home }))) {
-    await createDir(targetPath, { dir: BaseDirectory.Home, recursive: true });
+  if (!(await exists(targetPath, { baseDir: BaseDirectory.Home }))) {
+    await mkdir(targetPath, { baseDir: BaseDirectory.Home, recursive: true });
   }
   const defaultPath = (await isAbsolute(basePath ?? ''))
     ? targetPath
@@ -192,23 +193,26 @@ const selectFolder = async (basePath?: string) => {
 };
 
 const readDirs = async (filePath?: string): Promise<Array<PathInfo>> => {
+  const homeFolder = await homeDir();
   const targetPath = await getRelativePath(filePath);
-  const fileList = await readDir(targetPath, { dir: BaseDirectory.Home });
+  const entries = await readDir(targetPath, { baseDir: BaseDirectory.Home });
+  const absolute = await isAbsolute(targetPath);
 
   return await Promise.all(
-    (fileList ?? [])
-      .filter(file => !file.name?.startsWith('.'))
+    (entries ?? [])
+      .filter(entry => !entry.name?.startsWith('.'))
       .sort((a, b) => {
-        if (a.children && !b.children) return -1;
-        if (!a.children && b.children) return 1;
-        return a?.name?.localeCompare(b?.name ?? '') || 0;
+        if (a.isDirectory) return -1;
+        if (b.isDirectory) return 1;
+        return a.name?.localeCompare(b.name ?? '') ?? 0;
       })
-      .map(async file => ({
-        path: file.path,
-        name: file.name ?? '',
-        displayPath: await getDisplayPath(file.path),
-        type: file.children ? PathTypeEnum.FOLDER : PathTypeEnum.FILE,
-      })),
+      .map(async entry => {
+        const absPath = await join(absolute ? '' : homeFolder, targetPath, entry.name);
+        const displayPath = await getDisplayPath(absPath);
+        const type = entry.isDirectory ? PathTypeEnum.FOLDER : PathTypeEnum.FILE;
+
+        return { path: absPath, name: entry.name, displayPath, type };
+      }),
   );
 };
 
@@ -219,7 +223,7 @@ const getDisplayPath = async (filePath?: string) => {
   const sysEmoji = await getSysEmoji();
 
   if (filePath.startsWith(homeDirectory)) {
-    return filePath.replace(homeDirectory, `${sysEmoji}/`).replace(/\\/g, '/');
+    return filePath.replace(homeDirectory, `${sysEmoji}`).replace(/\\/g, '/');
   } else return filePath.replace(/\\/g, '/');
 };
 
@@ -231,7 +235,7 @@ const sourceFileApi = {
   deleteFileOrFolder,
   renameFileOrFolder,
   selectFolder,
-  exists: async (filePath: string) => await exists(filePath, { dir: BaseDirectory.Home }),
+  exists: async (filePath: string) => await exists(filePath, { baseDir: BaseDirectory.Home }),
   readDir: readDirs,
   getPathInfo,
 };

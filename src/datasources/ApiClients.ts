@@ -1,4 +1,4 @@
-import { invoke, InvokeArgs } from '@tauri-apps/api/tauri';
+import { invoke, InvokeArgs } from '@tauri-apps/api/core';
 
 export class ApiClientError extends Error {
   public status: number;

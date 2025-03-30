@@ -1,6 +1,6 @@
-import { Store } from 'tauri-plugin-store-api';
+import { LazyStore } from '@tauri-apps/plugin-store';
 
-const store = new Store('.store.dat');
+const store = new LazyStore('.store.dat');
 const storeApi = {
   get: async <T>(key: string, defaultValue: T): Promise<T> => {
     // if (key === 'chats') {

@@ -9,7 +9,7 @@
   </n-split>
 </template>
 <script setup lang="ts">
-import { open } from '@tauri-apps/api/shell';
+import { open } from '@tauri-apps/plugin-shell';
 import { listen } from '@tauri-apps/api/event';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
@@ -18,7 +18,7 @@ import { CustomError, debug } from '../../common';
 import { useAppStore, useChatStore, useConnectionStore, useTabStore } from '../../store';
 import { useLang } from '../../lang';
 import DisplayEditor from './display-editor.vue';
-import { isRegistered, register, unregister } from '@tauri-apps/api/globalShortcut';
+import { isRegistered, register, unregister } from '@tauri-apps/plugin-global-shortcut';
 import {
   buildCodeLens,
   buildSearchToken,
