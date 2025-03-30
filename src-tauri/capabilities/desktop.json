@@ -9,6 +9,8 @@
     "main"
   ],
   "permissions": [
-    "global-shortcut:default"
+    "global-shortcut:default",
+    "os:default",
+    "store:default"
   ]
 }
