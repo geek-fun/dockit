@@ -74,17 +74,6 @@ const buildPath = (
 
   return indexName ? `/${indexName}/${path}` : `/${path}`;
 };
-//
-// const buildQueryParams = (queryParams?: string, path: string) => {
-//   if (['_cat', '/_cat', '_aliases', '/_aliases'].includes(path.split('/')[0])) {
-//     return queryParams;
-//   }
-//   const queryParameters = queryParams ? `${queryParams}&format=json` : 'format=json';
-//   const params = new URLSearchParams(queryParameters);
-//
-//   const queryString = params.toString();
-//   return queryString ? `?${queryString}` : '';
-// };
 
 export const useConnectionStore = defineStore('connectionStore', {
   state: (): {
