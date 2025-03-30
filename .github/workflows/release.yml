@@ -53,7 +53,7 @@ jobs:
         run: |
           echo "deb http://gb.archive.ubuntu.com/ubuntu jammy main" | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev gcc-aarch64-linux-gnu
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev gcc-aarch64-linux-gnu
       - name: install frontend dependencies
         run: npm ci --legacy-peer-deps
       - run: npm run lint:check
