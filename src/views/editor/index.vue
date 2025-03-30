@@ -11,14 +11,14 @@
 <script setup lang="ts">
 import { open } from '@tauri-apps/plugin-shell';
 import { listen } from '@tauri-apps/api/event';
+import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
-import { CustomError, debug } from '../../common';
+import { CustomError } from '../../common';
 import { useAppStore, useChatStore, useConnectionStore, useTabStore } from '../../store';
 import { useLang } from '../../lang';
 import DisplayEditor from './display-editor.vue';
-import { isRegistered, register, unregister } from '@tauri-apps/plugin-global-shortcut';
 import {
   buildCodeLens,
   buildSearchToken,
@@ -353,6 +353,16 @@ const setupQueryEditor = () => {
       open(docLink);
     }
   });
+
+  /**
+   * Save the current file
+   * @see https://github.com/tauri-apps/wry/issues/451
+   */
+  if (platform() === 'windows') {
+    queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      saveModelContent(true, true, true);
+    });
+  }
 };
 
 const queryEditorSize = ref(1);
@@ -395,22 +405,6 @@ const setupFileListener = async () => {
   saveFileListener.value = await listen('saveFile', async () => {
     await saveModelContent(true, true, true);
   });
-
-  /**
-   * listen for saveFile event in windows
-   * @see https://github.com/tauri-apps/wry/issues/451
-   */
-  const saveShortcutWin = await isRegistered('Control+S');
-  if (saveShortcutWin) {
-    await unregister('Control+S');
-  }
-  try {
-    await register('Control+S', async () => {
-      await saveModelContent(true, true, true);
-    });
-  } catch (err) {
-    debug(`register shortcut error: ${err}`);
-  }
 };
 
 watch(defaultSnippet, () => {
@@ -420,10 +414,6 @@ watch(defaultSnippet, () => {
 const cleanupFileListener = async () => {
   if (saveFileListener?.value) {
     await saveFileListener.value();
-  }
-  const saveShortcutWin = await isRegistered('Control+S');
-  if (saveShortcutWin) {
-    await unregister('Control+S');
   }
 };
 

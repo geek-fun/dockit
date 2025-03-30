@@ -180,14 +180,14 @@ const renameFileOrFolder = async (oldPath: string, newPath: string) => {
 
 const selectFolder = async (basePath?: string) => {
   const homeDirectory = await homeDir();
+  const absolute = await isAbsolute(basePath ?? '');
   const targetPath = await getRelativePath(basePath);
+
 
   if (!(await exists(targetPath, { baseDir: BaseDirectory.Home }))) {
     await mkdir(targetPath, { baseDir: BaseDirectory.Home, recursive: true });
   }
-  const defaultPath = (await isAbsolute(basePath ?? ''))
-    ? targetPath
-    : `${homeDirectory}${targetPath}`;
+  const defaultPath = absolute ? targetPath : (await join(homeDirectory, targetPath));
 
   return (await open({ recursive: true, directory: true, defaultPath }))?.toString();
 };
