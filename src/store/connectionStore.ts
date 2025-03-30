@@ -74,6 +74,17 @@ const buildPath = (
 
   return indexName ? `/${indexName}/${path}` : `/${path}`;
 };
+//
+// const buildQueryParams = (queryParams?: string, path: string) => {
+//   if (['_cat', '/_cat', '_aliases', '/_aliases'].includes(path.split('/')[0])) {
+//     return queryParams;
+//   }
+//   const queryParameters = queryParams ? `${queryParams}&format=json` : 'format=json';
+//   const params = new URLSearchParams(queryParameters);
+//
+//   const queryString = params.toString();
+//   return queryString ? `?${queryString}` : '';
+// };
 
 export const useConnectionStore = defineStore('connectionStore', {
   state: (): {
@@ -245,7 +256,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         throw new Error('Operation only supported for Elasticsearch connections');
       }
       const client = loadHttpClient(this.established);
-      const queryParameters = queryParams ? `${queryParams}&format=json` : 'format=json';
+      const queryParameters = queryParams;
       // refresh the index mapping
       try {
         if (index && index !== this.established.activeIndex?.index) {
@@ -254,7 +265,7 @@ export const useConnectionStore = defineStore('connectionStore', {
           );
           if (newIndex) {
             if (!newIndex.mapping) {
-              newIndex.mapping = await client.get(`/${index}/_mapping`, queryParameters);
+              newIndex.mapping = await client.get(`/${index}/_mapping`, 'format=json');
             }
             this.established = { ...this.established, activeIndex: newIndex };
           }

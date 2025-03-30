@@ -172,13 +172,13 @@ async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, Stri
 
     match response {
         Ok(resp) => {
-            let is_success = resp.status().is_success();
             let status_code = resp.status().as_u16();
+            let is_success = resp.status().is_success();
             let body = resp.text().await;
             match body {
                 Ok(body) => {
                     let data: serde_json::Value =
-                        serde_json::from_str(&body).unwrap_or(json!(null));
+                        serde_json::from_str(&body).unwrap_or(json!(&body));
                     let message = if is_success {
                         "Success".to_string()
                     } else {

@@ -13,7 +13,7 @@ const { themeType } = storeToRefs(appStore);
 
 let displayEditor: Editor | null = null;
 const displayEditorRef = ref();
-const setupJsonEditor = () => {
+const setupDisplayEditor = () => {
   displayEditor = monaco.editor.create(displayEditorRef.value, {
     automaticLayout: true,
     theme: getEditorTheme(),
@@ -28,18 +28,29 @@ watch(themeType, () => {
   displayEditor?.updateOptions({ theme: vsTheme });
 });
 
-const display = (content: string) => {
-  if (displayEditor) {
-    displayEditor?.getModel()?.setValue(content);
+const display = (content: unknown) => {
+  const model = displayEditor?.getModel();
+  if (!model) {
+    return;
   }
+  const type = typeof content === 'object' ? 'json' : 'plain/text';
+
+  const formattedContent =
+    type === 'json' ? JSON.stringify(content, null, '  ') : (content ?? '').toString();
+
+  monaco.editor.setModelLanguage(model, type);
+
+  model.setValue(formattedContent);
 };
+
 const dispose = () => {
   displayEditor?.dispose();
 };
+
 defineExpose({ display, dispose });
 
 onMounted(() => {
-  setupJsonEditor();
+  setupDisplayEditor();
 });
 </script>
 
