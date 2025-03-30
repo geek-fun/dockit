@@ -1,4 +1,4 @@
-use tauri::{App, Error, Emitter, Window, Manager};
+use tauri::{App, Error, Emitter, Manager};
 use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItem};
 
 pub fn create_menu(app: &App) -> Result<(), Error> {
@@ -50,7 +50,7 @@ pub fn create_menu(app: &App) -> Result<(), Error> {
     app.set_menu(menu)?; // Set the built menu
 
     app.on_menu_event(move |app_handle: &tauri::AppHandle, event| {
-        println!("menu event: {:?}", event.id());
+//         println!("menu event: {:?}", event.id());
 
         let window = app_handle.get_webview_window("main").unwrap();
 
