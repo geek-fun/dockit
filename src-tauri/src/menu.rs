@@ -1,4 +1,4 @@
-use tauri::{App, Error, Emitter, Window};
+use tauri::{App, Error, Emitter, Window, Manager};
 use tauri::menu::{MenuBuilder, SubmenuBuilder, MenuItem};
 
 pub fn create_menu(app: &App) -> Result<(), Error> {
@@ -52,12 +52,22 @@ pub fn create_menu(app: &App) -> Result<(), Error> {
     app.on_menu_event(move |app_handle: &tauri::AppHandle, event| {
         println!("menu event: {:?}", event.id());
 
+        let window = app_handle.get_webview_window("main").unwrap();
+
         match event.id().0.as_str() {
             "save" => {
                 println!("open event");
             }
             "close" => {
                 println!("close event");
+            }
+            "toggle_dev_tools" => {
+                #[cfg(debug_assertions)]
+                if window.is_devtools_open() {
+                    window.close_devtools();
+                } else {
+                    window.open_devtools();
+                }
             }
             _ => {
                 println!("unexpected menu event");
