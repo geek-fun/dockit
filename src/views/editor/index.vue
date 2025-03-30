@@ -359,7 +359,7 @@ const setupQueryEditor = () => {
    * @see https://github.com/tauri-apps/wry/issues/451
    */
   if (platform() === 'windows') {
-    queryEditor.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.KeyS, () => {
+    queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       saveModelContent(true, true, true);
     });
   }
