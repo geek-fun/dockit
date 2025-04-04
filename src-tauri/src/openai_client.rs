@@ -11,6 +11,7 @@ use futures::StreamExt;
 use crate::common::http_client::create_http_client;
 
 static OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
+static DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com";
 
 static mut OPENAI_CLIENT: Option<Client<OpenAIConfig>> = None;
 

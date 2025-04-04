@@ -14,13 +14,17 @@ export enum LanguageType {
   ZH_CN = 'zhCN',
   EN_US = 'enUS',
 }
-
-export type OpenAiConfig = {
+export enum ProviderEnum {
+  OPENAI = 'OPENAI',
+  DEEP_SEEK = 'DEEP_SEEK',
+}
+export type AiConfig = {
   apiKey: string;
   model: string;
   prompt?: string;
   httpProxy?: string;
   enabled: boolean;
+  provider: ProviderEnum;
 };
 export const useAppStore = defineStore('app', {
   state: (): {
@@ -29,9 +33,7 @@ export const useAppStore = defineStore('app', {
     connectPanel: boolean;
     uiThemeType: Exclude<ThemeType, ThemeType.AUTO>;
     skipVersion: string;
-    aigcConfig: {
-      openAi: OpenAiConfig;
-    };
+    aigcConfigs: Array<AiConfig>;
   } => {
     return {
       themeType: ThemeType.AUTO,
@@ -39,15 +41,13 @@ export const useAppStore = defineStore('app', {
       connectPanel: true, //
       uiThemeType: ThemeType.LIGHT,
       skipVersion: '',
-      aigcConfig: { openAi: {} as unknown as OpenAiConfig },
+      aigcConfigs: [],
     };
   },
   persist: true,
   actions: {
-    async fetchAigcConfig() {
-      this.aigcConfig = await storeApi.getSecret<{ openAi: OpenAiConfig }>('aigcConfig', {
-        openAi: {} as unknown as OpenAiConfig,
-      });
+    async fetchAigcConfigs() {
+      this.aigcConfigs = await storeApi.get<Array<AiConfig>>('aigcConfigs', []);
     },
     setConnectPanel() {
       this.connectPanel = !this.connectPanel;
@@ -71,14 +71,23 @@ export const useAppStore = defineStore('app', {
     getEditorTheme() {
       return this.uiThemeType === ThemeType.DARK ? 'vs-dark' : 'vs-light';
     },
-    async saveAigcConfig({ openAi }: { openAi: OpenAiConfig }) {
-      if (openAi.enabled && !(await chatBotApi.validateConfig(openAi))) {
+
+    async saveAigcConfig(aiConfig?: AiConfig) {
+      if (!aiConfig) {
+        return;
+      }
+      if (aiConfig.enabled && !(await chatBotApi.validateConfig(aiConfig))) {
         throw new Error(lang.global.t('setting.ai.invalid'));
       }
 
-      this.aigcConfig = { openAi };
+      const config = this.aigcConfigs.find(({ provider }) => provider === aiConfig.provider);
+      if (config) {
+        Object.assign(config, aiConfig);
+      } else {
+        this.aigcConfigs.push(aiConfig);
+      }
 
-      await storeApi.setSecret('aigcConfig', pureObject({ openAi }));
+      await storeApi.setSecret('aigcConfigs', pureObject(this.aigcConfigs));
     },
   },
 });

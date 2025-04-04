@@ -9,6 +9,25 @@ use serde_json::json;
 
 use crate::common::http_client::create_http_client;
 
+
+
+static mut FETCH_SECURE_CLIENT: Option<reqwest::Client> = None;
+static mut FETCH_INSECURE_CLIENT: Option<reqwest::Client> = None;
+
+#[derive(Deserialize)]
+struct Agent {
+    ssl: bool,
+    http_proxy: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct FetchApiOptions {
+    method: String,
+    headers: HashMap<String, String>,
+    body: Option<String>,
+    agent: Agent,
+}
+
 fn headermap_from_hashmap<'a, I, S>(headers: I) -> HeaderMap
 where
     I: Iterator<Item = (S, S)> + 'a,
@@ -28,23 +47,6 @@ where
         .collect()
 }
 
-
-static mut FETCH_SECURE_CLIENT: Option<reqwest::Client> = None;
-static mut FETCH_INSECURE_CLIENT: Option<reqwest::Client> = None;
-
-#[derive(Deserialize)]
-struct Agent {
-    ssl: bool,
-    http_proxy: Option<String>,
-}
-
-#[derive(Deserialize)]
-pub struct FetchApiOptions {
-    method: String,
-    headers: HashMap<String, String>,
-    body: Option<String>,
-    agent: Agent,
-}
 
 #[tauri::command]
 pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, String> {

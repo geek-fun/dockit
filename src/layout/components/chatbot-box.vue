@@ -114,10 +114,11 @@ fetchChats()
     scrollbarRef?.value?.scrollTo({ top: 999999 });
   })
   .catch(err => {
+    console.log('err', JSON.stringify(err));
     chatBotNotification.value = {
       enabled: true,
       level: 'error',
-      message: err.message,
+      message: err.details,
       code: err.status,
     };
   });
