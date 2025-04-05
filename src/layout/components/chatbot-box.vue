@@ -13,7 +13,7 @@
         <div v-for="msg in activeChat?.messages" :key="msg.id">
           <div :class="['message-row', msg.role === ChatMessageRole.USER ? 'user' : '']">
             <div class="message-row-header">
-              <n-icon size="26">
+              <n-icon size="20">
                 <bot v-if="msg.role === ChatMessageRole.BOT" />
                 <face-cool v-else />
               </n-icon>
@@ -53,11 +53,18 @@
           :input-props="inputProps"
         />
       </div>
-      <div class="footer-opration">
-        <n-button type="primary" :disabled="!chatMsg" @click="submitMsg">
-          <n-icon size="26">
-            <SendAlt />
-          </n-icon>
+      <div class="footer-operation">
+        <n-button
+          type="primary"
+          :loading="isChatMsgFinish"
+          :disabled="isChatMsgFinish"
+          @click="submitMsg"
+        >
+          <template #icon>
+            <n-icon size="26">
+              <SendAlt />
+            </n-icon>
+          </template>
         </n-button>
       </div>
     </div>
@@ -83,7 +90,8 @@ const { sendMessage, fetchChats, deleteChat } = chatStore;
 const router = useRouter();
 
 const scrollbarRef = ref(null);
-const chatMsg = ref(''); // 聊天消息
+const chatMsg = ref('');
+const isChatMsgFinish = ref(false);
 const chatBotNotification = ref<{
   enabled: boolean;
   level: 'default' | 'success' | 'error' | 'warning' | 'info' | undefined;
@@ -102,7 +110,6 @@ const loadChats = async () => {
     // @ts-ignore
     scrollbarRef?.value?.scrollTo({ top: 999999 });
   } catch (err) {
-    console.log('loadChats error', err);
     const { details, status } = err as { details: string; status: number };
     chatBotNotification.value = {
       enabled: true,
@@ -117,7 +124,7 @@ const loadChats = async () => {
 const submitMsg = () => {
   chatBotNotification.value = { enabled: false, level: undefined, message: '', code: 0 };
   if (!chatMsg.value.trim().length) return;
-
+  isChatMsgFinish.value = true;
   sendMessage(chatMsg.value)
     .catch(err => {
       chatBotNotification.value = {
@@ -128,8 +135,7 @@ const submitMsg = () => {
       };
     })
     .finally(() => {
-      // @ts-ignore
-      scrollbarRef.value.scrollTo({ top: 999999 });
+      isChatMsgFinish.value = false;
     });
   chatMsg.value = '';
 };
@@ -143,14 +149,27 @@ const removeChat = async () => {
   await deleteChat();
   await loadChats();
 };
+
 watch(
   () => aiConfigs.value,
   () => {
     if (aiConfigs.value.find(({ enabled }) => enabled)) {
-      console.log('AI configs changed', aiConfigs.value);
       chatBotNotification.value = { enabled: false, level: undefined, message: '', code: 0 };
     }
   },
+);
+// auto scroll to bottom when new message comes
+watch(
+  () => activeChat.value?.messages,
+  () => {
+    nextTick(() => {
+      if (scrollbarRef.value) {
+        // @ts-ignore
+        scrollbarRef.value.scrollTo({ top: 999999, behavior: 'smooth' });
+      }
+    });
+  },
+  { deep: true },
 );
 
 loadChats();
@@ -163,6 +182,7 @@ loadChats();
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border-color);
+
   .chat-box-header {
     height: 40px;
     line-height: 40px;
@@ -170,10 +190,12 @@ loadChats();
     display: flex;
     justify-content: space-between;
     border-bottom: 1px solid var(--border-color);
+
     .header-title {
       font-size: 18px;
       font-weight: bold;
     }
+
     .chat-header-delete-icon {
       cursor: pointer;
     }
@@ -182,13 +204,12 @@ loadChats();
   .message-list {
     flex: 1;
     height: 0;
-    padding: 10px;
 
     .message-row {
       display: flex;
       flex-direction: column;
       justify-content: space-around;
-      padding: 10px;
+      padding: 5px;
 
       &.user {
         background-color: var(--bg-color);
@@ -230,7 +251,7 @@ loadChats();
       height: fit-content;
     }
 
-    .footer-opration {
+    .footer-operation {
       position: absolute;
       bottom: 13px;
       right: 13px;

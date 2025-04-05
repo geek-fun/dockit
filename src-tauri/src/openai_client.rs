@@ -1,8 +1,6 @@
 use async_openai::types::{
-    ChatCompletionRequestAssistantMessageArgs,
-    ChatCompletionRequestMessage,
-    ChatCompletionRequestUserMessageArgs,
-    CreateChatCompletionRequestArgs,
+    ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestMessage,
+    ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs,
 };
 use async_openai::{config::OpenAIConfig, Client};
 use futures::StreamExt;
@@ -66,7 +64,12 @@ fn get_base_url(provider: &str) -> &'static str {
     }
 }
 
-async fn validate_openai(provider: &str, api_key: &str, model: &str, proxy: Option<String>) -> bool {
+async fn validate_openai(
+    provider: &str,
+    api_key: &str,
+    model: &str,
+    proxy: Option<String>,
+) -> bool {
     let http_client = create_http_client(proxy, None);
     let url = format!("{}/models/{}", get_base_url(provider), model);
 
@@ -81,7 +84,6 @@ async fn validate_openai(provider: &str, api_key: &str, model: &str, proxy: Opti
         Err(_err) => false,
     }
 }
-
 
 #[tauri::command]
 pub async fn create_openai_client(
@@ -113,7 +115,7 @@ pub async fn chat_stream(
     provider: String,
     model: String,
     question: String,
-     history: Vec<ChatMessage>
+    history: Vec<ChatMessage>,
 ) -> Result<String, String> {
     // Get client from static reference
     let openai_client = match unsafe { AI_CLIENT.as_ref() } {
@@ -127,36 +129,32 @@ pub async fn chat_stream(
             return Err(result.to_string());
         }
     };
-     // Convert history to OpenAI message format
-        let mut messages: Vec<ChatCompletionRequestMessage> = Vec::new();
-        for chat_msg in &history {
-            let api_message = match chat_msg.role {
-                ChatMessageRole::User => {
-                    ChatCompletionRequestUserMessageArgs::default()
-                        .content(chat_msg.content.clone())
-                        .build()
-                        .map_err(|e| e.to_string())?
-                        .into()
-                }
-                ChatMessageRole::Bot => {
-                    ChatCompletionRequestAssistantMessageArgs::default()
-                        .content(chat_msg.content.clone())
-                        .build()
-                        .map_err(|e| e.to_string())?
-                        .into()
-                }
-            };
-            messages.push(api_message);
-        }
-
-        // Add the new user message
-        messages.push(
-            ChatCompletionRequestUserMessageArgs::default()
-                .content(question)
+    // Convert history to OpenAI message format
+    let mut messages: Vec<ChatCompletionRequestMessage> = Vec::new();
+    for chat_msg in &history {
+        let api_message = match chat_msg.role {
+            ChatMessageRole::User => ChatCompletionRequestUserMessageArgs::default()
+                .content(chat_msg.content.clone())
                 .build()
                 .map_err(|e| e.to_string())?
-                .into()
-        );
+                .into(),
+            ChatMessageRole::Bot => ChatCompletionRequestAssistantMessageArgs::default()
+                .content(chat_msg.content.clone())
+                .build()
+                .map_err(|e| e.to_string())?
+                .into(),
+        };
+        messages.push(api_message);
+    }
+
+    // Add the new user message
+    messages.push(
+        ChatCompletionRequestUserMessageArgs::default()
+            .content(question)
+            .build()
+            .map_err(|e| e.to_string())?
+            .into(),
+    );
 
     // Create and send the request
     let request = CreateChatCompletionRequestArgs::default()
@@ -166,92 +164,74 @@ pub async fn chat_stream(
         .build()
         .map_err(|e| e.to_string())?;
 
-// Print request details for debugging
-println!("Request details:");
-println!("  Provider: {}", provider);
-println!("  Model: {}", model.clone());
-println!("  Stream: true");
-println!("  Messages count: {}", request.messages.len());
-// Add full messages as JSON for debugging
-println!("Full messages content:");
-match serde_json::to_string_pretty(&request.messages) {
-    Ok(json_str) => println!("{}", json_str),
-    Err(e) => println!("Error serializing messages: {}", e),
-}
-
     // Initialize the stream from OpenAI
-let mut stream = match openai_client.chat().create_stream(request).await {
-    Ok(stream) => stream,
-    Err(e) => {
- println!("Stream creation error details: {:?}", e);
-        let result = json!({
-            "status": 500,
-            "message": format!("stream failed: {}", e),
-            "data": Option::<serde_json::Value>::None,
-        });
-        return Err(result.to_string());
-    }
-};
-// Process the stream
-let mut full_response = String::new();
-let mut is_first_message = true;
-
-// Process stream events
-while let Some(result) = stream.next().await {
-    match result {
-        Ok(response) => {
-            if let Some(chunk) = response.choices.first() {
-                if let Some(content) = &chunk.delta.content {
-                    full_response.push_str(content);
-
-                    let state = if is_first_message {
-                        is_first_message = false;
-                        "CREATED"
-                    } else {
-                        "IN_PROGRESS"
-                    };
-
-                    // Emit the message in the expected format
-                    let msg = json!({
-                        "role": "BOT",
-                        "content": [{"text": {"value": content}}],
-                        "state": state
-                    });
-
-                    println!("Emitting message: {}", msg.to_string());
-
-                    window.emit("chatbot-message", msg.to_string())
-                        .map_err(|e| e.to_string())?;
-                }
-            }
-        },
+    let mut stream = match openai_client.chat().create_stream(request).await {
+        Ok(stream) => stream,
         Err(e) => {
-            let error_message = e.to_string();
-            println!("Stream error: {}", error_message);
-
             let result = json!({
                 "status": 500,
-                "message": format!("stream failed: {}", error_message),
+                "message": format!("stream failed: {}", e),
                 "data": Option::<serde_json::Value>::None,
             });
             return Err(result.to_string());
         }
+    };
+    // Process the stream
+    let mut full_response = String::new();
+    let mut is_first_message = true;
+
+    // Process stream events
+    while let Some(result) = stream.next().await {
+        match result {
+            Ok(response) => {
+                if let Some(chunk) = response.choices.first() {
+                    if let Some(content) = &chunk.delta.content {
+                        full_response.push_str(content);
+
+                        let state = if is_first_message {
+                            is_first_message = false;
+                            "CREATED"
+                        } else {
+                            "IN_PROGRESS"
+                        };
+
+                        // Emit the message in the expected format
+                        let msg = json!({
+                            "role": "BOT",
+                            "content": [{"text": {"value": content}}],
+                            "state": state
+                        });
+
+                        window
+                            .emit("chatbot-message", msg.to_string())
+                            .map_err(|e| e.to_string())?;
+                    }
+                }
+            }
+            Err(e) => {
+                let error_message = e.to_string();
+                let result = json!({
+                    "status": 500,
+                    "message": format!("stream failed: {}", error_message),
+                    "data": Option::<serde_json::Value>::None,
+                });
+                return Err(result.to_string());
+            }
+        }
     }
-}
 
-// Emit COMPLETED event after stream finishes
-if !full_response.is_empty() {
-    let msg = json!({
-        "role": "BOT",
-        "content": [{"text": {"value": null}}],
-        "state": "COMPLETED"
-    });
+    // Emit COMPLETED event after stream finishes
+    if !full_response.is_empty() {
+        let msg = json!({
+            "role": "BOT",
+            "content": [{"text": {"value": null}}],
+            "state": "COMPLETED"
+        });
 
-    println!("Emitting completion message: {}", msg.to_string());
-
-    window.emit("chatbot-message", msg.to_string())
-        .map_err(|e| e.to_string())?;
-}
+        window
+            .emit("chatbot-message", msg.to_string())
+            .map_err(|e| e.to_string())?;
+    }
 
     let result = json!({
         "status": 200,

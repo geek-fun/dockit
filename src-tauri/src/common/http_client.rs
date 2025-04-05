@@ -17,7 +17,6 @@ fn get_proxy(http_proxy: Option<String>) -> Option<String> {
     return proxy_url;
 }
 
-
 pub fn create_http_client(proxy: Option<String>, ssl: Option<bool>) -> reqwest::Client {
     let mut builder =
         reqwest::ClientBuilder::new().danger_accept_invalid_certs(!ssl.unwrap_or(true));

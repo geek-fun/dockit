@@ -1,13 +1,13 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod menu;
 mod common;
 mod fetch_client;
+mod menu;
 mod openai_client;
 
 use fetch_client::fetch_api;
-use openai_client::{ create_openai_client, chat_stream };
+use openai_client::{chat_stream, create_openai_client};
 
 fn main() {
     tauri::Builder::default()
@@ -21,7 +21,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             create_openai_client,
             fetch_api,
-           chat_stream,
+            chat_stream,
         ])
         .setup(|app| {
             menu::create_menu(app)?;

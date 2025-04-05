@@ -8,8 +8,6 @@ use serde_json::json;
 
 use crate::common::http_client::create_http_client;
 
-
-
 static mut FETCH_SECURE_CLIENT: Option<reqwest::Client> = None;
 static mut FETCH_INSECURE_CLIENT: Option<reqwest::Client> = None;
 
@@ -45,7 +43,6 @@ where
         .map(|(k, v)| (k.unwrap(), v.unwrap()))
         .collect()
 }
-
 
 #[tauri::command]
 pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, String> {

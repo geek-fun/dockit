@@ -96,16 +96,21 @@ export const useChatStore = defineStore('chat', {
 
       const connectionStore = useConnectionStore();
       const index = connectionStore.$state.established?.activeIndex;
+
       const question = index
-        ? `user's question: ${content} context: indexName - ${index.index}, indexMapping - ${index.mapping}`
-        : `user's question: ${content}`;
+        ? `${lang.global.t('setting.ai.defaultPrompt')}
+          database context:
+            - indexName: ${index.index}, 
+            - indexMapping: ${index.mapping}
+          user's question: ${content} `
+        : `${lang.global.t('setting.ai.defaultPrompt')}
+        user's question: ${content}`;
 
       try {
         const { model, provider } = await getOpenAiConfig();
         const history = messages.filter(({ status }) =>
           [ChatMessageStatus.RECEIVED, ChatMessageStatus.SENT].includes(status),
         );
-
         await chatBotApi.chatStream({ provider, model, question, history }, event => {
           const receivedStr = event.content.map(({ text }) => text.value).join('');
           if (event.state === 'CREATED') {
@@ -127,7 +132,6 @@ export const useChatStore = defineStore('chat', {
           }
         });
       } catch (err) {
-        console.log('sendMessage error:', err);
         requestMsg.status = ChatMessageStatus.FAILED;
         await storeApi.set(
           'chatStore',

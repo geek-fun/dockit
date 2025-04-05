@@ -75,7 +75,6 @@ export const useAppStore = defineStore('app', {
         return;
       }
 
-      console.log('saveAiConfig is valid:', await chatBotApi.validateConfig(aiConfig));
       if (aiConfig.enabled && !(await chatBotApi.validateConfig(aiConfig))) {
         throw new Error(lang.global.t('setting.ai.invalid'));
       }
@@ -87,11 +86,7 @@ export const useAppStore = defineStore('app', {
         this.aiConfigs.push(aiConfig);
       }
 
-      console.log('final config', this.aiConfigs);
-
       await storeApi.setSecret('aiConfigs', pureObject(this.aiConfigs));
-
-      console.log('re get the config', await storeApi.get<Array<AiConfig>>('aiConfigs', []));
     },
   },
 });
