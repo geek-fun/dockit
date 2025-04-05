@@ -5,7 +5,7 @@
     </div>
     <div class="message-list">
       <n-scrollbar ref="scrollbarRef" style="height: 100%">
-        <div v-for="msg in chats[0]?.messages" :key="msg.id">
+        <div v-for="msg in activeChat?.messages" :key="msg.id">
           <div :class="['message-row', msg.role === ChatMessageRole.USER ? 'user' : '']">
             <div class="message-row-header">
               <n-icon size="26">
@@ -61,12 +61,16 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { Bot, SendAlt, FaceCool } from '@vicons/carbon';
-import { ChatMessageRole, useChatStore } from '../../store';
+import { useAppStore, useChatStore } from '../../store';
 import MarkdownRender from '../../components/MarkdownRender.vue';
 import { ErrorCodes } from '../../common';
+import { ChatMessageRole } from '../../datasources';
+
+const appStore = useAppStore();
+const { aiConfigs } = storeToRefs(appStore);
 
 const chatStore = useChatStore();
-const { chats } = storeToRefs(chatStore);
+const { activeChat } = storeToRefs(chatStore);
 const { sendMessage, fetchChats } = chatStore;
 
 const router = useRouter();
@@ -84,10 +88,12 @@ const chatBotNotification = ref<{
   message: '',
   code: 0,
 });
+
 // 提交消息
 const submitMsg = () => {
   chatBotNotification.value = { enabled: false, level: undefined, message: '', code: 0 };
   if (!chatMsg.value.trim().length) return;
+
   sendMessage(chatMsg.value)
     .catch(err => {
       chatBotNotification.value = {
@@ -108,13 +114,23 @@ const configGpt = () => {
   router.push({ path: '/setting', replace: true });
 };
 
+watch(
+  () => aiConfigs.value,
+  () => {
+    if (aiConfigs.value.find(({ enabled }) => enabled)) {
+      console.log('AI configs changed', aiConfigs.value);
+      chatBotNotification.value = { enabled: false, level: undefined, message: '', code: 0 };
+    }
+  },
+);
+
 fetchChats()
   .then(() => {
     // @ts-ignore
     scrollbarRef?.value?.scrollTo({ top: 999999 });
   })
   .catch(err => {
-    console.log('err', JSON.stringify(err));
+    console.log('fetchChats error', err);
     chatBotNotification.value = {
       enabled: true,
       level: 'error',

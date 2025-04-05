@@ -3,24 +3,18 @@ import { ulid } from 'ulidx';
 import { lang } from '../lang';
 import { CustomError, ErrorCodes, pureObject } from '../common';
 import { useConnectionStore } from './connectionStore';
-import { chatBotApi, storeApi } from '../datasources';
-import { AiConfig, ProviderEnum } from './appStore.ts';
-import { ApiClientError } from '../datasources/ApiClients.ts';
-
-enum MessageStatus {
-  SENDING = 'SENDING',
-  SENT = 'SENT',
-  FAILED = 'FAILED',
-  RECEIVED = 'RECEIVED',
-}
-
-export enum ChatMessageRole {
-  USER = 'USER',
-  BOT = 'BOT',
-}
+import {
+  chatBotApi,
+  ChatMessage,
+  ChatMessageRole,
+  ChatMessageStatus,
+  ProviderEnum,
+  storeApi,
+} from '../datasources';
+import { AiConfig } from './appStore.ts';
 
 export const getOpenAiConfig = async () => {
-  const aigcConfigs = await storeApi.getSecret('aigcConfigs', []);
+  const aigcConfigs = await storeApi.getSecret('aiConfigs', []);
   const enabledAigc = aigcConfigs.find((config: AiConfig) => config.enabled);
 
   if (!enabledAigc) {
@@ -32,15 +26,9 @@ export const getOpenAiConfig = async () => {
 type Chat = {
   id: string;
   provider: ProviderEnum;
-  assistantId: string;
-  threadId: string;
-  messages: Array<{
-    id: string;
-    status: MessageStatus;
-    content: string;
-    role: ChatMessageRole;
-  }>;
+  messages: Array<ChatMessage>;
 };
+
 export const useChatStore = defineStore('chat', {
   state: (): { activeChat: Chat | undefined; chats: Array<Chat>; insertBoard: string } => {
     return {
@@ -51,93 +39,56 @@ export const useChatStore = defineStore('chat', {
   },
   actions: {
     async fetchChats() {
-      const { chats, activeChat } = await storeApi.get<{ chats: Chat[]; activeChat: Chat }>(
+      const { apiKey, httpProxy, model, provider } = await getOpenAiConfig();
+
+      const { chats = [], activeChat } = await storeApi.get<{ chats: Chat[]; activeChat: Chat }>(
         'chatStore',
         {} as { chats: Chat[]; activeChat: Chat },
       );
 
-      const { apiKey, httpProxy, model, provider } = await getOpenAiConfig();
-      if (!chats?.length) {
-        return;
-      }
-      this.activeChat = activeChat ?? chats.reverse().find(chat => chat.provider === provider);
       this.chats = chats;
+      this.activeChat = activeChat ?? this.chats.reverse().find(chat => chat.provider === provider);
 
-      const { assistantId } = this.activeChat;
+      if (!this.activeChat) {
+        this.activeChat = {
+          id: ulid(),
+          provider: provider,
+          messages: [],
+        };
+        this.chats.push(this.activeChat);
+      }
+
       try {
-        const assistant = await chatBotApi.findAssistant({ apiKey, assistantId, httpProxy, model });
-        this.chats = assistant ? chats : [];
-        this.activeChat = assistant ? this.activeChat : undefined;
-        await storeApi.set(
-          'chatStore',
-          pureObject({ activeChat: this.activeChat, chats: this.chats }),
-        );
+        await chatBotApi.createClient({ provider, apiKey, model, httpProxy });
+        this.activeChat.messages[0] = {
+          id: ulid(),
+          status: ChatMessageStatus.SENDING,
+          role: ChatMessageRole.BOT,
+          content: lang.global.t('setting.ai.firstMsg'),
+        };
       } catch (err) {
-        if ((err as ApiClientError).status === 404) {
-          this.chats = [];
-          this.activeChat = undefined;
-          await storeApi.set(
-            'chatStore',
-            pureObject({ activeChat: this.activeChat, chats: this.chats }),
-          );
-        } else {
-          throw err;
-        }
+        throw new CustomError(ErrorCodes.OPENAI_CLIENT_ERROR, (err as Error).message);
       }
-    },
 
-    async modifyAssistant() {
-      const { assistantId } = this.activeChat ?? {};
-      if (!assistantId) {
-        return;
-      }
-      const { apiKey, prompt, model, httpProxy } = await getOpenAiConfig();
-      await chatBotApi.modifyAssistant({
-        apiKey,
-        prompt: prompt ?? lang.global.t('setting.ai.defaultPrompt'),
-        model,
-        assistantId,
-        httpProxy,
-      });
+      await storeApi.set(
+        'chatStore',
+        pureObject({ activeChat: this.activeChat, chats: this.chats }),
+      );
     },
 
     async sendMessage(content: string) {
-      const { apiKey, prompt, model, httpProxy, provider } = await getOpenAiConfig();
-      let activeChat =
-        this.activeChat ?? this.chats.reverse().find(chat => chat.provider === provider);
-
-      if (!activeChat) {
-        try {
-          const { assistantId, threadId } = await chatBotApi.createAssistant({
-            apiKey,
-            model,
-            prompt: prompt ?? lang.global.t('setting.ai.defaultPrompt'),
-            httpProxy,
-          });
-          activeChat = {
-            id: ulid(),
-            provider: provider,
-            messages: [],
-            assistantId,
-            threadId,
-          };
-          this.activeChat = activeChat;
-          this.chats.push(this.activeChat);
-          await storeApi.set(
-            'chatStore',
-            pureObject({ activeChat: this.activeChat, chats: this.chats }),
-          );
-        } catch (err) {
-          throw new Error((err as Error).message);
-        }
+      if (!this.activeChat) {
+        throw new CustomError(ErrorCodes.MISSING_GPT_CONFIG, lang.global.t('setting.ai.missing'));
       }
-      const { messages, assistantId, threadId } = activeChat;
-      messages.push({
+
+      const { messages } = this.activeChat;
+      const requestMsg = {
         id: ulid(),
-        status: MessageStatus.SENT,
+        status: ChatMessageStatus.SENDING,
         role: ChatMessageRole.USER,
         content,
-      });
+      };
+      messages.push(requestMsg);
       await storeApi.set(
         'chatStore',
         pureObject({ activeChat: this.activeChat, chats: this.chats }),
@@ -148,40 +99,44 @@ export const useChatStore = defineStore('chat', {
       const question = index
         ? `user's question: ${content} context: indexName - ${index.index}, indexMapping - ${index.mapping}`
         : `user's question: ${content}`;
+
       try {
-        await chatBotApi.chatAssistant(
-          {
-            assistantId,
-            threadId,
-            question,
-          },
-          event => {
-            if (event.state.toUpperCase() === 'CREATED') {
-              activeChat.messages.push({
-                id: ulid(),
-                status: MessageStatus.RECEIVED,
-                role: ChatMessageRole.BOT,
-                content: '',
-              });
-            } else if (event.state.toUpperCase() === 'IN_PROGRESS') {
-              const messageChunk = event.content.map(({ text }) => text.value).join('');
-              activeChat.messages[activeChat.messages.length - 1].content += messageChunk;
-            } else if (event.state.toUpperCase() === 'COMPLETED') {
-              storeApi.set('chats', pureObject(this.chats));
-              storeApi.set(
-                'chatStore',
-                pureObject({ activeChat: this.activeChat, chats: this.chats }),
-              );
-            }
-          },
+        const { model, provider } = await getOpenAiConfig();
+        const history = messages.filter(({ status }) =>
+          [ChatMessageStatus.RECEIVED, ChatMessageStatus.SENT].includes(status),
         );
+        let receivedMsg = {
+          id: ulid(),
+          status: ChatMessageStatus.RECEIVED,
+          role: ChatMessageRole.BOT,
+          content: '',
+        };
+
+        await chatBotApi.chatStream({ provider, model, question, history }, event => {
+          console.log('event:', event);
+          const receivedStr = event.content.map(({ text }) => text.value).join('');
+
+          if (event.state === 'CREATED') {
+            requestMsg.status = ChatMessageStatus.SENT;
+            receivedMsg.content = receivedStr;
+            this.activeChat!.messages.push(receivedMsg);
+          } else if (event.state === 'IN_PROGRESS') {
+            receivedMsg.content += receivedStr;
+          } else if (event.state === 'COMPLETED') {
+            storeApi.set(
+              'chatStore',
+              pureObject({ activeChat: this.activeChat, chats: this.chats }),
+            );
+          }
+        });
       } catch (err) {
-        messages[messages.length - 1].status = MessageStatus.FAILED;
+        console.log('sendMessage error:', err);
+        requestMsg.status = ChatMessageStatus.FAILED;
         await storeApi.set(
           'chatStore',
           pureObject({ activeChat: this.activeChat, chats: this.chats }),
         );
-        throw new Error((err as Error).message);
+        throw new CustomError(ErrorCodes.OPENAI_CLIENT_ERROR, (err as Error).message);
       }
     },
   },

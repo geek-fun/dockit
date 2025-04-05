@@ -96,21 +96,20 @@
 import { storeToRefs } from 'pinia';
 import { useMessage } from 'naive-ui';
 import { cloneDeep } from 'lodash';
-import { AiConfig, ProviderEnum, useAppStore, useChatStore } from '../../../store';
+import { AiConfig, useAppStore } from '../../../store';
 import { inputProps } from '../../../common';
+import { ProviderEnum } from '../../../datasources';
 
 const appStore = useAppStore();
-const { fetchAigcConfigs, saveAigcConfig } = appStore;
-const { aigcConfigs } = storeToRefs(appStore);
+const { fetchAiConfigs, saveAiConfig } = appStore;
+const { aiConfigs } = storeToRefs(appStore);
 
-const chatStore = useChatStore();
-const { fetchChats, modifyAssistant } = chatStore;
 const message = useMessage();
 
 const openAiConfig =
-  aigcConfigs.value.find(({ provider }) => provider === ProviderEnum.OPENAI) ?? ({} as AiConfig);
+  aiConfigs.value.find(({ provider }) => provider === ProviderEnum.OPENAI) ?? ({} as AiConfig);
 const deepSeekConfig =
-  aigcConfigs.value.find(({ provider }) => provider === ProviderEnum.DEEP_SEEK) ?? ({} as AiConfig);
+  aiConfigs.value.find(({ provider }) => provider === ProviderEnum.DEEP_SEEK) ?? ({} as AiConfig);
 
 const openAi = ref(cloneDeep(openAiConfig));
 const deepSeek = ref(cloneDeep(deepSeekConfig));
@@ -128,22 +127,24 @@ const messageWrapper = async (fn: () => Promise<void>) =>
 const reset = async (provider: 'openai' | 'deepseek') => {
   if (provider === 'openai') {
     openAi.value = cloneDeep(openAiConfig);
-    await messageWrapper(() => saveAigcConfig(openAi.value));
+    await messageWrapper(() => saveAiConfig(openAi.value));
   } else {
     deepSeek.value = cloneDeep(deepSeekConfig);
-    await messageWrapper(() => saveAigcConfig(deepSeek.value));
+    await messageWrapper(() => saveAiConfig(deepSeek.value));
   }
 };
 
 const save = async (provider: 'openai' | 'deepseek') => {
   await messageWrapper(async () => {
-    await saveAigcConfig(provider === 'openai' ? openAi.value : deepSeek.value);
-    await modifyAssistant();
+    await saveAiConfig({
+      ...(provider === 'openai' ? openAi.value : deepSeek.value),
+      provider: provider === 'openai' ? ProviderEnum.OPENAI : ProviderEnum.DEEP_SEEK,
+      enabled: true,
+    });
   });
 };
 
-fetchAigcConfigs();
-fetchChats();
+fetchAiConfigs();
 </script>
 
 <style lang="scss" scoped>

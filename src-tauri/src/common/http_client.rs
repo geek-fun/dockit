@@ -1,4 +1,3 @@
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use std::env;
 
 fn get_proxy(http_proxy: Option<String>) -> Option<String> {

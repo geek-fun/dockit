@@ -1,7 +1,30 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { tauriClient } from './ApiClients.ts';
-import { ChatMessageRole } from '../store';
+
+export enum ProviderEnum {
+  OPENAI = 'OPENAI',
+  DEEP_SEEK = 'DEEP_SEEK',
+}
+
+export enum ChatMessageStatus {
+  SENDING = 'SENDING',
+  SENT = 'SENT',
+  FAILED = 'FAILED',
+  RECEIVED = 'RECEIVED',
+}
+
+export enum ChatMessageRole {
+  USER = 'USER',
+  BOT = 'BOT',
+}
+
+export type ChatMessage = {
+  id: string;
+  status: ChatMessageStatus;
+  content: string;
+  role: ChatMessageRole;
+};
 
 let receiveRegistration = false;
 
@@ -12,6 +35,7 @@ const chatBotApi = {
     model,
     httpProxy,
   }: {
+    provider: ProviderEnum;
     apiKey: string;
     prompt: string;
     model: string;
@@ -40,6 +64,7 @@ const chatBotApi = {
     assistantId,
     httpProxy,
   }: {
+    provider: ProviderEnum;
     apiKey: string;
     prompt: string;
     model: string;
@@ -74,6 +99,7 @@ const chatBotApi = {
     assistantId: string;
     model: string;
     httpProxy?: string;
+    provider: ProviderEnum;
   }) => {
     return await tauriClient.invoke('find_assistant', {
       apiKey,
@@ -110,20 +136,55 @@ const chatBotApi = {
       question,
     });
   },
-  validateConfig: async ({
-    apiKey,
-    model,
-    httpProxy,
-  }: {
+  validateConfig: async (config: {
+    provider: ProviderEnum;
     apiKey: string;
     model: string;
     httpProxy?: string;
   }) => {
     try {
-      await invoke('create_openai_client', { apiKey, model, httpProxy });
+      await invoke('create_openai_client', config);
       return true;
     } catch (err) {
       return false;
+    }
+  },
+  createClient: async (config: {
+    provider: ProviderEnum;
+    apiKey: string;
+    model: string;
+    httpProxy?: string;
+  }) => {
+    try {
+      await invoke('create_openai_client', config);
+    } catch (err) {
+      throw err;
+    }
+  },
+  chatStream: async (
+    config: {
+      provider: ProviderEnum;
+      model: string;
+      question: string;
+      history: Array<ChatMessage>;
+    },
+    callback: (event: {
+      role: ChatMessageRole;
+      content: Array<{ text: { value: string } }>;
+      state: string;
+    }) => void,
+  ) => {
+    if (!receiveRegistration) {
+      await listen<string>('chatbot-message', event => {
+        callback(JSON.parse(event.payload));
+      });
+      receiveRegistration = true;
+    }
+
+    try {
+      await invoke('chat_stream', config);
+    } catch (err) {
+      throw err;
     }
   },
 };

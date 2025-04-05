@@ -7,13 +7,7 @@ mod fetch_client;
 mod openai_client;
 
 use fetch_client::fetch_api;
-use openai_client::{
-    create_openai_client,
-    find_assistant,
-    modify_assistant,
-    create_assistant,
-    chat_assistant
-};
+use openai_client::{ create_openai_client, chat_stream };
 
 fn main() {
     tauri::Builder::default()
@@ -27,10 +21,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             create_openai_client,
             fetch_api,
-            find_assistant,
-            modify_assistant,
-            create_assistant,
-            chat_assistant
+           chat_stream,
         ])
         .setup(|app| {
             menu::create_menu(app)?;

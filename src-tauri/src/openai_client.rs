@@ -1,23 +1,74 @@
 use async_openai::types::{
-    AssistantStreamEvent, CreateAssistantRequest, CreateMessageRequest, CreateRunRequest,
-    CreateThreadRequest, MessageRole, ModifyAssistantRequest,
+    ChatCompletionRequestAssistantMessageArgs,
+    ChatCompletionRequestMessage,
+    ChatCompletionRequestUserMessageArgs,
+    CreateChatCompletionRequestArgs,
 };
-use serde_json::json;
-
 use async_openai::{config::OpenAIConfig, Client};
-use tauri::Emitter;
 use futures::StreamExt;
+use serde::Deserialize;
+use serde_json::json;
+use tauri::Emitter;
 
 use crate::common::http_client::create_http_client;
 
 static OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
 static DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com";
 
-static mut OPENAI_CLIENT: Option<Client<OpenAIConfig>> = None;
+static mut AI_CLIENT: Option<Client<OpenAIConfig>> = None;
 
-async fn validate_openai(api_key: &str, model: &str, proxy: Option<String>) -> bool {
+#[derive(Debug, Deserialize, Clone)]
+pub enum MessageStatus {
+    #[serde(rename = "SENDING")]
+    Sending,
+    #[serde(rename = "SENT")]
+    Sent,
+    #[serde(rename = "FAILED")]
+    Failed,
+    #[serde(rename = "RECEIVED")]
+    Received,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub enum ChatMessageRole {
+    #[serde(rename = "USER")]
+    User,
+    #[serde(rename = "BOT")]
+    Bot,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct ChatMessage {
+    pub id: String,
+    pub status: MessageStatus,
+    pub content: String,
+    pub role: ChatMessageRole,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Chat {
+    pub id: String,
+    pub provider: String,
+    pub messages: Vec<ChatMessage>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChatStore {
+    #[serde(rename = "activeChat")]
+    pub active_chat: Option<Chat>,
+    pub chats: Vec<Chat>,
+}
+
+fn get_base_url(provider: &str) -> &'static str {
+    match provider {
+        "DEEP_SEEK" => DEEPSEEK_BASE_URL,
+        _ => OPENAI_BASE_URL, // Default to OpenAI for any other provider
+    }
+}
+
+async fn validate_openai(provider: &str, api_key: &str, model: &str, proxy: Option<String>) -> bool {
     let http_client = create_http_client(proxy, None);
-    let url = format!("{}/engines/{}", OPENAI_BASE_URL, model);
+    let url = format!("{}/models/{}", get_base_url(provider), model);
 
     let resp = http_client
         .get(&url)
@@ -34,314 +85,185 @@ async fn validate_openai(api_key: &str, model: &str, proxy: Option<String>) -> b
 
 #[tauri::command]
 pub async fn create_openai_client(
+    provider: String,
     api_key: String,
     model: String,
     http_proxy: Option<String>,
 ) -> Result<String, String> {
-    let is_valid = validate_openai(&api_key, &model, http_proxy.clone()).await;
+    let is_valid = validate_openai(&provider, &api_key, &model, http_proxy.clone()).await;
     if !is_valid {
-        return Err("Invalid OpenAI API Key or Model".into());
+        return Err(format!("Invalid {} API Key or Model", provider).into());
     }
 
     let config = OpenAIConfig::new()
         .with_api_key(api_key)
-        .with_api_base(OPENAI_BASE_URL);
+        .with_api_base(get_base_url(&provider));
 
     let http_client = create_http_client(http_proxy, None);
     unsafe {
-        OPENAI_CLIENT = Option::from(Client::with_config(config).with_http_client(http_client));
+        AI_CLIENT = Option::from(Client::with_config(config).with_http_client(http_client));
     }
 
-    return Ok("OpenAI client created".to_string());
-}
-
-
-#[tauri::command]
-pub async fn find_assistant(
-    api_key: String,
-    assistant_id: String,
-    model: String,
-    http_proxy: Option<String>,
-) -> Result<String, String> {
-    let openai_client = match unsafe { OPENAI_CLIENT.as_ref() } {
-        Some(client) => client.clone(),
-        None => {
-            create_openai_client(api_key, model, http_proxy).await?;
-            match unsafe { OPENAI_CLIENT.as_ref() } {
-                Some(client) => client.clone(),
-                None => {
-                    let result = json!({
-                        "status": 500,
-                        "message":"Failed to create openai client".to_string(),
-                        "data":Option::<serde_json::Value>::None,
-                    });
-                    return Err(result.to_string());
-                }
-            }
-        }
-    };
-
-    let assistant = openai_client.assistants().retrieve(&assistant_id).await;
-    match assistant {
-        Ok(assistant) => {
-            let result = json!({
-                "status": 200,
-                "message":"Success".to_string(),
-                "data": {
-                     "assistant_id": assistant.id,
-                 }
-            });
-            Ok(result.to_string())
-        }
-        Err(e) => {
-            match &e {
-                async_openai::error::OpenAIError::ApiError(e) => {
-                    let message = e.message.clone();
-                    if message.starts_with("No assistant found") {
-                        let result = json!({
-                            "status": 404,
-                            "message": message,
-                            "data": Option::<serde_json::Value>::None,
-                        });
-                        return Err(result.to_string());
-                    }
-                }
-                _ => {}
-            }
-
-            let result = json!({
-                "status": 500,
-                "message": e.to_string(),
-                "data":Option::<serde_json::Value>::None,
-            });
-            Err(result.to_string())
-        }
-    }
-}
-
-static ASSISTANT_NAME: &str = "dockit-assistant";
-
-#[tauri::command]
-pub async fn modify_assistant(
-    api_key: String,
-    assistant_id: String,
-    model: String,
-    instructions: String,
-    http_proxy: Option<String>,
-) -> Result<String, String> {
-    let openai_client = match unsafe { OPENAI_CLIENT.as_ref() } {
-        Some(client) => client.clone(),
-        None => {
-            create_openai_client(api_key, model.clone(), http_proxy).await?;
-            match unsafe { OPENAI_CLIENT.as_ref() } {
-                Some(client) => client.clone(),
-                None => {
-                    let result = json!({
-                        "status": 500,
-                        "message":"Failed to create openai client".to_string(),
-                        "data":Option::<serde_json::Value>::None,
-                    });
-                    return Err(result.to_string());
-                }
-            }
-        }
-    };
-
-    let assistant = openai_client
-        .assistants()
-        .update(
-            &assistant_id,
-            ModifyAssistantRequest {
-                name: Option::from(ASSISTANT_NAME.to_string()),
-                model: Some(model),
-                instructions: Some(instructions),
-                ..Default::default()
-            },
-        )
-        .await;
-
-    match assistant {
-        Ok(assistant) => {
-            let result = json!({
-                "status": 200,
-                "message":"Success".to_string(),
-                "data": {
-                     "assistant_id": assistant.id,
-                 }
-            });
-            Ok(result.to_string())
-        }
-        Err(e) => {
-            let result = json!({
-                "status": 500,
-                "message": e.to_string(),
-                "data":Option::<serde_json::Value>::None,
-            });
-            Err(result.to_string())
-        }
-    }
+    return Ok(format!("{} client created", provider).to_string());
 }
 
 #[tauri::command]
-pub async fn create_assistant(
-    api_key: String,
-    model: String,
-    instructions: String,
-    http_proxy: Option<String>,
-) -> Result<String, String> {
-    let openai_client = match unsafe { OPENAI_CLIENT.as_ref() } {
-        Some(client) => client.clone(),
-        None => {
-            create_openai_client(api_key, model.clone(), http_proxy).await?;
-            match unsafe { OPENAI_CLIENT.as_ref() } {
-                Some(client) => client.clone(),
-                None => {
-                    let result = json!({
-                        "status": 500,
-                        "message":"Failed to create openai client".to_string(),
-                        "data":Option::<serde_json::Value>::None,
-                    });
-                    return Err(result.to_string());
-                }
-            }
-        }
-    };
-    // Step 1: Create assistant
-    let assistant = openai_client
-        .assistants()
-        .create(CreateAssistantRequest {
-            name: Option::from(ASSISTANT_NAME.to_string()),
-            model,
-            instructions: Some(instructions),
-            ..Default::default()
-        })
-        .await;
-    if assistant.is_err() {
-        // if !assistant.is_ok() {
-        let result = json!({
-            "status": 500,
-            "message":"Failed to create assistant".to_string(),
-            "data":Option::<serde_json::Value>::None,
-        });
-        return Err(result.to_string());
-    }
-    // Step 2: Create a Thread
-    let thread = openai_client
-        .threads()
-        .create(CreateThreadRequest::default())
-        .await;
-    if thread.is_err() {
-        let result = json!({
-            "status": 500,
-            "message":"Failed to create thread".to_string(),
-            "data":Option::<serde_json::Value>::None,
-        });
-        return Err(result.to_string());
-    }
-    let result = json!(
-    {
-        "status": 200,
-        "message":"Success".to_string(),
-        "data": {
-            "assistant_id": assistant.unwrap().id,
-            "thread_id": thread.unwrap().id,
-        }
-    });
-
-    return Ok(result.to_string());
-}
-
-#[tauri::command]
-pub async fn chat_assistant(
+pub async fn chat_stream(
     window: tauri::Window,
-    assistant_id: String,
-    thread_id: String,
+    provider: String,
+    model: String,
     question: String,
+     history: Vec<ChatMessage>
 ) -> Result<String, String> {
-    let openai_client = match unsafe { OPENAI_CLIENT.as_ref() } {
+    // Get client from static reference
+    let openai_client = match unsafe { AI_CLIENT.as_ref() } {
         Some(client) => client.clone(),
         None => {
             let result = json!({
                 "status": 500,
-                "message":"OpenAI client not found".to_string(),
-                "data":Option::<serde_json::Value>::None,
+                "message": format!("{} client not found", provider),
+                "data": Option::<serde_json::Value>::None,
             });
             return Err(result.to_string());
         }
     };
-    let _message = openai_client
-        .threads()
-        .messages(&thread_id)
-        .create(CreateMessageRequest {
-            role: MessageRole::User,
-            content: question.into(),
-            ..Default::default()
-        })
-        .await;
-    let mut event_stream = openai_client
-        .threads()
-        .runs(&thread_id)
-        .create_stream(CreateRunRequest {
-            assistant_id,
-            stream: Some(true),
-            ..Default::default()
-        })
-        .await
-        .map_err(|e| e.to_string())?; // Convert the error to a string
+     // Convert history to OpenAI message format
+        let mut messages: Vec<ChatCompletionRequestMessage> = Vec::new();
+        for chat_msg in &history {
+            let api_message = match chat_msg.role {
+                ChatMessageRole::User => {
+                    ChatCompletionRequestUserMessageArgs::default()
+                        .content(chat_msg.content.clone())
+                        .build()
+                        .map_err(|e| e.to_string())?
+                        .into()
+                }
+                ChatMessageRole::Bot => {
+                    ChatCompletionRequestAssistantMessageArgs::default()
+                        .content(chat_msg.content.clone())
+                        .build()
+                        .map_err(|e| e.to_string())?
+                        .into()
+                }
+            };
+            messages.push(api_message);
+        }
 
-    // let mut task_handle = None;
-    while let Some(event) = event_stream.next().await {
-        match event {
-            Ok(event) => match event {
-                AssistantStreamEvent::ThreadMessageCreated(msg_object) => {
+        // Add the new user message
+        messages.push(
+            ChatCompletionRequestUserMessageArgs::default()
+                .content(question)
+                .build()
+                .map_err(|e| e.to_string())?
+                .into()
+        );
+
+    // Create and send the request
+    let request = CreateChatCompletionRequestArgs::default()
+        .model(model.clone())
+        .stream(true)
+        .messages([ChatCompletionRequestUserMessageArgs::default()
+                    .content("Write a marketing blog praising and introducing Rust library async-openai")
+                    .build()
+                                    .map_err(|e| e.to_string())?
+                    .into()])
+        .build()
+        .map_err(|e| e.to_string())?;
+
+// Print request details for debugging
+println!("Request details:");
+println!("  Provider: {}", provider);
+println!("  Model: {}", model.clone());
+println!("  Stream: true");
+println!("  Messages count: {}", request.messages.len());
+// Add full messages as JSON for debugging
+println!("Full messages content:");
+match serde_json::to_string_pretty(&request.messages) {
+    Ok(json_str) => println!("{}", json_str),
+    Err(e) => println!("Error serializing messages: {}", e),
+}
+
+    // Initialize the stream from OpenAI
+let mut stream = match openai_client.chat().create_stream(request).await {
+    Ok(stream) => stream,
+    Err(e) => {
+ println!("Stream creation error details: {:?}", e);
+        let result = json!({
+            "status": 500,
+            "message": format!("stream failed: {}", e),
+            "data": Option::<serde_json::Value>::None,
+        });
+        return Err(result.to_string());
+    }
+};
+// Process the stream
+let mut full_response = String::new();
+let mut is_first_message = true;
+
+// Process stream events
+while let Some(result) = stream.next().await {
+    match result {
+        Ok(response) => {
+            if let Some(chunk) = response.choices.first() {
+                if let Some(content) = &chunk.delta.content {
+                    full_response.push_str(content);
+
+                    let state = if is_first_message {
+                        is_first_message = false;
+                        "CREATED"
+                    } else {
+                        "IN_PROGRESS"
+                    };
+
+                    // Emit the message in the expected format
                     let msg = json!({
                         "role": "BOT",
-                        "content": msg_object.content,
-                        "state": "CREATED"
+                        "content": [{"text": {"value": content}}],
+                        "state": state
                     });
-                    window.emit("chatbot-message", msg.to_string()).unwrap();
+
+                    println!("Emitting message: {}", msg.to_string());
+
+                    window.emit("chatbot-message", msg.to_string())
+                        .map_err(|e| e.to_string())?;
                 }
-                AssistantStreamEvent::ThreadMessageDelta(msg_object) => {
-                    let msg = json!({
-                        "role": "BOT",
-                        "content": msg_object.delta.content,
-                        "state": "IN_PROGRESS"
-                    });
-                    window.emit("chatbot-message", msg.to_string()).unwrap();
-                }
-                AssistantStreamEvent::ThreadMessageCompleted(msg_object) => {
-                    let msg = json!({
-                        "role": "BOT",
-                        "content": msg_object.content,
-                        "state": "COMPLETED"
-                    });
-                    window.emit("chatbot-message", msg.to_string()).unwrap();
-                }
-                AssistantStreamEvent::ThreadRunFailed(run_object) => {
-                    let result = json!({
-                        "status": 500,
-                        "message": run_object.last_error,
-                        "data":Option::<serde_json::Value>::None,
-                    });
-                    return Err(result.to_string());
-                }
-                _event => {}
-            },
-            Err(_e) => {
-                let result = json!({
-                    "status": 500,
-                    "message":"Failed to get stream response".to_string(),
-                    "data":Option::<serde_json::Value>::None,
-                });
-                return Err(result.to_string());
             }
+        },
+        Err(e) => {
+            let error_message = e.to_string();
+            println!("Stream error: {}", error_message);
+
+            let result = json!({
+                "status": 500,
+                "message": format!("stream failed: {}", error_message),
+                "data": Option::<serde_json::Value>::None,
+            });
+            return Err(result.to_string());
         }
     }
+}
+
+// Emit COMPLETED event after stream finishes
+if !full_response.is_empty() {
+    let msg = json!({
+        "role": "BOT",
+        "content": [{"text": {"value": null}}],
+        "state": "COMPLETED"
+    });
+
+    println!("Emitting completion message: {}", msg.to_string());
+
+    window.emit("chatbot-message", msg.to_string())
+        .map_err(|e| e.to_string())?;
+
+    full_response = String::new();
+}
 
     let result = json!({
         "status": 200,
-        "message":"Success".to_string(),
-        "data":Option::<serde_json::Value>::None,
+        "message": "Success",
+        "data": Option::<serde_json::Value>::None,
     });
+
     Ok(result.to_string())
 }
