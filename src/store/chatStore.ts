@@ -100,10 +100,13 @@ export const useChatStore = defineStore('chat', {
       const question = index
         ? `${lang.global.t('setting.ai.defaultPrompt')}
           database context:
+            - database: ElasticSearch
             - indexName: ${index.index}, 
             - indexMapping: ${index.mapping}
           user's question: ${content} `
         : `${lang.global.t('setting.ai.defaultPrompt')}
+        database context:
+            - database: ElasticSearch
         user's question: ${content}`;
 
       try {
