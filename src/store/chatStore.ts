@@ -3,166 +3,157 @@ import { ulid } from 'ulidx';
 import { lang } from '../lang';
 import { CustomError, ErrorCodes, pureObject } from '../common';
 import { useConnectionStore } from './connectionStore';
-import { chatBotApi, storeApi } from '../datasources';
-import { OpenAiConfig } from './appStore.ts';
-import { ApiClientError } from '../datasources/ApiClients.ts';
-
-enum MessageStatus {
-  SENDING = 'SENDING',
-  SENT = 'SENT',
-  FAILED = 'FAILED',
-  RECEIVED = 'RECEIVED',
-}
-
-export enum ChatMessageRole {
-  USER = 'USER',
-  BOT = 'BOT',
-}
+import {
+  chatBotApi,
+  ChatMessage,
+  ChatMessageRole,
+  ChatMessageStatus,
+  ProviderEnum,
+  storeApi,
+} from '../datasources';
+import { AiConfig } from './appStore.ts';
 
 export const getOpenAiConfig = async () => {
-  const { openAi } = await storeApi.getSecret<{ openAi: OpenAiConfig }>('aigcConfig', {
-    openAi: null as unknown as OpenAiConfig,
-  });
-  if (!openAi) {
+  const aigcConfigs = await storeApi.getSecret('aiConfigs', []);
+  const enabledAigc = aigcConfigs.find((config: AiConfig) => config.enabled);
+
+  if (!enabledAigc) {
     throw new CustomError(ErrorCodes.MISSING_GPT_CONFIG, lang.global.t('setting.ai.missing'));
   }
-  return openAi;
+  return enabledAigc;
 };
+
 type Chat = {
   id: string;
-  type: string;
-  assistantId: string;
-  threadId: string;
-  messages: Array<{
-    id: string;
-    status: MessageStatus;
-    content: string;
-    role: ChatMessageRole;
-  }>;
+  provider: ProviderEnum;
+  messages: Array<ChatMessage>;
 };
+
 export const useChatStore = defineStore('chat', {
-  state: (): { chats: Array<Chat>; insertBoard: string } => {
+  state: (): { activeChat: Chat | undefined; chats: Array<Chat>; insertBoard: string } => {
     return {
       chats: [],
+      activeChat: undefined,
       insertBoard: '',
     };
   },
   actions: {
     async fetchChats() {
-      const chats = await storeApi.get<Array<Chat>>('chats', []);
-      const { apiKey, httpProxy, model } = await getOpenAiConfig();
-      if (!chats || !chats.length) {
-        return;
+      const { apiKey, httpProxy, model, provider } = await getOpenAiConfig();
+
+      const { chats = [], activeChat } = await storeApi.get<{ chats: Chat[]; activeChat: Chat }>(
+        'chatStore',
+        {} as { chats: Chat[]; activeChat: Chat },
+      );
+
+      this.chats = chats;
+      this.activeChat = activeChat ?? this.chats.reverse().find(chat => chat.provider === provider);
+
+      if (!this.activeChat) {
+        this.activeChat = {
+          id: ulid(),
+          provider: provider,
+          messages: [],
+        };
+        this.chats.push(this.activeChat);
       }
-      const { assistantId } = chats[0];
+
       try {
-        const assistant = await chatBotApi.findAssistant({ apiKey, assistantId, httpProxy, model });
-        this.chats = assistant ? chats : [];
-        await storeApi.set('chats', pureObject(this.chats));
+        await chatBotApi.createClient({ provider, apiKey, model, httpProxy });
+        this.activeChat.messages[0] = {
+          id: ulid(),
+          status: ChatMessageStatus.SENDING,
+          role: ChatMessageRole.BOT,
+          content: lang.global.t('setting.ai.firstMsg'),
+        };
       } catch (err) {
-        if ((err as ApiClientError).status === 404) {
-          this.chats = [];
-          await storeApi.set('chats', pureObject(this.chats));
-        } else {
-          throw err;
-        }
+        throw new CustomError(ErrorCodes.OPENAI_CLIENT_ERROR, (err as Error).message);
       }
-    },
-    async modifyAssistant() {
-      const { assistantId } = this.chats[0] || {};
-      if (!assistantId) {
-        return;
-      }
-      const { apiKey, prompt, model, httpProxy } = await getOpenAiConfig();
-      await chatBotApi.modifyAssistant({
-        apiKey,
-        prompt: prompt ?? lang.global.t('setting.ai.defaultPrompt'),
-        model,
-        assistantId,
-        httpProxy,
-      });
+
+      await storeApi.set(
+        'chatStore',
+        pureObject({ activeChat: this.activeChat, chats: this.chats }),
+      );
     },
 
     async sendMessage(content: string) {
-      // if (!receiveRegistration) {
-      //
-      //   chatBotApi.onMessageReceived(({z delta, msgEvent }) => {
-      //     if (msgEvent === 'messageCreated') {
-      //       this.chats[0].messages.push({
-      //         id: ulid(),
-      //         status: MessageStatus.RECEIVED,
-      //         role: ChatMessageRole.BOT,
-      //         content: '',
-      //       });
-      //     } else if (msgEvent === 'messageDelta') {
-      //       const messageChunk = delta.content.map(({ text }) => text.value).join('');
-      //       this.chats[0].messages[this.chats[0].messages.length - 1].content += messageChunk;
-      //     } else if (msgEvent === 'messageDone') {
-      //       storeAPI.set('chats', pureObject(this.chats));
-      //     }
-      //   });
-      //   receiveRegistration = true;
-      // }
-      const { apiKey, prompt, model, httpProxy } = await getOpenAiConfig();
-      if (!this.chats[0]) {
-        const chats = await storeApi.get<Chat[] | undefined>('chats', undefined);
-        if (chats && chats.length) {
-          this.chats = chats;
-        } else {
-          try {
-            const { assistantId, threadId } = await chatBotApi.createAssistant({
-              apiKey,
-              model,
-              prompt: prompt ?? lang.global.t('setting.ai.defaultPrompt'),
-              httpProxy,
-            });
-            this.chats.push({ id: ulid(), type: 'openai', messages: [], assistantId, threadId });
-            await storeApi.set('chats', pureObject(this.chats));
-          } catch (err) {
-            throw new Error((err as Error).message);
-          }
-        }
+      if (!this.activeChat) {
+        throw new CustomError(ErrorCodes.MISSING_GPT_CONFIG, lang.global.t('setting.ai.missing'));
       }
-      const { messages, assistantId, threadId } = this.chats[0];
-      messages.push({
+
+      const { messages } = this.activeChat;
+      const requestMsg = {
         id: ulid(),
-        status: MessageStatus.SENT,
+        status: ChatMessageStatus.SENDING,
         role: ChatMessageRole.USER,
         content,
-      });
-      await storeApi.set('chats', pureObject(this.chats));
+      };
+      messages.push(requestMsg);
+      await storeApi.set(
+        'chatStore',
+        pureObject({ activeChat: this.activeChat, chats: this.chats }),
+      );
+
       const connectionStore = useConnectionStore();
       const index = connectionStore.$state.established?.activeIndex;
+
       const question = index
-        ? `user's question: ${content} context: indexName - ${index.index}, indexMapping - ${index.mapping}`
-        : `user's question: ${content}`;
+        ? `${lang.global.t('setting.ai.defaultPrompt')}
+          database context:
+            - database: ElasticSearch
+            - indexName: ${index.index}, 
+            - indexMapping: ${index.mapping}
+          user's question: ${content} `
+        : `${lang.global.t('setting.ai.defaultPrompt')}
+        database context:
+            - database: ElasticSearch
+        user's question: ${content}`;
+
       try {
-        await chatBotApi.chatAssistant(
-          {
-            assistantId,
-            threadId,
-            question,
-          },
-          event => {
-            if (event.state.toUpperCase() === 'CREATED') {
-              this.chats[0].messages.push({
-                id: ulid(),
-                status: MessageStatus.RECEIVED,
-                role: ChatMessageRole.BOT,
-                content: '',
-              });
-            } else if (event.state.toUpperCase() === 'IN_PROGRESS') {
-              const messageChunk = event.content.map(({ text }) => text.value).join('');
-              this.chats[0].messages[this.chats[0].messages.length - 1].content += messageChunk;
-            } else if (event.state.toUpperCase() === 'COMPLETED') {
-              storeApi.set('chats', pureObject(this.chats));
-            }
-          },
+        const { model, provider } = await getOpenAiConfig();
+        const history = messages.filter(({ status }) =>
+          [ChatMessageStatus.RECEIVED, ChatMessageStatus.SENT].includes(status),
         );
+        await chatBotApi.chatStream({ provider, model, question, history }, event => {
+          const receivedStr = event.content.map(({ text }) => text.value).join('');
+          if (event.state === 'CREATED') {
+            this.activeChat!.messages[this.activeChat!.messages.length - 1].status =
+              ChatMessageStatus.SENT;
+            this.activeChat!.messages.push({
+              id: ulid(),
+              status: ChatMessageStatus.RECEIVED,
+              role: ChatMessageRole.BOT,
+              content: receivedStr,
+            });
+          } else if (event.state === 'IN_PROGRESS') {
+            this.activeChat!.messages[this.activeChat!.messages.length - 1].content += receivedStr;
+          } else if (event.state === 'COMPLETED') {
+            storeApi.set(
+              'chatStore',
+              pureObject({ activeChat: this.activeChat, chats: this.chats }),
+            );
+          }
+        });
       } catch (err) {
-        messages[messages.length - 1].status = MessageStatus.FAILED;
-        await storeApi.set('chats', pureObject(this.chats));
-        throw new Error((err as Error).message);
+        requestMsg.status = ChatMessageStatus.FAILED;
+        await storeApi.set(
+          'chatStore',
+          pureObject({ activeChat: this.activeChat, chats: this.chats }),
+        );
+        throw new CustomError(ErrorCodes.OPENAI_CLIENT_ERROR, (err as Error).message);
+      }
+    },
+
+    async deleteChat() {
+      if (!this.activeChat) {
+        return;
+      }
+
+      const chatIndex = this.chats.findIndex(chat => chat.id === this.activeChat!.id);
+      if (chatIndex !== -1) {
+        this.chats.splice(chatIndex, 1);
+        this.activeChat = undefined;
+        await storeApi.set('chatStore', pureObject({ activeChat: undefined, chats: this.chats }));
       }
     },
   },

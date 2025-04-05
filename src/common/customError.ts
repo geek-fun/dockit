@@ -9,4 +9,5 @@ export class CustomError extends Error {
 
 export enum ErrorCodes {
   MISSING_GPT_CONFIG = 999,
+  OPENAI_CLIENT_ERROR = 1000,
 }
