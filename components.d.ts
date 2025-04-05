@@ -8,7 +8,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppProvider: typeof import('./src/components/AppProvider.vue')['default']
-    MarkdownRender: typeof import('./src/components/MarkdownRender.vue')['default']
+    MarkdownRender: typeof import('./src/components/markdown-render.vue')['default']
     NAlert: typeof import('naive-ui')['NAlert']
     NBreadcrumb: typeof import('naive-ui')['NBreadcrumb']
     NBreadcrumbItem: typeof import('naive-ui')['NBreadcrumbItem']

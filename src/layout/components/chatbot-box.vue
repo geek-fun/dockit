@@ -1,7 +1,12 @@
 <template>
   <div class="chat-box-container">
-    <div class="header-title">
-      {{ $t('aside.chatBot') }}
+    <div class="chat-box-header">
+      <div class="header-title">{{ $t('aside.chatBot') }}</div>
+      <div>
+        <n-icon class="chat-header-delete-icon">
+          <Delete @click="removeChat" />
+        </n-icon>
+      </div>
     </div>
     <div class="message-list">
       <n-scrollbar ref="scrollbarRef" style="height: 100%">
@@ -45,6 +50,7 @@
             maxRows: 6,
           }"
           placeholder="Type your message here..."
+          :input-props="inputProps"
         />
       </div>
       <div class="footer-opration">
@@ -62,16 +68,17 @@
 import { storeToRefs } from 'pinia';
 import { Bot, SendAlt, FaceCool } from '@vicons/carbon';
 import { useAppStore, useChatStore } from '../../store';
-import MarkdownRender from '../../components/MarkdownRender.vue';
-import { ErrorCodes } from '../../common';
+import MarkdownRender from '../../components/markdown-render.vue';
+import { ErrorCodes, inputProps } from '../../common';
 import { ChatMessageRole } from '../../datasources';
+import { Delete } from '@vicons/carbon';
 
 const appStore = useAppStore();
 const { aiConfigs } = storeToRefs(appStore);
 
 const chatStore = useChatStore();
 const { activeChat } = storeToRefs(chatStore);
-const { sendMessage, fetchChats } = chatStore;
+const { sendMessage, fetchChats, deleteChat } = chatStore;
 
 const router = useRouter();
 
@@ -88,6 +95,23 @@ const chatBotNotification = ref<{
   message: '',
   code: 0,
 });
+
+const loadChats = async () => {
+  try {
+    await fetchChats();
+    // @ts-ignore
+    scrollbarRef?.value?.scrollTo({ top: 999999 });
+  } catch (err) {
+    console.log('loadChats error', err);
+    const { details, status } = err as { details: string; status: number };
+    chatBotNotification.value = {
+      enabled: true,
+      level: 'error',
+      message: details,
+      code: status,
+    };
+  }
+};
 
 // 提交消息
 const submitMsg = () => {
@@ -114,6 +138,11 @@ const configGpt = () => {
   router.push({ path: '/setting', replace: true });
 };
 
+const removeChat = async () => {
+  chatBotNotification.value = { enabled: false, level: undefined, message: '', code: 0 };
+  await deleteChat();
+  await loadChats();
+};
 watch(
   () => aiConfigs.value,
   () => {
@@ -124,20 +153,7 @@ watch(
   },
 );
 
-fetchChats()
-  .then(() => {
-    // @ts-ignore
-    scrollbarRef?.value?.scrollTo({ top: 999999 });
-  })
-  .catch(err => {
-    console.log('fetchChats error', err);
-    chatBotNotification.value = {
-      enabled: true,
-      level: 'error',
-      message: err.details,
-      code: err.status,
-    };
-  });
+loadChats();
 </script>
 
 <style lang="scss" scoped>
@@ -147,14 +163,20 @@ fetchChats()
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border-color);
-
-  .header-title {
+  .chat-box-header {
     height: 40px;
     line-height: 40px;
     padding: 0 15px;
-    font-size: 18px;
-    font-weight: bold;
+    display: flex;
+    justify-content: space-between;
     border-bottom: 1px solid var(--border-color);
+    .header-title {
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .chat-header-delete-icon {
+      cursor: pointer;
+    }
   }
 
   .message-list {

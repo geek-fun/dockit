@@ -162,11 +162,7 @@ pub async fn chat_stream(
     let request = CreateChatCompletionRequestArgs::default()
         .model(model.clone())
         .stream(true)
-        .messages([ChatCompletionRequestUserMessageArgs::default()
-                    .content("Write a marketing blog praising and introducing Rust library async-openai")
-                    .build()
-                                    .map_err(|e| e.to_string())?
-                    .into()])
+        .messages(messages)
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -255,8 +251,6 @@ if !full_response.is_empty() {
 
     window.emit("chatbot-message", msg.to_string())
         .map_err(|e| e.to_string())?;
-
-    full_response = String::new();
 }
 
     let result = json!({

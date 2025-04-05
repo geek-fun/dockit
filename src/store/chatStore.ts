@@ -105,23 +105,20 @@ export const useChatStore = defineStore('chat', {
         const history = messages.filter(({ status }) =>
           [ChatMessageStatus.RECEIVED, ChatMessageStatus.SENT].includes(status),
         );
-        let receivedMsg = {
-          id: ulid(),
-          status: ChatMessageStatus.RECEIVED,
-          role: ChatMessageRole.BOT,
-          content: '',
-        };
 
         await chatBotApi.chatStream({ provider, model, question, history }, event => {
-          console.log('event:', event);
           const receivedStr = event.content.map(({ text }) => text.value).join('');
-
           if (event.state === 'CREATED') {
-            requestMsg.status = ChatMessageStatus.SENT;
-            receivedMsg.content = receivedStr;
-            this.activeChat!.messages.push(receivedMsg);
+            this.activeChat!.messages[this.activeChat!.messages.length - 1].status =
+              ChatMessageStatus.SENT;
+            this.activeChat!.messages.push({
+              id: ulid(),
+              status: ChatMessageStatus.RECEIVED,
+              role: ChatMessageRole.BOT,
+              content: receivedStr,
+            });
           } else if (event.state === 'IN_PROGRESS') {
-            receivedMsg.content += receivedStr;
+            this.activeChat!.messages[this.activeChat!.messages.length - 1].content += receivedStr;
           } else if (event.state === 'COMPLETED') {
             storeApi.set(
               'chatStore',
@@ -137,6 +134,19 @@ export const useChatStore = defineStore('chat', {
           pureObject({ activeChat: this.activeChat, chats: this.chats }),
         );
         throw new CustomError(ErrorCodes.OPENAI_CLIENT_ERROR, (err as Error).message);
+      }
+    },
+
+    async deleteChat() {
+      if (!this.activeChat) {
+        return;
+      }
+
+      const chatIndex = this.chats.findIndex(chat => chat.id === this.activeChat!.id);
+      if (chatIndex !== -1) {
+        this.chats.splice(chatIndex, 1);
+        this.activeChat = undefined;
+        await storeApi.set('chatStore', pureObject({ activeChat: undefined, chats: this.chats }));
       }
     },
   },
