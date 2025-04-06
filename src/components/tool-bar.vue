@@ -11,7 +11,11 @@
       @update:show="isOpen => handleOpen(isOpen, 'CONNECTION')"
       @update:value="value => handleUpdate(value, 'CONNECTION')"
       @search="input => handleSearch(input, 'CONNECTION')"
-    />
+    >
+      <template v-if="selectionState.connection" #arrow>
+        <Search />
+      </template>
+    </n-select>
     <n-select
       v-if="props.type === 'EDITOR'"
       :options="options.index"
@@ -19,11 +23,16 @@
       :input-props="inputProps"
       remote
       filterable
+      clearable
       :loading="loadingRef.index"
       @update:value="value => handleUpdate(value, 'INDEX')"
       @update:show="isOpen => handleOpen(isOpen, 'INDEX')"
       @search="input => handleSearch(input, 'INDEX')"
-    />
+    >
+      <template v-if="selectionState.index" #arrow>
+        <Search />
+      </template>
+    </n-select>
     <n-tooltip v-if="props.type === 'EDITOR'" trigger="hover">
       <template #trigger>
         <n-icon size="20" class="action-load-icon" @click="loadDefaultSnippet">
@@ -49,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { AiStatus } from '@vicons/carbon';
+import { AiStatus, Search } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { useConnectionStore, useTabStore } from '../store';
 import { useLang } from '../lang';
@@ -73,7 +82,10 @@ const { loadDefaultSnippet } = tabStore;
 const loadingRef = ref({ connection: false, index: false });
 
 const filterRef = ref({ connection: '', index: '' });
-
+const selectionState = ref<{ connection: boolean; index: boolean }>({
+  connection: false,
+  index: false,
+});
 const options = computed(
   () =>
     ({
@@ -89,7 +101,13 @@ const options = computed(
 );
 
 const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX') => {
-  if (!isOpen) return;
+  if (!isOpen) {
+    // @ts-ignore
+    selectionState.value[type.toLowerCase()] = false;
+    return;
+  }
+  // @ts-ignore
+  selectionState.value[type.toLowerCase()] = true;
   filterRef.value = { connection: '', index: '' }; // reset filters for each time it open
   if (type === 'CONNECTION') {
     loadingRef.value.connection = true;
