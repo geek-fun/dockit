@@ -23,7 +23,7 @@ const providePathCompletionItems = (lineContent: string) => {
       ],
     };
   }
-  const isPathMatch = /^(GET|POST|PUT|DELETE)(\s+[a-zA-Z0-9_\/-?\-&,]*)$/.test(lineContent);
+  const isPathMatch = /^(GET|POST|PUT|DELETE)(\s+[a-zA-Z0-9_\/-?\-&,*]*)$/.test(lineContent);
   const word = lineContent.split(/[ /]+/).pop() || '';
   if (isPathMatch) {
     return {

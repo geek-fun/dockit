@@ -246,6 +246,7 @@ const setupQueryEditor = () => {
   if (!queryEditor) {
     return;
   }
+  queryEditor.getModel()?.updateOptions({ tabSize: 2 });
 
   queryEditor.onDidChangeModelContent(_changes => {
     saveModelContent(false, false, false);
