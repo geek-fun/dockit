@@ -297,13 +297,9 @@ export const useConnectionStore = defineStore('connectionStore', {
         password: undefined,
         sslCertVerification: false,
       };
-      const params = queryParams ? `${queryParams}&format=json` : 'format=json';
-      const url = buildURL(host, port, buildPath(index, path, this.established), params);
+      const url = buildURL(host, port, buildPath(index, path, this.established), queryParams);
 
-      const headers = {
-        'Content-Type': 'application/json',
-        ...buildAuthHeader(username, password),
-      };
+      const headers = { ...buildAuthHeader(username, password) };
 
       return transformToCurl({ method, headers, url, ssl: sslCertVerification, qdsl });
     },
