@@ -2,7 +2,7 @@
   "name": "dockit",
   "private": true,
   "type": "module",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "description": "DocKit is a desktop client designed for NoSQL database, support Elasticsearch and OpenSearch across Mac, windows and Linux",
   "author": "geekfun <support@geekfun.club>",
   "homepage": "ttps://dockit.geekfun.club",
