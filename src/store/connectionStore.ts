@@ -297,12 +297,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         password: undefined,
         sslCertVerification: false,
       };
-      const url = buildURL(
-        host,
-        port,
-        buildPath(index, path, this.established),
-        queryParams ?? undefined,
-      );
+      const url = buildURL(host, port, buildPath(index, path, this.established), queryParams);
 
       const headers = { ...buildAuthHeader(username, password) };
 
