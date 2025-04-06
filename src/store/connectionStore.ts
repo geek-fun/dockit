@@ -58,21 +58,36 @@ type Established =
   | (Connection & { indices: Array<ConnectionIndex>; activeIndex?: ConnectionIndex })
   | null;
 
+const globalPathActions = [
+  '_cluster',
+  '_cat',
+  '_nodes',
+  '_template',
+  '_ilm',
+  '_reindex',
+  '_ingest',
+  '_snapshot',
+  '_tasks',
+  '_analyze',
+];
 const buildPath = (
   index: string | undefined,
   path: string | undefined,
   established: Established,
 ) => {
+  // return user specified path if exists
+  if (index) return `/${index}/${path}`;
+
+  // ignore default path if it is a global path action
   const pathAction = path?.split('/')[0] ?? '';
-  if (['_nodes', '_cluster', '_cat', '_aliases', '_analyze'].includes(pathAction)) {
+  if (globalPathActions.includes(pathAction)) {
     return `/${path}`;
   }
-  if (index && ['_search', '_msearch', '_bulk'].includes(pathAction)) {
-    return `/${index}/${path}`;
-  }
-  const indexName = index ?? established?.activeIndex?.index;
 
-  return indexName ? `/${indexName}/${path}` : `/${path}`;
+  // attach index name to path if it is not a global path action
+  const selectedIndex = established?.activeIndex?.index;
+
+  return selectedIndex ? `/${selectedIndex}/${path}` : `/${path}`;
 };
 
 export const useConnectionStore = defineStore('connectionStore', {
