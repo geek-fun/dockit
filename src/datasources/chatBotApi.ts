@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { tauriClient } from './ApiClients.ts';
+import { jsonify } from '../common';
 
 export enum ProviderEnum {
   OPENAI = 'OPENAI',
@@ -126,7 +127,7 @@ const chatBotApi = {
   ) => {
     if (!receiveRegistration) {
       await listen<string>('chatbot-message', event => {
-        callback(JSON.parse(event.payload));
+        callback(jsonify.parse(event.payload));
       });
       receiveRegistration = true;
     }
@@ -176,7 +177,7 @@ const chatBotApi = {
   ) => {
     if (!receiveRegistration) {
       await listen<string>('chatbot-message', event => {
-        callback(JSON.parse(event.payload));
+        callback(jsonify.parse(event.payload));
       });
       receiveRegistration = true;
     }

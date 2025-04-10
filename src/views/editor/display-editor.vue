@@ -6,6 +6,7 @@
 import { storeToRefs } from 'pinia';
 import { Editor, monaco } from '../../common/monaco';
 import { useAppStore } from '../../store';
+import { jsonify } from '../../common';
 
 const appStore = useAppStore();
 const { getEditorTheme } = appStore;
@@ -36,7 +37,7 @@ const display = (content: unknown) => {
   const type = typeof content === 'object' ? 'json' : 'plain/text';
 
   const formattedContent =
-    type === 'json' ? JSON.stringify(content, null, '  ') : (content ?? '').toString();
+    type === 'json' ? jsonify.stringify(content, null, '  ') : (content ?? '').toString();
 
   monaco.editor.setModelLanguage(model, type);
 
