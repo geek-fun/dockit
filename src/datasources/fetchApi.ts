@@ -1,4 +1,4 @@
-import { buildAuthHeader, buildURL, CustomError, debug } from '../common';
+import { buildAuthHeader, buildURL, CustomError, debug, jsonify } from '../common';
 import { lang } from '../lang';
 import { invoke } from '@tauri-apps/api/core';
 import { get } from 'lodash';
@@ -14,7 +14,7 @@ type FetchApiOptions = {
 
 const handleFetch = (result: { data: unknown; status: number; details: string | undefined }) => {
   if ([404, 400].includes(result.status) || (result.status >= 200 && result.status < 300)) {
-    return result.data || JSON.parse(result.details || '');
+    return result.data || jsonify.parse(result.details || '');
   }
   if (result.status === 401) {
     throw new CustomError(result.status, lang.global.t('connection.unAuthorized'));
@@ -66,16 +66,21 @@ const fetchRequest = async (
 ) => {
   const agent = { ssl: url.startsWith('https') && agentSslConf?.ssl };
 
-  const headers = JSON.parse(
-    JSON.stringify({ 'Content-Type': 'application/json', ...inputHeaders }),
+  const headers = jsonify.parse(
+    jsonify.stringify({ 'Content-Type': 'application/json', ...inputHeaders }),
   );
   try {
-    const { status, message, data } = JSON.parse(
-      await invoke<string>('fetch_api', {
-        url,
-        options: { method, headers, body: payload ?? undefined, agent },
-      }),
-    ) as { status: number; message: string; data: unknown };
+    const response = await invoke<string>('fetch_api', {
+      url,
+      options: { method, headers, body: payload ?? undefined, agent },
+    });
+
+    const { status, message, data } = jsonify.parse(response) as {
+      status: number;
+      message: string;
+      data: unknown;
+    };
+
     if (status >= 200 && status < 500) {
       return { status, message, data };
     }
@@ -86,7 +91,7 @@ const fetchRequest = async (
     debug('error encountered while node-fetch fetch target:', e);
     return {
       status: error.status || 500,
-      details: typeof details === 'string' ? details : JSON.stringify(details),
+      details: typeof details === 'string' ? details : jsonify.stringify(details),
     };
   }
 };

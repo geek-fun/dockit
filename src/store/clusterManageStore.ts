@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { loadHttpClient } from '../datasources';
 import { lang } from '../lang';
 import { DatabaseType, useConnectionStore } from './connectionStore.ts';
-import { CustomError, debug, optionalToNullableInt } from '../common';
+import { CustomError, debug, jsonify, optionalToNullableInt } from '../common';
 
 export enum IndexHealth {
   GREEN = 'green',
@@ -766,11 +766,11 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
           }
         });
 
-        const parsedBody = body ? JSON.parse(body) : undefined;
+        const parsedBody = body ? jsonify.parse(body) : undefined;
 
         const payload =
           parsedBody || shards || replicas
-            ? JSON.stringify({
+            ? jsonify.stringify({
                 ...parsedBody,
                 settings: {
                   number_of_shards: shards,
@@ -859,7 +859,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
           const response = await client.post(
             `/_aliases`,
             queryParams.toString() ?? undefined,
-            JSON.stringify(payload),
+            jsonify.stringify(payload),
           );
 
           if (response.status >= 300) {
@@ -1042,7 +1042,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
           ],
         };
         try {
-          const response = await client.post(`/_aliases`, undefined, JSON.stringify(payload));
+          const response = await client.post(`/_aliases`, undefined, jsonify.stringify(payload));
           if (response.status >= 300) {
             throw new CustomError(
               response.status,

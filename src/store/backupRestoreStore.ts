@@ -1,7 +1,7 @@
 import { open } from '@tauri-apps/plugin-dialog';
 
 import { defineStore } from 'pinia';
-import { CustomError } from '../common';
+import { CustomError, jsonify } from '../common';
 import { get } from 'lodash';
 import { Connection, DatabaseType } from './connectionStore.ts';
 import { loadHttpClient, sourceFileApi } from '../datasources';
@@ -108,7 +108,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
           const response = await client.get(
             `/${input.index}/_search`,
             undefined,
-            JSON.stringify({
+            jsonify.stringify({
               size: 1000,
               search_after: searchAfter,
               sort: [{ _doc: 'asc' }],
@@ -120,7 +120,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
               get(
                 response,
                 'details',
-                get(response, 'message', JSON.stringify(get(response, 'error.root_cause', ''))),
+                get(response, 'message', jsonify.stringify(get(response, 'error.root_cause', ''))),
               ),
             );
           }
@@ -134,7 +134,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
             searchAfter = hits[hits.length - 1].sort;
             dataToWrite +=
               input.backupFileType === 'json'
-                ? JSON.stringify(hits)
+                ? jsonify.stringify(hits)
                 : convertToCsv(csvHeaders, hits);
             await sourceFileApi.saveFile(filePath, dataToWrite, appendFile);
             dataToWrite = '';
@@ -179,7 +179,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
             _id: string;
             _score: number;
             _source: unknown;
-          }> = JSON.parse(data);
+          }> = jsonify.parse(data);
           this.restoreProgress = {
             complete: 0,
             total: hits.length,
@@ -188,7 +188,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
             const bulkData = hits
               .slice(i, i + bulkSize)
               .flatMap(hit => [{ index: { _index: input.index, _id: hit._id } }, hit._source])
-              .map(item => JSON.stringify(item));
+              .map(item => jsonify.stringify(item));
 
             await bulkRequest(client, bulkData);
 
@@ -211,7 +211,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
                   (acc, header, index) => {
                     let value = values[index];
                     try {
-                      value = JSON.parse(value);
+                      value = jsonify.parse(value);
                     } catch (e) {
                       // value is not a JSON string, keep it as is
                     }
@@ -223,7 +223,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
 
                 return [{ index: { _index: input.index } }, body];
               })
-              .map(item => JSON.stringify(item));
+              .map(item => jsonify.stringify(item));
 
             await bulkRequest(client, bulkData);
 
@@ -251,7 +251,7 @@ const bulkRequest = async (client: { post: Function }, bulkData: Array<unknown>)
       get(
         response,
         'details',
-        get(response, 'message', JSON.stringify(get(response, 'error.root_cause', ''))),
+        get(response, 'message', jsonify.stringify(get(response, 'error.root_cause', ''))),
       ),
     );
   }
@@ -277,7 +277,7 @@ const convertToCsv = (headers: Array<string>, data: unknown[]) => {
           const data = get(item, `_source.${header}`, null);
           return data === null || !['object', 'symbol', 'function'].includes(typeof data)
             ? data
-            : JSON.stringify(data);
+            : jsonify.stringify(data);
         })
         .join(','),
     )
