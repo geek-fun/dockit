@@ -67,6 +67,7 @@ export const useTabStore = defineStore('panel', {
         this.panels.push(newPanel);
         this.activePanel = newPanel;
       }
+      console.log('active panel:', this.activePanel);
     },
 
     async checkFileExists(panel: Panel | undefined): Promise<boolean> {
