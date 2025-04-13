@@ -12,7 +12,7 @@ import { platform } from '@tauri-apps/plugin-os';
 
 import { homeDir, isAbsolute, basename, sep, extname, join } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
-import { CustomError, debug } from '../common';
+import { CustomError, debug, jsonify } from '../common';
 
 const separator = sep();
 
@@ -164,7 +164,7 @@ const deleteFileOrFolder = async (filePath: string) => {
     await Promise.any([remove(filePath), remove(filePath, { recursive: true })]);
     debug('delete file or folder success');
   } catch (err) {
-    throw new CustomError(500, JSON.stringify(err));
+    throw new CustomError(500, jsonify.stringify(err));
   }
 };
 
@@ -174,7 +174,7 @@ const renameFileOrFolder = async (oldPath: string, newPath: string) => {
     debug('rename file or folder success');
   } catch (err) {
     debug(`renameFileOrFolder error: ${err}`);
-    throw new CustomError(500, JSON.stringify(err));
+    throw new CustomError(500, jsonify.stringify(err));
   }
 };
 
@@ -183,11 +183,10 @@ const selectFolder = async (basePath?: string) => {
   const absolute = await isAbsolute(basePath ?? '');
   const targetPath = await getRelativePath(basePath);
 
-
   if (!(await exists(targetPath, { baseDir: BaseDirectory.Home }))) {
     await mkdir(targetPath, { baseDir: BaseDirectory.Home, recursive: true });
   }
-  const defaultPath = absolute ? targetPath : (await join(homeDirectory, targetPath));
+  const defaultPath = absolute ? targetPath : await join(homeDirectory, targetPath);
 
   return (await open({ recursive: true, directory: true, defaultPath }))?.toString();
 };

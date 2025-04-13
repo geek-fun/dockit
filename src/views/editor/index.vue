@@ -15,7 +15,7 @@ import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
-import { CustomError } from '../../common';
+import { CustomError, jsonify } from '../../common';
 import { useAppStore, useChatStore, useConnectionStore, useTabStore } from '../../store';
 import { useLang } from '../../lang';
 import DisplayEditor from './display-editor.vue';
@@ -227,7 +227,7 @@ const copyCurlAction = (position: monaco.Range) => {
     navigator.clipboard.writeText(queryToCurl(action));
     message.success(lang.t('editor.copySuccess'));
   } catch (err) {
-    message.error(`${lang.t('editor.copyFailed')}: ${JSON.stringify(err)}`, {
+    message.error(`${lang.t('editor.copyFailed')}: ${jsonify.stringify(err)}`, {
       closable: true,
       keepAliveOnHover: true,
     });

@@ -118,7 +118,7 @@
 <script setup lang="ts">
 import { FormRules, FormValidationError, NButton, NIcon, FormItemRule } from 'naive-ui';
 import { Close } from '@vicons/carbon';
-import { CustomError, inputProps } from '../../../common';
+import { CustomError, inputProps, jsonify } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
 
@@ -180,7 +180,7 @@ const formRules = reactive<FormRules>({
       validator: (_: FormItemRule, value: string) => {
         if (!value) return true;
         try {
-          JSON.parse(value);
+          jsonify.parse(value);
           return true;
         } catch (e) {
           return false;
