@@ -1,4 +1,4 @@
-import { Connection } from './connectionStore.ts';
+import { Connection, useConnectionStore } from './connectionStore.ts';
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
@@ -20,12 +20,18 @@ export const useTabStore = defineStore('panel', {
     panels: Array<Panel>;
     activePanel: Panel;
     defaultSnippet: number;
-  } => ({
-    activePanel: homePanel,
-    panels: [homePanel],
-    defaultSnippet: 0,
-  }),
-  getters: {},
+  } =>  {
+    return  {
+      activePanel: homePanel,
+        panels: [homePanel],
+      defaultSnippet: 0,
+    }
+  },
+  getters: {
+    activeConnection(state) {
+      return state.activePanel.connection;
+    },
+  },
   actions: {
     async establishPanel(connectionOrFile: Connection | string): Promise<void> {
       const isFile = typeof connectionOrFile == 'string';
@@ -130,6 +136,19 @@ export const useTabStore = defineStore('panel', {
       await sourceFileApi.saveFile(targetPath, content);
 
       checkPanel.file = targetPath;
+    },
+
+
+    async selectConnection(con: Connection) {
+      const { connections, testConnection } = useConnectionStore();
+      const connection = connections.find(({ id }) => id === con.id);
+      if (!connection) {
+        throw new CustomError(404, lang.global.t('connection.notFound'));
+      }
+
+      await testConnection(connection);
+
+      this.activePanel.connection = connection;
     },
 
     loadDefaultSnippet() {

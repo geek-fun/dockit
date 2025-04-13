@@ -30,8 +30,9 @@ export type ElasticsearchConnection = BaseConnection & {
   username?: string;
   sslCertVerification: boolean;
   password?: string;
-  indexName?: string;
   queryParameters?: string;
+  indices: Array<ConnectionIndex>;
+  activeIndex: ConnectionIndex | undefined;
 };
 
 export type ConnectionIndex = {
@@ -54,10 +55,6 @@ export type ConnectionIndex = {
   };
 };
 
-type Established =
-  | (Connection & { indices: Array<ConnectionIndex>; activeIndex?: ConnectionIndex })
-  | null;
-
 const globalPathActions = [
   '_cluster',
   '_cat',
@@ -68,12 +65,12 @@ const globalPathActions = [
   '_ingest',
   '_snapshot',
   '_tasks',
-  '_analyze',
+  '_analyze'
 ];
 const buildPath = (
   index: string | undefined,
   path: string | undefined,
-  established: Established,
+  connection: ElasticsearchConnection
 ) => {
   // return user specified path if exists
   if (index) return `/${index}/${path}`;
@@ -85,7 +82,7 @@ const buildPath = (
   }
 
   // attach index name to path if it is not a global path action
-  const selectedIndex = established?.activeIndex?.index;
+  const selectedIndex = connection?.activeIndex?.index;
 
   return selectedIndex ? `/${selectedIndex}/${path}` : `/${path}`;
 };
@@ -93,25 +90,21 @@ const buildPath = (
 export const useConnectionStore = defineStore('connectionStore', {
   state: (): {
     connections: Connection[];
-    established: Established;
-    currentConnection: Connection | null;
   } => {
     return {
-      connections: [],
-      established: null,
-      currentConnection: null,
+      connections: []
     };
   },
   getters: {
-    establishedIndexNames(state) {
-      return state.established?.indices.map(({ index }) => index) ?? [];
-    },
-    establishedIndexOptions(state) {
-      return state.established?.indices.map(({ index }) => ({ label: index, value: index })) ?? [];
-    },
+    // establishedIndexNames(state) {
+    //   return state.established?.indices.map(({ index }) => index) ?? [];
+    // },
+    // establishedIndexOptions(state) {
+    //   return state.established?.indices.map(({ index }) => ({ label: index, value: index })) ?? [];
+    // },
     connectionOptions(state) {
       return state.connections.map(({ name }) => ({ label: name, value: name }));
-    },
+    }
   },
   actions: {
     async fetchConnections() {
@@ -119,40 +112,36 @@ export const useConnectionStore = defineStore('connectionStore', {
         const fetchedConnections = (await storeApi.get('connections', [])) as Connection[];
         this.connections = fetchedConnections.map(connection => ({
           ...connection,
-          type: connection.type?.toUpperCase() ?? DatabaseType.ELASTICSEARCH,
+          type: connection.type?.toUpperCase() ?? DatabaseType.ELASTICSEARCH
         })) as Connection[];
       } catch (error) {
         console.error('Error fetching connections:', error);
         this.connections = [];
       }
     },
-    async testElasticsearchConnection(con: ElasticsearchConnection) {
+    async testConnection(con: Connection) {
       if (con.type !== DatabaseType.ELASTICSEARCH) {
         throw new Error('Unsupported connection type');
       }
       const client = loadHttpClient(con);
 
-      return await client.get(con.indexName ?? undefined, 'format=json');
+      return await client.get(con.activeIndex?.index, 'format=json');
     },
     async saveConnection(connection: Connection): Promise<{ success: boolean; message: string }> {
       try {
         const newConnection = {
           ...connection,
           type: 'host' in connection ? DatabaseType.ELASTICSEARCH : DatabaseType.DYNAMODB,
-          id: connection.id || this.connections.length + 1,
+          id: connection.id || this.connections.length + 1
         } as Connection;
 
         if (connection.id) {
           const index = this.connections.findIndex(c => c.id === connection.id);
           if (index !== -1) {
             this.connections[index] = newConnection;
-            if (this.established?.id === connection.id) {
-              this.established = null;
-            }
           }
         } else {
           this.connections.push(newConnection);
-          this.established = null;
         }
 
         await storeApi.set('connections', pureObject(this.connections));
@@ -161,18 +150,15 @@ export const useConnectionStore = defineStore('connectionStore', {
         console.error('Error saving connection:', error);
         return {
           success: false,
-          message: error instanceof Error ? error.message : 'Unknown error',
+          message: error instanceof Error ? error.message : 'Unknown error'
         };
       }
     },
     async removeConnection(connection: Connection) {
       try {
-        const isEstablishedConnection = this.established?.id === connection.id;
         const updatedConnections = this.connections.filter(c => c.id !== connection.id);
         this.connections = updatedConnections;
-        if (isEstablishedConnection) {
-          this.established = null;
-        }
+
         try {
           await storeApi.set('connections', pureObject(updatedConnections));
         } catch (error) {
@@ -183,71 +169,42 @@ export const useConnectionStore = defineStore('connectionStore', {
         throw error;
       }
     },
-    async establishConnection(connection: Connection) {
-      if (connection.type === DatabaseType.ELASTICSEARCH) {
-        await this.testElasticsearchConnection(connection);
-        const client = loadHttpClient(connection);
-        let indices: ConnectionIndex[] = [];
-
-        try {
-          const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
-            [key: string]: string;
-          }>;
-
-          indices = data.map(index => ({
-            ...index,
-            docs: {
-              count: parseInt(index['docs.count'], 10),
-              deleted: parseInt(index['docs.deleted'], 10),
-            },
-            store: { size: index['store.size'] },
-          })) as ConnectionIndex[];
-          this.established = { ...connection, indices };
-        } catch (err) {
-          console.warn('Failed to get indices of established connection:', err);
-          this.established = { ...connection, indices: [] };
-        }
-      } else if (connection.type === DatabaseType.DYNAMODB) {
-        this.established = { ...connection, indices: [], activeIndex: undefined };
-      }
-    },
-    async fetchIndices() {
-      if (!this.established) throw new Error('no connection established');
-      if (this.established.type !== DatabaseType.ELASTICSEARCH) {
+    async fetchIndices(con: Connection) {
+      const connection = this.connections.find(({ id }) => id === con.id);
+      if (!connection) throw new Error('no connection established');
+      if (connection.type !== DatabaseType.ELASTICSEARCH) {
         throw new Error('Operation only supported for Elasticsearch connections');
       }
-      const client = loadHttpClient(this.established);
+      const client = loadHttpClient(connection);
       const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
         [key: string]: string;
       }>;
-      this.established.indices = data.map((index: { [key: string]: string }) => ({
+      connection.indices = data.map((index: { [key: string]: string }) => ({
         ...index,
         docs: {
           count: parseInt(index['docs.count'], 10),
-          deleted: parseInt(index['docs.deleted'], 10),
+          deleted: parseInt(index['docs.deleted'], 10)
         },
-        store: { size: index['store.size'] },
+        store: { size: index['store.size'] }
       })) as ConnectionIndex[];
     },
-    async selectIndex(indexName: string) {
-      const client = loadHttpClient(this.established as ElasticsearchConnection);
+    async selectIndex(con: Connection, indexName: string) {
+      const connection = this.connections.find(({ id }) => id === con.id) as ElasticsearchConnection;
+      const client = loadHttpClient(connection);
 
       // get the index mapping
       const mapping = await client.get(`/${indexName}/_mapping`, 'format=json');
-      const activeIndex = this.established?.indices.find(
-        ({ index }: { index: string }) => index === indexName,
+      const activeIndex = connection.indices.find(
+        ({ index }: { index: string }) => index === indexName
       );
-      this.established = {
-        ...this.established,
-        activeIndex: { ...activeIndex, mapping },
-      } as Established;
+      connection.activeIndex = { ...activeIndex, mapping } as ConnectionIndex;
     },
-    async searchQDSL({
+    async searchQDSL(con: Connection, {
       method,
       path,
       index,
       qdsl,
-      queryParams,
+      queryParams
     }: {
       method: string;
       path: string;
@@ -255,53 +212,54 @@ export const useConnectionStore = defineStore('connectionStore', {
       index?: string;
       qdsl?: string;
     }) {
-      if (!this.established) throw new Error('no connection established');
-      if (this.established.type !== DatabaseType.ELASTICSEARCH) {
+      const connection = this.connections.find(({ id }) => id === con.id) as ElasticsearchConnection;
+      if (!connection) throw new Error('no connection established');
+      if (connection.type !== DatabaseType.ELASTICSEARCH) {
         throw new Error('Operation only supported for Elasticsearch connections');
       }
-      const client = loadHttpClient(this.established);
+      const client = loadHttpClient(connection);
       // refresh the index mapping
       try {
-        if (index && index !== this.established.activeIndex?.index) {
-          const newIndex = this.established.indices.find(
+        if (index && index !== connection.activeIndex?.index) {
+          const newIndex = connection.indices.find(
             ({ index: indexName }: ConnectionIndex) => indexName === index,
           );
           if (newIndex) {
             if (!newIndex.mapping) {
               newIndex.mapping = await client.get(`/${index}/_mapping`, 'format=json');
             }
-            this.established = { ...this.established, activeIndex: newIndex };
+            connection.activeIndex = newIndex;
           }
         }
       } catch (err) {}
 
-      const reqPath = buildPath(index, path, this.established);
+      const reqPath = buildPath(index, path, connection);
 
       const dispatch: { [method: string]: () => Promise<unknown> } = {
         POST: async () => client.post(reqPath, queryParams, qdsl),
         PUT: async () => client.put(reqPath, queryParams, qdsl),
         DELETE: async () => client.delete(reqPath, queryParams, qdsl),
         GET: async () =>
-          qdsl ? client.post(reqPath, queryParams, qdsl) : client.get(reqPath, queryParams),
+          qdsl ? client.post(reqPath, queryParams, qdsl) : client.get(reqPath, queryParams)
       };
       return dispatch[method]();
     },
-    queryToCurl({ method, path, index, qdsl, queryParams }: SearchAction) {
-      if (this.established?.type !== DatabaseType.ELASTICSEARCH) {
+    queryToCurl(connection: Connection, { method, path, index, qdsl, queryParams }: SearchAction) {
+      if (connection?.type !== DatabaseType.ELASTICSEARCH) {
         throw new Error('Operation only supported for Elasticsearch connections');
       }
-      const { username, password, host, port, sslCertVerification } = this.established ?? {
+      const { username, password, host, port, sslCertVerification } = connection ?? {
         host: 'http://localhost',
         port: 9200,
         username: undefined,
         password: undefined,
-        sslCertVerification: false,
+        sslCertVerification: false
       };
-      const url = buildURL(host, port, buildPath(index, path, this.established), queryParams);
+      const url = buildURL(host, port, buildPath(index, path, connection), queryParams);
 
       const headers = {
         ...buildAuthHeader(username, password),
-        ...(qdsl ? { 'Content-Type': 'application/json' }: {})
+        ...(qdsl ? { 'Content-Type': 'application/json' } : {})
       };
 
       return transformToCurl({ method, headers, url, ssl: sslCertVerification, qdsl });
@@ -322,6 +280,6 @@ export const useConnectionStore = defineStore('connectionStore', {
         return !!(connection.region && connection.accessKeyId && connection.secretAccessKey);
       }
       return false;
-    },
-  },
+    }
+  }
 });
