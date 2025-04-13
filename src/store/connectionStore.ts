@@ -299,7 +299,10 @@ export const useConnectionStore = defineStore('connectionStore', {
       };
       const url = buildURL(host, port, buildPath(index, path, this.established), queryParams);
 
-      const headers = { ...buildAuthHeader(username, password) };
+      const headers = {
+        ...buildAuthHeader(username, password),
+        ...(qdsl ? { 'Content-Type': 'application/json' }: {})
+      };
 
       return transformToCurl({ method, headers, url, ssl: sslCertVerification, qdsl });
     },
