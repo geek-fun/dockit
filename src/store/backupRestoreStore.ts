@@ -27,6 +27,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
     backupProgress: { complete: number; total: number } | null;
     restoreProgress: { complete: number; total: number } | null;
     restoreFile: string;
+    connection: Connection | undefined;
   } {
     return {
       folderPath: '',
@@ -34,6 +35,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
       backupProgress: null,
       restoreProgress: null,
       restoreFile: '',
+      connection: undefined,
     };
   },
   persist: true,

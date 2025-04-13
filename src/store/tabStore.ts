@@ -16,19 +16,13 @@ type Panel = {
 const homePanel: Panel = { id: 0, name: 'home', file: '' };
 
 export const useTabStore = defineStore('panel', {
-  state: (): {
-    panels: Panel[];
-    activePanel: Panel;
-    defaultSnippet: number;
-  } => ({
+  state: () => ({
     activePanel: homePanel,
     panels: [homePanel],
     defaultSnippet: 0,
   }),
   getters: {
-    activeConnection(state): Connection | undefined {
-      return state.activePanel.connection;
-    },
+    activeConnection: (state) => state.activePanel.connection,
   },
   actions: {
     async establishPanel(connectionOrFile: Connection | string): Promise<void> {
@@ -154,8 +148,5 @@ export const useTabStore = defineStore('panel', {
       this.activePanel.content = defaultCodeSnippet;
     },
   },
-  persist: {
-    paths: ['panels', 'activePanel', 'defaultSnippet'],
-    storage: localStorage,
-  },
+  persist: true,
 });

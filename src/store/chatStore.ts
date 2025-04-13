@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import { ulid } from 'ulidx';
 import { lang } from '../lang';
 import { CustomError, ErrorCodes, pureObject } from '../common';
-import { useConnectionStore } from './connectionStore';
+import { useTabStore } from './tabStore';
 import {
   chatBotApi,
   ChatMessage,
@@ -12,6 +12,7 @@ import {
   storeApi,
 } from '../datasources';
 import { AiConfig } from './appStore.ts';
+import { ElasticsearchConnection } from './connectionStore.ts';
 
 export const getOpenAiConfig = async () => {
   const aigcConfigs = await storeApi.getSecret('aiConfigs', []);
@@ -94,8 +95,10 @@ export const useChatStore = defineStore('chat', {
         pureObject({ activeChat: this.activeChat, chats: this.chats }),
       );
 
-      const connectionStore = useConnectionStore();
-      const index = connectionStore.$state.established?.activeIndex;
+      const tabStore = useTabStore();
+      const {activeConnection} = tabStore;
+
+      const index = (activeConnection as ElasticsearchConnection)?.activeIndex;
 
       const question = index
         ? `${lang.global.t('setting.ai.defaultPrompt')}

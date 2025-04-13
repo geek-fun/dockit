@@ -82,7 +82,7 @@
               <n-grid-item span="8">
                 <n-form-item :label="$t('connection.indexName')" path="indexName">
                   <n-input
-                    v-model:value="formData.index.index"
+                    v-model:value="formData.selectedIndex"
                     clearable
                     :placeholder="$t('connection.indexName')"
                     :input-props="inputProps"
@@ -160,14 +160,13 @@ import { cloneDeep } from 'lodash';
 import { CustomError, inputProps } from '../../../common';
 import {
   Connection,
-  DatabaseType,
-  ElasticsearchConnection,
+  DatabaseType, ElasticsearchConnection,
   useConnectionStore
 } from '../../../store';
 import { useLang } from '../../../lang';
 import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 
-const { testConnection, testDynamoDBConnection, saveConnection } =
+const { testConnection, saveConnection } =
   useConnectionStore();
 const lang = useLang();
 // DOM
@@ -178,20 +177,18 @@ const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
 
-type FormData = Pick<Connection, "name" | "host" | "port" | "username" | "password" | "index" | "queryParameters" | "sslCertVerification" | "type">;
-
 const defaultFormData = {
   name: '',
   host: '',
   port: 9200,
   username: '',
   password: '',
-  index: { index: '' },
+  selectedIndex: '',
   queryParameters: '',
   sslCertVerification: true,
   type: DatabaseType.ELASTICSEARCH
-} as FormData;
-const formData = ref<FormData>(cloneDeep(defaultFormData));
+} as ElasticsearchConnection & { selectedIndex: string };
+const formData = ref< ElasticsearchConnection & { selectedIndex: string }>(cloneDeep(defaultFormData));
 const formRules = reactive<FormRules>({
   // @ts-ignore
   name: [
@@ -250,10 +247,11 @@ const switchSSL = (target: boolean) => {
 
 const message = useMessage();
 
-const showMedal = (con: Connection | null) => {
+const showMedal = (con: ElasticsearchConnection | null) => {
   showModal.value = true;
   if (con) {
-    formData.value = cloneDeep(con);
+    const selectedIndex = con.activeIndex?.index || '';
+    formData.value = { ...cloneDeep(con), selectedIndex };
     modalTitle.value = lang.t('connection.edit');
   }
 };
@@ -282,7 +280,7 @@ const testConnect = (event: MouseEvent) => {
 const testConnectConfirm = async () => {
   testLoading.value = !testLoading.value;
   try {
-    await testConnection(formData.value as Connection);
+    await testConnection({ ...formData.value, activeIndex: formData.value.selectedIndex ? { index: formData.value.selectedIndex } : undefined} as Connection);
     message.success(lang.t('connection.testSuccess'));
   } catch (e) {
     const error = e as CustomError;
@@ -305,7 +303,7 @@ const saveConnect = (event: MouseEvent) => {
 const saveConnectConfirm = async () => {
   saveLoading.value = !saveLoading.value;
   try {
-    await saveConnection(formData.value);
+    await saveConnection({ ...formData.value, activeIndex: formData.value.selectedIndex ? { index: formData.value.selectedIndex } : undefined} as Connection);
     message.success(lang.t('connection.saveSuccess'));
   } catch (e) {
     const error = e as CustomError;
