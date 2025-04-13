@@ -17,7 +17,7 @@
                   :options="connectionOptions"
                   :placeholder="$t('connection.selectConnection')"
                   v-model:value="backupFormData.connection"
-                  :default-value="established?.name"
+                  :default-value="connection?.name"
                   :loading="loadingRefs.connection"
                   remote
                   filterable
@@ -117,7 +117,7 @@
 import { FormRules } from 'naive-ui';
 import { DocumentExport, FolderDetails, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { BackupInput, useBackupRestoreStore, useConnectionStore } from '../../../store';
+import { BackupInput, ElasticsearchConnection, useBackupRestoreStore, useConnectionStore } from '../../../store';
 import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 
@@ -127,12 +127,12 @@ const lang = useLang();
 
 const fileFormRef = ref();
 const connectionStore = useConnectionStore();
-const { fetchConnections, fetchIndices, establishConnection, selectIndex } = connectionStore;
-const { established, connections } = storeToRefs(connectionStore);
+const { fetchConnections, fetchIndices, selectIndex, testConnection } = connectionStore;
+const { connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
 const { selectFolder, backupToFile, checkFileExist } = backupRestoreStore;
-const { folderPath, backupProgress } = storeToRefs(backupRestoreStore);
+const { folderPath, backupProgress, connection } = storeToRefs(backupRestoreStore);
 
 const defaultFormData = {
   connection: '',
@@ -193,14 +193,14 @@ const backupProgressPercents = computed(() => {
 });
 
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
-watch(established, () => {
-  if (!established.value) {
+watch(connection, () => {
+  if (!connection.value) {
     indexOptions.value = [];
     backupFormData.value.index = '';
     return;
   }
   indexOptions.value =
-    established.value?.indices.map(({ index }) => ({ label: index, value: index })) ?? [];
+    (connection.value as ElasticsearchConnection)?.indices.map(({ index }) => ({ label: index, value: index })) ?? [];
 });
 
 const loadingRefs = ref<{ connection: boolean; index: boolean }>({
@@ -215,7 +215,7 @@ const handleOpen = async (isOpen: boolean, target: string) => {
     await fetchConnections();
     loadingRefs.value.connection = false;
   } else if (target === 'index') {
-    if (!established.value) {
+    if (!connection.value) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
         keepAliveOnHover: true,
@@ -225,7 +225,7 @@ const handleOpen = async (isOpen: boolean, target: string) => {
     }
     loadingRefs.value.index = true;
     try {
-      await fetchIndices();
+      await fetchIndices(connection.value);
     } catch (err) {
       message.error(
         `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
@@ -242,12 +242,13 @@ const handleOpen = async (isOpen: boolean, target: string) => {
 
 const handleSelectUpdate = async (value: string, target: string) => {
   if (target === 'connection') {
-    const connection = connections.value.find(({ name }) => name === value);
-    if (!connection) {
+    const con = connections.value.find(({ name }) => name === value);
+    if (!con) {
       return;
     }
     try {
-      await establishConnection(connection);
+      connection.value = con;
+      await testConnection(connection.value);
     } catch (err) {
       const error = err as CustomError;
       message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -257,7 +258,15 @@ const handleSelectUpdate = async (value: string, target: string) => {
       });
     }
   } else if (target === 'index') {
-    selectIndex(value);
+    if (!connection.value) {
+      message.error(lang.t('editor.establishedRequired'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
+      return;
+    }
+    selectIndex(connection.value, value);
   }
 };
 

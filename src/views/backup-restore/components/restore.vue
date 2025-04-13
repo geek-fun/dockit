@@ -59,7 +59,7 @@
                   :options="connectionOptions"
                   :placeholder="$t('connection.selectConnection')"
                   v-model:value="restoreFormData.connection"
-                  :default-value="established?.name"
+                  :default-value="connection?.name"
                   :loading="loadingRefs.connection"
                   remote
                   filterable
@@ -97,7 +97,7 @@
 import { FormRules } from 'naive-ui';
 import { Close, DocumentExport, FileStorage, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { useBackupRestoreStore, useConnectionStore } from '../../../store';
+import { ElasticsearchConnection, useBackupRestoreStore, useConnectionStore } from '../../../store';
 import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 
@@ -107,12 +107,12 @@ const lang = useLang();
 
 const fileFormRef = ref();
 const connectionStore = useConnectionStore();
-const { fetchConnections, establishConnection } = connectionStore;
-const { established, connections } = storeToRefs(connectionStore);
+const { fetchConnections, testConnection } = connectionStore;
+const {  connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
 const { selectFile, restoreFromFile } = backupRestoreStore;
-const { restoreProgress, restoreFile } = storeToRefs(backupRestoreStore);
+const { restoreProgress, restoreFile, connection } = storeToRefs(backupRestoreStore);
 
 const defaultFormData = {
   connection: '',
@@ -190,12 +190,13 @@ const handleOpen = async (isOpen: boolean, target: string) => {
 
 const handleSelectUpdate = async (value: string, target: string) => {
   if (target === 'connection') {
-    const connection = connections.value.find(({ name }) => name === value);
-    if (!connection) {
+    const con = connections.value.find(({ name }) => name === value);
+    if (!con) {
       return;
     }
     try {
-      await establishConnection(connection);
+      await testConnection(con);
+      connection.value = con;
     } catch (err) {
       const error = err as CustomError;
       message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -224,15 +225,15 @@ const submitRestore = async () => {
     return true;
   });
 
-  const connection = connections.value.find(
+  const con = connections.value.find(
     ({ name }) => name === restoreFormData.value.connection,
   );
 
-  if (!isPass || !connection) return;
+  if (!isPass || !con) return;
 
-  const restoreInput = { ...restoreFormData.value, connection };
+  const restoreInput = { ...restoreFormData.value, connection: con };
 
-  const index = established.value?.indices.find(
+  const index = (connection.value as ElasticsearchConnection)?.indices.find(
     ({ index }) => index === restoreFormData.value.index,
   );
 

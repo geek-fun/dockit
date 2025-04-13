@@ -8,7 +8,6 @@
             :key="connection.id"
             :title="connection.name"
             hoverable
-            :class="{ active: established && connection.id === established.id }"
             @dblclick="handleSelect('connect', connection)"
           >
             <template #header-extra>
@@ -76,8 +75,8 @@ const message = useMessage();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
-const { fetchConnections, removeConnection, establishConnection } = connectionStore;
-const { connections, established } = storeToRefs(connectionStore);
+const { fetchConnections, removeConnection,testConnection } = connectionStore;
+const { connections } = storeToRefs(connectionStore);
 fetchConnections();
 
 const getDatabaseIcon = (type: DatabaseType) => {
@@ -106,7 +105,7 @@ const handleSelect = (key: string, connection: Connection) => {
 
 const establishConnect = async (connection: Connection) => {
   try {
-    await establishConnection(connection);
+    await testConnection(connection);
     message.success(lang.t('connection.connectSuccess'));
     emits('tab-panel', { action: 'ADD_PANEL', connection });
   } catch (err) {

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { loadHttpClient } from '../datasources';
 import { lang } from '../lang';
-import { DatabaseType, useConnectionStore } from './connectionStore.ts';
+import { Connection, DatabaseType } from './connectionStore.ts';
 import { CustomError, debug, jsonify, optionalToNullableInt } from '../common';
 
 export enum IndexHealth {
@@ -245,14 +245,16 @@ export type ClusterTemplate = ComponentTemplate | IndexTemplate;
 
 export const useClusterManageStore = defineStore('clusterManageStore', {
   state: (): {
-    cluster: RawClusterStats | null;
+    connection: Connection | undefined
+    cluster: RawClusterStats | undefined;
     nodes: Array<SearchNode>;
     shards: Array<Shard>;
     indices: Array<ClusterIndex>;
     aliases: Array<ClusterAlias>;
     templates: Array<ClusterTemplate>;
   } => ({
-    cluster: null,
+    connection: undefined,
+    cluster: undefined,
     nodes: [],
     shards: [],
     indices: [],
@@ -288,20 +290,16 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
   },
   actions: {
     async fetchCluster() {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         this.cluster = (await client.get('/_cluster/stats', 'format=json')) as RawClusterStats;
-      } else {
-        this.cluster = null;
       }
     },
     async fetchNodes() {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         try {
           const data = await client.get('/_cat/nodes', 'format=json');
           this.nodes = data
@@ -363,10 +361,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       }
     },
     async fetchNodeState(nodeName: string) {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+    if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         const data = await client.get(
           `/_cat/nodes`,
           'format=json&bytes=b&h=ip,id,name,heap.percent,heap.current,heap.max,ram.percent,ram.current,ram.max,node.role,master,cpu,load_1m,load_5m,load_15m,disk.used_percent,disk.used,disk.total,shard_stats.total_count,mappings.total_count&full_id=true',
@@ -422,10 +419,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       }
     },
     async fetchShards(includeHidden: boolean = false) {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         try {
           const data = (
             await client.get(
@@ -451,10 +447,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       }
     },
     async getShardState(indexName: string) {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         try {
           const data = await client.get(
             `/_cat/shards/${indexName}`,
@@ -634,10 +629,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       }
     },
     async fetchIndices() {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         const data = (await client.get('/_cat/indices', 'format=json&s=index')) as Array<{
           [key: string]: string;
         }>;
@@ -662,10 +656,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       }
     },
     async fetchAliases() {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         const data = (await client.get('/_cat/aliases', 'format=json&s=alias')) as Array<{
           [key: string]: string;
         }>;
@@ -684,10 +677,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       }
     },
     async fetchTemplates() {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         const fetchIndexTemplates = async () => {
           const data = (await client.get('/_cat/templates', 'format=json')) as Array<{
             [key: string]: string;
@@ -747,10 +739,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       wait_for_active_shards?: number | null;
       body?: string | null;
     }) {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
 
         const queryParams = new URLSearchParams();
         [
@@ -823,10 +814,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       search_routing: number | null;
       index_routing: number | null;
     }) {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
 
         const queryParams = new URLSearchParams();
         [
@@ -892,10 +882,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       master_timeout: number | null;
       body: string | null;
     }) {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         const queryParams = new URLSearchParams();
         [
           { key: 'master_timeout', value: master_timeout },
@@ -933,10 +922,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
 
     async deleteIndex(indexName: string) {
       // delete index
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         try {
           const response = await client.delete(`/${indexName}`);
           if (response.status >= 300) {
@@ -955,10 +943,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       return undefined;
     },
     async closeIndex(indexName: string) {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         try {
           const response = await client.post(`/${indexName}/_close`);
           if (response.status >= 300) {
@@ -977,10 +964,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       return undefined;
     },
     async openIndex(indexName: string) {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         try {
           const response = await client.post(`/${indexName}/_open`);
           if (response.status >= 300) {
@@ -999,10 +985,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       return undefined;
     },
     async removeAlias(indexName: string, aliasName: string) {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         try {
           const response = await client.delete(`/${indexName}/_alias/${aliasName}`);
           if (response.status >= 300) {
@@ -1021,24 +1006,13 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       return undefined;
     },
     async switchAlias(aliasName: string, sourceIndexName: string, targetIndexName: string) {
-      const { established } = useConnectionStore();
-      if (!established) throw new Error(lang.global.t('connection.selectConnection'));
-      if (established.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(established);
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(this.connection);
         const payload = {
           actions: [
-            {
-              remove: {
-                index: sourceIndexName,
-                alias: aliasName,
-              },
-            },
-            {
-              add: {
-                index: targetIndexName,
-                alias: aliasName,
-              },
-            },
+            { remove: { index: sourceIndexName, alias: aliasName } },
+            { add: { index: targetIndexName, alias: aliasName } },
           ],
         };
         try {

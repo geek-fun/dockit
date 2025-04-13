@@ -1,4 +1,4 @@
-import { Connection } from './connectionStore.ts';
+import { Connection, useConnectionStore } from './connectionStore.ts';
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
@@ -13,22 +13,20 @@ type Panel = {
   content?: string;
 };
 
-const homePanel = { id: 0, name: 'home', file: '' };
+const homePanel: Panel = { id: 0, name: 'home', file: '' };
 
 export const useTabStore = defineStore('panel', {
-  state: (): {
-    panels: Array<Panel>;
-    activePanel: Panel;
-    defaultSnippet: number;
-  } => ({
+  state: () => ({
     activePanel: homePanel,
     panels: [homePanel],
     defaultSnippet: 0,
   }),
-  getters: {},
+  getters: {
+    activeConnection: (state) => state.activePanel.connection,
+  },
   actions: {
     async establishPanel(connectionOrFile: Connection | string): Promise<void> {
-      const isFile = typeof connectionOrFile == 'string';
+      const isFile = typeof connectionOrFile === 'string';
       if (isFile) {
         const fileInfo = await sourceFileApi.getPathInfo(connectionOrFile);
         const activePanel = this.panels.find(({ file }) => file === fileInfo?.path);
@@ -46,7 +44,7 @@ export const useTabStore = defineStore('panel', {
         }
       } else {
         const exists = this.panels.filter(
-          panelItem => panelItem.connection?.id === connectionOrFile.id,
+          (panelItem) => panelItem.connection?.id === connectionOrFile.id
         );
 
         let fileName = !exists.length
@@ -69,9 +67,10 @@ export const useTabStore = defineStore('panel', {
         this.panels.push(newPanel);
         this.activePanel = newPanel;
       }
+      console.log('active panel:', this.activePanel);
     },
 
-    async checkFileExists(panel: Panel | undefined) {
+    async checkFileExists(panel: Panel | undefined): Promise<boolean> {
       let checkPanel = panel ?? this.activePanel;
       if (!checkPanel?.file) return false;
       try {
@@ -91,7 +90,7 @@ export const useTabStore = defineStore('panel', {
 
         this.panels.splice(selectedIndex, 1);
         if (panel.id === this.activePanel?.id) {
-          this.activePanel = this.panels[Math.min(selectedIndex, this.panels.length - 1)];
+          this.activePanel = this.panels[Math.min(selectedIndex, this.panels.length - 1)] || homePanel;
         }
       } catch (err) {
         throw err instanceof CustomError ? err : new CustomError(500, (err as Error).message);
@@ -107,7 +106,7 @@ export const useTabStore = defineStore('panel', {
     async saveContent(
       panel: Panel | undefined,
       content: string,
-      validateFilePath = false,
+      validateFilePath = false
     ): Promise<void> {
       let checkPanel = panel ?? this.activePanel;
       if (!checkPanel) return;
@@ -132,14 +131,23 @@ export const useTabStore = defineStore('panel', {
       checkPanel.file = targetPath;
     },
 
-    loadDefaultSnippet() {
+    async selectConnection(con: Connection): Promise<void> {
+      const { connections, testConnection } = useConnectionStore();
+      const connection = connections.find(({ id }) => id === con.id);
+      if (!connection) {
+        throw new CustomError(404, lang.global.t('connection.notFound'));
+      }
+
+      await testConnection(connection);
+
+      this.activePanel.connection = connection;
+    },
+
+    loadDefaultSnippet(): void {
       if (!this.activePanel) return;
       this.defaultSnippet += 1;
       this.activePanel.content = defaultCodeSnippet;
     },
   },
-  persist: {
-    paths: ['currentPanel'],
-    storage: localStorage,
-  },
+  persist: true,
 });

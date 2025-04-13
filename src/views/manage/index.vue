@@ -1,7 +1,7 @@
 <template>
   <div class="manage-container">
     <tool-bar type="MANAGE" @switch-manage-tab="handleManageTabChange" />
-    <template v-if="established?.type === DatabaseType.ELASTICSEARCH">
+    <template v-if="activeConnection?.type === DatabaseType.ELASTICSEARCH">
       <cluster-state
         class="state-container"
         :cluster="cluster"
@@ -11,7 +11,7 @@
       <shared-manage class="state-container" v-if="activeTab === $t('manage.shards')" />
       <index-manage class="state-container" v-if="activeTab === $t('manage.indices')" />
     </template>
-    <div v-else-if="established?.type === DatabaseType.DYNAMODB" class="empty-state">
+    <div v-else-if="activeConnection" class="empty-state">
       <n-empty :description="$t('manage.emptyDynamodb')" />
     </div>
     <div v-else class="empty-state">
@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import ToolBar from '../../components/tool-bar.vue';
 import ClusterState from './components/cluster-state.vue';
-import { useClusterManageStore, useConnectionStore, DatabaseType } from '../../store';
+import { useClusterManageStore, DatabaseType, useTabStore } from '../../store';
 import { storeToRefs } from 'pinia';
 import NodeState from './components/node-state.vue';
 import SharedManage from './components/shared-manage.vue';
@@ -35,15 +35,16 @@ const lang = useLang();
 
 const activeTab = ref(lang.t('manage.cluster'));
 
-const connectionStore = useConnectionStore();
-const { established } = storeToRefs(connectionStore);
+const tabStore = useTabStore();
+const { activeConnection } = storeToRefs(tabStore);
+
 
 const clusterManageStore = useClusterManageStore();
 const { fetchCluster, fetchIndices, fetchAliases, fetchNodes, fetchShards } = clusterManageStore;
 const { cluster } = storeToRefs(clusterManageStore);
 
-watch(established, async () => {
-  if (established.value?.type === DatabaseType.ELASTICSEARCH) {
+watch(activeConnection, async () => {
+  if (activeConnection?.value?.type === DatabaseType.ELASTICSEARCH) {
     try {
       await Promise.all([
         fetchCluster(),
@@ -63,7 +64,7 @@ const handleManageTabChange = (tab: string) => {
 };
 
 fetchCluster().catch(err =>
-  !established.value?.id
+  !activeConnection.value?.id
     ? message.warning(lang.t('editor.establishedRequired'), {
         closable: true,
         keepAliveOnHover: true,

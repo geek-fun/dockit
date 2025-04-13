@@ -6,7 +6,7 @@
       :input-props="inputProps"
       remote
       filterable
-      :default-value="established?.name"
+      :default-value="activePanel?.connection?.name"
       :loading="loadingRef.connection"
       @update:show="isOpen => handleOpen(isOpen, 'CONNECTION')"
       @update:value="value => handleUpdate(value, 'CONNECTION')"
@@ -60,7 +60,7 @@
 <script setup lang="ts">
 import { AiStatus, Search } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { useConnectionStore, useTabStore } from '../store';
+import { ElasticsearchConnection, useClusterManageStore, useConnectionStore, useTabStore } from '../store';
 import { useLang } from '../lang';
 import { CustomError, inputProps } from '../common';
 
@@ -68,8 +68,8 @@ const message = useMessage();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
-const { fetchConnections, fetchIndices, establishConnection } = connectionStore;
-const { connections, establishedIndexNames, established } = storeToRefs(connectionStore);
+const { fetchConnections, fetchIndices, selectIndex } = connectionStore;
+const { connections } = storeToRefs(connectionStore);
 
 const props = defineProps({
   type: String,
@@ -77,7 +77,11 @@ const props = defineProps({
 const emits = defineEmits(['switch-manage-tab']);
 
 const tabStore = useTabStore();
-const { loadDefaultSnippet } = tabStore;
+const { loadDefaultSnippet,selectConnection } = tabStore;
+const { activePanel } = storeToRefs(tabStore);
+
+const clusterManageStore = useClusterManageStore();
+const { connection } = storeToRefs(clusterManageStore);
 
 const loadingRef = ref({ connection: false, index: false });
 
@@ -94,9 +98,8 @@ const options = computed(
           ({ name }) => !filterRef.value.connection || name.includes(filterRef.value.connection),
         )
         .map(({ name }) => ({ label: name, value: name })),
-      index: establishedIndexNames.value
-        .filter(name => !filterRef.value.index || name.includes(filterRef.value.index))
-        .map(name => ({ label: name, value: name })),
+      index: (activePanel.value.connection as ElasticsearchConnection)?.indices?.filter(index => !filterRef.value.index || index.index.includes(filterRef.value.index))
+        .map(index => ({ label: index.index, value: index.index })),
     }) as Record<string, { label: string; value: string }[]>,
 );
 
@@ -114,7 +117,9 @@ const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX') => {
     await fetchConnections();
     loadingRef.value.connection = false;
   } else {
-    if (!established.value) {
+
+    let selectedConnection = props.type === 'EDITOR' ? activePanel.value.connection : connection.value;
+    if (!selectedConnection) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
         keepAliveOnHover: true,
@@ -124,15 +129,11 @@ const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX') => {
     }
     loadingRef.value.index = true;
     try {
-      await fetchIndices();
+      await fetchIndices(selectedConnection);
     } catch (err) {
       message.error(
         `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
-        {
-          closable: true,
-          keepAliveOnHover: true,
-          duration: 3000,
-        },
+        { closable: true, keepAliveOnHover: true, duration: 3000 },
       );
     }
 
@@ -142,12 +143,12 @@ const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX') => {
 
 const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
   if (type === 'CONNECTION') {
-    const connection = connections.value.find(({ name }) => name === value);
-    if (!connection) {
+    const con = connections.value.find(({ name }) => name === value);
+    if (!con) {
       return;
     }
     try {
-      await establishConnection(connection);
+      props.type === 'EDITOR' ? (await selectConnection(con)) : connection.value = con;
     } catch (err) {
       const error = err as CustomError;
       message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -157,7 +158,16 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
       });
     }
   } else {
-    connectionStore.selectIndex(value);
+    const selectedConnection = props.type === 'EDITOR' ? activePanel.value.connection : connection.value;
+    if (!selectedConnection) {
+      message.error(lang.t('editor.establishedRequired'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
+      return;
+    }
+    selectIndex(selectedConnection, value);
   }
 };
 

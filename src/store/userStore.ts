@@ -5,9 +5,7 @@ export const useUserStore = defineStore('user', {
     accessToken: '', // 访问令牌
   }),
   getters: {
-    getToken(): string {
-      return this.accessToken;
-    },
+    getToken: (state) => state.accessToken,
   },
   actions: {
     setToken(accessToken: string): void {
@@ -18,7 +16,7 @@ export const useUserStore = defineStore('user', {
     },
   },
   persist: {
-    paths: ['accessToken'],
+    pick: ['accessToken'],
     storage: localStorage,
   },
 });
