@@ -82,7 +82,7 @@
               <n-grid-item span="8">
                 <n-form-item :label="$t('connection.indexName')" path="indexName">
                   <n-input
-                    v-model:value="formData.indexName"
+                    v-model:value="formData.index.index"
                     clearable
                     :placeholder="$t('connection.indexName')"
                     :input-props="inputProps"
@@ -162,12 +162,12 @@ import {
   Connection,
   DatabaseType,
   ElasticsearchConnection,
-  useConnectionStore,
+  useConnectionStore
 } from '../../../store';
 import { useLang } from '../../../lang';
 import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 
-const { testElasticsearchConnection, testDynamoDBConnection, saveConnection } =
+const { testConnection, testDynamoDBConnection, saveConnection } =
   useConnectionStore();
 const lang = useLang();
 // DOM
@@ -178,26 +178,28 @@ const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
 
+type FormData = Pick<Connection, "name" | "host" | "port" | "username" | "password" | "index" | "queryParameters" | "sslCertVerification" | "type">;
+
 const defaultFormData = {
   name: '',
   host: '',
   port: 9200,
   username: '',
   password: '',
-  indexName: undefined,
+  index: { index: '' },
   queryParameters: '',
   sslCertVerification: true,
-  type: DatabaseType.ELASTICSEARCH as const,
-};
-const formData = ref<Connection>(cloneDeep(defaultFormData));
+  type: DatabaseType.ELASTICSEARCH
+} as FormData;
+const formData = ref<FormData>(cloneDeep(defaultFormData));
 const formRules = reactive<FormRules>({
   // @ts-ignore
   name: [
     {
       required: true,
       renderMessage: () => lang.t('connection.formValidation.nameRequired'),
-      trigger: ['input', 'blur'],
-    },
+      trigger: ['input', 'blur']
+    }
   ],
   host: [
     {
@@ -208,24 +210,24 @@ const formRules = reactive<FormRules>({
             if (value.startsWith('http://') && formData.value.sslCertVerification) {
               formData.value.sslCertVerification = false;
             }
-            switchSSL(formData.value.sslCertVerification);
+            switchSSL(formData.value.sslCertVerification as boolean);
           }
 
           return value !== '';
         }
       },
       renderMessage: () => lang.t('connection.formValidation.hostRequired'),
-      trigger: ['input', 'blur'],
-    },
+      trigger: ['input', 'blur']
+    }
   ],
   port: [
     {
       type: 'number',
       required: true,
       renderMessage: () => lang.t('connection.formValidation.portRequired'),
-      trigger: ['input', 'blur'],
-    },
-  ],
+      trigger: ['input', 'blur']
+    }
+  ]
 });
 
 const hostValidate = ref<{
@@ -235,9 +237,8 @@ const hostValidate = ref<{
 
 const switchSSL = (target: boolean) => {
   if (formData.value.type === DatabaseType.ELASTICSEARCH) {
-    const elasticsearchConnection = formData.value as ElasticsearchConnection;
-    if (elasticsearchConnection.host.startsWith('https') || !target) {
-      elasticsearchConnection.sslCertVerification = target;
+    if (formData.value.host.startsWith('https') || !target) {
+      formData.value.sslCertVerification = target;
       hostValidate.value.status = undefined;
       hostValidate.value.feedback = '';
     } else {
@@ -274,25 +275,21 @@ const validationPassed = watch(formData.value, async () => {
 const testConnect = (event: MouseEvent) => {
   event.preventDefault();
   connectFormRef.value?.validate((errors: boolean) =>
-    !errors ? testConnectConfirm() : message.error(lang.t('connection.validationFailed')),
+    !errors ? testConnectConfirm() : message.error(lang.t('connection.validationFailed'))
   );
 };
 
 const testConnectConfirm = async () => {
   testLoading.value = !testLoading.value;
   try {
-    if (formData.value.type === DatabaseType.ELASTICSEARCH) {
-      await testElasticsearchConnection(formData.value);
-    } else if (formData.value.type === DatabaseType.DYNAMODB) {
-      await testDynamoDBConnection(formData.value);
-    }
+    await testConnection(formData.value as Connection);
     message.success(lang.t('connection.testSuccess'));
   } catch (e) {
     const error = e as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
       closable: true,
       keepAliveOnHover: true,
-      duration: 10000,
+      duration: 10000
     });
   } finally {
     testLoading.value = !testLoading.value;
@@ -301,7 +298,7 @@ const testConnectConfirm = async () => {
 const saveConnect = (event: MouseEvent) => {
   event.preventDefault();
   connectFormRef.value?.validate((errors: boolean) =>
-    !errors ? saveConnectConfirm() : message.error(lang.t('connection.validationFailed')),
+    !errors ? saveConnectConfirm() : message.error(lang.t('connection.validationFailed'))
   );
 };
 
@@ -315,7 +312,7 @@ const saveConnectConfirm = async () => {
     message.error(`status: ${error.status}, details: ${error.details}`, {
       closable: true,
       keepAliveOnHover: true,
-      duration: 10000,
+      duration: 10000
     });
   } finally {
     saveLoading.value = !saveLoading.value;

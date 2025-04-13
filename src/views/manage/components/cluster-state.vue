@@ -49,7 +49,7 @@ import prettyBytes from 'pretty-bytes';
 import { CheckmarkOutline, WarningAlt, MisuseOutline } from '@vicons/carbon';
 import { RawClusterStats } from '../../../store';
 
-const props = defineProps<{ cluster: RawClusterStats | null }>();
+const props = defineProps<{ cluster: RawClusterStats | undefined }>();
 </script>
 
 <style lang="scss" scoped>
