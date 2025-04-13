@@ -1,5 +1,4 @@
 import { Decoration, executeActions, monaco, SearchAction } from './';
-import JSON5 from 'json5';
 import { get } from 'lodash';
 import { CustomError } from '../customError.ts';
 import { jsonify } from '../jsonify.ts';
@@ -125,10 +124,10 @@ export const formatQDSL = (
     ({ path, position }) => path.includes('_bulk') && position.startLineNumber === startLineNumber,
   );
   if (!bulkAction) {
-    return JSON5.stringify(JSON5.parse(content), null, 2);
+    return jsonify.string5(jsonify.parse5(content), null, 2);
   }
-  const lines = content.split('\n').map(line => JSON5.parse(line));
-  return lines.map(line => JSON5.stringify(line)).join('\n');
+  const lines = content.split('\n').map(line => jsonify.parse5(line));
+  return lines.map(line => jsonify.string5(line)).join('\n');
 };
 
 const replaceTripleQuotes = (value: string) =>
@@ -144,12 +143,13 @@ export const transformQDSL = ({ path, qdsl }: Pick<SearchAction, 'path' | 'qdsl'
     if (bulkAction) {
       const bulkQdsl = puredDsl
         .split('\n')
-        .map(line => jsonify.stringify(JSON5.parse(line)))
+        .map(line => jsonify.stringify(jsonify.parse5(line)))
         .join('\n');
       return `${bulkQdsl}\n`;
     }
-
-    return puredDsl ? jsonify.stringify(JSON5.parse(puredDsl), null, 2) : undefined;
+    console.log(`transformQDSL:
+    puredDsl:${puredDsl}`);
+    return puredDsl ? jsonify.stringify(jsonify.parse5(puredDsl), null, 2) : undefined;
   } catch (err) {
     throw new CustomError(400, (err as Error).message);
   }
