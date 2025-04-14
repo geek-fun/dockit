@@ -29,6 +29,7 @@ import NodeState from './components/node-state.vue';
 import SharedManage from './components/shared-manage.vue';
 import { useLang } from '../../lang';
 import IndexManage from './components/index-manage.vue';
+import { CustomError } from '../../common';
 
 const message = useMessage();
 const lang = useLang();
@@ -38,44 +39,55 @@ const activeTab = ref(lang.t('manage.cluster'));
 const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
 
-
 const clusterManageStore = useClusterManageStore();
-const { fetchCluster, fetchIndices, fetchAliases, fetchNodes, fetchShards } = clusterManageStore;
+const { setConnection, fetchCluster, fetchIndices, fetchAliases, fetchNodes, fetchShards } =
+  clusterManageStore;
 const { cluster } = storeToRefs(clusterManageStore);
 
-watch(activeConnection, async () => {
-  if (activeConnection?.value?.type === DatabaseType.ELASTICSEARCH) {
+const refreshData = async () => {
+  if (activeConnection.value?.type === DatabaseType.ELASTICSEARCH) {
     try {
       await Promise.all([
         fetchCluster(),
-        fetchIndices(),
-        fetchAliases(),
-        fetchNodes(),
-        fetchShards(),
+        // fetchIndices(),
+        // fetchAliases(),
+        // fetchNodes(),
+        // fetchShards(),
       ]);
     } catch (err) {
-      console.warn('Failed to fetch cluster data:', err);
+      const { status, details } = err as CustomError;
+      console.warn('Failed to refresh data:', JSON.stringify(err));
+      message.error(`status: ${status}, details: ${details}`, {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
     }
   }
+};
+
+watch(activeConnection, async () => {
+  await refreshData();
 });
 
 const handleManageTabChange = (tab: string) => {
   activeTab.value = tab;
 };
 
-fetchCluster().catch(err =>
-  !activeConnection.value?.id
-    ? message.warning(lang.t('editor.establishedRequired'), {
-        closable: true,
-        keepAliveOnHover: true,
-        duration: 3000,
-      })
-    : message.error(`status: ${err.status}, details: ${err.details}`, {
-        closable: true,
-        keepAliveOnHover: true,
-        duration: 3000,
-      }),
-);
+onMounted(async () => {
+  if (!activeConnection.value) {
+    message.warning(lang.t('editor.establishedRequired'), {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3000,
+    });
+    return;
+  }
+  setConnection(activeConnection.value);
+  if (activeConnection.value?.type === DatabaseType.ELASTICSEARCH) {
+    await refreshData();
+  }
+});
 </script>
 
 <style lang="scss" scoped>

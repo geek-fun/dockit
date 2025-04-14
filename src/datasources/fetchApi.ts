@@ -74,6 +74,7 @@ const fetchRequest = async (
       url,
       options: { method, headers, body: payload ?? undefined, agent },
     });
+    console.log('response:', response);
 
     const { status, message, data } = jsonify.parse(response) as {
       status: number;

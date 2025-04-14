@@ -1,12 +1,9 @@
 import JSON5 from 'json5';
-import JSONBig from 'json-bigint';
+import { JSONParse, JSONStringify } from 'json-with-bigint';
+
 import { get } from 'lodash';
 
 type Replacer = null | Array<number | string> | ((this: any, key: string, value: any) => any);
-
-const jsonBig = JSONBig({
-  useNativeBigInt: true,
-});
 
 const bigIntReplacer = (originalReplacer: unknown, key: string, value: unknown) => {
   if (Array.isArray(originalReplacer) && !originalReplacer.includes(key)) {
@@ -42,6 +39,7 @@ const bigIntReviver = (originalReviver: unknown, key: string, value: unknown) =>
 
   return newVal;
 };
+
 const bigIntStringify = (text: string) =>
   text.replace(/([-+]?\d+)\b/g, match => {
     return Number.isSafeInteger(Number(match)) ? match : `"${match}n"`;
@@ -57,11 +55,4 @@ export const string5 = (value: any, replacer?: Replacer, space?: string | number
 export const parse5 = (text: string, reviver?: (this: any, key: string, value: any) => any) =>
   JSON5.parse(bigIntStringify(text), (key, value: string) => bigIntReviver(reviver, key, value));
 
-//
-// const stringify = (value: any, replacer?: Replacer, space?: string | number) =>
-//   JSON.stringify(value, (key, value) => bigIntReplacer(replacer, key, value), space);
-//
-// const parse = (text: string, reviver?: (this: any, key: string, value: any) => any) =>
-//   JSON.parse(text, (key, value) => bigIntReviver(reviver, key, value));
-
-export const jsonify = { stringify: jsonBig.stringify, parse: jsonBig.parse, parse5, string5 };
+export const jsonify = { stringify: JSONStringify, parse: JSONParse, parse5, string5 };

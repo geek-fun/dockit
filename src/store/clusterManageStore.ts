@@ -245,7 +245,7 @@ export type ClusterTemplate = ComponentTemplate | IndexTemplate;
 
 export const useClusterManageStore = defineStore('clusterManageStore', {
   state: (): {
-    connection: Connection | undefined
+    connection: Connection | undefined;
     cluster: RawClusterStats | undefined;
     nodes: Array<SearchNode>;
     shards: Array<Shard>;
@@ -289,6 +289,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     },
   },
   actions: {
+    setConnection(connection: Connection) {
+      this.connection = connection;
+    },
     async fetchCluster() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (this.connection.type === DatabaseType.ELASTICSEARCH) {
@@ -361,7 +364,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       }
     },
     async fetchNodeState(nodeName: string) {
-    if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (this.connection.type === DatabaseType.ELASTICSEARCH) {
         const client = loadHttpClient(this.connection);
         const data = await client.get(
