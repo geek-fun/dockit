@@ -149,5 +149,4 @@ export const useTabStore = defineStore('panel', {
       this.activePanel.content = defaultCodeSnippet;
     },
   },
-  persist: true,
 });
