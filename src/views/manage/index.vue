@@ -49,14 +49,13 @@ const refreshData = async () => {
     try {
       await Promise.all([
         fetchCluster(),
-        // fetchIndices(),
-        // fetchAliases(),
-        // fetchNodes(),
-        // fetchShards(),
+        fetchIndices(),
+        fetchAliases(),
+        fetchNodes(),
+        fetchShards(),
       ]);
     } catch (err) {
       const { status, details } = err as CustomError;
-      console.warn('Failed to refresh data:', JSON.stringify(err));
       message.error(`status: ${status}, details: ${details}`, {
         closable: true,
         keepAliveOnHover: true,

@@ -22,7 +22,7 @@ export const useTabStore = defineStore('panel', {
     defaultSnippet: 0,
   }),
   getters: {
-    activeConnection: (state) => state.activePanel.connection,
+    activeConnection: state => state.activePanel.connection,
   },
   actions: {
     async establishPanel(connectionOrFile: Connection | string): Promise<void> {
@@ -44,7 +44,7 @@ export const useTabStore = defineStore('panel', {
         }
       } else {
         const exists = this.panels.filter(
-          (panelItem) => panelItem.connection?.id === connectionOrFile.id
+          panelItem => panelItem.connection?.id === connectionOrFile.id,
         );
 
         let fileName = !exists.length
@@ -67,7 +67,6 @@ export const useTabStore = defineStore('panel', {
         this.panels.push(newPanel);
         this.activePanel = newPanel;
       }
-      console.log('active panel:', this.activePanel);
     },
 
     async checkFileExists(panel: Panel | undefined): Promise<boolean> {
@@ -90,7 +89,8 @@ export const useTabStore = defineStore('panel', {
 
         this.panels.splice(selectedIndex, 1);
         if (panel.id === this.activePanel?.id) {
-          this.activePanel = this.panels[Math.min(selectedIndex, this.panels.length - 1)] || homePanel;
+          this.activePanel =
+            this.panels[Math.min(selectedIndex, this.panels.length - 1)] || homePanel;
         }
       } catch (err) {
         throw err instanceof CustomError ? err : new CustomError(500, (err as Error).message);
@@ -106,7 +106,7 @@ export const useTabStore = defineStore('panel', {
     async saveContent(
       panel: Panel | undefined,
       content: string,
-      validateFilePath = false
+      validateFilePath = false,
     ): Promise<void> {
       let checkPanel = panel ?? this.activePanel;
       if (!checkPanel) return;
