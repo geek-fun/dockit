@@ -136,11 +136,13 @@ export const enUS = {
     edit: 'Edit configuration',
     selectDatabase: 'Please select database type',
     region: 'Region',
+    tableName: 'Table Name',
     accessKeyId: 'Access Key ID',
     secretAccessKey: 'Secret Access Key',
     selectRegion: 'Please select region',
     formValidation: {
       nameRequired: 'Name is required',
+      tableNameRequired: 'Table name is required',
       hostRequired: 'Host is required',
       portRequired: 'Port is required',
       sslCertOnlyHttps: 'SSL Certificate Verification can only be enabled under HTTPS connection',

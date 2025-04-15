@@ -28,6 +28,14 @@
               :input-props="inputProps"
             />
           </n-form-item>
+          <n-form-item :label="$t('connection.tableName')" path="tableName">
+            <n-input
+              v-model:value="formData.tableName"
+              clearable
+              :placeholder="$t('connection.tableName')"
+              :input-props="inputProps"
+            />
+          </n-form-item>
           <n-form-item :label="$t('connection.region')" path="region">
             <n-select
               v-model:value="formData.region"
@@ -93,6 +101,9 @@ import { useConnectionStore } from '../../../store';
 import { DatabaseType, DynamoDBConnection } from '../../../store';
 
 const connectionStore = useConnectionStore();
+
+const { testConnection } = connectionStore;
+
 const lang = useLang();
 const connectFormRef = ref();
 
@@ -122,6 +133,7 @@ const defaultFormData: DynamoDBConnection = {
   region: '',
   accessKeyId: '',
   secretAccessKey: '',
+  tableName: '',
 };
 
 const formData = ref<DynamoDBConnection>(cloneDeep(defaultFormData));
@@ -131,6 +143,13 @@ const formRules = reactive({
     {
       required: true,
       message: lang.t('connection.formValidation.nameRequired'),
+      trigger: ['input', 'blur'],
+    },
+  ],
+  tableName: [
+    {
+      required: true,
+      message: lang.t('connection.formValidation.tableNameRequired'),
       trigger: ['input', 'blur'],
     },
   ],
@@ -176,6 +195,7 @@ const closeModal = () => {
 const validationPassed = computed(() => {
   return (
     formData.value.name &&
+    formData.value.tableName &&
     formData.value.region &&
     formData.value.accessKeyId &&
     formData.value.secretAccessKey
@@ -185,7 +205,7 @@ const validationPassed = computed(() => {
 const testConnect = async () => {
   try {
     testLoading.value = true;
-    await connectionStore.testDynamoDBConnection(formData.value);
+    await testConnection(formData.value);
     message.success(lang.t('connection.testSuccess'));
   } catch (error) {
     if (error instanceof Error) {

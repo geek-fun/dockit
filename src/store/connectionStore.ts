@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
-import { buildAuthHeader, buildURL, pureObject } from '../common';
+import { buildAuthHeader, buildURL, CustomError, pureObject } from '../common';
 import { SearchAction, transformToCurl } from '../common/monaco';
-import { loadHttpClient, storeApi } from '../datasources';
+import { loadHttpClient, storeApi, dynamoApi } from '../datasources';
 
 export enum DatabaseType {
   ELASTICSEARCH = 'ELASTICSEARCH',
@@ -19,6 +19,7 @@ export type DynamoDBConnection = BaseConnection & {
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
+  tableName: string;
 };
 
 export type Connection = ElasticsearchConnection | DynamoDBConnection;
@@ -65,12 +66,13 @@ const globalPathActions = [
   '_ingest',
   '_snapshot',
   '_tasks',
-  '_analyze'
+  '_analyze',
 ];
+
 const buildPath = (
   index: string | undefined,
   path: string | undefined,
-  connection: ElasticsearchConnection
+  connection: ElasticsearchConnection,
 ) => {
   // return user specified path if exists
   if (index) return `/${index}/${path}`;
@@ -92,19 +94,13 @@ export const useConnectionStore = defineStore('connectionStore', {
     connections: Connection[];
   } => {
     return {
-      connections: []
+      connections: [],
     };
   },
   getters: {
-    // establishedIndexNames(state) {
-    //   return state.established?.indices.map(({ index }) => index) ?? [];
-    // },
-    // establishedIndexOptions(state) {
-    //   return state.established?.indices.map(({ index }) => ({ label: index, value: index })) ?? [];
-    // },
     connectionOptions(state) {
       return state.connections.map(({ name }) => ({ label: name, value: name }));
-    }
+    },
   },
   actions: {
     async fetchConnections() {
@@ -112,7 +108,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         const fetchedConnections = (await storeApi.get('connections', [])) as Connection[];
         this.connections = fetchedConnections.map(connection => ({
           ...connection,
-          type: connection.type?.toUpperCase() ?? DatabaseType.ELASTICSEARCH
+          type: connection.type?.toUpperCase() ?? DatabaseType.ELASTICSEARCH,
         })) as Connection[];
       } catch (error) {
         console.error('Error fetching connections:', error);
@@ -120,19 +116,25 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
     },
     async testConnection(con: Connection) {
-      if (con.type !== DatabaseType.ELASTICSEARCH) {
-        throw new Error('Unsupported connection type');
-      }
-      const client = loadHttpClient(con);
+      if (con.type === DatabaseType.DYNAMODB) {
+        return await dynamoApi.describeTable(con);
+      } else if (con.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(con);
 
-      return await client.get(con.activeIndex?.index, 'format=json');
+        return await client.get(con.activeIndex?.index, 'format=json');
+      }
+
+      throw new CustomError(
+        400,
+        'Connection test failed Connection test failed. Please check your connection settings.',
+      );
     },
     async saveConnection(connection: Connection): Promise<{ success: boolean; message: string }> {
       try {
         const newConnection = {
           ...connection,
           type: 'host' in connection ? DatabaseType.ELASTICSEARCH : DatabaseType.DYNAMODB,
-          id: connection.id || this.connections.length + 1
+          id: connection.id || this.connections.length + 1,
         } as Connection;
 
         if (connection.id) {
@@ -150,7 +152,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         console.error('Error saving connection:', error);
         return {
           success: false,
-          message: error instanceof Error ? error.message : 'Unknown error'
+          message: error instanceof Error ? error.message : 'Unknown error',
         };
       }
     },
@@ -183,36 +185,43 @@ export const useConnectionStore = defineStore('connectionStore', {
         ...index,
         docs: {
           count: parseInt(index['docs.count'], 10),
-          deleted: parseInt(index['docs.deleted'], 10)
+          deleted: parseInt(index['docs.deleted'], 10),
         },
-        store: { size: index['store.size'] }
+        store: { size: index['store.size'] },
       })) as ConnectionIndex[];
     },
     async selectIndex(con: Connection, indexName: string) {
-      const connection = this.connections.find(({ id }) => id === con.id) as ElasticsearchConnection;
+      const connection = this.connections.find(
+        ({ id }) => id === con.id,
+      ) as ElasticsearchConnection;
       const client = loadHttpClient(connection);
 
       // get the index mapping
       const mapping = await client.get(`/${indexName}/_mapping`, 'format=json');
       const activeIndex = connection.indices.find(
-        ({ index }: { index: string }) => index === indexName
+        ({ index }: { index: string }) => index === indexName,
       );
       connection.activeIndex = { ...activeIndex, mapping } as ConnectionIndex;
     },
-    async searchQDSL(con: Connection, {
-      method,
-      path,
-      index,
-      qdsl,
-      queryParams
-    }: {
-      method: string;
-      path: string;
-      queryParams?: string;
-      index?: string;
-      qdsl?: string;
-    }) {
-      const connection = this.connections.find(({ id }) => id === con.id) as ElasticsearchConnection;
+    async searchQDSL(
+      con: Connection,
+      {
+        method,
+        path,
+        index,
+        qdsl,
+        queryParams,
+      }: {
+        method: string;
+        path: string;
+        queryParams?: string;
+        index?: string;
+        qdsl?: string;
+      },
+    ) {
+      const connection = this.connections.find(
+        ({ id }) => id === con.id,
+      ) as ElasticsearchConnection;
       if (!connection) throw new Error('no connection established');
       if (connection.type !== DatabaseType.ELASTICSEARCH) {
         throw new Error('Operation only supported for Elasticsearch connections');
@@ -240,7 +249,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         PUT: async () => client.put(reqPath, queryParams, qdsl),
         DELETE: async () => client.delete(reqPath, queryParams, qdsl),
         GET: async () =>
-          qdsl ? client.post(reqPath, queryParams, qdsl) : client.get(reqPath, queryParams)
+          qdsl ? client.post(reqPath, queryParams, qdsl) : client.get(reqPath, queryParams),
       };
       return dispatch[method]();
     },
@@ -253,33 +262,16 @@ export const useConnectionStore = defineStore('connectionStore', {
         port: 9200,
         username: undefined,
         password: undefined,
-        sslCertVerification: false
+        sslCertVerification: false,
       };
       const url = buildURL(host, port, buildPath(index, path, connection), queryParams);
 
       const headers = {
         ...buildAuthHeader(username, password),
-        ...(qdsl ? { 'Content-Type': 'application/json' } : {})
+        ...(qdsl ? { 'Content-Type': 'application/json' } : {}),
       };
 
       return transformToCurl({ method, headers, url, ssl: sslCertVerification, qdsl });
     },
-    async testDynamoDBConnection(connection: DynamoDBConnection) {
-      // test later, should send request to rust backend
-      console.log('test connect to ', connection.type);
-      return undefined;
-    },
-    validateConnection(connection: Connection): boolean {
-      if (connection.type === DatabaseType.ELASTICSEARCH) {
-        return !!(
-          connection.host &&
-          connection.port &&
-          typeof connection.sslCertVerification === 'boolean'
-        );
-      } else if (connection.type === DatabaseType.DYNAMODB) {
-        return !!(connection.region && connection.accessKeyId && connection.secretAccessKey);
-      }
-      return false;
-    }
-  }
+  },
 });

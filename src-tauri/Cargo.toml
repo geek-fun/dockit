@@ -28,6 +28,8 @@ tokio = { version = "1", features = ["full"] }
 http = "0.2.12"
 log = "0.4.22"
 futures = "0.3.30"
+aws-config = "1.6.1"
+aws-sdk-dynamodb = "1.71.2"
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]

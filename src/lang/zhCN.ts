@@ -136,11 +136,13 @@ export const zhCN = {
     edit: '编辑配置',
     selectDatabase: '请选择数据库类型',
     region: '区域',
+    tableName: '表名',
     accessKeyId: 'Access Key ID',
     secretAccessKey: 'Secret Access Key',
     selectRegion: '请选择区域',
     formValidation: {
       nameRequired: '请输入连接名称',
+      tableNameRequired: '请输入表名',
       hostRequired: '请输入主机地址',
       portRequired: '请输入端口号',
       sslCertOnlyHttps: 'SSL 证书验证只能在 HTTPS 连接下开启',
