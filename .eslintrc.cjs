@@ -40,5 +40,5 @@ module.exports = {
     'no-console': 'error',
     'no-debugger': process.env === 'development' ? 'warn' : 'error',
   },
-  ignorePatterns: ['dist', 'src-tauri', 'coverage/**'],
+  ignores: ['node_modules', 'dist', 'index.html', 'src-tauri/target', 'coverage'],
 };
