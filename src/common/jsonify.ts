@@ -1,6 +1,5 @@
 import JSON5 from 'json5';
 import { JSONParse, JSONStringify } from 'json-with-bigint';
-
 import { get } from 'lodash';
 
 type Replacer = null | Array<number | string> | ((this: any, key: string, value: any) => any);
@@ -55,4 +54,14 @@ export const string5 = (value: any, replacer?: Replacer, space?: string | number
 export const parse5 = (text: string, reviver?: (this: any, key: string, value: any) => any) =>
   JSON5.parse(bigIntStringify(text), (key, value: string) => bigIntReviver(reviver, key, value));
 
-export const jsonify = { stringify: JSONStringify, parse: JSONParse, parse5, string5 };
+export const jsonify = {
+  stringify: JSONStringify,
+  parse: JSONParse,
+  parse5,
+  string5,
+} as unknown as {
+  stringify: typeof JSON.stringify;
+  parse: typeof JSON.parse;
+  parse5: typeof JSON5.parse;
+  string5: typeof JSON5.stringify;
+};

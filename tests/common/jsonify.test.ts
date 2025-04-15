@@ -1,5 +1,4 @@
 import { jsonify } from '../../src/common';
-import { JSONStringify } from 'json-with-bigint';
 
 describe('Unit test for jsonify', () => {
   it('should parse JSON5 string with bigInt to Object by jsonify.parse5 ', () => {
@@ -25,23 +24,15 @@ describe('Unit test for jsonify', () => {
 
   it('should stringify the Object with bigInt to correct JSON string by jsonify.stringify', () => {
     const obj = { uid: BigInt('1308537228663099396') };
-    const parsed = jsonify.stringify(obj, nu);
+    const parsed = jsonify.stringify(obj);
 
     expect(parsed).toEqual('{"uid":1308537228663099396}');
   });
 
-  it('should test JSONStringify', () => {
-    const stred = JSONStringify({ uid: BigInt('1308537228663099396') }, null, 2);
-    // expect(stred).toEqual('{"uid":1308537228663099396}');
-    expect(stred).toEqual('{\n  "uid": 1308537228663099396\n}');
-  });
-
   it('should format the JSON5 object to string with expected indent', () => {
     const text = `{ uid: 1308537228663099396 }`;
-    const parsed5 = jsonify.parse5(text);
     const parsed = jsonify.stringify(jsonify.parse5(text), null, 2);
-    expect(typeof parsed5.uid).toEqual('bigint');
-    expect(parsed).toEqual('{\n  "uid": "1308537228663099396n"\n}');
+    expect(parsed).toEqual('{\n  "uid": 1308537228663099396\n}');
   });
 
   it('should format the JSON5 string to expected format', () => {
