@@ -117,7 +117,12 @@
 import { FormRules } from 'naive-ui';
 import { DocumentExport, FolderDetails, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { BackupInput, ElasticsearchConnection, useBackupRestoreStore, useConnectionStore } from '../../../store';
+import {
+  BackupInput,
+  ElasticsearchConnection,
+  useBackupRestoreStore,
+  useConnectionStore,
+} from '../../../store';
 import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 
@@ -200,7 +205,10 @@ watch(connection, () => {
     return;
   }
   indexOptions.value =
-    (connection.value as ElasticsearchConnection)?.indices.map(({ index }) => ({ label: index, value: index })) ?? [];
+    (connection.value as ElasticsearchConnection)?.indices.map(index => ({
+      label: (index as { index: string }).index,
+      value: (index as { index: string }).index,
+    })) ?? [];
 });
 
 const loadingRefs = ref<{ connection: boolean; index: boolean }>({

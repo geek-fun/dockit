@@ -127,14 +127,14 @@ const regionOptions = [
   { label: 'Europe (Ireland)', value: 'eu-west-1' },
 ];
 
-const defaultFormData: DynamoDBConnection = {
+const defaultFormData = {
   name: '',
   type: DatabaseType.DYNAMODB,
   region: '',
   accessKeyId: '',
   secretAccessKey: '',
   tableName: '',
-};
+} as DynamoDBConnection;
 
 const formData = ref<DynamoDBConnection>(cloneDeep(defaultFormData));
 

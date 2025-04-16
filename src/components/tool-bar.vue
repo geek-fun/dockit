@@ -78,12 +78,7 @@
 <script setup lang="ts">
 import { AiStatus, Search, Code, Template } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import {
-  ElasticsearchConnection,
-  useClusterManageStore,
-  useConnectionStore,
-  useTabStore,
-} from '../store';
+import { useClusterManageStore, useConnectionStore, useTabStore } from '../store';
 import { useLang } from '../lang';
 import { CustomError, inputProps } from '../common';
 
@@ -101,7 +96,7 @@ const emits = defineEmits(['switch-manage-tab']);
 
 const tabStore = useTabStore();
 const { loadDefaultSnippet, selectConnection } = tabStore;
-const { activePanel } = storeToRefs(tabStore);
+const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
 const { connection } = storeToRefs(clusterManageStore);
@@ -121,9 +116,9 @@ const options = computed(
           ({ name }) => !filterRef.value.connection || name.includes(filterRef.value.connection),
         )
         .map(({ name }) => ({ label: name, value: name })),
-      index: (activePanel.value.connection as ElasticsearchConnection)?.indices
-        ?.filter(index => !filterRef.value.index || index.index.includes(filterRef.value.index))
-        .map(index => ({ label: index.index, value: index.index })),
+      index: activeElasticsearchIndexOption.value?.filter(
+        index => !filterRef.value.index || index.value.includes(filterRef.value.index),
+      ),
     }) as Record<string, { label: string; value: string }[]>,
 );
 

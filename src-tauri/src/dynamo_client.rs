@@ -63,27 +63,73 @@ pub async fn dynamo_api(
                 Ok(response) => {
                     // Create a custom serializable structure with the data we need
                     let table_info = json!({
-                        "TableName": response.table().map(|t| t.table_name()),
-                        "TableStatus": format!("{:?}", response.table().and_then(|t| t.table_status())),
-                        "ItemCount": response.table().and_then(|t| t.item_count()),
-                        "TableSizeBytes": response.table().and_then(|t| t.table_size_bytes()),
-                        "KeySchema": response.table().and_then(|t| {
+                        "id": response.table().and_then(|t| t.table_id()),
+                        "name": response.table().map(|t| t.table_name()),
+                        "status": response.table().and_then(|t| t.table_status().map(|s| s.as_str().to_string())),                        "itemCount": response.table().and_then(|t| t.item_count()),
+                        "sizeBytes": response.table().and_then(|t| t.table_size_bytes()),
+                        "schema": response.table().and_then(|t| {
                             Some(t.key_schema().iter().map(|k| {
                                 json!({
-                                    "AttributeName": k.attribute_name(),
-                                    "KeyType": format!("{:?}", k.key_type())
+                                    "attributeName": k.attribute_name(),
+                                    "keyType": format!("{:?}", k.key_type())
                                 })
                             }).collect::<Vec<_>>())
                         }),
-                        "AttributeDefinitions": response.table().and_then(|t| {
+                        "attributeDefinitions": response.table().and_then(|t| {
                             Some(t.attribute_definitions().iter().map(|a| {
                                 json!({
-                                    "AttributeName": a.attribute_name(),
-                                    "AttributeType": format!("{:?}", a.attribute_type())
+                                    "attributeName": a.attribute_name(),
+                                    "attributeType": format!("{:?}", a.attribute_type())
                                 })
                             }).collect::<Vec<_>>())
                         }),
-                         "CreationDateTime": response.table().and_then(|t|
+                        "indices": response.table().map(|t| {
+                            let mut indices = Vec::new();
+
+                            // Add Global Secondary Indexes
+                            let gsi_list = t.global_secondary_indexes();
+                            if !gsi_list.is_empty() {
+                                for gsi in gsi_list {
+                                    let index_info = json!({
+                                        "type": "GSI",
+                                        "name": gsi.index_name(),
+                                        "status": gsi.index_status().map(|s| s.as_str().to_string()),
+                                        "keySchema": gsi.key_schema().iter().map(|k| {
+                                            json!({
+                                                "attributeName": k.attribute_name(),
+                                                "keyType": format!("{:?}", k.key_type())
+                                            })
+                                        }).collect::<Vec<_>>(),
+                                        "provisionedThroughput": gsi.provisioned_throughput().map(|pt| json!({
+                                            "readCapacityUnits": pt.read_capacity_units(),
+                                            "writeCapacityUnits": pt.write_capacity_units()
+                                        }))
+                                    });
+                                    indices.push(index_info);
+                                }
+                            }
+
+                            // Add Local Secondary Indexes
+                            let lsi_list = t.local_secondary_indexes();
+                            if !lsi_list.is_empty() {
+                                for lsi in lsi_list {
+                                    let index_info = json!({
+                                        "type": "LSI",
+                                        "name": lsi.index_name(),
+                                        "keySchema": lsi.key_schema().iter().map(|k| {
+                                            json!({
+                                                "attributeName": k.attribute_name(),
+                                                "keyType": format!("{:?}", k.key_type())
+                                            })
+                                        }).collect::<Vec<_>>()
+                                    });
+                                    indices.push(index_info);
+                                }
+                            }
+
+                            indices
+                        }),
+                         "creationDateTime": response.table().and_then(|t|
                                 t.creation_date_time().map(|dt| dt.to_string())),
                     });
 

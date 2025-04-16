@@ -8,10 +8,49 @@ export enum DatabaseType {
   DYNAMODB = 'DYNAMODB',
 }
 
+export enum DynamoIndexType {
+  GSI = 'GSI',
+  LSI = 'LSI',
+}
+
+type DynamoIndex = {
+  name: string;
+  type: DynamoIndexType;
+  status: string;
+  keySchema: Array<{ attributeName: string; keyType: string }>;
+
+  provisionedThroughput?: {
+    readCapacityUnits: number;
+    writeCapacityUnits: number;
+  };
+};
+type ElasticSearchIndex = {
+  health: string;
+  status: string;
+  index: string;
+  uuid: string;
+  docs: {
+    count: number;
+    deleted: number;
+  };
+  mapping: { [key: string]: unknown };
+  store: {
+    size: string;
+  };
+  pri: {
+    store: {
+      size: string;
+    };
+  };
+};
+
+export type ConnectionIndex = DynamoIndex | ElasticSearchIndex;
+
 export type BaseConnection = {
   id?: number;
   name: string;
   type: DatabaseType;
+  indices: Array<ConnectionIndex>;
 };
 
 export type DynamoDBConnection = BaseConnection & {
@@ -32,28 +71,7 @@ export type ElasticsearchConnection = BaseConnection & {
   sslCertVerification: boolean;
   password?: string;
   queryParameters?: string;
-  indices: Array<ConnectionIndex>;
-  activeIndex: ConnectionIndex | undefined;
-};
-
-export type ConnectionIndex = {
-  health: string;
-  status: string;
-  index: string;
-  uuid: string;
-  docs: {
-    count: number;
-    deleted: number;
-  };
-  mapping: { [key: string]: unknown };
-  store: {
-    size: string;
-  };
-  pri: {
-    store: {
-      size: string;
-    };
-  };
+  activeIndex: ElasticSearchIndex | undefined;
 };
 
 const globalPathActions = [
@@ -174,7 +192,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     async fetchIndices(con: Connection) {
       const connection = this.connections.find(({ id }) => id === con.id);
       if (!connection) throw new Error('no connection established');
-      let indices: ConnectionIndex[] = [];
+      let indices: Array<ConnectionIndex> = [];
       if (connection.type === DatabaseType.ELASTICSEARCH) {
         const client = loadHttpClient(connection);
         const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
@@ -187,12 +205,13 @@ export const useConnectionStore = defineStore('connectionStore', {
             deleted: parseInt(index['docs.deleted'], 10),
           },
           store: { size: index['store.size'] },
-        })) as ConnectionIndex[];
+        })) as ElasticSearchIndex[];
       }
-      if (connection.type !== DatabaseType.ELASTICSEARCH) {
-        throw new Error('Operation only supported for Elasticsearch connections');
+      if (connection.type === DatabaseType.DYNAMODB) {
+        const tableInfo = await dynamoApi.describeTable(con as DynamoDBConnection);
+        indices = tableInfo.indices as DynamoIndex[];
       }
-      connection.indices = indices;
+      connection.indices = indices as Array<ConnectionIndex>;
     },
     async selectIndex(con: Connection, indexName: string) {
       const connection = this.connections.find(
@@ -202,10 +221,10 @@ export const useConnectionStore = defineStore('connectionStore', {
 
       // get the index mapping
       const mapping = await client.get(`/${indexName}/_mapping`, 'format=json');
-      const activeIndex = connection.indices.find(
+      const activeIndex = (connection.indices as ElasticSearchIndex[]).find(
         ({ index }: { index: string }) => index === indexName,
       );
-      connection.activeIndex = { ...activeIndex, mapping } as ConnectionIndex;
+      connection.activeIndex = { ...activeIndex, mapping } as ElasticSearchIndex;
     },
     async searchQDSL(
       con: Connection,
@@ -234,9 +253,10 @@ export const useConnectionStore = defineStore('connectionStore', {
       // refresh the index mapping
       try {
         if (index && index !== connection.activeIndex?.index) {
-          const newIndex = connection.indices.find(
-            ({ index: indexName }: ConnectionIndex) => indexName === index,
-          );
+          const newIndex = (connection.indices as ElasticSearchIndex[]).find(
+            ({ index: indexName }) => indexName === index,
+          ) as ElasticSearchIndex;
+
           if (newIndex) {
             if (!newIndex.mapping) {
               newIndex.mapping = await client.get(`/${index}/_mapping`, 'format=json');

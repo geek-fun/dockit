@@ -1,4 +1,4 @@
-import { Connection, useConnectionStore } from './connectionStore.ts';
+import { Connection, DatabaseType, useConnectionStore } from './connectionStore.ts';
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
@@ -23,6 +23,20 @@ export const useTabStore = defineStore('panel', {
   }),
   getters: {
     activeConnection: state => state.activePanel.connection,
+    activeDynamoIndexOrTableOption: state =>
+      state.activePanel?.connection?.type === DatabaseType.DYNAMODB
+        ? state.activePanel.connection.indices.map(index => ({
+            label: (index as { name: string }).name,
+            value: (index as { name: string }).name,
+          }))
+        : [],
+    activeElasticsearchIndexOption: state =>
+      state.activePanel?.connection?.type === DatabaseType.ELASTICSEARCH
+        ? state.activePanel.connection.indices.map(index => ({
+            label: (index as { index: string }).index,
+            value: (index as { index: string }).index,
+          }))
+        : [],
   },
   actions: {
     async establishPanel(connectionOrFile: Connection | string): Promise<void> {

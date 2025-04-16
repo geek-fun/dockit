@@ -19,31 +19,26 @@
                 remote
                 :loading="loadingRef.index"
                 @update:show="handleIndexOpen"
-                :options="generalOptions"
+                :options="activeDynamoIndexOrTableOption"
               />
             </n-form-item>
             <n-form-item label="Partition Key" path="partitionKey">
-              <n-select
+              <n-input
                 v-model:value="dynamoQueryForm.partitionKey"
                 placeholder="Enter Partition Key Value"
-                :options="generalOptions"
               />
             </n-form-item>
           </n-grid-item>
           <n-grid-item span="11">
             <n-form-item label="Sort Key" path="sortKey">
-              <n-select
-                v-model:value="dynamoQueryForm.sortKey"
-                placeholder="Select"
-                :options="generalOptions"
-              />
+              <n-input v-model:value="dynamoQueryForm.sortKey" placeholder="Enter Sort Key Value" />
             </n-form-item>
           </n-grid-item>
           <n-grid-item span="2" style="display: flex; align-items: center; justify-content: center">
             <n-button quaternary circle @click="addFormItem">
               <template #icon>
                 <n-icon>
-                  <plus-icon />
+                  <plus-outlined />
                 </n-icon>
               </template>
             </n-button>
@@ -75,7 +70,7 @@
             <n-button quaternary circle @click="addFormItem">
               <template #icon>
                 <n-icon>
-                  <plus-icon />
+                  <plus-outlined />
                 </n-icon>
               </template>
             </n-button>
@@ -87,23 +82,13 @@
 </template>
 
 <script setup lang="ts">
+import { storeToRefs } from 'pinia';
+import { PlusOutlined } from '@vicons/antd';
 import ToolBar from '../../../components/tool-bar.vue';
-import { PlusOutlined as PlusIcon } from '@vicons/antd';
+import { useTabStore } from '../../../store';
 
-const generalOptions = ref([
-  {
-    label: 'String',
-    value: 'string',
-  },
-  {
-    label: 'Number',
-    value: 'number',
-  },
-  {
-    label: 'Boolean',
-    value: 'boolean',
-  },
-]);
+const tabStore = useTabStore();
+const { activeDynamoIndexOrTableOption } = storeToRefs(tabStore);
 
 const filterConditions = ref([
   {
