@@ -174,21 +174,25 @@ export const useConnectionStore = defineStore('connectionStore', {
     async fetchIndices(con: Connection) {
       const connection = this.connections.find(({ id }) => id === con.id);
       if (!connection) throw new Error('no connection established');
+      let indices: ConnectionIndex[] = [];
+      if (connection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient(connection);
+        const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+          [key: string]: string;
+        }>;
+        indices = data.map((index: { [key: string]: string }) => ({
+          ...index,
+          docs: {
+            count: parseInt(index['docs.count'], 10),
+            deleted: parseInt(index['docs.deleted'], 10),
+          },
+          store: { size: index['store.size'] },
+        })) as ConnectionIndex[];
+      }
       if (connection.type !== DatabaseType.ELASTICSEARCH) {
         throw new Error('Operation only supported for Elasticsearch connections');
       }
-      const client = loadHttpClient(connection);
-      const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
-        [key: string]: string;
-      }>;
-      connection.indices = data.map((index: { [key: string]: string }) => ({
-        ...index,
-        docs: {
-          count: parseInt(index['docs.count'], 10),
-          deleted: parseInt(index['docs.deleted'], 10),
-        },
-        store: { size: index['store.size'] },
-      })) as ConnectionIndex[];
+      connection.indices = indices;
     },
     async selectIndex(con: Connection, indexName: string) {
       const connection = this.connections.find(

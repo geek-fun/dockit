@@ -17,7 +17,7 @@
       </template>
     </n-select>
     <n-select
-      v-if="props.type === 'EDITOR'"
+      v-if="props.type === 'ES_EDITOR'"
       :options="options.index"
       :placeholder="$t('connection.selectIndex')"
       :input-props="inputProps"
@@ -33,7 +33,7 @@
         <Search />
       </template>
     </n-select>
-    <n-tooltip v-if="props.type === 'EDITOR'" trigger="hover">
+    <n-tooltip v-if="props.type === 'ES_EDITOR'" trigger="hover">
       <template #trigger>
         <n-icon size="20" class="action-load-icon" @click="loadDefaultSnippet">
           <AiStatus />
@@ -41,6 +41,24 @@
       </template>
       {{ $t('editor.loadDefault') }}
     </n-tooltip>
+    <n-button-group v-if="props.type === 'DYNAMO_EDITOR'">
+      <n-button quaternary>
+        <template #icon>
+          <n-icon>
+            <Template />
+          </n-icon>
+        </template>
+        UI Query
+      </n-button>
+      <n-button quaternary>
+        <template #icon>
+          <n-icon>
+            <Code />
+          </n-icon>
+        </template>
+        Code Editor
+      </n-button>
+    </n-button-group>
     <n-tabs
       v-if="props.type === 'MANAGE'"
       class="manage-container"
@@ -58,9 +76,14 @@
 </template>
 
 <script setup lang="ts">
-import { AiStatus, Search } from '@vicons/carbon';
+import { AiStatus, Search, Code, Template } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { ElasticsearchConnection, useClusterManageStore, useConnectionStore, useTabStore } from '../store';
+import {
+  ElasticsearchConnection,
+  useClusterManageStore,
+  useConnectionStore,
+  useTabStore,
+} from '../store';
 import { useLang } from '../lang';
 import { CustomError, inputProps } from '../common';
 
@@ -77,7 +100,7 @@ const props = defineProps({
 const emits = defineEmits(['switch-manage-tab']);
 
 const tabStore = useTabStore();
-const { loadDefaultSnippet,selectConnection } = tabStore;
+const { loadDefaultSnippet, selectConnection } = tabStore;
 const { activePanel } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
@@ -98,7 +121,8 @@ const options = computed(
           ({ name }) => !filterRef.value.connection || name.includes(filterRef.value.connection),
         )
         .map(({ name }) => ({ label: name, value: name })),
-      index: (activePanel.value.connection as ElasticsearchConnection)?.indices?.filter(index => !filterRef.value.index || index.index.includes(filterRef.value.index))
+      index: (activePanel.value.connection as ElasticsearchConnection)?.indices
+        ?.filter(index => !filterRef.value.index || index.index.includes(filterRef.value.index))
         .map(index => ({ label: index.index, value: index.index })),
     }) as Record<string, { label: string; value: string }[]>,
 );
@@ -117,8 +141,9 @@ const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX') => {
     await fetchConnections();
     loadingRef.value.connection = false;
   } else {
-
-    let selectedConnection = props.type === 'EDITOR' ? activePanel.value.connection : connection.value;
+    let selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
+      ? activePanel.value.connection
+      : connection.value;
     if (!selectedConnection) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
@@ -148,7 +173,9 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
       return;
     }
     try {
-      props.type === 'EDITOR' ? (await selectConnection(con)) : connection.value = con;
+      ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
+        ? await selectConnection(con)
+        : (connection.value = con);
     } catch (err) {
       const error = err as CustomError;
       message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -158,7 +185,9 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
       });
     }
   } else {
-    const selectedConnection = props.type === 'EDITOR' ? activePanel.value.connection : connection.value;
+    const selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
+      ? activePanel.value.connection
+      : connection.value;
     if (!selectedConnection) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
