@@ -20,6 +20,7 @@ export type DynamoIndexOrTableOption = {
   partitionKeyName: string;
   sortKeyName?: string;
 };
+
 export const useTabStore = defineStore('panel', {
   state: () => ({
     activePanel: homePanel,

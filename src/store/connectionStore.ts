@@ -128,7 +128,7 @@ export const useConnectionStore = defineStore('connectionStore', {
           const { partitionKeyName, sortKeyName } = getIndexInfo(index.keySchema);
 
           return {
-            label: `GSI - index ${index.name}`,
+            label: `GSI - ${index.name}`,
             value: index.name,
             partitionKeyName,
             sortKeyName,
