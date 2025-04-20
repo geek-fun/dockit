@@ -326,7 +326,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async queryTable(con: DynamoDBConnection, queryParams: QueryParams) {
       try {
-        await dynamoApi.queryTable(con, queryParams);
+        return await dynamoApi.queryTable(con, queryParams);
       } catch (err) {
         console.error('Error querying table:', err);
         throw new CustomError(

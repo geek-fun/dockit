@@ -46,11 +46,9 @@ export const tauriClient = {
   ): Promise<ApiClientResponse> => {
     try {
       const result = await invoke<string>('dynamo_api', { credentials, options });
-      console.log('invokeDynamoApi result:', result);
       const { status, message, data } = jsonify.parse(result) as ApiClientResponse;
       return { status, message, data };
     } catch (err) {
-      console.error('invokeDynamoApi error:', err);
       const { status, message, data } = jsonify.parse(err as string) as ApiClientResponse;
       throw new ApiClientError(status, message, jsonify.stringify(data));
     }

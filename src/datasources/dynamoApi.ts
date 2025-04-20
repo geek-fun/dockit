@@ -58,6 +58,13 @@ export type QueryParams = {
   }>;
 };
 
+export type QueryResult = {
+  items: Record<string, any>[]; // Dynamic items from DynamoDB
+  count: number; // Number of items returned
+  scanned_count: number; // Number of items scanned
+  last_evaluated_key: Record<string, any> | null; // Pagination token
+};
+
 const dynamoApi = {
   describeTable: async ({
     region,
@@ -78,7 +85,7 @@ const dynamoApi = {
     }
     return data as DynamoDBTableInfo;
   },
-  queryTable: async (con: DynamoDBConnection, queryParams: QueryParams) => {
+  queryTable: async (con: DynamoDBConnection, queryParams: QueryParams): Promise<QueryResult> => {
     const credentials = {
       region: con.region,
       access_key_id: con.accessKeyId,
@@ -104,7 +111,7 @@ const dynamoApi = {
       throw new Error(`Error: ${message}`);
     }
 
-    return data;
+    return data as QueryResult;
   },
   scanTable: async (con: DynamoDBConnection, queryParams: QueryParams) => {
     const credentials = {

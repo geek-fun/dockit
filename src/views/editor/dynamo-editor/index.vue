@@ -112,6 +112,9 @@
         </n-form-item>
       </n-form>
     </n-card>
+    <n-card title="Query Result" v-if="queryResult.data">
+      <n-data-table :columns="queryResult.columns" :data="queryResult.data" />
+    </n-card>
   </div>
 </template>
 
@@ -119,7 +122,7 @@
 import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
 import ToolBar from '../../../components/tool-bar.vue';
-import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
+import { FormRules, FormValidationError } from 'naive-ui';
 import {
   Connection,
   DynamoDBConnection,
@@ -254,6 +257,14 @@ const dynamoQueryFormRules = reactive<FormRules>({
   // ],
 });
 
+const queryResult = ref<{
+  columns: Array<{ title: string; key: string }>;
+  data: Array<Record<string, unknown>> | undefined;
+}>({
+  columns: [],
+  data: undefined,
+});
+
 const addFilterItem = () => {
   dynamoQueryForm.value.formFilterItems.push({ key: '', value: '', operator: '' });
 };
@@ -269,7 +280,7 @@ const selectedIndexOrTable = ref<DynamoIndexOrTableOption | undefined>(undefined
 const handleUpdate = (value: string) => {
   const indices = getDynamoIndexOrTableOption.value(activeConnection.value as DynamoDBConnection);
   selectedIndexOrTable.value = indices.find(item => item.value === value);
-  dynamoQueryForm.value.index = selectedIndexOrTable.value.value;
+  dynamoQueryForm.value.index = selectedIndexOrTable.value!.value;
 };
 
 const getLabel = (label: string) => {
@@ -328,7 +339,8 @@ const handleSubmit = async (event: MouseEvent) => {
     try {
       const { tableName } = activeConnection.value as DynamoDBConnection;
       const { partitionKey, sortKey, formFilterItems } = dynamoQueryForm.value;
-      const { partitionKeyName, sortKeyName, value } = selectedIndexOrTable.value;
+      const { partitionKeyName, sortKeyName, value } =
+        selectedIndexOrTable.value as DynamoIndexOrTableOption;
       // Build query parameters
       const queryParams = {
         tableName,
@@ -341,7 +353,24 @@ const handleSubmit = async (event: MouseEvent) => {
       console.log('query params: ', queryParams);
 
       const data = await queryTable(activeConnection.value as DynamoDBConnection, queryParams);
-      console.log('query data: ', data);
+
+      const columnsSet = new Set<string>();
+      data.items.forEach(item => {
+        Object.keys(item).forEach(key => {
+          columnsSet.add(key);
+        });
+      });
+      const columnsData = data.items.map(item => {
+        const row: Record<string, unknown> = {};
+        columnsSet.forEach(key => {
+          row[key] = item[key];
+        });
+        return row;
+      });
+      queryResult.value = {
+        columns: Array.from(columnsSet).map(key => ({ title: key, key })),
+        data: columnsData,
+      };
     } catch (error) {
       console.error('Error executing query:', error);
       message.error(`status: ${(error as Error).name}, details: ${(error as Error).message}`, {
@@ -358,12 +387,9 @@ const handleReset = () => {
 
   selectedIndexOrTable.value = undefined;
 
-  // Reset form validation state
   if (dynamoQueryFormRef.value) {
     dynamoQueryFormRef.value.restoreValidation();
   }
-
-  window.$message.info('Form reset');
 };
 </script>
 
