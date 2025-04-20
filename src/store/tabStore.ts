@@ -1,9 +1,4 @@
-import {
-  Connection,
-  DatabaseType,
-  DynamoDBConnection,
-  useConnectionStore,
-} from './connectionStore.ts';
+import { Connection, DatabaseType, useConnectionStore } from './connectionStore.ts';
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
@@ -19,7 +14,7 @@ type Panel = {
 };
 
 const homePanel: Panel = { id: 0, name: 'home', file: '' };
-export type ActiveDynamoIndexOrTableOption = {
+export type DynamoIndexOrTableOption = {
   label: string;
   value: string;
   partitionKeyName: string;
@@ -33,38 +28,6 @@ export const useTabStore = defineStore('panel', {
   }),
   getters: {
     activeConnection: state => state.activePanel.connection,
-    activeDynamoIndexOrTableOption: (state): Array<ActiveDynamoIndexOrTableOption> => {
-      const { connection } = state.activePanel;
-      console.log('activeDynamoIndexOrTableOption trigger,', connection);
-      if (!connection || connection.type !== DatabaseType.DYNAMODB || !connection.keySchema)
-        return [];
-      const keySchema = (connection as DynamoDBConnection)?.keySchema;
-      const partitionKeyName = keySchema.find(({ keyType }) => keyType === 'HASH')?.attributeName;
-      const sortKeyName = keySchema.find(({ keyType }) => keyType === 'RANGE')?.attributeName;
-      const partitionKeyOption = partitionKeyName && {
-        label: partitionKeyName,
-        value: partitionKeyName,
-        partitionKeyName,
-        sortKeyName,
-      };
-
-      const indexOptions = connection.indices?.map(index => {
-        // @ts-ignore
-        const partitionKeyName = index.keySchema?.find(
-          ({ keyType }: { keyType: string }) => keyType === 'HASH',
-        )?.attributeName;
-        // @ts-ignore
-        const sortKeyName = index.keySchema?.find(
-          ({ keyType }: { keyType: string }) => keyType === 'RANGE',
-        )?.attributeName;
-
-        return { label: index.name, value: index.name, partitionKeyName, sortKeyName };
-      });
-
-      return [partitionKeyOption, ...indexOptions].filter(
-        Boolean,
-      ) as Array<ActiveDynamoIndexOrTableOption>;
-    },
     activeElasticsearchIndexOption: state =>
       state.activePanel?.connection?.type === DatabaseType.ELASTICSEARCH
         ? state.activePanel.connection.indices?.map(index => ({

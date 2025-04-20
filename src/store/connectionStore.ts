@@ -1,29 +1,13 @@
 import { defineStore } from 'pinia';
 import { buildAuthHeader, buildURL, CustomError, pureObject } from '../common';
 import { SearchAction, transformToCurl } from '../common/monaco';
-import { loadHttpClient, storeApi, dynamoApi } from '../datasources';
+import { loadHttpClient, storeApi, dynamoApi, DynamoIndex, KeySchema } from '../datasources';
+import { DynamoIndexOrTableOption } from './tabStore.ts';
 
 export enum DatabaseType {
   ELASTICSEARCH = 'ELASTICSEARCH',
   DYNAMODB = 'DYNAMODB',
 }
-
-export enum DynamoIndexType {
-  GSI = 'GSI',
-  LSI = 'LSI',
-}
-
-type DynamoIndex = {
-  name: string;
-  type: DynamoIndexType;
-  status: string;
-  keySchema: Array<{ attributeName: string; keyType: string }>;
-
-  provisionedThroughput?: {
-    readCapacityUnits: number;
-    writeCapacityUnits: number;
-  };
-};
 
 type ElasticSearchIndex = {
   health: string;
@@ -45,8 +29,6 @@ type ElasticSearchIndex = {
   };
 };
 
-export type ConnectionIndex = DynamoIndex | ElasticSearchIndex;
-
 export type DynamoDBConnection = {
   id?: number;
   name: string;
@@ -56,7 +38,7 @@ export type DynamoDBConnection = {
   accessKeyId: string;
   secretAccessKey: string;
   tableName: string;
-  keySchema: Array<{ attributeName: string; keyType: string }>;
+  keySchema: Array<KeySchema>;
 };
 
 export type ElasticsearchConnection = {
@@ -108,6 +90,16 @@ const buildPath = (
   return selectedIndex ? `/${selectedIndex}/${path}` : `/${path}`;
 };
 
+const getIndexInfo = (keySchema: KeySchema[]) => {
+  const partitionKey = keySchema.find(({ keyType }) => keyType.toUpperCase() === 'HASH');
+  const sortKey = keySchema.find(({ keyType }) => keyType.toUpperCase() === 'RANGE');
+
+  return {
+    partitionKeyName: partitionKey?.attributeName || '',
+    sortKeyName: sortKey?.attributeName || undefined,
+  };
+};
+
 export const useConnectionStore = defineStore('connectionStore', {
   state: (): {
     connections: Connection[];
@@ -119,6 +111,34 @@ export const useConnectionStore = defineStore('connectionStore', {
   getters: {
     connectionOptions(state) {
       return state.connections.map(({ name }) => ({ label: name, value: name }));
+    },
+    getDynamoIndexOrTableOption: () => {
+      return (targetConnection?: DynamoDBConnection) => {
+        if (!targetConnection || targetConnection.type !== DatabaseType.DYNAMODB) return [];
+
+        const { partitionKeyName, sortKeyName } = getIndexInfo(targetConnection.keySchema);
+        const partitionKeyOption = partitionKeyName && {
+          label: `Table - ${targetConnection.tableName}`,
+          value: targetConnection.tableName,
+          partitionKeyName,
+          sortKeyName,
+        };
+
+        const indexOptions = targetConnection.indices?.map(index => {
+          const { partitionKeyName, sortKeyName } = getIndexInfo(index.keySchema);
+
+          return {
+            label: `GSI - index ${index.name}`,
+            value: index.name,
+            partitionKeyName,
+            sortKeyName,
+          };
+        });
+
+        return [partitionKeyOption, ...indexOptions].filter(
+          Boolean,
+        ) as Array<DynamoIndexOrTableOption>;
+      };
     },
   },
   actions: {
@@ -209,6 +229,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
       if (connection.type === DatabaseType.DYNAMODB) {
         const tableInfo = await dynamoApi.describeTable(con as DynamoDBConnection);
+        connection.keySchema = tableInfo.keySchema;
         connection.indices = tableInfo.indices as DynamoIndex[];
       }
     },

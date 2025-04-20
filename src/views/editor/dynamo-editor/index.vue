@@ -20,7 +20,7 @@
                 :default-value="dynamoQueryForm.index"
                 @update:show="handleIndexOpen"
                 @update:value="handleUpdate"
-                :options="activeDynamoIndexOrTableOption"
+                :options="indicesOrTableOptions"
               />
             </n-form-item>
             <n-form-item
@@ -95,8 +95,9 @@ import { storeToRefs } from 'pinia';
 import { PlusOutlined } from '@vicons/antd';
 import ToolBar from '../../../components/tool-bar.vue';
 import {
-  ActiveDynamoIndexOrTableOption,
   Connection,
+  DynamoDBConnection,
+  DynamoIndexOrTableOption,
   useConnectionStore,
   useTabStore,
 } from '../../../store';
@@ -104,9 +105,10 @@ import {
 const connectionStore = useConnectionStore();
 
 const { fetchIndices } = connectionStore;
+const { getDynamoIndexOrTableOption } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
-const { activeDynamoIndexOrTableOption, activeConnection } = storeToRefs(tabStore);
+const { activeConnection } = storeToRefs(tabStore);
 
 const filterConditions = ref([
   {
@@ -177,13 +179,15 @@ const addFormItem = () => {
   });
 };
 
-const selectedIndexOrTable = ref<ActiveDynamoIndexOrTableOption | undefined>(undefined);
+const indicesOrTableOptions = ref<Array<DynamoIndexOrTableOption>>([]);
+
+const selectedIndexOrTable = ref<DynamoIndexOrTableOption | undefined>(undefined);
 
 const handleUpdate = (value: string) => {
-  selectedIndexOrTable.value = activeDynamoIndexOrTableOption.value.find(
-    item => item.value === value,
-  ) as ActiveDynamoIndexOrTableOption;
+  const indices = getDynamoIndexOrTableOption.value(activeConnection.value as DynamoDBConnection);
+  selectedIndexOrTable.value = indices.find(item => item.value === value);
 };
+
 const getLabel = (label: string) => {
   if (!selectedIndexOrTable.value) {
     return label;
@@ -206,8 +210,9 @@ const handleIndexOpen = async (isOpen: boolean) => {
   loadingRef.value.index = true;
   try {
     await fetchIndices(activeConnection.value as Connection);
-
-    console.log('activeDynamoIndexOrTableOption', activeDynamoIndexOrTableOption.value);
+    indicesOrTableOptions.value = getDynamoIndexOrTableOption.value(
+      activeConnection.value as DynamoDBConnection,
+    );
   } catch (err) {
     console.error('Error fetching indices:', err);
   } finally {
