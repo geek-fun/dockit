@@ -40,6 +40,24 @@ export type DynamoDBTableInfo = {
   creationDateTime?: string;
 };
 
+export type QueryParams = {
+  tableName: string;
+  indexName: string;
+  partitionKey: {
+    name: string;
+    value: string;
+  };
+  sortKey?: {
+    name: string;
+    value: string;
+  };
+  filters: Array<{
+    key: string;
+    operator: string;
+    value: string;
+  }>;
+};
+
 const dynamoApi = {
   describeTable: async ({
     region,
@@ -59,6 +77,56 @@ const dynamoApi = {
       throw new Error(`Error: ${message}`);
     }
     return data as DynamoDBTableInfo;
+  },
+  queryTable: async (con: DynamoDBConnection, queryParams: QueryParams) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+
+    const options = {
+      table_name: queryParams.tableName,
+      operation: 'QUERY_TABLE',
+      payload: {
+        index_name:
+          queryParams.indexName === queryParams.tableName ? undefined : queryParams.indexName,
+        partition_key: queryParams.partitionKey,
+        sort_key: queryParams.sortKey,
+        filters: queryParams.filters,
+      },
+    };
+
+    const result = await tauriClient.invokeDynamoApi(credentials, options);
+    const { status, message, data } = result;
+
+    if (status !== 200) {
+      throw new Error(`Error: ${message}`);
+    }
+
+    return data;
+  },
+  scanTable: async (con: DynamoDBConnection, queryParams: QueryParams) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+
+    const options = {
+      table_name: queryParams.tableName,
+      operation: 'SCAN_TABLE',
+      payload: { filters: queryParams.filters },
+    };
+
+    const result = await tauriClient.invokeDynamoApi(credentials, options);
+    const { status, message, data } = result;
+
+    if (status !== 200) {
+      throw new Error(`Error: ${message}`);
+    }
+
+    return data;
   },
 };
 

@@ -160,14 +160,14 @@ import { cloneDeep } from 'lodash';
 import { CustomError, inputProps } from '../../../common';
 import {
   Connection,
-  DatabaseType, ElasticsearchConnection,
-  useConnectionStore
+  DatabaseType,
+  ElasticsearchConnection,
+  useConnectionStore,
 } from '../../../store';
 import { useLang } from '../../../lang';
 import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 
-const { testConnection, saveConnection } =
-  useConnectionStore();
+const { testConnection, saveConnection } = useConnectionStore();
 const lang = useLang();
 // DOM
 const connectFormRef = ref();
@@ -186,17 +186,19 @@ const defaultFormData = {
   selectedIndex: '',
   queryParameters: '',
   sslCertVerification: true,
-  type: DatabaseType.ELASTICSEARCH
+  type: DatabaseType.ELASTICSEARCH,
 } as ElasticsearchConnection & { selectedIndex: string };
-const formData = ref< ElasticsearchConnection & { selectedIndex: string }>(cloneDeep(defaultFormData));
+const formData = ref<ElasticsearchConnection & { selectedIndex: string }>(
+  cloneDeep(defaultFormData),
+);
 const formRules = reactive<FormRules>({
   // @ts-ignore
   name: [
     {
       required: true,
       renderMessage: () => lang.t('connection.formValidation.nameRequired'),
-      trigger: ['input', 'blur']
-    }
+      trigger: ['input', 'blur'],
+    },
   ],
   host: [
     {
@@ -214,17 +216,17 @@ const formRules = reactive<FormRules>({
         }
       },
       renderMessage: () => lang.t('connection.formValidation.hostRequired'),
-      trigger: ['input', 'blur']
-    }
+      trigger: ['input', 'blur'],
+    },
   ],
   port: [
     {
       type: 'number',
       required: true,
       renderMessage: () => lang.t('connection.formValidation.portRequired'),
-      trigger: ['input', 'blur']
-    }
-  ]
+      trigger: ['input', 'blur'],
+    },
+  ],
 });
 
 const hostValidate = ref<{
@@ -273,21 +275,26 @@ const validationPassed = watch(formData.value, async () => {
 const testConnect = (event: MouseEvent) => {
   event.preventDefault();
   connectFormRef.value?.validate((errors: boolean) =>
-    !errors ? testConnectConfirm() : message.error(lang.t('connection.validationFailed'))
+    !errors ? testConnectConfirm() : message.error(lang.t('connection.validationFailed')),
   );
 };
 
 const testConnectConfirm = async () => {
   testLoading.value = !testLoading.value;
   try {
-    await testConnection({ ...formData.value, activeIndex: formData.value.selectedIndex ? { index: formData.value.selectedIndex } : undefined} as Connection);
+    await testConnection({
+      ...formData.value,
+      activeIndex: formData.value.selectedIndex
+        ? { index: formData.value.selectedIndex }
+        : undefined,
+    } as Connection);
     message.success(lang.t('connection.testSuccess'));
   } catch (e) {
     const error = e as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
       closable: true,
       keepAliveOnHover: true,
-      duration: 10000
+      duration: 10000,
     });
   } finally {
     testLoading.value = !testLoading.value;
@@ -296,21 +303,26 @@ const testConnectConfirm = async () => {
 const saveConnect = (event: MouseEvent) => {
   event.preventDefault();
   connectFormRef.value?.validate((errors: boolean) =>
-    !errors ? saveConnectConfirm() : message.error(lang.t('connection.validationFailed'))
+    !errors ? saveConnectConfirm() : message.error(lang.t('connection.validationFailed')),
   );
 };
 
 const saveConnectConfirm = async () => {
   saveLoading.value = !saveLoading.value;
   try {
-    await saveConnection({ ...formData.value, activeIndex: formData.value.selectedIndex ? { index: formData.value.selectedIndex } : undefined} as Connection);
+    await saveConnection({
+      ...formData.value,
+      activeIndex: formData.value.selectedIndex
+        ? { index: formData.value.selectedIndex }
+        : undefined,
+    } as Connection);
     message.success(lang.t('connection.saveSuccess'));
   } catch (e) {
     const error = e as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
       closable: true,
       keepAliveOnHover: true,
-      duration: 10000
+      duration: 10000,
     });
   } finally {
     saveLoading.value = !saveLoading.value;

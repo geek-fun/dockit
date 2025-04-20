@@ -1,7 +1,14 @@
 import { defineStore } from 'pinia';
 import { buildAuthHeader, buildURL, CustomError, pureObject } from '../common';
 import { SearchAction, transformToCurl } from '../common/monaco';
-import { loadHttpClient, storeApi, dynamoApi, DynamoIndex, KeySchema } from '../datasources';
+import {
+  loadHttpClient,
+  storeApi,
+  dynamoApi,
+  DynamoIndex,
+  KeySchema,
+  QueryParams,
+} from '../datasources';
 import { DynamoIndexOrTableOption } from './tabStore.ts';
 
 export enum DatabaseType {
@@ -316,6 +323,17 @@ export const useConnectionStore = defineStore('connectionStore', {
       };
 
       return transformToCurl({ method, headers, url, ssl: sslCertVerification, qdsl });
+    },
+    async queryTable(con: DynamoDBConnection, queryParams: QueryParams) {
+      try {
+        await dynamoApi.queryTable(con, queryParams);
+      } catch (err) {
+        console.error('Error querying table:', err);
+        throw new CustomError(
+          400,
+          'Query failed. Please check your query parameters and try again.',
+        );
+      }
     },
   },
 });
