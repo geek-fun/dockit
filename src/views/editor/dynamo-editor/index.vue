@@ -14,15 +14,20 @@
           <n-grid-item span="11">
             <n-form-item label="Table Or Index" path="index">
               <n-select
-                v-model:value="dynamoQueryForm.index"
                 placeholder="Select Table Or Index"
                 remote
                 :loading="loadingRef.index"
+                :default-value="dynamoQueryForm.index"
                 @update:show="handleIndexOpen"
+                @update:value="handleUpdate"
                 :options="activeDynamoIndexOrTableOption"
               />
             </n-form-item>
-            <n-form-item label="Partition Key" path="partitionKey">
+            <n-form-item
+              v-if="selectedIndexOrTable?.partitionKeyName"
+              :label="getLabel('PARTITION_KEY')"
+              path="partitionKey"
+            >
               <n-input
                 v-model:value="dynamoQueryForm.partitionKey"
                 placeholder="Enter Partition Key Value"
@@ -30,7 +35,11 @@
             </n-form-item>
           </n-grid-item>
           <n-grid-item span="11">
-            <n-form-item label="Sort Key" path="sortKey">
+            <n-form-item
+              v-if="selectedIndexOrTable?.sortKeyName"
+              :label="getLabel('SORT_KEY')"
+              path="sortKey"
+            >
               <n-input v-model:value="dynamoQueryForm.sortKey" placeholder="Enter Sort Key Value" />
             </n-form-item>
           </n-grid-item>
@@ -85,10 +94,19 @@
 import { storeToRefs } from 'pinia';
 import { PlusOutlined } from '@vicons/antd';
 import ToolBar from '../../../components/tool-bar.vue';
-import { useTabStore } from '../../../store';
+import {
+  ActiveDynamoIndexOrTableOption,
+  Connection,
+  useConnectionStore,
+  useTabStore,
+} from '../../../store';
+
+const connectionStore = useConnectionStore();
+
+const { fetchIndices } = connectionStore;
 
 const tabStore = useTabStore();
-const { activeDynamoIndexOrTableOption } = storeToRefs(tabStore);
+const { activeDynamoIndexOrTableOption, activeConnection } = storeToRefs(tabStore);
 
 const filterConditions = ref([
   {
@@ -159,6 +177,27 @@ const addFormItem = () => {
   });
 };
 
+const selectedIndexOrTable = ref<ActiveDynamoIndexOrTableOption | undefined>(undefined);
+
+const handleUpdate = (value: string) => {
+  selectedIndexOrTable.value = activeDynamoIndexOrTableOption.value.find(
+    item => item.value === value,
+  ) as ActiveDynamoIndexOrTableOption;
+};
+const getLabel = (label: string) => {
+  if (!selectedIndexOrTable.value) {
+    return label;
+  }
+  switch (label) {
+    case 'PARTITION_KEY':
+      return `${selectedIndexOrTable.value.partitionKeyName} (Partition Key):`;
+    case 'SORT_KEY':
+      return `${selectedIndexOrTable.value.sortKeyName} (Sort Key):`;
+    default:
+      return label;
+  }
+};
+
 const handleIndexOpen = async (isOpen: boolean) => {
   if (!isOpen) {
     loadingRef.value.index = false;
@@ -166,8 +205,9 @@ const handleIndexOpen = async (isOpen: boolean) => {
   }
   loadingRef.value.index = true;
   try {
-    // Simulate fetching indices
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await fetchIndices(activeConnection.value as Connection);
+
+    console.log('activeDynamoIndexOrTableOption', activeDynamoIndexOrTableOption.value);
   } catch (err) {
     console.error('Error fetching indices:', err);
   } finally {

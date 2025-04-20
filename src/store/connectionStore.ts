@@ -24,6 +24,7 @@ type DynamoIndex = {
     writeCapacityUnits: number;
   };
 };
+
 type ElasticSearchIndex = {
   health: string;
   status: string;
@@ -46,25 +47,23 @@ type ElasticSearchIndex = {
 
 export type ConnectionIndex = DynamoIndex | ElasticSearchIndex;
 
-export type BaseConnection = {
+export type DynamoDBConnection = {
   id?: number;
   name: string;
-  type: DatabaseType;
-  indices: Array<ConnectionIndex>;
-};
-
-export type DynamoDBConnection = BaseConnection & {
   type: DatabaseType.DYNAMODB;
+  indices: Array<DynamoIndex>;
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
   tableName: string;
+  keySchema: Array<{ attributeName: string; keyType: string }>;
 };
 
-export type Connection = ElasticsearchConnection | DynamoDBConnection;
-
-export type ElasticsearchConnection = BaseConnection & {
+export type ElasticsearchConnection = {
+  id?: number;
+  name: string;
   type: DatabaseType.ELASTICSEARCH;
+  indices: Array<ElasticSearchIndex>;
   host: string;
   port: number;
   username?: string;
@@ -73,6 +72,8 @@ export type ElasticsearchConnection = BaseConnection & {
   queryParameters?: string;
   activeIndex: ElasticSearchIndex | undefined;
 };
+
+export type Connection = ElasticsearchConnection | DynamoDBConnection;
 
 const globalPathActions = [
   '_cluster',
@@ -192,13 +193,12 @@ export const useConnectionStore = defineStore('connectionStore', {
     async fetchIndices(con: Connection) {
       const connection = this.connections.find(({ id }) => id === con.id);
       if (!connection) throw new Error('no connection established');
-      let indices: Array<ConnectionIndex> = [];
       if (connection.type === DatabaseType.ELASTICSEARCH) {
         const client = loadHttpClient(connection);
         const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
           [key: string]: string;
         }>;
-        indices = data.map((index: { [key: string]: string }) => ({
+        connection.indices = data.map((index: { [key: string]: string }) => ({
           ...index,
           docs: {
             count: parseInt(index['docs.count'], 10),
@@ -209,9 +209,8 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
       if (connection.type === DatabaseType.DYNAMODB) {
         const tableInfo = await dynamoApi.describeTable(con as DynamoDBConnection);
-        indices = tableInfo.indices as DynamoIndex[];
+        connection.indices = tableInfo.indices as DynamoIndex[];
       }
-      connection.indices = indices as Array<ConnectionIndex>;
     },
     async selectIndex(con: Connection, indexName: string) {
       const connection = this.connections.find(
