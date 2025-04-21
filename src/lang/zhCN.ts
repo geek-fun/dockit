@@ -28,10 +28,6 @@ export const zhCN = {
       apiKeyPlaceholder: '请输入API密钥',
       prompt: '提示词',
       proxy: '网络代理',
-      form: {
-        reset: '重置',
-        save: '保存并启用',
-      },
       invalid: 'GPT 配置无效！',
       missing: 'GPT 未配置或未启用',
       firstMsg: '你好，我是你的AI助手，有什么可以帮助你的吗？',
@@ -184,6 +180,9 @@ export const zhCN = {
     overwriteIndex: '索引已存在，确定覆盖？',
     fileSaveSuccess: '文件保存成功',
     fileSaveFailed: '文件保存失败',
+    reset: '重置',
+    saveAndEnable: '保存并启用',
+    execute: '执行',
   },
   editor: {
     establishedRequired: '请选择执行操作的数据库实例',

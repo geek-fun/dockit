@@ -18,7 +18,6 @@
                 placeholder="Select Table Or Index"
                 remote
                 :loading="loadingRef.index"
-                :default-value="dynamoQueryForm.index"
                 @update:show="handleIndexOpen"
                 @update:value="handleUpdate"
                 :options="indicesOrTableOptions"
@@ -54,7 +53,7 @@
         </n-grid>
 
         <!-- Dynamic additional form items -->
-        <n-card title="Filters">
+        <n-card title="Filters - Optional">
           <template #header-extra>
             <n-icon size="26" @click="addFilterItem" style="cursor: pointer">
               <Add />
@@ -125,13 +124,17 @@
             </n-grid-item>
           </n-grid>
         </n-card>
-        <n-form-item>
-          <n-button type="primary" @click="handleSubmit" :disabled="!validationPassed"
-            >Submit
-          </n-button>
-          <n-button @click="handleReset">Reset</n-button>
-        </n-form-item>
       </n-form>
+      <template #footer>
+        <div class="card-footer">
+          <n-button type="warning" tertiary @click="handleReset">
+            {{ $t('dialogOps.reset') }}
+          </n-button>
+          <n-button type="primary" @click="handleSubmit" :disabled="!validationPassed">
+            {{ $t('dialogOps.execute') }}
+          </n-button>
+        </div>
+      </template>
     </n-card>
     <n-card title="Query Result" v-if="queryResult.data">
       <n-data-table :columns="queryResult.columns" :data="queryResult.data" />
@@ -312,15 +315,21 @@ const handleIndexOpen = async (isOpen: boolean) => {
 };
 
 const validateForm = async () => {
+  console.log('validating form');
   try {
-    return await dynamoQueryFormRef.value?.validate(
+    const validateResult = await dynamoQueryFormRef.value?.validate(
       (errors: Array<FormValidationError>) => !errors,
     );
+    console.log('validateResult: ', validateResult);
+    return validateResult;
   } catch (e) {
     return false;
   }
 };
-const validationPassed = watch(dynamoQueryForm.value, validateForm);
+const validationPassed = watch(
+  [dynamoQueryForm.value, dynamoQueryForm.value.formFilterItems],
+  validateForm,
+);
 
 const handleSubmit = async (event: MouseEvent) => {
   event.preventDefault();
@@ -389,4 +398,10 @@ const handleReset = () => {
 };
 </script>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+</style>

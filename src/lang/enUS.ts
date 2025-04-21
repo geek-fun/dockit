@@ -28,10 +28,6 @@ export const enUS = {
       apiKeyPlaceholder: 'Please enter the API Key',
       prompt: 'Prompt',
       proxy: 'Network Proxy',
-      form: {
-        reset: 'Reset',
-        save: 'Save & Enable',
-      },
       invalid: 'GPT configuration is invalid!',
       missing: 'GPT is not configured or not enabled',
       firstMsg: 'Hello, I am your AI assistant, how can I help you?',
@@ -184,6 +180,9 @@ export const enUS = {
     overwriteIndex: 'Index already exists, confirm to overwrite?',
     fileSaveSuccess: 'File saved successfully',
     fileSaveFailed: 'Failed to save file!',
+    reset: 'Reset',
+    saveAndEnable: 'Save & Enable',
+    execute: 'Run',
   },
   editor: {
     establishedRequired: 'Select a DB instance before execute actions',
