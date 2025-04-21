@@ -67,7 +67,14 @@
             :x-gap="12"
           >
             <n-grid-item span="9">
-              <n-form-item :path="`additionalFormItems[${index}].key`">
+              <n-form-item
+                :path="`formFilterItems[${index}].key`"
+                :rule="{
+                  required: true,
+                  message: `${lang.t('editor.dynamo.filterKeyRequired')}`,
+                  trigger: ['input', 'blur'],
+                }"
+              >
                 <n-input
                   v-model:value="item.key"
                   placeholder="Input Attribute Name"
@@ -76,7 +83,14 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="4">
-              <n-form-item :path="`additionalFormItems[${index}].operator`">
+              <n-form-item
+                :path="`formFilterItems[${index}].operator`"
+                :rule="{
+                  required: true,
+                  message: `${lang.t('editor.dynamo.filterOperatorRequired')}`,
+                  trigger: ['input', 'blur'],
+                }"
+              >
                 <n-select
                   v-model:value="item.operator"
                   placeholder="Select Operator"
@@ -85,7 +99,14 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="9">
-              <n-form-item :path="`additionalFormItems[${index}].value`">
+              <n-form-item
+                :path="`formFilterItems[${index}].value`"
+                :rule="{
+                  required: true,
+                  message: `${lang.t('editor.dynamo.filterValueRequired')}`,
+                  trigger: ['input', 'blur'],
+                }"
+              >
                 <n-input
                   v-model:value="item.value"
                   placeholder="Input Attribute Value"
@@ -121,8 +142,9 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
+import { isEmpty } from 'lodash';
 import ToolBar from '../../../components/tool-bar.vue';
-import { FormRules, FormValidationError } from 'naive-ui';
+import { FormRules, FormValidationError, FormItemRule } from 'naive-ui';
 import {
   Connection,
   DynamoDBConnection,
@@ -215,46 +237,20 @@ const dynamoQueryFormRules = reactive<FormRules>({
   ],
   partitionKey: [
     {
-      required: false,
-      renderMessage: () => 'Partition Key is required',
+      validator: (_: FormItemRule, value) =>
+        !(isEmpty(dynamoQueryForm.value.formFilterItems) && !value),
+      renderMessage: () => 'Partition key or at least 1 filter is required',
+      level: 'error',
       trigger: ['input', 'blur'],
     },
-  ],
-  sortKey: [
     {
-      required: false,
-      renderMessage: () => 'Sort Key is optional',
+      validator: (_: FormItemRule, value) =>
+        !(!isEmpty(dynamoQueryForm.value.formFilterItems) && !value),
+      renderMessage: () => 'Request without partitionKey will scan the table',
+      level: 'warning',
       trigger: ['input', 'blur'],
     },
   ],
-  // formFilterItems: [
-  //   {
-  //     type: 'array',
-  //     required: false,
-  //     itemValidators: {
-  //       type: 'object',
-  //       fields: {
-  //         key: {
-  //           required: true,
-  //           renderMessage: () => 'Filter key is required',
-  //           trigger: ['input', 'blur'],
-  //         },
-  //         operator: {
-  //           required: true,
-  //           renderMessage: () => 'Filter operator is required',
-  //           trigger: ['input', 'blur'],
-  //         },
-  //         value: {
-  //           required: true,
-  //           renderMessage: () => 'Filter value is required',
-  //           trigger: ['input', 'blur'],
-  //         },
-  //       },
-  //     },
-  //     renderMessage: () => 'Invalid filter format',
-  //     trigger: ['input', 'blur'],
-  //   },
-  // ],
 });
 
 const queryResult = ref<{
@@ -315,7 +311,7 @@ const handleIndexOpen = async (isOpen: boolean) => {
   }
 };
 
-const validationPassed = watch(dynamoQueryForm.value, async () => {
+const validateForm = async () => {
   try {
     return await dynamoQueryFormRef.value?.validate(
       (errors: Array<FormValidationError>) => !errors,
@@ -323,7 +319,8 @@ const validationPassed = watch(dynamoQueryForm.value, async () => {
   } catch (e) {
     return false;
   }
-});
+};
+const validationPassed = watch(dynamoQueryForm.value, validateForm);
 
 const handleSubmit = async (event: MouseEvent) => {
   event.preventDefault();
@@ -331,55 +328,54 @@ const handleSubmit = async (event: MouseEvent) => {
     message.error(`status: 500, ${lang.t('connection.selectIndex')}`);
     return;
   }
-  dynamoQueryFormRef.value?.validate(async (errors: boolean) => {
-    if (errors) {
-      message.error(lang.t('connection.validationFailed'));
-      return;
-    }
-    try {
-      const { tableName } = activeConnection.value as DynamoDBConnection;
-      const { partitionKey, sortKey, formFilterItems } = dynamoQueryForm.value;
-      const { partitionKeyName, sortKeyName, value } =
-        selectedIndexOrTable.value as DynamoIndexOrTableOption;
-      // Build query parameters
-      const queryParams = {
-        tableName,
-        indexName: value,
-        partitionKey: { name: partitionKeyName, value: partitionKey },
-        sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
-        filters: formFilterItems,
-      };
+  if (!(await validateForm())) {
+    message.error(lang.t('connection.validationFailed'));
+    return;
+  }
 
-      console.log('query params: ', queryParams);
+  try {
+    const { tableName } = activeConnection.value as DynamoDBConnection;
+    const { partitionKey, sortKey, formFilterItems } = dynamoQueryForm.value;
+    const { partitionKeyName, sortKeyName, value } =
+      selectedIndexOrTable.value as DynamoIndexOrTableOption;
+    // Build query parameters
+    const queryParams = {
+      tableName,
+      indexName: value,
+      partitionKey: { name: partitionKeyName, value: partitionKey },
+      sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
+      filters: formFilterItems,
+    };
 
-      const data = await queryTable(activeConnection.value as DynamoDBConnection, queryParams);
+    console.log('query params: ', queryParams);
 
-      const columnsSet = new Set<string>();
-      data.items.forEach(item => {
-        Object.keys(item).forEach(key => {
-          columnsSet.add(key);
-        });
+    const data = await queryTable(activeConnection.value as DynamoDBConnection, queryParams);
+
+    const columnsSet = new Set<string>();
+    data.items.forEach(item => {
+      Object.keys(item).forEach(key => {
+        columnsSet.add(key);
       });
-      const columnsData = data.items.map(item => {
-        const row: Record<string, unknown> = {};
-        columnsSet.forEach(key => {
-          row[key] = item[key];
-        });
-        return row;
+    });
+    const columnsData = data.items.map(item => {
+      const row: Record<string, unknown> = {};
+      columnsSet.forEach(key => {
+        row[key] = item[key];
       });
-      queryResult.value = {
-        columns: Array.from(columnsSet).map(key => ({ title: key, key })),
-        data: columnsData,
-      };
-    } catch (error) {
-      console.error('Error executing query:', error);
-      message.error(`status: ${(error as Error).name}, details: ${(error as Error).message}`, {
-        closable: true,
-        keepAliveOnHover: true,
-        duration: 3600,
-      });
-    }
-  });
+      return row;
+    });
+    queryResult.value = {
+      columns: Array.from(columnsSet).map(key => ({ title: key, key })),
+      data: columnsData,
+    };
+  } catch (error) {
+    console.error('Error executing query:', error);
+    message.error(`status: ${(error as Error).name}, details: ${(error as Error).message}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3600,
+    });
+  }
 };
 
 const handleReset = () => {

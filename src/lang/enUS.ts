@@ -192,6 +192,11 @@ export const enUS = {
     copyFailure: 'Failed to copy to clipboard',
     unsupportedFile: 'DocKit only supports file end with .search file',
     loadDefault: 'Load default code snippet',
+    dynamo: {
+      filterKeyRequired: 'Filter key name is required',
+      filterOperatorRequired: 'Filter operator is required',
+      filterValueRequired: 'Filter key value is required',
+    },
   },
   file: {
     newFile: 'New File',

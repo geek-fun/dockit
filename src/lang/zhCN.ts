@@ -192,6 +192,11 @@ export const zhCN = {
     copyFailure: '复制失败',
     unsupportedFile: 'DocKit仅支持以 .search 结尾的文件',
     loadDefault: '加载默认代码片段',
+    dynamo: {
+      filterKeyRequired: '请输入滤器键名',
+      filterOperatorRequired: '请输入滤器操作符',
+      filterValueRequired: '请输入滤器键的值',
+    },
   },
   file: {
     newFile: '新建文件',
