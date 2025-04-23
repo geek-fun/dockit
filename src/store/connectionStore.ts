@@ -157,7 +157,6 @@ export const useConnectionStore = defineStore('connectionStore', {
           type: connection.type?.toUpperCase() ?? DatabaseType.ELASTICSEARCH,
         })) as Connection[];
       } catch (error) {
-        console.error('Error fetching connections:', error);
         this.connections = [];
       }
     },
@@ -195,7 +194,6 @@ export const useConnectionStore = defineStore('connectionStore', {
         await storeApi.set('connections', pureObject(this.connections));
         return { success: true, message: 'Connection saved successfully' };
       } catch (error) {
-        console.error('Error saving connection:', error);
         return {
           success: false,
           message: error instanceof Error ? error.message : 'Unknown error',
@@ -207,13 +205,8 @@ export const useConnectionStore = defineStore('connectionStore', {
         const updatedConnections = this.connections.filter(c => c.id !== connection.id);
         this.connections = updatedConnections;
 
-        try {
-          await storeApi.set('connections', pureObject(updatedConnections));
-        } catch (error) {
-          console.warn('Failed to persist connections after removal:', error);
-        }
+        await storeApi.set('connections', pureObject(updatedConnections));
       } catch (error) {
-        console.error('Error removing connection:', error);
         throw error;
       }
     },
@@ -332,7 +325,6 @@ export const useConnectionStore = defineStore('connectionStore', {
           return await dynamoApi.scanTable(con, queryParams);
         }
       } catch (err) {
-        console.error('Error querying table:', err);
         throw new CustomError(
           400,
           'Query failed. Please check your query parameters and try again.',

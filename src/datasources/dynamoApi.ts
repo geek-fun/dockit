@@ -133,7 +133,7 @@ const dynamoApi = {
       throw new Error(`Error: ${message}`);
     }
 
-    return data;
+    return data as QueryResult;
   },
 };
 

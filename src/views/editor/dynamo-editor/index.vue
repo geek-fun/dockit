@@ -148,7 +148,7 @@ import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
 import { isEmpty } from 'lodash';
 import ToolBar from '../../../components/tool-bar.vue';
-import { FormRules, FormValidationError, FormItemRule } from 'naive-ui';
+import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 import {
   Connection,
   DynamoDBConnection,
@@ -273,20 +273,21 @@ const handleIndexOpen = async (isOpen: boolean) => {
       activeConnection.value as DynamoDBConnection,
     );
   } catch (err) {
-    console.error('Error fetching indices:', err);
+    message.error(`status: ${(err as Error).name}, details: ${(err as Error).message}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3600,
+    });
   } finally {
     loadingRef.value.index = false;
   }
 };
 
 const validateForm = async () => {
-  console.log('validating form');
   try {
-    const validateResult = await dynamoQueryFormRef.value?.validate(
+    return await dynamoQueryFormRef.value?.validate(
       (errors: Array<FormValidationError>) => !errors,
     );
-    console.log('validateResult: ', validateResult);
-    return validateResult;
   } catch (e) {
     return false;
   }
@@ -321,8 +322,6 @@ const handleSubmit = async (event: MouseEvent) => {
       filters: formFilterItems,
     };
 
-    console.log('query params: ', queryParams);
-
     const data = await queryTable(activeConnection.value as DynamoDBConnection, queryParams);
 
     const columnsSet = new Set<string>();
@@ -343,7 +342,6 @@ const handleSubmit = async (event: MouseEvent) => {
       data: columnsData,
     };
   } catch (error) {
-    console.error('Error executing query:', error);
     message.error(`status: ${(error as Error).name}, details: ${(error as Error).message}`, {
       closable: true,
       keepAliveOnHover: true,
