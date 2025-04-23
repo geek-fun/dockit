@@ -16,6 +16,7 @@
             <n-form-item label="Table Or Index" path="index">
               <n-select
                 placeholder="Select Table Or Index"
+                v-model:value="dynamoQueryForm.index"
                 remote
                 :loading="loadingRef.index"
                 @update:show="handleIndexOpen"
@@ -168,54 +169,18 @@ const { activeConnection } = storeToRefs(tabStore);
 
 const dynamoQueryFormRef = ref();
 const filterConditions = ref([
-  {
-    label: 'Equal to',
-    value: 'Equal to',
-  },
-  {
-    label: 'Not equal to',
-    value: 'Not equal to',
-  },
-  {
-    label: 'Less than or equal to',
-    value: 'Less than or equal to',
-  },
-  {
-    label: 'Less than',
-    value: 'Less than',
-  },
-  {
-    label: 'Greater than or equal to',
-    value: 'Greater than or equal to',
-  },
-  {
-    label: 'Greater than',
-    value: 'Greater than',
-  },
-  {
-    label: 'Between',
-    value: 'Between',
-  },
-  {
-    label: 'Exists',
-    value: 'Exists',
-  },
-  {
-    label: 'Not exists',
-    value: 'Not exists',
-  },
-  {
-    label: 'Contain',
-    value: 'Contain',
-  },
-  {
-    label: 'Not contain',
-    value: 'Not contain',
-  },
-  {
-    label: 'Begins with',
-    value: 'Begins with',
-  },
+  { label: '=', value: '=' },
+  { label: '!=', value: '!=' },
+  { label: '<=', value: '<=' },
+  { label: '<', value: '<' },
+  { label: '>=', value: '>=' },
+  { label: '>', value: '>' },
+  { label: 'Between', value: 'between' },
+  { label: 'Exists', value: 'attribute_exists' },
+  { label: 'Not exists', value: 'attribute_not_exists' },
+  { label: 'Contain', value: 'contains' },
+  { label: 'Not contain', value: 'not contain' },
+  { label: 'Begins with', value: 'begins_with' },
 ]);
 
 const loadingRef = ref({ index: false });
@@ -388,9 +353,8 @@ const handleSubmit = async (event: MouseEvent) => {
 };
 
 const handleReset = () => {
-  dynamoQueryForm.value = { index: '', partitionKey: '', sortKey: '', formFilterItems: [] };
-
   selectedIndexOrTable.value = undefined;
+  dynamoQueryForm.value = { index: '', partitionKey: '', sortKey: '', formFilterItems: [] };
 
   if (dynamoQueryFormRef.value) {
     dynamoQueryFormRef.value.restoreValidation();

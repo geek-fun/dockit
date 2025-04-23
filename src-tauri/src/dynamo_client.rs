@@ -147,7 +147,7 @@ pub async fn dynamo_api(
             }
         },
         "put_item" => {
-            if let Some(payload) = &options.payload {
+            if let Some(_payload) = &options.payload {
                 // Implementation for put_item would go here
                 Ok(ApiResponse {
                     status: 200,
@@ -370,6 +370,7 @@ pub async fn dynamo_api(
                 if let Some(filter_array) = filters {
                     let mut filter_expressions = Vec::new();
                     let mut expression_values = Vec::<(String, AttributeValue)>::new();
+                    let mut expression_names = Vec::<(String, String)>::new();
 
                     // First collect all filter expressions and values
                     for (i, filter) in filter_array.iter().enumerate() {
@@ -379,34 +380,55 @@ pub async fn dynamo_api(
                                         let filter_value = filter_obj.get("value").and_then(|v| v.as_str());
 
                                         if let (Some(key), Some(op), Some(value)) = (filter_key, filter_op, filter_value) {
+                                            let name_placeholder = format!("#attr{}", i);
                                             let filter_placeholder = format!(":filter{}", i);
 
                                             // Map operator string to DynamoDB operator
                                             let expr = match op {
-                                                "=" => format!("{} = {}", key, filter_placeholder),
-                                                "!=" => format!("{} <> {}", key, filter_placeholder),
-                                                ">" => format!("{} > {}", key, filter_placeholder),
-                                                ">=" => format!("{} >= {}", key, filter_placeholder),
-                                                "<" => format!("{} < {}", key, filter_placeholder),
-                                                "<=" => format!("{} <= {}", key, filter_placeholder),
-                                                "CONTAINS" => format!("contains({}, {})", key, filter_placeholder),
-                                                "BEGINS_WITH" => format!("begins_with({}, {})", key, filter_placeholder),
-                                                _ => format!("{} = {}", key, filter_placeholder), // Default to equals
+                                                "=" => format!("{} = {}", name_placeholder, filter_placeholder),
+                                                "!=" => format!("{} <> {}", name_placeholder, filter_placeholder),
+                                                ">" => format!("{} > {}", name_placeholder, filter_placeholder),
+                                                ">=" => format!("{} >= {}", name_placeholder, filter_placeholder),
+                                                "<" => format!("{} < {}", name_placeholder, filter_placeholder),
+                                                "<=" => format!("{} <= {}", name_placeholder, filter_placeholder),
+                                                "contains" => format!("contains({}, {})", name_placeholder, filter_placeholder),
+                                                "not contains" => format!("not contains({}, {})", name_placeholder, filter_placeholder),
+                                                "begins_with" => format!("begins_with({}, {})", name_placeholder, filter_placeholder),
+                                                "attribute_exists" => format!("attribute_exists({})", name_placeholder),
+                                                "attribute_not_exists" => format!("attribute_not_exists({})", name_placeholder),
+                                                _ => format!("{} = {}", name_placeholder, filter_placeholder), // Default to equals
+                                            };
+                                            let attr_value = if value.eq_ignore_ascii_case("true") {
+                                                AttributeValue::Bool(true)
+                                            } else if value.eq_ignore_ascii_case("false") {
+                                                AttributeValue::Bool(false)
+                                            } else if let Ok(_) = value.parse::<f64>() {
+                                                // If it parses as a number, use N type
+                                                AttributeValue::N(value.to_string())
+                                            } else {
+                                                // Default to string for all other cases
+                                                AttributeValue::S(value.to_string())
                                             };
 
                                             filter_expressions.push(expr);
-                                            expression_values.push((filter_placeholder, AttributeValue::S(value.to_string())));
+                                            expression_values.push((filter_placeholder, attr_value));
+                                            expression_names.push((name_placeholder, key.to_string()));
                                         }
                                     }
                                 }
 
                     if !filter_expressions.is_empty() {
                                    let filter_expr = filter_expressions.join(" AND ");
+                                   println!("[SCAN] Filter Expression: {},\nValues: {:?}", filter_expr, expression_values);
                                    scan = scan.filter_expression(filter_expr);
 
                                    // Apply all expression attribute values
                                    for (key, value) in expression_values {
                                        scan = scan.expression_attribute_values(key, value);
+                                   }
+
+                                   for (placeholder, name) in expression_names {
+                                       scan = scan.expression_attribute_names(placeholder, name);
                                    }
                                }
                 }
@@ -497,7 +519,7 @@ pub async fn dynamo_api(
                     },
                     Err(e) => Ok(ApiResponse {
                         status: 500,
-                        message: format!("Failed to execute scan: {}", e),
+                        message: format!("Failed to execute scan: {:?}", e),
                         data: None,
                     }),
                 }

@@ -326,7 +326,11 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async queryTable(con: DynamoDBConnection, queryParams: QueryParams) {
       try {
-        return await dynamoApi.queryTable(con, queryParams);
+        if (queryParams.partitionKey.value) {
+          return await dynamoApi.queryTable(con, queryParams);
+        } else {
+          return await dynamoApi.scanTable(con, queryParams);
+        }
       } catch (err) {
         console.error('Error querying table:', err);
         throw new CustomError(
