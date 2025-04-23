@@ -13,9 +13,9 @@
         <!-- First row with partition and sort key -->
         <n-grid :cols="24" :x-gap="12">
           <n-grid-item span="12">
-            <n-form-item label="Table Or Index" path="index">
+            <n-form-item :label="$t('editor.dynamo.tableOrIndex')" path="index">
               <n-select
-                placeholder="Select Table Or Index"
+                :placeholder="$t('editor.dynamo.selectTableOrIndex')"
                 v-model:value="dynamoQueryForm.index"
                 remote
                 :loading="loadingRef.index"
@@ -35,7 +35,7 @@
             >
               <n-input
                 v-model:value="dynamoQueryForm.partitionKey"
-                placeholder="Enter Partition Key Value"
+                :placeholder="$t('editor.dynamo.enterPartitionKey')"
                 :input-props="inputProps"
               />
             </n-form-item>
@@ -48,13 +48,16 @@
               path="sortKey"
               :input-props="inputProps"
             >
-              <n-input v-model:value="dynamoQueryForm.sortKey" placeholder="Enter Sort Key Value" />
+              <n-input
+                v-model:value="dynamoQueryForm.sortKey"
+                :placeholder="$t('editor.dynamo.enterSortKey')"
+              />
             </n-form-item>
           </n-grid-item>
         </n-grid>
 
         <!-- Dynamic additional form items -->
-        <n-card title="Filters - Optional">
+        <n-card :title="$t('editor.dynamo.filterTitle')">
           <template #header-extra>
             <n-icon size="26" @click="addFilterItem" style="cursor: pointer">
               <Add />
@@ -77,7 +80,7 @@
               >
                 <n-input
                   v-model:value="item.key"
-                  placeholder="Input Attribute Name"
+                  :placeholder="$t('editor.dynamo.inputAttrName')"
                   :input-props="inputProps"
                 />
               </n-form-item>
@@ -93,7 +96,7 @@
               >
                 <n-select
                   v-model:value="item.operator"
-                  placeholder="Select Operator"
+                  :placeholder="$t('editor.dynamo.inputOperator')"
                   :options="filterConditions"
                 />
               </n-form-item>
@@ -109,7 +112,7 @@
               >
                 <n-input
                   v-model:value="item.value"
-                  placeholder="Input Attribute Value"
+                  :placeholder="$t('editor.dynamo.inputAttrValue')"
                   :input-props="inputProps"
                 />
               </n-form-item>
@@ -137,7 +140,7 @@
         </div>
       </template>
     </n-card>
-    <n-card title="Query Result" v-if="queryResult.data">
+    <n-card :title="$t('editor.dynamo.resultTitle')" v-if="queryResult.data">
       <n-data-table :columns="queryResult.columns" :data="queryResult.data" />
     </n-card>
   </div>
@@ -199,7 +202,7 @@ const dynamoQueryFormRules = reactive<FormRules>({
   index: [
     {
       required: true,
-      renderMessage: () => 'Table or Index is required',
+      renderMessage: () => lang.t('editor.dynamo.indexIsRequired'),
       trigger: ['input', 'blur'],
     },
   ],
@@ -207,14 +210,14 @@ const dynamoQueryFormRules = reactive<FormRules>({
     {
       validator: (_: FormItemRule, value) =>
         !(isEmpty(dynamoQueryForm.value.formFilterItems) && !value),
-      renderMessage: () => 'Partition key or at least 1 filter is required',
+      renderMessage: () => lang.t('editor.dynamo.atLeastRequired'),
       level: 'error',
       trigger: ['input', 'blur'],
     },
     {
       validator: (_: FormItemRule, value) =>
         !(!isEmpty(dynamoQueryForm.value.formFilterItems) && !value),
-      renderMessage: () => 'Request without partitionKey will scan the table',
+      renderMessage: () => lang.t('editor.dynamo.scanWarning'),
       level: 'warning',
       trigger: ['input', 'blur'],
     },

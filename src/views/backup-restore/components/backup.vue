@@ -206,8 +206,8 @@ watch(connection, () => {
   }
   indexOptions.value =
     (connection.value as ElasticsearchConnection)?.indices.map(index => ({
-      label: (index as { index: string }).index,
-      value: (index as { index: string }).index,
+      label: index.index,
+      value: index.index,
     })) ?? [];
 });
 

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { buildAuthHeader, buildURL, CustomError, pureObject } from '../common';
+import { lang } from '../lang';
 import { SearchAction, transformToCurl } from '../common/monaco';
 import {
   loadHttpClient,
@@ -167,12 +168,12 @@ export const useConnectionStore = defineStore('connectionStore', {
         const client = loadHttpClient(con);
 
         return await client.get(con.activeIndex?.index, 'format=json');
+      } else {
+        throw new CustomError(
+          400,
+          lang.global.t('connection.unsupportedType') + `: ${(con as { type: string }).type}`,
+        );
       }
-
-      throw new CustomError(
-        400,
-        'Connection test failed Connection test failed. Please check your connection settings.',
-      );
     },
     async saveConnection(connection: Connection): Promise<{ success: boolean; message: string }> {
       try {
@@ -318,18 +319,9 @@ export const useConnectionStore = defineStore('connectionStore', {
       return transformToCurl({ method, headers, url, ssl: sslCertVerification, qdsl });
     },
     async queryTable(con: DynamoDBConnection, queryParams: QueryParams) {
-      try {
-        if (queryParams.partitionKey.value) {
-          return await dynamoApi.queryTable(con, queryParams);
-        } else {
-          return await dynamoApi.scanTable(con, queryParams);
-        }
-      } catch (err) {
-        throw new CustomError(
-          400,
-          'Query failed. Please check your query parameters and try again.',
-        );
-      }
+      return queryParams.partitionKey.value
+        ? await dynamoApi.queryTable(con, queryParams)
+        : await dynamoApi.scanTable(con, queryParams);
     },
   },
 });

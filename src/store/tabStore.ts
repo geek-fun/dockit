@@ -32,8 +32,8 @@ export const useTabStore = defineStore('panel', {
     activeElasticsearchIndexOption: state =>
       state.activePanel?.connection?.type === DatabaseType.ELASTICSEARCH
         ? state.activePanel.connection.indices?.map(index => ({
-            label: (index as { index: string }).index,
-            value: (index as { index: string }).index,
+            label: index.index,
+            value: index.index,
           }))
         : [],
   },

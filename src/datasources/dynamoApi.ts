@@ -1,5 +1,6 @@
 import { DynamoDBConnection } from '../store';
 import { tauriClient } from './ApiClients.ts';
+import { CustomError } from '../common';
 
 export type KeySchema = {
   attributeName: string;
@@ -81,7 +82,7 @@ const dynamoApi = {
     const result = await tauriClient.invokeDynamoApi(credentials, options);
     const { status, message, data } = result;
     if (status !== 200) {
-      throw new Error(`Error: ${message}`);
+      throw new CustomError(status, message);
     }
     return data as DynamoDBTableInfo;
   },
@@ -108,7 +109,7 @@ const dynamoApi = {
     const { status, message, data } = result;
 
     if (status !== 200) {
-      throw new Error(`Error: ${message}`);
+      throw new CustomError(status, message);
     }
 
     return data as QueryResult;
@@ -130,7 +131,7 @@ const dynamoApi = {
     const { status, message, data } = result;
 
     if (status !== 200) {
-      throw new Error(`Error: ${message}`);
+      throw new CustomError(status, message);
     }
 
     return data as QueryResult;

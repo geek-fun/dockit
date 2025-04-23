@@ -232,7 +232,7 @@ const submitRestore = async () => {
   const restoreInput = { ...restoreFormData.value, connection: con };
 
   const index = (connection.value as ElasticsearchConnection)?.indices.find(
-    index => (index as { index: string }).index === restoreFormData.value.index,
+    index => index.index === restoreFormData.value.index,
   );
 
   if (!index) {

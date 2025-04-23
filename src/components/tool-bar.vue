@@ -48,7 +48,7 @@
             <Template />
           </n-icon>
         </template>
-        UI Query
+        {{ $t('editor.dynamo.uiQuery') }}
       </n-button>
       <n-button quaternary>
         <template #icon>
@@ -56,7 +56,7 @@
             <Code />
           </n-icon>
         </template>
-        Code Editor
+        {{ $t('editor.dynamo.sqlEditor') }}
       </n-button>
     </n-button-group>
     <n-tabs
