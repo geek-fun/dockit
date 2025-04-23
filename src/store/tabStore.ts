@@ -1,4 +1,4 @@
-import { Connection, useConnectionStore } from './connectionStore.ts';
+import { Connection, DatabaseType, useConnectionStore } from './connectionStore.ts';
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
@@ -14,6 +14,12 @@ type Panel = {
 };
 
 const homePanel: Panel = { id: 0, name: 'home', file: '' };
+export type DynamoIndexOrTableOption = {
+  label: string;
+  value: string;
+  partitionKeyName: string;
+  sortKeyName?: string;
+};
 
 export const useTabStore = defineStore('panel', {
   state: () => ({
@@ -23,6 +29,13 @@ export const useTabStore = defineStore('panel', {
   }),
   getters: {
     activeConnection: state => state.activePanel.connection,
+    activeElasticsearchIndexOption: state =>
+      state.activePanel?.connection?.type === DatabaseType.ELASTICSEARCH
+        ? state.activePanel.connection.indices?.map(index => ({
+            label: index.index,
+            value: index.index,
+          }))
+        : [],
   },
   actions: {
     async establishPanel(connectionOrFile: Connection | string): Promise<void> {

@@ -147,8 +147,7 @@ export const transformQDSL = ({ path, qdsl }: Pick<SearchAction, 'path' | 'qdsl'
         .join('\n');
       return `${bulkQdsl}\n`;
     }
-    console.log(`transformQDSL:
-    puredDsl:${puredDsl}`);
+
     return puredDsl ? jsonify.stringify(jsonify.parse5(puredDsl), null, 2) : undefined;
   } catch (err) {
     throw new CustomError(400, (err as Error).message);

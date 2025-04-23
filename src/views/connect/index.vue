@@ -17,21 +17,14 @@
       <connect-list v-if="panel.id === 0" @tab-panel="tabPanelHandler" />
       <template v-else-if="panel.connection && panel.connection.type === DatabaseType.DYNAMODB">
         <div class="dynamo-editor">
-          <n-tabs type="segment">
-            <n-tab-pane name="query" tab="Query">
-              <n-empty :description="$t('connection.dynamodb.queryComingSoon')" />
-            </n-tab-pane>
-            <n-tab-pane name="tables" tab="Tables">
-              <n-empty :description="$t('connection.dynamodb.tablesComingSoon')" />
-            </n-tab-pane>
-          </n-tabs>
+          <dynamo-editor />
         </div>
       </template>
       <template v-else>
         <div class="es-editor">
-          <tool-bar type="EDITOR" />
+          <tool-bar type="ES_EDITOR" />
           <div class="es-editor-container">
-            <Editor />
+            <es-editor />
           </div>
         </div>
       </template>
@@ -43,7 +36,8 @@
 import { storeToRefs } from 'pinia';
 import { Connection, DatabaseType, useTabStore } from '../../store';
 import ConnectList from './components/connect-list.vue';
-import Editor from '../editor/index.vue';
+import EsEditor from '../editor/es-editor/index.vue';
+import DynamoEditor from '../editor/dynamo-editor/index.vue';
 import ToolBar from '../../components/tool-bar.vue';
 import { useLang } from '../../lang';
 import { CustomError } from '../../common';
@@ -115,6 +109,7 @@ onMounted(async () => {
 .connect-tab-container {
   width: 100%;
   height: 100%;
+
   :deep(.n-tab-pane) {
     padding: 0;
   }
@@ -122,6 +117,7 @@ onMounted(async () => {
   :deep(.n-tabs-wrapper) {
     .n-tabs-tab-wrapper {
       background-color: var(--bg-color);
+
       .n-tabs-tab--active {
         background-color: var(--bg-color-secondary);
       }
@@ -132,6 +128,7 @@ onMounted(async () => {
     width: 100%;
     height: 100%;
     background-color: var(--bg-color-secondary);
+
     .es-editor {
       height: 100%;
       display: flex;

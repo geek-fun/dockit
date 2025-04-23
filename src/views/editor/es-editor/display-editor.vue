@@ -4,9 +4,9 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Editor, monaco } from '../../common/monaco';
-import { useAppStore } from '../../store';
-import { jsonify } from '../../common';
+import { Editor, monaco } from '../../../common/monaco';
+import { useAppStore } from '../../../store';
+import { jsonify } from '../../../common';
 
 const appStore = useAppStore();
 const { getEditorTheme } = appStore;

@@ -108,7 +108,7 @@ const lang = useLang();
 const fileFormRef = ref();
 const connectionStore = useConnectionStore();
 const { fetchConnections, testConnection } = connectionStore;
-const {  connections } = storeToRefs(connectionStore);
+const { connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
 const { selectFile, restoreFromFile } = backupRestoreStore;
@@ -225,16 +225,14 @@ const submitRestore = async () => {
     return true;
   });
 
-  const con = connections.value.find(
-    ({ name }) => name === restoreFormData.value.connection,
-  );
+  const con = connections.value.find(({ name }) => name === restoreFormData.value.connection);
 
   if (!isPass || !con) return;
 
   const restoreInput = { ...restoreFormData.value, connection: con };
 
   const index = (connection.value as ElasticsearchConnection)?.indices.find(
-    ({ index }) => index === restoreFormData.value.index,
+    index => index.index === restoreFormData.value.index,
   );
 
   if (!index) {

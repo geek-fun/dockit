@@ -36,10 +36,10 @@
             />
           </n-form-item-row>
           <n-button type="error" @click="() => reset('openai')" class="action-button">
-            {{ $t('setting.ai.form.reset') }}
+            {{ $t('dialogOps.reset') }}
           </n-button>
           <n-button type="success" @click="() => save('openai')" class="action-button">
-            {{ $t('setting.ai.form.save') }}
+            {{ $t('dialogOps.saveAndEnable') }}
           </n-button>
         </n-form>
       </n-tab-pane>
@@ -78,10 +78,10 @@
             />
           </n-form-item-row>
           <n-button type="error" @click="() => reset('deepseek')" class="action-button">
-            {{ $t('setting.ai.form.reset') }}
+            {{ $t('dialogOps.reset') }}
           </n-button>
           <n-button type="success" @click="() => save('deepseek')" class="action-button">
-            {{ $t('setting.ai.form.save') }}
+            {{ $t('dialogOps.saveAndEnable') }}
           </n-button>
         </n-form>
       </n-tab-pane>

@@ -5,9 +5,11 @@ mod common;
 mod fetch_client;
 mod menu;
 mod openai_client;
+mod dynamo_client;
 
 use fetch_client::fetch_api;
 use openai_client::{chat_stream, create_openai_client};
+use dynamo_client::dynamo_api;
 
 fn main() {
     tauri::Builder::default()
@@ -22,6 +24,7 @@ fn main() {
             create_openai_client,
             fetch_api,
             chat_stream,
+            dynamo_api,
         ])
         .setup(|app| {
             menu::create_menu(app)?;

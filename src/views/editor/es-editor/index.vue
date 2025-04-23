@@ -15,9 +15,15 @@ import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useMessage } from 'naive-ui';
-import { CustomError, jsonify } from '../../common';
-import { ElasticsearchConnection, useAppStore, useChatStore, useConnectionStore, useTabStore } from '../../store';
-import { useLang } from '../../lang';
+import { CustomError, jsonify } from '../../../common';
+import {
+  ElasticsearchConnection,
+  useAppStore,
+  useChatStore,
+  useConnectionStore,
+  useTabStore,
+} from '../../../store';
+import { useLang } from '../../../lang';
 import DisplayEditor from './display-editor.vue';
 import {
   buildCodeLens,
@@ -33,8 +39,8 @@ import {
   monaco,
   SearchAction,
   searchTokens,
-  transformQDSL
-} from '../../common/monaco';
+  transformQDSL,
+} from '../../../common/monaco';
 
 const appStore = useAppStore();
 const message = useMessage();
@@ -67,7 +73,7 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
   // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
   executeDecorations = editor.deltaDecorations(
     executeDecorations as Array<string>,
-    freshDecorations
+    freshDecorations,
   ) as unknown as Decoration[];
 };
 
@@ -75,8 +81,7 @@ const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
   onDidChange: (listener, thisArg) => {
     if (!queryEditor) {
       return {
-        dispose: () => {
-        }
+        dispose: () => {},
       } as monaco.IDisposable;
     }
     const model = queryEditor.getModel();
@@ -110,10 +115,9 @@ const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
 
     return {
       lenses,
-      dispose: () => {
-      }
+      dispose: () => {},
     };
-  }
+  },
 });
 
 watch(themeType, () => {
@@ -136,19 +140,19 @@ watch(insertBoard, () => {
             position.lineNumber,
             position.column,
             position.lineNumber,
-            position.column
+            position.column,
           ),
-          text: insertBoard.value
-        }
+          text: insertBoard.value,
+        },
       ],
-      () => null
+      () => null,
     );
   }
 });
 
 const executeQueryAction = async (position: { column: number; lineNumber: number }) => {
   const action = searchTokens.find(
-    ({ position: actionPosition }) => actionPosition.startLineNumber === position.lineNumber
+    ({ position: actionPosition }) => actionPosition.startLineNumber === position.lineNumber,
   );
 
   if (!action) {
@@ -160,7 +164,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
     if (!activeConnection.value) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
-        keepAliveOnHover: true
+        keepAliveOnHover: true,
       });
       return;
     }
@@ -169,7 +173,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
       ...action,
       queryParams: action.queryParams ?? undefined,
       qdsl: transformQDSL(action),
-      index: action.index
+      index: action.index,
     });
 
     showDisplayEditor(data);
@@ -177,7 +181,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
       closable: true,
-      keepAliveOnHover: true
+      keepAliveOnHover: true,
     });
   }
 };
@@ -201,19 +205,19 @@ const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor, position:
             startLineNumber: startLineNumber + 1,
             startColumn: 1,
             endLineNumber,
-            endColumn: model.getLineLength(endLineNumber) + 1
+            endColumn: model.getLineLength(endLineNumber) + 1,
           },
-          text: formatted
-        }
+          text: formatted,
+        },
       ],
       // @ts-ignore
-      inverseEditOperations => []
+      inverseEditOperations => [],
     );
     editor.setPosition({ lineNumber: startLineNumber + 1, column: 1 });
   } catch (err) {
     message.error(lang.t('editor.invalidJson'), {
       closable: true,
-      keepAliveOnHover: true
+      keepAliveOnHover: true,
     });
     return;
   }
@@ -225,12 +229,14 @@ const copyCurlAction = (position: monaco.Range) => {
     return;
   }
   try {
-    navigator.clipboard.writeText(queryToCurl(activeConnection.value as ElasticsearchConnection, action));
+    navigator.clipboard.writeText(
+      queryToCurl(activeConnection.value as ElasticsearchConnection, action),
+    );
     message.success(lang.t('editor.copySuccess'));
   } catch (err) {
     message.error(`${lang.t('editor.copyFailed')}: ${jsonify.stringify(err)}`, {
       closable: true,
-      keepAliveOnHover: true
+      keepAliveOnHover: true,
     });
   }
 };
@@ -242,7 +248,7 @@ const setupQueryEditor = () => {
     language: 'search',
     automaticLayout: true,
     scrollBeyondLastLine: false,
-    minimap: { enabled: false }
+    minimap: { enabled: false },
   });
   if (!queryEditor) {
     return;
@@ -308,7 +314,7 @@ const setupQueryEditor = () => {
       queryEditor!.revealLine(action.position.startLineNumber);
       queryEditor!.setPosition({
         column: position.column,
-        lineNumber: action.position.startLineNumber
+        lineNumber: action.position.startLineNumber,
       });
     }
   });
@@ -328,7 +334,7 @@ const setupQueryEditor = () => {
       queryEditor!.revealLine(action.position.startLineNumber);
       queryEditor!.setPosition({
         column: position.column,
-        lineNumber: action.position.startLineNumber
+        lineNumber: action.position.startLineNumber,
       });
     }
   });
@@ -349,7 +355,7 @@ const setupQueryEditor = () => {
     const docLink = getActionApiDoc(
       EngineType.ELASTICSEARCH,
       'current',
-      getAction(queryEditor?.getPosition()) as SearchAction
+      getAction(queryEditor?.getPosition()) as SearchAction,
     );
     if (docLink) {
       open(docLink);
@@ -379,7 +385,7 @@ const saveFileListener = ref<Function>();
 const saveModelContent = async (
   validateFile: boolean,
   displayError: boolean,
-  displaySuccess: boolean
+  displaySuccess: boolean,
 ) => {
   const model = queryEditor?.getModel();
   if (!model) {
@@ -389,14 +395,14 @@ const saveModelContent = async (
     await saveContent(undefined, model.getValue() || '', validateFile);
     if (displaySuccess) {
       message.success(lang.t('dialogOps.fileSaveSuccess'), {
-        duration: 1000
+        duration: 1000,
       });
     }
   } catch (err) {
     if (displayError) {
       message.error((err as CustomError).details, {
         closable: true,
-        keepAliveOnHover: true
+        keepAliveOnHover: true,
       });
     }
   }
