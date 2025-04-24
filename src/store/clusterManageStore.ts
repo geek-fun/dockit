@@ -427,7 +427,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         this.nodes = [];
       }
     },
-    async fetchShards(includeHidden: boolean = false) {
+    async fetchShards() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (this.connection.type === DatabaseType.ELASTICSEARCH) {
         const client = loadHttpClient(this.connection);
@@ -441,9 +441,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
             a.prirep.localeCompare(b.prirep),
           );
 
-          this.shards = includeHidden
-            ? data
-            : data.filter((shard: Shard) => !shard.index.startsWith('.'));
+          this.shards = this.hideSystemIndices
+            ? data.filter((shard: Shard) => !shard.index.startsWith('.'))
+            : data;
         } catch (err) {
           debug(`Failed to fetch shards: ${err}`);
           throw new CustomError(
@@ -645,21 +645,25 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
           [key: string]: string;
         }>;
 
-        this.indices = data.map((index: { [key: string]: string }) => ({
-          index: index.index,
-          uuid: index.uuid,
-          health: index.health as IndexHealth,
-          status: index.status as IndexStatus,
-          storage: index['store.size'],
-          shards: {
-            primary: parseInt(index['pri'], 10),
-            replica: parseInt(index['rep'], 10),
-          },
-          docs: {
-            count: parseInt(index['docs.count'] || '0', 10),
-            deleted: parseInt(index['docs.deleted'], 10),
-          },
-        }));
+        this.indices = data
+          .filter((index: { [key: string]: string }) =>
+            this.hideSystemIndices ? !index.index.startsWith('.') : true,
+          )
+          .map((index: { [key: string]: string }) => ({
+            index: index.index,
+            uuid: index.uuid,
+            health: index.health as IndexHealth,
+            status: index.status as IndexStatus,
+            storage: index['store.size'],
+            shards: {
+              primary: parseInt(index['pri'], 10),
+              replica: parseInt(index['rep'], 10),
+            },
+            docs: {
+              count: parseInt(index['docs.count'] || '0', 10),
+              deleted: parseInt(index['docs.deleted'], 10),
+            },
+          }));
       } else {
         this.indices = [];
       }
@@ -671,16 +675,20 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         const data = (await client.get('/_cat/aliases', 'format=json&s=alias')) as Array<{
           [key: string]: string;
         }>;
-        this.aliases = data.map((alias: { [key: string]: string }) => ({
-          alias: alias.alias,
-          index: alias.index,
-          filter: alias.filter,
-          routing: {
-            index: alias['routing.index'],
-            search: alias['routing.search'],
-          },
-          isWriteIndex: alias['is_write_index'] === 'true',
-        }));
+        this.aliases = data
+          .filter((alias: { [key: string]: string }) =>
+            this.hideSystemIndices ? !alias.index.startsWith('.') : true,
+          )
+          .map((alias: { [key: string]: string }) => ({
+            alias: alias.alias,
+            index: alias.index,
+            filter: alias.filter,
+            routing: {
+              index: alias['routing.index'],
+              search: alias['routing.search'],
+            },
+            isWriteIndex: alias['is_write_index'] === 'true',
+          }));
       } else {
         this.aliases = [];
       }
