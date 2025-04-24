@@ -11,6 +11,7 @@ type Panel = {
   connection?: Connection;
   file?: string;
   content?: string;
+  hideSystemIndices?: boolean;
 };
 
 const homePanel: Panel = { id: 0, name: 'home', file: '' };

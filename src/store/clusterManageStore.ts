@@ -252,6 +252,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     indices: Array<ClusterIndex>;
     aliases: Array<ClusterAlias>;
     templates: Array<ClusterTemplate>;
+    hideSystemIndices: boolean;
   } => ({
     connection: undefined,
     cluster: undefined,
@@ -260,7 +261,12 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     indices: [],
     aliases: [],
     templates: [],
+    hideSystemIndices: true,
   }),
+  persist: {
+    pick: ['showSystemIndices'],
+    storage: localStorage,
+  },
   getters: {
     aliasesWithIndices(): Array<{ alias: string; indices: Array<ClusterAlias> }> {
       return Array.from(new Set(this.aliases.map(alias => alias.alias))).map(alias => ({
