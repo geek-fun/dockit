@@ -64,7 +64,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { get } from 'lodash';
-import { ClusterAlias, ClusterIndex, IndexHealth, useClusterManageStore } from '../../../store';
+import { useClusterManageStore } from '../../../store';
 import { NButton, NDropdown, NIcon, NTag, NInput } from 'naive-ui';
 import {
   Add,
@@ -84,6 +84,7 @@ import TemplateDialog from './template-dialog.vue';
 import { useLang } from '../../../lang';
 import { CustomError, inputProps } from '../../../common';
 import SwitchAliasDialog from './switch-alias-dialog.vue';
+import { ClusterAlias, ClusterIndex, IndexHealth } from '../../../datasources';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -162,7 +163,7 @@ const indexTableColumns = ref([
     dataIndex: 'health',
     key: 'health',
     ...filterProps('health'),
-    render({ health }: ClusterIndex) {
+    render({ health }: { health: IndexHealth }) {
       return (
         (health === IndexHealth.GREEN ? '🟢' : health === IndexHealth.YELLOW ? '🟡' : '🔴') +
         ` ${health}`
@@ -227,7 +228,14 @@ const indexTableColumns = ref([
     dataIndex: 'shards',
     key: 'shards',
     render({ shards }: ClusterIndex) {
-      return `${shards.primary}p/${shards.replica}r`;
+      if (!shards || !Array.isArray(shards)) {
+        return '0p/0r';
+      }
+
+      const primaryCount = shards.filter(shard => shard.prirep === 'p').length;
+      const replicaCount = shards.filter(shard => shard.prirep === 'r').length;
+
+      return `${primaryCount}p/${replicaCount}r`;
     },
   },
   { title: 'Storage', dataIndex: 'storage', key: 'storage' },

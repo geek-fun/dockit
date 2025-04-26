@@ -33,6 +33,21 @@
         <Search />
       </template>
     </n-select>
+    <n-tooltip trigger="hover" v-if="['ES_EDITOR', 'MANAGE'].includes(props.type ?? '')">
+      <template #trigger>
+        <n-switch
+          :round="false"
+          v-model:value="hideSystemIndicesRef"
+          class="action-index-switch"
+          @update:value="handleHiddenChange"
+        >
+          <template #checked> Hidden</template>
+          <template #unchecked>Display</template>
+        </n-switch>
+      </template>
+      Hide/Display system indices
+    </n-tooltip>
+
     <n-tooltip v-if="props.type === 'ES_EDITOR'" trigger="hover">
       <template #trigger>
         <n-icon size="20" class="action-load-icon" @click="loadDefaultSnippet">
@@ -99,7 +114,7 @@ const { loadDefaultSnippet, selectConnection } = tabStore;
 const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
-const { connection } = storeToRefs(clusterManageStore);
+const { connection, hideSystemIndices } = storeToRefs(clusterManageStore);
 
 const loadingRef = ref({ connection: false, index: false });
 
@@ -108,6 +123,21 @@ const selectionState = ref<{ connection: boolean; index: boolean }>({
   connection: false,
   index: false,
 });
+
+const hideSystemIndicesRef = ref(true);
+
+watch(
+  () => props.type,
+  newType => {
+    if (newType === 'ES_EDITOR') {
+      hideSystemIndicesRef.value = activePanel?.value.hideSystemIndices ?? true;
+    } else if (newType === 'MANAGE') {
+      hideSystemIndicesRef.value = hideSystemIndices.value;
+    }
+  },
+  { immediate: true },
+);
+
 const options = computed(
   () =>
     ({
@@ -116,9 +146,9 @@ const options = computed(
           ({ name }) => !filterRef.value.connection || name.includes(filterRef.value.connection),
         )
         .map(({ name }) => ({ label: name, value: name })),
-      index: activeElasticsearchIndexOption.value?.filter(
-        index => !filterRef.value.index || index.value.includes(filterRef.value.index),
-      ),
+      index: activeElasticsearchIndexOption.value
+        ?.filter(index => (hideSystemIndicesRef.value ? !index.value.startsWith('.') : true))
+        .filter(index => !filterRef.value.index || index.value.includes(filterRef.value.index)),
     }) as Record<string, { label: string; value: string }[]>,
 );
 
@@ -206,6 +236,15 @@ const handleSearch = async (input: string, type: 'CONNECTION' | 'INDEX') => {
 const handleManageTabChange = (tabName: string) => {
   emits('switch-manage-tab', tabName);
 };
+
+const handleHiddenChange = (value: boolean) => {
+  if (props.type === 'ES_EDITOR' && activePanel.value) {
+    activePanel.value.hideSystemIndices = value;
+  }
+  if (props.type === 'MANAGE' && connection.value) {
+    hideSystemIndices.value = value;
+  }
+};
 </script>
 
 <style lang="scss" scoped>
@@ -225,6 +264,14 @@ const handleManageTabChange = (tabName: string) => {
     padding: 0;
     margin-left: 10px;
     line-height: 40px;
+  }
+
+  .action-index-switch {
+    cursor: pointer;
+    padding: 0;
+    margin-left: 10px;
+    height: inherit;
+    min-width: 80px;
   }
 
   .manage-container {
