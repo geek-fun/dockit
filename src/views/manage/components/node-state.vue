@@ -74,13 +74,14 @@
 
 <script setup lang="ts">
 import prettyBytes from 'pretty-bytes';
-import { NodeRoleEnum, useClusterManageStore } from '../../../store';
+import { useClusterManageStore } from '../../../store';
 import { storeToRefs } from 'pinia';
 import { FolderMoveTo, Network3, Star, StarFilled, VmdkDisk } from '@vicons/carbon';
 import { CustomError } from '../../../common';
+import { NodeRoleEnum } from '../../../datasources';
 
 const clusterManageStore = useClusterManageStore();
-const { fetchNodes, fetchNodeState } = clusterManageStore;
+const { fetchNodes } = clusterManageStore;
 const { nodes } = storeToRefs(clusterManageStore);
 
 const message = useMessage();
@@ -106,9 +107,9 @@ const nodeStats = ref<Array<NodeStats>>([
 const nodeStatistics = ref<Array<NodeStatistics>>([]);
 
 const handleNodeClick = async (nodeName: string) => {
-  const latestState = await fetchNodeState(nodeName);
-  if (!latestState) return;
-  const { ip, ram, disk, shard, mapping, heap } = latestState;
+  const selectedNode = nodes.value.find(node => node.name === nodeName);
+  if (!selectedNode) return;
+  const { ip, ram, disk, shard, mapping, heap } = selectedNode;
   nodeStats.value = [
     { key: 'ip', value: ip },
     { key: 'ram', value: prettyBytes(ram.max || 0) },
