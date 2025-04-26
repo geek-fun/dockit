@@ -114,8 +114,8 @@ const { loadDefaultSnippet, selectConnection } = tabStore;
 const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
-const { setConnection } = clusterManageStore;
-const { connection, hideSystemIndices } = storeToRefs(clusterManageStore);
+const { setConnection, refreshStates } = clusterManageStore;
+const { connection } = storeToRefs(clusterManageStore);
 
 const loadingRef = ref({ connection: false, index: false });
 
@@ -129,11 +129,11 @@ const hideSystemIndicesRef = ref(true);
 
 watch(
   () => props.type,
-  newType => {
+  async newType => {
     if (newType === 'ES_EDITOR') {
       hideSystemIndicesRef.value = activePanel?.value.hideSystemIndices ?? true;
     } else if (newType === 'MANAGE') {
-      hideSystemIndicesRef.value = hideSystemIndices.value;
+      await refreshStates();
     }
   },
   { immediate: true },
@@ -239,12 +239,12 @@ const handleManageTabChange = (tabName: string) => {
   emits('switch-manage-tab', tabName);
 };
 
-const handleHiddenChange = (value: boolean) => {
+const handleHiddenChange = async (value: boolean) => {
   if (props.type === 'ES_EDITOR' && activePanel.value) {
     activePanel.value.hideSystemIndices = value;
   }
   if (props.type === 'MANAGE' && connection.value) {
-    hideSystemIndices.value = value;
+    await refreshStates(value);
   }
 };
 </script>

@@ -91,24 +91,13 @@ const dialog = useDialog();
 const lang = useLang();
 
 const clusterManageStore = useClusterManageStore();
-const {
-  fetchIndices,
-  fetchAliases,
-  fetchTemplates,
-  deleteIndex,
-  closeIndex,
-  openIndex,
-  removeAlias,
-} = clusterManageStore;
+const { refreshStates, deleteIndex, closeIndex, openIndex, removeAlias } = clusterManageStore;
 const { indexWithAliases, templates } = storeToRefs(clusterManageStore);
 
 const indexDialogRef = ref();
 const aliasDialogRef = ref();
 const templateDialogRef = ref();
 const switchAliasDialogRef = ref();
-
-const indexTableData = ref(indexWithAliases.value);
-const templateTableData = ref(templates.value);
 
 const filtersRef = ref<{ [key: string]: string }>({
   index: '',
@@ -343,9 +332,7 @@ const templateTable = computed(() => {
 });
 
 const refresh = async () => {
-  await fetchIndices();
-  await fetchAliases();
-  await fetchTemplates();
+  await refreshStates();
 };
 
 const handleRefresh = async () => {

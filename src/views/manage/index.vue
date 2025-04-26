@@ -40,17 +40,12 @@ const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
-const { setConnection, fetchCluster, fetchIndices, fetchAliases, fetchNodes, fetchShards } =
-  clusterManageStore;
+const { setConnection, refreshStates } = clusterManageStore;
 const { cluster, connection } = storeToRefs(clusterManageStore);
 
 const refreshData = async () => {
   try {
-    await fetchCluster();
-    await fetchIndices();
-    await fetchAliases();
-    await fetchNodes();
-    await fetchShards();
+    refreshStates();
   } catch (err) {
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
