@@ -114,6 +114,7 @@ const { loadDefaultSnippet, selectConnection } = tabStore;
 const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
+const { setConnection } = clusterManageStore;
 const { connection, hideSystemIndices } = storeToRefs(clusterManageStore);
 
 const loadingRef = ref({ connection: false, index: false });
@@ -198,9 +199,10 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
       return;
     }
     try {
-      ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
-        ? await selectConnection(con)
-        : (connection.value = con);
+      if (['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')) {
+        await selectConnection(con);
+      }
+      setConnection(con);
     } catch (err) {
       const error = err as CustomError;
       message.error(`status: ${error.status}, details: ${error.details}`, {
