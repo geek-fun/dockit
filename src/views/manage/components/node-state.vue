@@ -122,7 +122,7 @@ const handleNodeClick = async (nodeName: string) => {
     { name: 'ram', ...ram },
     { name: 'disk', ...disk },
     { name: 'heap', ...heap },
-  ];
+  ] as Array<NodeStatistics>;
 };
 
 onMounted(async () => {

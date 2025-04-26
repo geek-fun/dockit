@@ -1,6 +1,6 @@
 import { ElasticsearchConnection } from '../store';
 import { loadHttpClient } from './fetchApi.ts';
-import { CustomError, debug, jsonify } from '../common';
+import { CustomError, debug, jsonify, optionalToNullableInt } from '../common';
 import { get } from 'lodash';
 
 export enum IndexHealth {
@@ -52,25 +52,25 @@ export type ClusterNode = {
   roles: Array<NodeRoleEnum | undefined>;
   master: boolean;
   heap: {
-    percent: number;
-    current: number;
-    max: number;
+    percent: number | null;
+    current: number | null;
+    max: number | null;
   };
   ram: {
-    percent: number;
-    current: number;
-    max: number;
+    percent: number | null;
+    current: number | null;
+    max: number | null;
   };
   disk: {
-    percent: number;
-    current: number;
-    max: number;
+    percent: number | null;
+    current: number | null;
+    max: number | null;
   };
   shard: {
-    total: number;
+    total: number | null;
   };
   mapping: {
-    total: number;
+    total: number | null;
   };
 };
 
@@ -80,26 +80,26 @@ export type ClusterShard = {
   prirep: string;
   state: ShardStateEnum;
   docs: {
-    count: number;
+    count: number | null;
   };
   store: {
-    size: number;
+    size: number | null;
   };
   dataset: {
-    size: number;
+    size: number | null;
   };
   ip: string;
   id: string;
   node: string;
   completion: {
-    size: number;
+    size: number | null;
   };
   denseVector: {
     valueCount: string;
   };
   fielddata: {
-    memorySize: number;
-    evictions: number;
+    memorySize: number | null;
+    evictions: number | null;
   };
   flush: {
     total: string;
@@ -127,14 +127,14 @@ export type ClusterShard = {
     current: string;
     currentDocs: string;
     currentSize: string;
-    total: number;
-    totalDocs: number;
-    totalSize: number;
+    total: number | null;
+    totalDocs: number | null;
+    totalSize: number | null;
     totalTime: string;
   };
   queryCache: {
-    memorySize: number;
-    evictions: number;
+    memorySize: number | null;
+    evictions: number | null;
   };
   refresh: {
     total: string;
@@ -153,11 +153,11 @@ export type ClusterShard = {
     scrollTotal: string;
   };
   segments: {
-    count: number;
-    memory: number;
-    indexWriterMemory: number;
-    versionMapMemory: number;
-    fixedBitsetMemory: number;
+    count: number | null;
+    memory: number | null;
+    indexWriterMemory: number | null;
+    versionMapMemory: number | null;
+    fixedBitsetMemory: number | null;
   };
   seqNo: {
     globalCheckpoint: string;
@@ -185,8 +185,8 @@ export type ClusterIndex = {
   storage: string;
   shards: Array<ClusterShard> | undefined;
   docs: {
-    count: number;
-    deleted: number;
+    count: number | null;
+    deleted: number | null;
   };
 };
 
@@ -491,8 +491,8 @@ const esApi: ESApi = {
       status: index.status as IndexStatus,
       storage: index['store.size'],
       docs: {
-        count: parseInt(index['docs.count'] || '0', 10),
-        deleted: parseInt(index['docs.deleted'] || '0', 10),
+        count: optionalToNullableInt(index['docs.count']),
+        deleted: optionalToNullableInt(index['docs.deleted']),
       },
       shards: undefined,
     }));
@@ -529,22 +529,22 @@ const esApi: ESApi = {
           cpu: get(node, 'cpu', ''),
           name: get(node, 'name', ''),
           heap: {
-            percent: parseInt(get(node, 'heap.percent', '0')),
-            current: parseInt(get(node, 'heap.current', '0')),
-            max: parseInt(get(node, 'heap.max', '0')),
+            percent: optionalToNullableInt(get(node, 'heap.percent')),
+            current: optionalToNullableInt(get(node, 'heap.current')),
+            max: optionalToNullableInt(get(node, 'heap.max')),
           },
           ram: {
-            percent: parseInt(get(node, 'ram.percent', '0')),
-            current: parseInt(get(node, 'ram.current', '0')),
-            max: parseInt(get(node, 'ram.max', '0')),
+            percent: optionalToNullableInt(get(node, 'ram.percent')),
+            current: optionalToNullableInt(get(node, 'ram.current')),
+            max: optionalToNullableInt(get(node, 'ram.max')),
           },
           disk: {
-            percent: parseInt(get(node, 'disk.used_percent', '0')),
-            current: parseInt(get(node, 'disk.used', '0')),
-            max: parseInt(get(node, 'disk.total', '0')),
+            percent: optionalToNullableInt(get(node, 'disk.used_percent')),
+            current: optionalToNullableInt(get(node, 'disk.used')),
+            max: optionalToNullableInt(get(node, 'disk.total')),
           },
-          shard: { total: parseInt(get(node, 'shard_stats.total_count', '0')) },
-          mapping: { total: parseInt(get(node, 'mappings.total_count', '0')) },
+          shard: { total: optionalToNullableInt(get(node, 'shard_stats.total_count')) },
+          mapping: { total: optionalToNullableInt(get(node, 'mappings.total_count')) },
           roles: get(node, 'node.role', '')
             .split('')
             .map((char: string) => {
@@ -603,18 +603,18 @@ const esApi: ESApi = {
                 ip: item.ip,
                 id: item.id,
                 node: item.node,
-                dataset: { size: parseInt(get(item, 'dataset.size', '0')) },
-                completion: { size: parseInt(get(item, 'completion.size', '0')) },
+                dataset: { size: optionalToNullableInt(get(item, 'dataset.size')) },
+                completion: { size: optionalToNullableInt(get(item, 'completion.size')) },
                 denseVector: { valueCount: get(item, 'dense_vector.value_count') },
-                docs: { count: parseInt(get(item, 'docs', '0'), 10) },
-                store: { size: parseInt(get(item, 'store', '0')) },
+                docs: { count: optionalToNullableInt(get(item, 'docs')) },
+                store: { size: optionalToNullableInt(get(item, 'store')) },
                 fielddata: {
-                  memorySize: parseInt(get(item, 'fielddata.memory_size', '0')),
-                  evictions: parseInt(get(item, 'fielddata.evictions', '0')),
+                  memorySize: optionalToNullableInt(get(item, 'fielddata.memory_size')),
+                  evictions: optionalToNullableInt(get(item, 'fielddata.evictions')),
                 },
                 flush: {
-                  total: parseInt(get(item, 'flush.total', '0')),
-                  totalTime: get(item, 'flush.total_time', ''),
+                  total: optionalToNullableInt(get(item, 'flush.total')),
+                  totalTime: get(item, 'flush.total_time'),
                 },
                 get: {
                   current: get(item, 'get.current'),
@@ -638,14 +638,14 @@ const esApi: ESApi = {
                   current: get(item, 'merges.current'),
                   currentDocs: get(item, 'merges.current_docs'),
                   currentSize: get(item, 'merges.current_size'),
-                  total: parseInt(get(item, 'merges.total', '0')),
-                  totalDocs: parseInt(get(item, 'merges.total_docs', '0')),
-                  totalSize: parseInt(get(item, 'merges.total_size', '0')),
+                  total: optionalToNullableInt(get(item, 'merges.total')),
+                  totalDocs: optionalToNullableInt(get(item, 'merges.total_docs')),
+                  totalSize: optionalToNullableInt(get(item, 'merges.total_size')),
                   totalTime: get(item, 'merges.total_time'),
                 },
                 queryCache: {
-                  memorySize: parseInt(get(item, 'query_cache.memory_size', '0')),
-                  evictions: parseInt(get(item, 'query_cache.evictions', '0')),
+                  memorySize: optionalToNullableInt(get(item, 'query_cache.memory_size')),
+                  evictions: optionalToNullableInt(get(item, 'query_cache.evictions')),
                 },
                 refresh: {
                   total: get(item, 'refresh.total'),
@@ -664,11 +664,15 @@ const esApi: ESApi = {
                   scrollTotal: get(item, 'search.scroll_total'),
                 },
                 segments: {
-                  count: parseInt(get(item, 'segments.count', '0')),
-                  memory: parseInt(get(item, 'segments.memory', '0')),
-                  indexWriterMemory: parseInt(get(item, 'segments.index_writer_memory', '0')),
-                  versionMapMemory: parseInt(get(item, 'segments.version_map_memory', '0')),
-                  fixedBitsetMemory: parseInt(get(item, 'segments.fixed_bitset_memory', '0')),
+                  count: optionalToNullableInt(get(item, 'segments.count')),
+                  memory: optionalToNullableInt(get(item, 'segments.memory')),
+                  indexWriterMemory: optionalToNullableInt(
+                    get(item, 'segments.index_writer_memory'),
+                  ),
+                  versionMapMemory: optionalToNullableInt(get(item, 'segments.version_map_memory')),
+                  fixedBitsetMemory: optionalToNullableInt(
+                    get(item, 'segments.fixed_bitset_memory'),
+                  ),
                 },
                 seqNo: {
                   globalCheckpoint: get(item, 'seq_no.global_checkpoint'),
@@ -676,9 +680,9 @@ const esApi: ESApi = {
                   max: get(item, 'seq_no.max'),
                 },
                 suggest: {
-                  current: parseInt(get(item, 'suggest.current', '0')),
+                  current: optionalToNullableInt(get(item, 'suggest.current')),
                   time: get(item, 'suggest.time', ''),
-                  total: parseInt(get(item, 'suggest.total', '0')),
+                  total: optionalToNullableInt(get(item, 'suggest.total')),
                 },
                 unassigned: {
                   at: get(item, 'unassigned.at'),

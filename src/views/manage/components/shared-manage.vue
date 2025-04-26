@@ -193,27 +193,27 @@ const handleShardClick = async (shard: ClusterShard) => {
       },
       {
         icon: () => VmdkDisk,
-        content: `size: ${prettyBytes(shard.store.size)}, dataset: ${prettyBytes(
-          shard.dataset.size,
-        )}`,
+        content: `size: ${shard.store.size ? prettyBytes(shard.store.size) : null}, dataset: ${
+          shard.dataset.size ? prettyBytes(shard.dataset.size) : null
+        }`,
         desc: 'store',
         tagType: 'success',
       },
       {
         icon: () => Memory,
-        content: `size: ${prettyBytes(shard.completion.size)}`,
+        content: `size: ${shard.completion.size ? prettyBytes(shard.completion.size) : null}`,
         desc: 'completion',
         tagType: 'success',
       },
       {
         icon: () => Memory,
-        content: `memory_size: ${prettyBytes(shard.fielddata.memorySize)}, evictions: ${shard.fielddata.evictions}`,
+        content: `memory_size: ${shard.fielddata.memorySize ? prettyBytes(shard.fielddata.memorySize) : null}, evictions: ${shard.fielddata.evictions}`,
         desc: 'fielddata',
         tagType: 'success',
       },
       {
         icon: () => Layers,
-        content: `memory_size: ${prettyBytes(shard.queryCache.memorySize)}, evictions: ${shard.queryCache.evictions}`,
+        content: `memory_size: ${shard.queryCache.memorySize ? prettyBytes(shard.queryCache.memorySize) : null}, evictions: ${shard.queryCache.evictions}`,
         desc: 'query_cache',
         tagType: 'success',
       },
@@ -237,17 +237,17 @@ const handleShardClick = async (shard: ClusterShard) => {
       },
       {
         icon: () => ShapeExcept,
-        content: `total: ${shard.merges.total}, size: ${prettyBytes(shard.merges.totalSize)}, docs: ${shard.merges.totalDocs} time: ${shard.merges.totalTime}`,
+        content: `total: ${shard.merges.total}, size: ${shard.merges.totalSize ? prettyBytes(shard.merges.totalSize) : null}, docs: ${shard.merges.totalDocs} time: ${shard.merges.totalTime}`,
         desc: 'MERGES OPERATION',
         tagType: 'success',
       },
       {
         icon: () => Application,
-        content: `count: ${shard.segments.count}/${prettyBytes(shard.segments.memory)}, writer: ${prettyBytes(
-          shard.segments.indexWriterMemory,
-        )}, version_map: ${prettyBytes(shard.segments.versionMapMemory)}, fixed_bitset: ${prettyBytes(
-          shard.segments.fixedBitsetMemory,
-        )}`,
+        content: `count: ${shard.segments.count}/${prettyBytes(shard.segments.memory ?? 0)}, writer: ${
+          shard.segments.indexWriterMemory ? prettyBytes(shard.segments.indexWriterMemory) : null
+        }, version_map: ${shard.segments.versionMapMemory ? prettyBytes(shard.segments.versionMapMemory) : null}, fixed_bitset: ${
+          shard.segments.fixedBitsetMemory ? prettyBytes(shard.segments.fixedBitsetMemory) : null
+        }`,
         desc: 'segments',
         tagType: 'success',
       },
