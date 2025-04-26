@@ -228,7 +228,14 @@ const indexTableColumns = ref([
     dataIndex: 'shards',
     key: 'shards',
     render({ shards }: ClusterIndex) {
-      return `${shards.primary}p/${shards.replica}r`;
+      if (!shards || !Array.isArray(shards)) {
+        return '0p/0r';
+      }
+
+      const primaryCount = shards.filter(shard => shard.prirep === 'p').length;
+      const replicaCount = shards.filter(shard => shard.prirep === 'r').length;
+
+      return `${primaryCount}p/${replicaCount}r`;
     },
   },
   { title: 'Storage', dataIndex: 'storage', key: 'storage' },

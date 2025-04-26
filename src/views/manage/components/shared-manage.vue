@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Shard, ShardState, useClusterManageStore } from '../../../store';
+import { useClusterManageStore } from '../../../store';
 import prettyBytes from 'pretty-bytes';
 import {
   AiResults,
@@ -80,13 +80,14 @@ import { Memory } from '@vicons/fa';
 import { NButton } from 'naive-ui';
 import { TableColumn } from 'naive-ui/es/data-table/src/interface';
 import { CustomError } from '../../../common';
+import { ClusterShard } from '../../../datasources';
 
 const clusterManageStore = useClusterManageStore();
-const { fetchNodes, fetchShards, getShardState } = clusterManageStore;
-const { shards, nodesWithShards } = storeToRefs(clusterManageStore);
+const { fetchNodes, fetchShards } = clusterManageStore;
+const { indices } = storeToRefs(clusterManageStore);
 const message = useMessage();
 
-type IndexShard = ShardState & {
+type IndexShard = ClusterShard & {
   details: Array<{
     icon: () => Component;
     content: string;
@@ -96,24 +97,47 @@ type IndexShard = ShardState & {
 };
 
 const nodeShardsTable = computed(() => {
-  const nodes = shards.value
-    .filter(shard => shard.node)
-    .reduce(
-      (acc, shard) => {
-        if (acc.some(node => node.name === shard.node)) {
-          return acc;
-        }
-        return [...acc, { name: shard.node }];
-      },
-      [{ name: 'index' }, { name: 'unassigned' }] as Array<{ name: string }>,
-    );
+  const nodes = Array.from(
+    new Set(
+      indices.value
+        .flatMap(index => index.shards || [])
+        .map(shard => shard.node)
+        .filter(Boolean),
+    ),
+  );
+
+  const columns = [{ name: 'index' }, ...nodes.map(name => ({ name })), { name: 'unassigned' }];
+
+  // Group shards by index and then by node
+  const data = indices.value.map(index => {
+    const result = { index: index.index } as Record<string, any>;
+
+    // Initialize empty arrays for each node and unassigned
+    columns.forEach(column => {
+      if (column.name !== 'index') {
+        result[column.name] = [];
+      }
+    });
+
+    // Distribute shards to their respective node columns
+    (index.shards || []).forEach(shard => {
+      if (shard.node) {
+        result[shard.node].push(shard);
+      } else {
+        result['unassigned'].push(shard);
+      }
+    });
+
+    return result;
+  });
+
   return {
-    columns: nodes.map(column => ({
+    columns: columns.map(column => ({
       title: column.name,
       key: column.name,
-      render(row: { [key: string]: Array<Shard> }) {
+      render(row: { [key: string]: any }) {
         if (column.name === 'index') return row.index;
-        return row[column.name].map((shard: Shard) =>
+        return (row[column.name] || []).map((shard: ClusterShard) =>
           h(
             NButton,
             {
@@ -121,7 +145,7 @@ const nodeShardsTable = computed(() => {
               type: 'primary',
               secondary: shard.prirep == 'p',
               dashed: shard.prirep == 'r',
-              onClick: () => handleShardClick(row as unknown as Shard),
+              onClick: () => handleShardClick(shard),
               class: 'shard-box',
             },
             {
@@ -131,9 +155,10 @@ const nodeShardsTable = computed(() => {
         );
       },
     })) as TableColumn[],
-    data: nodesWithShards.value,
+    data,
   };
 });
+
 const indexShards = ref<{
   index: string;
   shards: Array<IndexShard>;
@@ -154,9 +179,10 @@ const refreshShards = async () => {
   }
 };
 
-const handleShardClick = async (shard: Shard) => {
-  const indexes = await getShardState(shard.index);
-  const shards = indexes?.shards.map((shard: ShardState) => ({
+const handleShardClick = async (shard: ClusterShard) => {
+  const { shards } = indices.value.find(({ index }) => index === shard.index) || {};
+  if (!shards) return;
+  const shardList = shards.map((shard: ClusterShard) => ({
     ...shard,
     details: [
       {
@@ -261,7 +287,10 @@ const handleShardClick = async (shard: Shard) => {
     ].filter(Boolean),
   }));
 
-  indexShards.value = { ...indexes, shards } as { index: string; shards: Array<IndexShard> };
+  indexShards.value = { index: shard.index, shards: shardList } as {
+    index: string;
+    shards: Array<IndexShard>;
+  };
 };
 
 onMounted(async () => {

@@ -1,6 +1,7 @@
 import { ElasticsearchConnection } from '../store';
 import { loadHttpClient } from './fetchApi.ts';
 import { CustomError, debug, jsonify } from '../common';
+import { get } from 'lodash';
 
 export enum IndexHealth {
   GREEN = 'green',
@@ -14,6 +15,13 @@ export enum IndexStatus {
   HIDDEN = 'hidden',
 }
 
+export enum ShardStateEnum {
+  UNASSIGNED = 'UNASSIGNED',
+  INITIALIZING = 'INITIALIZING',
+  STARTED = 'STARTED',
+  RELOCATING = 'RELOCATING',
+}
+
 export enum NodeRoleEnum {
   DATA = 'DATA',
   INGEST = 'INGEST',
@@ -23,22 +31,6 @@ export enum NodeRoleEnum {
   TRANSFORM = 'TRANSFORM',
   COORDINATING = 'COORDINATING',
 }
-
-export type ClusterIndex = {
-  index: string;
-  uuid: string;
-  health: IndexHealth;
-  status: IndexStatus;
-  storage: string;
-  shards: {
-    primary: number;
-    replica: number;
-  };
-  docs: {
-    count: number;
-    deleted: number;
-  };
-};
 
 export type ClusterAlias = {
   alias: string;
@@ -79,6 +71,122 @@ export type ClusterNode = {
   };
   mapping: {
     total: number;
+  };
+};
+
+export type ClusterShard = {
+  index: string;
+  shard: string;
+  prirep: string;
+  state: ShardStateEnum;
+  docs: {
+    count: number;
+  };
+  store: {
+    size: number;
+  };
+  dataset: {
+    size: number;
+  };
+  ip: string;
+  id: string;
+  node: string;
+  completion: {
+    size: number;
+  };
+  denseVector: {
+    valueCount: string;
+  };
+  fielddata: {
+    memorySize: number;
+    evictions: number;
+  };
+  flush: {
+    total: string;
+    totalTime: string;
+  };
+  get: {
+    current: string;
+    time: string;
+    total: string;
+    existsTime: string;
+    existsTotal: string;
+    missingTime: string;
+    missingTotal: string;
+  };
+  indexing: {
+    deleteCurrent: string;
+    deleteTime: string;
+    deleteTotal: string;
+    indexCurrent: string;
+    indexTime: string;
+    indexTotal: string;
+    indexFailed: string;
+  };
+  merges: {
+    current: string;
+    currentDocs: string;
+    currentSize: string;
+    total: number;
+    totalDocs: number;
+    totalSize: number;
+    totalTime: string;
+  };
+  queryCache: {
+    memorySize: number;
+    evictions: number;
+  };
+  refresh: {
+    total: string;
+    time: string;
+  };
+  search: {
+    fetchCurrent: string;
+    fetchTime: string;
+    fetchTotal: string;
+    openContexts: string;
+    queryCurrent: string;
+    queryTime: string;
+    queryTotal: string;
+    scrollCurrent: string;
+    scrollTime: string;
+    scrollTotal: string;
+  };
+  segments: {
+    count: number;
+    memory: number;
+    indexWriterMemory: number;
+    versionMapMemory: number;
+    fixedBitsetMemory: number;
+  };
+  seqNo: {
+    globalCheckpoint: string;
+    localCheckpoint: string;
+    max: string;
+  };
+  suggest: {
+    current: string;
+    time: string;
+    total: string;
+  };
+  unassigned: {
+    at: string;
+    details: string;
+    for: string;
+    reason: string;
+  };
+};
+
+export type ClusterIndex = {
+  index: string;
+  uuid: string;
+  health: IndexHealth;
+  status: IndexStatus;
+  storage: string;
+  shards: Array<ClusterShard> | undefined;
+  docs: {
+    count: number;
+    deleted: number;
   };
 };
 
@@ -148,6 +256,10 @@ interface ESApi {
   catAliases(connection: ElasticsearchConnection): Promise<Array<ClusterAlias>>;
 
   catNodes(connection: ElasticsearchConnection): Promise<Array<ClusterNode>>;
+
+  catShards(
+    connection: ElasticsearchConnection,
+  ): Promise<Array<{ index: string; shards: Array<ClusterShard> }>>;
 }
 
 const esApi: ESApi = {
@@ -378,14 +490,11 @@ const esApi: ESApi = {
       health: index.health as IndexHealth,
       status: index.status as IndexStatus,
       storage: index['store.size'],
-      shards: {
-        primary: parseInt(index['pri'], 10),
-        replica: parseInt(index['rep'], 10),
-      },
       docs: {
         count: parseInt(index['docs.count'] || '0', 10),
-        deleted: parseInt(index['docs.deleted'], 10),
+        deleted: parseInt(index['docs.deleted'] || '0', 10),
       },
+      shards: undefined,
     }));
   },
   catAliases: async connection => {
@@ -404,61 +513,39 @@ const esApi: ESApi = {
       isWriteIndex: alias['is_write_index'] === 'true',
     }));
   },
-
   catNodes: async connection => {
     const client = loadHttpClient(connection);
     try {
       const nodes = await client.get(
         `/_cat/nodes`,
-        'format=json&bytes=b&h=ip,id,name,heap.percent,heap.current,heap.max,ram.percent,ram.current,ram.max,node.role,master,cpu,load_1m,load_5m,load_15m,disk.used_percent,disk.used,disk.total,shard_stats.total_count,mappings.total_count&full_id=true',
+        'format=json&bytes=b&h=ip,id,name,heap.percent,heap.current,heap.max,ram.percent,ram.current,ram.max,node.role,master,cpu,load_1m,load_5m,load_15m,disk.used_percent,disk.used,disk.total,shard_stats.total_count,mappings.total_count,version&full_id=true',
       );
-      return Object.entries<{
-        ip: string;
-        name: string;
-        'node.role': string;
-        master: string;
-        cpu: string;
-        version: string;
-        'heap.percent': string;
-        'heap.current': string;
-        'heap.max': string;
-        'ram.percent': string;
-        'ram.current': string;
-        'ram.max': string;
-        'disk.used_percent': string;
-        'disk.used': string;
-        'disk.total': string;
-        'shard_stats.total_count': string;
-        'mappings.total_count': string;
-      }>(nodes)
+
+      return Object.entries(nodes)
         .map(([id, node]) => ({
           id,
-          version: node.version,
-          ip: node.ip,
-          cpu: node.cpu,
-          name: node.name,
+          version: get(node, 'version', ''),
+          ip: get(node, 'ip', ''),
+          cpu: get(node, 'cpu', ''),
+          name: get(node, 'name', ''),
           heap: {
-            percent: parseInt(node['heap.percent']),
-            current: parseInt(node['heap.current']),
-            max: parseInt(node['heap.max']),
+            percent: parseInt(get(node, 'heap.percent', '0')),
+            current: parseInt(get(node, 'heap.current', '0')),
+            max: parseInt(get(node, 'heap.max', '0')),
           },
           ram: {
-            percent: parseInt(node['ram.percent']),
-            current: parseInt(node['ram.current']),
-            max: parseInt(node['ram.max']),
+            percent: parseInt(get(node, 'ram.percent', '0')),
+            current: parseInt(get(node, 'ram.current', '0')),
+            max: parseInt(get(node, 'ram.max', '0')),
           },
           disk: {
-            percent: parseInt(node['disk.used_percent']),
-            current: parseInt(node['disk.used']),
-            max: parseInt(node['disk.total']),
+            percent: parseInt(get(node, 'disk.used_percent', '0')),
+            current: parseInt(get(node, 'disk.used', '0')),
+            max: parseInt(get(node, 'disk.total', '0')),
           },
-          shard: {
-            total: parseInt(node['shard_stats.total_count']),
-          },
-          mapping: {
-            total: parseInt(node['mappings.total_count']),
-          },
-          roles: node['node.role']
+          shard: { total: parseInt(get(node, 'shard_stats.total_count', '0')) },
+          mapping: { total: parseInt(get(node, 'mappings.total_count', '0')) },
+          roles: get(node, 'node.role', '')
             .split('')
             .map((char: string) => {
               switch (char) {
@@ -481,11 +568,134 @@ const esApi: ESApi = {
               }
             })
             .filter(Boolean),
-          master: node.master === '*',
+          master: get(node, 'master') === '*',
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
     } catch (err) {
       debug(`Failed to fetch nodes: ${err}`);
+      throw new CustomError(
+        err instanceof CustomError ? err.status : 500,
+        err instanceof CustomError ? err.details : (err as Error).message,
+      );
+    }
+  },
+  catShards: async connection => {
+    const client = loadHttpClient(connection);
+    try {
+      const data: Array<{ [key: string]: string }> = await client.get(
+        `/_cat/shards`,
+        'format=json&h=index,shard,prirep,state,docs,store,dataset.size,ip,id,node,completion.size,dense_vector.value_count,fielddata.memory_size,fielddata.evictions,flush.total,flush.total_time,get.current,get.time,get.total,get.exists_time,get.exists_total,get.missing_time,get.missing_total,indexing.delete_current,indexing.delete_time,indexing.delete_total,indexing.index_current,indexing.index_time,indexing.index_total,indexing.index_failed,merges.current,merges.current_docs,merges.current_size,merges.total,merges.total_docs,merges.total_size,merges.total_time,query_cache.memory_size,query_cache.evictions,recoverysource.type,refresh.total,refresh.time,search.fetch_current,search.fetch_time,search.fetch_total,search.open_contexts,search.query_current,search.query_time,search.query_total,search.scroll_current,search.scroll_time,search.scroll_total,segments.count,segments.memory,segments.index_writer_memory,segments.version_map_memory,segments.fixed_bitset_memory,seq_no.global_checkpoint,seq_no.local_checkpoint,seq_no.max,suggest.current,suggest.time,suggest.total,sync_id,unassigned.at,unassigned.details,unassigned.for,unassigned.reason&s=index:asc&bytes=b',
+      );
+      const indicesSet = new Set<string>();
+      data.forEach(item => indicesSet.add(item.index));
+
+      return Array.from(indicesSet).map(index => ({
+        index,
+        shards: data
+          .filter(item => item.index === index)
+          .map(
+            (item: { [key: string]: string }) =>
+              ({
+                index: item.index,
+                shard: item.shard,
+                prirep: item.prirep,
+                state: item.state,
+                ip: item.ip,
+                id: item.id,
+                node: item.node,
+                dataset: { size: parseInt(get(item, 'dataset.size', '0')) },
+                completion: { size: parseInt(get(item, 'completion.size', '0')) },
+                denseVector: { valueCount: get(item, 'dense_vector.value_count') },
+                docs: { count: parseInt(get(item, 'docs', '0'), 10) },
+                store: { size: parseInt(get(item, 'store', '0')) },
+                fielddata: {
+                  memorySize: parseInt(get(item, 'fielddata.memory_size', '0')),
+                  evictions: parseInt(get(item, 'fielddata.evictions', '0')),
+                },
+                flush: {
+                  total: parseInt(get(item, 'flush.total', '0')),
+                  totalTime: get(item, 'flush.total_time', ''),
+                },
+                get: {
+                  current: get(item, 'get.current'),
+                  time: get(item, 'get.time'),
+                  total: get(item, 'get.total'),
+                  existsTime: get(item, 'get.exists_time'),
+                  existsTotal: get(item, 'get.exists_total'),
+                  missingTime: get(item, 'get.missing_time'),
+                  missingTotal: get(item, 'get.missing_total'),
+                },
+                indexing: {
+                  deleteCurrent: get(item, 'indexing.delete_current'),
+                  deleteTime: get(item, 'indexing.delete_time'),
+                  deleteTotal: get(item, 'indexing.delete_total'),
+                  indexCurrent: get(item, 'indexing.index_current'),
+                  indexTime: get(item, 'indexing.index_time'),
+                  indexTotal: get(item, 'indexing.index_total'),
+                  indexFailed: get(item, 'indexing.index_failed'),
+                },
+                merges: {
+                  current: get(item, 'merges.current'),
+                  currentDocs: get(item, 'merges.current_docs'),
+                  currentSize: get(item, 'merges.current_size'),
+                  total: parseInt(get(item, 'merges.total', '0')),
+                  totalDocs: parseInt(get(item, 'merges.total_docs', '0')),
+                  totalSize: parseInt(get(item, 'merges.total_size', '0')),
+                  totalTime: get(item, 'merges.total_time'),
+                },
+                queryCache: {
+                  memorySize: parseInt(get(item, 'query_cache.memory_size', '0')),
+                  evictions: parseInt(get(item, 'query_cache.evictions', '0')),
+                },
+                refresh: {
+                  total: get(item, 'refresh.total'),
+                  time: get(item, 'refresh.time'),
+                },
+                search: {
+                  fetchCurrent: get(item, 'search.fetch_current'),
+                  fetchTime: get(item, 'search.fetch_time'),
+                  fetchTotal: get(item, 'search.fetch_total'),
+                  openContexts: get(item, 'search.open_contexts'),
+                  queryCurrent: get(item, 'search.query_current'),
+                  queryTime: get(item, 'search.query_time'),
+                  queryTotal: get(item, 'search.query_total'),
+                  scrollCurrent: get(item, 'search.scroll_current'),
+                  scrollTime: get(item, 'search.scroll_time'),
+                  scrollTotal: get(item, 'search.scroll_total'),
+                },
+                segments: {
+                  count: parseInt(get(item, 'segments.count', '0')),
+                  memory: parseInt(get(item, 'segments.memory', '0')),
+                  indexWriterMemory: parseInt(get(item, 'segments.index_writer_memory', '0')),
+                  versionMapMemory: parseInt(get(item, 'segments.version_map_memory', '0')),
+                  fixedBitsetMemory: parseInt(get(item, 'segments.fixed_bitset_memory', '0')),
+                },
+                seqNo: {
+                  globalCheckpoint: get(item, 'seq_no.global_checkpoint'),
+                  localCheckpoint: get(item, 'seq_no.local_checkpoint'),
+                  max: get(item, 'seq_no.max'),
+                },
+                suggest: {
+                  current: parseInt(get(item, 'suggest.current', '0')),
+                  time: get(item, 'suggest.time', ''),
+                  total: parseInt(get(item, 'suggest.total', '0')),
+                },
+                unassigned: {
+                  at: get(item, 'unassigned.at'),
+                  details: get(item, 'unassigned.details'),
+                  for: get(item, 'unassigned.for'),
+                  reason: get(item, 'unassigned.reason'),
+                },
+                recoverySource: { type: get(item, 'recoverysource.type') },
+              }) as unknown as ClusterShard,
+          )
+          .sort(
+            (a: ClusterShard, b: ClusterShard) =>
+              a.node?.localeCompare(b.node) || a.prirep.localeCompare(b.prirep),
+          ),
+      }));
+    } catch (err) {
+      debug(`Failed to fetch shards: ${err}`);
       throw new CustomError(
         err instanceof CustomError ? err.status : 500,
         err instanceof CustomError ? err.details : (err as Error).message,
