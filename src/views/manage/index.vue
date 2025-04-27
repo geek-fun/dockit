@@ -65,7 +65,8 @@ const handleManageTabChange = (tab: string) => {
 };
 
 onMounted(async () => {
-  if (!activeConnection.value) {
+  const selectedConnection = connection.value ?? activeConnection.value;
+  if (!selectedConnection) {
     message.warning(lang.t('editor.establishedRequired'), {
       closable: true,
       keepAliveOnHover: true,
@@ -73,7 +74,8 @@ onMounted(async () => {
     });
     return;
   }
-  setConnection(activeConnection.value);
+
+  setConnection(selectedConnection);
   if (activeConnection.value?.type === DatabaseType.ELASTICSEARCH) {
     await refreshData();
   }

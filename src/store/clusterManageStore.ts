@@ -86,7 +86,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     hideSystemIndices: true,
   }),
   persist: {
-    pick: ['showSystemIndices'],
+    pick: ['hideSystemIndices'],
     storage: localStorage,
   },
   getters: {

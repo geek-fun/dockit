@@ -6,7 +6,11 @@
       :input-props="inputProps"
       remote
       filterable
-      :default-value="activePanel?.connection?.name"
+      :default-value="
+        ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
+          ? activePanel?.connection?.name
+          : connection?.name
+      "
       :loading="loadingRef.connection"
       @update:show="isOpen => handleOpen(isOpen, 'CONNECTION')"
       @update:value="value => handleUpdate(value, 'CONNECTION')"
@@ -115,7 +119,7 @@ const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
 const { setConnection, refreshStates } = clusterManageStore;
-const { connection } = storeToRefs(clusterManageStore);
+const { connection, hideSystemIndices } = storeToRefs(clusterManageStore);
 
 const loadingRef = ref({ connection: false, index: false });
 
@@ -133,7 +137,10 @@ watch(
     if (newType === 'ES_EDITOR') {
       hideSystemIndicesRef.value = activePanel?.value.hideSystemIndices ?? true;
     } else if (newType === 'MANAGE') {
-      await refreshStates();
+      if (!connection.value && activePanel.value.connection) {
+        setConnection(activePanel.value.connection);
+      }
+      hideSystemIndicesRef.value = hideSystemIndices.value;
     }
   },
   { immediate: true },
@@ -201,8 +208,9 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
     try {
       if (['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')) {
         await selectConnection(con);
+      } else {
+        setConnection(con);
       }
-      setConnection(con);
     } catch (err) {
       const error = err as CustomError;
       message.error(`status: ${error.status}, details: ${error.details}`, {
