@@ -86,7 +86,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     hideSystemIndices: true,
   }),
   persist: {
-    pick: ['showSystemIndices'],
+    pick: ['hideSystemIndices'],
     storage: localStorage,
   },
   getters: {
@@ -119,6 +119,22 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
   actions: {
     setConnection(connection: Connection) {
       this.connection = connection;
+    },
+    async refreshStates(hide?: boolean) {
+      if (hide !== undefined && hide !== null) {
+        this.hideSystemIndices = hide;
+      }
+
+      try {
+        await this.fetchCluster();
+        await this.fetchIndices();
+        await this.fetchAliases();
+        await this.fetchNodes();
+        await this.fetchShards();
+        await this.fetchTemplates();
+      } catch (err) {
+        debug(`Error in refreshStates: ${err}`);
+      }
     },
     async fetchCluster() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));

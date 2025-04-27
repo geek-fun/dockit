@@ -6,7 +6,11 @@
       :input-props="inputProps"
       remote
       filterable
-      :default-value="activePanel?.connection?.name"
+      :default-value="
+        ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
+          ? activePanel?.connection?.name
+          : connection?.name
+      "
       :loading="loadingRef.connection"
       @update:show="isOpen => handleOpen(isOpen, 'CONNECTION')"
       @update:value="value => handleUpdate(value, 'CONNECTION')"
@@ -114,6 +118,7 @@ const { loadDefaultSnippet, selectConnection } = tabStore;
 const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
+const { setConnection, refreshStates } = clusterManageStore;
 const { connection, hideSystemIndices } = storeToRefs(clusterManageStore);
 
 const loadingRef = ref({ connection: false, index: false });
@@ -128,10 +133,13 @@ const hideSystemIndicesRef = ref(true);
 
 watch(
   () => props.type,
-  newType => {
+  async newType => {
     if (newType === 'ES_EDITOR') {
       hideSystemIndicesRef.value = activePanel?.value.hideSystemIndices ?? true;
     } else if (newType === 'MANAGE') {
+      if (!connection.value && activePanel.value.connection) {
+        setConnection(activePanel.value.connection);
+      }
       hideSystemIndicesRef.value = hideSystemIndices.value;
     }
   },
@@ -198,9 +206,11 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
       return;
     }
     try {
-      ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
-        ? await selectConnection(con)
-        : (connection.value = con);
+      if (['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')) {
+        await selectConnection(con);
+      } else {
+        setConnection(con);
+      }
     } catch (err) {
       const error = err as CustomError;
       message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -237,12 +247,12 @@ const handleManageTabChange = (tabName: string) => {
   emits('switch-manage-tab', tabName);
 };
 
-const handleHiddenChange = (value: boolean) => {
+const handleHiddenChange = async (value: boolean) => {
   if (props.type === 'ES_EDITOR' && activePanel.value) {
     activePanel.value.hideSystemIndices = value;
   }
   if (props.type === 'MANAGE' && connection.value) {
-    hideSystemIndices.value = value;
+    await refreshStates(value);
   }
 };
 </script>

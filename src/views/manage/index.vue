@@ -1,7 +1,7 @@
 <template>
   <div class="manage-container">
     <tool-bar type="MANAGE" @switch-manage-tab="handleManageTabChange" />
-    <template v-if="activeConnection?.type === DatabaseType.ELASTICSEARCH">
+    <template v-if="connection?.type === DatabaseType.ELASTICSEARCH">
       <cluster-state
         class="state-container"
         :cluster="cluster"
@@ -11,7 +11,7 @@
       <shared-manage class="state-container" v-if="activeTab === $t('manage.shards')" />
       <index-manage class="state-container" v-if="activeTab === $t('manage.indices')" />
     </template>
-    <div v-else-if="activeConnection" class="empty-state">
+    <div v-else-if="connection" class="empty-state">
       <n-empty :description="$t('manage.emptyDynamodb')" />
     </div>
     <div v-else class="empty-state">
@@ -40,32 +40,23 @@ const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
-const { setConnection, fetchCluster, fetchIndices, fetchAliases, fetchNodes, fetchShards } =
-  clusterManageStore;
-const { cluster } = storeToRefs(clusterManageStore);
+const { setConnection, refreshStates } = clusterManageStore;
+const { cluster, connection } = storeToRefs(clusterManageStore);
 
 const refreshData = async () => {
-  if (activeConnection.value?.type === DatabaseType.ELASTICSEARCH) {
-    try {
-      await Promise.all([
-        fetchCluster(),
-        fetchIndices(),
-        fetchAliases(),
-        fetchNodes(),
-        fetchShards(),
-      ]);
-    } catch (err) {
-      const { status, details } = err as CustomError;
-      message.error(`status: ${status}, details: ${details}`, {
-        closable: true,
-        keepAliveOnHover: true,
-        duration: 3000,
-      });
-    }
+  try {
+    refreshStates();
+  } catch (err) {
+    const { status, details } = err as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3000,
+    });
   }
 };
 
-watch(activeConnection, async () => {
+watch(connection, async () => {
   await refreshData();
 });
 
@@ -74,7 +65,8 @@ const handleManageTabChange = (tab: string) => {
 };
 
 onMounted(async () => {
-  if (!activeConnection.value) {
+  const selectedConnection = connection.value ?? activeConnection.value;
+  if (!selectedConnection) {
     message.warning(lang.t('editor.establishedRequired'), {
       closable: true,
       keepAliveOnHover: true,
@@ -82,7 +74,8 @@ onMounted(async () => {
     });
     return;
   }
-  setConnection(activeConnection.value);
+
+  setConnection(selectedConnection);
   if (activeConnection.value?.type === DatabaseType.ELASTICSEARCH) {
     await refreshData();
   }
