@@ -132,7 +132,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         await this.fetchNodes();
         await this.fetchShards();
         await this.fetchTemplates();
-      } catch (err) {}
+      } catch (err) {
+        debug(`Error in refreshStates: ${err}`);
+      }
     },
     async fetchCluster() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
