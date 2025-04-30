@@ -16,10 +16,11 @@ let displayEditor: Editor | null = null;
 const displayEditorRef = ref();
 const setupDisplayEditor = () => {
   displayEditor = monaco.editor.create(displayEditorRef.value, {
-    automaticLayout: true,
     theme: getEditorTheme(),
     value: '',
     language: 'json',
+    automaticLayout: true,
+    scrollBeyondLastLine: false,
     minimap: { enabled: false },
   });
 };
