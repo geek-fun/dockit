@@ -77,6 +77,14 @@
         </template>
         {{ $t('editor.dynamo.sqlEditor') }}
       </n-button>
+      <n-button quaternary>
+        <template #icon>
+          <n-icon>
+            <Add />
+          </n-icon>
+        </template>
+        {{ $t('editor.dynamo.createItem') }}
+      </n-button>
     </n-button-group>
     <n-tabs
       v-if="props.type === 'MANAGE'"
@@ -95,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { AiStatus, Search, Code, Template } from '@vicons/carbon';
+import { Add, AiStatus, Search, Code, Template } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { useClusterManageStore, useConnectionStore, useTabStore } from '../store';
 import { useLang } from '../lang';

@@ -210,6 +210,7 @@ export const zhCN = {
       indexIsRequired: '表/索引 是必需的',
       atLeastRequired: 'Partition Key 或至少 1 个过滤器是必需的',
       scanWarning: '未提供 Partition Key，执行 Scan 操作可能会导致性能问题',
+      createItem: '添加数据',
     },
   },
   file: {

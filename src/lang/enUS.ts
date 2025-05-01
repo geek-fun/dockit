@@ -210,6 +210,7 @@ export const enUS = {
       indexIsRequired: 'Table/Index is required',
       atLeastRequired: 'Partition key or at least 1 filter is required',
       scanWarning: 'Request without partitionKey will scan the table',
+      createItem: 'Create Item',
     },
   },
   file: {
