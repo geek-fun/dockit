@@ -8,7 +8,7 @@
         v-if="activeTab === $t('manage.cluster')"
       />
       <node-state class="state-container" v-if="activeTab === $t('manage.nodes')" />
-      <shared-manage class="state-container" v-if="activeTab === $t('manage.shards')" />
+      <shard-manage class="state-container" v-if="activeTab === $t('manage.shards')" />
       <index-manage class="state-container" v-if="activeTab === $t('manage.indices')" />
     </template>
     <div v-else-if="connection" class="empty-state">
@@ -26,7 +26,7 @@ import ClusterState from './components/cluster-state.vue';
 import { useClusterManageStore, DatabaseType, useTabStore } from '../../store';
 import { storeToRefs } from 'pinia';
 import NodeState from './components/node-state.vue';
-import SharedManage from './components/shared-manage.vue';
+import ShardManage from './components/shard-manage.vue';
 import { useLang } from '../../lang';
 import IndexManage from './components/index-manage.vue';
 import { CustomError } from '../../common';
