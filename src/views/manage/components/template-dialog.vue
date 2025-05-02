@@ -142,8 +142,9 @@
 import { FormRules, FormValidationError, NButton, NIcon, FormItemRule } from 'naive-ui';
 import { Close } from '@vicons/carbon';
 import { CustomError, inputProps, jsonify } from '../../../common';
-import { TemplateType, useClusterManageStore } from '../../../store';
+import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
+import { TemplateType } from '../../../datasources';
 
 const clusterManageStore = useClusterManageStore();
 const { createTemplate } = clusterManageStore;
