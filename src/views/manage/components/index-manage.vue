@@ -11,7 +11,7 @@
       </n-tab-pane>
       <n-tab-pane name="templates" tab="TEMPLATES">
         <n-data-table
-          :columns="templateTable.columns"
+          :columns="templateTable.columns as any"
           :data="templateTable.data"
           :bordered="false"
           max-height="400"
@@ -125,7 +125,11 @@ const filterProps = (key: string) => ({
     });
   },
   renderFilterIcon() {
-    return h(NIcon, {}, { default: () => h(Search) });
+    return h(
+      NIcon,
+      { color: filterState.value[key] ? 'var(--theme-color)' : 'var(--n-text-color)' },
+      { default: () => h(Search) },
+    );
   },
 });
 
@@ -158,6 +162,31 @@ const indexTable = computed(() => {
       key: 'status',
       ...filterProps('status'),
       sorter: 'default',
+    },
+    {
+      title: 'Docs',
+      dataIndex: 'docs',
+      key: 'docs',
+      sorter: (a: ClusterIndex, b: ClusterIndex) => (a.docs?.count ?? 0) - (b.docs?.count ?? 0),
+      render({ docs }: ClusterIndex) {
+        return docs.count;
+      },
+    },
+    { title: 'Storage', dataIndex: 'storage', key: 'storage', sorter: 'default' },
+    {
+      title: 'shards',
+      dataIndex: 'shards',
+      key: 'shards',
+      render({ shards }: ClusterIndex) {
+        if (!shards || !Array.isArray(shards)) {
+          return '0p/0r';
+        }
+
+        const primaryCount = shards.filter(shard => shard.prirep === 'p').length;
+        const replicaCount = shards.filter(shard => shard.prirep === 'r').length;
+
+        return `${primaryCount}p/${replicaCount}r`;
+      },
     },
     {
       title: 'Aliases',
@@ -203,31 +232,6 @@ const indexTable = computed(() => {
           ),
         ),
     },
-    {
-      title: 'Docs',
-      dataIndex: 'docs',
-      key: 'docs',
-      sorter: (a: ClusterIndex, b: ClusterIndex) => (a.docs?.count ?? 0) - (b.docs?.count ?? 0),
-      render({ docs }: ClusterIndex) {
-        return docs.count;
-      },
-    },
-    {
-      title: 'shards',
-      dataIndex: 'shards',
-      key: 'shards',
-      render({ shards }: ClusterIndex) {
-        if (!shards || !Array.isArray(shards)) {
-          return '0p/0r';
-        }
-
-        const primaryCount = shards.filter(shard => shard.prirep === 'p').length;
-        const replicaCount = shards.filter(shard => shard.prirep === 'r').length;
-
-        return `${primaryCount}p/${replicaCount}r`;
-      },
-    },
-    { title: 'Storage', dataIndex: 'storage', key: 'storage', sorter: 'default' },
     {
       title: 'Actions',
       dataIndex: 'actions',
@@ -294,12 +298,18 @@ const indexTable = computed(() => {
 
 const templateTable = computed(() => {
   const columns = [
-    { title: 'Template Name', dataIndex: 'name', key: 'name', ...filterProps('name') },
-    { title: 'Type', dataIndex: 'type', key: 'type', ...filterProps('type') },
-    { title: 'Order', dataIndex: 'order', key: 'order' },
-    { title: 'Version', dataIndex: 'version', key: 'version' },
-    { title: 'Mappings', dataIndex: 'mapping_count', key: 'mapping_count' },
-    { title: 'Settings', dataIndex: 'settings_count', key: 'settings_count' },
+    {
+      title: 'Template Name',
+      dataIndex: 'name',
+      key: 'name',
+      ...filterProps('name'),
+      sorter: 'default',
+    },
+    { title: 'Type', dataIndex: 'type', key: 'type', ...filterProps('type'), sorter: 'default' },
+    { title: 'Order', dataIndex: 'order', key: 'order', sorter: 'default' },
+    { title: 'Version', dataIndex: 'version', key: 'version', sorter: 'default' },
+    { title: 'Mappings', dataIndex: 'mapping_count', key: 'mapping_count', sorter: 'default' },
+    { title: 'Settings', dataIndex: 'settings_count', key: 'settings_count', sorter: 'default' },
     { title: 'Aliases', dataIndex: 'alias_count', key: 'alias_count' },
     { title: 'Metadata', dataIndex: 'metadata', key: 'metadata' },
     {
