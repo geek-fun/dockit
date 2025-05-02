@@ -4,36 +4,13 @@ import {
   ClusterIndex,
   ClusterNode,
   ClusterShard,
+  ClusterTemplate,
   esApi,
   loadHttpClient,
 } from '../datasources';
 import { lang } from '../lang';
 import { Connection, DatabaseType } from './connectionStore.ts';
-import { CustomError, debug, optionalToNullableInt } from '../common';
-
-export enum TemplateType {
-  INDEX_TEMPLATE = 'INDEX_TEMPLATE',
-  COMPONENT_TEMPLATE = 'COMPONENT_TEMPLATE',
-}
-
-type ComponentTemplate = {
-  name: string;
-  type: TemplateType;
-  version: number | null;
-  alias_count: number | null;
-  mapping_count: number | null;
-  settings_count: number | null;
-  metadata_count: number | null;
-  included_in: Array<string>;
-};
-type IndexTemplate = {
-  name: string;
-  type: TemplateType;
-  index_patterns: Array<string>;
-  order: number | null;
-  version: number | null;
-  composed_of: Array<string>;
-};
+import { CustomError, debug } from '../common';
 
 export type RawClusterStats = {
   cluster_name: string;
@@ -62,8 +39,6 @@ export type RawClusterStats = {
     };
   };
 };
-
-export type ClusterTemplate = ComponentTemplate | IndexTemplate;
 
 export const useClusterManageStore = defineStore('clusterManageStore', {
   state: (): {
@@ -201,45 +176,11 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     async fetchTemplates() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (this.connection.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(this.connection);
-        const fetchIndexTemplates = async () => {
-          const data = (await client.get('/_cat/templates', 'format=json')) as Array<{
-            [key: string]: string;
-          }>;
-          return data.map((template: { [key: string]: string }) => ({
-            name: template.name,
-            type: TemplateType.INDEX_TEMPLATE,
-            order: optionalToNullableInt(template.order),
-            version: optionalToNullableInt(template.version),
-            index_patterns: template.index_patterns.slice(1, -1).split(',').filter(Boolean),
-            composed_of: template.composed_of.slice(1, -1).split(',').filter(Boolean),
-          }));
-        };
-        const fetchComponentTemplates = async () => {
-          const data = (await client.get('/_component_template', 'format=json')) as {
-            component_templates: Array<{
-              [key: string]: string;
-            }>;
-          };
+        const templates = await esApi.catTemplates(this.connection);
 
-          return data?.component_templates.map((template: { [key: string]: string }) => ({
-            name: template.name,
-            type: TemplateType.COMPONENT_TEMPLATE,
-            version: optionalToNullableInt(template.version),
-            alias_count: optionalToNullableInt(template.alias_count),
-            mapping_count: optionalToNullableInt(template.mapping_count),
-            settings_count: optionalToNullableInt(template.settings_count),
-            metadata_count: optionalToNullableInt(template.metadata_count),
-            included_in: template.included_in?.slice(1, -1).split(',').filter(Boolean),
-          }));
-        };
-
-        const [indexTemplates, componentTemplates] = await Promise.all([
-          fetchIndexTemplates(),
-          fetchComponentTemplates(),
-        ]);
-
-        this.templates = [...indexTemplates, ...componentTemplates];
+        this.templates = templates.filter(template =>
+          this.hideSystemIndices ? !template.name.startsWith('.') : true,
+        );
       } else {
         this.templates = [];
       }
