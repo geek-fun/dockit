@@ -193,6 +193,7 @@ const indexTable = computed(() => {
       dataIndex: 'aliases',
       key: 'aliases',
       resizable: true,
+      ellipsis: { tooltip: true },
       render: ({ aliases }: { aliases: Array<ClusterAlias> }) =>
         aliases.map(alias =>
           h(
@@ -201,8 +202,8 @@ const indexTable = computed(() => {
               strong: true,
               type: 'default',
               tertiary: true,
-              iconPlacement: 'right',
-              style: 'margin-right: 8px',
+              size: 'small',
+              iconPlacement: 'left',
             },
             {
               default: () => `${alias.alias}`,
@@ -323,6 +324,7 @@ const templateTable = computed(() => {
       title: 'Index Patterns',
       dataIndex: 'index_patterns',
       key: 'index_patterns',
+      ellipsis: { tooltip: true },
       render: ({ index_patterns }: { index_patterns: Array<string> }) =>
         index_patterns?.map(pattern => h(NTag, null, { default: () => pattern })),
     },
@@ -330,6 +332,7 @@ const templateTable = computed(() => {
       title: 'Composed Of',
       dataIndex: 'composed_of',
       key: 'composed_of',
+      ellipsis: { tooltip: true },
       render: ({ composed_of }: { composed_of: Array<string> }) =>
         composed_of?.map(composed => h(NTag, null, { default: () => composed })),
     },
