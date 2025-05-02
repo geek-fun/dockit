@@ -3,7 +3,7 @@
     <n-tabs type="segment" animated @update:value="refresh">
       <n-tab-pane name="indices" tab="INDICES">
         <n-data-table
-          :columns="indexTable.columns"
+          :columns="indexTable.columns as any"
           :data="indexTable.data"
           :bordered="false"
           max-height="400"
@@ -99,7 +99,7 @@ const aliasDialogRef = ref();
 const templateDialogRef = ref();
 const switchAliasDialogRef = ref();
 
-const filtersRef = ref<{ [key: string]: string }>({
+const filterState = ref<{ [key: string]: string }>({
   index: '',
   uuid: '',
   health: '',
@@ -109,14 +109,14 @@ const filtersRef = ref<{ [key: string]: string }>({
 });
 
 const handleFilter = (key: string, value: string) => {
-  filtersRef.value[key] = value;
+  filterState.value[key] = value;
 };
 
 const filterProps = (key: string) => ({
   filter: true,
   renderFilterMenu(_: { hide: () => void }) {
     return h(NInput, {
-      value: filtersRef.value[key],
+      value: filterState.value[key],
       placeholder: `type to filter ${key}`,
       clearable: true,
       size: 'small',
@@ -136,13 +136,15 @@ const indexTable = computed(() => {
       dataIndex: 'index',
       key: 'index',
       ...filterProps('index'),
+      sorter: 'default',
     },
-    { title: 'UUID', dataIndex: 'uuid', key: 'uuid', ...filterProps('uuid') },
+    { title: 'UUID', dataIndex: 'uuid', key: 'uuid', ...filterProps('uuid'), sorter: 'default' },
     {
       title: 'health',
       dataIndex: 'health',
       key: 'health',
       ...filterProps('health'),
+      sorter: 'default',
       render({ health }: { health: IndexHealth }) {
         return (
           (health === IndexHealth.GREEN ? '🟢' : health === IndexHealth.YELLOW ? '🟡' : '🔴') +
@@ -150,7 +152,13 @@ const indexTable = computed(() => {
         );
       },
     },
-    { title: 'status', dataIndex: 'status', key: 'status', ...filterProps('status') },
+    {
+      title: 'status',
+      dataIndex: 'status',
+      key: 'status',
+      ...filterProps('status'),
+      sorter: 'default',
+    },
     {
       title: 'Aliases',
       dataIndex: 'aliases',
@@ -199,6 +207,7 @@ const indexTable = computed(() => {
       title: 'Docs',
       dataIndex: 'docs',
       key: 'docs',
+      sorter: (a: ClusterIndex, b: ClusterIndex) => (a.docs?.count ?? 0) - (b.docs?.count ?? 0),
       render({ docs }: ClusterIndex) {
         return docs.count;
       },
@@ -218,7 +227,7 @@ const indexTable = computed(() => {
         return `${primaryCount}p/${replicaCount}r`;
       },
     },
-    { title: 'Storage', dataIndex: 'storage', key: 'storage' },
+    { title: 'Storage', dataIndex: 'storage', key: 'storage', sorter: 'default' },
     {
       title: 'Actions',
       dataIndex: 'actions',
@@ -260,23 +269,23 @@ const indexTable = computed(() => {
 
   const data = indexWithAliases.value
     .filter(item =>
-      filtersRef.value.uuid
-        ? get(item, 'uuid', '').toLowerCase().includes(filtersRef.value.uuid.toLowerCase())
+      filterState.value.uuid
+        ? get(item, 'uuid', '').toLowerCase().includes(filterState.value.uuid.toLowerCase())
         : true,
     )
     .filter(item =>
-      filtersRef.value.index
-        ? get(item, 'index', '').toLowerCase().includes(filtersRef.value.index.toLowerCase())
+      filterState.value.index
+        ? get(item, 'index', '').toLowerCase().includes(filterState.value.index.toLowerCase())
         : true,
     )
     .filter(item =>
-      filtersRef.value.health
-        ? get(item, 'health', '').toLowerCase().includes(filtersRef.value.health.toLowerCase())
+      filterState.value.health
+        ? get(item, 'health', '').toLowerCase().includes(filterState.value.health.toLowerCase())
         : true,
     )
     .filter(item =>
-      filtersRef.value.status
-        ? get(item, 'status', '').toLowerCase().includes(filtersRef.value.status.toLowerCase())
+      filterState.value.status
+        ? get(item, 'status', '').toLowerCase().includes(filterState.value.status.toLowerCase())
         : true,
     );
 
@@ -318,13 +327,13 @@ const templateTable = computed(() => {
 
   const data = templates.value
     .filter(item =>
-      filtersRef.value.name
-        ? get(item, 'name', '').toLowerCase().includes(filtersRef.value.name.toLowerCase())
+      filterState.value.name
+        ? get(item, 'name', '').toLowerCase().includes(filterState.value.name.toLowerCase())
         : true,
     )
     .filter(item =>
-      filtersRef.value.type
-        ? get(item, 'type', '').toLowerCase().includes(filtersRef.value.type.toLowerCase())
+      filterState.value.type
+        ? get(item, 'type', '').toLowerCase().includes(filterState.value.type.toLowerCase())
         : true,
     );
 
