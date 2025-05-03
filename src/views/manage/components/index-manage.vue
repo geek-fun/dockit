@@ -13,12 +13,18 @@
         </div>
       </div>
     </n-tab-pane>
-    <n-tab-pane name="templates" tab="TEMPLATES">
-      <n-data-table
-        :columns="templateTable.columns as any"
-        :data="templateTable.data"
-        :bordered="false"
-      />
+    <n-tab-pane name="templates" tab="TEMPLATES" class="tabs-tab-pane-container">
+      <div class="table-container">
+        <div class="table-scroll-container">
+          <n-infinite-scroll style="height: 100%">
+            <n-data-table
+              :columns="templateTable.columns as any"
+              :data="templateTable.data"
+              :bordered="false"
+            />
+          </n-infinite-scroll>
+        </div>
+      </div>
     </n-tab-pane>
     <template #suffix>
       <div class="tab-action-group">
