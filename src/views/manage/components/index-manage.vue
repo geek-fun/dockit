@@ -1,64 +1,66 @@
 <template>
-  <main>
-    <n-tabs type="segment" animated @update:value="refresh">
-      <n-tab-pane name="indices" tab="INDICES">
-        <n-data-table
-          :columns="indexTable.columns as any"
-          :data="indexTable.data"
-          :bordered="false"
-          max-height="400"
-        />
-      </n-tab-pane>
-      <n-tab-pane name="templates" tab="TEMPLATES">
-        <n-data-table
-          :columns="templateTable.columns as any"
-          :data="templateTable.data"
-          :bordered="false"
-          max-height="400"
-        />
-      </n-tab-pane>
-      <template #suffix>
-        <div class="tab-action-group">
-          <n-button type="default" tertiary @click="handleRefresh">
-            <template #icon>
-              <n-icon>
-                <Renew />
-              </n-icon>
-            </template>
-            Refresh
-          </n-button>
-          <n-button secondary type="success" @click="toggleModal('index')">
-            <template #icon>
-              <n-icon>
-                <Add />
-              </n-icon>
-            </template>
-            New Index
-          </n-button>
-          <n-button secondary type="success" @click="toggleModal('alias')">
-            <template #icon>
-              <n-icon>
-                <Add />
-              </n-icon>
-            </template>
-            New Alias
-          </n-button>
-          <n-button secondary type="success" @click="toggleModal('template')">
-            <template #icon>
-              <n-icon>
-                <Add />
-              </n-icon>
-            </template>
-            New Template
-          </n-button>
+  <n-tabs type="segment" animated @update:value="refresh" class="tabs-container">
+    <n-tab-pane name="indices" tab="INDICES" class="tabs-tab-pane-container">
+      <div class="table-container">
+        <div class="table-scroll-container">
+          <n-infinite-scroll style="height: 100%">
+            <n-data-table
+              :columns="indexTable.columns as any"
+              :data="indexTable.data"
+              :bordered="false"
+            />
+          </n-infinite-scroll>
         </div>
-      </template>
-    </n-tabs>
-    <index-dialog ref="indexDialogRef" />
-    <alias-dialog ref="aliasDialogRef" />
-    <template-dialog ref="templateDialogRef" />
-    <switch-alias-dialog ref="switchAliasDialogRef" />
-  </main>
+      </div>
+    </n-tab-pane>
+    <n-tab-pane name="templates" tab="TEMPLATES">
+      <n-data-table
+        :columns="templateTable.columns as any"
+        :data="templateTable.data"
+        :bordered="false"
+      />
+    </n-tab-pane>
+    <template #suffix>
+      <div class="tab-action-group">
+        <n-button type="default" tertiary @click="handleRefresh">
+          <template #icon>
+            <n-icon>
+              <Renew />
+            </n-icon>
+          </template>
+          Refresh
+        </n-button>
+        <n-button secondary type="success" @click="toggleModal('index')">
+          <template #icon>
+            <n-icon>
+              <Add />
+            </n-icon>
+          </template>
+          New Index
+        </n-button>
+        <n-button secondary type="success" @click="toggleModal('alias')">
+          <template #icon>
+            <n-icon>
+              <Add />
+            </n-icon>
+          </template>
+          New Alias
+        </n-button>
+        <n-button secondary type="success" @click="toggleModal('template')">
+          <template #icon>
+            <n-icon>
+              <Add />
+            </n-icon>
+          </template>
+          New Template
+        </n-button>
+      </div>
+    </template>
+  </n-tabs>
+  <index-dialog ref="indexDialogRef" />
+  <alias-dialog ref="aliasDialogRef" />
+  <template-dialog ref="templateDialogRef" />
+  <switch-alias-dialog ref="switchAliasDialogRef" />
 </template>
 
 <script setup lang="ts">
@@ -459,9 +461,50 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.tab-action-group {
-  display: flex;
-  justify-content: space-around;
-  width: 500px;
+.tabs-container {
+  width: 100%;
+  height: 100%;
+
+  .tabs-tab-pane-container {
+    width: 100%;
+    height: 100%;
+
+    .table-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+
+      .table-scroll-container {
+        flex: 1;
+        height: 0;
+      }
+    }
+  }
+
+  .tab-action-group {
+    display: flex;
+    justify-content: space-around;
+    width: 500px;
+  }
+
+  :deep(.n-tabs-wrapper) {
+    .n-tabs-tab-wrapper {
+      background-color: var(--bg-color);
+
+      .n-tabs-tab--active {
+        background-color: var(--bg-color-secondary);
+      }
+    }
+  }
+
+  :deep(.n-tabs-pane-wrapper) {
+    width: 100%;
+    height: 100%;
+  }
+
+  :deep(.n-tab-pane) {
+    padding: 0;
+  }
 }
 </style>
