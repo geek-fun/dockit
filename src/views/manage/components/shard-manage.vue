@@ -85,11 +85,12 @@ import {
   Version,
   VmdkDisk,
   WarningAlt,
+  Search,
 } from '@vicons/carbon';
 import { Memory } from '@vicons/fa';
-import { NButton } from 'naive-ui';
+import { NButton, NIcon, NInput, NTag } from 'naive-ui';
 import { TableColumn } from 'naive-ui/es/data-table/src/interface';
-import { CustomError } from '../../../common';
+import { CustomError, inputProps } from '../../../common';
 import { ClusterShard } from '../../../datasources';
 import { useClusterManageStore } from '../../../store';
 
@@ -107,6 +108,35 @@ type IndexShard = ClusterShard & {
   }>;
 };
 
+const filterState = ref<{ [key: string]: string }>({
+  index: '',
+});
+
+const handleFilter = (key: string, value: string) => {
+  filterState.value[key] = value;
+};
+
+const filterProps = (key: string) => ({
+  filter: true,
+  renderFilterMenu(_: { hide: () => void }) {
+    return h(NInput, {
+      value: filterState.value[key],
+      placeholder: `type to filter ${key}`,
+      clearable: true,
+      size: 'small',
+      'on-update:value': (value: string) => handleFilter(key, value),
+      'input-props': inputProps,
+    });
+  },
+  renderFilterIcon() {
+    return h(
+      NIcon,
+      { color: filterState.value[key] ? 'var(--theme-color)' : 'var(--n-text-color)' },
+      { default: () => h(Search) },
+    );
+  },
+});
+
 const nodeShardsTable = computed(() => {
   const nodes = Array.from(
     new Set(
@@ -120,27 +150,31 @@ const nodeShardsTable = computed(() => {
   const columns = [{ name: 'index' }, ...nodes.map(name => ({ name })), { name: 'unassigned' }];
 
   // Group shards by index and then by node
-  const data = indices.value.map(index => {
-    const result = { index: index.index } as Record<string, any>;
+  const data = indices.value
+    .filter(index =>
+      filterState.value.index ? index.index.includes(filterState.value.index) : true,
+    )
+    .map(index => {
+      const result = { index: index.index } as Record<string, any>;
 
-    // Initialize empty arrays for each node and unassigned
-    columns.forEach(column => {
-      if (column.name !== 'index') {
-        result[column.name] = [];
-      }
+      // Initialize empty arrays for each node and unassigned
+      columns.forEach(column => {
+        if (column.name !== 'index') {
+          result[column.name] = [];
+        }
+      });
+
+      // Distribute shards to their respective node columns
+      (index.shards || []).forEach(shard => {
+        if (shard.node) {
+          result[shard.node].push(shard);
+        } else {
+          result['unassigned'].push(shard);
+        }
+      });
+
+      return result;
     });
-
-    // Distribute shards to their respective node columns
-    (index.shards || []).forEach(shard => {
-      if (shard.node) {
-        result[shard.node].push(shard);
-      } else {
-        result['unassigned'].push(shard);
-      }
-    });
-
-    return result;
-  });
 
   return {
     columns: columns.map(column => ({
@@ -150,6 +184,7 @@ const nodeShardsTable = computed(() => {
         column.name === 'index'
           ? 'default'
           : (a: any, b: any) => size(get(a, column.name)) - size(get(b, column.name)),
+      ...(column.name === 'index' ? filterProps(column.name) : {}),
       render(row: { [key: string]: any }) {
         if (column.name === 'index') return row.index;
         return (row[column.name] || []).map((shard: ClusterShard) =>
