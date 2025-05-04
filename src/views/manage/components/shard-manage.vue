@@ -9,58 +9,59 @@
         />
       </n-infinite-scroll>
     </div>
+    <transition name="shard-slip">
+      <div v-if="indexShards" class="shard-statistic-container">
+        <div class="shard-title-container">
+          <h3 class="shard-statistic-title">
+            <span>INDEX: {{ indexShards.index }}</span>
+            <span>
+              shards: {{ indexShards.shards.filter(shard => shard.prirep === 'p').length }}/{{
+                indexShards.shards.filter(shard => shard.prirep === 'r').length
+              }}, unassigned: {{ indexShards.shards.filter(shard => !shard.node).length }}
+            </span>
+          </h3>
+          <n-icon size="26" @click="closeindexShards" class="close-index-shard-icon">
+            <Close />
+          </n-icon>
+        </div>
 
-    <div v-if="indexShards" class="shard-statistic-container">
-      <div class="shard-title-container">
-        <h3 class="shard-statistic-title">
-          <span>INDEX: {{ indexShards.index }}</span>
-          <span>
-            shards: {{ indexShards.shards.filter(shard => shard.prirep === 'p').length }}/{{
-              indexShards.shards.filter(shard => shard.prirep === 'r').length
-            }}, unassigned: {{ indexShards.shards.filter(shard => !shard.node).length }}
-          </span>
-        </h3>
-        <n-icon size="26" @click="closeindexShards" class="close-index-shard-icon">
-          <Close />
-        </n-icon>
-      </div>
-
-      <div class="shard-list-scrollbar-box">
-        <n-scrollbar style="height: 100%">
-          <n-button
-            strong
-            tag="div"
-            :type="shard.node ? 'primary' : 'warning'"
-            :dashed="shard.prirep == 'r'"
-            :secondary="shard.prirep == 'p'"
-            v-for="shard in indexShards.shards"
-            :title="shard.prirep + shard.shard"
-            class="shard-item-box"
-          >
-            <h3 class="shard-detail-title">
-              shard: {{ shard.prirep }}{{ shard.shard }} node: {{ shard.node }}
-            </h3>
-
-            <n-popover
-              trigger="hover"
-              :delay="500"
-              :duration="500"
-              v-for="shardsDetail in shard.details"
+        <div class="shard-list-scrollbar-box">
+          <n-scrollbar style="height: 100%">
+            <n-button
+              strong
+              tag="div"
+              :type="shard.node ? 'primary' : 'warning'"
+              :dashed="shard.prirep == 'r'"
+              :secondary="shard.prirep == 'p'"
+              v-for="shard in indexShards.shards"
+              :title="shard.prirep + shard.shard"
+              class="shard-item-box"
             >
-              <template #trigger>
-                <n-tag :type="shardsDetail.tagType">
-                  {{ shardsDetail.content }}
-                  <template #icon>
-                    <n-icon :component="shardsDetail.icon()" />
-                  </template>
-                </n-tag>
-              </template>
-              <span> {{ shardsDetail.desc }} </span>
-            </n-popover>
-          </n-button>
-        </n-scrollbar>
+              <h3 class="shard-detail-title">
+                shard: {{ shard.prirep }}{{ shard.shard }} node: {{ shard.node }}
+              </h3>
+
+              <n-popover
+                trigger="hover"
+                :delay="500"
+                :duration="500"
+                v-for="shardsDetail in shard.details"
+              >
+                <template #trigger>
+                  <n-tag :type="shardsDetail.tagType">
+                    {{ shardsDetail.content }}
+                    <template #icon>
+                      <n-icon :component="shardsDetail.icon()" />
+                    </template>
+                  </n-tag>
+                </template>
+                <span> {{ shardsDetail.desc }} </span>
+              </n-popover>
+            </n-button>
+          </n-scrollbar>
+        </div>
       </div>
-    </div>
+    </transition>
   </main>
 </template>
 
@@ -392,5 +393,26 @@ onMounted(async () => {
       }
     }
   }
+}
+
+//animation for shard-statistic-container
+.shard-slip-enter-active,
+.shard-slip-leave-active {
+  transition:
+    transform 0.5s cubic-bezier(0.55, 0, 0.1, 1),
+    opacity 0.5s;
+}
+.shard-slip-enter-from {
+  transform: translateY(40px);
+  opacity: 0;
+}
+.shard-slip-enter-to,
+.shard-slip-leave-from {
+  transform: translateY(0);
+  opacity: 1;
+}
+.shard-slip-leave-to {
+  transform: translateY(-40px);
+  opacity: 0;
 }
 </style>
