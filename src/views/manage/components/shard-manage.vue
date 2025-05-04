@@ -1,23 +1,30 @@
 <template>
   <main class="shard-container">
     <div class="shard-table-container">
-      <n-data-table
-        :columns="nodeShardsTable?.columns"
-        :data="nodeShardsTable?.data"
-        :bordered="false"
-        max-height="300"
-      />
+      <n-infinite-scroll style="height: 100%">
+        <n-data-table
+          :columns="nodeShardsTable?.columns"
+          :data="nodeShardsTable?.data"
+          :bordered="false"
+        />
+      </n-infinite-scroll>
     </div>
 
     <div v-if="indexShards" class="shard-statistic-container">
-      <h3 class="shard-statistic-title">
-        <span>{{ indexShards.index }}</span>
-        <span>
-          shards: {{ indexShards.shards.filter(shard => shard.prirep === 'p').length }}/{{
-            indexShards.shards.filter(shard => shard.prirep === 'r').length
-          }}, unassigned: {{ indexShards.shards.filter(shard => !shard.node).length }}
-        </span>
-      </h3>
+      <div class="shard-title-container">
+        <h3 class="shard-statistic-title">
+          <span>INDEX: {{ indexShards.index }}</span>
+          <span>
+            shards: {{ indexShards.shards.filter(shard => shard.prirep === 'p').length }}/{{
+              indexShards.shards.filter(shard => shard.prirep === 'r').length
+            }}, unassigned: {{ indexShards.shards.filter(shard => !shard.node).length }}
+          </span>
+        </h3>
+        <n-icon size="26" @click="closeindexShards" class="close-index-shard-icon">
+          <Close />
+        </n-icon>
+      </div>
+
       <div class="shard-list-scrollbar-box">
         <n-scrollbar style="height: 100%">
           <n-button
@@ -64,6 +71,7 @@ import prettyBytes from 'pretty-bytes';
 import {
   AiResults,
   Application,
+  Close,
   Document,
   Insert,
   LaunchStudy1,
@@ -293,6 +301,10 @@ const handleShardClick = async (shard: ClusterShard) => {
   };
 };
 
+const closeindexShards = () => {
+  indexShards.value = undefined;
+};
+
 onMounted(async () => {
   await refreshShards();
 });
@@ -307,6 +319,8 @@ onMounted(async () => {
   gap: 10px;
 
   .shard-table-container {
+    flex: 1;
+    height: 0;
     display: flex;
     justify-content: space-around;
     gap: 10px;
@@ -325,10 +339,26 @@ onMounted(async () => {
     flex-direction: column;
     background-color: var(--card-bg-color);
 
-    .shard-statistic-title {
-      margin: 10px 20px;
+    .shard-title-container {
       display: flex;
       justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+
+      .shard-statistic-title {
+        margin: 10px 20px;
+        flex-grow: 1;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .close-index-shard-icon {
+        cursor: pointer;
+        color: var(--text-color);
+        transition: 0.3s;
+        margin-left: 10px;
+        margin-top: 10px;
+        margin-right: 30px;
+      }
     }
 
     .shard-list-scrollbar-box {
