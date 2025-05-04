@@ -67,7 +67,8 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { useClusterManageStore } from '../../../store';
+import { get, size } from 'lodash';
+
 import prettyBytes from 'pretty-bytes';
 import {
   AiResults,
@@ -90,6 +91,7 @@ import { NButton } from 'naive-ui';
 import { TableColumn } from 'naive-ui/es/data-table/src/interface';
 import { CustomError } from '../../../common';
 import { ClusterShard } from '../../../datasources';
+import { useClusterManageStore } from '../../../store';
 
 const clusterManageStore = useClusterManageStore();
 const { fetchNodes, fetchShards } = clusterManageStore;
@@ -144,6 +146,10 @@ const nodeShardsTable = computed(() => {
     columns: columns.map(column => ({
       title: column.name,
       key: column.name,
+      sorter:
+        column.name === 'index'
+          ? 'default'
+          : (a: any, b: any) => size(get(a, column.name)) - size(get(b, column.name)),
       render(row: { [key: string]: any }) {
         if (column.name === 'index') return row.index;
         return (row[column.name] || []).map((shard: ClusterShard) =>
@@ -402,15 +408,18 @@ onMounted(async () => {
     transform 0.5s cubic-bezier(0.55, 0, 0.1, 1),
     opacity 0.5s;
 }
+
 .shard-slip-enter-from {
   transform: translateY(40px);
   opacity: 0;
 }
+
 .shard-slip-enter-to,
 .shard-slip-leave-from {
   transform: translateY(0);
   opacity: 1;
 }
+
 .shard-slip-leave-to {
   transform: translateY(-40px);
   opacity: 0;
