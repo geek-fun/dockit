@@ -201,7 +201,6 @@ const indexTable = computed(() => {
       dataIndex: 'aliases',
       key: 'aliases',
       resizable: true,
-      ellipsis: { tooltip: true },
       render: ({ aliases }: { aliases: Array<ClusterAlias> }) =>
         aliases.map(alias =>
           h(
@@ -212,6 +211,7 @@ const indexTable = computed(() => {
               tertiary: true,
               size: 'small',
               iconPlacement: 'left',
+              style: 'margin: 2px',
             },
             {
               default: () => `${alias.alias}`,
@@ -308,7 +308,7 @@ const indexTable = computed(() => {
 const templateTable = computed(() => {
   const columns = [
     {
-      title: 'Template Name',
+      title: 'Name',
       dataIndex: 'name',
       key: 'name',
       ...filterProps('name'),
@@ -326,23 +326,29 @@ const templateTable = computed(() => {
       dataIndex: 'included_in',
       key: 'included_in',
       render: ({ included_in }: { included_in: Array<string> }) =>
-        included_in?.map(included => h(NTag, null, { default: () => included })),
+        included_in?.map(included =>
+          h(NTag, { style: 'margin: 2px' }, { default: () => included }),
+        ),
     },
     {
       title: 'Index Patterns',
       dataIndex: 'index_patterns',
       key: 'index_patterns',
-      ellipsis: { tooltip: true },
+      resizable: true,
       render: ({ index_patterns }: { index_patterns: Array<string> }) =>
-        index_patterns?.map(pattern => h(NTag, null, { default: () => pattern })),
+        index_patterns?.map(pattern =>
+          h(NTag, { style: 'margin: 2px' }, { default: () => pattern }),
+        ),
     },
     {
       title: 'Composed Of',
       dataIndex: 'composed_of',
       key: 'composed_of',
-      ellipsis: { tooltip: true },
+      resizable: true,
       render: ({ composed_of }: { composed_of: Array<string> }) =>
-        composed_of?.map(composed => h(NTag, null, { default: () => composed })),
+        composed_of?.map(composed =>
+          h(NTag, { style: 'margin: 2px' }, { default: () => composed }),
+        ),
     },
   ];
 
@@ -494,16 +500,6 @@ onMounted(async () => {
     width: 500px;
   }
 
-  :deep(.n-tabs-wrapper) {
-    .n-tabs-tab-wrapper {
-      background-color: var(--bg-color);
-
-      .n-tabs-tab--active {
-        background-color: var(--bg-color-secondary);
-      }
-    }
-  }
-
   :deep(.n-tabs-pane-wrapper) {
     width: 100%;
     height: 100%;
@@ -511,6 +507,10 @@ onMounted(async () => {
 
   :deep(.n-tab-pane) {
     padding: 0;
+  }
+
+  :deep(.n-data-table-th__title) {
+    white-space: nowrap;
   }
 }
 </style>

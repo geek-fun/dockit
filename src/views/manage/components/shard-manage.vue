@@ -361,6 +361,7 @@ onMounted(async () => {
   gap: 10px;
 
   .shard-table-container {
+    margin-top: 10px;
     flex: 1;
     height: 0;
     display: flex;
@@ -371,6 +372,9 @@ onMounted(async () => {
       .shard-box {
         margin: 5px;
       }
+    }
+    :deep(.n-data-table-th__title) {
+      white-space: nowrap;
     }
   }
 
