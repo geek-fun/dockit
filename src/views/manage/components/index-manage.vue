@@ -325,6 +325,7 @@ const templateTable = computed(() => {
       title: 'Included In',
       dataIndex: 'included_in',
       key: 'included_in',
+      resizable: true,
       render: ({ included_in }: { included_in: Array<string> }) =>
         included_in?.map(included =>
           h(NTag, { style: 'margin: 2px' }, { default: () => included }),
