@@ -12,6 +12,7 @@ type Panel = {
   file?: string;
   content?: string;
   hideSystemIndices?: boolean;
+  editorType?: 'DYNAMO_EDITOR_UI' | 'DYNAMO_EDITOR_SQL' | 'DYNAMO_EDITOR_CREATE_ITEM';
 };
 
 const homePanel: Panel = { id: 0, name: 'home', file: '' };
