@@ -3,12 +3,12 @@ import { buildAuthHeader, buildURL, CustomError, pureObject } from '../common';
 import { lang } from '../lang';
 import { SearchAction, transformToCurl } from '../common/monaco';
 import {
-  loadHttpClient,
-  storeApi,
   dynamoApi,
   DynamoIndex,
   KeySchema,
+  loadHttpClient,
   QueryParams,
+  storeApi,
 } from '../datasources';
 import { DynamoIndexOrTableOption } from './tabStore.ts';
 
@@ -47,6 +47,16 @@ export type DynamoDBConnection = {
   secretAccessKey: string;
   tableName: string;
   keySchema?: Array<KeySchema>;
+  partitionKey: {
+    name: string;
+    type: string;
+    valueType: string;
+  };
+  sortKey?: {
+    name: string;
+    type: string;
+    valueType: string;
+  };
 };
 
 export type ElasticsearchConnection = {
@@ -233,6 +243,8 @@ export const useConnectionStore = defineStore('connectionStore', {
         const tableInfo = await dynamoApi.describeTable(con as DynamoDBConnection);
         connection.keySchema = tableInfo.keySchema;
         connection.indices = tableInfo.indices as DynamoIndex[];
+        connection.partitionKey = tableInfo.partitionKey;
+        connection.sortKey = tableInfo.sortKey;
       }
     },
     async selectIndex(con: Connection, indexName: string) {
@@ -323,6 +335,17 @@ export const useConnectionStore = defineStore('connectionStore', {
       return queryParams.partitionKey.value
         ? await dynamoApi.queryTable(con, queryParams)
         : await dynamoApi.scanTable(con, queryParams);
+    },
+
+    async createItem(
+      con: DynamoDBConnection,
+      attributes: Array<{
+        key: string;
+        value: string | number | boolean | null;
+        type: string;
+      }>,
+    ) {
+      return await dynamoApi.createItem(con, attributes);
     },
   },
 });

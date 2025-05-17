@@ -29,13 +29,35 @@ export type DynamoIndex = {
 };
 
 // Main table info type
-export type DynamoDBTableInfo = {
+export type RawDynamoDBTableInfo = {
   id: string;
   name: string;
   status: string;
   itemCount: number;
   sizeBytes: number;
   keySchema: KeySchema[]; // Based on connection store usage
+  attributeDefinitions: AttributeDefinition[];
+  indices: DynamoIndex[];
+  creationDateTime: string;
+};
+
+export type DynamoDBTableInfo = {
+  id: string;
+  name: string;
+  status: string;
+  itemCount: number;
+  sizeBytes: number;
+  partitionKey: {
+    name: string;
+    type: string;
+    valueType: string;
+  };
+  sortKey?: {
+    name: string;
+    type: string;
+    valueType: string;
+  };
+  keySchema: KeySchema[];
   attributeDefinitions?: AttributeDefinition[];
   indices?: DynamoIndex[];
   creationDateTime?: string;
@@ -84,8 +106,27 @@ const dynamoApi = {
     if (status !== 200) {
       throw new CustomError(status, message);
     }
-    return data as DynamoDBTableInfo;
+    const { keySchema, attributeDefinitions } = data as RawDynamoDBTableInfo;
+
+    const pkName = keySchema.find(({ keyType }) => keyType.toUpperCase() === 'HASH')?.attributeName;
+    const pkValueType = attributeDefinitions.find(
+      ({ attributeName }) => attributeName === pkName,
+    )?.attributeType;
+
+    const skName = keySchema.find(
+      ({ keyType }) => keyType.toUpperCase() === 'RANGE',
+    )?.attributeName;
+    const skValueType = attributeDefinitions.find(
+      ({ attributeName }) => attributeName === skName,
+    )?.attributeType;
+
+    const partitionKey = { name: pkName, valueType: pkValueType, type: 'HASH' };
+
+    const sortKey = { name: skName, valueType: skValueType, type: 'RANGE' };
+
+    return { ...data, partitionKey, sortKey } as DynamoDBTableInfo;
   },
+
   queryTable: async (con: DynamoDBConnection, queryParams: QueryParams): Promise<QueryResult> => {
     const credentials = {
       region: con.region,
@@ -134,6 +175,32 @@ const dynamoApi = {
       throw new CustomError(status, message);
     }
 
+    return data as QueryResult;
+  },
+  createItem: async (
+    con: DynamoDBConnection,
+    attributes: Array<{
+      key: string;
+      value: string | number | boolean | null;
+      type: string;
+    }>,
+  ) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+    const options = {
+      table_name: con.tableName,
+      operation: 'CREATE_ITEM',
+      payload: { attributes },
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
     return data as QueryResult;
   },
 };

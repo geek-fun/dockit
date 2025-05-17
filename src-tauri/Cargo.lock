@@ -1275,6 +1275,7 @@ dependencies = [
  "async-openai",
  "aws-config",
  "aws-sdk-dynamodb",
+ "base64 0.22.1",
  "futures",
  "http 0.2.12",
  "log",

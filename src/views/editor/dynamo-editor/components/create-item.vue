@@ -138,7 +138,7 @@ import { useLang } from '../../../../lang';
 
 const connectionStore = useConnectionStore();
 
-const { fetchIndices } = connectionStore;
+const { fetchIndices, createItem } = connectionStore;
 const { getDynamoIndexOrTableOption } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
@@ -146,27 +146,26 @@ const { activeConnection } = storeToRefs(tabStore);
 
 const dynamoRecordFormRef = ref();
 const attributeType = ref([
-  { label: 'String', value: 'String=' },
-  { label: 'Number', value: 'Number' },
-  { label: 'Boolean', value: 'Boolean' },
-  { label: 'Binary', value: 'Binary' },
-  { label: 'Null', value: 'Null' },
-  { label: 'String Set', value: 'String Set>' },
-  { label: 'Number Set', value: 'Number Set' },
-  { label: 'Binary Set', value: 'Binary Set' },
-  { label: 'List', value: 'List' },
-  { label: 'Map', value: 'Map' },
+  { label: 'String', value: 'S' },
+  { label: 'Number', value: 'N' },
+  { label: 'Boolean', value: 'BOOL' },
+  { label: 'Binary', value: 'B' },
+  { label: 'Null', value: 'NULL' },
+  { label: 'List', value: 'L' },
+  { label: 'Map', value: 'M' },
+  { label: 'String Set', value: 'SS' },
+  { label: 'Number Set', value: 'NS' },
+  { label: 'Binary Set', value: 'BS' },
 ]);
 
 const message = useMessage();
 const lang = useLang();
 
 const dynamoRecordForm = ref<{
-  index: string;
   partitionKey: string;
   sortKey: string;
   attributes: Array<{ key: string; value: string; type: string }>;
-}>({ index: '', partitionKey: '', sortKey: '', attributes: [] });
+}>({ partitionKey: '', sortKey: '', attributes: [] });
 
 const dynamoRecordFormRules = reactive<FormRules>({
   index: [
@@ -251,9 +250,18 @@ const handleSubmit = async (event: MouseEvent) => {
   }
 
   try {
-    // const { tableName } = activeConnection.value as DynamoDBConnection;
-    // const { partitionKey, sortKey, attributes } = dynamoRecordForm.value;
-    // Build query parameters
+    const { partitionKey } = activeConnection.value as DynamoDBConnection;
+    const pkRecord = {
+      key: partitionKey.name,
+      value: dynamoRecordForm.value.partitionKey,
+      type: partitionKey.valueType,
+    };
+
+    const attributes = [pkRecord, ...dynamoRecordForm.value.attributes];
+
+    console.log('attributes', attributes);
+
+    // const result = await createItem(activeConnection.value as DynamoDBConnection, attributes);
   } catch (error) {
     message.error(`status: ${(error as Error).name}, details: ${(error as Error).message}`, {
       closable: true,
@@ -264,7 +272,7 @@ const handleSubmit = async (event: MouseEvent) => {
 };
 
 const handleReset = () => {
-  dynamoRecordForm.value = { index: '', partitionKey: '', sortKey: '', attributes: [] };
+  dynamoRecordForm.value = { partitionKey: '', sortKey: '', attributes: [] };
 
   if (dynamoRecordFormRef.value) {
     dynamoRecordFormRef.value.restoreValidation();
