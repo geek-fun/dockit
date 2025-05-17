@@ -61,7 +61,7 @@
       {{ $t('editor.loadDefault') }}
     </n-tooltip>
     <n-button-group v-if="props.type === 'DYNAMO_EDITOR'">
-      <n-button quaternary>
+      <n-button quaternary @click="handleEditorSwitch('DYNAMO_EDITOR_UI')">
         <template #icon>
           <n-icon>
             <Template />
@@ -69,7 +69,7 @@
         </template>
         {{ $t('editor.dynamo.uiQuery') }}
       </n-button>
-      <n-button quaternary>
+      <n-button quaternary @click="handleEditorSwitch('DYNAMO_EDITOR_SQL')">
         <template #icon>
           <n-icon>
             <Code />
@@ -77,7 +77,7 @@
         </template>
         {{ $t('editor.dynamo.sqlEditor') }}
       </n-button>
-      <n-button quaternary>
+      <n-button quaternary @click="handleEditorSwitch('DYNAMO_EDITOR_CREATE_ITEM')">
         <template #icon>
           <n-icon>
             <Add />
@@ -109,17 +109,15 @@ import { useClusterManageStore, useConnectionStore, useTabStore } from '../store
 import { useLang } from '../lang';
 import { CustomError, inputProps } from '../common';
 
+const props = defineProps({ type: String });
+const emits = defineEmits(['switch-manage-tab']);
+
 const message = useMessage();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
 const { fetchConnections, fetchIndices, selectIndex } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
-
-const props = defineProps({
-  type: String,
-});
-const emits = defineEmits(['switch-manage-tab']);
 
 const tabStore = useTabStore();
 const { loadDefaultSnippet, selectConnection } = tabStore;
@@ -262,6 +260,12 @@ const handleHiddenChange = async (value: boolean) => {
   if (props.type === 'MANAGE' && connection.value) {
     await refreshStates(value);
   }
+};
+
+const handleEditorSwitch = async (
+  value: 'DYNAMO_EDITOR_UI' | 'DYNAMO_EDITOR_SQL' | 'DYNAMO_EDITOR_CREATE_ITEM',
+) => {
+  activePanel.value.editorType = value;
 };
 </script>
 

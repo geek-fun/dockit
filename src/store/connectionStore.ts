@@ -41,12 +41,12 @@ export type DynamoDBConnection = {
   id?: number;
   name: string;
   type: DatabaseType.DYNAMODB;
-  indices: Array<DynamoIndex>;
+  indices?: Array<DynamoIndex>;
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
   tableName: string;
-  keySchema: Array<KeySchema>;
+  keySchema?: Array<KeySchema>;
 };
 
 export type ElasticsearchConnection = {
@@ -122,7 +122,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     getDynamoIndexOrTableOption: () => {
       return (targetConnection?: DynamoDBConnection) => {
-        if (!targetConnection || targetConnection.type !== DatabaseType.DYNAMODB) return [];
+        if (!targetConnection?.keySchema) return [];
 
         const { partitionKeyName, sortKeyName } = getIndexInfo(targetConnection.keySchema);
         const partitionKeyOption = partitionKeyName && {
@@ -132,16 +132,17 @@ export const useConnectionStore = defineStore('connectionStore', {
           sortKeyName,
         };
 
-        const indexOptions = targetConnection.indices?.map(index => {
-          const { partitionKeyName, sortKeyName } = getIndexInfo(index.keySchema);
+        const indexOptions =
+          targetConnection.indices?.map(index => {
+            const { partitionKeyName, sortKeyName } = getIndexInfo(index.keySchema);
 
-          return {
-            label: `GSI - ${index.name}`,
-            value: index.name,
-            partitionKeyName,
-            sortKeyName,
-          };
-        });
+            return {
+              label: `GSI - ${index.name}`,
+              value: index.name,
+              partitionKeyName,
+              sortKeyName,
+            };
+          }) || [];
 
         return [partitionKeyOption, ...indexOptions].filter(
           Boolean,

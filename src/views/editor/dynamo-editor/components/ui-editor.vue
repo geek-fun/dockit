@@ -72,7 +72,7 @@
               :path="`formFilterItems[${index}].key`"
               :rule="{
                 required: true,
-                message: `${lang.t('editor.dynamo.filterKeyRequired')}`,
+                message: `${lang.t('editor.dynamo.attributeNameRequired')}`,
                 trigger: ['input', 'blur'],
               }"
             >
@@ -88,7 +88,7 @@
               :path="`formFilterItems[${index}].operator`"
               :rule="{
                 required: true,
-                message: `${lang.t('editor.dynamo.filterOperatorRequired')}`,
+                message: `${lang.t('editor.dynamo.operatorRequired')}`,
                 trigger: ['input', 'blur'],
               }"
             >
@@ -104,7 +104,7 @@
               :path="`formFilterItems[${index}].value`"
               :rule="{
                 required: true,
-                message: `${lang.t('editor.dynamo.filterValueRequired')}`,
+                message: `${lang.t('editor.dynamo.attributeValueRequired')}`,
                 trigger: ['input', 'blur'],
               }"
             >
