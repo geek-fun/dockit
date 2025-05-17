@@ -59,6 +59,7 @@ const props = defineProps<{ cluster: RawClusterStats | undefined }>();
   justify-content: space-around;
 
   .n-card {
+    margin-top: 10px;
     max-width: 300px;
     max-height: 300px;
   }

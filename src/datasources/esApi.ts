@@ -190,6 +190,32 @@ export type ClusterIndex = {
   };
 };
 
+export enum TemplateType {
+  INDEX_TEMPLATE = 'INDEX_TEMPLATE',
+  COMPONENT_TEMPLATE = 'COMPONENT_TEMPLATE',
+}
+
+type ComponentTemplate = {
+  name: string;
+  type: TemplateType;
+  version: number | null;
+  alias_count: number | null;
+  mapping_count: number | null;
+  settings_count: number | null;
+  metadata_count: number | null;
+  included_in: Array<string>;
+};
+type IndexTemplate = {
+  name: string;
+  type: TemplateType;
+  index_patterns: Array<string>;
+  order: number | null;
+  version: number | null;
+  composed_of: Array<string>;
+};
+
+export type ClusterTemplate = ComponentTemplate | IndexTemplate;
+
 interface ESApi {
   createIndex(
     connection: ElasticsearchConnection,
@@ -260,6 +286,8 @@ interface ESApi {
   catShards(
     connection: ElasticsearchConnection,
   ): Promise<Array<{ index: string; shards: Array<ClusterShard> }>>;
+
+  catTemplates(connection: ElasticsearchConnection): Promise<Array<ClusterTemplate>>;
 }
 
 const esApi: ESApi = {
@@ -705,6 +733,48 @@ const esApi: ESApi = {
         err instanceof CustomError ? err.details : (err as Error).message,
       );
     }
+  },
+
+  catTemplates: async connection => {
+    const client = loadHttpClient(connection);
+    const fetchIndexTemplates = async () => {
+      const data = (await client.get('/_cat/templates', 'format=json')) as Array<{
+        [key: string]: string;
+      }>;
+      return data.map((template: { [key: string]: string }) => ({
+        name: template.name,
+        type: TemplateType.INDEX_TEMPLATE,
+        order: optionalToNullableInt(template.order),
+        version: optionalToNullableInt(template.version),
+        index_patterns: template.index_patterns.slice(1, -1).split(',').filter(Boolean),
+        composed_of: template.composed_of.slice(1, -1).split(',').filter(Boolean),
+      }));
+    };
+    const fetchComponentTemplates = async () => {
+      const data = (await client.get('/_component_template', 'format=json')) as {
+        component_templates: Array<{
+          [key: string]: string;
+        }>;
+      };
+
+      return data?.component_templates.map((template: { [key: string]: string }) => ({
+        name: template.name,
+        type: TemplateType.COMPONENT_TEMPLATE,
+        version: optionalToNullableInt(template.version),
+        alias_count: optionalToNullableInt(template.alias_count),
+        mapping_count: optionalToNullableInt(template.mapping_count),
+        settings_count: optionalToNullableInt(template.settings_count),
+        metadata_count: optionalToNullableInt(template.metadata_count),
+        included_in: template.included_in?.slice(1, -1).split(',').filter(Boolean),
+      }));
+    };
+
+    const [indexTemplates, componentTemplates] = await Promise.all([
+      fetchIndexTemplates(),
+      fetchComponentTemplates(),
+    ]);
+
+    return [...indexTemplates, ...componentTemplates];
   },
 };
 

@@ -1,64 +1,72 @@
 <template>
-  <main>
-    <n-tabs type="segment" animated @update:value="refresh">
-      <n-tab-pane name="indices" tab="INDICES">
-        <n-data-table
-          :columns="indexTable.columns"
-          :data="indexTable.data"
-          :bordered="false"
-          max-height="400"
-        />
-      </n-tab-pane>
-      <n-tab-pane name="templates" tab="TEMPLATES">
-        <n-data-table
-          :columns="templateTable.columns"
-          :data="templateTable.data"
-          :bordered="false"
-          max-height="400"
-        />
-      </n-tab-pane>
-      <template #suffix>
-        <div class="tab-action-group">
-          <n-button type="default" tertiary @click="handleRefresh">
-            <template #icon>
-              <n-icon>
-                <Renew />
-              </n-icon>
-            </template>
-            Refresh
-          </n-button>
-          <n-button secondary type="success" @click="toggleModal('index')">
-            <template #icon>
-              <n-icon>
-                <Add />
-              </n-icon>
-            </template>
-            New Index
-          </n-button>
-          <n-button secondary type="success" @click="toggleModal('alias')">
-            <template #icon>
-              <n-icon>
-                <Add />
-              </n-icon>
-            </template>
-            New Alias
-          </n-button>
-          <n-button secondary type="success" @click="toggleModal('template')">
-            <template #icon>
-              <n-icon>
-                <Add />
-              </n-icon>
-            </template>
-            New Template
-          </n-button>
+  <n-tabs type="segment" animated @update:value="refresh" class="tabs-container">
+    <n-tab-pane name="indices" tab="INDICES" class="tabs-tab-pane-container">
+      <div class="table-container">
+        <div class="table-scroll-container">
+          <n-infinite-scroll style="height: 100%">
+            <n-data-table
+              :columns="indexTable.columns as any"
+              :data="indexTable.data"
+              :bordered="false"
+            />
+          </n-infinite-scroll>
         </div>
-      </template>
-    </n-tabs>
-    <index-dialog ref="indexDialogRef" />
-    <alias-dialog ref="aliasDialogRef" />
-    <template-dialog ref="templateDialogRef" />
-    <switch-alias-dialog ref="switchAliasDialogRef" />
-  </main>
+      </div>
+    </n-tab-pane>
+    <n-tab-pane name="templates" tab="TEMPLATES" class="tabs-tab-pane-container">
+      <div class="table-container">
+        <div class="table-scroll-container">
+          <n-infinite-scroll style="height: 100%">
+            <n-data-table
+              :columns="templateTable.columns as any"
+              :data="templateTable.data"
+              :bordered="false"
+            />
+          </n-infinite-scroll>
+        </div>
+      </div>
+    </n-tab-pane>
+    <template #suffix>
+      <div class="tab-action-group">
+        <n-button type="default" tertiary @click="handleRefresh">
+          <template #icon>
+            <n-icon>
+              <Renew />
+            </n-icon>
+          </template>
+          Refresh
+        </n-button>
+        <n-button secondary type="success" @click="toggleModal('index')">
+          <template #icon>
+            <n-icon>
+              <Add />
+            </n-icon>
+          </template>
+          New Index
+        </n-button>
+        <n-button secondary type="success" @click="toggleModal('alias')">
+          <template #icon>
+            <n-icon>
+              <Add />
+            </n-icon>
+          </template>
+          New Alias
+        </n-button>
+        <n-button secondary type="success" @click="toggleModal('template')">
+          <template #icon>
+            <n-icon>
+              <Add />
+            </n-icon>
+          </template>
+          New Template
+        </n-button>
+      </div>
+    </template>
+  </n-tabs>
+  <index-dialog ref="indexDialogRef" />
+  <alias-dialog ref="aliasDialogRef" />
+  <template-dialog ref="templateDialogRef" />
+  <switch-alias-dialog ref="switchAliasDialogRef" />
 </template>
 
 <script setup lang="ts">
@@ -99,7 +107,7 @@ const aliasDialogRef = ref();
 const templateDialogRef = ref();
 const switchAliasDialogRef = ref();
 
-const filtersRef = ref<{ [key: string]: string }>({
+const filterState = ref<{ [key: string]: string }>({
   index: '',
   uuid: '',
   health: '',
@@ -109,14 +117,14 @@ const filtersRef = ref<{ [key: string]: string }>({
 });
 
 const handleFilter = (key: string, value: string) => {
-  filtersRef.value[key] = value;
+  filterState.value[key] = value;
 };
 
 const filterProps = (key: string) => ({
   filter: true,
   renderFilterMenu(_: { hide: () => void }) {
     return h(NInput, {
-      value: filtersRef.value[key],
+      value: filterState.value[key],
       placeholder: `type to filter ${key}`,
       clearable: true,
       size: 'small',
@@ -125,7 +133,11 @@ const filterProps = (key: string) => ({
     });
   },
   renderFilterIcon() {
-    return h(NIcon, {}, { default: () => h(Search) });
+    return h(
+      NIcon,
+      { color: filterState.value[key] ? 'var(--theme-color)' : 'var(--n-text-color)' },
+      { default: () => h(Search) },
+    );
   },
 });
 
@@ -136,13 +148,15 @@ const indexTable = computed(() => {
       dataIndex: 'index',
       key: 'index',
       ...filterProps('index'),
+      sorter: 'default',
     },
-    { title: 'UUID', dataIndex: 'uuid', key: 'uuid', ...filterProps('uuid') },
+    { title: 'UUID', dataIndex: 'uuid', key: 'uuid', ...filterProps('uuid'), sorter: 'default' },
     {
       title: 'health',
       dataIndex: 'health',
       key: 'health',
       ...filterProps('health'),
+      sorter: 'default',
       render({ health }: { health: IndexHealth }) {
         return (
           (health === IndexHealth.GREEN ? '🟢' : health === IndexHealth.YELLOW ? '🟡' : '🔴') +
@@ -150,7 +164,38 @@ const indexTable = computed(() => {
         );
       },
     },
-    { title: 'status', dataIndex: 'status', key: 'status', ...filterProps('status') },
+    {
+      title: 'status',
+      dataIndex: 'status',
+      key: 'status',
+      ...filterProps('status'),
+      sorter: 'default',
+    },
+    {
+      title: 'Docs',
+      dataIndex: 'docs',
+      key: 'docs',
+      sorter: (a: ClusterIndex, b: ClusterIndex) => (a.docs?.count ?? 0) - (b.docs?.count ?? 0),
+      render({ docs }: ClusterIndex) {
+        return docs.count;
+      },
+    },
+    { title: 'Storage', dataIndex: 'storage', key: 'storage', sorter: 'default' },
+    {
+      title: 'shards',
+      dataIndex: 'shards',
+      key: 'shards',
+      render({ shards }: ClusterIndex) {
+        if (!shards || !Array.isArray(shards)) {
+          return '0p/0r';
+        }
+
+        const primaryCount = shards.filter(shard => shard.prirep === 'p').length;
+        const replicaCount = shards.filter(shard => shard.prirep === 'r').length;
+
+        return `${primaryCount}p/${replicaCount}r`;
+      },
+    },
     {
       title: 'Aliases',
       dataIndex: 'aliases',
@@ -164,8 +209,9 @@ const indexTable = computed(() => {
               strong: true,
               type: 'default',
               tertiary: true,
-              iconPlacement: 'right',
-              style: 'margin-right: 8px',
+              size: 'small',
+              iconPlacement: 'left',
+              style: 'margin: 2px',
             },
             {
               default: () => `${alias.alias}`,
@@ -195,30 +241,6 @@ const indexTable = computed(() => {
           ),
         ),
     },
-    {
-      title: 'Docs',
-      dataIndex: 'docs',
-      key: 'docs',
-      render({ docs }: ClusterIndex) {
-        return docs.count;
-      },
-    },
-    {
-      title: 'shards',
-      dataIndex: 'shards',
-      key: 'shards',
-      render({ shards }: ClusterIndex) {
-        if (!shards || !Array.isArray(shards)) {
-          return '0p/0r';
-        }
-
-        const primaryCount = shards.filter(shard => shard.prirep === 'p').length;
-        const replicaCount = shards.filter(shard => shard.prirep === 'r').length;
-
-        return `${primaryCount}p/${replicaCount}r`;
-      },
-    },
-    { title: 'Storage', dataIndex: 'storage', key: 'storage' },
     {
       title: 'Actions',
       dataIndex: 'actions',
@@ -260,23 +282,23 @@ const indexTable = computed(() => {
 
   const data = indexWithAliases.value
     .filter(item =>
-      filtersRef.value.uuid
-        ? get(item, 'uuid', '').toLowerCase().includes(filtersRef.value.uuid.toLowerCase())
+      filterState.value.uuid
+        ? get(item, 'uuid', '').toLowerCase().includes(filterState.value.uuid.toLowerCase())
         : true,
     )
     .filter(item =>
-      filtersRef.value.index
-        ? get(item, 'index', '').toLowerCase().includes(filtersRef.value.index.toLowerCase())
+      filterState.value.index
+        ? get(item, 'index', '').toLowerCase().includes(filterState.value.index.toLowerCase())
         : true,
     )
     .filter(item =>
-      filtersRef.value.health
-        ? get(item, 'health', '').toLowerCase().includes(filtersRef.value.health.toLowerCase())
+      filterState.value.health
+        ? get(item, 'health', '').toLowerCase().includes(filterState.value.health.toLowerCase())
         : true,
     )
     .filter(item =>
-      filtersRef.value.status
-        ? get(item, 'status', '').toLowerCase().includes(filtersRef.value.status.toLowerCase())
+      filterState.value.status
+        ? get(item, 'status', '').toLowerCase().includes(filterState.value.status.toLowerCase())
         : true,
     );
 
@@ -285,46 +307,61 @@ const indexTable = computed(() => {
 
 const templateTable = computed(() => {
   const columns = [
-    { title: 'Template Name', dataIndex: 'name', key: 'name', ...filterProps('name') },
-    { title: 'Type', dataIndex: 'type', key: 'type', ...filterProps('type') },
-    { title: 'Order', dataIndex: 'order', key: 'order' },
-    { title: 'Version', dataIndex: 'version', key: 'version' },
-    { title: 'Mappings', dataIndex: 'mapping_count', key: 'mapping_count' },
-    { title: 'Settings', dataIndex: 'settings_count', key: 'settings_count' },
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      ...filterProps('name'),
+      sorter: 'default',
+    },
+    { title: 'Type', dataIndex: 'type', key: 'type', ...filterProps('type'), sorter: 'default' },
+    { title: 'Order', dataIndex: 'order', key: 'order', sorter: 'default' },
+    { title: 'Version', dataIndex: 'version', key: 'version', sorter: 'default' },
+    { title: 'Mappings', dataIndex: 'mapping_count', key: 'mapping_count', sorter: 'default' },
+    { title: 'Settings', dataIndex: 'settings_count', key: 'settings_count', sorter: 'default' },
     { title: 'Aliases', dataIndex: 'alias_count', key: 'alias_count' },
     { title: 'Metadata', dataIndex: 'metadata', key: 'metadata' },
     {
       title: 'Included In',
       dataIndex: 'included_in',
       key: 'included_in',
+      resizable: true,
       render: ({ included_in }: { included_in: Array<string> }) =>
-        included_in?.map(included => h(NTag, null, { default: () => included })),
+        included_in?.map(included =>
+          h(NTag, { style: 'margin: 2px' }, { default: () => included }),
+        ),
     },
     {
       title: 'Index Patterns',
       dataIndex: 'index_patterns',
       key: 'index_patterns',
+      resizable: true,
       render: ({ index_patterns }: { index_patterns: Array<string> }) =>
-        index_patterns?.map(pattern => h(NTag, null, { default: () => pattern })),
+        index_patterns?.map(pattern =>
+          h(NTag, { style: 'margin: 2px' }, { default: () => pattern }),
+        ),
     },
     {
       title: 'Composed Of',
       dataIndex: 'composed_of',
       key: 'composed_of',
+      resizable: true,
       render: ({ composed_of }: { composed_of: Array<string> }) =>
-        composed_of?.map(composed => h(NTag, null, { default: () => composed })),
+        composed_of?.map(composed =>
+          h(NTag, { style: 'margin: 2px' }, { default: () => composed }),
+        ),
     },
   ];
 
   const data = templates.value
     .filter(item =>
-      filtersRef.value.name
-        ? get(item, 'name', '').toLowerCase().includes(filtersRef.value.name.toLowerCase())
+      filterState.value.name
+        ? get(item, 'name', '').toLowerCase().includes(filterState.value.name.toLowerCase())
         : true,
     )
     .filter(item =>
-      filtersRef.value.type
-        ? get(item, 'type', '').toLowerCase().includes(filtersRef.value.type.toLowerCase())
+      filterState.value.type
+        ? get(item, 'type', '').toLowerCase().includes(filterState.value.type.toLowerCase())
         : true,
     );
 
@@ -437,9 +474,44 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.tab-action-group {
-  display: flex;
-  justify-content: space-around;
-  width: 500px;
+.tabs-container {
+  width: 100%;
+  height: 100%;
+
+  .tabs-tab-pane-container {
+    width: 100%;
+    height: 100%;
+
+    .table-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+
+      .table-scroll-container {
+        flex: 1;
+        height: 0;
+      }
+    }
+  }
+
+  .tab-action-group {
+    display: flex;
+    justify-content: space-around;
+    width: 500px;
+  }
+
+  :deep(.n-tabs-pane-wrapper) {
+    width: 100%;
+    height: 100%;
+  }
+
+  :deep(.n-tab-pane) {
+    padding: 0;
+  }
+
+  :deep(.n-data-table-th__title) {
+    white-space: nowrap;
+  }
 }
 </style>

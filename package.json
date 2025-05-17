@@ -2,7 +2,7 @@
   "name": "dockit",
   "private": true,
   "type": "module",
-  "version": "0.6.6",
+  "version": "0.6.8",
   "description": "DocKit is a desktop client designed for NoSQL database, support Elasticsearch and OpenSearch across Mac, windows and Linux",
   "author": "geekfun <support@geekfun.club>",
   "homepage": "ttps://dockit.geekfun.club",
@@ -23,7 +23,7 @@
     "build:macos": "tauri build -t universal-apple-darwin"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.4.1",
+    "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-dialog": "^2.2.1",
     "@tauri-apps/plugin-fs": "^2.2.1",
     "@tauri-apps/plugin-global-shortcut": "^2.2.0",
@@ -32,7 +32,7 @@
     "@tauri-apps/plugin-store": "^2.2.0",
     "debug": "^4.4.0",
     "highlight.js": "^11.11.1",
-    "json-with-bigint": "^3.3.4",
+    "json-with-bigint": "^3.4.4",
     "json5": "^2.2.3",
     "lodash": "^4.17.21",
     "markdown-it": "^14.1.0",
