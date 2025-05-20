@@ -83,7 +83,8 @@ pub async fn dynamo_api(
                     let table_info = json!({
                         "id": response.table().and_then(|t| t.table_id()),
                         "name": response.table().map(|t| t.table_name()),
-                        "status": response.table().and_then(|t| t.table_status().map(|s| s.as_str().to_string())),                        "itemCount": response.table().and_then(|t| t.item_count()),
+                        "status": response.table().and_then(|t| t.table_status().map(|s| s.as_str().to_string())),
+                        "itemCount": response.table().and_then(|t| t.item_count()),
                         "sizeBytes": response.table().and_then(|t| t.table_size_bytes()),
                         "keySchema": response.table().and_then(|t| {
                             Some(t.key_schema().iter().map(|k| {

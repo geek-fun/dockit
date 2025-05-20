@@ -214,6 +214,7 @@ export const zhCN = {
       attributeTypeRequired: '请输入属性类型',
       attributeValueRequired: '请输入属性值',
       operatorRequired: '请输入滤器操作符',
+      createItemSuccess: '数据添加成功!',
     },
   },
   file: {

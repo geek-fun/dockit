@@ -214,6 +214,7 @@ export const enUS = {
       attributeTypeRequired: 'Attribute type is required',
       attributeValueRequired: 'Attribute value is required',
       operatorRequired: 'Filter operator is required',
+      createItemSuccess: 'Item created successfully!',
     },
   },
   file: {

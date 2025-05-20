@@ -117,7 +117,12 @@
         <n-button type="warning" tertiary @click="handleReset">
           {{ $t('dialogOps.reset') }}
         </n-button>
-        <n-button type="primary" @click="handleSubmit" :disabled="!validationPassed">
+        <n-button
+          type="primary"
+          @click="handleSubmit"
+          :disabled="!validationPassed"
+          :loading="loadingRef.createItem"
+        >
           {{ $t('dialogOps.execute') }}
         </n-button>
       </div>
@@ -143,6 +148,8 @@ const { getDynamoIndexOrTableOption } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
+
+const loadingRef = ref({ createItem: false });
 
 const dynamoRecordFormRef = ref();
 const attributeType = ref([
@@ -250,6 +257,7 @@ const handleSubmit = async (event: MouseEvent) => {
   }
 
   try {
+    loadingRef.value.createItem = true;
     const { partitionKey } = activeConnection.value as DynamoDBConnection;
     const pkRecord = {
       key: partitionKey.name,
@@ -259,15 +267,16 @@ const handleSubmit = async (event: MouseEvent) => {
 
     const attributes = [pkRecord, ...dynamoRecordForm.value.attributes];
 
-    console.log('attributes', attributes);
-
-    // const result = await createItem(activeConnection.value as DynamoDBConnection, attributes);
+    await createItem(activeConnection.value as DynamoDBConnection, attributes);
+    message.success(lang.t('editor.dynamo.createItemSuccess'));
   } catch (error) {
     message.error(`status: ${(error as Error).name}, details: ${(error as Error).message}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3600,
     });
+  } finally {
+    loadingRef.value.createItem = false;
   }
 };
 
