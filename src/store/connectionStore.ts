@@ -3,6 +3,7 @@ import { buildAuthHeader, buildURL, CustomError, pureObject } from '../common';
 import { lang } from '../lang';
 import { SearchAction, transformToCurl } from '../common/monaco';
 import {
+  AttributeDefinition,
   dynamoApi,
   DynamoIndex,
   KeySchema,
@@ -52,6 +53,7 @@ export type DynamoDBConnection = {
     type: string;
     valueType: string;
   };
+  attributeDefinitions: Array<AttributeDefinition>;
   sortKey?: {
     name: string;
     type: string;
@@ -245,6 +247,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         connection.indices = tableInfo.indices as DynamoIndex[];
         connection.partitionKey = tableInfo.partitionKey;
         connection.sortKey = tableInfo.sortKey;
+        connection.attributeDefinitions = tableInfo.attributeDefinitions;
       }
     },
     async selectIndex(con: Connection, indexName: string) {

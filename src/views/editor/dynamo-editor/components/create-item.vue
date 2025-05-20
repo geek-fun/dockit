@@ -45,7 +45,60 @@
             </n-form-item>
           </n-grid-item>
         </n-grid>
+        <n-divider title-placement="left"> Key Attributes </n-divider>
+        <n-grid
+          v-for="(item, index) in selectedTable.keyAttributes"
+          :key="index"
+          :cols="24"
+          :x-gap="12"
+        >
+          <n-grid-item span="9">
+            <n-form-item :path="`keyAttributes[${index}].key`">
+              <n-input
+                v-model:value="item.attributeName"
+                :placeholder="$t('editor.dynamo.inputAttrName')"
+                disabled
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item span="4">
+            <n-form-item :path="`keyAttributes[${index}].type`">
+              <n-select
+                v-model:value="item.attributeType"
+                :placeholder="$t('editor.dynamo.type')"
+                disabled
+                :options="attributeType"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item span="9">
+            <n-form-item
+              :path="`keyAttributes[${index}].value`"
+              :rule="{
+                required: true,
+                message: `${lang.t('editor.dynamo.attributeValueRequired')}`,
+                trigger: ['input', 'blur'],
+              }"
+            >
+              <n-input
+                v-model:value="item.value"
+                :placeholder="$t('editor.dynamo.inputAttrValue')"
+                :input-props="inputProps"
+              />
+            </n-form-item>
+          </n-grid-item>
+          <n-grid-item span="2">
+            <n-button quaternary circle @click="removeAttributeItem(index)">
+              <template #icon>
+                <n-icon>
+                  <Delete />
+                </n-icon>
+              </template>
+            </n-button>
+          </n-grid-item>
+        </n-grid>
         <!-- Dynamically additional form items -->
+        <n-divider title-placement="left"> Additional Attributes </n-divider>
         <n-grid
           v-for="(item, index) in dynamoRecordForm.attributes"
           :key="index"
@@ -172,6 +225,7 @@ const dynamoRecordForm = ref<{
   partitionKey: string;
   sortKey: string;
   attributes: Array<{ key: string; value: string; type: string }>;
+  keyAttributes: Array<{ key: string; value: string; type: string }>;
 }>({ partitionKey: '', sortKey: '', attributes: [] });
 
 const dynamoRecordFormRules = reactive<FormRules>({
@@ -218,6 +272,7 @@ const selectedTable = computed(() => {
       sortKeyName: undefined,
       partitionKeyLabel: undefined,
       sortKeyLabel: undefined,
+      keyAttributes: [],
     };
   }
 
@@ -228,6 +283,7 @@ const selectedTable = computed(() => {
     sortKeyName,
     partitionKeyLabel: partitionKeyName ? `${partitionKeyName}  (Partition Key):` : undefined,
     sortKeyLabel: sortKeyName ? `${sortKeyName} (Sort Key):` : undefined,
+    keyAttributes: activeConnection.value.attributeDefinitions ?? [],
   };
 });
 

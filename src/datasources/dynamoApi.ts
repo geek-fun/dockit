@@ -58,7 +58,7 @@ export type DynamoDBTableInfo = {
     valueType: string;
   };
   keySchema: KeySchema[];
-  attributeDefinitions?: AttributeDefinition[];
+  attributeDefinitions: AttributeDefinition[];
   indices?: DynamoIndex[];
   creationDateTime?: string;
 };
