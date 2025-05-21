@@ -3,12 +3,13 @@ import { buildAuthHeader, buildURL, CustomError, pureObject } from '../common';
 import { lang } from '../lang';
 import { SearchAction, transformToCurl } from '../common/monaco';
 import {
-  loadHttpClient,
-  storeApi,
+  AttributeDefinition,
   dynamoApi,
   DynamoIndex,
   KeySchema,
+  loadHttpClient,
   QueryParams,
+  storeApi,
 } from '../datasources';
 import { DynamoIndexOrTableOption } from './tabStore.ts';
 
@@ -41,12 +42,23 @@ export type DynamoDBConnection = {
   id?: number;
   name: string;
   type: DatabaseType.DYNAMODB;
-  indices: Array<DynamoIndex>;
+  indices?: Array<DynamoIndex>;
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
   tableName: string;
-  keySchema: Array<KeySchema>;
+  keySchema?: Array<KeySchema>;
+  partitionKey: {
+    name: string;
+    type: string;
+    valueType: string;
+  };
+  attributeDefinitions: Array<AttributeDefinition>;
+  sortKey?: {
+    name: string;
+    type: string;
+    valueType: string;
+  };
 };
 
 export type ElasticsearchConnection = {
@@ -122,7 +134,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     getDynamoIndexOrTableOption: () => {
       return (targetConnection?: DynamoDBConnection) => {
-        if (!targetConnection || targetConnection.type !== DatabaseType.DYNAMODB) return [];
+        if (!targetConnection?.keySchema) return [];
 
         const { partitionKeyName, sortKeyName } = getIndexInfo(targetConnection.keySchema);
         const partitionKeyOption = partitionKeyName && {
@@ -132,16 +144,17 @@ export const useConnectionStore = defineStore('connectionStore', {
           sortKeyName,
         };
 
-        const indexOptions = targetConnection.indices?.map(index => {
-          const { partitionKeyName, sortKeyName } = getIndexInfo(index.keySchema);
+        const indexOptions =
+          targetConnection.indices?.map(index => {
+            const { partitionKeyName, sortKeyName } = getIndexInfo(index.keySchema);
 
-          return {
-            label: `GSI - ${index.name}`,
-            value: index.name,
-            partitionKeyName,
-            sortKeyName,
-          };
-        });
+            return {
+              label: `GSI - ${index.name}`,
+              value: index.name,
+              partitionKeyName,
+              sortKeyName,
+            };
+          }) || [];
 
         return [partitionKeyOption, ...indexOptions].filter(
           Boolean,
@@ -232,6 +245,9 @@ export const useConnectionStore = defineStore('connectionStore', {
         const tableInfo = await dynamoApi.describeTable(con as DynamoDBConnection);
         connection.keySchema = tableInfo.keySchema;
         connection.indices = tableInfo.indices as DynamoIndex[];
+        connection.partitionKey = tableInfo.partitionKey;
+        connection.sortKey = tableInfo.sortKey;
+        connection.attributeDefinitions = tableInfo.attributeDefinitions;
       }
     },
     async selectIndex(con: Connection, indexName: string) {
@@ -322,6 +338,17 @@ export const useConnectionStore = defineStore('connectionStore', {
       return queryParams.partitionKey.value
         ? await dynamoApi.queryTable(con, queryParams)
         : await dynamoApi.scanTable(con, queryParams);
+    },
+
+    async createItem(
+      con: DynamoDBConnection,
+      attributes: Array<{
+        key: string;
+        value: string | number | boolean | null;
+        type: string;
+      }>,
+    ) {
+      return await dynamoApi.createItem(con, attributes);
     },
   },
 });
