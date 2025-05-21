@@ -206,6 +206,7 @@ export const enUS = {
       inputAttrValue: 'Enter attribute value',
       resultTitle: 'Query Result',
       indexIsRequired: 'Table/Index is required',
+      partitionKeyRequired: 'Table/Index Partition key is required',
       atLeastRequired: 'Partition key or at least 1 filter is required',
       scanWarning: 'Request without partitionKey will scan the table',
       createItem: 'Create Item',

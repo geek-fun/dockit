@@ -1,170 +1,176 @@
 <template>
-  <n-card>
-    <n-form
-      ref="dynamoRecordFormRef"
-      :model="dynamoRecordForm"
-      :rules="dynamoRecordFormRules"
-      label-placement="left"
-      require-mark-placement="right-hanging"
-      label-width="auto"
-    >
-      <n-card :title="$t('editor.dynamo.addAttributesTitle')">
-        <template #header-extra>
-          <n-icon size="26" @click="addAttributeItem" style="cursor: pointer">
-            <Add />
-          </n-icon>
-        </template>
-        <!-- First row with partition and sort key -->
-        <n-grid :cols="24" :x-gap="12">
-          <n-grid-item span="12">
-            <n-form-item
-              v-if="selectedTable.partitionKeyLabel"
-              :label="selectedTable.partitionKeyLabel"
-              path="partitionKey"
-              :input-props="inputProps"
-            >
-              <n-input
-                v-model:value="dynamoRecordForm.partitionKey"
-                :placeholder="$t('editor.dynamo.enterPartitionKey')"
-                :input-props="inputProps"
-              />
-            </n-form-item>
-          </n-grid-item>
+  <n-card class="create-item-container">
+    <n-card :title="$t('editor.dynamo.addAttributesTitle')" class="create-item-container">
+      <template #header-extra>
+        <n-icon size="26" @click="addAttributeItem" style="cursor: pointer">
+          <Add />
+        </n-icon>
+      </template>
+      <div class="form-container">
+        <div class="form-scroll-container">
+          <n-form
+            ref="dynamoRecordFormRef"
+            :model="dynamoRecordForm"
+            :rules="dynamoRecordFormRules"
+            label-placement="left"
+            require-mark-placement="right-hanging"
+            label-width="auto"
+            class="create-item-container"
+          >
+            <n-infinite-scroll style="height: 100%">
+              <!-- First row with partition and sort key -->
+              <n-grid :cols="24" :x-gap="12">
+                <n-grid-item span="10">
+                  <n-form-item
+                    v-if="selectedTable.partitionKeyLabel"
+                    :label="selectedTable.partitionKeyLabel"
+                    path="partitionKey"
+                  >
+                    <n-input
+                      v-model:value="dynamoRecordForm.partitionKey"
+                      :placeholder="$t('editor.dynamo.enterPartitionKey')"
+                      :input-props="inputProps"
+                    />
+                  </n-form-item>
+                </n-grid-item>
 
-          <n-grid-item span="12">
-            <n-form-item
-              v-if="selectedTable.sortKeyLabel"
-              :label="selectedTable.sortKeyLabel"
-              path="sortKey"
-              :input-props="inputProps"
-            >
-              <n-input
-                v-model:value="dynamoRecordForm.sortKey"
-                :placeholder="$t('editor.dynamo.enterSortKey')"
-              />
-            </n-form-item>
-          </n-grid-item>
-        </n-grid>
-        <n-divider title-placement="left"> Key Attributes </n-divider>
-        <n-grid
-          v-for="(item, index) in selectedTable.keyAttributes"
-          :key="index"
-          :cols="24"
-          :x-gap="12"
-        >
-          <n-grid-item span="9">
-            <n-form-item :path="`keyAttributes[${index}].key`">
-              <n-input
-                v-model:value="item.attributeName"
-                :placeholder="$t('editor.dynamo.inputAttrName')"
-                disabled
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item span="4">
-            <n-form-item :path="`keyAttributes[${index}].type`">
-              <n-select
-                v-model:value="item.attributeType"
-                :placeholder="$t('editor.dynamo.type')"
-                disabled
-                :options="attributeType"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item span="9">
-            <n-form-item
-              :path="`keyAttributes[${index}].value`"
-              :rule="{
-                required: true,
-                message: `${lang.t('editor.dynamo.attributeValueRequired')}`,
-                trigger: ['input', 'blur'],
-              }"
-            >
-              <n-input
-                v-model:value="item.value"
-                :placeholder="$t('editor.dynamo.inputAttrValue')"
-                :input-props="inputProps"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item span="2">
-            <n-button quaternary circle @click="removeAttributeItem(index)">
-              <template #icon>
-                <n-icon>
-                  <Delete />
-                </n-icon>
-              </template>
-            </n-button>
-          </n-grid-item>
-        </n-grid>
-        <!-- Dynamically additional form items -->
-        <n-divider title-placement="left"> Additional Attributes </n-divider>
-        <n-grid
-          v-for="(item, index) in dynamoRecordForm.attributes"
-          :key="index"
-          :cols="24"
-          :x-gap="12"
-        >
-          <n-grid-item span="9">
-            <n-form-item
-              :path="`attributes[${index}].key`"
-              :rule="{
-                required: true,
-                message: `${lang.t('editor.dynamo.attributeNameRequired')}`,
-                trigger: ['input', 'blur'],
-              }"
-            >
-              <n-input
-                v-model:value="item.key"
-                :placeholder="$t('editor.dynamo.inputAttrName')"
-                :input-props="inputProps"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item span="4">
-            <n-form-item
-              :path="`attributes[${index}].type`"
-              :rule="{
-                required: true,
-                message: `${lang.t('editor.dynamo.attributeTypeRequired')}`,
-                trigger: ['input', 'blur'],
-              }"
-            >
-              <n-select
-                v-model:value="item.type"
-                :placeholder="$t('editor.dynamo.type')"
-                :options="attributeType"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item span="9">
-            <n-form-item
-              :path="`attributes[${index}].value`"
-              :rule="{
-                required: true,
-                message: `${lang.t('editor.dynamo.attributeValueRequired')}`,
-                trigger: ['input', 'blur'],
-              }"
-            >
-              <n-input
-                v-model:value="item.value"
-                :placeholder="$t('editor.dynamo.inputAttrValue')"
-                :input-props="inputProps"
-              />
-            </n-form-item>
-          </n-grid-item>
-          <n-grid-item span="2">
-            <n-button quaternary circle @click="removeAttributeItem(index)">
-              <template #icon>
-                <n-icon>
-                  <Delete />
-                </n-icon>
-              </template>
-            </n-button>
-          </n-grid-item>
-        </n-grid>
-      </n-card>
-    </n-form>
+                <n-grid-item span="12">
+                  <n-form-item
+                    v-if="selectedTable.sortKeyLabel"
+                    :label="selectedTable.sortKeyLabel"
+                    path="sortKey"
+                  >
+                    <n-input
+                      v-model:value="dynamoRecordForm.sortKey"
+                      :placeholder="$t('editor.dynamo.enterSortKey')"
+                      :input-props="inputProps"
+                    />
+                  </n-form-item>
+                </n-grid-item>
+              </n-grid>
+              <n-divider title-placement="left"> Key Attributes</n-divider>
+              <n-grid
+                v-for="(item, index) in dynamoRecordForm.keyAttributes"
+                :key="index"
+                :cols="24"
+                :x-gap="12"
+              >
+                <n-grid-item span="8">
+                  <n-form-item :path="`keyAttributes[${index}].key`">
+                    <n-input
+                      v-model:value="item.key"
+                      :placeholder="$t('editor.dynamo.inputAttrName')"
+                      disabled
+                    />
+                  </n-form-item>
+                </n-grid-item>
+                <n-grid-item span="4">
+                  <n-form-item :path="`keyAttributes[${index}].type`">
+                    <n-select
+                      v-model:value="item.type"
+                      :placeholder="$t('editor.dynamo.type')"
+                      disabled
+                      :options="attributeType"
+                    />
+                  </n-form-item>
+                </n-grid-item>
+                <n-grid-item span="10">
+                  <n-form-item :path="`keyAttributes[${index}].value`">
+                    <n-input-number
+                      v-if="calcType(item.type) === 'number'"
+                      v-model:value="item.value as number"
+                      :placeholder="$t('editor.dynamo.inputAttrValue')"
+                      style="width: 100%"
+                    />
+                    <n-input
+                      v-else
+                      v-model:value="item.value as string"
+                      :placeholder="$t('editor.dynamo.inputAttrValue')"
+                      :input-props="inputProps"
+                    />
+                  </n-form-item>
+                </n-grid-item>
+                <n-grid-item span="2">
+                  <n-button quaternary circle @click="removeAttributeItem(index)">
+                    <template #icon>
+                      <n-icon>
+                        <Delete />
+                      </n-icon>
+                    </template>
+                  </n-button>
+                </n-grid-item>
+              </n-grid>
+              <!-- Dynamically additional form items -->
+              <n-divider title-placement="left"> Additional Attributes</n-divider>
+              <n-grid
+                v-for="(item, index) in dynamoRecordForm.attributes"
+                :key="index"
+                :cols="24"
+                :x-gap="12"
+              >
+                <n-grid-item span="8">
+                  <n-form-item
+                    :path="`attributes[${index}].key`"
+                    :rule="{
+                      required: true,
+                      message: `${lang.t('editor.dynamo.attributeNameRequired')}`,
+                      trigger: ['input', 'blur'],
+                    }"
+                  >
+                    <n-input
+                      v-model:value="item.key"
+                      :placeholder="$t('editor.dynamo.inputAttrName')"
+                      :input-props="inputProps"
+                    />
+                  </n-form-item>
+                </n-grid-item>
+                <n-grid-item span="4">
+                  <n-form-item
+                    :path="`attributes[${index}].type`"
+                    :rule="{
+                      required: true,
+                      message: `${lang.t('editor.dynamo.attributeTypeRequired')}`,
+                      trigger: ['input', 'blur'],
+                    }"
+                  >
+                    <n-select
+                      v-model:value="item.type"
+                      :placeholder="$t('editor.dynamo.type')"
+                      :options="attributeType"
+                    />
+                  </n-form-item>
+                </n-grid-item>
+                <n-grid-item span="10">
+                  <n-form-item
+                    :path="`attributes[${index}].value`"
+                    :rule="{
+                      required: true,
+                      message: `${lang.t('editor.dynamo.attributeValueRequired')}`,
+                      trigger: ['input', 'blur'],
+                    }"
+                  >
+                    <n-input
+                      v-model:value="item.value as string"
+                      :placeholder="$t('editor.dynamo.inputAttrValue')"
+                      :input-props="inputProps"
+                    />
+                  </n-form-item>
+                </n-grid-item>
+                <n-grid-item span="2">
+                  <n-button quaternary circle @click="removeAttributeItem(index)">
+                    <template #icon>
+                      <n-icon>
+                        <Delete />
+                      </n-icon>
+                    </template>
+                  </n-button>
+                </n-grid-item>
+              </n-grid>
+            </n-infinite-scroll>
+          </n-form>
+        </div>
+      </div>
+    </n-card>
     <template #footer>
       <div class="card-footer">
         <n-button type="warning" tertiary @click="handleReset">
@@ -176,7 +182,7 @@
           :disabled="!validationPassed"
           :loading="loadingRef.createItem"
         >
-          {{ $t('dialogOps.execute') }}
+          {{ $t('dialogOps.create') }}
         </n-button>
       </div>
     </template>
@@ -224,9 +230,9 @@ const lang = useLang();
 const dynamoRecordForm = ref<{
   partitionKey: string;
   sortKey: string;
-  attributes: Array<{ key: string; value: string; type: string }>;
-  keyAttributes: Array<{ key: string; value: string; type: string }>;
-}>({ partitionKey: '', sortKey: '', attributes: [] });
+  attributes: Array<{ key: string; value: string | number | boolean | null; type: string }>;
+  keyAttributes: Array<{ key: string; value: string | number | boolean | null; type: string }>;
+}>({ partitionKey: '', sortKey: '', attributes: [], keyAttributes: [] });
 
 const dynamoRecordFormRules = reactive<FormRules>({
   index: [
@@ -255,7 +261,7 @@ const queryResult = ref<{
 });
 
 const addAttributeItem = () => {
-  dynamoRecordForm.value.attributes.push({ key: '', value: '', type: '' });
+  dynamoRecordForm.value.attributes.push({ key: '', value: null, type: '' });
 };
 
 const removeAttributeItem = (index: number) => {
@@ -272,7 +278,6 @@ const selectedTable = computed(() => {
       sortKeyName: undefined,
       partitionKeyLabel: undefined,
       sortKeyLabel: undefined,
-      keyAttributes: [],
     };
   }
 
@@ -283,9 +288,35 @@ const selectedTable = computed(() => {
     sortKeyName,
     partitionKeyLabel: partitionKeyName ? `${partitionKeyName}  (Partition Key):` : undefined,
     sortKeyLabel: sortKeyName ? `${sortKeyName} (Sort Key):` : undefined,
-    keyAttributes: activeConnection.value.attributeDefinitions ?? [],
   };
 });
+
+const calcType = (type: string) => {
+  switch (type) {
+    case 'S':
+      return 'text';
+    case 'N':
+      return 'number';
+    case 'BOOL':
+      return 'checkbox';
+    case 'B':
+      return 'text';
+    case 'NULL':
+      return 'text';
+    case 'L':
+      return 'text';
+    case 'M':
+      return 'text';
+    case 'SS':
+      return 'text';
+    case 'NS':
+      return 'number';
+    case 'BS':
+      return 'text';
+    default:
+      return 'text';
+  }
+};
 
 const validateForm = async () => {
   try {
@@ -314,14 +345,30 @@ const handleSubmit = async (event: MouseEvent) => {
 
   try {
     loadingRef.value.createItem = true;
-    const { partitionKey } = activeConnection.value as DynamoDBConnection;
+    const { partitionKey, sortKey } = activeConnection.value as DynamoDBConnection;
     const pkRecord = {
       key: partitionKey.name,
       value: dynamoRecordForm.value.partitionKey,
       type: partitionKey.valueType,
     };
+    const skRecord = {
+      key: sortKey?.name,
+      value: dynamoRecordForm.value.sortKey,
+      type: sortKey?.valueType,
+    };
 
-    const attributes = [pkRecord, ...dynamoRecordForm.value.attributes];
+    const attributes = [
+      ...dynamoRecordForm.value.attributes,
+      ...dynamoRecordForm.value.keyAttributes,
+      pkRecord,
+      ...(skRecord.key ? [skRecord] : []),
+    ].filter(({ value }) => value !== null) as Array<{
+      key: string;
+      value: string | number | boolean | null;
+      type: string;
+    }>;
+
+    console.log('attributes', attributes);
 
     await createItem(activeConnection.value as DynamoDBConnection, attributes);
     message.success(lang.t('editor.dynamo.createItemSuccess'));
@@ -337,17 +384,46 @@ const handleSubmit = async (event: MouseEvent) => {
 };
 
 const handleReset = () => {
-  dynamoRecordForm.value = { partitionKey: '', sortKey: '', attributes: [] };
+  dynamoRecordForm.value = { partitionKey: '', sortKey: '', attributes: [], keyAttributes: [] };
 
   if (dynamoRecordFormRef.value) {
     dynamoRecordFormRef.value.restoreValidation();
   }
 };
 
-fetchIndices(activeConnection.value as Connection);
+fetchIndices(activeConnection.value as Connection).then(() => {
+  const { partitionKey, sortKey, attributeDefinitions } =
+    activeConnection.value as DynamoDBConnection;
+
+  dynamoRecordForm.value.keyAttributes = attributeDefinitions
+    .map(({ attributeName, attributeType }) => ({
+      key: attributeName,
+      value: null,
+      type: attributeType,
+    }))
+    .filter(({ key }) => ![partitionKey.name, sortKey?.name].filter(Boolean).includes(key));
+  console.log('keyAttributes', dynamoRecordForm.value.keyAttributes);
+});
 </script>
 
 <style lang="scss" scoped>
+.create-item-container {
+  width: 100%;
+  height: 100%;
+
+  .form-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+
+    .form-scroll-container {
+      flex: 1;
+      height: 0;
+    }
+  }
+}
+
 .card-footer {
   display: flex;
   justify-content: flex-end;
