@@ -11,7 +11,6 @@
           <n-form
             ref="dynamoRecordFormRef"
             :model="dynamoRecordForm"
-            :rules="dynamoRecordFormRules"
             label-placement="left"
             require-mark-placement="right-hanging"
             label-width="auto"
@@ -25,6 +24,11 @@
                     v-if="selectedTable.partitionKeyLabel"
                     :label="selectedTable.partitionKeyLabel"
                     path="partitionKey"
+                    :rule="{
+                      required: true,
+                      message: `${lang.t('editor.dynamo.attributeValueRequired')}`,
+                      trigger: ['input', 'blur'],
+                    }"
                   >
                     <n-input
                       v-model:value="dynamoRecordForm.partitionKey"
@@ -39,6 +43,11 @@
                     v-if="selectedTable.sortKeyLabel"
                     :label="selectedTable.sortKeyLabel"
                     path="sortKey"
+                    :rule="{
+                      required: true,
+                      message: `${lang.t('editor.dynamo.attributeValueRequired')}`,
+                      trigger: ['input', 'blur'],
+                    }"
                   >
                     <n-input
                       v-model:value="dynamoRecordForm.sortKey"
@@ -195,7 +204,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
-import { FormRules, FormValidationError } from 'naive-ui';
+import { FormValidationError } from 'naive-ui';
 import { Connection, DynamoDBConnection, useConnectionStore, useTabStore } from '../../../../store';
 import { inputProps } from '../../../../common';
 import { useLang } from '../../../../lang';
@@ -233,24 +242,6 @@ const dynamoRecordForm = ref<{
   attributes: Array<{ key: string; value: string | number | boolean | null; type: string }>;
   keyAttributes: Array<{ key: string; value: string | number | boolean | null; type: string }>;
 }>({ partitionKey: '', sortKey: '', attributes: [], keyAttributes: [] });
-
-const dynamoRecordFormRules = reactive<FormRules>({
-  index: [
-    {
-      required: true,
-      renderMessage: () => lang.t('editor.dynamo.indexIsRequired'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-  partitionKey: [
-    {
-      required: true,
-      renderMessage: () => lang.t('editor.dynamo.attributeValueRequired'),
-      level: 'error',
-      trigger: ['input', 'blur'],
-    },
-  ],
-});
 
 const queryResult = ref<{
   columns: Array<{ title: string; key: string }>;
@@ -367,8 +358,6 @@ const handleSubmit = async (event: MouseEvent) => {
       value: string | number | boolean | null;
       type: string;
     }>;
-
-    console.log('attributes', attributes);
 
     await createItem(activeConnection.value as DynamoDBConnection, attributes);
     message.success(lang.t('editor.dynamo.createItemSuccess'));
