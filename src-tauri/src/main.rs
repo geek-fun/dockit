@@ -6,6 +6,7 @@ mod fetch_client;
 mod menu;
 mod openai_client;
 mod dynamo_client;
+mod dynamo;
 
 use fetch_client::fetch_api;
 use openai_client::{chat_stream, create_openai_client};

@@ -1,54 +1,53 @@
 <template>
   <n-card>
     <n-form
-      ref="dynamoQueryFormRef"
-      :model="dynamoQueryForm"
-      :rules="dynamoQueryFormRules"
-      label-placement="left"
-      require-mark-placement="right-hanging"
-      label-width="auto"
+      ref='dynamoQueryFormRef'
+      :model='dynamoQueryForm'
+      :rules='dynamoQueryFormRules'
+      label-placement='left'
+      require-mark-placement='right-hanging'
+      label-width='auto'
     >
       <!-- First row with partition and sort key -->
-      <n-grid :cols="24" :x-gap="12">
-        <n-grid-item span="12">
-          <n-form-item :label="$t('editor.dynamo.tableOrIndex')" path="index">
+      <n-grid :cols='24' :x-gap='12'>
+        <n-grid-item span='12'>
+          <n-form-item :label="$t('editor.dynamo.tableOrIndex')" path='index'>
             <n-select
               :placeholder="$t('editor.dynamo.selectTableOrIndex')"
-              v-model:value="dynamoQueryForm.index"
+              v-model:value='dynamoQueryForm.index'
               remote
-              :loading="loadingRef.index"
-              @update:show="handleIndexOpen"
-              @update:value="handleUpdate"
-              :options="indicesOrTableOptions"
+              :loading='loadingRef.index'
+              @update:show='handleIndexOpen'
+              @update:value='handleUpdate'
+              :options='indicesOrTableOptions'
             />
           </n-form-item>
         </n-grid-item>
 
-        <n-grid-item span="12">
+        <n-grid-item span='12'>
           <n-form-item
-            v-if="selectedIndexOrTable?.partitionKeyName"
+            v-if='selectedIndexOrTable?.partitionKeyName'
             :label="getLabel('PARTITION_KEY')"
-            path="partitionKey"
-            :input-props="inputProps"
+            path='partitionKey'
           >
             <n-input
-              v-model:value="dynamoQueryForm.partitionKey"
+              v-model:value='dynamoQueryForm.partitionKey'
               :placeholder="$t('editor.dynamo.enterPartitionKey')"
-              :input-props="inputProps"
+              :input-props='inputProps'
             />
           </n-form-item>
         </n-grid-item>
 
-        <n-grid-item span="12">
+        <n-grid-item span='12'>
           <n-form-item
-            v-if="selectedIndexOrTable?.sortKeyName"
+            v-if='selectedIndexOrTable?.sortKeyName'
             :label="getLabel('SORT_KEY')"
-            path="sortKey"
-            :input-props="inputProps"
+            path='sortKey'
           >
             <n-input
-              v-model:value="dynamoQueryForm.sortKey"
+              v-model:value='dynamoQueryForm.sortKey'
               :placeholder="$t('editor.dynamo.enterSortKey')"
+              :input-props='inputProps'
             />
           </n-form-item>
         </n-grid-item>
@@ -57,19 +56,19 @@
       <!-- Dynamic additional form items -->
       <n-card :title="$t('editor.dynamo.filterTitle')">
         <template #header-extra>
-          <n-icon size="26" @click="addFilterItem" style="cursor: pointer">
+          <n-icon size='26' @click='addFilterItem' style='cursor: pointer'>
             <Add />
           </n-icon>
         </template>
         <n-grid
-          v-for="(item, index) in dynamoQueryForm.formFilterItems"
-          :key="index"
-          :cols="24"
-          :x-gap="12"
+          v-for='(item, index) in dynamoQueryForm.formFilterItems'
+          :key='index'
+          :cols='24'
+          :x-gap='12'
         >
-          <n-grid-item span="9">
+          <n-grid-item span='9'>
             <n-form-item
-              :path="`formFilterItems[${index}].key`"
+              :path='`formFilterItems[${index}].key`'
               :rule="{
                 required: true,
                 message: `${lang.t('editor.dynamo.attributeNameRequired')}`,
@@ -77,15 +76,15 @@
               }"
             >
               <n-input
-                v-model:value="item.key"
+                v-model:value='item.key'
                 :placeholder="$t('editor.dynamo.inputAttrName')"
-                :input-props="inputProps"
+                :input-props='inputProps'
               />
             </n-form-item>
           </n-grid-item>
-          <n-grid-item span="4">
+          <n-grid-item span='4'>
             <n-form-item
-              :path="`formFilterItems[${index}].operator`"
+              :path='`formFilterItems[${index}].operator`'
               :rule="{
                 required: true,
                 message: `${lang.t('editor.dynamo.operatorRequired')}`,
@@ -93,15 +92,15 @@
               }"
             >
               <n-select
-                v-model:value="item.operator"
+                v-model:value='item.operator'
                 :placeholder="$t('editor.dynamo.inputOperator')"
-                :options="filterConditions"
+                :options='filterConditions'
               />
             </n-form-item>
           </n-grid-item>
-          <n-grid-item span="9">
+          <n-grid-item span='9'>
             <n-form-item
-              :path="`formFilterItems[${index}].value`"
+              :path='`formFilterItems[${index}].value`'
               :rule="{
                 required: true,
                 message: `${lang.t('editor.dynamo.attributeValueRequired')}`,
@@ -109,14 +108,14 @@
               }"
             >
               <n-input
-                v-model:value="item.value"
+                v-model:value='item.value'
                 :placeholder="$t('editor.dynamo.inputAttrValue')"
-                :input-props="inputProps"
+                :input-props='inputProps'
               />
             </n-form-item>
           </n-grid-item>
-          <n-grid-item span="2">
-            <n-button quaternary circle @click="removeFilterItem(index)">
+          <n-grid-item span='2'>
+            <n-button quaternary circle @click='removeFilterItem(index)'>
               <template #icon>
                 <n-icon>
                   <Delete />
@@ -128,22 +127,22 @@
       </n-card>
     </n-form>
     <template #footer>
-      <div class="card-footer">
-        <n-button type="warning" tertiary @click="handleReset">
+      <div class='card-footer'>
+        <n-button type='warning' tertiary @click='handleReset'>
           {{ $t('dialogOps.reset') }}
         </n-button>
-        <n-button type="primary" @click="handleSubmit" :disabled="!validationPassed">
+        <n-button type='primary' @click='handleSubmit' :disabled='!validationPassed' :loading='loadingRef.queryResult'>
           {{ $t('dialogOps.execute') }}
         </n-button>
       </div>
     </template>
   </n-card>
-  <n-card :title="$t('editor.dynamo.resultTitle')" v-if="queryResult.data">
-    <n-data-table :columns="queryResult.columns" :data="queryResult.data" />
+  <n-card :title="$t('editor.dynamo.resultTitle')" v-if='queryResult.data'>
+    <n-data-table :columns='queryResult.columns' :data='queryResult.data' :loading='loadingRef.queryResult' />
   </n-card>
 </template>
 
-<script setup lang="ts">
+<script setup lang='ts'>
 import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
 import { isEmpty } from 'lodash';
@@ -153,9 +152,9 @@ import {
   DynamoDBConnection,
   DynamoIndexOrTableOption,
   useConnectionStore,
-  useTabStore,
+  useTabStore
 } from '../../../../store';
-import { inputProps } from '../../../../common';
+import { CustomError, inputProps } from '../../../../common';
 import { useLang } from '../../../../lang';
 
 const connectionStore = useConnectionStore();
@@ -179,10 +178,10 @@ const filterConditions = ref([
   { label: 'Not exists', value: 'attribute_not_exists' },
   { label: 'Contain', value: 'contains' },
   { label: 'Not contain', value: 'not contain' },
-  { label: 'Begins with', value: 'begins_with' },
+  { label: 'Begins with', value: 'begins_with' }
 ]);
 
-const loadingRef = ref({ index: false });
+const loadingRef = ref({ index: false, queryResult: false });
 
 const message = useMessage();
 const lang = useLang();
@@ -199,8 +198,8 @@ const dynamoQueryFormRules = reactive<FormRules>({
     {
       required: true,
       renderMessage: () => lang.t('editor.dynamo.indexIsRequired'),
-      trigger: ['input', 'blur'],
-    },
+      trigger: ['input', 'blur']
+    }
   ],
   partitionKey: [
     {
@@ -208,16 +207,16 @@ const dynamoQueryFormRules = reactive<FormRules>({
         !(isEmpty(dynamoQueryForm.value.formFilterItems) && !value),
       renderMessage: () => lang.t('editor.dynamo.atLeastRequired'),
       level: 'error',
-      trigger: ['input', 'blur'],
+      trigger: ['input', 'blur']
     },
     {
       validator: (_: FormItemRule, value) =>
         !(!isEmpty(dynamoQueryForm.value.formFilterItems) && !value),
       renderMessage: () => lang.t('editor.dynamo.scanWarning'),
       level: 'warning',
-      trigger: ['input', 'blur'],
-    },
-  ],
+      trigger: ['input', 'blur']
+    }
+  ]
 });
 
 const queryResult = ref<{
@@ -225,7 +224,7 @@ const queryResult = ref<{
   data: Array<Record<string, unknown>> | undefined;
 }>({
   columns: [],
-  data: undefined,
+  data: undefined
 });
 
 const addFilterItem = () => {
@@ -269,13 +268,13 @@ const handleIndexOpen = async (isOpen: boolean) => {
   try {
     await fetchIndices(activeConnection.value as Connection);
     indicesOrTableOptions.value = getDynamoIndexOrTableOption.value(
-      activeConnection.value as DynamoDBConnection,
+      activeConnection.value as DynamoDBConnection
     );
   } catch (err) {
     message.error(`status: ${(err as Error).name}, details: ${(err as Error).message}`, {
       closable: true,
       keepAliveOnHover: true,
-      duration: 3600,
+      duration: 3600
     });
   } finally {
     loadingRef.value.index = false;
@@ -285,7 +284,7 @@ const handleIndexOpen = async (isOpen: boolean) => {
 const validateForm = async () => {
   try {
     return await dynamoQueryFormRef.value?.validate(
-      (errors: Array<FormValidationError>) => !errors,
+      (errors: Array<FormValidationError>) => !errors
     );
   } catch (e) {
     return false;
@@ -293,7 +292,7 @@ const validateForm = async () => {
 };
 const validationPassed = watch(
   [dynamoQueryForm.value, dynamoQueryForm.value.formFilterItems],
-  validateForm,
+  validateForm
 );
 
 const handleSubmit = async (event: MouseEvent) => {
@@ -307,6 +306,7 @@ const handleSubmit = async (event: MouseEvent) => {
     return;
   }
 
+  loadingRef.value.queryResult = true;
   try {
     const { tableName } = activeConnection.value as DynamoDBConnection;
     const { partitionKey, sortKey, formFilterItems } = dynamoQueryForm.value;
@@ -318,7 +318,7 @@ const handleSubmit = async (event: MouseEvent) => {
       indexName: value,
       partitionKey: { name: partitionKeyName, value: partitionKey },
       sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
-      filters: formFilterItems,
+      filters: formFilterItems
     };
 
     const data = await queryTable(activeConnection.value as DynamoDBConnection, queryParams);
@@ -338,14 +338,19 @@ const handleSubmit = async (event: MouseEvent) => {
     });
     queryResult.value = {
       columns: Array.from(columnsSet).map(key => ({ title: key, key })),
-      data: columnsData,
+      data: columnsData
     };
   } catch (error) {
-    message.error(`status: ${(error as Error).name}, details: ${(error as Error).message}`, {
+    queryResult.value = { columns: [], data: undefined };
+    const { status, details } = error as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
       closable: true,
       keepAliveOnHover: true,
-      duration: 3600,
+      duration: 3600
     });
+
+  } finally {
+    loadingRef.value.queryResult = false;
   }
 };
 
@@ -359,7 +364,7 @@ const handleReset = () => {
 };
 </script>
 
-<style lang="scss" scoped>
+<style lang='scss' scoped>
 .card-footer {
   display: flex;
   justify-content: flex-end;

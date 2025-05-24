@@ -49,6 +49,7 @@ export const tauriClient = {
       const { status, message, data } = jsonify.parse(result) as ApiClientResponse;
       return { status, message, data };
     } catch (err) {
+      console.log('err', err);
       const { status, message, data } = jsonify.parse(err as string) as ApiClientResponse;
       throw new ApiClientError(status, message, jsonify.stringify(data));
     }
