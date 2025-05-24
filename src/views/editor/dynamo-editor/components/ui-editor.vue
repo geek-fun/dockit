@@ -196,11 +196,11 @@ const message = useMessage();
 const lang = useLang();
 
 const dynamoQueryForm = ref<{
-  index: string;
-  partitionKey: string;
-  sortKey: string;
+  index: string | null;
+  partitionKey: string | null;
+  sortKey: string | null;
   formFilterItems: Array<{ key: string; value: string; operator: string }>;
-}>({ index: '', partitionKey: '', sortKey: '', formFilterItems: [] });
+}>({ index: null, partitionKey: null, sortKey: null, formFilterItems: [] });
 
 const dynamoQueryFormRules = reactive<FormRules>({
   index: [
@@ -240,9 +240,12 @@ const indicesOrTableOptions = ref<Array<DynamoIndexOrTableOption>>([]);
 
 const selectedIndexOrTable = ref<DynamoIndexOrTableOption | undefined>(undefined);
 
-const handleUpdate = (value: string) => {
+const handleUpdate = (value: string, options: DynamoIndexOrTableOption) => {
   const indices = getDynamoIndexOrTableOption.value(activeConnection.value as DynamoDBConnection);
-  selectedIndexOrTable.value = indices.find(item => item.value === value);
+  selectedIndexOrTable.value = indices.find(
+    item => item.value === value && item.label === options.label,
+  );
+
   dynamoQueryForm.value.index = selectedIndexOrTable.value!.value;
 };
 
@@ -311,12 +314,13 @@ const handleSubmit = async (event: MouseEvent) => {
   try {
     const { tableName } = activeConnection.value as DynamoDBConnection;
     const { partitionKey, sortKey, formFilterItems } = dynamoQueryForm.value;
-    const { partitionKeyName, sortKeyName, value } =
+    const { partitionKeyName, sortKeyName, value, label } =
       selectedIndexOrTable.value as DynamoIndexOrTableOption;
+
     // Build query parameters
     const queryParams = {
       tableName,
-      indexName: value,
+      indexName: label.startsWith('Table - ') ? null : value,
       partitionKey: { name: partitionKeyName, value: partitionKey },
       sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
       filters: formFilterItems,
@@ -356,7 +360,7 @@ const handleSubmit = async (event: MouseEvent) => {
 
 const handleReset = () => {
   selectedIndexOrTable.value = undefined;
-  dynamoQueryForm.value = { index: '', partitionKey: '', sortKey: '', formFilterItems: [] };
+  dynamoQueryForm.value = { index: null, partitionKey: null, sortKey: null, formFilterItems: [] };
 
   if (dynamoQueryFormRef.value) {
     dynamoQueryFormRef.value.restoreValidation();
