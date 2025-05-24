@@ -110,7 +110,50 @@ pub async fn scan_table(client: &Client, input: ScanTableInput<'_>) -> Result<Ap
             let json_items: Vec<serde_json::Value> = items
                 .iter()
                 .map(|item| {
-                    let json_item = convert_json_to_attr_value(item);
+                    let mut json_item = serde_json::Map::new();
+
+                    for (key, value) in item {
+                        // Convert DynamoDB AttributeValue to JSON value
+                        if let Ok(s) = value.as_s() {
+                            json_item.insert(key.clone(), json!(s));
+                        } else if let Ok(n) = value.as_n() {
+                            json_item.insert(key.clone(), json!(n));
+                        } else if let Ok(b) = value.as_bool() {
+                            json_item.insert(key.clone(), json!(b));
+                        } else if let Ok(list) = value.as_l() {
+                            let json_array: Vec<serde_json::Value> = list
+                                .iter()
+                                .map(|item| {
+                                    if let Ok(s) = item.as_s() {
+                                        json!(s)
+                                    } else if let Ok(n) = item.as_n() {
+                                        json!(n)
+                                    } else if let Ok(b) = item.as_bool() {
+                                        json!(b)
+                                    } else {
+                                        json!(null)
+                                    }
+                                })
+                                .collect();
+                            json_item.insert(key.clone(), json!(json_array));
+                        } else if let Ok(map) = value.as_m() {
+                            let mut json_obj = serde_json::Map::new();
+                            for (k, v) in map {
+                                if let Ok(s) = v.as_s() {
+                                    json_obj.insert(k.clone(), json!(s));
+                                } else if let Ok(n) = v.as_n() {
+                                    json_obj.insert(k.clone(), json!(n));
+                                } else if let Ok(b) = v.as_bool() {
+                                    json_obj.insert(k.clone(), json!(b));
+                                } else {
+                                    json_obj.insert(k.clone(), json!(null));
+                                }
+                            }
+                            json_item.insert(key.clone(), json!(json_obj));
+                        }
+                        // Add other types as needed
+                    }
+
                     json!(json_item)
                 })
                 .collect();

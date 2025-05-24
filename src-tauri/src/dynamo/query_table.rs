@@ -82,13 +82,10 @@ pub async fn query_table(
                         "<=" => {
                             format!("{} <= {}", name_placeholder, filter_placeholder)
                         }
-                        Some(op) if op == "contains" => {
+                        "CONTAINS" | "contains" => {
                             format!("contains({}, {})", name_placeholder, filter_placeholder)
                         }
-                        Some(op) if op == "not contains" => {
-                            format!("NOT contains({}, {})", name_placeholder, filter_placeholder)
-                        }
-                        Some(op) if op == "begins_with" => {
+                        "BEGINS_WITH" | "begins_with" => {
                             format!("begins_with({}, {})", name_placeholder, filter_placeholder)
                         }
                         _ => format!("{} = {}", name_placeholder, filter_placeholder),
