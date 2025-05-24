@@ -8,10 +8,15 @@ pub struct ScanTableInput<'a> {
 }
 
 pub async fn scan_table(client: &Client, input: ScanTableInput<'_>) -> Result<ApiResponse, String> {
+    let index_name = input.payload.get("index_name").and_then(|v| v.as_str());
     let filters = input.payload.get("filters").and_then(|v| v.as_array());
 
     // Start building the scan
     let mut scan = client.scan().table_name(input.table_name);
+
+    if let Some(idx_name) = index_name {
+        scan = scan.index_name(idx_name);
+    }
 
     // Add filters if provided
     if let Some(filter_array) = filters {
