@@ -148,7 +148,6 @@ const dynamoApi = {
 
     const result = await tauriClient.invokeDynamoApi(credentials, options);
     const { status, message, data } = result;
-    console.log('result', result);
 
     if (status !== 200) {
       throw new CustomError(status, message);
