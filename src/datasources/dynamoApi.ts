@@ -65,10 +65,10 @@ export type DynamoDBTableInfo = {
 
 export type QueryParams = {
   tableName: string;
-  indexName: string;
+  indexName: string | null;
   partitionKey: {
     name: string;
-    value: string;
+    value: string | null;
   };
   sortKey?: {
     name: string;

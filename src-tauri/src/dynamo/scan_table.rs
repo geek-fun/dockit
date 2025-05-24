@@ -1,4 +1,5 @@
 use crate::dynamo::types::ApiResponse;
+use aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use aws_sdk_dynamodb::types::AttributeValue;
 use aws_sdk_dynamodb::Client;
 use serde_json::{json, Value};
@@ -185,10 +186,18 @@ pub async fn scan_table(client: &Client, input: ScanTableInput<'_>) -> Result<Ap
                 })),
             })
         }
-        Err(e) => Ok(ApiResponse {
-            status: 500,
-            message: format!("Failed to execute scan: {:?}", e),
-            data: None,
-        }),
+        Err(e) => {
+            let error_code = e.code().unwrap_or("UnknownError").to_string();
+            let error_message = e.message().unwrap_or("UnknownError").to_string();
+
+            Ok(ApiResponse {
+                status: 500,
+                message: format!(
+                    "Failed to execute scan!\n\nerrorCode: {}\nmessage: {}",
+                    error_code, error_message
+                ),
+                data: None,
+            })
+        }
     }
 }
