@@ -165,7 +165,7 @@ const dynamoApi = {
     const options = {
       table_name: queryParams.tableName,
       operation: 'SCAN_TABLE',
-      payload: { filters: queryParams.filters },
+      payload: { filters: queryParams.filters, index_name: queryParams.indexName },
     };
 
     const result = await tauriClient.invokeDynamoApi(credentials, options);

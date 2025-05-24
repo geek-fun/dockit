@@ -29,7 +29,6 @@
             v-if="selectedIndexOrTable?.partitionKeyName"
             :label="getLabel('PARTITION_KEY')"
             path="partitionKey"
-            :input-props="inputProps"
           >
             <n-input
               v-model:value="dynamoQueryForm.partitionKey"
@@ -44,11 +43,11 @@
             v-if="selectedIndexOrTable?.sortKeyName"
             :label="getLabel('SORT_KEY')"
             path="sortKey"
-            :input-props="inputProps"
           >
             <n-input
               v-model:value="dynamoQueryForm.sortKey"
               :placeholder="$t('editor.dynamo.enterSortKey')"
+              :input-props="inputProps"
             />
           </n-form-item>
         </n-grid-item>
@@ -132,14 +131,23 @@
         <n-button type="warning" tertiary @click="handleReset">
           {{ $t('dialogOps.reset') }}
         </n-button>
-        <n-button type="primary" @click="handleSubmit" :disabled="!validationPassed">
+        <n-button
+          type="primary"
+          @click="handleSubmit"
+          :disabled="!validationPassed"
+          :loading="loadingRef.queryResult"
+        >
           {{ $t('dialogOps.execute') }}
         </n-button>
       </div>
     </template>
   </n-card>
   <n-card :title="$t('editor.dynamo.resultTitle')" v-if="queryResult.data">
-    <n-data-table :columns="queryResult.columns" :data="queryResult.data" />
+    <n-data-table
+      :columns="queryResult.columns"
+      :data="queryResult.data"
+      :loading="loadingRef.queryResult"
+    />
   </n-card>
 </template>
 
@@ -155,7 +163,7 @@ import {
   useConnectionStore,
   useTabStore,
 } from '../../../../store';
-import { inputProps } from '../../../../common';
+import { CustomError, inputProps } from '../../../../common';
 import { useLang } from '../../../../lang';
 
 const connectionStore = useConnectionStore();
@@ -182,7 +190,7 @@ const filterConditions = ref([
   { label: 'Begins with', value: 'begins_with' },
 ]);
 
-const loadingRef = ref({ index: false });
+const loadingRef = ref({ index: false, queryResult: false });
 
 const message = useMessage();
 const lang = useLang();
@@ -204,15 +212,7 @@ const dynamoQueryFormRules = reactive<FormRules>({
   ],
   partitionKey: [
     {
-      validator: (_: FormItemRule, value) =>
-        !(isEmpty(dynamoQueryForm.value.formFilterItems) && !value),
-      renderMessage: () => lang.t('editor.dynamo.atLeastRequired'),
-      level: 'error',
-      trigger: ['input', 'blur'],
-    },
-    {
-      validator: (_: FormItemRule, value) =>
-        !(!isEmpty(dynamoQueryForm.value.formFilterItems) && !value),
+      validator: (_: FormItemRule, value) => !isEmpty(value),
       renderMessage: () => lang.t('editor.dynamo.scanWarning'),
       level: 'warning',
       trigger: ['input', 'blur'],
@@ -307,6 +307,7 @@ const handleSubmit = async (event: MouseEvent) => {
     return;
   }
 
+  loadingRef.value.queryResult = true;
   try {
     const { tableName } = activeConnection.value as DynamoDBConnection;
     const { partitionKey, sortKey, formFilterItems } = dynamoQueryForm.value;
@@ -341,11 +342,15 @@ const handleSubmit = async (event: MouseEvent) => {
       data: columnsData,
     };
   } catch (error) {
-    message.error(`status: ${(error as Error).name}, details: ${(error as Error).message}`, {
+    queryResult.value = { columns: [], data: undefined };
+    const { status, details } = error as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3600,
     });
+  } finally {
+    loadingRef.value.queryResult = false;
   }
 };
 
