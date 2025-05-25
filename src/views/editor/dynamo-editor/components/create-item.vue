@@ -391,7 +391,6 @@ fetchIndices(activeConnection.value as Connection).then(() => {
       type: attributeType,
     }))
     .filter(({ key }) => ![partitionKey.name, sortKey?.name].filter(Boolean).includes(key));
-  console.log('keyAttributes', dynamoRecordForm.value.keyAttributes);
 });
 </script>
 

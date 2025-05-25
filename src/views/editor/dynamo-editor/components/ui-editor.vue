@@ -265,11 +265,9 @@ const selectedIndexOrTable = ref<DynamoIndexOrTableOption | undefined>(undefined
 
 const handleUpdate = (value: string, options: DynamoIndexOrTableOption) => {
   const indices = getDynamoIndexOrTableOption.value(activeConnection.value as DynamoDBConnection);
-  selectedIndexOrTable.value = indices.find(
-    item => item.value === value && item.label === options.label,
-  );
+  selectedIndexOrTable.value = indices.find(({ label }) => label === options.label);
 
-  dynamoQueryForm.value.index = selectedIndexOrTable.value!.value;
+  dynamoQueryForm.value.index = value;
 };
 
 const getLabel = (label: string) => {
@@ -294,9 +292,9 @@ const handleIndexOpen = async (isOpen: boolean) => {
   loadingRef.value.index = true;
   try {
     await fetchIndices(activeConnection.value as Connection);
-    indicesOrTableOptions.value = getDynamoIndexOrTableOption.value(
-      activeConnection.value as DynamoDBConnection,
-    );
+    indicesOrTableOptions.value = getDynamoIndexOrTableOption
+      .value(activeConnection.value as DynamoDBConnection)
+      .map(item => ({ ...item, value: item.label }));
   } catch (err) {
     message.error(`status: ${(err as Error).name}, details: ${(err as Error).message}`, {
       closable: true,
@@ -333,17 +331,21 @@ const handleSubmit = async (event: MouseEvent) => {
     return;
   }
 
-  loadingRef.value.queryResult = true;
   try {
+    loadingRef.value.queryResult = true;
+    queryResult.value = { columns: [], data: undefined };
+
     const { tableName } = activeConnection.value as DynamoDBConnection;
     const { partitionKey, sortKey, formFilterItems } = dynamoQueryForm.value;
-    const { partitionKeyName, sortKeyName, value, label } =
-      selectedIndexOrTable.value as DynamoIndexOrTableOption;
+    const indices = getDynamoIndexOrTableOption.value(activeConnection.value as DynamoDBConnection);
+    const { partitionKeyName, sortKeyName, label, value } = indices.find(
+      item => item.label === dynamoQueryForm.value.index,
+    ) as DynamoIndexOrTableOption;
 
     // Build query parameters
     const queryParams = {
       tableName,
-      indexName: label.startsWith('Table - ') ? null : value,
+      indexName: label.startsWith('Table - ') ? null : (value ?? null),
       partitionKey: { name: partitionKeyName, value: partitionKey },
       sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
       filters: formFilterItems,
@@ -369,7 +371,6 @@ const handleSubmit = async (event: MouseEvent) => {
       data: columnsData,
     };
   } catch (error) {
-    queryResult.value = { columns: [], data: undefined };
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
       closable: true,
