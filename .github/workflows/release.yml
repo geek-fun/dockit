@@ -82,7 +82,7 @@ jobs:
       - name: Verify Certificate
         if: matrix.os == 'macos-latest'
         run: |
-          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Apple Distribution")
+          CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           echo "Certificate imported."
