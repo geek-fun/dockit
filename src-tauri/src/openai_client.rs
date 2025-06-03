@@ -106,7 +106,7 @@ pub async fn create_openai_client(
         AI_CLIENT = Option::from(Client::with_config(config).with_http_client(http_client));
     }
 
-    return Ok(format!("{} client created", provider).to_string());
+    Ok(format!("{} client created", provider).to_string())
 }
 
 #[tauri::command]
