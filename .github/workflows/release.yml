@@ -1,7 +1,7 @@
 name: distributions release
 on:
   push:
-    branches: [ master, feat/mac-codesgin ]
+    branches: [ master ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -100,6 +100,7 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
         with:
           args: ${{ matrix.args }}
 
