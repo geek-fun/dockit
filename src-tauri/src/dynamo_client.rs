@@ -6,7 +6,6 @@ use crate::dynamo::types::ApiResponse;
 use aws_config::meta::region::RegionProviderChain;
 use aws_config::Region;
 use aws_sdk_dynamodb::{config::Credentials, Client};
-use base64;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -25,7 +24,6 @@ pub struct DynamoOptions {
 
 #[tauri::command]
 pub async fn dynamo_api(
-    window: tauri::Window,
     credentials: DynamoCredentials,
     options: DynamoOptions,
 ) -> Result<String, String> {

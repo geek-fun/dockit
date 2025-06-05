@@ -19,7 +19,7 @@ SIGN_INSTALL="3rd Party Mac Developer Installer: Lisheng Zi (Z44247ZSR9)"
 TARGET="universal-apple-darwin"
 
 
-npx tauri build --target "${TARGET}" --verbose
+DOCKIT_DISTRIBUTION="APP_STORE" npx tauri build --target "${TARGET}" --verbose
 
 # cargo tauri build --target "${target}" --verbose
 
