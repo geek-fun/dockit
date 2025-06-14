@@ -349,6 +349,8 @@ const handleSubmit = async (event: MouseEvent) => {
       partitionKey: { name: partitionKeyName, value: partitionKey },
       sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
       filters: formFilterItems,
+      limit: 10,
+      exclusiveStartKey: undefined, // For pagination, can be set later
     };
 
     const data = await queryTable(activeConnection.value as DynamoDBConnection, queryParams);
