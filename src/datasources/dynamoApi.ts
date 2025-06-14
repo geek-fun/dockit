@@ -79,6 +79,8 @@ export type QueryParams = {
     operator: string;
     value: string;
   }>;
+  limit?: number; // Optional limit for the number of items to return
+  exclusiveStartKey?: Record<string, unknown> | null; // For pagination
 };
 
 export type QueryResult = {
@@ -143,6 +145,8 @@ const dynamoApi = {
         partition_key: queryParams.partitionKey,
         sort_key: queryParams.sortKey,
         filters: queryParams.filters,
+        limit: queryParams.limit,
+        exclusive_start_key: queryParams.exclusiveStartKey,
       },
     };
 
@@ -165,7 +169,12 @@ const dynamoApi = {
     const options = {
       table_name: queryParams.tableName,
       operation: 'SCAN_TABLE',
-      payload: { filters: queryParams.filters, index_name: queryParams.indexName },
+      payload: {
+        filters: queryParams.filters,
+        index_name: queryParams.indexName,
+        limit: queryParams.limit,
+        exclusive_start_key: queryParams.exclusiveStartKey,
+      },
     };
 
     const result = await tauriClient.invokeDynamoApi(credentials, options);
