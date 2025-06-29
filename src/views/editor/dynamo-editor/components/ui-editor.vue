@@ -165,6 +165,7 @@
                 :columns="queryResult.columns"
                 :data="queryResult.data"
                 :loading="loadingRef.queryResult"
+                :pagination="paginationRet"
               />
             </n-infinite-scroll>
           </div>
@@ -349,6 +350,8 @@ const handleSubmit = async (event: MouseEvent) => {
       partitionKey: { name: partitionKeyName, value: partitionKey },
       sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
       filters: formFilterItems,
+      limit: 10,
+      exclusiveStartKey: undefined, // For pagination, can be set later
     };
 
     const data = await queryTable(activeConnection.value as DynamoDBConnection, queryParams);
@@ -390,6 +393,22 @@ const handleReset = () => {
     dynamoQueryFormRef.value.restoreValidation();
   }
 };
+
+const paginationRet = reactive({
+  page: 1,
+  pageSize: 5,
+  showSizePicker: true,
+  pageSizes: [10, 25, 50, 100, 200, 300],
+  // Callback function when the current page changes.
+  onChange: (page: number) => {
+    paginationRet.page = page;
+  },
+  // Callback function when the current page size changes.
+  onUpdatePageSize: (pageSize: number) => {
+    paginationRet.pageSize = pageSize;
+    paginationRet.page = 1;
+  },
+});
 </script>
 
 <style lang="scss" scoped>
