@@ -134,7 +134,8 @@ const replaceTripleQuotes = (value: string) =>
   value
     .replace(/'''(.*?)'''/gs, (_, match) => jsonify.stringify(match))
     .replace(/"""(.*?)"""/gs, (_, match) => jsonify.stringify(match));
-const replaceComments = (value: string) => value.replace(/\/\/.*/g, '').trim();
+const replaceComments = (value: string) =>
+  value.replace(/((['"]).*?\2)|\/\/.*$/gm, (match, quoted) => (quoted ? match : '')).trim();
 
 export const transformQDSL = ({ path, qdsl }: Pick<SearchAction, 'path' | 'qdsl'>) => {
   try {
