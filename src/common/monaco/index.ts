@@ -4,7 +4,10 @@ import { executeActions, search } from './lexerRules.ts';
 import { monacoEnvironment } from './environment.ts';
 import { searchCompletionProvider } from './completion.ts';
 
-self.MonacoEnvironment = monacoEnvironment;
+// Only assign MonacoEnvironment if 'self' is defined (browser or web worker)
+if (typeof self !== 'undefined') {
+  self.MonacoEnvironment = monacoEnvironment;
+}
 
 monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
 monaco.languages.register({ id: search.id });
