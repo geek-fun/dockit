@@ -208,7 +208,7 @@ pub async fn query_table(
                 message: "Query executed successfully".to_string(),
                 data: Some(json!({
                     "items": json_items,
-                    "count": items.len(),
+                    "count": response.count(),
                     "scanned_count": response.scanned_count(),
                     "last_evaluated_key": match response.last_evaluated_key() {
                         Some(key_map) => {

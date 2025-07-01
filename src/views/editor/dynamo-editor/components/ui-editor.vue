@@ -142,7 +142,7 @@
             </n-button>
             <n-button
               type="primary"
-              @click="handleSubmit"
+              @click="queryToDynamo"
               :disabled="!validationPassed"
               :loading="loadingRef.queryResult"
             >
@@ -166,6 +166,9 @@
                 :data="queryResult.data"
                 :loading="loadingRef.queryResult"
                 :pagination="paginationRet"
+                @update:page="onPageChange"
+                @update:pageSize="onUpdatePageSize"
+                :remote="true"
               />
             </n-infinite-scroll>
           </div>
@@ -244,6 +247,32 @@ const dynamoQueryFormRules = reactive<FormRules>({
   ],
 });
 
+const paginationRet = reactive({
+  page: 1,
+  pageSize: 5,
+  pageCount: 1,
+  showSizePicker: true,
+  pageSizes: [10, 25, 50, 100, 200, 300],
+  exclusiveStartKeys: [],
+});
+
+const onPageChange = async (page: number) => {
+  if (paginationRet.page !== page) {
+    paginationRet.page = page;
+    await queryToDynamo();
+  }
+};
+
+const onUpdatePageSize = async (pageSize: number) => {
+  if (paginationRet.page !== pageSize) {
+    paginationRet.pageSize = pageSize;
+    paginationRet.page = 1;
+    paginationRet.pageCount = 1;
+    paginationRet.exclusiveStartKeys = [];
+  }
+  await queryToDynamo();
+};
+
 const queryResult = ref<{
   columns: Array<{ title: string; key: string }>;
   data: Array<Record<string, unknown>> | undefined;
@@ -321,8 +350,10 @@ const validationPassed = watch(
   validateForm,
 );
 
-const handleSubmit = async (event: MouseEvent) => {
-  event.preventDefault();
+const queryToDynamo = async (event?: MouseEvent) => {
+  if (event?.preventDefault) {
+    event.preventDefault();
+  }
   if (!activeConnection.value || !selectedIndexOrTable.value) {
     message.error(`status: 500, ${lang.t('connection.selectIndex')}`);
     return;
@@ -343,6 +374,8 @@ const handleSubmit = async (event: MouseEvent) => {
       item => item.label === dynamoQueryForm.value.index,
     ) as DynamoIndexOrTableOption;
 
+    const pageIndex = (paginationRet.page - 1) as number;
+
     // Build query parameters
     const queryParams = {
       tableName,
@@ -350,8 +383,8 @@ const handleSubmit = async (event: MouseEvent) => {
       partitionKey: { name: partitionKeyName, value: partitionKey },
       sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
       filters: formFilterItems,
-      limit: 10,
-      exclusiveStartKey: undefined, // For pagination, can be set later
+      limit: paginationRet.pageSize,
+      exclusiveStartKey: paginationRet.exclusiveStartKeys[pageIndex] ?? undefined, // For pagination, can be set later
     };
 
     const data = await queryTable(activeConnection.value as DynamoDBConnection, queryParams);
@@ -373,6 +406,12 @@ const handleSubmit = async (event: MouseEvent) => {
       columns: Array.from(columnsSet).map(key => ({ title: key, key })),
       data: columnsData,
     };
+
+    if (data.last_evaluated_key) {
+      // @ts-ignore
+      paginationRet.exclusiveStartKeys[pageIndex] = data.last_evaluated_key;
+      paginationRet.pageCount = pageIndex == 0 ? 2 : paginationRet.exclusiveStartKeys.length;
+    }
   } catch (error) {
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -393,22 +432,6 @@ const handleReset = () => {
     dynamoQueryFormRef.value.restoreValidation();
   }
 };
-
-const paginationRet = reactive({
-  page: 1,
-  pageSize: 5,
-  showSizePicker: true,
-  pageSizes: [10, 25, 50, 100, 200, 300],
-  // Callback function when the current page changes.
-  onChange: (page: number) => {
-    paginationRet.page = page;
-  },
-  // Callback function when the current page size changes.
-  onUpdatePageSize: (pageSize: number) => {
-    paginationRet.pageSize = pageSize;
-    paginationRet.page = 1;
-  },
-});
 </script>
 
 <style lang="scss" scoped>
