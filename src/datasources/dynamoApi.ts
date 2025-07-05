@@ -68,13 +68,13 @@ export type QueryParams = {
   indexName: string | null;
   partitionKey: {
     name: string;
-    value: string | null;
+    value: string | null | undefined;
   };
   sortKey?: {
     name: string;
     value: string;
   };
-  filters: Array<{
+  filters?: Array<{
     key: string;
     operator: string;
     value: string;
