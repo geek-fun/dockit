@@ -65,7 +65,7 @@
     "eslint-plugin-vue": "^10.0.0",
     "husky": "^9.1.7",
     "jest": "^29.7.0",
-    "naive-ui": "^2.41.0",
+    "naive-ui": "^2.42.0",
     "prettier": "^3.5.3",
     "sass": "^1.86.3",
     "ts-jest": "^29.3.2",

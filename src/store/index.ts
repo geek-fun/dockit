@@ -6,3 +6,4 @@ export * from './chatStore';
 export * from './clusterManageStore';
 export * from './backupRestoreStore';
 export * from './tabStore.ts';
+export * from './dbDataStore.ts';
