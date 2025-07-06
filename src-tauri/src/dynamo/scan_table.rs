@@ -22,7 +22,6 @@ pub async fn scan_table(client: &Client, input: ScanTableInput<'_>) -> Result<Ap
         .get("exclusive_start_key")
         .and_then(|v| v.as_object());
 
-
     // Start building the scan
     let mut scan = client.scan().table_name(input.table_name).limit(limit);
 
@@ -197,7 +196,7 @@ pub async fn scan_table(client: &Client, input: ScanTableInput<'_>) -> Result<Ap
                 message: "Scan executed successfully".to_string(),
                 data: Some(json!({
                     "items": json_items,
-                    "count": items.len(),
+                    "count": response.count(),
                     "scanned_count": response.scanned_count(),
                     "last_evaluated_key": match response.last_evaluated_key() {
                         Some(key_map) => {
