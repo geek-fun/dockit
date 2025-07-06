@@ -104,22 +104,22 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
-      - name: Sign Binaries with Trusted Signing
-        if: matrix.os == 'windows-latest'
-        uses: azure/trusted-signing-action@v0.3.19
-        with:
-          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          endpoint: https://eus.codesigning.azure.net/
-          trusted-signing-account-name: geek-fun
-          certificate-profile-name: geek-fun
-          files-folder: ${{ github.workspace }}\src-tauri\target\${{ matrix.target }}\release\bundle\nsis\
-          files-folder-depth: 7
-          files-folder-filter: exe
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
+#      - name: Sign Binaries with Trusted Signing
+#        if: matrix.os == 'windows-latest'
+#        uses: azure/trusted-signing-action@v0.3.19
+#        with:
+#          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+#          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+#          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+#          endpoint: https://eus.codesigning.azure.net/
+#          trusted-signing-account-name: geek-fun
+#          certificate-profile-name: geek-fun
+#          files-folder: ${{ github.workspace }}\src-tauri\target\${{ matrix.target }}\release\bundle\nsis\
+#          files-folder-depth: 7
+#          files-folder-filter: exe
+#          file-digest: SHA256
+#          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+#          timestamp-digest: SHA256
       - name: Collect Distribution Binaries
         env:
           PLATFORM: ${{ matrix.os }}
