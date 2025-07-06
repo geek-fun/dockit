@@ -196,6 +196,8 @@ import {
 import { CustomError, inputProps } from '../../../../common';
 import { useLang } from '../../../../lang';
 
+const lang = useLang();
+
 const connectionStore = useConnectionStore();
 
 const { fetchIndices } = connectionStore;
@@ -210,24 +212,23 @@ const { dynamoData } = storeToRefs(dbDataStore);
 
 const dynamoQueryFormRef = ref();
 const filterConditions = ref([
-  { label: '=', value: '=' },
-  { label: '!=', value: '!=' },
-  { label: '<=', value: '<=' },
-  { label: '<', value: '<' },
-  { label: '>=', value: '>=' },
-  { label: '>', value: '>' },
-  { label: 'Between', value: 'between' },
-  { label: 'Exists', value: 'attribute_exists' },
-  { label: 'Not exists', value: 'attribute_not_exists' },
-  { label: 'Contain', value: 'contains' },
-  { label: 'Not contain', value: 'not contain' },
-  { label: 'Begins with', value: 'begins_with' },
+  { label: lang.t('editor.dynamo.filterLabels.eq'), value: '=' },
+  { label: lang.t('editor.dynamo.filterLabels.ne'), value: '!=' },
+  { label: lang.t('editor.dynamo.filterLabels.lte'), value: '<=' },
+  { label: lang.t('editor.dynamo.filterLabels.lt'), value: '<' },
+  { label: lang.t('editor.dynamo.filterLabels.gte'), value: '>=' },
+  { label: lang.t('editor.dynamo.filterLabels.gt'), value: '>' },
+  { label: lang.t('editor.dynamo.filterLabels.between'), value: 'between' },
+  { label: lang.t('editor.dynamo.filterLabels.exists'), value: 'attribute_exists' },
+  { label: lang.t('editor.dynamo.filterLabels.notExists'), value: 'attribute_not_exists' },
+  { label: lang.t('editor.dynamo.filterLabels.contains'), value: 'contains' },
+  { label: lang.t('editor.dynamo.filterLabels.notContains'), value: 'not contain' },
+  { label: lang.t('editor.dynamo.filterLabels.beginsWith'), value: 'begins_with' },
 ]);
 
 const loadingRef = ref({ index: false, queryResult: false });
 
 const message = useMessage();
-const lang = useLang();
 
 const dynamoQueryForm = ref<{
   index: string | null;
