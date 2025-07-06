@@ -37,7 +37,7 @@
     "lodash": "^4.17.21",
     "markdown-it": "^14.1.0",
     "monaco-editor": "^0.52.2",
-    "pinia": "^3.0.2",
+    "pinia": "^3.0.3",
     "pinia-plugin-persistedstate": "^4.3.0",
     "pretty-bytes": "^6.1.1",
     "tauri-plugin-system-info-api": "^2.0.10",
