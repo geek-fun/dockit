@@ -11,12 +11,45 @@ pub struct ScanTableInput<'a> {
 pub async fn scan_table(client: &Client, input: ScanTableInput<'_>) -> Result<ApiResponse, String> {
     let index_name = input.payload.get("index_name").and_then(|v| v.as_str());
     let filters = input.payload.get("filters").and_then(|v| v.as_array());
+    let limit = input
+        .payload
+        .get("limit")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as i32)
+        .unwrap();
+    let exclusive_start_key = input
+        .payload
+        .get("exclusive_start_key")
+        .and_then(|v| v.as_object());
 
     // Start building the scan
-    let mut scan = client.scan().table_name(input.table_name);
+    let mut scan = client.scan().table_name(input.table_name).limit(limit);
 
     if let Some(idx_name) = index_name {
         scan = scan.index_name(idx_name);
+    }
+
+    if let Some(key_map) = exclusive_start_key {
+        let mut last_key_map = std::collections::HashMap::new();
+
+        for (k, v) in key_map {
+            if let Some(s) = v.as_str() {
+                last_key_map.insert(k.clone(), AttributeValue::S(s.to_string()));
+            } else if let Some(n) = v.as_u64() {
+                last_key_map.insert(k.clone(), AttributeValue::N(n.to_string()));
+            } else if let Some(n) = v.as_i64() {
+                last_key_map.insert(k.clone(), AttributeValue::N(n.to_string()));
+            } else if let Some(b) = v.as_bool() {
+                last_key_map.insert(k.clone(), AttributeValue::Bool(b));
+            }
+        }
+
+        if !last_key_map.is_empty() {
+            // Apply each key-value pair individually to match the method signature
+            for (key, value) in last_key_map {
+                scan = scan.exclusive_start_key(key, value);
+            }
+        }
     }
 
     // Add filters if provided
@@ -163,7 +196,7 @@ pub async fn scan_table(client: &Client, input: ScanTableInput<'_>) -> Result<Ap
                 message: "Scan executed successfully".to_string(),
                 data: Some(json!({
                     "items": json_items,
-                    "count": items.len(),
+                    "count": response.count(),
                     "scanned_count": response.scanned_count(),
                     "last_evaluated_key": match response.last_evaluated_key() {
                         Some(key_map) => {

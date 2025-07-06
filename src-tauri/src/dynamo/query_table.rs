@@ -25,10 +25,44 @@ pub async fn query_table(
     let pk_name = partition_key.get("name").and_then(|v| v.as_str()).unwrap();
     let pk_value = partition_key.get("value").and_then(|v| v.as_str()).unwrap();
 
-    let mut query = client.query().table_name(input.table_name);
+    let limit = input
+        .payload
+        .get("limit")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as i32)
+        .unwrap();
+    let exclusive_start_key = input
+        .payload
+        .get("exclusive_start_key")
+        .and_then(|v| v.as_object());
+
+    let mut query = client.query().table_name(input.table_name).limit(limit);
 
     if let Some(idx_name) = index_name {
         query = query.index_name(idx_name);
+    }
+
+    if let Some(key_map) = exclusive_start_key {
+        let mut last_key_map = std::collections::HashMap::new();
+
+        for (k, v) in key_map {
+            if let Some(s) = v.as_str() {
+                last_key_map.insert(k.clone(), AttributeValue::S(s.to_string()));
+            } else if let Some(n) = v.as_u64() {
+                last_key_map.insert(k.clone(), AttributeValue::N(n.to_string()));
+            } else if let Some(n) = v.as_i64() {
+                last_key_map.insert(k.clone(), AttributeValue::N(n.to_string()));
+            } else if let Some(b) = v.as_bool() {
+                last_key_map.insert(k.clone(), AttributeValue::Bool(b));
+            }
+        }
+
+        if !last_key_map.is_empty() {
+            // Apply each key-value pair individually to match the method signature
+            for (key, value) in last_key_map {
+                query = query.exclusive_start_key(key, value);
+            }
+        }
     }
 
     // Attribute name placeholders
@@ -174,7 +208,7 @@ pub async fn query_table(
                 message: "Query executed successfully".to_string(),
                 data: Some(json!({
                     "items": json_items,
-                    "count": items.len(),
+                    "count": response.count(),
                     "scanned_count": response.scanned_count(),
                     "last_evaluated_key": match response.last_evaluated_key() {
                         Some(key_map) => {

@@ -142,7 +142,7 @@
             </n-button>
             <n-button
               type="primary"
-              @click="handleSubmit"
+              @click="queryToDynamo"
               :disabled="!validationPassed"
               :loading="loadingRef.queryResult"
             >
@@ -155,16 +155,22 @@
     <template #2>
       <n-card
         :title="$t('editor.dynamo.resultTitle')"
-        v-if="queryResult.data"
+        v-if="dynamoData.data"
         class="query-result-container"
       >
         <div class="infinity-scroll-outer-container">
           <div class="infinity-scroll-inner-container">
             <n-infinite-scroll style="height: 100%">
               <n-data-table
-                :columns="queryResult.columns"
-                :data="queryResult.data"
+                :bordered="false"
+                :single-line="false"
+                :columns="dynamoData.columns"
+                :data="dynamoData.data"
                 :loading="loadingRef.queryResult"
+                :pagination="dynamoData.pagination"
+                @update:page="changePage"
+                @update:pageSize="changePageSize"
+                :remote="true"
               />
             </n-infinite-scroll>
           </div>
@@ -184,6 +190,7 @@ import {
   DynamoDBConnection,
   DynamoIndexOrTableOption,
   useConnectionStore,
+  useDbDataStore,
   useTabStore,
 } from '../../../../store';
 import { CustomError, inputProps } from '../../../../common';
@@ -191,11 +198,15 @@ import { useLang } from '../../../../lang';
 
 const connectionStore = useConnectionStore();
 
-const { fetchIndices, queryTable } = connectionStore;
+const { fetchIndices } = connectionStore;
 const { getDynamoIndexOrTableOption } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
+
+const dbDataStore = useDbDataStore();
+const { getDynamoData, changePage, changePageSize, resetDynamoData } = dbDataStore;
+const { dynamoData } = storeToRefs(dbDataStore);
 
 const dynamoQueryFormRef = ref();
 const filterConditions = ref([
@@ -241,14 +252,6 @@ const dynamoQueryFormRules = reactive<FormRules>({
       trigger: ['input', 'blur'],
     },
   ],
-});
-
-const queryResult = ref<{
-  columns: Array<{ title: string; key: string }>;
-  data: Array<Record<string, unknown>> | undefined;
-}>({
-  columns: [],
-  data: undefined,
 });
 
 const addFilterItem = () => {
@@ -320,8 +323,10 @@ const validationPassed = watch(
   validateForm,
 );
 
-const handleSubmit = async (event: MouseEvent) => {
-  event.preventDefault();
+const queryToDynamo = async (event?: MouseEvent) => {
+  if (event?.preventDefault) {
+    event.preventDefault();
+  }
   if (!activeConnection.value || !selectedIndexOrTable.value) {
     message.error(`status: 500, ${lang.t('connection.selectIndex')}`);
     return;
@@ -333,43 +338,15 @@ const handleSubmit = async (event: MouseEvent) => {
 
   try {
     loadingRef.value.queryResult = true;
-    queryResult.value = { columns: [], data: undefined };
 
-    const { tableName } = activeConnection.value as DynamoDBConnection;
-    const { partitionKey, sortKey, formFilterItems } = dynamoQueryForm.value;
-    const indices = getDynamoIndexOrTableOption.value(activeConnection.value as DynamoDBConnection);
-    const { partitionKeyName, sortKeyName, label, value } = indices.find(
-      item => item.label === dynamoQueryForm.value.index,
-    ) as DynamoIndexOrTableOption;
+    const { partitionKey, sortKey, formFilterItems, index } = dynamoQueryForm.value;
 
-    // Build query parameters
-    const queryParams = {
-      tableName,
-      indexName: label.startsWith('Table - ') ? null : (value ?? null),
-      partitionKey: { name: partitionKeyName, value: partitionKey },
-      sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
+    await getDynamoData(activeConnection.value as DynamoDBConnection, {
+      partitionKey: partitionKey ?? undefined,
+      sortKey: sortKey ?? undefined,
       filters: formFilterItems,
-    };
-
-    const data = await queryTable(activeConnection.value as DynamoDBConnection, queryParams);
-
-    const columnsSet = new Set<string>();
-    data.items.forEach(item => {
-      Object.keys(item).forEach(key => {
-        columnsSet.add(key);
-      });
+      index: index ?? undefined,
     });
-    const columnsData = data.items.map(item => {
-      const row: Record<string, unknown> = {};
-      columnsSet.forEach(key => {
-        row[key] = item[key];
-      });
-      return row;
-    });
-    queryResult.value = {
-      columns: Array.from(columnsSet).map(key => ({ title: key, key })),
-      data: columnsData,
-    };
   } catch (error) {
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -389,6 +366,7 @@ const handleReset = () => {
   if (dynamoQueryFormRef.value) {
     dynamoQueryFormRef.value.restoreValidation();
   }
+  resetDynamoData();
 };
 </script>
 
@@ -416,6 +394,10 @@ const handleReset = () => {
   .query-result-container {
     width: 100%;
     height: 100%;
+
+    :deep(.n-data-table-th__title) {
+      white-space: nowrap;
+    }
   }
 }
 
