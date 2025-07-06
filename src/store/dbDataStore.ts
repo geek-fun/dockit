@@ -3,7 +3,7 @@ import { cloneDeep, omit } from 'lodash';
 import { DynamoDBConnection, useConnectionStore } from './connectionStore.ts';
 import { DynamoIndexOrTableOption } from './tabStore.ts';
 
-const restetedPagination = {
+const resetPagination = {
   page: 1,
   pageSize: 10,
   pageCount: 1,
@@ -46,7 +46,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
       connection: {} as DynamoDBConnection,
       columns: [],
       data: undefined,
-      pagination: cloneDeep(restetedPagination),
+      pagination: cloneDeep(resetPagination),
       queryInput: undefined,
       queryBody: '',
       lastEvaluatedKeys: [],
@@ -83,7 +83,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
             ...this.dynamoData,
             columns: [],
             data: undefined,
-            pagination: { ...restetedPagination },
+            pagination: { ...cloneDeep(resetPagination) },
             queryBody: queryStr,
             lastEvaluatedKeys: [],
           };
@@ -165,7 +165,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
         connection: {} as DynamoDBConnection,
         columns: [],
         data: undefined,
-        pagination: cloneDeep(restetedPagination),
+        pagination: cloneDeep(resetPagination),
         queryInput: undefined,
         queryBody: '',
         lastEvaluatedKeys: [],
