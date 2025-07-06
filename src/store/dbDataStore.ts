@@ -1,11 +1,11 @@
 import { defineStore } from 'pinia';
-import { omit, cloneDeep } from 'lodash';
+import { cloneDeep, omit } from 'lodash';
 import { DynamoDBConnection, useConnectionStore } from './connectionStore.ts';
 import { DynamoIndexOrTableOption } from './tabStore.ts';
 
 const restetedPagination = {
   page: 1,
-  pageSize: 5,
+  pageSize: 10,
   pageCount: 1,
   showSizePicker: true,
   pageSizes: [10, 25, 50, 100, 200, 300],
@@ -18,11 +18,17 @@ type DynamoInput = {
   filters?: Array<{ key: string; value: string; operator: string }>;
 };
 
+type DynamoColumn = {
+  title: string;
+  key: string;
+  children?: Array<{ title: string; key: string }>;
+};
+
 export const useDbDataStore = defineStore('dbDataStore', {
   state: (): {
     dynamoData: {
       connection: DynamoDBConnection;
-      columns: Array<{ title: string; key: string }>;
+      columns: Array<DynamoColumn>;
       data: Array<Record<string, unknown>> | undefined;
       pagination: {
         page: number;
@@ -62,27 +68,16 @@ export const useDbDataStore = defineStore('dbDataStore', {
           item => item.label === queryInput.index,
         ) as DynamoIndexOrTableOption;
 
-        const exclusiveStartKey =
-          this.dynamoData.lastEvaluatedKeys[this.dynamoData.pagination.page - 1];
-
         const queryParams = {
           tableName,
           indexName: label.startsWith('Table - ') ? null : (value ?? null),
           partitionKey: { name: partitionKeyName, value: partitionKey },
           sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
           filters: queryInput.filters,
-          limit: this.dynamoData.pagination.pageSize,
-          exclusiveStartKey,
         };
 
-        console.log(`exclusiveStartKey  for index:`, {
-          exclusiveStartKey,
-          array: this.dynamoData.lastEvaluatedKeys,
-          page: this.dynamoData.pagination.page,
-          isArr: Array.isArray(this.dynamoData.lastEvaluatedKeys),
-        });
-
         const queryStr = JSON.stringify(omit(queryParams, ['limit', 'exclusiveStartKey']));
+
         if (this.dynamoData.queryBody !== queryStr) {
           this.dynamoData = {
             ...this.dynamoData,
@@ -94,7 +89,11 @@ export const useDbDataStore = defineStore('dbDataStore', {
           };
         }
 
-        const data = await queryTable(connection, queryParams);
+        const limit = this.dynamoData.pagination.pageSize;
+        const exclusiveStartKey =
+          this.dynamoData.lastEvaluatedKeys[this.dynamoData.pagination.page - 1];
+
+        const data = await queryTable(connection, { ...queryParams, limit, exclusiveStartKey });
 
         const columnsSet = new Set<string>();
         data.items.forEach(item => {
@@ -102,6 +101,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
             columnsSet.add(key);
           });
         });
+
         const columnsData = data.items.map(item => {
           const row: Record<string, unknown> = {};
           columnsSet.forEach(key => {
@@ -110,8 +110,21 @@ export const useDbDataStore = defineStore('dbDataStore', {
           return row;
         });
 
+        const primaryColumn = {
+          title: 'Primary Key',
+          key: 'primaryKey',
+          children: [
+            { title: `${partitionKeyName}(PK)`, key: `${partitionKeyName}` },
+            sortKeyName ? { title: `${sortKeyName}(SK)`, key: `${sortKeyName}` } : undefined,
+          ].filter(Boolean) as Array<{ title: string; key: string }>,
+        };
+        const columns: Array<DynamoColumn> = Array.from(columnsSet)
+          .filter(column => column !== partitionKeyName && column !== sortKeyName)
+          .map(column => ({ title: column, key: column }));
+        columns.unshift(primaryColumn);
+
+        this.dynamoData.columns = columns;
         this.dynamoData.data = columnsData;
-        this.dynamoData.columns = Array.from(columnsSet).map(key => ({ title: key, key }));
 
         if (data.last_evaluated_key) {
           this.dynamoData.lastEvaluatedKeys[this.dynamoData.pagination.page] =

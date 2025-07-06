@@ -162,6 +162,8 @@
           <div class="infinity-scroll-inner-container">
             <n-infinite-scroll style="height: 100%">
               <n-data-table
+                :bordered="false"
+                :single-line="false"
                 :columns="dynamoData.columns"
                 :data="dynamoData.data"
                 :loading="loadingRef.queryResult"
@@ -392,6 +394,10 @@ const handleReset = () => {
   .query-result-container {
     width: 100%;
     height: 100%;
+
+    :deep(.n-data-table-th__title) {
+      white-space: nowrap;
+    }
   }
 }
 
