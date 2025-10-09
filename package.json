@@ -23,9 +23,9 @@
     "build:macos": "tauri build -t universal-apple-darwin"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.5.0",
+    "@tauri-apps/api": "^2.8.0",
     "@tauri-apps/plugin-dialog": "^2.3.1",
-    "@tauri-apps/plugin-fs": "^2.3.0",
+    "@tauri-apps/plugin-fs": "^2.4.2",
     "@tauri-apps/plugin-global-shortcut": "^2.2.1",
     "@tauri-apps/plugin-os": "^2.2.2",
     "@tauri-apps/plugin-shell": "^2.3.1",
@@ -42,7 +42,7 @@
     "pretty-bytes": "^6.1.1",
     "tauri-plugin-system-info-api": "^2.0.10",
     "ulidx": "^2.4.1",
-    "vue": "^3.5.18",
+    "vue": "^3.5.20",
     "vue-i18n": "^11.1.10",
     "vue-router": "^4.5.1"
   },
