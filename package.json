@@ -42,7 +42,7 @@
     "pretty-bytes": "^6.1.1",
     "tauri-plugin-system-info-api": "^2.0.10",
     "ulidx": "^2.4.1",
-    "vue": "^3.5.20",
+    "vue": "^3.5.22",
     "vue-i18n": "^11.1.10",
     "vue-router": "^4.5.1"
   },
