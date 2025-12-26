@@ -1,4 +1,5 @@
 import * as monaco from 'monaco-editor';
+import { typescript } from 'monaco-editor';
 
 import { executeActions, search } from './lexerRules.ts';
 import { monacoEnvironment } from './environment.ts';
@@ -9,7 +10,7 @@ if (typeof self !== 'undefined') {
   self.MonacoEnvironment = monacoEnvironment;
 }
 
-monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true);
+typescript.typescriptDefaults.setEagerModelSync(true);
 monaco.languages.register({ id: search.id });
 monaco.languages.setMonarchTokensProvider(
   search.id,

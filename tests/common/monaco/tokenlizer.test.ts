@@ -10,12 +10,12 @@ jest.mock('monaco-editor', () => ({
   },
   Range: {},
   Position: {},
-  languages: {
-    typescript: {
-      typescriptDefaults: {
-        setEagerModelSync: jest.fn(),
-      },
+  typescript: {
+    typescriptDefaults: {
+      setEagerModelSync: jest.fn(),
     },
+  },
+  languages: {
     register: jest.fn(),
     setMonarchTokensProvider: jest.fn(),
     setLanguageConfiguration: jest.fn(),
