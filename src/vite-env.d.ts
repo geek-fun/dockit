@@ -5,3 +5,8 @@ declare module '*.vue' {
   const component: DefineComponent<{}, {}, any>;
   export default component;
 }
+
+// Extend Window interface to include MonacoEnvironment
+interface Window {
+  MonacoEnvironment?: import('monaco-editor').Environment;
+}
