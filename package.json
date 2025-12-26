@@ -30,7 +30,7 @@
     "@tauri-apps/plugin-os": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2.3.1",
     "@tauri-apps/plugin-store": "^2.4.0",
-    "debug": "^4.4.1",
+    "debug": "^4.4.3",
     "highlight.js": "^11.11.1",
     "json-with-bigint": "^3.4.4",
     "json5": "^2.2.3",
@@ -38,13 +38,13 @@
     "markdown-it": "^14.1.0",
     "monaco-editor": "^0.53.0",
     "pinia": "^3.0.3",
-    "pinia-plugin-persistedstate": "^4.4.1",
+    "pinia-plugin-persistedstate": "^4.5.0",
     "pretty-bytes": "^6.1.1",
     "tauri-plugin-system-info-api": "^2.0.10",
     "ulidx": "^2.4.1",
     "vue": "^3.5.22",
-    "vue-i18n": "^11.1.10",
-    "vue-router": "^4.5.1"
+    "vue-i18n": "^11.1.12",
+    "vue-router": "^4.6.3"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.4.1",
