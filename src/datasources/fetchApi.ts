@@ -82,7 +82,7 @@ const fetchRequest = async (
     };
 
     if (status >= 200 && status < 500) {
-      return { status, message, data };
+      return { status, details: message, data };
     }
     throw new CustomError(status, message);
   } catch (e) {
