@@ -13,7 +13,10 @@ type FetchApiOptions = {
 };
 
 const handleFetch = (result: { data: unknown; status: number; details: string | undefined }) => {
-  if ([404, 400].includes(result.status) || (result.status >= 200 && result.status < 300)) {
+  if(result.status >= 200 && result.status < 300) {
+    return result.data;
+  }
+  if ([404, 400].includes(result.status)) {
     return result.data || jsonify.parse(result.details || '');
   }
   if (result.status === 401) {
@@ -82,8 +85,9 @@ const fetchRequest = async (
     };
 
     if (status >= 200 && status < 500) {
-      return { status, message, data };
+      return { status, details: message, data };
     }
+  
     throw new CustomError(status, message);
   } catch (e) {
     const error = typeof e == 'string' ? new CustomError(500, e) : (e as CustomError);
