@@ -3,6 +3,7 @@ use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::types::AttributeValue;
 use aws_sdk_dynamodb::Client;
 use serde_json::Value;
+use base64::{Engine as _, engine::general_purpose};
 
 pub struct CreateItemInput<'a> {
     pub table_name: &'a str,
@@ -27,7 +28,7 @@ pub async fn create_item(
                     "N" => value.as_f64().map(|n| AttributeValue::N(n.to_string())),
                     "B" => value.as_str().map(|s| {
                         AttributeValue::B(aws_sdk_dynamodb::primitives::Blob::new(
-                            base64::decode(s).unwrap_or_default(),
+                            general_purpose::STANDARD.decode(s).unwrap_or_default(),
                         ))
                     }),
                     "BOOL" => value.as_bool().map(AttributeValue::Bool),
@@ -52,7 +53,7 @@ pub async fn create_item(
                                 .filter_map(|v| {
                                     v.as_str().map(|s| {
                                         aws_sdk_dynamodb::primitives::Blob::new(
-                                            base64::decode(s).unwrap_or_default(),
+                                            general_purpose::STANDARD.decode(s).unwrap_or_default(),
                                         )
                                     })
                                 })
