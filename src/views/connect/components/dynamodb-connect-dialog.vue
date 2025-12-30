@@ -14,7 +14,6 @@
       </template>
       <div class="modal-content">
         <n-form
-          ref="connectFormRef"
           label-placement="left"
           label-width="120"
           :model="formData"
@@ -93,7 +92,7 @@
 
 <script setup lang="ts">
 import { Close } from '@vicons/carbon';
-import { reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { cloneDeep } from 'lodash';
 import { inputProps } from '../../../common';
 import { useLang } from '../../../lang';
@@ -105,7 +104,6 @@ const connectionStore = useConnectionStore();
 const { testConnection } = connectionStore;
 
 const lang = useLang();
-const connectFormRef = ref();
 
 const showModal = ref(false);
 const modalTitle = ref(lang.t('connection.new'));
