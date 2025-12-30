@@ -64,6 +64,8 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - run: npm run build
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Import Apple Developer Certificate
         if: matrix.os == 'macos-latest'

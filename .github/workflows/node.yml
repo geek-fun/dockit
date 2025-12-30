@@ -46,7 +46,10 @@ jobs:
         uses: codecov/codecov-action@v3
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+     
       - run: npm run build
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'  # Increase Node.js heap size to prevent out-of-memory errors during build
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
