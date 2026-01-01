@@ -7,6 +7,7 @@
  */
 
 import { BackendType, BodyProperty } from './types';
+import { isVersionInRange } from './utils';
 
 /**
  * Query type definition
@@ -762,30 +763,7 @@ export class QueryDslProvider {
     if (!query.availability) return true;
     const availability = query.availability[backend];
     if (!availability) return true;
-    
-    if (availability.min && this.compareVersions(version, availability.min) < 0) {
-      return false;
-    }
-    if (availability.max && this.compareVersions(version, availability.max) > 0) {
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * Compare two semantic versions
-   */
-  private compareVersions(a: string, b: string): number {
-    const partsA = a.split('.').map(Number);
-    const partsB = b.split('.').map(Number);
-    
-    for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
-      const numA = partsA[i] || 0;
-      const numB = partsB[i] || 0;
-      if (numA < numB) return -1;
-      if (numA > numB) return 1;
-    }
-    return 0;
+    return isVersionInRange(version, availability);
   }
 
   /**

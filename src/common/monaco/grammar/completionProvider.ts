@@ -225,7 +225,7 @@ function providePathCompletions(
     let insertText = endpoint.path;
     
     // If user has typed part of the path, filter appropriately
-    if (pathPrefix !== '/' && !endpoint.path.startsWith(pathPrefix)) {
+    if (pathPrefix && pathPrefix !== '/' && !endpoint.path.startsWith(pathPrefix)) {
       // Check for partial match
       if (!pathStartsWithPattern(endpoint.path, pathPrefix)) {
         continue;

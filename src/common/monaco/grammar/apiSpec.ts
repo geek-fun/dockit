@@ -7,7 +7,8 @@
  * and opensearch-api-specification repositories.
  */
 
-import { ApiEndpoint, BackendType, HttpMethod, VersionRange } from './types';
+import { ApiEndpoint, BackendType, HttpMethod } from './types';
+import { isVersionInRange } from './utils';
 
 /**
  * Base endpoints available in both Elasticsearch and OpenSearch
@@ -1085,37 +1086,8 @@ export class ApiSpecProvider {
       if (!endpoint.availability) return true;
       const availability = endpoint.availability[backend];
       if (!availability) return true;
-      return this.isVersionInRange(version, availability);
+      return isVersionInRange(version, availability);
     });
-  }
-
-  /**
-   * Check if a version is within a range
-   */
-  private isVersionInRange(version: string, range: VersionRange): boolean {
-    if (range.min && this.compareVersions(version, range.min) < 0) {
-      return false;
-    }
-    if (range.max && this.compareVersions(version, range.max) > 0) {
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * Compare two semantic versions
-   */
-  private compareVersions(a: string, b: string): number {
-    const partsA = a.split('.').map(Number);
-    const partsB = b.split('.').map(Number);
-    
-    for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
-      const numA = partsA[i] || 0;
-      const numB = partsB[i] || 0;
-      if (numA < numB) return -1;
-      if (numA > numB) return 1;
-    }
-    return 0;
   }
 
   /**
