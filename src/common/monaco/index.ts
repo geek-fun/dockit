@@ -5,8 +5,6 @@ import { executeActions, search } from './lexerRules.ts';
 import { monacoEnvironment } from './environment.ts';
 import {
   searchCompletionProvider,
-  setUseGrammarCompletions,
-  isGrammarCompletionsEnabled,
   configureCompletions,
   BackendType,
 } from './completion.ts';
@@ -40,8 +38,6 @@ export * from './referDoc.ts';
 
 // Export grammar-driven completion configuration
 export {
-  setUseGrammarCompletions,
-  isGrammarCompletionsEnabled,
   configureCompletions,
   BackendType,
 };

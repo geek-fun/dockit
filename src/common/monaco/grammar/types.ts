@@ -30,6 +30,7 @@ export interface ApiEndpoint {
   path: string;
   methods: HttpMethod[];
   description?: string;
+  descriptionKey?: string; // i18n key for description translation
   deprecated?: boolean;
   docUrl?: string;
   pathParams?: PathParam[];

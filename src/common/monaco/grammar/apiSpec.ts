@@ -5,6 +5,8 @@
  * This module serves as the foundation for spec-driven completions.
  * In the future, this can be extended to load from elasticsearch-specification
  * and opensearch-api-specification repositories.
+ * 
+ * Descriptions use descriptionKey for i18n translation support via lang.global.t('grammar.<key>')
  */
 
 import { ApiEndpoint, BackendType, HttpMethod } from './types';
@@ -19,6 +21,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_search',
     methods: ['GET', 'POST'],
     description: 'Execute a search query',
+    descriptionKey: 'grammar.search',
     docUrl: 'https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html',
     queryParams: [
       { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
@@ -72,6 +75,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_search',
     methods: ['GET', 'POST'],
     description: 'Execute a search query on a specific index',
+    descriptionKey: 'grammar.searchIndex',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name(s)', required: true }],
   },
   
@@ -80,6 +84,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_count',
     methods: ['GET', 'POST'],
     description: 'Count documents matching a query',
+    descriptionKey: 'grammar.count',
     queryParams: [
       { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
       { name: 'df', type: 'string', description: 'Default field for query string' },
@@ -92,6 +97,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_count',
     methods: ['GET', 'POST'],
     description: 'Count documents in a specific index',
+    descriptionKey: 'grammar.countIndex',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name(s)', required: true }],
   },
 
@@ -100,6 +106,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_doc',
     methods: ['POST'],
     description: 'Index a document',
+    descriptionKey: 'grammar.indexDoc',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       { name: 'routing', type: 'string', description: 'Routing value' },
@@ -112,6 +119,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_doc/{id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Get, index, or delete a document by ID',
+    descriptionKey: 'grammar.getDoc',
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'id', type: 'string', description: 'Document ID', required: true },
@@ -121,6 +129,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_update/{id}',
     methods: ['POST'],
     description: 'Update a document',
+    descriptionKey: 'grammar.updateDoc',
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'id', type: 'string', description: 'Document ID', required: true },
@@ -142,6 +151,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_bulk',
     methods: ['POST'],
     description: 'Perform multiple index/delete/update operations in a single request',
+    descriptionKey: 'grammar.bulk',
     queryParams: [
       { name: 'refresh', type: 'string', description: 'Refresh policy', enum: ['true', 'false', 'wait_for'] },
       { name: 'routing', type: 'string', description: 'Default routing' },
