@@ -6,7 +6,10 @@
  * In the future, this can be extended to load from elasticsearch-specification
  * and opensearch-api-specification repositories.
  * 
- * Descriptions use descriptionKey for i18n translation support via lang.global.t('grammar.<key>')
+ * For i18n translation support:
+ * - Each endpoint has a `descriptionKey` field (e.g., 'grammar.search')
+ * - Translations are defined in src/lang/enUS.ts and src/lang/zhCN.ts
+ * - Use lang.global.t(descriptionKey) in Vue components for localized descriptions
  */
 
 import { ApiEndpoint, BackendType, HttpMethod } from './types';

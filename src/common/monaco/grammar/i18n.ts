@@ -1,6 +1,14 @@
 /**
  * Internationalization helper for grammar module
  * Provides translation support for API descriptions
+ * 
+ * This module defines English descriptions that serve as:
+ * 1. Fallback descriptions for the grammar-driven completion engine
+ * 2. Reference for the i18n translation keys in src/lang/enUS.ts and src/lang/zhCN.ts
+ * 
+ * For multi-language support in Vue components, use:
+ *   lang.global.t(endpoint.descriptionKey)
+ * where descriptionKey comes from ApiEndpoint.descriptionKey
  */
 
 /**
@@ -272,11 +280,17 @@ export const grammarDescriptions = {
 export type GrammarDescriptions = typeof grammarDescriptions;
 
 /**
- * Get a description by key
- * This function can be extended to use the i18n system when available
+ * Get a description by key from the grammar descriptions
+ * This returns the English description as a fallback
+ * For multi-language support, use lang.global.t(descriptionKey) in Vue components
+ * 
+ * @param key - The key to look up in grammarDescriptions
+ * @returns The English description or the key if not found
  */
-export const getDescription = (key: string): string => {
-  // For now, return the key as it serves as the English description
-  // In the future, this can be extended to use lang.global.t() for translations
+export const getDescription = (key: keyof typeof grammarDescriptions): string => {
+  if (key in grammarDescriptions) {
+    const desc = grammarDescriptions[key];
+    return typeof desc === 'string' ? desc : key;
+  }
   return key;
 };
