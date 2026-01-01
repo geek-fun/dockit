@@ -3,7 +3,13 @@ import { typescript } from 'monaco-editor';
 
 import { executeActions, search } from './lexerRules.ts';
 import { monacoEnvironment } from './environment.ts';
-import { searchCompletionProvider } from './completion.ts';
+import {
+  searchCompletionProvider,
+  setUseGrammarCompletions,
+  isGrammarCompletionsEnabled,
+  configureCompletions,
+  BackendType,
+} from './completion.ts';
 
 // Only assign MonacoEnvironment if 'self' is defined (browser or web worker)
 if (typeof self !== 'undefined') {
@@ -21,7 +27,7 @@ monaco.languages.setLanguageConfiguration(
   search.languageConfiguration as monaco.languages.LanguageConfiguration,
 );
 monaco.languages.registerCompletionItemProvider(search.id, {
-  triggerCharacters: ['g', 'p', 'd', '"', "'", ' '],
+  triggerCharacters: ['g', 'p', 'd', '"', "'", ' ', '/', '_', ':'],
   // @ts-ignore
   provideCompletionItems: searchCompletionProvider,
   // resolveCompletionItem: searchResolveCompletionItem,
@@ -31,3 +37,14 @@ export * from './type.ts';
 export { monaco, executeActions };
 export * from './tokenlizer.ts';
 export * from './referDoc.ts';
+
+// Export grammar-driven completion configuration
+export {
+  setUseGrammarCompletions,
+  isGrammarCompletionsEnabled,
+  configureCompletions,
+  BackendType,
+};
+
+// Export grammar module for advanced usage
+export * as grammar from './grammar';

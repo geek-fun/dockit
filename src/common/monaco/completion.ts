@@ -2,6 +2,50 @@ import * as monaco from 'monaco-editor';
 import { paths } from './keywords.ts';
 import { searchTokens } from './tokenlizer.ts';
 import { getSubDsqlTree } from './dsql';
+import {
+  grammarCompletionProvider,
+  setCompletionConfig,
+  BackendType,
+} from './grammar';
+
+// Re-export types for external use
+export { BackendType };
+export type { CompletionConfig } from './grammar';
+
+// Feature flag to enable/disable grammar-driven completions
+let useGrammarCompletions = false;
+
+/**
+ * Enable or disable grammar-driven completions
+ * When enabled, uses the new ANTLR-style grammar-driven completion engine
+ * When disabled, uses the legacy static list and regex-based completions
+ */
+function setUseGrammarCompletions(enabled: boolean): void {
+  useGrammarCompletions = enabled;
+}
+
+/**
+ * Check if grammar-driven completions are enabled
+ */
+function isGrammarCompletionsEnabled(): boolean {
+  return useGrammarCompletions;
+}
+
+/**
+ * Configure the completion engine for a specific backend and version
+ * This affects the available endpoints, query types, and features
+ */
+function configureCompletions(config: {
+  backend: 'elasticsearch' | 'opensearch';
+  version?: string;
+}): void {
+  const backendType =
+    config.backend === 'opensearch' ? BackendType.OPENSEARCH : BackendType.ELASTICSEARCH;
+  setCompletionConfig({
+    backend: backendType,
+    version: config.version,
+  });
+}
 
 const providePathCompletionItems = (lineContent: string) => {
   const methods = new Map<RegExp, string>([
@@ -130,6 +174,12 @@ const isReplaceCompletion = (lineContent: string, textUntilPosition: string) => 
 };
 
 const searchCompletionProvider = (model: monaco.editor.ITextModel, position: monaco.Position) => {
+  // Use grammar-driven completions if enabled
+  if (useGrammarCompletions) {
+    return grammarCompletionProvider(model, position);
+  }
+
+  // Legacy completion logic
   const textUntilPosition = model.getValueInRange({
     startLineNumber: position.lineNumber,
     endLineNumber: position.lineNumber,
@@ -155,4 +205,9 @@ const searchCompletionProvider = (model: monaco.editor.ITextModel, position: mon
   }
 };
 
-export { searchCompletionProvider };
+export {
+  searchCompletionProvider,
+  setUseGrammarCompletions,
+  isGrammarCompletionsEnabled,
+  configureCompletions,
+};
