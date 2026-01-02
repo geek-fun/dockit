@@ -253,21 +253,21 @@ export class SearchLexer {
 /**
  * Tokenize input string
  */
-export function tokenize(input: string): Token[] {
+export const tokenize = (input: string): Token[] => {
   const lexer = new SearchLexer(input);
   return lexer.tokenize();
-}
+};
 
 /**
  * Get tokens at a specific line
  */
-export function getTokensAtLine(tokens: Token[], line: number): Token[] {
+export const getTokensAtLine = (tokens: Token[], line: number): Token[] => {
   return tokens.filter(token => token.line === line);
-}
+};
 
 /**
  * Find token at position
  */
-export function findTokenAtPosition(tokens: Token[], offset: number): Token | undefined {
+export const findTokenAtPosition = (tokens: Token[], offset: number): Token | undefined => {
   return tokens.find(token => offset >= token.start && offset <= token.end);
-}
+};

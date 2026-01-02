@@ -8,7 +8,7 @@
  * @param b Second version string (e.g., "8.0.0")
  * @returns -1 if a < b, 0 if a == b, 1 if a > b
  */
-export function compareVersions(a: string, b: string): number {
+export const compareVersions = (a: string, b: string): number => {
   const partsA = a.split('.').map(Number);
   const partsB = b.split('.').map(Number);
   
@@ -19,7 +19,7 @@ export function compareVersions(a: string, b: string): number {
     if (numA > numB) return 1;
   }
   return 0;
-}
+};
 
 /**
  * Check if a version is within a range
@@ -27,10 +27,10 @@ export function compareVersions(a: string, b: string): number {
  * @param range Range with optional min and max
  * @returns true if version is within range
  */
-export function isVersionInRange(
+export const isVersionInRange = (
   version: string,
   range: { min?: string; max?: string },
-): boolean {
+): boolean => {
   if (range.min && compareVersions(version, range.min) < 0) {
     return false;
   }
@@ -38,4 +38,4 @@ export function isVersionInRange(
     return false;
   }
   return true;
-}
+};

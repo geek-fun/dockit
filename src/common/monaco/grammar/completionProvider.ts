@@ -13,15 +13,16 @@ import {
   CompletionContext,
   HttpMethod,
   TokenType,
+  QueryParam,
 } from './types';
 
 /**
  * Configuration for the completion provider
  */
-export interface CompletionConfig {
+export type CompletionConfig = {
   backend: BackendType;
   version?: string;
-}
+};
 
 // Default configuration
 let currentConfig: CompletionConfig = {
@@ -31,16 +32,16 @@ let currentConfig: CompletionConfig = {
 /**
  * Set the completion configuration (backend and version)
  */
-export function setCompletionConfig(config: CompletionConfig): void {
+export const setCompletionConfig = (config: CompletionConfig): void => {
   currentConfig = config;
-}
+};
 
 /**
  * Get the current completion configuration
  */
-export function getCompletionConfig(): CompletionConfig {
+export const getCompletionConfig = (): CompletionConfig => {
   return currentConfig;
-}
+};
 
 /**
  * HTTP methods with their completions
@@ -58,10 +59,10 @@ const httpMethods: Array<{ label: string; insertText: string }> = [
 /**
  * Determine the completion context from the current position
  */
-function getCompletionContext(
+const getCompletionContext = (
   model: monaco.editor.ITextModel,
   position: monaco.Position,
-): CompletionContext {
+): CompletionContext => {
   const lineContent = model.getLineContent(position.lineNumber);
   const textUntilPosition = lineContent.substring(0, position.column - 1);
   
@@ -75,6 +76,20 @@ function getCompletionContext(
       backend: currentConfig.backend,
       version: currentConfig.version,
       position: 'method',
+    };
+  }
+
+  // Check if we're completing query parameters (path contains ?)
+  const queryParamMatch = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S+\?[^?\s]*)$/i.exec(trimmedLine);
+  if (queryParamMatch) {
+    const fullPath = queryParamMatch[2];
+    const [basePath] = fullPath.split('?');
+    return {
+      backend: currentConfig.backend,
+      version: currentConfig.version,
+      position: 'queryParam',
+      method: queryParamMatch[1].toUpperCase() as HttpMethod,
+      path: basePath,
     };
   }
 
@@ -116,15 +131,15 @@ function getCompletionContext(
     position: 'body',
     bodyPath: [],
   };
-}
+};
 
 /**
  * Find the method and path for a given line (search backwards)
  */
-function findMethodAndPath(
+const findMethodAndPath = (
   model: monaco.editor.ITextModel,
   lineNumber: number,
-): { method?: HttpMethod; path?: string } {
+): { method?: HttpMethod; path?: string } => {
   for (let line = lineNumber; line >= 1; line--) {
     const content = model.getLineContent(line);
     const match = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S+)/i.exec(content);
@@ -136,12 +151,12 @@ function findMethodAndPath(
     }
   }
   return {};
-}
+};
 
 /**
  * Get the JSON path at the current position in the body
  */
-function getBodyPath(text: string, offset: number): string[] | null {
+const getBodyPath = (text: string, offset: number): string[] | null => {
   const tokens = tokenize(text);
   const pathStack: string[] = [];
   let inBody = false;
@@ -184,12 +199,12 @@ function getBodyPath(text: string, offset: number): string[] | null {
   }
 
   return inBody ? pathStack : null;
-}
+};
 
 /**
  * Provide method completions
  */
-function provideMethodCompletions(): monaco.languages.CompletionItem[] {
+const provideMethodCompletions = (): monaco.languages.CompletionItem[] => {
   return httpMethods.map(({ label, insertText }) => ({
     label,
     kind: monaco.languages.CompletionItemKind.Keyword,
@@ -198,15 +213,15 @@ function provideMethodCompletions(): monaco.languages.CompletionItem[] {
     detail: `HTTP ${label} method`,
     sortText: '0' + label,
   } as monaco.languages.CompletionItem));
-}
+};
 
 /**
  * Provide path completions based on API spec
  */
-function providePathCompletions(
+const providePathCompletions = (
   context: CompletionContext,
   range: monaco.Range,
-): monaco.languages.CompletionItem[] {
+): monaco.languages.CompletionItem[] => {
   const { backend, version, method, path } = context;
   const endpoints = apiSpecProvider.getEndpoints(backend, version);
   
@@ -258,12 +273,12 @@ function providePathCompletions(
   }
 
   return completions;
-}
+};
 
 /**
  * Check if a path pattern starts with a prefix (handling placeholders)
  */
-function pathStartsWithPattern(pattern: string, prefix: string): boolean {
+const pathStartsWithPattern = (pattern: string, prefix: string): boolean => {
   const patternParts = pattern.split('/').filter(Boolean);
   const prefixParts = prefix.split('/').filter(Boolean);
   
@@ -289,15 +304,93 @@ function pathStartsWithPattern(pattern: string, prefix: string): boolean {
   }
   
   return true;
-}
+};
+
+/**
+ * Provide query parameter completions based on API specifications
+ */
+const provideQueryParamCompletions = (
+  context: CompletionContext,
+  range: monaco.Range,
+): monaco.languages.CompletionItem[] => {
+  const { backend, version, method, path } = context;
+  const completions: monaco.languages.CompletionItem[] = [];
+  
+  if (!path) return completions;
+  
+  // Find matching endpoint
+  const endpoint = apiSpecProvider.findEndpoint(backend, path, method, version);
+  if (!endpoint?.queryParams) return completions;
+  
+  for (const param of endpoint.queryParams) {
+    const insertText = createQueryParamInsertText(param);
+    
+    completions.push({
+      label: param.name,
+      kind: monaco.languages.CompletionItemKind.Property,
+      insertText,
+      insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+      detail: param.description || `Query parameter: ${param.name}`,
+      documentation: createQueryParamDocumentation(param),
+      sortText: param.required ? '0' + param.name : '1' + param.name,
+      range,
+    });
+  }
+  
+  return completions;
+};
+
+/**
+ * Create insert text for a query parameter
+ */
+const createQueryParamInsertText = (param: QueryParam): string => {
+  if (param.enum && param.enum.length > 0) {
+    // For enum params, provide first value as placeholder
+    return `${param.name}=\${1|${param.enum.join(',')}|}`;
+  }
+  if (param.type === 'boolean') {
+    return `${param.name}=\${1|true,false|}`;
+  }
+  if (param.default !== undefined) {
+    return `${param.name}=\${1:${param.default}}`;
+  }
+  return `${param.name}=\${1:value}`;
+};
+
+/**
+ * Create documentation for a query parameter
+ */
+const createQueryParamDocumentation = (param: QueryParam): string => {
+  const parts: string[] = [];
+  
+  if (param.description) {
+    parts.push(param.description);
+  }
+  
+  parts.push(`**Type:** ${param.type}`);
+  
+  if (param.required) {
+    parts.push('**Required**');
+  }
+  
+  if (param.default !== undefined) {
+    parts.push(`**Default:** ${param.default}`);
+  }
+  
+  if (param.enum && param.enum.length > 0) {
+    parts.push(`**Values:** ${param.enum.join(', ')}`);
+  }
+  
+  return parts.join('\n\n');
+};
 
 /**
  * Provide body completions (Query DSL)
  */
-function provideBodyCompletions(
+const provideBodyCompletions = (
   context: CompletionContext,
   range: monaco.Range,
-): monaco.languages.CompletionItem[] {
+): monaco.languages.CompletionItem[] => {
   const { backend, version, path, bodyPath = [] } = context;
   const completions: monaco.languages.CompletionItem[] = [];
   
@@ -372,24 +465,24 @@ function provideBodyCompletions(
   }
 
   return completions;
-}
+};
 
 /**
  * Find a query type in the body path
  */
-function findQueryTypeInPath(bodyPath: string[]): string | null {
+const findQueryTypeInPath = (bodyPath: string[]): string | null => {
   for (const segment of bodyPath) {
     if (allQueries[segment]) {
       return segment;
     }
   }
   return null;
-}
+};
 
 /**
  * Get root body fields based on the endpoint path
  */
-function getRootBodyFields(path?: string): Array<{ label: string; snippet: string; description: string }> {
+const getRootBodyFields = (path?: string): Array<{ label: string; snippet: string; description: string }> => {
   // Check if this is a search endpoint
   if (path?.includes('_search')) {
     return [
@@ -439,12 +532,12 @@ function getRootBodyFields(path?: string): Array<{ label: string; snippet: strin
 
   // Default fields for generic endpoints
   return [];
-}
+};
 
 /**
  * Get aggregation types for completion
  */
-function getAggregationTypes(): Array<{ name: string; snippet: string; description: string }> {
+const getAggregationTypes = (): Array<{ name: string; snippet: string; description: string }> => {
   return [
     // Metric aggregations
     { name: 'avg', snippet: 'avg: {\n\tfield: "${1:field}"\n}', description: 'Average aggregation' },
@@ -492,15 +585,15 @@ function getAggregationTypes(): Array<{ name: string; snippet: string; descripti
     { name: 'bucket_selector', snippet: 'bucket_selector: {\n\tbuckets_path: {\n\t\t"${1:var}": "${2:path}"\n\t},\n\tscript: "${3:params.var > 10}"\n}', description: 'Bucket selector aggregation' },
     { name: 'bucket_script', snippet: 'bucket_script: {\n\tbuckets_path: {\n\t\t"${1:var}": "${2:path}"\n\t},\n\tscript: "${3:params.var * 2}"\n}', description: 'Bucket script aggregation' },
   ];
-}
+};
 
 /**
  * Main completion provider function for Monaco
  */
-export function grammarCompletionProvider(
+export const grammarCompletionProvider = (
   model: monaco.editor.ITextModel,
   position: monaco.Position,
-): monaco.languages.CompletionList {
+): monaco.languages.CompletionList => {
   const context = getCompletionContext(model, position);
   
   // Get the word at position for filtering
@@ -525,18 +618,17 @@ export function grammarCompletionProvider(
       suggestions = provideBodyCompletions(context, range);
       break;
     case 'queryParam':
-      // TODO: Implement query parameter completions
+      suggestions = provideQueryParamCompletions(context, range);
       break;
   }
 
   return {
     suggestions,
   };
-}
+};
 
 // Export all components
 export * from './types';
 export { apiSpecProvider } from './apiSpec';
 export { queryDslProvider } from './queryDsl';
 export { tokenize } from './lexer';
-export type { Token } from './types';

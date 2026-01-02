@@ -6,8 +6,8 @@
  * Backend type enumeration
  */
 export enum BackendType {
-  ELASTICSEARCH = 'elasticsearch',
-  OPENSEARCH = 'opensearch',
+  ELASTICSEARCH = 'ELASTICSEARCH',
+  OPENSEARCH = 'OPENSEARCH',
 }
 
 /**
@@ -18,15 +18,15 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'HEAD' | 'PATCH' | 
 /**
  * Version range specification
  */
-export interface VersionRange {
+export type VersionRange = {
   min?: string;
   max?: string;
-}
+};
 
 /**
  * API Endpoint definition from spec
  */
-export interface ApiEndpoint {
+export type ApiEndpoint = {
   path: string;
   methods: HttpMethod[];
   description?: string;
@@ -39,43 +39,43 @@ export interface ApiEndpoint {
   availability?: {
     [key in BackendType]?: VersionRange;
   };
-}
+};
 
 /**
  * Path parameter definition
  */
-export interface PathParam {
+export type PathParam = {
   name: string;
   type: string;
   description?: string;
   required?: boolean;
-}
+};
 
 /**
  * Query parameter definition
  */
-export interface QueryParam {
+export type QueryParam = {
   name: string;
   type: string;
   description?: string;
   required?: boolean;
   default?: string | number | boolean;
   enum?: string[];
-}
+};
 
 /**
  * Request body definition
  */
-export interface RequestBody {
+export type RequestBody = {
   description?: string;
   required?: boolean;
   properties?: { [key: string]: BodyProperty };
-}
+};
 
 /**
  * Body property definition
  */
-export interface BodyProperty {
+export type BodyProperty = {
   type: string;
   description?: string;
   required?: boolean;
@@ -83,31 +83,31 @@ export interface BodyProperty {
   items?: BodyProperty;
   enum?: string[];
   default?: string | number | boolean;
-}
+};
 
 /**
  * Completion context
  */
-export interface CompletionContext {
+export type CompletionContext = {
   backend: BackendType;
   version?: string;
   position: 'method' | 'path' | 'queryParam' | 'body';
   method?: HttpMethod;
   path?: string;
   bodyPath?: string[];
-}
+};
 
 /**
  * Completion item
  */
-export interface CompletionItem {
+export type CompletionItem = {
   label: string;
   kind: 'method' | 'path' | 'param' | 'keyword' | 'property' | 'value';
   detail?: string;
   documentation?: string;
   insertText?: string;
   deprecated?: boolean;
-}
+};
 
 /**
  * Parser token types
@@ -135,23 +135,23 @@ export enum TokenType {
 /**
  * Token definition
  */
-export interface Token {
+export type Token = {
   type: TokenType;
   value: string;
   start: number;
   end: number;
   line: number;
   column: number;
-}
+};
 
 /**
  * Parsed action from editor content
  */
-export interface ParsedAction {
+export type ParsedAction = {
   method: HttpMethod;
   path: string;
   queryParams?: { [key: string]: string };
   bodyTokens?: Token[];
   startLine: number;
   endLine: number;
-}
+};

@@ -12,7 +12,7 @@ import { isVersionInRange } from './utils';
 /**
  * Query type definition
  */
-export interface QueryDef {
+export type QueryDef = {
   name: string;
   description?: string;
   docUrl?: string;
@@ -22,7 +22,7 @@ export interface QueryDef {
   availability?: {
     [key in BackendType]?: { min?: string; max?: string };
   };
-}
+};
 
 /**
  * Full-text queries
