@@ -65,13 +65,39 @@ const getCompletionContext = (
 ): CompletionContext => {
   const lineContent = model.getLineContent(position.lineNumber);
   const textUntilPosition = lineContent.substring(0, position.column - 1);
-  
-  // Check if we're at the start of a line (expecting method)
   const trimmedLine = textUntilPosition.trim();
-  const methodMatch = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)?\s*/i.exec(trimmedLine);
   
-  // If line is empty or has partial method
-  if (!trimmedLine || (methodMatch && !methodMatch[1])) {
+  // If line is empty, check if we should suggest methods or body content
+  if (!trimmedLine) {
+    // Check if we're inside a body by looking at the full document
+    const fullText = model.getValue();
+    const offset = model.getOffsetAt(position);
+    const bodyPath = getBodyPath(fullText, offset);
+    
+    if (bodyPath) {
+      // We're inside a body, provide body completions
+      const { method, path } = findMethodAndPath(model, position.lineNumber);
+      return {
+        backend: currentConfig.backend,
+        version: currentConfig.version,
+        position: 'body',
+        method,
+        path,
+        bodyPath,
+      };
+    }
+    
+    // Not inside a body, suggest method
+    return {
+      backend: currentConfig.backend,
+      version: currentConfig.version,
+      position: 'method',
+    };
+  }
+  
+  // Check if line starts with a partial HTTP method (suggesting methods)
+  const partialMethodMatch = /^(G|GE|GET|P|PO|POS|POST|PU|PUT|D|DE|DEL|DELE|DELET|DELETE|H|HE|HEA|HEAD|PA|PAT|PATC|PATCH|O|OP|OPT|OPTI|OPTIO|OPTION|OPTIONS)$/i.exec(trimmedLine);
+  if (partialMethodMatch) {
     return {
       backend: currentConfig.backend,
       version: currentConfig.version,
@@ -184,7 +210,12 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
       case TokenType.KEY:
       case TokenType.STRING:
         // Check if this is a key (followed by colon)
-        const nextToken = tokens.find(t => t.start > token.end && t.type !== TokenType.WHITESPACE);
+        // Use >= to include tokens that start right at the end of the current token
+        const nextToken = tokens.find(t => 
+          t.start >= token.end && 
+          t.type !== TokenType.WHITESPACE && 
+          t.type !== TokenType.NEWLINE
+        );
         if (nextToken?.type === TokenType.COLON) {
           lastKey = token.value.replace(/['"]/g, '');
         }
@@ -588,6 +619,39 @@ const getAggregationTypes = (): Array<{ name: string; snippet: string; descripti
 };
 
 /**
+ * Calculate the replacement range for path completions
+ * This handles cases like `_cat/indi` where we need to replace the entire path
+ */
+const getPathRange = (
+  model: monaco.editor.ITextModel,
+  position: monaco.Position,
+  typedPath: string,
+): monaco.Range => {
+  const lineContent = model.getLineContent(position.lineNumber);
+  
+  // Find the start of the path (after the HTTP method and space)
+  const methodMatch = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+/i.exec(lineContent);
+  if (methodMatch) {
+    const pathStart = methodMatch[0].length + 1; // 1-based column
+    return new monaco.Range(
+      position.lineNumber,
+      pathStart,
+      position.lineNumber,
+      position.column,
+    );
+  }
+  
+  // Fallback to word-based range
+  const wordInfo = model.getWordUntilPosition(position);
+  return new monaco.Range(
+    position.lineNumber,
+    wordInfo.startColumn,
+    position.lineNumber,
+    position.column,
+  );
+};
+
+/**
  * Main completion provider function for Monaco
  */
 export const grammarCompletionProvider = (
@@ -598,7 +662,7 @@ export const grammarCompletionProvider = (
   
   // Get the word at position for filtering
   const wordInfo = model.getWordUntilPosition(position);
-  const range = new monaco.Range(
+  const defaultRange = new monaco.Range(
     position.lineNumber,
     wordInfo.startColumn,
     position.lineNumber,
@@ -611,14 +675,17 @@ export const grammarCompletionProvider = (
     case 'method':
       suggestions = provideMethodCompletions();
       break;
-    case 'path':
-      suggestions = providePathCompletions(context, range);
+    case 'path': {
+      // Use a custom range for path completions to avoid duplication
+      const pathRange = getPathRange(model, position, context.path || '');
+      suggestions = providePathCompletions(context, pathRange);
       break;
+    }
     case 'body':
-      suggestions = provideBodyCompletions(context, range);
+      suggestions = provideBodyCompletions(context, defaultRange);
       break;
     case 'queryParam':
-      suggestions = provideQueryParamCompletions(context, range);
+      suggestions = provideQueryParamCompletions(context, defaultRange);
       break;
   }
 
