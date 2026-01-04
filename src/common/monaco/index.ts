@@ -6,6 +6,7 @@ import { monacoEnvironment } from './environment.ts';
 import {
   searchCompletionProvider,
   configureCompletions,
+  configureDynamicOptions,
   BackendType,
 } from './completion.ts';
 
@@ -39,8 +40,12 @@ export * from './referDoc.ts';
 // Export grammar-driven completion configuration
 export {
   configureCompletions,
+  configureDynamicOptions,
   BackendType,
 };
+
+// Export types for external use
+export type { DynamicCompletionOptions } from './completion.ts';
 
 // Export grammar module for advanced usage
 export * as grammar from './grammar';

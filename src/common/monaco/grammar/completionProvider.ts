@@ -24,10 +24,32 @@ export type CompletionConfig = {
   version?: string;
 };
 
+/**
+ * Dynamic options for path parameter completions
+ * These are fetched from the connected database
+ */
+export type DynamicCompletionOptions = {
+  /** Selected/active index name from toolbar */
+  activeIndex?: string;
+  /** All available indices in the connected cluster */
+  indices?: string[];
+  /** Available snapshot repositories */
+  repositories?: string[];
+  /** Available templates */
+  templates?: string[];
+  /** Available pipelines */
+  pipelines?: string[];
+  /** Available aliases */
+  aliases?: string[];
+};
+
 // Default configuration
 let currentConfig: CompletionConfig = {
   backend: BackendType.ELASTICSEARCH,
 };
+
+// Dynamic options for path parameter completions
+let dynamicOptions: DynamicCompletionOptions = {};
 
 /**
  * Set the completion configuration (backend and version)
@@ -41,6 +63,20 @@ export const setCompletionConfig = (config: CompletionConfig): void => {
  */
 export const getCompletionConfig = (): CompletionConfig => {
   return currentConfig;
+};
+
+/**
+ * Set dynamic completion options (indices, repositories, templates from connected database)
+ */
+export const setDynamicOptions = (options: DynamicCompletionOptions): void => {
+  dynamicOptions = options;
+};
+
+/**
+ * Get current dynamic completion options
+ */
+export const getDynamicOptions = (): DynamicCompletionOptions => {
+  return dynamicOptions;
 };
 
 /**
@@ -247,6 +283,55 @@ const provideMethodCompletions = (): monaco.languages.CompletionItem[] => {
 };
 
 /**
+ * Get default value for a path parameter based on dynamic options
+ */
+const getPathParamDefault = (paramName: string): string => {
+  const lowerParam = paramName.toLowerCase();
+  
+  // Use activeIndex for index placeholders
+  if (lowerParam === 'index') {
+    if (dynamicOptions.activeIndex) {
+      return dynamicOptions.activeIndex;
+    }
+    // Fallback to first available index if no active index
+    if (dynamicOptions.indices && dynamicOptions.indices.length > 0) {
+      return dynamicOptions.indices[0];
+    }
+  }
+  
+  // Use first available repository for repository placeholders
+  if (lowerParam === 'repository') {
+    if (dynamicOptions.repositories && dynamicOptions.repositories.length > 0) {
+      return dynamicOptions.repositories[0];
+    }
+  }
+  
+  // Use first available template for template placeholders
+  if (lowerParam === 'template') {
+    if (dynamicOptions.templates && dynamicOptions.templates.length > 0) {
+      return dynamicOptions.templates[0];
+    }
+  }
+  
+  // Use first available pipeline for pipeline placeholders
+  if (lowerParam === 'pipeline') {
+    if (dynamicOptions.pipelines && dynamicOptions.pipelines.length > 0) {
+      return dynamicOptions.pipelines[0];
+    }
+  }
+  
+  // Use first available alias for alias placeholders
+  if (lowerParam === 'alias') {
+    if (dynamicOptions.aliases && dynamicOptions.aliases.length > 0) {
+      return dynamicOptions.aliases[0];
+    }
+  }
+  
+  // Return original param name as default
+  return paramName;
+};
+
+/**
  * Provide path completions based on API spec
  */
 const providePathCompletions = (
@@ -261,36 +346,48 @@ const providePathCompletions = (
     ? endpoints.filter(e => e.methods.includes(method))
     : endpoints;
 
+  // Determine if user started path with slash or not
+  const userTypedPath = path || '';
+  const userStartedWithSlash = userTypedPath.startsWith('/');
+  
+  // Normalize path for comparison (remove leading slash)
+  const normalizedUserPath = userTypedPath.replace(/^\//, '');
+
   // Get unique path segments
-  const pathPrefix = path || '/';
   const seenPaths = new Set<string>();
   const completions: monaco.languages.CompletionItem[] = [];
 
   for (const endpoint of filteredEndpoints) {
-    // Generate completion based on current path prefix
-    let insertText = endpoint.path;
+    // Normalize endpoint path for comparison
+    const normalizedEndpointPath = endpoint.path.replace(/^\//, '');
     
     // If user has typed part of the path, filter appropriately
-    if (pathPrefix && pathPrefix !== '/' && !endpoint.path.startsWith(pathPrefix)) {
-      // Check for partial match
-      if (!pathStartsWithPattern(endpoint.path, pathPrefix)) {
+    if (normalizedUserPath) {
+      // Check if endpoint path starts with what user typed (case-insensitive prefix match)
+      if (!pathStartsWithPattern('/' + normalizedEndpointPath, '/' + normalizedUserPath)) {
         continue;
       }
     }
 
-    // Avoid duplicates
-    if (seenPaths.has(insertText)) continue;
-    seenPaths.add(insertText);
+    // Determine the label and insert text based on user's slash preference
+    // If user started with slash, keep the slash; otherwise, omit it
+    const label = userStartedWithSlash ? endpoint.path : normalizedEndpointPath;
+    const insertPath = userStartedWithSlash ? endpoint.path : normalizedEndpointPath;
 
-    // Convert path params to snippets
-    let snippetText = insertText;
+    // Avoid duplicates
+    if (seenPaths.has(label)) continue;
+    seenPaths.add(label);
+
+    // Convert path params to snippets with dynamic defaults
+    let snippetText = insertPath;
     let snippetIndex = 1;
     snippetText = snippetText.replace(/\{([^}]+)\}/g, (_match, param) => {
-      return `\${${snippetIndex++}:${param}}`;
+      const defaultValue = getPathParamDefault(param);
+      return `\${${snippetIndex++}:${defaultValue}}`;
     });
 
     completions.push({
-      label: insertText,
+      label,
       kind: monaco.languages.CompletionItemKind.Function,
       insertText: snippetText,
       insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
@@ -298,7 +395,7 @@ const providePathCompletions = (
       documentation: endpoint.docUrl
         ? { value: `[Documentation](${endpoint.docUrl})`, isTrusted: true }
         : undefined,
-      sortText: '1' + insertText,
+      sortText: '1' + label,
       range,
     });
   }
@@ -625,7 +722,6 @@ const getAggregationTypes = (): Array<{ name: string; snippet: string; descripti
 const getPathRange = (
   model: monaco.editor.ITextModel,
   position: monaco.Position,
-  typedPath: string,
 ): monaco.Range => {
   const lineContent = model.getLineContent(position.lineNumber);
   
@@ -677,7 +773,7 @@ export const grammarCompletionProvider = (
       break;
     case 'path': {
       // Use a custom range for path completions to avoid duplication
-      const pathRange = getPathRange(model, position, context.path || '');
+      const pathRange = getPathRange(model, position);
       suggestions = providePathCompletions(context, pathRange);
       break;
     }

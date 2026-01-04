@@ -6,6 +6,7 @@
  * - Query DSL completions with version-aware filtering
  * - Backend-specific endpoint suggestions
  * - Smart context-aware completions in Monaco Editor
+ * - Dynamic completions from connected database (indices, repositories, templates)
  */
 
 export * from './types';
@@ -16,5 +17,8 @@ export {
   grammarCompletionProvider,
   setCompletionConfig,
   getCompletionConfig,
+  setDynamicOptions,
+  getDynamicOptions,
   type CompletionConfig,
+  type DynamicCompletionOptions,
 } from './completionProvider';

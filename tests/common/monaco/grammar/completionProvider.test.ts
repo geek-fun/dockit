@@ -5,6 +5,8 @@ import * as monaco from 'monaco-editor';
 import {
   grammarCompletionProvider,
   setCompletionConfig,
+  setDynamicOptions,
+  getDynamicOptions,
   BackendType,
 } from '../../../../src/common/monaco/grammar/completionProvider';
 
@@ -33,6 +35,7 @@ jest.mock('monaco-editor', () => ({
       Function: 1,
       Property: 9,
       Class: 5,
+      Value: 12,
     },
     CompletionItemInsertTextRule: {
       None: 0,
@@ -47,6 +50,8 @@ describe('grammarCompletionProvider', () => {
       backend: BackendType.ELASTICSEARCH,
       version: '8.0.0',
     });
+    // Reset dynamic options
+    setDynamicOptions({});
   });
 
   describe('body completions', () => {
@@ -121,6 +126,123 @@ describe('grammarCompletionProvider', () => {
         typeof s.label === 'string' && s.label.includes('_cat')
       );
       expect(catPaths.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('path completions without leading slash', () => {
+    it('should preserve user style without leading slash', () => {
+      const text = `GET _cat/`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 10 }; // After '_cat/'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      // Completions should match user's style (no leading slash)
+      const labels = result.suggestions.map(s => s.label);
+      // Check that _cat paths are provided without leading slash
+      const catIndicesPath = labels.find(l => 
+        typeof l === 'string' && l.includes('_cat/indices')
+      );
+      expect(catIndicesPath).toBeDefined();
+      // Should not start with /
+      expect(catIndicesPath?.startsWith('/')).toBeFalsy();
+    });
+
+    it('should preserve user style with leading slash', () => {
+      const text = `GET /_cat/`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 11 }; // After '/_cat/'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      // Completions should match user's style (with leading slash)
+      const labels = result.suggestions.map(s => s.label);
+      // Check that _cat paths are provided with leading slash
+      const catIndicesPath = labels.find(l => 
+        typeof l === 'string' && l.includes('_cat/indices')
+      );
+      expect(catIndicesPath).toBeDefined();
+      // Should start with /
+      expect(catIndicesPath?.startsWith('/')).toBeTruthy();
+    });
+  });
+
+  describe('dynamic options', () => {
+    it('should set and get dynamic options', () => {
+      setDynamicOptions({
+        activeIndex: 'my-active-index',
+        indices: ['index-1', 'index-2', 'my-active-index'],
+        repositories: ['backup-repo'],
+        templates: ['logs-template'],
+      });
+
+      const options = getDynamicOptions();
+      expect(options.activeIndex).toBe('my-active-index');
+      expect(options.indices).toEqual(['index-1', 'index-2', 'my-active-index']);
+      expect(options.repositories).toEqual(['backup-repo']);
+      expect(options.templates).toEqual(['logs-template']);
+    });
+
+    it('should use activeIndex as default for {index} placeholder', () => {
+      setDynamicOptions({
+        activeIndex: 'my-active-index',
+        indices: ['index-1', 'index-2', 'my-active-index'],
+      });
+
+      const text = `GET _search`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 12 }; // After '_search'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      // Find the /{index}/_search completion
+      const indexSearchCompletion = result.suggestions.find(s =>
+        typeof s.label === 'string' && s.label.includes('{index}/_search')
+      );
+      
+      expect(indexSearchCompletion).toBeDefined();
+      // The insertText should contain the active index as default
+      expect(indexSearchCompletion?.insertText).toContain('my-active-index');
+    });
+
+    it('should use first index when no activeIndex is set', () => {
+      setDynamicOptions({
+        indices: ['index-1', 'index-2'],
+      });
+
+      const text = `GET _search`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 12 }; // After '_search'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      // Find the /{index}/_search completion
+      const indexSearchCompletion = result.suggestions.find(s =>
+        typeof s.label === 'string' && s.label.includes('{index}/_search')
+      );
+      
+      expect(indexSearchCompletion).toBeDefined();
+      // The insertText should contain the first index as default
+      expect(indexSearchCompletion?.insertText).toContain('index-1');
+    });
+
+    it('should fallback to param name when no indices are available', () => {
+      setDynamicOptions({});
+
+      const text = `GET _search`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 12 }; // After '_search'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      // Find the /{index}/_search completion
+      const indexSearchCompletion = result.suggestions.find(s =>
+        typeof s.label === 'string' && s.label.includes('{index}/_search')
+      );
+      
+      expect(indexSearchCompletion).toBeDefined();
+      // The insertText should contain 'index' as default placeholder
+      expect(indexSearchCompletion?.insertText).toMatch(/\$\{\d+:index\}/);
     });
   });
 });
