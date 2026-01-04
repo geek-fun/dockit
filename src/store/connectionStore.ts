@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { buildAuthHeader, buildURL, CustomError, pureObject } from '../common';
 import { lang } from '../lang';
-import { SearchAction, transformToCurl } from '../common/monaco';
+import { SearchAction, transformToCurl, configureDynamicOptions } from '../common/monaco';
 import {
   AttributeDefinition,
   dynamoApi,
@@ -240,6 +240,12 @@ export const useConnectionStore = defineStore('connectionStore', {
           },
           store: { size: index['store.size'] },
         })) as ElasticSearchIndex[];
+
+        // Update dynamic completion options with fetched indices
+        configureDynamicOptions({
+          activeIndex: connection.activeIndex?.index,
+          indices: connection.indices.map(i => i.index),
+        });
       }
       if (connection.type === DatabaseType.DYNAMODB) {
         const tableInfo = await dynamoApi.describeTable(con as DynamoDBConnection);
@@ -262,6 +268,12 @@ export const useConnectionStore = defineStore('connectionStore', {
         ({ index }: { index: string }) => index === indexName,
       );
       connection.activeIndex = { ...activeIndex, mapping } as ElasticSearchIndex;
+
+      // Update dynamic completion options with the selected index
+      configureDynamicOptions({
+        activeIndex: indexName,
+        indices: connection.indices?.map(i => i.index) ?? [],
+      });
     },
     async searchQDSL(
       con: Connection,
