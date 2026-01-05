@@ -822,8 +822,13 @@ const getRootBodyFields = (path?: string, method?: HttpMethod): Array<{ label: s
   }
 
   // Check if this is an index creation (PUT /{index}) or mapping/settings endpoint
-  // An index creation is typically PUT /index_name without any underscore prefixed endpoint
-  const isIndexCreation = method === 'PUT' && path && !path.includes('_') && /^\/[^/]+$/.test(path.replace(/^\/+/, '/'));
+  // An index creation is typically PUT /index_name (path that doesn't start with _ after the leading /)
+  const normalizedPath = path?.replace(/^\/+/, '') || '';
+  const pathSegments = normalizedPath.split('/').filter(Boolean);
+  const isIndexCreation = method === 'PUT' && 
+    pathSegments.length === 1 && 
+    !pathSegments[0].startsWith('_');
+  
   if (isIndexCreation || path?.includes('_mapping') || path?.includes('_settings')) {
     return getIndexBodyFields();
   }

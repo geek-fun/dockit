@@ -245,6 +245,111 @@ describe('grammarCompletionProvider', () => {
       expect(indexSearchCompletion?.insertText).toMatch(/\$\{\d+:index\}/);
     });
   });
+
+  describe('index creation body completions', () => {
+    it('should provide settings and mappings fields for PUT /index', () => {
+      const text = `PUT /test_index
+{
+  s
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 4 }; // Position at 's'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('settings');
+      expect(labels).toContain('mappings');
+      expect(labels).toContain('aliases');
+    });
+
+    it('should provide settings fields inside settings block', () => {
+      const text = `PUT /test_index
+{
+  settings: {
+    n
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 6 }; // Position at 'n'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('number_of_shards');
+      expect(labels).toContain('number_of_replicas');
+    });
+  });
+
+  describe('index name completions', () => {
+    it('should provide index names when typing path', () => {
+      setDynamicOptions({
+        indices: ['test_index', 'logs_index', 'metrics_index'],
+      });
+
+      const text = `GET test_`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 10 }; // After 'test_'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('test_index');
+    });
+
+    it('should not provide index names when path starts with _', () => {
+      setDynamicOptions({
+        indices: ['test_index', 'logs_index'],
+      });
+
+      const text = `GET _cat`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 9 }; // After '_cat'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('test_index');
+      expect(labels).not.toContain('logs_index');
+    });
+  });
+
+  describe('endpoint completions after index name', () => {
+    it('should provide endpoints after index name with slash', () => {
+      const text = `GET test_index/`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 16 }; // After '/'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      // Should contain index-specific endpoints
+      const searchPath = labels.find(l => 
+        typeof l === 'string' && l.includes('_search')
+      );
+      expect(searchPath).toBeDefined();
+    });
+
+    it('should prioritize _search endpoints in path completions', () => {
+      const text = `GET _`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 6 }; // After '_'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      // Find _search related completions
+      const searchCompletions = result.suggestions.filter(s =>
+        typeof s.label === 'string' && s.label.includes('_search')
+      );
+      
+      expect(searchCompletions.length).toBeGreaterThan(0);
+      
+      // Check that _search completions have a lower sortText (higher priority)
+      for (const completion of searchCompletions) {
+        expect(completion.sortText?.startsWith('0')).toBeTruthy();
+      }
+    });
+  });
 });
 
 /**
