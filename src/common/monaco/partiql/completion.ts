@@ -34,7 +34,10 @@ const createCompletionItem = (
 });
 
 /**
- * Analyze the context to determine what completions to provide
+ * Analyze the context to determine what completions to provide.
+ * Note: This is a simplified context analysis for basic PartiQL statements.
+ * For complex nested queries, a full parser would be more accurate, but for
+ * common DynamoDB PartiQL use cases (single table queries), this heuristic works well.
  */
 const analyzeContext = (
   textBefore: string,
@@ -51,13 +54,19 @@ const analyzeContext = (
   const words = upperText.split(/\s+/);
   const lastWord = words[words.length - 1] || '';
 
+  // Find the position of key keywords to determine context
+  const lastFromIndex = upperText.lastIndexOf('FROM');
+  const lastWhereIndex = upperText.lastIndexOf('WHERE');
+  const lastSelectIndex = upperText.lastIndexOf('SELECT');
+
   return {
     needsKeyword: !lastWord || /^[A-Z]*$/i.test(lastWord),
-    afterFrom: upperText.includes('FROM') && !upperText.includes('WHERE'),
-    afterWhere:
-      upperText.includes('WHERE') ||
-      (upperText.includes('AND') && upperText.lastIndexOf('AND') > upperText.lastIndexOf('FROM')),
-    afterSelect: upperText.includes('SELECT') && !upperText.includes('FROM'),
+    // After FROM but before WHERE (table name context)
+    afterFrom: lastFromIndex > -1 && (lastWhereIndex === -1 || lastFromIndex > lastWhereIndex),
+    // After WHERE keyword (condition context)
+    afterWhere: lastWhereIndex > -1 && lastWhereIndex > lastFromIndex,
+    // After SELECT but before FROM (column selection context)
+    afterSelect: lastSelectIndex > -1 && (lastFromIndex === -1 || lastSelectIndex > lastFromIndex),
     afterInsert: upperText.includes('INSERT INTO') && !upperText.includes('VALUE'),
     afterUpdate: upperText.includes('UPDATE') && !upperText.includes('SET'),
     afterSet:

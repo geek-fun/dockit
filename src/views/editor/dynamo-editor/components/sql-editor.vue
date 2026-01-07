@@ -362,7 +362,11 @@ const setupEditor = () => {
     editor!.trigger('keyboard', 'editor.unfoldRecursively', {});
   });
 
-  // Save file (Ctrl+S or Cmd+S on Windows)
+  /**
+   * Save file (Ctrl+S or Cmd+S on Windows only)
+   * On macOS and Linux, the OS handles Cmd+S/Ctrl+S natively via the saveFile event
+   * @see https://github.com/tauri-apps/wry/issues/451
+   */
   if (platform() === 'windows') {
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       saveModelContent(true, true, true);

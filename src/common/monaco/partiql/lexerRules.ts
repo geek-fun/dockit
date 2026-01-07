@@ -54,7 +54,7 @@ export const partiql = {
         [/'/, { token: 'string.quote', bracket: '@open', next: '@string' }],
 
         // Double-quoted identifiers
-        [/"/, { token: 'string.delimeter', bracket: '@open', next: '@doubleQuotedIdentifier' }],
+        [/"/, { token: 'string.delimiter', bracket: '@open', next: '@doubleQuotedIdentifier' }],
       ],
 
       string: [
@@ -68,7 +68,7 @@ export const partiql = {
         [/[^\\"]+/, 'identifier'],
         [/@escapes/, 'string.escape'],
         [/\\./, 'string.escape.invalid'],
-        [/"/, { token: 'string.delimeter', bracket: '@close', next: '@pop' }],
+        [/"/, { token: 'string.delimiter', bracket: '@close', next: '@pop' }],
       ],
 
       whitespace: [
