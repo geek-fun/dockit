@@ -277,7 +277,6 @@ const dynamoApi = {
     }
     return data;
   },
-
   deleteItem: async (con: DynamoDBConnection, keys: DynamoAttributeItem[]) => {
     const credentials = {
       region: con.region,
