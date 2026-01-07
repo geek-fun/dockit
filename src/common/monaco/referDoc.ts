@@ -1,4 +1,4 @@
-import { ActionType, EngineType, SearchAction } from './';
+import { ActionType, EngineType, SearchAction } from './type';
 
 export const defaultCodeSnippet = '';
 
