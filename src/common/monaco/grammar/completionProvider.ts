@@ -821,6 +821,18 @@ const getRootBodyFields = (path?: string, method?: HttpMethod): Array<{ label: s
     ];
   }
 
+  // Check if this is an aliases endpoint (/_aliases or ends with /_aliases)
+  const normalizedPathForAliases = path?.replace(/^\/+/, '') || '';
+  if (normalizedPathForAliases === '_aliases' || normalizedPathForAliases.endsWith('/_aliases')) {
+    return [
+      {
+        label: 'actions',
+        snippet: 'actions: [\n\t{\n\t\t${1|add,remove,remove_index|}: {\n\t\t\tindex: "${2:index_name}",\n\t\t\talias: "${3:alias_name}"\n\t\t}\n\t}\n]',
+        description: 'Actions to perform on aliases (add, remove, remove_index)',
+      },
+    ];
+  }
+
   // Check if this is an index creation (PUT /{index}) or mapping/settings endpoint
   // An index creation is typically PUT /index_name (path that doesn't start with _ after the leading /)
   const normalizedPath = path?.replace(/^\/+/, '') || '';

@@ -4,6 +4,7 @@ import { lang } from '../lang';
 import { SearchAction, transformToCurl, configureDynamicOptions } from '../common/monaco';
 import {
   AttributeDefinition,
+  DynamoAttributeItem,
   dynamoApi,
   DynamoIndex,
   KeySchema,
@@ -88,6 +89,7 @@ const globalPathActions = [
   '_snapshot',
   '_tasks',
   '_analyze',
+  '_aliases',
 ];
 
 const buildPath = (
@@ -352,15 +354,20 @@ export const useConnectionStore = defineStore('connectionStore', {
         : await dynamoApi.scanTable(con, queryParams);
     },
 
-    async createItem(
-      con: DynamoDBConnection,
-      attributes: Array<{
-        key: string;
-        value: string | number | boolean | null;
-        type: string;
-      }>,
-    ) {
+    async createItem(con: DynamoDBConnection, attributes: DynamoAttributeItem[]) {
       return await dynamoApi.createItem(con, attributes);
+    },
+
+    async updateItem(
+      con: DynamoDBConnection,
+      keys: DynamoAttributeItem[],
+      attributes: DynamoAttributeItem[],
+    ) {
+      return await dynamoApi.updateItem(con, keys, attributes);
+    },
+
+    async deleteItem(con: DynamoDBConnection, keys: DynamoAttributeItem[]) {
+      return await dynamoApi.deleteItem(con, keys);
     },
   },
 });
