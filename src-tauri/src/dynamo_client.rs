@@ -1,5 +1,6 @@
 use crate::dynamo::create_item::{create_item, CreateItemInput};
 use crate::dynamo::describe_table::describe_table;
+use crate::dynamo::execute_statement::{execute_statement, ExecuteStatementInput};
 use crate::dynamo::query_table::{query_table, QueryTableInput};
 use crate::dynamo::scan_table::{scan_table, ScanTableInput};
 use crate::dynamo::types::ApiResponse;
@@ -96,6 +97,42 @@ pub async fn dynamo_api(
                 Ok(ApiResponse {
                     status: 400,
                     message: "Scan parameters are required".to_string(),
+                    data: None,
+                })
+            }
+        }
+        "EXECUTE_STATEMENT" => {
+            if let Some(payload) = &options.payload {
+                let statement = payload
+                    .get("statement")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("");
+                let next_token = payload
+                    .get("next_token")
+                    .and_then(|t| t.as_str());
+                let limit = payload
+                    .get("limit")
+                    .and_then(|l| l.as_i64())
+                    .map(|l| l as i32);
+
+                if statement.is_empty() {
+                    Ok(ApiResponse {
+                        status: 400,
+                        message: "PartiQL statement is required".to_string(),
+                        data: None,
+                    })
+                } else {
+                    let input = ExecuteStatementInput {
+                        statement,
+                        next_token,
+                        limit,
+                    };
+                    execute_statement(&client, input).await
+                }
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "PartiQL statement payload is required".to_string(),
                     data: None,
                 })
             }

@@ -9,6 +9,7 @@ import {
   configureDynamicOptions,
   BackendType,
 } from './completion.ts';
+import { registerPartiqlLanguage } from './partiql';
 
 // Only assign MonacoEnvironment if 'self' is defined (browser or web worker)
 if (typeof self !== 'undefined') {
@@ -32,6 +33,9 @@ monaco.languages.registerCompletionItemProvider(search.id, {
   // resolveCompletionItem: searchResolveCompletionItem,
 });
 
+// Register PartiQL language for DynamoDB queries
+registerPartiqlLanguage();
+
 export * from './type.ts';
 export { monaco, executeActions };
 export * from './tokenlizer.ts';
@@ -49,3 +53,11 @@ export type { DynamicCompletionOptions } from './completion.ts';
 
 // Export grammar module for advanced usage
 export * as grammar from './grammar';
+
+// Export PartiQL module for DynamoDB queries
+export * as partiql from './partiql';
+export {
+  setPartiqlDynamicOptions,
+  partiqlSampleQueries,
+} from './partiql';
+export type { PartiqlDynamicOptions } from './partiql';

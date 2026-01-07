@@ -90,6 +90,18 @@ export type QueryResult = {
   last_evaluated_key: Record<string, any> | null; // Pagination token
 };
 
+export type PartiQLResult = {
+  items: Record<string, unknown>[]; // Dynamic items from DynamoDB
+  count: number; // Number of items returned
+  next_token: string | null; // Pagination token for PartiQL
+};
+
+export type PartiQLParams = {
+  statement: string;
+  nextToken?: string | null;
+  limit?: number;
+};
+
 const dynamoApi = {
   describeTable: async ({
     region,
@@ -211,6 +223,35 @@ const dynamoApi = {
       throw new CustomError(status, message);
     }
     return data as QueryResult;
+  },
+
+  executeStatement: async (
+    con: DynamoDBConnection,
+    params: PartiQLParams,
+  ): Promise<PartiQLResult> => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+
+    const options = {
+      table_name: con.tableName,
+      operation: 'EXECUTE_STATEMENT',
+      payload: {
+        statement: params.statement,
+        next_token: params.nextToken,
+        limit: params.limit,
+      },
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+
+    return data as PartiQLResult;
   },
 };
 
