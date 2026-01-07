@@ -22,9 +22,9 @@
       </template>
       <template v-else>
         <div class="es-editor">
-          <tool-bar type="ES_EDITOR" />
+          <tool-bar type="ES_EDITOR" @insert-sample-query="handleInsertSampleQuery" />
           <div class="es-editor-container">
-            <es-editor />
+            <es-editor ref="esEditorRef" />
           </div>
         </div>
       </template>
@@ -50,6 +50,12 @@ const lang = useLang();
 const tabStore = useTabStore();
 const { establishPanel, closePanel, setActivePanel, checkFileExists } = tabStore;
 const { panels, activePanel } = storeToRefs(tabStore);
+
+const esEditorRef = ref<InstanceType<typeof EsEditor> | null>(null);
+
+const handleInsertSampleQuery = (query: string) => {
+  esEditorRef.value?.insertSampleQuery(query);
+};
 
 const tabPanelHandler = async ({
   action,

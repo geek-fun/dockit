@@ -1,5 +1,5 @@
 <template>
-  <n-split direction="horizontal" class="partiql-editor" v-model:size="editorSize">
+  <n-split direction="vertical" class="partiql-editor" v-model:size="editorSize">
     <template #1>
       <div class="editor-container">
         <div class="editor-toolbar">
@@ -34,7 +34,7 @@
       </div>
     </template>
     <template #2>
-      <div class="result-container">
+      <div class="result-container" v-show="showResultPanel">
         <n-card
           v-if="errorMessage"
           class="error-card"
@@ -59,7 +59,7 @@
               :columns="resultColumns"
               :data="queryResult.items"
               :max-height="400"
-              :scroll-x="800"
+              :scroll-x="tableScrollWidth"
               virtual-scroll
             />
           </div>
@@ -73,11 +73,6 @@
             </n-button>
           </template>
         </n-card>
-        <n-empty
-          v-else
-          :description="$t('editor.dynamo.partiql.noResults')"
-          class="empty-state"
-        />
       </div>
     </template>
   </n-split>
@@ -113,13 +108,13 @@ const { activePanel, activeConnection } = storeToRefs(tabStore);
 
 let editor: Editor | null = null;
 const editorRef = ref<HTMLElement>();
-const editorSize = ref(0.6);
+const editorSize = ref(1);
+const showResultPanel = ref(false);
 const loadingRef = ref(false);
 const errorMessage = ref<string | null>(null);
 const queryResult = ref<PartiQLResult | null>(null);
 const currentNextToken = ref<string | null>(null);
 
-// Sample query options for dropdown
 const sampleQueryOptions = computed(() => [
   {
     label: lang.t('editor.dynamo.partiql.sampleSelectPk'),
@@ -147,11 +142,9 @@ const sampleQueryOptions = computed(() => [
   },
 ]);
 
-// Generate columns dynamically from query results
 const resultColumns = computed<DataTableColumn[]>(() => {
   if (!queryResult.value?.items?.length) return [];
 
-  // Collect all unique keys from all items
   const allKeys = new Set<string>();
   queryResult.value.items.forEach(item => {
     Object.keys(item).forEach(key => allKeys.add(key));
@@ -160,7 +153,8 @@ const resultColumns = computed<DataTableColumn[]>(() => {
   return Array.from(allKeys).map(key => ({
     title: key,
     key,
-    ellipsis: { tooltip: true },
+    minWidth: 120,
+    resizable: true,
     render: (row: Record<string, unknown>) => {
       const value = row[key];
       if (value === null || value === undefined) return '-';
@@ -170,14 +164,17 @@ const resultColumns = computed<DataTableColumn[]>(() => {
   }));
 });
 
-// Insert sample query into editor
+const tableScrollWidth = computed(() => {
+  const columnCount = resultColumns.value.length;
+  return Math.max(800, columnCount * 150);
+});
+
 const insertSampleQuery = (key: string) => {
   if (!editor) return;
 
   const query = partiqlSampleQueries[key as keyof typeof partiqlSampleQueries];
   if (!query) return;
 
-  // Replace tablename with actual table name if connection is active
   let queryText = query;
   if (activeConnection.value) {
     const con = activeConnection.value as DynamoDBConnection;
@@ -186,28 +183,28 @@ const insertSampleQuery = (key: string) => {
 
   const model = editor.getModel();
   if (model) {
-    const position = editor.getPosition();
-    if (position) {
-      model.pushEditOperations(
-        [],
-        [
-          {
-            range: new monaco.Range(
-              position.lineNumber,
-              position.column,
-              position.lineNumber,
-              position.column,
-            ),
-            text: queryText,
-          },
-        ],
-        () => null,
-      );
-    }
+    const currentValue = model.getValue();
+    const insertText = currentValue.trim() ? '\n\n' + queryText : queryText;
+    const lineCount = model.getLineCount();
+    const lastLineLength = model.getLineLength(lineCount);
+
+    model.pushEditOperations(
+      [],
+      [
+        {
+          range: new monaco.Range(lineCount, lastLineLength + 1, lineCount, lastLineLength + 1),
+          text: insertText,
+        },
+      ],
+      () => null,
+    );
+
+    const newLineCount = model.getLineCount();
+    editor.setPosition({ lineNumber: newLineCount, column: 1 });
+    editor.revealLine(newLineCount);
   }
 };
 
-// Execute the PartiQL query
 const executeQuery = async () => {
   if (!editor || !activeConnection.value) {
     message.error(lang.t('editor.establishedRequired'), {
@@ -227,6 +224,8 @@ const executeQuery = async () => {
   errorMessage.value = null;
   queryResult.value = null;
   currentNextToken.value = null;
+  showResultPanel.value = true;
+  editorSize.value = 0.5;
 
   try {
     const result = await dynamoApi.executeStatement(
@@ -235,7 +234,6 @@ const executeQuery = async () => {
     );
     queryResult.value = result;
     currentNextToken.value = result.next_token;
-    editorSize.value = 0.5;
   } catch (err) {
     const error = err as CustomError;
     errorMessage.value = error.details || error.message || String(err);
@@ -248,7 +246,6 @@ const executeQuery = async () => {
   }
 };
 
-// Load more results with pagination
 const loadMore = async () => {
   if (!editor || !activeConnection.value || !currentNextToken.value) return;
 
@@ -284,7 +281,6 @@ const loadMore = async () => {
   }
 };
 
-// Save content to file
 const saveModelContent = async (
   validateFile: boolean,
   displayError: boolean,
@@ -458,7 +454,7 @@ onUnmounted(async () => {
   .result-container {
     width: 100%;
     height: 100%;
-    border-left: 1px solid var(--border-color);
+    border-top: 1px solid var(--border-color);
     overflow: auto;
 
     .error-card {
@@ -473,13 +469,6 @@ onUnmounted(async () => {
         height: calc(100% - 60px);
         overflow: auto;
       }
-    }
-
-    .empty-state {
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
   }
 }

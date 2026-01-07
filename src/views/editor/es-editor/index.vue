@@ -48,7 +48,7 @@ const lang = useLang();
 
 const tabStore = useTabStore();
 const { saveContent } = tabStore;
-const { activePanel, defaultSnippet, activeConnection } = storeToRefs(tabStore);
+const { activePanel, defaultSnippet, activeConnection, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
 const { searchQDSL, queryToCurl } = connectionStore;
@@ -424,6 +424,43 @@ const cleanupFileListener = async () => {
     await saveFileListener.value();
   }
 };
+
+const insertSampleQuery = (queryTemplate: string) => {
+  if (!queryEditor) return;
+
+  const model = queryEditor.getModel();
+  if (!model) return;
+
+  let query = queryTemplate;
+  const selectedIndex = activeElasticsearchIndexOption.value?.[0]?.value;
+  if (selectedIndex) {
+    query = queryTemplate.replace(/\{index\}/g, selectedIndex);
+  }
+
+  const currentValue = model.getValue();
+  const insertText = currentValue.trim() ? '\n\n' + query : query;
+  const lineCount = model.getLineCount();
+  const lastLineLength = model.getLineLength(lineCount);
+
+  model.pushEditOperations(
+    [],
+    [
+      {
+        range: new monaco.Range(lineCount, lastLineLength + 1, lineCount, lastLineLength + 1),
+        text: insertText,
+      },
+    ],
+    () => null,
+  );
+
+  const newLineCount = model.getLineCount();
+  queryEditor.setPosition({ lineNumber: newLineCount, column: 1 });
+  queryEditor.revealLine(newLineCount);
+};
+
+defineExpose({
+  insertSampleQuery,
+});
 
 onMounted(async () => {
   setupQueryEditor();

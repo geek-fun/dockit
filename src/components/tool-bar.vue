@@ -52,16 +52,26 @@
       Hide/Display system indices
     </n-tooltip>
 
-    <n-tooltip v-if="props.type === 'ES_EDITOR'" trigger="hover">
-      <template #trigger>
-        <n-icon size="20" class="action-load-icon" @click="loadDefaultSnippet">
-          <AiStatus />
-        </n-icon>
-      </template>
-      {{ $t('editor.loadDefault') }}
-    </n-tooltip>
+    <n-dropdown
+      v-if="props.type === 'ES_EDITOR'"
+      trigger="click"
+      :options="esSampleQueryOptions"
+      @select="handleEsSampleSelect"
+    >
+      <n-button quaternary size="small" class="sample-btn">
+        <template #icon>
+          <n-icon><Code /></n-icon>
+        </template>
+        {{ $t('editor.sampleQueries') }}
+      </n-button>
+    </n-dropdown>
+
     <n-button-group v-if="props.type === 'DYNAMO_EDITOR'">
-      <n-button quaternary @click="handleEditorSwitch('DYNAMO_EDITOR_UI')">
+      <n-button
+        :quaternary="activePanel.editorType !== 'DYNAMO_EDITOR_UI'"
+        :type="activePanel.editorType === 'DYNAMO_EDITOR_UI' ? 'primary' : 'default'"
+        @click="handleEditorSwitch('DYNAMO_EDITOR_UI')"
+      >
         <template #icon>
           <n-icon>
             <Template />
@@ -69,7 +79,11 @@
         </template>
         {{ $t('editor.dynamo.uiQuery') }}
       </n-button>
-      <n-button quaternary @click="handleEditorSwitch('DYNAMO_EDITOR_SQL')">
+      <n-button
+        :quaternary="activePanel.editorType !== 'DYNAMO_EDITOR_SQL'"
+        :type="activePanel.editorType === 'DYNAMO_EDITOR_SQL' ? 'primary' : 'default'"
+        @click="handleEditorSwitch('DYNAMO_EDITOR_SQL')"
+      >
         <template #icon>
           <n-icon>
             <Code />
@@ -77,7 +91,11 @@
         </template>
         {{ $t('editor.dynamo.sqlEditor') }}
       </n-button>
-      <n-button quaternary @click="handleEditorSwitch('DYNAMO_EDITOR_CREATE_ITEM')">
+      <n-button
+        :quaternary="activePanel.editorType !== 'DYNAMO_EDITOR_CREATE_ITEM'"
+        :type="activePanel.editorType === 'DYNAMO_EDITOR_CREATE_ITEM' ? 'primary' : 'default'"
+        @click="handleEditorSwitch('DYNAMO_EDITOR_CREATE_ITEM')"
+      >
         <template #icon>
           <n-icon>
             <Add />
@@ -103,14 +121,15 @@
 </template>
 
 <script setup lang="ts">
-import { Add, AiStatus, Search, Code, Template } from '@vicons/carbon';
+import { Add, Search, Code, Template } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { useClusterManageStore, useConnectionStore, useTabStore } from '../store';
 import { useLang } from '../lang';
 import { CustomError, inputProps } from '../common';
+import { esSampleQueries } from '../common/monaco';
 
 const props = defineProps({ type: String });
-const emits = defineEmits(['switch-manage-tab']);
+const emits = defineEmits(['switch-manage-tab', 'insert-sample-query']);
 
 const message = useMessage();
 const lang = useLang();
@@ -120,7 +139,7 @@ const { fetchConnections, fetchIndices, selectIndex } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
-const { loadDefaultSnippet, selectConnection } = tabStore;
+const { selectConnection } = tabStore;
 const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
@@ -136,6 +155,35 @@ const selectionState = ref<{ connection: boolean; index: boolean }>({
 });
 
 const hideSystemIndicesRef = ref(true);
+
+const esSampleQueryOptions = computed(() => [
+  { label: lang.t('editor.es.sampleClusterHealth'), key: 'clusterHealth' },
+  { label: lang.t('editor.es.sampleClusterStats'), key: 'clusterStats' },
+  { label: lang.t('editor.es.sampleCatIndices'), key: 'catIndices' },
+  { label: lang.t('editor.es.sampleNodesInfo'), key: 'nodesInfo' },
+  { type: 'divider', key: 'd1' },
+  { label: lang.t('editor.es.sampleSearch'), key: 'search' },
+  { label: lang.t('editor.es.sampleMatchSearch'), key: 'matchSearch' },
+  { label: lang.t('editor.es.sampleCount'), key: 'count' },
+  { type: 'divider', key: 'd2' },
+  { label: lang.t('editor.es.sampleCreateIndex'), key: 'createIndex' },
+  { label: lang.t('editor.es.sampleDeleteIndex'), key: 'deleteIndex' },
+  { label: lang.t('editor.es.sampleGetMapping'), key: 'getMapping' },
+  { label: lang.t('editor.es.samplePutMapping'), key: 'putMapping' },
+  { type: 'divider', key: 'd3' },
+  { label: lang.t('editor.es.sampleIndexDocument'), key: 'indexDocument' },
+  { label: lang.t('editor.es.sampleGetDocument'), key: 'getDocument' },
+  { label: lang.t('editor.es.sampleUpdateDocument'), key: 'updateDocument' },
+  { label: lang.t('editor.es.sampleDeleteDocument'), key: 'deleteDocument' },
+  { label: lang.t('editor.es.sampleBulk'), key: 'bulkOperation' },
+]);
+
+const handleEsSampleSelect = (key: string) => {
+  const query = esSampleQueries[key as keyof typeof esSampleQueries];
+  if (query) {
+    emits('insert-sample-query', query);
+  }
+};
 
 watch(
   () => props.type,
@@ -281,11 +329,8 @@ const handleEditorSwitch = async (
   border-right: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);
 
-  .action-load-icon {
-    cursor: pointer;
-    padding: 0;
+  .sample-btn {
     margin-left: 10px;
-    line-height: 40px;
   }
 
   .action-index-switch {
