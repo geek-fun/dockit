@@ -1,4 +1,5 @@
-import { dsqlTree, getKeywordsFromDsqlTree } from './dsql';
+import { allQueries, type QueryDef } from './grammar/queryDsl';
+import { BodyProperty } from './grammar/types';
 
 const methods = ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH', 'TRACE'];
 const paths = [
@@ -36,8 +37,70 @@ const paths = [
   '_shards:',
 ];
 
-const dsqlKeywords = getKeywordsFromDsqlTree(dsqlTree);
+/**
+ * Extract keywords from query definitions
+ */
+const getKeywordsFromQueries = (queries: { [key: string]: QueryDef }): string[] => {
+  const keywords: string[] = [];
 
-const keywords = Array.from(new Set([...methods, ...paths, ...dsqlKeywords])).filter(Boolean);
+  const extractFromProperties = (properties?: { [key: string]: BodyProperty }): void => {
+    if (!properties) return;
+    for (const [key, prop] of Object.entries(properties)) {
+      if (key !== '*') {
+        keywords.push(key);
+      }
+      if (prop.properties) {
+        extractFromProperties(prop.properties);
+      }
+    }
+  };
+
+  for (const [name, query] of Object.entries(queries)) {
+    keywords.push(name);
+    extractFromProperties(query.properties);
+  }
+
+  return keywords;
+};
+
+// Common search body keywords
+const searchBodyKeywords = [
+  'query',
+  'from',
+  'size',
+  'aggs',
+  'sort',
+  'type',
+  'version',
+  'min_score',
+  'fields',
+  'script_fields',
+  'partial_fields',
+  'highlight',
+  '_source',
+  'track_total_hits',
+  'explain',
+  'stored_fields',
+  'docvalue_fields',
+  'seq_no_primary_term',
+  'timeout',
+  'terminate_after',
+  'track_scores',
+  'collapse',
+  'suggest',
+  'search_after',
+  'rescore',
+  'pit',
+  'runtime_mappings',
+  'stats',
+  'indices_boost',
+  'slice',
+];
+
+const queryKeywords = getKeywordsFromQueries(allQueries);
+
+const keywords = Array.from(
+  new Set([...methods, ...paths, ...searchBodyKeywords, ...queryKeywords]),
+).filter(Boolean);
 
 export { keywords, paths };
