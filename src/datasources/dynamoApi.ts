@@ -12,6 +12,13 @@ export type AttributeDefinition = {
   attributeType: string; // Values like "S", "N", "B", etc.
 };
 
+// Shared type for DynamoDB attribute items used in create/update/delete operations
+export type DynamoAttributeItem = {
+  key: string;
+  value: string | number | boolean | null;
+  type: string;
+};
+
 export enum DynamoIndexType {
   GSI = 'GSI',
   LSI = 'LSI',
@@ -186,14 +193,7 @@ const dynamoApi = {
 
     return data as QueryResult;
   },
-  createItem: async (
-    con: DynamoDBConnection,
-    attributes: Array<{
-      key: string;
-      value: string | number | boolean | null;
-      type: string;
-    }>,
-  ) => {
+  createItem: async (con: DynamoDBConnection, attributes: DynamoAttributeItem[]) => {
     const credentials = {
       region: con.region,
       access_key_id: con.accessKeyId,
@@ -211,6 +211,48 @@ const dynamoApi = {
       throw new CustomError(status, message);
     }
     return data as QueryResult;
+  },
+  updateItem: async (
+    con: DynamoDBConnection,
+    keys: DynamoAttributeItem[],
+    attributes: DynamoAttributeItem[],
+  ) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+    const options = {
+      table_name: con.tableName,
+      operation: 'UPDATE_ITEM',
+      payload: { keys, attributes },
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+    return data;
+  },
+  deleteItem: async (con: DynamoDBConnection, keys: DynamoAttributeItem[]) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+    const options = {
+      table_name: con.tableName,
+      operation: 'DELETE_ITEM',
+      payload: { keys },
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+    return data;
   },
 };
 
