@@ -34,46 +34,18 @@
       </div>
     </template>
     <template #2>
-      <div class="result-container" v-show="showResultPanel">
-        <n-card
-          v-if="errorMessage"
-          class="error-card"
-          :title="$t('editor.dynamo.partiql.error')"
-        >
-          <n-text type="error">{{ errorMessage }}</n-text>
-        </n-card>
-        <n-card
-          v-else-if="queryResult"
-          :title="$t('editor.dynamo.resultTitle')"
-          class="result-card"
-        >
-          <template #header-extra>
-            <n-text depth="3">
-              {{ $t('editor.dynamo.partiql.itemsReturned', { count: queryResult.count }) }}
-            </n-text>
-          </template>
-          <div class="table-container">
-            <n-data-table
-              :bordered="false"
-              :single-line="false"
-              :columns="resultColumns"
-              :data="queryResult.items"
-              :max-height="400"
-              :scroll-x="tableScrollWidth"
-              virtual-scroll
-            />
-          </div>
-          <template #footer v-if="queryResult.next_token">
-            <n-button
-              size="small"
-              @click="loadMore"
-              :loading="loadingRef"
-            >
-              {{ $t('editor.dynamo.partiql.loadMore') }}
-            </n-button>
-          </template>
-        </n-card>
-      </div>
+      <result-panel
+        v-show="showResultPanel"
+        :error-message="errorMessage"
+        :has-data="!!queryResult"
+        :columns="resultColumns"
+        :data="queryResult?.items ?? []"
+        :item-count="queryResult?.count"
+        :scroll-x="tableScrollWidth"
+        :loading="loadingRef"
+        :has-next-token="!!queryResult?.next_token"
+        @load-more="loadMore"
+      />
     </template>
   </n-split>
 </template>
@@ -94,6 +66,7 @@ import {
   partiqlSampleQueries,
 } from '../../../../common/monaco';
 import { useLang } from '../../../../lang';
+import ResultPanel from './result-panel.vue';
 
 const lang = useLang();
 const message = useMessage();
@@ -448,27 +421,6 @@ onUnmounted(async () => {
       flex: 1;
       width: 100%;
       height: 0;
-    }
-  }
-
-  .result-container {
-    width: 100%;
-    height: 100%;
-    border-top: 1px solid var(--border-color);
-    overflow: auto;
-
-    .error-card {
-      margin: 12px;
-    }
-
-    .result-card {
-      margin: 12px;
-      height: calc(100% - 24px);
-
-      .table-container {
-        height: calc(100% - 60px);
-        overflow: auto;
-      }
     }
   }
 }
