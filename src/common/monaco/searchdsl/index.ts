@@ -1,13 +1,8 @@
-/**
- * Grammar-driven completion engine for Elasticsearch/OpenSearch
- * 
- * This module provides:
- * - Spec-driven API completions for both Elasticsearch and OpenSearch
- * - Query DSL completions with version-aware filtering
- * - Backend-specific endpoint suggestions
- * - Smart context-aware completions in Monaco Editor
- * - Dynamic completions from connected database (indices, repositories, templates)
- */
+import * as monaco from 'monaco-editor';
+import { search } from '../lexerRules';
+import {
+  searchCompletionProvider,
+} from '../completion';
 
 export * from './types';
 export * from './lexer';
@@ -22,3 +17,20 @@ export {
   type CompletionConfig,
   type DynamicCompletionOptions,
 } from './completionProvider';
+
+export const registerSearchLanguage = (): void => {
+  monaco.languages.register({ id: search.id });
+  monaco.languages.setMonarchTokensProvider(
+    search.id,
+    search.rules as monaco.languages.IMonarchLanguage,
+  );
+  monaco.languages.setLanguageConfiguration(
+    search.id,
+    search.languageConfiguration as monaco.languages.LanguageConfiguration,
+  );
+  monaco.languages.registerCompletionItemProvider(search.id, {
+    triggerCharacters: ['g', 'p', 'd', '"', "'", ' ', '/', '_', ':'],
+    // @ts-ignore
+    provideCompletionItems: searchCompletionProvider,
+  });
+};

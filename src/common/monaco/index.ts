@@ -1,15 +1,16 @@
-import * as monaco from 'monaco-editor';
 import { typescript } from 'monaco-editor';
 
-import { executeActions, search } from './lexerRules.ts';
+import { executeActions } from './lexerRules.ts';
 import { monacoEnvironment } from './environment.ts';
 import {
-  searchCompletionProvider,
   configureCompletions,
   configureDynamicOptions,
   BackendType,
 } from './completion.ts';
 import { registerPartiqlLanguage } from './partiql';
+import { registerSearchLanguage } from './searchdsl';
+
+export { monaco } from 'monaco-editor';
 
 if (typeof self !== 'undefined') {
   self.MonacoEnvironment = monacoEnvironment;
@@ -17,28 +18,11 @@ if (typeof self !== 'undefined') {
 
 typescript.typescriptDefaults.setEagerModelSync(true);
 
-const registerSearchLanguage = (): void => {
-  monaco.languages.register({ id: search.id });
-  monaco.languages.setMonarchTokensProvider(
-    search.id,
-    search.rules as monaco.languages.IMonarchLanguage,
-  );
-  monaco.languages.setLanguageConfiguration(
-    search.id,
-    search.languageConfiguration as monaco.languages.LanguageConfiguration,
-  );
-  monaco.languages.registerCompletionItemProvider(search.id, {
-    triggerCharacters: ['g', 'p', 'd', '"', "'", ' ', '/', '_', ':'],
-    // @ts-ignore
-    provideCompletionItems: searchCompletionProvider,
-  });
-};
-
 registerSearchLanguage();
 registerPartiqlLanguage();
 
 export * from './type.ts';
-export { monaco, executeActions };
+export { executeActions };
 export * from './tokenlizer.ts';
 export * from './referDoc.ts';
 

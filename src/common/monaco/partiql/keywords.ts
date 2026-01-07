@@ -1,10 +1,3 @@
-/**
- * PartiQL Keywords and Constants
- * Based on AWS PartiQL specification for DynamoDB
- * https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/ql-reference.html
- */
-
-// DML statements
 const dmlKeywords = [
   'SELECT',
   'INSERT',
@@ -19,7 +12,6 @@ const dmlKeywords = [
   'VALUES',
 ];
 
-// Clauses
 const clauseKeywords = [
   'AND',
   'OR',
@@ -42,7 +34,6 @@ const clauseKeywords = [
   'FALSE',
 ];
 
-// Aggregate and built-in functions
 const functions = [
   'COUNT',
   'SUM',
@@ -57,7 +48,6 @@ const functions = [
   'CONTAINS',
 ];
 
-// DynamoDB specific
 const dynamoSpecific = [
   'RETURNING',
   'ALL_OLD',
@@ -66,7 +56,6 @@ const dynamoSpecific = [
   'MODIFIED_NEW',
 ];
 
-// Data types
 const dataTypes = ['STRING', 'NUMBER', 'BINARY', 'BOOLEAN', 'LIST', 'MAP', 'SS', 'NS', 'BS'];
 
 export const partiqlKeywords = [
@@ -77,7 +66,6 @@ export const partiqlKeywords = [
   ...dataTypes,
 ].map(k => k.toUpperCase());
 
-// Export categories for structured autocompletion
 export const partiqlKeywordCategories = {
   dml: dmlKeywords,
   clauses: clauseKeywords,
