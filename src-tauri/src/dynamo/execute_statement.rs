@@ -62,10 +62,15 @@ pub async fn execute_statement(
             })
         }
         Err(e) => {
-            let error_message = format!("PartiQL execution failed: {}", e);
+            let error_code = e.code().unwrap_or("UnknownError").to_string();
+            let error_message = e.message().unwrap_or("Unknown error occurred").to_string();
+
             Ok(ApiResponse {
                 status: 400,
-                message: error_message,
+                message: format!(
+                    "PartiQL execution failed\n\nError Code: {}\nMessage: {}",
+                    error_code, error_message
+                ),
                 data: None,
             })
         }
