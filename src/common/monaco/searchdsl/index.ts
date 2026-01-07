@@ -1,5 +1,5 @@
 import type { languages } from 'monaco-editor'
-import { search } from '../lexerRules';
+import { search, executeActions } from './lexerRules';
 import {
   searchCompletionProvider,
 } from '../completion';
@@ -9,6 +9,7 @@ export * from './types';
 export * from './lexer';
 export * from './apiSpec';
 export * from './queryDsl';
+
 export {
   grammarCompletionProvider,
   setCompletionConfig,
@@ -19,7 +20,7 @@ export {
   type DynamicCompletionOptions,
 } from './completionProvider';
 
-export const registerSearchLanguage = (monaco: typeof import('monaco-editor')): void => {
+const registerSearchLanguage = (monaco: typeof import('monaco-editor')): void => {
   monaco.languages.register({ id: search.id });
   monaco.languages.setMonarchTokensProvider(
     search.id,
@@ -35,3 +36,5 @@ export const registerSearchLanguage = (monaco: typeof import('monaco-editor')): 
     provideCompletionItems: searchCompletionProvider,
   });
 };
+
+export { registerSearchLanguage, executeActions };

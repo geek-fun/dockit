@@ -6,9 +6,8 @@ import {
   DynamicCompletionOptions
 } from './completion.ts';
 import { monacoEnvironment } from './environment.ts';
-import { executeActions } from './lexerRules.ts';
 import { registerPartiqlLanguage, partiqlSampleQueries, setPartiqlDynamicOptions } from './partiql';
-import { registerSearchLanguage } from './searchdsl';
+import { registerSearchLanguage, executeActions } from './searchdsl';
 
 if (typeof self !== 'undefined') {
   self.MonacoEnvironment = monacoEnvironment;
