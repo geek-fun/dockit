@@ -156,25 +156,26 @@ const insertSampleQuery = (key: string) => {
 
   const model = editor.getModel();
   if (model) {
-    const currentValue = model.getValue();
-    const insertText = currentValue.trim() ? '\n\n' + queryText : queryText;
-    const lineCount = model.getLineCount();
-    const lastLineLength = model.getLineLength(lineCount);
+    const position = editor.getPosition();
+    if (!position) return;
+
+    const currentLineLength = model.getLineLength(position.lineNumber);
+    const insertText = '\n\n' + queryText;
 
     model.pushEditOperations(
       [],
       [
         {
-          range: new monaco.Range(lineCount, lastLineLength + 1, lineCount, lastLineLength + 1),
+          range: new monaco.Range(position.lineNumber, currentLineLength + 1, position.lineNumber, currentLineLength + 1),
           text: insertText,
         },
       ],
       () => null,
     );
 
-    const newLineCount = model.getLineCount();
-    editor.setPosition({ lineNumber: newLineCount, column: 1 });
-    editor.revealLine(newLineCount);
+    const newLineNumber = position.lineNumber + 2;
+    editor.setPosition({ lineNumber: newLineNumber, column: 1 });
+    editor.revealLine(newLineNumber);
   }
 };
 

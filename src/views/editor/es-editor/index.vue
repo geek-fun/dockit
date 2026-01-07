@@ -437,25 +437,26 @@ const insertSampleQuery = (queryTemplate: string) => {
     query = queryTemplate.replace(/\{index\}/g, selectedIndex);
   }
 
-  const currentValue = model.getValue();
-  const insertText = currentValue.trim() ? '\n\n' + query : query;
-  const lineCount = model.getLineCount();
-  const lastLineLength = model.getLineLength(lineCount);
+  const position = queryEditor.getPosition();
+  if (!position) return;
+
+  const currentLineLength = model.getLineLength(position.lineNumber);
+  const insertText = '\n\n' + query;
 
   model.pushEditOperations(
     [],
     [
       {
-        range: new monaco.Range(lineCount, lastLineLength + 1, lineCount, lastLineLength + 1),
+        range: new monaco.Range(position.lineNumber, currentLineLength + 1, position.lineNumber, currentLineLength + 1),
         text: insertText,
       },
     ],
     () => null,
   );
 
-  const newLineCount = model.getLineCount();
-  queryEditor.setPosition({ lineNumber: newLineCount, column: 1 });
-  queryEditor.revealLine(newLineCount);
+  const newLineNumber = position.lineNumber + 2;
+  queryEditor.setPosition({ lineNumber: newLineNumber, column: 1 });
+  queryEditor.revealLine(newLineNumber);
 };
 
 defineExpose({
