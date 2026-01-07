@@ -1,4 +1,4 @@
-use crate::common::json_utils::build_attribute_value;
+use crate::common::json_utils::convert_json_to_attr_value;
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::Client;
 use serde_json::Value;
@@ -37,8 +37,7 @@ pub async fn delete_item(
             key_attr.get("value"),
             key_attr.get("type").and_then(|v| v.as_str()),
         ) {
-            let attr_value = build_attribute_value(value, attr_type);
-            if let Some(av) = attr_value {
+            if let Some(av) = convert_json_to_attr_value(value, attr_type) {
                 delete_item = delete_item.key(key, av);
             }
         }

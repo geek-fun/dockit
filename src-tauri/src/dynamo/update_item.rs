@@ -1,4 +1,4 @@
-use crate::common::json_utils::build_attribute_value;
+use crate::common::json_utils::convert_json_to_attr_value;
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::types::AttributeValue;
 use aws_sdk_dynamodb::Client;
@@ -45,8 +45,7 @@ pub async fn update_item(
             key_attr.get("value"),
             key_attr.get("type").and_then(|v| v.as_str()),
         ) {
-            let attr_value = build_attribute_value(value, attr_type);
-            if let Some(av) = attr_value {
+            if let Some(av) = convert_json_to_attr_value(value, attr_type) {
                 update_item = update_item.key(key, av);
             }
         }
@@ -70,7 +69,7 @@ pub async fn update_item(
 
             expression_attribute_names.insert(name_placeholder.clone(), key.to_string());
 
-            if let Some(av) = build_attribute_value(value, attr_type) {
+            if let Some(av) = convert_json_to_attr_value(value, attr_type) {
                 expression_attribute_values.insert(value_placeholder.clone(), av);
                 update_expression_parts.push(format!("{} = {}", name_placeholder, value_placeholder));
             }
