@@ -1,5 +1,10 @@
 <template>
-  <n-modal v-model:show="showModal" preset="dialog" :title="$t('editor.dynamo.editItemTitle')">
+  <n-modal
+    v-model:show="showModal"
+    preset="dialog"
+    :title="$t('editor.dynamo.editItemTitle')"
+    style="width: 900px"
+  >
     <n-form
       ref="editFormRef"
       :model="editForm"
