@@ -1,4 +1,4 @@
-import { typescript } from 'monaco-editor';
+import * as monaco from 'monaco-editor';
 
 import { executeActions } from './lexerRules.ts';
 import { monacoEnvironment } from './environment.ts';
@@ -10,16 +10,15 @@ import {
 import { registerPartiqlLanguage } from './partiql';
 import { registerSearchLanguage } from './searchdsl';
 
-export { monaco } from 'monaco-editor';
 
 if (typeof self !== 'undefined') {
   self.MonacoEnvironment = monacoEnvironment;
 }
 
-typescript.typescriptDefaults.setEagerModelSync(true);
+monaco.typescript.typescriptDefaults.setEagerModelSync(true);
 
-registerSearchLanguage();
-registerPartiqlLanguage();
+registerSearchLanguage(monaco);
+registerPartiqlLanguage(monaco);
 
 export * from './type.ts';
 export { executeActions };
@@ -33,7 +32,6 @@ export {
 };
 
 export type { DynamicCompletionOptions } from './completion.ts';
-
 export * as searchdsl from './searchdsl';
 
 export * as partiql from './partiql';
@@ -42,3 +40,5 @@ export {
   partiqlSampleQueries,
 } from './partiql';
 export type { PartiqlDynamicOptions } from './partiql';
+
+export { monaco };

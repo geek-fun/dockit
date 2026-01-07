@@ -1,4 +1,4 @@
-import * as monaco from 'monaco-editor';
+import type { editor, Position } from 'monaco-editor';
 import {
   grammarCompletionProvider,
   setCompletionConfig,
@@ -24,8 +24,8 @@ export const configureCompletions = (config: {
 export const configureDynamicOptions = setDynamicOptions;
 
 export const searchCompletionProvider = (
-  model: monaco.editor.ITextModel,
-  position: monaco.Position,
+  model: editor.ITextModel,
+  position: Position,
 ) => {
   return grammarCompletionProvider(model, position);
 };

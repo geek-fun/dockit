@@ -1,4 +1,4 @@
-import * as monaco from 'monaco-editor';
+import type { languages } from 'monaco-editor'
 import { search } from '../lexerRules';
 import {
   searchCompletionProvider,
@@ -18,15 +18,15 @@ export {
   type DynamicCompletionOptions,
 } from './completionProvider';
 
-export const registerSearchLanguage = (): void => {
+const registerSearchLanguage = (monaco: typeof import('monaco-editor')): void => {
   monaco.languages.register({ id: search.id });
   monaco.languages.setMonarchTokensProvider(
     search.id,
-    search.rules as monaco.languages.IMonarchLanguage,
+    search.rules as languages.IMonarchLanguage,
   );
   monaco.languages.setLanguageConfiguration(
     search.id,
-    search.languageConfiguration as monaco.languages.LanguageConfiguration,
+    search.languageConfiguration as languages.LanguageConfiguration,
   );
   monaco.languages.registerCompletionItemProvider(search.id, {
     triggerCharacters: ['g', 'p', 'd', '"', "'", ' ', '/', '_', ':'],
@@ -34,3 +34,5 @@ export const registerSearchLanguage = (): void => {
     provideCompletionItems: searchCompletionProvider,
   });
 };
+
+export { registerSearchLanguage };
