@@ -281,6 +281,54 @@ describe('grammarCompletionProvider', () => {
     });
   });
 
+  describe('aliases endpoint body completions', () => {
+    it('should provide actions field for POST /_aliases', () => {
+      const text = `POST /_aliases
+{
+  a
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 4 }; // Position at 'a'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('actions');
+    });
+
+    it('should provide actions field for POST _aliases (without leading slash)', () => {
+      const text = `POST _aliases
+{
+  a
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 4 }; // Position at 'a'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('actions');
+    });
+
+    it('should provide actions snippet with add template', () => {
+      const text = `POST /_aliases
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 }; // Position inside body
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const actionsSuggestion = result.suggestions.find(s => s.label === 'actions');
+      expect(actionsSuggestion).toBeDefined();
+      expect(actionsSuggestion?.insertText).toContain('actions');
+      expect(actionsSuggestion?.insertText).toContain('add');
+      expect(actionsSuggestion?.insertText).toContain('index');
+      expect(actionsSuggestion?.insertText).toContain('alias');
+    });
+  });
+
   describe('index name completions', () => {
     it('should provide index names when typing path', () => {
       setDynamicOptions({
