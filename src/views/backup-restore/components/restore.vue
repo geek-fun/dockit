@@ -227,8 +227,9 @@ const handleOpen = async (isOpen: boolean, target: string) => {
           duration: 3000,
         },
       );
+    } finally {
+      loadingRefs.value.index = false;
     }
-    loadingRefs.value.index = false;
   }
 };
 
