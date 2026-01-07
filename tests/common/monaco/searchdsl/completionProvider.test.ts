@@ -8,7 +8,7 @@ import {
   setDynamicOptions,
   getDynamicOptions,
   BackendType,
-} from '../../../../src/common/monaco/grammar/completionProvider';
+} from '../../../../src/common/monaco/searchdsl/completionProvider';
 
 // Mock monaco.Range
 jest.mock('monaco-editor', () => ({

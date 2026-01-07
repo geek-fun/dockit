@@ -1,8 +1,8 @@
 /**
  * Tests for the grammar lexer
  */
-import { SearchLexer, tokenize, getTokensAtLine, findTokenAtPosition } from '../../../../src/common/monaco/grammar/lexer';
-import { TokenType } from '../../../../src/common/monaco/grammar/types';
+import { SearchLexer, tokenize, getTokensAtLine, findTokenAtPosition } from '../../../../src/common/monaco/searchdsl/lexer';
+import { TokenType } from '../../../../src/common/monaco/searchdsl/types';
 
 describe('SearchLexer', () => {
   describe('tokenize', () => {

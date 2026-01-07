@@ -1,8 +1,8 @@
 /**
  * Tests for the API specification provider
  */
-import { ApiSpecProvider, apiSpecProvider } from '../../../../src/common/monaco/grammar/apiSpec';
-import { BackendType } from '../../../../src/common/monaco/grammar/types';
+import { ApiSpecProvider, apiSpecProvider } from '../../../../src/common/monaco/searchdsl/apiSpec';
+import { BackendType } from '../../../../src/common/monaco/searchdsl/types';
 
 describe('ApiSpecProvider', () => {
   describe('getEndpoints', () => {

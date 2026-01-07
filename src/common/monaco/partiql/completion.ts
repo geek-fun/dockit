@@ -1,13 +1,7 @@
-/**
- * PartiQL Completion Provider
- * Provides intelligent autocomplete for PartiQL queries in DynamoDB
- */
-
 import * as monaco from 'monaco-editor';
 import { partiqlKeywordCategories } from './keywords';
 import { getPartiqlDynamicOptions } from './utils';
 
-// Re-export utilities from utils.ts
 export {
   setPartiqlDynamicOptions,
   getPartiqlDynamicOptions,
@@ -15,9 +9,6 @@ export {
 } from './utils';
 export type { PartiqlDynamicOptions } from './utils';
 
-/**
- * Create a completion item
- */
 const createCompletionItem = (
   label: string,
   kind: monaco.languages.CompletionItemKind,
@@ -33,12 +24,6 @@ const createCompletionItem = (
   range: range as monaco.IRange,
 });
 
-/**
- * Analyze the context to determine what completions to provide.
- * Note: This is a simplified context analysis for basic PartiQL statements.
- * For complex nested queries, a full parser would be more accurate, but for
- * common DynamoDB PartiQL use cases (single table queries), this heuristic works well.
- */
 const analyzeContext = (
   textBefore: string,
 ): {
@@ -54,18 +39,14 @@ const analyzeContext = (
   const words = upperText.split(/\s+/);
   const lastWord = words[words.length - 1] || '';
 
-  // Find the position of key keywords to determine context
   const lastFromIndex = upperText.lastIndexOf('FROM');
   const lastWhereIndex = upperText.lastIndexOf('WHERE');
   const lastSelectIndex = upperText.lastIndexOf('SELECT');
 
   return {
     needsKeyword: !lastWord || /^[A-Z]*$/i.test(lastWord),
-    // After FROM but before WHERE (table name context)
     afterFrom: lastFromIndex > -1 && (lastWhereIndex === -1 || lastFromIndex > lastWhereIndex),
-    // After WHERE keyword (condition context)
     afterWhere: lastWhereIndex > -1 && lastWhereIndex > lastFromIndex,
-    // After SELECT but before FROM (column selection context)
     afterSelect: lastSelectIndex > -1 && (lastFromIndex === -1 || lastSelectIndex > lastFromIndex),
     afterInsert: upperText.includes('INSERT INTO') && !upperText.includes('VALUE'),
     afterUpdate: upperText.includes('UPDATE') && !upperText.includes('SET'),
@@ -75,9 +56,6 @@ const analyzeContext = (
   };
 };
 
-/**
- * PartiQL completion provider for Monaco Editor
- */
 export const partiqlCompletionProvider = (
   model: monaco.editor.ITextModel,
   position: monaco.Position,
@@ -91,7 +69,6 @@ export const partiqlCompletionProvider = (
     endColumn: word.endColumn,
   };
 
-  // Get text before cursor for context analysis
   const textBefore = model.getValueInRange({
     startLineNumber: 1,
     startColumn: 1,
@@ -102,7 +79,6 @@ export const partiqlCompletionProvider = (
   const context = analyzeContext(textBefore);
   const dynamicOptions = getPartiqlDynamicOptions();
 
-  // DML keywords
   if (context.needsKeyword) {
     partiqlKeywordCategories.dml.forEach(keyword => {
       suggestions.push(
@@ -116,7 +92,6 @@ export const partiqlCompletionProvider = (
       );
     });
 
-    // Clause keywords
     partiqlKeywordCategories.clauses.forEach(keyword => {
       suggestions.push(
         createCompletionItem(
@@ -130,7 +105,6 @@ export const partiqlCompletionProvider = (
     });
   }
 
-  // Table names after FROM, INSERT INTO, UPDATE
   if (context.afterFrom || context.afterInsert || context.afterUpdate) {
     if (dynamicOptions.tableNames) {
       dynamicOptions.tableNames.forEach(tableName => {
@@ -145,7 +119,6 @@ export const partiqlCompletionProvider = (
         );
       });
     }
-    // Also suggest active table if set
     if (dynamicOptions.activeTable) {
       suggestions.push(
         createCompletionItem(
@@ -159,7 +132,6 @@ export const partiqlCompletionProvider = (
     }
   }
 
-  // Attribute keys after SELECT or WHERE or SET
   if (context.afterSelect || context.afterWhere || context.afterSet) {
     if (dynamicOptions.attributeKeys) {
       dynamicOptions.attributeKeys.forEach(attrKey => {
@@ -176,7 +148,6 @@ export const partiqlCompletionProvider = (
     }
   }
 
-  // Functions
   partiqlKeywordCategories.functions.forEach(fn => {
     suggestions.push(
       createCompletionItem(
@@ -189,7 +160,6 @@ export const partiqlCompletionProvider = (
     );
   });
 
-  // Data types for type checking functions
   partiqlKeywordCategories.dataTypes.forEach(type => {
     suggestions.push(
       createCompletionItem(

@@ -1,3 +1,4 @@
+use crate::common::json_utils::convert_attr_value_to_json;
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::Client;
 use serde_json::{json, Value};
@@ -9,65 +10,11 @@ pub struct ExecuteStatementInput<'a> {
     pub limit: Option<i32>,
 }
 
-/// Convert DynamoDB AttributeValue to JSON
-fn attribute_value_to_json(av: &aws_sdk_dynamodb::types::AttributeValue) -> Value {
-    match av {
-        aws_sdk_dynamodb::types::AttributeValue::S(s) => json!(s),
-        aws_sdk_dynamodb::types::AttributeValue::N(n) => {
-            // Try to parse as integer first, then as float
-            if let Ok(i) = n.parse::<i64>() {
-                json!(i)
-            } else if let Ok(f) = n.parse::<f64>() {
-                json!(f)
-            } else {
-                json!(n)
-            }
-        }
-        aws_sdk_dynamodb::types::AttributeValue::Bool(b) => json!(b),
-        aws_sdk_dynamodb::types::AttributeValue::Null(_) => Value::Null,
-        aws_sdk_dynamodb::types::AttributeValue::M(m) => {
-            let obj: serde_json::Map<String, Value> = m
-                .iter()
-                .map(|(k, v)| (k.clone(), attribute_value_to_json(v)))
-                .collect();
-            Value::Object(obj)
-        }
-        aws_sdk_dynamodb::types::AttributeValue::L(l) => {
-            Value::Array(l.iter().map(attribute_value_to_json).collect())
-        }
-        aws_sdk_dynamodb::types::AttributeValue::Ss(ss) => {
-            Value::Array(ss.iter().map(|s| json!(s)).collect())
-        }
-        aws_sdk_dynamodb::types::AttributeValue::Ns(ns) => {
-            Value::Array(ns.iter().map(|n| {
-                if let Ok(i) = n.parse::<i64>() {
-                    json!(i)
-                } else if let Ok(f) = n.parse::<f64>() {
-                    json!(f)
-                } else {
-                    json!(n)
-                }
-            }).collect())
-        }
-        aws_sdk_dynamodb::types::AttributeValue::B(b) => {
-            json!(base64::Engine::encode(&base64::engine::general_purpose::STANDARD, b.as_ref()))
-        }
-        aws_sdk_dynamodb::types::AttributeValue::Bs(bs) => {
-            Value::Array(
-                bs.iter()
-                    .map(|b| json!(base64::Engine::encode(&base64::engine::general_purpose::STANDARD, b.as_ref())))
-                    .collect(),
-            )
-        }
-        _ => Value::Null,
-    }
-}
-
 /// Convert DynamoDB item to JSON object
 fn item_to_json(item: &std::collections::HashMap<String, aws_sdk_dynamodb::types::AttributeValue>) -> Value {
     let obj: serde_json::Map<String, Value> = item
         .iter()
-        .map(|(k, v)| (k.clone(), attribute_value_to_json(v)))
+        .map(|(k, v)| (k.clone(), convert_attr_value_to_json(v)))
         .collect();
     Value::Object(obj)
 }
