@@ -821,12 +821,13 @@ const getRootBodyFields = (path?: string, method?: HttpMethod): Array<{ label: s
     ];
   }
 
-  // Check if this is an aliases endpoint
-  if (path?.includes('_aliases')) {
+  // Check if this is an aliases endpoint (/_aliases or ends with /_aliases)
+  const normalizedPathForAliases = path?.replace(/^\/+/, '') || '';
+  if (normalizedPathForAliases === '_aliases' || normalizedPathForAliases.endsWith('/_aliases')) {
     return [
       {
         label: 'actions',
-        snippet: 'actions: [\n\t{\n\t\tadd: {\n\t\t\tindex: "${1:index_name}",\n\t\t\talias: "${2:alias_name}"\n\t\t}\n\t}\n]',
+        snippet: 'actions: [\n\t{\n\t\t${1|add,remove,remove_index|}: {\n\t\t\tindex: "${2:index_name}",\n\t\t\talias: "${3:alias_name}"\n\t\t}\n\t}\n]',
         description: 'Actions to perform on aliases (add, remove, remove_index)',
       },
     ];

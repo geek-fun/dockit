@@ -310,7 +310,7 @@ describe('grammarCompletionProvider', () => {
       expect(labels).toContain('actions');
     });
 
-    it('should provide actions snippet with add template', () => {
+    it('should provide actions snippet with action type choices', () => {
       const text = `POST /_aliases
 {
   
@@ -323,9 +323,27 @@ describe('grammarCompletionProvider', () => {
       const actionsSuggestion = result.suggestions.find(s => s.label === 'actions');
       expect(actionsSuggestion).toBeDefined();
       expect(actionsSuggestion?.insertText).toContain('actions');
-      expect(actionsSuggestion?.insertText).toContain('add');
+      // The snippet should have choice syntax for action types
+      expect(actionsSuggestion?.insertText).toContain('add,remove,remove_index');
       expect(actionsSuggestion?.insertText).toContain('index');
       expect(actionsSuggestion?.insertText).toContain('alias');
+    });
+
+    it('should not provide actions field for paths that just contain _aliases in the name', () => {
+      // This tests that 'my_aliases_index/_search' does NOT get _aliases completions
+      const text = `POST my_aliases_index/_search
+{
+  q
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 4 }; // Position at 'q'
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      // Should provide search fields, not actions
+      expect(labels).toContain('query');
+      expect(labels).not.toContain('actions');
     });
   });
 
