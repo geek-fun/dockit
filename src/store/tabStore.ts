@@ -62,10 +62,12 @@ export const useTabStore = defineStore('panel', {
           panelItem => panelItem.connection?.id === connectionOrFile.id,
         );
 
+        const isDynamoDB = connectionOrFile.type === DatabaseType.DYNAMODB;
+        const fileExt = isDynamoDB ? '.partiql' : '.search';
         let fileName = !exists.length
-          ? `${connectionOrFile.name}.search`
-          : `${connectionOrFile.name}-${exists.length}.search`;
-        let content = defaultCodeSnippet;
+          ? `${connectionOrFile.name}${fileExt}`
+          : `${connectionOrFile.name}-${exists.length}${fileExt}`;
+        let content = isDynamoDB ? '' : defaultCodeSnippet;
 
         const fileInfo = await sourceFileApi.getPathInfo(fileName);
         if (fileInfo) {
@@ -77,6 +79,7 @@ export const useTabStore = defineStore('panel', {
           connection: connectionOrFile,
           file: fileInfo?.path,
           content,
+          editorType: isDynamoDB ? 'DYNAMO_EDITOR_SQL' : undefined,
         };
 
         this.panels.push(newPanel);

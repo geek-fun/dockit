@@ -1,5 +1,6 @@
-import { allQueries, type QueryDef } from './grammar/queryDsl';
-import { BodyProperty } from './grammar/types';
+import { allQueries, QueryDef } from './queryDsl';
+import { BodyProperty } from './types';
+
 
 const methods = ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH', 'TRACE'];
 const paths = [

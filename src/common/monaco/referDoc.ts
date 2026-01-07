@@ -1,110 +1,60 @@
-import { ActionType, EngineType, SearchAction } from './';
+import { ActionType, EngineType, SearchAction } from './type';
 
-export const defaultCodeSnippet = `
-// Cluster Health
-GET _cluster/health
+export const defaultCodeSnippet = '';
 
-// Cluster State
-GET _cluster/stats
-// Nodes Info
-GET _nodes
-// Nodes Info
-GET _nodes/event-es-8-node
-
-// Nodes Info
-GET _nodes
-
-// Create Index
-PUT dockit_sample_index
-
-// Delete Index
-DELETE dockit_sample_index
-
-
-// Get Mapping
-GET dockit_sample_index/_mapping
-
-GET dockit_sample_index/_search
+export const esSampleQueries = {
+  clusterHealth: `GET _cluster/health`,
+  clusterStats: `GET _cluster/stats`,
+  catIndices: `GET _cat/indices`,
+  nodesInfo: `GET _nodes`,
+  search: `GET {index}/_search
 {
   query: {
-    // support comments
     match_all: {}
   }
-}
-
-// Put Mapping
-
-PUT dockit_sample_index/_mapping
-{
-  properties: {
-    name: {
-      type: 'text',
-    }
-  }
-}
-// Aliases
-POST _aliases
-{
-  actions: [
-    {
-      add: {
-        index: 'dockit_sample_index',
-        alias: 'dockit_sample_index_alias'
-      }
-    }
-  ]
-}
-
-// Indexing Documents
-POST dockit_sample_index/_doc/1
-{
-  name: 'Elasticsearch',
-  category: 'Search Engine'
-}
-
-// Searching
-POST dockit_sample_index/_search
+}`,
+  matchSearch: `POST {index}/_search
 {
   query: {
     match: {
-      name: 'Elasticsearch'
+      field_name: "search_text"
     }
   }
-}
-
-// Count
-POST dockit_sample_index/_count
+}`,
+  createIndex: `PUT {index}`,
+  deleteIndex: `DELETE {index}`,
+  getMapping: `GET {index}/_mapping`,
+  putMapping: `PUT {index}/_mapping
 {
-  query: {
-    term: {
-      'category.keyword': 'Search Engine'
+  properties: {
+    field_name: {
+      type: "text"
     }
   }
-}
-
-// Get Document
-GET dockit_sample_index/_doc/1
-
-// Update Document
-POST dockit_sample_index/_update/1
+}`,
+  indexDocument: `POST {index}/_doc/1
+{
+  field_name: "value"
+}`,
+  getDocument: `GET {index}/_doc/1`,
+  updateDocument: `POST {index}/_update/1
 {
   doc: {
-    category: 'Search Engine'
-  },
-}
-
-// Delete Document
-DELETE dockit_sample_index/_doc/1
-
-GET _cat/indices
-
-// Bulk API
-POST _bulk
+    field_name: "new_value"
+  }
+}`,
+  deleteDocument: `DELETE {index}/_doc/1`,
+  bulkOperation: `POST _bulk
 {index:{_index:'dockit_sample_index',_id:'1'}}
 {name:'Document 1'}
-{delete:{_index:'dockit_sample_index',_id:'2'}}
-
-`;
+{delete:{_index:'dockit_sample_index',_id:'2'}}`,
+  count: `POST {index}/_count
+{
+  query: {
+    match_all: {}
+  }
+}`,
+};
 
 const actionRegexMap: { [key in ActionType]: RegExp } = {
   POST_INDEX: /POST \/_doc\/\d+/,

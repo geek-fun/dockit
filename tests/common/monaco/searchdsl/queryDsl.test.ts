@@ -1,8 +1,8 @@
 /**
  * Tests for the Query DSL provider
  */
-import { QueryDslProvider, queryDslProvider, allQueries } from '../../../../src/common/monaco/grammar/queryDsl';
-import { BackendType } from '../../../../src/common/monaco/grammar/types';
+import { QueryDslProvider, queryDslProvider, allQueries } from '../../../../src/common/monaco/searchdsl/queryDsl';
+import { BackendType } from '../../../../src/common/monaco/searchdsl/types';
 
 describe('QueryDslProvider', () => {
   describe('allQueries', () => {
