@@ -171,5 +171,11 @@ export const useDbDataStore = defineStore('dbDataStore', {
         lastEvaluatedKeys: [],
       };
     },
+
+    async refreshDynamoData() {
+      if (this.dynamoData.queryInput && this.dynamoData.connection) {
+        await this.getDynamoData(this.dynamoData.connection, this.dynamoData.queryInput);
+      }
+    },
   },
 });

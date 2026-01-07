@@ -212,6 +212,63 @@ const dynamoApi = {
     }
     return data as QueryResult;
   },
+  updateItem: async (
+    con: DynamoDBConnection,
+    keys: Array<{
+      key: string;
+      value: string | number | boolean | null;
+      type: string;
+    }>,
+    attributes: Array<{
+      key: string;
+      value: string | number | boolean | null;
+      type: string;
+    }>,
+  ) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+    const options = {
+      table_name: con.tableName,
+      operation: 'UPDATE_ITEM',
+      payload: { keys, attributes },
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+    return data;
+  },
+  deleteItem: async (
+    con: DynamoDBConnection,
+    keys: Array<{
+      key: string;
+      value: string | number | boolean | null;
+      type: string;
+    }>,
+  ) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+    const options = {
+      table_name: con.tableName,
+      operation: 'DELETE_ITEM',
+      payload: { keys },
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+    return data;
+  },
 };
 
 export { dynamoApi };

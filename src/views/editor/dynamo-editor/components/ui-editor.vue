@@ -164,7 +164,7 @@
               <n-data-table
                 :bordered="false"
                 :single-line="false"
-                :columns="dynamoData.columns"
+                :columns="tableColumns"
                 :data="dynamoData.data"
                 :loading="loadingRef.queryResult"
                 :pagination="dynamoData.pagination"
@@ -178,13 +178,24 @@
       </n-card>
     </template>
   </n-split>
+
+  <!-- Edit Item Modal -->
+  <edit-item
+    v-model:show="showEditModal"
+    :item="editingItem"
+    :partition-key-name="partitionKeyName"
+    :partition-key-type="partitionKeyType"
+    :sort-key-name="sortKeyName"
+    :sort-key-type="sortKeyType"
+    @submit="handleEditSubmit"
+  />
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Add, Delete } from '@vicons/carbon';
+import { Add, Delete, Edit, TrashCan } from '@vicons/carbon';
 import { isEmpty } from 'lodash';
-import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
+import { DataTableColumn, FormItemRule, FormRules, FormValidationError, NButton, NIcon } from 'naive-ui';
 import {
   Connection,
   DynamoDBConnection,
@@ -195,19 +206,21 @@ import {
 } from '../../../../store';
 import { CustomError, inputProps } from '../../../../common';
 import { useLang } from '../../../../lang';
+import EditItem from './edit-item.vue';
 
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
 
-const { fetchIndices } = connectionStore;
+const { fetchIndices, updateItem, deleteItem } = connectionStore;
 const { getDynamoIndexOrTableOption } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
-const { getDynamoData, changePage, changePageSize, resetDynamoData } = dbDataStore;
+const { getDynamoData, changePage, changePageSize, resetDynamoData, refreshDynamoData } =
+  dbDataStore;
 const { dynamoData } = storeToRefs(dbDataStore);
 
 const dynamoQueryFormRef = ref();
@@ -229,6 +242,11 @@ const filterConditions = ref([
 const loadingRef = ref({ index: false, queryResult: false });
 
 const message = useMessage();
+const dialog = useDialog();
+
+// Edit/Delete state
+const showEditModal = ref(false);
+const editingItem = ref<Record<string, unknown> | null>(null);
 
 const dynamoQueryForm = ref<{
   index: string | null;
@@ -368,6 +386,144 @@ const handleReset = () => {
     dynamoQueryFormRef.value.restoreValidation();
   }
   resetDynamoData();
+};
+
+// Get partition key and sort key info from active connection
+const partitionKeyName = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.partitionKey?.name ?? '',
+);
+const partitionKeyType = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.partitionKey?.valueType ?? 'S',
+);
+const sortKeyName = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.sortKey?.name ?? undefined,
+);
+const sortKeyType = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.sortKey?.valueType ?? undefined,
+);
+
+// Action column for edit/delete
+const actionColumn: DataTableColumn<Record<string, unknown>> = {
+  title: lang.t('editor.dynamo.actions'),
+  key: 'actions',
+  width: 100,
+  fixed: 'right',
+  render(row) {
+    return h('div', { style: { display: 'flex', gap: '8px' } }, [
+      h(
+        NButton,
+        {
+          size: 'small',
+          quaternary: true,
+          circle: true,
+          onClick: () => handleEdit(row),
+        },
+        { icon: () => h(NIcon, null, { default: () => h(Edit) }) },
+      ),
+      h(
+        NButton,
+        {
+          size: 'small',
+          quaternary: true,
+          circle: true,
+          onClick: () => handleDelete(row),
+        },
+        { icon: () => h(NIcon, null, { default: () => h(TrashCan) }) },
+      ),
+    ]);
+  },
+};
+
+// Combine original columns with action column
+const tableColumns = computed(() => {
+  if (!dynamoData.value.columns || dynamoData.value.columns.length === 0) {
+    return [];
+  }
+  return [...dynamoData.value.columns, actionColumn];
+});
+
+const handleEdit = (row: Record<string, unknown>) => {
+  editingItem.value = row;
+  showEditModal.value = true;
+};
+
+type AttributeItem = {
+  key: string;
+  value: string | number | boolean | null;
+  type: string;
+};
+
+const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem[]) => {
+  if (!activeConnection.value) return;
+
+  try {
+    loadingRef.value.queryResult = true;
+    await updateItem(activeConnection.value as DynamoDBConnection, keys, attributes);
+    message.success(lang.t('editor.dynamo.updateItemSuccess'));
+    showEditModal.value = false;
+    await refreshDynamoData();
+  } catch (error) {
+    const { status, details } = error as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3600,
+    });
+  } finally {
+    loadingRef.value.queryResult = false;
+  }
+};
+
+const handleDelete = (row: Record<string, unknown>) => {
+  dialog.warning({
+    title: lang.t('dialogOps.warning'),
+    content: lang.t('editor.dynamo.deleteItemConfirm'),
+    positiveText: lang.t('dialogOps.confirm'),
+    negativeText: lang.t('dialogOps.cancel'),
+    onPositiveClick: async () => {
+      await performDelete(row);
+    },
+  });
+};
+
+const performDelete = async (row: Record<string, unknown>) => {
+  if (!activeConnection.value) return;
+
+  const connection = activeConnection.value as DynamoDBConnection;
+  const keys: AttributeItem[] = [];
+
+  // Build keys from the row
+  if (partitionKeyName.value && row[partitionKeyName.value] !== undefined) {
+    keys.push({
+      key: partitionKeyName.value,
+      value: row[partitionKeyName.value] as string | number | boolean | null,
+      type: partitionKeyType.value,
+    });
+  }
+
+  if (sortKeyName.value && sortKeyType.value && row[sortKeyName.value] !== undefined) {
+    keys.push({
+      key: sortKeyName.value,
+      value: row[sortKeyName.value] as string | number | boolean | null,
+      type: sortKeyType.value,
+    });
+  }
+
+  try {
+    loadingRef.value.queryResult = true;
+    await deleteItem(connection, keys);
+    message.success(lang.t('editor.dynamo.deleteItemSuccess'));
+    await refreshDynamoData();
+  } catch (error) {
+    const { status, details } = error as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3600,
+    });
+  } finally {
+    loadingRef.value.queryResult = false;
+  }
 };
 </script>
 

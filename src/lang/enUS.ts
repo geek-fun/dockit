@@ -216,6 +216,13 @@ export const enUS = {
       attributeValueRequired: 'Attribute value is required',
       operatorRequired: 'Filter operator is required',
       createItemSuccess: 'Item created successfully!',
+      editItem: 'Edit Item',
+      editItemTitle: 'Edit Item Attributes',
+      updateItemSuccess: 'Item updated successfully!',
+      deleteItem: 'Delete Item',
+      deleteItemConfirm: 'Are you sure you want to delete this item?',
+      deleteItemSuccess: 'Item deleted successfully!',
+      actions: 'Actions',
       filterLabels: {
         eq: 'Equals',
         ne: 'Not equals',

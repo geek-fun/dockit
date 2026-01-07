@@ -362,5 +362,32 @@ export const useConnectionStore = defineStore('connectionStore', {
     ) {
       return await dynamoApi.createItem(con, attributes);
     },
+
+    async updateItem(
+      con: DynamoDBConnection,
+      keys: Array<{
+        key: string;
+        value: string | number | boolean | null;
+        type: string;
+      }>,
+      attributes: Array<{
+        key: string;
+        value: string | number | boolean | null;
+        type: string;
+      }>,
+    ) {
+      return await dynamoApi.updateItem(con, keys, attributes);
+    },
+
+    async deleteItem(
+      con: DynamoDBConnection,
+      keys: Array<{
+        key: string;
+        value: string | number | boolean | null;
+        type: string;
+      }>,
+    ) {
+      return await dynamoApi.deleteItem(con, keys);
+    },
   },
 });

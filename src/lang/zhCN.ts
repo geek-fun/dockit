@@ -216,6 +216,13 @@ export const zhCN = {
       attributeValueRequired: '请输入属性值',
       operatorRequired: '请输入滤器操作符',
       createItemSuccess: '数据添加成功!',
+      editItem: '编辑数据',
+      editItemTitle: '编辑数据属性',
+      updateItemSuccess: '数据更新成功!',
+      deleteItem: '删除数据',
+      deleteItemConfirm: '确定要删除此数据吗？',
+      deleteItemSuccess: '数据删除成功!',
+      actions: '操作',
       filterLabels: {
         eq: '等于',
         ne: '不等于',

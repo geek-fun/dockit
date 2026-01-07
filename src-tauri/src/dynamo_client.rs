@@ -1,8 +1,10 @@
 use crate::dynamo::create_item::{create_item, CreateItemInput};
+use crate::dynamo::delete_item::{delete_item, DeleteItemInput};
 use crate::dynamo::describe_table::describe_table;
 use crate::dynamo::query_table::{query_table, QueryTableInput};
 use crate::dynamo::scan_table::{scan_table, ScanTableInput};
 use crate::dynamo::types::ApiResponse;
+use crate::dynamo::update_item::{update_item, UpdateItemInput};
 use aws_config::meta::region::RegionProviderChain;
 use aws_config::Region;
 use aws_sdk_dynamodb::{config::Credentials, Client};
@@ -96,6 +98,36 @@ pub async fn dynamo_api(
                 Ok(ApiResponse {
                     status: 400,
                     message: "Scan parameters are required".to_string(),
+                    data: None,
+                })
+            }
+        }
+        "UPDATE_ITEM" => {
+            if let Some(payload) = &options.payload {
+                let input = UpdateItemInput {
+                    table_name: &options.table_name,
+                    payload,
+                };
+                update_item(&client, input).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "Update payload is required".to_string(),
+                    data: None,
+                })
+            }
+        }
+        "DELETE_ITEM" => {
+            if let Some(payload) = &options.payload {
+                let input = DeleteItemInput {
+                    table_name: &options.table_name,
+                    payload,
+                };
+                delete_item(&client, input).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "Delete payload is required".to_string(),
                     data: None,
                 })
             }
