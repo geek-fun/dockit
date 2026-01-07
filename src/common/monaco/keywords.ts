@@ -1,5 +1,4 @@
-import { allQueries, type QueryDef } from './searchdsl/queryDsl';
-import { BodyProperty } from './searchdsl/types';
+import { BodyProperty, allQueries, type QueryDef  } from './searchdsl';
 
 const methods = ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH', 'TRACE'];
 const paths = [

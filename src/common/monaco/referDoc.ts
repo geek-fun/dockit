@@ -9,15 +9,15 @@ export const esSampleQueries = {
   nodesInfo: `GET _nodes`,
   search: `GET {index}/_search
 {
-  "query": {
-    "match_all": {}
+  query: {
+    match_all: {}
   }
 }`,
   matchSearch: `POST {index}/_search
 {
-  "query": {
-    "match": {
-      "field_name": "search_text"
+  query: {
+    match: {
+      field_name: "search_text"
     }
   }
 }`,
@@ -26,33 +26,32 @@ export const esSampleQueries = {
   getMapping: `GET {index}/_mapping`,
   putMapping: `PUT {index}/_mapping
 {
-  "properties": {
-    "field_name": {
-      "type": "text"
+  properties: {
+    field_name: {
+      type: "text"
     }
   }
 }`,
   indexDocument: `POST {index}/_doc/1
 {
-  "field_name": "value"
+  field_name: "value"
 }`,
   getDocument: `GET {index}/_doc/1`,
   updateDocument: `POST {index}/_update/1
 {
-  "doc": {
-    "field_name": "new_value"
+  doc: {
+    field_name: "new_value"
   }
 }`,
   deleteDocument: `DELETE {index}/_doc/1`,
   bulkOperation: `POST _bulk
-{"index":{"_index":"{index}","_id":"1"}}
-{"field_name":"value1"}
-{"index":{"_index":"{index}","_id":"2"}}
-{"field_name":"value2"}`,
+{index:{_index:'dockit_sample_index',_id:'1'}}
+{name:'Document 1'}
+{delete:{_index:'dockit_sample_index',_id:'2'}}`,
   count: `POST {index}/_count
 {
-  "query": {
-    "match_all": {}
+  query: {
+    match_all: {}
   }
 }`,
 };

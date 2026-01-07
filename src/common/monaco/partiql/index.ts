@@ -7,8 +7,8 @@ export {
   setPartiqlDynamicOptions,
   getPartiqlDynamicOptions,
   partiqlSampleQueries,
+  type PartiqlDynamicOptions,
 } from './utils';
-export type { PartiqlDynamicOptions } from './utils';
 export { partiql } from './lexerRules';
 
 export const registerPartiqlLanguage = (monaco: typeof import('monaco-editor')): void => {

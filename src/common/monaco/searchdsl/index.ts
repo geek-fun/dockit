@@ -4,6 +4,7 @@ import {
   searchCompletionProvider,
 } from '../completion';
 
+
 export * from './types';
 export * from './lexer';
 export * from './apiSpec';
@@ -18,7 +19,7 @@ export {
   type DynamicCompletionOptions,
 } from './completionProvider';
 
-const registerSearchLanguage = (monaco: typeof import('monaco-editor')): void => {
+export const registerSearchLanguage = (monaco: typeof import('monaco-editor')): void => {
   monaco.languages.register({ id: search.id });
   monaco.languages.setMonarchTokensProvider(
     search.id,
@@ -34,5 +35,3 @@ const registerSearchLanguage = (monaco: typeof import('monaco-editor')): void =>
     provideCompletionItems: searchCompletionProvider,
   });
 };
-
-export { registerSearchLanguage };

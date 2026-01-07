@@ -1,27 +1,20 @@
-import * as monaco from 'monaco-editor';
+import { editor, IRange, languages, Position } from 'monaco-editor';
 import { partiqlKeywordCategories } from './keywords';
 import { getPartiqlDynamicOptions } from './utils';
 
-export {
-  setPartiqlDynamicOptions,
-  getPartiqlDynamicOptions,
-  partiqlSampleQueries,
-} from './utils';
-export type { PartiqlDynamicOptions } from './utils';
-
 const createCompletionItem = (
   label: string,
-  kind: monaco.languages.CompletionItemKind,
+  kind: languages.CompletionItemKind,
   detail: string,
   insertText?: string,
-  range?: monaco.IRange,
-): monaco.languages.CompletionItem => ({
+  range?: IRange,
+): languages.CompletionItem => ({
   label,
   kind,
   detail,
   insertText: insertText ?? label,
-  insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-  range: range as monaco.IRange,
+  insertTextRules: languages.CompletionItemInsertTextRule.InsertAsSnippet,
+  range: range as IRange,
 });
 
 const analyzeContext = (
@@ -57,12 +50,12 @@ const analyzeContext = (
 };
 
 export const partiqlCompletionProvider = (
-  model: monaco.editor.ITextModel,
-  position: monaco.Position,
-): monaco.languages.CompletionList => {
-  const suggestions: monaco.languages.CompletionItem[] = [];
+  model: editor.ITextModel,
+  position: Position,
+): languages.CompletionList => {
+  const suggestions: languages.CompletionItem[] = [];
   const word = model.getWordUntilPosition(position);
-  const range: monaco.IRange = {
+  const range: IRange = {
     startLineNumber: position.lineNumber,
     endLineNumber: position.lineNumber,
     startColumn: word.startColumn,
@@ -84,7 +77,7 @@ export const partiqlCompletionProvider = (
       suggestions.push(
         createCompletionItem(
           keyword,
-          monaco.languages.CompletionItemKind.Keyword,
+          languages.CompletionItemKind.Keyword,
           'PartiQL DML keyword',
           keyword + ' ',
           range,
@@ -96,7 +89,7 @@ export const partiqlCompletionProvider = (
       suggestions.push(
         createCompletionItem(
           keyword,
-          monaco.languages.CompletionItemKind.Keyword,
+          languages.CompletionItemKind.Keyword,
           'PartiQL clause',
           keyword + ' ',
           range,
@@ -111,7 +104,7 @@ export const partiqlCompletionProvider = (
         suggestions.push(
           createCompletionItem(
             tableName,
-            monaco.languages.CompletionItemKind.Class,
+            languages.CompletionItemKind.Class,
             'DynamoDB Table',
             `"${tableName}"`,
             range,
@@ -123,7 +116,7 @@ export const partiqlCompletionProvider = (
       suggestions.push(
         createCompletionItem(
           dynamicOptions.activeTable,
-          monaco.languages.CompletionItemKind.Class,
+          languages.CompletionItemKind.Class,
           'Active Table',
           `"${dynamicOptions.activeTable}"`,
           range,
@@ -138,7 +131,7 @@ export const partiqlCompletionProvider = (
         suggestions.push(
           createCompletionItem(
             attrKey,
-            monaco.languages.CompletionItemKind.Field,
+            languages.CompletionItemKind.Field,
             'Table Attribute',
             `"${attrKey}"`,
             range,
@@ -152,7 +145,7 @@ export const partiqlCompletionProvider = (
     suggestions.push(
       createCompletionItem(
         fn,
-        monaco.languages.CompletionItemKind.Function,
+        languages.CompletionItemKind.Function,
         'PartiQL function',
         fn + '($0)',
         range,
@@ -164,7 +157,7 @@ export const partiqlCompletionProvider = (
     suggestions.push(
       createCompletionItem(
         type,
-        monaco.languages.CompletionItemKind.TypeParameter,
+        languages.CompletionItemKind.TypeParameter,
         'Data type',
         type,
         range,
