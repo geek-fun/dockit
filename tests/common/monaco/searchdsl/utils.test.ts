@@ -1,7 +1,7 @@
 /**
  * Tests for the grammar utility functions
  */
-import { compareVersions, isVersionInRange } from '../../../../src/common/monaco/grammar/utils';
+import { compareVersions, isVersionInRange } from '../../../../src/common/monaco/searchdsl/utils';
 
 describe('compareVersions', () => {
   it('should return 0 for equal versions', () => {

@@ -1,5 +1,60 @@
 use aws_sdk_dynamodb::types::AttributeValue;
 use base64::{engine::general_purpose, Engine as _};
+use serde_json::{json, Value};
+
+/// Convert DynamoDB AttributeValue to JSON
+pub fn convert_attr_value_to_json(av: &AttributeValue) -> Value {
+    match av {
+        AttributeValue::S(s) => json!(s),
+        AttributeValue::N(n) => {
+            // Try to parse as integer first, then as float
+            if let Ok(i) = n.parse::<i64>() {
+                json!(i)
+            } else if let Ok(f) = n.parse::<f64>() {
+                json!(f)
+            } else {
+                json!(n)
+            }
+        }
+        AttributeValue::Bool(b) => json!(b),
+        AttributeValue::Null(_) => Value::Null,
+        AttributeValue::M(m) => {
+            let obj: serde_json::Map<String, Value> = m
+                .iter()
+                .map(|(k, v)| (k.clone(), convert_attr_value_to_json(v)))
+                .collect();
+            Value::Object(obj)
+        }
+        AttributeValue::L(l) => {
+            Value::Array(l.iter().map(convert_attr_value_to_json).collect())
+        }
+        AttributeValue::Ss(ss) => {
+            Value::Array(ss.iter().map(|s| json!(s)).collect())
+        }
+        AttributeValue::Ns(ns) => {
+            Value::Array(ns.iter().map(|n| {
+                if let Ok(i) = n.parse::<i64>() {
+                    json!(i)
+                } else if let Ok(f) = n.parse::<f64>() {
+                    json!(f)
+                } else {
+                    json!(n)
+                }
+            }).collect())
+        }
+        AttributeValue::B(b) => {
+            json!(general_purpose::STANDARD.encode(b.as_ref()))
+        }
+        AttributeValue::Bs(bs) => {
+            Value::Array(
+                bs.iter()
+                    .map(|b| json!(general_purpose::STANDARD.encode(b.as_ref())))
+                    .collect(),
+            )
+        }
+        _ => Value::Null,
+    }
+}
 
 /// Converts a JSON value to a DynamoDB AttributeValue based on the specified type.
 /// Supports all DynamoDB attribute types: S, N, B, BOOL, NULL, SS, NS, BS, L, M.

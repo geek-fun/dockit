@@ -153,29 +153,17 @@
       </n-card>
     </template>
     <template #2>
-      <n-card
-        :title="$t('editor.dynamo.resultTitle')"
+      <result-panel
         v-if="dynamoData.data"
-        class="query-result-container"
-      >
-        <div class="infinity-scroll-outer-container">
-          <div class="infinity-scroll-inner-container">
-            <n-infinite-scroll style="height: 100%">
-              <n-data-table
-                :bordered="false"
-                :single-line="false"
-                :columns="tableColumns"
-                :data="dynamoData.data"
-                :loading="loadingRef.queryResult"
-                :pagination="dynamoData.pagination"
-                @update:page="changePage"
-                @update:pageSize="changePageSize"
-                :remote="true"
-              />
-            </n-infinite-scroll>
-          </div>
-        </div>
-      </n-card>
+        :has-data="!!dynamoData.data"
+        :columns="tableColumns"
+        :data="dynamoData.data"
+        :loading="loadingRef.queryResult"
+        :pagination="dynamoData.pagination"
+        :remote="true"
+        @update:page="changePage"
+        @update:page-size="changePageSize"
+      />
     </template>
   </n-split>
 
@@ -207,6 +195,7 @@ import {
 import { CustomError, inputProps } from '../../../../common';
 import { useLang } from '../../../../lang';
 import EditItem from './edit-item.vue';
+import ResultPanel from './result-panel.vue';
 
 const lang = useLang();
 
@@ -545,15 +534,6 @@ const performDelete = async (row: Record<string, unknown>) => {
       display: flex;
       justify-content: flex-end;
       gap: 12px;
-    }
-  }
-
-  .query-result-container {
-    width: 100%;
-    height: 100%;
-
-    :deep(.n-data-table-th__title) {
-      white-space: nowrap;
     }
   }
 }
