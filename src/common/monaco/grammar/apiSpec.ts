@@ -229,6 +229,22 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_aliases',
     methods: ['GET', 'POST'],
     description: 'Manage index aliases',
+    requestBody: {
+      properties: {
+        actions: {
+          type: 'array',
+          description: 'Actions to perform on aliases (add, remove, remove_index)',
+          items: {
+            type: 'object',
+            properties: {
+              add: { type: 'object', description: 'Add an alias to an index' },
+              remove: { type: 'object', description: 'Remove an alias from an index' },
+              remove_index: { type: 'object', description: 'Remove an index' },
+            },
+          },
+        },
+      },
+    },
   },
   {
     path: '/{index}/_alias/{alias}',

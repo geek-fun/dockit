@@ -89,6 +89,7 @@ const globalPathActions = [
   '_snapshot',
   '_tasks',
   '_analyze',
+  '_aliases',
 ];
 
 const buildPath = (
