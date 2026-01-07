@@ -121,4 +121,22 @@ describe('ApiSpecProvider', () => {
       expect(catPaths.length).toBeGreaterThan(0);
     });
   });
+
+  describe('aliases endpoint', () => {
+    it('should have requestBody with actions property for /_aliases', () => {
+      const endpoint = apiSpecProvider.findEndpoint(BackendType.ELASTICSEARCH, '/_aliases', 'POST');
+      
+      expect(endpoint).toBeDefined();
+      expect(endpoint?.requestBody).toBeDefined();
+      expect(endpoint?.requestBody?.properties).toBeDefined();
+      expect(endpoint?.requestBody?.properties?.actions).toBeDefined();
+      expect(endpoint?.requestBody?.properties?.actions.type).toBe('array');
+    });
+
+    it('should include /_aliases in path completions', () => {
+      const paths = apiSpecProvider.getPathCompletions(BackendType.ELASTICSEARCH);
+      
+      expect(paths).toContain('/_aliases');
+    });
+  });
 });
