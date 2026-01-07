@@ -12,6 +12,13 @@ export type AttributeDefinition = {
   attributeType: string; // Values like "S", "N", "B", etc.
 };
 
+// Shared type for DynamoDB attribute items used in create/update/delete operations
+export type DynamoAttributeItem = {
+  key: string;
+  value: string | number | boolean | null;
+  type: string;
+};
+
 export enum DynamoIndexType {
   GSI = 'GSI',
   LSI = 'LSI',
@@ -186,14 +193,7 @@ const dynamoApi = {
 
     return data as QueryResult;
   },
-  createItem: async (
-    con: DynamoDBConnection,
-    attributes: Array<{
-      key: string;
-      value: string | number | boolean | null;
-      type: string;
-    }>,
-  ) => {
+  createItem: async (con: DynamoDBConnection, attributes: DynamoAttributeItem[]) => {
     const credentials = {
       region: con.region,
       access_key_id: con.accessKeyId,
@@ -214,16 +214,8 @@ const dynamoApi = {
   },
   updateItem: async (
     con: DynamoDBConnection,
-    keys: Array<{
-      key: string;
-      value: string | number | boolean | null;
-      type: string;
-    }>,
-    attributes: Array<{
-      key: string;
-      value: string | number | boolean | null;
-      type: string;
-    }>,
+    keys: DynamoAttributeItem[],
+    attributes: DynamoAttributeItem[],
   ) => {
     const credentials = {
       region: con.region,
@@ -243,14 +235,7 @@ const dynamoApi = {
     }
     return data;
   },
-  deleteItem: async (
-    con: DynamoDBConnection,
-    keys: Array<{
-      key: string;
-      value: string | number | boolean | null;
-      type: string;
-    }>,
-  ) => {
+  deleteItem: async (con: DynamoDBConnection, keys: DynamoAttributeItem[]) => {
     const credentials = {
       region: con.region,
       access_key_id: con.accessKeyId,

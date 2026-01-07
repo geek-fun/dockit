@@ -223,6 +223,8 @@ export const zhCN = {
       deleteItemConfirm: '确定要删除此数据吗？',
       deleteItemSuccess: '数据删除成功!',
       actions: '操作',
+      keyAttributes: '键属性',
+      editableAttributes: '可编辑属性',
       filterLabels: {
         eq: '等于',
         ne: '不等于',

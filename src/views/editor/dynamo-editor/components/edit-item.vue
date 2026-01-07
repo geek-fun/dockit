@@ -8,7 +8,7 @@
       label-width="auto"
     >
       <!-- Key attributes (read-only) -->
-      <n-divider title-placement="left">Key Attributes</n-divider>
+      <n-divider title-placement="left">{{ $t('editor.dynamo.keyAttributes') }}</n-divider>
       <n-grid
         v-for="(item, index) in editForm.keys"
         :key="`key-${index}`"
@@ -44,7 +44,7 @@
 
       <!-- Editable attributes -->
       <n-divider title-placement="left">
-        Editable Attributes
+        {{ $t('editor.dynamo.editableAttributes') }}
         <n-icon size="20" @click="addAttribute" style="cursor: pointer; margin-left: 8px">
           <Add />
         </n-icon>

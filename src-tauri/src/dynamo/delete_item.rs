@@ -1,7 +1,6 @@
+use crate::common::json_utils::build_attribute_value;
 use crate::dynamo::types::ApiResponse;
-use aws_sdk_dynamodb::types::AttributeValue;
 use aws_sdk_dynamodb::Client;
-use base64::{engine::general_purpose, Engine as _};
 use serde_json::Value;
 
 pub struct DeleteItemInput<'a> {
@@ -56,20 +55,5 @@ pub async fn delete_item(
             message: format!("Failed to delete item: {}", e),
             data: None,
         }),
-    }
-}
-
-fn build_attribute_value(value: &Value, attr_type: &str) -> Option<AttributeValue> {
-    match attr_type {
-        "S" => value.as_str().map(|s| AttributeValue::S(s.to_string())),
-        "N" => value.as_f64().map(|n| AttributeValue::N(n.to_string())),
-        "B" => value.as_str().map(|s| {
-            AttributeValue::B(aws_sdk_dynamodb::primitives::Blob::new(
-                general_purpose::STANDARD.decode(s).unwrap_or_default(),
-            ))
-        }),
-        "BOOL" => value.as_bool().map(AttributeValue::Bool),
-        "NULL" => Some(AttributeValue::Null(true)),
-        _ => None,
     }
 }

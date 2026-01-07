@@ -223,6 +223,8 @@ export const enUS = {
       deleteItemConfirm: 'Are you sure you want to delete this item?',
       deleteItemSuccess: 'Item deleted successfully!',
       actions: 'Actions',
+      keyAttributes: 'Key Attributes',
+      editableAttributes: 'Editable Attributes',
       filterLabels: {
         eq: 'Equals',
         ne: 'Not equals',
