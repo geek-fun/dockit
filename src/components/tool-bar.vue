@@ -104,6 +104,36 @@
         {{ $t('editor.dynamo.createItem') }}
       </n-button>
     </n-button-group>
+
+    <n-dropdown
+      v-if="props.type === 'DYNAMO_EDITOR' && activePanel.editorType === 'DYNAMO_EDITOR_SQL'"
+      trigger="click"
+      :options="partiqlSampleQueryOptions"
+      @select="handlePartiqlSampleSelect"
+    >
+      <n-button quaternary size="small" class="sample-btn">
+        <template #icon>
+          <n-icon><Code /></n-icon>
+        </template>
+        {{ $t('editor.dynamo.partiql.samples') }}
+      </n-button>
+    </n-dropdown>
+
+    <div v-if="props.type === 'DYNAMO_EDITOR' && activePanel.editorType === 'DYNAMO_EDITOR_SQL'" class="run-button-container">
+      <n-button
+        type="primary"
+        size="small"
+        @click="handleExecuteQuery"
+        :loading="isExecuting"
+        :disabled="!activePanel.connection"
+      >
+        <template #icon>
+          <n-icon><PlayFilledAlt /></n-icon>
+        </template>
+        {{ $t('dialogOps.execute') }}
+      </n-button>
+    </div>
+
     <n-tabs
       v-if="props.type === 'MANAGE'"
       class="manage-container"
@@ -121,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { Add, Search, Code, Template } from '@vicons/carbon';
+import { Add, Search, Code, Template, PlayFilledAlt } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { useClusterManageStore, useConnectionStore, useTabStore } from '../store';
 import { useLang } from '../lang';
@@ -129,7 +159,7 @@ import { CustomError, inputProps } from '../common';
 import { esSampleQueries } from '../common/monaco';
 
 const props = defineProps({ type: String });
-const emits = defineEmits(['switch-manage-tab', 'insert-sample-query']);
+const emits = defineEmits(['switch-manage-tab', 'insert-sample-query', 'insert-partiql-sample', 'execute-partiql-query']);
 
 const message = useMessage();
 const lang = useLang();
@@ -155,6 +185,7 @@ const selectionState = ref<{ connection: boolean; index: boolean }>({
 });
 
 const hideSystemIndicesRef = ref(true);
+const isExecuting = ref(false);
 
 const esSampleQueryOptions = computed(() => [
   { label: lang.t('editor.es.sampleClusterHealth'), key: 'clusterHealth' },
@@ -178,11 +209,46 @@ const esSampleQueryOptions = computed(() => [
   { label: lang.t('editor.es.sampleBulk'), key: 'bulkOperation' },
 ]);
 
+const partiqlSampleQueryOptions = computed(() => [
+  {
+    label: lang.t('editor.dynamo.partiql.sampleSelectPk'),
+    key: 'selectWithPartitionKey',
+  },
+  {
+    label: lang.t('editor.dynamo.partiql.sampleSelectSk'),
+    key: 'selectWithSortKey',
+  },
+  {
+    label: lang.t('editor.dynamo.partiql.sampleScan'),
+    key: 'scanAll',
+  },
+  {
+    label: lang.t('editor.dynamo.partiql.sampleInsert'),
+    key: 'insertItem',
+  },
+  {
+    label: lang.t('editor.dynamo.partiql.sampleUpdate'),
+    key: 'updateItem',
+  },
+  {
+    label: lang.t('editor.dynamo.partiql.sampleDelete'),
+    key: 'deleteItem',
+  },
+]);
+
 const handleEsSampleSelect = (key: string) => {
   const query = esSampleQueries[key as keyof typeof esSampleQueries];
   if (query) {
     emits('insert-sample-query', query);
   }
+};
+
+const handlePartiqlSampleSelect = (key: string) => {
+  emits('insert-partiql-sample', key);
+};
+
+const handleExecuteQuery = () => {
+  emits('execute-partiql-query');
 };
 
 watch(
@@ -331,6 +397,13 @@ const handleEditorSwitch = async (
 
   .sample-btn {
     margin-left: 10px;
+  }
+
+  .run-button-container {
+    margin-left: auto;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
   }
 
   .action-index-switch {
