@@ -202,16 +202,26 @@ const findMethodAndPath = (
   model: monaco.editor.ITextModel,
   lineNumber: number,
 ): { method?: HttpMethod; path?: string } => {
-  for (let line = lineNumber; line >= 1; line--) {
-    const content = model.getLineContent(line);
-    const match = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S+)/i.exec(content);
-    if (match) {
-      return {
-        method: match[1].toUpperCase() as HttpMethod,
-        path: match[2].split('?')[0], // Remove query params
-      };
-    }
+  const lines = Array.from({ length: lineNumber }, (_, i) => lineNumber - i).map(line => 
+    model.getLineContent(line)
+  );
+  
+  const matchedLine = lines.find(content => 
+    /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S+)/i.test(content)
+  );
+  
+  if (!matchedLine) {
+    return {};
   }
+  
+  const match = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S+)/i.exec(matchedLine);
+  if (match) {
+    return {
+      method: match[1].toUpperCase() as HttpMethod,
+      path: match[2].split('?')[0], // Remove query params
+    };
+  }
+  
   return {};
 };
 
@@ -528,28 +538,23 @@ const pathStartsWithPattern = (pattern: string, prefix: string): boolean => {
   const patternParts = pattern.split('/').filter(Boolean);
   const prefixParts = prefix.split('/').filter(Boolean);
   
-  for (let i = 0; i < prefixParts.length; i++) {
+  return prefixParts.every((prefixPart, i) => {
     const patternPart = patternParts[i];
-    const prefixPart = prefixParts[i];
     
     if (!patternPart) return false;
     
     // If pattern part is a placeholder, it matches anything
     if (patternPart.startsWith('{') && patternPart.endsWith('}')) {
-      continue;
+      return true;
     }
     
     // Exact match or prefix match for last part
     if (i === prefixParts.length - 1) {
-      if (!patternPart.startsWith(prefixPart)) {
-        return false;
-      }
-    } else if (patternPart !== prefixPart) {
-      return false;
+      return patternPart.startsWith(prefixPart);
     }
-  }
-  
-  return true;
+    
+    return patternPart === prefixPart;
+  });
 };
 
 /**
@@ -762,12 +767,7 @@ const provideBodyCompletions = (
  * Find a query type in the body path
  */
 const findQueryTypeInPath = (bodyPath: string[]): string | null => {
-  for (const segment of bodyPath) {
-    if (allQueries[segment]) {
-      return segment;
-    }
-  }
-  return null;
+  return bodyPath.find(segment => allQueries[segment]) || null;
 };
 
 /**
