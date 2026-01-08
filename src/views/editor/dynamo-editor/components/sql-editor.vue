@@ -85,6 +85,10 @@ const lastExecutedStatement = ref<string | null>(null);
 let executeDecorations: Array<PartiqlDecoration | string> = [];
 let partiqlStatements: PartiqlStatement[] = [];
 
+// Monaco editor target type for gutter line decorations
+// See: https://microsoft.github.io/monaco-editor/api/enums/editor.MouseTargetType.html
+const MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS = 4;
+
 // Context menu state
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
@@ -225,7 +229,7 @@ const executeStatementAtLine = async (lineNumber: number) => {
 /**
  * Copy a PartiQL statement at a specific line number to clipboard
  */
-const copyStatementAtLine = (lineNumber: number) => {
+const copyStatementAtLine = async (lineNumber: number) => {
   const statement = getStatementAtLine(partiqlStatements, lineNumber);
   if (!statement) {
     message.warning(lang.t('editor.dynamo.partiql.noStatementFound'), {
@@ -236,7 +240,10 @@ const copyStatementAtLine = (lineNumber: number) => {
   }
 
   try {
-    navigator.clipboard.writeText(statement.statement);
+    if (!navigator.clipboard) {
+      throw new Error('Clipboard API not supported');
+    }
+    await navigator.clipboard.writeText(statement.statement);
     message.success(lang.t('editor.copySuccess'));
   } catch (err) {
     message.error(`${lang.t('editor.copyFailure')}: ${jsonify.stringify(err)}`, {
@@ -486,7 +493,7 @@ const setupEditor = () => {
 
     if (
       event.leftButton &&
-      target.type === 4 && // MarginViewZone or LineDecorations
+      target.type === MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS &&
       target.element?.classList &&
       Object.values(target.element.classList).includes(partiqlExecutionGutterClass)
     ) {
@@ -497,7 +504,7 @@ const setupEditor = () => {
   // Handle right-click on gutter execute button for context menu
   editor.onContextMenu(({ event, target }) => {
     if (
-      target.type === 4 && // MarginViewZone or LineDecorations
+      target.type === MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS &&
       target.element?.classList &&
       Object.values(target.element.classList).includes(partiqlExecutionGutterClass)
     ) {
