@@ -1158,19 +1158,14 @@ export class ApiSpecProvider {
     }
 
     // Filter and generate completions based on prefix
-    const uniquePaths = new Set<string>();
-    endpoints.forEach(endpoint => {
-      const path = endpoint.path;
-      if (path.startsWith(prefix) || this.pathMatchesPrefix(path, prefix)) {
-        // Get the next segment after prefix
-        const nextSegment = this.getNextPathSegment(path, prefix);
-        if (nextSegment) {
-          uniquePaths.add(nextSegment);
-        }
-      }
-    });
+    const uniquePaths = endpoints
+      .filter(endpoint => 
+        endpoint.path.startsWith(prefix) || this.pathMatchesPrefix(endpoint.path, prefix)
+      )
+      .map(endpoint => this.getNextPathSegment(endpoint.path, prefix))
+      .filter((segment): segment is string => segment !== undefined);
 
-    return [...uniquePaths];
+    return [...new Set(uniquePaths)];
   }
 
   /**
@@ -1180,12 +1175,9 @@ export class ApiSpecProvider {
     const patternParts = pattern.split('/');
     const prefixParts = prefix.split('/');
     
-    for (let i = 0; i < prefixParts.length - 1; i++) {
-      if (patternParts[i] !== prefixParts[i] && !patternParts[i]?.startsWith('{')) {
-        return false;
-      }
-    }
-    return true;
+    return prefixParts.slice(0, -1).every((prefixPart, i) =>
+      patternParts[i] === prefixPart || patternParts[i]?.startsWith('{')
+    );
   }
 
   /**

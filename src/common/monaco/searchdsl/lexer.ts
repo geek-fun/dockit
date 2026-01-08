@@ -85,13 +85,15 @@ export class SearchLexer {
    * Advance position and update line/column tracking
    */
   private advance(length: number): void {
-    for (let i = 0; i < length; i++) {
-      if (this.input[this.pos + i] === '\n') {
-        this.line++;
-        this.column = 1;
-      } else {
-        this.column++;
-      }
+    const chars = this.input.slice(this.pos, this.pos + length);
+    const newLineCount = (chars.match(/\n/g) || []).length;
+    
+    if (newLineCount > 0) {
+      const lastNewlineIndex = chars.lastIndexOf('\n');
+      this.line += newLineCount;
+      this.column = length - lastNewlineIndex;
+    } else {
+      this.column += length;
     }
     this.pos += length;
   }
@@ -234,19 +236,18 @@ export class SearchLexer {
    * Check if current position is at start of line (ignoring whitespace)
    */
   private isAtLineStart(): boolean {
-    // Look back to find if we're at line start
-    let checkPos = this.pos - 1;
-    while (checkPos >= 0) {
-      const char = this.input[checkPos];
-      if (char === '\n' || char === '\r') {
-        return true;
-      }
-      if (char !== ' ' && char !== '\t') {
-        return false;
-      }
-      checkPos--;
+    const beforePos = this.input.slice(0, this.pos);
+    const lastNewlineIndex = Math.max(
+      beforePos.lastIndexOf('\n'),
+      beforePos.lastIndexOf('\r')
+    );
+    
+    if (lastNewlineIndex === -1) {
+      return true; // Start of input
     }
-    return true; // Start of input
+    
+    const textAfterNewline = beforePos.slice(lastNewlineIndex + 1);
+    return /^[ \t]*$/.test(textAfterNewline);
   }
 }
 

@@ -11,14 +11,15 @@
 export const compareVersions = (a: string, b: string): number => {
   const partsA = a.split('.').map(Number);
   const partsB = b.split('.').map(Number);
+  const maxLength = Math.max(partsA.length, partsB.length);
   
-  for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+  const comparison = Array.from({ length: maxLength }, (_, i) => {
     const numA = partsA[i] || 0;
     const numB = partsB[i] || 0;
-    if (numA < numB) return -1;
-    if (numA > numB) return 1;
-  }
-  return 0;
+    return numA - numB;
+  }).find(diff => diff !== 0);
+  
+  return comparison === undefined ? 0 : Math.sign(comparison);
 };
 
 /**

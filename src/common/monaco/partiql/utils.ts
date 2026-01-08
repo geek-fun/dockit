@@ -55,76 +55,76 @@ export const isStatementStart = (line: string): boolean => {
  */
 export const parsePartiqlStatements = (content: string): PartiqlStatement[] => {
   const lines = content.split('\n');
-  const statements: PartiqlStatement[] = [];
-
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i].trim();
-
+  
+  type ParseState = {
+    statements: PartiqlStatement[];
+    currentIndex: number;
+  };
+  
+  const findStatementEnd = (startLine: number): number => {
+    const subsequentLines = lines.slice(startLine);
+    const endOffset = subsequentLines.findIndex((line, idx) => {
+      if (idx === 0) return false;
+      const trimmed = line.trim();
+      return (
+        lines[startLine + idx - 1].trim().endsWith(';') ||
+        trimmed === '' ||
+        isStatementStart(trimmed)
+      );
+    });
+    
+    // Check if last line ends with semicolon
+    const lastLineWithSemicolon = subsequentLines.findIndex(line => line.trim().endsWith(';'));
+    if (lastLineWithSemicolon !== -1 && (endOffset === -1 || lastLineWithSemicolon < endOffset)) {
+      return startLine + lastLineWithSemicolon;
+    }
+    
+    return endOffset === -1 ? lines.length - 1 : startLine + endOffset - 1;
+  };
+  
+  const parseFromIndex = (state: ParseState): ParseState => {
+    if (state.currentIndex >= lines.length) {
+      return state;
+    }
+    
+    const line = lines[state.currentIndex].trim();
+    
     // Skip empty lines and comments
     if (line === '' || line.startsWith('--') || line.startsWith('//')) {
-      i++;
-      continue;
+      return parseFromIndex({ ...state, currentIndex: state.currentIndex + 1 });
     }
-
+    
     // Check if this line starts a statement
-    if (isStatementStart(line)) {
-      const startLine = i;
-      let endLine = i;
-
-      // Find the end of this statement
-      for (let j = i; j < lines.length; j++) {
-        const currentLine = lines[j].trim();
-
-        // Statement ends with semicolon
-        if (currentLine.endsWith(';')) {
-          endLine = j;
-          break;
-        }
-
-        // Empty line ends the statement (if not the start line)
-        if (j > startLine && currentLine === '') {
-          endLine = j - 1;
-          break;
-        }
-
-        // Check if next line starts a new statement
-        if (j > startLine && isStatementStart(currentLine)) {
-          endLine = j - 1;
-          // Move back to process this new statement
-          break;
-        }
-
-        // If we're at the last line, this is the end
-        if (j === lines.length - 1) {
-          endLine = j;
-          break;
-        }
-      }
-
-      // Extract the statement text
-      const statementLines = lines.slice(startLine, endLine + 1);
-      const statement = statementLines.join('\n').trim().replace(/;$/, '');
-
-      if (statement.length > 0) {
-        statements.push({
-          statement,
-          position: {
-            startLineNumber: startLine + 1, // Monaco uses 1-based line numbers
-            endLineNumber: endLine + 1,
-            startColumn: 1,
-            endColumn: lines[endLine].length + 1,
-          },
-        });
-      }
-
-      i = endLine + 1;
-    } else {
-      i++;
+    if (!isStatementStart(line)) {
+      return parseFromIndex({ ...state, currentIndex: state.currentIndex + 1 });
     }
-  }
-
-  return statements;
+    
+    const startLine = state.currentIndex;
+    const endLine = findStatementEnd(startLine);
+    const statementLines = lines.slice(startLine, endLine + 1);
+    const statement = statementLines.join('\n').trim().replace(/;$/, '');
+    
+    if (statement.length === 0) {
+      return parseFromIndex({ ...state, currentIndex: endLine + 1 });
+    }
+    
+    const newStatement: PartiqlStatement = {
+      statement,
+      position: {
+        startLineNumber: startLine + 1, // Monaco uses 1-based line numbers
+        endLineNumber: endLine + 1,
+        startColumn: 1,
+        endColumn: lines[endLine].length + 1,
+      },
+    };
+    
+    return parseFromIndex({
+      statements: [...state.statements, newStatement],
+      currentIndex: endLine + 1,
+    });
+  };
+  
+  return parseFromIndex({ statements: [], currentIndex: 0 }).statements;
 };
 
 /**

@@ -1,9 +1,8 @@
 import { ref } from 'vue';
 
-// Throttle
-export function useThrottle(fn: () => void, delay = 500): () => void {
+export const useThrottle = (fn: () => void, delay = 500): (() => void) => {
   const throttled = ref(false);
-  return function throttledFn() {
+  return () => {
     if (!throttled.value) {
       fn();
       throttled.value = true;
@@ -12,13 +11,12 @@ export function useThrottle(fn: () => void, delay = 500): () => void {
       }, delay);
     }
   };
-}
+};
 
-// Debounce
-export function useDebounce(fn: () => void, delay = 500): () => void {
+export const useDebounce = (fn: () => void, delay = 500): (() => void) => {
   let timer: NodeJS.Timeout;
-  return function debouncedFn() {
+  return () => {
     clearTimeout(timer);
     timer = setTimeout(fn, delay);
   };
-}
+};
