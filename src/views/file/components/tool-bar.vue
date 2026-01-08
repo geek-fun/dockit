@@ -10,7 +10,7 @@
     </n-tooltip>
     <div class="sort-container">
       <n-select
-        v-model:value="currentSort"
+        v-model:value="sortBy"
         :options="sortOptions"
         size="small"
         style="width: 140px"
@@ -37,7 +37,6 @@ const { sortBy } = storeToRefs(fileStore);
 const lang = useLang();
 
 const newFileDialogRef = ref();
-const currentSort = ref(sortBy.value);
 
 const sortOptions = [
   { label: 'Name', value: SortBy.NAME },
