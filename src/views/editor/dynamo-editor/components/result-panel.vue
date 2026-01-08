@@ -8,7 +8,7 @@
       <n-text type="error">{{ errorMessage }}</n-text>
     </n-card>
     <n-card
-      v-else-if="hasData"
+      v-else-if="hasData && data.length > 0"
       :title="$t('editor.dynamo.resultTitle')"
       class="result-card"
     >
@@ -42,6 +42,17 @@
           {{ $t('editor.dynamo.partiql.loadMore') }}
         </n-button>
       </template>
+    </n-card>
+    <n-card
+      v-else-if="hasData && data.length === 0"
+      class="success-card"
+      :title="$t('editor.dynamo.resultTitle')"
+    >
+      <n-result
+        status="success"
+        :title="$t('editor.dynamo.partiql.executionSuccess')"
+        :description="$t('editor.dynamo.partiql.noItemsReturned')"
+      />
     </n-card>
   </div>
 </template>
@@ -99,6 +110,10 @@ const handlePageSizeChange = (pageSize: number) => {
   overflow: auto;
 
   .error-card {
+    margin: 12px;
+  }
+
+  .success-card {
     margin: 12px;
   }
 
