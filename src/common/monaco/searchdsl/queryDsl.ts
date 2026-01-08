@@ -747,13 +747,9 @@ export class QueryDslProvider {
       return allQueries;
     }
 
-    const filtered: { [key: string]: QueryDef } = {};
-    for (const [key, query] of Object.entries(allQueries)) {
-      if (this.isAvailable(query, backend, version)) {
-        filtered[key] = query;
-      }
-    }
-    return filtered;
+    return Object.entries(allQueries)
+      .filter(([_, query]) => this.isAvailable(query, backend, version))
+      .reduce((acc, [key, query]) => ({ ...acc, [key]: query }), {});
   }
 
   /**
