@@ -74,38 +74,6 @@ export const getActionMarksDecorations = (searchTokens: SearchAction[]): Array<D
     .filter(Boolean)
     .sort((a, b) => (a as Decoration).id - (b as Decoration).id) as Array<Decoration>;
 };
-export const buildCodeLens = (
-  position: monaco.Position,
-  autoIndentCmdId: string,
-  copyAsCurlCmdId: string,
-): Array<monaco.languages.CodeLens> => {
-  const action = getAction(position);
-  if (!action) {
-    return [];
-  }
-
-  const copyCurl = {
-    range: action.position,
-    id: `CopyAsCurl`,
-    command: {
-      id: copyAsCurlCmdId!,
-      title: 'Copy as CURL',
-      arguments: [position],
-    },
-  };
-
-  const autoIndent = action.qdsl && {
-    range: action.position,
-    id: `AutoIndent`,
-    command: {
-      id: autoIndentCmdId!,
-      title: 'Auto Indent',
-      arguments: [{ ...action.position, startLineNumber: action.position.startLineNumber + 1 }],
-    },
-  };
-
-  return [autoIndent, copyCurl].filter(Boolean) as Array<monaco.languages.CodeLens>;
-};
 
 export const formatQDSL = (
   searchTokens: SearchAction[],

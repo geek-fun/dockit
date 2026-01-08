@@ -3,6 +3,22 @@
     <template #1>
       <div class="editor-container">
         <div id="partiql-editor" ref="editorRef" class="monaco-editor-container" />
+        <!-- Context menu for gutter actions -->
+        <div
+          v-if="contextMenuVisible"
+          class="partiql-context-menu"
+          :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
+          @click.stop
+        >
+          <ul>
+            <li @click="handleContextMenuAction('execute')">
+              {{ lang.t('editor.dynamo.partiql.contextMenu.execute') }}
+            </li>
+            <li @click="handleContextMenuAction('copy')">
+              {{ lang.t('editor.dynamo.partiql.contextMenu.copy') }}
+            </li>
+          </ul>
+        </div>
       </div>
     </template>
     <template #2>
@@ -35,7 +51,12 @@ import {
   monaco,
   setPartiqlDynamicOptions,
   partiqlSampleQueries,
+  parsePartiqlStatements,
+  getStatementAtLine,
+  getPartiqlStatementDecorations,
+  partiqlExecutionGutterClass,
 } from '../../../../common/monaco';
+import type { PartiqlStatement, PartiqlDecoration } from '../../../../common/monaco/partiql';
 import { useLang } from '../../../../lang';
 import ResultPanel from './result-panel.vue';
 
@@ -59,6 +80,19 @@ const errorMessage = ref<string | null>(null);
 const queryResult = ref<PartiQLResult | null>(null);
 const currentNextToken = ref<string | null>(null);
 const lastExecutedStatement = ref<string | null>(null);
+
+// Gutter decorations state
+let executeDecorations: Array<PartiqlDecoration | string> = [];
+let partiqlStatements: PartiqlStatement[] = [];
+
+// Monaco editor target type for gutter line decorations
+// See: https://microsoft.github.io/monaco-editor/api/enums/editor.MouseTargetType.html
+const MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS = 4;
+
+// Context menu state
+const contextMenuVisible = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+const contextMenuStatementLine = ref<number | null>(null);
 
 const resultColumns = computed<DataTableColumn[]>(() => {
   if (!queryResult.value?.items?.length) return [];
@@ -121,6 +155,137 @@ const insertSampleQuery = (key: string) => {
     const newLineNumber = position.lineNumber + 2;
     editor.setPosition({ lineNumber: newLineNumber, column: 1 });
     editor.revealLine(newLineNumber);
+  }
+};
+
+/**
+ * Refresh gutter decorations for PartiQL statements
+ */
+const refreshStatementDecorations = () => {
+  if (!editor) return;
+
+  const model = editor.getModel();
+  if (!model) return;
+
+  const content = model.getValue();
+  partiqlStatements = parsePartiqlStatements(content);
+  const freshDecorations = getPartiqlStatementDecorations(partiqlStatements);
+
+  // @See https://github.com/Microsoft/monaco-editor/issues/913#issuecomment-396537569
+  executeDecorations = editor.deltaDecorations(
+    executeDecorations as Array<string>,
+    freshDecorations,
+  ) as unknown as PartiqlDecoration[];
+};
+
+/**
+ * Execute a PartiQL statement at a specific line number
+ */
+const executeStatementAtLine = async (lineNumber: number) => {
+  if (!editor || !activeConnection.value) {
+    message.error(lang.t('editor.establishedRequired'), {
+      closable: true,
+      keepAliveOnHover: true,
+    });
+    return;
+  }
+
+  const statement = getStatementAtLine(partiqlStatements, lineNumber);
+  if (!statement) {
+    message.warning(lang.t('editor.dynamo.partiql.noStatementFound'), {
+      closable: true,
+      keepAliveOnHover: true,
+    });
+    return;
+  }
+
+  loadingRef.value = true;
+  errorMessage.value = null;
+  queryResult.value = null;
+  currentNextToken.value = null;
+  lastExecutedStatement.value = statement.statement;
+  showResultPanel.value = true;
+  editorSize.value = 0.5;
+
+  try {
+    const result = await dynamoApi.executeStatement(
+      activeConnection.value as DynamoDBConnection,
+      { statement: statement.statement },
+    );
+    queryResult.value = result;
+    currentNextToken.value = result.next_token;
+  } catch (err) {
+    const error = err as CustomError;
+    errorMessage.value = error.details || error.message || String(err);
+    message.error(`Error: ${errorMessage.value}`, {
+      closable: true,
+      keepAliveOnHover: true,
+    });
+  } finally {
+    loadingRef.value = false;
+  }
+};
+
+/**
+ * Copy a PartiQL statement at a specific line number to clipboard
+ */
+const copyStatementAtLine = async (lineNumber: number) => {
+  const statement = getStatementAtLine(partiqlStatements, lineNumber);
+  if (!statement) {
+    message.warning(lang.t('editor.dynamo.partiql.noStatementFound'), {
+      closable: true,
+      keepAliveOnHover: true,
+    });
+    return;
+  }
+
+  try {
+    if (!navigator.clipboard) {
+      throw new Error('Clipboard API not supported');
+    }
+    await navigator.clipboard.writeText(statement.statement);
+    message.success(lang.t('editor.copySuccess'));
+  } catch (err) {
+    message.error(`${lang.t('editor.copyFailure')}: ${jsonify.stringify(err)}`, {
+      closable: true,
+      keepAliveOnHover: true,
+    });
+  }
+};
+
+/**
+ * Hide context menu
+ */
+const hideContextMenu = () => {
+  contextMenuVisible.value = false;
+  contextMenuStatementLine.value = null;
+};
+
+/**
+ * Handle context menu action
+ */
+const handleContextMenuAction = (action: 'execute' | 'copy') => {
+  const lineNumber = contextMenuStatementLine.value;
+  hideContextMenu();
+
+  if (lineNumber === null) return;
+
+  if (action === 'execute') {
+    executeStatementAtLine(lineNumber);
+  } else if (action === 'copy') {
+    copyStatementAtLine(lineNumber);
+  }
+};
+
+/**
+ * Handle click outside context menu to close it
+ */
+const handleDocumentClick = (event: MouseEvent) => {
+  if (contextMenuVisible.value) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.partiql-context-menu')) {
+      hideContextMenu();
+    }
   }
 };
 
@@ -314,6 +479,46 @@ const setupEditor = () => {
 
   editor.onDidChangeModelContent(() => {
     saveModelContent(false, false, false);
+    // Update gutter decorations when content changes
+    refreshStatementDecorations();
+  });
+
+  // Initial decoration refresh
+  refreshStatementDecorations();
+
+  // Handle left-click on gutter execute button
+  editor.onMouseDown(({ event, target }) => {
+    // Hide context menu on any click
+    hideContextMenu();
+
+    if (
+      event.leftButton &&
+      target.type === MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS &&
+      target.element?.classList &&
+      Object.values(target.element.classList).includes(partiqlExecutionGutterClass)
+    ) {
+      executeStatementAtLine(target.position.lineNumber);
+    }
+  });
+
+  // Handle right-click on gutter execute button for context menu
+  editor.onContextMenu(({ event, target }) => {
+    if (
+      target.type === MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS &&
+      target.element?.classList &&
+      Object.values(target.element.classList).includes(partiqlExecutionGutterClass)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Position context menu near the click
+      contextMenuPosition.value = {
+        x: event.posx,
+        y: event.posy,
+      };
+      contextMenuStatementLine.value = target.position.lineNumber;
+      contextMenuVisible.value = true;
+    }
   });
 
   // Comment/uncomment line or block (Ctrl+/ or Cmd+/)
@@ -405,10 +610,14 @@ const cleanupFileListener = async () => {
 onMounted(async () => {
   setupEditor();
   await setupFileListener();
+  // Add document click listener for context menu
+  document.addEventListener('click', handleDocumentClick);
 });
 
 onUnmounted(async () => {
   await cleanupFileListener();
+  // Remove document click listener
+  document.removeEventListener('click', handleDocumentClick);
   editor?.dispose();
 });
 
@@ -428,11 +637,60 @@ defineExpose({
   .editor-container {
     width: 100%;
     height: 100%;
+    position: relative;
 
     .monaco-editor-container {
       width: 100%;
       height: 100%;
     }
   }
+}
+
+.partiql-context-menu {
+  position: fixed;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  border-radius: 4px;
+  overflow: hidden;
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    min-width: 120px;
+
+    li {
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 13px;
+
+      &:hover {
+        background: var(--border-color);
+      }
+    }
+  }
+}
+</style>
+
+<style lang="scss">
+/* Gutter decoration for PartiQL execute button - global styles for Monaco */
+.partiql-execute-decoration {
+  cursor: pointer;
+  height: 0 !important;
+  width: 0 !important;
+  margin-top: 3px;
+  margin-left: 8px;
+  border-radius: 3px;
+  border-left-width: 10px;
+  border-top-width: 7px;
+  border-bottom-width: 7px;
+  border-right-width: 0;
+  border-top-color: transparent;
+  border-left-color: var(--theme-color);
+  border-bottom-color: transparent;
+  border-right-color: transparent;
+  border-style: solid;
 }
 </style>

@@ -6,7 +6,15 @@ import {
   DynamicCompletionOptions
 } from './completion.ts';
 import { monacoEnvironment } from './environment.ts';
-import { registerPartiqlLanguage, partiqlSampleQueries, setPartiqlDynamicOptions } from './partiql';
+import {
+  registerPartiqlLanguage,
+  partiqlSampleQueries,
+  setPartiqlDynamicOptions,
+  parsePartiqlStatements,
+  getStatementAtLine,
+  getPartiqlStatementDecorations,
+  partiqlExecutionGutterClass,
+} from './partiql';
 import { registerSearchLanguage, executeActions } from './searchdsl';
 
 if (typeof self !== 'undefined') {
@@ -29,5 +37,6 @@ export {
   monaco,
   BackendType, configureCompletions,
   configureDynamicOptions, type DynamicCompletionOptions, executeActions,
-  partiqlSampleQueries, setPartiqlDynamicOptions
+  partiqlSampleQueries, setPartiqlDynamicOptions,
+  parsePartiqlStatements, getStatementAtLine, getPartiqlStatementDecorations, partiqlExecutionGutterClass,
 };

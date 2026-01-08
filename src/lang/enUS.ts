@@ -209,6 +209,11 @@ export const enUS = {
       sampleUpdateDocument: 'Update Document',
       sampleDeleteDocument: 'Delete Document',
       sampleBulk: 'Bulk Operations',
+      contextMenu: {
+        execute: 'Execute',
+        autoIndent: 'Auto Indent',
+        copyAsCurl: 'Copy as cURL',
+      },
     },
     dynamo: {
       uiQuery: 'Query UI',
@@ -271,6 +276,12 @@ export const enUS = {
         noStatementFound: 'No PartiQL statement to execute. Please select a query or position your cursor within a statement.',
         itemsReturned: '{count} items returned',
         loadMore: 'Load More',
+        executionSuccess: 'Statement executed successfully',
+        noItemsReturned: 'No items returned',
+        contextMenu: {
+          execute: 'Execute',
+          copy: 'Copy',
+        },
       },
     },
   },

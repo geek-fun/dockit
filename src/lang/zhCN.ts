@@ -209,6 +209,11 @@ export const zhCN = {
       sampleUpdateDocument: '更新文档',
       sampleDeleteDocument: '删除文档',
       sampleBulk: '批量操作',
+      contextMenu: {
+        execute: '执行',
+        autoIndent: '格式化缩进',
+        copyAsCurl: '复制 cURL',
+      },
     },
     dynamo: {
       uiQuery: '查询 UI',
@@ -271,6 +276,12 @@ export const zhCN = {
         noStatementFound: '没有可执行的 PartiQL 语句。请选择一个查询或将光标定位在语句中。',
         itemsReturned: '返回 {count} 条记录',
         loadMore: '加载更多',
+        executionSuccess: '语句执行成功',
+        noItemsReturned: '未返回任何数据',
+        contextMenu: {
+          execute: '执行',
+          copy: '复制',
+        },
       },
     },
   },

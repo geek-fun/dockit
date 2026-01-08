@@ -1,7 +1,28 @@
 <template>
   <n-split direction="horizontal" class="editor" v-model:size="queryEditorSize">
     <template #1>
-      <div id="query-editor" ref="queryEditorRef" />
+      <div class="query-editor-container">
+        <div id="query-editor" ref="queryEditorRef" />
+        <!-- Context menu for gutter actions -->
+        <div
+          v-if="contextMenuVisible"
+          class="es-context-menu"
+          :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
+          @click.stop
+        >
+          <ul>
+            <li @click="handleContextMenuAction('execute')">
+              {{ lang.t('editor.es.contextMenu.execute') }}
+            </li>
+            <li @click="handleContextMenuAction('autoIndent')">
+              {{ lang.t('editor.es.contextMenu.autoIndent') }}
+            </li>
+            <li @click="handleContextMenuAction('copyAsCurl')">
+              {{ lang.t('editor.es.contextMenu.copyAsCurl') }}
+            </li>
+          </ul>
+        </div>
+      </div>
     </template>
     <template #2>
       <DisplayEditor id="display-editor" ref="displayRef" />
@@ -26,7 +47,6 @@ import {
 import { useLang } from '../../../lang';
 import DisplayEditor from './display-editor.vue';
 import {
-  buildCodeLens,
   buildSearchToken,
   Decoration,
   Editor,
@@ -59,14 +79,20 @@ const chatStore = useChatStore();
 const { insertBoard } = storeToRefs(chatStore);
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let queryEditor: Editor | null = null;
-let autoIndentCmdId: string | null = null;
-let copyCurlCmdId: string | null = null;
 // DOM
 const queryEditorRef = ref();
 const displayRef = ref();
 
 let executeDecorations: Array<Decoration | string> = [];
-let currentAction: SearchAction | undefined = undefined;
+
+// Monaco editor target type for gutter line decorations
+// See: https://microsoft.github.io/monaco-editor/api/enums/editor.MouseTargetType.html
+const MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS = 4;
+
+// Context menu state
+const contextMenuVisible = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+const contextMenuActionLine = ref<number | null>(null);
 
 const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
   const freshDecorations = getActionMarksDecorations(searchTokens);
@@ -77,48 +103,17 @@ const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
   ) as unknown as Decoration[];
 };
 
-const codeLensProvider = monaco.languages.registerCodeLensProvider('search', {
-  onDidChange: (listener, thisArg) => {
-    if (!queryEditor) {
-      return {
-        dispose: () => {},
-      } as monaco.IDisposable;
-    }
-    const model = queryEditor.getModel();
-    // refresh at first loading
-    if (model) {
-      buildSearchToken(model);
-      refreshActionMarks(queryEditor!, searchTokens);
-    }
-    return queryEditor!.onDidChangeCursorPosition(acc => {
-      // only updates the searchTokens when content edited, past, redo, undo
-      if ([0, 4, 6, 5].includes(acc.reason)) {
-        if (!model) {
-          return;
-        }
-
-        buildSearchToken(model);
-
-        refreshActionMarks(queryEditor!, searchTokens);
-      }
-
-      const newAction = getAction(acc.position);
-      if (newAction && newAction !== currentAction) {
-        currentAction = newAction;
-        return listener(thisArg);
-      }
-    });
-  },
-  provideCodeLenses: () => {
-    const position = queryEditor!.getPosition();
-    const lenses = position ? buildCodeLens(position, autoIndentCmdId!, copyCurlCmdId!) : [];
-
-    return {
-      lenses,
-      dispose: () => {},
-    };
-  },
-});
+/**
+ * Refresh search tokens and decorations
+ */
+const refreshSearchTokensAndDecorations = () => {
+  if (!queryEditor) return;
+  const model = queryEditor.getModel();
+  if (!model) return;
+  
+  buildSearchToken(model);
+  refreshActionMarks(queryEditor, searchTokens);
+};
 
 watch(themeType, () => {
   const vsTheme = getEditorTheme();
@@ -241,6 +236,50 @@ const copyCurlAction = (position: monaco.Range) => {
   }
 };
 
+/**
+ * Hide context menu
+ */
+const hideContextMenu = () => {
+  contextMenuVisible.value = false;
+  contextMenuActionLine.value = null;
+};
+
+/**
+ * Handle context menu action
+ */
+const handleContextMenuAction = (action: 'execute' | 'autoIndent' | 'copyAsCurl') => {
+  const lineNumber = contextMenuActionLine.value;
+  hideContextMenu();
+
+  if (lineNumber === null) return;
+
+  const searchAction = searchTokens.find(
+    ({ position }) => position.startLineNumber === lineNumber,
+  );
+
+  if (!searchAction) return;
+
+  if (action === 'execute') {
+    executeQueryAction({ column: 1, lineNumber });
+  } else if (action === 'autoIndent') {
+    autoIndentAction(queryEditor!, searchAction.position);
+  } else if (action === 'copyAsCurl') {
+    copyCurlAction(searchAction.position);
+  }
+};
+
+/**
+ * Handle click outside context menu to close it
+ */
+const handleDocumentClick = (event: MouseEvent) => {
+  if (contextMenuVisible.value) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.es-context-menu')) {
+      hideContextMenu();
+    }
+  }
+};
+
 const setupQueryEditor = () => {
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     theme: getEditorTheme(),
@@ -257,19 +296,45 @@ const setupQueryEditor = () => {
 
   queryEditor.onDidChangeModelContent(_changes => {
     saveModelContent(false, false, false);
+    // Update gutter decorations when content changes
+    refreshSearchTokensAndDecorations();
   });
 
-  autoIndentCmdId = queryEditor.addCommand(0, (...args) => autoIndentAction(queryEditor!, args[1]));
-  copyCurlCmdId = queryEditor.addCommand(0, (...args) => copyCurlAction(args[1]));
+  // Initial decoration refresh
+  refreshSearchTokensAndDecorations();
 
+  // Handle left-click on gutter execute button
   queryEditor.onMouseDown(({ event, target }) => {
+    // Hide context menu on any click
+    hideContextMenu();
+
     if (
       event.leftButton &&
-      target.type === 4 &&
-      Object.values(target!.element!.classList).includes(executionGutterClass) &&
-      queryEditor
+      target.type === MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS &&
+      target.element?.classList &&
+      Object.values(target.element.classList).includes(executionGutterClass)
     ) {
       executeQueryAction(target.position);
+    }
+  });
+
+  // Handle right-click on gutter execute button for context menu
+  queryEditor.onContextMenu(({ event, target }) => {
+    if (
+      target.type === MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS &&
+      target.element?.classList &&
+      Object.values(target.element.classList).includes(executionGutterClass)
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      // Position context menu near the click
+      contextMenuPosition.value = {
+        x: event.posx,
+        y: event.posy,
+      };
+      contextMenuActionLine.value = target.position.lineNumber;
+      contextMenuVisible.value = true;
     }
   });
 
@@ -466,11 +531,14 @@ defineExpose({
 onMounted(async () => {
   setupQueryEditor();
   await setupFileListener();
+  // Add document click listener for context menu
+  document.addEventListener('click', handleDocumentClick);
 });
 
 onUnmounted(async () => {
   await cleanupFileListener();
-  codeLensProvider?.dispose();
+  // Remove document click listener
+  document.removeEventListener('click', handleDocumentClick);
   queryEditor?.dispose();
   displayRef?.value?.dispose();
 });
@@ -481,15 +549,48 @@ onUnmounted(async () => {
   width: 100%;
   height: 100%;
 
-  #query-editor {
+  .query-editor-container {
     width: 100%;
     height: 100%;
+    position: relative;
+
+    #query-editor {
+      width: 100%;
+      height: 100%;
+    }
   }
 
   #display-editor {
     width: 100%;
     height: 100%;
     border-left: 1px solid var(--border-color);
+  }
+}
+
+.es-context-menu {
+  position: fixed;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  border-radius: 4px;
+  overflow: hidden;
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    min-width: 140px;
+
+    li {
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 13px;
+
+      &:hover {
+        background: var(--border-color);
+      }
+    }
   }
 }
 
