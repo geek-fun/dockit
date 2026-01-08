@@ -7,7 +7,14 @@ export {
   setPartiqlDynamicOptions,
   getPartiqlDynamicOptions,
   partiqlSampleQueries,
+  parsePartiqlStatements,
+  getStatementAtLine,
+  getPartiqlStatementDecorations,
+  partiqlExecutionGutterClass,
+  isStatementStart,
   type PartiqlDynamicOptions,
+  type PartiqlStatement,
+  type PartiqlDecoration,
 } from './utils';
 export { partiql } from './lexerRules';
 

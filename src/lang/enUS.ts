@@ -271,6 +271,10 @@ export const enUS = {
         noStatementFound: 'No PartiQL statement to execute. Please select a query or position your cursor within a statement.',
         itemsReturned: '{count} items returned',
         loadMore: 'Load More',
+        contextMenu: {
+          execute: 'Execute',
+          copy: 'Copy',
+        },
       },
     },
   },
