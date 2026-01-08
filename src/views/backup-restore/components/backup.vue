@@ -205,10 +205,14 @@ watch(connection, () => {
     return;
   }
   indexOptions.value =
-    (connection.value as ElasticsearchConnection)?.indices.map(index => ({
+    (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
       label: index.index,
       value: index.index,
     })) ?? [];
+});
+
+watch(folderPath, () => {
+  backupFormData.value.backupFolder = folderPath.value;
 });
 
 const loadingRefs = ref<{ connection: boolean; index: boolean }>({
@@ -234,6 +238,12 @@ const handleOpen = async (isOpen: boolean, target: string) => {
     loadingRefs.value.index = true;
     try {
       await fetchIndices(connection.value);
+      // Update indexOptions after fetching indices
+      indexOptions.value =
+        (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
+          label: index.index,
+          value: index.index,
+        })) ?? [];
     } catch (err) {
       message.error(
         `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,

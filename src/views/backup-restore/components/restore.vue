@@ -70,11 +70,15 @@
             </n-grid-item>
             <n-grid-item span="8">
               <n-form-item :label="$t('backup.backupForm.index')" path="index">
-                <n-input
+                <n-select
+                  :options="indexOptions"
+                  :placeholder="$t('connection.selectIndex')"
                   v-model:value="restoreFormData.index"
-                  type="text"
-                  :input-props="inputProps"
-                  :placeholder="$t('backup.backupForm.index')"
+                  remote
+                  filterable
+                  :loading="loadingRefs.index"
+                  @update:value="(value: string) => handleSelectUpdate(value, 'index')"
+                  @update:show="(isOpen: boolean) => handleOpen(isOpen, 'index')"
                 />
               </n-form-item>
             </n-grid-item>
@@ -98,7 +102,7 @@ import { FormRules } from 'naive-ui';
 import { Close, DocumentExport, FileStorage, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { ElasticsearchConnection, useBackupRestoreStore, useConnectionStore } from '../../../store';
-import { CustomError, inputProps } from '../../../common';
+import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 
 const message = useMessage();
@@ -107,7 +111,7 @@ const lang = useLang();
 
 const fileFormRef = ref();
 const connectionStore = useConnectionStore();
-const { fetchConnections, testConnection } = connectionStore;
+const { fetchConnections, fetchIndices, testConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
@@ -163,6 +167,20 @@ const restoreProgressPercents = computed(() => {
   return isNaN(percents) ? null : percents;
 });
 
+const indexOptions = ref<Array<{ label: string; value: string }>>([]);
+watch(connection, () => {
+  if (!connection.value) {
+    indexOptions.value = [];
+    restoreFormData.value.index = '';
+    return;
+  }
+  indexOptions.value =
+    (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
+      label: index.index,
+      value: index.index,
+    })) ?? [];
+});
+
 const handleFileUpload = async () => {
   try {
     await selectFile();
@@ -177,7 +195,10 @@ const handleFileUpload = async () => {
   }
 };
 
-const loadingRefs = ref<{ connection: boolean }>({ connection: false });
+const loadingRefs = ref<{ connection: boolean; index: boolean }>({
+  connection: false,
+  index: false,
+});
 
 const handleOpen = async (isOpen: boolean, target: string) => {
   if (!isOpen) return;
@@ -185,6 +206,36 @@ const handleOpen = async (isOpen: boolean, target: string) => {
     loadingRefs.value.connection = true;
     await fetchConnections();
     loadingRefs.value.connection = false;
+  } else if (target === 'index') {
+    if (!connection.value) {
+      message.error(lang.t('editor.establishedRequired'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
+      return;
+    }
+    loadingRefs.value.index = true;
+    try {
+      await fetchIndices(connection.value);
+      // Update indexOptions after fetching indices
+      indexOptions.value =
+        (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
+          label: index.index,
+          value: index.index,
+        })) ?? [];
+    } catch (err) {
+      message.error(
+        `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
+        {
+          closable: true,
+          keepAliveOnHover: true,
+          duration: 3000,
+        },
+      );
+    } finally {
+      loadingRefs.value.index = false;
+    }
   }
 };
 
@@ -205,6 +256,16 @@ const handleSelectUpdate = async (value: string, target: string) => {
         duration: 3600,
       });
     }
+  } else if (target === 'index') {
+    if (!connection.value) {
+      message.error(lang.t('editor.establishedRequired'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
+      return;
+    }
+    // Index is already set via v-model, no additional action needed for restore
   }
 };
 
