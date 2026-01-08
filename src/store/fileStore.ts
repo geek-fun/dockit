@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { PathInfo, sourceFileApi } from '../datasources';
+import { PathInfo, PathTypeEnum, sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
 import { get } from 'lodash';
 
@@ -7,6 +7,12 @@ export enum ToolBarAction {
   ADD_DOCUMENT = 'ADD_DOCUMENT',
   ADD_FOLDER = 'ADD_FOLDER',
   OPEN_FOLDER = 'OPEN_FOLDER',
+}
+
+export enum SortBy {
+  NAME = 'NAME',
+  DATE = 'DATE',
+  SIZE = 'SIZE',
 }
 
 export enum ContextMenuAction {
@@ -22,17 +28,46 @@ export const useFileStore = defineStore('fileStore', {
     fileContent: string;
     fileList: PathInfo[];
     activePath: PathInfo | undefined;
+    sortBy: SortBy;
   } {
     return {
       fileContent: '',
       activePath: undefined,
       fileList: [],
+      sortBy: SortBy.NAME,
     };
   },
   persist: true,
   getters: {
     breadCrumbPath: (state): string => {
       return state.activePath?.displayPath ?? '';
+    },
+    sortedFileList: (state): PathInfo[] => {
+      const files = [...state.fileList];
+      
+      files.sort((a, b) => {
+        // Folders always come first
+        if (a.type !== b.type) {
+          return a.type === PathTypeEnum.FOLDER ? -1 : 1;
+        }
+        
+        // Then sort by the selected criteria
+        switch (state.sortBy) {
+          case SortBy.NAME:
+            return a.name.localeCompare(b.name);
+          case SortBy.DATE:
+            if (!a.lastModified && !b.lastModified) return 0;
+            if (!a.lastModified) return 1;
+            if (!b.lastModified) return -1;
+            return new Date(b.lastModified).getTime() - new Date(a.lastModified).getTime();
+          case SortBy.SIZE:
+            return (b.size || 0) - (a.size || 0);
+          default:
+            return 0;
+        }
+      });
+      
+      return files;
     },
   },
   actions: {
@@ -109,6 +144,10 @@ export const useFileStore = defineStore('fileStore', {
           get(error, 'details', get(error, 'message', '')),
         );
       }
+    },
+
+    setSortBy(sortBy: SortBy) {
+      this.sortBy = sortBy;
     },
   },
 });

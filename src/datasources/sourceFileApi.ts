@@ -7,6 +7,7 @@ import {
   remove,
   rename,
   writeTextFile,
+  stat,
 } from '@tauri-apps/plugin-fs';
 import { platform } from '@tauri-apps/plugin-os';
 
@@ -26,6 +27,8 @@ export type PathInfo = {
   path: string;
   displayPath: string;
   type: PathTypeEnum;
+  size?: number;
+  lastModified?: Date | null;
 };
 
 const DEFAULT_FOLDER = '.dockit';
@@ -210,7 +213,19 @@ const readDirs = async (filePath?: string): Promise<Array<PathInfo>> => {
         const displayPath = await getDisplayPath(absPath);
         const type = entry.isDirectory ? PathTypeEnum.FOLDER : PathTypeEnum.FILE;
 
-        return { path: absPath, name: entry.name, displayPath, type };
+        // Fetch file metadata
+        let size: number | undefined;
+        let lastModified: Date | null | undefined;
+        try {
+          const fileInfo = await stat(absPath);
+          size = fileInfo.size;
+          lastModified = fileInfo.mtime;
+        } catch (error) {
+          // If stat fails, continue without metadata
+          debug(`Failed to get stats for ${absPath}: ${error}`);
+        }
+
+        return { path: absPath, name: entry.name, displayPath, type, size, lastModified };
       }),
   );
 };
