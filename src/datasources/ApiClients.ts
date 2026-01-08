@@ -1,21 +1,16 @@
 import { invoke, InvokeArgs } from '@tauri-apps/api/core';
 import { jsonify } from '../common';
 
-export type ApiClientError = {
-  status: number;
-  message: string;
-  details?: string;
-};
+export class ApiClientError extends Error {
+  public status: number;
+  public details?: string;
 
-export const createApiClientError = (
-  status: number,
-  message: string,
-  details?: string,
-): ApiClientError => ({
-  status,
-  message,
-  details,
-});
+  constructor(status: number, message: string, details?: string) {
+    super(message);
+    this.status = status;
+    this.details = details;
+  }
+}
 
 type ApiClientResponse = {
   status: number;
@@ -41,7 +36,7 @@ export const tauriClient = {
       return { status, message, data };
     } catch (err) {
       const { status, message, data } = jsonify.parse(err as string) as ApiClientResponse;
-      throw createApiClientError(status, message, jsonify.stringify(data));
+      throw new ApiClientError(status, message, jsonify.stringify(data));
     }
   },
 
@@ -55,7 +50,7 @@ export const tauriClient = {
       return { status, message, data };
     } catch (err) {
       const { status, message, data } = jsonify.parse(err as string) as ApiClientResponse;
-      throw createApiClientError(status, message, jsonify.stringify(data));
+      throw new ApiClientError(status, message, jsonify.stringify(data));
     }
   },
 };

@@ -1075,134 +1075,133 @@ const opensearchEndpoints: ApiEndpoint[] = [
 ];
 
 /**
- * Initialize endpoints map for all backends
+ * API Specification provider class
  */
-const initializeEndpoints = (): Map<BackendType, ApiEndpoint[]> => {
-  const endpoints = new Map<BackendType, ApiEndpoint[]>();
-  
-  endpoints.set(BackendType.ELASTICSEARCH, [
-    ...commonEndpoints,
-    ...elasticsearchEndpoints,
-  ]);
-  
-  endpoints.set(BackendType.OPENSEARCH, [
-    ...commonEndpoints,
-    ...opensearchEndpoints,
-  ]);
-  
-  return endpoints;
-};
+export class ApiSpecProvider {
+  private endpoints: Map<BackendType, ApiEndpoint[]>;
 
-// Initialize endpoints once
-const endpointsMap = initializeEndpoints();
-
-/**
- * Get all endpoints for a backend
- */
-export const getEndpoints = (backend: BackendType, version?: string): ApiEndpoint[] => {
-  const endpoints = endpointsMap.get(backend) || [];
-  
-  if (!version) {
-    return endpoints;
+  constructor() {
+    this.endpoints = new Map();
+    this.initializeEndpoints();
   }
 
-  return endpoints.filter(endpoint => {
-    if (!endpoint.availability) return true;
-    const availability = endpoint.availability[backend];
-    if (!availability) return true;
-    return isVersionInRange(version, availability);
-  });
-};
+  /**
+   * Initialize endpoints for all backends
+   */
+  private initializeEndpoints(): void {
+    // Initialize with common endpoints for both backends
+    this.endpoints.set(BackendType.ELASTICSEARCH, [
+      ...commonEndpoints,
+      ...elasticsearchEndpoints,
+    ]);
+    
+    this.endpoints.set(BackendType.OPENSEARCH, [
+      ...commonEndpoints,
+      ...opensearchEndpoints,
+    ]);
+  }
 
-/**
- * Match a path against an endpoint pattern
- */
-const matchPath = (pattern: string, path: string): boolean => {
-  // Convert pattern to regex
-  const regexPattern = pattern
-    .replace(/\{[^}]+\}/g, '[^/]+') // Replace {param} with [^/]+
-    .replace(/\//g, '\\/'); // Escape slashes
-  
-  const regex = new RegExp(`^${regexPattern}$`);
-  return regex.test(path);
-};
-
-/**
- * Find endpoint by path pattern
- */
-export const findEndpoint = (
-  backend: BackendType,
-  path: string,
-  method?: HttpMethod,
-  version?: string,
-): ApiEndpoint | undefined => {
-  const endpoints = getEndpoints(backend, version);
-  
-  return endpoints.find(endpoint => {
-    if (method && !endpoint.methods.includes(method)) {
-      return false;
+  /**
+   * Get all endpoints for a backend
+   */
+  getEndpoints(backend: BackendType, version?: string): ApiEndpoint[] {
+    const endpoints = this.endpoints.get(backend) || [];
+    
+    if (!version) {
+      return endpoints;
     }
-    return matchPath(endpoint.path, path);
-  });
-};
 
-/**
- * Check if a path pattern matches a prefix
- */
-const pathMatchesPrefix = (pattern: string, prefix: string): boolean => {
-  const patternParts = pattern.split('/');
-  const prefixParts = prefix.split('/');
-  
-  return prefixParts.slice(0, -1).every((prefixPart, i) => 
-    patternParts[i] === prefixPart || patternParts[i]?.startsWith('{')
-  );
-};
-
-/**
- * Get the next path segment after a prefix
- */
-const getNextPathSegment = (path: string, prefix: string): string | undefined => {
-  const pathParts = path.split('/');
-  const prefixParts = prefix.split('/');
-  
-  if (pathParts.length <= prefixParts.length) {
-    return undefined;
+    return endpoints.filter(endpoint => {
+      if (!endpoint.availability) return true;
+      const availability = endpoint.availability[backend];
+      if (!availability) return true;
+      return isVersionInRange(version, availability);
+    });
   }
 
-  return pathParts[prefixParts.length];
-};
-
-/**
- * Get completion paths for a backend
- */
-export const getPathCompletions = (
-  backend: BackendType,
-  version?: string,
-  prefix?: string,
-): string[] => {
-  const endpoints = getEndpoints(backend, version);
-  const paths = endpoints.map(e => e.path);
-  
-  if (!prefix) {
-    return [...new Set(paths)];
+  /**
+   * Find endpoint by path pattern
+   */
+  findEndpoint(backend: BackendType, path: string, method?: HttpMethod, version?: string): ApiEndpoint | undefined {
+    const endpoints = this.getEndpoints(backend, version);
+    
+    return endpoints.find(endpoint => {
+      if (method && !endpoint.methods.includes(method)) {
+        return false;
+      }
+      return this.matchPath(endpoint.path, path);
+    });
   }
 
-  // Filter and generate completions based on prefix
-  const uniquePaths = endpoints
-    .filter(endpoint => 
-      endpoint.path.startsWith(prefix) || pathMatchesPrefix(endpoint.path, prefix)
-    )
-    .map(endpoint => getNextPathSegment(endpoint.path, prefix))
-    .filter((segment): segment is string => segment !== undefined);
+  /**
+   * Match a path against an endpoint pattern
+   */
+  private matchPath(pattern: string, path: string): boolean {
+    // Convert pattern to regex
+    const regexPattern = pattern
+      .replace(/\{[^}]+\}/g, '[^/]+') // Replace {param} with [^/]+
+      .replace(/\//g, '\\/'); // Escape slashes
+    
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(path);
+  }
 
-  return [...new Set(uniquePaths)];
-};
+  /**
+   * Get completion paths for a backend
+   */
+  getPathCompletions(backend: BackendType, version?: string, prefix?: string): string[] {
+    const endpoints = this.getEndpoints(backend, version);
+    const paths = endpoints.map(e => e.path);
+    
+    if (!prefix) {
+      return [...new Set(paths)];
+    }
 
-/**
- * API Specification provider object (for backward compatibility)
- */
-export const apiSpecProvider = {
-  getEndpoints,
-  findEndpoint,
-  getPathCompletions,
-};
+    // Filter and generate completions based on prefix
+    const uniquePaths = new Set<string>();
+    endpoints.forEach(endpoint => {
+      const path = endpoint.path;
+      if (path.startsWith(prefix) || this.pathMatchesPrefix(path, prefix)) {
+        // Get the next segment after prefix
+        const nextSegment = this.getNextPathSegment(path, prefix);
+        if (nextSegment) {
+          uniquePaths.add(nextSegment);
+        }
+      }
+    });
+
+    return [...uniquePaths];
+  }
+
+  /**
+   * Check if a path pattern matches a prefix
+   */
+  private pathMatchesPrefix(pattern: string, prefix: string): boolean {
+    const patternParts = pattern.split('/');
+    const prefixParts = prefix.split('/');
+    
+    for (let i = 0; i < prefixParts.length - 1; i++) {
+      if (patternParts[i] !== prefixParts[i] && !patternParts[i]?.startsWith('{')) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Get the next path segment after a prefix
+   */
+  private getNextPathSegment(path: string, prefix: string): string | undefined {
+    const pathParts = path.split('/');
+    const prefixParts = prefix.split('/');
+    
+    if (pathParts.length <= prefixParts.length) {
+      return undefined;
+    }
+
+    return pathParts[prefixParts.length];
+  }
+}
+
+// Export singleton instance
+export const apiSpecProvider = new ApiSpecProvider();
