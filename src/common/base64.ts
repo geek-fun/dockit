@@ -1,7 +1,7 @@
-const strToBytes = (base64: string): Uint8Array => {
+const strToBytes = (base64: string): Uint8Array<ArrayBuffer> => {
   const binString = atob(base64);
   // @ts-ignore
-  return Uint8Array.from(binString, m => m.codePointAt(0));
+  return Uint8Array.from(binString, m => m.codePointAt(0)) as Uint8Array<ArrayBuffer>;
 };
 
 const bytesToBase64 = (bytes: Uint8Array): string => {
