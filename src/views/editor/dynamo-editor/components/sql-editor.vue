@@ -186,7 +186,7 @@ const getStatementToExecute = (): { statement: string; found: boolean } => {
 
   // Extract the statement
   const statementLines = lines.slice(startLine, endLine + 1);
-  const statement = statementLines.join('\n').trim().replace(/;$/, '').trim();
+  const statement = statementLines.join('\n').trim().replace(/;$/, '');
 
   return { statement, found: statement.length > 0 };
 };
@@ -204,7 +204,7 @@ const executeQuery = async () => {
   const { statement, found } = getStatementToExecute();
   
   if (!found || !statement) {
-    message.warning('No PartiQL statement to execute. Please select a query or position your cursor within a statement.', {
+    message.warning(lang.t('editor.dynamo.partiql.noStatementFound'), {
       closable: true,
       keepAliveOnHover: true,
     });

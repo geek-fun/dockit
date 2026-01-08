@@ -268,6 +268,7 @@ export const zhCN = {
         error: '查询错误',
         noResults: '执行 PartiQL 查询以查看结果',
         emptyStatement: '请输入 PartiQL 语句',
+        noStatementFound: '没有可执行的 PartiQL 语句。请选择一个查询或将光标定位在语句中。',
         itemsReturned: '返回 {count} 条记录',
         loadMore: '加载更多',
       },
