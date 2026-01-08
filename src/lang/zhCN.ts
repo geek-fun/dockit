@@ -211,8 +211,8 @@ export const zhCN = {
       sampleBulk: '批量操作',
       contextMenu: {
         execute: '执行',
-        autoIndent: '自动格式化',
-        copyAsCurl: '复制为 cURL',
+        autoIndent: '格式化缩进',
+        copyAsCurl: '复制 cURL',
       },
     },
     dynamo: {
