@@ -736,60 +736,58 @@ export const allQueries: { [key: string]: QueryDef } = {
 };
 
 /**
- * Query DSL provider class
+ * Check if a query is available for a backend/version
  */
-export class QueryDslProvider {
-  /**
-   * Get all query types for a backend
-   */
-  getQueryTypes(backend: BackendType, version?: string): { [key: string]: QueryDef } {
-    if (!version) {
-      return allQueries;
-    }
+const isQueryAvailable = (query: QueryDef, backend: BackendType, version: string): boolean => {
+  if (!query.availability) return true;
+  const availability = query.availability[backend];
+  if (!availability) return true;
+  return isVersionInRange(version, availability);
+};
 
-    const filtered: { [key: string]: QueryDef } = {};
-    for (const [key, query] of Object.entries(allQueries)) {
-      if (this.isAvailable(query, backend, version)) {
-        filtered[key] = query;
-      }
-    }
-    return filtered;
+/**
+ * Get all query types for a backend
+ */
+export const getQueryTypes = (backend: BackendType, version?: string): { [key: string]: QueryDef } => {
+  if (!version) {
+    return allQueries;
   }
 
-  /**
-   * Check if a query is available for a backend/version
-   */
-  private isAvailable(query: QueryDef, backend: BackendType, version: string): boolean {
-    if (!query.availability) return true;
-    const availability = query.availability[backend];
-    if (!availability) return true;
-    return isVersionInRange(version, availability);
-  }
+  return Object.entries(allQueries)
+    .filter(([_, query]) => isQueryAvailable(query, backend, version))
+    .reduce((acc, [key, query]) => ({ ...acc, [key]: query }), {});
+};
 
-  /**
-   * Get properties for a query type
-   */
-  getQueryProperties(queryType: string): { [key: string]: BodyProperty } | undefined {
-    const query = allQueries[queryType];
-    return query?.properties;
-  }
+/**
+ * Get properties for a query type
+ */
+export const getQueryProperties = (queryType: string): { [key: string]: BodyProperty } | undefined => {
+  const query = allQueries[queryType];
+  return query?.properties;
+};
 
-  /**
-   * Get snippet for a query type
-   */
-  getQuerySnippet(queryType: string): string | undefined {
-    const query = allQueries[queryType];
-    return query?.snippet;
-  }
+/**
+ * Get snippet for a query type
+ */
+export const getQuerySnippet = (queryType: string): string | undefined => {
+  const query = allQueries[queryType];
+  return query?.snippet;
+};
 
-  /**
-   * Get description for a query type
-   */
-  getQueryDescription(queryType: string): string | undefined {
-    const query = allQueries[queryType];
-    return query?.description;
-  }
-}
+/**
+ * Get description for a query type
+ */
+export const getQueryDescription = (queryType: string): string | undefined => {
+  const query = allQueries[queryType];
+  return query?.description;
+};
 
-// Export singleton instance
-export const queryDslProvider = new QueryDslProvider();
+/**
+ * Query DSL provider object (for backward compatibility)
+ */
+export const queryDslProvider = {
+  getQueryTypes,
+  getQueryProperties,
+  getQuerySnippet,
+  getQueryDescription,
+};

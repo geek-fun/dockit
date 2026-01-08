@@ -30,232 +30,250 @@ const patterns = {
 };
 
 /**
- * Lexer class for tokenizing search queries
+ * Lexer state for functional tokenization
  */
-export class SearchLexer {
-  private input: string;
-  private pos: number;
-  private line: number;
-  private column: number;
-  private tokens: Token[];
+type LexerState = {
+  input: string;
+  pos: number;
+  line: number;
+  column: number;
+  tokens: Token[];
+};
 
-  constructor(input: string) {
-    this.input = input;
-    this.pos = 0;
-    this.line = 1;
-    this.column = 1;
-    this.tokens = [];
-  }
+/**
+ * Create initial lexer state
+ */
+const createLexerState = (input: string): LexerState => ({
+  input,
+  pos: 0,
+  line: 1,
+  column: 1,
+  tokens: [],
+});
 
-  /**
-   * Tokenize the input
-   */
-  tokenize(): Token[] {
-    this.tokens = [];
-    this.pos = 0;
-    this.line = 1;
-    this.column = 1;
+/**
+ * Get the remaining input from current position
+ */
+const remaining = (state: LexerState): string => state.input.slice(state.pos);
 
-    while (this.pos < this.input.length) {
-      const token = this.nextToken();
-      if (token) {
-        this.tokens.push(token);
-      }
-    }
+/**
+ * Try to match a pattern
+ */
+const matchPattern = (state: LexerState, pattern: RegExp): string | null => {
+  const match = pattern.exec(remaining(state));
+  return match ? match[0] : null;
+};
 
-    return this.tokens;
-  }
-
-  /**
-   * Get the remaining input from current position
-   */
-  private remaining(): string {
-    return this.input.slice(this.pos);
-  }
-
-  /**
-   * Try to match a pattern
-   */
-  private match(pattern: RegExp): string | null {
-    const match = pattern.exec(this.remaining());
-    return match ? match[0] : null;
-  }
-
-  /**
-   * Advance position and update line/column tracking
-   */
-  private advance(length: number): void {
-    for (let i = 0; i < length; i++) {
-      if (this.input[this.pos + i] === '\n') {
-        this.line++;
-        this.column = 1;
-      } else {
-        this.column++;
-      }
-    }
-    this.pos += length;
-  }
-
-  /**
-   * Create a token
-   */
-  private createToken(type: TokenType, value: string, startPos: number): Token {
-    const startLine = this.line;
-    const startColumn = this.column;
-
-    this.advance(value.length);
-
+/**
+ * Advance position and update line/column tracking
+ */
+const advance = (state: LexerState, length: number): LexerState => {
+  const chars = state.input.slice(state.pos, state.pos + length);
+  const newLineCount = (chars.match(/\n/g) || []).length;
+  
+  if (newLineCount > 0) {
+    const lastNewlineIndex = chars.lastIndexOf('\n');
     return {
+      ...state,
+      pos: state.pos + length,
+      line: state.line + newLineCount,
+      column: length - lastNewlineIndex,
+    };
+  }
+  
+  return {
+    ...state,
+    pos: state.pos + length,
+    column: state.column + length,
+  };
+};
+
+/**
+ * Create a token and advance state
+ */
+const createToken = (
+  state: LexerState,
+  type: TokenType,
+  value: string,
+  startPos: number,
+): { state: LexerState; token: Token } => {
+  const startLine = state.line;
+  const startColumn = state.column;
+  const newState = advance(state, value.length);
+
+  return {
+    state: newState,
+    token: {
       type,
       value,
       start: startPos,
-      end: this.pos,
+      end: newState.pos,
       line: startLine,
       column: startColumn,
-    };
+    },
+  };
+};
+
+/**
+ * Check if current position is at start of line (ignoring whitespace)
+ */
+const isAtLineStart = (state: LexerState): boolean => {
+  let checkPos = state.pos - 1;
+  while (checkPos >= 0) {
+    const char = state.input[checkPos];
+    if (char === '\n' || char === '\r') {
+      return true;
+    }
+    if (char !== ' ' && char !== '\t') {
+      return false;
+    }
+    checkPos--;
+  }
+  return true; // Start of input
+};
+
+/**
+ * Get next token from input
+ */
+const nextToken = (state: LexerState): { state: LexerState; token: Token | null } => {
+  const startPos = state.pos;
+  const remainingInput = remaining(state);
+
+  if (!remainingInput) {
+    return { state, token: null };
   }
 
-  /**
-   * Get next token from input
-   */
-  private nextToken(): Token | null {
-    const startPos = this.pos;
-    const remaining = this.remaining();
-
-    if (!remaining) {
-      return null;
-    }
-
-    // Skip whitespace (but track it)
-    const whitespace = this.match(patterns.whitespace);
-    if (whitespace) {
-      return this.createToken(TokenType.WHITESPACE, whitespace, startPos);
-    }
-
-    // Skip newlines (but track them)
-    const newline = this.match(patterns.newline);
-    if (newline) {
-      return this.createToken(TokenType.NEWLINE, newline, startPos);
-    }
-
-    // Line comments
-    const lineComment = this.match(patterns.lineComment);
-    if (lineComment) {
-      return this.createToken(TokenType.COMMENT, lineComment, startPos);
-    }
-
-    // Block comments
-    const blockComment = this.match(patterns.blockComment);
-    if (blockComment) {
-      return this.createToken(TokenType.COMMENT, blockComment, startPos);
-    }
-
-    // HTTP Method
-    const method = this.match(patterns.method);
-    if (method && this.isAtLineStart()) {
-      return this.createToken(TokenType.METHOD, method.toUpperCase(), startPos);
-    }
-
-    // Path (after method)
-    if (remaining[0] === '/') {
-      const path = this.match(patterns.path);
-      if (path) {
-        return this.createToken(TokenType.PATH, path, startPos);
-      }
-    }
-
-    // Triple quoted strings (painless scripts)
-    const tripleQuote = this.match(patterns.tripleQuote);
-    if (tripleQuote) {
-      const endPattern = tripleQuote === '"""' ? '"""' : "'''";
-      const endIndex = this.input.indexOf(endPattern, this.pos + 3);
-      if (endIndex !== -1) {
-        const fullString = this.input.slice(this.pos, endIndex + 3);
-        return this.createToken(TokenType.STRING, fullString, startPos);
-      }
-    }
-
-    // Regular strings
-    const string = this.match(patterns.string);
-    if (string) {
-      return this.createToken(TokenType.STRING, string, startPos);
-    }
-
-    // Numbers
-    const number = this.match(patterns.number);
-    if (number) {
-      return this.createToken(TokenType.NUMBER, number, startPos);
-    }
-
-    // Booleans
-    const boolean = this.match(patterns.boolean);
-    if (boolean) {
-      return this.createToken(TokenType.BOOLEAN, boolean, startPos);
-    }
-
-    // Null
-    const nullMatch = this.match(patterns.null);
-    if (nullMatch) {
-      return this.createToken(TokenType.NULL, nullMatch, startPos);
-    }
-
-    // Punctuation
-    if (remaining[0] === ':') {
-      return this.createToken(TokenType.COLON, ':', startPos);
-    }
-    if (remaining[0] === ',') {
-      return this.createToken(TokenType.COMMA, ',', startPos);
-    }
-    if (remaining[0] === '{') {
-      return this.createToken(TokenType.BODY_START, '{', startPos);
-    }
-    if (remaining[0] === '}') {
-      return this.createToken(TokenType.BODY_END, '}', startPos);
-    }
-    if (remaining[0] === '[') {
-      return this.createToken(TokenType.BODY_START, '[', startPos);
-    }
-    if (remaining[0] === ']') {
-      return this.createToken(TokenType.BODY_END, ']', startPos);
-    }
-
-    // Identifiers (used as keys in JSON5)
-    const identifier = this.match(patterns.identifier);
-    if (identifier) {
-      return this.createToken(TokenType.KEY, identifier, startPos);
-    }
-
-    // Unknown token - skip one character
-    const unknownChar = remaining[0];
-    return this.createToken(TokenType.UNKNOWN, unknownChar, startPos);
+  // Skip whitespace (but track it)
+  const whitespace = matchPattern(state, patterns.whitespace);
+  if (whitespace) {
+    return createToken(state, TokenType.WHITESPACE, whitespace, startPos);
   }
 
-  /**
-   * Check if current position is at start of line (ignoring whitespace)
-   */
-  private isAtLineStart(): boolean {
-    // Look back to find if we're at line start
-    let checkPos = this.pos - 1;
-    while (checkPos >= 0) {
-      const char = this.input[checkPos];
-      if (char === '\n' || char === '\r') {
-        return true;
-      }
-      if (char !== ' ' && char !== '\t') {
-        return false;
-      }
-      checkPos--;
-    }
-    return true; // Start of input
+  // Skip newlines (but track them)
+  const newline = matchPattern(state, patterns.newline);
+  if (newline) {
+    return createToken(state, TokenType.NEWLINE, newline, startPos);
   }
-}
+
+  // Line comments
+  const lineComment = matchPattern(state, patterns.lineComment);
+  if (lineComment) {
+    return createToken(state, TokenType.COMMENT, lineComment, startPos);
+  }
+
+  // Block comments
+  const blockComment = matchPattern(state, patterns.blockComment);
+  if (blockComment) {
+    return createToken(state, TokenType.COMMENT, blockComment, startPos);
+  }
+
+  // HTTP Method
+  const method = matchPattern(state, patterns.method);
+  if (method && isAtLineStart(state)) {
+    return createToken(state, TokenType.METHOD, method.toUpperCase(), startPos);
+  }
+
+  // Path (after method)
+  if (remainingInput[0] === '/') {
+    const path = matchPattern(state, patterns.path);
+    if (path) {
+      return createToken(state, TokenType.PATH, path, startPos);
+    }
+  }
+
+  // Triple quoted strings (painless scripts)
+  const tripleQuote = matchPattern(state, patterns.tripleQuote);
+  if (tripleQuote) {
+    const endPattern = tripleQuote === '"""' ? '"""' : "'''";
+    const endIndex = state.input.indexOf(endPattern, state.pos + 3);
+    if (endIndex !== -1) {
+      const fullString = state.input.slice(state.pos, endIndex + 3);
+      return createToken(state, TokenType.STRING, fullString, startPos);
+    }
+  }
+
+  // Regular strings
+  const string = matchPattern(state, patterns.string);
+  if (string) {
+    return createToken(state, TokenType.STRING, string, startPos);
+  }
+
+  // Numbers
+  const number = matchPattern(state, patterns.number);
+  if (number) {
+    return createToken(state, TokenType.NUMBER, number, startPos);
+  }
+
+  // Booleans
+  const boolean = matchPattern(state, patterns.boolean);
+  if (boolean) {
+    return createToken(state, TokenType.BOOLEAN, boolean, startPos);
+  }
+
+  // Null
+  const nullMatch = matchPattern(state, patterns.null);
+  if (nullMatch) {
+    return createToken(state, TokenType.NULL, nullMatch, startPos);
+  }
+
+  // Punctuation
+  if (remainingInput[0] === ':') {
+    return createToken(state, TokenType.COLON, ':', startPos);
+  }
+  if (remainingInput[0] === ',') {
+    return createToken(state, TokenType.COMMA, ',', startPos);
+  }
+  if (remainingInput[0] === '{') {
+    return createToken(state, TokenType.BODY_START, '{', startPos);
+  }
+  if (remainingInput[0] === '}') {
+    return createToken(state, TokenType.BODY_END, '}', startPos);
+  }
+  if (remainingInput[0] === '[') {
+    return createToken(state, TokenType.BODY_START, '[', startPos);
+  }
+  if (remainingInput[0] === ']') {
+    return createToken(state, TokenType.BODY_END, ']', startPos);
+  }
+
+  // Identifiers (used as keys in JSON5)
+  const identifier = matchPattern(state, patterns.identifier);
+  if (identifier) {
+    return createToken(state, TokenType.KEY, identifier, startPos);
+  }
+
+  // Unknown token - skip one character
+  const unknownChar = remainingInput[0];
+  return createToken(state, TokenType.UNKNOWN, unknownChar, startPos);
+};
+
+/**
+ * Tokenize input recursively
+ */
+const tokenizeRecursive = (state: LexerState): LexerState => {
+  if (state.pos >= state.input.length) {
+    return state;
+  }
+
+  const { state: newState, token } = nextToken(state);
+  
+  if (!token) {
+    return newState;
+  }
+
+  return tokenizeRecursive({
+    ...newState,
+    tokens: [...newState.tokens, token],
+  });
+};
 
 /**
  * Tokenize input string
  */
 export const tokenize = (input: string): Token[] => {
-  const lexer = new SearchLexer(input);
-  return lexer.tokenize();
+  const initialState = createLexerState(input);
+  const finalState = tokenizeRecursive(initialState);
+  return finalState.tokens;
 };
 
 /**
