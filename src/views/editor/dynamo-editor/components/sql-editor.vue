@@ -26,7 +26,6 @@
 import { storeToRefs } from 'pinia';
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
-import { Code, PlayFilledAlt } from '@vicons/carbon';
 import { DataTableColumn, useMessage } from 'naive-ui';
 import { DynamoDBConnection, useAppStore, useTabStore } from '../../../../store';
 import { dynamoApi, PartiQLResult } from '../../../../datasources';

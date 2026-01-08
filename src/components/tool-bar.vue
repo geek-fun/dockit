@@ -156,7 +156,7 @@ import { storeToRefs } from 'pinia';
 import { useClusterManageStore, useConnectionStore, useTabStore } from '../store';
 import { useLang } from '../lang';
 import { CustomError, inputProps } from '../common';
-import { esSampleQueries, partiqlSampleQueries } from '../common/monaco';
+import { esSampleQueries } from '../common/monaco';
 
 const props = defineProps({ type: String });
 const emits = defineEmits(['switch-manage-tab', 'insert-sample-query', 'insert-partiql-sample', 'execute-partiql-query']);
