@@ -8,7 +8,7 @@ export class CustomError extends Error {
     public readonly status: number,
     public readonly details: string,
   ) {
-    super(details);
+    super();
     this.name = 'CustomError';
   }
 }
