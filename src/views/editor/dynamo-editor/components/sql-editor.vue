@@ -2,34 +2,6 @@
   <n-split direction="vertical" class="partiql-editor" v-model:size="editorSize">
     <template #1>
       <div class="editor-container">
-        <div class="editor-toolbar">
-          <n-button-group size="small">
-            <n-dropdown
-              trigger="click"
-              :options="sampleQueryOptions"
-              @select="insertSampleQuery"
-            >
-              <n-button quaternary>
-                <template #icon>
-                  <n-icon><Code /></n-icon>
-                </template>
-                {{ $t('editor.dynamo.partiql.samples') }}
-              </n-button>
-            </n-dropdown>
-          </n-button-group>
-          <n-button
-            type="primary"
-            size="small"
-            @click="executeQuery"
-            :loading="loadingRef"
-            :disabled="!activeConnection"
-          >
-            <template #icon>
-              <n-icon><PlayFilledAlt /></n-icon>
-            </template>
-            {{ $t('dialogOps.execute') }}
-          </n-button>
-        </div>
         <div id="partiql-editor" ref="editorRef" class="monaco-editor-container" />
       </div>
     </template>
@@ -87,33 +59,7 @@ const loadingRef = ref(false);
 const errorMessage = ref<string | null>(null);
 const queryResult = ref<PartiQLResult | null>(null);
 const currentNextToken = ref<string | null>(null);
-
-const sampleQueryOptions = computed(() => [
-  {
-    label: lang.t('editor.dynamo.partiql.sampleSelectPk'),
-    key: 'selectWithPartitionKey',
-  },
-  {
-    label: lang.t('editor.dynamo.partiql.sampleSelectSk'),
-    key: 'selectWithSortKey',
-  },
-  {
-    label: lang.t('editor.dynamo.partiql.sampleScan'),
-    key: 'scanAll',
-  },
-  {
-    label: lang.t('editor.dynamo.partiql.sampleInsert'),
-    key: 'insertItem',
-  },
-  {
-    label: lang.t('editor.dynamo.partiql.sampleUpdate'),
-    key: 'updateItem',
-  },
-  {
-    label: lang.t('editor.dynamo.partiql.sampleDelete'),
-    key: 'deleteItem',
-  },
-]);
+const lastExecutedStatement = ref<string | null>(null);
 
 const resultColumns = computed<DataTableColumn[]>(() => {
   if (!queryResult.value?.items?.length) return [];
@@ -179,6 +125,73 @@ const insertSampleQuery = (key: string) => {
   }
 };
 
+/**
+ * Get the PartiQL statement to execute based on selection or cursor position
+ * Returns the statement and whether it was found
+ */
+const getStatementToExecute = (): { statement: string; found: boolean } => {
+  if (!editor) return { statement: '', found: false };
+
+  const model = editor.getModel();
+  if (!model) return { statement: '', found: false };
+
+  const selection = editor.getSelection();
+  
+  // If user has selected text, use that
+  if (selection && !selection.isEmpty()) {
+    const selectedText = model.getValueInRange(selection).trim();
+    if (selectedText) {
+      return { statement: selectedText, found: true };
+    }
+  }
+
+  // Otherwise, try to find the statement at cursor position
+  const position = editor.getPosition();
+  if (!position) return { statement: '', found: false };
+
+  const fullText = model.getValue();
+  const lines = fullText.split('\n');
+  const currentLineIndex = position.lineNumber - 1;
+
+  // Find statement boundaries by looking for semicolons or empty lines
+  let startLine = currentLineIndex;
+  let endLine = currentLineIndex;
+
+  // Search backwards for statement start
+  for (let i = currentLineIndex; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (i < currentLineIndex && (line === '' || line.endsWith(';'))) {
+      startLine = i + 1;
+      break;
+    }
+    if (i === 0) {
+      startLine = 0;
+    }
+  }
+
+  // Search forwards for statement end
+  for (let i = currentLineIndex; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.endsWith(';')) {
+      endLine = i;
+      break;
+    }
+    if (i > currentLineIndex && line === '') {
+      endLine = i - 1;
+      break;
+    }
+    if (i === lines.length - 1) {
+      endLine = i;
+    }
+  }
+
+  // Extract the statement
+  const statementLines = lines.slice(startLine, endLine + 1);
+  const statement = statementLines.join('\n').trim().replace(/;$/, '').trim();
+
+  return { statement, found: statement.length > 0 };
+};
+
 const executeQuery = async () => {
   if (!editor || !activeConnection.value) {
     message.error(lang.t('editor.establishedRequired'), {
@@ -188,9 +201,14 @@ const executeQuery = async () => {
     return;
   }
 
-  const statement = editor.getModel()?.getValue()?.trim();
-  if (!statement) {
-    message.warning(lang.t('editor.dynamo.partiql.emptyStatement'));
+  // Use smart statement extraction
+  const { statement, found } = getStatementToExecute();
+  
+  if (!found || !statement) {
+    message.warning('No PartiQL statement to execute. Please select a query or position your cursor within a statement.', {
+      closable: true,
+      keepAliveOnHover: true,
+    });
     return;
   }
 
@@ -198,6 +216,7 @@ const executeQuery = async () => {
   errorMessage.value = null;
   queryResult.value = null;
   currentNextToken.value = null;
+  lastExecutedStatement.value = statement;
   showResultPanel.value = true;
   editorSize.value = 0.5;
 
@@ -221,17 +240,14 @@ const executeQuery = async () => {
 };
 
 const loadMore = async () => {
-  if (!editor || !activeConnection.value || !currentNextToken.value) return;
-
-  const statement = editor.getModel()?.getValue()?.trim();
-  if (!statement) return;
+  if (!editor || !activeConnection.value || !currentNextToken.value || !lastExecutedStatement.value) return;
 
   loadingRef.value = true;
 
   try {
     const result = await dynamoApi.executeStatement(
       activeConnection.value as DynamoDBConnection,
-      { statement, nextToken: currentNextToken.value },
+      { statement: lastExecutedStatement.value, nextToken: currentNextToken.value },
     );
 
     if (queryResult.value) {
@@ -396,6 +412,13 @@ onUnmounted(async () => {
   await cleanupFileListener();
   editor?.dispose();
 });
+
+// Expose methods for parent component
+defineExpose({
+  executeQuery,
+  insertSampleQuery,
+  getLoadingState: () => loadingRef.value,
+});
 </script>
 
 <style lang="scss" scoped>
@@ -406,22 +429,10 @@ onUnmounted(async () => {
   .editor-container {
     width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
-
-    .editor-toolbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border-color);
-      background-color: var(--card-color);
-    }
 
     .monaco-editor-container {
-      flex: 1;
       width: 100%;
-      height: 0;
+      height: 100%;
     }
   }
 }
