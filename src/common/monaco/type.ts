@@ -62,3 +62,17 @@ export enum EngineType {
 
 export type Monaco = typeof monaco.editor.create;
 export type Editor = ReturnType<Monaco>;
+
+
+export type ValidationError = {
+  message: string;
+  startLineNumber: number;
+  endLineNumber: number;
+  startColumn: number;
+  endColumn: number;
+  severity: monaco.MarkerSeverity;
+};
+
+export type ValidationResult = {
+  errors: ValidationError[];
+};

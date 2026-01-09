@@ -7,7 +7,7 @@
  */
 
 import { BackendType, BodyProperty } from './types';
-import { isVersionInRange } from './utils';
+import { isVersionInRange } from '../monacoUtils';
 
 /**
  * Query type definition

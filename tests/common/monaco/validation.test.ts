@@ -1,9 +1,13 @@
 import {
   validatePartiql,
-  validateEs,
   createDebouncedValidator,
-  VALIDATION_OWNERS,
-} from '../../../src/common/monaco/validation';
+  PARTIQL_VALIDATION_OWNER_CONST,
+} from '../../../src/common/monaco/partiql/validation';
+
+import {
+  validateEs,
+  ES_VALIDATION_OWNER_CONST,
+} from '../../../src/common/monaco/searchdsl/validation';
 
 // Mock monaco-editor
 jest.mock('monaco-editor', () => ({
@@ -326,7 +330,7 @@ describe('Debounced Validator', () => {
 
 describe('Validation Constants', () => {
   it('should export validation owners', () => {
-    expect(VALIDATION_OWNERS.PARTIQL).toBe('partiql-validation');
-    expect(VALIDATION_OWNERS.ES).toBe('es-validation');
+    expect(PARTIQL_VALIDATION_OWNER_CONST).toBe('partiql-validation');
+    expect(ES_VALIDATION_OWNER_CONST).toBe('es-validation');
   });
 });

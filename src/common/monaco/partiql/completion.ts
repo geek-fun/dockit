@@ -1,6 +1,6 @@
 import { editor, IRange, languages, Position } from 'monaco-editor';
 import { partiqlKeywordCategories } from './keywords';
-import { getPartiqlDynamicOptions } from './utils';
+import { getPartiqlDynamicOptions } from '../monacoUtils';
 
 const createCompletionItem = (
   label: string,
