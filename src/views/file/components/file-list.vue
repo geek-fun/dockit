@@ -11,10 +11,10 @@
           @contextmenu.prevent="showContextMenu($event, file)"
         >
           <div class="file-icon">
-            <n-icon size="48" v-if="file.type === PathTypeEnum.FOLDER" color="#0e7a0d">
+            <n-icon size="36" v-if="file.type === PathTypeEnum.FOLDER" color="#0e7a0d">
               <Folder />
             </n-icon>
-            <n-icon size="48" v-else color="#666">
+            <n-icon size="36" v-else color="#666">
               <Document />
             </n-icon>
           </div>
@@ -168,14 +168,14 @@ onUnmounted(() => {
   .grid-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 16px;
-    padding: 16px;
+    gap: 10px;
+    padding: 10px;
 
     .file-item {
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 12px;
+      padding: 8px;
       cursor: pointer;
       border-radius: 8px;
       transition: background-color 0.2s;

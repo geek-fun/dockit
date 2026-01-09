@@ -296,6 +296,11 @@ export const enUS = {
     },
     rename: 'Rename',
     name: 'Name',
+    sortBy: {
+      name: 'Name',
+      dateModified: 'Date Modified',
+      size: 'Size',
+    },
     saveFileBeforeClose: {
       title: 'Warning',
       content: 'File does not persist, do you want to save it first?',

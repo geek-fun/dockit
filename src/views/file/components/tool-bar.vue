@@ -8,6 +8,7 @@
       </template>
       {{ toolBar.title }}
     </n-tooltip>
+    <path-breadcrumb />
     <div class="sort-container">
       <n-select
         v-model:value="sortBy"
@@ -17,7 +18,6 @@
         @update:value="handleSortChange"
       />
     </div>
-    <path-breadcrumb />
     <new-file-dialog ref="newFileDialogRef" />
   </div>
 </template>
@@ -38,11 +38,11 @@ const lang = useLang();
 
 const newFileDialogRef = ref();
 
-const sortOptions = [
-  { label: 'Name', value: SortBy.NAME },
-  { label: 'Date Modified', value: SortBy.DATE },
-  { label: 'Size', value: SortBy.SIZE },
-];
+const sortOptions = computed(() => [
+  { label: lang.t('file.sortBy.name'), value: SortBy.NAME },
+  { label: lang.t('file.sortBy.dateModified'), value: SortBy.DATE },
+  { label: lang.t('file.sortBy.size'), value: SortBy.SIZE },
+]);
 
 const toolBarList = [
   {

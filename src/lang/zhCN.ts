@@ -297,6 +297,11 @@ export const zhCN = {
       delete: '删除',
     },
     rename: '重命名',
+    sortBy: {
+      name: '名称',
+      dateModified: '修改日期',
+      size: '大小',
+    },
     saveFileBeforeClose: {
       title: '注意',
       content: '文件不存在，是否先保存？',
