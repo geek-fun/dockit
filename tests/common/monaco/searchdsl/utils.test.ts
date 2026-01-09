@@ -1,7 +1,18 @@
 /**
  * Tests for the grammar utility functions
  */
-import { compareVersions, isVersionInRange } from '../../../../src/common/monaco/searchdsl/utils';
+
+// Mock monaco-editor before importing monacoUtils
+jest.mock('monaco-editor', () => ({
+  self: { MonacoEnvironment: {} },
+  editor: {},
+  languages: {},
+  Range: {},
+  Position: {},
+  MarkerSeverity: {},
+}));
+
+import { compareVersions, isVersionInRange } from '../../../../src/common/monaco/monacoUtils';
 
 describe('compareVersions', () => {
   it('should return 0 for equal versions', () => {
