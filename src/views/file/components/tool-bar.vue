@@ -1,6 +1,6 @@
 <template>
   <div class="tool-bar-container">
-    <n-tooltip trigger="hover" v-for="toolBar in toolBarList">
+    <n-tooltip trigger="hover" v-for="toolBar in toolBarList" :key="toolBar.id">
       <template #trigger>
         <n-icon size="26" class="tool-bar-item" @click="handleToolBarAction(toolBar.id)">
           <component :is="toolBar.icon" />
@@ -9,23 +9,40 @@
       {{ toolBar.title }}
     </n-tooltip>
     <path-breadcrumb />
+    <div class="sort-container">
+      <n-select
+        v-model:value="sortBy"
+        :options="sortOptions"
+        size="small"
+        style="width: 140px"
+        @update:value="handleSortChange"
+      />
+    </div>
     <new-file-dialog ref="newFileDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { DocumentAdd, FolderAdd, FolderOpen } from '@vicons/carbon';
-import { ContextMenuAction, ToolBarAction, useFileStore } from '../../../store';
+import { ContextMenuAction, SortBy, ToolBarAction, useFileStore } from '../../../store';
 import { useLang } from '../../../lang';
 import NewFileDialog from './new-file-dialog.vue';
 import PathBreadcrumb from '../../../components/path-breadcrumb.vue';
+import { storeToRefs } from 'pinia';
 
 const fileStore = useFileStore();
-const { selectDirectory } = fileStore;
+const { selectDirectory, setSortBy } = fileStore;
+const { sortBy } = storeToRefs(fileStore);
 
 const lang = useLang();
 
 const newFileDialogRef = ref();
+
+const sortOptions = computed(() => [
+  { label: lang.t('file.sortBy.name'), value: SortBy.NAME },
+  { label: lang.t('file.sortBy.dateModified'), value: SortBy.DATE },
+  { label: lang.t('file.sortBy.size'), value: SortBy.SIZE },
+]);
 
 const toolBarList = [
   {
@@ -54,6 +71,10 @@ const handleToolBarAction = async (id: ToolBarAction) => {
     await selectDirectory();
   }
 };
+
+const handleSortChange = (value: SortBy) => {
+  setSortBy(value);
+};
 </script>
 
 <style lang="scss" scoped>
@@ -74,6 +95,11 @@ const handleToolBarAction = async (id: ToolBarAction) => {
     &:hover {
       color: var(--theme-color);
     }
+  }
+
+  .sort-container {
+    margin-left: auto;
+    margin-right: 10px;
   }
 }
 </style>

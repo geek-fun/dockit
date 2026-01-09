@@ -1,18 +1,32 @@
 <template>
   <div @contextmenu.prevent="showContextMenu($event, undefined)" class="file-list-container">
     <n-scrollbar style="height: 100%">
-      <div class="scroll-container">
+      <div class="grid-container">
         <div
-          v-for="(file, index) in fileList"
+          v-for="(file, index) in sortedFileList"
+          :key="file.path"
           :class="getClass(file, index)"
           @click="handleClick(ClickType.SINGLE, file)"
           @dblclick="handleClick(ClickType.DOUBLE, file)"
           @contextmenu.prevent="showContextMenu($event, file)"
         >
-          <n-icon size="30" v-if="file.type === PathTypeEnum.FOLDER" color="#0e7a0d">
-            <Folder />
-          </n-icon>
-          <span class="file-item-name">{{ file.name }}</span>
+          <div class="file-icon">
+            <n-icon size="36" v-if="file.type === PathTypeEnum.FOLDER" color="#0e7a0d">
+              <Folder />
+            </n-icon>
+            <n-icon size="36" v-else color="#666">
+              <Document />
+            </n-icon>
+          </div>
+          <div class="file-info">
+            <span class="file-item-name">{{ file.name }}</span>
+            <span class="file-item-meta" v-if="file.lastModified">
+              {{ formatDate(file.lastModified) }}
+            </span>
+            <span class="file-item-meta" v-if="file.type === PathTypeEnum.FILE && file.size !== undefined">
+              {{ formatSize(file.size) }}
+            </span>
+          </div>
           <context-menu
             v-if="contextMenuVisible"
             :position="contextMenuPosition"
@@ -30,18 +44,19 @@
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { ContextMenuAction, useFileStore } from '../../../store';
-import { Folder } from '@vicons/carbon';
+import { Folder, Document } from '@vicons/carbon';
 import { useLang } from '../../../lang';
 import ContextMenu from './context-menu.vue';
 import NewFileDialog from './new-file-dialog.vue';
 import { PathInfo, PathTypeEnum } from '../../../datasources';
+import prettyBytes from 'pretty-bytes';
 
 const router = useRouter();
 const message = useMessage();
 const lang = useLang();
 const fileStore = useFileStore();
 const { deleteFileOrFolder, changeDirectory } = fileStore;
-const { fileList } = storeToRefs(fileStore);
+const { sortedFileList } = storeToRefs(fileStore);
 
 const activeRef = ref<PathInfo>();
 
@@ -49,6 +64,16 @@ enum ClickType {
   SINGLE = 'SINGLE',
   DOUBLE = 'DOUBLE',
 }
+
+const formatDate = (date: Date | null | undefined): string => {
+  if (!date) return '';
+  const d = new Date(date);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatSize = (size: number): string => {
+  return prettyBytes(size);
+};
 
 const handleClick = async (type: ClickType, file: PathInfo) => {
   activeRef.value = file;
@@ -115,7 +140,7 @@ const handleContextMenu = async (action: ContextMenuAction) => {
 const getClass = (file: PathInfo, index: number) => {
   if (activeRef.value === file) {
     return 'file-item-active';
-  } else if (index === fileList.value.length - 1) {
+  } else if (index === sortedFileList.value.length - 1) {
     return 'file-item';
   } else {
     return 'file-item-hover';
@@ -140,16 +165,46 @@ onUnmounted(() => {
   padding-bottom: 10px;
   background-color: var(--bg-color-secondary);
 
-  .scroll-container {
+  .grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    padding: 10px;
+
     .file-item {
       display: flex;
-      width: 100%;
+      flex-direction: column;
       align-items: center;
-      padding: 5px 10px;
+      padding: 8px;
       cursor: pointer;
+      border-radius: 8px;
+      transition: background-color 0.2s;
 
-      .file-item-name {
-        margin-left: 5px;
+      .file-icon {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .file-info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        text-align: center;
+
+        .file-item-name {
+          font-size: 13px;
+          word-break: break-word;
+          margin-bottom: 4px;
+        }
+
+        .file-item-meta {
+          font-size: 11px;
+          color: #888;
+          margin-top: 2px;
+        }
       }
     }
 
