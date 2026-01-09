@@ -1,8 +1,18 @@
+// Mock monaco-editor before importing monacoUtils
+jest.mock('monaco-editor', () => ({
+  self: { MonacoEnvironment: {} },
+  editor: {},
+  languages: {},
+  Range: {},
+  Position: {},
+  MarkerSeverity: {},
+}));
+
 import {
   setPartiqlDynamicOptions,
   getPartiqlDynamicOptions,
   partiqlSampleQueries,
-} from '../../../../src/common/monaco/partiql/utils';
+} from '../../../../src/common/monaco/monacoUtils';
 
 // Note: partiqlCompletionProvider is not tested directly because it requires monaco-editor
 // which doesn't work in Jest's Node environment. The completion provider will be tested

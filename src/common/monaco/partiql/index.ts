@@ -3,6 +3,7 @@ import { partiql } from './lexerRules';
 import { partiqlCompletionProvider } from './completion';
 
 export { partiqlKeywords, partiqlKeywordCategories } from './keywords';
+export * from './validation';
 export {
   setPartiqlDynamicOptions,
   getPartiqlDynamicOptions,
@@ -15,7 +16,7 @@ export {
   type PartiqlDynamicOptions,
   type PartiqlStatement,
   type PartiqlDecoration,
-} from './utils';
+} from '../monacoUtils';
 export { partiql } from './lexerRules';
 
 export const registerPartiqlLanguage = (monaco: typeof import('monaco-editor')): void => {

@@ -1,10 +1,20 @@
+// Mock monaco-editor before importing monacoUtils
+jest.mock('monaco-editor', () => ({
+  self: { MonacoEnvironment: {} },
+  editor: {},
+  languages: {},
+  Range: {},
+  Position: {},
+  MarkerSeverity: {},
+}));
+
 import {
   parsePartiqlStatements,
   getStatementAtLine,
   isStatementStart,
   getPartiqlStatementDecorations,
   partiqlExecutionGutterClass,
-} from '../../../../src/common/monaco/partiql/utils';
+} from '../../../../src/common/monaco/monacoUtils';
 
 describe('PartiQL Statement Parsing Utilities', () => {
   describe('isStatementStart', () => {

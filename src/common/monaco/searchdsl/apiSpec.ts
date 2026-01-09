@@ -13,7 +13,7 @@
  */
 
 import { ApiEndpoint, BackendType, HttpMethod } from './types';
-import { isVersionInRange } from './utils';
+import { isVersionInRange } from '../monacoUtils';
 
 /**
  * Base endpoints available in both Elasticsearch and OpenSearch

@@ -9,6 +9,7 @@ export * from './types';
 export * from './lexer';
 export * from './apiSpec';
 export * from './queryDsl';
+export * from './validation';
 
 export {
   grammarCompletionProvider,

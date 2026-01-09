@@ -4,6 +4,16 @@
 import { ApiSpecProvider, apiSpecProvider } from '../../../../src/common/monaco/searchdsl/apiSpec';
 import { BackendType } from '../../../../src/common/monaco/searchdsl/types';
 
+// Mock monaco-editor
+jest.mock('monaco-editor', () => ({
+  self: { MonacoEnvironment: {} },
+  editor: {},
+  languages: {},
+  Range: {},
+  Position: {},
+  MarkerSeverity: {},
+}));
+
 describe('ApiSpecProvider', () => {
   describe('getEndpoints', () => {
     it('should return endpoints for Elasticsearch', () => {

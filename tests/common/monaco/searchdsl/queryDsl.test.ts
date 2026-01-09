@@ -4,6 +4,16 @@
 import { QueryDslProvider, queryDslProvider, allQueries } from '../../../../src/common/monaco/searchdsl/queryDsl';
 import { BackendType } from '../../../../src/common/monaco/searchdsl/types';
 
+// Mock monaco-editor
+jest.mock('monaco-editor', () => ({
+  self: { MonacoEnvironment: {} },
+  editor: {},
+  languages: {},
+  Range: {},
+  Position: {},
+  MarkerSeverity: {},
+}));
+
 describe('QueryDslProvider', () => {
   describe('allQueries', () => {
     it('should have full-text queries', () => {
