@@ -55,6 +55,9 @@ import {
   getStatementAtLine,
   getPartiqlStatementDecorations,
   partiqlExecutionGutterClass,
+  validatePartiqlModel,
+  clearPartiqlValidation,
+  createDebouncedValidator,
 } from '../../../../common/monaco';
 import type { PartiqlStatement, PartiqlDecoration } from '../../../../common/monaco/partiql';
 import { useLang } from '../../../../lang';
@@ -88,6 +91,11 @@ let partiqlStatements: PartiqlStatement[] = [];
 // Monaco editor target type for gutter line decorations
 // See: https://microsoft.github.io/monaco-editor/api/enums/editor.MouseTargetType.html
 const MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS = 4;
+
+// Debounced syntax validation (300ms delay for performance)
+const debouncedValidate = createDebouncedValidator((model: monaco.editor.ITextModel) => {
+  validatePartiqlModel(model);
+}, 300);
 
 // Context menu state
 const contextMenuVisible = ref(false);
@@ -481,10 +489,21 @@ const setupEditor = () => {
     saveModelContent(false, false, false);
     // Update gutter decorations when content changes
     refreshStatementDecorations();
+    // Trigger debounced syntax validation
+    const model = editor?.getModel();
+    if (model) {
+      debouncedValidate(model);
+    }
   });
 
   // Initial decoration refresh
   refreshStatementDecorations();
+  
+  // Initial syntax validation
+  const model = editor.getModel();
+  if (model) {
+    validatePartiqlModel(model);
+  }
 
   // Handle left-click on gutter execute button
   editor.onMouseDown(({ event, target }) => {
@@ -618,6 +637,11 @@ onUnmounted(async () => {
   await cleanupFileListener();
   // Remove document click listener
   document.removeEventListener('click', handleDocumentClick);
+  // Clear validation markers before disposing
+  const model = editor?.getModel();
+  if (model) {
+    clearPartiqlValidation(model);
+  }
   editor?.dispose();
 });
 

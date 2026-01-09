@@ -7,9 +7,23 @@ jest.mock('monaco-editor', () => ({
     ITextModel: {},
     getLineCount: () => 1,
     getLineContent: () => '',
+    setModelMarkers: jest.fn(),
   },
-  Range: {},
+  Range: class MockRange {
+    constructor(
+      public startLineNumber: number,
+      public startColumn: number,
+      public endLineNumber: number,
+      public endColumn: number
+    ) {}
+  },
   Position: {},
+  MarkerSeverity: {
+    Error: 8,
+    Warning: 4,
+    Info: 2,
+    Hint: 1,
+  },
   typescript: {
     typescriptDefaults: {
       setEagerModelSync: jest.fn(),
@@ -20,6 +34,7 @@ jest.mock('monaco-editor', () => ({
     setMonarchTokensProvider: jest.fn(),
     setLanguageConfiguration: jest.fn(),
     registerCompletionItemProvider: jest.fn(),
+    registerHoverProvider: jest.fn(),
     CodeLens: {},
   },
 }));

@@ -16,6 +16,7 @@ import {
   partiqlExecutionGutterClass,
 } from './partiql';
 import { registerSearchLanguage, executeActions } from './searchdsl';
+import { registerValidationHoverProviders } from './validation.ts';
 
 if (typeof self !== 'undefined') {
   self.MonacoEnvironment = monacoEnvironment;
@@ -25,10 +26,12 @@ monaco.typescript.typescriptDefaults.setEagerModelSync(true);
 
 registerSearchLanguage(monaco);
 registerPartiqlLanguage(monaco);
+registerValidationHoverProviders(monaco);
 
 export * from './referDoc.ts';
 export * from './tokenlizer.ts';
 export * from './type.ts';
+export * from './validation.ts';
 export * as searchdsl from './searchdsl';
 export * as partiql from './partiql';
 

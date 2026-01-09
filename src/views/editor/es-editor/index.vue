@@ -60,6 +60,9 @@ import {
   SearchAction,
   searchTokens,
   transformQDSL,
+  validateEsModel,
+  clearEsValidation,
+  createDebouncedValidator,
 } from '../../../common/monaco';
 
 const appStore = useAppStore();
@@ -93,6 +96,11 @@ const MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS = 4;
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuActionLine = ref<number | null>(null);
+
+// Debounced syntax validation (300ms delay for performance)
+const debouncedValidate = createDebouncedValidator((model: monaco.editor.ITextModel) => {
+  validateEsModel(model);
+}, 300);
 
 const refreshActionMarks = (editor: Editor, searchTokens: SearchAction[]) => {
   const freshDecorations = getActionMarksDecorations(searchTokens);
@@ -298,10 +306,21 @@ const setupQueryEditor = () => {
     saveModelContent(false, false, false);
     // Update gutter decorations when content changes
     refreshSearchTokensAndDecorations();
+    // Trigger debounced syntax validation
+    const model = queryEditor?.getModel();
+    if (model) {
+      debouncedValidate(model);
+    }
   });
 
   // Initial decoration refresh
   refreshSearchTokensAndDecorations();
+  
+  // Initial syntax validation
+  const model = queryEditor.getModel();
+  if (model) {
+    validateEsModel(model);
+  }
 
   // Handle left-click on gutter execute button
   queryEditor.onMouseDown(({ event, target }) => {
@@ -539,6 +558,11 @@ onUnmounted(async () => {
   await cleanupFileListener();
   // Remove document click listener
   document.removeEventListener('click', handleDocumentClick);
+  // Clear validation markers before disposing
+  const model = queryEditor?.getModel();
+  if (model) {
+    clearEsValidation(model);
+  }
   queryEditor?.dispose();
   displayRef?.value?.dispose();
 });
