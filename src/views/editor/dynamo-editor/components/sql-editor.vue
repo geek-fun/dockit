@@ -170,6 +170,52 @@ const insertSampleQuery = (key: string) => {
 };
 
 /**
+ * Execute PartiQL statement with state management
+ * Encapsulates the common logic for executing statements and managing state
+ */
+const executePartiqlStatement = async (statement: string, nextToken?: string | null) => {
+  if (!activeConnection.value) {
+    throw new Error(lang.t('editor.establishedRequired'));
+  }
+
+  // Reset state for new execution (only if not loading more)
+  if (!nextToken) {
+    setPartiqlError(null);
+    setPartiqlResult(null);
+    setPartiqlLastExecutedStatement(statement);
+    setPartiqlShowResultPanel(true);
+    editorSize.value = 0.5;
+  }
+
+  loadingRef.value = true;
+
+  try {
+    const result = await dynamoApi.executeStatement(activeConnection.value as DynamoDBConnection, {
+      statement,
+      nextToken,
+    });
+
+    if (nextToken) {
+      // Append results for pagination
+      appendPartiqlResults(result);
+    } else {
+      // Set new results
+      setPartiqlResult(result);
+    }
+  } catch (err) {
+    const error = err as CustomError;
+    const errorMsg = error.details || error.message || String(err);
+    setPartiqlError(errorMsg);
+    message.error(`Error: ${errorMsg}`, {
+      closable: true,
+      keepAliveOnHover: true,
+    });
+  } finally {
+    loadingRef.value = false;
+  }
+};
+
+/**
  * Refresh gutter decorations for PartiQL statements
  */
 const refreshStatementDecorations = () => {
@@ -210,29 +256,7 @@ const executeStatementAtLine = async (lineNumber: number) => {
     return;
   }
 
-  loadingRef.value = true;
-  setPartiqlError(null);
-  setPartiqlResult(null);
-  setPartiqlLastExecutedStatement(statement.statement);
-  setPartiqlShowResultPanel(true);
-  editorSize.value = 0.5;
-
-  try {
-    const result = await dynamoApi.executeStatement(activeConnection.value as DynamoDBConnection, {
-      statement: statement.statement,
-    });
-    setPartiqlResult(result);
-  } catch (err) {
-    const error = err as CustomError;
-    const errorMsg = error.details || error.message || String(err);
-    setPartiqlError(errorMsg);
-    message.error(`Error: ${errorMsg}`, {
-      closable: true,
-      keepAliveOnHover: true,
-    });
-  } finally {
-    loadingRef.value = false;
-  }
+  await executePartiqlStatement(statement.statement);
 };
 
 /**
@@ -385,29 +409,7 @@ const executeQuery = async () => {
     return;
   }
 
-  loadingRef.value = true;
-  setPartiqlError(null);
-  setPartiqlResult(null);
-  setPartiqlLastExecutedStatement(statement);
-  setPartiqlShowResultPanel(true);
-  editorSize.value = 0.5;
-
-  try {
-    const result = await dynamoApi.executeStatement(activeConnection.value as DynamoDBConnection, {
-      statement,
-    });
-    setPartiqlResult(result);
-  } catch (err) {
-    const error = err as CustomError;
-    const errorMsg = error.details || error.message || String(err);
-    setPartiqlError(errorMsg);
-    message.error(`Error: ${errorMsg}`, {
-      closable: true,
-      keepAliveOnHover: true,
-    });
-  } finally {
-    loadingRef.value = false;
-  }
+  await executePartiqlStatement(statement);
 };
 
 const loadMore = async () => {
@@ -419,24 +421,10 @@ const loadMore = async () => {
   )
     return;
 
-  loadingRef.value = true;
-
-  try {
-    const result = await dynamoApi.executeStatement(activeConnection.value as DynamoDBConnection, {
-      statement: partiqlData.value.lastExecutedStatement,
-      nextToken: partiqlData.value.currentNextToken,
-    });
-
-    appendPartiqlResults(result);
-  } catch (err) {
-    const error = err as CustomError;
-    message.error(`Error: ${error.details || error.message}`, {
-      closable: true,
-      keepAliveOnHover: true,
-    });
-  } finally {
-    loadingRef.value = false;
-  }
+  await executePartiqlStatement(
+    partiqlData.value.lastExecutedStatement,
+    partiqlData.value.currentNextToken,
+  );
 };
 
 const saveModelContent = async (
