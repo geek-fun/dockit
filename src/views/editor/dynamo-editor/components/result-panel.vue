@@ -3,16 +3,32 @@
     <n-card v-if="errorMessage" class="error-card" :title="$t('editor.dynamo.partiql.error')">
       <n-text type="error">{{ errorMessage }}</n-text>
     </n-card>
-    <n-card v-else-if="hasData && data.length > 0" :title="$t('editor.dynamo.resultTitle')" class="result-card">
+    <n-card
+      v-else-if="hasData && data.length > 0"
+      :title="$t('editor.dynamo.resultTitle')"
+      class="result-card"
+    >
       <template #header-extra>
         <n-text v-if="itemCount !== undefined" depth="3">
           {{ $t('editor.dynamo.partiql.itemsReturned', { count: itemCount }) }}
         </n-text>
       </template>
       <div class="table-container">
-        <n-data-table :bordered="false" :single-line="false" :columns="columns" :data="data" :flex-height="true"
-          :scroll-x="scrollX" :loading="loading" :pagination="pagination" :remote="remote" virtual-scroll
-          :style="{ height: '100%' }" @update:page="handlePageChange" @update:page-size="handlePageSizeChange" />
+        <n-data-table
+          :bordered="false"
+          :single-line="false"
+          :columns="columns"
+          :data="data"
+          :flex-height="true"
+          :scroll-x="scrollX"
+          :loading="loading"
+          :pagination="pagination"
+          :remote="remote"
+          virtual-scroll
+          :style="{ height: '100%' }"
+          @update:page="handlePageChange"
+          @update:page-size="handlePageSizeChange"
+        />
       </div>
       <template #footer v-if="hasNextToken">
         <n-button size="small" @click="$emit('load-more')" :loading="loading">
@@ -20,9 +36,16 @@
         </n-button>
       </template>
     </n-card>
-    <n-card v-else-if="hasData && data.length === 0" class="success-card" :title="$t('editor.dynamo.resultTitle')">
-      <n-result status="success" :title="$t('editor.dynamo.partiql.executionSuccess')"
-        :description="$t('editor.dynamo.partiql.noItemsReturned')" />
+    <n-card
+      v-else-if="hasData && data.length === 0"
+      class="success-card"
+      :title="$t('editor.dynamo.resultTitle')"
+    >
+      <n-result
+        status="success"
+        :title="$t('editor.dynamo.partiql.executionSuccess')"
+        :description="$t('editor.dynamo.partiql.noItemsReturned')"
+      />
     </n-card>
   </div>
 </template>

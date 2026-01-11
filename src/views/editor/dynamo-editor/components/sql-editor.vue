@@ -1,11 +1,23 @@
 <template>
-  <n-split direction="vertical" class="partiql-editor" v-model:size="editorSize">
+  <n-split
+    direction="vertical"
+    class="partiql-editor"
+    v-model:size="editorSize"
+  >
     <template #1>
       <div class="editor-container">
-        <div id="partiql-editor" ref="editorRef" class="monaco-editor-container" />
+        <div
+          id="partiql-editor"
+          ref="editorRef"
+          class="monaco-editor-container"
+        />
         <!-- Context menu for gutter actions -->
-        <div v-if="contextMenuVisible" class="partiql-context-menu"
-          :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }" @click.stop>
+        <div
+          v-if="contextMenuVisible"
+          class="partiql-context-menu"
+          :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
+          @click.stop
+        >
           <ul>
             <li @click="handleContextMenuAction('execute')">
               {{ lang.t('editor.dynamo.partiql.contextMenu.execute') }}
@@ -18,42 +30,45 @@
       </div>
     </template>
     <template #2>
-      <!-- <div class="result-panel-container"> -->
-      <result-panel v-show="showResultPanel" :error-message="errorMessage" :has-data="!!queryResult"
-        :columns="resultColumns" :data="queryResult?.items ?? []" :item-count="queryResult?.count"
-        :scroll-x="tableScrollWidth" :loading="loadingRef" :has-next-token="!!queryResult?.next_token"
-        @load-more="loadMore" />
-
-      <!-- </div> -->
-
-
+      <result-panel
+        v-show="showResultPanel"
+        :error-message="errorMessage"
+        :has-data="!!queryResult"
+        :columns="resultColumns"
+        :data="queryResult?.items ?? []"
+        :item-count="queryResult?.count"
+        :scroll-x="tableScrollWidth"
+        :loading="loadingRef"
+        :has-next-token="!!queryResult?.next_token"
+        @load-more="loadMore"
+      />
     </template>
   </n-split>
 </template>
 
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
 import { DataTableColumn, useMessage } from 'naive-ui';
-import { DynamoDBConnection, useAppStore, useTabStore } from '../../../../store';
-import { dynamoApi, PartiQLResult } from '../../../../datasources';
+import { storeToRefs } from 'pinia';
 import { CustomError, jsonify } from '../../../../common';
 import {
-  Editor,
-  monaco,
-  setPartiqlDynamicOptions,
-  partiqlSampleQueries,
-  parsePartiqlStatements,
-  getStatementAtLine,
-  getPartiqlStatementDecorations,
-  partiqlExecutionGutterClass,
-  validatePartiqlModel,
   clearPartiqlValidation,
   createDebouncedValidator,
+  Editor,
+  getPartiqlStatementDecorations,
+  getStatementAtLine,
+  monaco,
+  parsePartiqlStatements,
+  partiqlExecutionGutterClass,
+  partiqlSampleQueries,
+  setPartiqlDynamicOptions,
+  validatePartiqlModel,
 } from '../../../../common/monaco';
-import type { PartiqlStatement, PartiqlDecoration } from '../../../../common/monaco/partiql';
+import type { PartiqlDecoration, PartiqlStatement } from '../../../../common/monaco/partiql';
+import { dynamoApi, PartiQLResult } from '../../../../datasources';
 import { useLang } from '../../../../lang';
+import { DynamoDBConnection, useAppStore, useTabStore } from '../../../../store';
 import ResultPanel from './result-panel.vue';
 
 const lang = useLang();
@@ -146,7 +161,12 @@ const insertSampleQuery = (key: string) => {
       [],
       [
         {
-          range: new monaco.Range(position.lineNumber, currentLineLength + 1, position.lineNumber, currentLineLength + 1),
+          range: new monaco.Range(
+            position.lineNumber,
+            currentLineLength + 1,
+            position.lineNumber,
+            currentLineLength + 1,
+          ),
           text: insertText,
         },
       ],
@@ -209,10 +229,9 @@ const executeStatementAtLine = async (lineNumber: number) => {
   editorSize.value = 0.5;
 
   try {
-    const result = await dynamoApi.executeStatement(
-      activeConnection.value as DynamoDBConnection,
-      { statement: statement.statement },
-    );
+    const result = await dynamoApi.executeStatement(activeConnection.value as DynamoDBConnection, {
+      statement: statement.statement,
+    });
     queryResult.value = result;
     currentNextToken.value = result.next_token;
   } catch (err) {
@@ -386,10 +405,9 @@ const executeQuery = async () => {
   editorSize.value = 0.5;
 
   try {
-    const result = await dynamoApi.executeStatement(
-      activeConnection.value as DynamoDBConnection,
-      { statement },
-    );
+    const result = await dynamoApi.executeStatement(activeConnection.value as DynamoDBConnection, {
+      statement,
+    });
     queryResult.value = result;
     currentNextToken.value = result.next_token;
   } catch (err) {
@@ -405,15 +423,16 @@ const executeQuery = async () => {
 };
 
 const loadMore = async () => {
-  if (!editor || !activeConnection.value || !currentNextToken.value || !lastExecutedStatement.value) return;
+  if (!editor || !activeConnection.value || !currentNextToken.value || !lastExecutedStatement.value)
+    return;
 
   loadingRef.value = true;
 
   try {
-    const result = await dynamoApi.executeStatement(
-      activeConnection.value as DynamoDBConnection,
-      { statement: lastExecutedStatement.value, nextToken: currentNextToken.value },
-    );
+    const result = await dynamoApi.executeStatement(activeConnection.value as DynamoDBConnection, {
+      statement: lastExecutedStatement.value,
+      nextToken: currentNextToken.value,
+    });
 
     if (queryResult.value) {
       queryResult.value = {
