@@ -53,9 +53,11 @@
   <floating-menu @add="showDatabaseTypeSelect" />
   <es-connect-dialog ref="esConnectDialog" />
   <dynamodb-connect-dialog ref="dynamodbConnectDialog" />
+  <connecting-modal ref="connectingModal" />
 </template>
 
 <script setup lang="ts">
+import { reactive, ref } from 'vue';
 import { NDropdown, NIcon, useDialog, useMessage } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
@@ -67,6 +69,7 @@ import { MoreOutlined } from '@vicons/antd';
 import FloatingMenu from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
+import ConnectingModal from './connecting-modal.vue';
 
 const emits = defineEmits(['tab-panel']);
 
@@ -78,6 +81,9 @@ const connectionStore = useConnectionStore();
 const { fetchConnections, removeConnection,testConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 fetchConnections();
+
+const connectionCancelled = ref(false);
+const connectingModal = ref();
 
 const getDatabaseIcon = (type: DatabaseType) => {
   return type === DatabaseType.ELASTICSEARCH ? elasticsearch : dynamoDB;
@@ -104,11 +110,32 @@ const handleSelect = (key: string, connection: Connection) => {
 };
 
 const establishConnect = async (connection: Connection) => {
+  connectionCancelled.value = false;
+  
+  // Show loading modal
+  connectingModal.value.show(connection.name, () => {
+    connectionCancelled.value = true;
+  });
+
   try {
     await testConnection(connection);
+    
+    // Check if connection was cancelled
+    if (connectionCancelled.value) {
+      return;
+    }
+    
+    connectingModal.value.hide();
     message.success(lang.t('connection.connectSuccess'));
     emits('tab-panel', { action: 'ADD_PANEL', connection });
   } catch (err) {
+    connectingModal.value.hide();
+    
+    // Don't show error if connection was cancelled
+    if (connectionCancelled.value) {
+      return;
+    }
+    
     if (err instanceof CustomError) {
       message.error(`status: ${err.status}, details: ${err.details}`, {
         closable: true,
