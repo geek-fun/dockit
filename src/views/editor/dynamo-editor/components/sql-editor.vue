@@ -23,15 +23,14 @@
     </template>
     <template #2>
       <result-panel
-        v-show="showResultPanel"
-        :error-message="errorMessage"
-        :has-data="!!queryResult"
+        v-show="partiqlData.showResultPanel"
+        :error-message="partiqlData.errorMessage"
+        :has-data="!!partiqlData.queryResult"
         :columns="resultColumns"
-        :data="queryResult?.items ?? []"
-        :item-count="queryResult?.count"
-        :scroll-x="tableScrollWidth"
+        :data="partiqlData.queryResult?.items ?? []"
+        :item-count="partiqlData.queryResult?.count"
         :loading="loadingRef"
-        :has-next-token="!!queryResult?.next_token"
+        :has-next-token="!!partiqlData.queryResult?.next_token"
         @load-more="loadMore"
       />
     </template>
@@ -58,9 +57,9 @@ import {
   validatePartiqlModel,
 } from '../../../../common/monaco';
 import type { PartiqlDecoration, PartiqlStatement } from '../../../../common/monaco/partiql';
-import { dynamoApi, PartiQLResult } from '../../../../datasources';
+import { dynamoApi } from '../../../../datasources';
 import { useLang } from '../../../../lang';
-import { DynamoDBConnection, useAppStore, useTabStore } from '../../../../store';
+import { DynamoDBConnection, useAppStore, useTabStore, useDbDataStore } from '../../../../store';
 import ResultPanel from './result-panel.vue';
 
 const lang = useLang();
@@ -74,15 +73,20 @@ const tabStore = useTabStore();
 const { saveContent } = tabStore;
 const { activePanel, activeConnection } = storeToRefs(tabStore);
 
+const dbDataStore = useDbDataStore();
+const {
+  setPartiqlResult,
+  setPartiqlError,
+  setPartiqlShowResultPanel,
+  setPartiqlLastExecutedStatement,
+  appendPartiqlResults,
+} = dbDataStore;
+const { partiqlData } = storeToRefs(dbDataStore);
+
 let editor: Editor | null = null;
 const editorRef = ref<HTMLElement>();
 const editorSize = ref(1);
-const showResultPanel = ref(false);
 const loadingRef = ref(false);
-const errorMessage = ref<string | null>(null);
-const queryResult = ref<PartiQLResult | null>(null);
-const currentNextToken = ref<string | null>(null);
-const lastExecutedStatement = ref<string | null>(null);
 
 // Gutter decorations state
 let executeDecorations: Array<PartiqlDecoration | string> = [];
@@ -103,17 +107,16 @@ const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuStatementLine = ref<number | null>(null);
 
 const resultColumns = computed<DataTableColumn[]>(() => {
-  if (!queryResult.value?.items?.length) return [];
+  if (!partiqlData.value.queryResult?.items?.length) return [];
 
   const allKeys = new Set<string>();
-  queryResult.value.items.forEach(item => {
+  partiqlData.value.queryResult.items.forEach(item => {
     Object.keys(item).forEach(key => allKeys.add(key));
   });
 
   return Array.from(allKeys).map(key => ({
     title: key,
     key,
-    minWidth: 120,
     resizable: true,
     render: (row: Record<string, unknown>) => {
       const value = row[key];
@@ -122,11 +125,6 @@ const resultColumns = computed<DataTableColumn[]>(() => {
       return String(value);
     },
   }));
-});
-
-const tableScrollWidth = computed(() => {
-  const columnCount = resultColumns.value.length;
-  return Math.max(800, columnCount * 150);
 });
 
 const insertSampleQuery = (key: string) => {
@@ -213,23 +211,22 @@ const executeStatementAtLine = async (lineNumber: number) => {
   }
 
   loadingRef.value = true;
-  errorMessage.value = null;
-  queryResult.value = null;
-  currentNextToken.value = null;
-  lastExecutedStatement.value = statement.statement;
-  showResultPanel.value = true;
+  setPartiqlError(null);
+  setPartiqlResult(null);
+  setPartiqlLastExecutedStatement(statement.statement);
+  setPartiqlShowResultPanel(true);
   editorSize.value = 0.5;
 
   try {
     const result = await dynamoApi.executeStatement(activeConnection.value as DynamoDBConnection, {
       statement: statement.statement,
     });
-    queryResult.value = result;
-    currentNextToken.value = result.next_token;
+    setPartiqlResult(result);
   } catch (err) {
     const error = err as CustomError;
-    errorMessage.value = error.details || error.message || String(err);
-    message.error(`Error: ${errorMessage.value}`, {
+    const errorMsg = error.details || error.message || String(err);
+    setPartiqlError(errorMsg);
+    message.error(`Error: ${errorMsg}`, {
       closable: true,
       keepAliveOnHover: true,
     });
@@ -389,23 +386,22 @@ const executeQuery = async () => {
   }
 
   loadingRef.value = true;
-  errorMessage.value = null;
-  queryResult.value = null;
-  currentNextToken.value = null;
-  lastExecutedStatement.value = statement;
-  showResultPanel.value = true;
+  setPartiqlError(null);
+  setPartiqlResult(null);
+  setPartiqlLastExecutedStatement(statement);
+  setPartiqlShowResultPanel(true);
   editorSize.value = 0.5;
 
   try {
     const result = await dynamoApi.executeStatement(activeConnection.value as DynamoDBConnection, {
       statement,
     });
-    queryResult.value = result;
-    currentNextToken.value = result.next_token;
+    setPartiqlResult(result);
   } catch (err) {
     const error = err as CustomError;
-    errorMessage.value = error.details || error.message || String(err);
-    message.error(`Error: ${errorMessage.value}`, {
+    const errorMsg = error.details || error.message || String(err);
+    setPartiqlError(errorMsg);
+    message.error(`Error: ${errorMsg}`, {
       closable: true,
       keepAliveOnHover: true,
     });
@@ -415,27 +411,23 @@ const executeQuery = async () => {
 };
 
 const loadMore = async () => {
-  if (!editor || !activeConnection.value || !currentNextToken.value || !lastExecutedStatement.value)
+  if (
+    !editor ||
+    !activeConnection.value ||
+    !partiqlData.value.currentNextToken ||
+    !partiqlData.value.lastExecutedStatement
+  )
     return;
 
   loadingRef.value = true;
 
   try {
     const result = await dynamoApi.executeStatement(activeConnection.value as DynamoDBConnection, {
-      statement: lastExecutedStatement.value,
-      nextToken: currentNextToken.value,
+      statement: partiqlData.value.lastExecutedStatement,
+      nextToken: partiqlData.value.currentNextToken,
     });
 
-    if (queryResult.value) {
-      queryResult.value = {
-        items: [...queryResult.value.items, ...result.items],
-        count: queryResult.value.count + result.count,
-        next_token: result.next_token,
-      };
-    } else {
-      queryResult.value = result;
-    }
-    currentNextToken.value = result.next_token;
+    appendPartiqlResults(result);
   } catch (err) {
     const error = err as CustomError;
     message.error(`Error: ${error.details || error.message}`, {
@@ -483,7 +475,6 @@ const setupEditor = () => {
     minimap: { enabled: false },
     lineNumbers: 'on',
     wordWrap: 'on',
-    fontSize: 14,
     tabSize: 2,
   });
 
@@ -705,11 +696,8 @@ defineExpose({
     }
   }
 }
-</style>
 
-<style lang="scss">
-/* Gutter decoration for PartiQL execute button - global styles for Monaco */
-.partiql-execute-decoration {
+:deep(.partiql-execute-decoration) {
   cursor: pointer;
   height: 0 !important;
   width: 0 !important;

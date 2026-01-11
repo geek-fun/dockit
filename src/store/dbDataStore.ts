@@ -41,6 +41,17 @@ export const useDbDataStore = defineStore('dbDataStore', {
       queryBody: string;
       lastEvaluatedKeys: Array<Record<string, any>>;
     };
+    partiqlData: {
+      showResultPanel: boolean;
+      errorMessage: string | null;
+      queryResult: {
+        items: Array<Record<string, unknown>>;
+        count: number;
+        next_token: string | null;
+      } | null;
+      currentNextToken: string | null;
+      lastExecutedStatement: string | null;
+    };
   } => ({
     dynamoData: {
       connection: {} as DynamoDBConnection,
@@ -50,6 +61,13 @@ export const useDbDataStore = defineStore('dbDataStore', {
       queryInput: undefined,
       queryBody: '',
       lastEvaluatedKeys: [],
+    },
+    partiqlData: {
+      showResultPanel: false,
+      errorMessage: null,
+      queryResult: null,
+      currentNextToken: null,
+      lastExecutedStatement: null,
     },
   }),
   persist: true,
@@ -176,6 +194,56 @@ export const useDbDataStore = defineStore('dbDataStore', {
       if (this.dynamoData.queryInput && this.dynamoData.connection) {
         await this.getDynamoData(this.dynamoData.connection, this.dynamoData.queryInput);
       }
+    },
+
+    setPartiqlResult(
+      result: {
+        items: Array<Record<string, unknown>>;
+        count: number;
+        next_token: string | null;
+      } | null,
+    ) {
+      this.partiqlData.queryResult = result;
+      this.partiqlData.currentNextToken = result?.next_token || null;
+    },
+
+    setPartiqlError(error: string | null) {
+      this.partiqlData.errorMessage = error;
+    },
+
+    setPartiqlShowResultPanel(show: boolean) {
+      this.partiqlData.showResultPanel = show;
+    },
+
+    setPartiqlLastExecutedStatement(statement: string | null) {
+      this.partiqlData.lastExecutedStatement = statement;
+    },
+
+    appendPartiqlResults(result: {
+      items: Array<Record<string, unknown>>;
+      count: number;
+      next_token: string | null;
+    }) {
+      if (this.partiqlData.queryResult) {
+        this.partiqlData.queryResult = {
+          items: [...this.partiqlData.queryResult.items, ...result.items],
+          count: this.partiqlData.queryResult.count + result.count,
+          next_token: result.next_token,
+        };
+      } else {
+        this.partiqlData.queryResult = result;
+      }
+      this.partiqlData.currentNextToken = result.next_token;
+    },
+
+    resetPartiqlData() {
+      this.partiqlData = {
+        showResultPanel: false,
+        errorMessage: null,
+        queryResult: null,
+        currentNextToken: null,
+        lastExecutedStatement: null,
+      };
     },
   },
 });

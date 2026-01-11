@@ -20,7 +20,7 @@
           :columns="columns"
           :data="data"
           :flex-height="true"
-          :scroll-x="scrollX"
+          :scroll-x="tableScrollWidth"
           :loading="loading"
           :pagination="pagination"
           :remote="remote"
@@ -59,7 +59,6 @@ interface Props {
   columns: DataTableColumn[];
   data: Record<string, unknown>[];
   itemCount?: number;
-  scrollX?: number;
   loading?: boolean;
   hasNextToken?: boolean;
   pagination?: PaginationProps | false;
@@ -72,7 +71,6 @@ const props = withDefaults(defineProps<Props>(), {
   columns: () => [],
   data: () => [],
   itemCount: undefined,
-  scrollX: 800,
   loading: false,
   hasNextToken: false,
   pagination: false,
@@ -84,6 +82,11 @@ const emit = defineEmits<{
   (e: 'update:page', page: number): void;
   (e: 'update:page-size', pageSize: number): void;
 }>();
+
+const tableScrollWidth = computed(() => {
+  const columnCount = props.columns.length;
+  return Math.max(800, columnCount * 150);
+});
 
 const handlePageChange = (page: number) => {
   emit('update:page', page);
@@ -112,7 +115,6 @@ const handlePageSizeChange = (pageSize: number) => {
     :deep(.n-data-table-th__title) {
       white-space: nowrap;
       overflow: hidden;
-      text-overflow: ellipsis;
       min-width: 120px;
       /* Safari fix */
       word-break: keep-all;
