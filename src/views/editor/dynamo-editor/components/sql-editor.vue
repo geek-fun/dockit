@@ -1,16 +1,8 @@
 <template>
-  <n-split
-    direction="vertical"
-    class="partiql-editor"
-    v-model:size="editorSize"
-  >
+  <n-split direction="vertical" class="partiql-editor" v-model:size="editorSize">
     <template #1>
       <div class="editor-container">
-        <div
-          id="partiql-editor"
-          ref="editorRef"
-          class="monaco-editor-container"
-        />
+        <div id="partiql-editor" ref="editorRef" class="monaco-editor-container" />
         <!-- Context menu for gutter actions -->
         <div
           v-if="contextMenuVisible"
