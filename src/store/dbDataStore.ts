@@ -45,12 +45,9 @@ export const useDbDataStore = defineStore('dbDataStore', {
       partiqlData: {
         showResultPanel: boolean;
         errorMessage: string | null;
-        queryResult: {
-          items: Array<Record<string, unknown>>;
-          count: number;
-          next_token: string | null;
-        } | null;
-        currentNextToken: string | null;
+        items: Array<Record<string, unknown>>;
+        count: number;
+        nextToken: string | null;
         lastExecutedStatement: string | null;
       };
     };
@@ -68,8 +65,9 @@ export const useDbDataStore = defineStore('dbDataStore', {
       partiqlData: {
         showResultPanel: false,
         errorMessage: null,
-        queryResult: null,
-        currentNextToken: null,
+        items: [],
+        count: 0,
+        nextToken: null,
         lastExecutedStatement: null,
       },
     },
@@ -196,8 +194,9 @@ export const useDbDataStore = defineStore('dbDataStore', {
         partiqlData: {
           showResultPanel: false,
           errorMessage: null,
-          queryResult: null,
-          currentNextToken: null,
+          items: [],
+          count: 0,
+          nextToken: null,
           lastExecutedStatement: null,
         },
       };
@@ -216,8 +215,15 @@ export const useDbDataStore = defineStore('dbDataStore', {
         next_token: string | null;
       } | null,
     ) {
-      this.dynamoData.partiqlData.queryResult = result;
-      this.dynamoData.partiqlData.currentNextToken = result?.next_token || null;
+      if (result) {
+        this.dynamoData.partiqlData.items = result.items;
+        this.dynamoData.partiqlData.count = result.count;
+        this.dynamoData.partiqlData.nextToken = result.next_token;
+      } else {
+        this.dynamoData.partiqlData.items = [];
+        this.dynamoData.partiqlData.count = 0;
+        this.dynamoData.partiqlData.nextToken = null;
+      }
     },
 
     setPartiqlError(error: string | null) {
@@ -237,24 +243,18 @@ export const useDbDataStore = defineStore('dbDataStore', {
       count: number;
       next_token: string | null;
     }) {
-      if (this.dynamoData.partiqlData.queryResult) {
-        this.dynamoData.partiqlData.queryResult = {
-          items: [...this.dynamoData.partiqlData.queryResult.items, ...result.items],
-          count: this.dynamoData.partiqlData.queryResult.count + result.count,
-          next_token: result.next_token,
-        };
-      } else {
-        this.dynamoData.partiqlData.queryResult = result;
-      }
-      this.dynamoData.partiqlData.currentNextToken = result.next_token;
+      this.dynamoData.partiqlData.items = [...this.dynamoData.partiqlData.items, ...result.items];
+      this.dynamoData.partiqlData.count = this.dynamoData.partiqlData.count + result.count;
+      this.dynamoData.partiqlData.nextToken = result.next_token;
     },
 
     resetPartiqlData() {
       this.dynamoData.partiqlData = {
         showResultPanel: false,
         errorMessage: null,
-        queryResult: null,
-        currentNextToken: null,
+        items: [],
+        count: 0,
+        nextToken: null,
         lastExecutedStatement: null,
       };
     },

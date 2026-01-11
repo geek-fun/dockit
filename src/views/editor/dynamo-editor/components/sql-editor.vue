@@ -25,12 +25,12 @@
       <result-panel
         v-show="partiqlData.showResultPanel"
         :error-message="partiqlData.errorMessage"
-        :has-data="!!partiqlData.queryResult"
+        :has-data="partiqlData.items.length > 0"
         :columns="resultColumns"
-        :data="partiqlData.queryResult?.items ?? []"
-        :item-count="partiqlData.queryResult?.count"
+        :data="partiqlData.items"
+        :item-count="partiqlData.count"
         :loading="loadingRef"
-        :has-next-token="!!partiqlData.queryResult?.next_token"
+        :has-next-token="!!partiqlData.nextToken"
         @load-more="loadMore"
       />
     </template>
@@ -108,10 +108,10 @@ const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuStatementLine = ref<number | null>(null);
 
 const resultColumns = computed<DataTableColumn[]>(() => {
-  if (!partiqlData.value.queryResult?.items?.length) return [];
+  if (!partiqlData.value.items?.length) return [];
 
   const allKeys = new Set<string>();
-  partiqlData.value.queryResult.items.forEach(item => {
+  partiqlData.value.items.forEach(item => {
     Object.keys(item).forEach(key => allKeys.add(key));
   });
 
@@ -417,14 +417,14 @@ const loadMore = async () => {
   if (
     !editor ||
     !activeConnection.value ||
-    !partiqlData.value.currentNextToken ||
+    !partiqlData.value.nextToken ||
     !partiqlData.value.lastExecutedStatement
   )
     return;
 
   await executePartiqlStatement(
     partiqlData.value.lastExecutedStatement,
-    partiqlData.value.currentNextToken,
+    partiqlData.value.nextToken,
   );
 };
 
