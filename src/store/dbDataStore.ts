@@ -211,8 +211,8 @@ export const useDbDataStore = defineStore('dbDataStore', {
 
     // Execute PartiQL statement and handle result/error states automatically
     async executePartiqlStatement(
-      statement: string,
       connection: DynamoDBConnection,
+      statement: string,
       options?: { nextToken?: string | null },
     ): Promise<void> {
       const isLoadingMore = !!options?.nextToken;

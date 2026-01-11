@@ -185,8 +185,8 @@ const executePartiqlStatement = async (statement: string, nextToken?: string | n
 
   try {
     await dbDataStore.executePartiqlStatement(
-      statement,
       activeConnection.value as DynamoDBConnection,
+      statement,
       { nextToken },
     );
   } catch (err) {
