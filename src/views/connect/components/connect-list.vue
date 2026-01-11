@@ -57,6 +57,7 @@
 </template>
 
 <script setup lang="ts">
+import { reactive, ref } from 'vue';
 import { NDropdown, NIcon, useDialog, useMessage } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
@@ -81,7 +82,7 @@ const { fetchConnections, removeConnection,testConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 fetchConnections();
 
-let connectionCancelled = ref(false);
+const connectionCancelled = ref(false);
 const connectingModal = ref();
 
 const getDatabaseIcon = (type: DatabaseType) => {
