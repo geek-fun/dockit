@@ -4,12 +4,8 @@
       <div class="editor-container">
         <div id="partiql-editor" ref="editorRef" class="monaco-editor-container" />
         <!-- Context menu for gutter actions -->
-        <div
-          v-if="contextMenuVisible"
-          class="partiql-context-menu"
-          :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
-          @click.stop
-        >
+        <div v-if="contextMenuVisible" class="partiql-context-menu"
+          :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }" @click.stop>
           <ul>
             <li @click="handleContextMenuAction('execute')">
               {{ lang.t('editor.dynamo.partiql.contextMenu.execute') }}
@@ -22,18 +18,15 @@
       </div>
     </template>
     <template #2>
-      <result-panel
-        v-show="showResultPanel"
-        :error-message="errorMessage"
-        :has-data="!!queryResult"
-        :columns="resultColumns"
-        :data="queryResult?.items ?? []"
-        :item-count="queryResult?.count"
-        :scroll-x="tableScrollWidth"
-        :loading="loadingRef"
-        :has-next-token="!!queryResult?.next_token"
-        @load-more="loadMore"
-      />
+      <!-- <div class="result-panel-container"> -->
+      <result-panel v-show="showResultPanel" :error-message="errorMessage" :has-data="!!queryResult"
+        :columns="resultColumns" :data="queryResult?.items ?? []" :item-count="queryResult?.count"
+        :scroll-x="tableScrollWidth" :loading="loadingRef" :has-next-token="!!queryResult?.next_token"
+        @load-more="loadMore" />
+
+      <!-- </div> -->
+
+
     </template>
   </n-split>
 </template>
@@ -308,7 +301,7 @@ const getStatementToExecute = (): { statement: string; found: boolean } => {
   if (!model) return { statement: '', found: false };
 
   const selection = editor.getSelection();
-  
+
   // If user has selected text, use that
   if (selection && !selection.isEmpty()) {
     const selectedText = model.getValueInRange(selection).trim();
@@ -375,7 +368,7 @@ const executeQuery = async () => {
 
   // Use smart statement extraction
   const { statement, found } = getStatementToExecute();
-  
+
   if (!found || !statement) {
     message.warning(lang.t('editor.dynamo.partiql.noStatementFound'), {
       closable: true,
@@ -498,7 +491,7 @@ const setupEditor = () => {
 
   // Initial decoration refresh
   refreshStatementDecorations();
-  
+
   // Initial syntax validation
   const model = editor.getModel();
   if (model) {
@@ -667,6 +660,11 @@ defineExpose({
       width: 100%;
       height: 100%;
     }
+  }
+
+  .result-panel-container {
+    width: 100%;
+    height: 100%;
   }
 }
 

@@ -1,58 +1,28 @@
 <template>
   <div class="result-panel">
-    <n-card
-      v-if="errorMessage"
-      class="error-card"
-      :title="$t('editor.dynamo.partiql.error')"
-    >
+    <n-card v-if="errorMessage" class="error-card" :title="$t('editor.dynamo.partiql.error')">
       <n-text type="error">{{ errorMessage }}</n-text>
     </n-card>
-    <n-card
-      v-else-if="hasData && data.length > 0"
-      :title="$t('editor.dynamo.resultTitle')"
-      class="result-card"
-    >
+    <n-card v-else-if="hasData && data.length > 0" :title="$t('editor.dynamo.resultTitle')" class="result-card">
       <template #header-extra>
         <n-text v-if="itemCount !== undefined" depth="3">
           {{ $t('editor.dynamo.partiql.itemsReturned', { count: itemCount }) }}
         </n-text>
       </template>
       <div class="table-container">
-        <n-data-table
-          :bordered="false"
-          :single-line="false"
-          :columns="columns"
-          :data="data"
-          :max-height="maxHeight"
-          :scroll-x="scrollX"
-          :loading="loading"
-          :pagination="pagination"
-          :remote="remote"
-          virtual-scroll
-          @update:page="handlePageChange"
-          @update:page-size="handlePageSizeChange"
-        />
+        <n-data-table :bordered="false" :single-line="false" :columns="columns" :data="data" :flex-height="true"
+          :scroll-x="scrollX" :loading="loading" :pagination="pagination" :remote="remote" virtual-scroll
+          :style="{ height: '100%' }" @update:page="handlePageChange" @update:page-size="handlePageSizeChange" />
       </div>
       <template #footer v-if="hasNextToken">
-        <n-button
-          size="small"
-          @click="$emit('load-more')"
-          :loading="loading"
-        >
+        <n-button size="small" @click="$emit('load-more')" :loading="loading">
           {{ $t('editor.dynamo.partiql.loadMore') }}
         </n-button>
       </template>
     </n-card>
-    <n-card
-      v-else-if="hasData && data.length === 0"
-      class="success-card"
-      :title="$t('editor.dynamo.resultTitle')"
-    >
-      <n-result
-        status="success"
-        :title="$t('editor.dynamo.partiql.executionSuccess')"
-        :description="$t('editor.dynamo.partiql.noItemsReturned')"
-      />
+    <n-card v-else-if="hasData && data.length === 0" class="success-card" :title="$t('editor.dynamo.resultTitle')">
+      <n-result status="success" :title="$t('editor.dynamo.partiql.executionSuccess')"
+        :description="$t('editor.dynamo.partiql.noItemsReturned')" />
     </n-card>
   </div>
 </template>
@@ -66,7 +36,6 @@ interface Props {
   columns: DataTableColumn[];
   data: Record<string, unknown>[];
   itemCount?: number;
-  maxHeight?: number;
   scrollX?: number;
   loading?: boolean;
   hasNextToken?: boolean;
@@ -80,7 +49,6 @@ const props = withDefaults(defineProps<Props>(), {
   columns: () => [],
   data: () => [],
   itemCount: undefined,
-  maxHeight: 400,
   scrollX: 800,
   loading: false,
   hasNextToken: false,
@@ -107,27 +75,24 @@ const handlePageSizeChange = (pageSize: number) => {
 .result-panel {
   width: 100%;
   height: 100%;
-  overflow: auto;
-
-  .error-card {
-    margin: 12px;
-  }
-
-  .success-card {
-    margin: 12px;
-  }
+  overflow-y: auto;
 
   .result-card {
-    margin: 12px;
-    height: calc(100% - 24px);
+    width: 100%;
+    height: 100%;
 
     .table-container {
-      height: calc(100% - 60px);
-      overflow: auto;
+      height: 100%;
+      overflow-y: auto;
     }
 
     :deep(.n-data-table-th__title) {
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 120px;
+      /* Safari fix */
+      word-break: keep-all;
     }
   }
 }

@@ -2,56 +2,30 @@
   <n-split direction="vertical" class="ui-editor">
     <template #1>
       <n-card class="query-container">
-        <n-form
-          ref="dynamoQueryFormRef"
-          :model="dynamoQueryForm"
-          :rules="dynamoQueryFormRules"
-          label-placement="left"
-          require-mark-placement="right-hanging"
-          label-width="auto"
-          style="width: 100%; height: 100%"
-        >
+        <n-form ref="dynamoQueryFormRef" :model="dynamoQueryForm" :rules="dynamoQueryFormRules" label-placement="left"
+          require-mark-placement="right-hanging" label-width="auto" style="width: 100%; height: 100%">
           <!-- First row with partition and sort key -->
           <n-grid :cols="24" :x-gap="12">
             <n-grid-item span="8">
               <n-form-item :label="$t('editor.dynamo.tableOrIndex')" path="index">
-                <n-select
-                  :placeholder="$t('editor.dynamo.selectTableOrIndex')"
-                  v-model:value="dynamoQueryForm.index"
-                  remote
-                  :loading="loadingRef.index"
-                  @update:show="handleIndexOpen"
-                  @update:value="handleUpdate"
-                  :options="indicesOrTableOptions"
-                />
+                <n-select :placeholder="$t('editor.dynamo.selectTableOrIndex')" v-model:value="dynamoQueryForm.index"
+                  remote :loading="loadingRef.index" @update:show="handleIndexOpen" @update:value="handleUpdate"
+                  :options="indicesOrTableOptions" />
               </n-form-item>
             </n-grid-item>
 
             <n-grid-item span="8">
-              <n-form-item
-                v-if="selectedIndexOrTable?.partitionKeyName"
-                :label="getLabel('PARTITION_KEY')"
-                path="partitionKey"
-              >
-                <n-input
-                  v-model:value="dynamoQueryForm.partitionKey"
-                  :placeholder="$t('editor.dynamo.enterPartitionKey')"
-                  :input-props="inputProps"
-                />
+              <n-form-item v-if="selectedIndexOrTable?.partitionKeyName" :label="getLabel('PARTITION_KEY')"
+                path="partitionKey">
+                <n-input v-model:value="dynamoQueryForm.partitionKey"
+                  :placeholder="$t('editor.dynamo.enterPartitionKey')" :input-props="inputProps" />
               </n-form-item>
             </n-grid-item>
 
             <n-grid-item span="8">
-              <n-form-item
-                v-if="selectedIndexOrTable?.sortKeyName"
-                :label="getLabel('SORT_KEY')"
-                path="sortKey"
-              >
-                <n-input
-                  v-model:value="dynamoQueryForm.sortKey"
-                  :placeholder="$t('editor.dynamo.enterSortKey')"
-                  :input-props="inputProps"
-                />
+              <n-form-item v-if="selectedIndexOrTable?.sortKeyName" :label="getLabel('SORT_KEY')" path="sortKey">
+                <n-input v-model:value="dynamoQueryForm.sortKey" :placeholder="$t('editor.dynamo.enterSortKey')"
+                  :input-props="inputProps" />
               </n-form-item>
             </n-grid-item>
           </n-grid>
@@ -66,58 +40,35 @@
             <div class="infinity-scroll-outer-container">
               <div class="infinity-scroll-inner-container">
                 <n-infinite-scroll style="height: 100%">
-                  <n-grid
-                    v-for="(item, index) in dynamoQueryForm.formFilterItems"
-                    :key="index"
-                    :cols="24"
-                    :x-gap="12"
-                  >
+                  <n-grid v-for="(item, index) in dynamoQueryForm.formFilterItems" :key="index" :cols="24" :x-gap="12">
                     <n-grid-item span="9">
-                      <n-form-item
-                        :path="`formFilterItems[${index}].key`"
-                        :rule="{
-                          required: true,
-                          message: `${lang.t('editor.dynamo.attributeNameRequired')}`,
-                          trigger: ['input', 'blur'],
-                        }"
-                      >
-                        <n-input
-                          v-model:value="item.key"
-                          :placeholder="$t('editor.dynamo.inputAttrName')"
-                          :input-props="inputProps"
-                        />
+                      <n-form-item :path="`formFilterItems[${index}].key`" :rule="{
+                        required: true,
+                        message: `${lang.t('editor.dynamo.attributeNameRequired')}`,
+                        trigger: ['input', 'blur'],
+                      }">
+                        <n-input v-model:value="item.key" :placeholder="$t('editor.dynamo.inputAttrName')"
+                          :input-props="inputProps" />
                       </n-form-item>
                     </n-grid-item>
                     <n-grid-item span="4">
-                      <n-form-item
-                        :path="`formFilterItems[${index}].operator`"
-                        :rule="{
-                          required: true,
-                          message: `${lang.t('editor.dynamo.operatorRequired')}`,
-                          trigger: ['input', 'blur'],
-                        }"
-                      >
-                        <n-select
-                          v-model:value="item.operator"
-                          :placeholder="$t('editor.dynamo.inputOperator')"
-                          :options="filterConditions"
-                        />
+                      <n-form-item :path="`formFilterItems[${index}].operator`" :rule="{
+                        required: true,
+                        message: `${lang.t('editor.dynamo.operatorRequired')}`,
+                        trigger: ['input', 'blur'],
+                      }">
+                        <n-select v-model:value="item.operator" :placeholder="$t('editor.dynamo.inputOperator')"
+                          :options="filterConditions" />
                       </n-form-item>
                     </n-grid-item>
                     <n-grid-item span="9">
-                      <n-form-item
-                        :path="`formFilterItems[${index}].value`"
-                        :rule="{
-                          required: true,
-                          message: `${lang.t('editor.dynamo.attributeValueRequired')}`,
-                          trigger: ['input', 'blur'],
-                        }"
-                      >
-                        <n-input
-                          v-model:value="item.value"
-                          :placeholder="$t('editor.dynamo.inputAttrValue')"
-                          :input-props="inputProps"
-                        />
+                      <n-form-item :path="`formFilterItems[${index}].value`" :rule="{
+                        required: true,
+                        message: `${lang.t('editor.dynamo.attributeValueRequired')}`,
+                        trigger: ['input', 'blur'],
+                      }">
+                        <n-input v-model:value="item.value" :placeholder="$t('editor.dynamo.inputAttrValue')"
+                          :input-props="inputProps" />
                       </n-form-item>
                     </n-grid-item>
                     <n-grid-item span="2">
@@ -140,12 +91,8 @@
             <n-button type="warning" tertiary @click="handleReset">
               {{ $t('dialogOps.reset') }}
             </n-button>
-            <n-button
-              type="primary"
-              @click="queryToDynamo"
-              :disabled="!validationPassed"
-              :loading="loadingRef.queryResult"
-            >
+            <n-button type="primary" @click="queryToDynamo" :disabled="!validationPassed"
+              :loading="loadingRef.queryResult">
               {{ $t('dialogOps.execute') }}
             </n-button>
           </div>
@@ -153,30 +100,16 @@
       </n-card>
     </template>
     <template #2>
-      <result-panel
-        v-if="dynamoData.data"
-        :has-data="!!dynamoData.data"
-        :columns="tableColumns"
-        :data="dynamoData.data"
-        :loading="loadingRef.queryResult"
-        :pagination="dynamoData.pagination"
-        :remote="true"
-        @update:page="changePage"
-        @update:page-size="changePageSize"
-      />
+      <result-panel v-if="dynamoData.data" :has-data="!!dynamoData.data" :columns="tableColumns" :data="dynamoData.data"
+        :loading="loadingRef.queryResult" :pagination="dynamoData.pagination" :remote="true" @update:page="changePage"
+        @update:page-size="changePageSize" />
     </template>
   </n-split>
 
   <!-- Edit Item Modal -->
-  <edit-item
-    v-model:show="showEditModal"
-    :item="editingItem"
-    :partition-key-name="partitionKeyName"
-    :partition-key-type="partitionKeyType"
-    :sort-key-name="sortKeyName"
-    :sort-key-type="sortKeyType"
-    @submit="handleEditSubmit"
-  />
+  <edit-item v-model:show="showEditModal" :item="editingItem" :partition-key-name="partitionKeyName"
+    :partition-key-type="partitionKeyType" :sort-key-name="sortKeyName" :sort-key-type="sortKeyType"
+    @submit="handleEditSubmit" />
 </template>
 
 <script setup lang="ts">
