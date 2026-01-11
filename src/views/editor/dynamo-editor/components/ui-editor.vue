@@ -154,12 +154,12 @@
     </template>
     <template #2>
       <result-panel
-        v-if="dynamoData.data"
-        :has-data="!!dynamoData.data"
+        v-if="dynamoData.queryData.data"
+        :has-data="!!dynamoData.queryData.data"
         :columns="tableColumns"
-        :data="dynamoData.data"
+        :data="dynamoData.queryData.data"
         :loading="loadingRef.queryResult"
-        :pagination="dynamoData.pagination"
+        :pagination="dynamoData.queryData.pagination"
         :remote="true"
         @update:page="changePage"
         @update:page-size="changePageSize"
@@ -432,10 +432,10 @@ const actionColumn: DataTableColumn<Record<string, unknown>> = {
 
 // Combine original columns with action column
 const tableColumns = computed(() => {
-  if (!dynamoData.value.columns || dynamoData.value.columns.length === 0) {
+  if (!dynamoData.value.queryData.columns || dynamoData.value.queryData.columns.length === 0) {
     return [];
   }
-  return [...dynamoData.value.columns, actionColumn];
+  return [...dynamoData.value.queryData.columns, actionColumn];
 });
 
 const handleEdit = (row: Record<string, unknown>) => {
