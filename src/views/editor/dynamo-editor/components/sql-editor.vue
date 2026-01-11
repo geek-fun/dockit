@@ -57,7 +57,6 @@ import {
   validatePartiqlModel,
 } from '../../../../common/monaco';
 import type { PartiqlDecoration, PartiqlStatement } from '../../../../common/monaco/partiql';
-import { dynamoApi } from '../../../../datasources';
 import { useLang } from '../../../../lang';
 import { DynamoDBConnection, useAppStore, useTabStore, useDbDataStore } from '../../../../store';
 import ResultPanel from './result-panel.vue';
@@ -74,13 +73,6 @@ const { saveContent } = tabStore;
 const { activePanel, activeConnection } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
-const {
-  setPartiqlResult,
-  setPartiqlError,
-  setPartiqlShowResultPanel,
-  setPartiqlLastExecutedStatement,
-  appendPartiqlResults,
-} = dbDataStore;
 const { dynamoData } = storeToRefs(dbDataStore);
 const partiqlData = computed(() => dynamoData.value.partiqlData);
 
@@ -177,37 +169,29 @@ const insertSampleQuery = (key: string) => {
  */
 const executePartiqlStatement = async (statement: string, nextToken?: string | null) => {
   if (!activeConnection.value) {
-    throw new Error(lang.t('editor.establishedRequired'));
+    message.error(lang.t('editor.establishedRequired'), {
+      closable: true,
+      keepAliveOnHover: true,
+    });
+    return;
   }
 
-  // Reset state for new execution (only if not loading more)
+  // Set editor size to show results panel
   if (!nextToken) {
-    setPartiqlError(null);
-    setPartiqlResult(null);
-    setPartiqlLastExecutedStatement(statement);
-    setPartiqlShowResultPanel(true);
     editorSize.value = 0.5;
   }
 
   loadingRef.value = true;
 
   try {
-    const result = await dynamoApi.executeStatement(activeConnection.value as DynamoDBConnection, {
+    await dbDataStore.executePartiqlStatement(
       statement,
-      nextToken,
-    });
-
-    if (nextToken) {
-      // Append results for pagination
-      appendPartiqlResults(result);
-    } else {
-      // Set new results
-      setPartiqlResult(result);
-    }
+      activeConnection.value as DynamoDBConnection,
+      { nextToken },
+    );
   } catch (err) {
     const error = err as CustomError;
     const errorMsg = error.details || error.message || String(err);
-    setPartiqlError(errorMsg);
     message.error(`Error: ${errorMsg}`, {
       closable: true,
       keepAliveOnHover: true,

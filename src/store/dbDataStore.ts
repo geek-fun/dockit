@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { cloneDeep, omit } from 'lodash';
 import { DynamoDBConnection, useConnectionStore } from './connectionStore.ts';
 import { DynamoIndexOrTableOption } from './tabStore.ts';
+import { dynamoApi } from '../datasources';
 
 const resetPagination = {
   page: 1,
@@ -205,6 +206,55 @@ export const useDbDataStore = defineStore('dbDataStore', {
     async refreshDynamoData() {
       if (this.dynamoData.queryData.queryInput && this.dynamoData.connection) {
         await this.getDynamoData(this.dynamoData.connection, this.dynamoData.queryData.queryInput);
+      }
+    },
+
+    // Execute PartiQL statement and handle result/error states automatically
+    async executePartiqlStatement(
+      statement: string,
+      connection: DynamoDBConnection,
+      options?: { nextToken?: string | null },
+    ): Promise<void> {
+      const isLoadingMore = !!options?.nextToken;
+
+      // Reset state for new execution (not for pagination)
+      if (!isLoadingMore) {
+        this.dynamoData.partiqlData.errorMessage = null;
+        this.dynamoData.partiqlData.items = [];
+        this.dynamoData.partiqlData.count = 0;
+        this.dynamoData.partiqlData.nextToken = null;
+        this.dynamoData.partiqlData.lastExecutedStatement = statement;
+        this.dynamoData.partiqlData.showResultPanel = true;
+      }
+
+      try {
+        const result = await dynamoApi.executeStatement(connection, {
+          statement,
+          nextToken: options?.nextToken,
+        });
+
+        if (isLoadingMore) {
+          // Append results for pagination
+          this.dynamoData.partiqlData.items = [
+            ...this.dynamoData.partiqlData.items,
+            ...result.items,
+          ];
+          this.dynamoData.partiqlData.count = this.dynamoData.partiqlData.count + result.count;
+          this.dynamoData.partiqlData.nextToken = result.next_token;
+        } else {
+          // Set new results
+          this.dynamoData.partiqlData.items = result.items;
+          this.dynamoData.partiqlData.count = result.count;
+          this.dynamoData.partiqlData.nextToken = result.next_token;
+        }
+
+        // Clear any previous error on success
+        this.dynamoData.partiqlData.errorMessage = null;
+      } catch (error: any) {
+        // Set error state automatically
+        const errorMsg = error.details || error.message || String(error);
+        this.dynamoData.partiqlData.errorMessage = errorMsg;
+        throw error; // Re-throw for UI error handling
       }
     },
 
