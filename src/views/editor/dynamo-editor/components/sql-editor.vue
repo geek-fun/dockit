@@ -81,7 +81,8 @@ const {
   setPartiqlLastExecutedStatement,
   appendPartiqlResults,
 } = dbDataStore;
-const { partiqlData } = storeToRefs(dbDataStore);
+const { dynamoData } = storeToRefs(dbDataStore);
+const partiqlData = computed(() => dynamoData.value.partiqlData);
 
 let editor: Editor | null = null;
 const editorRef = ref<HTMLElement>();
