@@ -86,7 +86,8 @@ const partiqlData = computed(() => dynamoData.value.partiqlData);
 
 let editor: Editor | null = null;
 const editorRef = ref<HTMLElement>();
-const editorSize = ref(1);
+// Initialize editorSize based on whether result panel should be shown
+const editorSize = ref(partiqlData.value.showResultPanel ? 0.5 : 1);
 const loadingRef = ref(false);
 
 // Gutter decorations state
