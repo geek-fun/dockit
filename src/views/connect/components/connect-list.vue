@@ -81,7 +81,7 @@ const { fetchConnections, removeConnection,testConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 fetchConnections();
 
-let connectionCancelled = false;
+let connectionCancelled = ref(false);
 const connectingModal = ref();
 
 const getDatabaseIcon = (type: DatabaseType) => {
@@ -109,18 +109,18 @@ const handleSelect = (key: string, connection: Connection) => {
 };
 
 const establishConnect = async (connection: Connection) => {
-  connectionCancelled = false;
+  connectionCancelled.value = false;
   
   // Show loading modal
   connectingModal.value.show(connection.name, () => {
-    connectionCancelled = true;
+    connectionCancelled.value = true;
   });
 
   try {
     await testConnection(connection);
     
     // Check if connection was cancelled
-    if (connectionCancelled) {
+    if (connectionCancelled.value) {
       return;
     }
     
@@ -131,7 +131,7 @@ const establishConnect = async (connection: Connection) => {
     connectingModal.value.hide();
     
     // Don't show error if connection was cancelled
-    if (connectionCancelled) {
+    if (connectionCancelled.value) {
       return;
     }
     

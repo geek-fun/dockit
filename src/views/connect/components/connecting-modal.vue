@@ -7,7 +7,7 @@
       class="connecting-modal-card"
     >
       <template #header>
-        <n-icon size="24" @click="handleCancel" style="cursor: pointer; position: absolute; right: 16px; top: 16px;">
+        <n-icon size="24" @click="handleCancel" class="close-icon">
           <Close />
         </n-icon>
       </template>
@@ -32,6 +32,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { Close } from '@vicons/carbon';
 
 const showModal = ref(false);
@@ -70,6 +71,14 @@ defineExpose({
   :deep(.n-card-header) {
     border-bottom: none;
     padding: 16px;
+    position: relative;
+  }
+
+  .close-icon {
+    cursor: pointer;
+    position: absolute;
+    right: 16px;
+    top: 16px;
   }
 
   .modal-content {
