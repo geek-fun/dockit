@@ -88,7 +88,7 @@
             :path="`attributes[${index}].value`"
             :rule="{
               required: item.type !== 'NULL',
-              validator: (rule: any, value: any) => {
+              validator: (_rule: any, value: any) => {
                 if (item.type === 'NULL') {
                   return true;
                 }
