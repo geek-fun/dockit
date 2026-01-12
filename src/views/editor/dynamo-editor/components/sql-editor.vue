@@ -76,7 +76,13 @@ import {
 } from '../../../../common/monaco';
 import type { PartiqlDecoration, PartiqlStatement } from '../../../../common/monaco/partiql';
 import { useLang } from '../../../../lang';
-import { DynamoDBConnection, useAppStore, useTabStore, useDbDataStore, useConnectionStore } from '../../../../store';
+import {
+  DynamoDBConnection,
+  useAppStore,
+  useTabStore,
+  useDbDataStore,
+  useConnectionStore,
+} from '../../../../store';
 import ResultPanel from './result-panel.vue';
 import EditItem from './edit-item.vue';
 
@@ -98,8 +104,7 @@ const partiqlData = computed(() => dynamoData.value.partiqlData);
 
 let editor: Editor | null = null;
 const editorRef = ref<HTMLElement>();
-// Initialize editorSize to 1 (full editor, result panel hidden by default)
-const editorSize = ref(1);
+const editorSize = ref(partiqlData.value.showResultPanel ? 0.5 : 1);
 const loadingRef = ref(false);
 
 // Gutter decorations state
@@ -709,8 +714,6 @@ const cleanupFileListener = async () => {
 };
 
 onMounted(async () => {
-  // Hide result panel by default on mount
-  dbDataStore.resetPartiqlData();
   setupEditor();
   await setupFileListener();
   // Add document click listener for context menu
@@ -752,7 +755,6 @@ defineExpose({
       height: 100%;
     }
   }
-
 }
 
 .partiql-context-menu {

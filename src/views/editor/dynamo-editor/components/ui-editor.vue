@@ -1,5 +1,5 @@
 <template>
-  <n-split direction="vertical" class="ui-editor">
+  <n-split direction="vertical" class="ui-editor" v-model:size="editorSize">
     <template #1>
       <n-card class="query-container">
         <n-form
@@ -154,10 +154,10 @@
     </template>
     <template #2>
       <result-panel
-        v-if="dynamoData.queryData.data"
+        v-show="dynamoData.queryData.showResultPanel"
         :has-data="!!dynamoData.queryData.data"
         :columns="dynamoData.queryData.columns"
-        :data="dynamoData.queryData.data"
+        :data="dynamoData.queryData.data ?? []"
         :loading="loadingRef.queryResult"
         :pagination="dynamoData.queryData.pagination"
         :remote="true"
@@ -190,11 +190,7 @@
 import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
 import { isEmpty } from 'lodash';
-import {
-  FormItemRule,
-  FormRules,
-  FormValidationError,
-} from 'naive-ui';
+import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 import {
   Connection,
   DynamoDBConnection,
@@ -240,6 +236,7 @@ const filterConditions = ref([
 ]);
 
 const loadingRef = ref({ index: false, queryResult: false });
+const editorSize = ref(dynamoData.value.queryData.showResultPanel ? 0.5 : 1);
 
 const message = useMessage();
 const dialog = useDialog();
@@ -366,6 +363,7 @@ const queryToDynamo = async (event?: MouseEvent) => {
       filters: formFilterItems,
       index: index ?? undefined,
     });
+    editorSize.value = 0.5;
   } catch (error) {
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -385,10 +383,12 @@ const handleReset = () => {
   if (dynamoQueryFormRef.value) {
     dynamoQueryFormRef.value.restoreValidation();
   }
+  editorSize.value = 1;
   resetDynamoData();
 };
 
 const handleCloseResultPanel = () => {
+  editorSize.value = 1;
   resetDynamoData();
 };
 

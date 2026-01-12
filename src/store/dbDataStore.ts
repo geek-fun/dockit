@@ -30,6 +30,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
     dynamoData: {
       connection: DynamoDBConnection;
       queryData: {
+        showResultPanel: boolean;
         columns: Array<DynamoColumn>;
         data: Array<Record<string, unknown>> | undefined;
         pagination: {
@@ -57,6 +58,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
     dynamoData: {
       connection: {} as DynamoDBConnection,
       queryData: {
+        showResultPanel: false,
         columns: [],
         data: undefined,
         pagination: cloneDeep(resetPagination),
@@ -103,6 +105,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
 
         if (this.dynamoData.queryData.queryBody !== queryStr) {
           this.dynamoData.queryData = {
+            showResultPanel: false,
             columns: [],
             data: undefined,
             pagination: { ...cloneDeep(resetPagination) },
@@ -114,7 +117,9 @@ export const useDbDataStore = defineStore('dbDataStore', {
 
         const limit = this.dynamoData.queryData.pagination.pageSize;
         const exclusiveStartKey =
-          this.dynamoData.queryData.lastEvaluatedKeys[this.dynamoData.queryData.pagination.page - 1];
+          this.dynamoData.queryData.lastEvaluatedKeys[
+            this.dynamoData.queryData.pagination.page - 1
+          ];
 
         const data = await queryTable(connection, { ...queryParams, limit, exclusiveStartKey });
 
@@ -152,9 +157,11 @@ export const useDbDataStore = defineStore('dbDataStore', {
         if (data.last_evaluated_key) {
           this.dynamoData.queryData.lastEvaluatedKeys[this.dynamoData.queryData.pagination.page] =
             data.last_evaluated_key;
-          this.dynamoData.queryData.pagination.pageCount = this.dynamoData.queryData.lastEvaluatedKeys.length;
+          this.dynamoData.queryData.pagination.pageCount =
+            this.dynamoData.queryData.lastEvaluatedKeys.length;
         }
         this.dynamoData.queryData.queryInput = queryInput;
+        this.dynamoData.queryData.showResultPanel = true;
       } catch (error) {
         throw error;
       }
@@ -187,6 +194,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
       this.dynamoData = {
         connection: {} as DynamoDBConnection,
         queryData: {
+          showResultPanel: false,
           columns: [],
           data: undefined,
           pagination: cloneDeep(resetPagination),
@@ -210,6 +218,10 @@ export const useDbDataStore = defineStore('dbDataStore', {
       if (this.dynamoData.queryData.queryInput && this.dynamoData.connection) {
         await this.getDynamoData(this.dynamoData.connection, this.dynamoData.queryData.queryInput);
       }
+    },
+
+    setQueryShowResultPanel(show: boolean) {
+      this.dynamoData.queryData.showResultPanel = show;
     },
 
     // Execute PartiQL statement and handle result/error states automatically
@@ -281,35 +293,30 @@ export const useDbDataStore = defineStore('dbDataStore', {
           // Append results for pagination
           // Merge new columns if there are any new fields
           const existingColumnKeys = new Set(
-            this.dynamoData.partiqlData.columns
-              .filter(col => !col.children)
-              .map(col => col.key)
+            this.dynamoData.partiqlData.columns.filter(col => !col.children).map(col => col.key),
           );
           const existingChildKeys = new Set(
             this.dynamoData.partiqlData.columns
               .filter(col => col.children)
-              .flatMap(col => col.children?.map(child => child.key) || [])
+              .flatMap(col => col.children?.map(child => child.key) || []),
           );
           const allExistingKeys = new Set([...existingColumnKeys, ...existingChildKeys]);
-          
+
           const newColumns = columns.filter(col => {
             if (col.children) {
               return false; // Primary key column already exists
             }
             return !allExistingKeys.has(col.key);
           });
-          
+
           if (newColumns.length > 0) {
             this.dynamoData.partiqlData.columns = [
               ...this.dynamoData.partiqlData.columns,
               ...newColumns,
             ];
           }
-          
-          this.dynamoData.partiqlData.data = [
-            ...this.dynamoData.partiqlData.data,
-            ...columnsData,
-          ];
+
+          this.dynamoData.partiqlData.data = [...this.dynamoData.partiqlData.data, ...columnsData];
           this.dynamoData.partiqlData.count = this.dynamoData.partiqlData.count + result.count;
           this.dynamoData.partiqlData.nextToken = result.next_token;
         } else {
