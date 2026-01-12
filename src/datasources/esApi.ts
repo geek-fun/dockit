@@ -326,11 +326,10 @@ const esApi: ESApi = {
         : undefined;
 
     try {
-      const response = await client.put(
-        `/${indexName}`,
-        queryParams.toString() ?? undefined,
-        payload,
-      );
+      const response = await client.put<{
+        status: number;
+        error: { type: string; reason: string };
+      }>(`/${indexName}`, queryParams.toString() ?? undefined, payload);
 
       if (response.status >= 300) {
         throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
@@ -385,11 +384,10 @@ const esApi: ESApi = {
     };
 
     try {
-      const response = await client.post(
-        `/_aliases`,
-        queryParams.toString() ?? undefined,
-        jsonify.stringify(payload),
-      );
+      const response = await client.post<{
+        status: number;
+        error: { type: string; reason: string };
+      }>(`/_aliases`, queryParams.toString() ?? undefined, jsonify.stringify(payload));
 
       if (response.status >= 300) {
         throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
@@ -414,11 +412,10 @@ const esApi: ESApi = {
     });
 
     try {
-      const response = await client.put(
-        `/${type}/${name}`,
-        queryParams.toString(),
-        body ?? undefined,
-      );
+      const response = await client.put<{
+        status: number;
+        error: { type: string; reason: string };
+      }>(`/${type}/${name}`, queryParams.toString(), body ?? undefined);
       if (response.status >= 300) {
         throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
       }
@@ -433,7 +430,10 @@ const esApi: ESApi = {
   deleteIndex: async (connection, indexName) => {
     const client = loadHttpClient(connection);
     try {
-      const response = await client.delete(`/${indexName}`);
+      const response = await client.delete<{
+        status: number;
+        error: { type: string; reason: string };
+      }>(`/${indexName}`);
       if (response.status >= 300) {
         throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
       }
@@ -447,7 +447,10 @@ const esApi: ESApi = {
   closeIndex: async (connection, indexName) => {
     const client = loadHttpClient(connection);
     try {
-      const response = await client.post(`/${indexName}/_close`);
+      const response = await client.post<{
+        status: number;
+        error: { type: string; reason: string };
+      }>(`/${indexName}/_close`);
       if (response.status >= 300) {
         throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
       }
@@ -461,7 +464,10 @@ const esApi: ESApi = {
   openIndex: async (connection, indexName) => {
     const client = loadHttpClient(connection);
     try {
-      const response = await client.post(`/${indexName}/_open`);
+      const response = await client.post<{
+        status: number;
+        error: { type: string; reason: string };
+      }>(`/${indexName}/_open`);
       if (response.status >= 300) {
         throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
       }
@@ -475,7 +481,10 @@ const esApi: ESApi = {
   removeAlias: async (connection, indexName, aliasName) => {
     const client = loadHttpClient(connection);
     try {
-      const response = await client.delete(`/${indexName}/_alias/${aliasName}`);
+      const response = await client.delete<{
+        status: number;
+        error: { type: string; reason: string };
+      }>(`/${indexName}/_alias/${aliasName}`);
       if (response.status >= 300) {
         throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
       }
@@ -495,7 +504,10 @@ const esApi: ESApi = {
       ],
     };
     try {
-      const response = await client.post(`/_aliases`, undefined, jsonify.stringify(payload));
+      const response = await client.post<{
+        status: number;
+        error: { type: string; reason: string };
+      }>(`/_aliases`, undefined, jsonify.stringify(payload));
       if (response.status >= 300) {
         throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
       }
@@ -544,7 +556,9 @@ const esApi: ESApi = {
   catNodes: async connection => {
     const client = loadHttpClient(connection);
     try {
-      const nodes = await client.get(
+      const nodes = await client.get<{
+        [key: string]: unknown;
+      }>(
         `/_cat/nodes`,
         'format=json&bytes=b&h=ip,id,name,heap.percent,heap.current,heap.max,ram.percent,ram.current,ram.max,node.role,master,cpu,load_1m,load_5m,load_15m,disk.used_percent,disk.used,disk.total,shard_stats.total_count,mappings.total_count,version&full_id=true',
       );

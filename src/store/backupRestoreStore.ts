@@ -100,14 +100,44 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
       try {
         this.backupProgress = {
           complete: 0,
-          total: (await client.get(`/${input.index}/_count`)).count,
+          total: (await client.get<{ count: number }>(`/${input.index}/_count`)).count,
         };
-        const { [input.index]: backupIndexMapping } = await client.get(`/${input.index}/_mapping`);
+        const { [input.index]: backupIndexMapping } = await client.get<{
+          [key: string]: {
+            mappings: {
+              properties: {
+                [key: string]: unknown;
+              };
+            };
+          };
+        }>(`/${input.index}/_mapping`);
         const csvHeaders = buildCsvHeaders(backupIndexMapping);
         let dataToWrite = input.backupFileType === 'json' ? '' : csvHeaders.join(',') + '\r\n';
 
         while (hasMore) {
-          const response = await client.get(
+          const response: {
+            status?: number;
+            hits: {
+              hits: Array<{
+                _index: string;
+                _id: string;
+                _score: number;
+                _source: unknown;
+                sort: unknown[];
+              }>;
+            };
+          } = await client.get<{
+            status?: number;
+            hits: {
+              hits: Array<{
+                _index: string;
+                _id: string;
+                _score: number;
+                _source: unknown;
+                sort: unknown[];
+              }>;
+            };
+          }>(
             `/${input.index}/_search`,
             undefined,
             jsonify.stringify({
@@ -116,6 +146,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
               sort: [{ _doc: 'asc' }],
             }),
           );
+
           if (response.status && response.status !== 200) {
             throw new CustomError(
               response.status,
@@ -181,6 +212,7 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
             _id: string;
             _score: number;
             _source: unknown;
+            sort: any[];
           }> = jsonify.parse(data);
           this.restoreProgress = {
             complete: 0,

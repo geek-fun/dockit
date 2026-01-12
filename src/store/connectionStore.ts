@@ -74,6 +74,27 @@ export type ElasticsearchConnection = {
   password?: string;
   queryParameters?: string;
   activeIndex: ElasticSearchIndex | undefined;
+  version: string;
+  clusterName: string;
+  clusterUuid: string;
+};
+
+type ElasticsearchClusterInfo = {
+  cluster_name: string;
+  cluster_uuid: string;
+  name: string;
+  tagline: string;
+  version: {
+    build_date: string;
+    build_flavor: string;
+    build_hash: string;
+    build_snapshot: boolean;
+    build_type: string;
+    lucene_version: string;
+    minimum_index_compatibility_version: string;
+    minimum_wire_compatibility_version: string;
+    number: string;
+  };
 };
 
 export type Connection = ElasticsearchConnection | DynamoDBConnection;
@@ -176,13 +197,30 @@ export const useConnectionStore = defineStore('connectionStore', {
         this.connections = [];
       }
     },
-    async testConnection(con: Connection) {
+    async freshConnection(con: Connection) {
       if (con.type === DatabaseType.DYNAMODB) {
-        return await dynamoApi.describeTable(con);
+        const tableInfo = await dynamoApi.describeTable(con);
+        return {
+          ...con,
+          keySchema: tableInfo.keySchema,
+          attributeDefinitions: tableInfo.attributeDefinitions,
+          partitionKey: tableInfo.partitionKey,
+          sortKey: tableInfo.sortKey,
+          indices: tableInfo.indices,
+        } as DynamoDBConnection;
       } else if (con.type === DatabaseType.ELASTICSEARCH) {
         const client = loadHttpClient(con);
+        const clusterInfo = await client.get<ElasticsearchClusterInfo>(
+          con.activeIndex?.index,
+          'format=json',
+        );
 
-        return await client.get(con.activeIndex?.index, 'format=json');
+        return {
+          ...con,
+          version: clusterInfo.version.number,
+          clusterName: clusterInfo.cluster_name,
+          clusterUuid: clusterInfo.cluster_uuid,
+        } as ElasticsearchConnection;
       } else {
         throw new CustomError(
           400,

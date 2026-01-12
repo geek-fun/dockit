@@ -25,7 +25,7 @@
       <result-panel
         v-show="partiqlData.showResultPanel"
         :error-message="partiqlData.errorMessage"
-        :has-data="partiqlData.data.length > 0"
+        :has-data="!partiqlData.errorMessage"
         :columns="partiqlData.columns"
         :data="partiqlData.data"
         :item-count="partiqlData.count"
@@ -443,7 +443,7 @@ const sortKeyType = computed(
 const showEditModal = ref(false);
 const editingItem = ref<Record<string, unknown> | null>(null);
 
-const handleEdit = (row: Record<string, unknown>) => {
+const handleEdit = async (row: Record<string, unknown>) => {
   editingItem.value = row;
   showEditModal.value = true;
 };

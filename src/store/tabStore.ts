@@ -150,13 +150,13 @@ export const useTabStore = defineStore('panel', {
     },
 
     async selectConnection(con: Connection): Promise<void> {
-      const { connections, testConnection } = useConnectionStore();
+      const { connections, freshConnection } = useConnectionStore();
       const connection = connections.find(({ id }) => id === con.id);
       if (!connection) {
         throw new CustomError(404, lang.global.t('connection.notFound'));
       }
 
-      await testConnection(connection);
+      await freshConnection(connection);
 
       this.activePanel.connection = connection;
     },
