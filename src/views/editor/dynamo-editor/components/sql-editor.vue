@@ -25,9 +25,9 @@
       <result-panel
         v-show="partiqlData.showResultPanel"
         :error-message="partiqlData.errorMessage"
-        :has-data="partiqlData.items.length > 0"
-        :columns="resultColumns"
-        :data="partiqlData.items"
+        :has-data="partiqlData.data.length > 0"
+        :columns="partiqlData.columns"
+        :data="partiqlData.data"
         :item-count="partiqlData.count"
         :loading="loadingRef"
         :has-next-token="!!partiqlData.nextToken"
@@ -58,7 +58,7 @@
 <script setup lang="ts">
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
-import { DataTableColumn, useMessage, useDialog } from 'naive-ui';
+import { useMessage, useDialog } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { CustomError, jsonify } from '../../../../common';
 import {
@@ -115,31 +115,9 @@ const debouncedValidate = createDebouncedValidator((model: monaco.editor.ITextMo
   validatePartiqlModel(model);
 }, 300);
 
-// Context menu state
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuStatementLine = ref<number | null>(null);
-
-const resultColumns = computed<DataTableColumn[]>(() => {
-  if (!partiqlData.value.items?.length) return [];
-
-  const allKeys = new Set<string>();
-  partiqlData.value.items.forEach(item => {
-    Object.keys(item).forEach(key => allKeys.add(key));
-  });
-
-  return Array.from(allKeys).map(key => ({
-    title: key,
-    key,
-    resizable: true,
-    render: (row: Record<string, unknown>) => {
-      const value = row[key];
-      if (value === null || value === undefined) return '-';
-      if (typeof value === 'object') return jsonify.stringify(value);
-      return String(value);
-    },
-  }));
-});
 
 const insertSampleQuery = (key: string) => {
   if (!editor) return;

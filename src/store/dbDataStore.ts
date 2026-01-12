@@ -46,7 +46,8 @@ export const useDbDataStore = defineStore('dbDataStore', {
       partiqlData: {
         showResultPanel: boolean;
         errorMessage: string | null;
-        items: Array<Record<string, unknown>>;
+        columns: Array<DynamoColumn>;
+        data: Array<Record<string, unknown>>;
         count: number;
         nextToken: string | null;
         lastExecutedStatement: string | null;
@@ -66,7 +67,8 @@ export const useDbDataStore = defineStore('dbDataStore', {
       partiqlData: {
         showResultPanel: false,
         errorMessage: null,
-        items: [],
+        columns: [],
+        data: [],
         count: 0,
         nextToken: null,
         lastExecutedStatement: null,
@@ -195,7 +197,8 @@ export const useDbDataStore = defineStore('dbDataStore', {
         partiqlData: {
           showResultPanel: false,
           errorMessage: null,
-          items: [],
+          columns: [],
+          data: [],
           count: 0,
           nextToken: null,
           lastExecutedStatement: null,
@@ -220,7 +223,8 @@ export const useDbDataStore = defineStore('dbDataStore', {
       // Reset state for new execution (not for pagination)
       if (!isLoadingMore) {
         this.dynamoData.partiqlData.errorMessage = null;
-        this.dynamoData.partiqlData.items = [];
+        this.dynamoData.partiqlData.columns = [];
+        this.dynamoData.partiqlData.data = [];
         this.dynamoData.partiqlData.count = 0;
         this.dynamoData.partiqlData.nextToken = null;
         this.dynamoData.partiqlData.lastExecutedStatement = statement;
@@ -233,17 +237,85 @@ export const useDbDataStore = defineStore('dbDataStore', {
           nextToken: options?.nextToken,
         });
 
+        // Build columns structure with partition key and sort key info
+        const columnsSet = new Set<string>();
+        result.items.forEach(item => {
+          Object.keys(item).forEach(key => {
+            columnsSet.add(key);
+          });
+        });
+
+        const partitionKeyName = connection.partitionKey?.name;
+        const sortKeyName = connection.sortKey?.name;
+
+        // Build primary key column if partition key exists
+        const columns: Array<DynamoColumn> = [];
+        if (partitionKeyName) {
+          const primaryColumn = {
+            title: 'Primary Key',
+            key: 'primaryKey',
+            children: [
+              { title: `${partitionKeyName}(PK)`, key: `${partitionKeyName}` },
+              sortKeyName ? { title: `${sortKeyName}(SK)`, key: `${sortKeyName}` } : undefined,
+            ].filter(Boolean) as Array<{ title: string; key: string }>,
+          };
+          columns.push(primaryColumn);
+        }
+
+        // Add remaining columns
+        const otherColumns = Array.from(columnsSet)
+          .filter(column => column !== partitionKeyName && column !== sortKeyName)
+          .map(column => ({ title: column, key: column }));
+        columns.push(...otherColumns);
+
+        // Prepare data rows
+        const columnsData = result.items.map(item => {
+          const row: Record<string, unknown> = {};
+          columnsSet.forEach(key => {
+            row[key] = item[key];
+          });
+          return row;
+        });
+
         if (isLoadingMore) {
           // Append results for pagination
-          this.dynamoData.partiqlData.items = [
-            ...this.dynamoData.partiqlData.items,
-            ...result.items,
+          // Merge new columns if there are any new fields
+          const existingColumnKeys = new Set(
+            this.dynamoData.partiqlData.columns
+              .filter(col => !col.children)
+              .map(col => col.key)
+          );
+          const existingChildKeys = new Set(
+            this.dynamoData.partiqlData.columns
+              .filter(col => col.children)
+              .flatMap(col => col.children?.map(child => child.key) || [])
+          );
+          const allExistingKeys = new Set([...existingColumnKeys, ...existingChildKeys]);
+          
+          const newColumns = columns.filter(col => {
+            if (col.children) {
+              return false; // Primary key column already exists
+            }
+            return !allExistingKeys.has(col.key);
+          });
+          
+          if (newColumns.length > 0) {
+            this.dynamoData.partiqlData.columns = [
+              ...this.dynamoData.partiqlData.columns,
+              ...newColumns,
+            ];
+          }
+          
+          this.dynamoData.partiqlData.data = [
+            ...this.dynamoData.partiqlData.data,
+            ...columnsData,
           ];
           this.dynamoData.partiqlData.count = this.dynamoData.partiqlData.count + result.count;
           this.dynamoData.partiqlData.nextToken = result.next_token;
         } else {
           // Set new results
-          this.dynamoData.partiqlData.items = result.items;
+          this.dynamoData.partiqlData.columns = columns;
+          this.dynamoData.partiqlData.data = columnsData;
           this.dynamoData.partiqlData.count = result.count;
           this.dynamoData.partiqlData.nextToken = result.next_token;
         }
@@ -258,51 +330,12 @@ export const useDbDataStore = defineStore('dbDataStore', {
       }
     },
 
-    setPartiqlResult(
-      result: {
-        items: Array<Record<string, unknown>>;
-        count: number;
-        next_token: string | null;
-      } | null,
-    ) {
-      if (result) {
-        this.dynamoData.partiqlData.items = result.items;
-        this.dynamoData.partiqlData.count = result.count;
-        this.dynamoData.partiqlData.nextToken = result.next_token;
-      } else {
-        this.dynamoData.partiqlData.items = [];
-        this.dynamoData.partiqlData.count = 0;
-        this.dynamoData.partiqlData.nextToken = null;
-      }
-    },
-
-    setPartiqlError(error: string | null) {
-      this.dynamoData.partiqlData.errorMessage = error;
-    },
-
-    setPartiqlShowResultPanel(show: boolean) {
-      this.dynamoData.partiqlData.showResultPanel = show;
-    },
-
-    setPartiqlLastExecutedStatement(statement: string | null) {
-      this.dynamoData.partiqlData.lastExecutedStatement = statement;
-    },
-
-    appendPartiqlResults(result: {
-      items: Array<Record<string, unknown>>;
-      count: number;
-      next_token: string | null;
-    }) {
-      this.dynamoData.partiqlData.items = [...this.dynamoData.partiqlData.items, ...result.items];
-      this.dynamoData.partiqlData.count = this.dynamoData.partiqlData.count + result.count;
-      this.dynamoData.partiqlData.nextToken = result.next_token;
-    },
-
     resetPartiqlData() {
       this.dynamoData.partiqlData = {
         showResultPanel: false,
         errorMessage: null,
-        items: [],
+        columns: [],
+        data: [],
         count: 0,
         nextToken: null,
         lastExecutedStatement: null,
