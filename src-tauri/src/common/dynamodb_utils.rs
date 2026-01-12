@@ -1,6 +1,7 @@
 use aws_sdk_dynamodb::types::AttributeValue;
 use base64::{engine::general_purpose, Engine as _};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 
 /// Convert DynamoDB AttributeValue to JSON
 pub fn convert_attr_value_to_json(av: &AttributeValue) -> Value {
@@ -146,5 +147,62 @@ fn infer_attr_value_from_json(value: &serde_json::Value) -> Option<AttributeValu
                 .filter_map(|(k, v)| infer_attr_value_from_json(v).map(|av| (k.clone(), av)))
                 .collect(),
         )),
+    }
+}
+
+/// Convert JSON object (from exclusive_start_key) to HashMap of AttributeValues
+/// Handles basic types: String, Number, Boolean
+pub fn json_to_dynamodb_key_map(key_map: &serde_json::Map<String, Value>) -> HashMap<String, AttributeValue> {
+    let mut result = HashMap::new();
+    
+    for (k, v) in key_map {
+        if let Some(s) = v.as_str() {
+            result.insert(k.clone(), AttributeValue::S(s.to_string()));
+        } else if let Some(n) = v.as_u64() {
+            result.insert(k.clone(), AttributeValue::N(n.to_string()));
+        } else if let Some(n) = v.as_i64() {
+            result.insert(k.clone(), AttributeValue::N(n.to_string()));
+        } else if let Some(b) = v.as_bool() {
+            result.insert(k.clone(), AttributeValue::Bool(b));
+        }
+    }
+    
+    result
+}
+
+/// Build a filter expression from operator string
+/// Returns the expression string with placeholders
+pub fn build_filter_expression(
+    name_placeholder: &str,
+    value_placeholder: &str,
+    operator: &str,
+) -> String {
+    match operator {
+        "=" => format!("{} = {}", name_placeholder, value_placeholder),
+        "!=" => format!("{} <> {}", name_placeholder, value_placeholder),
+        ">" => format!("{} > {}", name_placeholder, value_placeholder),
+        ">=" => format!("{} >= {}", name_placeholder, value_placeholder),
+        "<" => format!("{} < {}", name_placeholder, value_placeholder),
+        "<=" => format!("{} <= {}", name_placeholder, value_placeholder),
+        "CONTAINS" | "contains" => format!("contains({}, {})", name_placeholder, value_placeholder),
+        "not contains" => format!("not contains({}, {})", name_placeholder, value_placeholder),
+        "BEGINS_WITH" | "begins_with" => format!("begins_with({}, {})", name_placeholder, value_placeholder),
+        "attribute_exists" => format!("attribute_exists({})", name_placeholder),
+        "attribute_not_exists" => format!("attribute_not_exists({})", name_placeholder),
+        _ => format!("{} = {}", name_placeholder, value_placeholder), // Default to equals
+    }
+}
+
+/// Parse a string value into the appropriate AttributeValue type
+/// Attempts to detect booleans and numbers, defaults to String
+pub fn parse_string_to_attribute_value(value: &str) -> AttributeValue {
+    if value.eq_ignore_ascii_case("true") {
+        AttributeValue::Bool(true)
+    } else if value.eq_ignore_ascii_case("false") {
+        AttributeValue::Bool(false)
+    } else if let Ok(_) = value.parse::<f64>() {
+        AttributeValue::N(value.to_string())
+    } else {
+        AttributeValue::S(value.to_string())
     }
 }

@@ -1,2 +1,2 @@
+pub mod dynamodb_utils;
 pub mod http_client;
-pub mod json_utils;

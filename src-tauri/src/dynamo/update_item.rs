@@ -1,4 +1,4 @@
-use crate::common::json_utils::convert_json_to_attr_value;
+use crate::common::dynamodb_utils::convert_json_to_attr_value;
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::types::AttributeValue;
 use aws_sdk_dynamodb::Client;
