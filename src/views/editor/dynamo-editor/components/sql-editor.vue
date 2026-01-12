@@ -31,16 +31,34 @@
         :item-count="partiqlData.count"
         :loading="loadingRef"
         :has-next-token="!!partiqlData.nextToken"
+        :closable="true"
+        :show-actions="true"
+        :partition-key-name="partitionKeyName"
+        :sort-key-name="sortKeyName"
         @load-more="loadMore"
+        @close="handleCloseResultPanel"
+        @edit="handleEdit"
+        @delete="handleDelete"
       />
     </template>
   </n-split>
+
+  <!-- Edit Item Modal -->
+  <edit-item
+    v-model:show="showEditModal"
+    :item="editingItem"
+    :partition-key-name="partitionKeyName"
+    :partition-key-type="partitionKeyType"
+    :sort-key-name="sortKeyName"
+    :sort-key-type="sortKeyType"
+    @submit="handleEditSubmit"
+  />
 </template>
 
 <script setup lang="ts">
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
-import { DataTableColumn, useMessage } from 'naive-ui';
+import { DataTableColumn, useMessage, useDialog } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { CustomError, jsonify } from '../../../../common';
 import {
@@ -58,11 +76,13 @@ import {
 } from '../../../../common/monaco';
 import type { PartiqlDecoration, PartiqlStatement } from '../../../../common/monaco/partiql';
 import { useLang } from '../../../../lang';
-import { DynamoDBConnection, useAppStore, useTabStore, useDbDataStore } from '../../../../store';
+import { DynamoDBConnection, useAppStore, useTabStore, useDbDataStore, useConnectionStore } from '../../../../store';
 import ResultPanel from './result-panel.vue';
+import EditItem from './edit-item.vue';
 
 const lang = useLang();
 const message = useMessage();
+const dialog = useDialog();
 
 const appStore = useAppStore();
 const { getEditorTheme } = appStore;
@@ -411,6 +431,121 @@ const loadMore = async () => {
     partiqlData.value.lastExecutedStatement,
     partiqlData.value.nextToken,
   );
+};
+
+const handleCloseResultPanel = () => {
+  editorSize.value = 1;
+  dbDataStore.resetPartiqlData();
+};
+
+// Get partition key and sort key info from active connection
+const partitionKeyName = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.partitionKey?.name ?? '',
+);
+const partitionKeyType = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.partitionKey?.valueType ?? 'S',
+);
+const sortKeyName = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.sortKey?.name ?? undefined,
+);
+const sortKeyType = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.sortKey?.valueType ?? undefined,
+);
+
+// Edit/Delete state
+const showEditModal = ref(false);
+const editingItem = ref<Record<string, unknown> | null>(null);
+
+const handleEdit = (row: Record<string, unknown>) => {
+  editingItem.value = row;
+  showEditModal.value = true;
+};
+
+type AttributeItem = {
+  key: string;
+  value: string | number | boolean | null;
+  type: string;
+};
+
+const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem[]) => {
+  if (!activeConnection.value) return;
+
+  try {
+    loadingRef.value = true;
+    const { updateItem } = useConnectionStore();
+    await updateItem(activeConnection.value as DynamoDBConnection, keys, attributes);
+    message.success(lang.t('editor.dynamo.updateItemSuccess'));
+    showEditModal.value = false;
+    // Refresh results by re-executing the last statement
+    if (partiqlData.value.lastExecutedStatement) {
+      await executePartiqlStatement(partiqlData.value.lastExecutedStatement);
+    }
+  } catch (error) {
+    const { status, details } = error as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3600,
+    });
+  } finally {
+    loadingRef.value = false;
+  }
+};
+
+const handleDelete = (row: Record<string, unknown>) => {
+  dialog.warning({
+    title: lang.t('dialogOps.warning'),
+    content: lang.t('editor.dynamo.deleteItemConfirm'),
+    positiveText: lang.t('dialogOps.confirm'),
+    negativeText: lang.t('dialogOps.cancel'),
+    onPositiveClick: async () => {
+      await performDelete(row);
+    },
+  });
+};
+
+const performDelete = async (row: Record<string, unknown>) => {
+  if (!activeConnection.value) return;
+
+  const connection = activeConnection.value as DynamoDBConnection;
+  const keys: AttributeItem[] = [];
+
+  // Build keys from the row
+  if (partitionKeyName.value && row[partitionKeyName.value] !== undefined) {
+    keys.push({
+      key: partitionKeyName.value,
+      value: row[partitionKeyName.value] as string | number | boolean | null,
+      type: partitionKeyType.value,
+    });
+  }
+
+  if (sortKeyName.value && sortKeyType.value && row[sortKeyName.value] !== undefined) {
+    keys.push({
+      key: sortKeyName.value,
+      value: row[sortKeyName.value] as string | number | boolean | null,
+      type: sortKeyType.value,
+    });
+  }
+
+  try {
+    loadingRef.value = true;
+    const { deleteItem } = useConnectionStore();
+    await deleteItem(connection, keys);
+    message.success(lang.t('editor.dynamo.deleteItemSuccess'));
+    // Refresh results by re-executing the last statement
+    if (partiqlData.value.lastExecutedStatement) {
+      await executePartiqlStatement(partiqlData.value.lastExecutedStatement);
+    }
+  } catch (error) {
+    const { status, details } = error as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3600,
+    });
+  } finally {
+    loadingRef.value = false;
+  }
 };
 
 const saveModelContent = async (

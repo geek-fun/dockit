@@ -1,6 +1,13 @@
 <template>
   <div class="result-panel">
     <n-card v-if="errorMessage" class="error-card" :title="$t('editor.dynamo.partiql.error')">
+      <template #header-extra>
+        <n-button v-if="closable" text @click="handleClose">
+          <template #icon>
+            <n-icon><Close /></n-icon>
+          </template>
+        </n-button>
+      </template>
       <n-text type="error">{{ errorMessage }}</n-text>
     </n-card>
     <n-card
@@ -9,15 +16,22 @@
       class="result-card"
     >
       <template #header-extra>
-        <n-text v-if="itemCount !== undefined" depth="3">
-          {{ $t('editor.dynamo.partiql.itemsReturned', { count: itemCount }) }}
-        </n-text>
+        <div class="header-extra">
+          <n-text v-if="itemCount !== undefined" depth="3">
+            {{ $t('editor.dynamo.partiql.itemsReturned', { count: itemCount }) }}
+          </n-text>
+          <n-button v-if="closable" text @click="handleClose">
+            <template #icon>
+              <n-icon><Close /></n-icon>
+            </template>
+          </n-button>
+        </div>
       </template>
       <div class="table-container">
         <n-data-table
           :bordered="false"
           :single-line="false"
-          :columns="columns"
+          :columns="tableColumnsWithActions"
           :data="data"
           :flex-height="true"
           :scroll-x="tableScrollWidth"
@@ -41,6 +55,13 @@
       class="success-card"
       :title="$t('editor.dynamo.resultTitle')"
     >
+      <template #header-extra>
+        <n-button v-if="closable" text @click="handleClose">
+          <template #icon>
+            <n-icon><Close /></n-icon>
+          </template>
+        </n-button>
+      </template>
       <n-result
         status="success"
         :title="$t('editor.dynamo.partiql.executionSuccess')"
@@ -51,7 +72,12 @@
 </template>
 
 <script setup lang="ts">
+import { Close, Edit, TrashCan } from '@vicons/carbon';
+import { NButton, NIcon } from 'naive-ui';
 import type { DataTableColumn, PaginationProps } from 'naive-ui';
+import { useLang } from '../../../../lang';
+
+const lang = useLang();
 
 interface Props {
   errorMessage?: string | null;
@@ -63,6 +89,10 @@ interface Props {
   hasNextToken?: boolean;
   pagination?: PaginationProps | false;
   remote?: boolean;
+  closable?: boolean;
+  showActions?: boolean;
+  partitionKeyName?: string;
+  sortKeyName?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -75,16 +105,63 @@ const props = withDefaults(defineProps<Props>(), {
   hasNextToken: false,
   pagination: false,
   remote: false,
+  closable: false,
+  showActions: false,
+  partitionKeyName: undefined,
+  sortKeyName: undefined,
 });
 
 const emit = defineEmits<{
   (e: 'load-more'): void;
   (e: 'update:page', page: number): void;
   (e: 'update:page-size', pageSize: number): void;
+  (e: 'close'): void;
+  (e: 'edit', row: Record<string, unknown>): void;
+  (e: 'delete', row: Record<string, unknown>): void;
 }>();
 
+// Action column for edit/delete
+const actionColumn = computed<DataTableColumn<Record<string, unknown>>>(() => ({
+  title: lang.t('editor.dynamo.actions'),
+  key: 'actions',
+  width: 100,
+  fixed: 'right',
+  render(row) {
+    return h('div', { style: { display: 'flex', gap: '8px' } }, [
+      h(
+        NButton,
+        {
+          size: 'small',
+          quaternary: true,
+          circle: true,
+          onClick: () => emit('edit', row),
+        },
+        { icon: () => h(NIcon, null, { default: () => h(Edit) }) },
+      ),
+      h(
+        NButton,
+        {
+          size: 'small',
+          quaternary: true,
+          circle: true,
+          onClick: () => emit('delete', row),
+        },
+        { icon: () => h(NIcon, null, { default: () => h(TrashCan) }) },
+      ),
+    ]);
+  },
+}));
+
+// Combine original columns with action column if needed
+const tableColumnsWithActions = computed(() => {
+  if (props.showActions && props.columns.length > 0) {
+    return [...props.columns, actionColumn.value];
+  }
+  return props.columns;
+});
+
 const tableScrollWidth = computed(() => {
-  const columnCount = props.columns.length;
+  const columnCount = tableColumnsWithActions.value.length;
   return Math.max(800, columnCount * 150);
 });
 
@@ -95,6 +172,10 @@ const handlePageChange = (page: number) => {
 const handlePageSizeChange = (pageSize: number) => {
   emit('update:page-size', pageSize);
 };
+
+const handleClose = () => {
+  emit('close');
+};
 </script>
 
 <style lang="scss" scoped>
@@ -102,6 +183,12 @@ const handlePageSizeChange = (pageSize: number) => {
   width: 100%;
   height: 100%;
   overflow-y: auto;
+
+  .header-extra {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
 
   .result-card {
     width: 100%;

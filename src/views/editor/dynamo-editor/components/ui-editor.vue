@@ -156,13 +156,18 @@
       <result-panel
         v-if="dynamoData.queryData.data"
         :has-data="!!dynamoData.queryData.data"
-        :columns="tableColumns"
+        :columns="dynamoData.queryData.columns"
         :data="dynamoData.queryData.data"
         :loading="loadingRef.queryResult"
         :pagination="dynamoData.queryData.pagination"
         :remote="true"
+        :show-actions="true"
+        :partition-key-name="partitionKeyName"
+        :sort-key-name="sortKeyName"
         @update:page="changePage"
         @update:page-size="changePageSize"
+        @edit="handleEdit"
+        @delete="handleDelete"
       />
     </template>
   </n-split>
@@ -181,15 +186,12 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Add, Delete, Edit, TrashCan } from '@vicons/carbon';
+import { Add, Delete } from '@vicons/carbon';
 import { isEmpty } from 'lodash';
 import {
-  DataTableColumn,
   FormItemRule,
   FormRules,
   FormValidationError,
-  NButton,
-  NIcon,
 } from 'naive-ui';
 import {
   Connection,
@@ -397,46 +399,6 @@ const sortKeyName = computed(
 const sortKeyType = computed(
   () => (activeConnection.value as DynamoDBConnection)?.sortKey?.valueType ?? undefined,
 );
-
-// Action column for edit/delete
-const actionColumn: DataTableColumn<Record<string, unknown>> = {
-  title: lang.t('editor.dynamo.actions'),
-  key: 'actions',
-  width: 100,
-  fixed: 'right',
-  render(row) {
-    return h('div', { style: { display: 'flex', gap: '8px' } }, [
-      h(
-        NButton,
-        {
-          size: 'small',
-          quaternary: true,
-          circle: true,
-          onClick: () => handleEdit(row),
-        },
-        { icon: () => h(NIcon, null, { default: () => h(Edit) }) },
-      ),
-      h(
-        NButton,
-        {
-          size: 'small',
-          quaternary: true,
-          circle: true,
-          onClick: () => handleDelete(row),
-        },
-        { icon: () => h(NIcon, null, { default: () => h(TrashCan) }) },
-      ),
-    ]);
-  },
-};
-
-// Combine original columns with action column
-const tableColumns = computed(() => {
-  if (!dynamoData.value.queryData.columns || dynamoData.value.queryData.columns.length === 0) {
-    return [];
-  }
-  return [...dynamoData.value.queryData.columns, actionColumn];
-});
 
 const handleEdit = (row: Record<string, unknown>) => {
   editingItem.value = row;
