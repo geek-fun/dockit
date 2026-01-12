@@ -142,13 +142,23 @@ export const useDbDataStore = defineStore('dbDataStore', {
           title: 'Primary Key',
           key: 'primaryKey',
           children: [
-            { title: `${partitionKeyName}(PK)`, key: `${partitionKeyName}` },
-            sortKeyName ? { title: `${sortKeyName}(SK)`, key: `${sortKeyName}` } : undefined,
-          ].filter(Boolean) as Array<{ title: string; key: string }>,
+            {
+              title: `${partitionKeyName}(PK)`,
+              key: `${partitionKeyName}`,
+              ellipsis: { tooltip: false },
+            },
+            sortKeyName
+              ? { title: `${sortKeyName}(SK)`, key: `${sortKeyName}`, ellipsis: { tooltip: false } }
+              : undefined,
+          ].filter(Boolean) as Array<{
+            title: string;
+            key: string;
+            ellipsis?: { tooltip: boolean };
+          }>,
         };
         const columns: Array<DynamoColumn> = Array.from(columnsSet)
           .filter(column => column !== partitionKeyName && column !== sortKeyName)
-          .map(column => ({ title: column, key: column }));
+          .map(column => ({ title: column, key: column, ellipsis: { tooltip: true } }));
         columns.unshift(primaryColumn);
 
         this.dynamoData.queryData.columns = columns;
@@ -220,10 +230,6 @@ export const useDbDataStore = defineStore('dbDataStore', {
       }
     },
 
-    setQueryShowResultPanel(show: boolean) {
-      this.dynamoData.queryData.showResultPanel = show;
-    },
-
     // Execute PartiQL statement and handle result/error states automatically
     async executePartiqlStatement(
       connection: DynamoDBConnection,
@@ -267,9 +273,23 @@ export const useDbDataStore = defineStore('dbDataStore', {
             title: 'Primary Key',
             key: 'primaryKey',
             children: [
-              { title: `${partitionKeyName}(PK)`, key: `${partitionKeyName}` },
-              sortKeyName ? { title: `${sortKeyName}(SK)`, key: `${sortKeyName}` } : undefined,
-            ].filter(Boolean) as Array<{ title: string; key: string }>,
+              {
+                title: `${partitionKeyName}(PK)`,
+                key: `${partitionKeyName}`,
+                ellipsis: { tooltip: false },
+              },
+              sortKeyName
+                ? {
+                    title: `${sortKeyName}(SK)`,
+                    key: `${sortKeyName}`,
+                    ellipsis: { tooltip: false },
+                  }
+                : undefined,
+            ].filter(Boolean) as Array<{
+              title: string;
+              key: string;
+              ellipsis?: { tooltip: boolean };
+            }>,
           };
           columns.push(primaryColumn);
         }
@@ -277,7 +297,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
         // Add remaining columns
         const otherColumns = Array.from(columnsSet)
           .filter(column => column !== partitionKeyName && column !== sortKeyName)
-          .map(column => ({ title: column, key: column }));
+          .map(column => ({ title: column, key: column, ellipsis: { tooltip: true } }));
         columns.push(...otherColumns);
 
         // Prepare data rows
@@ -347,6 +367,12 @@ export const useDbDataStore = defineStore('dbDataStore', {
         nextToken: null,
         lastExecutedStatement: null,
       };
+    },
+
+    // Refresh connection by fetching table schema and updating all properties
+    async refreshConnection(): Promise<void> {
+      const tableInfo = await dynamoApi.describeTable(this.dynamoData.connection);
+      Object.assign(this.dynamoData.connection, tableInfo);
     },
   },
 });

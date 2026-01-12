@@ -25,7 +25,7 @@
       <result-panel
         v-show="partiqlData.showResultPanel"
         :error-message="partiqlData.errorMessage"
-        :has-data="partiqlData.data.length > 0"
+        :has-data="!partiqlData.errorMessage"
         :columns="partiqlData.columns"
         :data="partiqlData.data"
         :item-count="partiqlData.count"
@@ -443,8 +443,24 @@ const sortKeyType = computed(
 const showEditModal = ref(false);
 const editingItem = ref<Record<string, unknown> | null>(null);
 
-const handleEdit = (row: Record<string, unknown>) => {
+const handleEdit = async (row: Record<string, unknown>) => {
   editingItem.value = row;
+
+  // If partition key is not configured in connection, refresh it from table schema
+  if (!partitionKeyName.value || partitionKeyName.value.trim() === '') {
+    try {
+      loadingRef.value = true;
+      await dbDataStore.refreshConnection();
+    } catch (error) {
+      message.error(
+        lang.t('editor.dynamo.failedToFetchTableSchema') || 'Failed to fetch table schema',
+      );
+      return;
+    } finally {
+      loadingRef.value = false;
+    }
+  }
+
   showEditModal.value = true;
 };
 

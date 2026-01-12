@@ -51,7 +51,7 @@
       </template>
     </n-card>
     <n-card
-      v-else-if="hasData && data.length === 0"
+      v-else-if="hasData && data.length === 0 && !loading"
       class="success-card"
       :title="$t('editor.dynamo.resultTitle')"
     >
@@ -191,9 +191,23 @@ const handleClose = () => {
     gap: 12px;
   }
 
-  .result-card {
+  .result-card,
+  .error-card,
+  .success-card {
     width: 100%;
     height: 100%;
+
+    :deep(.n-card-header) {
+      padding: 6px;
+      .n-card-header__main {
+        font-size: 16px;
+        font-weight: 500;
+      }
+    }
+
+    :deep(.n-card__content) {
+      padding: 6px;
+    }
 
     .table-container {
       height: 100%;

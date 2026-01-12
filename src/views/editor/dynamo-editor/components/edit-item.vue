@@ -14,12 +14,7 @@
     >
       <!-- Key attributes (read-only) -->
       <n-divider title-placement="left">{{ $t('editor.dynamo.keyAttributes') }}</n-divider>
-      <n-grid
-        v-for="(item, index) in editForm.keys"
-        :key="`key-${index}`"
-        :cols="24"
-        :x-gap="12"
-      >
+      <n-grid v-for="(item, index) in editForm.keys" :key="`key-${index}`" :cols="24" :x-gap="12">
         <n-grid-item span="8">
           <n-form-item>
             <n-input v-model:value="item.key" disabled />
@@ -27,11 +22,7 @@
         </n-grid-item>
         <n-grid-item span="4">
           <n-form-item>
-            <n-select
-              v-model:value="item.type"
-              :options="attributeTypeOptions"
-              disabled
-            />
+            <n-select v-model:value="item.type" :options="attributeTypeOptions" disabled />
           </n-form-item>
         </n-grid-item>
         <n-grid-item span="12">
@@ -97,8 +88,20 @@
             :path="`attributes[${index}].value`"
             :rule="{
               required: true,
+              validator: (rule: any, value: any) => {
+                if (item.type === 'N') {
+                  return typeof value === 'number';
+                }
+                if (item.type === 'BOOL') {
+                  return typeof value === 'boolean';
+                }
+                if (item.type === 'NULL') {
+                  return true;
+                }
+                return value !== null && value !== undefined && value !== '';
+              },
               message: lang.t('editor.dynamo.attributeValueRequired'),
-              trigger: ['input', 'blur'],
+              trigger: ['input', 'blur', 'change'],
             }"
           >
             <n-input-number
@@ -107,10 +110,7 @@
               :placeholder="$t('editor.dynamo.inputAttrValue')"
               style="width: 100%"
             />
-            <n-switch
-              v-else-if="item.type === 'BOOL'"
-              v-model:value="item.value as boolean"
-            />
+            <n-switch v-else-if="item.type === 'BOOL'" v-model:value="item.value as boolean" />
             <n-input
               v-else
               v-model:value="item.value as string"
@@ -223,22 +223,30 @@ watch(
       const keys: AttributeItem[] = [];
       const attributes: AttributeItem[] = [];
 
-      // Extract partition key
-      if (props.partitionKeyName && newItem[props.partitionKeyName] !== undefined) {
-        keys.push({
-          key: props.partitionKeyName,
-          value: formatValue(newItem[props.partitionKeyName], props.partitionKeyType),
-          type: props.partitionKeyType,
-        });
+      // Extract partition key - check if the key name exists and is not empty
+      if (props.partitionKeyName && props.partitionKeyName.trim() !== '') {
+        const partitionValue = newItem[props.partitionKeyName];
+
+        if (partitionValue !== undefined) {
+          keys.push({
+            key: props.partitionKeyName,
+            value: formatValue(partitionValue, props.partitionKeyType),
+            type: props.partitionKeyType,
+          });
+        }
       }
 
       // Extract sort key if present
-      if (props.sortKeyName && props.sortKeyType && newItem[props.sortKeyName] !== undefined) {
-        keys.push({
-          key: props.sortKeyName,
-          value: formatValue(newItem[props.sortKeyName], props.sortKeyType),
-          type: props.sortKeyType,
-        });
+      if (props.sortKeyName && props.sortKeyType && props.sortKeyName.trim() !== '') {
+        const sortValue = newItem[props.sortKeyName];
+
+        if (sortValue !== undefined) {
+          keys.push({
+            key: props.sortKeyName,
+            value: formatValue(sortValue, props.sortKeyType),
+            type: props.sortKeyType,
+          });
+        }
       }
 
       // Extract other attributes
@@ -260,7 +268,7 @@ watch(
 );
 
 const addAttribute = () => {
-  editForm.value.attributes.push({ key: '', value: '', type: 'S' });
+  editForm.value.attributes.push({ key: '', value: null, type: 'NULL' });
 };
 
 const removeAttribute = (index: number) => {
@@ -284,9 +292,10 @@ const handleSubmit = async () => {
     return;
   }
 
+  const attributes = editForm.value.attributes.filter(attr => attr.type !== 'NULL');
   loading.value = true;
   try {
-    emit('submit', editForm.value.keys, editForm.value.attributes);
+    emit('submit', editForm.value.keys, attributes);
   } finally {
     loading.value = false;
   }

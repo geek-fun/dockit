@@ -1,5 +1,6 @@
 use crate::common::dynamodb_utils::convert_json_to_attr_value;
 use crate::dynamo::types::ApiResponse;
+use aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use aws_sdk_dynamodb::Client;
 use serde_json::Value;
 
@@ -49,10 +50,18 @@ pub async fn delete_item(
             message: "Item deleted successfully".to_string(),
             data: None,
         }),
-        Err(e) => Ok(ApiResponse {
-            status: 500,
-            message: format!("Failed to delete item: {}", e),
-            data: None,
-        }),
+        Err(e) => {
+            let error_code = e.code().unwrap_or("UnknownError");
+            let error_message = e.message().unwrap_or("Unknown error occurred");
+            
+            Ok(ApiResponse {
+                status: 500,
+                message: format!(
+                    "Failed to delete item!\n\nError: {}\nDetails: {}",
+                    error_code, error_message
+                ),
+                data: None,
+            })
+        }
     }
 }
