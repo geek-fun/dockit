@@ -98,8 +98,8 @@ const partiqlData = computed(() => dynamoData.value.partiqlData);
 
 let editor: Editor | null = null;
 const editorRef = ref<HTMLElement>();
-// Initialize editorSize based on whether result panel should be shown
-const editorSize = ref(partiqlData.value.showResultPanel ? 0.5 : 1);
+// Initialize editorSize to 1 (full editor, result panel hidden by default)
+const editorSize = ref(1);
 const loadingRef = ref(false);
 
 // Gutter decorations state
@@ -709,6 +709,8 @@ const cleanupFileListener = async () => {
 };
 
 onMounted(async () => {
+  // Hide result panel by default on mount
+  dbDataStore.resetPartiqlData();
   setupEditor();
   await setupFileListener();
   // Add document click listener for context menu
