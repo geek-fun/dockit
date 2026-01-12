@@ -58,7 +58,7 @@
 <script setup lang="ts">
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
-import { useMessage, useDialog } from 'naive-ui';
+import { useMessage, useDialog, useLoadingBar } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { CustomError, jsonify } from '../../../../common';
 import {
@@ -89,6 +89,7 @@ import EditItem from './edit-item.vue';
 const lang = useLang();
 const message = useMessage();
 const dialog = useDialog();
+const loadingBar = useLoadingBar();
 
 const appStore = useAppStore();
 const { getEditorTheme } = appStore;
@@ -185,6 +186,7 @@ const executePartiqlStatement = async (statement: string, nextToken?: string | n
   }
 
   loadingRef.value = true;
+  loadingBar.start();
 
   try {
     await dbDataStore.executePartiqlStatement(
@@ -192,7 +194,9 @@ const executePartiqlStatement = async (statement: string, nextToken?: string | n
       statement,
       { nextToken },
     );
+    loadingBar.finish();
   } catch (err) {
+    loadingBar.error();
     const error = err as CustomError;
     const errorMsg = error.details || error.message || String(err);
     message.error(`Error: ${errorMsg}`, {
@@ -455,6 +459,7 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
 
   try {
     loadingRef.value = true;
+    loadingBar.start();
     const { updateItem } = useConnectionStore();
     await updateItem(activeConnection.value as DynamoDBConnection, keys, attributes);
     message.success(lang.t('editor.dynamo.updateItemSuccess'));
@@ -463,7 +468,9 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
     if (partiqlData.value.lastExecutedStatement) {
       await executePartiqlStatement(partiqlData.value.lastExecutedStatement);
     }
+    loadingBar.finish();
   } catch (error) {
+    loadingBar.error();
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
       closable: true,
@@ -512,6 +519,7 @@ const performDelete = async (row: Record<string, unknown>) => {
 
   try {
     loadingRef.value = true;
+    loadingBar.start();
     const { deleteItem } = useConnectionStore();
     await deleteItem(connection, keys);
     message.success(lang.t('editor.dynamo.deleteItemSuccess'));
@@ -519,7 +527,9 @@ const performDelete = async (row: Record<string, unknown>) => {
     if (partiqlData.value.lastExecutedStatement) {
       await executePartiqlStatement(partiqlData.value.lastExecutedStatement);
     }
+    loadingBar.finish();
   } catch (error) {
+    loadingBar.error();
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
       closable: true,

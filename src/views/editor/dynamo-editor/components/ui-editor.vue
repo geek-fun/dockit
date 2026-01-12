@@ -240,6 +240,7 @@ const editorSize = ref(dynamoData.value.queryData.showResultPanel ? 0.5 : 1);
 
 const message = useMessage();
 const dialog = useDialog();
+const loadingBar = useLoadingBar();
 
 // Edit/Delete state
 const showEditModal = ref(false);
@@ -354,6 +355,7 @@ const queryToDynamo = async (event?: MouseEvent) => {
 
   try {
     loadingRef.value.queryResult = true;
+    loadingBar.start();
 
     const { partitionKey, sortKey, formFilterItems, index } = dynamoQueryForm.value;
 
@@ -364,7 +366,9 @@ const queryToDynamo = async (event?: MouseEvent) => {
       index: index ?? undefined,
     });
     editorSize.value = 0.5;
+    loadingBar.finish();
   } catch (error) {
+    loadingBar.error();
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
       closable: true,
@@ -422,11 +426,14 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
 
   try {
     loadingRef.value.queryResult = true;
+    loadingBar.start();
     await updateItem(activeConnection.value as DynamoDBConnection, keys, attributes);
     message.success(lang.t('editor.dynamo.updateItemSuccess'));
     showEditModal.value = false;
     await refreshDynamoData();
+    loadingBar.finish();
   } catch (error) {
+    loadingBar.error();
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
       closable: true,
@@ -475,10 +482,13 @@ const performDelete = async (row: Record<string, unknown>) => {
 
   try {
     loadingRef.value.queryResult = true;
+    loadingBar.start();
     await deleteItem(connection, keys);
     message.success(lang.t('editor.dynamo.deleteItemSuccess'));
     await refreshDynamoData();
+    loadingBar.finish();
   } catch (error) {
+    loadingBar.error();
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
       closable: true,

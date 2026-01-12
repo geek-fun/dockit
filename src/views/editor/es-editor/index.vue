@@ -35,7 +35,7 @@ import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
-import { useMessage } from 'naive-ui';
+import { useMessage, useLoadingBar } from 'naive-ui';
 import { CustomError, jsonify } from '../../../common';
 import {
   ElasticsearchConnection,
@@ -67,6 +67,7 @@ import {
 
 const appStore = useAppStore();
 const message = useMessage();
+const loadingBar = useLoadingBar();
 const lang = useLang();
 
 const tabStore = useTabStore();
@@ -172,6 +173,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
       return;
     }
 
+    loadingBar.start();
     const data = await searchQDSL(activeConnection.value, {
       ...action,
       queryParams: action.queryParams ?? undefined,
@@ -180,7 +182,9 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
     });
 
     showDisplayEditor(data);
+    loadingBar.finish();
   } catch (err) {
+    loadingBar.error();
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
       closable: true,
