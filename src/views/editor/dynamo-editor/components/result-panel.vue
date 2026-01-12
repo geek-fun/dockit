@@ -72,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed, h } from 'vue';
 import { Close, Edit, TrashCan } from '@vicons/carbon';
 import { NButton, NIcon } from 'naive-ui';
 import type { DataTableColumn, PaginationProps } from 'naive-ui';
