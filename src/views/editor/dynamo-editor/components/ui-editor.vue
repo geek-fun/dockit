@@ -161,11 +161,13 @@
         :loading="loadingRef.queryResult"
         :pagination="dynamoData.queryData.pagination"
         :remote="true"
+        :closable="true"
         :show-actions="true"
         :partition-key-name="partitionKeyName"
         :sort-key-name="sortKeyName"
         @update:page="changePage"
         @update:page-size="changePageSize"
+        @close="handleCloseResultPanel"
         @edit="handleEdit"
         @delete="handleDelete"
       />
@@ -383,6 +385,10 @@ const handleReset = () => {
   if (dynamoQueryFormRef.value) {
     dynamoQueryFormRef.value.restoreValidation();
   }
+  resetDynamoData();
+};
+
+const handleCloseResultPanel = () => {
   resetDynamoData();
 };
 
