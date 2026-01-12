@@ -23,48 +23,72 @@
     </template>
     <template #2>
       <result-panel
-        v-show="showResultPanel"
-        :error-message="errorMessage"
-        :has-data="!!queryResult"
-        :columns="resultColumns"
-        :data="queryResult?.items ?? []"
-        :item-count="queryResult?.count"
-        :scroll-x="tableScrollWidth"
+        v-show="partiqlData.showResultPanel"
+        :error-message="partiqlData.errorMessage"
+        :has-data="partiqlData.data.length > 0"
+        :columns="partiqlData.columns"
+        :data="partiqlData.data"
+        :item-count="partiqlData.count"
         :loading="loadingRef"
-        :has-next-token="!!queryResult?.next_token"
+        :has-next-token="!!partiqlData.nextToken"
+        :closable="true"
+        :show-actions="true"
+        :partition-key-name="partitionKeyName"
+        :sort-key-name="sortKeyName"
         @load-more="loadMore"
+        @close="handleCloseResultPanel"
+        @edit="handleEdit"
+        @delete="handleDelete"
       />
     </template>
   </n-split>
+
+  <!-- Edit Item Modal -->
+  <edit-item
+    v-model:show="showEditModal"
+    :item="editingItem"
+    :partition-key-name="partitionKeyName"
+    :partition-key-type="partitionKeyType"
+    :sort-key-name="sortKeyName"
+    :sort-key-type="sortKeyType"
+    @submit="handleEditSubmit"
+  />
 </template>
 
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
-import { DataTableColumn, useMessage } from 'naive-ui';
-import { DynamoDBConnection, useAppStore, useTabStore } from '../../../../store';
-import { dynamoApi, PartiQLResult } from '../../../../datasources';
+import { useMessage, useDialog } from 'naive-ui';
+import { storeToRefs } from 'pinia';
 import { CustomError, jsonify } from '../../../../common';
 import {
-  Editor,
-  monaco,
-  setPartiqlDynamicOptions,
-  partiqlSampleQueries,
-  parsePartiqlStatements,
-  getStatementAtLine,
-  getPartiqlStatementDecorations,
-  partiqlExecutionGutterClass,
-  validatePartiqlModel,
   clearPartiqlValidation,
   createDebouncedValidator,
+  Editor,
+  getPartiqlStatementDecorations,
+  getStatementAtLine,
+  monaco,
+  parsePartiqlStatements,
+  partiqlExecutionGutterClass,
+  partiqlSampleQueries,
+  setPartiqlDynamicOptions,
+  validatePartiqlModel,
 } from '../../../../common/monaco';
-import type { PartiqlStatement, PartiqlDecoration } from '../../../../common/monaco/partiql';
+import type { PartiqlDecoration, PartiqlStatement } from '../../../../common/monaco/partiql';
 import { useLang } from '../../../../lang';
+import {
+  DynamoDBConnection,
+  useAppStore,
+  useTabStore,
+  useDbDataStore,
+  useConnectionStore,
+} from '../../../../store';
 import ResultPanel from './result-panel.vue';
+import EditItem from './edit-item.vue';
 
 const lang = useLang();
 const message = useMessage();
+const dialog = useDialog();
 
 const appStore = useAppStore();
 const { getEditorTheme } = appStore;
@@ -74,15 +98,14 @@ const tabStore = useTabStore();
 const { saveContent } = tabStore;
 const { activePanel, activeConnection } = storeToRefs(tabStore);
 
+const dbDataStore = useDbDataStore();
+const { dynamoData } = storeToRefs(dbDataStore);
+const partiqlData = computed(() => dynamoData.value.partiqlData);
+
 let editor: Editor | null = null;
 const editorRef = ref<HTMLElement>();
-const editorSize = ref(1);
-const showResultPanel = ref(false);
+const editorSize = ref(partiqlData.value.showResultPanel ? 0.5 : 1);
 const loadingRef = ref(false);
-const errorMessage = ref<string | null>(null);
-const queryResult = ref<PartiQLResult | null>(null);
-const currentNextToken = ref<string | null>(null);
-const lastExecutedStatement = ref<string | null>(null);
 
 // Gutter decorations state
 let executeDecorations: Array<PartiqlDecoration | string> = [];
@@ -97,37 +120,9 @@ const debouncedValidate = createDebouncedValidator((model: monaco.editor.ITextMo
   validatePartiqlModel(model);
 }, 300);
 
-// Context menu state
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuStatementLine = ref<number | null>(null);
-
-const resultColumns = computed<DataTableColumn[]>(() => {
-  if (!queryResult.value?.items?.length) return [];
-
-  const allKeys = new Set<string>();
-  queryResult.value.items.forEach(item => {
-    Object.keys(item).forEach(key => allKeys.add(key));
-  });
-
-  return Array.from(allKeys).map(key => ({
-    title: key,
-    key,
-    minWidth: 120,
-    resizable: true,
-    render: (row: Record<string, unknown>) => {
-      const value = row[key];
-      if (value === null || value === undefined) return '-';
-      if (typeof value === 'object') return jsonify.stringify(value);
-      return String(value);
-    },
-  }));
-});
-
-const tableScrollWidth = computed(() => {
-  const columnCount = resultColumns.value.length;
-  return Math.max(800, columnCount * 150);
-});
 
 const insertSampleQuery = (key: string) => {
   if (!editor) return;
@@ -153,7 +148,12 @@ const insertSampleQuery = (key: string) => {
       [],
       [
         {
-          range: new monaco.Range(position.lineNumber, currentLineLength + 1, position.lineNumber, currentLineLength + 1),
+          range: new monaco.Range(
+            position.lineNumber,
+            currentLineLength + 1,
+            position.lineNumber,
+            currentLineLength + 1,
+          ),
           text: insertText,
         },
       ],
@@ -163,6 +163,44 @@ const insertSampleQuery = (key: string) => {
     const newLineNumber = position.lineNumber + 2;
     editor.setPosition({ lineNumber: newLineNumber, column: 1 });
     editor.revealLine(newLineNumber);
+  }
+};
+
+/**
+ * Execute PartiQL statement with state management
+ * Encapsulates the common logic for executing statements and managing state
+ */
+const executePartiqlStatement = async (statement: string, nextToken?: string | null) => {
+  if (!activeConnection.value) {
+    message.error(lang.t('editor.establishedRequired'), {
+      closable: true,
+      keepAliveOnHover: true,
+    });
+    return;
+  }
+
+  // Set editor size to show results panel
+  if (!nextToken) {
+    editorSize.value = 0.5;
+  }
+
+  loadingRef.value = true;
+
+  try {
+    await dbDataStore.executePartiqlStatement(
+      activeConnection.value as DynamoDBConnection,
+      statement,
+      { nextToken },
+    );
+  } catch (err) {
+    const error = err as CustomError;
+    const errorMsg = error.details || error.message || String(err);
+    message.error(`Error: ${errorMsg}`, {
+      closable: true,
+      keepAliveOnHover: true,
+    });
+  } finally {
+    loadingRef.value = false;
   }
 };
 
@@ -207,31 +245,7 @@ const executeStatementAtLine = async (lineNumber: number) => {
     return;
   }
 
-  loadingRef.value = true;
-  errorMessage.value = null;
-  queryResult.value = null;
-  currentNextToken.value = null;
-  lastExecutedStatement.value = statement.statement;
-  showResultPanel.value = true;
-  editorSize.value = 0.5;
-
-  try {
-    const result = await dynamoApi.executeStatement(
-      activeConnection.value as DynamoDBConnection,
-      { statement: statement.statement },
-    );
-    queryResult.value = result;
-    currentNextToken.value = result.next_token;
-  } catch (err) {
-    const error = err as CustomError;
-    errorMessage.value = error.details || error.message || String(err);
-    message.error(`Error: ${errorMessage.value}`, {
-      closable: true,
-      keepAliveOnHover: true,
-    });
-  } finally {
-    loadingRef.value = false;
-  }
+  await executePartiqlStatement(statement.statement);
 };
 
 /**
@@ -308,7 +322,7 @@ const getStatementToExecute = (): { statement: string; found: boolean } => {
   if (!model) return { statement: '', found: false };
 
   const selection = editor.getSelection();
-  
+
   // If user has selected text, use that
   if (selection && !selection.isEmpty()) {
     const selectedText = model.getValueInRange(selection).trim();
@@ -375,7 +389,7 @@ const executeQuery = async () => {
 
   // Use smart statement extraction
   const { statement, found } = getStatementToExecute();
-  
+
   if (!found || !statement) {
     message.warning(lang.t('editor.dynamo.partiql.noStatementFound'), {
       closable: true,
@@ -384,59 +398,133 @@ const executeQuery = async () => {
     return;
   }
 
-  loadingRef.value = true;
-  errorMessage.value = null;
-  queryResult.value = null;
-  currentNextToken.value = null;
-  lastExecutedStatement.value = statement;
-  showResultPanel.value = true;
-  editorSize.value = 0.5;
+  await executePartiqlStatement(statement);
+};
+
+const loadMore = async () => {
+  if (
+    !editor ||
+    !activeConnection.value ||
+    !partiqlData.value.nextToken ||
+    !partiqlData.value.lastExecutedStatement
+  )
+    return;
+
+  await executePartiqlStatement(
+    partiqlData.value.lastExecutedStatement,
+    partiqlData.value.nextToken,
+  );
+};
+
+const handleCloseResultPanel = () => {
+  editorSize.value = 1;
+  dbDataStore.resetPartiqlData();
+};
+
+// Get partition key and sort key info from active connection
+const partitionKeyName = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.partitionKey?.name ?? '',
+);
+const partitionKeyType = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.partitionKey?.valueType ?? 'S',
+);
+const sortKeyName = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.sortKey?.name ?? undefined,
+);
+const sortKeyType = computed(
+  () => (activeConnection.value as DynamoDBConnection)?.sortKey?.valueType ?? undefined,
+);
+
+// Edit/Delete state
+const showEditModal = ref(false);
+const editingItem = ref<Record<string, unknown> | null>(null);
+
+const handleEdit = (row: Record<string, unknown>) => {
+  editingItem.value = row;
+  showEditModal.value = true;
+};
+
+type AttributeItem = {
+  key: string;
+  value: string | number | boolean | null;
+  type: string;
+};
+
+const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem[]) => {
+  if (!activeConnection.value) return;
 
   try {
-    const result = await dynamoApi.executeStatement(
-      activeConnection.value as DynamoDBConnection,
-      { statement },
-    );
-    queryResult.value = result;
-    currentNextToken.value = result.next_token;
-  } catch (err) {
-    const error = err as CustomError;
-    errorMessage.value = error.details || error.message || String(err);
-    message.error(`Error: ${errorMessage.value}`, {
+    loadingRef.value = true;
+    const { updateItem } = useConnectionStore();
+    await updateItem(activeConnection.value as DynamoDBConnection, keys, attributes);
+    message.success(lang.t('editor.dynamo.updateItemSuccess'));
+    showEditModal.value = false;
+    // Refresh results by re-executing the last statement
+    if (partiqlData.value.lastExecutedStatement) {
+      await executePartiqlStatement(partiqlData.value.lastExecutedStatement);
+    }
+  } catch (error) {
+    const { status, details } = error as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
       closable: true,
       keepAliveOnHover: true,
+      duration: 3600,
     });
   } finally {
     loadingRef.value = false;
   }
 };
 
-const loadMore = async () => {
-  if (!editor || !activeConnection.value || !currentNextToken.value || !lastExecutedStatement.value) return;
+const handleDelete = (row: Record<string, unknown>) => {
+  dialog.warning({
+    title: lang.t('dialogOps.warning'),
+    content: lang.t('editor.dynamo.deleteItemConfirm'),
+    positiveText: lang.t('dialogOps.confirm'),
+    negativeText: lang.t('dialogOps.cancel'),
+    onPositiveClick: async () => {
+      await performDelete(row);
+    },
+  });
+};
 
-  loadingRef.value = true;
+const performDelete = async (row: Record<string, unknown>) => {
+  if (!activeConnection.value) return;
+
+  const connection = activeConnection.value as DynamoDBConnection;
+  const keys: AttributeItem[] = [];
+
+  // Build keys from the row
+  if (partitionKeyName.value && row[partitionKeyName.value] !== undefined) {
+    keys.push({
+      key: partitionKeyName.value,
+      value: row[partitionKeyName.value] as string | number | boolean | null,
+      type: partitionKeyType.value,
+    });
+  }
+
+  if (sortKeyName.value && sortKeyType.value && row[sortKeyName.value] !== undefined) {
+    keys.push({
+      key: sortKeyName.value,
+      value: row[sortKeyName.value] as string | number | boolean | null,
+      type: sortKeyType.value,
+    });
+  }
 
   try {
-    const result = await dynamoApi.executeStatement(
-      activeConnection.value as DynamoDBConnection,
-      { statement: lastExecutedStatement.value, nextToken: currentNextToken.value },
-    );
-
-    if (queryResult.value) {
-      queryResult.value = {
-        items: [...queryResult.value.items, ...result.items],
-        count: queryResult.value.count + result.count,
-        next_token: result.next_token,
-      };
-    } else {
-      queryResult.value = result;
+    loadingRef.value = true;
+    const { deleteItem } = useConnectionStore();
+    await deleteItem(connection, keys);
+    message.success(lang.t('editor.dynamo.deleteItemSuccess'));
+    // Refresh results by re-executing the last statement
+    if (partiqlData.value.lastExecutedStatement) {
+      await executePartiqlStatement(partiqlData.value.lastExecutedStatement);
     }
-    currentNextToken.value = result.next_token;
-  } catch (err) {
-    const error = err as CustomError;
-    message.error(`Error: ${error.details || error.message}`, {
+  } catch (error) {
+    const { status, details } = error as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
       closable: true,
       keepAliveOnHover: true,
+      duration: 3600,
     });
   } finally {
     loadingRef.value = false;
@@ -479,7 +567,6 @@ const setupEditor = () => {
     minimap: { enabled: false },
     lineNumbers: 'on',
     wordWrap: 'on',
-    fontSize: 14,
     tabSize: 2,
   });
 
@@ -498,7 +585,7 @@ const setupEditor = () => {
 
   // Initial decoration refresh
   refreshStatementDecorations();
-  
+
   // Initial syntax validation
   const model = editor.getModel();
   if (model) {
@@ -696,11 +783,8 @@ defineExpose({
     }
   }
 }
-</style>
 
-<style lang="scss">
-/* Gutter decoration for PartiQL execute button - global styles for Monaco */
-.partiql-execute-decoration {
+:deep(.partiql-execute-decoration) {
   cursor: pointer;
   height: 0 !important;
   width: 0 !important;

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { cloneDeep, omit } from 'lodash';
 import { DynamoDBConnection, useConnectionStore } from './connectionStore.ts';
 import { DynamoIndexOrTableOption } from './tabStore.ts';
+import { dynamoApi } from '../datasources';
 
 const resetPagination = {
   page: 1,
@@ -28,28 +29,52 @@ export const useDbDataStore = defineStore('dbDataStore', {
   state: (): {
     dynamoData: {
       connection: DynamoDBConnection;
-      columns: Array<DynamoColumn>;
-      data: Array<Record<string, unknown>> | undefined;
-      pagination: {
-        page: number;
-        pageSize: number;
-        pageCount: number;
-        showSizePicker: boolean;
-        pageSizes: Array<number>;
+      queryData: {
+        showResultPanel: boolean;
+        columns: Array<DynamoColumn>;
+        data: Array<Record<string, unknown>> | undefined;
+        pagination: {
+          page: number;
+          pageSize: number;
+          pageCount: number;
+          showSizePicker: boolean;
+          pageSizes: Array<number>;
+        };
+        queryInput?: DynamoInput;
+        queryBody: string;
+        lastEvaluatedKeys: Array<Record<string, any>>;
       };
-      queryInput?: DynamoInput;
-      queryBody: string;
-      lastEvaluatedKeys: Array<Record<string, any>>;
+      partiqlData: {
+        showResultPanel: boolean;
+        errorMessage: string | null;
+        columns: Array<DynamoColumn>;
+        data: Array<Record<string, unknown>>;
+        count: number;
+        nextToken: string | null;
+        lastExecutedStatement: string | null;
+      };
     };
   } => ({
     dynamoData: {
       connection: {} as DynamoDBConnection,
-      columns: [],
-      data: undefined,
-      pagination: cloneDeep(resetPagination),
-      queryInput: undefined,
-      queryBody: '',
-      lastEvaluatedKeys: [],
+      queryData: {
+        showResultPanel: false,
+        columns: [],
+        data: undefined,
+        pagination: cloneDeep(resetPagination),
+        queryInput: undefined,
+        queryBody: '',
+        lastEvaluatedKeys: [],
+      },
+      partiqlData: {
+        showResultPanel: false,
+        errorMessage: null,
+        columns: [],
+        data: [],
+        count: 0,
+        nextToken: null,
+        lastExecutedStatement: null,
+      },
     },
   }),
   persist: true,
@@ -78,20 +103,23 @@ export const useDbDataStore = defineStore('dbDataStore', {
 
         const queryStr = JSON.stringify(omit(queryParams, ['limit', 'exclusiveStartKey']));
 
-        if (this.dynamoData.queryBody !== queryStr) {
-          this.dynamoData = {
-            ...this.dynamoData,
+        if (this.dynamoData.queryData.queryBody !== queryStr) {
+          this.dynamoData.queryData = {
+            showResultPanel: false,
             columns: [],
             data: undefined,
             pagination: { ...cloneDeep(resetPagination) },
+            queryInput: undefined,
             queryBody: queryStr,
             lastEvaluatedKeys: [],
           };
         }
 
-        const limit = this.dynamoData.pagination.pageSize;
+        const limit = this.dynamoData.queryData.pagination.pageSize;
         const exclusiveStartKey =
-          this.dynamoData.lastEvaluatedKeys[this.dynamoData.pagination.page - 1];
+          this.dynamoData.queryData.lastEvaluatedKeys[
+            this.dynamoData.queryData.pagination.page - 1
+          ];
 
         const data = await queryTable(connection, { ...queryParams, limit, exclusiveStartKey });
 
@@ -123,39 +151,41 @@ export const useDbDataStore = defineStore('dbDataStore', {
           .map(column => ({ title: column, key: column }));
         columns.unshift(primaryColumn);
 
-        this.dynamoData.columns = columns;
-        this.dynamoData.data = columnsData;
+        this.dynamoData.queryData.columns = columns;
+        this.dynamoData.queryData.data = columnsData;
 
         if (data.last_evaluated_key) {
-          this.dynamoData.lastEvaluatedKeys[this.dynamoData.pagination.page] =
+          this.dynamoData.queryData.lastEvaluatedKeys[this.dynamoData.queryData.pagination.page] =
             data.last_evaluated_key;
-          this.dynamoData.pagination.pageCount = this.dynamoData.lastEvaluatedKeys.length;
+          this.dynamoData.queryData.pagination.pageCount =
+            this.dynamoData.queryData.lastEvaluatedKeys.length;
         }
-        this.dynamoData.queryInput = queryInput;
+        this.dynamoData.queryData.queryInput = queryInput;
+        this.dynamoData.queryData.showResultPanel = true;
       } catch (error) {
         throw error;
       }
     },
 
     async changePage(page: number) {
-      if (this.dynamoData.pagination.page !== page) {
-        this.dynamoData.pagination.page = page;
+      if (this.dynamoData.queryData.pagination.page !== page) {
+        this.dynamoData.queryData.pagination.page = page;
         await this.getDynamoData(
           this.dynamoData.connection,
-          this.dynamoData.queryInput as DynamoInput,
+          this.dynamoData.queryData.queryInput as DynamoInput,
         );
       }
     },
 
     async changePageSize(pageSize: number) {
-      if (this.dynamoData.pagination.pageSize !== pageSize) {
-        this.dynamoData.pagination.pageSize = pageSize;
-        this.dynamoData.pagination.page = 1;
-        this.dynamoData.pagination.pageCount = 1;
-        this.dynamoData.lastEvaluatedKeys = [];
+      if (this.dynamoData.queryData.pagination.pageSize !== pageSize) {
+        this.dynamoData.queryData.pagination.pageSize = pageSize;
+        this.dynamoData.queryData.pagination.page = 1;
+        this.dynamoData.queryData.pagination.pageCount = 1;
+        this.dynamoData.queryData.lastEvaluatedKeys = [];
         await this.getDynamoData(
           this.dynamoData.connection,
-          this.dynamoData.queryInput as DynamoInput,
+          this.dynamoData.queryData.queryInput as DynamoInput,
         );
       }
     },
@@ -163,19 +193,160 @@ export const useDbDataStore = defineStore('dbDataStore', {
     resetDynamoData() {
       this.dynamoData = {
         connection: {} as DynamoDBConnection,
-        columns: [],
-        data: undefined,
-        pagination: cloneDeep(resetPagination),
-        queryInput: undefined,
-        queryBody: '',
-        lastEvaluatedKeys: [],
+        queryData: {
+          showResultPanel: false,
+          columns: [],
+          data: undefined,
+          pagination: cloneDeep(resetPagination),
+          queryInput: undefined,
+          queryBody: '',
+          lastEvaluatedKeys: [],
+        },
+        partiqlData: {
+          showResultPanel: false,
+          errorMessage: null,
+          columns: [],
+          data: [],
+          count: 0,
+          nextToken: null,
+          lastExecutedStatement: null,
+        },
       };
     },
 
     async refreshDynamoData() {
-      if (this.dynamoData.queryInput && this.dynamoData.connection) {
-        await this.getDynamoData(this.dynamoData.connection, this.dynamoData.queryInput);
+      if (this.dynamoData.queryData.queryInput && this.dynamoData.connection) {
+        await this.getDynamoData(this.dynamoData.connection, this.dynamoData.queryData.queryInput);
       }
+    },
+
+    setQueryShowResultPanel(show: boolean) {
+      this.dynamoData.queryData.showResultPanel = show;
+    },
+
+    // Execute PartiQL statement and handle result/error states automatically
+    async executePartiqlStatement(
+      connection: DynamoDBConnection,
+      statement: string,
+      options?: { nextToken?: string | null },
+    ): Promise<void> {
+      const isLoadingMore = !!options?.nextToken;
+
+      // Reset state for new execution (not for pagination)
+      if (!isLoadingMore) {
+        this.dynamoData.partiqlData.errorMessage = null;
+        this.dynamoData.partiqlData.columns = [];
+        this.dynamoData.partiqlData.data = [];
+        this.dynamoData.partiqlData.count = 0;
+        this.dynamoData.partiqlData.nextToken = null;
+        this.dynamoData.partiqlData.lastExecutedStatement = statement;
+        this.dynamoData.partiqlData.showResultPanel = true;
+      }
+
+      try {
+        const result = await dynamoApi.executeStatement(connection, {
+          statement,
+          nextToken: options?.nextToken,
+        });
+
+        // Build columns structure with partition key and sort key info
+        const columnsSet = new Set<string>();
+        result.items.forEach(item => {
+          Object.keys(item).forEach(key => {
+            columnsSet.add(key);
+          });
+        });
+
+        const partitionKeyName = connection.partitionKey?.name;
+        const sortKeyName = connection.sortKey?.name;
+
+        // Build primary key column if partition key exists
+        const columns: Array<DynamoColumn> = [];
+        if (partitionKeyName) {
+          const primaryColumn = {
+            title: 'Primary Key',
+            key: 'primaryKey',
+            children: [
+              { title: `${partitionKeyName}(PK)`, key: `${partitionKeyName}` },
+              sortKeyName ? { title: `${sortKeyName}(SK)`, key: `${sortKeyName}` } : undefined,
+            ].filter(Boolean) as Array<{ title: string; key: string }>,
+          };
+          columns.push(primaryColumn);
+        }
+
+        // Add remaining columns
+        const otherColumns = Array.from(columnsSet)
+          .filter(column => column !== partitionKeyName && column !== sortKeyName)
+          .map(column => ({ title: column, key: column }));
+        columns.push(...otherColumns);
+
+        // Prepare data rows
+        const columnsData = result.items.map(item => {
+          const row: Record<string, unknown> = {};
+          columnsSet.forEach(key => {
+            row[key] = item[key];
+          });
+          return row;
+        });
+
+        if (isLoadingMore) {
+          // Append results for pagination
+          // Merge new columns if there are any new fields
+          const existingColumnKeys = new Set(
+            this.dynamoData.partiqlData.columns.filter(col => !col.children).map(col => col.key),
+          );
+          const existingChildKeys = new Set(
+            this.dynamoData.partiqlData.columns
+              .filter(col => col.children)
+              .flatMap(col => col.children?.map(child => child.key) || []),
+          );
+          const allExistingKeys = new Set([...existingColumnKeys, ...existingChildKeys]);
+
+          const newColumns = columns.filter(col => {
+            if (col.children) {
+              return false; // Primary key column already exists
+            }
+            return !allExistingKeys.has(col.key);
+          });
+
+          if (newColumns.length > 0) {
+            this.dynamoData.partiqlData.columns = [
+              ...this.dynamoData.partiqlData.columns,
+              ...newColumns,
+            ];
+          }
+
+          this.dynamoData.partiqlData.data = [...this.dynamoData.partiqlData.data, ...columnsData];
+          this.dynamoData.partiqlData.count = this.dynamoData.partiqlData.count + result.count;
+          this.dynamoData.partiqlData.nextToken = result.next_token;
+        } else {
+          // Set new results
+          this.dynamoData.partiqlData.columns = columns;
+          this.dynamoData.partiqlData.data = columnsData;
+          this.dynamoData.partiqlData.count = result.count;
+          this.dynamoData.partiqlData.nextToken = result.next_token;
+        }
+
+        // Clear any previous error on success
+        this.dynamoData.partiqlData.errorMessage = null;
+      } catch (error: any) {
+        // Set error state automatically
+        const errorMsg = error.details || error.message || String(error);
+        this.dynamoData.partiqlData.errorMessage = errorMsg;
+        throw error; // Re-throw for UI error handling
+      }
+    },
+
+    resetPartiqlData() {
+      this.dynamoData.partiqlData = {
+        showResultPanel: false,
+        errorMessage: null,
+        columns: [],
+        data: [],
+        count: 0,
+        nextToken: null,
+        lastExecutedStatement: null,
+      };
     },
   },
 });

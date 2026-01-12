@@ -1,5 +1,5 @@
 <template>
-  <n-split direction="vertical" class="ui-editor">
+  <n-split direction="vertical" class="ui-editor" v-model:size="editorSize">
     <template #1>
       <n-card class="query-container">
         <n-form
@@ -154,15 +154,22 @@
     </template>
     <template #2>
       <result-panel
-        v-if="dynamoData.data"
-        :has-data="!!dynamoData.data"
-        :columns="tableColumns"
-        :data="dynamoData.data"
+        v-show="dynamoData.queryData.showResultPanel"
+        :has-data="!!dynamoData.queryData.data"
+        :columns="dynamoData.queryData.columns"
+        :data="dynamoData.queryData.data ?? []"
         :loading="loadingRef.queryResult"
-        :pagination="dynamoData.pagination"
+        :pagination="dynamoData.queryData.pagination"
         :remote="true"
+        :closable="true"
+        :show-actions="true"
+        :partition-key-name="partitionKeyName"
+        :sort-key-name="sortKeyName"
         @update:page="changePage"
         @update:page-size="changePageSize"
+        @close="handleCloseResultPanel"
+        @edit="handleEdit"
+        @delete="handleDelete"
       />
     </template>
   </n-split>
@@ -181,9 +188,9 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Add, Delete, Edit, TrashCan } from '@vicons/carbon';
+import { Add, Delete } from '@vicons/carbon';
 import { isEmpty } from 'lodash';
-import { DataTableColumn, FormItemRule, FormRules, FormValidationError, NButton, NIcon } from 'naive-ui';
+import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 import {
   Connection,
   DynamoDBConnection,
@@ -229,6 +236,7 @@ const filterConditions = ref([
 ]);
 
 const loadingRef = ref({ index: false, queryResult: false });
+const editorSize = ref(dynamoData.value.queryData.showResultPanel ? 0.5 : 1);
 
 const message = useMessage();
 const dialog = useDialog();
@@ -355,6 +363,7 @@ const queryToDynamo = async (event?: MouseEvent) => {
       filters: formFilterItems,
       index: index ?? undefined,
     });
+    editorSize.value = 0.5;
   } catch (error) {
     const { status, details } = error as CustomError;
     message.error(`status: ${status}, details: ${details}`, {
@@ -374,6 +383,12 @@ const handleReset = () => {
   if (dynamoQueryFormRef.value) {
     dynamoQueryFormRef.value.restoreValidation();
   }
+  editorSize.value = 1;
+  resetDynamoData();
+};
+
+const handleCloseResultPanel = () => {
+  editorSize.value = 1;
   resetDynamoData();
 };
 
@@ -390,46 +405,6 @@ const sortKeyName = computed(
 const sortKeyType = computed(
   () => (activeConnection.value as DynamoDBConnection)?.sortKey?.valueType ?? undefined,
 );
-
-// Action column for edit/delete
-const actionColumn: DataTableColumn<Record<string, unknown>> = {
-  title: lang.t('editor.dynamo.actions'),
-  key: 'actions',
-  width: 100,
-  fixed: 'right',
-  render(row) {
-    return h('div', { style: { display: 'flex', gap: '8px' } }, [
-      h(
-        NButton,
-        {
-          size: 'small',
-          quaternary: true,
-          circle: true,
-          onClick: () => handleEdit(row),
-        },
-        { icon: () => h(NIcon, null, { default: () => h(Edit) }) },
-      ),
-      h(
-        NButton,
-        {
-          size: 'small',
-          quaternary: true,
-          circle: true,
-          onClick: () => handleDelete(row),
-        },
-        { icon: () => h(NIcon, null, { default: () => h(TrashCan) }) },
-      ),
-    ]);
-  },
-};
-
-// Combine original columns with action column
-const tableColumns = computed(() => {
-  if (!dynamoData.value.columns || dynamoData.value.columns.length === 0) {
-    return [];
-  }
-  return [...dynamoData.value.columns, actionColumn];
-});
 
 const handleEdit = (row: Record<string, unknown>) => {
   editingItem.value = row;
