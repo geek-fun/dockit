@@ -445,22 +445,6 @@ const editingItem = ref<Record<string, unknown> | null>(null);
 
 const handleEdit = async (row: Record<string, unknown>) => {
   editingItem.value = row;
-
-  // If partition key is not configured in connection, refresh it from table schema
-  if (!partitionKeyName.value || partitionKeyName.value.trim() === '') {
-    try {
-      loadingRef.value = true;
-      await dbDataStore.refreshConnection();
-    } catch (error) {
-      message.error(
-        lang.t('editor.dynamo.failedToFetchTableSchema') || 'Failed to fetch table schema',
-      );
-      return;
-    } finally {
-      loadingRef.value = false;
-    }
-  }
-
   showEditModal.value = true;
 };
 

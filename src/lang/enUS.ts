@@ -240,6 +240,7 @@ export const enUS = {
       attributeNameRequired: 'Attribute name is required',
       attributeTypeRequired: 'Attribute type is required',
       attributeValueRequired: 'Attribute value is required',
+      selectTypeFirst: 'Select type first',
       operatorRequired: 'Filter operator is required',
       createItemSuccess: 'Item created successfully!',
       editItem: 'Edit Item',
@@ -276,7 +277,8 @@ export const enUS = {
         error: 'Query Error',
         noResults: 'Execute a PartiQL query to see results',
         emptyStatement: 'Please enter a PartiQL statement',
-        noStatementFound: 'No PartiQL statement to execute. Please select a query or position your cursor within a statement.',
+        noStatementFound:
+          'No PartiQL statement to execute. Please select a query or position your cursor within a statement.',
         itemsReturned: '{count} items returned',
         loadMore: 'Load More',
         executionSuccess: 'Statement executed successfully',

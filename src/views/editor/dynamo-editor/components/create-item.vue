@@ -57,7 +57,7 @@
                   </n-form-item>
                 </n-grid-item>
               </n-grid>
-              <n-divider title-placement="left"> Key Attributes</n-divider>
+              <n-divider title-placement="left">Key Attributes</n-divider>
               <n-grid
                 v-for="(item, index) in dynamoRecordForm.keyAttributes"
                 :key="index"
@@ -110,7 +110,7 @@
                 </n-grid-item>
               </n-grid>
               <!-- Dynamically additional form items -->
-              <n-divider title-placement="left"> Additional Attributes</n-divider>
+              <n-divider title-placement="left">Additional Attributes</n-divider>
               <n-grid
                 v-for="(item, index) in dynamoRecordForm.attributes"
                 :key="index"
@@ -206,7 +206,7 @@ import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
 import { FormValidationError } from 'naive-ui';
 import { Connection, DynamoDBConnection, useConnectionStore, useTabStore } from '../../../../store';
-import { inputProps } from '../../../../common';
+import { CustomError, inputProps } from '../../../../common';
 import { useLang } from '../../../../lang';
 
 const connectionStore = useConnectionStore();
@@ -362,7 +362,8 @@ const handleSubmit = async (event: MouseEvent) => {
     await createItem(activeConnection.value as DynamoDBConnection, attributes);
     message.success(lang.t('editor.dynamo.createItemSuccess'));
   } catch (error) {
-    message.error(`status: ${(error as Error).name}, details: ${(error as Error).message}`, {
+    const { status, details } = error as CustomError;
+    message.error(`status: ${status}, details: ${details}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3600,

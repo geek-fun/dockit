@@ -240,6 +240,7 @@ export const zhCN = {
       attributeNameRequired: '请输入属性名称',
       attributeTypeRequired: '请输入属性类型',
       attributeValueRequired: '请输入属性值',
+      selectTypeFirst: '请先选择类型',
       operatorRequired: '请输入滤器操作符',
       createItemSuccess: '数据添加成功!',
       editItem: '编辑数据',

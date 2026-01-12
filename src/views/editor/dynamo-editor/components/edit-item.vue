@@ -87,16 +87,16 @@
           <n-form-item
             :path="`attributes[${index}].value`"
             :rule="{
-              required: true,
+              required: item.type !== 'NULL',
               validator: (rule: any, value: any) => {
+                if (item.type === 'NULL') {
+                  return true;
+                }
                 if (item.type === 'N') {
                   return typeof value === 'number';
                 }
                 if (item.type === 'BOOL') {
                   return typeof value === 'boolean';
-                }
-                if (item.type === 'NULL') {
-                  return true;
                 }
                 return value !== null && value !== undefined && value !== '';
               },
@@ -112,11 +112,12 @@
             />
             <n-switch v-else-if="item.type === 'BOOL'" v-model:value="item.value as boolean" />
             <n-input
-              v-else
+              v-else-if="item.type && item.type !== 'NULL'"
               v-model:value="item.value as string"
               :placeholder="$t('editor.dynamo.inputAttrValue')"
               :input-props="inputProps"
             />
+            <n-input v-else value="" disabled :placeholder="$t('editor.dynamo.selectTypeFirst')" />
           </n-form-item>
         </n-grid-item>
         <n-grid-item span="2">

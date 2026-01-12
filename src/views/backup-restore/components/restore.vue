@@ -111,7 +111,7 @@ const lang = useLang();
 
 const fileFormRef = ref();
 const connectionStore = useConnectionStore();
-const { fetchConnections, fetchIndices, testConnection } = connectionStore;
+const { fetchConnections, fetchIndices, freshConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 
 const backupRestoreStore = useBackupRestoreStore();
@@ -246,7 +246,7 @@ const handleSelectUpdate = async (value: string, target: string) => {
       return;
     }
     try {
-      await testConnection(con);
+      await freshConnection(con);
       connection.value = con;
     } catch (err) {
       const error = err as CustomError;

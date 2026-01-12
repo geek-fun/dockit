@@ -13,12 +13,7 @@
         </n-icon>
       </template>
       <div class="modal-content">
-        <n-form
-          label-placement="left"
-          label-width="120"
-          :model="formData"
-          :rules="formRules"
-        >
+        <n-form label-placement="left" label-width="120" :model="formData" :rules="formRules">
           <n-form-item :label="$t('connection.name')" path="name">
             <n-input
               v-model:value="formData.name"
@@ -101,7 +96,7 @@ import { DatabaseType, DynamoDBConnection } from '../../../store';
 
 const connectionStore = useConnectionStore();
 
-const { testConnection } = connectionStore;
+const { freshConnection } = connectionStore;
 
 const lang = useLang();
 
@@ -203,7 +198,7 @@ const validationPassed = computed(() => {
 const testConnect = async () => {
   try {
     testLoading.value = true;
-    await testConnection(formData.value);
+    await freshConnection(formData.value);
     message.success(lang.t('connection.testSuccess'));
   } catch (error) {
     if (error instanceof Error) {

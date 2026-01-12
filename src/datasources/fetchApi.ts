@@ -13,7 +13,7 @@ type FetchApiOptions = {
 };
 
 const handleFetch = (result: { data: unknown; status: number; details: string | undefined }) => {
-  if(result.status >= 200 && result.status < 300) {
+  if (result.status >= 200 && result.status < 300) {
     return result.data;
   }
   if ([404, 400].includes(result.status)) {
@@ -87,7 +87,7 @@ const fetchRequest = async (
     if (status >= 200 && status < 500) {
       return { status, details: message, data };
     }
-  
+
     throw new CustomError(status, message);
   } catch (e) {
     const error = typeof e == 'string' ? new CustomError(500, e) : (e as CustomError);
@@ -107,7 +107,7 @@ const loadHttpClient = (con: {
   password?: string;
   sslCertVerification: boolean;
 }) => ({
-  get: async (path?: string, queryParameters?: string, payload?: string) =>
+  get: async <T = unknown>(path?: string, queryParameters?: string, payload?: string): Promise<T> =>
     fetchWrapper({
       ...con,
       method: 'GET',
@@ -115,8 +115,8 @@ const loadHttpClient = (con: {
       queryParameters,
       payload,
       ssl: con.sslCertVerification,
-    }),
-  post: async (path: string, queryParameters?: string, payload?: string) =>
+    }) as Promise<T>,
+  post: async <T = unknown>(path: string, queryParameters?: string, payload?: string): Promise<T> =>
     fetchWrapper({
       ...con,
       method: 'POST',
@@ -124,8 +124,8 @@ const loadHttpClient = (con: {
       queryParameters,
       payload,
       ssl: con.sslCertVerification,
-    }),
-  put: async (path: string, queryParameters?: string, payload?: string) =>
+    }) as Promise<T>,
+  put: async <T = unknown>(path: string, queryParameters?: string, payload?: string): Promise<T> =>
     fetchWrapper({
       ...con,
       method: 'PUT',
@@ -133,9 +133,13 @@ const loadHttpClient = (con: {
       queryParameters,
       payload,
       ssl: con.sslCertVerification,
-    }),
+    }) as Promise<T>,
 
-  delete: async (path: string, queryParameters?: string, payload?: string) =>
+  delete: async <T = unknown>(
+    path: string,
+    queryParameters?: string,
+    payload?: string,
+  ): Promise<T> =>
     fetchWrapper({
       ...con,
       method: 'DELETE',
@@ -143,7 +147,7 @@ const loadHttpClient = (con: {
       queryParameters,
       payload,
       ssl: con.sslCertVerification,
-    }),
+    }) as Promise<T>,
 });
 
 export { loadHttpClient };

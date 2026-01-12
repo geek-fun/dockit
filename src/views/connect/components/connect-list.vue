@@ -78,7 +78,7 @@ const message = useMessage();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
-const { fetchConnections, removeConnection,testConnection } = connectionStore;
+const { fetchConnections, removeConnection, freshConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 fetchConnections();
 
@@ -111,31 +111,31 @@ const handleSelect = (key: string, connection: Connection) => {
 
 const establishConnect = async (connection: Connection) => {
   connectionCancelled.value = false;
-  
+
   // Show loading modal
   connectingModal.value.show(connection.name, () => {
     connectionCancelled.value = true;
   });
 
   try {
-    await testConnection(connection);
-    
+    const newConnection = await freshConnection(connection);
+
     // Check if connection was cancelled
     if (connectionCancelled.value) {
       return;
     }
-    
+
     connectingModal.value.hide();
     message.success(lang.t('connection.connectSuccess'));
-    emits('tab-panel', { action: 'ADD_PANEL', connection });
+    emits('tab-panel', { action: 'ADD_PANEL', connection: newConnection });
   } catch (err) {
     connectingModal.value.hide();
-    
+
     // Don't show error if connection was cancelled
     if (connectionCancelled.value) {
       return;
     }
-    
+
     if (err instanceof CustomError) {
       message.error(`status: ${err.status}, details: ${err.details}`, {
         closable: true,

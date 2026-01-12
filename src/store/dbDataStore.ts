@@ -368,11 +368,5 @@ export const useDbDataStore = defineStore('dbDataStore', {
         lastExecutedStatement: null,
       };
     },
-
-    // Refresh connection by fetching table schema and updating all properties
-    async refreshConnection(): Promise<void> {
-      const tableInfo = await dynamoApi.describeTable(this.dynamoData.connection);
-      Object.assign(this.dynamoData.connection, tableInfo);
-    },
   },
 });

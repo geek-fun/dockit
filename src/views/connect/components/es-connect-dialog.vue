@@ -167,7 +167,7 @@ import {
 import { useLang } from '../../../lang';
 import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 
-const { testConnection, saveConnection } = useConnectionStore();
+const { freshConnection, saveConnection } = useConnectionStore();
 const lang = useLang();
 // DOM
 const connectFormRef = ref();
@@ -282,7 +282,7 @@ const testConnect = (event: MouseEvent) => {
 const testConnectConfirm = async () => {
   testLoading.value = !testLoading.value;
   try {
-    await testConnection({
+    await freshConnection({
       ...formData.value,
       activeIndex: formData.value.selectedIndex
         ? { index: formData.value.selectedIndex }
