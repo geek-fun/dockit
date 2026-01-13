@@ -5,7 +5,7 @@
         <div class="title">{{ $t('setting.editor.fontSize') }}</div>
         <div class="content">
           <n-input-number
-            v-model:value="fontSize"
+            v-model:value="editorConfig.fontSize"
             :min="8"
             :max="32"
             :step="1"
@@ -17,7 +17,7 @@
         <div class="title">{{ $t('setting.editor.fontWeight') }}</div>
         <div class="content">
           <n-radio-group
-            v-model:value="fontWeight"
+            v-model:value="editorConfig.fontWeight"
             name="fontWeightGroup"
             @update:value="updateFontWeight"
           >
@@ -30,13 +30,13 @@
       <n-gi span="4">
         <div class="title">{{ $t('setting.editor.showLineNumbers') }}</div>
         <div class="content">
-          <n-switch v-model:value="showLineNumbers" @update:value="updateShowLineNumbers" />
+          <n-switch v-model:value="editorConfig.showLineNumbers" @update:value="updateShowLineNumbers" />
         </div>
       </n-gi>
       <n-gi span="4">
         <div class="title">{{ $t('setting.editor.showMinimap') }}</div>
         <div class="content">
-          <n-switch v-model:value="showMinimap" @update:value="updateShowMinimap" />
+          <n-switch v-model:value="editorConfig.showMinimap" @update:value="updateShowMinimap" />
         </div>
       </n-gi>
     </n-grid>
@@ -50,11 +50,6 @@ import { useAppStore } from '../../../store';
 const appStore = useAppStore();
 const { setEditorConfig } = appStore;
 const { editorConfig } = storeToRefs(appStore);
-
-const fontSize = ref(editorConfig.value.fontSize);
-const fontWeight = ref(editorConfig.value.fontWeight);
-const showLineNumbers = ref(editorConfig.value.showLineNumbers);
-const showMinimap = ref(editorConfig.value.showMinimap);
 
 const updateFontSize = (value: number | null) => {
   if (value !== null) {
