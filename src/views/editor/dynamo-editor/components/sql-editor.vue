@@ -92,8 +92,8 @@ const dialog = useDialog();
 const loadingBar = useLoadingBar();
 
 const appStore = useAppStore();
-const { getEditorTheme } = appStore;
-const { themeType } = storeToRefs(appStore);
+const { getEditorTheme, getEditorOptions } = appStore;
+const { themeType, editorConfig } = storeToRefs(appStore);
 
 const tabStore = useTabStore();
 const { saveContent } = tabStore;
@@ -574,10 +574,9 @@ const setupEditor = () => {
     language: 'partiql',
     automaticLayout: true,
     scrollBeyondLastLine: false,
-    minimap: { enabled: false },
-    lineNumbers: 'on',
     wordWrap: 'on',
     tabSize: 2,
+    ...getEditorOptions(),
   });
 
   if (!editor) return;
@@ -695,6 +694,10 @@ watch(themeType, () => {
   const vsTheme = getEditorTheme();
   editor?.updateOptions({ theme: vsTheme });
 });
+
+watch(editorConfig, () => {
+  editor?.updateOptions(getEditorOptions());
+}, { deep: true });
 
 // Watch for connection changes to update autocomplete options
 watch(activeConnection, newConnection => {

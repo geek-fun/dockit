@@ -9,8 +9,8 @@ import { useAppStore } from '../../../store';
 import { jsonify } from '../../../common';
 
 const appStore = useAppStore();
-const { getEditorTheme } = appStore;
-const { themeType } = storeToRefs(appStore);
+const { getEditorTheme, getEditorOptions } = appStore;
+const { themeType, editorConfig } = storeToRefs(appStore);
 
 let displayEditor: Editor | null = null;
 const displayEditorRef = ref();
@@ -21,7 +21,7 @@ const setupDisplayEditor = () => {
     language: 'json',
     automaticLayout: true,
     scrollBeyondLastLine: false,
-    minimap: { enabled: false },
+    ...getEditorOptions(),
   });
 };
 
@@ -29,6 +29,10 @@ watch(themeType, () => {
   const vsTheme = getEditorTheme();
   displayEditor?.updateOptions({ theme: vsTheme });
 });
+
+watch(editorConfig, () => {
+  displayEditor?.updateOptions(getEditorOptions());
+}, { deep: true });
 
 const display = (content: unknown) => {
   const model = displayEditor?.getModel();

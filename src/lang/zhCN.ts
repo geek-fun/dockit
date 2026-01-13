@@ -18,6 +18,16 @@ export const zhCN = {
     auto: '跟随系统',
     dark: '暗黑主题',
     light: '月白主题',
+    editor: {
+      title: '编辑器',
+      fontSize: '字体大小',
+      fontWeight: '字体粗细',
+      showLineNumbers: '显示行号',
+      showMinimap: '显示代码缩略图',
+      fontWeightNormal: '正常',
+      fontWeightMedium: '中等',
+      fontWeightBold: '粗体',
+    },
     ai: {
       title: 'GPTs配置',
       configGpt: '前往配置GPT',
