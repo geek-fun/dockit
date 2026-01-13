@@ -29,6 +29,9 @@ export type EditorConfig = {
   fontWeight: string;
   showLineNumbers: boolean;
   showMinimap: boolean;
+  // Note: Theme/Color Scheme configuration is available via themeType/uiThemeType
+  // but is not exposed in editor settings. It's planned for future implementation
+  // in a dedicated editor theme section.
 };
 
 export const useAppStore = defineStore('app', {
