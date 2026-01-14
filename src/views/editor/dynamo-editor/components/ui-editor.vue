@@ -207,7 +207,7 @@ const lang = useLang();
 
 const connectionStore = useConnectionStore();
 
-const { fetchIndices, updateItem, deleteItem } = connectionStore;
+const { fetchIndices, updateItem } = connectionStore;
 const { getDynamoIndexOrTableOption } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();

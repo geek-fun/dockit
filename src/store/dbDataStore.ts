@@ -263,7 +263,6 @@ export const useDbDataStore = defineStore('dbDataStore', {
 
       // Remove item from queryData cache (UI editor mode)
       if (this.dynamoData.queryData.data && this.dynamoData.queryData.data.length > 0) {
-        const keyMap = new Map(keys.map(k => [k.key, k.value]));
         this.dynamoData.queryData.data = this.dynamoData.queryData.data.filter(item => {
           // Check if all keys match - if they do, filter out this item
           return !keys.every(k => item[k.key] === k.value);
@@ -272,7 +271,6 @@ export const useDbDataStore = defineStore('dbDataStore', {
 
       // Remove item from partiqlData cache (SQL editor mode)
       if (this.dynamoData.partiqlData.data && this.dynamoData.partiqlData.data.length > 0) {
-        const keyMap = new Map(keys.map(k => [k.key, k.value]));
         this.dynamoData.partiqlData.data = this.dynamoData.partiqlData.data.filter(item => {
           return !keys.every(k => item[k.key] === k.value);
         });
