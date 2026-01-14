@@ -87,9 +87,9 @@ const handleConfirm = async () => {
     }, AUTO_CLOSE_DELAY);
   } catch (error: any) {
     resultType.value = 'error';
-    resultMessage.value = error.details 
-      ? `status: ${error.status}, details: ${error.details}` 
-      : error.message || String(error);
+    resultMessage.value = error?.details 
+      ? `status: ${error?.status ?? 'unknown'}, details: ${error.details}` 
+      : error?.message || String(error);
     // Close modal after delay on error
     setTimeout(() => {
       showModal.value = false;
