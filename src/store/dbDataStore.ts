@@ -25,10 +25,27 @@ type DynamoColumn = {
   children?: Array<{ title: string; key: string }>;
 };
 
+type UiQueryFormState = {
+  index: string | null;
+  partitionKey: string | null;
+  sortKey: string | null;
+  formFilterItems: Array<{ key: string; value: string; operator: string }>;
+  selectedIndexOrTable?: DynamoIndexOrTableOption;
+};
+
+const defaultUiQueryForm: UiQueryFormState = {
+  index: null,
+  partitionKey: null,
+  sortKey: null,
+  formFilterItems: [],
+  selectedIndexOrTable: undefined,
+};
+
 export const useDbDataStore = defineStore('dbDataStore', {
   state: (): {
     dynamoData: {
       connection: DynamoDBConnection;
+      uiQueryForm: UiQueryFormState;
       queryData: {
         showResultPanel: boolean;
         columns: Array<DynamoColumn>;
@@ -57,6 +74,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
   } => ({
     dynamoData: {
       connection: {} as DynamoDBConnection,
+      uiQueryForm: cloneDeep(defaultUiQueryForm),
       queryData: {
         showResultPanel: false,
         columns: [],
@@ -203,6 +221,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
     resetDynamoData() {
       this.dynamoData = {
         connection: {} as DynamoDBConnection,
+        uiQueryForm: cloneDeep(defaultUiQueryForm),
         queryData: {
           showResultPanel: false,
           columns: [],
@@ -222,6 +241,10 @@ export const useDbDataStore = defineStore('dbDataStore', {
           lastExecutedStatement: null,
         },
       };
+    },
+
+    resetUiQueryForm() {
+      this.dynamoData.uiQueryForm = cloneDeep(defaultUiQueryForm);
     },
 
     async refreshDynamoData() {

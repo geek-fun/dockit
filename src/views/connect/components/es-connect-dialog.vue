@@ -13,6 +13,9 @@
         </n-icon>
       </template>
       <div class="modal-content">
+        <n-alert v-if="errorMessage" type="error" closable @close="errorMessage = ''">
+          {{ errorMessage }}
+        </n-alert>
         <n-form
           ref="connectFormRef"
           label-placement="left"
@@ -176,6 +179,7 @@ const showModal = ref(false);
 const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
+const errorMessage = ref('');
 
 const defaultFormData = {
   name: '',
@@ -247,10 +251,9 @@ const switchSSL = (target: boolean) => {
   }
 };
 
-const message = useMessage();
-
 const showMedal = (con: ElasticsearchConnection | null) => {
   showModal.value = true;
+  errorMessage.value = '';
   if (con) {
     const selectedIndex = con.activeIndex?.index || '';
     formData.value = { ...cloneDeep(con), selectedIndex };
@@ -262,6 +265,7 @@ const closeModal = () => {
   showModal.value = false;
   formData.value = cloneDeep(defaultFormData);
   modalTitle.value = lang.t('connection.new');
+  errorMessage.value = '';
 };
 
 const validationPassed = watch(formData.value, async () => {
@@ -274,8 +278,9 @@ const validationPassed = watch(formData.value, async () => {
 
 const testConnect = (event: MouseEvent) => {
   event.preventDefault();
+  errorMessage.value = '';
   connectFormRef.value?.validate((errors: boolean) =>
-    !errors ? testConnectConfirm() : message.error(lang.t('connection.validationFailed')),
+    !errors ? testConnectConfirm() : (errorMessage.value = lang.t('connection.validationFailed')),
   );
 };
 
@@ -288,22 +293,20 @@ const testConnectConfirm = async () => {
         ? { index: formData.value.selectedIndex }
         : undefined,
     } as Connection);
-    message.success(lang.t('connection.testSuccess'));
+    // Test successful - clear any previous error
+    errorMessage.value = '';
   } catch (e) {
     const error = e as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 10000,
-    });
+    errorMessage.value = `status: ${error.status}, details: ${error.details}`;
   } finally {
     testLoading.value = !testLoading.value;
   }
 };
 const saveConnect = (event: MouseEvent) => {
   event.preventDefault();
+  errorMessage.value = '';
   connectFormRef.value?.validate((errors: boolean) =>
-    !errors ? saveConnectConfirm() : message.error(lang.t('connection.validationFailed')),
+    !errors ? saveConnectConfirm() : (errorMessage.value = lang.t('connection.validationFailed')),
   );
 };
 
@@ -316,17 +319,14 @@ const saveConnectConfirm = async () => {
         ? { index: formData.value.selectedIndex }
         : undefined,
     } as Connection);
-    message.success(lang.t('connection.saveSuccess'));
+    // Success - close the modal without showing a message
+    closeModal();
   } catch (e) {
     const error = e as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 10000,
-    });
+    // Error - show in the popup and stay open
+    errorMessage.value = `status: ${error.status}, details: ${error.details}`;
   } finally {
     saveLoading.value = !saveLoading.value;
-    showModal.value = false;
   }
 };
 

@@ -1,5 +1,6 @@
 use crate::common::dynamodb_utils::{
     build_filter_expression, convert_attr_value_to_json, json_to_dynamodb_key_map,
+    parse_string_to_attribute_value,
 };
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::types::AttributeValue;
@@ -96,8 +97,9 @@ pub async fn query_table(
                     let filter_placeholder = format!(":filter{}", i);
                     let expr = build_filter_expression(&name_placeholder, &filter_placeholder, op);
                     filter_expressions.push(expr);
-                    expr_attr_values
-                        .insert(filter_placeholder, AttributeValue::S(value.to_string()));
+                    // Use parse_string_to_attribute_value to properly detect numeric/boolean values
+                    let attr_value = parse_string_to_attribute_value(value);
+                    expr_attr_values.insert(filter_placeholder, attr_value);
                 }
             }
         }

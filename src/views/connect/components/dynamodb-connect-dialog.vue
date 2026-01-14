@@ -13,6 +13,9 @@
         </n-icon>
       </template>
       <div class="modal-content">
+        <n-alert v-if="errorMessage" type="error" closable @close="errorMessage = ''">
+          {{ errorMessage }}
+        </n-alert>
         <n-form label-placement="left" label-width="120" :model="formData" :rules="formRules">
           <n-form-item :label="$t('connection.name')" path="name">
             <n-input
@@ -104,6 +107,7 @@ const showModal = ref(false);
 const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
+const errorMessage = ref('');
 
 const regionOptions = [
   { label: 'US East (N. Virginia)', value: 'us-east-1' },
@@ -169,10 +173,9 @@ const formRules = reactive({
   ],
 });
 
-const message = useMessage();
-
 const showMedal = (con: DynamoDBConnection | null) => {
   showModal.value = true;
+  errorMessage.value = '';
   if (con) {
     formData.value = { ...con };
     modalTitle.value = lang.t('connection.edit');
@@ -183,6 +186,7 @@ const closeModal = () => {
   showModal.value = false;
   formData.value = cloneDeep(defaultFormData);
   modalTitle.value = lang.t('connection.new');
+  errorMessage.value = '';
 };
 
 const validationPassed = computed(() => {
@@ -198,13 +202,14 @@ const validationPassed = computed(() => {
 const testConnect = async () => {
   try {
     testLoading.value = true;
+    errorMessage.value = '';
     await freshConnection(formData.value);
-    message.success(lang.t('connection.testSuccess'));
+    // Test successful - no message shown, just clear any previous error
   } catch (error) {
     if (error instanceof Error) {
-      message.error(error.message);
+      errorMessage.value = error.message;
     } else {
-      message.error(lang.t('connection.unknownError'));
+      errorMessage.value = lang.t('connection.unknownError');
     }
   } finally {
     testLoading.value = false;
@@ -213,12 +218,14 @@ const testConnect = async () => {
 
 const saveConnect = async () => {
   saveLoading.value = true;
+  errorMessage.value = '';
   const result = await connectionStore.saveConnection(formData.value);
   if (result.success) {
-    message.success(lang.t('connection.saveSuccess'));
+    // Success - just close the modal without showing a message
     closeModal();
   } else {
-    message.error(result.message);
+    // Error - show in the popup and stay open
+    errorMessage.value = result.message;
   }
   saveLoading.value = false;
 };

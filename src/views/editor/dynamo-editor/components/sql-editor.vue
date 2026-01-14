@@ -53,12 +53,44 @@
     :sort-key-type="sortKeyType"
     @submit="handleEditSubmit"
   />
+
+  <!-- Delete Confirmation Modal -->
+  <n-modal v-model:show="showDeleteModal">
+    <n-card
+      style="width: 400px"
+      :title="lang.t('dialogOps.warning')"
+      :bordered="false"
+      role="dialog"
+    >
+      <n-spin :show="deleteLoading">
+        <n-alert v-if="deleteResultMessage" :type="deleteResultType" style="margin-bottom: 12px">
+          {{ deleteResultMessage }}
+        </n-alert>
+        <p v-if="!deleteResultMessage">{{ lang.t('editor.dynamo.deleteItemConfirm') }}</p>
+      </n-spin>
+      <template #footer>
+        <div style="display: flex; justify-content: flex-end; gap: 12px">
+          <n-button @click="closeDeleteModal" :disabled="deleteLoading">
+            {{ lang.t('dialogOps.cancel') }}
+          </n-button>
+          <n-button
+            type="error"
+            @click="confirmDelete"
+            :loading="deleteLoading"
+            :disabled="!!deleteResultMessage"
+          >
+            {{ lang.t('dialogOps.confirm') }}
+          </n-button>
+        </div>
+      </template>
+    </n-card>
+  </n-modal>
 </template>
 
 <script setup lang="ts">
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
-import { useMessage, useDialog, useLoadingBar } from 'naive-ui';
+import { useMessage, useLoadingBar } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { CustomError, jsonify } from '../../../../common';
 import {
@@ -88,7 +120,6 @@ import EditItem from './edit-item.vue';
 
 const lang = useLang();
 const message = useMessage();
-const dialog = useDialog();
 const loadingBar = useLoadingBar();
 
 const appStore = useAppStore();
@@ -107,6 +138,13 @@ let editor: Editor | null = null;
 const editorRef = ref<HTMLElement>();
 const editorSize = ref(partiqlData.value.showResultPanel ? 0.5 : 1);
 const loadingRef = ref(false);
+
+// Delete modal state
+const showDeleteModal = ref(false);
+const deleteLoading = ref(false);
+const deleteResultMessage = ref('');
+const deleteResultType = ref<'success' | 'error'>('success');
+const deletingRow = ref<Record<string, unknown> | null>(null);
 
 // Gutter decorations state
 let executeDecorations: Array<PartiqlDecoration | string> = [];
@@ -483,61 +521,65 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
 };
 
 const handleDelete = (row: Record<string, unknown>) => {
-  dialog.warning({
-    title: lang.t('dialogOps.warning'),
-    content: lang.t('editor.dynamo.deleteItemConfirm'),
-    positiveText: lang.t('dialogOps.confirm'),
-    negativeText: lang.t('dialogOps.cancel'),
-    onPositiveClick: async () => {
-      await performDelete(row);
-    },
-  });
+  deletingRow.value = row;
+  deleteResultMessage.value = '';
+  deleteResultType.value = 'success';
+  showDeleteModal.value = true;
 };
 
-const performDelete = async (row: Record<string, unknown>) => {
-  if (!activeConnection.value) return;
+const closeDeleteModal = () => {
+  showDeleteModal.value = false;
+  deletingRow.value = null;
+  deleteResultMessage.value = '';
+};
+
+const confirmDelete = async () => {
+  if (!deletingRow.value || !activeConnection.value) return;
 
   const connection = activeConnection.value as DynamoDBConnection;
   const keys: AttributeItem[] = [];
 
   // Build keys from the row
-  if (partitionKeyName.value && row[partitionKeyName.value] !== undefined) {
+  if (partitionKeyName.value && deletingRow.value[partitionKeyName.value] !== undefined) {
     keys.push({
       key: partitionKeyName.value,
-      value: row[partitionKeyName.value] as string | number | boolean | null,
+      value: deletingRow.value[partitionKeyName.value] as string | number | boolean | null,
       type: partitionKeyType.value,
     });
   }
 
-  if (sortKeyName.value && sortKeyType.value && row[sortKeyName.value] !== undefined) {
+  if (sortKeyName.value && sortKeyType.value && deletingRow.value[sortKeyName.value] !== undefined) {
     keys.push({
       key: sortKeyName.value,
-      value: row[sortKeyName.value] as string | number | boolean | null,
+      value: deletingRow.value[sortKeyName.value] as string | number | boolean | null,
       type: sortKeyType.value,
     });
   }
 
   try {
-    loadingRef.value = true;
-    loadingBar.start();
+    deleteLoading.value = true;
     const { deleteItem } = useConnectionStore();
     await deleteItem(connection, keys);
-    message.success(lang.t('editor.dynamo.deleteItemSuccess'));
-    // Refresh results by re-executing the last statement
-    if (partiqlData.value.lastExecutedStatement) {
-      await executePartiqlStatement(partiqlData.value.lastExecutedStatement);
-    }
-    loadingBar.finish();
+    deleteResultType.value = 'success';
+    deleteResultMessage.value = lang.t('editor.dynamo.deleteItemSuccess');
+    // Close modal after 1 second and refresh data
+    setTimeout(async () => {
+      closeDeleteModal();
+      // Refresh results by re-executing the last statement
+      if (partiqlData.value.lastExecutedStatement) {
+        await executePartiqlStatement(partiqlData.value.lastExecutedStatement);
+      }
+    }, 1000);
   } catch (error) {
-    loadingBar.error();
     const { status, details } = error as CustomError;
-    message.error(`status: ${status}, details: ${details}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3600,
-    });
+    deleteResultType.value = 'error';
+    deleteResultMessage.value = `status: ${status}, details: ${details}`;
+    // Close modal after 1 second on error
+    setTimeout(() => {
+      closeDeleteModal();
+    }, 1000);
   } finally {
-    loadingRef.value = false;
+    deleteLoading.value = false;
   }
 };
 
