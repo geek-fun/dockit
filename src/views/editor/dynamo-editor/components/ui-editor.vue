@@ -169,7 +169,7 @@
         @update:page-size="changePageSize"
         @close="handleCloseResultPanel"
         @edit="handleEdit"
-        @delete="handleDelete"
+        @deleted="refreshDynamoData"
       />
     </template>
   </n-split>
@@ -215,19 +215,29 @@ const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
-const { getDynamoData, changePage, changePageSize, resetDynamoData, resetUiQueryForm, refreshDynamoData } =
-  dbDataStore;
+const {
+  getDynamoData,
+  changePage,
+  changePageSize,
+  resetDynamoData,
+  resetUiQueryForm,
+  refreshDynamoData,
+} = dbDataStore;
 const { dynamoData } = storeToRefs(dbDataStore);
 
 // Use store-persisted UI query form state
 const dynamoQueryForm = computed({
   get: () => dynamoData.value.uiQueryForm,
-  set: (val) => { dynamoData.value.uiQueryForm = val; }
+  set: val => {
+    dynamoData.value.uiQueryForm = val;
+  },
 });
 
 const selectedIndexOrTable = computed({
   get: () => dynamoData.value.uiQueryForm.selectedIndexOrTable,
-  set: (val) => { dynamoData.value.uiQueryForm.selectedIndexOrTable = val; }
+  set: val => {
+    dynamoData.value.uiQueryForm.selectedIndexOrTable = val;
+  },
 });
 
 const dynamoQueryFormRef = ref();
@@ -443,33 +453,6 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
   } finally {
     loadingRef.value.queryResult = false;
   }
-};
-
-const handleDelete = async (row: Record<string, unknown>) => {
-  if (!activeConnection.value) return;
-
-  const connection = activeConnection.value as DynamoDBConnection;
-  const keys: AttributeItem[] = [];
-
-  // Build keys from the row
-  if (partitionKeyName.value && row[partitionKeyName.value] !== undefined) {
-    keys.push({
-      key: partitionKeyName.value,
-      value: row[partitionKeyName.value] as string | number | boolean | null,
-      type: partitionKeyType.value,
-    });
-  }
-
-  if (sortKeyName.value && sortKeyType.value && row[sortKeyName.value] !== undefined) {
-    keys.push({
-      key: sortKeyName.value,
-      value: row[sortKeyName.value] as string | number | boolean | null,
-      type: sortKeyType.value,
-    });
-  }
-
-  await deleteItem(connection, keys);
-  await refreshDynamoData();
 };
 </script>
 

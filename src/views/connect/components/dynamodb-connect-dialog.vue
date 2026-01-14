@@ -107,13 +107,11 @@
 import { Close } from '@vicons/carbon';
 import { computed, reactive, ref } from 'vue';
 import { cloneDeep } from 'lodash';
-import { CustomError, inputProps } from '../../../common';
+import { CustomError, inputProps, MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { useConnectionStore } from '../../../store';
 import { DatabaseType, DynamoDBConnection } from '../../../store';
 import { ApiClientError } from '../../../datasources/ApiClients';
-
-const MIN_LOADING_TIME = 1500; // milliseconds
 
 const connectionStore = useConnectionStore();
 

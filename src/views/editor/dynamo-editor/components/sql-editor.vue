@@ -38,7 +38,7 @@
         @load-more="loadMore"
         @close="handleCloseResultPanel"
         @edit="handleEdit"
-        @delete="handleDelete"
+        @deleted="handleDeleted"
       />
     </template>
   </n-split>
@@ -481,31 +481,7 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
   }
 };
 
-const handleDelete = async (row: Record<string, unknown>) => {
-  if (!activeConnection.value) return;
-
-  const connection = activeConnection.value as DynamoDBConnection;
-  const keys: AttributeItem[] = [];
-
-  // Build keys from the row
-  if (partitionKeyName.value && row[partitionKeyName.value] !== undefined) {
-    keys.push({
-      key: partitionKeyName.value,
-      value: row[partitionKeyName.value] as string | number | boolean | null,
-      type: partitionKeyType.value,
-    });
-  }
-
-  if (sortKeyName.value && sortKeyType.value && row[sortKeyName.value] !== undefined) {
-    keys.push({
-      key: sortKeyName.value,
-      value: row[sortKeyName.value] as string | number | boolean | null,
-      type: sortKeyType.value,
-    });
-  }
-
-  const { deleteItem } = useConnectionStore();
-  await deleteItem(connection, keys);
+const handleDeleted = async () => {
   // Refresh results by re-executing the last statement
   if (partiqlData.value.lastExecutedStatement) {
     await executePartiqlStatement(partiqlData.value.lastExecutedStatement);
@@ -666,9 +642,13 @@ watch(themeType, () => {
   editor?.updateOptions({ theme: vsTheme });
 });
 
-watch(editorConfig, () => {
-  editor?.updateOptions(getEditorOptions());
-}, { deep: true });
+watch(
+  editorConfig,
+  () => {
+    editor?.updateOptions(getEditorOptions());
+  },
+  { deep: true },
+);
 
 // Watch for connection changes to update autocomplete options
 watch(activeConnection, newConnection => {

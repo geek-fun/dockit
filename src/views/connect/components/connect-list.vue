@@ -62,7 +62,7 @@ import { NDropdown, NIcon, useDialog, useMessage } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
-import { CustomError } from '../../../common';
+import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { Connection, DatabaseType, useConnectionStore } from '../../../store';
 import { MoreOutlined } from '@vicons/antd';
@@ -70,8 +70,6 @@ import FloatingMenu from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
 import ConnectingModal from './connecting-modal.vue';
-
-const MIN_LOADING_TIME = 1500; // milliseconds
 
 const emits = defineEmits(['tab-panel']);
 

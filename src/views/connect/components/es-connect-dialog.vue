@@ -160,7 +160,7 @@
 import { reactive, ref, watch } from 'vue';
 import { Close, Locked, Unlocked } from '@vicons/carbon';
 import { cloneDeep } from 'lodash';
-import { CustomError, inputProps } from '../../../common';
+import { CustomError, inputProps, MIN_LOADING_TIME } from '../../../common';
 import {
   Connection,
   DatabaseType,
@@ -169,8 +169,6 @@ import {
 } from '../../../store';
 import { useLang } from '../../../lang';
 import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
-
-const MIN_LOADING_TIME = 1500; // milliseconds
 
 const { freshConnection, saveConnection } = useConnectionStore();
 const lang = useLang();
