@@ -236,6 +236,9 @@ import { useLang } from '../../../../lang';
 import EditItem from './edit-item.vue';
 import ResultPanel from './result-panel.vue';
 
+// Auto-close delay for delete result messages (in milliseconds)
+const AUTO_CLOSE_DELAY = 1000;
+
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
@@ -525,19 +528,19 @@ const confirmDelete = async () => {
     await deleteItem(connection, keys);
     deleteResultType.value = 'success';
     deleteResultMessage.value = lang.t('editor.dynamo.deleteItemSuccess');
-    // Close modal after 1 second and refresh data
+    // Close modal after delay and refresh data
     setTimeout(async () => {
       closeDeleteModal();
       await refreshDynamoData();
-    }, 1000);
+    }, AUTO_CLOSE_DELAY);
   } catch (error) {
     const { status, details } = error as CustomError;
     deleteResultType.value = 'error';
     deleteResultMessage.value = `status: ${status}, details: ${details}`;
-    // Close modal after 1 second on error
+    // Close modal after delay on error
     setTimeout(() => {
       closeDeleteModal();
-    }, 1000);
+    }, AUTO_CLOSE_DELAY);
   } finally {
     deleteLoading.value = false;
   }
