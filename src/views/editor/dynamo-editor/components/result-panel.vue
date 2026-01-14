@@ -70,11 +70,7 @@
     </n-card>
 
     <!-- Delete Confirmation Modal -->
-    <delete-confirm-modal
-      v-model:show="showDeleteModal"
-      :keys="deletingKeys"
-      @deleted="emit('deleted')"
-    />
+    <delete-confirm-modal v-model:show="showDeleteModal" :keys="deletingKeys" />
   </div>
 </template>
 
@@ -128,7 +124,6 @@ const emit = defineEmits<{
   (e: 'update:page-size', pageSize: number): void;
   (e: 'close'): void;
   (e: 'edit', row: Record<string, unknown>): void;
-  (e: 'deleted'): void;
 }>();
 
 // Delete modal state

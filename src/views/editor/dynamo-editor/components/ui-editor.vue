@@ -169,7 +169,6 @@
         @update:page-size="changePageSize"
         @close="handleCloseResultPanel"
         @edit="handleEdit"
-        @deleted="refreshDynamoData"
       />
     </template>
   </n-split>

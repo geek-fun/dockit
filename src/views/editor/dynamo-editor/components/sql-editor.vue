@@ -38,7 +38,6 @@
         @load-more="loadMore"
         @close="handleCloseResultPanel"
         @edit="handleEdit"
-        @deleted="handleDeleted"
       />
     </template>
   </n-split>
@@ -478,13 +477,6 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
     });
   } finally {
     loadingRef.value = false;
-  }
-};
-
-const handleDeleted = async () => {
-  // Refresh results by re-executing the last statement
-  if (partiqlData.value.lastExecutedStatement) {
-    await executePartiqlStatement(partiqlData.value.lastExecutedStatement);
   }
 };
 

@@ -24,7 +24,7 @@
       <p v-else>{{ lang.t('editor.dynamo.deleteItemConfirm') }}</p>
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 12px">
-          <n-button @click="handleCancel" :disabled="loading || resultType === 'success'">
+          <n-button @click="handleCancel" :disabled="loading">
             {{ lang.t('dialogOps.cancel') }}
           </n-button>
           <n-button
@@ -53,12 +53,12 @@
 import { ref, watch } from 'vue';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../../common';
 import { useLang } from '../../../../lang';
-import { DynamoDBConnection, useConnectionStore, useTabStore } from '../../../../store';
+import { DynamoDBConnection, useDbDataStore, useTabStore } from '../../../../store';
 
 const lang = useLang();
-const connectionStore = useConnectionStore();
+const dbDataStore = useDbDataStore();
 const tabStore = useTabStore();
-const { deleteItem } = connectionStore;
+const { deleteItem } = dbDataStore;
 
 interface Props {
   show: boolean;
@@ -69,7 +69,6 @@ const props = defineProps<Props>();
 
 const emit = defineEmits<{
   (e: 'update:show', value: boolean): void;
-  (e: 'deleted'): void;
 }>();
 
 const loading = ref(false);
@@ -116,9 +115,6 @@ const handleConfirm = async () => {
     if (remainingTime > 0) {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
-
-    // Emit deleted event to parent
-    emit('deleted');
 
     // Show success result
     resultType.value = 'success';
