@@ -18,6 +18,16 @@ export const enUS = {
     auto: 'Follow OS',
     dark: 'Dark Theme',
     light: 'Light Theme',
+    editor: {
+      title: 'Editor',
+      fontSize: 'Font Size',
+      fontWeight: 'Font Weight',
+      showLineNumbers: 'Show Line Numbers',
+      showMinimap: 'Show Minimap',
+      fontWeightNormal: 'Normal',
+      fontWeightMedium: 'Medium',
+      fontWeightBold: 'Bold',
+    },
     ai: {
       title: 'GPTs',
       configGpt: 'Configure GPT',
