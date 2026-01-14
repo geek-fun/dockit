@@ -184,38 +184,6 @@
     :sort-key-type="sortKeyType"
     @submit="handleEditSubmit"
   />
-
-  <!-- Delete Confirmation Modal -->
-  <n-modal v-model:show="showDeleteModal">
-    <n-card
-      style="width: 400px"
-      :title="lang.t('dialogOps.warning')"
-      :bordered="false"
-      role="dialog"
-    >
-      <n-spin :show="deleteLoading">
-        <n-alert v-if="deleteResultMessage" :type="deleteResultType" style="margin-bottom: 12px">
-          {{ deleteResultMessage }}
-        </n-alert>
-        <p v-if="!deleteResultMessage">{{ lang.t('editor.dynamo.deleteItemConfirm') }}</p>
-      </n-spin>
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 12px">
-          <n-button @click="closeDeleteModal" :disabled="deleteLoading">
-            {{ lang.t('dialogOps.cancel') }}
-          </n-button>
-          <n-button
-            type="error"
-            @click="confirmDelete"
-            :loading="deleteLoading"
-            :disabled="!!deleteResultMessage"
-          >
-            {{ lang.t('dialogOps.confirm') }}
-          </n-button>
-        </div>
-      </template>
-    </n-card>
-  </n-modal>
 </template>
 
 <script setup lang="ts">
@@ -235,9 +203,6 @@ import { CustomError, inputProps } from '../../../../common';
 import { useLang } from '../../../../lang';
 import EditItem from './edit-item.vue';
 import ResultPanel from './result-panel.vue';
-
-// Auto-close delay for delete result messages (in milliseconds)
-const AUTO_CLOSE_DELAY = 1000;
 
 const lang = useLang();
 
@@ -287,16 +252,9 @@ const editorSize = ref(dynamoData.value.queryData.showResultPanel ? 0.5 : 1);
 const message = useMessage();
 const loadingBar = useLoadingBar();
 
-// Edit/Delete state
+// Edit state
 const showEditModal = ref(false);
 const editingItem = ref<Record<string, unknown> | null>(null);
-
-// Delete modal state
-const showDeleteModal = ref(false);
-const deleteLoading = ref(false);
-const deleteResultMessage = ref('');
-const deleteResultType = ref<'success' | 'error'>('success');
-const deletingRow = ref<Record<string, unknown> | null>(null);
 
 const dynamoQueryFormRules = reactive<FormRules>({
   index: [
@@ -487,63 +445,31 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
   }
 };
 
-const handleDelete = (row: Record<string, unknown>) => {
-  deletingRow.value = row;
-  deleteResultMessage.value = '';
-  deleteResultType.value = 'success';
-  showDeleteModal.value = true;
-};
-
-const closeDeleteModal = () => {
-  showDeleteModal.value = false;
-  deletingRow.value = null;
-  deleteResultMessage.value = '';
-};
-
-const confirmDelete = async () => {
-  if (!deletingRow.value || !activeConnection.value) return;
+const handleDelete = async (row: Record<string, unknown>) => {
+  if (!activeConnection.value) return;
 
   const connection = activeConnection.value as DynamoDBConnection;
   const keys: AttributeItem[] = [];
 
   // Build keys from the row
-  if (partitionKeyName.value && deletingRow.value[partitionKeyName.value] !== undefined) {
+  if (partitionKeyName.value && row[partitionKeyName.value] !== undefined) {
     keys.push({
       key: partitionKeyName.value,
-      value: deletingRow.value[partitionKeyName.value] as string | number | boolean | null,
+      value: row[partitionKeyName.value] as string | number | boolean | null,
       type: partitionKeyType.value,
     });
   }
 
-  if (sortKeyName.value && sortKeyType.value && deletingRow.value[sortKeyName.value] !== undefined) {
+  if (sortKeyName.value && sortKeyType.value && row[sortKeyName.value] !== undefined) {
     keys.push({
       key: sortKeyName.value,
-      value: deletingRow.value[sortKeyName.value] as string | number | boolean | null,
+      value: row[sortKeyName.value] as string | number | boolean | null,
       type: sortKeyType.value,
     });
   }
 
-  try {
-    deleteLoading.value = true;
-    await deleteItem(connection, keys);
-    deleteResultType.value = 'success';
-    deleteResultMessage.value = lang.t('editor.dynamo.deleteItemSuccess');
-    // Close modal after delay and refresh data
-    setTimeout(async () => {
-      closeDeleteModal();
-      await refreshDynamoData();
-    }, AUTO_CLOSE_DELAY);
-  } catch (error) {
-    const { status, details } = error as CustomError;
-    deleteResultType.value = 'error';
-    deleteResultMessage.value = `status: ${status}, details: ${details}`;
-    // Close modal after delay on error
-    setTimeout(() => {
-      closeDeleteModal();
-    }, AUTO_CLOSE_DELAY);
-  } finally {
-    deleteLoading.value = false;
-  }
+  await deleteItem(connection, keys);
+  await refreshDynamoData();
 };
 </script>
 

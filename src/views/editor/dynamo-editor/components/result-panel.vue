@@ -68,15 +68,23 @@
         :description="$t('editor.dynamo.partiql.noItemsReturned')"
       />
     </n-card>
+
+    <!-- Delete Confirmation Modal -->
+    <delete-confirm-modal
+      v-model:show="showDeleteModal"
+      :row="deletingRow"
+      @confirm="handleDeleteConfirm"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, h } from 'vue';
+import { computed, h, ref } from 'vue';
 import { Close, Edit, TrashCan } from '@vicons/carbon';
 import { NButton, NIcon } from 'naive-ui';
 import type { DataTableColumn, PaginationProps } from 'naive-ui';
 import { useLang } from '../../../../lang';
+import DeleteConfirmModal from './delete-confirm-modal.vue';
 
 const lang = useLang();
 
@@ -118,8 +126,21 @@ const emit = defineEmits<{
   (e: 'update:page-size', pageSize: number): void;
   (e: 'close'): void;
   (e: 'edit', row: Record<string, unknown>): void;
-  (e: 'delete', row: Record<string, unknown>): void;
+  (e: 'delete', row: Record<string, unknown>): Promise<void>;
 }>();
+
+// Delete modal state
+const showDeleteModal = ref(false);
+const deletingRow = ref<Record<string, unknown> | null>(null);
+
+const handleDeleteClick = (row: Record<string, unknown>) => {
+  deletingRow.value = row;
+  showDeleteModal.value = true;
+};
+
+const handleDeleteConfirm = async (row: Record<string, unknown>) => {
+  await emit('delete', row);
+};
 
 // Action column for edit/delete
 const actionColumn = computed<DataTableColumn<Record<string, unknown>>>(() => ({
@@ -145,7 +166,7 @@ const actionColumn = computed<DataTableColumn<Record<string, unknown>>>(() => ({
           size: 'small',
           quaternary: true,
           circle: true,
-          onClick: () => emit('delete', row),
+          onClick: () => handleDeleteClick(row),
         },
         { icon: () => h(NIcon, null, { default: () => h(TrashCan) }) },
       ),
