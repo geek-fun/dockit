@@ -170,6 +170,8 @@ import {
 import { useLang } from '../../../lang';
 import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 
+const MIN_LOADING_TIME = 1500; // milliseconds
+
 const { freshConnection, saveConnection } = useConnectionStore();
 const lang = useLang();
 // DOM
@@ -286,6 +288,9 @@ const testConnect = (event: MouseEvent) => {
 
 const testConnectConfirm = async () => {
   testLoading.value = !testLoading.value;
+  errorMessage.value = ''; // Clear previous error
+  const startTime = Date.now();
+
   try {
     await freshConnection({
       ...formData.value,
@@ -293,9 +298,21 @@ const testConnectConfirm = async () => {
         ? { index: formData.value.selectedIndex }
         : undefined,
     } as Connection);
-    // Test successful - clear any previous error
-    errorMessage.value = '';
+
+    // Ensure minimum loading time before showing success
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
+    if (remainingTime > 0) {
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
+    }
   } catch (e) {
+    // Ensure minimum loading time before showing error
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
+    if (remainingTime > 0) {
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
+    }
+
     const error = e as CustomError;
     errorMessage.value = `status: ${error.status}, details: ${error.details}`;
   } finally {

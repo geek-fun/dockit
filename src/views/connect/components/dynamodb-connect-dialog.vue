@@ -13,10 +13,22 @@
         </n-icon>
       </template>
       <div class="modal-content">
-        <n-alert v-if="successMessage" type="success" closable @close="successMessage = ''" style="margin-bottom: 12px">
+        <n-alert
+          v-if="successMessage"
+          type="success"
+          closable
+          @close="successMessage = ''"
+          style="margin-bottom: 12px"
+        >
           {{ successMessage }}
         </n-alert>
-        <n-alert v-if="errorMessage" type="error" closable @close="errorMessage = ''" style="margin-bottom: 12px">
+        <n-alert
+          v-if="errorMessage"
+          type="error"
+          closable
+          @close="errorMessage = ''"
+          style="margin-bottom: 12px"
+        >
           {{ errorMessage }}
         </n-alert>
         <n-form label-placement="left" label-width="120" :model="formData" :rules="formRules">
@@ -95,10 +107,13 @@
 import { Close } from '@vicons/carbon';
 import { computed, reactive, ref } from 'vue';
 import { cloneDeep } from 'lodash';
-import { inputProps } from '../../../common';
+import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 import { useConnectionStore } from '../../../store';
 import { DatabaseType, DynamoDBConnection } from '../../../store';
+import { ApiClientError } from '../../../datasources/ApiClients';
+
+const MIN_LOADING_TIME = 1500; // milliseconds
 
 const connectionStore = useConnectionStore();
 
@@ -206,15 +221,37 @@ const validationPassed = computed(() => {
 });
 
 const testConnect = async () => {
+  errorMessage.value = '';
+  successMessage.value = '';
+  testLoading.value = true;
+  const startTime = Date.now();
+
   try {
-    testLoading.value = true;
-    errorMessage.value = '';
-    successMessage.value = '';
     await freshConnection(formData.value);
+
+    // Ensure minimum loading time before showing success
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
+    if (remainingTime > 0) {
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
+    }
+
     // Test successful - show success message
     successMessage.value = lang.t('connection.testSuccess');
-  } catch (error) {
-    if (error instanceof Error) {
+  } catch (error: unknown) {
+    // Ensure minimum loading time before showing error
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
+    if (remainingTime > 0) {
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
+    }
+
+    // Handle both ApiClientError/CustomError (with status and details) and generic Error
+    if (error instanceof CustomError) {
+      errorMessage.value = `status: ${error.status}, details: ${error.details}`;
+    } else if (error instanceof ApiClientError) {
+      errorMessage.value = `status: ${error.status}, details: ${error.details}`;
+    } else if (error instanceof Error) {
       errorMessage.value = error.message;
     } else {
       errorMessage.value = lang.t('connection.unknownError');
