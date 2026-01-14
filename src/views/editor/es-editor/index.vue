@@ -76,8 +76,8 @@ const { activePanel, defaultSnippet, activeConnection, activeElasticsearchIndexO
 
 const connectionStore = useConnectionStore();
 const { searchQDSL, queryToCurl } = connectionStore;
-const { getEditorTheme } = appStore;
-const { themeType } = storeToRefs(appStore);
+const { getEditorTheme, getEditorOptions } = appStore;
+const { themeType, editorConfig } = storeToRefs(appStore);
 
 const chatStore = useChatStore();
 const { insertBoard } = storeToRefs(chatStore);
@@ -128,6 +128,10 @@ watch(themeType, () => {
   const vsTheme = getEditorTheme();
   queryEditor?.updateOptions({ theme: vsTheme });
 });
+
+watch(editorConfig, () => {
+  queryEditor?.updateOptions(getEditorOptions());
+}, { deep: true });
 
 watch(insertBoard, () => {
   if (queryEditor) {
@@ -299,7 +303,7 @@ const setupQueryEditor = () => {
     language: 'search',
     automaticLayout: true,
     scrollBeyondLastLine: false,
-    minimap: { enabled: false },
+    ...getEditorOptions(),
   });
   if (!queryEditor) {
     return;

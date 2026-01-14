@@ -23,6 +23,17 @@ export type AiConfig = {
   enabled: boolean;
   provider: ProviderEnum;
 };
+
+export type EditorConfig = {
+  fontSize: number;
+  fontWeight: string;
+  showLineNumbers: boolean;
+  showMinimap: boolean;
+  // Note: Theme/Color Scheme configuration is available via themeType/uiThemeType
+  // but is not exposed in editor settings. It's planned for future implementation
+  // in a dedicated editor theme section.
+};
+
 export const useAppStore = defineStore('app', {
   state: (): {
     themeType: ThemeType;
@@ -31,6 +42,7 @@ export const useAppStore = defineStore('app', {
     uiThemeType: Exclude<ThemeType, ThemeType.AUTO>;
     skipVersion: string;
     aiConfigs: Array<AiConfig>;
+    editorConfig: EditorConfig;
   } => {
     return {
       themeType: ThemeType.AUTO,
@@ -39,6 +51,12 @@ export const useAppStore = defineStore('app', {
       uiThemeType: ThemeType.LIGHT,
       skipVersion: '',
       aiConfigs: [],
+      editorConfig: {
+        fontSize: 14,
+        fontWeight: 'normal',
+        showLineNumbers: true,
+        showMinimap: false,
+      },
     };
   },
   persist: true,
@@ -64,6 +82,19 @@ export const useAppStore = defineStore('app', {
     },
     getEditorTheme() {
       return this.uiThemeType === ThemeType.DARK ? 'vs-dark' : 'vs-light';
+    },
+
+    getEditorOptions() {
+      return {
+        fontSize: this.editorConfig.fontSize,
+        fontWeight: this.editorConfig.fontWeight,
+        lineNumbers: this.editorConfig.showLineNumbers ? ('on' as const) : ('off' as const),
+        minimap: { enabled: this.editorConfig.showMinimap },
+      };
+    },
+
+    setEditorConfig(config: Partial<EditorConfig>) {
+      this.editorConfig = { ...this.editorConfig, ...config };
     },
 
     async fetchAiConfigs() {

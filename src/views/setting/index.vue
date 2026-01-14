@@ -4,6 +4,9 @@
       <n-tab-pane n-tab-pane name="Basic" :tab="$t('setting.basic')">
         <basic-setting />
       </n-tab-pane>
+      <n-tab-pane n-tab-pane name="Editor" :tab="$t('setting.editor.title')">
+        <editor-setting />
+      </n-tab-pane>
       <n-tab-pane n-tab-pane name="AI" :tab="$t('setting.ai.title')">
         <aigc />
       </n-tab-pane>
@@ -16,6 +19,7 @@
 
 <script setup lang="ts">
 import BasicSetting from './components/basic.vue';
+import EditorSetting from './components/editor.vue';
 import Aigc from './components/aigc.vue';
 import AboutUs from './components/about-us.vue';
 </script>
