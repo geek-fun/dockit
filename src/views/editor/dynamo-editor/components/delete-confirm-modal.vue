@@ -50,15 +50,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
-import { useLang } from '../../../../lang';
+import { ref, watch } from 'vue';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../../common';
-import {
-  DynamoDBConnection,
-  useConnectionStore,
-  useDbDataStore,
-  useTabStore,
-} from '../../../../store';
+import { useLang } from '../../../../lang';
+import { DynamoDBConnection, useConnectionStore, useTabStore } from '../../../../store';
 
 const lang = useLang();
 const connectionStore = useConnectionStore();
