@@ -345,6 +345,7 @@ export const zhCN = {
       indexRequired: '请选择索引',
       backupFolderRequired: '请选择备份文件夹',
       backupFileNameRequired: '请输入备份文件名',
+      backupFileNameNoExtension: '文件名不应包含扩展名，请使用文件类型选择器',
       validationFailed: '备份操作配置校验失败！',
       validationPassed: '备份操作配置校验通过！',
       backupFileTypeInvalid: '备份文件类型无效',

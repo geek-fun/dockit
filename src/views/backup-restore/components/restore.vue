@@ -56,29 +56,34 @@
             <n-grid-item span="8">
               <n-form-item :label="$t('backup.backupForm.connection')" path="connection">
                 <n-select
-                  :options="connectionOptions"
+                  :options="filteredConnectionOptions"
                   :placeholder="$t('connection.selectConnection')"
                   v-model:value="restoreFormData.connection"
                   :default-value="connection?.name"
                   :loading="loadingRefs.connection"
+                  :input-props="inputProps"
                   remote
                   filterable
                   @update:value="(value: string) => handleSelectUpdate(value, 'connection')"
                   @update:show="(isOpen: boolean) => handleOpen(isOpen, 'connection')"
+                  @search="handleConnectionSearch"
                 />
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="8">
               <n-form-item :label="$t('backup.backupForm.index')" path="index">
                 <n-select
-                  :options="indexOptions"
+                  :options="filteredIndexOptions"
                   :placeholder="$t('connection.selectIndex')"
                   v-model:value="restoreFormData.index"
+                  :input-props="inputProps"
                   remote
                   filterable
+                  tag
                   :loading="loadingRefs.index"
                   @update:value="(value: string) => handleSelectUpdate(value, 'index')"
                   @update:show="(isOpen: boolean) => handleOpen(isOpen, 'index')"
+                  @search="handleIndexSearch"
                 />
               </n-form-item>
             </n-grid-item>
@@ -102,7 +107,7 @@ import { FormRules } from 'naive-ui';
 import { Close, DocumentExport, FileStorage, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { ElasticsearchConnection, useBackupRestoreStore, useConnectionStore } from '../../../store';
-import { CustomError } from '../../../common';
+import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 
 const message = useMessage();
@@ -159,6 +164,21 @@ const connectionOptions = computed(() =>
   connections.value.map(({ name }) => ({ label: name, value: name })),
 );
 
+const connectionSearchQuery = ref('');
+const filteredConnectionOptions = computed(() => {
+  if (!connectionSearchQuery.value) {
+    return connectionOptions.value;
+  }
+  const query = connectionSearchQuery.value.toLowerCase();
+  return connectionOptions.value
+    .filter(option => option.value.toLowerCase().includes(query))
+    .sort((a, b) => a.value.localeCompare(b.value));
+});
+
+const handleConnectionSearch = (query: string) => {
+  connectionSearchQuery.value = query;
+};
+
 const restoreProgressPercents = computed(() => {
   if (!restoreProgress.value) return null;
   const percents = parseFloat(
@@ -168,10 +188,26 @@ const restoreProgressPercents = computed(() => {
 });
 
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
+const indexSearchQuery = ref('');
+const filteredIndexOptions = computed(() => {
+  if (!indexSearchQuery.value) {
+    return indexOptions.value;
+  }
+  const query = indexSearchQuery.value.toLowerCase();
+  return indexOptions.value
+    .filter(option => option.value.toLowerCase().includes(query))
+    .sort((a, b) => a.value.localeCompare(b.value));
+});
+
+const handleIndexSearch = (query: string) => {
+  indexSearchQuery.value = query;
+};
+
 watch(connection, () => {
   if (!connection.value) {
     indexOptions.value = [];
     restoreFormData.value.index = '';
+    indexSearchQuery.value = '';
     return;
   }
   indexOptions.value =

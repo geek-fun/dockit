@@ -14,29 +14,33 @@
             <n-grid-item span="8">
               <n-form-item :label="$t('backup.backupForm.connection')" path="connection">
                 <n-select
-                  :options="connectionOptions"
+                  :options="filteredConnectionOptions"
                   :placeholder="$t('connection.selectConnection')"
                   v-model:value="backupFormData.connection"
                   :default-value="connection?.name"
                   :loading="loadingRefs.connection"
+                  :input-props="inputProps"
                   remote
                   filterable
                   @update:value="(value: string) => handleSelectUpdate(value, 'connection')"
                   @update:show="(isOpen: boolean) => handleOpen(isOpen, 'connection')"
+                  @search="handleConnectionSearch"
                 />
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="8">
               <n-form-item :label="$t('backup.backupForm.index')" path="index">
                 <n-select
-                  :options="indexOptions"
+                  :options="filteredIndexOptions"
                   :placeholder="$t('connection.selectIndex')"
                   v-model:value="backupFormData.index"
+                  :input-props="inputProps"
                   remote
                   filterable
                   :loading="loadingRefs.index"
                   @update:value="(value: string) => handleSelectUpdate(value, 'index')"
                   @update:show="(isOpen: boolean) => handleOpen(isOpen, 'index')"
+                  @search="handleIndexSearch"
                 />
               </n-form-item>
             </n-grid-item>
@@ -91,8 +95,8 @@
                     :style="{ width: '30%' }"
                     v-model:value="backupFormData.backupFileType"
                     :options="[
-                      { label: 'json', value: 'json' },
-                      { label: 'csv', value: 'csv' },
+                      { label: '.json', value: 'json' },
+                      { label: '.csv', value: 'csv' },
                     ]"
                   />
                 </n-input-group>
@@ -183,12 +187,39 @@ const backupFormRules = reactive<FormRules>({
       renderMessage: () => lang.t('backup.backupForm.backupFileNameRequired'),
       trigger: ['input', 'blur'],
     },
+    {
+      validator: (_rule: any, value: string) => {
+        if (!value) return true;
+        const hasExtension = /\.(json|csv|txt|[a-z]{2,4})$/i.test(value);
+        if (hasExtension) {
+          return new Error(lang.t('backup.backupForm.backupFileNameNoExtension'));
+        }
+        return true;
+      },
+      trigger: ['input', 'blur'],
+    },
   ],
 });
 
 const connectionOptions = computed(() =>
   connections.value.map(({ name }) => ({ label: name, value: name })),
 );
+
+const connectionSearchQuery = ref('');
+const filteredConnectionOptions = computed(() => {
+  if (!connectionSearchQuery.value) {
+    return connectionOptions.value;
+  }
+  const query = connectionSearchQuery.value.toLowerCase();
+  return connectionOptions.value
+    .filter(option => option.value.toLowerCase().includes(query))
+    .sort((a, b) => a.value.localeCompare(b.value));
+});
+
+const handleConnectionSearch = (query: string) => {
+  connectionSearchQuery.value = query;
+};
+
 const backupProgressPercents = computed(() => {
   if (!backupProgress.value) return null;
   const percents = parseFloat(
@@ -198,10 +229,26 @@ const backupProgressPercents = computed(() => {
 });
 
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
+const indexSearchQuery = ref('');
+const filteredIndexOptions = computed(() => {
+  if (!indexSearchQuery.value) {
+    return indexOptions.value;
+  }
+  const query = indexSearchQuery.value.toLowerCase();
+  return indexOptions.value
+    .filter(option => option.value.toLowerCase().includes(query))
+    .sort((a, b) => a.value.localeCompare(b.value));
+});
+
+const handleIndexSearch = (query: string) => {
+  indexSearchQuery.value = query;
+};
+
 watch(connection, () => {
   if (!connection.value) {
     indexOptions.value = [];
     backupFormData.value.index = '';
+    indexSearchQuery.value = '';
     return;
   }
   indexOptions.value =
