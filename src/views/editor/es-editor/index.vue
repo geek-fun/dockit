@@ -574,8 +574,7 @@ onMounted(async () => {
     try {
       await fetchIndices(activeConnection.value);
     } catch (err) {
-      // Silently fail - show nothing if error occurs
-      console.debug('Failed to fetch indices on mount:', err);
+      // Silently fail
     }
   }
 });
