@@ -45,7 +45,7 @@
           class="action-index-switch"
           @update:value="handleHiddenChange"
         >
-          <template #checked> Hidden</template>
+          <template #checked>Hidden</template>
           <template #unchecked>Display</template>
         </n-switch>
       </template>
@@ -119,7 +119,10 @@
       </n-button>
     </n-dropdown>
 
-    <div v-if="props.type === 'DYNAMO_EDITOR' && activePanel.editorType === 'DYNAMO_EDITOR_SQL'" class="run-button-container">
+    <div
+      v-if="props.type === 'DYNAMO_EDITOR' && activePanel.editorType === 'DYNAMO_EDITOR_SQL'"
+      class="run-button-container"
+    >
       <n-button
         type="primary"
         size="small"
@@ -159,7 +162,12 @@ import { CustomError, inputProps } from '../common';
 import { esSampleQueries } from '../common/monaco';
 
 const props = defineProps({ type: String });
-const emits = defineEmits(['switch-manage-tab', 'insert-sample-query', 'insert-partiql-sample', 'execute-partiql-query']);
+const emits = defineEmits([
+  'switch-manage-tab',
+  'insert-sample-query',
+  'insert-partiql-sample',
+  'execute-partiql-query',
+]);
 
 const message = useMessage();
 const lang = useLang();
