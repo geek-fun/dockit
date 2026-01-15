@@ -345,6 +345,8 @@ export const enUS = {
       indexRequired: 'Please select an Index',
       backupFolderRequired: 'Please select Backup Folder',
       backupFileNameRequired: 'Please enter Backup File Name',
+      backupFileNameNoExtension:
+        'File name should not include extension. Use the file type selector instead.',
       validationFailed: 'Backup Config validation failed!',
       validationPassed: 'Backup Config validation passed!',
       backupFileTypeInvalid: 'Backup file type is invalid',
