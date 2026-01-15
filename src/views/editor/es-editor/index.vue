@@ -72,10 +72,11 @@ const lang = useLang();
 
 const tabStore = useTabStore();
 const { saveContent } = tabStore;
-const { activePanel, defaultSnippet, activeConnection, activeElasticsearchIndexOption } = storeToRefs(tabStore);
+const { activePanel, defaultSnippet, activeConnection, activeElasticsearchIndexOption } =
+  storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
-const { searchQDSL, queryToCurl } = connectionStore;
+const { searchQDSL, queryToCurl, fetchIndices } = connectionStore;
 const { getEditorTheme, getEditorOptions } = appStore;
 const { themeType, editorConfig } = storeToRefs(appStore);
 
@@ -119,7 +120,7 @@ const refreshSearchTokensAndDecorations = () => {
   if (!queryEditor) return;
   const model = queryEditor.getModel();
   if (!model) return;
-  
+
   buildSearchToken(model);
   refreshActionMarks(queryEditor, searchTokens);
 };
@@ -129,9 +130,13 @@ watch(themeType, () => {
   queryEditor?.updateOptions({ theme: vsTheme });
 });
 
-watch(editorConfig, () => {
-  queryEditor?.updateOptions(getEditorOptions());
-}, { deep: true });
+watch(
+  editorConfig,
+  () => {
+    queryEditor?.updateOptions(getEditorOptions());
+  },
+  { deep: true },
+);
 
 watch(insertBoard, () => {
   if (queryEditor) {
@@ -269,9 +274,7 @@ const handleContextMenuAction = (action: 'execute' | 'autoIndent' | 'copyAsCurl'
 
   if (lineNumber === null) return;
 
-  const searchAction = searchTokens.find(
-    ({ position }) => position.startLineNumber === lineNumber,
-  );
+  const searchAction = searchTokens.find(({ position }) => position.startLineNumber === lineNumber);
 
   if (!searchAction) return;
 
@@ -323,7 +326,7 @@ const setupQueryEditor = () => {
 
   // Initial decoration refresh
   refreshSearchTokensAndDecorations();
-  
+
   // Initial syntax validation
   const model = queryEditor.getModel();
   if (model) {
@@ -539,7 +542,12 @@ const insertSampleQuery = (queryTemplate: string) => {
     [],
     [
       {
-        range: new monaco.Range(position.lineNumber, currentLineLength + 1, position.lineNumber, currentLineLength + 1),
+        range: new monaco.Range(
+          position.lineNumber,
+          currentLineLength + 1,
+          position.lineNumber,
+          currentLineLength + 1,
+        ),
         text: insertText,
       },
     ],
@@ -560,6 +568,16 @@ onMounted(async () => {
   await setupFileListener();
   // Add document click listener for context menu
   document.addEventListener('click', handleDocumentClick);
+
+  // Fetch indices for active connection if available
+  if (activeConnection.value) {
+    try {
+      await fetchIndices(activeConnection.value);
+    } catch (err) {
+      // Silently fail - show nothing if error occurs
+      console.debug('Failed to fetch indices on mount:', err);
+    }
+  }
 });
 
 onUnmounted(async () => {

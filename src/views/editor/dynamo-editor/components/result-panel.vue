@@ -38,7 +38,6 @@
           :loading="loading"
           :pagination="pagination"
           :remote="remote"
-          virtual-scroll
           :style="{ height: '100%' }"
           @update:page="handlePageChange"
           @update:page-size="handlePageSizeChange"
@@ -69,7 +68,6 @@
       />
     </n-card>
 
-    <!-- Delete Confirmation Modal -->
     <delete-confirm-modal v-model:show="showDeleteModal" :keys="deletingKeys" />
   </div>
 </template>

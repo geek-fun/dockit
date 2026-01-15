@@ -12,7 +12,7 @@ import {
   QueryParams,
   storeApi,
 } from '../datasources';
-import { DynamoIndexOrTableOption } from './tabStore.ts';
+import { DynamoIndexOrTableOption, useTabStore } from './tabStore.ts';
 
 export enum DatabaseType {
   ELASTICSEARCH = 'ELASTICSEARCH',
@@ -294,6 +294,12 @@ export const useConnectionStore = defineStore('connectionStore', {
         connection.partitionKey = tableInfo.partitionKey;
         connection.sortKey = tableInfo.sortKey;
         connection.attributeDefinitions = tableInfo.attributeDefinitions;
+      }
+
+      // Update activePanel.connection if it matches the fetched connection
+      const tabStore = useTabStore();
+      if (tabStore.activePanel?.connection?.id === connection.id) {
+        tabStore.activePanel.connection = connection;
       }
     },
     async selectIndex(con: Connection, indexName: string) {

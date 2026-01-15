@@ -8,13 +8,7 @@ import * as monaco from 'monaco-editor';
 import { apiSpecProvider } from './apiSpec';
 import { queryDslProvider, allQueries } from './queryDsl';
 import { tokenize } from './lexer';
-import {
-  BackendType,
-  CompletionContext,
-  HttpMethod,
-  TokenType,
-  QueryParam,
-} from './types';
+import { BackendType, CompletionContext, HttpMethod, TokenType, QueryParam } from './types';
 
 /**
  * Configuration for the completion provider
@@ -102,14 +96,14 @@ const getCompletionContext = (
   const lineContent = model.getLineContent(position.lineNumber);
   const textUntilPosition = lineContent.substring(0, position.column - 1);
   const trimmedLine = textUntilPosition.trim();
-  
+
   // If line is empty, check if we should suggest methods or body content
   if (!trimmedLine) {
     // Check if we're inside a body by looking at the full document
     const fullText = model.getValue();
     const offset = model.getOffsetAt(position);
     const bodyPath = getBodyPath(fullText, offset);
-    
+
     if (bodyPath) {
       // We're inside a body, provide body completions
       const { method, path } = findMethodAndPath(model, position.lineNumber);
@@ -122,18 +116,8 @@ const getCompletionContext = (
         bodyPath,
       };
     }
-    
+
     // Not inside a body, suggest method
-    return {
-      backend: currentConfig.backend,
-      version: currentConfig.version,
-      position: 'method',
-    };
-  }
-  
-  // Check if line starts with a partial HTTP method (suggesting methods)
-  const partialMethodMatch = /^(G|GE|GET|P|PO|POS|POST|PU|PUT|D|DE|DEL|DELE|DELET|DELETE|H|HE|HEA|HEAD|PA|PAT|PATC|PATCH|O|OP|OPT|OPTI|OPTIO|OPTION|OPTIONS)$/i.exec(trimmedLine);
-  if (partialMethodMatch) {
     return {
       backend: currentConfig.backend,
       version: currentConfig.version,
@@ -142,7 +126,10 @@ const getCompletionContext = (
   }
 
   // Check if we're completing query parameters (path contains ?)
-  const queryParamMatch = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S+\?[^?\s]*)$/i.exec(trimmedLine);
+  // Use textUntilPosition to preserve spaces
+  const queryParamMatch = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S+\?[^?\s]*)$/i.exec(
+    textUntilPosition,
+  );
   if (queryParamMatch) {
     const fullPath = queryParamMatch[2];
     const [basePath] = fullPath.split('?');
@@ -156,7 +143,10 @@ const getCompletionContext = (
   }
 
   // If we have a complete method followed by space, we're completing path
-  const methodPathMatch = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S*)?$/i.exec(trimmedLine);
+  // Use textUntilPosition to preserve spaces
+  const methodPathMatch = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S*)?$/i.exec(
+    textUntilPosition,
+  );
   if (methodPathMatch) {
     return {
       backend: currentConfig.backend,
@@ -167,15 +157,29 @@ const getCompletionContext = (
     };
   }
 
+  // Check if line starts with a partial HTTP method (suggesting methods)
+  // Use trimmedLine for exact matching without trailing spaces
+  const partialMethodMatch =
+    /^(G|GE|GET|P|PO|POS|POST|PU|PUT|D|DE|DEL|DELE|DELET|DELETE|H|HE|HEA|HEAD|PA|PAT|PATC|PATCH|O|OP|OPT|OPTI|OPTIO|OPTION|OPTIONS)$/i.exec(
+      trimmedLine,
+    );
+  if (partialMethodMatch) {
+    return {
+      backend: currentConfig.backend,
+      version: currentConfig.version,
+      position: 'method',
+    };
+  }
+
   // Check if we're inside a body (JSON)
   const fullText = model.getValue();
   const offset = model.getOffsetAt(position);
-  
+
   const bodyPath = getBodyPath(fullText, offset);
   if (bodyPath) {
     // Find the method and path for this block
     const { method, path } = findMethodAndPath(model, position.lineNumber);
-    
+
     return {
       backend: currentConfig.backend,
       version: currentConfig.version,
@@ -186,12 +190,12 @@ const getCompletionContext = (
     };
   }
 
-  // Default to body completion
+  // Default to method completion if not inside body
+  // This ensures that typing at the start of a new line suggests HTTP methods
   return {
     backend: currentConfig.backend,
     version: currentConfig.version,
-    position: 'body',
-    bodyPath: [],
+    position: 'method',
   };
 };
 
@@ -202,18 +206,18 @@ const findMethodAndPath = (
   model: monaco.editor.ITextModel,
   lineNumber: number,
 ): { method?: HttpMethod; path?: string } => {
-  const lines = Array.from({ length: lineNumber }, (_, i) => lineNumber - i).map(line => 
-    model.getLineContent(line)
+  const lines = Array.from({ length: lineNumber }, (_, i) => lineNumber - i).map(line =>
+    model.getLineContent(line),
   );
-  
-  const matchedLine = lines.find(content => 
-    /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S+)/i.test(content)
+
+  const matchedLine = lines.find(content =>
+    /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S+)/i.test(content),
   );
-  
+
   if (!matchedLine) {
     return {};
   }
-  
+
   const match = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S+)/i.exec(matchedLine);
   if (match) {
     return {
@@ -221,7 +225,7 @@ const findMethodAndPath = (
       path: match[2].split('?')[0], // Remove query params
     };
   }
-  
+
   return {};
 };
 
@@ -233,10 +237,10 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
   const pathStack: string[] = [];
   let inBody = false;
   let lastKey: string | null = null;
-  
+
   for (const token of tokens) {
     if (token.start >= offset) break;
-    
+
     switch (token.type) {
       case TokenType.BODY_START:
         if (token.value === '{') {
@@ -251,16 +255,19 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
         if (token.value === '}') {
           pathStack.pop();
           lastKey = null;
+          // If we've closed all braces, we're no longer in a body
+          if (pathStack.length === 0) {
+            inBody = false;
+          }
         }
         break;
       case TokenType.KEY:
       case TokenType.STRING:
         // Check if this is a key (followed by colon)
         // Use >= to include tokens that start right at the end of the current token
-        const nextToken = tokens.find(t => 
-          t.start >= token.end && 
-          t.type !== TokenType.WHITESPACE && 
-          t.type !== TokenType.NEWLINE
+        const nextToken = tokens.find(
+          t =>
+            t.start >= token.end && t.type !== TokenType.WHITESPACE && t.type !== TokenType.NEWLINE,
         );
         if (nextToken?.type === TokenType.COLON) {
           lastKey = token.value.replace(/['"]/g, '');
@@ -282,14 +289,17 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
  * Provide method completions
  */
 const provideMethodCompletions = (): monaco.languages.CompletionItem[] => {
-  return httpMethods.map(({ label, insertText }) => ({
-    label,
-    kind: monaco.languages.CompletionItemKind.Keyword,
-    insertText,
-    insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
-    detail: `HTTP ${label} method`,
-    sortText: '0' + label,
-  } as monaco.languages.CompletionItem));
+  return httpMethods.map(
+    ({ label, insertText }) =>
+      ({
+        label,
+        kind: monaco.languages.CompletionItemKind.Keyword,
+        insertText,
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
+        detail: `HTTP ${label} method`,
+        sortText: '0' + label,
+      }) as monaco.languages.CompletionItem,
+  );
 };
 
 /**
@@ -297,7 +307,7 @@ const provideMethodCompletions = (): monaco.languages.CompletionItem[] => {
  */
 const getPathParamDefault = (paramName: string): string => {
   const lowerParam = paramName.toLowerCase();
-  
+
   // Use activeIndex for index placeholders
   if (lowerParam === 'index') {
     if (dynamicOptions.activeIndex) {
@@ -308,35 +318,35 @@ const getPathParamDefault = (paramName: string): string => {
       return dynamicOptions.indices[0];
     }
   }
-  
+
   // Use first available repository for repository placeholders
   if (lowerParam === 'repository') {
     if (dynamicOptions.repositories && dynamicOptions.repositories.length > 0) {
       return dynamicOptions.repositories[0];
     }
   }
-  
+
   // Use first available template for template placeholders
   if (lowerParam === 'template') {
     if (dynamicOptions.templates && dynamicOptions.templates.length > 0) {
       return dynamicOptions.templates[0];
     }
   }
-  
+
   // Use first available pipeline for pipeline placeholders
   if (lowerParam === 'pipeline') {
     if (dynamicOptions.pipelines && dynamicOptions.pipelines.length > 0) {
       return dynamicOptions.pipelines[0];
     }
   }
-  
+
   // Use first available alias for alias placeholders
   if (lowerParam === 'alias') {
     if (dynamicOptions.aliases && dynamicOptions.aliases.length > 0) {
       return dynamicOptions.aliases[0];
     }
   }
-  
+
   // Return original param name as default
   return paramName;
 };
@@ -350,33 +360,31 @@ const providePathCompletions = (
 ): monaco.languages.CompletionItem[] => {
   const { backend, version, method, path } = context;
   const endpoints = apiSpecProvider.getEndpoints(backend, version);
-  
+
   // Filter endpoints by method
-  const filteredEndpoints = method
-    ? endpoints.filter(e => e.methods.includes(method))
-    : endpoints;
+  const filteredEndpoints = method ? endpoints.filter(e => e.methods.includes(method)) : endpoints;
 
   // Determine if user started path with slash or not
   const userTypedPath = path || '';
   const userStartedWithSlash = userTypedPath.startsWith('/');
-  
+
   // Normalize path for comparison (remove leading slash)
   const normalizedUserPath = userTypedPath.replace(/^\//, '');
 
   // Get unique path segments
   const seenPaths = new Set<string>();
   const completions: monaco.languages.CompletionItem[] = [];
-  
+
   // Check if user is typing after an index name (e.g., test_index/ or test_index/_)
   // Pattern: something followed by /
   const indexWithSlashMatch = /^([^/]+)\/$/.exec(normalizedUserPath);
   const indexWithPartialEndpoint = /^([^/]+)\/(_[^/]*)$/.exec(normalizedUserPath);
-  
+
   // If user has typed an index name followed by slash, suggest endpoints
   if (indexWithSlashMatch || indexWithPartialEndpoint) {
     const indexName = indexWithSlashMatch ? indexWithSlashMatch[1] : indexWithPartialEndpoint?.[1];
     const partialEndpoint = indexWithPartialEndpoint ? indexWithPartialEndpoint[2] : '';
-    
+
     // Provide index-specific endpoints
     const indexEndpoints = getIndexSpecificEndpoints();
     for (const ep of indexEndpoints) {
@@ -384,22 +392,22 @@ const providePathCompletions = (
       if (partialEndpoint && !ep.path.toLowerCase().startsWith(partialEndpoint.toLowerCase())) {
         continue;
       }
-      
+
       // Check if method matches
       if (method && !ep.methods.includes(method)) {
         continue;
       }
-      
-      const fullPath = userStartedWithSlash 
-        ? `/${indexName}/${ep.path}` 
+
+      const fullPath = userStartedWithSlash
+        ? `/${indexName}/${ep.path}`
         : `${indexName}/${ep.path}`;
-      
+
       if (seenPaths.has(fullPath)) continue;
       seenPaths.add(fullPath);
-      
+
       // Determine sort priority - _search endpoints first
       const sortPrefix = ep.path.includes('_search') ? '0' : '1';
-      
+
       completions.push({
         label: fullPath,
         kind: monaco.languages.CompletionItemKind.Function,
@@ -414,22 +422,21 @@ const providePathCompletions = (
 
   // Add index name completions from dynamic options
   // Only show when user is typing something that could be an index name (not starting with _)
-  const isTypingIndexName = normalizedUserPath && 
-    !normalizedUserPath.startsWith('_') && 
-    !normalizedUserPath.includes('/');
-  
+  const isTypingIndexName =
+    normalizedUserPath && !normalizedUserPath.startsWith('_') && !normalizedUserPath.includes('/');
+
   if (isTypingIndexName && dynamicOptions.indices && dynamicOptions.indices.length > 0) {
     for (const indexName of dynamicOptions.indices) {
       // Filter by what user typed
       if (!indexName.toLowerCase().startsWith(normalizedUserPath.toLowerCase())) {
         continue;
       }
-      
+
       const fullPath = userStartedWithSlash ? `/${indexName}` : indexName;
-      
+
       if (seenPaths.has(fullPath)) continue;
       seenPaths.add(fullPath);
-      
+
       completions.push({
         label: fullPath,
         kind: monaco.languages.CompletionItemKind.Variable,
@@ -445,7 +452,7 @@ const providePathCompletions = (
   for (const endpoint of filteredEndpoints) {
     // Normalize endpoint path for comparison
     const normalizedEndpointPath = endpoint.path.replace(/^\//, '');
-    
+
     // If user has typed part of the path, filter appropriately
     if (normalizedUserPath) {
       // Check if endpoint path starts with what user typed (case-insensitive prefix match)
@@ -470,7 +477,7 @@ const providePathCompletions = (
       const defaultValue = getPathParamDefault(param);
       return `\${${snippetIndex++}:${defaultValue}}`;
     });
-    
+
     // Determine sort priority - _search endpoints should be prioritized
     let sortPrefix = '1';
     if (endpoint.path.includes('_search')) {
@@ -499,12 +506,20 @@ const providePathCompletions = (
 /**
  * Get index-specific endpoints for completion after an index name
  */
-const getIndexSpecificEndpoints = (): Array<{ path: string; methods: HttpMethod[]; description: string }> => {
+const getIndexSpecificEndpoints = (): Array<{
+  path: string;
+  methods: HttpMethod[];
+  description: string;
+}> => {
   return [
     { path: '_search', methods: ['GET', 'POST'], description: 'Search documents' },
     { path: '_count', methods: ['GET', 'POST'], description: 'Count documents' },
     { path: '_doc', methods: ['POST'], description: 'Index a document' },
-    { path: '_doc/{id}', methods: ['GET', 'PUT', 'DELETE'], description: 'Get/index/delete document by ID' },
+    {
+      path: '_doc/{id}',
+      methods: ['GET', 'PUT', 'DELETE'],
+      description: 'Get/index/delete document by ID',
+    },
     { path: '_update/{id}', methods: ['POST'], description: 'Update document' },
     { path: '_bulk', methods: ['POST'], description: 'Bulk operations' },
     { path: '_mapping', methods: ['GET', 'PUT'], description: 'Index mappings' },
@@ -514,7 +529,11 @@ const getIndexSpecificEndpoints = (): Array<{ path: string; methods: HttpMethod[
     { path: '_forcemerge', methods: ['POST'], description: 'Force merge' },
     { path: '_open', methods: ['POST'], description: 'Open index' },
     { path: '_close', methods: ['POST'], description: 'Close index' },
-    { path: '_alias/{alias}', methods: ['GET', 'PUT', 'DELETE', 'HEAD'], description: 'Index alias' },
+    {
+      path: '_alias/{alias}',
+      methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
+      description: 'Index alias',
+    },
     { path: '_analyze', methods: ['GET', 'POST'], description: 'Analyze text' },
     { path: '_validate/query', methods: ['GET', 'POST'], description: 'Validate query' },
     { path: '_msearch', methods: ['GET', 'POST'], description: 'Multi search' },
@@ -537,22 +556,22 @@ const getIndexSpecificEndpoints = (): Array<{ path: string; methods: HttpMethod[
 const pathStartsWithPattern = (pattern: string, prefix: string): boolean => {
   const patternParts = pattern.split('/').filter(Boolean);
   const prefixParts = prefix.split('/').filter(Boolean);
-  
+
   return prefixParts.every((prefixPart, i) => {
     const patternPart = patternParts[i];
-    
+
     if (!patternPart) return false;
-    
+
     // If pattern part is a placeholder, it matches anything
     if (patternPart.startsWith('{') && patternPart.endsWith('}')) {
       return true;
     }
-    
+
     // Exact match or prefix match for last part
     if (i === prefixParts.length - 1) {
       return patternPart.startsWith(prefixPart);
     }
-    
+
     return patternPart === prefixPart;
   });
 };
@@ -566,16 +585,16 @@ const provideQueryParamCompletions = (
 ): monaco.languages.CompletionItem[] => {
   const { backend, version, method, path } = context;
   const completions: monaco.languages.CompletionItem[] = [];
-  
+
   if (!path) return completions;
-  
+
   // Find matching endpoint
   const endpoint = apiSpecProvider.findEndpoint(backend, path, method, version);
   if (!endpoint?.queryParams) return completions;
-  
+
   for (const param of endpoint.queryParams) {
     const insertText = createQueryParamInsertText(param);
-    
+
     completions.push({
       label: param.name,
       kind: monaco.languages.CompletionItemKind.Property,
@@ -587,7 +606,7 @@ const provideQueryParamCompletions = (
       range,
     });
   }
-  
+
   return completions;
 };
 
@@ -613,25 +632,25 @@ const createQueryParamInsertText = (param: QueryParam): string => {
  */
 const createQueryParamDocumentation = (param: QueryParam): string => {
   const parts: string[] = [];
-  
+
   if (param.description) {
     parts.push(param.description);
   }
-  
+
   parts.push(`**Type:** ${param.type}`);
-  
+
   if (param.required) {
     parts.push('**Required**');
   }
-  
+
   if (param.default !== undefined) {
     parts.push(`**Default:** ${param.default}`);
   }
-  
+
   if (param.enum && param.enum.length > 0) {
     parts.push(`**Values:** ${param.enum.join(', ')}`);
   }
-  
+
   return parts.join('\n\n');
 };
 
@@ -644,7 +663,7 @@ const provideBodyCompletions = (
 ): monaco.languages.CompletionItem[] => {
   const { backend, version, path, method, bodyPath = [] } = context;
   const completions: monaco.languages.CompletionItem[] = [];
-  
+
   // Determine what we're completing based on the body path
   if (bodyPath.length === 0) {
     // Root level of body - provide top-level fields
@@ -722,7 +741,7 @@ const provideBodyCompletions = (
         range,
       });
     }
-    
+
     // Also provide nested query properties if we're inside a specific query
     if (bodyPath.length > 1) {
       const queryType = findQueryTypeInPath(bodyPath);
@@ -773,7 +792,10 @@ const findQueryTypeInPath = (bodyPath: string[]): string | null => {
 /**
  * Get root body fields based on the endpoint path
  */
-const getRootBodyFields = (path?: string, method?: HttpMethod): Array<{ label: string; snippet: string; description: string }> => {
+const getRootBodyFields = (
+  path?: string,
+  method?: HttpMethod,
+): Array<{ label: string; snippet: string; description: string }> => {
   // Check if this is a search endpoint
   if (path?.includes('_search')) {
     return [
@@ -782,20 +804,66 @@ const getRootBodyFields = (path?: string, method?: HttpMethod): Array<{ label: s
       { label: 'size', snippet: 'size: ${1:10}', description: 'Number of hits to return' },
       { label: 'sort', snippet: 'sort: [\n\t$0\n]', description: 'Sort order' },
       { label: '_source', snippet: '_source: $0', description: 'Source filtering' },
-      { label: 'aggs', snippet: 'aggs: {\n\t"${1:agg_name}": {\n\t\t$0\n\t}\n}', description: 'Aggregations' },
-      { label: 'highlight', snippet: 'highlight: {\n\tfields: {\n\t\t"${1:field}": {}\n\t}\n}', description: 'Highlighting' },
+      {
+        label: 'aggs',
+        snippet: 'aggs: {\n\t"${1:agg_name}": {\n\t\t$0\n\t}\n}',
+        description: 'Aggregations',
+      },
+      {
+        label: 'highlight',
+        snippet: 'highlight: {\n\tfields: {\n\t\t"${1:field}": {}\n\t}\n}',
+        description: 'Highlighting',
+      },
       { label: 'post_filter', snippet: 'post_filter: {\n\t$0\n}', description: 'Post filter' },
-      { label: 'track_total_hits', snippet: 'track_total_hits: ${1:true}', description: 'Track total hits' },
+      {
+        label: 'track_total_hits',
+        snippet: 'track_total_hits: ${1:true}',
+        description: 'Track total hits',
+      },
       { label: 'explain', snippet: 'explain: ${1:true}', description: 'Explain scoring' },
       { label: 'timeout', snippet: 'timeout: "${1:10s}"', description: 'Search timeout' },
-      { label: 'min_score', snippet: 'min_score: ${1:0.5}', description: 'Minimum score threshold' },
-      { label: 'stored_fields', snippet: 'stored_fields: [$0]', description: 'Stored fields to retrieve' },
-      { label: 'docvalue_fields', snippet: 'docvalue_fields: [$0]', description: 'Doc value fields' },
-      { label: 'script_fields', snippet: 'script_fields: {\n\t"${1:field}": {\n\t\tscript: {\n\t\t\tsource: "$0"\n\t\t}\n\t}\n}', description: 'Script fields' },
-      { label: 'rescore', snippet: 'rescore: {\n\tquery: {\n\t\trescore_query: {\n\t\t\t$0\n\t\t}\n\t}\n}', description: 'Query rescoring' },
-      { label: 'collapse', snippet: 'collapse: {\n\tfield: "${1:field}"\n}', description: 'Field collapsing' },
-      { label: 'search_after', snippet: 'search_after: [$0]', description: 'Search after for pagination' },
-      { label: 'suggest', snippet: 'suggest: {\n\t"${1:suggest_name}": {\n\t\ttext: "${2:text}",\n\t\tterm: {\n\t\t\tfield: "${3:field}"\n\t\t}\n\t}\n}', description: 'Suggest queries' },
+      {
+        label: 'min_score',
+        snippet: 'min_score: ${1:0.5}',
+        description: 'Minimum score threshold',
+      },
+      {
+        label: 'stored_fields',
+        snippet: 'stored_fields: [$0]',
+        description: 'Stored fields to retrieve',
+      },
+      {
+        label: 'docvalue_fields',
+        snippet: 'docvalue_fields: [$0]',
+        description: 'Doc value fields',
+      },
+      {
+        label: 'script_fields',
+        snippet:
+          'script_fields: {\n\t"${1:field}": {\n\t\tscript: {\n\t\t\tsource: "$0"\n\t\t}\n\t}\n}',
+        description: 'Script fields',
+      },
+      {
+        label: 'rescore',
+        snippet: 'rescore: {\n\tquery: {\n\t\trescore_query: {\n\t\t\t$0\n\t\t}\n\t}\n}',
+        description: 'Query rescoring',
+      },
+      {
+        label: 'collapse',
+        snippet: 'collapse: {\n\tfield: "${1:field}"\n}',
+        description: 'Field collapsing',
+      },
+      {
+        label: 'search_after',
+        snippet: 'search_after: [$0]',
+        description: 'Search after for pagination',
+      },
+      {
+        label: 'suggest',
+        snippet:
+          'suggest: {\n\t"${1:suggest_name}": {\n\t\ttext: "${2:text}",\n\t\tterm: {\n\t\t\tfield: "${3:field}"\n\t\t}\n\t}\n}',
+        description: 'Suggest queries',
+      },
     ];
   }
 
@@ -805,19 +873,39 @@ const getRootBodyFields = (path?: string, method?: HttpMethod): Array<{ label: s
       { label: 'doc', snippet: 'doc: {\n\t$0\n}', description: 'Partial document' },
       { label: 'script', snippet: 'script: {\n\tsource: "$0"\n}', description: 'Update script' },
       { label: 'upsert', snippet: 'upsert: {\n\t$0\n}', description: 'Document to upsert' },
-      { label: 'doc_as_upsert', snippet: 'doc_as_upsert: ${1:true}', description: 'Use doc as upsert' },
-      { label: 'detect_noop', snippet: 'detect_noop: ${1:true}', description: 'Detect noop updates' },
+      {
+        label: 'doc_as_upsert',
+        snippet: 'doc_as_upsert: ${1:true}',
+        description: 'Use doc as upsert',
+      },
+      {
+        label: 'detect_noop',
+        snippet: 'detect_noop: ${1:true}',
+        description: 'Detect noop updates',
+      },
     ];
   }
 
   // Check if this is a reindex endpoint
   if (path?.includes('_reindex')) {
     return [
-      { label: 'source', snippet: 'source: {\n\tindex: "${1:source_index}"\n}', description: 'Source index configuration' },
-      { label: 'dest', snippet: 'dest: {\n\tindex: "${1:dest_index}"\n}', description: 'Destination index configuration' },
+      {
+        label: 'source',
+        snippet: 'source: {\n\tindex: "${1:source_index}"\n}',
+        description: 'Source index configuration',
+      },
+      {
+        label: 'dest',
+        snippet: 'dest: {\n\tindex: "${1:dest_index}"\n}',
+        description: 'Destination index configuration',
+      },
       { label: 'script', snippet: 'script: {\n\tsource: "$0"\n}', description: 'Reindex script' },
       { label: 'max_docs', snippet: 'max_docs: ${1:1000}', description: 'Maximum documents' },
-      { label: 'conflicts', snippet: 'conflicts: "${1:proceed}"', description: 'Conflict handling' },
+      {
+        label: 'conflicts',
+        snippet: 'conflicts: "${1:proceed}"',
+        description: 'Conflict handling',
+      },
     ];
   }
 
@@ -827,7 +915,8 @@ const getRootBodyFields = (path?: string, method?: HttpMethod): Array<{ label: s
     return [
       {
         label: 'actions',
-        snippet: 'actions: [\n\t{\n\t\t${1|add,remove,remove_index|}: {\n\t\t\tindex: "${2:index_name}",\n\t\t\talias: "${3:alias_name}"\n\t\t}\n\t}\n]',
+        snippet:
+          'actions: [\n\t{\n\t\t${1|add,remove,remove_index|}: {\n\t\t\tindex: "${2:index_name}",\n\t\t\talias: "${3:alias_name}"\n\t\t}\n\t}\n]',
         description: 'Actions to perform on aliases (add, remove, remove_index)',
       },
     ];
@@ -837,10 +926,9 @@ const getRootBodyFields = (path?: string, method?: HttpMethod): Array<{ label: s
   // An index creation is typically PUT /index_name (path that doesn't start with _ after the leading /)
   const normalizedPath = path?.replace(/^\/+/, '') || '';
   const pathSegments = normalizedPath.split('/').filter(Boolean);
-  const isIndexCreation = method === 'PUT' && 
-    pathSegments.length === 1 && 
-    !pathSegments[0].startsWith('_');
-  
+  const isIndexCreation =
+    method === 'PUT' && pathSegments.length === 1 && !pathSegments[0].startsWith('_');
+
   if (isIndexCreation || path?.includes('_mapping') || path?.includes('_settings')) {
     return getIndexBodyFields();
   }
@@ -855,8 +943,16 @@ const getRootBodyFields = (path?: string, method?: HttpMethod): Array<{ label: s
 const getIndexBodyFields = (): Array<{ label: string; snippet: string; description: string }> => {
   return [
     { label: 'settings', snippet: 'settings: {\n\t$0\n}', description: 'Index settings' },
-    { label: 'mappings', snippet: 'mappings: {\n\tproperties: {\n\t\t$0\n\t}\n}', description: 'Index mappings' },
-    { label: 'aliases', snippet: 'aliases: {\n\t"${1:alias_name}": {}\n}', description: 'Index aliases' },
+    {
+      label: 'mappings',
+      snippet: 'mappings: {\n\tproperties: {\n\t\t$0\n\t}\n}',
+      description: 'Index mappings',
+    },
+    {
+      label: 'aliases',
+      snippet: 'aliases: {\n\t"${1:alias_name}": {}\n}',
+      description: 'Index aliases',
+    },
   ];
 };
 
@@ -865,19 +961,59 @@ const getIndexBodyFields = (): Array<{ label: string; snippet: string; descripti
  */
 const getSettingsFields = (): Array<{ label: string; snippet: string; description: string }> => {
   return [
-    { label: 'number_of_shards', snippet: 'number_of_shards: ${1:1}', description: 'Number of primary shards' },
-    { label: 'number_of_replicas', snippet: 'number_of_replicas: ${1:1}', description: 'Number of replica shards' },
-    { label: 'refresh_interval', snippet: 'refresh_interval: "${1:1s}"', description: 'How often to refresh the index' },
-    { label: 'max_result_window', snippet: 'max_result_window: ${1:10000}', description: 'Maximum value of from + size for searches' },
+    {
+      label: 'number_of_shards',
+      snippet: 'number_of_shards: ${1:1}',
+      description: 'Number of primary shards',
+    },
+    {
+      label: 'number_of_replicas',
+      snippet: 'number_of_replicas: ${1:1}',
+      description: 'Number of replica shards',
+    },
+    {
+      label: 'refresh_interval',
+      snippet: 'refresh_interval: "${1:1s}"',
+      description: 'How often to refresh the index',
+    },
+    {
+      label: 'max_result_window',
+      snippet: 'max_result_window: ${1:10000}',
+      description: 'Maximum value of from + size for searches',
+    },
     { label: 'analysis', snippet: 'analysis: {\n\t$0\n}', description: 'Analysis settings' },
-    { label: 'index.routing.allocation.include._tier_preference', snippet: 'index.routing.allocation.include._tier_preference: "${1:data_content}"', description: 'Tier preference for index routing' },
-    { label: 'codec', snippet: 'codec: "${1|default,best_compression|}"', description: 'Compression codec' },
-    { label: 'routing_partition_size', snippet: 'routing_partition_size: ${1:1}', description: 'Number of shards a custom routing value can go to' },
-    { label: 'soft_deletes.retention_lease.period', snippet: 'soft_deletes.retention_lease.period: "${1:12h}"', description: 'Retention period for soft deletes' },
-    { label: 'load_fixed_bitset_filters_eagerly', snippet: 'load_fixed_bitset_filters_eagerly: ${1:true}', description: 'Load fixed bitset filters eagerly' },
+    {
+      label: 'index.routing.allocation.include._tier_preference',
+      snippet: 'index.routing.allocation.include._tier_preference: "${1:data_content}"',
+      description: 'Tier preference for index routing',
+    },
+    {
+      label: 'codec',
+      snippet: 'codec: "${1|default,best_compression|}"',
+      description: 'Compression codec',
+    },
+    {
+      label: 'routing_partition_size',
+      snippet: 'routing_partition_size: ${1:1}',
+      description: 'Number of shards a custom routing value can go to',
+    },
+    {
+      label: 'soft_deletes.retention_lease.period',
+      snippet: 'soft_deletes.retention_lease.period: "${1:12h}"',
+      description: 'Retention period for soft deletes',
+    },
+    {
+      label: 'load_fixed_bitset_filters_eagerly',
+      snippet: 'load_fixed_bitset_filters_eagerly: ${1:true}',
+      description: 'Load fixed bitset filters eagerly',
+    },
     { label: 'hidden', snippet: 'hidden: ${1:false}', description: 'Make the index hidden' },
     { label: 'priority', snippet: 'priority: ${1:1}', description: 'Recovery priority for index' },
-    { label: 'auto_expand_replicas', snippet: 'auto_expand_replicas: "${1:0-1}"', description: 'Auto expand replicas based on cluster state' },
+    {
+      label: 'auto_expand_replicas',
+      snippet: 'auto_expand_replicas: "${1:0-1}"',
+      description: 'Auto expand replicas based on cluster state',
+    },
   ];
 };
 
@@ -887,12 +1023,37 @@ const getSettingsFields = (): Array<{ label: string; snippet: string; descriptio
 const getMappingsFields = (): Array<{ label: string; snippet: string; description: string }> => {
   return [
     { label: 'properties', snippet: 'properties: {\n\t$0\n}', description: 'Field mappings' },
-    { label: 'dynamic', snippet: 'dynamic: ${1|true,false,strict|}', description: 'Dynamic mapping behavior' },
-    { label: '_source', snippet: '_source: {\n\tenabled: ${1:true}\n}', description: 'Source field configuration' },
-    { label: '_routing', snippet: '_routing: {\n\trequired: ${1:false}\n}', description: 'Routing configuration' },
-    { label: 'date_detection', snippet: 'date_detection: ${1:true}', description: 'Date detection in dynamic mapping' },
-    { label: 'numeric_detection', snippet: 'numeric_detection: ${1:false}', description: 'Numeric detection in dynamic mapping' },
-    { label: 'dynamic_templates', snippet: 'dynamic_templates: [\n\t{\n\t\t"${1:template_name}": {\n\t\t\tmatch: "${2:*}",\n\t\t\tmapping: {\n\t\t\t\ttype: "${3:keyword}"\n\t\t\t}\n\t\t}\n\t}\n]', description: 'Dynamic templates for field mapping' },
+    {
+      label: 'dynamic',
+      snippet: 'dynamic: ${1|true,false,strict|}',
+      description: 'Dynamic mapping behavior',
+    },
+    {
+      label: '_source',
+      snippet: '_source: {\n\tenabled: ${1:true}\n}',
+      description: 'Source field configuration',
+    },
+    {
+      label: '_routing',
+      snippet: '_routing: {\n\trequired: ${1:false}\n}',
+      description: 'Routing configuration',
+    },
+    {
+      label: 'date_detection',
+      snippet: 'date_detection: ${1:true}',
+      description: 'Date detection in dynamic mapping',
+    },
+    {
+      label: 'numeric_detection',
+      snippet: 'numeric_detection: ${1:false}',
+      description: 'Numeric detection in dynamic mapping',
+    },
+    {
+      label: 'dynamic_templates',
+      snippet:
+        'dynamic_templates: [\n\t{\n\t\t"${1:template_name}": {\n\t\t\tmatch: "${2:*}",\n\t\t\tmapping: {\n\t\t\t\ttype: "${3:keyword}"\n\t\t\t}\n\t\t}\n\t}\n]',
+      description: 'Dynamic templates for field mapping',
+    },
   ];
 };
 
@@ -901,47 +1062,167 @@ const getMappingsFields = (): Array<{ label: string; snippet: string; descriptio
  */
 const getFieldTypeOptions = (): Array<{ label: string; snippet: string; description: string }> => {
   return [
-    { label: 'text', snippet: '{\n\ttype: "text"$0\n}', description: 'Text field for full-text search' },
-    { label: 'keyword', snippet: '{\n\ttype: "keyword"$0\n}', description: 'Keyword field for exact matching' },
+    {
+      label: 'text',
+      snippet: '{\n\ttype: "text"$0\n}',
+      description: 'Text field for full-text search',
+    },
+    {
+      label: 'keyword',
+      snippet: '{\n\ttype: "keyword"$0\n}',
+      description: 'Keyword field for exact matching',
+    },
     { label: 'long', snippet: '{\n\ttype: "long"$0\n}', description: 'Long integer field' },
     { label: 'integer', snippet: '{\n\ttype: "integer"$0\n}', description: 'Integer field' },
     { label: 'short', snippet: '{\n\ttype: "short"$0\n}', description: 'Short integer field' },
     { label: 'byte', snippet: '{\n\ttype: "byte"$0\n}', description: 'Byte field' },
-    { label: 'double', snippet: '{\n\ttype: "double"$0\n}', description: 'Double-precision floating point' },
-    { label: 'float', snippet: '{\n\ttype: "float"$0\n}', description: 'Single-precision floating point' },
-    { label: 'half_float', snippet: '{\n\ttype: "half_float"$0\n}', description: 'Half-precision floating point' },
-    { label: 'scaled_float', snippet: '{\n\ttype: "scaled_float",\n\tscaling_factor: ${1:100}\n}', description: 'Scaled floating point' },
+    {
+      label: 'double',
+      snippet: '{\n\ttype: "double"$0\n}',
+      description: 'Double-precision floating point',
+    },
+    {
+      label: 'float',
+      snippet: '{\n\ttype: "float"$0\n}',
+      description: 'Single-precision floating point',
+    },
+    {
+      label: 'half_float',
+      snippet: '{\n\ttype: "half_float"$0\n}',
+      description: 'Half-precision floating point',
+    },
+    {
+      label: 'scaled_float',
+      snippet: '{\n\ttype: "scaled_float",\n\tscaling_factor: ${1:100}\n}',
+      description: 'Scaled floating point',
+    },
     { label: 'date', snippet: '{\n\ttype: "date"$0\n}', description: 'Date field' },
     { label: 'boolean', snippet: '{\n\ttype: "boolean"$0\n}', description: 'Boolean field' },
     { label: 'binary', snippet: '{\n\ttype: "binary"$0\n}', description: 'Binary field' },
-    { label: 'integer_range', snippet: '{\n\ttype: "integer_range"$0\n}', description: 'Integer range field' },
-    { label: 'float_range', snippet: '{\n\ttype: "float_range"$0\n}', description: 'Float range field' },
-    { label: 'long_range', snippet: '{\n\ttype: "long_range"$0\n}', description: 'Long range field' },
-    { label: 'double_range', snippet: '{\n\ttype: "double_range"$0\n}', description: 'Double range field' },
-    { label: 'date_range', snippet: '{\n\ttype: "date_range"$0\n}', description: 'Date range field' },
+    {
+      label: 'integer_range',
+      snippet: '{\n\ttype: "integer_range"$0\n}',
+      description: 'Integer range field',
+    },
+    {
+      label: 'float_range',
+      snippet: '{\n\ttype: "float_range"$0\n}',
+      description: 'Float range field',
+    },
+    {
+      label: 'long_range',
+      snippet: '{\n\ttype: "long_range"$0\n}',
+      description: 'Long range field',
+    },
+    {
+      label: 'double_range',
+      snippet: '{\n\ttype: "double_range"$0\n}',
+      description: 'Double range field',
+    },
+    {
+      label: 'date_range',
+      snippet: '{\n\ttype: "date_range"$0\n}',
+      description: 'Date range field',
+    },
     { label: 'ip_range', snippet: '{\n\ttype: "ip_range"$0\n}', description: 'IP range field' },
-    { label: 'object', snippet: '{\n\ttype: "object",\n\tproperties: {\n\t\t$0\n\t}\n}', description: 'Object field' },
-    { label: 'nested', snippet: '{\n\ttype: "nested",\n\tproperties: {\n\t\t$0\n\t}\n}', description: 'Nested object field' },
+    {
+      label: 'object',
+      snippet: '{\n\ttype: "object",\n\tproperties: {\n\t\t$0\n\t}\n}',
+      description: 'Object field',
+    },
+    {
+      label: 'nested',
+      snippet: '{\n\ttype: "nested",\n\tproperties: {\n\t\t$0\n\t}\n}',
+      description: 'Nested object field',
+    },
     { label: 'geo_point', snippet: '{\n\ttype: "geo_point"$0\n}', description: 'Geo-point field' },
     { label: 'geo_shape', snippet: '{\n\ttype: "geo_shape"$0\n}', description: 'Geo-shape field' },
     { label: 'ip', snippet: '{\n\ttype: "ip"$0\n}', description: 'IP address field' },
-    { label: 'completion', snippet: '{\n\ttype: "completion"$0\n}', description: 'Completion suggester field' },
-    { label: 'token_count', snippet: '{\n\ttype: "token_count",\n\tanalyzer: "${1:standard}"\n}', description: 'Token count field' },
-    { label: 'percolator', snippet: '{\n\ttype: "percolator"$0\n}', description: 'Percolator query field' },
-    { label: 'join', snippet: '{\n\ttype: "join",\n\trelations: {\n\t\t"${1:parent}": "${2:child}"\n\t}\n}', description: 'Join field for parent-child relations' },
-    { label: 'rank_feature', snippet: '{\n\ttype: "rank_feature"$0\n}', description: 'Rank feature field' },
-    { label: 'rank_features', snippet: '{\n\ttype: "rank_features"$0\n}', description: 'Rank features field' },
-    { label: 'dense_vector', snippet: '{\n\ttype: "dense_vector",\n\tdims: ${1:128}\n}', description: 'Dense vector field' },
-    { label: 'sparse_vector', snippet: '{\n\ttype: "sparse_vector"$0\n}', description: 'Sparse vector field' },
-    { label: 'search_as_you_type', snippet: '{\n\ttype: "search_as_you_type"$0\n}', description: 'Search-as-you-type field' },
-    { label: 'alias', snippet: '{\n\ttype: "alias",\n\tpath: "${1:field_path}"\n}', description: 'Field alias' },
-    { label: 'flattened', snippet: '{\n\ttype: "flattened"$0\n}', description: 'Flattened object field' },
-    { label: 'shape', snippet: '{\n\ttype: "shape"$0\n}', description: 'Arbitrary cartesian shape field' },
-    { label: 'histogram', snippet: '{\n\ttype: "histogram"$0\n}', description: 'Pre-aggregated histogram field' },
-    { label: 'constant_keyword', snippet: '{\n\ttype: "constant_keyword",\n\tvalue: "${1:value}"\n}', description: 'Constant keyword field' },
-    { label: 'wildcard', snippet: '{\n\ttype: "wildcard"$0\n}', description: 'Wildcard field for pattern matching' },
-    { label: 'version', snippet: '{\n\ttype: "version"$0\n}', description: 'Software version field' },
-    { label: 'match_only_text', snippet: '{\n\ttype: "match_only_text"$0\n}', description: 'Space-optimized text field' },
+    {
+      label: 'completion',
+      snippet: '{\n\ttype: "completion"$0\n}',
+      description: 'Completion suggester field',
+    },
+    {
+      label: 'token_count',
+      snippet: '{\n\ttype: "token_count",\n\tanalyzer: "${1:standard}"\n}',
+      description: 'Token count field',
+    },
+    {
+      label: 'percolator',
+      snippet: '{\n\ttype: "percolator"$0\n}',
+      description: 'Percolator query field',
+    },
+    {
+      label: 'join',
+      snippet: '{\n\ttype: "join",\n\trelations: {\n\t\t"${1:parent}": "${2:child}"\n\t}\n}',
+      description: 'Join field for parent-child relations',
+    },
+    {
+      label: 'rank_feature',
+      snippet: '{\n\ttype: "rank_feature"$0\n}',
+      description: 'Rank feature field',
+    },
+    {
+      label: 'rank_features',
+      snippet: '{\n\ttype: "rank_features"$0\n}',
+      description: 'Rank features field',
+    },
+    {
+      label: 'dense_vector',
+      snippet: '{\n\ttype: "dense_vector",\n\tdims: ${1:128}\n}',
+      description: 'Dense vector field',
+    },
+    {
+      label: 'sparse_vector',
+      snippet: '{\n\ttype: "sparse_vector"$0\n}',
+      description: 'Sparse vector field',
+    },
+    {
+      label: 'search_as_you_type',
+      snippet: '{\n\ttype: "search_as_you_type"$0\n}',
+      description: 'Search-as-you-type field',
+    },
+    {
+      label: 'alias',
+      snippet: '{\n\ttype: "alias",\n\tpath: "${1:field_path}"\n}',
+      description: 'Field alias',
+    },
+    {
+      label: 'flattened',
+      snippet: '{\n\ttype: "flattened"$0\n}',
+      description: 'Flattened object field',
+    },
+    {
+      label: 'shape',
+      snippet: '{\n\ttype: "shape"$0\n}',
+      description: 'Arbitrary cartesian shape field',
+    },
+    {
+      label: 'histogram',
+      snippet: '{\n\ttype: "histogram"$0\n}',
+      description: 'Pre-aggregated histogram field',
+    },
+    {
+      label: 'constant_keyword',
+      snippet: '{\n\ttype: "constant_keyword",\n\tvalue: "${1:value}"\n}',
+      description: 'Constant keyword field',
+    },
+    {
+      label: 'wildcard',
+      snippet: '{\n\ttype: "wildcard"$0\n}',
+      description: 'Wildcard field for pattern matching',
+    },
+    {
+      label: 'version',
+      snippet: '{\n\ttype: "version"$0\n}',
+      description: 'Software version field',
+    },
+    {
+      label: 'match_only_text',
+      snippet: '{\n\ttype: "match_only_text"$0\n}',
+      description: 'Space-optimized text field',
+    },
   ];
 };
 
@@ -951,50 +1232,204 @@ const getFieldTypeOptions = (): Array<{ label: string; snippet: string; descript
 const getAggregationTypes = (): Array<{ name: string; snippet: string; description: string }> => {
   return [
     // Metric aggregations
-    { name: 'avg', snippet: 'avg: {\n\tfield: "${1:field}"\n}', description: 'Average aggregation' },
+    {
+      name: 'avg',
+      snippet: 'avg: {\n\tfield: "${1:field}"\n}',
+      description: 'Average aggregation',
+    },
     { name: 'sum', snippet: 'sum: {\n\tfield: "${1:field}"\n}', description: 'Sum aggregation' },
-    { name: 'min', snippet: 'min: {\n\tfield: "${1:field}"\n}', description: 'Minimum aggregation' },
-    { name: 'max', snippet: 'max: {\n\tfield: "${1:field}"\n}', description: 'Maximum aggregation' },
-    { name: 'stats', snippet: 'stats: {\n\tfield: "${1:field}"\n}', description: 'Stats aggregation' },
-    { name: 'extended_stats', snippet: 'extended_stats: {\n\tfield: "${1:field}"\n}', description: 'Extended stats aggregation' },
-    { name: 'cardinality', snippet: 'cardinality: {\n\tfield: "${1:field}"\n}', description: 'Cardinality aggregation' },
-    { name: 'value_count', snippet: 'value_count: {\n\tfield: "${1:field}"\n}', description: 'Value count aggregation' },
-    { name: 'percentiles', snippet: 'percentiles: {\n\tfield: "${1:field}"\n}', description: 'Percentiles aggregation' },
-    { name: 'percentile_ranks', snippet: 'percentile_ranks: {\n\tfield: "${1:field}",\n\tvalues: [${2:values}]\n}', description: 'Percentile ranks aggregation' },
-    { name: 'top_hits', snippet: 'top_hits: {\n\tsize: ${1:3}\n}', description: 'Top hits aggregation' },
-    
+    {
+      name: 'min',
+      snippet: 'min: {\n\tfield: "${1:field}"\n}',
+      description: 'Minimum aggregation',
+    },
+    {
+      name: 'max',
+      snippet: 'max: {\n\tfield: "${1:field}"\n}',
+      description: 'Maximum aggregation',
+    },
+    {
+      name: 'stats',
+      snippet: 'stats: {\n\tfield: "${1:field}"\n}',
+      description: 'Stats aggregation',
+    },
+    {
+      name: 'extended_stats',
+      snippet: 'extended_stats: {\n\tfield: "${1:field}"\n}',
+      description: 'Extended stats aggregation',
+    },
+    {
+      name: 'cardinality',
+      snippet: 'cardinality: {\n\tfield: "${1:field}"\n}',
+      description: 'Cardinality aggregation',
+    },
+    {
+      name: 'value_count',
+      snippet: 'value_count: {\n\tfield: "${1:field}"\n}',
+      description: 'Value count aggregation',
+    },
+    {
+      name: 'percentiles',
+      snippet: 'percentiles: {\n\tfield: "${1:field}"\n}',
+      description: 'Percentiles aggregation',
+    },
+    {
+      name: 'percentile_ranks',
+      snippet: 'percentile_ranks: {\n\tfield: "${1:field}",\n\tvalues: [${2:values}]\n}',
+      description: 'Percentile ranks aggregation',
+    },
+    {
+      name: 'top_hits',
+      snippet: 'top_hits: {\n\tsize: ${1:3}\n}',
+      description: 'Top hits aggregation',
+    },
+
     // Bucket aggregations
-    { name: 'terms', snippet: 'terms: {\n\tfield: "${1:field}"\n}', description: 'Terms aggregation' },
-    { name: 'histogram', snippet: 'histogram: {\n\tfield: "${1:field}",\n\tinterval: ${2:10}\n}', description: 'Histogram aggregation' },
-    { name: 'date_histogram', snippet: 'date_histogram: {\n\tfield: "${1:field}",\n\tcalendar_interval: "${2:day}"\n}', description: 'Date histogram aggregation' },
-    { name: 'range', snippet: 'range: {\n\tfield: "${1:field}",\n\tranges: [\n\t\t{ to: ${2:50} },\n\t\t{ from: ${2:50}, to: ${3:100} },\n\t\t{ from: ${3:100} }\n\t]\n}', description: 'Range aggregation' },
-    { name: 'date_range', snippet: 'date_range: {\n\tfield: "${1:field}",\n\tranges: [\n\t\t{ to: "${2:now-1M}" },\n\t\t{ from: "${2:now-1M}" }\n\t]\n}', description: 'Date range aggregation' },
+    {
+      name: 'terms',
+      snippet: 'terms: {\n\tfield: "${1:field}"\n}',
+      description: 'Terms aggregation',
+    },
+    {
+      name: 'histogram',
+      snippet: 'histogram: {\n\tfield: "${1:field}",\n\tinterval: ${2:10}\n}',
+      description: 'Histogram aggregation',
+    },
+    {
+      name: 'date_histogram',
+      snippet: 'date_histogram: {\n\tfield: "${1:field}",\n\tcalendar_interval: "${2:day}"\n}',
+      description: 'Date histogram aggregation',
+    },
+    {
+      name: 'range',
+      snippet:
+        'range: {\n\tfield: "${1:field}",\n\tranges: [\n\t\t{ to: ${2:50} },\n\t\t{ from: ${2:50}, to: ${3:100} },\n\t\t{ from: ${3:100} }\n\t]\n}',
+      description: 'Range aggregation',
+    },
+    {
+      name: 'date_range',
+      snippet:
+        'date_range: {\n\tfield: "${1:field}",\n\tranges: [\n\t\t{ to: "${2:now-1M}" },\n\t\t{ from: "${2:now-1M}" }\n\t]\n}',
+      description: 'Date range aggregation',
+    },
     { name: 'filter', snippet: 'filter: {\n\t${1:query}\n}', description: 'Filter aggregation' },
-    { name: 'filters', snippet: 'filters: {\n\tfilters: {\n\t\t"${1:filter_name}": {\n\t\t\t$0\n\t\t}\n\t}\n}', description: 'Filters aggregation' },
-    { name: 'nested', snippet: 'nested: {\n\tpath: "${1:path}"\n}', description: 'Nested aggregation' },
-    { name: 'reverse_nested', snippet: 'reverse_nested: {}', description: 'Reverse nested aggregation' },
+    {
+      name: 'filters',
+      snippet: 'filters: {\n\tfilters: {\n\t\t"${1:filter_name}": {\n\t\t\t$0\n\t\t}\n\t}\n}',
+      description: 'Filters aggregation',
+    },
+    {
+      name: 'nested',
+      snippet: 'nested: {\n\tpath: "${1:path}"\n}',
+      description: 'Nested aggregation',
+    },
+    {
+      name: 'reverse_nested',
+      snippet: 'reverse_nested: {}',
+      description: 'Reverse nested aggregation',
+    },
     { name: 'global', snippet: 'global: {}', description: 'Global aggregation' },
-    { name: 'missing', snippet: 'missing: {\n\tfield: "${1:field}"\n}', description: 'Missing aggregation' },
-    { name: 'composite', snippet: 'composite: {\n\tsources: [\n\t\t{ "${1:name}": { terms: { field: "${2:field}" } } }\n\t]\n}', description: 'Composite aggregation' },
-    { name: 'sampler', snippet: 'sampler: {\n\tshard_size: ${1:100}\n}', description: 'Sampler aggregation' },
-    { name: 'significant_terms', snippet: 'significant_terms: {\n\tfield: "${1:field}"\n}', description: 'Significant terms aggregation' },
-    { name: 'significant_text', snippet: 'significant_text: {\n\tfield: "${1:field}"\n}', description: 'Significant text aggregation' },
-    { name: 'adjacency_matrix', snippet: 'adjacency_matrix: {\n\tfilters: {\n\t\t"${1:filter_name}": {\n\t\t\t$0\n\t\t}\n\t}\n}', description: 'Adjacency matrix aggregation' },
-    { name: 'auto_date_histogram', snippet: 'auto_date_histogram: {\n\tfield: "${1:field}",\n\tbuckets: ${2:10}\n}', description: 'Auto date histogram aggregation' },
-    
+    {
+      name: 'missing',
+      snippet: 'missing: {\n\tfield: "${1:field}"\n}',
+      description: 'Missing aggregation',
+    },
+    {
+      name: 'composite',
+      snippet:
+        'composite: {\n\tsources: [\n\t\t{ "${1:name}": { terms: { field: "${2:field}" } } }\n\t]\n}',
+      description: 'Composite aggregation',
+    },
+    {
+      name: 'sampler',
+      snippet: 'sampler: {\n\tshard_size: ${1:100}\n}',
+      description: 'Sampler aggregation',
+    },
+    {
+      name: 'significant_terms',
+      snippet: 'significant_terms: {\n\tfield: "${1:field}"\n}',
+      description: 'Significant terms aggregation',
+    },
+    {
+      name: 'significant_text',
+      snippet: 'significant_text: {\n\tfield: "${1:field}"\n}',
+      description: 'Significant text aggregation',
+    },
+    {
+      name: 'adjacency_matrix',
+      snippet:
+        'adjacency_matrix: {\n\tfilters: {\n\t\t"${1:filter_name}": {\n\t\t\t$0\n\t\t}\n\t}\n}',
+      description: 'Adjacency matrix aggregation',
+    },
+    {
+      name: 'auto_date_histogram',
+      snippet: 'auto_date_histogram: {\n\tfield: "${1:field}",\n\tbuckets: ${2:10}\n}',
+      description: 'Auto date histogram aggregation',
+    },
+
     // Pipeline aggregations
-    { name: 'avg_bucket', snippet: 'avg_bucket: {\n\tbuckets_path: "${1:path}"\n}', description: 'Average bucket aggregation' },
-    { name: 'sum_bucket', snippet: 'sum_bucket: {\n\tbuckets_path: "${1:path}"\n}', description: 'Sum bucket aggregation' },
-    { name: 'min_bucket', snippet: 'min_bucket: {\n\tbuckets_path: "${1:path}"\n}', description: 'Min bucket aggregation' },
-    { name: 'max_bucket', snippet: 'max_bucket: {\n\tbuckets_path: "${1:path}"\n}', description: 'Max bucket aggregation' },
-    { name: 'stats_bucket', snippet: 'stats_bucket: {\n\tbuckets_path: "${1:path}"\n}', description: 'Stats bucket aggregation' },
-    { name: 'derivative', snippet: 'derivative: {\n\tbuckets_path: "${1:path}"\n}', description: 'Derivative aggregation' },
-    { name: 'cumulative_sum', snippet: 'cumulative_sum: {\n\tbuckets_path: "${1:path}"\n}', description: 'Cumulative sum aggregation' },
-    { name: 'moving_avg', snippet: 'moving_avg: {\n\tbuckets_path: "${1:path}"\n}', description: 'Moving average aggregation' },
-    { name: 'serial_diff', snippet: 'serial_diff: {\n\tbuckets_path: "${1:path}"\n}', description: 'Serial differencing aggregation' },
-    { name: 'bucket_sort', snippet: 'bucket_sort: {\n\tsort: [\n\t\t{ "${1:field}": { order: "desc" } }\n\t]\n}', description: 'Bucket sort aggregation' },
-    { name: 'bucket_selector', snippet: 'bucket_selector: {\n\tbuckets_path: {\n\t\t"${1:var}": "${2:path}"\n\t},\n\tscript: "${3:params.var > 10}"\n}', description: 'Bucket selector aggregation' },
-    { name: 'bucket_script', snippet: 'bucket_script: {\n\tbuckets_path: {\n\t\t"${1:var}": "${2:path}"\n\t},\n\tscript: "${3:params.var * 2}"\n}', description: 'Bucket script aggregation' },
+    {
+      name: 'avg_bucket',
+      snippet: 'avg_bucket: {\n\tbuckets_path: "${1:path}"\n}',
+      description: 'Average bucket aggregation',
+    },
+    {
+      name: 'sum_bucket',
+      snippet: 'sum_bucket: {\n\tbuckets_path: "${1:path}"\n}',
+      description: 'Sum bucket aggregation',
+    },
+    {
+      name: 'min_bucket',
+      snippet: 'min_bucket: {\n\tbuckets_path: "${1:path}"\n}',
+      description: 'Min bucket aggregation',
+    },
+    {
+      name: 'max_bucket',
+      snippet: 'max_bucket: {\n\tbuckets_path: "${1:path}"\n}',
+      description: 'Max bucket aggregation',
+    },
+    {
+      name: 'stats_bucket',
+      snippet: 'stats_bucket: {\n\tbuckets_path: "${1:path}"\n}',
+      description: 'Stats bucket aggregation',
+    },
+    {
+      name: 'derivative',
+      snippet: 'derivative: {\n\tbuckets_path: "${1:path}"\n}',
+      description: 'Derivative aggregation',
+    },
+    {
+      name: 'cumulative_sum',
+      snippet: 'cumulative_sum: {\n\tbuckets_path: "${1:path}"\n}',
+      description: 'Cumulative sum aggregation',
+    },
+    {
+      name: 'moving_avg',
+      snippet: 'moving_avg: {\n\tbuckets_path: "${1:path}"\n}',
+      description: 'Moving average aggregation',
+    },
+    {
+      name: 'serial_diff',
+      snippet: 'serial_diff: {\n\tbuckets_path: "${1:path}"\n}',
+      description: 'Serial differencing aggregation',
+    },
+    {
+      name: 'bucket_sort',
+      snippet: 'bucket_sort: {\n\tsort: [\n\t\t{ "${1:field}": { order: "desc" } }\n\t]\n}',
+      description: 'Bucket sort aggregation',
+    },
+    {
+      name: 'bucket_selector',
+      snippet:
+        'bucket_selector: {\n\tbuckets_path: {\n\t\t"${1:var}": "${2:path}"\n\t},\n\tscript: "${3:params.var > 10}"\n}',
+      description: 'Bucket selector aggregation',
+    },
+    {
+      name: 'bucket_script',
+      snippet:
+        'bucket_script: {\n\tbuckets_path: {\n\t\t"${1:var}": "${2:path}"\n\t},\n\tscript: "${3:params.var * 2}"\n}',
+      description: 'Bucket script aggregation',
+    },
   ];
 };
 
@@ -1002,24 +1437,16 @@ const getAggregationTypes = (): Array<{ name: string; snippet: string; descripti
  * Calculate the replacement range for path completions
  * This handles cases like `_cat/indi` where we need to replace the entire path
  */
-const getPathRange = (
-  model: monaco.editor.ITextModel,
-  position: monaco.Position,
-): monaco.Range => {
+const getPathRange = (model: monaco.editor.ITextModel, position: monaco.Position): monaco.Range => {
   const lineContent = model.getLineContent(position.lineNumber);
-  
+
   // Find the start of the path (after the HTTP method and space)
   const methodMatch = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+/i.exec(lineContent);
   if (methodMatch) {
     const pathStart = methodMatch[0].length + 1; // 1-based column
-    return new monaco.Range(
-      position.lineNumber,
-      pathStart,
-      position.lineNumber,
-      position.column,
-    );
+    return new monaco.Range(position.lineNumber, pathStart, position.lineNumber, position.column);
   }
-  
+
   // Fallback to word-based range
   const wordInfo = model.getWordUntilPosition(position);
   return new monaco.Range(
@@ -1038,7 +1465,7 @@ export const grammarCompletionProvider = (
   position: monaco.Position,
 ): monaco.languages.CompletionList => {
   const context = getCompletionContext(model, position);
-  
+
   // Get the word at position for filtering
   const wordInfo = model.getWordUntilPosition(position);
   const defaultRange = new monaco.Range(
