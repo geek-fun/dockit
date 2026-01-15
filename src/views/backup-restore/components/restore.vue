@@ -79,6 +79,7 @@
                   :input-props="inputProps"
                   remote
                   filterable
+                  tag
                   :loading="loadingRefs.index"
                   @update:value="(value: string) => handleSelectUpdate(value, 'index')"
                   @update:show="(isOpen: boolean) => handleOpen(isOpen, 'index')"

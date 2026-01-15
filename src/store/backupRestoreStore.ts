@@ -207,19 +207,52 @@ export const useBackupRestoreStore = defineStore('backupRestoreStore', {
 
       try {
         if (fileType === 'json') {
-          const hits: Array<{
+          // Parse multiple JSON arrays that were concatenated during backup
+          const jsonArrays: string[] = [];
+          let depth = 0;
+          let currentArray = '';
+
+          for (let i = 0; i < data.length; i++) {
+            const char = data[i];
+            currentArray += char;
+
+            if (char === '[') {
+              depth++;
+            } else if (char === ']') {
+              depth--;
+              if (depth === 0 && currentArray.trim()) {
+                jsonArrays.push(currentArray.trim());
+                currentArray = '';
+              }
+            }
+          }
+
+          // Parse all JSON arrays and flatten into single hits array
+          const allHits: Array<{
             _index: string;
             _id: string;
             _score: number;
             _source: unknown;
             sort: any[];
-          }> = jsonify.parse(data);
+          }> = [];
+
+          for (const jsonArray of jsonArrays) {
+            try {
+              const hits = jsonify.parse(jsonArray);
+              if (Array.isArray(hits)) {
+                allHits.push(...hits);
+              }
+            } catch (e) {
+              // Continue with other arrays even if one fails
+            }
+          }
+
           this.restoreProgress = {
             complete: 0,
-            total: hits.length,
+            total: allHits.length,
           };
-          for (let i = 0; i < hits.length; i += bulkSize) {
-            const bulkData = hits
+          for (let i = 0; i < allHits.length; i += bulkSize) {
+            const bulkData = allHits
               .slice(i, i + bulkSize)
               .flatMap(hit => [{ index: { _index: input.index, _id: hit._id } }, hit._source])
               .map(item => jsonify.stringify(item));
