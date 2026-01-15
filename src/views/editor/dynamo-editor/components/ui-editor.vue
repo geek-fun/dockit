@@ -169,7 +169,6 @@
         @update:page-size="changePageSize"
         @close="handleCloseResultPanel"
         @edit="handleEdit"
-        @delete="handleDelete"
       />
     </template>
   </n-split>
@@ -208,16 +207,37 @@ const lang = useLang();
 
 const connectionStore = useConnectionStore();
 
-const { fetchIndices, updateItem, deleteItem } = connectionStore;
+const { fetchIndices, updateItem } = connectionStore;
 const { getDynamoIndexOrTableOption } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
-const { getDynamoData, changePage, changePageSize, resetDynamoData, refreshDynamoData } =
-  dbDataStore;
+const {
+  getDynamoData,
+  changePage,
+  changePageSize,
+  resetDynamoData,
+  resetUiQueryForm,
+  refreshDynamoData,
+} = dbDataStore;
 const { dynamoData } = storeToRefs(dbDataStore);
+
+// Use store-persisted UI query form state
+const dynamoQueryForm = computed({
+  get: () => dynamoData.value.uiQueryForm,
+  set: val => {
+    dynamoData.value.uiQueryForm = val;
+  },
+});
+
+const selectedIndexOrTable = computed({
+  get: () => dynamoData.value.uiQueryForm.selectedIndexOrTable,
+  set: val => {
+    dynamoData.value.uiQueryForm.selectedIndexOrTable = val;
+  },
+});
 
 const dynamoQueryFormRef = ref();
 const filterConditions = ref([
@@ -239,19 +259,11 @@ const loadingRef = ref({ index: false, queryResult: false });
 const editorSize = ref(dynamoData.value.queryData.showResultPanel ? 0.5 : 1);
 
 const message = useMessage();
-const dialog = useDialog();
 const loadingBar = useLoadingBar();
 
-// Edit/Delete state
+// Edit state
 const showEditModal = ref(false);
 const editingItem = ref<Record<string, unknown> | null>(null);
-
-const dynamoQueryForm = ref<{
-  index: string | null;
-  partitionKey: string | null;
-  sortKey: string | null;
-  formFilterItems: Array<{ key: string; value: string; operator: string }>;
-}>({ index: null, partitionKey: null, sortKey: null, formFilterItems: [] });
 
 const dynamoQueryFormRules = reactive<FormRules>({
   index: [
@@ -280,8 +292,6 @@ const removeFilterItem = (index: number) => {
 };
 
 const indicesOrTableOptions = ref<Array<DynamoIndexOrTableOption>>([]);
-
-const selectedIndexOrTable = ref<DynamoIndexOrTableOption | undefined>(undefined);
 
 const handleUpdate = (value: string, options: DynamoIndexOrTableOption) => {
   const indices = getDynamoIndexOrTableOption.value(activeConnection.value as DynamoDBConnection);
@@ -381,8 +391,7 @@ const queryToDynamo = async (event?: MouseEvent) => {
 };
 
 const handleReset = () => {
-  selectedIndexOrTable.value = undefined;
-  dynamoQueryForm.value = { index: null, partitionKey: null, sortKey: null, formFilterItems: [] };
+  resetUiQueryForm();
 
   if (dynamoQueryFormRef.value) {
     dynamoQueryFormRef.value.restoreValidation();
@@ -430,61 +439,6 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
     await updateItem(activeConnection.value as DynamoDBConnection, keys, attributes);
     message.success(lang.t('editor.dynamo.updateItemSuccess'));
     showEditModal.value = false;
-    await refreshDynamoData();
-    loadingBar.finish();
-  } catch (error) {
-    loadingBar.error();
-    const { status, details } = error as CustomError;
-    message.error(`status: ${status}, details: ${details}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3600,
-    });
-  } finally {
-    loadingRef.value.queryResult = false;
-  }
-};
-
-const handleDelete = (row: Record<string, unknown>) => {
-  dialog.warning({
-    title: lang.t('dialogOps.warning'),
-    content: lang.t('editor.dynamo.deleteItemConfirm'),
-    positiveText: lang.t('dialogOps.confirm'),
-    negativeText: lang.t('dialogOps.cancel'),
-    onPositiveClick: async () => {
-      await performDelete(row);
-    },
-  });
-};
-
-const performDelete = async (row: Record<string, unknown>) => {
-  if (!activeConnection.value) return;
-
-  const connection = activeConnection.value as DynamoDBConnection;
-  const keys: AttributeItem[] = [];
-
-  // Build keys from the row
-  if (partitionKeyName.value && row[partitionKeyName.value] !== undefined) {
-    keys.push({
-      key: partitionKeyName.value,
-      value: row[partitionKeyName.value] as string | number | boolean | null,
-      type: partitionKeyType.value,
-    });
-  }
-
-  if (sortKeyName.value && sortKeyType.value && row[sortKeyName.value] !== undefined) {
-    keys.push({
-      key: sortKeyName.value,
-      value: row[sortKeyName.value] as string | number | boolean | null,
-      type: sortKeyType.value,
-    });
-  }
-
-  try {
-    loadingRef.value.queryResult = true;
-    loadingBar.start();
-    await deleteItem(connection, keys);
-    message.success(lang.t('editor.dynamo.deleteItemSuccess'));
     await refreshDynamoData();
     loadingBar.finish();
   } catch (error) {

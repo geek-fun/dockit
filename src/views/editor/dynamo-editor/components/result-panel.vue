@@ -68,17 +68,23 @@
         :description="$t('editor.dynamo.partiql.noItemsReturned')"
       />
     </n-card>
+
+    <!-- Delete Confirmation Modal -->
+    <delete-confirm-modal v-model:show="showDeleteModal" :keys="deletingKeys" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, h } from 'vue';
+import { computed, h, ref } from 'vue';
 import { Close, Edit, TrashCan } from '@vicons/carbon';
 import { NButton, NIcon } from 'naive-ui';
 import type { DataTableColumn, PaginationProps } from 'naive-ui';
 import { useLang } from '../../../../lang';
+import { useTabStore, DynamoDBConnection } from '../../../../store';
+import DeleteConfirmModal from './delete-confirm-modal.vue';
 
 const lang = useLang();
+const tabStore = useTabStore();
 
 interface Props {
   errorMessage?: string | null;
@@ -118,8 +124,46 @@ const emit = defineEmits<{
   (e: 'update:page-size', pageSize: number): void;
   (e: 'close'): void;
   (e: 'edit', row: Record<string, unknown>): void;
-  (e: 'delete', row: Record<string, unknown>): void;
 }>();
+
+// Delete modal state
+const showDeleteModal = ref(false);
+const deletingKeys = ref<
+  Array<{ key: string; value: string | number | boolean | null; type: string }>
+>([]);
+
+const handleDeleteClick = (row: Record<string, unknown>) => {
+  // Get connection and key info dynamically
+  const connection = tabStore.activeConnection as DynamoDBConnection | null;
+  if (!connection) return;
+
+  const partitionKeyName = connection.partitionKey?.name;
+  const partitionKeyType = connection.partitionKey?.valueType;
+  const sortKeyName = connection.sortKey?.name;
+  const sortKeyType = connection.sortKey?.valueType;
+
+  // Build keys from the row
+  const keys: Array<{ key: string; value: string | number | boolean | null; type: string }> = [];
+
+  if (partitionKeyName && row[partitionKeyName] !== undefined) {
+    keys.push({
+      key: partitionKeyName,
+      value: row[partitionKeyName] as string | number | boolean | null,
+      type: partitionKeyType || 'S',
+    });
+  }
+
+  if (sortKeyName && sortKeyType && row[sortKeyName] !== undefined) {
+    keys.push({
+      key: sortKeyName,
+      value: row[sortKeyName] as string | number | boolean | null,
+      type: sortKeyType,
+    });
+  }
+
+  deletingKeys.value = keys;
+  showDeleteModal.value = true;
+};
 
 // Action column for edit/delete
 const actionColumn = computed<DataTableColumn<Record<string, unknown>>>(() => ({
@@ -145,7 +189,7 @@ const actionColumn = computed<DataTableColumn<Record<string, unknown>>>(() => ({
           size: 'small',
           quaternary: true,
           circle: true,
-          onClick: () => emit('delete', row),
+          onClick: () => handleDeleteClick(row),
         },
         { icon: () => h(NIcon, null, { default: () => h(TrashCan) }) },
       ),

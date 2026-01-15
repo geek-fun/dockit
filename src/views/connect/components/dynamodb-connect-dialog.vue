@@ -13,6 +13,24 @@
         </n-icon>
       </template>
       <div class="modal-content">
+        <n-alert
+          v-if="successMessage"
+          type="success"
+          closable
+          @close="successMessage = ''"
+          style="margin-bottom: 12px"
+        >
+          {{ successMessage }}
+        </n-alert>
+        <n-alert
+          v-if="errorMessage"
+          type="error"
+          closable
+          @close="errorMessage = ''"
+          style="margin-bottom: 12px"
+        >
+          {{ errorMessage }}
+        </n-alert>
         <n-form label-placement="left" label-width="120" :model="formData" :rules="formRules">
           <n-form-item :label="$t('connection.name')" path="name">
             <n-input
@@ -89,10 +107,11 @@
 import { Close } from '@vicons/carbon';
 import { computed, reactive, ref } from 'vue';
 import { cloneDeep } from 'lodash';
-import { inputProps } from '../../../common';
+import { CustomError, inputProps, MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { useConnectionStore } from '../../../store';
 import { DatabaseType, DynamoDBConnection } from '../../../store';
+import { ApiClientError } from '../../../datasources/ApiClients';
 
 const connectionStore = useConnectionStore();
 
@@ -104,6 +123,8 @@ const showModal = ref(false);
 const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
+const errorMessage = ref('');
+const successMessage = ref('');
 
 const regionOptions = [
   { label: 'US East (N. Virginia)', value: 'us-east-1' },
@@ -169,10 +190,10 @@ const formRules = reactive({
   ],
 });
 
-const message = useMessage();
-
 const showMedal = (con: DynamoDBConnection | null) => {
   showModal.value = true;
+  errorMessage.value = '';
+  successMessage.value = '';
   if (con) {
     formData.value = { ...con };
     modalTitle.value = lang.t('connection.edit');
@@ -183,6 +204,8 @@ const closeModal = () => {
   showModal.value = false;
   formData.value = cloneDeep(defaultFormData);
   modalTitle.value = lang.t('connection.new');
+  errorMessage.value = '';
+  successMessage.value = '';
 };
 
 const validationPassed = computed(() => {
@@ -196,15 +219,40 @@ const validationPassed = computed(() => {
 });
 
 const testConnect = async () => {
+  errorMessage.value = '';
+  successMessage.value = '';
+  testLoading.value = true;
+  const startTime = Date.now();
+
   try {
-    testLoading.value = true;
     await freshConnection(formData.value);
-    message.success(lang.t('connection.testSuccess'));
-  } catch (error) {
-    if (error instanceof Error) {
-      message.error(error.message);
+
+    // Ensure minimum loading time before showing success
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
+    if (remainingTime > 0) {
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
+    }
+
+    // Test successful - show success message
+    successMessage.value = lang.t('connection.testSuccess');
+  } catch (error: unknown) {
+    // Ensure minimum loading time before showing error
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
+    if (remainingTime > 0) {
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
+    }
+
+    // Handle both ApiClientError/CustomError (with status and details) and generic Error
+    if (error instanceof CustomError) {
+      errorMessage.value = `status: ${error.status}, details: ${error.details}`;
+    } else if (error instanceof ApiClientError) {
+      errorMessage.value = `status: ${error.status}, details: ${error.details}`;
+    } else if (error instanceof Error) {
+      errorMessage.value = error.message;
     } else {
-      message.error(lang.t('connection.unknownError'));
+      errorMessage.value = lang.t('connection.unknownError');
     }
   } finally {
     testLoading.value = false;
@@ -213,12 +261,15 @@ const testConnect = async () => {
 
 const saveConnect = async () => {
   saveLoading.value = true;
+  errorMessage.value = '';
+  successMessage.value = '';
   const result = await connectionStore.saveConnection(formData.value);
   if (result.success) {
-    message.success(lang.t('connection.saveSuccess'));
+    // Success - just close the modal without showing a message
     closeModal();
   } else {
-    message.error(result.message);
+    // Error - show in the popup and stay open
+    errorMessage.value = result.message;
   }
   saveLoading.value = false;
 };

@@ -25,10 +25,27 @@ type DynamoColumn = {
   children?: Array<{ title: string; key: string }>;
 };
 
+type UiQueryFormState = {
+  index: string | null;
+  partitionKey: string | null;
+  sortKey: string | null;
+  formFilterItems: Array<{ key: string; value: string; operator: string }>;
+  selectedIndexOrTable?: DynamoIndexOrTableOption;
+};
+
+const defaultUiQueryForm: UiQueryFormState = {
+  index: null,
+  partitionKey: null,
+  sortKey: null,
+  formFilterItems: [],
+  selectedIndexOrTable: undefined,
+};
+
 export const useDbDataStore = defineStore('dbDataStore', {
   state: (): {
     dynamoData: {
       connection: DynamoDBConnection;
+      uiQueryForm: UiQueryFormState;
       queryData: {
         showResultPanel: boolean;
         columns: Array<DynamoColumn>;
@@ -57,6 +74,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
   } => ({
     dynamoData: {
       connection: {} as DynamoDBConnection,
+      uiQueryForm: cloneDeep(defaultUiQueryForm),
       queryData: {
         showResultPanel: false,
         columns: [],
@@ -203,6 +221,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
     resetDynamoData() {
       this.dynamoData = {
         connection: {} as DynamoDBConnection,
+        uiQueryForm: cloneDeep(defaultUiQueryForm),
         queryData: {
           showResultPanel: false,
           columns: [],
@@ -224,9 +243,38 @@ export const useDbDataStore = defineStore('dbDataStore', {
       };
     },
 
+    resetUiQueryForm() {
+      this.dynamoData.uiQueryForm = cloneDeep(defaultUiQueryForm);
+    },
+
     async refreshDynamoData() {
       if (this.dynamoData.queryData.queryInput && this.dynamoData.connection) {
         await this.getDynamoData(this.dynamoData.connection, this.dynamoData.queryData.queryInput);
+      }
+    },
+
+    async deleteItem(
+      connection: DynamoDBConnection,
+      keys: Array<{ key: string; value: string | number | boolean | null; type: string }>,
+    ) {
+      const { deleteItem } = useConnectionStore();
+
+      await deleteItem(connection, keys);
+
+      // Remove item from queryData cache (UI editor mode)
+      if (this.dynamoData.queryData.data && this.dynamoData.queryData.data.length > 0) {
+        this.dynamoData.queryData.data = this.dynamoData.queryData.data.filter(item => {
+          // Check if all keys match - if they do, filter out this item
+          return !keys.every(k => item[k.key] === k.value);
+        });
+      }
+
+      // Remove item from partiqlData cache (SQL editor mode)
+      if (this.dynamoData.partiqlData.data && this.dynamoData.partiqlData.data.length > 0) {
+        this.dynamoData.partiqlData.data = this.dynamoData.partiqlData.data.filter(item => {
+          return !keys.every(k => item[k.key] === k.value);
+        });
+        this.dynamoData.partiqlData.count = this.dynamoData.partiqlData.data.length;
       }
     },
 

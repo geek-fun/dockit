@@ -62,7 +62,7 @@ import { NDropdown, NIcon, useDialog, useMessage } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
-import { CustomError } from '../../../common';
+import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { Connection, DatabaseType, useConnectionStore } from '../../../store';
 import { MoreOutlined } from '@vicons/antd';
@@ -112,43 +112,62 @@ const handleSelect = (key: string, connection: Connection) => {
 const establishConnect = async (connection: Connection) => {
   connectionCancelled.value = false;
 
-  // Show loading modal
-  connectingModal.value.show(connection.name, () => {
-    connectionCancelled.value = true;
-  });
+  // Show loading modal with retry callback
+  connectingModal.value.show(
+    connection.name,
+    () => {
+      connectionCancelled.value = true;
+    },
+    () => establishConnect(connection),
+  );
+
+  const startTime = Date.now();
 
   try {
     const newConnection = await freshConnection(connection);
 
-    // Check if connection was cancelled
+    if (connectionCancelled.value) {
+      return;
+    }
+
+    // Ensure minimum 1.5 seconds loading time
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
+    if (remainingTime > 0) {
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
+    }
+
     if (connectionCancelled.value) {
       return;
     }
 
     connectingModal.value.hide();
-    message.success(lang.t('connection.connectSuccess'));
     emits('tab-panel', { action: 'ADD_PANEL', connection: newConnection });
   } catch (err) {
-    connectingModal.value.hide();
-
-    // Don't show error if connection was cancelled
     if (connectionCancelled.value) {
       return;
     }
 
-    if (err instanceof CustomError) {
-      message.error(`status: ${err.status}, details: ${err.details}`, {
-        closable: true,
-        keepAliveOnHover: true,
-        duration: 36000000,
-      });
-    } else {
-      message.error(lang.t('connection.unknownError') + `details: ${err}`, {
-        closable: true,
-        keepAliveOnHover: true,
-        duration: 36000000,
-      });
+    // Ensure minimum 1.5 seconds loading time before showing error
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
+    if (remainingTime > 0) {
+      await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
+
+    if (connectionCancelled.value) {
+      return;
+    }
+
+    // Show error in modal
+    let errorMessage = '';
+    if (err instanceof CustomError) {
+      errorMessage = `status: ${err.status}, details: ${err.details}`;
+    } else {
+      errorMessage = lang.t('connection.unknownError') + ` details: ${err}`;
+    }
+
+    connectingModal.value.showError(errorMessage);
   }
 };
 

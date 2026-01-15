@@ -38,7 +38,6 @@
         @load-more="loadMore"
         @close="handleCloseResultPanel"
         @edit="handleEdit"
-        @delete="handleDelete"
       />
     </template>
   </n-split>
@@ -58,7 +57,7 @@
 <script setup lang="ts">
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
-import { useMessage, useDialog, useLoadingBar } from 'naive-ui';
+import { useMessage, useLoadingBar } from 'naive-ui';
 import { storeToRefs } from 'pinia';
 import { CustomError, jsonify } from '../../../../common';
 import {
@@ -88,7 +87,6 @@ import EditItem from './edit-item.vue';
 
 const lang = useLang();
 const message = useMessage();
-const dialog = useDialog();
 const loadingBar = useLoadingBar();
 
 const appStore = useAppStore();
@@ -482,65 +480,6 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
   }
 };
 
-const handleDelete = (row: Record<string, unknown>) => {
-  dialog.warning({
-    title: lang.t('dialogOps.warning'),
-    content: lang.t('editor.dynamo.deleteItemConfirm'),
-    positiveText: lang.t('dialogOps.confirm'),
-    negativeText: lang.t('dialogOps.cancel'),
-    onPositiveClick: async () => {
-      await performDelete(row);
-    },
-  });
-};
-
-const performDelete = async (row: Record<string, unknown>) => {
-  if (!activeConnection.value) return;
-
-  const connection = activeConnection.value as DynamoDBConnection;
-  const keys: AttributeItem[] = [];
-
-  // Build keys from the row
-  if (partitionKeyName.value && row[partitionKeyName.value] !== undefined) {
-    keys.push({
-      key: partitionKeyName.value,
-      value: row[partitionKeyName.value] as string | number | boolean | null,
-      type: partitionKeyType.value,
-    });
-  }
-
-  if (sortKeyName.value && sortKeyType.value && row[sortKeyName.value] !== undefined) {
-    keys.push({
-      key: sortKeyName.value,
-      value: row[sortKeyName.value] as string | number | boolean | null,
-      type: sortKeyType.value,
-    });
-  }
-
-  try {
-    loadingRef.value = true;
-    loadingBar.start();
-    const { deleteItem } = useConnectionStore();
-    await deleteItem(connection, keys);
-    message.success(lang.t('editor.dynamo.deleteItemSuccess'));
-    // Refresh results by re-executing the last statement
-    if (partiqlData.value.lastExecutedStatement) {
-      await executePartiqlStatement(partiqlData.value.lastExecutedStatement);
-    }
-    loadingBar.finish();
-  } catch (error) {
-    loadingBar.error();
-    const { status, details } = error as CustomError;
-    message.error(`status: ${status}, details: ${details}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3600,
-    });
-  } finally {
-    loadingRef.value = false;
-  }
-};
-
 const saveModelContent = async (
   validateFile: boolean,
   displayError: boolean,
@@ -695,9 +634,13 @@ watch(themeType, () => {
   editor?.updateOptions({ theme: vsTheme });
 });
 
-watch(editorConfig, () => {
-  editor?.updateOptions(getEditorOptions());
-}, { deep: true });
+watch(
+  editorConfig,
+  () => {
+    editor?.updateOptions(getEditorOptions());
+  },
+  { deep: true },
+);
 
 // Watch for connection changes to update autocomplete options
 watch(activeConnection, newConnection => {
