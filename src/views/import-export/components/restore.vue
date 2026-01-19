@@ -17,7 +17,7 @@
               </n-icon>
             </div>
             <n-text style="font-size: 16px">
-              {{ $t('backup.restoreSourceDesc') }}
+              {{ $t('importExport.restoreSourceDesc') }}
             </n-text>
           </div>
           <div v-if="restoreFormData.restoreFile" class="restore-file-display">
@@ -44,22 +44,22 @@
           <n-tooltip trigger="hover">
             <template #trigger>
               <n-icon size="48" @click="submitRestore">
-                <DocumentExport />
+                <DocumentImport />
               </n-icon>
             </template>
-            Execute Restore
+            Execute Import
           </n-tooltip>
         </div>
 
         <n-card title="target">
           <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
             <n-grid-item span="8">
-              <n-form-item :label="$t('backup.backupForm.connection')" path="connection">
+              <n-form-item :label="$t('importExport.importForm.connection')" path="connection">
                 <n-select
                   :options="filteredConnectionOptions"
                   :placeholder="$t('connection.selectConnection')"
                   v-model:value="restoreFormData.connection"
-                  :default-value="connection?.name"
+                  :default-value="importConnection?.name"
                   :loading="loadingRefs.connection"
                   :input-props="inputProps"
                   remote
@@ -71,7 +71,7 @@
               </n-form-item>
             </n-grid-item>
             <n-grid-item span="8">
-              <n-form-item :label="$t('backup.backupForm.index')" path="index">
+              <n-form-item :label="$t('importExport.importForm.index')" path="index">
                 <n-select
                   :options="filteredIndexOptions"
                   :placeholder="$t('connection.selectIndex')"
@@ -104,9 +104,9 @@
 
 <script setup lang="ts">
 import { FormRules } from 'naive-ui';
-import { Close, DocumentExport, FileStorage, ZoomArea } from '@vicons/carbon';
+import { Close, DocumentImport, FileStorage, ZoomArea } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { ElasticsearchConnection, useBackupRestoreStore, useConnectionStore } from '../../../store';
+import { ElasticsearchConnection, useImportExportStore, useConnectionStore } from '../../../store';
 import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
 
@@ -119,9 +119,9 @@ const connectionStore = useConnectionStore();
 const { fetchConnections, fetchIndices, freshConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 
-const backupRestoreStore = useBackupRestoreStore();
-const { selectFile, restoreFromFile } = backupRestoreStore;
-const { restoreProgress, restoreFile, connection } = storeToRefs(backupRestoreStore);
+const importExportStore = useImportExportStore();
+const { selectFile, restoreFromFile } = importExportStore;
+const { restoreProgress, restoreFile, importConnection } = storeToRefs(importExportStore);
 
 const defaultFormData = {
   connection: '',
@@ -140,21 +140,21 @@ const restoreFormRules = reactive<FormRules>({
   connection: [
     {
       required: true,
-      renderMessage: () => lang.t('backup.backupForm.connectionRequired'),
+      renderMessage: () => lang.t('importExport.importForm.connectionRequired'),
       trigger: ['input', 'blur'],
     },
   ],
   index: [
     {
       required: true,
-      renderMessage: () => lang.t('backup.backupForm.indexRequired'),
+      renderMessage: () => lang.t('importExport.importForm.indexRequired'),
       trigger: ['input', 'blur'],
     },
   ],
   restoreFile: [
     {
       required: true,
-      renderMessage: () => lang.t('backup.backupForm.backupFolderRequired'),
+      renderMessage: () => lang.t('importExport.importForm.fileRequired'),
       trigger: ['input', 'blur'],
     },
   ],
@@ -203,15 +203,15 @@ const handleIndexSearch = (query: string) => {
   indexSearchQuery.value = query;
 };
 
-watch(connection, () => {
-  if (!connection.value) {
+watch(importConnection, () => {
+  if (!importConnection.value) {
     indexOptions.value = [];
     restoreFormData.value.index = '';
     indexSearchQuery.value = '';
     return;
   }
   indexOptions.value =
-    (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
+    (importConnection.value as ElasticsearchConnection)?.indices?.map(index => ({
       label: index.index,
       value: index.index,
     })) ?? [];
@@ -243,7 +243,7 @@ const handleOpen = async (isOpen: boolean, target: string) => {
     await fetchConnections();
     loadingRefs.value.connection = false;
   } else if (target === 'index') {
-    if (!connection.value) {
+    if (!importConnection.value) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
         keepAliveOnHover: true,
@@ -253,10 +253,10 @@ const handleOpen = async (isOpen: boolean, target: string) => {
     }
     loadingRefs.value.index = true;
     try {
-      await fetchIndices(connection.value);
+      await fetchIndices(importConnection.value);
       // Update indexOptions after fetching indices
       indexOptions.value =
-        (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
+        (importConnection.value as ElasticsearchConnection)?.indices?.map(index => ({
           label: index.index,
           value: index.index,
         })) ?? [];
@@ -283,7 +283,7 @@ const handleSelectUpdate = async (value: string, target: string) => {
     }
     try {
       await freshConnection(con);
-      connection.value = con;
+      importConnection.value = con;
     } catch (err) {
       const error = err as CustomError;
       message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -293,7 +293,7 @@ const handleSelectUpdate = async (value: string, target: string) => {
       });
     }
   } else if (target === 'index') {
-    if (!connection.value) {
+    if (!importConnection.value) {
       message.error(lang.t('editor.establishedRequired'), {
         closable: true,
         keepAliveOnHover: true,
@@ -308,7 +308,7 @@ const handleSelectUpdate = async (value: string, target: string) => {
 const handleValidate = () => {
   fileFormRef.value?.validate((errors: boolean) =>
     errors
-      ? message.error(lang.t('backup.backupForm.validationFailed'))
+      ? message.error(lang.t('importExport.importForm.validationFailed'))
       : message.success(lang.t('connection.validationPassed')),
   );
 };
@@ -316,7 +316,7 @@ const handleValidate = () => {
 const submitRestore = async () => {
   const isPass = fileFormRef.value?.validate((errors: boolean) => {
     if (errors) {
-      message.error(lang.t('backup.backupForm.validationFailed'));
+      message.error(lang.t('importExport.importForm.validationFailed'));
       return false;
     }
     return true;
@@ -328,14 +328,14 @@ const submitRestore = async () => {
 
   const restoreInput = { ...restoreFormData.value, connection: con };
 
-  const index = (connection.value as ElasticsearchConnection)?.indices.find(
+  const index = (importConnection.value as ElasticsearchConnection)?.indices.find(
     index => index.index === restoreFormData.value.index,
   );
 
   if (!index) {
     try {
       await restoreFromFile(restoreInput);
-      message.success(lang.t('backup.restoreFromFileSuccess'));
+      message.success(lang.t('importExport.restoreFromFileSuccess'));
     } catch (err) {
       const error = err as CustomError;
       message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -354,7 +354,7 @@ const submitRestore = async () => {
     negativeText: lang.t('dialogOps.cancel'),
     onPositiveClick: async () => {
       restoreFromFile(restoreInput)
-        .then(() => message.success(lang.t('backup.restoreFromFileSuccess')))
+        .then(() => message.success(lang.t('importExport.restoreFromFileSuccess')))
         .catch(err => {
           const error = err as CustomError;
           message.error(`status: ${error.status}, details: ${error.details}`, {
