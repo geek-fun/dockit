@@ -13,7 +13,8 @@
     </template>
 
     <n-grid cols="2" x-gap="16" y-gap="16">
-      <n-grid-item span="2">
+      <!-- FILE TYPE and FILENAME in same row -->
+      <n-grid-item>
         <div class="field-label">{{ $t('export.fileType') }}</div>
         <n-space>
           <n-button
@@ -27,7 +28,7 @@
         </n-space>
       </n-grid-item>
 
-      <n-grid-item span="2">
+      <n-grid-item>
         <div class="field-label">{{ $t('export.filename') }}</div>
         <n-input
           v-model:value="fileName"
@@ -35,29 +36,37 @@
           @update:value="handleFileNameChange"
         >
           <template #suffix>
-            <span class="file-extension">.{{ selectedFileType }}</span>
+            <span class="file-extension">.{{ fileExtension }}</span>
           </template>
         </n-input>
       </n-grid-item>
 
+      <!-- DESTINATION PATH with folder selector and extra path input -->
       <n-grid-item span="2">
         <div class="field-label">{{ $t('export.destinationPath') }}</div>
-        <n-input-group>
-          <n-button @click="handleSelectFolder">
-            <template #icon>
-              <n-icon>
-                <FolderOpen />
-              </n-icon>
-            </template>
-            {{ folderPath ? '' : $t('export.selectFolder') }}
-          </n-button>
+        <div class="destination-path-row">
+          <n-input-group class="folder-selector">
+            <n-button @click="handleSelectFolder">
+              <template #icon>
+                <n-icon>
+                  <FolderOpen />
+                </n-icon>
+              </template>
+            </n-button>
+            <n-input
+              :value="folderPath || $t('export.selectFolderPlaceholder')"
+              readonly
+              class="folder-path-input"
+            />
+          </n-input-group>
+          <span class="path-separator">/</span>
           <n-input
-            v-if="folderPath"
-            :value="folderPath"
-            readonly
-            :placeholder="$t('export.selectFolderPlaceholder')"
+            v-model:value="extraPath"
+            :placeholder="$t('export.extraPathPlaceholder')"
+            class="extra-path-input"
+            @update:value="handleExtraPathChange"
           />
-        </n-input-group>
+        </div>
       </n-grid-item>
     </n-grid>
   </n-card>
@@ -72,14 +81,21 @@ import { CustomError } from '../../../common';
 const message = useMessage();
 
 const exportStore = useImportExportStore();
-const { folderPath, fileName, fileType } = storeToRefs(exportStore);
+const { folderPath, fileName, fileType, extraPath } = storeToRefs(exportStore);
 
 const selectedFileType = ref<FileType>(fileType.value || 'ndjson');
 
 const fileTypeOptions = [
   { label: 'NDJSON', value: 'ndjson' as FileType },
+  { label: 'JSON', value: 'json' as FileType },
   { label: 'CSV', value: 'csv' as FileType },
 ];
+
+// File extension based on selected type
+const fileExtension = computed(() => {
+  if (selectedFileType.value === 'ndjson') return 'json';
+  return selectedFileType.value;
+});
 
 // Initialize values from store
 onMounted(() => {
@@ -95,6 +111,10 @@ const handleFileTypeChange = (type: FileType) => {
 
 const handleFileNameChange = (value: string) => {
   exportStore.setFileName(value);
+};
+
+const handleExtraPathChange = (value: string) => {
+  exportStore.setExtraPath(value);
 };
 
 const handleSelectFolder = async () => {
@@ -148,6 +168,29 @@ watch(fileType, newType => {
   .file-extension {
     color: var(--text-color-3);
     font-size: 13px;
+  }
+
+  .destination-path-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    .folder-selector {
+      flex: 1;
+
+      .folder-path-input {
+        flex: 1;
+      }
+    }
+
+    .path-separator {
+      color: var(--text-color-3);
+      font-size: 14px;
+    }
+
+    .extra-path-input {
+      width: 200px;
+    }
   }
 }
 </style>

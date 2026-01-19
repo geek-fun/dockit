@@ -14,7 +14,7 @@ export type RestoreInput = {
 };
 
 // Export types
-export type FileType = 'ndjson' | 'csv';
+export type FileType = 'ndjson' | 'json' | 'csv';
 
 export type FieldInfo = {
   name: string;
@@ -60,6 +60,7 @@ export const useImportExportStore = defineStore('importExportStore', {
 
     // Export state
     folderPath: string;
+    extraPath: string;
     fileName: string;
     fileType: FileType;
     exportProgress: { complete: number; total: number } | null;
@@ -87,6 +88,7 @@ export const useImportExportStore = defineStore('importExportStore', {
 
       // Export state
       folderPath: '',
+      extraPath: '',
       fileName: '',
       fileType: 'ndjson',
       exportProgress: null,
@@ -119,6 +121,11 @@ export const useImportExportStore = defineStore('importExportStore', {
     },
     hasRunningTasks(): boolean {
       return this.runningTasks.some(t => t.status === 'running');
+    },
+    getExportPath(): string {
+      if (!this.folderPath) return '';
+      if (!this.extraPath) return this.folderPath;
+      return `${this.folderPath}/${this.extraPath}`;
     },
   },
   actions: {
@@ -366,12 +373,18 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.validateStep3();
     },
 
+    setExtraPath(path: string) {
+      this.extraPath = path;
+      this.validateStep3();
+    },
+
     setFilterQuery(query: string) {
       this.filterQuery = query;
     },
 
     resetExportForm() {
       this.folderPath = '';
+      this.extraPath = '';
       this.fileName = '';
       this.fileType = 'ndjson';
       this.exportProgress = null;
@@ -489,18 +502,23 @@ export const useImportExportStore = defineStore('importExportStore', {
 
     async exportToFile(input: ExportInput): Promise<string> {
       let client;
+      let dbVersion = '';
       if (input.connection.type === DatabaseType.ELASTICSEARCH) {
         client = loadHttpClient({
           host: input.connection.host,
           port: input.connection.port,
           sslCertVerification: input.connection.sslCertVerification,
         });
+        dbVersion = (input.connection as ElasticsearchConnection).version || '';
       } else {
         throw new CustomError(400, 'Unsupported connection type');
       }
 
-      const dataFilePath = `${input.exportFolder}/${input.exportFileName}.${input.exportFileType}`;
-      const metadataFilePath = `${input.exportFolder}/${input.exportFileName}_metadata.json`;
+      // Determine actual file extension based on format
+      const fileExtension = input.exportFileType === 'ndjson' ? 'json' : input.exportFileType;
+      const dataFileName = `data.${fileExtension}`;
+      const dataFilePath = `${input.exportFolder}/${dataFileName}`;
+      const metadataFilePath = `${input.exportFolder}/metadata.json`;
 
       let searchAfter: unknown[] | undefined = undefined;
       let hasMore = true;
@@ -536,23 +554,50 @@ export const useImportExportStore = defineStore('importExportStore', {
 
         const indexMapping = mappingResponse[input.index];
 
-        // Build metadata
+        // Get aliases
+        let aliases = {};
+        try {
+          const aliasResponse = await client.get<{
+            [key: string]: { aliases: { [key: string]: unknown } };
+          }>(`/${input.index}/_alias`);
+          aliases = aliasResponse[input.index]?.aliases || {};
+        } catch {
+          // Aliases might not be available
+        }
+
+        // Get index stats
+        let stats = {};
+        try {
+          const statsResponse = await client.get<{
+            indices: { [key: string]: { total: unknown } };
+          }>(`/${input.index}/_stats`);
+          stats = statsResponse.indices?.[input.index]?.total || {};
+        } catch {
+          // Stats might not be available
+        }
+
+        // Build metadata according to required format
         const metadata = {
-          version: '1.0',
-          exportDate: new Date().toISOString(),
+          version: '1.0.0',
           source: {
-            type: input.connection.type,
-            index: input.index,
-            host: (input.connection as ElasticsearchConnection).host,
+            dbType: input.connection.type.toLowerCase(),
+            dbVersion: dbVersion,
+            sourceType: 'index',
+            sourceName: input.index,
           },
-          dataFile: `${input.exportFileName}.${input.exportFileType}`,
-          format: input.exportFileType,
-          encoding: 'UTF-8',
-          totalRows: countResponse.count,
-          schema: {
-            mappings: indexMapping?.mappings || {},
+          export: {
+            format: input.exportFileType === 'ndjson' ? 'json' : input.exportFileType,
+            dataFile: dataFileName,
+            encoding: 'utf-8',
+            exportedAt: new Date().toISOString(),
+            rowCount: countResponse.count,
+            includedFields: input.fields.filter(f => f.includeInExport).map(f => f.name),
           },
-          includedFields: input.fields.filter(f => f.includeInExport).map(f => f.name),
+          schema: indexMapping?.mappings || {},
+          indexes: {},
+          aliases: aliases,
+          stats: stats,
+          comments: '',
         };
 
         // Write metadata file (beautify based on user preference)
@@ -565,11 +610,18 @@ export const useImportExportStore = defineStore('importExportStore', {
         // Build CSV headers if needed
         const includedFieldNames = input.fields.filter(f => f.includeInExport).map(f => f.name);
 
+        // Initialize file based on format
         if (input.exportFileType === 'csv') {
           // Write CSV header
           await sourceFileApi.saveFile(dataFilePath, includedFieldNames.join(',') + '\r\n', false);
           appendFile = true;
+        } else if (input.exportFileType === 'json') {
+          // Start JSON array
+          await sourceFileApi.saveFile(dataFilePath, '[\n', false);
+          appendFile = true;
         }
+
+        let isFirstBatch = true;
 
         while (hasMore) {
           const searchBody: {
@@ -647,6 +699,18 @@ export const useImportExportStore = defineStore('importExportStore', {
               if (dataToWrite) {
                 dataToWrite += '\n';
               }
+            } else if (input.exportFileType === 'json') {
+              // JSON array format
+              const jsonDocs = hits.map(hit => {
+                const doc = { _id: hit._id, ...hit._source };
+                return input.beautifyJson
+                  ? jsonify.stringify(doc, null, 2)
+                  : jsonify.stringify(doc);
+              });
+              // Add comma separator between batches
+              const prefix = isFirstBatch ? '' : ',\n';
+              dataToWrite = prefix + jsonDocs.join(',\n');
+              isFirstBatch = false;
             } else {
               // CSV format
               dataToWrite = convertToCsv(includedFieldNames, hits);
@@ -655,6 +719,11 @@ export const useImportExportStore = defineStore('importExportStore', {
             await sourceFileApi.saveFile(dataFilePath, dataToWrite, appendFile);
             appendFile = true;
           }
+        }
+
+        // Close JSON array if needed
+        if (input.exportFileType === 'json') {
+          await sourceFileApi.saveFile(dataFilePath, '\n]', true);
         }
 
         return dataFilePath;

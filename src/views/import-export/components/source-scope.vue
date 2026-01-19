@@ -67,6 +67,8 @@ import {
   useImportExportStore,
   useConnectionStore,
   ElasticsearchConnection,
+  DynamoDBConnection,
+  DatabaseType,
 } from '../../../store';
 import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
@@ -75,7 +77,8 @@ const message = useMessage();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
-const { fetchConnections, fetchIndices, freshConnection } = connectionStore;
+const { fetchConnections, fetchIndices, freshConnection, getDynamoIndexOrTableOption } =
+  connectionStore;
 const { connections } = storeToRefs(connectionStore);
 
 const exportStore = useImportExportStore();
@@ -164,11 +167,7 @@ const handleIndexOpen = async (isOpen: boolean) => {
   loadingIndex.value = true;
   try {
     await fetchIndices(connection.value);
-    indexOptions.value =
-      (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
-        label: index.index,
-        value: index.index,
-      })) ?? [];
+    updateIndexOptions();
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -178,6 +177,29 @@ const handleIndexOpen = async (isOpen: boolean) => {
     });
   } finally {
     loadingIndex.value = false;
+  }
+};
+
+const updateIndexOptions = () => {
+  if (!connection.value) {
+    indexOptions.value = [];
+    return;
+  }
+
+  if (connection.value.type === DatabaseType.ELASTICSEARCH) {
+    // Elasticsearch: use indices
+    indexOptions.value =
+      (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
+        label: index.index,
+        value: index.index,
+      })) ?? [];
+  } else if (connection.value.type === DatabaseType.DYNAMODB) {
+    // DynamoDB: use table and GSIs
+    const dynamoOptions = getDynamoIndexOrTableOption(connection.value as DynamoDBConnection);
+    indexOptions.value = dynamoOptions.map(opt => ({
+      label: opt.label,
+      value: opt.value,
+    }));
   }
 };
 
@@ -213,11 +235,7 @@ watch(connection, () => {
     indexSearchQuery.value = '';
     return;
   }
-  indexOptions.value =
-    (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
-      label: index.index,
-      value: index.index,
-    })) ?? [];
+  updateIndexOptions();
 });
 </script>
 

@@ -9,8 +9,8 @@
       </div>
     </template>
 
-    <!-- Validation Readiness -->
-    <div class="section">
+    <!-- Validation Readiness - with border and background -->
+    <div class="validation-section">
       <div class="section-header">
         <span class="section-title">{{ $t('export.validationReadiness') }}</span>
         <span :class="['validation-status', validationClass]">
@@ -41,11 +41,11 @@
       </div>
     </div>
 
-    <!-- File Handling Options -->
-    <div class="section">
+    <!-- File Handling Options - with border -->
+    <div class="file-handling-section">
       <div class="section-title-small">{{ $t('export.fileHandling') }}</div>
 
-      <div class="option-row">
+      <div class="option-item">
         <n-checkbox v-model:checked="overwriteExisting">
           <div class="option-content">
             <span class="option-label">{{ $t('export.overwriteExisting') }}</span>
@@ -54,7 +54,7 @@
         </n-checkbox>
       </div>
 
-      <div class="option-row">
+      <div class="option-item">
         <n-checkbox v-model:checked="createDirectory">
           <div class="option-content">
             <span class="option-label">{{ $t('export.createDirectory') }}</span>
@@ -63,15 +63,13 @@
         </n-checkbox>
       </div>
 
-      <div class="option-row">
-        <div class="option-content-row">
-          <span class="option-label">{{ $t('export.beautifyJson') }}</span>
-          <n-switch v-model:value="beautifyJson" />
-        </div>
+      <div class="option-item toggle-item">
+        <span class="option-label">{{ $t('export.beautifyJson') }}</span>
+        <n-switch v-model:value="beautifyJson" />
       </div>
     </div>
 
-    <!-- Export Button -->
+    <!-- Export Button - at bottom -->
     <div class="export-action">
       <n-button
         type="primary"
@@ -128,7 +126,6 @@ const {
   validationStatus,
   connection,
   selectedIndex,
-  folderPath,
   fileName,
   fileType,
   fields,
@@ -136,6 +133,7 @@ const {
   overwriteExisting,
   createDirectory,
   beautifyJson,
+  getExportPath,
 } = storeToRefs(exportStore);
 
 const isExporting = ref(false);
@@ -180,10 +178,12 @@ const formatNumber = (num: number | null): string => {
 const handleStartExport = async () => {
   if (!canStartExport.value || !connection.value) return;
 
+  const exportPath = getExportPath.value;
+
   // Check if file exists
   const fileExists = await exportStore.checkFileExist({
     index: selectedIndex.value,
-    exportFolder: folderPath.value,
+    exportFolder: exportPath,
     exportFileName: fileName.value,
     exportFileType: fileType.value,
     filterQuery: filterQuery.value,
@@ -211,10 +211,12 @@ const executeExport = async () => {
 
   isExporting.value = true;
 
+  const exportPath = getExportPath.value;
+
   const exportInput: ExportInput = {
     connection: connection.value,
     index: selectedIndex.value,
-    exportFolder: folderPath.value,
+    exportFolder: exportPath,
     exportFileName: fileName.value,
     exportFileType: fileType.value,
     fields: fields.value,
@@ -233,7 +235,7 @@ const executeExport = async () => {
     connection: connection.value,
     index: selectedIndex.value,
     fileName: fileName.value,
-    folderPath: folderPath.value,
+    folderPath: exportPath,
     fileType: fileType.value,
     fields: fields.value,
     startTime: new Date(),
@@ -263,6 +265,10 @@ const executeExport = async () => {
 
 <style lang="scss" scoped>
 .execution-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
   .execution-header {
     display: flex;
     align-items: center;
@@ -274,8 +280,12 @@ const executeExport = async () => {
     }
   }
 
-  .section {
-    margin-bottom: 20px;
+  .validation-section {
+    background-color: var(--card-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
 
     .section-header {
       display: flex;
@@ -307,12 +317,8 @@ const executeExport = async () => {
     }
   }
 
-  .section-title-small {
-    font-size: 12px;
-    color: var(--text-color-3);
-    text-transform: uppercase;
-    font-weight: 500;
-    margin-bottom: 12px;
+  .section {
+    margin-bottom: 16px;
   }
 
   .stats-section {
@@ -341,39 +347,61 @@ const executeExport = async () => {
     }
   }
 
-  .option-row {
-    margin-bottom: 12px;
+  .file-handling-section {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
 
-    .option-content {
-      display: flex;
-      flex-direction: column;
-
-      .option-label {
-        font-size: 13px;
-        font-weight: 500;
-      }
-
-      .option-desc {
-        font-size: 11px;
-        color: var(--text-color-3);
-      }
+    .section-title-small {
+      font-size: 12px;
+      color: var(--text-color-3);
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-bottom: 12px;
     }
 
-    .option-content-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
+    .option-item {
+      padding: 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      margin-bottom: 8px;
 
-      .option-label {
-        font-size: 13px;
-        font-weight: 500;
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .option-content {
+        display: flex;
+        flex-direction: column;
+
+        .option-label {
+          font-size: 13px;
+          font-weight: 500;
+        }
+
+        .option-desc {
+          font-size: 11px;
+          color: var(--text-color-3);
+        }
+      }
+
+      &.toggle-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .option-label {
+          font-size: 13px;
+          font-weight: 500;
+        }
       }
     }
   }
 
   .export-action {
-    margin-top: 20px;
+    margin-top: auto;
+    padding-top: 16px;
 
     .export-note {
       font-size: 11px;
