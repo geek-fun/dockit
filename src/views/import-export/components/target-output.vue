@@ -66,12 +66,12 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { DocumentExport, FolderOpen } from '@vicons/carbon';
-import { useExportStore, FileType } from '../../../store';
+import { useImportExportStore, FileType } from '../../../store';
 import { CustomError } from '../../../common';
 
 const message = useMessage();
 
-const exportStore = useExportStore();
+const exportStore = useImportExportStore();
 const { folderPath, fileName, fileType } = storeToRefs(exportStore);
 
 const selectedFileType = ref<FileType>(fileType.value || 'ndjson');

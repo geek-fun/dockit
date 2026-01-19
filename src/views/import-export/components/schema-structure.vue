@@ -61,14 +61,14 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { DataStructured } from '@vicons/carbon';
-import { useExportStore } from '../../../store';
+import { useImportExportStore } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 
 const message = useMessage();
 const lang = useLang();
 
-const exportStore = useExportStore();
+const exportStore = useImportExportStore();
 const { fields, selectedIndex, connection } = storeToRefs(exportStore);
 
 const loading = ref(false);

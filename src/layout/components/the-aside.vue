@@ -54,7 +54,6 @@ import {
   ExpandAll,
   Equalizer,
   ImportExport,
-  DocumentExport,
 } from '@vicons/carbon';
 import { useAppStore } from '../../store';
 import TheAsideIcon from './the-aside-icon.vue';
@@ -94,17 +93,10 @@ const mainNavList = ref([
     isLink: false,
   },
   {
-    id: 'backup-restore',
-    path: '/backup-restore',
-    name: 'backupRestore',
+    id: 'import-export',
+    path: '/import-export',
+    name: 'importExport',
     icon: markRaw(ImportExport),
-    isLink: false,
-  },
-  {
-    id: 'export',
-    path: '/export',
-    name: 'export',
-    icon: markRaw(DocumentExport),
     isLink: false,
   },
   {

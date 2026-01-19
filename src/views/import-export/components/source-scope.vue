@@ -64,7 +64,7 @@
 import { storeToRefs } from 'pinia';
 import { DataBase } from '@vicons/carbon';
 import {
-  useExportStore,
+  useImportExportStore,
   useConnectionStore,
   ElasticsearchConnection,
 } from '../../../store';
@@ -78,7 +78,7 @@ const connectionStore = useConnectionStore();
 const { fetchConnections, fetchIndices, freshConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 
-const exportStore = useExportStore();
+const exportStore = useImportExportStore();
 const { connection, selectedIndex: storeSelectedIndex, filterQuery } = storeToRefs(exportStore);
 
 const selectedConnection = ref<string>('');

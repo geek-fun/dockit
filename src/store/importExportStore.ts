@@ -6,6 +6,14 @@ import { get } from 'lodash';
 import { Connection, DatabaseType, ElasticsearchConnection } from './connectionStore.ts';
 import { loadHttpClient, sourceFileApi } from '../datasources';
 
+// Import (Restore) types
+export type RestoreInput = {
+  connection: Connection;
+  index: string;
+  restoreFile: string;
+};
+
+// Export types
 export type FileType = 'ndjson' | 'csv';
 
 export type FieldInfo = {
@@ -43,8 +51,14 @@ export type ExportInput = {
   beautifyJson: boolean;
 };
 
-export const useExportStore = defineStore('exportStore', {
+export const useImportExportStore = defineStore('importExportStore', {
   state(): {
+    // Import (Restore) state
+    restoreProgress: { complete: number; total: number } | null;
+    restoreFile: string;
+    importConnection: Connection | undefined;
+
+    // Export state
     folderPath: string;
     fileName: string;
     fileType: FileType;
@@ -66,6 +80,12 @@ export const useExportStore = defineStore('exportStore', {
     runningTasks: ExportTask[];
   } {
     return {
+      // Import (Restore) state
+      restoreProgress: null,
+      restoreFile: '',
+      importConnection: undefined,
+
+      // Export state
       folderPath: '',
       fileName: '',
       fileType: 'ndjson',
@@ -102,6 +122,176 @@ export const useExportStore = defineStore('exportStore', {
     },
   },
   actions: {
+    // ==================== Import (Restore) Actions ====================
+    async selectFile() {
+      try {
+        this.restoreFile = (await open({
+          multiple: false,
+          directory: false,
+          filters: [
+            {
+              name: 'Import Files',
+              extensions: ['csv', 'json', 'ndjson'],
+            },
+          ],
+        })) as string;
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+
+    async restoreFromFile(input: RestoreInput) {
+      let client;
+      if (input.connection.type === DatabaseType.ELASTICSEARCH) {
+        client = loadHttpClient({
+          host: input.connection.host,
+          port: input.connection.port,
+          sslCertVerification: input.connection.sslCertVerification,
+        });
+      } else {
+        throw new CustomError(400, 'Unsupported connection type');
+      }
+      const fileType = input.restoreFile.split('.').pop();
+      const bulkSize = 1000;
+      let data: string;
+      try {
+        data = await sourceFileApi.readFile(input.restoreFile);
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+
+      try {
+        if (fileType === 'json') {
+          // Parse multiple JSON arrays that were concatenated during backup
+          const jsonArrays: string[] = [];
+          let depth = 0;
+          let currentArray = '';
+
+          for (let i = 0; i < data.length; i++) {
+            const char = data[i];
+            currentArray += char;
+
+            if (char === '[') {
+              depth++;
+            } else if (char === ']') {
+              depth--;
+              if (depth === 0 && currentArray.trim()) {
+                jsonArrays.push(currentArray.trim());
+                currentArray = '';
+              }
+            }
+          }
+
+          // Parse all JSON arrays and flatten into single hits array
+          const allHits: Array<{
+            _index: string;
+            _id: string;
+            _score: number;
+            _source: unknown;
+            sort: unknown[];
+          }> = [];
+
+          for (const jsonArray of jsonArrays) {
+            try {
+              const hits = jsonify.parse(jsonArray);
+              if (Array.isArray(hits)) {
+                allHits.push(...hits);
+              }
+            } catch (e) {
+              // Continue with other arrays even if one fails
+            }
+          }
+
+          this.restoreProgress = {
+            complete: 0,
+            total: allHits.length,
+          };
+          for (let i = 0; i < allHits.length; i += bulkSize) {
+            const bulkData = allHits
+              .slice(i, i + bulkSize)
+              .flatMap(hit => [{ index: { _index: input.index, _id: hit._id } }, hit._source])
+              .map(item => jsonify.stringify(item));
+
+            await bulkRequest(client, bulkData);
+
+            this.restoreProgress.complete += bulkData.length / 2;
+          }
+        } else if (fileType === 'ndjson') {
+          // Parse NDJSON format - one JSON object per line
+          const lines = data.split('\n').filter(line => line.trim());
+          this.restoreProgress = {
+            complete: 0,
+            total: lines.length,
+          };
+
+          for (let i = 0; i < lines.length; i += bulkSize) {
+            const bulkData = lines.slice(i, i + bulkSize).flatMap(line => {
+              try {
+                const doc = jsonify.parse(line);
+                const { _id, ...source } = doc;
+                return [{ index: { _index: input.index, _id } }, source];
+              } catch {
+                return [];
+              }
+            }).map(item => jsonify.stringify(item));
+
+            await bulkRequest(client, bulkData);
+
+            this.restoreProgress.complete += bulkData.length / 2;
+          }
+        } else if (fileType === 'csv') {
+          const lines = data.split('\r\n');
+          const headers = lines[0].split(',');
+          this.restoreProgress = {
+            complete: 0,
+            total: lines.length - 1,
+          };
+
+          for (let i = 1; i < lines.length; i += bulkSize) {
+            const bulkData = lines
+              .slice(i, i + bulkSize)
+              .flatMap(line => {
+                const values = line.split(',');
+                const body = headers.reduce(
+                  (acc, header, index) => {
+                    let value = values[index];
+                    try {
+                      value = jsonify.parse(value);
+                    } catch (e) {
+                      // value is not a JSON string, keep it as is
+                    }
+                    acc[header] = value;
+                    return acc;
+                  },
+                  {} as { [key: string]: unknown },
+                );
+
+                return [{ index: { _index: input.index } }, body];
+              })
+              .map(item => jsonify.stringify(item));
+
+            await bulkRequest(client, bulkData);
+
+            this.restoreProgress.complete += bulkData.length / 2;
+          }
+        } else {
+          throw new CustomError(400, 'Unsupported file type');
+        }
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+
+    // ==================== Export Actions ====================
     async selectFolder() {
       try {
         this.folderPath = (await open({ recursive: true, directory: true })) as string;
@@ -515,6 +705,22 @@ export const useExportStore = defineStore('exportStore', {
     },
   },
 });
+
+// Helper functions
+const bulkRequest = async (client: { post: Function }, bulkData: Array<unknown>) => {
+  const response = await client.post(`/_bulk`, undefined, bulkData.join('\r\n') + '\r\n');
+
+  if (response.status && response.status !== 200) {
+    throw new CustomError(
+      response.status,
+      get(
+        response,
+        'details',
+        get(response, 'message', jsonify.stringify(get(response, 'error.root_cause', ''))),
+      ),
+    );
+  }
+};
 
 const formatBytes = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';

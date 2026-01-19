@@ -8,8 +8,7 @@ export const enUS = {
     user: 'User',
     setting: 'Setting',
     chatBot: 'AI Assistant',
-    backupRestore: 'Backup/Restore',
-    export: 'Data Export',
+    importExport: 'Import/Export',
   },
   setting: {
     basic: 'Basic',
@@ -331,26 +330,19 @@ export const enUS = {
     empty: 'No history yet',
     emptyDesc: 'History of queries will appear here as you execute Scans and Queries',
   },
-  backup: {
-    backup: 'Backup',
-    restore: 'Restore',
-    restoreSourceDesc: 'Click or drag a file to this area to upload your JSON/CSV file',
-    backupToFileSuccess: 'Successfully backed up to file',
-    restoreFromFileSuccess: 'Successfully restored from file',
-    backupForm: {
+  importExport: {
+    export: 'Export',
+    import: 'Import',
+    restoreSourceDesc: 'Click or drag a file to this area to upload your JSON/CSV/NDJSON file',
+    restoreFromFileSuccess: 'Successfully imported from file',
+    importForm: {
       connection: 'Connection',
       index: 'Index',
-      backupFolder: 'Location',
-      backupFileName: 'File Name',
       connectionRequired: 'Please select a Connection',
       indexRequired: 'Please select an Index',
-      backupFolderRequired: 'Please select Backup Folder',
-      backupFileNameRequired: 'Please enter Backup File Name',
-      backupFileNameNoExtension:
-        'File name should not include extension. Use the file type selector instead.',
-      validationFailed: 'Backup Config validation failed!',
-      validationPassed: 'Backup Config validation passed!',
-      backupFileTypeInvalid: 'Backup file type is invalid',
+      fileRequired: 'Please select a file to import',
+      validationFailed: 'Import Config validation failed!',
+      validationPassed: 'Import Config validation passed!',
     },
   },
   version: {

@@ -110,7 +110,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { Flash, Download } from '@vicons/carbon';
-import { useExportStore, ExportInput } from '../../../store';
+import { useImportExportStore, ExportInput } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import { ulid } from 'ulidx';
@@ -119,7 +119,7 @@ const message = useMessage();
 const dialog = useDialog();
 const lang = useLang();
 
-const exportStore = useExportStore();
+const exportStore = useImportExportStore();
 const {
   canStartExport,
   exportProgress,
