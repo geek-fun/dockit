@@ -536,7 +536,7 @@ export const enUS = {
     overwriteExistingDesc: 'Replace file if it exists',
     createDirectory: 'Create Directory',
     createDirectoryDesc: "If path doesn't exist",
-    beautifyJson: 'Beautify JSON',
+    beautifyJson: 'Beautify Metadata',
     startExportTask: 'Start Export Task',
     exportNote: 'Export task will run in background. You can close this window.',
     documents: 'documents',

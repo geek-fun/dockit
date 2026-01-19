@@ -365,10 +365,10 @@ export const useExportStore = defineStore('exportStore', {
           includedFields: input.fields.filter(f => f.includeInExport).map(f => f.name),
         };
 
-        // Write metadata file
+        // Write metadata file (beautify based on user preference)
         await sourceFileApi.saveFile(
           metadataFilePath,
-          jsonify.stringify(metadata, null, 2),
+          input.beautifyJson ? jsonify.stringify(metadata, null, 2) : jsonify.stringify(metadata),
           false,
         );
 
@@ -447,13 +447,11 @@ export const useExportStore = defineStore('exportStore', {
             let dataToWrite: string;
 
             if (input.exportFileType === 'ndjson') {
-              // NDJSON format - one JSON object per line
+              // NDJSON format - one JSON object per line (compact format as per NDJSON spec)
               dataToWrite = hits
                 .map(hit => {
                   const doc = { _id: hit._id, ...hit._source };
-                  return input.beautifyJson
-                    ? jsonify.stringify(doc)
-                    : jsonify.stringify(doc);
+                  return jsonify.stringify(doc);
                 })
                 .join('\n');
               if (dataToWrite) {

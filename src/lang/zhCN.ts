@@ -535,7 +535,7 @@ export const zhCN = {
     overwriteExistingDesc: '如果文件存在则替换',
     createDirectory: '创建目录',
     createDirectoryDesc: '如果路径不存在',
-    beautifyJson: '格式化 JSON',
+    beautifyJson: '格式化元数据',
     startExportTask: '开始导出任务',
     exportNote: '导出任务将在后台运行，您可以关闭此窗口。',
     documents: '条文档',
