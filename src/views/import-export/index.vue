@@ -30,18 +30,46 @@
         </div>
       </n-tab-pane>
       <n-tab-pane name="import" :tab="$t('importExport.import')">
-        <Restore />
+        <div class="import-container">
+          <div class="import-header">
+            <n-breadcrumb>
+              <n-breadcrumb-item>{{ $t('export.databaseTools') }}</n-breadcrumb-item>
+              <n-breadcrumb-item>{{ $t('import.dataImport') }}</n-breadcrumb-item>
+            </n-breadcrumb>
+          </div>
+
+          <div class="import-content">
+            <div class="import-main">
+              <!-- Step 1: Source & Scope -->
+              <ImportSourceScope />
+
+              <!-- Step 2: Schema & Structure -->
+              <ImportSchemaStructure />
+
+              <!-- Step 3: Target & Output -->
+              <ImportTargetOutput />
+            </div>
+
+            <div class="import-sidebar">
+              <!-- Execution Panel -->
+              <ImportExecutionPanel />
+            </div>
+          </div>
+        </div>
       </n-tab-pane>
     </n-tabs>
   </main>
 </template>
 
 <script setup lang="ts">
-import Restore from './components/restore.vue';
 import SourceScope from './components/source-scope.vue';
 import SchemaStructure from './components/schema-structure.vue';
 import TargetOutput from './components/target-output.vue';
 import ExecutionPanel from './components/execution-panel.vue';
+import ImportSourceScope from './components/import-source-scope.vue';
+import ImportSchemaStructure from './components/import-schema-structure.vue';
+import ImportTargetOutput from './components/import-target-output.vue';
+import ImportExecutionPanel from './components/import-execution-panel.vue';
 
 const activeTab = ref('export');
 </script>
@@ -69,7 +97,8 @@ const activeTab = ref('export');
   }
 }
 
-.export-container {
+.export-container,
+.import-container {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -77,17 +106,20 @@ const activeTab = ref('export');
   box-sizing: border-box;
   overflow: auto;
 
-  .export-header {
+  .export-header,
+  .import-header {
     margin-bottom: 16px;
   }
 
-  .export-content {
+  .export-content,
+  .import-content {
     display: flex;
     gap: 24px;
     flex: 1;
     min-height: 0;
 
-    .export-main {
+    .export-main,
+    .import-main {
       flex: 1;
       display: flex;
       flex-direction: column;
@@ -96,7 +128,8 @@ const activeTab = ref('export');
       padding-right: 8px;
     }
 
-    .export-sidebar {
+    .export-sidebar,
+    .import-sidebar {
       width: 300px;
       flex-shrink: 0;
     }

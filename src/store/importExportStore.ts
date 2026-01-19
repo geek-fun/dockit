@@ -13,6 +13,40 @@ export type RestoreInput = {
   restoreFile: string;
 };
 
+// Import Metadata types (from exported metadata.json)
+export type ImportMetadata = {
+  version: string;
+  source: {
+    dbType: string;
+    dbVersion: string;
+    sourceType: string;
+    sourceName: string;
+  };
+  export: {
+    format: string;
+    dataFile: string;
+    encoding: string;
+    exportedAt: string;
+    rowCount: number;
+    includedFields: string[];
+  };
+  schema: {
+    properties?: { [key: string]: { type?: string; properties?: unknown } };
+  };
+  indexes: unknown;
+  aliases: unknown;
+  stats: unknown;
+  comments: string;
+};
+
+export type ImportStrategy = 'append' | 'replace';
+
+export type ImportFieldInfo = {
+  name: string;
+  type: string;
+  sampleValue: string;
+};
+
 // Export types
 export type FileType = 'ndjson' | 'json' | 'csv';
 
@@ -53,10 +87,22 @@ export type ExportInput = {
 
 export const useImportExportStore = defineStore('importExportStore', {
   state(): {
-    // Import (Restore) state
+    // Import state
     restoreProgress: { complete: number; total: number } | null;
     restoreFile: string;
     importConnection: Connection | undefined;
+    importDataFile: string;
+    importMetadataFile: string;
+    importMetadata: ImportMetadata | null;
+    importTargetIndex: string;
+    importStrategy: ImportStrategy;
+    importFields: ImportFieldInfo[];
+    importValidationStatus: {
+      step1: boolean; // Data file selected
+      step2: boolean; // Metadata loaded & valid
+      step3: boolean; // Target configured
+    };
+    importValidationErrors: string[];
 
     // Export state
     folderPath: string;
@@ -81,10 +127,22 @@ export const useImportExportStore = defineStore('importExportStore', {
     runningTasks: ExportTask[];
   } {
     return {
-      // Import (Restore) state
+      // Import state
       restoreProgress: null,
       restoreFile: '',
       importConnection: undefined,
+      importDataFile: '',
+      importMetadataFile: '',
+      importMetadata: null,
+      importTargetIndex: '',
+      importStrategy: 'append',
+      importFields: [],
+      importValidationStatus: {
+        step1: false,
+        step2: false,
+        step3: false,
+      },
+      importValidationErrors: [],
 
       // Export state
       folderPath: '',
@@ -126,6 +184,23 @@ export const useImportExportStore = defineStore('importExportStore', {
       if (!this.folderPath) return '';
       if (!this.extraPath) return this.folderPath;
       return `${this.folderPath}/${this.extraPath}`;
+    },
+    // Import getters
+    canStartImport(): boolean {
+      return (
+        this.importValidationStatus.step1 &&
+        this.importValidationStatus.step2 &&
+        this.importValidationStatus.step3
+      );
+    },
+    importValidationPercentage(): number {
+      const steps = [
+        this.importValidationStatus.step1,
+        this.importValidationStatus.step2,
+        this.importValidationStatus.step3,
+      ];
+      const completed = steps.filter(Boolean).length;
+      return Math.round((completed / steps.length) * 100);
     },
   },
   actions: {
@@ -296,6 +371,234 @@ export const useImportExportStore = defineStore('importExportStore', {
           get(error, 'details', get(error, 'message', '')),
         );
       }
+    },
+
+    // ==================== Enhanced Import Actions ====================
+    async selectImportDataFile() {
+      try {
+        const selected = await open({
+          multiple: false,
+          directory: false,
+          filters: [
+            {
+              name: 'Data Files',
+              extensions: ['csv', 'json', 'ndjson'],
+            },
+          ],
+        });
+        if (selected) {
+          this.importDataFile = selected as string;
+          this.validateImportStep1();
+
+          // Try to auto-detect metadata file in same directory
+          const dirPath = (selected as string).substring(
+            0,
+            (selected as string).lastIndexOf('/'),
+          );
+          const metadataPath = `${dirPath}/metadata.json`;
+          if (await sourceFileApi.exists(metadataPath)) {
+            this.importMetadataFile = metadataPath;
+            await this.loadImportMetadata();
+          }
+        }
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+
+    async selectImportMetadataFile() {
+      try {
+        const selected = await open({
+          multiple: false,
+          directory: false,
+          filters: [
+            {
+              name: 'Metadata File',
+              extensions: ['json'],
+            },
+          ],
+        });
+        if (selected) {
+          this.importMetadataFile = selected as string;
+          await this.loadImportMetadata();
+        }
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+
+    async loadImportMetadata() {
+      if (!this.importMetadataFile) {
+        this.importMetadata = null;
+        this.importFields = [];
+        this.importValidationErrors = ['Metadata file is required'];
+        this.validateImportStep2();
+        return;
+      }
+
+      try {
+        const content = await sourceFileApi.readFile(this.importMetadataFile);
+        const metadata = jsonify.parse(content) as ImportMetadata;
+
+        // Validate metadata structure
+        const errors: string[] = [];
+
+        if (!metadata.version) {
+          errors.push('Missing schema version in metadata');
+        }
+
+        if (!metadata.source?.dbType) {
+          errors.push('Missing database type in metadata');
+        }
+
+        if (!metadata.export?.dataFile) {
+          errors.push('Missing data file reference in metadata');
+        }
+
+        if (!metadata.export?.rowCount && metadata.export?.rowCount !== 0) {
+          errors.push('Missing row count in metadata');
+        }
+
+        this.importValidationErrors = errors;
+
+        if (errors.length === 0) {
+          this.importMetadata = metadata;
+
+          // Extract fields from schema
+          if (metadata.schema?.properties) {
+            this.importFields = Object.entries(metadata.schema.properties).map(
+              ([name, config]) => ({
+                name,
+                type: ((config as { type?: string }).type || 'object').toUpperCase(),
+                sampleValue: '',
+              }),
+            );
+          }
+        } else {
+          this.importMetadata = null;
+          this.importFields = [];
+        }
+
+        this.validateImportStep2();
+      } catch (error) {
+        this.importMetadata = null;
+        this.importFields = [];
+        this.importValidationErrors = ['Failed to parse metadata file: Invalid JSON format'];
+        this.validateImportStep2();
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', 'Failed to parse metadata file')),
+        );
+      }
+    },
+
+    validateImportStep1() {
+      this.importValidationStatus.step1 = !!this.importDataFile;
+    },
+
+    validateImportStep2() {
+      this.importValidationStatus.step2 =
+        !!this.importMetadata && this.importValidationErrors.length === 0;
+    },
+
+    validateImportStep3() {
+      this.importValidationStatus.step3 = !!(this.importConnection && this.importTargetIndex);
+    },
+
+    setImportConnection(connection: Connection | undefined) {
+      this.importConnection = connection;
+      this.importTargetIndex = '';
+      this.validateImportStep3();
+    },
+
+    setImportTargetIndex(index: string) {
+      this.importTargetIndex = index;
+      this.validateImportStep3();
+    },
+
+    setImportStrategy(strategy: ImportStrategy) {
+      this.importStrategy = strategy;
+    },
+
+    validateDatabaseCompatibility(): { valid: boolean; errors: string[] } {
+      const errors: string[] = [];
+
+      if (!this.importMetadata || !this.importConnection) {
+        errors.push('Metadata and connection are required for validation');
+        return { valid: false, errors };
+      }
+
+      // Check database type compatibility
+      const sourceDbType = this.importMetadata.source.dbType.toLowerCase();
+      const targetDbType = this.importConnection.type.toLowerCase();
+
+      if (sourceDbType !== targetDbType) {
+        errors.push(
+          `Database type mismatch: source is ${sourceDbType}, target is ${targetDbType}`,
+        );
+      }
+
+      return { valid: errors.length === 0, errors };
+    },
+
+    resetImportForm() {
+      this.restoreProgress = null;
+      this.restoreFile = '';
+      this.importDataFile = '';
+      this.importMetadataFile = '';
+      this.importMetadata = null;
+      this.importTargetIndex = '';
+      this.importStrategy = 'append';
+      this.importFields = [];
+      this.importValidationStatus = {
+        step1: false,
+        step2: false,
+        step3: false,
+      };
+      this.importValidationErrors = [];
+    },
+
+    async executeImport() {
+      if (!this.importConnection || !this.importTargetIndex || !this.importDataFile) {
+        throw new CustomError(400, 'Import configuration is incomplete');
+      }
+
+      // Validate database compatibility
+      const compatibility = this.validateDatabaseCompatibility();
+      if (!compatibility.valid) {
+        throw new CustomError(400, compatibility.errors.join('; '));
+      }
+
+      // Use existing restoreFromFile logic with the new data file
+      const restoreInput: RestoreInput = {
+        connection: this.importConnection,
+        index: this.importTargetIndex,
+        restoreFile: this.importDataFile,
+      };
+
+      await this.restoreFromFile(restoreInput);
+
+      // Verify row count if metadata is available
+      if (this.importMetadata && this.restoreProgress) {
+        const expectedCount = this.importMetadata.export.rowCount;
+        const actualCount = this.restoreProgress.complete;
+
+        if (actualCount !== expectedCount) {
+          // Return warning but don't fail
+          return {
+            success: true,
+            warning: `Row count mismatch: expected ${expectedCount}, imported ${actualCount}`,
+          };
+        }
+      }
+
+      return { success: true };
     },
 
     // ==================== Export Actions ====================
