@@ -574,5 +574,6 @@ export const zhCN = {
     importNote: '任务将在后台运行，完成后会通知您。',
     replaceWarning: '这将覆盖 {index} 中的所有数据。确定要继续吗？',
     importSuccess: '导入成功完成',
+    metadataLoaded: '元数据加载成功',
   },
 };

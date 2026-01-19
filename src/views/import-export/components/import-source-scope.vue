@@ -165,16 +165,11 @@ const handleSelectMetadataFile = async () => {
 };
 
 const clearDataFile = () => {
-  importDataFile.value = '';
-  importExportStore.validateImportStep1();
+  importExportStore.clearImportDataFile();
 };
 
 const clearMetadataFile = () => {
-  importMetadataFile.value = '';
-  importExportStore.importMetadata = null;
-  importExportStore.importFields = [];
-  importExportStore.importValidationErrors = [];
-  importExportStore.validateImportStep2();
+  importExportStore.clearImportMetadataFile();
 };
 </script>
 

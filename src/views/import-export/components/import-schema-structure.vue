@@ -120,8 +120,10 @@ import { storeToRefs } from 'pinia';
 import { DataStructured, Locked } from '@vicons/carbon';
 import { useImportExportStore } from '../../../store';
 import { CustomError } from '../../../common';
+import { useLang } from '../../../lang';
 
 const message = useMessage();
+const lang = useLang();
 
 const importExportStore = useImportExportStore();
 const { importMetadata, importFields, importValidationErrors } = storeToRefs(importExportStore);
@@ -130,14 +132,14 @@ const loading = ref(false);
 
 const handleRefreshMetadata = async () => {
   if (!importExportStore.importMetadataFile) {
-    message.warning('Please select a metadata file first');
+    message.warning(lang.t('import.selectMetadataFirst'));
     return;
   }
 
   loading.value = true;
   try {
     await importExportStore.loadImportMetadata();
-    message.success('Metadata loaded successfully');
+    message.success(lang.t('import.metadataLoaded'));
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {

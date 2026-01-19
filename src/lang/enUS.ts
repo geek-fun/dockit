@@ -574,5 +574,6 @@ export const enUS = {
     importNote: 'Task will run in the background. You will be notified upon completion.',
     replaceWarning: 'This will overwrite all data in {index}. Are you sure you want to continue?',
     importSuccess: 'Import completed successfully',
+    metadataLoaded: 'Metadata loaded successfully',
   },
 };

@@ -461,7 +461,7 @@ export const useImportExportStore = defineStore('importExportStore', {
           errors.push('Missing data file reference in metadata');
         }
 
-        if (!metadata.export?.rowCount && metadata.export?.rowCount !== 0) {
+        if (typeof metadata.export?.rowCount !== 'number') {
           errors.push('Missing row count in metadata');
         }
 
@@ -524,6 +524,19 @@ export const useImportExportStore = defineStore('importExportStore', {
 
     setImportStrategy(strategy: ImportStrategy) {
       this.importStrategy = strategy;
+    },
+
+    clearImportDataFile() {
+      this.importDataFile = '';
+      this.validateImportStep1();
+    },
+
+    clearImportMetadataFile() {
+      this.importMetadataFile = '';
+      this.importMetadata = null;
+      this.importFields = [];
+      this.importValidationErrors = [];
+      this.validateImportStep2();
     },
 
     validateDatabaseCompatibility(): { valid: boolean; errors: string[] } {
