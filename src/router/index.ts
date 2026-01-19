@@ -72,6 +72,14 @@ const router = createRouter({
           },
           component: () => import('../views/backup-restore/index.vue'),
         },
+        {
+          name: 'Export',
+          path: '/export',
+          meta: {
+            keepAlive: false,
+          },
+          component: () => import('../views/export/index.vue'),
+        },
       ],
     },
   ],
