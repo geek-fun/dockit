@@ -25,7 +25,7 @@ export enum DynamoIndexType {
 }
 
 export type DynamoIndex = {
-  type: DynamoIndexType.GSI;
+  type: DynamoIndexType;
   name: string;
   status?: string;
   keySchema: KeySchema[];

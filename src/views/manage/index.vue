@@ -11,9 +11,9 @@
       <shard-manage class="state-container" v-if="activeTab === $t('manage.shards')" />
       <index-manage class="state-container" v-if="activeTab === $t('manage.indices')" />
     </template>
-    <div v-else-if="connection" class="empty-state">
-      <n-empty :description="$t('manage.emptyDynamodb')" />
-    </div>
+    <template v-else-if="connection?.type === DatabaseType.DYNAMODB">
+      <dynamo-table-manage class="state-container" />
+    </template>
     <div v-else class="empty-state">
       <n-empty :description="$t('manage.emptyNoConnection')" />
     </div>
@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import ToolBar from '../../components/tool-bar.vue';
 import ClusterState from './components/cluster-state.vue';
+import DynamoTableManage from './components/dynamo-table-manage.vue';
 import { useClusterManageStore, DatabaseType, useTabStore } from '../../store';
 import { storeToRefs } from 'pinia';
 import NodeState from './components/node-state.vue';
