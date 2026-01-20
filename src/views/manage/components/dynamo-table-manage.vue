@@ -1,45 +1,5 @@
 <template>
   <div class="dynamo-manage-container">
-    <!-- Table Settings Section -->
-    <section class="settings-section">
-      <n-card class="settings-card">
-        <template #header>
-          <div class="section-header">
-            <div class="section-title">
-              <n-icon size="18"><SettingsAdjust /></n-icon>
-              <span>{{ $t('manage.dynamo.tableSettings') }}</span>
-            </div>
-          </div>
-        </template>
-        <div class="settings-grid">
-          <!-- Streams Setting -->
-          <div class="setting-item">
-            <div class="setting-header">
-              <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
-              <n-switch :value="streamsEnabled" size="small" disabled />
-            </div>
-            <span class="setting-value">{{ streamsViewType || '-' }}</span>
-          </div>
-          <!-- Encryption Setting -->
-          <div class="setting-item">
-            <div class="setting-header">
-              <span class="setting-label">{{ $t('manage.dynamo.encryption') }}</span>
-              <n-icon size="16"><Locked /></n-icon>
-            </div>
-            <span class="setting-value">{{ encryptionType }}</span>
-          </div>
-          <!-- Table Class Setting -->
-          <div class="setting-item">
-            <div class="setting-header">
-              <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
-              <n-icon size="16"><DataTable /></n-icon>
-            </div>
-            <span class="setting-value">{{ tableClass }}</span>
-          </div>
-        </div>
-      </n-card>
-    </section>
-
     <!-- Metrics Cards Section -->
     <section class="metrics-section">
       <div class="metrics-grid">
@@ -238,6 +198,75 @@
         <n-empty v-else :description="$t('manage.dynamo.noGsi')" />
       </n-card>
     </section>
+
+    <!-- Table Settings Section -->
+    <section class="settings-section">
+      <n-card class="settings-card">
+        <template #header>
+          <div class="section-header">
+            <div class="section-title">
+              <n-icon size="18"><SettingsAdjust /></n-icon>
+              <span>{{ $t('manage.dynamo.tableSettings') }}</span>
+            </div>
+          </div>
+        </template>
+        <div class="settings-grid">
+          <!-- Streams Setting -->
+          <div class="setting-item clickable" @click="showSettingsModal = true">
+            <div class="setting-header">
+              <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
+              <n-switch :value="streamsEnabled" size="small" @click.stop />
+            </div>
+            <span class="setting-value">{{ streamsViewType || '-' }}</span>
+          </div>
+          <!-- Encryption Setting -->
+          <div class="setting-item">
+            <div class="setting-header">
+              <span class="setting-label">{{ $t('manage.dynamo.encryption') }}</span>
+              <n-icon size="16"><Locked /></n-icon>
+            </div>
+            <span class="setting-value">{{ encryptionType }}</span>
+          </div>
+          <!-- Table Class Setting -->
+          <div class="setting-item clickable" @click="showSettingsModal = true">
+            <div class="setting-header">
+              <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
+              <n-icon size="16"><DataTable /></n-icon>
+            </div>
+            <span class="setting-value">{{ tableClass }}</span>
+          </div>
+        </div>
+      </n-card>
+    </section>
+
+    <!-- Modals -->
+    <delete-index-modal
+      v-model:show="showDeleteIndexModal"
+      :index-name="selectedIndex?.name || ''"
+      :table-name="dynamoConnection?.tableName || ''"
+      @deleted="handleIndexDeleted"
+    />
+    
+    <create-index-modal
+      v-model:show="showCreateIndexModal"
+      :table-name="dynamoConnection?.tableName || ''"
+      @created="handleIndexCreated"
+    />
+    
+    <modify-index-modal
+      v-model:show="showModifyIndexModal"
+      :index-name="selectedIndex?.name || ''"
+      :table-name="dynamoConnection?.tableName || ''"
+      :index="selectedIndex"
+      @modified="handleIndexModified"
+    />
+    
+    <table-settings-modal
+      v-model:show="showSettingsModal"
+      :table-name="dynamoConnection?.tableName || ''"
+      :current-settings="currentTableSettings"
+      @saved="handleSettingsSaved"
+    />
   </div>
 </template>
 
@@ -257,29 +286,35 @@ import {
 } from '@vicons/carbon';
 import prettyBytes from 'pretty-bytes';
 import {
-  useAppStore,
   useClusterManageStore,
   useDynamoManageStore,
   DatabaseType,
   DynamoDBConnection,
-  ThemeType,
 } from '../../../store';
 import { useLang } from '../../../lang';
 import { CustomError } from '../../../common';
 import { DynamoIndex, DynamoIndexType } from '../../../datasources';
+import DeleteIndexModal from './delete-index-modal.vue';
+import CreateIndexModal from './create-index-modal.vue';
+import ModifyIndexModal from './modify-index-modal.vue';
+import TableSettingsModal from './table-settings-modal.vue';
 
 const message = useMessage();
 const lang = useLang();
-
-const appStore = useAppStore();
-const { uiThemeType } = storeToRefs(appStore);
 
 const clusterManageStore = useClusterManageStore();
 const { connection } = storeToRefs(clusterManageStore);
 
 const dynamoManageStore = useDynamoManageStore();
 const { fetchTableInfo } = dynamoManageStore;
-const { tableInfo, loading, lastUpdatedTime } = storeToRefs(dynamoManageStore);
+const { tableInfo } = storeToRefs(dynamoManageStore);
+
+// Modal visibility states
+const showDeleteIndexModal = ref(false);
+const showCreateIndexModal = ref(false);
+const showModifyIndexModal = ref(false);
+const showSettingsModal = ref(false);
+const selectedIndex = ref<DynamoIndex | null>(null);
 
 // Type-safe accessor for DynamoDB connection properties
 const dynamoConnection = computed(() => {
@@ -287,15 +322,6 @@ const dynamoConnection = computed(() => {
     return connection.value as DynamoDBConnection;
   }
   return undefined;
-});
-
-const isDarkMode = computed(() => uiThemeType.value === ThemeType.DARK);
-
-const lastUpdated = computed(() => {
-  if (!lastUpdatedTime.value) return lang.t('manage.dynamo.justNow');
-  const diff = Date.now() - lastUpdatedTime.value;
-  if (diff < 60000) return lang.t('manage.dynamo.justNow');
-  return new Date(lastUpdatedTime.value).toLocaleTimeString();
 });
 
 const billingMode = computed(() => {
@@ -439,16 +465,48 @@ const handleRefresh = async () => {
 };
 
 const handleCreateIndex = () => {
-  message.info(lang.t('manage.dynamo.createIndexComingSoon'));
+  showCreateIndexModal.value = true;
 };
 
 const handleEditIndex = (index: DynamoIndex) => {
-  message.info(`Edit index: ${index.name}`);
+  selectedIndex.value = index;
+  showModifyIndexModal.value = true;
 };
 
 const handleDeleteIndex = (index: DynamoIndex) => {
-  message.info(`Delete index: ${index.name}`);
+  selectedIndex.value = index;
+  showDeleteIndexModal.value = true;
 };
+
+const handleIndexDeleted = async () => {
+  message.success(lang.t('manage.dynamo.deleteIndexSuccess'));
+  await handleRefresh();
+};
+
+const handleIndexCreated = async () => {
+  message.success(lang.t('manage.dynamo.createIndexSuccess'));
+  await handleRefresh();
+};
+
+const handleIndexModified = async () => {
+  message.success(lang.t('manage.dynamo.modifyIndexSuccess'));
+  await handleRefresh();
+};
+
+const handleSettingsSaved = async () => {
+  message.success(lang.t('manage.dynamo.settingsSaved'));
+  await handleRefresh();
+};
+
+// Computed for current table settings to pass to modal
+const currentTableSettings = computed(() => ({
+  streamsEnabled: streamsEnabled.value,
+  streamViewType: streamsViewType.value,
+  ttlEnabled: ttlEnabled.value,
+  ttlAttributeName: ttlAttribute.value,
+  pitrEnabled: pitrEnabled.value,
+  tableClass: tableClass.value,
+}));
 
 onMounted(async () => {
   if (connection.value && connection.value.type === DatabaseType.DYNAMODB) {
@@ -864,6 +922,16 @@ watch(connection, async newConnection => {
           border: 1px solid var(--border-color);
           border-radius: 8px;
           padding: 12px 16px;
+          transition: all 0.2s ease;
+
+          &.clickable {
+            cursor: pointer;
+
+            &:hover {
+              border-color: var(--primary-color);
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+          }
 
           .setting-header {
             display: flex;
