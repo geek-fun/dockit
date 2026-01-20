@@ -5,6 +5,6 @@ export * from './fileStore.ts';
 export * from './chatStore';
 export * from './clusterManageStore';
 export * from './dynamoManageStore.ts';
-export * from './backupRestoreStore';
+export * from './importExportStore.ts';
 export * from './tabStore.ts';
 export * from './dbDataStore.ts';

@@ -93,9 +93,9 @@ const mainNavList = ref([
     isLink: false,
   },
   {
-    id: 'backup-restore',
-    path: '/backup-restore',
-    name: 'backupRestore',
+    id: 'import-export',
+    path: '/import-export',
+    name: 'importExport',
     icon: markRaw(ImportExport),
     isLink: false,
   },
