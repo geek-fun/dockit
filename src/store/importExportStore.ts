@@ -3,8 +3,13 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { defineStore } from 'pinia';
 import { CustomError, jsonify } from '../common';
 import { get } from 'lodash';
-import { Connection, DatabaseType, ElasticsearchConnection } from './connectionStore.ts';
-import { loadHttpClient, sourceFileApi } from '../datasources';
+import {
+  Connection,
+  DatabaseType,
+  ElasticsearchConnection,
+  DynamoDBConnection,
+} from './connectionStore.ts';
+import { loadHttpClient, sourceFileApi, dynamoApi } from '../datasources';
 
 // Import (Restore) types
 export type RestoreInput = {
@@ -313,15 +318,18 @@ export const useImportExportStore = defineStore('importExportStore', {
           };
 
           for (let i = 0; i < lines.length; i += bulkSize) {
-            const bulkData = lines.slice(i, i + bulkSize).flatMap(line => {
-              try {
-                const doc = jsonify.parse(line);
-                const { _id, ...source } = doc;
-                return [{ index: { _index: input.index, _id } }, source];
-              } catch {
-                return [];
-              }
-            }).map(item => jsonify.stringify(item));
+            const bulkData = lines
+              .slice(i, i + bulkSize)
+              .flatMap(line => {
+                try {
+                  const doc = jsonify.parse(line);
+                  const { _id, ...source } = doc;
+                  return [{ index: { _index: input.index, _id } }, source];
+                } catch {
+                  return [];
+                }
+              })
+              .map(item => jsonify.stringify(item));
 
             await bulkRequest(client, bulkData);
 
@@ -391,10 +399,7 @@ export const useImportExportStore = defineStore('importExportStore', {
           this.validateImportStep1();
 
           // Try to auto-detect metadata file in same directory
-          const dirPath = (selected as string).substring(
-            0,
-            (selected as string).lastIndexOf('/'),
-          );
+          const dirPath = (selected as string).substring(0, (selected as string).lastIndexOf('/'));
           const metadataPath = `${dirPath}/metadata.json`;
           if (await sourceFileApi.exists(metadataPath)) {
             this.importMetadataFile = metadataPath;
@@ -552,9 +557,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       const targetDbType = this.importConnection.type.toLowerCase();
 
       if (sourceDbType !== targetDbType) {
-        errors.push(
-          `Database type mismatch: source is ${sourceDbType}, target is ${targetDbType}`,
-        );
+        errors.push(`Database type mismatch: source is ${sourceDbType}, target is ${targetDbType}`);
       }
 
       return { valid: errors.length === 0, errors };
@@ -725,9 +728,17 @@ export const useImportExportStore = defineStore('importExportStore', {
         throw new CustomError(400, 'Connection and index are required');
       }
 
-      if (this.connection.type !== DatabaseType.ELASTICSEARCH) {
+      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+        await this.fetchElasticsearchSchema();
+      } else if (this.connection.type === DatabaseType.DYNAMODB) {
+        await this.fetchDynamoDBSchema();
+      } else {
         throw new CustomError(400, 'Unsupported connection type');
       }
+    },
+
+    async fetchElasticsearchSchema() {
+      if (!this.connection || !this.selectedIndex) return;
 
       const client = loadHttpClient({
         host: this.connection.host,
@@ -816,19 +827,103 @@ export const useImportExportStore = defineStore('importExportStore', {
       }
     },
 
-    async exportToFile(input: ExportInput): Promise<string> {
-      let client;
-      let dbVersion = '';
-      if (input.connection.type === DatabaseType.ELASTICSEARCH) {
-        client = loadHttpClient({
-          host: input.connection.host,
-          port: input.connection.port,
-          sslCertVerification: input.connection.sslCertVerification,
+    async fetchDynamoDBSchema() {
+      if (!this.connection || !this.selectedIndex) return;
+
+      const dynamoConnection = this.connection as DynamoDBConnection;
+
+      try {
+        // Get table info to ensure we have attribute definitions
+        const tableInfo = await dynamoApi.describeTable(dynamoConnection);
+
+        // Scan to get a sample document
+        const queryResult = await dynamoApi.scanTable(dynamoConnection, {
+          tableName: this.selectedIndex,
+          limit: 1,
         });
-        dbVersion = (input.connection as ElasticsearchConnection).version || '';
+
+        const sampleDoc = queryResult.items?.[0] || {};
+
+        // Estimate row count (DynamoDB doesn't provide exact count easily)
+        // Use itemCount from table info if available
+        this.estimatedRows = tableInfo.itemCount || null;
+
+        // Build fields array from attribute definitions and sample document
+        const attributeMap = new Map<string, string>();
+
+        // Add known attribute definitions from table
+        if (tableInfo.attributeDefinitions) {
+          tableInfo.attributeDefinitions.forEach(attr => {
+            attributeMap.set(attr.attributeName, attr.attributeType);
+          });
+        }
+
+        // Merge with sample document to get all fields
+        const allFields = new Set([...Array.from(attributeMap.keys()), ...Object.keys(sampleDoc)]);
+
+        const fields: FieldInfo[] = Array.from(allFields).map(name => {
+          const type = attributeMap.get(name) || 'S'; // Default to String
+          let sampleValue = '';
+
+          const value = sampleDoc[name];
+          if (value !== undefined && value !== null) {
+            if (typeof value === 'object') {
+              sampleValue = jsonify.stringify(value);
+              if (sampleValue.length > 50) {
+                sampleValue = sampleValue.substring(0, 47) + '...';
+              }
+            } else {
+              sampleValue = String(value);
+              if (sampleValue.length > 50) {
+                sampleValue = sampleValue.substring(0, 47) + '...';
+              }
+            }
+          }
+
+          return {
+            name,
+            type: type.toUpperCase(),
+            sampleValue,
+            includeInExport: true,
+          };
+        });
+
+        this.fields = fields;
+        this.validateStep2();
+
+        // Estimate size (rough calculation)
+        if (this.estimatedRows && Object.keys(sampleDoc).length > 0) {
+          const avgDocSize = JSON.stringify(sampleDoc).length;
+          const totalBytes = avgDocSize * this.estimatedRows;
+          this.estimatedSize = formatBytes(totalBytes);
+        }
+
+        return fields;
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+
+    async exportToFile(input: ExportInput): Promise<string> {
+      if (input.connection.type === DatabaseType.ELASTICSEARCH) {
+        return await this.exportElasticsearchToFile(input);
+      } else if (input.connection.type === DatabaseType.DYNAMODB) {
+        return await this.exportDynamoDBToFile(input);
       } else {
         throw new CustomError(400, 'Unsupported connection type');
       }
+    },
+
+    async exportElasticsearchToFile(input: ExportInput): Promise<string> {
+      const client = loadHttpClient({
+        host: input.connection.host,
+        port: input.connection.port,
+        sslCertVerification: input.connection.sslCertVerification,
+      });
+      const dbVersion = (input.connection as ElasticsearchConnection).version || '';
 
       // Determine actual file extension based on format
       const fileExtension = input.exportFileType === 'ndjson' ? 'json' : input.exportFileType;
@@ -1041,6 +1136,182 @@ export const useImportExportStore = defineStore('importExportStore', {
         if (input.exportFileType === 'json') {
           await sourceFileApi.saveFile(dataFilePath, '\n]', true);
         }
+
+        return dataFilePath;
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+
+    async exportDynamoDBToFile(input: ExportInput): Promise<string> {
+      const dynamoConnection = input.connection as DynamoDBConnection;
+
+      // Determine actual file extension based on format
+      const fileExtension = input.exportFileType === 'ndjson' ? 'json' : input.exportFileType;
+      const dataFileName = `data.${fileExtension}`;
+      const dataFilePath = `${input.exportFolder}/${dataFileName}`;
+      const metadataFilePath = `${input.exportFolder}/metadata.json`;
+
+      let exclusiveStartKey: Record<string, unknown> | undefined = undefined;
+      let hasMore = true;
+      let appendFile = false;
+      let totalItems = 0;
+
+      try {
+        // Create directory if needed
+        if (input.createDirectory) {
+          try {
+            await sourceFileApi.createFolder(input.exportFolder);
+          } catch {
+            // Folder might already exist, continue
+          }
+        }
+
+        // Get table info for metadata
+        const tableInfo = await dynamoApi.describeTable(dynamoConnection);
+
+        // Initialize progress
+        this.exportProgress = {
+          complete: 0,
+          total: tableInfo.itemCount || 0,
+        };
+
+        // Build metadata
+        const metadata = {
+          version: '1.0.0',
+          source: {
+            dbType: input.connection.type.toLowerCase(),
+            dbVersion: 'dynamodb',
+            sourceType: 'table',
+            sourceName: input.index,
+          },
+          export: {
+            format: input.exportFileType === 'ndjson' ? 'json' : input.exportFileType,
+            dataFile: dataFileName,
+            encoding: 'utf-8',
+            exportedAt: new Date().toISOString(),
+            rowCount: 0, // Will be updated after scan
+            includedFields: input.fields.filter(f => f.includeInExport).map(f => f.name),
+          },
+          schema: {
+            attributeDefinitions: tableInfo.attributeDefinitions,
+            keySchema: tableInfo.keySchema,
+          },
+          indexes: tableInfo.indices || [],
+          aliases: {},
+          stats: {
+            itemCount: tableInfo.itemCount,
+            sizeBytes: tableInfo.sizeBytes,
+          },
+          comments: '',
+        };
+
+        // Build field names
+        const includedFieldNames = input.fields.filter(f => f.includeInExport).map(f => f.name);
+
+        // Initialize file based on format
+        if (input.exportFileType === 'csv') {
+          // Write CSV header
+          await sourceFileApi.saveFile(dataFilePath, includedFieldNames.join(',') + '\r\n', false);
+          appendFile = true;
+        } else if (input.exportFileType === 'json') {
+          // Start JSON array
+          await sourceFileApi.saveFile(dataFilePath, '[\n', false);
+          appendFile = true;
+        }
+
+        let isFirstBatch = true;
+
+        // Scan table in batches
+        while (hasMore) {
+          const queryResult = await dynamoApi.scanTable(dynamoConnection, {
+            tableName: input.index,
+            limit: 1000,
+            exclusiveStartKey: exclusiveStartKey ? JSON.stringify(exclusiveStartKey) : undefined,
+          });
+
+          const items = queryResult.items || [];
+          totalItems += items.length;
+
+          this.exportProgress.complete += items.length;
+
+          if (items.length === 0 || !queryResult.lastEvaluatedKey) {
+            hasMore = false;
+          } else {
+            exclusiveStartKey = queryResult.lastEvaluatedKey;
+
+            let dataToWrite: string;
+
+            if (input.exportFileType === 'ndjson') {
+              // NDJSON format - one JSON object per line
+              dataToWrite = items
+                .map(item => {
+                  // Filter fields if needed
+                  if (includedFieldNames.length < input.fields.length) {
+                    const filteredItem: Record<string, unknown> = {};
+                    includedFieldNames.forEach(field => {
+                      if (field in item) {
+                        filteredItem[field] = item[field];
+                      }
+                    });
+                    return jsonify.stringify(filteredItem);
+                  }
+                  return jsonify.stringify(item);
+                })
+                .join('\n');
+              if (dataToWrite) {
+                dataToWrite += '\n';
+              }
+            } else if (input.exportFileType === 'json') {
+              // JSON array format
+              const jsonDocs = items.map(item => {
+                // Filter fields if needed
+                let docToExport = item;
+                if (includedFieldNames.length < input.fields.length) {
+                  const filteredItem: Record<string, unknown> = {};
+                  includedFieldNames.forEach(field => {
+                    if (field in item) {
+                      filteredItem[field] = item[field];
+                    }
+                  });
+                  docToExport = filteredItem;
+                }
+                return input.beautifyJson
+                  ? jsonify.stringify(docToExport, null, 2)
+                  : jsonify.stringify(docToExport);
+              });
+              // Add comma separator between batches
+              const prefix = isFirstBatch ? '' : ',\n';
+              dataToWrite = prefix + jsonDocs.join(',\n');
+              isFirstBatch = false;
+            } else {
+              // CSV format
+              dataToWrite = convertToCsv(
+                includedFieldNames,
+                items.map(item => ({ _source: item })),
+              );
+            }
+
+            await sourceFileApi.saveFile(dataFilePath, dataToWrite, appendFile);
+            appendFile = true;
+          }
+        }
+
+        // Close JSON array if needed
+        if (input.exportFileType === 'json') {
+          await sourceFileApi.saveFile(dataFilePath, '\n]', true);
+        }
+
+        // Update metadata with actual row count
+        metadata.export.rowCount = totalItems;
+        await sourceFileApi.saveFile(
+          metadataFilePath,
+          input.beautifyJson ? jsonify.stringify(metadata, null, 2) : jsonify.stringify(metadata),
+          false,
+        );
 
         return dataFilePath;
       } catch (error) {

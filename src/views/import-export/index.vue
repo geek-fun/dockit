@@ -34,9 +34,9 @@
         <div class="steps-content">
           <!-- Export Steps -->
           <template v-if="activeMode === 'export'">
-            <SourceScope />
-            <SchemaStructure />
-            <TargetOutput />
+            <ExportSourceScope />
+            <ExportSchemaStructure />
+            <ExportTargetOutput />
           </template>
 
           <!-- Import Steps -->
@@ -50,7 +50,7 @@
 
       <!-- Right: Execution Panel -->
       <div class="execution-container">
-        <ExecutionPanel v-if="activeMode === 'export'" />
+        <ExportExecutionPanel v-if="activeMode === 'export'" />
         <ImportExecutionPanel v-else />
       </div>
     </div>
@@ -58,10 +58,10 @@
 </template>
 
 <script setup lang="ts">
-import SourceScope from './components/source-scope.vue';
-import SchemaStructure from './components/schema-structure.vue';
-import TargetOutput from './components/target-output.vue';
-import ExecutionPanel from './components/execution-panel.vue';
+import ExportSourceScope from './components/export-source-scope.vue';
+import ExportSchemaStructure from './components/export-schema-structure.vue';
+import ExportTargetOutput from './components/export-target-output.vue';
+import ExportExecutionPanel from './components/export-execution-panel.vue';
 import ImportSourceScope from './components/import-source-scope.vue';
 import ImportSchemaStructure from './components/import-schema-structure.vue';
 import ImportTargetOutput from './components/import-target-output.vue';

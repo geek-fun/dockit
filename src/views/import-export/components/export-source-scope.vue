@@ -196,7 +196,18 @@ const updateIndexOptions = () => {
   } else if (connection.value.type === DatabaseType.DYNAMODB) {
     // DynamoDB: use table and GSIs
     const dynamoOptions = getDynamoIndexOrTableOption(connection.value as DynamoDBConnection);
-    indexOptions.value = dynamoOptions.map(opt => ({
+    // Remove duplicates based on value
+    const uniqueOptions = dynamoOptions.reduce(
+      (acc, curr) => {
+        if (!acc.find(item => item.value === curr.value)) {
+          acc.push(curr);
+        }
+        return acc;
+      },
+      [] as Array<{ label: string; value: string }>,
+    );
+
+    indexOptions.value = uniqueOptions.map(opt => ({
       label: opt.label,
       value: opt.value,
     }));
@@ -213,6 +224,15 @@ const handleConnectionChange = async (value: string) => {
     selectedIndex.value = '';
     indexOptions.value = [];
     indexSearchQuery.value = '';
+
+    // Fetch indices immediately to populate the collection dropdown
+    loadingIndex.value = true;
+    try {
+      await fetchIndices(con);
+      updateIndexOptions();
+    } finally {
+      loadingIndex.value = false;
+    }
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
