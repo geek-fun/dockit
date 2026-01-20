@@ -23,17 +23,15 @@
         :status="validationPercentage === 100 ? 'success' : 'warning'"
         :show-indicator="false"
       />
-    </div>
-
-    <!-- Import Stats -->
-    <div class="section stats-section">
-      <div class="stat-row">
-        <span class="stat-label">{{ $t('import.rowsDetected') }}</span>
-        <span class="stat-value">{{ formatNumber(rowCount) }}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">{{ $t('import.estimatedDuration') }}</span>
-        <span class="stat-value">{{ estimatedDuration }}</span>
+      <div class="stats-rows">
+        <div class="stat-row">
+          <span class="stat-label">{{ $t('import.rowsDetected') }}</span>
+          <span class="stat-value">{{ formatNumber(rowCount) }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">{{ $t('import.estimatedDuration') }}</span>
+          <span class="stat-value">{{ estimatedDuration }}</span>
+        </div>
       </div>
     </div>
 
@@ -262,35 +260,28 @@ const executeImport = async () => {
         }
       }
     }
-  }
 
-  .section {
-    margin-bottom: 16px;
-  }
+    .stats-rows {
+      margin-top: 12px;
 
-  .stats-section {
-    background-color: var(--card-color);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 16px;
+      .stat-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
 
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
+        &:not(:last-child) {
+          border-bottom: 1px solid var(--border-color);
+        }
 
-      &:not(:last-child) {
-        border-bottom: 1px solid var(--border-color);
-      }
+        .stat-label {
+          font-size: 13px;
+          color: var(--text-color-3);
+        }
 
-      .stat-label {
-        font-size: 13px;
-        color: var(--text-color-3);
-      }
-
-      .stat-value {
-        font-size: 13px;
-        font-weight: 500;
+        .stat-value {
+          font-size: 13px;
+          font-weight: 500;
+        }
       }
     }
   }

@@ -15,7 +15,10 @@
     <div class="import-steps">
       <div class="step-progress">
         <div :class="['step-node', { completed: step1Complete }]">
-          <div :class="['step-circle', { completed: step1Complete, active: !step1Complete }]">
+          <div
+            :class="['step-circle', 'clickable', { completed: step1Complete, active: !step1Complete }]"
+            @click="handleSelectDataFile"
+          >
             <n-icon v-if="step1Complete" size="16">
               <Checkmark />
             </n-icon>
@@ -31,8 +34,10 @@
           <div
             :class="[
               'step-circle',
+              'clickable',
               { completed: step2Complete, active: step1Complete && !step2Complete },
             ]"
+            @click="handleSelectMetadataFile"
           >
             <n-icon v-if="step2Complete" size="16">
               <Checkmark />
@@ -53,26 +58,6 @@
             <span v-else>3</span>
           </div>
           <span class="step-label">{{ $t('import.ready') }}</span>
-        </div>
-      </div>
-
-      <div class="file-upload-section">
-        <div class="upload-row">
-          <div class="file-upload-zone" @click="handleSelectDataFile">
-            <n-icon size="32" :depth="3">
-              <Document />
-            </n-icon>
-            <span class="upload-text">{{ $t('import.selectDataFile') }}</span>
-            <span class="upload-hint">CSV, JSON, NDJSON</span>
-          </div>
-
-          <div class="file-upload-zone" @click="handleSelectMetadataFile">
-            <n-icon size="32" :depth="3">
-              <DocumentAttachment />
-            </n-icon>
-            <span class="upload-text">{{ $t('import.selectMetadataFile') }}</span>
-            <span class="upload-hint">metadata.json</span>
-          </div>
         </div>
       </div>
 
@@ -227,6 +212,15 @@ const clearMetadataFile = () => {
             border-color: #18a058;
             color: white;
           }
+
+          &.clickable {
+            cursor: pointer;
+
+            &:hover {
+              border-color: #18a058;
+              opacity: 0.8;
+            }
+          }
         }
 
         .step-label {
@@ -258,43 +252,6 @@ const clearMetadataFile = () => {
 
         &.completed {
           background: #18a058;
-        }
-      }
-    }
-
-    .file-upload-section {
-      .upload-row {
-        display: flex;
-        gap: 16px;
-
-        .file-upload-zone {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 24px;
-          border: 1px dashed var(--border-color);
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.3s;
-
-          &:hover {
-            border-color: #18a058;
-            background-color: rgba(24, 160, 88, 0.05);
-          }
-
-          .upload-text {
-            margin-top: 8px;
-            font-size: 13px;
-            font-weight: 500;
-          }
-
-          .upload-hint {
-            margin-top: 4px;
-            font-size: 11px;
-            color: var(--text-color-3);
-          }
         }
       }
     }
