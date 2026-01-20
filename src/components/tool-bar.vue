@@ -37,7 +37,7 @@
         <Search />
       </template>
     </n-select>
-    <n-tooltip trigger="hover" v-if="['ES_EDITOR', 'MANAGE'].includes(props.type ?? '')">
+    <n-tooltip trigger="hover" v-if="props.type === 'ES_EDITOR' || (props.type === 'MANAGE' && isElasticsearchConnection)">
       <template #trigger>
         <n-switch
           :round="false"
@@ -138,7 +138,7 @@
     </div>
 
     <n-tabs
-      v-if="props.type === 'MANAGE'"
+      v-if="props.type === 'MANAGE' && isElasticsearchConnection"
       class="manage-container"
       type="line"
       animated
@@ -156,7 +156,7 @@
 <script setup lang="ts">
 import { Add, Search, Code, Template, PlayFilledAlt } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { useClusterManageStore, useConnectionStore, useTabStore } from '../store';
+import { useClusterManageStore, useConnectionStore, useTabStore, DatabaseType } from '../store';
 import { useLang } from '../lang';
 import { CustomError, inputProps } from '../common';
 import { esSampleQueries } from '../common/monaco';
@@ -183,6 +183,11 @@ const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 const clusterManageStore = useClusterManageStore();
 const { setConnection, refreshStates } = clusterManageStore;
 const { connection, hideSystemIndices } = storeToRefs(clusterManageStore);
+
+// Check if connection is Elasticsearch type
+const isElasticsearchConnection = computed(() => {
+  return connection.value?.type === DatabaseType.ELASTICSEARCH;
+});
 
 const loadingRef = ref({ connection: false, index: false });
 
