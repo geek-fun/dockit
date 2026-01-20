@@ -86,6 +86,15 @@
           </n-button>
         </div>
       </div>
+
+      <!-- Validation Errors -->
+      <div v-if="importValidationErrors.length > 0" class="validation-errors">
+        <n-alert type="error" :title="$t('import.validationErrors')">
+          <ul class="error-list">
+            <li v-for="(error, index) in importValidationErrors" :key="index">{{ error }}</li>
+          </ul>
+        </n-alert>
+      </div>
     </div>
   </n-card>
 </template>
@@ -101,12 +110,13 @@ const UploadIcon = Document;
 const message = useMessage();
 
 const importExportStore = useImportExportStore();
-const { importDataFile, importMetadataFile, importValidationStatus } =
+const { importDataFile, importMetadataFile, importValidationStatus, importValidationErrors } =
   storeToRefs(importExportStore);
 
 const step1Complete = computed(() => importValidationStatus.value.step1);
 const step2Complete = computed(() => importValidationStatus.value.step2);
-const step3Complete = computed(() => importValidationStatus.value.step3);
+// Step 3 (Ready) should be complete when both step 1 and step 2 are complete
+const step3Complete = computed(() => step1Complete.value && step2Complete.value);
 
 const dataFileName = computed(() => {
   if (!importDataFile.value) return '';
@@ -278,6 +288,20 @@ const clearMetadataFile = () => {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+        }
+      }
+    }
+
+    .validation-errors {
+      margin-top: 16px;
+
+      .error-list {
+        margin: 0;
+        padding-left: 20px;
+
+        li {
+          margin: 4px 0;
+          font-size: 12px;
         }
       }
     }

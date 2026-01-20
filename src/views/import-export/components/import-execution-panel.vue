@@ -1,5 +1,5 @@
 <template>
-  <n-card class="execution-card">
+  <n-card class="execution-card" :content-style="{ display: 'flex', flexDirection: 'column', flex: 1 }">
     <template #header>
       <div class="execution-header">
         <n-icon size="20" color="#f0a020">
