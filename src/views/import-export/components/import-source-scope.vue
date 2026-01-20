@@ -116,13 +116,8 @@ const UploadIcon = Document;
 const message = useMessage();
 
 const importExportStore = useImportExportStore();
-const {
-  importDataFile,
-  importMetadataFile,
-  importMetadata,
-  importValidationStatus,
-  importValidationErrors,
-} = storeToRefs(importExportStore);
+const { importDataFile, importMetadataFile, importValidationStatus } =
+  storeToRefs(importExportStore);
 
 const step1Complete = computed(() => importValidationStatus.value.step1);
 const step2Complete = computed(() => importValidationStatus.value.step2);
