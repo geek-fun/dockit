@@ -4,6 +4,9 @@ use aws_sdk_cloudwatch::Client;
 use serde_json::json;
 use std::time::{Duration, SystemTime};
 
+// CloudWatch metric period in seconds (5 minutes)
+const METRIC_PERIOD_SECONDS: i32 = 300;
+
 pub struct CloudWatchInput<'a> {
     pub table_name: &'a str,
     pub period_hours: i64,
@@ -55,7 +58,7 @@ pub async fn get_table_metrics(
 
         let metric_stat = MetricStat::builder()
             .metric(metric)
-            .period(300) // 5 minutes
+            .period(METRIC_PERIOD_SECONDS)
             .stat(statistic.as_str())
             .build();
 
@@ -152,14 +155,15 @@ pub async fn get_table_metrics(
             let avg_consumed_read = total_consumed_read / data_points;
             let avg_consumed_write = total_consumed_write / data_points;
 
+            let metric_period_f64 = METRIC_PERIOD_SECONDS as f64;
             let rcu_utilization = if provisioned_read > 0.0 {
-                ((avg_consumed_read / 300.0) / provisioned_read * 100.0).min(100.0)
+                ((avg_consumed_read / metric_period_f64) / provisioned_read * 100.0).min(100.0)
             } else {
                 0.0
             };
 
             let wcu_utilization = if provisioned_write > 0.0 {
-                ((avg_consumed_write / 300.0) / provisioned_write * 100.0).min(100.0)
+                ((avg_consumed_write / metric_period_f64) / provisioned_write * 100.0).min(100.0)
             } else {
                 0.0
             };
