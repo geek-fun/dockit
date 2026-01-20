@@ -124,6 +124,7 @@ export const enUS = {
     emptyDynamodb: 'Still in development',
     emptyNoConnection: 'Please establish connection first',
     dynamo: {
+      breadcrumb: 'DATABASES / MANAGE',
       lastUpdated: 'Last updated',
       justNow: 'Just now',
       never: 'Never',

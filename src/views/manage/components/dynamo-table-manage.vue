@@ -4,7 +4,7 @@
     <div class="header-section">
       <div class="header-content">
         <div class="header-left">
-          <span class="breadcrumb">DATABASES / MANAGE</span>
+          <span class="breadcrumb">{{ $t('manage.dynamo.breadcrumb') }}</span>
           <h1 class="table-name">{{ tableInfo?.name || dynamoConnection?.tableName || '-' }}</h1>
         </div>
         <div class="header-right">

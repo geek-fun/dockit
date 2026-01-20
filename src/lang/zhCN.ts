@@ -124,6 +124,7 @@ export const zhCN = {
     emptyNoConnection: '请先建立连接',
     emptyDynamodb: '功能完善中',
     dynamo: {
+      breadcrumb: '数据库 / 管理',
       lastUpdated: '最后更新',
       justNow: '刚刚',
       never: '从未',
