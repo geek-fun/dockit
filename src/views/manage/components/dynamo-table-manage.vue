@@ -257,10 +257,12 @@ import {
 } from '@vicons/carbon';
 import prettyBytes from 'pretty-bytes';
 import {
+  useAppStore,
   useClusterManageStore,
   useDynamoManageStore,
   DatabaseType,
   DynamoDBConnection,
+  ThemeType,
 } from '../../../store';
 import { useLang } from '../../../lang';
 import { CustomError } from '../../../common';
@@ -268,6 +270,9 @@ import { DynamoIndex, DynamoIndexType } from '../../../datasources';
 
 const message = useMessage();
 const lang = useLang();
+
+const appStore = useAppStore();
+const { uiThemeType } = storeToRefs(appStore);
 
 const clusterManageStore = useClusterManageStore();
 const { connection } = storeToRefs(clusterManageStore);
@@ -283,6 +288,8 @@ const dynamoConnection = computed(() => {
   }
   return undefined;
 });
+
+const isDarkMode = computed(() => uiThemeType.value === ThemeType.DARK);
 
 const lastUpdated = computed(() => {
   if (!lastUpdatedTime.value) return lang.t('manage.dynamo.justNow');
@@ -463,7 +470,7 @@ watch(connection, async newConnection => {
   overflow-y: auto;
   padding: 24px;
   padding-right: 32px;
-  background-color: #f8fafc;
+  background-color: var(--bg-color);
 
   .metrics-section {
     margin-bottom: 24px;
@@ -482,8 +489,8 @@ watch(connection, async newConnection => {
       }
 
       .metric-card {
-        background: white;
-        border: 1px solid #e2e8f0;
+        background: var(--card-bg-color);
+        border: 1px solid var(--border-color);
         border-radius: 12px;
 
         :deep(.n-card__content) {
@@ -498,19 +505,19 @@ watch(connection, async newConnection => {
           font-weight: 700;
           text-transform: uppercase;
           letter-spacing: 0.5px;
-          color: #94a3b8;
+          color: var(--gray-color);
         }
 
         .metric-value {
           font-size: 20px;
           font-weight: 700;
-          color: #0f172a;
+          color: var(--text-color);
         }
 
         .metric-value-small {
           font-size: 14px;
           font-weight: 600;
-          color: #0f172a;
+          color: var(--text-color);
         }
 
         .status-value {
@@ -522,7 +529,7 @@ watch(connection, async newConnection => {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background-color: #94a3b8;
+            background-color: var(--gray-color);
 
             &.status-active {
               background-color: #36ad6a;
@@ -599,7 +606,7 @@ watch(connection, async newConnection => {
           .ttl-attribute {
             font-family: monospace;
             font-size: 10px;
-            color: #94a3b8;
+            color: var(--gray-color);
           }
         }
       }
@@ -610,8 +617,8 @@ watch(connection, async newConnection => {
     margin-bottom: 24px;
 
     .performance-card {
-      background: white;
-      border: 1px solid #e2e8f0;
+      background: var(--card-bg-color);
+      border: 1px solid var(--border-color);
       border-radius: 12px;
 
       .section-header {
@@ -624,7 +631,7 @@ watch(connection, async newConnection => {
           align-items: center;
           gap: 8px;
           font-weight: 600;
-          color: #0f172a;
+          color: var(--text-color);
         }
 
         .time-range {
@@ -656,7 +663,7 @@ watch(connection, async newConnection => {
               font-size: 12px;
               font-weight: 600;
               text-transform: uppercase;
-              color: #64748b;
+              color: var(--gray-color);
             }
 
             .chart-legend {
@@ -668,7 +675,7 @@ watch(connection, async newConnection => {
                 align-items: center;
                 gap: 8px;
                 font-size: 12px;
-                color: #64748b;
+                color: var(--gray-color);
 
                 .legend-color {
                   width: 12px;
@@ -689,8 +696,8 @@ watch(connection, async newConnection => {
 
           .chart-placeholder {
             height: 200px;
-            border-left: 1px solid #e2e8f0;
-            border-bottom: 1px solid #e2e8f0;
+            border-left: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
             padding: 8px;
 
             .chart-svg {
@@ -729,7 +736,7 @@ watch(connection, async newConnection => {
                 transform: translate(-50%, -50%);
                 font-size: 12px;
                 font-weight: 700;
-                color: #0f172a;
+                color: var(--text-color);
               }
             }
 
@@ -741,12 +748,12 @@ watch(connection, async newConnection => {
               .utilization-label {
                 font-size: 12px;
                 font-weight: 600;
-                color: #0f172a;
+                color: var(--text-color);
               }
 
               .utilization-detail {
                 font-size: 10px;
-                color: #94a3b8;
+                color: var(--gray-color);
               }
             }
           }
@@ -755,15 +762,15 @@ watch(connection, async newConnection => {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: #f8fafc;
+            background: var(--bg-color);
             padding: 12px 16px;
             border-radius: 8px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid var(--border-color);
 
             .throttled-label {
               font-size: 12px;
               font-weight: 500;
-              color: #64748b;
+              color: var(--gray-color);
             }
 
             .throttled-value {
@@ -784,8 +791,8 @@ watch(connection, async newConnection => {
     margin-bottom: 24px;
 
     .indexes-card {
-      background: white;
-      border: 1px solid #e2e8f0;
+      background: var(--card-bg-color);
+      border: 1px solid var(--border-color);
       border-radius: 12px;
 
       .section-header {
@@ -798,7 +805,7 @@ watch(connection, async newConnection => {
           align-items: center;
           gap: 8px;
           font-weight: 600;
-          color: #0f172a;
+          color: var(--text-color);
         }
       }
 
@@ -808,8 +815,8 @@ watch(connection, async newConnection => {
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
-            color: #64748b;
-            background: #f8fafc;
+            color: var(--gray-color);
+            background: var(--bg-color);
           }
 
           .n-data-table-td {
@@ -829,8 +836,8 @@ watch(connection, async newConnection => {
     margin-bottom: 24px;
 
     .settings-card {
-      background: white;
-      border: 1px solid #e2e8f0;
+      background: var(--card-bg-color);
+      border: 1px solid var(--border-color);
       border-radius: 12px;
 
       .section-header {
@@ -839,7 +846,7 @@ watch(connection, async newConnection => {
           align-items: center;
           gap: 8px;
           font-weight: 600;
-          color: #0f172a;
+          color: var(--text-color);
         }
       }
 
@@ -853,8 +860,8 @@ watch(connection, async newConnection => {
         }
 
         .setting-item {
-          background: #f8fafc;
-          border: 1px solid #e2e8f0;
+          background: var(--bg-color);
+          border: 1px solid var(--border-color);
           border-radius: 8px;
           padding: 12px 16px;
 
@@ -868,14 +875,14 @@ watch(connection, async newConnection => {
               font-size: 11px;
               font-weight: 700;
               text-transform: uppercase;
-              color: #64748b;
+              color: var(--gray-color);
             }
           }
 
           .setting-value {
             font-size: 12px;
             font-weight: 500;
-            color: #64748b;
+            color: var(--gray-color);
           }
         }
       }
