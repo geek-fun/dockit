@@ -173,6 +173,8 @@ export const enUS = {
       streams: 'Streams',
       encryption: 'Encryption',
       tableClass: 'Table Class',
+      // CloudWatch metrics
+      cloudwatchNotAvailable: 'CloudWatch metrics are not available. Enable CloudWatch Contributor Insights or ensure your IAM credentials have cloudwatch:GetMetricData permission.',
       // Modal translations
       deleteIndexConfirm: 'Are you sure you want to delete this index?',
       deleteIndexSuccess: 'Index deleted successfully',

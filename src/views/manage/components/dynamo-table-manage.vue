@@ -69,107 +69,115 @@
             <span class="time-range">{{ $t('manage.dynamo.last24Hours') }}</span>
           </div>
         </template>
-        <div class="performance-content">
-          <div class="chart-section">
-            <div class="chart-header">
-              <span class="chart-title">{{ $t('manage.dynamo.consumedCapacity') }}</span>
-              <div class="chart-legend">
-                <div class="legend-item">
-                  <span class="legend-color read"></span>
-                  <span>{{ $t('manage.dynamo.read') }}</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-color write"></span>
-                  <span>{{ $t('manage.dynamo.write') }}</span>
+        
+        <!-- CloudWatch metrics not available message -->
+        <n-alert v-if="!metricsAvailable && metricsMessage && !metricsLoading" type="info" style="margin-bottom: 16px">
+          {{ metricsMessage }}
+        </n-alert>
+        
+        <n-spin :show="metricsLoading">
+          <div class="performance-content">
+            <div class="chart-section">
+              <div class="chart-header">
+                <span class="chart-title">{{ $t('manage.dynamo.consumedCapacity') }}</span>
+                <div class="chart-legend">
+                  <div class="legend-item">
+                    <span class="legend-color read"></span>
+                    <span>{{ $t('manage.dynamo.read') }}</span>
+                  </div>
+                  <div class="legend-item">
+                    <span class="legend-color write"></span>
+                    <span>{{ $t('manage.dynamo.write') }}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="chart-placeholder">
-              <svg class="chart-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
-                <path
-                  d="M0 20 H400 M0 40 H400 M0 60 H400 M0 80 H400"
-                  stroke="#f1f5f9"
-                  stroke-width="1"
-                />
-                <polyline
-                  fill="none"
-                  points="0,70 40,65 80,75 120,50 160,55 200,40 240,45 280,30 320,35 360,20 400,25"
-                  stroke="#3b82f6"
-                  stroke-width="2"
-                  vector-effect="non-scaling-stroke"
-                />
-                <polyline
-                  fill="none"
-                  points="0,85 40,80 80,82 120,78 160,80 200,75 240,70 280,72 320,65 360,60 400,55"
-                  stroke="#fb923c"
-                  stroke-width="2"
-                  vector-effect="non-scaling-stroke"
-                />
-              </svg>
-            </div>
-          </div>
-          <div class="utilization-section">
-            <!-- RCU Utilization -->
-            <div class="utilization-item">
-              <div class="utilization-gauge">
-                <svg class="gauge-svg" viewBox="0 0 36 36">
+              <div class="chart-placeholder">
+                <svg class="chart-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
                   <path
-                    class="gauge-bg"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="#e5e7eb"
-                    stroke-width="3"
+                    d="M0 20 H400 M0 40 H400 M0 60 H400 M0 80 H400"
+                    stroke="#f1f5f9"
+                    stroke-width="1"
                   />
-                  <path
-                    class="gauge-fill rcu"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  <polyline
                     fill="none"
+                    :points="readChartPoints"
                     stroke="#3b82f6"
-                    stroke-width="3"
-                    :stroke-dasharray="`${rcuUtilization}, 100`"
+                    stroke-width="2"
+                    vector-effect="non-scaling-stroke"
                   />
-                </svg>
-                <span class="gauge-value">{{ rcuUtilization }}%</span>
-              </div>
-              <div class="utilization-info">
-                <span class="utilization-label">{{ $t('manage.dynamo.rcuUtilization') }}</span>
-                <span class="utilization-detail">Prov: {{ provisionedRcu }} RCU</span>
-              </div>
-            </div>
-            <!-- WCU Utilization -->
-            <div class="utilization-item">
-              <div class="utilization-gauge">
-                <svg class="gauge-svg" viewBox="0 0 36 36">
-                  <path
-                    class="gauge-bg"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  <polyline
                     fill="none"
-                    stroke="#e5e7eb"
-                    stroke-width="3"
-                  />
-                  <path
-                    class="gauge-fill wcu"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
+                    :points="writeChartPoints"
                     stroke="#fb923c"
-                    stroke-width="3"
-                    :stroke-dasharray="`${wcuUtilization}, 100`"
+                    stroke-width="2"
+                    vector-effect="non-scaling-stroke"
                   />
                 </svg>
-                <span class="gauge-value">{{ wcuUtilization }}%</span>
-              </div>
-              <div class="utilization-info">
-                <span class="utilization-label">{{ $t('manage.dynamo.wcuUtilization') }}</span>
-                <span class="utilization-detail">Prov: {{ provisionedWcu }} WCU</span>
               </div>
             </div>
-            <!-- Throttled Events -->
-            <div class="throttled-events">
-              <span class="throttled-label">{{ $t('manage.dynamo.throttledEvents') }}</span>
-              <span class="throttled-value">{{ throttledEvents }}</span>
+            <div class="utilization-section">
+              <!-- RCU Utilization -->
+              <div class="utilization-item">
+                <div class="utilization-gauge">
+                  <svg class="gauge-svg" viewBox="0 0 36 36">
+                    <path
+                      class="gauge-bg"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="#e5e7eb"
+                      stroke-width="3"
+                    />
+                    <path
+                      class="gauge-fill rcu"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="#3b82f6"
+                      stroke-width="3"
+                      :stroke-dasharray="`${rcuUtilization}, 100`"
+                    />
+                  </svg>
+                  <span class="gauge-value">{{ rcuUtilization }}%</span>
+                </div>
+                <div class="utilization-info">
+                  <span class="utilization-label">{{ $t('manage.dynamo.rcuUtilization') }}</span>
+                  <span class="utilization-detail">Prov: {{ provisionedRcu }} RCU</span>
+                </div>
+              </div>
+              <!-- WCU Utilization -->
+              <div class="utilization-item">
+                <div class="utilization-gauge">
+                  <svg class="gauge-svg" viewBox="0 0 36 36">
+                    <path
+                      class="gauge-bg"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="#e5e7eb"
+                      stroke-width="3"
+                    />
+                    <path
+                      class="gauge-fill wcu"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                      fill="none"
+                      stroke="#fb923c"
+                      stroke-width="3"
+                      :stroke-dasharray="`${wcuUtilization}, 100`"
+                    />
+                  </svg>
+                  <span class="gauge-value">{{ wcuUtilization }}%</span>
+                </div>
+                <div class="utilization-info">
+                  <span class="utilization-label">{{ $t('manage.dynamo.wcuUtilization') }}</span>
+                  <span class="utilization-detail">Prov: {{ provisionedWcu }} WCU</span>
+                </div>
+              </div>
+              <!-- Throttled Events -->
+              <div class="throttled-events">
+                <span class="throttled-label">{{ $t('manage.dynamo.throttledEvents') }}</span>
+                <span class="throttled-value">{{ throttledEvents }}</span>
+              </div>
             </div>
           </div>
-        </div>
+        </n-spin>
       </n-card>
     </section>
 
@@ -293,7 +301,7 @@ import {
 } from '../../../store';
 import { useLang } from '../../../lang';
 import { CustomError } from '../../../common';
-import { DynamoIndex, DynamoIndexType } from '../../../datasources';
+import { DynamoIndex, DynamoIndexType, dynamoApi } from '../../../datasources';
 import DeleteIndexModal from './delete-index-modal.vue';
 import CreateIndexModal from './create-index-modal.vue';
 import ModifyIndexModal from './modify-index-modal.vue';
@@ -316,6 +324,13 @@ const showModifyIndexModal = ref(false);
 const showSettingsModal = ref(false);
 const selectedIndex = ref<DynamoIndex | null>(null);
 
+// CloudWatch metrics state
+const metricsAvailable = ref(false);
+const metricsMessage = ref('');
+const metricsLoading = ref(false);
+const consumedReadData = ref<number[]>([]);
+const consumedWriteData = ref<number[]>([]);
+
 // Type-safe accessor for DynamoDB connection properties
 const dynamoConnection = computed(() => {
   if (connection.value?.type === DatabaseType.DYNAMODB) {
@@ -328,19 +343,48 @@ const billingMode = computed(() => {
   return lang.t('manage.dynamo.provisioned');
 });
 
-// Mock values for demonstration - these would come from extended API
+// Metrics values - updated from CloudWatch when available
 const pitrEnabled = ref(true);
 const ttlEnabled = ref(true);
 const ttlAttribute = ref('expiry_date');
-const rcuUtilization = ref(45);
-const wcuUtilization = ref(25);
-const provisionedRcu = ref(100);
-const provisionedWcu = ref(50);
+const rcuUtilization = ref(0);
+const wcuUtilization = ref(0);
+const provisionedRcu = ref(0);
+const provisionedWcu = ref(0);
 const throttledEvents = ref(0);
 const streamsEnabled = ref(true);
 const streamsViewType = ref('NEW_AND_OLD_IMAGES');
 const encryptionType = ref('AWS Managed Key');
 const tableClass = ref('DynamoDB Standard');
+
+// Generate SVG path points from data
+const readChartPoints = computed(() => {
+  if (!consumedReadData.value.length) {
+    return '0,70 40,65 80,75 120,50 160,55 200,40 240,45 280,30 320,35 360,20 400,25';
+  }
+  const data = consumedReadData.value;
+  const maxVal = Math.max(...data, 1);
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1 || 1)) * 400;
+    const y = 90 - (val / maxVal) * 80;
+    return `${x},${y}`;
+  });
+  return points.join(' ');
+});
+
+const writeChartPoints = computed(() => {
+  if (!consumedWriteData.value.length) {
+    return '0,85 40,80 80,82 120,78 160,80 200,75 240,70 280,72 320,65 360,60 400,55';
+  }
+  const data = consumedWriteData.value;
+  const maxVal = Math.max(...data, 1);
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1 || 1)) * 400;
+    const y = 90 - (val / maxVal) * 80;
+    return `${x},${y}`;
+  });
+  return points.join(' ');
+});
 
 const statusClass = computed(() => {
   const status = tableInfo.value?.status?.toUpperCase();
@@ -447,6 +491,36 @@ const formatBytes = (bytes: number | undefined) => {
   return prettyBytes(bytes);
 };
 
+const fetchCloudWatchMetrics = async () => {
+  if (!connection.value || connection.value.type !== DatabaseType.DYNAMODB) {
+    return;
+  }
+  
+  try {
+    metricsLoading.value = true;
+    const result = await dynamoApi.getTableMetrics(connection.value as DynamoDBConnection, 24);
+    
+    metricsAvailable.value = result.available;
+    metricsMessage.value = result.message || '';
+    
+    if (result.available && result.metrics) {
+      consumedReadData.value = result.metrics.consumedRead || [];
+      consumedWriteData.value = result.metrics.consumedWrite || [];
+      rcuUtilization.value = result.metrics.rcuUtilization || 0;
+      wcuUtilization.value = result.metrics.wcuUtilization || 0;
+      provisionedRcu.value = result.metrics.provisionedReadCapacity || 0;
+      provisionedWcu.value = result.metrics.provisionedWriteCapacity || 0;
+      throttledEvents.value = result.metrics.totalThrottledEvents || 0;
+    }
+  } catch (err) {
+    metricsAvailable.value = false;
+    const error = err as CustomError;
+    metricsMessage.value = error.details || error.message || 'Failed to fetch CloudWatch metrics';
+  } finally {
+    metricsLoading.value = false;
+  }
+};
+
 const handleRefresh = async () => {
   if (!connection.value || connection.value.type !== DatabaseType.DYNAMODB) {
     message.warning(lang.t('editor.establishedRequired'));
@@ -454,6 +528,8 @@ const handleRefresh = async () => {
   }
   try {
     await fetchTableInfo(connection.value);
+    // Also fetch CloudWatch metrics
+    await fetchCloudWatchMetrics();
   } catch (err) {
     const error = err as CustomError;
     message.error(`${error.status}: ${error.details}`, {

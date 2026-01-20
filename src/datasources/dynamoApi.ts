@@ -296,6 +296,159 @@ const dynamoApi = {
     }
     return data;
   },
+
+  // GSI Management Operations
+  createGlobalSecondaryIndex: async (
+    con: DynamoDBConnection,
+    indexConfig: {
+      indexName: string;
+      partitionKey: string;
+      partitionKeyType: string;
+      sortKey?: string;
+      sortKeyType?: string;
+      projectionType: string;
+      projectedAttributes?: string[];
+      readCapacityUnits: number;
+      writeCapacityUnits: number;
+    },
+  ) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+    const options = {
+      table_name: con.tableName,
+      operation: 'CREATE_GLOBAL_SECONDARY_INDEX',
+      payload: {
+        index_name: indexConfig.indexName,
+        partition_key: indexConfig.partitionKey,
+        partition_key_type: indexConfig.partitionKeyType,
+        sort_key: indexConfig.sortKey,
+        sort_key_type: indexConfig.sortKeyType,
+        projection_type: indexConfig.projectionType,
+        projected_attributes: indexConfig.projectedAttributes,
+        read_capacity_units: indexConfig.readCapacityUnits,
+        write_capacity_units: indexConfig.writeCapacityUnits,
+      },
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+    return data;
+  },
+
+  updateGlobalSecondaryIndex: async (
+    con: DynamoDBConnection,
+    indexConfig: {
+      indexName: string;
+      readCapacityUnits: number;
+      writeCapacityUnits: number;
+    },
+  ) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+    const options = {
+      table_name: con.tableName,
+      operation: 'UPDATE_GLOBAL_SECONDARY_INDEX',
+      payload: {
+        index_name: indexConfig.indexName,
+        read_capacity_units: indexConfig.readCapacityUnits,
+        write_capacity_units: indexConfig.writeCapacityUnits,
+      },
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+    return data;
+  },
+
+  deleteGlobalSecondaryIndex: async (con: DynamoDBConnection, indexName: string) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+    const options = {
+      table_name: con.tableName,
+      operation: 'DELETE_GLOBAL_SECONDARY_INDEX',
+      payload: {
+        index_name: indexName,
+      },
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+    return data;
+  },
+
+  // CloudWatch Metrics
+  getTableMetrics: async (
+    con: DynamoDBConnection,
+    periodHours: number = 24,
+  ): Promise<{
+    available: boolean;
+    message?: string;
+    metrics?: {
+      consumedRead: number[];
+      consumedWrite: number[];
+      timestamps: string[];
+      provisionedReadCapacity: number;
+      provisionedWriteCapacity: number;
+      rcuUtilization: number;
+      wcuUtilization: number;
+      throttledReadRequests: number;
+      throttledWriteRequests: number;
+      totalThrottledEvents: number;
+    };
+  }> => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+    const options = {
+      table_name: con.tableName,
+      operation: 'GET_TABLE_METRICS',
+      payload: {
+        period_hours: periodHours,
+      },
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+    return data as {
+      available: boolean;
+      message?: string;
+      metrics?: {
+        consumedRead: number[];
+        consumedWrite: number[];
+        timestamps: string[];
+        provisionedReadCapacity: number;
+        provisionedWriteCapacity: number;
+        rcuUtilization: number;
+        wcuUtilization: number;
+        throttledReadRequests: number;
+        throttledWriteRequests: number;
+        totalThrottledEvents: number;
+      };
+    };
+  },
 };
 
 export { dynamoApi };

@@ -173,6 +173,8 @@ export const zhCN = {
       streams: '流',
       encryption: '加密',
       tableClass: '表类别',
+      // CloudWatch metrics
+      cloudwatchNotAvailable: 'CloudWatch 指标不可用。请启用 CloudWatch Contributor Insights 或确保您的 IAM 凭证具有 cloudwatch:GetMetricData 权限。',
       // Modal translations
       deleteIndexConfirm: '确定要删除此索引吗?',
       deleteIndexSuccess: '索引删除成功',

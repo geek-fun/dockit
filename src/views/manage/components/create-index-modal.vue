@@ -67,8 +67,13 @@ import { ref, watch } from 'vue';
 import type { FormInst, FormRules } from 'naive-ui';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
+import { dynamoApi } from '../../../datasources';
+import { useClusterManageStore, DynamoDBConnection, DatabaseType } from '../../../store';
+import { storeToRefs } from 'pinia';
 
 const lang = useLang();
+const clusterManageStore = useClusterManageStore();
+const { connection } = storeToRefs(clusterManageStore);
 
 interface Props {
   show: boolean;
@@ -156,14 +161,28 @@ const handleSubmit = async () => {
     return;
   }
 
+  if (!connection.value || connection.value.type !== DatabaseType.DYNAMODB) return;
+
   const startTime = Date.now();
 
   try {
     loading.value = true;
 
-    // TODO: Call backend API to create index when implemented
-    // For now, simulate the operation
-    await new Promise(resolve => setTimeout(resolve, MIN_LOADING_TIME));
+    // Call backend API to create GSI
+    await dynamoApi.createGlobalSecondaryIndex(connection.value as DynamoDBConnection, {
+      indexName: formValue.value.indexName,
+      partitionKey: formValue.value.partitionKey,
+      partitionKeyType: formValue.value.partitionKeyType,
+      sortKey: formValue.value.sortKey || undefined,
+      sortKeyType: formValue.value.sortKeyType,
+      projectionType: formValue.value.projectionType,
+      projectedAttributes:
+        formValue.value.projectionType === 'INCLUDE'
+          ? formValue.value.projectedAttributes
+          : undefined,
+      readCapacityUnits: formValue.value.readCapacityUnits,
+      writeCapacityUnits: formValue.value.writeCapacityUnits,
+    });
 
     // Ensure minimum loading time
     const elapsed = Date.now() - startTime;

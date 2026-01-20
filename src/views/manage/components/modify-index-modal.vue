@@ -46,8 +46,13 @@ import type { FormInst, FormRules } from 'naive-ui';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import type { DynamoIndex } from '../../../datasources';
+import { dynamoApi } from '../../../datasources';
+import { useClusterManageStore, DynamoDBConnection, DatabaseType } from '../../../store';
+import { storeToRefs } from 'pinia';
 
 const lang = useLang();
+const clusterManageStore = useClusterManageStore();
+const { connection } = storeToRefs(clusterManageStore);
 
 interface Props {
   show: boolean;
@@ -113,14 +118,19 @@ const handleSubmit = async () => {
     return;
   }
 
+  if (!props.indexName || !connection.value || connection.value.type !== DatabaseType.DYNAMODB) return;
+
   const startTime = Date.now();
 
   try {
     loading.value = true;
 
-    // TODO: Call backend API to modify index when implemented
-    // For now, simulate the operation
-    await new Promise(resolve => setTimeout(resolve, MIN_LOADING_TIME));
+    // Call backend API to update GSI throughput
+    await dynamoApi.updateGlobalSecondaryIndex(connection.value as DynamoDBConnection, {
+      indexName: props.indexName,
+      readCapacityUnits: formValue.value.readCapacityUnits,
+      writeCapacityUnits: formValue.value.writeCapacityUnits,
+    });
 
     // Ensure minimum loading time
     const elapsed = Date.now() - startTime;
