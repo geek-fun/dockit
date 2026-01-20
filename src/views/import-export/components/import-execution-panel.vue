@@ -1,5 +1,8 @@
 <template>
-  <n-card class="execution-card" :content-style="{ display: 'flex', flexDirection: 'column', flex: 1 }">
+  <n-card
+    class="execution-card"
+    :content-style="{ display: 'flex', flexDirection: 'column', flex: 1 }"
+  >
     <template #header>
       <div class="execution-header">
         <n-icon size="20" color="#f0a020">
@@ -64,6 +67,20 @@
       </div>
     </div>
 
+    <!-- Progress Display -->
+    <div v-if="restoreProgress" class="progress-section">
+      <n-progress
+        type="line"
+        :percentage="progressPercentage"
+        :status="progressPercentage === 100 ? 'success' : 'info'"
+        indicator-placement="inside"
+        :processing="progressPercentage < 100"
+      />
+      <p class="progress-text">
+        {{ restoreProgress.complete }} / {{ restoreProgress.total }} {{ $t('export.documents') }}
+      </p>
+    </div>
+
     <!-- Import Button -->
     <div class="import-action">
       <n-button
@@ -82,20 +99,6 @@
         {{ $t('import.startImportTask') }}
       </n-button>
       <p class="import-note">{{ $t('import.importNote') }}</p>
-    </div>
-
-    <!-- Progress Display -->
-    <div v-if="restoreProgress" class="progress-section">
-      <n-progress
-        type="line"
-        :percentage="progressPercentage"
-        :status="progressPercentage === 100 ? 'success' : 'info'"
-        indicator-placement="inside"
-        :processing="progressPercentage < 100"
-      />
-      <p class="progress-text">
-        {{ restoreProgress.complete }} / {{ restoreProgress.total }} {{ $t('export.documents') }}
-      </p>
     </div>
   </n-card>
 </template>
@@ -339,23 +342,23 @@ const executeImport = async () => {
     }
   }
 
-  .import-action {
-    margin-top: auto;
-    padding-top: 16px;
+  .progress-section {
+    margin-bottom: 16px;
 
-    .import-note {
-      font-size: 11px;
+    .progress-text {
+      font-size: 12px;
       color: var(--text-color-3);
       text-align: center;
       margin-top: 8px;
     }
   }
 
-  .progress-section {
-    margin-top: 16px;
+  .import-action {
+    margin-top: auto;
+    padding-top: 16px;
 
-    .progress-text {
-      font-size: 12px;
+    .import-note {
+      font-size: 11px;
       color: var(--text-color-3);
       text-align: center;
       margin-top: 8px;

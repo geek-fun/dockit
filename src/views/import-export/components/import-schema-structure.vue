@@ -22,17 +22,8 @@
       </div>
     </template>
 
-    <!-- Validation Errors -->
-    <div v-if="importValidationErrors.length > 0" class="validation-errors">
-      <n-alert type="error" :title="$t('import.validationErrors')">
-        <ul class="error-list">
-          <li v-for="(error, index) in importValidationErrors" :key="index">{{ error }}</li>
-        </ul>
-      </n-alert>
-    </div>
-
     <!-- Empty State -->
-    <div v-else-if="!importMetadata" class="empty-state">
+    <div v-if="!importMetadata" class="empty-state">
       <n-empty :description="$t('import.selectMetadataFirst')">
         <template #icon>
           <n-icon size="48">
