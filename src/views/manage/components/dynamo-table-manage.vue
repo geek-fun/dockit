@@ -1,28 +1,44 @@
 <template>
   <div class="dynamo-manage-container">
-    <!-- Header Section -->
-    <div class="header-section">
-      <div class="header-content">
-        <div class="header-left">
-          <span class="breadcrumb">{{ $t('manage.dynamo.breadcrumb') }}</span>
-          <h1 class="table-name">{{ tableInfo?.name || dynamoConnection?.tableName || '-' }}</h1>
+    <!-- Table Settings Section -->
+    <section class="settings-section">
+      <n-card class="settings-card">
+        <template #header>
+          <div class="section-header">
+            <div class="section-title">
+              <n-icon size="18"><SettingsAdjust /></n-icon>
+              <span>{{ $t('manage.dynamo.tableSettings') }}</span>
+            </div>
+          </div>
+        </template>
+        <div class="settings-grid">
+          <!-- Streams Setting -->
+          <div class="setting-item">
+            <div class="setting-header">
+              <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
+              <n-switch :value="streamsEnabled" size="small" disabled />
+            </div>
+            <span class="setting-value">{{ streamsViewType || '-' }}</span>
+          </div>
+          <!-- Encryption Setting -->
+          <div class="setting-item">
+            <div class="setting-header">
+              <span class="setting-label">{{ $t('manage.dynamo.encryption') }}</span>
+              <n-icon size="16"><Locked /></n-icon>
+            </div>
+            <span class="setting-value">{{ encryptionType }}</span>
+          </div>
+          <!-- Table Class Setting -->
+          <div class="setting-item">
+            <div class="setting-header">
+              <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
+              <n-icon size="16"><DataTable /></n-icon>
+            </div>
+            <span class="setting-value">{{ tableClass }}</span>
+          </div>
         </div>
-        <div class="header-right">
-          <span class="last-updated">{{ $t('manage.dynamo.lastUpdated') }}: {{ lastUpdated }}</span>
-          <n-button quaternary size="small" @click="handleRefresh" :loading="loading">
-            <template #icon>
-              <n-icon><Renew /></n-icon>
-            </template>
-          </n-button>
-          <n-button type="primary" @click="handleSettings">
-            <template #icon>
-              <n-icon><Settings /></n-icon>
-            </template>
-            {{ $t('manage.dynamo.settings') }}
-          </n-button>
-        </div>
-      </div>
-    </div>
+      </n-card>
+    </section>
 
     <!-- Metrics Cards Section -->
     <section class="metrics-section">
@@ -110,19 +126,23 @@
             </div>
             <div class="chart-placeholder">
               <svg class="chart-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
-                <path d="M0 20 H400 M0 40 H400 M0 60 H400 M0 80 H400" stroke="#f1f5f9" stroke-width="1" />
-                <polyline 
-                  fill="none" 
-                  points="0,70 40,65 80,75 120,50 160,55 200,40 240,45 280,30 320,35 360,20 400,25" 
-                  stroke="#3b82f6" 
-                  stroke-width="2" 
+                <path
+                  d="M0 20 H400 M0 40 H400 M0 60 H400 M0 80 H400"
+                  stroke="#f1f5f9"
+                  stroke-width="1"
+                />
+                <polyline
+                  fill="none"
+                  points="0,70 40,65 80,75 120,50 160,55 200,40 240,45 280,30 320,35 360,20 400,25"
+                  stroke="#3b82f6"
+                  stroke-width="2"
                   vector-effect="non-scaling-stroke"
                 />
-                <polyline 
-                  fill="none" 
-                  points="0,85 40,80 80,82 120,78 160,80 200,75 240,70 280,72 320,65 360,60 400,55" 
-                  stroke="#fb923c" 
-                  stroke-width="2" 
+                <polyline
+                  fill="none"
+                  points="0,85 40,80 80,82 120,78 160,80 200,75 240,70 280,72 320,65 360,60 400,55"
+                  stroke="#fb923c"
+                  stroke-width="2"
                   vector-effect="non-scaling-stroke"
                 />
               </svg>
@@ -218,46 +238,6 @@
         <n-empty v-else :description="$t('manage.dynamo.noGsi')" />
       </n-card>
     </section>
-
-    <!-- Table Settings Section -->
-    <section class="settings-section">
-      <n-card class="settings-card">
-        <template #header>
-          <div class="section-header">
-            <div class="section-title">
-              <n-icon size="18"><SettingsAdjust /></n-icon>
-              <span>{{ $t('manage.dynamo.tableSettings') }}</span>
-            </div>
-          </div>
-        </template>
-        <div class="settings-grid">
-          <!-- Streams Setting -->
-          <div class="setting-item">
-            <div class="setting-header">
-              <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
-              <n-switch :value="streamsEnabled" size="small" disabled />
-            </div>
-            <span class="setting-value">{{ streamsViewType || '-' }}</span>
-          </div>
-          <!-- Encryption Setting -->
-          <div class="setting-item">
-            <div class="setting-header">
-              <span class="setting-label">{{ $t('manage.dynamo.encryption') }}</span>
-              <n-icon size="16"><Locked /></n-icon>
-            </div>
-            <span class="setting-value">{{ encryptionType }}</span>
-          </div>
-          <!-- Table Class Setting -->
-          <div class="setting-item">
-            <div class="setting-header">
-              <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
-              <n-icon size="16"><DataTable /></n-icon>
-            </div>
-            <span class="setting-value">{{ tableClass }}</span>
-          </div>
-        </div>
-      </n-card>
-    </section>
   </div>
 </template>
 
@@ -265,8 +245,6 @@
 import { storeToRefs } from 'pinia';
 import { NTag, NButton, NIcon } from 'naive-ui';
 import {
-  Renew,
-  Settings,
   ChartLineData,
   TableSplit,
   SettingsAdjust,
@@ -343,9 +321,8 @@ const statusClass = computed(() => {
 
 const globalSecondaryIndexes = computed(() => {
   return (
-    tableInfo.value?.indices?.filter(
-      (index: DynamoIndex) => index.type === DynamoIndexType.GSI,
-    ) || []
+    tableInfo.value?.indices?.filter((index: DynamoIndex) => index.type === DynamoIndexType.GSI) ||
+    []
   );
 });
 
@@ -454,10 +431,6 @@ const handleRefresh = async () => {
   }
 };
 
-const handleSettings = () => {
-  message.info(lang.t('manage.dynamo.settingsComingSoon'));
-};
-
 const handleCreateIndex = () => {
   message.info(lang.t('manage.dynamo.createIndexComingSoon'));
 };
@@ -491,48 +464,6 @@ watch(connection, async newConnection => {
   padding: 24px;
   padding-right: 32px;
   background-color: #f8fafc;
-
-  .header-section {
-    margin-bottom: 24px;
-
-    .header-content {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 20px;
-
-      .header-left {
-        .breadcrumb {
-          font-size: 10px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          color: #94a3b8;
-        }
-
-        .table-name {
-          font-size: 24px;
-          font-weight: 700;
-          margin: 4px 0 0 0;
-          color: #0f172a;
-        }
-      }
-
-      .header-right {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-
-        .last-updated {
-          font-size: 12px;
-          color: #94a3b8;
-        }
-      }
-    }
-  }
 
   .metrics-section {
     margin-bottom: 24px;
