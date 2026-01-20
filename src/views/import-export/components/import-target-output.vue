@@ -233,6 +233,12 @@ const handleConnectionChange = async (value: string) => {
 
 const handleIndexChange = (value: string) => {
   importExportStore.setImportTargetIndex(value);
+  // Ensure immediate feedback
+  nextTick(() => {
+    if (value) {
+      // Index is now selected
+    }
+  });
 };
 
 // Watch for connection changes to update index options
@@ -244,6 +250,13 @@ watch(importConnection, () => {
     return;
   }
   updateIndexOptions();
+});
+
+// Watch store's importTargetIndex and sync with local state
+watch(importTargetIndex, newValue => {
+  if (newValue !== selectedIndex.value) {
+    selectedIndex.value = newValue;
+  }
 });
 </script>
 

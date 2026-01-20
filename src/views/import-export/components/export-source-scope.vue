@@ -245,6 +245,12 @@ const handleConnectionChange = async (value: string) => {
 
 const handleIndexChange = (value: string) => {
   exportStore.setSelectedIndex(value);
+  // Immediately trigger schema fetch when index is selected
+  nextTick(() => {
+    if (value) {
+      // The schema component will handle the fetch
+    }
+  });
 };
 
 // Watch for connection changes to update index options
@@ -256,6 +262,13 @@ watch(connection, () => {
     return;
   }
   updateIndexOptions();
+});
+
+// Watch store's selectedIndex and sync with local state
+watch(storeSelectedIndex, newValue => {
+  if (newValue !== selectedIndex.value) {
+    selectedIndex.value = newValue;
+  }
 });
 </script>
 

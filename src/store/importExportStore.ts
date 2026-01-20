@@ -172,7 +172,6 @@ export const useImportExportStore = defineStore('importExportStore', {
       runningTasks: [],
     };
   },
-  persist: true,
   getters: {
     canStartExport(): boolean {
       return (
@@ -836,9 +835,9 @@ export const useImportExportStore = defineStore('importExportStore', {
         // Get table info to ensure we have attribute definitions
         const tableInfo = await dynamoApi.describeTable(dynamoConnection);
 
-        // Scan to get a sample document
+        // Scan to get a sample document - always use the base table name
         const queryResult = await dynamoApi.scanTable(dynamoConnection, {
-          tableName: this.selectedIndex,
+          tableName: dynamoConnection.tableName,
           limit: 1,
         });
 
@@ -925,11 +924,13 @@ export const useImportExportStore = defineStore('importExportStore', {
       });
       const dbVersion = (input.connection as ElasticsearchConnection).version || '';
 
-      // Determine actual file extension based on format
+      // Use the configured fileName from input
+      // NDJSON files use .json extension
       const fileExtension = input.exportFileType === 'ndjson' ? 'json' : input.exportFileType;
-      const dataFileName = `data.${fileExtension}`;
+      const dataFileName = `${input.exportFileName}.${fileExtension}`;
       const dataFilePath = `${input.exportFolder}/${dataFileName}`;
-      const metadataFilePath = `${input.exportFolder}/metadata.json`;
+      const metadataFileName = `${input.exportFileName}_metadata.json`;
+      const metadataFilePath = `${input.exportFolder}/${metadataFileName}`;
 
       let searchAfter: unknown[] | undefined = undefined;
       let hasMore = true;
@@ -1149,11 +1150,13 @@ export const useImportExportStore = defineStore('importExportStore', {
     async exportDynamoDBToFile(input: ExportInput): Promise<string> {
       const dynamoConnection = input.connection as DynamoDBConnection;
 
-      // Determine actual file extension based on format
+      // Use the configured fileName from input
+      // NDJSON files use .json extension
       const fileExtension = input.exportFileType === 'ndjson' ? 'json' : input.exportFileType;
-      const dataFileName = `data.${fileExtension}`;
+      const dataFileName = `${input.exportFileName}.${fileExtension}`;
       const dataFilePath = `${input.exportFolder}/${dataFileName}`;
-      const metadataFilePath = `${input.exportFolder}/metadata.json`;
+      const metadataFileName = `${input.exportFileName}_metadata.json`;
+      const metadataFilePath = `${input.exportFolder}/${metadataFileName}`;
 
       let exclusiveStartKey: Record<string, unknown> | undefined = undefined;
       let hasMore = true;
@@ -1238,38 +1241,19 @@ export const useImportExportStore = defineStore('importExportStore', {
 
           this.exportProgress.complete += items.length;
 
-          if (items.length === 0 || !queryResult.lastEvaluatedKey) {
+          if (items.length === 0) {
             hasMore = false;
-          } else {
-            exclusiveStartKey = queryResult.lastEvaluatedKey;
+            break;
+          }
 
-            let dataToWrite: string;
+          // Write data for this batch
+          let dataToWrite: string;
 
-            if (input.exportFileType === 'ndjson') {
-              // NDJSON format - one JSON object per line
-              dataToWrite = items
-                .map(item => {
-                  // Filter fields if needed
-                  if (includedFieldNames.length < input.fields.length) {
-                    const filteredItem: Record<string, unknown> = {};
-                    includedFieldNames.forEach(field => {
-                      if (field in item) {
-                        filteredItem[field] = item[field];
-                      }
-                    });
-                    return jsonify.stringify(filteredItem);
-                  }
-                  return jsonify.stringify(item);
-                })
-                .join('\n');
-              if (dataToWrite) {
-                dataToWrite += '\n';
-              }
-            } else if (input.exportFileType === 'json') {
-              // JSON array format
-              const jsonDocs = items.map(item => {
+          if (input.exportFileType === 'ndjson') {
+            // NDJSON format - one JSON object per line
+            dataToWrite = items
+              .map(item => {
                 // Filter fields if needed
-                let docToExport = item;
                 if (includedFieldNames.length < input.fields.length) {
                   const filteredItem: Record<string, unknown> = {};
                   includedFieldNames.forEach(field => {
@@ -1277,26 +1261,52 @@ export const useImportExportStore = defineStore('importExportStore', {
                       filteredItem[field] = item[field];
                     }
                   });
-                  docToExport = filteredItem;
+                  return jsonify.stringify(filteredItem);
                 }
-                return input.beautifyJson
-                  ? jsonify.stringify(docToExport, null, 2)
-                  : jsonify.stringify(docToExport);
-              });
-              // Add comma separator between batches
-              const prefix = isFirstBatch ? '' : ',\n';
-              dataToWrite = prefix + jsonDocs.join(',\n');
-              isFirstBatch = false;
-            } else {
-              // CSV format
-              dataToWrite = convertToCsv(
-                includedFieldNames,
-                items.map(item => ({ _source: item })),
-              );
+                return jsonify.stringify(item);
+              })
+              .join('\n');
+            if (dataToWrite) {
+              dataToWrite += '\n';
             }
+          } else if (input.exportFileType === 'json') {
+            // JSON array format
+            const jsonDocs = items.map(item => {
+              // Filter fields if needed
+              let docToExport = item;
+              if (includedFieldNames.length < input.fields.length) {
+                const filteredItem: Record<string, unknown> = {};
+                includedFieldNames.forEach(field => {
+                  if (field in item) {
+                    filteredItem[field] = item[field];
+                  }
+                });
+                docToExport = filteredItem;
+              }
+              return input.beautifyJson
+                ? jsonify.stringify(docToExport, null, 2)
+                : jsonify.stringify(docToExport);
+            });
+            // Add comma separator between batches
+            const prefix = isFirstBatch ? '' : ',\n';
+            dataToWrite = prefix + jsonDocs.join(',\n');
+            isFirstBatch = false;
+          } else {
+            // CSV format
+            dataToWrite = convertToCsv(
+              includedFieldNames,
+              items.map(item => ({ _source: item })),
+            );
+          }
 
-            await sourceFileApi.saveFile(dataFilePath, dataToWrite, appendFile);
-            appendFile = true;
+          await sourceFileApi.saveFile(dataFilePath, dataToWrite, appendFile);
+          appendFile = true;
+
+          // Check if there are more pages
+          if (!queryResult.lastEvaluatedKey) {
+            hasMore = false;
+          } else {
+            exclusiveStartKey = queryResult.lastEvaluatedKey;
           }
         }
 
