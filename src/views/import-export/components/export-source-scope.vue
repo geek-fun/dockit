@@ -169,18 +169,7 @@ const handleIndexOpen = async (isOpen: boolean) => {
     } else if (connection.value.type === DatabaseType.DYNAMODB) {
       // DynamoDB: use table and GSIs
       const dynamoOptions = getDynamoIndexOrTableOption(connection.value as DynamoDBConnection);
-      // Remove duplicates based on value
-      const uniqueOptions = dynamoOptions.reduce(
-        (acc, curr) => {
-          if (!acc.find(item => item.value === curr.value)) {
-            acc.push(curr);
-          }
-          return acc;
-        },
-        [] as Array<{ label: string; value: string }>,
-      );
-
-      indexOptions.value = uniqueOptions.map(opt => ({
+      indexOptions.value = dynamoOptions.map(opt => ({
         label: opt.label,
         value: opt.value,
       }));

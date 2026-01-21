@@ -230,16 +230,21 @@ export const useImportExportStore = defineStore('importExportStore', {
     },
 
     async restoreFromFile(input: RestoreInput) {
-      let client;
       if (input.connection.type === DatabaseType.ELASTICSEARCH) {
-        client = loadHttpClient({
-          host: input.connection.host,
-          port: input.connection.port,
-          sslCertVerification: input.connection.sslCertVerification,
-        });
+        return await this.restoreToElasticsearch(input);
+      } else if (input.connection.type === DatabaseType.DYNAMODB) {
+        return await this.restoreToDynamoDB(input);
       } else {
         throw new CustomError(400, 'Unsupported connection type');
       }
+    },
+
+    async restoreToElasticsearch(input: RestoreInput) {
+      const client = loadHttpClient({
+        host: input.connection.host,
+        port: input.connection.port,
+        sslCertVerification: input.connection.sslCertVerification,
+      });
       const fileType = input.restoreFile.split('.').pop();
       const bulkSize = 1000;
       let data: string;
@@ -378,6 +383,103 @@ export const useImportExportStore = defineStore('importExportStore', {
           get(error, 'details', get(error, 'message', '')),
         );
       }
+    },
+
+    async restoreToDynamoDB(input: RestoreInput) {
+      const dynamoConnection = input.connection as DynamoDBConnection;
+      const fileType = input.restoreFile.split('.').pop();
+      let data: string;
+
+      try {
+        data = await sourceFileApi.readFile(input.restoreFile);
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+
+      try {
+        let items: Array<Record<string, unknown>> = [];
+
+        if (fileType === 'json') {
+          // Parse JSON array
+          const parsed = jsonify.parse(data);
+          items = Array.isArray(parsed) ? parsed : [parsed];
+        } else if (fileType === 'ndjson') {
+          // Parse NDJSON format - one JSON object per line
+          const lines = data.split('\n').filter(line => line.trim());
+          items = lines
+            .map(line => {
+              try {
+                return jsonify.parse(line);
+              } catch {
+                return null;
+              }
+            })
+            .filter(Boolean) as Array<Record<string, unknown>>;
+        } else if (fileType === 'csv') {
+          // Parse CSV
+          const lines = data.split('\r\n').filter(line => line.trim());
+          const headers = lines[0].split(',');
+          items = lines.slice(1).map(line => {
+            const values = line.split(',');
+            return headers.reduce(
+              (acc, header, index) => {
+                let value: unknown = values[index];
+                try {
+                  value = jsonify.parse(values[index]);
+                } catch {
+                  // Keep as string
+                }
+                acc[header] = value;
+                return acc;
+              },
+              {} as Record<string, unknown>,
+            );
+          });
+        } else {
+          throw new CustomError(400, 'Unsupported file type');
+        }
+
+        this.restoreProgress = {
+          complete: 0,
+          total: items.length,
+        };
+
+        // Import items in batches using createItem
+        const batchSize = 25; // DynamoDB batch write limit
+        for (let i = 0; i < items.length; i += batchSize) {
+          const batch = items.slice(i, i + batchSize);
+
+          for (const item of batch) {
+            // Convert to DynamoDB attribute format
+            const attributes = Object.entries(item).map(([key, value]) => ({
+              name: key,
+              value: value,
+              type: this.inferDynamoDBType(value),
+            }));
+
+            await dynamoApi.createItem(dynamoConnection, attributes);
+            this.restoreProgress.complete += 1;
+          }
+        }
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+
+    inferDynamoDBType(value: unknown): string {
+      if (typeof value === 'string') return 'S';
+      if (typeof value === 'number') return 'N';
+      if (typeof value === 'boolean') return 'BOOL';
+      if (value === null) return 'NULL';
+      if (Array.isArray(value)) return 'L';
+      if (typeof value === 'object') return 'M';
+      return 'S'; // Default to string
     },
 
     // ==================== Enhanced Import Actions ====================
