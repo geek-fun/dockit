@@ -22,7 +22,6 @@
           :loading="loadingStat.connection"
           filterable
           remote
-          :input-props="inputProps"
           @update:value="handleConnectionChange"
           @update:show="handleConnectionOpen"
           @search="handleConnectionSearch"
@@ -38,7 +37,6 @@
           filterable
           remote
           :disabled="!inputData.selectedConnection"
-          :input-props="inputProps"
           @update:value="handleIndexChange"
           @update:show="handleIndexOpen"
           @search="handleIndexSearch"

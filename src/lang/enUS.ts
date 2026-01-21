@@ -199,6 +199,8 @@ export const enUS = {
     reset: 'Reset',
     saveAndEnable: 'Save & Enable',
     execute: 'Run',
+    createFolder: 'Create Folder',
+    overwrite: 'Overwrite',
   },
   editor: {
     establishedRequired: 'Select a DB instance before execute actions',

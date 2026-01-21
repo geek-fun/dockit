@@ -199,6 +199,8 @@ export const zhCN = {
     reset: '重置',
     saveAndEnable: '保存并启用',
     execute: '执行',
+    createFolder: '创建文件夹',
+    overwrite: '覆盖',
   },
   editor: {
     establishedRequired: '请选择执行操作的数据库实例',

@@ -113,6 +113,7 @@ import { useImportExportStore, ExportInput } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import { ulid } from 'ulidx';
+import { sourceFileApi } from '../../../datasources';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -181,27 +182,59 @@ const handleStartExport = async () => {
 
   const exportPath = getExportPath.value;
 
-  // Check if file exists
-  const fileExists = await exportStore.checkFileExist({
-    index: selectedIndex.value,
-    exportFolder: exportPath,
-    exportFileName: fileName.value,
-    exportFileType: fileType.value,
-    filterQuery: filterQuery.value,
-    overwriteExisting: overwriteExisting.value,
-    createDirectory: createDirectory.value,
-    beautifyJson: beautifyJson.value,
-  });
+  // Check if directory exists
+  const folderExists = await sourceFileApi.exists(exportPath);
 
-  if (fileExists && !overwriteExisting.value) {
+  if (!folderExists && !createDirectory.value) {
     dialog.warning({
       title: lang.t('dialogOps.warning'),
-      content: lang.t('dialogOps.overwriteFile'),
-      positiveText: lang.t('dialogOps.confirm'),
+      content: `Directory does not exist: ${exportPath}. Please enable "Create Directory" option or create the directory manually.`,
+      positiveText: lang.t('dialogOps.createFolder'),
       negativeText: lang.t('dialogOps.cancel'),
-      onPositiveClick: () => executeExport(),
+      onPositiveClick: () => {
+        // User confirmed, enable createDirectory option
+        createDirectory.value = true;
+        // User needs to click export button again
+      },
     });
     return;
+  }
+
+  await continueExportChecks();
+};
+
+const continueExportChecks = async () => {
+  const exportPath = getExportPath.value;
+
+  // Check if files exist
+  const fileExtension = fileType.value === 'ndjson' ? 'json' : fileType.value;
+  const dataFileName = `${fileName.value}.${fileExtension}`;
+  const metadataFileName = `${fileName.value}_metadata.json`;
+  const dataFilePath = `${exportPath}/${dataFileName}`;
+  const metadataFilePath = `${exportPath}/${metadataFileName}`;
+
+  if (!overwriteExisting.value) {
+    const dataFileExists = await sourceFileApi.exists(dataFilePath);
+    const metadataFileExists = await sourceFileApi.exists(metadataFilePath);
+
+    if (dataFileExists || metadataFileExists) {
+      const existingFiles = [];
+      if (dataFileExists) existingFiles.push(dataFileName);
+      if (metadataFileExists) existingFiles.push(metadataFileName);
+
+      dialog.warning({
+        title: lang.t('dialogOps.warning'),
+        content: `File(s) already exist: ${existingFiles.join(', ')}. Do you want to overwrite them?`,
+        positiveText: lang.t('dialogOps.overwrite'),
+        negativeText: lang.t('dialogOps.cancel'),
+        onPositiveClick: () => {
+          // User confirmed, enable overwriteExisting option
+          overwriteExisting.value = true;
+          // User needs to click export button again
+        },
+      });
+      return;
+    }
   }
 
   await executeExport();

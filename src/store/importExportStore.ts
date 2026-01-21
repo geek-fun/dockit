@@ -914,6 +914,9 @@ export const useImportExportStore = defineStore('importExportStore', {
     },
 
     async exportToFile(input: ExportInput): Promise<string> {
+      // Reset progress at the start of each export
+      this.exportProgress = null;
+
       if (input.connection.type === DatabaseType.ELASTICSEARCH) {
         return await this.exportElasticsearchToFile(input);
       } else if (input.connection.type === DatabaseType.DYNAMODB) {
@@ -948,12 +951,11 @@ export const useImportExportStore = defineStore('importExportStore', {
       let appendFile = false;
 
       try {
-        // Create directory if needed
+        // Create directory if needed (UI validation ensures this is appropriate)
         if (input.createDirectory) {
-          try {
+          const folderExists = await sourceFileApi.exists(input.exportFolder);
+          if (!folderExists) {
             await sourceFileApi.createFolder(input.exportFolder);
-          } catch {
-            // Folder might already exist, continue
           }
         }
 
@@ -1102,7 +1104,9 @@ export const useImportExportStore = defineStore('importExportStore', {
 
           const hits = response.hits.hits;
 
-          this.exportProgress.complete += hits.length;
+          if (this.exportProgress) {
+            this.exportProgress.complete += hits.length;
+          }
 
           if (hits.length === 0) {
             hasMore = false;
@@ -1149,6 +1153,14 @@ export const useImportExportStore = defineStore('importExportStore', {
           await sourceFileApi.saveFile(dataFilePath, '\n]', true);
         }
 
+        // Update metadata with actual row count exported
+        metadata.export.rowCount = this.exportProgress?.complete || 0;
+        await sourceFileApi.saveFile(
+          metadataFilePath,
+          input.beautifyJson ? jsonify.stringify(metadata, null, 2) : jsonify.stringify(metadata),
+          false,
+        );
+
         return dataFilePath;
       } catch (error) {
         throw new CustomError(
@@ -1175,12 +1187,11 @@ export const useImportExportStore = defineStore('importExportStore', {
       let totalItems = 0;
 
       try {
-        // Create directory if needed
+        // Create directory if needed (UI validation ensures this is appropriate)
         if (input.createDirectory) {
-          try {
+          const folderExists = await sourceFileApi.exists(input.exportFolder);
+          if (!folderExists) {
             await sourceFileApi.createFolder(input.exportFolder);
-          } catch {
-            // Folder might already exist, continue
           }
         }
 
@@ -1239,11 +1250,14 @@ export const useImportExportStore = defineStore('importExportStore', {
 
         let isFirstBatch = true;
 
+        // Determine if we're scanning a GSI or the base table
+        const isGSI = input.index !== dynamoConnection.tableName;
+
         // Scan table in batches
         while (hasMore) {
           const queryResult = await dynamoApi.scanTable(dynamoConnection, {
-            tableName: input.index,
-            indexName: input.index,
+            tableName: dynamoConnection.tableName,
+            indexName: isGSI ? input.index : null,
             partitionKey: {
               name: dynamoConnection.partitionKey.name,
               value: null,
@@ -1255,7 +1269,9 @@ export const useImportExportStore = defineStore('importExportStore', {
           const items = queryResult.items || [];
           totalItems += items.length;
 
-          this.exportProgress.complete += items.length;
+          if (this.exportProgress) {
+            this.exportProgress.complete += items.length;
+          }
 
           if (items.length === 0) {
             hasMore = false;
