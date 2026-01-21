@@ -59,17 +59,17 @@
 </template>
 
 <script setup lang="ts">
-import { storeToRefs } from 'pinia';
 import { DataBase } from '@vicons/carbon';
-import {
-  useImportExportStore,
-  useConnectionStore,
-  ElasticsearchConnection,
-  DynamoDBConnection,
-  DatabaseType,
-} from '../../../store';
-import { CustomError, inputProps } from '../../../common';
+import { storeToRefs } from 'pinia';
+import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
+import {
+  DatabaseType,
+  DynamoDBConnection,
+  ElasticsearchConnection,
+  useConnectionStore,
+  useImportExportStore,
+} from '../../../store';
 
 const message = useMessage();
 const lang = useLang();
