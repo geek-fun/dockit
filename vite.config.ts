@@ -11,7 +11,7 @@ export default defineConfig({
     vue(),
     svgLoader(),
     AutoImport({
-      dts: './auto-import.d.ts',
+      dts: './auto-imports.d.ts',
       eslintrc: {
         enabled: true,
         filepath: './.eslintrc-auto-import.json',
@@ -26,6 +26,7 @@ export default defineConfig({
       ],
     }),
     Components({
+      dts: './components.d.ts',
       resolvers: [NaiveUiResolver()],
     }),
   ],
