@@ -536,7 +536,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       if (!this.importDataFile) return;
 
       try {
-        const fileType = this.importDataFile.split('.').pop()?.toLowerCase();
+        const fileType = this.importDataFile.split('.').pop()?.toLowerCase() || 'json';
         const data = await sourceFileApi.readFile(this.importDataFile);
 
         let sampleDoc: Record<string, unknown> | null = null;
@@ -554,6 +554,7 @@ export const useImportExportStore = defineStore('importExportStore', {
             sampleDoc = jsonify.parse(lines[0]);
           }
         } else if (fileType === 'csv') {
+          // Note: Basic CSV parsing - complex CSV with quoted commas may not parse correctly
           const lines = data.split('\n').filter((line: string) => line.trim());
           if (lines.length > 1) {
             const headers = lines[0].split(',').map((h: string) => h.trim().replace(/^"|"$/g, ''));
