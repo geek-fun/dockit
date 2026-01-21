@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import { keywords } from './keywords.ts';
 
 export const executeActions = {

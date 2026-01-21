@@ -1,4 +1,7 @@
-import { partiqlKeywords, partiqlKeywordCategories } from '../../../../src/common/monaco/partiql/keywords';
+import {
+  partiqlKeywords,
+  partiqlKeywordCategories,
+} from '../../../../src/common/monaco/partiql/keywords';
 
 describe('PartiQL Keywords', () => {
   it('should contain DML keywords', () => {

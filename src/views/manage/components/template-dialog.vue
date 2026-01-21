@@ -30,8 +30,8 @@
               <n-grid-item span="8">
                 <n-form-item :label="$t('manage.index.newTemplateForm.templateName')" path="name">
                   <n-input
-                    :input-props="inputProps"
                     v-model:value="indexFormData.name"
+                    :input-props="inputProps"
                     clearable
                     :placeholder="$t('manage.index.newTemplateForm.templateName')"
                   />
@@ -83,8 +83,8 @@
               <n-grid-item span="8">
                 <n-form-item :label="$t('manage.index.newTemplateForm.templateName')" path="name">
                   <n-input
-                    :input-props="inputProps"
                     v-model:value="componentFormData.name"
+                    :input-props="inputProps"
                     clearable
                     :placeholder="$t('manage.index.newTemplateForm.templateName')"
                   />

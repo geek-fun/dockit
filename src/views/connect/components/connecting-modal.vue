@@ -2,7 +2,7 @@
   <n-modal v-model:show="showModal" :mask-closable="false" :close-on-esc="false">
     <n-card style="width: 500px" role="dialog" :bordered="false" class="connecting-modal-card">
       <template #header>
-        <n-icon size="24" @click="handleCancel" class="close-icon">
+        <n-icon size="24" class="close-icon" @click="handleCancel">
           <Close />
         </n-icon>
       </template>
@@ -12,8 +12,8 @@
           type="error"
           :title="$t('connection.connectionError')"
           closable
-          @close="errorMessage = ''"
           style="margin-bottom: 24px; width: 100%"
+          @close="errorMessage = ''"
         >
           {{ errorMessage }}
         </n-alert>
@@ -27,10 +27,10 @@
           {{ $t('connection.connectingSubtext') }}
         </div>
         <div class="button-container">
-          <n-button v-if="errorMessage" @click="handleRetry" type="primary">
+          <n-button v-if="errorMessage" type="primary" @click="handleRetry">
             {{ $t('dialogOps.retry') }}
           </n-button>
-          <n-button @click="handleCancel" :secondary="!errorMessage">
+          <n-button :secondary="!errorMessage" @click="handleCancel">
             {{ $t('dialogOps.cancel') }}
           </n-button>
         </div>

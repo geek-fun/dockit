@@ -16,7 +16,11 @@
       <div class="step-progress">
         <div :class="['step-node', { completed: step1Complete }]">
           <div
-            :class="['step-circle', 'clickable', { completed: step1Complete, active: !step1Complete }]"
+            :class="[
+              'step-circle',
+              'clickable',
+              { completed: step1Complete, active: !step1Complete },
+            ]"
             @click="handleSelectDataFile"
           >
             <n-icon v-if="step1Complete" size="16">

@@ -17,8 +17,8 @@
           v-if="successMessage"
           type="success"
           closable
-          @close="successMessage = ''"
           style="margin-bottom: 12px"
+          @close="successMessage = ''"
         >
           {{ successMessage }}
         </n-alert>
@@ -26,8 +26,8 @@
           v-if="errorMessage"
           type="error"
           closable
-          @close="errorMessage = ''"
           style="margin-bottom: 12px"
+          @close="errorMessage = ''"
         >
           {{ errorMessage }}
         </n-alert>

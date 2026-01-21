@@ -1,7 +1,7 @@
 /**
  * Query DSL Specification
  * Provides definitions for Elasticsearch/OpenSearch Query DSL
- * 
+ *
  * This module defines the structure and available options for Query DSL,
  * enabling grammar-driven completions for the body of search requests.
  */
@@ -41,8 +41,15 @@ export const fullTextQueries: { [key: string]: QueryDef } = {
           fuzziness: { type: 'string', description: 'Fuzziness for matching' },
           prefix_length: { type: 'integer', description: 'Prefix length for fuzzy matching' },
           max_expansions: { type: 'integer', description: 'Maximum expansions for fuzzy matching' },
-          zero_terms_query: { type: 'string', description: 'Behavior for zero terms', enum: ['none', 'all'] },
-          auto_generate_synonyms_phrase_query: { type: 'boolean', description: 'Auto-generate synonym phrase queries' },
+          zero_terms_query: {
+            type: 'string',
+            description: 'Behavior for zero terms',
+            enum: ['none', 'all'],
+          },
+          auto_generate_synonyms_phrase_query: {
+            type: 'boolean',
+            description: 'Auto-generate synonym phrase queries',
+          },
           analyzer: { type: 'string', description: 'Analyzer to use' },
           minimum_should_match: { type: 'string', description: 'Minimum should match' },
           lenient: { type: 'boolean', description: 'Ignore format-based errors' },
@@ -62,7 +69,11 @@ export const fullTextQueries: { [key: string]: QueryDef } = {
           query: { type: 'string', description: 'Phrase to search for' },
           slop: { type: 'integer', description: 'Number of positions between terms' },
           analyzer: { type: 'string', description: 'Analyzer to use' },
-          zero_terms_query: { type: 'string', description: 'Behavior for zero terms', enum: ['none', 'all'] },
+          zero_terms_query: {
+            type: 'string',
+            description: 'Behavior for zero terms',
+            enum: ['none', 'all'],
+          },
           boost: { type: 'number', description: 'Boost factor' },
         },
       },
@@ -80,7 +91,11 @@ export const fullTextQueries: { [key: string]: QueryDef } = {
           slop: { type: 'integer', description: 'Number of positions between terms' },
           max_expansions: { type: 'integer', description: 'Maximum expansions', default: 50 },
           analyzer: { type: 'string', description: 'Analyzer to use' },
-          zero_terms_query: { type: 'string', description: 'Behavior for zero terms', enum: ['none', 'all'] },
+          zero_terms_query: {
+            type: 'string',
+            description: 'Behavior for zero terms',
+            enum: ['none', 'all'],
+          },
           boost: { type: 'number', description: 'Boost factor' },
         },
       },
@@ -96,7 +111,14 @@ export const fullTextQueries: { [key: string]: QueryDef } = {
       type: {
         type: 'string',
         description: 'Multi-match type',
-        enum: ['best_fields', 'most_fields', 'cross_fields', 'phrase', 'phrase_prefix', 'bool_prefix'],
+        enum: [
+          'best_fields',
+          'most_fields',
+          'cross_fields',
+          'phrase',
+          'phrase_prefix',
+          'bool_prefix',
+        ],
       },
       tie_breaker: { type: 'number', description: 'Tie breaker for multiple matches' },
       operator: { type: 'string', description: 'Boolean logic', enum: ['or', 'and'] },
@@ -107,7 +129,10 @@ export const fullTextQueries: { [key: string]: QueryDef } = {
       prefix_length: { type: 'integer', description: 'Prefix length for fuzzy matching' },
       max_expansions: { type: 'integer', description: 'Maximum expansions' },
       lenient: { type: 'boolean', description: 'Ignore format-based errors' },
-      auto_generate_synonyms_phrase_query: { type: 'boolean', description: 'Auto-generate synonym phrase queries' },
+      auto_generate_synonyms_phrase_query: {
+        type: 'boolean',
+        description: 'Auto-generate synonym phrase queries',
+      },
     },
   },
   query_string: {
@@ -122,7 +147,10 @@ export const fullTextQueries: { [key: string]: QueryDef } = {
       analyzer: { type: 'string', description: 'Analyzer to use' },
       allow_leading_wildcard: { type: 'boolean', description: 'Allow leading wildcard' },
       analyze_wildcard: { type: 'boolean', description: 'Analyze wildcards' },
-      auto_generate_synonyms_phrase_query: { type: 'boolean', description: 'Auto-generate synonym phrase queries' },
+      auto_generate_synonyms_phrase_query: {
+        type: 'boolean',
+        description: 'Auto-generate synonym phrase queries',
+      },
       boost: { type: 'number', description: 'Boost factor' },
       enable_position_increments: { type: 'boolean', description: 'Enable position increments' },
       escape: { type: 'boolean', description: 'Escape special characters' },
@@ -131,14 +159,21 @@ export const fullTextQueries: { [key: string]: QueryDef } = {
       fuzzy_prefix_length: { type: 'integer', description: 'Fuzzy prefix length' },
       fuzzy_transpositions: { type: 'boolean', description: 'Allow fuzzy transpositions' },
       lenient: { type: 'boolean', description: 'Ignore format-based errors' },
-      max_determinized_states: { type: 'integer', description: 'Maximum determinized automaton states' },
+      max_determinized_states: {
+        type: 'integer',
+        description: 'Maximum determinized automaton states',
+      },
       minimum_should_match: { type: 'string', description: 'Minimum should match' },
       phrase_slop: { type: 'integer', description: 'Phrase slop' },
       quote_analyzer: { type: 'string', description: 'Analyzer for quoted text' },
       quote_field_suffix: { type: 'string', description: 'Suffix for quoted field search' },
       rewrite: { type: 'string', description: 'Rewrite method' },
       time_zone: { type: 'string', description: 'Time zone for date parsing' },
-      type: { type: 'string', description: 'Query type', enum: ['best_fields', 'most_fields', 'cross_fields', 'phrase', 'phrase_prefix'] },
+      type: {
+        type: 'string',
+        description: 'Query type',
+        enum: ['best_fields', 'most_fields', 'cross_fields', 'phrase', 'phrase_prefix'],
+      },
     },
   },
   simple_query_string: {
@@ -152,7 +187,10 @@ export const fullTextQueries: { [key: string]: QueryDef } = {
       analyzer: { type: 'string', description: 'Analyzer to use' },
       flags: { type: 'string', description: 'Query flags' },
       analyze_wildcard: { type: 'boolean', description: 'Analyze wildcards' },
-      auto_generate_synonyms_phrase_query: { type: 'boolean', description: 'Auto-generate synonym phrase queries' },
+      auto_generate_synonyms_phrase_query: {
+        type: 'boolean',
+        description: 'Auto-generate synonym phrase queries',
+      },
       boost: { type: 'number', description: 'Boost factor' },
       fuzzy_max_expansions: { type: 'integer', description: 'Maximum fuzzy expansions' },
       fuzzy_prefix_length: { type: 'integer', description: 'Fuzzy prefix length' },
@@ -171,8 +209,15 @@ export const fullTextQueries: { [key: string]: QueryDef } = {
       fields: { type: 'array', description: 'Fields to combine', required: true },
       operator: { type: 'string', description: 'Boolean logic', enum: ['or', 'and'] },
       minimum_should_match: { type: 'string', description: 'Minimum should match' },
-      zero_terms_query: { type: 'string', description: 'Behavior for zero terms', enum: ['none', 'all'] },
-      auto_generate_synonyms_phrase_query: { type: 'boolean', description: 'Auto-generate synonym phrase queries' },
+      zero_terms_query: {
+        type: 'string',
+        description: 'Behavior for zero terms',
+        enum: ['none', 'all'],
+      },
+      auto_generate_synonyms_phrase_query: {
+        type: 'boolean',
+        description: 'Auto-generate synonym phrase queries',
+      },
       boost: { type: 'number', description: 'Boost factor' },
     },
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.13.0' } },
@@ -235,8 +280,14 @@ export const termLevelQueries: { [key: string]: QueryDef } = {
         type: 'object',
         properties: {
           terms: { type: 'array', description: 'Term values', required: true },
-          minimum_should_match_field: { type: 'string', description: 'Field for minimum match count' },
-          minimum_should_match_script: { type: 'object', description: 'Script for minimum match count' },
+          minimum_should_match_field: {
+            type: 'string',
+            description: 'Field for minimum match count',
+          },
+          minimum_should_match_script: {
+            type: 'object',
+            description: 'Script for minimum match count',
+          },
           boost: { type: 'number', description: 'Boost factor' },
         },
       },
@@ -256,7 +307,11 @@ export const termLevelQueries: { [key: string]: QueryDef } = {
           lt: { type: 'string', description: 'Less than' },
           format: { type: 'string', description: 'Date format' },
           time_zone: { type: 'string', description: 'Time zone' },
-          relation: { type: 'string', description: 'Shape relation', enum: ['INTERSECTS', 'CONTAINS', 'WITHIN'] },
+          relation: {
+            type: 'string',
+            description: 'Shape relation',
+            enum: ['INTERSECTS', 'CONTAINS', 'WITHIN'],
+          },
           boost: { type: 'number', description: 'Boost factor' },
         },
       },
@@ -359,7 +414,10 @@ export const compoundQueries: { [key: string]: QueryDef } = {
     snippet: `bool: {\n\tmust: [\n\t\t{}\n\t]\n}`,
     properties: {
       must: { type: 'array', description: 'Queries that must match' },
-      filter: { type: 'array', description: 'Queries that must match but do not contribute to score' },
+      filter: {
+        type: 'array',
+        description: 'Queries that must match but do not contribute to score',
+      },
       should: { type: 'array', description: 'Queries that should match' },
       must_not: { type: 'array', description: 'Queries that must not match' },
       minimum_should_match: { type: 'string', description: 'Minimum number of should clauses' },
@@ -368,7 +426,8 @@ export const compoundQueries: { [key: string]: QueryDef } = {
   },
   boosting: {
     name: 'boosting',
-    description: 'Returns documents matching positive query, reducing score for negative query matches',
+    description:
+      'Returns documents matching positive query, reducing score for negative query matches',
     snippet: `boosting: {\n\tpositive: {},\n\tnegative: {},\n\tnegative_boost: 0.5\n}`,
     properties: {
       positive: { type: 'object', description: 'Positive query', required: true },
@@ -402,8 +461,16 @@ export const compoundQueries: { [key: string]: QueryDef } = {
     properties: {
       query: { type: 'object', description: 'Base query' },
       functions: { type: 'array', description: 'Score functions' },
-      score_mode: { type: 'string', description: 'Score combination mode', enum: ['multiply', 'sum', 'avg', 'first', 'max', 'min'] },
-      boost_mode: { type: 'string', description: 'Boost combination mode', enum: ['multiply', 'replace', 'sum', 'avg', 'max', 'min'] },
+      score_mode: {
+        type: 'string',
+        description: 'Score combination mode',
+        enum: ['multiply', 'sum', 'avg', 'first', 'max', 'min'],
+      },
+      boost_mode: {
+        type: 'string',
+        description: 'Boost combination mode',
+        enum: ['multiply', 'replace', 'sum', 'avg', 'max', 'min'],
+      },
       max_boost: { type: 'number', description: 'Maximum boost' },
       min_score: { type: 'number', description: 'Minimum score threshold' },
       boost: { type: 'number', description: 'Boost factor' },
@@ -422,7 +489,11 @@ export const joiningQueries: { [key: string]: QueryDef } = {
     properties: {
       path: { type: 'string', description: 'Nested object path', required: true },
       query: { type: 'object', description: 'Query to run on nested objects', required: true },
-      score_mode: { type: 'string', description: 'Score mode', enum: ['avg', 'max', 'min', 'sum', 'none'] },
+      score_mode: {
+        type: 'string',
+        description: 'Score mode',
+        enum: ['avg', 'max', 'min', 'sum', 'none'],
+      },
       ignore_unmapped: { type: 'boolean', description: 'Ignore unmapped paths' },
       inner_hits: { type: 'object', description: 'Inner hits configuration' },
     },
@@ -434,7 +505,11 @@ export const joiningQueries: { [key: string]: QueryDef } = {
     properties: {
       type: { type: 'string', description: 'Child document type', required: true },
       query: { type: 'object', description: 'Query to run on child documents', required: true },
-      score_mode: { type: 'string', description: 'Score mode', enum: ['avg', 'max', 'min', 'sum', 'none'] },
+      score_mode: {
+        type: 'string',
+        description: 'Score mode',
+        enum: ['avg', 'max', 'min', 'sum', 'none'],
+      },
       min_children: { type: 'integer', description: 'Minimum matching children' },
       max_children: { type: 'integer', description: 'Maximum matching children' },
       ignore_unmapped: { type: 'boolean', description: 'Ignore unmapped types' },
@@ -483,7 +558,11 @@ export const geoQueries: { [key: string]: QueryDef } = {
           bottom_left: { type: 'object', description: 'Bottom-left corner' },
         },
       },
-      validation_method: { type: 'string', description: 'Validation method', enum: ['STRICT', 'IGNORE_MALFORMED', 'COERCE'] },
+      validation_method: {
+        type: 'string',
+        description: 'Validation method',
+        enum: ['STRICT', 'IGNORE_MALFORMED', 'COERCE'],
+      },
       type: { type: 'string', description: 'Execution type', enum: ['memory', 'indexed'] },
       ignore_unmapped: { type: 'boolean', description: 'Ignore unmapped fields' },
     },
@@ -494,8 +573,16 @@ export const geoQueries: { [key: string]: QueryDef } = {
     snippet: `geo_distance: {\n\tdistance: "\${1:DISTANCE}",\n\t\${2:FIELD}: { lat: \${3:LAT}, lon: \${4:LON} }\n}`,
     properties: {
       distance: { type: 'string', description: 'Distance from center point', required: true },
-      distance_type: { type: 'string', description: 'Distance calculation type', enum: ['arc', 'plane'] },
-      validation_method: { type: 'string', description: 'Validation method', enum: ['STRICT', 'IGNORE_MALFORMED', 'COERCE'] },
+      distance_type: {
+        type: 'string',
+        description: 'Distance calculation type',
+        enum: ['arc', 'plane'],
+      },
+      validation_method: {
+        type: 'string',
+        description: 'Validation method',
+        enum: ['STRICT', 'IGNORE_MALFORMED', 'COERCE'],
+      },
       ignore_unmapped: { type: 'boolean', description: 'Ignore unmapped fields' },
     },
   },
@@ -510,7 +597,11 @@ export const geoQueries: { [key: string]: QueryDef } = {
           points: { type: 'array', description: 'Polygon points', required: true },
         },
       },
-      validation_method: { type: 'string', description: 'Validation method', enum: ['STRICT', 'IGNORE_MALFORMED', 'COERCE'] },
+      validation_method: {
+        type: 'string',
+        description: 'Validation method',
+        enum: ['STRICT', 'IGNORE_MALFORMED', 'COERCE'],
+      },
       ignore_unmapped: { type: 'boolean', description: 'Ignore unmapped fields' },
     },
     deprecated: true,
@@ -525,7 +616,11 @@ export const geoQueries: { [key: string]: QueryDef } = {
         properties: {
           shape: { type: 'object', description: 'GeoJSON shape' },
           indexed_shape: { type: 'object', description: 'Pre-indexed shape reference' },
-          relation: { type: 'string', description: 'Spatial relation', enum: ['intersects', 'disjoint', 'within', 'contains'] },
+          relation: {
+            type: 'string',
+            description: 'Spatial relation',
+            enum: ['intersects', 'disjoint', 'within', 'contains'],
+          },
         },
       },
       ignore_unmapped: { type: 'boolean', description: 'Ignore unmapped fields' },
@@ -547,7 +642,11 @@ export const shapeQueries: { [key: string]: QueryDef } = {
         properties: {
           shape: { type: 'object', description: 'Shape geometry' },
           indexed_shape: { type: 'object', description: 'Pre-indexed shape reference' },
-          relation: { type: 'string', description: 'Spatial relation', enum: ['intersects', 'disjoint', 'within', 'contains'] },
+          relation: {
+            type: 'string',
+            description: 'Spatial relation',
+            enum: ['intersects', 'disjoint', 'within', 'contains'],
+          },
         },
       },
       ignore_unmapped: { type: 'boolean', description: 'Ignore unmapped fields' },
@@ -561,11 +660,16 @@ export const shapeQueries: { [key: string]: QueryDef } = {
 export const specializedQueries: { [key: string]: QueryDef } = {
   more_like_this: {
     name: 'more_like_this',
-    description: 'Returns documents similar to the provided text, document, or collection of documents',
+    description:
+      'Returns documents similar to the provided text, document, or collection of documents',
     snippet: `more_like_this: {\n\tfields: [\${1:FIELDS}],\n\tlike: "\${2:TEXT}"\n}`,
     properties: {
       fields: { type: 'array', description: 'Fields to analyze' },
-      like: { type: 'string', description: 'Text or documents to find similar matches', required: true },
+      like: {
+        type: 'string',
+        description: 'Text or documents to find similar matches',
+        required: true,
+      },
       unlike: { type: 'string', description: 'Text or documents to exclude' },
       min_term_freq: { type: 'integer', description: 'Minimum term frequency' },
       max_query_terms: { type: 'integer', description: 'Maximum query terms' },
@@ -711,12 +815,19 @@ export const vectorQueries: { [key: string]: QueryDef } = {
       query_vector: { type: 'array', description: 'Query vector', required: true },
       query_vector_builder: { type: 'object', description: 'Query vector builder' },
       k: { type: 'integer', description: 'Number of nearest neighbors', required: true },
-      num_candidates: { type: 'integer', description: 'Number of candidates to consider', required: true },
+      num_candidates: {
+        type: 'integer',
+        description: 'Number of candidates to consider',
+        required: true,
+      },
       filter: { type: 'object', description: 'Pre-filter query' },
       similarity: { type: 'number', description: 'Minimum similarity threshold' },
       boost: { type: 'number', description: 'Boost factor' },
     },
-    availability: { [BackendType.ELASTICSEARCH]: { min: '8.0.0' }, [BackendType.OPENSEARCH]: { min: '2.0.0' } },
+    availability: {
+      [BackendType.ELASTICSEARCH]: { min: '8.0.0' },
+      [BackendType.OPENSEARCH]: { min: '2.0.0' },
+    },
   },
 };
 

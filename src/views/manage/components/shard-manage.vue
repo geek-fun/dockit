@@ -20,7 +20,7 @@
               }}, unassigned: {{ indexShards.shards.filter(shard => !shard.node).length }}
             </span>
           </h3>
-          <n-icon size="26" @click="closeindexShards" class="close-index-shard-icon">
+          <n-icon size="26" class="close-index-shard-icon" @click="closeindexShards">
             <Close />
           </n-icon>
         </div>
@@ -28,12 +28,12 @@
         <div class="shard-list-scrollbar-box">
           <n-scrollbar style="height: 100%">
             <n-button
+              v-for="shard in indexShards.shards"
               strong
               tag="div"
               :type="shard.node ? 'primary' : 'warning'"
               :dashed="shard.prirep == 'r'"
               :secondary="shard.prirep == 'p'"
-              v-for="shard in indexShards.shards"
               :title="shard.prirep + shard.shard"
               class="shard-item-box"
             >
@@ -42,10 +42,10 @@
               </h3>
 
               <n-popover
+                v-for="shardsDetail in shard.details"
                 trigger="hover"
                 :delay="500"
                 :duration="500"
-                v-for="shardsDetail in shard.details"
               >
                 <template #trigger>
                   <n-tag :type="shardsDetail.tagType">
@@ -55,7 +55,7 @@
                     </template>
                   </n-tag>
                 </template>
-                <span> {{ shardsDetail.desc }} </span>
+                <span>{{ shardsDetail.desc }}</span>
               </n-popover>
             </n-button>
           </n-scrollbar>

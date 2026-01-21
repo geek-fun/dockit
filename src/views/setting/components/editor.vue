@@ -30,7 +30,10 @@
       <n-gi span="4">
         <div class="title">{{ $t('setting.editor.showLineNumbers') }}</div>
         <div class="content">
-          <n-switch v-model:value="editorConfig.showLineNumbers" @update:value="updateShowLineNumbers" />
+          <n-switch
+            v-model:value="editorConfig.showLineNumbers"
+            @update:value="updateShowLineNumbers"
+          />
         </div>
       </n-gi>
       <n-gi span="4">

@@ -738,11 +738,13 @@ export const useImportExportStore = defineStore('importExportStore', {
 
     async fetchElasticsearchSchema() {
       if (!this.connection || !this.selectedIndex) return;
+      if (this.connection.type !== DatabaseType.ELASTICSEARCH) return;
 
+      const esConnection = this.connection as ElasticsearchConnection;
       const client = loadHttpClient({
-        host: this.connection.host,
-        port: this.connection.port,
-        sslCertVerification: this.connection.sslCertVerification,
+        host: esConnection.host,
+        port: esConnection.port,
+        sslCertVerification: esConnection.sslCertVerification,
       });
 
       try {
@@ -838,6 +840,11 @@ export const useImportExportStore = defineStore('importExportStore', {
         // Scan to get a sample document - always use the base table name
         const queryResult = await dynamoApi.scanTable(dynamoConnection, {
           tableName: dynamoConnection.tableName,
+          indexName: this.selectedIndex,
+          partitionKey: {
+            name: dynamoConnection.partitionKey.name,
+            value: null,
+          },
           limit: 1,
         });
 
@@ -917,12 +924,16 @@ export const useImportExportStore = defineStore('importExportStore', {
     },
 
     async exportElasticsearchToFile(input: ExportInput): Promise<string> {
+      if (input.connection.type !== DatabaseType.ELASTICSEARCH) {
+        throw new CustomError(400, 'Connection must be Elasticsearch');
+      }
+      const esConnection = input.connection as ElasticsearchConnection;
       const client = loadHttpClient({
-        host: input.connection.host,
-        port: input.connection.port,
-        sslCertVerification: input.connection.sslCertVerification,
+        host: esConnection.host,
+        port: esConnection.port,
+        sslCertVerification: esConnection.sslCertVerification,
       });
-      const dbVersion = (input.connection as ElasticsearchConnection).version || '';
+      const dbVersion = esConnection.version || '';
 
       // Use the configured fileName from input
       // NDJSON files use .json extension
@@ -1232,8 +1243,13 @@ export const useImportExportStore = defineStore('importExportStore', {
         while (hasMore) {
           const queryResult = await dynamoApi.scanTable(dynamoConnection, {
             tableName: input.index,
+            indexName: input.index,
+            partitionKey: {
+              name: dynamoConnection.partitionKey.name,
+              value: null,
+            },
             limit: 1000,
-            exclusiveStartKey: exclusiveStartKey ? JSON.stringify(exclusiveStartKey) : undefined,
+            exclusiveStartKey: exclusiveStartKey || undefined,
           });
 
           const items = queryResult.items || [];
@@ -1303,10 +1319,10 @@ export const useImportExportStore = defineStore('importExportStore', {
           appendFile = true;
 
           // Check if there are more pages
-          if (!queryResult.lastEvaluatedKey) {
+          if (!queryResult.last_evaluated_key) {
             hasMore = false;
           } else {
-            exclusiveStartKey = queryResult.lastEvaluatedKey;
+            exclusiveStartKey = queryResult.last_evaluated_key;
           }
         }
 

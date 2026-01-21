@@ -1,5 +1,5 @@
 <template>
-  <div @contextmenu.prevent="showContextMenu($event, undefined)" class="file-list-container">
+  <div class="file-list-container" @contextmenu.prevent="showContextMenu($event, undefined)">
     <n-scrollbar style="height: 100%">
       <div class="grid-container">
         <div
@@ -11,19 +11,22 @@
           @contextmenu.prevent="showContextMenu($event, file)"
         >
           <div class="file-icon">
-            <n-icon size="36" v-if="file.type === PathTypeEnum.FOLDER" color="#0e7a0d">
+            <n-icon v-if="file.type === PathTypeEnum.FOLDER" size="36" color="#0e7a0d">
               <Folder />
             </n-icon>
-            <n-icon size="36" v-else color="#666">
+            <n-icon v-else size="36" color="#666">
               <Document />
             </n-icon>
           </div>
           <div class="file-info">
             <span class="file-item-name">{{ file.name }}</span>
-            <span class="file-item-meta" v-if="file.lastModified">
+            <span v-if="file.lastModified" class="file-item-meta">
               {{ formatDate(file.lastModified) }}
             </span>
-            <span class="file-item-meta" v-if="file.type === PathTypeEnum.FILE && file.size !== undefined">
+            <span
+              v-if="file.type === PathTypeEnum.FILE && file.size !== undefined"
+              class="file-item-meta"
+            >
               {{ formatSize(file.size) }}
             </span>
           </div>
@@ -68,7 +71,9 @@ enum ClickType {
 const formatDate = (date: Date | null | undefined): string => {
   if (!date) return '';
   const d = new Date(date);
-  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return (
+    d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  );
 };
 
 const formatSize = (size: number): string => {

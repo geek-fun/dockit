@@ -43,8 +43,8 @@
           @update:page-size="handlePageSizeChange"
         />
       </div>
-      <template #footer v-if="hasNextToken">
-        <n-button size="small" @click="$emit('load-more')" :loading="loading">
+      <template v-if="hasNextToken" #footer>
+        <n-button size="small" :loading="loading" @click="$emit('load-more')">
           {{ $t('editor.dynamo.partiql.loadMore') }}
         </n-button>
       </template>

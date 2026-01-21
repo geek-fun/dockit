@@ -33,8 +33,8 @@
         <n-input
           v-model:value="fileName"
           :placeholder="$t('export.filenamePlaceholder')"
-          @update:value="handleFileNameChange"
           :input-props="inputProps"
+          @update:value="handleFileNameChange"
         >
           <template #suffix>
             <span class="file-extension">.{{ fileExtension }}</span>

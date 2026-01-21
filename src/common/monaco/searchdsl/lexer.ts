@@ -87,7 +87,7 @@ export class SearchLexer {
   private advance(length: number): void {
     const chars = this.input.slice(this.pos, this.pos + length);
     const newLineCount = (chars.match(/\n/g) || []).length;
-    
+
     if (newLineCount > 0) {
       const lastNewlineIndex = chars.lastIndexOf('\n');
       this.line += newLineCount;
@@ -237,15 +237,12 @@ export class SearchLexer {
    */
   private isAtLineStart(): boolean {
     const beforePos = this.input.slice(0, this.pos);
-    const lastNewlineIndex = Math.max(
-      beforePos.lastIndexOf('\n'),
-      beforePos.lastIndexOf('\r')
-    );
-    
+    const lastNewlineIndex = Math.max(beforePos.lastIndexOf('\n'), beforePos.lastIndexOf('\r'));
+
     if (lastNewlineIndex === -1) {
       return true; // Start of input
     }
-    
+
     const textAfterNewline = beforePos.slice(lastNewlineIndex + 1);
     return /^[ \t]*$/.test(textAfterNewline);
   }

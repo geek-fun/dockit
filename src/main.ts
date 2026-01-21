@@ -8,7 +8,6 @@ import piniaPluginPersistence from 'pinia-plugin-persistedstate';
 import './assets/styles/normalize.css';
 import './assets/styles/theme.scss';
 
-
 const pinia = createPinia();
 pinia.use(piniaPluginPersistence);
 

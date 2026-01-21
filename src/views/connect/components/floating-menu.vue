@@ -12,7 +12,7 @@
       <Add />
     </n-icon>
     <template #menu>
-      <n-float-button @click="handleAddClick" type="primary" width="50px" height="50px">
+      <n-float-button type="primary" width="50px" height="50px" @click="handleAddClick">
         <n-icon size="32">
           <Add />
         </n-icon>

@@ -122,8 +122,8 @@ describe('grammarCompletionProvider', () => {
       expect(result.suggestions.length).toBeGreaterThan(0);
 
       // Check that completions include _cat paths
-      const catPaths = result.suggestions.filter(s => 
-        typeof s.label === 'string' && s.label.includes('_cat')
+      const catPaths = result.suggestions.filter(
+        s => typeof s.label === 'string' && s.label.includes('_cat'),
       );
       expect(catPaths.length).toBeGreaterThan(0);
     });
@@ -140,9 +140,7 @@ describe('grammarCompletionProvider', () => {
       // Completions should match user's style (no leading slash)
       const labels = result.suggestions.map(s => s.label);
       // Check that _cat paths are provided without leading slash
-      const catIndicesPath = labels.find(l => 
-        typeof l === 'string' && l.includes('_cat/indices')
-      );
+      const catIndicesPath = labels.find(l => typeof l === 'string' && l.includes('_cat/indices'));
       expect(catIndicesPath).toBeDefined();
       // Should not start with /
       expect(catIndicesPath?.startsWith('/')).toBeFalsy();
@@ -158,9 +156,7 @@ describe('grammarCompletionProvider', () => {
       // Completions should match user's style (with leading slash)
       const labels = result.suggestions.map(s => s.label);
       // Check that _cat paths are provided with leading slash
-      const catIndicesPath = labels.find(l => 
-        typeof l === 'string' && l.includes('_cat/indices')
-      );
+      const catIndicesPath = labels.find(l => typeof l === 'string' && l.includes('_cat/indices'));
       expect(catIndicesPath).toBeDefined();
       // Should start with /
       expect(catIndicesPath?.startsWith('/')).toBeTruthy();
@@ -196,10 +192,10 @@ describe('grammarCompletionProvider', () => {
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
       // Find the /{index}/_search completion
-      const indexSearchCompletion = result.suggestions.find(s =>
-        typeof s.label === 'string' && s.label.includes('{index}/_search')
+      const indexSearchCompletion = result.suggestions.find(
+        s => typeof s.label === 'string' && s.label.includes('{index}/_search'),
       );
-      
+
       expect(indexSearchCompletion).toBeDefined();
       // The insertText should contain the active index as default
       expect(indexSearchCompletion?.insertText).toContain('my-active-index');
@@ -217,10 +213,10 @@ describe('grammarCompletionProvider', () => {
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
       // Find the /{index}/_search completion
-      const indexSearchCompletion = result.suggestions.find(s =>
-        typeof s.label === 'string' && s.label.includes('{index}/_search')
+      const indexSearchCompletion = result.suggestions.find(
+        s => typeof s.label === 'string' && s.label.includes('{index}/_search'),
       );
-      
+
       expect(indexSearchCompletion).toBeDefined();
       // The insertText should contain the first index as default
       expect(indexSearchCompletion?.insertText).toContain('index-1');
@@ -236,10 +232,10 @@ describe('grammarCompletionProvider', () => {
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
       // Find the /{index}/_search completion
-      const indexSearchCompletion = result.suggestions.find(s =>
-        typeof s.label === 'string' && s.label.includes('{index}/_search')
+      const indexSearchCompletion = result.suggestions.find(
+        s => typeof s.label === 'string' && s.label.includes('{index}/_search'),
       );
-      
+
       expect(indexSearchCompletion).toBeDefined();
       // The insertText should contain 'index' as default placeholder
       expect(indexSearchCompletion?.insertText).toMatch(/\$\{\d+:index\}/);
@@ -390,9 +386,7 @@ describe('grammarCompletionProvider', () => {
 
       const labels = result.suggestions.map(s => s.label);
       // Should contain index-specific endpoints
-      const searchPath = labels.find(l => 
-        typeof l === 'string' && l.includes('_search')
-      );
+      const searchPath = labels.find(l => typeof l === 'string' && l.includes('_search'));
       expect(searchPath).toBeDefined();
     });
 
@@ -404,12 +398,12 @@ describe('grammarCompletionProvider', () => {
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
       // Find _search related completions
-      const searchCompletions = result.suggestions.filter(s =>
-        typeof s.label === 'string' && s.label.includes('_search')
+      const searchCompletions = result.suggestions.filter(
+        s => typeof s.label === 'string' && s.label.includes('_search'),
       );
-      
+
       expect(searchCompletions.length).toBeGreaterThan(0);
-      
+
       // Check that _search completions have a lower sortText (higher priority)
       for (const completion of searchCompletions) {
         expect(completion.sortText?.startsWith('0')).toBeTruthy();

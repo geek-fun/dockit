@@ -15,7 +15,7 @@
     </template>
     <template #header-extra>
       <div class="header-extra">
-        <n-button text type="primary" @click="handleRefreshMetadata" :loading="loading">
+        <n-button text type="primary" :loading="loading" @click="handleRefreshMetadata">
           {{ $t('export.refresh') }}
         </n-button>
         <span class="step-badge">{{ $t('export.step') }} 02</span>
@@ -117,7 +117,7 @@ const message = useMessage();
 const lang = useLang();
 
 const importExportStore = useImportExportStore();
-const { importMetadata, importFields, importValidationErrors } = storeToRefs(importExportStore);
+const { importMetadata, importFields } = storeToRefs(importExportStore);
 
 const loading = ref(false);
 
