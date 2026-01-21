@@ -16,10 +16,10 @@
       <n-grid-item>
         <div class="field-label">{{ $t('export.sourceDatabase') }}</div>
         <n-select
-          v-model:value="selectedConnection"
+          v-model:value="inputData.selectedConnection"
           :options="filteredConnectionOptions"
           :placeholder="$t('connection.selectConnection')"
-          :loading="loadingConnection"
+          :loading="loadingStat.connection"
           filterable
           remote
           :input-props="inputProps"
@@ -31,13 +31,13 @@
       <n-grid-item>
         <div class="field-label">{{ $t('export.collectionName') }}</div>
         <n-select
-          v-model:value="selectedIndex"
+          v-model:value="inputData.selectedIndex"
           :options="filteredIndexOptions"
           :placeholder="$t('connection.selectIndex')"
-          :loading="loadingIndex"
+          :loading="loadingStat.index"
           filterable
           remote
-          :disabled="!selectedConnection"
+          :disabled="!inputData.selectedConnection"
           :input-props="inputProps"
           @update:value="handleIndexChange"
           @update:show="handleIndexOpen"
@@ -82,24 +82,18 @@ const { fetchConnections, fetchIndices, freshConnection, getDynamoIndexOrTableOp
 const { connections } = storeToRefs(connectionStore);
 
 const exportStore = useImportExportStore();
-const { connection, selectedIndex: storeSelectedIndex, filterQuery } = storeToRefs(exportStore);
+const { setConnection } = exportStore;
+const { connection, selectedIndex, filterQuery } = storeToRefs(exportStore);
 
-const selectedConnection = ref<string>('');
-const selectedIndex = ref<string>('');
-const loadingConnection = ref(false);
-const loadingIndex = ref(false);
-
-const connectionSearchQuery = ref('');
-const indexSearchQuery = ref('');
-
-// Initialize from store
-onMounted(() => {
-  if (connection.value) {
-    selectedConnection.value = connection.value.name;
-  }
-  if (storeSelectedIndex.value) {
-    selectedIndex.value = storeSelectedIndex.value;
-  }
+const inputData = ref({
+  selectedConnection: '',
+  selectedIndex: '',
+  connectionSearchQuery: '',
+  indexSearchQuery: '',
+});
+const loadingStat = ref({
+  connection: false,
+  index: false,
 });
 
 const connectionOptions = computed(() =>
@@ -107,10 +101,10 @@ const connectionOptions = computed(() =>
 );
 
 const filteredConnectionOptions = computed(() => {
-  if (!connectionSearchQuery.value) {
+  if (!inputData.value.connectionSearchQuery) {
     return connectionOptions.value;
   }
-  const query = connectionSearchQuery.value.toLowerCase();
+  const query = inputData.value.connectionSearchQuery.toLowerCase();
   return connectionOptions.value
     .filter(option => option.value.toLowerCase().includes(query))
     .sort((a, b) => a.value.localeCompare(b.value));
@@ -119,26 +113,26 @@ const filteredConnectionOptions = computed(() => {
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
 
 const filteredIndexOptions = computed(() => {
-  if (!indexSearchQuery.value) {
+  if (!inputData.value.indexSearchQuery) {
     return indexOptions.value;
   }
-  const query = indexSearchQuery.value.toLowerCase();
+  const query = inputData.value.indexSearchQuery.toLowerCase();
   return indexOptions.value
     .filter(option => option.value.toLowerCase().includes(query))
     .sort((a, b) => a.value.localeCompare(b.value));
 });
 
 const handleConnectionSearch = (query: string) => {
-  connectionSearchQuery.value = query;
+  inputData.value.connectionSearchQuery = query;
 };
 
 const handleIndexSearch = (query: string) => {
-  indexSearchQuery.value = query;
+  inputData.value.indexSearchQuery = query;
 };
 
 const handleConnectionOpen = async (isOpen: boolean) => {
   if (!isOpen) return;
-  loadingConnection.value = true;
+  loadingStat.value.connection = true;
   try {
     await fetchConnections();
   } catch (err) {
@@ -149,7 +143,7 @@ const handleConnectionOpen = async (isOpen: boolean) => {
       duration: 3000,
     });
   } finally {
-    loadingConnection.value = false;
+    loadingStat.value.connection = false;
   }
 };
 
@@ -164,10 +158,35 @@ const handleIndexOpen = async (isOpen: boolean) => {
     return;
   }
 
-  loadingIndex.value = true;
+  loadingStat.value.index = true;
   try {
     await fetchIndices(connection.value);
-    updateIndexOptions();
+    if (connection.value.type === DatabaseType.ELASTICSEARCH) {
+      // Elasticsearch: use indices
+      indexOptions.value =
+        (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
+          label: index.index,
+          value: index.index,
+        })) ?? [];
+    } else if (connection.value.type === DatabaseType.DYNAMODB) {
+      // DynamoDB: use table and GSIs
+      const dynamoOptions = getDynamoIndexOrTableOption(connection.value as DynamoDBConnection);
+      // Remove duplicates based on value
+      const uniqueOptions = dynamoOptions.reduce(
+        (acc, curr) => {
+          if (!acc.find(item => item.value === curr.value)) {
+            acc.push(curr);
+          }
+          return acc;
+        },
+        [] as Array<{ label: string; value: string }>,
+      );
+
+      indexOptions.value = uniqueOptions.map(opt => ({
+        label: opt.label,
+        value: opt.value,
+      }));
+    }
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -176,63 +195,21 @@ const handleIndexOpen = async (isOpen: boolean) => {
       duration: 3000,
     });
   } finally {
-    loadingIndex.value = false;
-  }
-};
-
-const updateIndexOptions = () => {
-  if (!connection.value) {
-    indexOptions.value = [];
-    return;
-  }
-
-  if (connection.value.type === DatabaseType.ELASTICSEARCH) {
-    // Elasticsearch: use indices
-    indexOptions.value =
-      (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
-        label: index.index,
-        value: index.index,
-      })) ?? [];
-  } else if (connection.value.type === DatabaseType.DYNAMODB) {
-    // DynamoDB: use table and GSIs
-    const dynamoOptions = getDynamoIndexOrTableOption(connection.value as DynamoDBConnection);
-    // Remove duplicates based on value
-    const uniqueOptions = dynamoOptions.reduce(
-      (acc, curr) => {
-        if (!acc.find(item => item.value === curr.value)) {
-          acc.push(curr);
-        }
-        return acc;
-      },
-      [] as Array<{ label: string; value: string }>,
-    );
-
-    indexOptions.value = uniqueOptions.map(opt => ({
-      label: opt.label,
-      value: opt.value,
-    }));
+    loadingStat.value.index = false;
   }
 };
 
 const handleConnectionChange = async (value: string) => {
   const con = connections.value.find(({ name }) => name === value);
   if (!con) return;
-
+  loadingStat.value.connection = true;
   try {
     await freshConnection(con);
-    exportStore.setConnection(con);
-    selectedIndex.value = '';
+    setConnection(con);
+    inputData.value.selectedConnection = value;
+    inputData.value.selectedIndex = '';
     indexOptions.value = [];
-    indexSearchQuery.value = '';
-
-    // Fetch indices immediately to populate the collection dropdown
-    loadingIndex.value = true;
-    try {
-      await fetchIndices(con);
-      updateIndexOptions();
-    } finally {
-      loadingIndex.value = false;
-    }
+    inputData.value.indexSearchQuery = '';
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -240,34 +217,29 @@ const handleConnectionChange = async (value: string) => {
       keepAliveOnHover: true,
       duration: 3000,
     });
+  } finally {
+    loadingStat.value.connection = false;
   }
 };
 
 const handleIndexChange = (value: string) => {
-  exportStore.setSelectedIndex(value);
-  // Immediately trigger schema fetch when index is selected
-  nextTick(() => {
-    if (value) {
-      // The schema component will handle the fetch
-    }
-  });
+  loadingStat.value.index = true;
+  try {
+    inputData.value.selectedIndex = value;
+    exportStore.setSelectedIndex(value);
+  } finally {
+    loadingStat.value.index = false;
+  }
 };
 
-// Watch for connection changes to update index options
-watch(connection, () => {
-  if (!connection.value) {
-    indexOptions.value = [];
-    selectedIndex.value = '';
-    indexSearchQuery.value = '';
-    return;
+// Initialize from store
+onMounted(async () => {
+  if (connection.value) {
+    await handleConnectionChange(connection.value.name);
+    inputData.value.selectedConnection = connection.value.name;
   }
-  updateIndexOptions();
-});
-
-// Watch store's selectedIndex and sync with local state
-watch(storeSelectedIndex, newValue => {
-  if (newValue !== selectedIndex.value) {
-    selectedIndex.value = newValue;
+  if (selectedIndex.value) {
+    handleIndexChange(selectedIndex.value);
   }
 });
 </script>
