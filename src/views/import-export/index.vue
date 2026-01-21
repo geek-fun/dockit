@@ -41,9 +41,9 @@
 
           <!-- Import Steps -->
           <template v-else>
+            <ImportTargetOutput />
             <ImportSourceScope />
             <ImportSchemaStructure />
-            <ImportTargetOutput />
           </template>
         </div>
       </div>

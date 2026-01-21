@@ -7,24 +7,32 @@
         </n-icon>
         <div class="step-title-container">
           <span class="step-title">{{ $t('import.schemaStructure') }}</span>
-          <span v-if="importMetadata" class="step-subtitle">
-            {{ $t('import.schemaFromMetadata') }}
+          <span v-if="hasSchemaData" class="step-subtitle">
+            {{
+              isNewCollection ? $t('import.schemaFromMetadata') : $t('import.schemaFromExisting')
+            }}
           </span>
         </div>
       </div>
     </template>
     <template #header-extra>
       <div class="header-extra">
-        <n-button text type="primary" :loading="loading" @click="handleRefreshMetadata">
+        <n-button
+          v-if="hasDataFile"
+          text
+          type="primary"
+          :loading="loading"
+          @click="handleRefreshSchema"
+        >
           {{ $t('export.refresh') }}
         </n-button>
-        <span class="step-badge">{{ $t('export.step') }} 02</span>
+        <span class="step-badge">{{ $t('export.step') }} 03</span>
       </div>
     </template>
 
-    <!-- Empty State -->
-    <div v-if="!importMetadata" class="empty-state">
-      <n-empty :description="$t('import.selectMetadataFirst')">
+    <!-- Empty State: No data file selected -->
+    <div v-if="!hasDataFile" class="empty-state">
+      <n-empty :description="$t('import.selectDataFirst')">
         <template #icon>
           <n-icon size="48">
             <DataStructured />
@@ -33,10 +41,10 @@
       </n-empty>
     </div>
 
-    <!-- Metadata Info -->
-    <div v-else class="metadata-info">
-      <!-- Source Info -->
-      <div class="info-section">
+    <!-- Schema Info -->
+    <div v-else class="schema-info">
+      <!-- Source Info (only for new collection with metadata) -->
+      <div v-if="isNewCollection && importMetadata" class="info-section">
         <h4 class="section-title">{{ $t('import.sourceInfo') }}</h4>
         <div class="info-grid">
           <div class="info-item">
@@ -70,35 +78,70 @@
         </div>
       </div>
 
-      <!-- Schema Table -->
-      <div v-if="importFields.length > 0" class="schema-section">
-        <h4 class="section-title">{{ $t('import.schemaFields') }}</h4>
+      <!-- Schema Comparison Table -->
+      <div v-if="importSchemaFields.length > 0" class="schema-section">
+        <h4 class="section-title">{{ $t('import.schemaComparison') }}</h4>
         <div class="schema-table">
           <div class="schema-header">
             <span class="col-field">{{ $t('export.field') }}</span>
-            <span class="col-type">{{ $t('export.type') }}</span>
-            <span class="col-state">{{ $t('import.state') }}</span>
+            <span class="col-source-type">{{ $t('import.sourceType') }}</span>
+            <span class="col-target-type">{{ $t('import.targetType') }}</span>
+            <span class="col-match">{{ $t('import.matchStatus') }}</span>
+            <span class="col-exclude">{{ $t('import.exclude') }}</span>
           </div>
           <div class="schema-body">
-            <div v-for="field in importFields" :key="field.name" class="schema-row">
+            <div
+              v-for="field in importSchemaFields"
+              :key="field.name"
+              :class="[
+                'schema-row',
+                { 'row-excluded': field.exclude, 'row-mismatch': !field.matched },
+              ]"
+            >
               <span class="col-field">{{ field.name }}</span>
-              <span class="col-type">
-                <n-tag :type="getTypeColor(field.type)" size="small">
-                  {{ field.type }}
+              <span class="col-source-type">
+                <n-tag :type="getTypeColor(field.sourceType)" size="small">
+                  {{ field.sourceType }}
                 </n-tag>
               </span>
-              <span class="col-state">
-                <n-icon size="16" color="#94a3b8">
-                  <Locked />
-                </n-icon>
+              <span class="col-target-type">
+                <n-tag
+                  v-if="field.targetType !== '-'"
+                  :type="getTypeColor(field.targetType)"
+                  size="small"
+                >
+                  {{ field.targetType }}
+                </n-tag>
+                <span v-else class="no-match">-</span>
+              </span>
+              <span class="col-match">
+                <n-tag v-if="field.matched" type="success" size="small">
+                  {{ $t('import.matched') }}
+                </n-tag>
+                <n-tag v-else type="warning" size="small">
+                  {{ $t('import.notMatched') }}
+                </n-tag>
+              </span>
+              <span class="col-exclude">
+                <n-checkbox
+                  :checked="field.exclude"
+                  @update:checked="toggleFieldExclude(field.name)"
+                />
               </span>
             </div>
           </div>
         </div>
+        <p class="schema-hint">{{ $t('import.excludeFieldsHint') }}</p>
       </div>
 
-      <!-- Comments -->
-      <div v-if="importMetadata.comments" class="comments-section">
+      <!-- No schema fields yet -->
+      <div v-else class="empty-state-small">
+        <n-spin size="small" />
+        <span class="loading-text">{{ $t('import.analyzingSchema') }}</span>
+      </div>
+
+      <!-- Comments (only for new collection with metadata) -->
+      <div v-if="isNewCollection && importMetadata?.comments" class="comments-section">
         <h4 class="section-title">{{ $t('import.comments') }}</h4>
         <p class="comments-text">{{ importMetadata.comments }}</p>
       </div>
@@ -108,39 +151,30 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { DataStructured, Locked } from '@vicons/carbon';
+import { DataStructured } from '@vicons/carbon';
 import { useImportExportStore } from '../../../store';
-import { CustomError } from '../../../common';
-import { useLang } from '../../../lang';
-
-const message = useMessage();
-const lang = useLang();
 
 const importExportStore = useImportExportStore();
-const { importMetadata, importFields } = storeToRefs(importExportStore);
+const { importMetadata, importDataFile, importSchemaFields, importIsNewCollection } =
+  storeToRefs(importExportStore);
 
 const loading = ref(false);
 
-const handleRefreshMetadata = async () => {
-  if (!importExportStore.importMetadataFile) {
-    message.warning(lang.t('import.selectMetadataFirst'));
-    return;
-  }
+const hasDataFile = computed(() => !!importDataFile.value);
+const isNewCollection = computed(() => importIsNewCollection.value);
+const hasSchemaData = computed(() => importSchemaFields.value.length > 0);
 
+const handleRefreshSchema = async () => {
   loading.value = true;
   try {
-    await importExportStore.loadImportMetadata();
-    message.success(lang.t('import.metadataLoaded'));
-  } catch (err) {
-    const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 3000,
-    });
+    await importExportStore.buildSchemaComparison();
   } finally {
     loading.value = false;
   }
+};
+
+const toggleFieldExclude = (fieldName: string) => {
+  importExportStore.toggleSchemaFieldExclude(fieldName);
 };
 
 const formatDate = (dateStr: string): string => {
@@ -218,24 +252,24 @@ const getTypeColor = (type: string): 'info' | 'success' | 'warning' | 'error' | 
     }
   }
 
-  .validation-errors {
-    margin-bottom: 16px;
-
-    .error-list {
-      margin: 0;
-      padding-left: 20px;
-
-      li {
-        margin: 4px 0;
-      }
-    }
-  }
-
   .empty-state {
     padding: 40px 0;
   }
 
-  .metadata-info {
+  .empty-state-small {
+    padding: 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+
+    .loading-text {
+      font-size: 13px;
+      color: var(--text-color-3);
+    }
+  }
+
+  .schema-info {
     .info-section {
       margin-bottom: 24px;
 
@@ -297,7 +331,7 @@ const getTypeColor = (type: string): 'info' | 'success' | 'warning' | 'error' | 
         }
 
         .schema-body {
-          max-height: 250px;
+          max-height: 300px;
           overflow-y: auto;
         }
 
@@ -314,6 +348,15 @@ const getTypeColor = (type: string): 'info' | 'success' | 'warning' | 'error' | 
           &:hover {
             background: rgba(0, 0, 0, 0.02);
           }
+
+          &.row-excluded {
+            opacity: 0.5;
+            text-decoration: line-through;
+          }
+
+          &.row-mismatch {
+            background: rgba(250, 173, 20, 0.05);
+          }
         }
 
         .col-field {
@@ -322,14 +365,30 @@ const getTypeColor = (type: string): 'info' | 'success' | 'warning' | 'error' | 
           font-size: 12px;
         }
 
-        .col-type {
+        .col-source-type,
+        .col-target-type {
           flex: 1;
         }
 
-        .col-state {
-          flex: 0.5;
-          text-align: right;
+        .col-match {
+          flex: 1;
         }
+
+        .col-exclude {
+          flex: 0.5;
+          text-align: center;
+        }
+
+        .no-match {
+          color: var(--text-color-3);
+        }
+      }
+
+      .schema-hint {
+        font-size: 11px;
+        color: var(--text-color-3);
+        margin-top: 8px;
+        margin-bottom: 0;
       }
     }
 

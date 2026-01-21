@@ -9,54 +9,69 @@
       </div>
     </template>
     <template #header-extra>
-      <span class="step-badge">{{ $t('export.step') }} 01</span>
+      <span class="step-badge">{{ $t('export.step') }} 02</span>
     </template>
 
-    <div class="import-steps">
+    <!-- Not configured yet -->
+    <div v-if="!hasTarget" class="empty-state">
+      <n-empty :description="$t('import.selectTargetFirst')">
+        <template #icon>
+          <n-icon size="48">
+            <UploadIcon />
+          </n-icon>
+        </template>
+      </n-empty>
+    </div>
+
+    <!-- New Collection Flow: CHOOSE METADATA -> CHOOSE DATA -> READY -->
+    <div v-else-if="isNewCollection" class="import-steps">
       <div class="step-progress">
-        <div :class="['step-node', { completed: step1Complete }]">
+        <!-- Step 1: Choose Metadata (required for new collection) -->
+        <div :class="['step-node', { completed: metadataComplete }]">
           <div
             :class="[
               'step-circle',
               'clickable',
-              { completed: step1Complete, active: !step1Complete },
-            ]"
-            @click="handleSelectDataFile"
-          >
-            <n-icon v-if="step1Complete" size="16">
-              <Checkmark />
-            </n-icon>
-            <span v-else>1</span>
-          </div>
-          <span class="step-label">{{ $t('import.chooseData') }}</span>
-          <span v-if="dataFileName" class="step-file">{{ dataFileName }}</span>
-        </div>
-
-        <div class="step-line" :class="{ completed: step1Complete }"></div>
-
-        <div :class="['step-node', { completed: step2Complete }]">
-          <div
-            :class="[
-              'step-circle',
-              'clickable',
-              { completed: step2Complete, active: step1Complete && !step2Complete },
+              { completed: metadataComplete, active: !metadataComplete },
             ]"
             @click="handleSelectMetadataFile"
           >
-            <n-icon v-if="step2Complete" size="16">
+            <n-icon v-if="metadataComplete" size="16">
               <Checkmark />
             </n-icon>
-            <span v-else>2</span>
+            <span v-else>1</span>
           </div>
           <span class="step-label">{{ $t('import.chooseMetadata') }}</span>
           <span v-if="metadataFileName" class="step-file">{{ metadataFileName }}</span>
         </div>
 
-        <div class="step-line" :class="{ completed: step2Complete }"></div>
+        <div class="step-line" :class="{ completed: metadataComplete }"></div>
 
-        <div :class="['step-node', { completed: step3Complete }]">
-          <div :class="['step-circle', { completed: step3Complete }]">
-            <n-icon v-if="step3Complete" size="16">
+        <!-- Step 2: Choose Data -->
+        <div :class="['step-node', { completed: dataComplete }]">
+          <div
+            :class="[
+              'step-circle',
+              'clickable',
+              { completed: dataComplete, active: metadataComplete && !dataComplete },
+            ]"
+            @click="handleSelectDataFile"
+          >
+            <n-icon v-if="dataComplete" size="16">
+              <Checkmark />
+            </n-icon>
+            <span v-else>2</span>
+          </div>
+          <span class="step-label">{{ $t('import.chooseData') }}</span>
+          <span v-if="dataFileName" class="step-file">{{ dataFileName }}</span>
+        </div>
+
+        <div class="step-line" :class="{ completed: dataComplete }"></div>
+
+        <!-- Step 3: Ready -->
+        <div :class="['step-node', { completed: allComplete }]">
+          <div :class="['step-circle', { completed: allComplete }]">
+            <n-icon v-if="allComplete" size="16">
               <Checkmark />
             </n-icon>
             <span v-else>3</span>
@@ -65,7 +80,20 @@
         </div>
       </div>
 
+      <!-- Selected Files -->
       <div v-if="importDataFile || importMetadataFile" class="selected-files">
+        <div v-if="importMetadataFile" class="file-item">
+          <n-icon size="18">
+            <DocumentAttachment />
+          </n-icon>
+          <span class="file-path">{{ importMetadataFile }}</span>
+          <n-button text @click="clearMetadataFile">
+            <n-icon size="16">
+              <Close />
+            </n-icon>
+          </n-button>
+        </div>
+
         <div v-if="importDataFile" class="file-item">
           <n-icon size="18">
             <Document />
@@ -77,13 +105,62 @@
             </n-icon>
           </n-button>
         </div>
+      </div>
 
-        <div v-if="importMetadataFile" class="file-item">
+      <!-- Validation Errors -->
+      <div v-if="importValidationErrors.length > 0" class="validation-errors">
+        <n-alert type="error" :title="$t('import.validationErrors')">
+          <ul class="error-list">
+            <li v-for="(error, index) in importValidationErrors" :key="index">{{ error }}</li>
+          </ul>
+        </n-alert>
+      </div>
+    </div>
+
+    <!-- Existing Collection Flow: CHOOSE DATA -> READY (no metadata needed) -->
+    <div v-else class="import-steps">
+      <div class="step-progress">
+        <!-- Step 1: Choose Data -->
+        <div :class="['step-node', { completed: dataComplete }]">
+          <div
+            :class="[
+              'step-circle',
+              'clickable',
+              { completed: dataComplete, active: !dataComplete },
+            ]"
+            @click="handleSelectDataFile"
+          >
+            <n-icon v-if="dataComplete" size="16">
+              <Checkmark />
+            </n-icon>
+            <span v-else>1</span>
+          </div>
+          <span class="step-label">{{ $t('import.chooseData') }}</span>
+          <span v-if="dataFileName" class="step-file">{{ dataFileName }}</span>
+        </div>
+
+        <div class="step-line" :class="{ completed: dataComplete }"></div>
+
+        <!-- Step 2: Ready -->
+        <div :class="['step-node', { completed: dataComplete }]">
+          <div :class="['step-circle', { completed: dataComplete }]">
+            <n-icon v-if="dataComplete" size="16">
+              <Checkmark />
+            </n-icon>
+            <span v-else>2</span>
+          </div>
+          <span class="step-label">{{ $t('import.ready') }}</span>
+        </div>
+      </div>
+
+      <!-- Selected Files -->
+      <div v-if="importDataFile" class="selected-files">
+        <div class="file-item">
           <n-icon size="18">
-            <DocumentAttachment />
+            <Document />
           </n-icon>
-          <span class="file-path">{{ importMetadataFile }}</span>
-          <n-button text @click="clearMetadataFile">
+          <span class="file-path">{{ importDataFile }}</span>
+          <n-button text @click="clearDataFile">
             <n-icon size="16">
               <Close />
             </n-icon>
@@ -114,13 +191,35 @@ const UploadIcon = Document;
 const message = useMessage();
 
 const importExportStore = useImportExportStore();
-const { importDataFile, importMetadataFile, importValidationStatus, importValidationErrors } =
-  storeToRefs(importExportStore);
+const {
+  importDataFile,
+  importMetadataFile,
+  importMetadata,
+  importValidationErrors,
+  importIsNewCollection,
+  importConnection,
+  importTargetIndex,
+} = storeToRefs(importExportStore);
 
-const step1Complete = computed(() => importValidationStatus.value.step1);
-const step2Complete = computed(() => importValidationStatus.value.step2);
-// Step 3 (Ready) should be complete when both step 1 and step 2 are complete
-const step3Complete = computed(() => step1Complete.value && step2Complete.value);
+// Check if target is configured (Step 1 complete)
+const hasTarget = computed(() => !!importConnection.value && !!importTargetIndex.value);
+
+// Check if this is a new collection
+const isNewCollection = computed(() => importIsNewCollection.value);
+
+// Data file complete
+const dataComplete = computed(() => !!importDataFile.value);
+
+// Metadata complete (only relevant for new collections)
+const metadataComplete = computed(() => !!importMetadata.value);
+
+// All complete - depends on collection type
+const allComplete = computed(() => {
+  if (isNewCollection.value) {
+    return dataComplete.value && metadataComplete.value;
+  }
+  return dataComplete.value;
+});
 
 const dataFileName = computed(() => {
   if (!importDataFile.value) return '';
@@ -184,6 +283,10 @@ const clearMetadataFile = () => {
     font-size: 12px;
     color: var(--text-color-3);
     font-weight: 500;
+  }
+
+  .empty-state {
+    padding: 40px 0;
   }
 
   .import-steps {

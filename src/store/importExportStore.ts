@@ -100,12 +100,21 @@ export const useImportExportStore = defineStore('importExportStore', {
     importMetadataFile: string;
     importMetadata: ImportMetadata | null;
     importTargetIndex: string;
+    importIsNewCollection: boolean; // true if user entered a new collection name
+    importExistingIndices: string[]; // list of existing indices for the connection
     importStrategy: ImportStrategy;
     importFields: ImportFieldInfo[];
+    importSchemaFields: Array<{
+      name: string;
+      sourceType: string;
+      targetType: string;
+      matched: boolean;
+      exclude: boolean;
+    }>; // Schema comparison fields
     importValidationStatus: {
-      step1: boolean; // Data file selected
-      step2: boolean; // Metadata loaded & valid
-      step3: boolean; // Target configured
+      step1: boolean; // Target configured (connection + index)
+      step2: boolean; // Data file selected (+ metadata if new collection)
+      step3: boolean; // Schema validated
     };
     importValidationErrors: string[];
 
@@ -140,8 +149,11 @@ export const useImportExportStore = defineStore('importExportStore', {
       importMetadataFile: '',
       importMetadata: null,
       importTargetIndex: '',
+      importIsNewCollection: false,
+      importExistingIndices: [],
       importStrategy: 'append',
       importFields: [],
+      importSchemaFields: [],
       importValidationStatus: {
         step1: false,
         step2: false,
@@ -205,6 +217,16 @@ export const useImportExportStore = defineStore('importExportStore', {
       ];
       const completed = steps.filter(Boolean).length;
       return Math.round((completed / steps.length) * 100);
+    },
+    // Check if source scope is ready (depends on whether collection is new or existing)
+    isSourceScopeReady(): boolean {
+      if (this.importIsNewCollection) {
+        // New collection: need metadata + data file
+        return !!this.importDataFile && !!this.importMetadata;
+      } else {
+        // Existing collection: only need data file
+        return !!this.importDataFile;
+      }
     },
   },
   actions: {
@@ -497,15 +519,10 @@ export const useImportExportStore = defineStore('importExportStore', {
         });
         if (selected) {
           this.importDataFile = selected as string;
-          this.validateImportStep1();
+          this.validateImportStep2();
 
-          // Try to auto-detect metadata file in same directory
-          const dirPath = (selected as string).substring(0, (selected as string).lastIndexOf('/'));
-          const metadataPath = `${dirPath}/metadata.json`;
-          if (await sourceFileApi.exists(metadataPath)) {
-            this.importMetadataFile = metadataPath;
-            await this.loadImportMetadata();
-          }
+          // Parse the data file to extract structure
+          await this.parseDataFileStructure();
         }
       } catch (error) {
         throw new CustomError(
@@ -513,6 +530,232 @@ export const useImportExportStore = defineStore('importExportStore', {
           get(error, 'details', get(error, 'message', '')),
         );
       }
+    },
+
+    async parseDataFileStructure() {
+      if (!this.importDataFile) return;
+
+      try {
+        const fileType = this.importDataFile.split('.').pop()?.toLowerCase();
+        const data = await sourceFileApi.readFile(this.importDataFile);
+
+        let sampleDoc: Record<string, unknown> | null = null;
+
+        if (fileType === 'json') {
+          const parsed = jsonify.parse(data);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            sampleDoc = parsed[0];
+          } else if (typeof parsed === 'object') {
+            sampleDoc = parsed;
+          }
+        } else if (fileType === 'ndjson') {
+          const lines = data.split('\n').filter((line: string) => line.trim());
+          if (lines.length > 0) {
+            sampleDoc = jsonify.parse(lines[0]);
+          }
+        } else if (fileType === 'csv') {
+          const lines = data.split('\n').filter((line: string) => line.trim());
+          if (lines.length > 1) {
+            const headers = lines[0].split(',').map((h: string) => h.trim().replace(/^"|"$/g, ''));
+            const values = lines[1].split(',').map((v: string) => v.trim().replace(/^"|"$/g, ''));
+            sampleDoc = {};
+            headers.forEach((header: string, idx: number) => {
+              sampleDoc![header] = values[idx] || '';
+            });
+          }
+        }
+
+        if (sampleDoc) {
+          // Extract field structure from sample document
+          const dataFields = this.extractFieldsFromObject(sampleDoc);
+          this.importFields = dataFields.map(f => ({
+            name: f.name,
+            type: f.type,
+            sampleValue: String(f.value).substring(0, 50),
+          }));
+
+          // Build schema comparison
+          await this.buildSchemaComparison();
+        }
+      } catch (error) {
+        console.error('Error parsing data file:', error);
+        this.importValidationErrors.push('Failed to parse data file structure');
+      }
+    },
+
+    extractFieldsFromObject(
+      obj: Record<string, unknown>,
+      prefix = '',
+    ): Array<{ name: string; type: string; value: unknown }> {
+      const fields: Array<{ name: string; type: string; value: unknown }> = [];
+
+      for (const [key, value] of Object.entries(obj)) {
+        const fieldName = prefix ? `${prefix}.${key}` : key;
+        const fieldType = this.inferFieldType(value);
+
+        if (fieldType === 'OBJECT' && value && typeof value === 'object' && !Array.isArray(value)) {
+          // Recursively extract nested fields
+          fields.push(...this.extractFieldsFromObject(value as Record<string, unknown>, fieldName));
+        } else {
+          fields.push({ name: fieldName, type: fieldType, value });
+        }
+      }
+
+      return fields;
+    },
+
+    inferFieldType(value: unknown): string {
+      if (value === null || value === undefined) return 'NULL';
+      if (typeof value === 'string') {
+        // Try to detect if it's a date
+        if (/^\d{4}-\d{2}-\d{2}/.test(value)) return 'DATE';
+        return 'TEXT';
+      }
+      if (typeof value === 'number') {
+        return Number.isInteger(value) ? 'INTEGER' : 'FLOAT';
+      }
+      if (typeof value === 'boolean') return 'BOOLEAN';
+      if (Array.isArray(value)) return 'ARRAY';
+      if (typeof value === 'object') return 'OBJECT';
+      return 'TEXT';
+    },
+
+    async buildSchemaComparison() {
+      this.importSchemaFields = [];
+
+      if (this.importIsNewCollection) {
+        // New collection: compare data fields with metadata schema
+        if (this.importMetadata?.schema?.properties) {
+          const metadataFields = Object.entries(this.importMetadata.schema.properties);
+          const dataFieldNames = this.importFields.map(f => f.name);
+
+          for (const [fieldName, fieldInfo] of metadataFields) {
+            const dataField = this.importFields.find(f => f.name === fieldName);
+            const fieldType = (fieldInfo as { type?: string }).type || 'unknown';
+
+            this.importSchemaFields.push({
+              name: fieldName,
+              sourceType: fieldType.toUpperCase(),
+              targetType: dataField?.type || '-',
+              matched: dataFieldNames.includes(fieldName),
+              exclude: false,
+            });
+          }
+
+          // Add fields that are in data but not in metadata
+          for (const dataField of this.importFields) {
+            if (!this.importSchemaFields.find(f => f.name === dataField.name)) {
+              this.importSchemaFields.push({
+                name: dataField.name,
+                sourceType: dataField.type,
+                targetType: '-',
+                matched: false,
+                exclude: false,
+              });
+            }
+          }
+        } else {
+          // No metadata schema, just use data fields
+          for (const dataField of this.importFields) {
+            this.importSchemaFields.push({
+              name: dataField.name,
+              sourceType: dataField.type,
+              targetType: dataField.type,
+              matched: true,
+              exclude: false,
+            });
+          }
+        }
+      } else {
+        // Existing collection: compare data fields with existing table schema
+        const existingSchema = await this.fetchExistingCollectionSchema();
+
+        if (existingSchema) {
+          const dataFieldNames = this.importFields.map(f => f.name);
+
+          for (const [fieldName, fieldType] of Object.entries(existingSchema)) {
+            const dataField = this.importFields.find(f => f.name === fieldName);
+
+            this.importSchemaFields.push({
+              name: fieldName,
+              sourceType: dataField?.type || '-',
+              targetType: String(fieldType).toUpperCase(),
+              matched: dataFieldNames.includes(fieldName),
+              exclude: false,
+            });
+          }
+
+          // Add fields that are in data but not in existing schema
+          for (const dataField of this.importFields) {
+            if (!this.importSchemaFields.find(f => f.name === dataField.name)) {
+              this.importSchemaFields.push({
+                name: dataField.name,
+                sourceType: dataField.type,
+                targetType: '-',
+                matched: false,
+                exclude: false,
+              });
+            }
+          }
+        } else {
+          // No existing schema available, just use data fields
+          for (const dataField of this.importFields) {
+            this.importSchemaFields.push({
+              name: dataField.name,
+              sourceType: dataField.type,
+              targetType: dataField.type,
+              matched: true,
+              exclude: false,
+            });
+          }
+        }
+      }
+
+      this.validateImportStep3();
+    },
+
+    async fetchExistingCollectionSchema(): Promise<Record<string, string> | null> {
+      if (!this.importConnection || !this.importTargetIndex) return null;
+
+      try {
+        if (this.importConnection.type === DatabaseType.ELASTICSEARCH) {
+          const client = loadHttpClient({
+            host: this.importConnection.host,
+            port: this.importConnection.port,
+            sslCertVerification: this.importConnection.sslCertVerification,
+          });
+
+          const response = await client.get<{
+            [index: string]: { mappings: { properties?: Record<string, { type?: string }> } };
+          }>(`/${this.importTargetIndex}/_mapping`);
+
+          const indexData = response.data[this.importTargetIndex];
+          if (indexData?.mappings?.properties) {
+            const schema: Record<string, string> = {};
+            for (const [fieldName, fieldInfo] of Object.entries(indexData.mappings.properties)) {
+              schema[fieldName] = fieldInfo.type || 'unknown';
+            }
+            return schema;
+          }
+        } else if (this.importConnection.type === DatabaseType.DYNAMODB) {
+          // For DynamoDB, we need to describe the table
+          const tableInfo = await dynamoApi.describeTable(
+            this.importConnection as DynamoDBConnection,
+            this.importTargetIndex,
+          );
+          if (tableInfo?.Table?.AttributeDefinitions) {
+            const schema: Record<string, string> = {};
+            for (const attr of tableInfo.Table.AttributeDefinitions) {
+              schema[attr.AttributeName] = attr.AttributeType === 'N' ? 'NUMBER' : 'STRING';
+            }
+            return schema;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching existing schema:', error);
+      }
+
+      return null;
     },
 
     async selectImportMetadataFile() {
@@ -586,6 +829,11 @@ export const useImportExportStore = defineStore('importExportStore', {
               }),
             );
           }
+
+          // Rebuild schema comparison if data file is already loaded
+          if (this.importDataFile) {
+            await this.buildSchemaComparison();
+          }
         } else {
           this.importMetadata = null;
           this.importFields = [];
@@ -604,27 +852,60 @@ export const useImportExportStore = defineStore('importExportStore', {
       }
     },
 
+    // Step 1: Target configured (connection + index selected)
     validateImportStep1() {
-      this.importValidationStatus.step1 = !!this.importDataFile;
+      this.importValidationStatus.step1 = !!(this.importConnection && this.importTargetIndex);
     },
 
+    // Step 2: Source files ready (data file + metadata if new collection)
     validateImportStep2() {
-      this.importValidationStatus.step2 =
-        !!this.importMetadata && this.importValidationErrors.length === 0;
+      if (this.importIsNewCollection) {
+        // New collection: need both metadata and data file
+        this.importValidationStatus.step2 =
+          !!this.importDataFile &&
+          !!this.importMetadata &&
+          this.importValidationErrors.length === 0;
+      } else {
+        // Existing collection: only need data file
+        this.importValidationStatus.step2 = !!this.importDataFile;
+      }
     },
 
+    // Step 3: Schema validated
     validateImportStep3() {
-      this.importValidationStatus.step3 = !!(this.importConnection && this.importTargetIndex);
+      // Step 3 is valid when schema comparison is done and there are schema fields
+      this.importValidationStatus.step3 = this.importSchemaFields.length > 0;
     },
 
     setImportConnection(connection: Connection | undefined) {
       this.importConnection = connection;
       this.importTargetIndex = '';
+      this.importIsNewCollection = false;
+      this.importExistingIndices = [];
+      // Reset source files when connection changes
+      this.importDataFile = '';
+      this.importMetadataFile = '';
+      this.importMetadata = null;
+      this.importFields = [];
+      this.importSchemaFields = [];
+      this.validateImportStep1();
+      this.validateImportStep2();
       this.validateImportStep3();
     },
 
-    setImportTargetIndex(index: string) {
+    setImportTargetIndex(index: string, existingIndices: string[] = []) {
       this.importTargetIndex = index;
+      this.importExistingIndices = existingIndices;
+      // Check if this is an existing collection or new
+      this.importIsNewCollection = index !== '' && !existingIndices.includes(index);
+      // Reset source files when index changes
+      this.importDataFile = '';
+      this.importMetadataFile = '';
+      this.importMetadata = null;
+      this.importFields = [];
+      this.importSchemaFields = [];
+      this.validateImportStep1();
+      this.validateImportStep2();
       this.validateImportStep3();
     },
 
@@ -632,17 +913,28 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.importStrategy = strategy;
     },
 
+    toggleSchemaFieldExclude(fieldName: string) {
+      const field = this.importSchemaFields.find(f => f.name === fieldName);
+      if (field) {
+        field.exclude = !field.exclude;
+      }
+    },
+
     clearImportDataFile() {
       this.importDataFile = '';
-      this.validateImportStep1();
+      this.importSchemaFields = [];
+      this.validateImportStep2();
+      this.validateImportStep3();
     },
 
     clearImportMetadataFile() {
       this.importMetadataFile = '';
       this.importMetadata = null;
       this.importFields = [];
+      this.importSchemaFields = [];
       this.importValidationErrors = [];
       this.validateImportStep2();
+      this.validateImportStep3();
     },
 
     validateDatabaseCompatibility(): { valid: boolean; errors: string[] } {
@@ -667,12 +959,16 @@ export const useImportExportStore = defineStore('importExportStore', {
     resetImportForm() {
       this.restoreProgress = null;
       this.restoreFile = '';
+      this.importConnection = undefined;
       this.importDataFile = '';
       this.importMetadataFile = '';
       this.importMetadata = null;
       this.importTargetIndex = '';
+      this.importIsNewCollection = false;
+      this.importExistingIndices = [];
       this.importStrategy = 'append';
       this.importFields = [];
+      this.importSchemaFields = [];
       this.importValidationStatus = {
         step1: false,
         step2: false,

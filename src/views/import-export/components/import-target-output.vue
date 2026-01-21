@@ -9,7 +9,7 @@
       </div>
     </template>
     <template #header-extra>
-      <span class="step-badge">{{ $t('export.step') }} 03</span>
+      <span class="step-badge">{{ $t('export.step') }} 01</span>
     </template>
 
     <n-grid cols="2" x-gap="16" y-gap="16">
@@ -33,7 +33,7 @@
         <n-select
           v-model:value="selectedIndex"
           :options="filteredIndexOptions"
-          :placeholder="$t('connection.selectIndex')"
+          :placeholder="$t('import.selectOrCreateIndex')"
           :loading="loadingIndex"
           filterable
           remote
@@ -44,15 +44,26 @@
           @update:show="handleIndexOpen"
           @search="handleIndexSearch"
         />
-        <span class="field-hint">{{ $t('import.indexHint') }}</span>
+        <span class="field-hint">
+          {{
+            importIsNewCollection
+              ? $t('import.newCollectionHint')
+              : $t('import.existingCollectionHint')
+          }}
+        </span>
       </n-grid-item>
     </n-grid>
 
-    <!-- Database Compatibility Warning -->
-    <div v-if="compatibilityWarning" class="compatibility-warning">
-      <n-alert type="warning" :title="$t('import.compatibilityWarning')">
-        {{ compatibilityWarning }}
-      </n-alert>
+    <!-- Collection Type Indicator -->
+    <div v-if="selectedIndex" class="collection-indicator">
+      <n-tag :type="importIsNewCollection ? 'warning' : 'success'" size="small">
+        {{ importIsNewCollection ? $t('import.newCollection') : $t('import.existingCollection') }}
+      </n-tag>
+      <span class="indicator-text">
+        {{
+          importIsNewCollection ? $t('import.metadataRequired') : $t('import.noMetadataRequired')
+        }}
+      </span>
     </div>
   </n-card>
 </template>
@@ -79,7 +90,8 @@ const { fetchConnections, fetchIndices, freshConnection, getDynamoIndexOrTableOp
 const { connections } = storeToRefs(connectionStore);
 
 const importExportStore = useImportExportStore();
-const { importConnection, importTargetIndex, importMetadata } = storeToRefs(importExportStore);
+const { importConnection, importTargetIndex, importIsNewCollection } =
+  storeToRefs(importExportStore);
 
 const selectedConnection = ref<string>('');
 const selectedIndex = ref<string>('');
@@ -88,6 +100,7 @@ const loadingIndex = ref(false);
 
 const connectionSearchQuery = ref('');
 const indexSearchQuery = ref('');
+const currentExistingIndices = ref<string[]>([]);
 
 // Initialize from store
 onMounted(() => {
@@ -123,19 +136,6 @@ const filteredIndexOptions = computed(() => {
   return indexOptions.value
     .filter(option => option.value.toLowerCase().includes(query))
     .sort((a, b) => a.value.localeCompare(b.value));
-});
-
-const compatibilityWarning = computed(() => {
-  if (!importMetadata.value || !importConnection.value) return null;
-
-  const sourceDbType = importMetadata.value.source.dbType.toLowerCase();
-  const targetDbType = importConnection.value.type.toLowerCase();
-
-  if (sourceDbType !== targetDbType) {
-    return `Source database type (${sourceDbType}) does not match target (${targetDbType}). Data may not import correctly.`;
-  }
-
-  return null;
 });
 
 const handleConnectionSearch = (query: string) => {
@@ -193,17 +193,21 @@ const handleIndexOpen = async (isOpen: boolean) => {
 const updateIndexOptions = () => {
   if (!importConnection.value) {
     indexOptions.value = [];
+    currentExistingIndices.value = [];
     return;
   }
 
   if (importConnection.value.type === DatabaseType.ELASTICSEARCH) {
-    indexOptions.value =
-      (importConnection.value as ElasticsearchConnection)?.indices?.map(index => ({
-        label: index.index,
-        value: index.index,
-      })) ?? [];
+    const indices =
+      (importConnection.value as ElasticsearchConnection)?.indices?.map(index => index.index) ?? [];
+    currentExistingIndices.value = indices;
+    indexOptions.value = indices.map(index => ({
+      label: index,
+      value: index,
+    }));
   } else if (importConnection.value.type === DatabaseType.DYNAMODB) {
     const dynamoOptions = getDynamoIndexOrTableOption(importConnection.value as DynamoDBConnection);
+    currentExistingIndices.value = dynamoOptions.map(opt => opt.value);
     indexOptions.value = dynamoOptions.map(opt => ({
       label: opt.label,
       value: opt.value,
@@ -221,6 +225,7 @@ const handleConnectionChange = async (value: string) => {
     selectedIndex.value = '';
     indexOptions.value = [];
     indexSearchQuery.value = '';
+    currentExistingIndices.value = [];
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -232,13 +237,7 @@ const handleConnectionChange = async (value: string) => {
 };
 
 const handleIndexChange = (value: string) => {
-  importExportStore.setImportTargetIndex(value);
-  // Ensure immediate feedback
-  nextTick(() => {
-    if (value) {
-      // Index is now selected
-    }
-  });
+  importExportStore.setImportTargetIndex(value, currentExistingIndices.value);
 };
 
 // Watch for connection changes to update index options
@@ -247,6 +246,7 @@ watch(importConnection, () => {
     indexOptions.value = [];
     selectedIndex.value = '';
     indexSearchQuery.value = '';
+    currentExistingIndices.value = [];
     return;
   }
   updateIndexOptions();
@@ -294,8 +294,20 @@ watch(importTargetIndex, newValue => {
     display: block;
   }
 
-  .compatibility-warning {
+  .collection-indicator {
     margin-top: 16px;
+    padding: 12px;
+    background: var(--card-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .indicator-text {
+      font-size: 12px;
+      color: var(--text-color-2);
+    }
   }
 }
 </style>
