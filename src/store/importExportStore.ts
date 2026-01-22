@@ -1,15 +1,15 @@
 import { open } from '@tauri-apps/plugin-dialog';
 
+import { get } from 'lodash';
 import { defineStore } from 'pinia';
 import { CustomError, jsonify } from '../common';
-import { get } from 'lodash';
+import { dynamoApi, loadHttpClient, sourceFileApi } from '../datasources';
 import {
   Connection,
   DatabaseType,
-  ElasticsearchConnection,
   DynamoDBConnection,
+  ElasticsearchConnection,
 } from './connectionStore.ts';
-import { loadHttpClient, sourceFileApi, dynamoApi } from '../datasources';
 
 // Import (Restore) types
 export type RestoreInput = {
@@ -268,10 +268,13 @@ export const useImportExportStore = defineStore('importExportStore', {
     },
 
     async restoreToElasticsearch(input: RestoreInput) {
+      const esConnection = input.connection as ElasticsearchConnection;
       const client = loadHttpClient({
-        host: input.connection.host,
-        port: input.connection.port,
-        sslCertVerification: input.connection.sslCertVerification,
+        host: esConnection.host,
+        port: esConnection.port,
+        username: esConnection.username,
+        password: esConnection.password,
+        sslCertVerification: esConnection.sslCertVerification,
       });
       const fileType = input.restoreFile.split('.').pop();
       const bulkSize = 1000;
@@ -322,7 +325,7 @@ export const useImportExportStore = defineStore('importExportStore', {
               if (Array.isArray(hits)) {
                 allHits.push(...hits);
               }
-            } catch (e) {
+            } catch (_e) {
               // Continue with other arrays even if one fails
             }
           }
@@ -402,7 +405,7 @@ export const useImportExportStore = defineStore('importExportStore', {
                     let value = values[index];
                     try {
                       value = jsonify.parse(value);
-                    } catch (e) {
+                    } catch (_e) {
                       // value is not a JSON string, keep it as is
                     }
                     acc[header] = value;
@@ -764,16 +767,15 @@ export const useImportExportStore = defineStore('importExportStore', {
     ): Array<{ name: string; type: string; value: unknown }> {
       const fields: Array<{ name: string; type: string; value: unknown }> = [];
 
-      for (const [key, value] of Object.entries(obj)) {
-        const fieldName = prefix ? `${prefix}.${key}` : key;
-        const fieldType = this.inferFieldType(value);
+      // Only extract root-level fields for simplicity
+      if (prefix) {
+        return fields;
+      }
 
-        if (fieldType === 'OBJECT' && value && typeof value === 'object' && !Array.isArray(value)) {
-          // Recursively extract nested fields
-          fields.push(...this.extractFieldsFromObject(value as Record<string, unknown>, fieldName));
-        } else {
-          fields.push({ name: fieldName, type: fieldType, value });
-        }
+      for (const [key, value] of Object.entries(obj)) {
+        const fieldName = key;
+        const fieldType = this.inferFieldType(value);
+        fields.push({ name: fieldName, type: fieldType, value });
       }
 
       return fields;
@@ -861,8 +863,15 @@ export const useImportExportStore = defineStore('importExportStore', {
           }
 
           // Add fields that are in data but not in existing schema
+          // Exclude _id for Elasticsearch as it's a system field
           for (const dataField of this.importFields) {
-            if (!this.importSchemaFields.find(f => f.name === dataField.name)) {
+            if (
+              !this.importSchemaFields.find(f => f.name === dataField.name) &&
+              !(
+                this.importConnection?.type === DatabaseType.ELASTICSEARCH &&
+                dataField.name === '_id'
+              )
+            ) {
               this.importSchemaFields.push({
                 name: dataField.name,
                 sourceType: dataField.type,
@@ -892,44 +901,45 @@ export const useImportExportStore = defineStore('importExportStore', {
     async fetchExistingCollectionSchema(): Promise<Record<string, string> | null> {
       if (!this.importConnection || !this.importTargetIndex) return null;
 
-      try {
-        if (this.importConnection.type === DatabaseType.ELASTICSEARCH) {
-          const client = loadHttpClient({
-            host: this.importConnection.host,
-            port: this.importConnection.port,
-            sslCertVerification: this.importConnection.sslCertVerification,
-          });
+      if (this.importConnection.type === DatabaseType.ELASTICSEARCH) {
+        const client = loadHttpClient({
+          host: this.importConnection.host,
+          port: this.importConnection.port,
+          username: this.importConnection.username,
+          password: this.importConnection.password,
+          sslCertVerification: this.importConnection.sslCertVerification,
+        });
 
-          const response = await client.get<{
-            [index: string]: { mappings: { properties?: Record<string, { type?: string }> } };
-          }>(`/${this.importTargetIndex}/_mapping`);
+        const response = await client.get<{
+          [index: string]: { mappings: { properties?: Record<string, { type?: string }> } };
+        }>(`/${this.importTargetIndex}/_mapping`);
 
-          const indexData = response.data[this.importTargetIndex];
-          if (indexData?.mappings?.properties) {
-            const schema: Record<string, string> = {};
-            for (const [fieldName, fieldInfo] of Object.entries(indexData.mappings.properties)) {
-              schema[fieldName] = fieldInfo.type || 'unknown';
-            }
-            return schema;
+        const indexData = response[this.importTargetIndex];
+        if (indexData?.mappings?.properties) {
+          const schema: Record<string, string> = {};
+          for (const [fieldName, fieldInfo] of Object.entries(indexData.mappings.properties)) {
+            schema[fieldName] = fieldInfo.type || 'unknown';
           }
-        } else if (this.importConnection.type === DatabaseType.DYNAMODB) {
-          // For DynamoDB, we need to describe the table
-          const tableInfo = await dynamoApi.describeTable(
-            this.importConnection as DynamoDBConnection,
-            this.importTargetIndex,
-          );
-          if (tableInfo?.Table?.AttributeDefinitions) {
-            const schema: Record<string, string> = {};
-            for (const attr of tableInfo.Table.AttributeDefinitions) {
-              schema[attr.AttributeName] = attr.AttributeType === 'N' ? 'NUMBER' : 'STRING';
-            }
-            return schema;
-          }
+          return schema;
         }
-      } catch (error) {
-        console.error('Error fetching existing schema:', error);
-      }
 
+        // If no properties found, return empty schema (valid for empty index)
+        return {};
+      } else if (this.importConnection.type === DatabaseType.DYNAMODB) {
+        // For DynamoDB, we need to describe the table
+        const dynamoConnection = {
+          ...(this.importConnection as DynamoDBConnection),
+          tableName: this.importTargetIndex,
+        };
+        const tableInfo = await dynamoApi.describeTable(dynamoConnection);
+        if (tableInfo?.attributeDefinitions) {
+          const schema: Record<string, string> = {};
+          for (const attr of tableInfo.attributeDefinitions) {
+            schema[attr.attributeName] = attr.attributeType === 'N' ? 'NUMBER' : 'STRING';
+          }
+          return schema;
+        }
+      }
       return null;
     },
 
@@ -1159,19 +1169,6 @@ export const useImportExportStore = defineStore('importExportStore', {
             errors.push('Unable to fetch existing collection schema');
             return { valid: false, errors };
           }
-
-          // Check if required fields exist in target schema
-          const existingFieldNames = Object.keys(existingSchema);
-          const dataFieldNames = this.importFields.map(f => f.name);
-
-          // Warn about fields in data that don't exist in target schema
-          const newFields = dataFieldNames.filter(field => !existingFieldNames.includes(field));
-          if (newFields.length > 0) {
-            // For Elasticsearch, new fields will be auto-mapped
-            // This is a warning, not an error
-            console.warn(`Data contains new fields not in target schema: ${newFields.join(', ')}`);
-          }
-
           return { valid: true, errors };
         } catch (error) {
           errors.push(`Failed to validate schema: ${get(error, 'message', 'Unknown error')}`);
@@ -1328,7 +1325,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.folderPath = '';
       this.extraPath = '';
       this.fileName = '';
-      this.fileType = 'ndjson';
+      this.fileType = 'jsonl';
       this.exportProgress = null;
       this.connection = undefined;
       this.selectedIndex = '';
@@ -1392,45 +1389,60 @@ export const useImportExportStore = defineStore('importExportStore', {
         const sampleResponse = await client.get<{
           hits: {
             hits: Array<{
+              _id: string;
               _source: { [key: string]: unknown };
             }>;
           };
         }>(`/${this.selectedIndex}/_search`, undefined, jsonify.stringify({ size: 1 }));
 
         const sampleDoc = sampleResponse.hits?.hits?.[0]?._source || {};
+        const sampleId = sampleResponse.hits?.hits?.[0]?._id || '';
 
         // Get document count
         const countResponse = await client.get<{ count: number }>(`/${this.selectedIndex}/_count`);
         this.estimatedRows = countResponse.count;
 
-        // Build fields array
-        const fields: FieldInfo[] = Object.entries(indexMapping.mappings.properties).map(
-          ([name, config]) => {
-            const type = (config as { type?: string }).type || 'object';
-            let sampleValue = '';
+        // Build fields array - only root-level fields for simplicity
+        // First add _id as a special field
+        const fields: FieldInfo[] = [
+          {
+            name: '_id',
+            type: 'KEYWORD',
+            sampleValue: sampleId,
+            includeInExport: true,
+          },
+        ];
 
-            const value = sampleDoc[name];
-            if (value !== undefined && value !== null) {
-              if (typeof value === 'object') {
-                sampleValue = jsonify.stringify(value);
-                if (sampleValue.length > 50) {
-                  sampleValue = sampleValue.substring(0, 47) + '...';
-                }
-              } else {
-                sampleValue = String(value);
-                if (sampleValue.length > 50) {
-                  sampleValue = sampleValue.substring(0, 47) + '...';
+        // Then add fields from mappings
+        fields.push(
+          ...Object.entries(indexMapping.mappings.properties)
+            .filter(([name]) => !name.includes('.')) // Only root-level fields
+            .map(([name, config]) => {
+              const type = (config as { type?: string }).type || 'object';
+              let sampleValue = '';
+
+              const value = sampleDoc[name];
+              if (value !== undefined && value !== null) {
+                if (typeof value === 'object') {
+                  sampleValue = jsonify.stringify(value);
+                  if (sampleValue.length > 50) {
+                    sampleValue = sampleValue.substring(0, 47) + '...';
+                  }
+                } else {
+                  sampleValue = String(value);
+                  if (sampleValue.length > 50) {
+                    sampleValue = sampleValue.substring(0, 47) + '...';
+                  }
                 }
               }
-            }
 
-            return {
-              name,
-              type: type.toUpperCase(),
-              sampleValue,
-              includeInExport: true,
-            };
-          },
+              return {
+                name,
+                type: type.toUpperCase(),
+                sampleValue,
+                includeInExport: true,
+              };
+            }),
         );
 
         this.fields = fields;
@@ -1488,35 +1500,37 @@ export const useImportExportStore = defineStore('importExportStore', {
           });
         }
 
-        // Merge with sample document to get all fields
+        // Merge with sample document to get all fields - only root-level fields for simplicity
         const allFields = new Set([...Array.from(attributeMap.keys()), ...Object.keys(sampleDoc)]);
 
-        const fields: FieldInfo[] = Array.from(allFields).map(name => {
-          const type = attributeMap.get(name) || 'S'; // Default to String
-          let sampleValue = '';
+        const fields: FieldInfo[] = Array.from(allFields)
+          .filter(name => !name.includes('.')) // Only root-level fields
+          .map(name => {
+            const type = attributeMap.get(name) || 'S'; // Default to String
+            let sampleValue = '';
 
-          const value = sampleDoc[name];
-          if (value !== undefined && value !== null) {
-            if (typeof value === 'object') {
-              sampleValue = jsonify.stringify(value);
-              if (sampleValue.length > 50) {
-                sampleValue = sampleValue.substring(0, 47) + '...';
-              }
-            } else {
-              sampleValue = String(value);
-              if (sampleValue.length > 50) {
-                sampleValue = sampleValue.substring(0, 47) + '...';
+            const value = sampleDoc[name];
+            if (value !== undefined && value !== null) {
+              if (typeof value === 'object') {
+                sampleValue = jsonify.stringify(value);
+                if (sampleValue.length > 50) {
+                  sampleValue = sampleValue.substring(0, 47) + '...';
+                }
+              } else {
+                sampleValue = String(value);
+                if (sampleValue.length > 50) {
+                  sampleValue = sampleValue.substring(0, 47) + '...';
+                }
               }
             }
-          }
 
-          return {
-            name,
-            type: type.toUpperCase(),
-            sampleValue,
-            includeInExport: true,
-          };
-        });
+            return {
+              name,
+              type: type.toUpperCase(),
+              sampleValue,
+              includeInExport: true,
+            };
+          });
 
         this.fields = fields;
         this.validateStep2();
