@@ -36,7 +36,7 @@
           :loading="loadingStat.index"
           filterable
           remote
-          :disabled="!inputData.selectedConnection"
+          :disabled="!inputData.selectedConnection || loadingStat.connection"
           @update:value="handleIndexChange"
           @update:show="handleIndexOpen"
           @search="handleIndexSearch"
@@ -167,12 +167,18 @@ const handleIndexOpen = async (isOpen: boolean) => {
           value: index.index,
         })) ?? [];
     } else if (connection.value.type === DatabaseType.DYNAMODB) {
-      // DynamoDB: use table and GSIs
+      // DynamoDB: only show table name (not GSIs)
       const dynamoOptions = getDynamoIndexOrTableOption(connection.value as DynamoDBConnection);
-      indexOptions.value = dynamoOptions.map(opt => ({
-        label: opt.label,
-        value: opt.value,
-      }));
+      // Filter to only include the table (first option which starts with "Table -")
+      const tableOption = dynamoOptions.find(opt => opt.label.startsWith('Table -'));
+      indexOptions.value = tableOption
+        ? [
+            {
+              label: (connection.value as DynamoDBConnection).tableName,
+              value: tableOption.value,
+            },
+          ]
+        : [];
     }
   } catch (err) {
     const error = err as CustomError;

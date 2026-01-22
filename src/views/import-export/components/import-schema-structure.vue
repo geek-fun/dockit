@@ -134,12 +134,6 @@
         <p class="schema-hint">{{ $t('import.excludeFieldsHint') }}</p>
       </div>
 
-      <!-- No schema fields yet -->
-      <div v-else class="empty-state-small">
-        <n-spin size="small" />
-        <span class="loading-text">{{ $t('import.analyzingSchema') }}</span>
-      </div>
-
       <!-- Comments (only for new collection with metadata) -->
       <div v-if="isNewCollection && importMetadata?.comments" class="comments-section">
         <h4 class="section-title">{{ $t('import.comments') }}</h4>

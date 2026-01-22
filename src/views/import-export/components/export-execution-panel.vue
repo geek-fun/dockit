@@ -207,7 +207,7 @@ const continueExportChecks = async () => {
   const exportPath = getExportPath.value;
 
   // Check if files exist
-  const fileExtension = fileType.value === 'ndjson' ? 'json' : fileType.value;
+  const fileExtension = fileType.value;
   const dataFileName = `${fileName.value}.${fileExtension}`;
   const metadataFileName = `${fileName.value}_metadata.json`;
   const dataFilePath = `${exportPath}/${dataFileName}`;

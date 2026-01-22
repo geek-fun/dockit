@@ -86,17 +86,16 @@ const message = useMessage();
 const exportStore = useImportExportStore();
 const { folderPath, fileName, fileType, extraPath } = storeToRefs(exportStore);
 
-const selectedFileType = ref<FileType>(fileType.value || 'ndjson');
+const selectedFileType = ref<FileType>(fileType.value || 'jsonl');
 
 const fileTypeOptions = [
-  { label: 'NDJSON', value: 'ndjson' as FileType },
+  { label: 'JSONL', value: 'jsonl' as FileType },
   { label: 'JSON', value: 'json' as FileType },
   { label: 'CSV', value: 'csv' as FileType },
 ];
 
 // File extension based on selected type
 const fileExtension = computed(() => {
-  if (selectedFileType.value === 'ndjson') return 'json';
   return selectedFileType.value;
 });
 

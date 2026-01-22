@@ -16,10 +16,10 @@
       <n-grid-item>
         <div class="field-label">{{ $t('import.targetDatabase') }}</div>
         <n-select
-          v-model:value="selectedConnection"
+          v-model:value="inputData.selectedConnection"
           :options="filteredConnectionOptions"
           :placeholder="$t('connection.selectConnection')"
-          :loading="loadingConnection"
+          :loading="loadingStat.connection"
           filterable
           remote
           :input-props="inputProps"
@@ -31,14 +31,14 @@
       <n-grid-item>
         <div class="field-label">{{ $t('import.collectionName') }}</div>
         <n-select
-          v-model:value="selectedIndex"
+          v-model:value="inputData.selectedIndex"
           :options="filteredIndexOptions"
           :placeholder="$t('import.selectOrCreateIndex')"
-          :loading="loadingIndex"
+          :loading="loadingStat.index"
           filterable
           remote
           tag
-          :disabled="!selectedConnection"
+          :disabled="!inputData.selectedConnection || loadingStat.connection"
           :input-props="inputProps"
           @update:value="handleIndexChange"
           @update:show="handleIndexOpen"
@@ -55,7 +55,7 @@
     </n-grid>
 
     <!-- Collection Type Indicator -->
-    <div v-if="selectedIndex" class="collection-indicator">
+    <div v-if="inputData.selectedIndex" class="collection-indicator">
       <n-tag :type="importIsNewCollection ? 'warning' : 'success'" size="small">
         {{ importIsNewCollection ? $t('import.newCollection') : $t('import.existingCollection') }}
       </n-tag>
@@ -93,22 +93,28 @@ const importExportStore = useImportExportStore();
 const { importConnection, importTargetIndex, importIsNewCollection } =
   storeToRefs(importExportStore);
 
-const selectedConnection = ref<string>('');
-const selectedIndex = ref<string>('');
-const loadingConnection = ref(false);
-const loadingIndex = ref(false);
+const inputData = ref({
+  selectedConnection: '',
+  selectedIndex: '',
+  connectionSearchQuery: '',
+  indexSearchQuery: '',
+});
 
-const connectionSearchQuery = ref('');
-const indexSearchQuery = ref('');
+const loadingStat = ref({
+  connection: false,
+  index: false,
+});
+
+const indexOptions = ref<Array<{ label: string; value: string }>>([]);
 const currentExistingIndices = ref<string[]>([]);
 
 // Initialize from store
 onMounted(() => {
   if (importConnection.value) {
-    selectedConnection.value = importConnection.value.name;
+    inputData.value.selectedConnection = importConnection.value.name;
   }
   if (importTargetIndex.value) {
-    selectedIndex.value = importTargetIndex.value;
+    inputData.value.selectedIndex = importTargetIndex.value;
   }
 });
 
@@ -117,38 +123,36 @@ const connectionOptions = computed(() =>
 );
 
 const filteredConnectionOptions = computed(() => {
-  if (!connectionSearchQuery.value) {
+  if (!inputData.value.connectionSearchQuery) {
     return connectionOptions.value;
   }
-  const query = connectionSearchQuery.value.toLowerCase();
+  const query = inputData.value.connectionSearchQuery.toLowerCase();
   return connectionOptions.value
     .filter(option => option.value.toLowerCase().includes(query))
     .sort((a, b) => a.value.localeCompare(b.value));
 });
 
-const indexOptions = ref<Array<{ label: string; value: string }>>([]);
-
 const filteredIndexOptions = computed(() => {
-  if (!indexSearchQuery.value) {
+  if (!inputData.value.indexSearchQuery) {
     return indexOptions.value;
   }
-  const query = indexSearchQuery.value.toLowerCase();
+  const query = inputData.value.indexSearchQuery.toLowerCase();
   return indexOptions.value
     .filter(option => option.value.toLowerCase().includes(query))
     .sort((a, b) => a.value.localeCompare(b.value));
 });
 
 const handleConnectionSearch = (query: string) => {
-  connectionSearchQuery.value = query;
+  inputData.value.connectionSearchQuery = query;
 };
 
 const handleIndexSearch = (query: string) => {
-  indexSearchQuery.value = query;
+  inputData.value.indexSearchQuery = query;
 };
 
 const handleConnectionOpen = async (isOpen: boolean) => {
   if (!isOpen) return;
-  loadingConnection.value = true;
+  loadingStat.value.connection = true;
   try {
     await fetchConnections();
   } catch (err) {
@@ -159,7 +163,7 @@ const handleConnectionOpen = async (isOpen: boolean) => {
       duration: 3000,
     });
   } finally {
-    loadingConnection.value = false;
+    loadingStat.value.connection = false;
   }
 };
 
@@ -174,7 +178,7 @@ const handleIndexOpen = async (isOpen: boolean) => {
     return;
   }
 
-  loadingIndex.value = true;
+  loadingStat.value.index = true;
   try {
     await fetchIndices(importConnection.value);
     updateIndexOptions();
@@ -186,7 +190,7 @@ const handleIndexOpen = async (isOpen: boolean) => {
       duration: 3000,
     });
   } finally {
-    loadingIndex.value = false;
+    loadingStat.value.index = false;
   }
 };
 
@@ -206,25 +210,37 @@ const updateIndexOptions = () => {
       value: index,
     }));
   } else if (importConnection.value.type === DatabaseType.DYNAMODB) {
+    // DynamoDB: only show table name (not GSIs)
     const dynamoOptions = getDynamoIndexOrTableOption(importConnection.value as DynamoDBConnection);
-    currentExistingIndices.value = dynamoOptions.map(opt => opt.value);
-    indexOptions.value = dynamoOptions.map(opt => ({
-      label: opt.label,
-      value: opt.value,
-    }));
+    // Filter to only include the table (first option which starts with "Table -")
+    const tableOption = dynamoOptions.find(opt => opt.label.startsWith('Table -'));
+    if (tableOption) {
+      const tableName = (importConnection.value as DynamoDBConnection).tableName;
+      currentExistingIndices.value = [tableOption.value];
+      indexOptions.value = [
+        {
+          label: tableName,
+          value: tableOption.value,
+        },
+      ];
+    } else {
+      currentExistingIndices.value = [];
+      indexOptions.value = [];
+    }
   }
 };
 
 const handleConnectionChange = async (value: string) => {
   const con = connections.value.find(({ name }) => name === value);
   if (!con) return;
-
+  loadingStat.value.connection = true;
   try {
     await freshConnection(con);
     importExportStore.setImportConnection(con);
-    selectedIndex.value = '';
+    inputData.value.selectedConnection = value;
+    inputData.value.selectedIndex = '';
     indexOptions.value = [];
-    indexSearchQuery.value = '';
+    inputData.value.indexSearchQuery = '';
     currentExistingIndices.value = [];
   } catch (err) {
     const error = err as CustomError;
@@ -233,31 +249,20 @@ const handleConnectionChange = async (value: string) => {
       keepAliveOnHover: true,
       duration: 3000,
     });
+  } finally {
+    loadingStat.value.connection = false;
   }
 };
 
 const handleIndexChange = (value: string) => {
-  importExportStore.setImportTargetIndex(value, currentExistingIndices.value);
+  loadingStat.value.index = true;
+  try {
+    inputData.value.selectedIndex = value;
+    importExportStore.setImportTargetIndex(value, currentExistingIndices.value);
+  } finally {
+    loadingStat.value.index = false;
+  }
 };
-
-// Watch for connection changes to update index options
-watch(importConnection, () => {
-  if (!importConnection.value) {
-    indexOptions.value = [];
-    selectedIndex.value = '';
-    indexSearchQuery.value = '';
-    currentExistingIndices.value = [];
-    return;
-  }
-  updateIndexOptions();
-});
-
-// Watch store's importTargetIndex and sync with local state
-watch(importTargetIndex, newValue => {
-  if (newValue !== selectedIndex.value) {
-    selectedIndex.value = newValue;
-  }
-});
 </script>
 
 <style lang="scss" scoped>

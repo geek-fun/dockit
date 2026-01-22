@@ -53,7 +53,7 @@ export type ImportFieldInfo = {
 };
 
 // Export types
-export type FileType = 'ndjson' | 'json' | 'csv';
+export type FileType = 'jsonl' | 'json' | 'csv';
 
 export type FieldInfo = {
   name: string;
@@ -93,7 +93,13 @@ export type ExportInput = {
 export const useImportExportStore = defineStore('importExportStore', {
   state(): {
     // Import state
-    restoreProgress: { complete: number; total: number } | null;
+    restoreProgress: {
+      complete: number;
+      total: number;
+      inserted: number;
+      updated: number;
+      skipped: number;
+    } | null;
     restoreFile: string;
     importConnection: Connection | undefined;
     importDataFile: string;
@@ -165,7 +171,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       folderPath: '',
       extraPath: '',
       fileName: '',
-      fileType: 'ndjson',
+      fileType: 'jsonl',
       exportProgress: null,
       connection: undefined,
       selectedIndex: '',
@@ -324,42 +330,56 @@ export const useImportExportStore = defineStore('importExportStore', {
           this.restoreProgress = {
             complete: 0,
             total: allHits.length,
+            inserted: 0,
+            updated: 0,
+            skipped: 0,
           };
           for (let i = 0; i < allHits.length; i += bulkSize) {
+            const action = this.importStrategy === 'append' ? 'create' : 'index';
             const bulkData = allHits
               .slice(i, i + bulkSize)
-              .flatMap(hit => [{ index: { _index: input.index, _id: hit._id } }, hit._source])
+              .flatMap(hit => [{ [action]: { _index: input.index, _id: hit._id } }, hit._source])
               .map(item => jsonify.stringify(item));
 
-            await bulkRequest(client, bulkData);
+            const stats = await bulkRequest(client, bulkData);
 
             this.restoreProgress.complete += bulkData.length / 2;
+            this.restoreProgress.inserted += stats.inserted;
+            this.restoreProgress.updated += stats.updated;
+            this.restoreProgress.skipped += stats.skipped;
           }
-        } else if (fileType === 'ndjson') {
-          // Parse NDJSON format - one JSON object per line
+        } else if (fileType === 'jsonl') {
+          // Parse JSONL format - one JSON object per line
           const lines = data.split('\n').filter(line => line.trim());
           this.restoreProgress = {
             complete: 0,
             total: lines.length,
+            inserted: 0,
+            updated: 0,
+            skipped: 0,
           };
 
           for (let i = 0; i < lines.length; i += bulkSize) {
+            const action = this.importStrategy === 'append' ? 'create' : 'index';
             const bulkData = lines
               .slice(i, i + bulkSize)
               .flatMap(line => {
                 try {
                   const doc = jsonify.parse(line);
                   const { _id, ...source } = doc;
-                  return [{ index: { _index: input.index, _id } }, source];
+                  return [{ [action]: { _index: input.index, _id } }, source];
                 } catch {
                   return [];
                 }
               })
               .map(item => jsonify.stringify(item));
 
-            await bulkRequest(client, bulkData);
+            const stats = await bulkRequest(client, bulkData);
 
             this.restoreProgress.complete += bulkData.length / 2;
+            this.restoreProgress.inserted += stats.inserted;
+            this.restoreProgress.updated += stats.updated;
+            this.restoreProgress.skipped += stats.skipped;
           }
         } else if (fileType === 'csv') {
           const lines = data.split('\r\n');
@@ -367,6 +387,9 @@ export const useImportExportStore = defineStore('importExportStore', {
           this.restoreProgress = {
             complete: 0,
             total: lines.length - 1,
+            inserted: 0,
+            updated: 0,
+            skipped: 0,
           };
 
           for (let i = 1; i < lines.length; i += bulkSize) {
@@ -392,9 +415,12 @@ export const useImportExportStore = defineStore('importExportStore', {
               })
               .map(item => jsonify.stringify(item));
 
-            await bulkRequest(client, bulkData);
+            const stats = await bulkRequest(client, bulkData);
 
             this.restoreProgress.complete += bulkData.length / 2;
+            this.restoreProgress.inserted += stats.inserted;
+            this.restoreProgress.updated += stats.updated;
+            this.restoreProgress.skipped += stats.skipped;
           }
         } else {
           throw new CustomError(400, 'Unsupported file type');
@@ -428,8 +454,8 @@ export const useImportExportStore = defineStore('importExportStore', {
           // Parse JSON array
           const parsed = jsonify.parse(data);
           items = Array.isArray(parsed) ? parsed : [parsed];
-        } else if (fileType === 'ndjson') {
-          // Parse NDJSON format - one JSON object per line
+        } else if (fileType === 'jsonl') {
+          // Parse JSONL format - one JSON object per line
           const lines = data.split('\n').filter(line => line.trim());
           items = lines
             .map(line => {
@@ -467,22 +493,77 @@ export const useImportExportStore = defineStore('importExportStore', {
         this.restoreProgress = {
           complete: 0,
           total: items.length,
+          inserted: 0,
+          updated: 0,
+          skipped: 0,
         };
 
         // Import items in batches using createItem
+        // Validation of partition keys happens in parseDataFileStructure
         const batchSize = 25; // DynamoDB batch write limit
+
         for (let i = 0; i < items.length; i += batchSize) {
           const batch = items.slice(i, i + batchSize);
 
-          for (const item of batch) {
-            // Convert to DynamoDB attribute format
-            const attributes = Object.entries(item).map(([key, value]) => ({
-              name: key,
-              value: value,
-              type: this.inferDynamoDBType(value),
-            }));
+          for (let j = 0; j < batch.length; j++) {
+            const item = batch[j];
 
-            await dynamoApi.createItem(dynamoConnection, attributes);
+            // Skip empty items (validated earlier, but check again for safety)
+            if (!item || Object.keys(item).length === 0) {
+              this.restoreProgress.complete += 1;
+              this.restoreProgress.skipped += 1;
+              continue;
+            }
+
+            // Partition key validation happens in parseDataFileStructure
+            // Here we just convert and import the data
+            const partitionKeyName = dynamoConnection.partitionKey.name;
+            const sortKeyName = dynamoConnection.sortKey?.name;
+
+            // Convert to DynamoDB attribute format, filtering out null/undefined/empty values
+            // but preserve partition key and sort key even if empty string
+            const attributes = Object.entries(item)
+              .filter(([key, value]) => {
+                // Always include partition key and sort key
+                if (key === partitionKeyName || (sortKeyName && key === sortKeyName)) {
+                  return value !== null && value !== undefined;
+                }
+                // Filter out null, undefined, and empty strings for other fields
+                if (value === null || value === undefined) return false;
+                if (typeof value === 'string' && value.trim() === '') return false;
+                return true;
+              })
+              .map(([key, value]) => ({
+                key: key,
+                value: value as string | number | boolean | null,
+                type: this.inferDynamoDBType(value),
+              }));
+
+            // Create item if there are valid attributes
+            if (attributes.length > 0) {
+              try {
+                // In append mode, add condition to skip existing items
+                if (this.importStrategy === 'append') {
+                  const result = await dynamoApi.createItem(dynamoConnection, attributes, {
+                    skipExisting: true,
+                    partitionKey: partitionKeyName,
+                  });
+                  // Check message to determine if item was created or skipped
+                  if (result.message.includes('already exists')) {
+                    this.restoreProgress.skipped += 1;
+                  } else {
+                    this.restoreProgress.inserted += 1;
+                  }
+                } else {
+                  await dynamoApi.createItem(dynamoConnection, attributes);
+                  // In replace mode, we don't know if it's insert or update, count as updated
+                  this.restoreProgress.updated += 1;
+                }
+              } catch (_error) {
+                // If error occurs, count as skipped
+                this.restoreProgress.skipped += 1;
+              }
+            }
             this.restoreProgress.complete += 1;
           }
         }
@@ -513,7 +594,7 @@ export const useImportExportStore = defineStore('importExportStore', {
           filters: [
             {
               name: 'Data Files',
-              extensions: ['csv', 'json', 'ndjson'],
+              extensions: ['csv', 'json', 'jsonl'],
             },
           ],
         });
@@ -521,8 +602,10 @@ export const useImportExportStore = defineStore('importExportStore', {
           this.importDataFile = selected as string;
           this.validateImportStep2();
 
-          // Parse the data file to extract structure
-          await this.parseDataFileStructure();
+          // Only parse data file if step 2 validation passes
+          if (this.importValidationStatus.step2) {
+            await this.parseDataFileStructure();
+          }
         }
       } catch (error) {
         throw new CustomError(
@@ -542,13 +625,21 @@ export const useImportExportStore = defineStore('importExportStore', {
         let sampleDoc: Record<string, unknown> | null = null;
 
         if (fileType === 'json') {
-          const parsed = jsonify.parse(data);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            sampleDoc = parsed[0];
-          } else if (typeof parsed === 'object') {
-            sampleDoc = parsed;
+          try {
+            const parsed = jsonify.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              sampleDoc = parsed[0];
+            } else if (typeof parsed === 'object') {
+              sampleDoc = parsed;
+            }
+          } catch {
+            // If JSON parsing fails, try JSONL format (common for exported data)
+            const lines = data.split('\n').filter((line: string) => line.trim());
+            if (lines.length > 0) {
+              sampleDoc = jsonify.parse(lines[0]);
+            }
           }
-        } else if (fileType === 'ndjson') {
+        } else if (fileType === 'jsonl') {
           const lines = data.split('\n').filter((line: string) => line.trim());
           if (lines.length > 0) {
             sampleDoc = jsonify.parse(lines[0]);
@@ -575,12 +666,95 @@ export const useImportExportStore = defineStore('importExportStore', {
             sampleValue: String(f.value).substring(0, 50),
           }));
 
+          // Validate data structure for DynamoDB imports (both new and existing collections)
+          if (this.importConnection && this.importConnection.type === DatabaseType.DYNAMODB) {
+            await this.validateDataStructureForDynamoDB(data, fileType);
+          }
+
           // Build schema comparison
           await this.buildSchemaComparison();
         }
-      } catch (error) {
-        console.error('Error parsing data file:', error);
+      } catch {
         this.importValidationErrors.push('Failed to parse data file structure');
+        this.validateImportStep2();
+      }
+    },
+
+    async validateDataStructureForDynamoDB(data: string, fileType: string) {
+      const dynamoConnection = this.importConnection as DynamoDBConnection;
+      const partitionKeyName = dynamoConnection.partitionKey.name;
+      const invalidItems: Array<{ index: number; reason: string }> = [];
+
+      try {
+        let items: Array<Record<string, unknown>> = [];
+
+        if (fileType === 'json') {
+          const parsed = jsonify.parse(data);
+          items = Array.isArray(parsed) ? parsed : [parsed];
+        } else if (fileType === 'jsonl') {
+          const lines = data.split('\n').filter(line => line.trim());
+          items = lines
+            .map(line => {
+              try {
+                return jsonify.parse(line);
+              } catch {
+                return null;
+              }
+            })
+            .filter(Boolean) as Array<Record<string, unknown>>;
+        } else if (fileType === 'csv') {
+          const lines = data.split('\n').filter(line => line.trim());
+          if (lines.length > 1) {
+            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            items = lines.slice(1).map(line => {
+              const values = line.split(',');
+              return headers.reduce(
+                (acc, header, index) => {
+                  acc[header] = values[index] || '';
+                  return acc;
+                },
+                {} as Record<string, unknown>,
+              );
+            });
+          }
+        }
+
+        // Validate each item has the required partition key
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (!item || Object.keys(item).length === 0) {
+            invalidItems.push({
+              index: i + 1,
+              reason: 'Item is empty',
+            });
+            continue;
+          }
+
+          if (
+            !(partitionKeyName in item) ||
+            item[partitionKeyName] === null ||
+            item[partitionKeyName] === undefined ||
+            (typeof item[partitionKeyName] === 'string' && item[partitionKeyName] === '')
+          ) {
+            invalidItems.push({
+              index: i + 1,
+              reason: `Missing required partition key: ${partitionKeyName}`,
+            });
+          }
+        }
+
+        // Add validation errors if found
+        if (invalidItems.length > 0) {
+          const errorMsg = `Found ${invalidItems.length} invalid item(s):\n${invalidItems
+            .slice(0, 5)
+            .map(item => `Row ${item.index}: ${item.reason}`)
+            .join(', ')}${invalidItems.length > 5 ? `, and ${invalidItems.length - 5} more` : ''}`;
+          this.importValidationErrors.push(errorMsg);
+        }
+      } catch (error) {
+        this.importValidationErrors.push(
+          `Failed to validate data structure: ${get(error, 'message', 'Unknown error')}`,
+        );
       }
     },
 
@@ -831,8 +1005,9 @@ export const useImportExportStore = defineStore('importExportStore', {
             );
           }
 
-          // Rebuild schema comparison if data file is already loaded
-          if (this.importDataFile) {
+          // Rebuild schema comparison if data file is already loaded and validation passes
+          this.validateImportStep2();
+          if (this.importDataFile && this.importValidationStatus.step2) {
             await this.buildSchemaComparison();
           }
         } else {
@@ -869,6 +1044,13 @@ export const useImportExportStore = defineStore('importExportStore', {
       } else {
         // Existing collection: only need data file
         this.importValidationStatus.step2 = !!this.importDataFile;
+      }
+
+      // Clear schema-related state if validation fails
+      if (!this.importValidationStatus.step2) {
+        this.importFields = [];
+        this.importSchemaFields = [];
+        this.importValidationStatus.step3 = false;
       }
     },
 
@@ -912,6 +1094,8 @@ export const useImportExportStore = defineStore('importExportStore', {
 
     setImportStrategy(strategy: ImportStrategy) {
       this.importStrategy = strategy;
+      // Reset progress when strategy changes
+      this.restoreProgress = null;
     },
 
     toggleSchemaFieldExclude(fieldName: string) {
@@ -938,23 +1122,64 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.validateImportStep3();
     },
 
-    validateDatabaseCompatibility(): { valid: boolean; errors: string[] } {
+    async validateDatabaseCompatibility(): Promise<{ valid: boolean; errors: string[] }> {
       const errors: string[] = [];
 
-      if (!this.importMetadata || !this.importConnection) {
-        errors.push('Metadata and connection are required for validation');
+      if (!this.importConnection) {
+        errors.push('Connection is required for validation');
         return { valid: false, errors };
       }
 
-      // Check database type compatibility
-      const sourceDbType = this.importMetadata.source.dbType.toLowerCase();
-      const targetDbType = this.importConnection.type.toLowerCase();
+      // For new collections with metadata
+      if (this.importMetadata) {
+        // Check database type compatibility
+        const sourceDbType = this.importMetadata.source.dbType.toLowerCase();
+        const targetDbType = this.importConnection.type.toLowerCase();
 
-      if (sourceDbType !== targetDbType) {
-        errors.push(`Database type mismatch: source is ${sourceDbType}, target is ${targetDbType}`);
+        if (sourceDbType !== targetDbType) {
+          errors.push(
+            `Database type mismatch: source is ${sourceDbType}, target is ${targetDbType}`,
+          );
+        }
+
+        return { valid: errors.length === 0, errors };
       }
 
-      return { valid: errors.length === 0, errors };
+      // For existing collections, validate against current schema
+      if (!this.importIsNewCollection && this.importTargetIndex && this.importFields.length > 0) {
+        // DynamoDB is schema-less, so skip schema validation for existing collections
+        if (this.importConnection.type === DatabaseType.DYNAMODB) {
+          return { valid: true, errors };
+        }
+
+        try {
+          const existingSchema = await this.fetchExistingCollectionSchema();
+
+          if (!existingSchema) {
+            errors.push('Unable to fetch existing collection schema');
+            return { valid: false, errors };
+          }
+
+          // Check if required fields exist in target schema
+          const existingFieldNames = Object.keys(existingSchema);
+          const dataFieldNames = this.importFields.map(f => f.name);
+
+          // Warn about fields in data that don't exist in target schema
+          const newFields = dataFieldNames.filter(field => !existingFieldNames.includes(field));
+          if (newFields.length > 0) {
+            // For Elasticsearch, new fields will be auto-mapped
+            // This is a warning, not an error
+            console.warn(`Data contains new fields not in target schema: ${newFields.join(', ')}`);
+          }
+
+          return { valid: true, errors };
+        } catch (error) {
+          errors.push(`Failed to validate schema: ${get(error, 'message', 'Unknown error')}`);
+          return { valid: false, errors };
+        }
+      }
+
+      return { valid: true, errors };
     },
 
     resetImportForm() {
@@ -984,7 +1209,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       }
 
       // Validate database compatibility
-      const compatibility = this.validateDatabaseCompatibility();
+      const compatibility = await this.validateDatabaseCompatibility();
       if (!compatibility.valid) {
         throw new CustomError(400, compatibility.errors.join('; '));
       }
@@ -1338,9 +1563,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       const dbVersion = esConnection.version || '';
 
       // Use the configured fileName from input
-      // NDJSON files use .json extension
-      const fileExtension = input.exportFileType === 'ndjson' ? 'json' : input.exportFileType;
-      const dataFileName = `${input.exportFileName}.${fileExtension}`;
+      const dataFileName = `${input.exportFileName}.${input.exportFileType}`;
       const dataFilePath = `${input.exportFolder}/${dataFileName}`;
       const metadataFileName = `${input.exportFileName}_metadata.json`;
       const metadataFilePath = `${input.exportFolder}/${metadataFileName}`;
@@ -1410,7 +1633,7 @@ export const useImportExportStore = defineStore('importExportStore', {
             sourceName: input.index,
           },
           export: {
-            format: input.exportFileType === 'ndjson' ? 'json' : input.exportFileType,
+            format: input.exportFileType,
             dataFile: dataFileName,
             encoding: 'utf-8',
             exportedAt: new Date().toISOString(),
@@ -1514,8 +1737,8 @@ export const useImportExportStore = defineStore('importExportStore', {
 
             let dataToWrite: string;
 
-            if (input.exportFileType === 'ndjson') {
-              // NDJSON format - one JSON object per line (compact format as per NDJSON spec)
+            if (input.exportFileType === 'jsonl') {
+              // JSONL format - one JSON object per line (compact format)
               dataToWrite = hits
                 .map(hit => {
                   const doc = { _id: hit._id, ...hit._source };
@@ -1573,9 +1796,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       const dynamoConnection = input.connection as DynamoDBConnection;
 
       // Use the configured fileName from input
-      // NDJSON files use .json extension
-      const fileExtension = input.exportFileType === 'ndjson' ? 'json' : input.exportFileType;
-      const dataFileName = `${input.exportFileName}.${fileExtension}`;
+      const dataFileName = `${input.exportFileName}.${input.exportFileType}`;
       const dataFilePath = `${input.exportFolder}/${dataFileName}`;
       const metadataFileName = `${input.exportFileName}_metadata.json`;
       const metadataFilePath = `${input.exportFolder}/${metadataFileName}`;
@@ -1613,7 +1834,7 @@ export const useImportExportStore = defineStore('importExportStore', {
             sourceName: input.index,
           },
           export: {
-            format: input.exportFileType === 'ndjson' ? 'json' : input.exportFileType,
+            format: input.exportFileType,
             dataFile: dataFileName,
             encoding: 'utf-8',
             exportedAt: new Date().toISOString(),
@@ -1680,8 +1901,8 @@ export const useImportExportStore = defineStore('importExportStore', {
           // Write data for this batch
           let dataToWrite: string;
 
-          if (input.exportFileType === 'ndjson') {
-            // NDJSON format - one JSON object per line
+          if (input.exportFileType === 'jsonl') {
+            // JSONL format - one JSON object per line
             dataToWrite = items
               .map(item => {
                 // Filter fields if needed
@@ -1804,7 +2025,10 @@ export const useImportExportStore = defineStore('importExportStore', {
 });
 
 // Helper functions
-const bulkRequest = async (client: { post: Function }, bulkData: Array<unknown>) => {
+const bulkRequest = async (
+  client: { post: Function },
+  bulkData: Array<unknown>,
+): Promise<{ inserted: number; updated: number; skipped: number }> => {
   const response = await client.post(`/_bulk`, undefined, bulkData.join('\r\n') + '\r\n');
 
   if (response.status && response.status !== 200) {
@@ -1817,6 +2041,37 @@ const bulkRequest = async (client: { post: Function }, bulkData: Array<unknown>)
       ),
     );
   }
+
+  // Parse bulk response to count operations
+  let inserted = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  const items = response?.items || [];
+  for (const item of items) {
+    const operation = item.index || item.create || item.update || item.delete;
+    if (operation) {
+      if (operation.result === 'created') {
+        inserted++;
+      } else if (operation.result === 'updated') {
+        updated++;
+      } else if (
+        operation.status === 409 ||
+        operation.error?.type === 'version_conflict_engine_exception'
+      ) {
+        // Document already exists (for create action in append mode)
+        skipped++;
+      } else if (operation.error) {
+        // Other errors are also considered skipped
+        skipped++;
+      } else {
+        // Assume success if no error
+        updated++;
+      }
+    }
+  }
+
+  return { inserted, updated, skipped };
 };
 
 const formatBytes = (bytes: number): string => {

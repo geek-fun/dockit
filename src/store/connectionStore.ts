@@ -398,8 +398,12 @@ export const useConnectionStore = defineStore('connectionStore', {
         : await dynamoApi.scanTable(con, queryParams);
     },
 
-    async createItem(con: DynamoDBConnection, attributes: DynamoAttributeItem[]) {
-      return await dynamoApi.createItem(con, attributes);
+    async createItem(
+      con: DynamoDBConnection,
+      attributes: DynamoAttributeItem[],
+      options?: { skipExisting?: boolean; partitionKey?: string },
+    ) {
+      return await dynamoApi.createItem(con, attributes, options);
     },
 
     async updateItem(

@@ -79,6 +79,22 @@
       <p class="progress-text">
         {{ restoreProgress.complete }} / {{ restoreProgress.total }} {{ $t('export.documents') }}
       </p>
+
+      <!-- Statistics Box -->
+      <div v-if="restoreProgress.complete > 0" class="statistics-box">
+        <div class="stat-item">
+          <span class="stat-label">{{ $t('import.inserted') }}:</span>
+          <span class="stat-value success">{{ formatNumber(restoreProgress.inserted) }}</span>
+        </div>
+        <div class="stat-item" v-if="importStrategy === 'replace'">
+          <span class="stat-label">{{ $t('import.updated') }}:</span>
+          <span class="stat-value info">{{ formatNumber(restoreProgress.updated) }}</span>
+        </div>
+        <div class="stat-item" v-if="restoreProgress.skipped > 0">
+          <span class="stat-label">{{ $t('import.skipped') }}:</span>
+          <span class="stat-value warning">{{ formatNumber(restoreProgress.skipped) }}</span>
+        </div>
+      </div>
     </div>
 
     <!-- Import Button -->
@@ -171,7 +187,13 @@ const handleStartImport = async () => {
       content: lang.t('import.replaceWarning', { index: importTargetIndex.value }),
       positiveText: lang.t('dialogOps.confirm'),
       negativeText: lang.t('dialogOps.cancel'),
-      onPositiveClick: () => executeImport(),
+      onPositiveClick: () => {
+        executeImport();
+        return true; // Close dialog immediately
+      },
+      onNegativeClick: () => {
+        return true; // Close dialog immediately
+      },
     });
     return;
   }
@@ -350,6 +372,46 @@ const executeImport = async () => {
       color: var(--text-color-3);
       text-align: center;
       margin-top: 8px;
+    }
+
+    .statistics-box {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.02);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+
+      .stat-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+
+        .stat-label {
+          color: var(--text-color-2);
+          font-weight: 500;
+        }
+
+        .stat-value {
+          font-weight: 600;
+          font-size: 14px;
+
+          &.success {
+            color: #18a058;
+          }
+
+          &.info {
+            color: #2080f0;
+          }
+
+          &.warning {
+            color: #f0a020;
+          }
+        }
+      }
     }
   }
 

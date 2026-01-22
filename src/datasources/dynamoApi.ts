@@ -205,24 +205,32 @@ const dynamoApi = {
 
     return data as QueryResult;
   },
-  createItem: async (con: DynamoDBConnection, attributes: DynamoAttributeItem[]) => {
+  createItem: async (
+    con: DynamoDBConnection,
+    attributes: DynamoAttributeItem[],
+    options?: { skipExisting?: boolean; partitionKey?: string },
+  ) => {
     const credentials = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
     };
-    const options = {
+    const apiOptions = {
       table_name: con.tableName,
       operation: 'CREATE_ITEM',
-      payload: { attributes },
+      payload: {
+        attributes,
+        skipExisting: options?.skipExisting,
+        partitionKey: options?.partitionKey,
+      },
     };
 
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, apiOptions);
 
     if (status !== 200) {
       throw new CustomError(status, message);
     }
-    return data as QueryResult;
+    return { message, data } as { message: string; data: QueryResult };
   },
 
   executeStatement: async (

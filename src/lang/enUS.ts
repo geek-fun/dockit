@@ -596,5 +596,8 @@ export const enUS = {
     replaceWarning: 'This will overwrite all data in {index}. Are you sure you want to continue?',
     importSuccess: 'Import completed successfully',
     metadataLoaded: 'Metadata loaded successfully',
+    inserted: 'Inserted',
+    updated: 'Updated',
+    skipped: 'Skipped',
   },
 };
