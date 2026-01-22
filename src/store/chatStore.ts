@@ -96,7 +96,7 @@ export const useChatStore = defineStore('chat', {
       );
 
       const tabStore = useTabStore();
-      const {activeConnection} = tabStore;
+      const { activeConnection } = tabStore;
 
       const index = (activeConnection as ElasticsearchConnection)?.activeIndex;
 

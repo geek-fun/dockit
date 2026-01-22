@@ -3,13 +3,13 @@
     <tool-bar type="MANAGE" @switch-manage-tab="handleManageTabChange" />
     <template v-if="connection?.type === DatabaseType.ELASTICSEARCH">
       <cluster-state
+        v-if="activeTab === $t('manage.cluster')"
         class="state-container"
         :cluster="cluster"
-        v-if="activeTab === $t('manage.cluster')"
       />
-      <node-state class="state-container" v-if="activeTab === $t('manage.nodes')" />
-      <shard-manage class="state-container" v-if="activeTab === $t('manage.shards')" />
-      <index-manage class="state-container" v-if="activeTab === $t('manage.indices')" />
+      <node-state v-if="activeTab === $t('manage.nodes')" class="state-container" />
+      <shard-manage v-if="activeTab === $t('manage.shards')" class="state-container" />
+      <index-manage v-if="activeTab === $t('manage.indices')" class="state-container" />
     </template>
     <template v-else-if="connection?.type === DatabaseType.DYNAMODB">
       <dynamo-table-manage class="state-container" />

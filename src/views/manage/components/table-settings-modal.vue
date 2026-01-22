@@ -13,12 +13,15 @@
             <n-form-item :label="lang.t('manage.dynamo.enableStreams')">
               <n-switch v-model:value="formValue.streamsEnabled" />
             </n-form-item>
-            <n-form-item v-if="formValue.streamsEnabled" :label="lang.t('manage.dynamo.streamViewType')">
+            <n-form-item
+              v-if="formValue.streamsEnabled"
+              :label="lang.t('manage.dynamo.streamViewType')"
+            >
               <n-select v-model:value="formValue.streamViewType" :options="streamViewTypeOptions" />
             </n-form-item>
           </n-form>
         </n-tab-pane>
-        
+
         <!-- TTL Tab -->
         <n-tab-pane name="ttl" :tab="lang.t('manage.dynamo.ttl')">
           <n-form label-placement="left" label-width="160">
@@ -26,11 +29,14 @@
               <n-switch v-model:value="formValue.ttlEnabled" />
             </n-form-item>
             <n-form-item v-if="formValue.ttlEnabled" :label="lang.t('manage.dynamo.ttlAttribute')">
-              <n-input v-model:value="formValue.ttlAttributeName" :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')" />
+              <n-input
+                v-model:value="formValue.ttlAttributeName"
+                :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')"
+              />
             </n-form-item>
           </n-form>
         </n-tab-pane>
-        
+
         <!-- PITR Tab -->
         <n-tab-pane name="pitr" :tab="lang.t('manage.dynamo.pitr')">
           <n-form label-placement="left" label-width="160">
@@ -42,7 +48,7 @@
             </n-alert>
           </n-form>
         </n-tab-pane>
-        
+
         <!-- Table Class Tab -->
         <n-tab-pane name="tableClass" :tab="lang.t('manage.dynamo.tableClass')">
           <n-form label-placement="left" label-width="160">
@@ -55,17 +61,23 @@
           </n-form>
         </n-tab-pane>
       </n-tabs>
-      
-      <n-alert v-if="errorMessage" type="error" style="margin-top: 12px" closable @close="errorMessage = ''">
+
+      <n-alert
+        v-if="errorMessage"
+        type="error"
+        style="margin-top: 12px"
+        closable
+        @close="errorMessage = ''"
+      >
         {{ errorMessage }}
       </n-alert>
-      
+
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 12px">
-          <n-button @click="handleCancel" :disabled="loading">
+          <n-button :disabled="loading" @click="handleCancel">
             {{ lang.t('dialogOps.cancel') }}
           </n-button>
-          <n-button type="primary" @click="handleSubmit" :loading="loading">
+          <n-button type="primary" :loading="loading" @click="handleSubmit">
             {{ lang.t('dialogOps.save') }}
           </n-button>
         </div>

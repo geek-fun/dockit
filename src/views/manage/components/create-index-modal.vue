@@ -6,54 +6,91 @@
       :bordered="false"
       role="dialog"
     >
-      <n-form ref="formRef" :model="formValue" :rules="rules" label-placement="left" label-width="140">
+      <n-form
+        ref="formRef"
+        :model="formValue"
+        :rules="rules"
+        label-placement="left"
+        label-width="140"
+      >
         <n-form-item :label="lang.t('manage.dynamo.indexName')" path="indexName">
-          <n-input v-model:value="formValue.indexName" :placeholder="lang.t('manage.dynamo.indexNamePlaceholder')" />
+          <n-input
+            v-model:value="formValue.indexName"
+            :placeholder="lang.t('manage.dynamo.indexNamePlaceholder')"
+          />
         </n-form-item>
-        
+
         <n-form-item :label="lang.t('manage.dynamo.partitionKey')" path="partitionKey">
-          <n-input v-model:value="formValue.partitionKey" :placeholder="lang.t('manage.dynamo.partitionKeyPlaceholder')" />
+          <n-input
+            v-model:value="formValue.partitionKey"
+            :placeholder="lang.t('manage.dynamo.partitionKeyPlaceholder')"
+          />
         </n-form-item>
-        
+
         <n-form-item :label="lang.t('manage.dynamo.partitionKeyType')" path="partitionKeyType">
           <n-select v-model:value="formValue.partitionKeyType" :options="keyTypeOptions" />
         </n-form-item>
-        
+
         <n-form-item :label="lang.t('manage.dynamo.sortKey')" path="sortKey">
-          <n-input v-model:value="formValue.sortKey" :placeholder="lang.t('manage.dynamo.sortKeyPlaceholder')" />
+          <n-input
+            v-model:value="formValue.sortKey"
+            :placeholder="lang.t('manage.dynamo.sortKeyPlaceholder')"
+          />
         </n-form-item>
-        
+
         <n-form-item :label="lang.t('manage.dynamo.sortKeyType')" path="sortKeyType">
-          <n-select v-model:value="formValue.sortKeyType" :options="keyTypeOptions" :disabled="!formValue.sortKey" />
+          <n-select
+            v-model:value="formValue.sortKeyType"
+            :options="keyTypeOptions"
+            :disabled="!formValue.sortKey"
+          />
         </n-form-item>
-        
+
         <n-form-item :label="lang.t('manage.dynamo.projection')" path="projectionType">
           <n-select v-model:value="formValue.projectionType" :options="projectionOptions" />
         </n-form-item>
-        
-        <n-form-item v-if="formValue.projectionType === 'INCLUDE'" :label="lang.t('manage.dynamo.projectedAttributes')" path="projectedAttributes">
+
+        <n-form-item
+          v-if="formValue.projectionType === 'INCLUDE'"
+          :label="lang.t('manage.dynamo.projectedAttributes')"
+          path="projectedAttributes"
+        >
           <n-dynamic-tags v-model:value="formValue.projectedAttributes" />
         </n-form-item>
-        
+
         <n-form-item :label="lang.t('manage.dynamo.rcu')" path="readCapacityUnits">
-          <n-input-number v-model:value="formValue.readCapacityUnits" :min="1" style="width: 100%" />
+          <n-input-number
+            v-model:value="formValue.readCapacityUnits"
+            :min="1"
+            style="width: 100%"
+          />
         </n-form-item>
-        
+
         <n-form-item :label="lang.t('manage.dynamo.wcu')" path="writeCapacityUnits">
-          <n-input-number v-model:value="formValue.writeCapacityUnits" :min="1" style="width: 100%" />
+          <n-input-number
+            v-model:value="formValue.writeCapacityUnits"
+            :min="1"
+            style="width: 100%"
+          />
         </n-form-item>
       </n-form>
-      
-      <n-alert v-if="errorMessage" type="error" style="margin-top: 12px" closable @close="errorMessage = ''">
+
+      <n-alert
+        v-if="errorMessage"
+        type="error"
+        style="margin-top: 12px"
+        closable
+        @close="errorMessage = ''"
+      >
         {{ errorMessage }}
       </n-alert>
-      
+
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 12px">
-          <n-button @click="handleCancel" :disabled="loading">
+          <n-button :disabled="loading" @click="handleCancel">
             {{ lang.t('dialogOps.cancel') }}
           </n-button>
-          <n-button type="primary" @click="handleSubmit" :loading="loading">
+          <n-button type="primary" :loading="loading" @click="handleSubmit">
             {{ lang.t('dialogOps.confirm') }}
           </n-button>
         </div>

@@ -1,7 +1,7 @@
 /**
  * Tests for the Query DSL provider
  */
-import { QueryDslProvider, queryDslProvider, allQueries } from '../../../../src/common/monaco/searchdsl/queryDsl';
+import { queryDslProvider, allQueries } from '../../../../src/common/monaco/searchdsl/queryDsl';
 import { BackendType } from '../../../../src/common/monaco/searchdsl/types';
 
 // Mock monaco-editor
@@ -101,7 +101,7 @@ describe('QueryDslProvider', () => {
   describe('getQueryTypes', () => {
     it('should return all queries when no version specified', () => {
       const queries = queryDslProvider.getQueryTypes(BackendType.ELASTICSEARCH);
-      
+
       expect(Object.keys(queries).length).toBe(Object.keys(allQueries).length);
     });
 
@@ -109,7 +109,7 @@ describe('QueryDslProvider', () => {
       // knn query requires ES 8.0+
       const oldVersionQueries = queryDslProvider.getQueryTypes(BackendType.ELASTICSEARCH, '7.10.0');
       const newVersionQueries = queryDslProvider.getQueryTypes(BackendType.ELASTICSEARCH, '8.5.0');
-      
+
       // knn should not be in old version
       expect(oldVersionQueries.knn).toBeUndefined();
       // knn should be in new version
@@ -119,7 +119,7 @@ describe('QueryDslProvider', () => {
     it('should include combined_fields for ES 7.13+', () => {
       const oldQueries = queryDslProvider.getQueryTypes(BackendType.ELASTICSEARCH, '7.12.0');
       const newQueries = queryDslProvider.getQueryTypes(BackendType.ELASTICSEARCH, '7.13.0');
-      
+
       expect(oldQueries.combined_fields).toBeUndefined();
       expect(newQueries.combined_fields).toBeDefined();
     });
@@ -128,7 +128,7 @@ describe('QueryDslProvider', () => {
   describe('getQueryProperties', () => {
     it('should return properties for match query', () => {
       const properties = queryDslProvider.getQueryProperties('match');
-      
+
       expect(properties).toBeDefined();
       expect(properties?.['*']).toBeDefined();
       expect(properties?.['*'].properties?.query).toBeDefined();
@@ -137,7 +137,7 @@ describe('QueryDslProvider', () => {
 
     it('should return properties for bool query', () => {
       const properties = queryDslProvider.getQueryProperties('bool');
-      
+
       expect(properties).toBeDefined();
       expect(properties?.must).toBeDefined();
       expect(properties?.filter).toBeDefined();
@@ -147,7 +147,7 @@ describe('QueryDslProvider', () => {
 
     it('should return undefined for non-existent query', () => {
       const properties = queryDslProvider.getQueryProperties('nonexistent');
-      
+
       expect(properties).toBeUndefined();
     });
   });
@@ -155,14 +155,14 @@ describe('QueryDslProvider', () => {
   describe('getQuerySnippet', () => {
     it('should return snippet for match query', () => {
       const snippet = queryDslProvider.getQuerySnippet('match');
-      
+
       expect(snippet).toBeDefined();
       expect(snippet).toContain('match');
     });
 
     it('should return snippet for bool query', () => {
       const snippet = queryDslProvider.getQuerySnippet('bool');
-      
+
       expect(snippet).toBeDefined();
       expect(snippet).toContain('bool');
       expect(snippet).toContain('must');
@@ -170,7 +170,7 @@ describe('QueryDslProvider', () => {
 
     it('should return undefined for non-existent query', () => {
       const snippet = queryDslProvider.getQuerySnippet('nonexistent');
-      
+
       expect(snippet).toBeUndefined();
     });
   });
@@ -178,14 +178,14 @@ describe('QueryDslProvider', () => {
   describe('getQueryDescription', () => {
     it('should return description for match query', () => {
       const description = queryDslProvider.getQueryDescription('match');
-      
+
       expect(description).toBeDefined();
       expect(description?.toLowerCase()).toContain('match');
     });
 
     it('should return undefined for non-existent query', () => {
       const description = queryDslProvider.getQueryDescription('nonexistent');
-      
+
       expect(description).toBeUndefined();
     });
   });

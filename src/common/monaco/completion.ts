@@ -23,9 +23,6 @@ export const configureCompletions = (config: {
 
 export const configureDynamicOptions = setDynamicOptions;
 
-export const searchCompletionProvider = (
-  model: editor.ITextModel,
-  position: Position,
-) => {
+export const searchCompletionProvider = (model: editor.ITextModel, position: Position) => {
   return grammarCompletionProvider(model, position);
 };

@@ -1,16 +1,16 @@
 <template>
   <n-breadcrumb class="tool-bar-path-breadcrumb">
     <n-breadcrumb-item
-      v-if="props.clickable && breadCrumbPath"
       v-for="(path, index) in breadCrumbPath?.split('/')"
+      v-if="props.clickable && breadCrumbPath"
       @click="handleBreadcrumb(index)"
     >
-      <n-icon :component="Folder" v-if="index !== 0" />
+      <n-icon v-if="index !== 0" :component="Folder" />
       {{ path }}
     </n-breadcrumb-item>
     <n-breadcrumb-item
-      v-else
       v-for="path in breadCrumbPath?.split('/')"
+      v-else
       :clickable="props.clickable"
     >
       {{ path }}

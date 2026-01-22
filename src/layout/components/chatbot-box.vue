@@ -31,11 +31,12 @@
           <br />
           <n-button
             v-if="chatBotNotification.code === ErrorCodes.MISSING_GPT_CONFIG"
-            @click="configGpt"
             strong
             secondary
             type="primary"
-            >{{ $t('setting.ai.configGpt') }}
+            @click="configGpt"
+          >
+            {{ $t('setting.ai.configGpt') }}
           </n-button>
         </div>
       </n-scrollbar>

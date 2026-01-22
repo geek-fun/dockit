@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import JSON5 from 'json5';
 import { JSONParse, JSONStringify } from 'json-with-bigint';
 import { get } from 'lodash';

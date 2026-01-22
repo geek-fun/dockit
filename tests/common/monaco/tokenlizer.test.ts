@@ -11,10 +11,10 @@ jest.mock('monaco-editor', () => ({
   },
   Range: class MockRange {
     constructor(
-      public startLineNumber: number,
-      public startColumn: number,
-      public endLineNumber: number,
-      public endColumn: number
+      public _startLineNumber: number,
+      public _startColumn: number,
+      public _endLineNumber: number,
+      public _endColumn: number,
     ) {}
   },
   Position: {},

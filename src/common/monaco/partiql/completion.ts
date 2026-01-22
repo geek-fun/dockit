@@ -45,7 +45,8 @@ const analyzeContext = (
     afterUpdate: upperText.includes('UPDATE') && !upperText.includes('SET'),
     afterSet:
       upperText.includes('SET') ||
-      (upperText.includes('REMOVE') && upperText.lastIndexOf('SET') < upperText.lastIndexOf('REMOVE')),
+      (upperText.includes('REMOVE') &&
+        upperText.lastIndexOf('SET') < upperText.lastIndexOf('REMOVE')),
   };
 };
 

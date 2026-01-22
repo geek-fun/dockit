@@ -16,6 +16,11 @@ pub async fn create_item(
     if let Some(attributes) = input.payload.get("attributes").and_then(|v| v.as_array()) {
         let mut put_item = client.put_item().table_name(input.table_name);
 
+        // Check if we should skip existing items (append mode)
+        let skip_existing = input.payload.get("skipExisting")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
         for attr in attributes {
             if let (Some(key), Some(value), Some(attr_type)) = (
                 attr.get("key").and_then(|v| v.as_str()),
@@ -28,6 +33,14 @@ pub async fn create_item(
             }
         }
 
+        // Add condition expression to prevent overwriting if skip_existing is true
+        if skip_existing {
+            // Get partition key name from payload
+            if let Some(partition_key) = input.payload.get("partitionKey").and_then(|v| v.as_str()) {
+                put_item = put_item.condition_expression(format!("attribute_not_exists({})", partition_key));
+            }
+        }
+
         match put_item.send().await {
             Ok(_) => Ok(ApiResponse {
                 status: 200,
@@ -37,6 +50,15 @@ pub async fn create_item(
             Err(e) => {
                 let error_code = e.code().unwrap_or("UnknownError");
                 let error_message = e.message().unwrap_or("Unknown error occurred");
+                
+                // If skip_existing is true and error is ConditionalCheckFailedException, treat as success (item already exists)
+                if skip_existing && error_code == "ConditionalCheckFailedException" {
+                    return Ok(ApiResponse {
+                        status: 200,
+                        message: "Item already exists, skipped".to_string(),
+                        data: None,
+                    });
+                }
                 
                 Ok(ApiResponse {
                     status: 500,

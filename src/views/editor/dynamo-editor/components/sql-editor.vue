@@ -1,5 +1,5 @@
 <template>
-  <n-split direction="vertical" class="partiql-editor" v-model:size="editorSize">
+  <n-split v-model:size="editorSize" direction="vertical" class="partiql-editor">
     <template #1>
       <div class="editor-container">
         <div id="partiql-editor" ref="editorRef" class="monaco-editor-container" />

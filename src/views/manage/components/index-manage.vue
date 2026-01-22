@@ -1,5 +1,5 @@
 <template>
-  <n-tabs type="segment" animated @update:value="refresh" class="tabs-container">
+  <n-tabs type="segment" animated class="tabs-container" @update:value="refresh">
     <n-tab-pane name="indices" tab="INDICES" class="tabs-tab-pane-container">
       <div class="table-container">
         <div class="table-scroll-container">

@@ -1,5 +1,5 @@
 <template>
-  <n-split direction="horizontal" class="editor" v-model:size="queryEditorSize">
+  <n-split v-model:size="queryEditorSize" direction="horizontal" class="editor">
     <template #1>
       <div class="query-editor-container">
         <div id="query-editor" ref="queryEditorRef" />

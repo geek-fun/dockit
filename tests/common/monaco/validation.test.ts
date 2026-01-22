@@ -19,10 +19,10 @@ jest.mock('monaco-editor', () => ({
   },
   Range: class MockRange {
     constructor(
-      public startLineNumber: number,
-      public startColumn: number,
-      public endLineNumber: number,
-      public endColumn: number
+      public _startLineNumber: number,
+      public _startColumn: number,
+      public _endLineNumber: number,
+      public _endColumn: number,
     ) {}
   },
   Position: {},
@@ -69,7 +69,7 @@ describe('PartiQL Validation', () => {
     });
 
     it('should return no errors for valid INSERT statement', () => {
-      const content = 'INSERT INTO "users" VALUE {\'pk\': \'user1\', \'name\': \'John\'}';
+      const content = "INSERT INTO \"users\" VALUE {'pk': 'user1', 'name': 'John'}";
       const result = validatePartiql(content);
       expect(result.errors).toHaveLength(0);
     });
@@ -87,7 +87,7 @@ describe('PartiQL Validation', () => {
     });
 
     it('should return no errors for valid UPDATE statement', () => {
-      const content = 'UPDATE "users" SET name = \'Jane\' WHERE pk = \'user1\'';
+      const content = "UPDATE \"users\" SET name = 'Jane' WHERE pk = 'user1'";
       const result = validatePartiql(content);
       expect(result.errors).toHaveLength(0);
     });
@@ -117,7 +117,7 @@ describe('PartiQL Validation', () => {
     });
 
     it('should return error for unclosed double quote', () => {
-      const content = 'SELECT * FROM "users WHERE pk = \'value\'';
+      const content = "SELECT * FROM \"users WHERE pk = 'value'";
       const result = validatePartiql(content);
       expect(result.errors.some(e => e.message.includes('double quote'))).toBe(true);
     });
@@ -129,13 +129,13 @@ describe('PartiQL Validation', () => {
     });
 
     it('should return error for mismatched braces', () => {
-      const content = 'INSERT INTO "users" VALUE {\'pk\': \'value\'';
+      const content = "INSERT INTO \"users\" VALUE {'pk': 'value'";
       const result = validatePartiql(content);
       expect(result.errors.some(e => e.message.includes('braces'))).toBe(true);
     });
 
     it('should return error for mismatched brackets', () => {
-      const content = 'SELECT * FROM "users" WHERE pk IN [\'val1\', \'val2\'';
+      const content = "SELECT * FROM \"users\" WHERE pk IN ['val1', 'val2'";
       const result = validatePartiql(content);
       expect(result.errors.some(e => e.message.includes('brackets'))).toBe(true);
     });
@@ -236,10 +236,12 @@ describe('ES/OpenSearch Validation', () => {
   }
 }`;
       const result = validateEs(content);
-      expect(result.errors.some(e => 
-        e.message.toLowerCase().includes('bracket') || 
-        e.message.toLowerCase().includes('json')
-      )).toBe(true);
+      expect(
+        result.errors.some(
+          e =>
+            e.message.toLowerCase().includes('bracket') || e.message.toLowerCase().includes('json'),
+        ),
+      ).toBe(true);
     });
 
     it('should handle multiple requests', () => {

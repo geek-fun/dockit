@@ -14,7 +14,7 @@ export const useThrottle = (fn: () => void, delay = 500): (() => void) => {
 };
 
 export const useDebounce = (fn: () => void, delay = 500): (() => void) => {
-  let timer: NodeJS.Timeout;
+  let timer: ReturnType<typeof setTimeout>;
   return () => {
     clearTimeout(timer);
     timer = setTimeout(fn, delay);

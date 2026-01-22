@@ -3,43 +3,43 @@
     <n-scrollbar style="min-height: 120px; max-height: 420px">
       <div class="node-list-container">
         <n-card
-          class="node-item"
-          hoverable
           v-for="node in nodes"
           :key="node.name"
+          class="node-item"
+          hoverable
           :title="node.name"
           @click="handleNodeClick(node.name)"
         >
           <n-icon size="24" class="node-rule-icon">
-            <n-popover trigger="hover" v-if="node.master">
+            <n-popover v-if="node.master" trigger="hover">
               <template #trigger>
                 <StarFilled />
               </template>
               <span>{{ $t('manage.masterNode') }}</span>
             </n-popover>
             <n-popover
-              trigger="hover"
               v-if="node.roles.includes(NodeRoleEnum.MASTER_ELIGIBLE) && !node.master"
+              trigger="hover"
             >
               <template #trigger>
                 <Star />
               </template>
               <span>{{ $t('manage.masterEligible') }}</span>
             </n-popover>
-            <n-popover trigger="hover" v-if="node.roles.includes(NodeRoleEnum.DATA)">
+            <n-popover v-if="node.roles.includes(NodeRoleEnum.DATA)" trigger="hover">
               <template #trigger>
                 <VmdkDisk />
               </template>
               <span>{{ $t('manage.dataNode') }}</span>
             </n-popover>
 
-            <n-popover trigger="hover" v-if="node.roles.includes(NodeRoleEnum.INGEST)">
+            <n-popover v-if="node.roles.includes(NodeRoleEnum.INGEST)" trigger="hover">
               <template #trigger>
                 <FolderMoveTo />
               </template>
               <span>{{ $t('manage.ingestNode') }}</span>
             </n-popover>
-            <n-popover trigger="hover" v-if="node.roles.includes(NodeRoleEnum.COORDINATING)">
+            <n-popover v-if="node.roles.includes(NodeRoleEnum.COORDINATING)" trigger="hover">
               <template #trigger>
                 <Network3 />
               </template>

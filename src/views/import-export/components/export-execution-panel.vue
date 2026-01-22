@@ -1,5 +1,8 @@
 <template>
-  <n-card class="execution-card">
+  <n-card
+    class="execution-card"
+    :content-style="{ display: 'flex', flexDirection: 'column', flex: 1 }"
+  >
     <template #header>
       <div class="execution-header">
         <n-icon size="20" color="#f0a020">
@@ -23,21 +26,19 @@
         :status="validationPercentage === 100 ? 'success' : 'warning'"
         :show-indicator="false"
       />
-    </div>
-
-    <!-- Export Stats -->
-    <div class="section stats-section">
-      <div class="stat-row">
-        <span class="stat-label">{{ $t('export.rowsToExport') }}</span>
-        <span class="stat-value">{{ formatNumber(estimatedRows) }}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">{{ $t('export.estimatedDuration') }}</span>
-        <span class="stat-value">{{ estimatedDuration }}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">{{ $t('export.estimatedSize') }}</span>
-        <span class="stat-value">{{ estimatedSize || '-' }}</span>
+      <div class="stats-rows">
+        <div class="stat-row">
+          <span class="stat-label">{{ $t('export.rowsToExport') }}</span>
+          <span class="stat-value">{{ formatNumber(estimatedRows) }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">{{ $t('export.estimatedDuration') }}</span>
+          <span class="stat-value">{{ estimatedDuration }}</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">{{ $t('export.estimatedSize') }}</span>
+          <span class="stat-value">{{ estimatedSize || '-' }}</span>
+        </div>
       </div>
     </div>
 
@@ -69,6 +70,20 @@
       </div>
     </div>
 
+    <!-- Progress Display -->
+    <div v-if="exportProgress" class="progress-section">
+      <n-progress
+        type="line"
+        :percentage="progressPercentage"
+        :status="progressPercentage === 100 ? 'success' : 'info'"
+        indicator-placement="inside"
+        :processing="progressPercentage < 100"
+      />
+      <p class="progress-text">
+        {{ exportProgress.complete }} / {{ exportProgress.total }} {{ $t('export.documents') }}
+      </p>
+    </div>
+
     <!-- Export Button - at bottom -->
     <div class="export-action">
       <n-button
@@ -88,20 +103,6 @@
       </n-button>
       <p class="export-note">{{ $t('export.exportNote') }}</p>
     </div>
-
-    <!-- Progress Display -->
-    <div v-if="exportProgress" class="progress-section">
-      <n-progress
-        type="line"
-        :percentage="progressPercentage"
-        :status="progressPercentage === 100 ? 'success' : 'info'"
-        indicator-placement="inside"
-        :processing="progressPercentage < 100"
-      />
-      <p class="progress-text">
-        {{ exportProgress.complete }} / {{ exportProgress.total }} {{ $t('export.documents') }}
-      </p>
-    </div>
   </n-card>
 </template>
 
@@ -112,6 +113,7 @@ import { useImportExportStore, ExportInput } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import { ulid } from 'ulidx';
+import { sourceFileApi } from '../../../datasources';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -180,27 +182,59 @@ const handleStartExport = async () => {
 
   const exportPath = getExportPath.value;
 
-  // Check if file exists
-  const fileExists = await exportStore.checkFileExist({
-    index: selectedIndex.value,
-    exportFolder: exportPath,
-    exportFileName: fileName.value,
-    exportFileType: fileType.value,
-    filterQuery: filterQuery.value,
-    overwriteExisting: overwriteExisting.value,
-    createDirectory: createDirectory.value,
-    beautifyJson: beautifyJson.value,
-  });
+  // Check if directory exists
+  const folderExists = await sourceFileApi.exists(exportPath);
 
-  if (fileExists && !overwriteExisting.value) {
+  if (!folderExists && !createDirectory.value) {
     dialog.warning({
       title: lang.t('dialogOps.warning'),
-      content: lang.t('dialogOps.overwriteFile'),
-      positiveText: lang.t('dialogOps.confirm'),
+      content: `Directory does not exist: ${exportPath}. Please enable "Create Directory" option or create the directory manually.`,
+      positiveText: lang.t('dialogOps.createFolder'),
       negativeText: lang.t('dialogOps.cancel'),
-      onPositiveClick: () => executeExport(),
+      onPositiveClick: () => {
+        // User confirmed, enable createDirectory option
+        createDirectory.value = true;
+        // User needs to click export button again
+      },
     });
     return;
+  }
+
+  await continueExportChecks();
+};
+
+const continueExportChecks = async () => {
+  const exportPath = getExportPath.value;
+
+  // Check if files exist
+  const fileExtension = fileType.value;
+  const dataFileName = `${fileName.value}.${fileExtension}`;
+  const metadataFileName = `${fileName.value}_metadata.json`;
+  const dataFilePath = `${exportPath}/${dataFileName}`;
+  const metadataFilePath = `${exportPath}/${metadataFileName}`;
+
+  if (!overwriteExisting.value) {
+    const dataFileExists = await sourceFileApi.exists(dataFilePath);
+    const metadataFileExists = await sourceFileApi.exists(metadataFilePath);
+
+    if (dataFileExists || metadataFileExists) {
+      const existingFiles = [];
+      if (dataFileExists) existingFiles.push(dataFileName);
+      if (metadataFileExists) existingFiles.push(metadataFileName);
+
+      dialog.warning({
+        title: lang.t('dialogOps.warning'),
+        content: `File(s) already exist: ${existingFiles.join(', ')}. Do you want to overwrite them?`,
+        positiveText: lang.t('dialogOps.overwrite'),
+        negativeText: lang.t('dialogOps.cancel'),
+        onPositiveClick: () => {
+          // User confirmed, enable overwriteExisting option
+          overwriteExisting.value = true;
+          // User needs to click export button again
+        },
+      });
+      return;
+    }
   }
 
   await executeExport();
@@ -315,36 +349,34 @@ const executeExport = async () => {
         }
       }
     }
+
+    .stats-rows {
+      margin-top: 12px;
+
+      .stat-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+
+        &:not(:last-child) {
+          border-bottom: 1px solid var(--border-color);
+        }
+
+        .stat-label {
+          font-size: 13px;
+          color: var(--text-color-3);
+        }
+
+        .stat-value {
+          font-size: 13px;
+          font-weight: 500;
+        }
+      }
+    }
   }
 
   .section {
     margin-bottom: 16px;
-  }
-
-  .stats-section {
-    background-color: var(--card-color);
-    border-radius: 8px;
-    padding: 12px;
-
-    .stat-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-
-      &:not(:last-child) {
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      .stat-label {
-        font-size: 13px;
-        color: var(--text-color-3);
-      }
-
-      .stat-value {
-        font-size: 13px;
-        font-weight: 500;
-      }
-    }
   }
 
   .file-handling-section {
@@ -399,23 +431,23 @@ const executeExport = async () => {
     }
   }
 
-  .export-action {
-    margin-top: auto;
-    padding-top: 16px;
+  .progress-section {
+    margin-bottom: 16px;
 
-    .export-note {
-      font-size: 11px;
+    .progress-text {
+      font-size: 12px;
       color: var(--text-color-3);
       text-align: center;
       margin-top: 8px;
     }
   }
 
-  .progress-section {
-    margin-top: 16px;
+  .export-action {
+    margin-top: auto;
+    padding-top: 16px;
 
-    .progress-text {
-      font-size: 12px;
+    .export-note {
+      font-size: 11px;
       color: var(--text-color-3);
       text-align: center;
       margin-top: 8px;

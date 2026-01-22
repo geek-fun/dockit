@@ -6,32 +6,52 @@
       :bordered="false"
       role="dialog"
     >
-      <n-form ref="formRef" :model="formValue" :rules="rules" label-placement="left" label-width="180">
+      <n-form
+        ref="formRef"
+        :model="formValue"
+        :rules="rules"
+        label-placement="left"
+        label-width="180"
+      >
         <n-form-item :label="lang.t('manage.dynamo.indexName')">
           <n-text>{{ props.indexName }}</n-text>
         </n-form-item>
-        
+
         <n-divider />
-        
+
         <n-form-item :label="lang.t('manage.dynamo.rcu')" path="readCapacityUnits">
-          <n-input-number v-model:value="formValue.readCapacityUnits" :min="1" style="width: 100%" />
+          <n-input-number
+            v-model:value="formValue.readCapacityUnits"
+            :min="1"
+            style="width: 100%"
+          />
         </n-form-item>
-        
+
         <n-form-item :label="lang.t('manage.dynamo.wcu')" path="writeCapacityUnits">
-          <n-input-number v-model:value="formValue.writeCapacityUnits" :min="1" style="width: 100%" />
+          <n-input-number
+            v-model:value="formValue.writeCapacityUnits"
+            :min="1"
+            style="width: 100%"
+          />
         </n-form-item>
       </n-form>
-      
-      <n-alert v-if="errorMessage" type="error" style="margin-top: 12px" closable @close="errorMessage = ''">
+
+      <n-alert
+        v-if="errorMessage"
+        type="error"
+        style="margin-top: 12px"
+        closable
+        @close="errorMessage = ''"
+      >
         {{ errorMessage }}
       </n-alert>
-      
+
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 12px">
-          <n-button @click="handleCancel" :disabled="loading">
+          <n-button :disabled="loading" @click="handleCancel">
             {{ lang.t('dialogOps.cancel') }}
           </n-button>
-          <n-button type="primary" @click="handleSubmit" :loading="loading">
+          <n-button type="primary" :loading="loading" @click="handleSubmit">
             {{ lang.t('dialogOps.confirm') }}
           </n-button>
         </div>
@@ -118,7 +138,8 @@ const handleSubmit = async () => {
     return;
   }
 
-  if (!props.indexName || !connection.value || connection.value.type !== DatabaseType.DYNAMODB) return;
+  if (!props.indexName || !connection.value || connection.value.type !== DatabaseType.DYNAMODB)
+    return;
 
   const startTime = Date.now();
 

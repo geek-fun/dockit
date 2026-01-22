@@ -1,6 +1,6 @@
 <template>
   <div class="tool-bar-container">
-    <n-tooltip trigger="hover" v-for="toolBar in toolBarList" :key="toolBar.id">
+    <n-tooltip v-for="toolBar in toolBarList" :key="toolBar.id" trigger="hover">
       <template #trigger>
         <n-icon size="26" class="tool-bar-item" @click="handleToolBarAction(toolBar.id)">
           <component :is="toolBar.icon" />

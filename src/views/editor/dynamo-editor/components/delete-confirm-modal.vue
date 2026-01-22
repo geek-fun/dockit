@@ -24,22 +24,22 @@
       <p v-else>{{ lang.t('editor.dynamo.deleteItemConfirm') }}</p>
       <template #footer>
         <div style="display: flex; justify-content: flex-end; gap: 12px">
-          <n-button @click="handleCancel" :disabled="loading">
+          <n-button :disabled="loading" @click="handleCancel">
             {{ lang.t('dialogOps.cancel') }}
           </n-button>
           <n-button
             v-if="resultType === 'error'"
             type="warning"
-            @click="handleRetry"
             :loading="loading"
+            @click="handleRetry"
           >
             {{ lang.t('dialogOps.retry') }}
           </n-button>
           <n-button
             v-else-if="!resultMessage"
             type="warning"
-            @click="handleConfirm"
             :loading="loading"
+            @click="handleConfirm"
           >
             {{ lang.t('dialogOps.confirm') }}
           </n-button>

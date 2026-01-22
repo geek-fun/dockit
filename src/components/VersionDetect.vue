@@ -14,8 +14,8 @@
         <div class="action-button-group">
           <n-button type="warning" secondary @click="skip">{{ $t('version.skip') }}</n-button>
           <n-button type="tertiary" secondary @click="later">{{ $t('version.later') }}</n-button>
-          <n-button type="primary" secondary @click="download"
-            >{{ $t('version.download') }}
+          <n-button type="primary" secondary @click="download">
+            {{ $t('version.download') }}
           </n-button>
         </div>
       </template>
@@ -75,7 +75,7 @@ onMounted(async () => {
     if (newVersion.endsWith(currentVersion) && skipVersion.value !== newVersion) return;
 
     const assetsLink = await getLatestLink();
-    if (link) {
+    if (link.value) {
       version.value = newVersion;
       link.value = { name: newVersion, url: assetsLink } as { name: string; url: string };
       dialogVisible.value = true;

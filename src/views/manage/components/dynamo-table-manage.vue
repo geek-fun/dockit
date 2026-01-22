@@ -69,12 +69,16 @@
             <span class="time-range">{{ $t('manage.dynamo.last24Hours') }}</span>
           </div>
         </template>
-        
+
         <!-- CloudWatch metrics not available message -->
-        <n-alert v-if="!metricsAvailable && metricsMessage && !metricsLoading" type="info" style="margin-bottom: 16px">
+        <n-alert
+          v-if="!metricsAvailable && metricsMessage && !metricsLoading"
+          type="info"
+          style="margin-bottom: 16px"
+        >
           {{ metricsMessage }}
         </n-alert>
-        
+
         <n-spin :show="metricsLoading">
           <div class="performance-content">
             <div class="chart-section">
@@ -254,13 +258,13 @@
       :table-name="dynamoConnection?.tableName || ''"
       @deleted="handleIndexDeleted"
     />
-    
+
     <create-index-modal
       v-model:show="showCreateIndexModal"
       :table-name="dynamoConnection?.tableName || ''"
       @created="handleIndexCreated"
     />
-    
+
     <modify-index-modal
       v-model:show="showModifyIndexModal"
       :index-name="selectedIndex?.name || ''"
@@ -268,7 +272,7 @@
       :index="selectedIndex"
       @modified="handleIndexModified"
     />
-    
+
     <table-settings-modal
       v-model:show="showSettingsModal"
       :table-name="dynamoConnection?.tableName || ''"
@@ -495,14 +499,14 @@ const fetchCloudWatchMetrics = async () => {
   if (!connection.value || connection.value.type !== DatabaseType.DYNAMODB) {
     return;
   }
-  
+
   try {
     metricsLoading.value = true;
     const result = await dynamoApi.getTableMetrics(connection.value as DynamoDBConnection, 24);
-    
+
     metricsAvailable.value = result.available;
     metricsMessage.value = result.message || '';
-    
+
     if (result.available && result.metrics) {
       consumedReadData.value = result.metrics.consumedRead || [];
       consumedWriteData.value = result.metrics.consumedWrite || [];

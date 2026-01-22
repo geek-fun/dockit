@@ -262,7 +262,7 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
         }
         break;
       case TokenType.KEY:
-      case TokenType.STRING:
+      case TokenType.STRING: {
         // Check if this is a key (followed by colon)
         // Use >= to include tokens that start right at the end of the current token
         const nextToken = tokens.find(
@@ -273,6 +273,7 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
           lastKey = token.value.replace(/['"]/g, '');
         }
         break;
+      }
       case TokenType.COLON:
         // After a colon, we're expecting a value
         break;

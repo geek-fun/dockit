@@ -1,9 +1,6 @@
-import type { languages } from 'monaco-editor'
+import type { languages } from 'monaco-editor';
 import { search, executeActions } from './lexerRules';
-import {
-  searchCompletionProvider,
-} from '../completion';
-
+import { searchCompletionProvider } from '../completion';
 
 export * from './types';
 export * from './lexer';
@@ -23,10 +20,7 @@ export {
 
 const registerSearchLanguage = (monaco: typeof import('monaco-editor')): void => {
   monaco.languages.register({ id: search.id });
-  monaco.languages.setMonarchTokensProvider(
-    search.id,
-    search.rules as languages.IMonarchLanguage,
-  );
+  monaco.languages.setMonarchTokensProvider(search.id, search.rules as languages.IMonarchLanguage);
   monaco.languages.setLanguageConfiguration(
     search.id,
     search.languageConfiguration as languages.LanguageConfiguration,
