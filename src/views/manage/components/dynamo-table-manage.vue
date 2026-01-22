@@ -1,269 +1,280 @@
 <template>
   <div class="dynamo-manage-container">
-    <!-- Metrics Cards Section -->
-    <section class="metrics-section">
-      <div class="metrics-grid">
-        <!-- Status Card -->
-        <n-card class="metric-card">
-          <span class="metric-label">{{ $t('manage.dynamo.status') }}</span>
-          <div class="metric-value status-value">
-            <span class="status-indicator" :class="statusClass"></span>
-            <span class="status-text" :class="statusClass">{{ tableInfo?.status || '-' }}</span>
-          </div>
-        </n-card>
-
-        <!-- Item Count Card -->
-        <n-card class="metric-card">
-          <span class="metric-label">{{ $t('manage.dynamo.itemCount') }}</span>
-          <span class="metric-value">{{ formatNumber(tableInfo?.itemCount) }}</span>
-        </n-card>
-
-        <!-- Table Size Card -->
-        <n-card class="metric-card">
-          <span class="metric-label">{{ $t('manage.dynamo.tableSize') }}</span>
-          <span class="metric-value">{{ formatBytes(tableInfo?.sizeBytes) }}</span>
-        </n-card>
-
-        <!-- Mode Card -->
-        <n-card class="metric-card">
-          <span class="metric-label">{{ $t('manage.dynamo.mode') }}</span>
-          <span class="metric-value-small">{{ billingMode }}</span>
-        </n-card>
-
-        <!-- PITR Card -->
-        <n-card class="metric-card">
-          <span class="metric-label">{{ $t('manage.dynamo.pitr') }}</span>
-          <div class="metric-value-status">
-            <n-icon :color="pitrEnabled ? '#36ad6a' : '#d03050'">
-              <CheckmarkFilled v-if="pitrEnabled" />
-              <CloseFilled v-else />
-            </n-icon>
-            <span :class="pitrEnabled ? 'status-enabled' : 'status-disabled'">
-              {{ pitrEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
-            </span>
-          </div>
-        </n-card>
-
-        <!-- TTL Card -->
-        <n-card class="metric-card">
-          <span class="metric-label">{{ $t('manage.dynamo.ttl') }}</span>
-          <div class="ttl-value">
-            <span :class="ttlEnabled ? 'status-enabled' : 'status-disabled'">
-              {{ ttlEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
-            </span>
-            <span v-if="ttlEnabled && ttlAttribute" class="ttl-attribute">{{ ttlAttribute }}</span>
-          </div>
-        </n-card>
-      </div>
-    </section>
-
-    <!-- Performance & Capacity Section -->
-    <section class="performance-section">
-      <n-card class="performance-card">
-        <template #header>
-          <div class="section-header">
-            <div class="section-title">
-              <n-icon size="18"><ChartLineData /></n-icon>
-              <span>{{ $t('manage.dynamo.performanceCapacity') }}</span>
+    <n-spin :show="refreshLoading" size="large">
+      <template #description>{{ $t('manage.dynamo.refresh') }}...</template>
+      <!-- Metrics Cards Section -->
+      <section class="metrics-section">
+        <div class="metrics-grid">
+          <!-- Status Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.status') }}</span>
+            <div class="metric-value status-value">
+              <span class="status-indicator" :class="statusClass"></span>
+              <span class="status-text" :class="statusClass">{{ tableInfo?.status || '-' }}</span>
             </div>
-            <span class="time-range">{{ $t('manage.dynamo.last24Hours') }}</span>
-          </div>
-        </template>
+          </n-card>
 
-        <!-- CloudWatch metrics not available message -->
-        <n-alert
-          v-if="!metricsAvailable && metricsMessage && !metricsLoading"
-          type="info"
-          style="margin-bottom: 16px"
-        >
-          {{ metricsMessage }}
-        </n-alert>
+          <!-- Item Count Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.itemCount') }}</span>
+            <span class="metric-value">{{ formatNumber(tableInfo?.itemCount) }}</span>
+          </n-card>
 
-        <n-spin :show="metricsLoading">
-          <div class="performance-content">
-            <div class="chart-section">
-              <div class="chart-header">
-                <span class="chart-title">{{ $t('manage.dynamo.consumedCapacity') }}</span>
-                <div class="chart-legend">
-                  <div class="legend-item">
-                    <span class="legend-color read"></span>
-                    <span>{{ $t('manage.dynamo.read') }}</span>
-                  </div>
-                  <div class="legend-item">
-                    <span class="legend-color write"></span>
-                    <span>{{ $t('manage.dynamo.write') }}</span>
+          <!-- Table Size Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.tableSize') }}</span>
+            <span class="metric-value">{{ formatBytes(tableInfo?.sizeBytes) }}</span>
+          </n-card>
+
+          <!-- Mode Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.mode') }}</span>
+            <span class="metric-value-small">{{ billingMode }}</span>
+          </n-card>
+
+          <!-- PITR Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.pitr') }}</span>
+            <div class="metric-value-status">
+              <n-icon :color="pitrEnabled ? '#36ad6a' : '#d03050'">
+                <CheckmarkFilled v-if="pitrEnabled" />
+                <CloseFilled v-else />
+              </n-icon>
+              <span :class="pitrEnabled ? 'status-enabled' : 'status-disabled'">
+                {{ pitrEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
+              </span>
+            </div>
+          </n-card>
+
+          <!-- TTL Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.ttl') }}</span>
+            <div class="ttl-value">
+              <span :class="ttlEnabled ? 'status-enabled' : 'status-disabled'">
+                {{ ttlEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
+              </span>
+              <span v-if="ttlEnabled && ttlAttribute" class="ttl-attribute">
+                {{ ttlAttribute }}
+              </span>
+            </div>
+          </n-card>
+        </div>
+      </section>
+
+      <!-- Performance & Capacity Section -->
+      <section class="performance-section">
+        <n-card class="performance-card">
+          <template #header>
+            <div class="section-header">
+              <div class="section-title">
+                <n-icon size="18"><ChartLineData /></n-icon>
+                <span>{{ $t('manage.dynamo.performanceCapacity') }}</span>
+              </div>
+              <span class="time-range">{{ $t('manage.dynamo.last24Hours') }}</span>
+            </div>
+          </template>
+
+          <!-- CloudWatch metrics not available message -->
+          <n-alert
+            v-if="!metricsAvailable && metricsMessage && !metricsLoading"
+            type="info"
+            style="margin-bottom: 16px"
+          >
+            {{ metricsMessage }}
+          </n-alert>
+
+          <n-spin :show="metricsLoading">
+            <div class="performance-content">
+              <div class="chart-section">
+                <div class="chart-header">
+                  <span class="chart-title">{{ $t('manage.dynamo.consumedCapacity') }}</span>
+                  <div class="chart-legend">
+                    <div class="legend-item">
+                      <span class="legend-color read"></span>
+                      <span>{{ $t('manage.dynamo.read') }}</span>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-color write"></span>
+                      <span>{{ $t('manage.dynamo.write') }}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div class="chart-placeholder">
-                <svg class="chart-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
-                  <path
-                    d="M0 20 H400 M0 40 H400 M0 60 H400 M0 80 H400"
-                    stroke="#f1f5f9"
-                    stroke-width="1"
-                  />
-                  <polyline
-                    fill="none"
-                    :points="readChartPoints"
-                    stroke="#3b82f6"
-                    stroke-width="2"
-                    vector-effect="non-scaling-stroke"
-                  />
-                  <polyline
-                    fill="none"
-                    :points="writeChartPoints"
-                    stroke="#fb923c"
-                    stroke-width="2"
-                    vector-effect="non-scaling-stroke"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div class="utilization-section">
-              <!-- RCU Utilization -->
-              <div class="utilization-item">
-                <div class="utilization-gauge">
-                  <svg class="gauge-svg" viewBox="0 0 36 36">
+                <div class="chart-placeholder">
+                  <svg class="chart-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
                     <path
-                      class="gauge-bg"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
-                      stroke="#e5e7eb"
-                      stroke-width="3"
+                      d="M0 20 H400 M0 40 H400 M0 60 H400 M0 80 H400"
+                      stroke="#f1f5f9"
+                      stroke-width="1"
                     />
-                    <path
-                      class="gauge-fill rcu"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    <polyline
                       fill="none"
+                      :points="readChartPoints"
                       stroke="#3b82f6"
-                      stroke-width="3"
-                      :stroke-dasharray="`${rcuUtilization}, 100`"
+                      stroke-width="2"
+                      vector-effect="non-scaling-stroke"
                     />
-                  </svg>
-                  <span class="gauge-value">{{ rcuUtilization }}%</span>
-                </div>
-                <div class="utilization-info">
-                  <span class="utilization-label">{{ $t('manage.dynamo.rcuUtilization') }}</span>
-                  <span class="utilization-detail">Prov: {{ provisionedRcu }} RCU</span>
-                </div>
-              </div>
-              <!-- WCU Utilization -->
-              <div class="utilization-item">
-                <div class="utilization-gauge">
-                  <svg class="gauge-svg" viewBox="0 0 36 36">
-                    <path
-                      class="gauge-bg"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    <polyline
                       fill="none"
-                      stroke="#e5e7eb"
-                      stroke-width="3"
-                    />
-                    <path
-                      class="gauge-fill wcu"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      fill="none"
+                      :points="writeChartPoints"
                       stroke="#fb923c"
-                      stroke-width="3"
-                      :stroke-dasharray="`${wcuUtilization}, 100`"
+                      stroke-width="2"
+                      vector-effect="non-scaling-stroke"
                     />
                   </svg>
-                  <span class="gauge-value">{{ wcuUtilization }}%</span>
-                </div>
-                <div class="utilization-info">
-                  <span class="utilization-label">{{ $t('manage.dynamo.wcuUtilization') }}</span>
-                  <span class="utilization-detail">Prov: {{ provisionedWcu }} WCU</span>
                 </div>
               </div>
-              <!-- Throttled Events -->
-              <div class="throttled-events">
-                <span class="throttled-label">{{ $t('manage.dynamo.throttledEvents') }}</span>
-                <span class="throttled-value">{{ throttledEvents }}</span>
+              <div class="utilization-section">
+                <!-- RCU Utilization -->
+                <div class="utilization-item">
+                  <div class="utilization-gauge">
+                    <svg class="gauge-svg" viewBox="0 0 36 36">
+                      <path
+                        class="gauge-bg"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        stroke-width="3"
+                      />
+                      <path
+                        class="gauge-fill rcu"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#3b82f6"
+                        stroke-width="3"
+                        :stroke-dasharray="`${rcuUtilization}, 100`"
+                      />
+                    </svg>
+                    <span class="gauge-value">{{ rcuUtilization }}%</span>
+                  </div>
+                  <div class="utilization-info">
+                    <span class="utilization-label">{{ $t('manage.dynamo.rcuUtilization') }}</span>
+                    <span class="utilization-detail">Prov: {{ provisionedRcu }} RCU</span>
+                  </div>
+                </div>
+                <!-- WCU Utilization -->
+                <div class="utilization-item">
+                  <div class="utilization-gauge">
+                    <svg class="gauge-svg" viewBox="0 0 36 36">
+                      <path
+                        class="gauge-bg"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        stroke-width="3"
+                      />
+                      <path
+                        class="gauge-fill wcu"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#fb923c"
+                        stroke-width="3"
+                        :stroke-dasharray="`${wcuUtilization}, 100`"
+                      />
+                    </svg>
+                    <span class="gauge-value">{{ wcuUtilization }}%</span>
+                  </div>
+                  <div class="utilization-info">
+                    <span class="utilization-label">{{ $t('manage.dynamo.wcuUtilization') }}</span>
+                    <span class="utilization-detail">Prov: {{ provisionedWcu }} WCU</span>
+                  </div>
+                </div>
+                <!-- Throttled Events -->
+                <div class="throttled-events">
+                  <span class="throttled-label">{{ $t('manage.dynamo.throttledEvents') }}</span>
+                  <span class="throttled-value">{{ throttledEvents }}</span>
+                </div>
               </div>
             </div>
-          </div>
-        </n-spin>
-      </n-card>
-    </section>
+          </n-spin>
+        </n-card>
+      </section>
 
-    <!-- Global Secondary Indexes Section -->
-    <section class="indexes-section">
-      <n-card class="indexes-card">
-        <template #header>
-          <div class="section-header">
-            <div class="section-title">
-              <n-icon size="18"><TableSplit /></n-icon>
-              <span>{{ $t('manage.dynamo.gsiTitle') }}</span>
+      <!-- Global Secondary Indexes Section -->
+      <section class="indexes-section">
+        <n-card class="indexes-card">
+          <template #header>
+            <div class="section-header">
+              <div class="section-title">
+                <n-icon size="18"><TableSplit /></n-icon>
+                <span>{{ $t('manage.dynamo.gsiTitle') }}</span>
+              </div>
+              <n-button type="primary" size="small" @click="handleCreateIndex">
+                {{ $t('manage.dynamo.createIndex') }}
+              </n-button>
             </div>
-            <n-button type="primary" size="small" @click="handleCreateIndex">
-              {{ $t('manage.dynamo.createIndex') }}
-            </n-button>
+          </template>
+          <div v-if="globalSecondaryIndexes.length > 0" class="table-container">
+            <n-data-table
+              :columns="gsiColumns"
+              :data="globalSecondaryIndexes"
+              :bordered="false"
+              size="small"
+            />
           </div>
-        </template>
-        <div v-if="globalSecondaryIndexes.length > 0" class="table-container">
-          <n-data-table
-            :columns="gsiColumns"
-            :data="globalSecondaryIndexes"
-            :bordered="false"
-            size="small"
-          />
-        </div>
-        <n-empty v-else :description="$t('manage.dynamo.noGsi')" />
-      </n-card>
-    </section>
+          <n-empty v-else :description="$t('manage.dynamo.noGsi')" />
+        </n-card>
+      </section>
 
-    <!-- Table Settings Section -->
-    <section class="settings-section">
-      <n-card class="settings-card">
-        <template #header>
-          <div class="section-header">
-            <div class="section-title">
-              <n-icon size="18"><SettingsAdjust /></n-icon>
-              <span>{{ $t('manage.dynamo.tableSettings') }}</span>
+      <!-- Table Settings Section -->
+      <section class="settings-section">
+        <n-card class="settings-card">
+          <template #header>
+            <div class="section-header">
+              <div class="section-title">
+                <n-icon size="18"><SettingsAdjust /></n-icon>
+                <span>{{ $t('manage.dynamo.tableSettings') }}</span>
+              </div>
+            </div>
+          </template>
+          <div class="settings-grid">
+            <!-- Streams Setting -->
+            <div
+              class="setting-item clickable"
+              @click="message.info($t('manage.dynamo.comingSoon'))"
+            >
+              <div class="setting-header">
+                <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
+                <n-switch :value="streamsEnabled" size="small" @click.stop />
+              </div>
+              <span class="setting-value">{{ streamsViewType || '-' }}</span>
+            </div>
+            <!-- Encryption Setting -->
+            <div class="setting-item">
+              <div class="setting-header">
+                <span class="setting-label">{{ $t('manage.dynamo.encryption') }}</span>
+                <n-icon size="16"><Locked /></n-icon>
+              </div>
+              <span class="setting-value">{{ encryptionType }}</span>
+            </div>
+            <!-- Table Class Setting -->
+            <div
+              class="setting-item clickable"
+              @click="message.info($t('manage.dynamo.comingSoon'))"
+            >
+              <div class="setting-header">
+                <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
+                <n-icon size="16"><DataTable /></n-icon>
+              </div>
+              <span class="setting-value">{{ tableClass }}</span>
             </div>
           </div>
-        </template>
-        <div class="settings-grid">
-          <!-- Streams Setting -->
-          <div class="setting-item clickable" @click="message.info($t('manage.dynamo.comingSoon'))">
-            <div class="setting-header">
-              <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
-              <n-switch :value="streamsEnabled" size="small" @click.stop />
-            </div>
-            <span class="setting-value">{{ streamsViewType || '-' }}</span>
-          </div>
-          <!-- Encryption Setting -->
-          <div class="setting-item">
-            <div class="setting-header">
-              <span class="setting-label">{{ $t('manage.dynamo.encryption') }}</span>
-              <n-icon size="16"><Locked /></n-icon>
-            </div>
-            <span class="setting-value">{{ encryptionType }}</span>
-          </div>
-          <!-- Table Class Setting -->
-          <div class="setting-item clickable" @click="message.info($t('manage.dynamo.comingSoon'))">
-            <div class="setting-header">
-              <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
-              <n-icon size="16"><DataTable /></n-icon>
-            </div>
-            <span class="setting-value">{{ tableClass }}</span>
-          </div>
-        </div>
-      </n-card>
-    </section>
+        </n-card>
+      </section>
 
-    <!-- Modals -->
-    <delete-index-modal
-      v-model:show="showDeleteIndexModal"
-      :index-name="selectedIndex?.name || ''"
-      :table-name="dynamoConnection?.tableName || ''"
-      @deleted="handleIndexDeleted"
-    />
+      <!-- Modals -->
+      <delete-index-modal
+        v-model:show="showDeleteIndexModal"
+        :index-name="selectedIndex?.name || ''"
+        :table-name="dynamoConnection?.tableName || ''"
+        @deleted="handleIndexDeleted"
+      />
 
-    <create-index-modal
-      v-model:show="showCreateIndexModal"
-      :table-name="dynamoConnection?.tableName || ''"
-      @created="handleIndexCreated"
-    />
+      <create-index-modal
+        v-model:show="showCreateIndexModal"
+        :table-name="dynamoConnection?.tableName || ''"
+        @created="handleIndexCreated"
+      />
+    </n-spin>
   </div>
 </template>
 
@@ -312,6 +323,7 @@ const selectedIndex = ref<DynamoIndex | null>(null);
 const metricsAvailable = ref(false);
 const metricsMessage = ref('');
 const metricsLoading = ref(false);
+const refreshLoading = ref(false);
 const consumedReadData = ref<number[]>([]);
 const consumedWriteData = ref<number[]>([]);
 
@@ -523,6 +535,13 @@ const handleRefresh = async () => {
     message.warning(lang.t('editor.establishedRequired'));
     return;
   }
+
+  refreshLoading.value = true;
+  const timeoutId = setTimeout(() => {
+    refreshLoading.value = false;
+    message.warning(lang.t('manage.dynamo.refreshTimeout'));
+  }, 30000);
+
   try {
     await fetchTableInfo(connection.value);
 
@@ -555,6 +574,9 @@ const handleRefresh = async () => {
       keepAliveOnHover: true,
       duration: 5000,
     });
+  } finally {
+    clearTimeout(timeoutId);
+    refreshLoading.value = false;
   }
 };
 
@@ -588,6 +610,11 @@ watch(connection, async newConnection => {
     await handleRefresh();
   }
 });
+
+// Expose handleRefresh so parent can trigger it
+defineExpose({
+  handleRefresh,
+});
 </script>
 
 <style lang="scss" scoped>
@@ -595,9 +622,20 @@ watch(connection, async newConnection => {
   width: 100%;
   height: 100%;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 24px;
   padding-right: 32px;
   background-color: var(--bg-color);
+  box-sizing: border-box;
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 
   .metrics-section {
     margin-bottom: 24px;

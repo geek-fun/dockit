@@ -174,6 +174,8 @@ export const zhCN = {
       encryption: '加密',
       tableClass: '表类别',
       comingSoon: '即将推出',
+      refresh: '刷新',
+      refreshTimeout: '刷新超时（30秒）',
       // CloudWatch metrics
       cloudwatchNotAvailable:
         'CloudWatch 指标不可用。请启用 CloudWatch Contributor Insights 或确保您的 IAM 凭证具有 cloudwatch:GetMetricData 权限。',

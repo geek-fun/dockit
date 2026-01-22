@@ -174,6 +174,8 @@ export const enUS = {
       encryption: 'Encryption',
       tableClass: 'Table Class',
       comingSoon: 'Coming soon',
+      refresh: 'Refresh',
+      refreshTimeout: 'Refresh timeout after 30 seconds',
       // CloudWatch metrics
       cloudwatchNotAvailable:
         'CloudWatch metrics are not available. Enable CloudWatch Contributor Insights or ensure your IAM credentials have cloudwatch:GetMetricData permission.',

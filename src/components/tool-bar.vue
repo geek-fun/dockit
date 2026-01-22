@@ -140,6 +140,20 @@
       </n-button>
     </div>
 
+    <n-button
+      v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.DYNAMODB"
+      type="default"
+      tertiary
+      @click="handleDynamoRefresh"
+    >
+      <template #icon>
+        <n-icon>
+          <Renew />
+        </n-icon>
+      </template>
+      {{ $t('manage.dynamo.refresh') }}
+    </n-button>
+
     <n-tabs
       v-if="props.type === 'MANAGE' && isElasticsearchConnection"
       class="manage-container"
@@ -157,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import { Add, Search, Code, Template, PlayFilledAlt } from '@vicons/carbon';
+import { Add, Search, Code, Template, PlayFilledAlt, Renew } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { useClusterManageStore, useConnectionStore, useTabStore, DatabaseType } from '../store';
 import { useLang } from '../lang';
@@ -170,6 +184,7 @@ const emits = defineEmits([
   'insert-sample-query',
   'insert-partiql-sample',
   'execute-partiql-query',
+  'refresh-dynamo-manage',
 ]);
 
 const message = useMessage();
@@ -381,6 +396,10 @@ const handleSearch = async (input: string, type: 'CONNECTION' | 'INDEX') => {
 
 const handleManageTabChange = (tabName: string) => {
   emits('switch-manage-tab', tabName);
+};
+
+const handleDynamoRefresh = () => {
+  emits('refresh-dynamo-manage');
 };
 
 const handleHiddenChange = async (value: boolean) => {

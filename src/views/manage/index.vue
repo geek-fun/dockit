@@ -1,6 +1,10 @@
 <template>
   <div class="manage-container">
-    <tool-bar type="MANAGE" @switch-manage-tab="handleManageTabChange" />
+    <tool-bar
+      type="MANAGE"
+      @switch-manage-tab="handleManageTabChange"
+      @refresh-dynamo-manage="handleDynamoRefresh"
+    />
     <template v-if="connection?.type === DatabaseType.ELASTICSEARCH">
       <cluster-state
         v-if="activeTab === $t('manage.cluster')"
@@ -12,7 +16,7 @@
       <index-manage v-if="activeTab === $t('manage.indices')" class="state-container" />
     </template>
     <template v-else-if="connection?.type === DatabaseType.DYNAMODB">
-      <dynamo-table-manage class="state-container" />
+      <dynamo-table-manage ref="dynamoTableManageRef" class="state-container" />
     </template>
     <div v-else class="empty-state">
       <n-empty :description="$t('manage.emptyNoConnection')" />
@@ -36,6 +40,7 @@ const message = useMessage();
 const lang = useLang();
 
 const activeTab = ref(lang.t('manage.cluster'));
+const dynamoTableManageRef = ref<{ handleRefresh: () => Promise<void> }>();
 
 const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
@@ -63,6 +68,10 @@ watch(connection, async () => {
 
 const handleManageTabChange = (tab: string) => {
   activeTab.value = tab;
+};
+
+const handleDynamoRefresh = () => {
+  dynamoTableManageRef.value?.handleRefresh();
 };
 
 onMounted(async () => {
