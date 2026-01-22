@@ -1,0 +1,1077 @@
+<template>
+  <div class="dynamo-manage-container">
+    <n-spin :show="refreshLoading" size="large">
+      <template #description>{{ $t('manage.dynamo.refresh') }}...</template>
+      <!-- Metrics Cards Section -->
+      <section class="metrics-section">
+        <div class="metrics-grid">
+          <!-- Status Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.status') }}</span>
+            <div class="metric-value status-value">
+              <span class="status-indicator" :class="statusClass"></span>
+              <span class="status-text" :class="statusClass">{{ tableInfo?.status || '-' }}</span>
+            </div>
+          </n-card>
+
+          <!-- Item Count Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.itemCount') }}</span>
+            <span class="metric-value">{{ formatNumber(tableInfo?.itemCount) }}</span>
+          </n-card>
+
+          <!-- Table Size Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.tableSize') }}</span>
+            <span class="metric-value">{{ formatBytes(tableInfo?.sizeBytes) }}</span>
+          </n-card>
+
+          <!-- Mode Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.mode') }}</span>
+            <span class="metric-value-small">{{ billingMode }}</span>
+          </n-card>
+
+          <!-- PITR Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.pitr') }}</span>
+            <div class="metric-value-status">
+              <n-icon :color="pitrEnabled ? '#36ad6a' : '#d03050'">
+                <CheckmarkFilled v-if="pitrEnabled" />
+                <CloseFilled v-else />
+              </n-icon>
+              <span :class="pitrEnabled ? 'status-enabled' : 'status-disabled'">
+                {{ pitrEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
+              </span>
+            </div>
+          </n-card>
+
+          <!-- TTL Card -->
+          <n-card class="metric-card">
+            <span class="metric-label">{{ $t('manage.dynamo.ttl') }}</span>
+            <div class="ttl-value">
+              <span :class="ttlEnabled ? 'status-enabled' : 'status-disabled'">
+                {{ ttlEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
+              </span>
+              <span v-if="ttlEnabled && ttlAttribute" class="ttl-attribute">
+                {{ ttlAttribute }}
+              </span>
+            </div>
+          </n-card>
+        </div>
+      </section>
+
+      <!-- Performance & Capacity Section -->
+      <section class="performance-section">
+        <n-card class="performance-card">
+          <template #header>
+            <div class="section-header">
+              <div class="section-title">
+                <n-icon size="18"><ChartLineData /></n-icon>
+                <span>{{ $t('manage.dynamo.performanceCapacity') }}</span>
+              </div>
+              <span class="time-range">{{ $t('manage.dynamo.last24Hours') }}</span>
+            </div>
+          </template>
+
+          <!-- CloudWatch metrics not available message -->
+          <n-alert
+            v-if="!metricsAvailable && metricsMessage && !metricsLoading"
+            type="info"
+            style="margin-bottom: 16px"
+          >
+            {{ metricsMessage }}
+          </n-alert>
+
+          <n-spin :show="metricsLoading">
+            <div class="performance-content">
+              <div class="chart-section">
+                <div class="chart-header">
+                  <span class="chart-title">{{ $t('manage.dynamo.consumedCapacity') }}</span>
+                  <div class="chart-legend">
+                    <div class="legend-item">
+                      <span class="legend-color read"></span>
+                      <span>{{ $t('manage.dynamo.read') }}</span>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-color write"></span>
+                      <span>{{ $t('manage.dynamo.write') }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="chart-placeholder">
+                  <svg class="chart-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
+                    <path
+                      d="M0 20 H400 M0 40 H400 M0 60 H400 M0 80 H400"
+                      stroke="#f1f5f9"
+                      stroke-width="1"
+                    />
+                    <polyline
+                      fill="none"
+                      :points="readChartPoints"
+                      stroke="#3b82f6"
+                      stroke-width="2"
+                      vector-effect="non-scaling-stroke"
+                    />
+                    <polyline
+                      fill="none"
+                      :points="writeChartPoints"
+                      stroke="#fb923c"
+                      stroke-width="2"
+                      vector-effect="non-scaling-stroke"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <div class="utilization-section">
+                <!-- RCU Utilization -->
+                <div class="utilization-item">
+                  <div class="utilization-gauge">
+                    <svg class="gauge-svg" viewBox="0 0 36 36">
+                      <path
+                        class="gauge-bg"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        stroke-width="3"
+                      />
+                      <path
+                        class="gauge-fill rcu"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#3b82f6"
+                        stroke-width="3"
+                        :stroke-dasharray="`${rcuUtilization}, 100`"
+                      />
+                    </svg>
+                    <span class="gauge-value">{{ rcuUtilization }}%</span>
+                  </div>
+                  <div class="utilization-info">
+                    <span class="utilization-label">{{ $t('manage.dynamo.rcuUtilization') }}</span>
+                    <span class="utilization-detail">Prov: {{ provisionedRcu }} RCU</span>
+                  </div>
+                </div>
+                <!-- WCU Utilization -->
+                <div class="utilization-item">
+                  <div class="utilization-gauge">
+                    <svg class="gauge-svg" viewBox="0 0 36 36">
+                      <path
+                        class="gauge-bg"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#e5e7eb"
+                        stroke-width="3"
+                      />
+                      <path
+                        class="gauge-fill wcu"
+                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        fill="none"
+                        stroke="#fb923c"
+                        stroke-width="3"
+                        :stroke-dasharray="`${wcuUtilization}, 100`"
+                      />
+                    </svg>
+                    <span class="gauge-value">{{ wcuUtilization }}%</span>
+                  </div>
+                  <div class="utilization-info">
+                    <span class="utilization-label">{{ $t('manage.dynamo.wcuUtilization') }}</span>
+                    <span class="utilization-detail">Prov: {{ provisionedWcu }} WCU</span>
+                  </div>
+                </div>
+                <!-- Throttled Events -->
+                <div class="throttled-events">
+                  <span class="throttled-label">{{ $t('manage.dynamo.throttledEvents') }}</span>
+                  <span class="throttled-value">{{ throttledEvents }}</span>
+                </div>
+              </div>
+            </div>
+          </n-spin>
+        </n-card>
+      </section>
+
+      <!-- Global Secondary Indexes Section -->
+      <section class="indexes-section">
+        <n-card class="indexes-card">
+          <template #header>
+            <div class="section-header">
+              <div class="section-title">
+                <n-icon size="18"><TableSplit /></n-icon>
+                <span>{{ $t('manage.dynamo.gsiTitle') }}</span>
+              </div>
+              <n-button type="primary" size="small" @click="handleCreateIndex">
+                {{ $t('manage.dynamo.createIndex') }}
+              </n-button>
+            </div>
+          </template>
+          <div v-if="globalSecondaryIndexes.length > 0" class="table-container">
+            <n-data-table
+              :columns="gsiColumns"
+              :data="globalSecondaryIndexes"
+              :bordered="false"
+              size="small"
+            />
+          </div>
+          <n-empty v-else :description="$t('manage.dynamo.noGsi')" />
+        </n-card>
+      </section>
+
+      <!-- Table Settings Section -->
+      <section class="settings-section">
+        <n-card class="settings-card">
+          <template #header>
+            <div class="section-header">
+              <div class="section-title">
+                <n-icon size="18"><SettingsAdjust /></n-icon>
+                <span>{{ $t('manage.dynamo.tableSettings') }}</span>
+              </div>
+            </div>
+          </template>
+          <div class="settings-grid">
+            <!-- Streams Setting -->
+            <div
+              class="setting-item clickable"
+              @click="message.info($t('manage.dynamo.comingSoon'))"
+            >
+              <div class="setting-header">
+                <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
+                <n-switch :value="streamsEnabled" size="small" @click.stop />
+              </div>
+              <span class="setting-value">{{ streamsViewType || '-' }}</span>
+            </div>
+            <!-- Encryption Setting -->
+            <div class="setting-item">
+              <div class="setting-header">
+                <span class="setting-label">{{ $t('manage.dynamo.encryption') }}</span>
+                <n-icon size="16"><Locked /></n-icon>
+              </div>
+              <span class="setting-value">{{ encryptionType }}</span>
+            </div>
+            <!-- Table Class Setting -->
+            <div
+              class="setting-item clickable"
+              @click="message.info($t('manage.dynamo.comingSoon'))"
+            >
+              <div class="setting-header">
+                <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
+                <n-icon size="16"><DataTable /></n-icon>
+              </div>
+              <span class="setting-value">{{ tableClass }}</span>
+            </div>
+          </div>
+        </n-card>
+      </section>
+
+      <!-- Modals -->
+      <delete-index-modal
+        v-model:show="showDeleteIndexModal"
+        :index-name="selectedIndex?.name || ''"
+        :table-name="dynamoConnection?.tableName || ''"
+        @deleted="handleIndexDeleted"
+      />
+
+      <create-index-modal
+        v-model:show="showCreateIndexModal"
+        :table-name="dynamoConnection?.tableName || ''"
+        @created="handleIndexCreated"
+      />
+    </n-spin>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { storeToRefs } from 'pinia';
+import { NTag, NButton, NIcon } from 'naive-ui';
+import {
+  ChartLineData,
+  TableSplit,
+  SettingsAdjust,
+  Locked,
+  DataTable,
+  CheckmarkFilled,
+  CloseFilled,
+  TrashCan,
+} from '@vicons/carbon';
+import prettyBytes from 'pretty-bytes';
+import {
+  useClusterManageStore,
+  useDynamoManageStore,
+  DatabaseType,
+  DynamoDBConnection,
+} from '../../../store';
+import { useLang } from '../../../lang';
+import { CustomError } from '../../../common';
+import { DynamoIndex, DynamoIndexType, dynamoApi } from '../../../datasources';
+import DeleteIndexModal from './delete-index-modal.vue';
+import CreateIndexModal from './create-index-modal.vue';
+
+const message = useMessage();
+const lang = useLang();
+
+const clusterManageStore = useClusterManageStore();
+const { connection } = storeToRefs(clusterManageStore);
+
+const dynamoManageStore = useDynamoManageStore();
+const { fetchTableInfo } = dynamoManageStore;
+const { tableInfo } = storeToRefs(dynamoManageStore);
+
+// Modal visibility states
+const showDeleteIndexModal = ref(false);
+const showCreateIndexModal = ref(false);
+const selectedIndex = ref<DynamoIndex | null>(null);
+
+// CloudWatch metrics state
+const metricsAvailable = ref(false);
+const metricsMessage = ref('');
+const metricsLoading = ref(false);
+const refreshLoading = ref(false);
+const consumedReadData = ref<number[]>([]);
+const consumedWriteData = ref<number[]>([]);
+
+// Type-safe accessor for DynamoDB connection properties
+const dynamoConnection = computed(() => {
+  if (connection.value?.type === DatabaseType.DYNAMODB) {
+    return connection.value as DynamoDBConnection;
+  }
+  return undefined;
+});
+
+const billingMode = computed(() => {
+  const mode = tableInfo.value?.billingMode;
+  if (!mode) return lang.t('manage.dynamo.provisioned');
+  return mode === 'PAY_PER_REQUEST'
+    ? lang.t('manage.dynamo.onDemand')
+    : lang.t('manage.dynamo.provisioned');
+});
+
+// Metrics values - will be fetched from server
+const pitrEnabled = ref(false);
+const ttlEnabled = ref(false);
+const ttlAttribute = ref<string>();
+const rcuUtilization = ref(0);
+const wcuUtilization = ref(0);
+const provisionedRcu = ref(0);
+const provisionedWcu = ref(0);
+const throttledEvents = ref(0);
+
+const streamsEnabled = computed(() => {
+  return tableInfo.value?.streamSpecification?.streamEnabled || false;
+});
+
+const streamsViewType = computed(() => {
+  return tableInfo.value?.streamSpecification?.streamViewType || '-';
+});
+
+const encryptionType = computed(() => {
+  const sse = tableInfo.value?.sseDescription;
+  if (!sse || sse.status !== 'ENABLED') return 'Not Enabled';
+  if (sse.sseType === 'KMS') {
+    return sse.kmsMasterKeyArn ? 'Customer Managed Key' : 'AWS Managed Key';
+  }
+  return 'AWS Owned Key';
+});
+
+const tableClass = computed(() => {
+  const cls = tableInfo.value?.tableClassSummary;
+  return cls === 'STANDARD_INFREQUENT_ACCESS' ? 'DynamoDB Standard-IA' : 'DynamoDB Standard';
+});
+
+// Generate SVG path points from data
+const readChartPoints = computed(() => {
+  if (!consumedReadData.value.length) {
+    return '0,70 40,65 80,75 120,50 160,55 200,40 240,45 280,30 320,35 360,20 400,25';
+  }
+  const data = consumedReadData.value;
+  const maxVal = Math.max(...data, 1);
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1 || 1)) * 400;
+    const y = 90 - (val / maxVal) * 80;
+    return `${x},${y}`;
+  });
+  return points.join(' ');
+});
+
+const writeChartPoints = computed(() => {
+  if (!consumedWriteData.value.length) {
+    return '0,85 40,80 80,82 120,78 160,80 200,75 240,70 280,72 320,65 360,60 400,55';
+  }
+  const data = consumedWriteData.value;
+  const maxVal = Math.max(...data, 1);
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1 || 1)) * 400;
+    const y = 90 - (val / maxVal) * 80;
+    return `${x},${y}`;
+  });
+  return points.join(' ');
+});
+
+const statusClass = computed(() => {
+  const status = tableInfo.value?.status?.toUpperCase();
+  return {
+    'status-active': status === 'ACTIVE',
+    'status-creating': status === 'CREATING',
+    'status-updating': status === 'UPDATING',
+    'status-deleting': status === 'DELETING',
+  };
+});
+
+const globalSecondaryIndexes = computed(() => {
+  return (
+    tableInfo.value?.indices?.filter((index: DynamoIndex) => index.type === DynamoIndexType.GSI) ||
+    []
+  );
+});
+
+const gsiColumns = computed(() => [
+  {
+    title: lang.t('manage.dynamo.indexName'),
+    key: 'name',
+  },
+  {
+    title: lang.t('manage.dynamo.partitionKey'),
+    key: 'partitionKey',
+    render: (row: DynamoIndex) => {
+      const pk = row.keySchema?.find(k => k.keyType.toUpperCase() === 'HASH');
+      if (!pk) return '-';
+      const attrDef = tableInfo.value?.attributeDefinitions?.find(
+        a => a.attributeName === pk.attributeName,
+      );
+      return `${pk.attributeName} (${attrDef?.attributeType || 'S'})`;
+    },
+  },
+  {
+    title: lang.t('manage.dynamo.sortKey'),
+    key: 'sortKey',
+    render: (row: DynamoIndex) => {
+      const sk = row.keySchema?.find(k => k.keyType.toUpperCase() === 'RANGE');
+      if (!sk) return '-';
+      const attrDef = tableInfo.value?.attributeDefinitions?.find(
+        a => a.attributeName === sk.attributeName,
+      );
+      return `${sk.attributeName} (${attrDef?.attributeType || 'S'})`;
+    },
+  },
+  {
+    title: lang.t('manage.dynamo.projection'),
+    key: 'projection',
+    render: () => 'ALL',
+  },
+  {
+    title: lang.t('manage.dynamo.indexStatus'),
+    key: 'status',
+    render: (row: DynamoIndex) => {
+      const status = row.status?.toUpperCase() || 'ACTIVE';
+      return h(
+        NTag,
+        {
+          type: status === 'ACTIVE' ? 'success' : 'warning',
+          size: 'small',
+        },
+        { default: () => status },
+      );
+    },
+  },
+  {
+    title: lang.t('manage.dynamo.actions'),
+    key: 'actions',
+    width: 80,
+    render: (row: DynamoIndex) => {
+      return h('div', { class: 'action-buttons' }, [
+        h(
+          NButton,
+          {
+            quaternary: true,
+            size: 'small',
+            onClick: () => handleDeleteIndex(row),
+          },
+          { icon: () => h(NIcon, { color: '#d03050' }, { default: () => h(TrashCan) }) },
+        ),
+      ]);
+    },
+  },
+]);
+
+const formatNumber = (num: number | undefined) => {
+  if (num === undefined || num === null) return '-';
+  return num.toLocaleString();
+};
+
+const formatBytes = (bytes: number | undefined) => {
+  if (bytes === undefined || bytes === null) return '-';
+  return prettyBytes(bytes);
+};
+
+const fetchCloudWatchMetrics = async () => {
+  if (!connection.value || connection.value.type !== DatabaseType.DYNAMODB) {
+    return;
+  }
+
+  try {
+    metricsLoading.value = true;
+    const result = await dynamoApi.getTableMetrics(connection.value as DynamoDBConnection, 24);
+
+    metricsAvailable.value = result.available;
+    metricsMessage.value = result.message || '';
+
+    if (result.available && result.metrics) {
+      consumedReadData.value = result.metrics.consumedRead || [];
+      consumedWriteData.value = result.metrics.consumedWrite || [];
+      rcuUtilization.value = result.metrics.rcuUtilization || 0;
+      wcuUtilization.value = result.metrics.wcuUtilization || 0;
+      provisionedRcu.value = result.metrics.provisionedReadCapacity || 0;
+      provisionedWcu.value = result.metrics.provisionedWriteCapacity || 0;
+      throttledEvents.value = result.metrics.totalThrottledEvents || 0;
+    }
+  } catch (err) {
+    metricsAvailable.value = false;
+    const error = err as CustomError;
+    metricsMessage.value = error.details || error.message || 'Failed to fetch CloudWatch metrics';
+  } finally {
+    metricsLoading.value = false;
+  }
+};
+
+const handleRefresh = async () => {
+  if (!connection.value || connection.value.type !== DatabaseType.DYNAMODB) {
+    message.warning(lang.t('editor.establishedRequired'));
+    return;
+  }
+
+  refreshLoading.value = true;
+  const timeoutId = setTimeout(() => {
+    refreshLoading.value = false;
+    message.warning(lang.t('manage.dynamo.refreshTimeout'));
+  }, 30000);
+
+  try {
+    await fetchTableInfo(connection.value);
+
+    // Fetch PITR status
+    try {
+      const pitrData = await dynamoApi.describeContinuousBackups(connection.value);
+      pitrEnabled.value = pitrData.pitrEnabled || false;
+    } catch (err) {
+      console.warn('Failed to fetch PITR status:', err);
+      pitrEnabled.value = false;
+    }
+
+    // Fetch TTL status
+    try {
+      const ttlData = await dynamoApi.describeTimeToLive(connection.value);
+      ttlEnabled.value = ttlData.ttlEnabled;
+      ttlAttribute.value = ttlData.attributeName;
+    } catch (err) {
+      console.warn('Failed to fetch TTL status:', err);
+      ttlEnabled.value = false;
+      ttlAttribute.value = undefined;
+    }
+
+    // Also fetch CloudWatch metrics
+    await fetchCloudWatchMetrics();
+  } catch (err) {
+    const error = err as CustomError;
+    message.error(`${error.status}: ${error.details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 5000,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+    refreshLoading.value = false;
+  }
+};
+
+const handleCreateIndex = () => {
+  showCreateIndexModal.value = true;
+};
+
+const handleDeleteIndex = (index: DynamoIndex) => {
+  selectedIndex.value = index;
+  showDeleteIndexModal.value = true;
+};
+
+const handleIndexDeleted = async () => {
+  message.success(lang.t('manage.dynamo.deleteIndexSuccess'));
+  await handleRefresh();
+};
+
+const handleIndexCreated = async () => {
+  message.success(lang.t('manage.dynamo.createIndexSuccess'));
+  await handleRefresh();
+};
+
+onMounted(async () => {
+  if (connection.value && connection.value.type === DatabaseType.DYNAMODB) {
+    await handleRefresh();
+  }
+});
+
+watch(connection, async newConnection => {
+  if (newConnection && newConnection.type === DatabaseType.DYNAMODB) {
+    await handleRefresh();
+  }
+});
+
+// Expose handleRefresh so parent can trigger it
+defineExpose({
+  handleRefresh,
+});
+</script>
+
+<style lang="scss" scoped>
+.dynamo-manage-container {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  padding-right: 32px;
+  background-color: var(--bg-color);
+  box-sizing: border-box;
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+
+  .metrics-section {
+    margin-bottom: 24px;
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 16px;
+
+      @media (max-width: 1200px) {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      @media (max-width: 768px) {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .metric-card {
+        background: var(--card-bg-color);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+
+        :deep(.n-card__content) {
+          padding: 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .metric-label {
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: var(--gray-color);
+        }
+
+        .metric-value {
+          font-size: 20px;
+          font-weight: 700;
+          color: var(--text-color);
+        }
+
+        .metric-value-small {
+          font-size: 14px;
+          font-weight: 600;
+          color: var(--text-color);
+        }
+
+        .status-value {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+
+          .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--gray-color);
+
+            &.status-active {
+              background-color: #36ad6a;
+              animation: pulse 2s infinite;
+            }
+
+            &.status-creating,
+            &.status-updating {
+              background-color: #f0a020;
+            }
+
+            &.status-deleting {
+              background-color: #d03050;
+            }
+          }
+
+          .status-text {
+            font-size: 14px;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+
+            &.status-active {
+              color: #166534;
+              background-color: #dcfce7;
+            }
+
+            &.status-creating,
+            &.status-updating {
+              color: #9a3412;
+              background-color: #ffedd5;
+            }
+
+            &.status-deleting {
+              color: #991b1b;
+              background-color: #fee2e2;
+            }
+          }
+        }
+
+        .metric-value-status {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+
+          .status-enabled {
+            color: #36ad6a;
+            font-weight: 500;
+          }
+
+          .status-disabled {
+            color: #d03050;
+            font-weight: 500;
+          }
+        }
+
+        .ttl-value {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+
+          .status-enabled {
+            color: #36ad6a;
+            font-weight: 500;
+            font-size: 14px;
+          }
+
+          .status-disabled {
+            color: #d03050;
+            font-weight: 500;
+            font-size: 14px;
+          }
+
+          .ttl-attribute {
+            font-family: monospace;
+            font-size: 10px;
+            color: var(--gray-color);
+          }
+        }
+      }
+    }
+  }
+
+  .performance-section {
+    margin-bottom: 24px;
+
+    .performance-card {
+      background: var(--card-bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .section-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 600;
+          color: var(--text-color);
+        }
+
+        .time-range {
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: #36ad6a;
+        }
+      }
+
+      .performance-content {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 32px;
+
+        @media (max-width: 900px) {
+          grid-template-columns: 1fr;
+        }
+
+        .chart-section {
+          .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+
+            .chart-title {
+              font-size: 12px;
+              font-weight: 600;
+              text-transform: uppercase;
+              color: var(--gray-color);
+            }
+
+            .chart-legend {
+              display: flex;
+              gap: 16px;
+
+              .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 12px;
+                color: var(--gray-color);
+
+                .legend-color {
+                  width: 12px;
+                  height: 12px;
+                  border-radius: 2px;
+
+                  &.read {
+                    background-color: #3b82f6;
+                  }
+
+                  &.write {
+                    background-color: #fb923c;
+                  }
+                }
+              }
+            }
+          }
+
+          .chart-placeholder {
+            height: 200px;
+            border-left: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            padding: 8px;
+
+            .chart-svg {
+              width: 100%;
+              height: 100%;
+            }
+          }
+        }
+
+        .utilization-section {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          gap: 24px;
+
+          .utilization-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+
+            .utilization-gauge {
+              position: relative;
+              width: 64px;
+              height: 64px;
+
+              .gauge-svg {
+                width: 100%;
+                height: 100%;
+                transform: rotate(-90deg);
+              }
+
+              .gauge-value {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 12px;
+                font-weight: 700;
+                color: var(--text-color);
+              }
+            }
+
+            .utilization-info {
+              display: flex;
+              flex-direction: column;
+              gap: 2px;
+
+              .utilization-label {
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--text-color);
+              }
+
+              .utilization-detail {
+                font-size: 10px;
+                color: var(--gray-color);
+              }
+            }
+          }
+
+          .throttled-events {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-color);
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+
+            .throttled-label {
+              font-size: 12px;
+              font-weight: 500;
+              color: var(--gray-color);
+            }
+
+            .throttled-value {
+              font-size: 12px;
+              font-weight: 700;
+              color: #36ad6a;
+              background: #dcfce7;
+              padding: 2px 8px;
+              border-radius: 4px;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .indexes-section {
+    margin-bottom: 24px;
+
+    .indexes-card {
+      background: var(--card-bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .section-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 600;
+          color: var(--text-color);
+        }
+      }
+
+      .table-container {
+        :deep(.n-data-table) {
+          .n-data-table-th {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--gray-color);
+            background: var(--bg-color);
+          }
+
+          .n-data-table-td {
+            font-size: 13px;
+          }
+        }
+
+        .action-buttons {
+          display: flex;
+          gap: 4px;
+        }
+      }
+    }
+  }
+
+  .settings-section {
+    margin-bottom: 24px;
+
+    .settings-card {
+      background: var(--card-bg-color);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+
+      .section-header {
+        .section-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 600;
+          color: var(--text-color);
+        }
+      }
+
+      .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+
+        @media (max-width: 768px) {
+          grid-template-columns: 1fr;
+        }
+
+        .setting-item {
+          background: var(--bg-color);
+          border: 1px solid var(--border-color);
+          border-radius: 8px;
+          padding: 12px 16px;
+          transition: all 0.2s ease;
+
+          &.clickable {
+            cursor: pointer;
+
+            &:hover {
+              border-color: var(--primary-color);
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+          }
+
+          .setting-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+
+            .setting-label {
+              font-size: 11px;
+              font-weight: 700;
+              text-transform: uppercase;
+              color: var(--gray-color);
+            }
+          }
+
+          .setting-value {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--gray-color);
+          }
+        }
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+</style>

@@ -1,6 +1,10 @@
 <template>
   <div class="manage-container">
-    <tool-bar type="MANAGE" @switch-manage-tab="handleManageTabChange" />
+    <tool-bar
+      type="MANAGE"
+      @switch-manage-tab="handleManageTabChange"
+      @refresh-dynamo-manage="handleDynamoRefresh"
+    />
     <template v-if="connection?.type === DatabaseType.ELASTICSEARCH">
       <cluster-state
         v-if="activeTab === $t('manage.cluster')"
@@ -11,9 +15,9 @@
       <shard-manage v-if="activeTab === $t('manage.shards')" class="state-container" />
       <index-manage v-if="activeTab === $t('manage.indices')" class="state-container" />
     </template>
-    <div v-else-if="connection" class="empty-state">
-      <n-empty :description="$t('manage.emptyDynamodb')" />
-    </div>
+    <template v-else-if="connection?.type === DatabaseType.DYNAMODB">
+      <dynamo-table-manage ref="dynamoTableManageRef" class="state-container" />
+    </template>
     <div v-else class="empty-state">
       <n-empty :description="$t('manage.emptyNoConnection')" />
     </div>
@@ -23,6 +27,7 @@
 <script setup lang="ts">
 import ToolBar from '../../components/tool-bar.vue';
 import ClusterState from './components/cluster-state.vue';
+import DynamoTableManage from './components/dynamo-table-manage.vue';
 import { useClusterManageStore, DatabaseType, useTabStore } from '../../store';
 import { storeToRefs } from 'pinia';
 import NodeState from './components/node-state.vue';
@@ -35,6 +40,7 @@ const message = useMessage();
 const lang = useLang();
 
 const activeTab = ref(lang.t('manage.cluster'));
+const dynamoTableManageRef = ref<{ handleRefresh: () => Promise<void> }>();
 
 const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
@@ -62,6 +68,10 @@ watch(connection, async () => {
 
 const handleManageTabChange = (tab: string) => {
   activeTab.value = tab;
+};
+
+const handleDynamoRefresh = () => {
+  dynamoTableManageRef.value?.handleRefresh();
 };
 
 onMounted(async () => {

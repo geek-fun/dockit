@@ -6,3 +6,7 @@ pub mod query_table;
 pub mod scan_table;
 pub mod types;
 pub mod update_item;
+pub mod update_table;
+pub mod cloudwatch_metrics;
+pub mod continuous_backups;
+pub mod time_to_live;

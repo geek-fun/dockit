@@ -6,9 +6,17 @@ use crate::dynamo::query_table::{query_table, QueryTableInput};
 use crate::dynamo::scan_table::{scan_table, ScanTableInput};
 use crate::dynamo::types::ApiResponse;
 use crate::dynamo::update_item::{update_item, UpdateItemInput};
+use crate::dynamo::update_table::{
+    create_global_secondary_index, delete_global_secondary_index, update_global_secondary_index,
+    CreateGsiInput, DeleteGsiInput, UpdateGsiInput,
+};
+use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};
+use crate::dynamo::continuous_backups::describe_continuous_backups;
+use crate::dynamo::time_to_live::describe_time_to_live;
 use aws_config::meta::region::RegionProviderChain;
 use aws_config::Region;
 use aws_sdk_dynamodb::{config::Credentials, Client};
+use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -168,6 +176,73 @@ pub async fn dynamo_api(
                     data: None,
                 })
             }
+        }
+        "CREATE_GLOBAL_SECONDARY_INDEX" => {
+            if let Some(payload) = &options.payload {
+                let input = CreateGsiInput {
+                    table_name: options.table_name.clone(),
+                    payload: payload.clone(),
+                };
+                create_global_secondary_index(&client, input).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "GSI creation payload is required".to_string(),
+                    data: None,
+                })
+            }
+        }
+        "UPDATE_GLOBAL_SECONDARY_INDEX" => {
+            if let Some(payload) = &options.payload {
+                let input = UpdateGsiInput {
+                    table_name: options.table_name.clone(),
+                    payload: payload.clone(),
+                };
+                update_global_secondary_index(&client, input).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "GSI update payload is required".to_string(),
+                    data: None,
+                })
+            }
+        }
+        "DELETE_GLOBAL_SECONDARY_INDEX" => {
+            if let Some(payload) = &options.payload {
+                let input = DeleteGsiInput {
+                    table_name: options.table_name.clone(),
+                    payload: payload.clone(),
+                };
+                delete_global_secondary_index(&client, input).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "GSI deletion payload is required".to_string(),
+                    data: None,
+                })
+            }
+        }
+        "GET_TABLE_METRICS" => {
+            // Create CloudWatch client with same credentials
+            let cloudwatch_client = CloudWatchClient::new(&config);
+            
+            let period_hours = options.payload
+                .as_ref()
+                .and_then(|p| p.get("period_hours"))
+                .and_then(|v| v.as_i64())
+                .unwrap_or(24);
+            
+            let input = CloudWatchInput {
+                table_name: &options.table_name,
+                period_hours,
+            };
+            get_table_metrics(&cloudwatch_client, input).await
+        }
+        "DESCRIBE_CONTINUOUS_BACKUPS" => {
+            describe_continuous_backups(&client, &options.table_name).await
+        }
+        "DESCRIBE_TIME_TO_LIVE" => {
+            describe_time_to_live(&client, &options.table_name).await
         }
         // Add more operations as needed
         _ => Ok(ApiResponse {

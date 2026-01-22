@@ -86,11 +86,11 @@
           <span class="stat-label">{{ $t('import.inserted') }}:</span>
           <span class="stat-value success">{{ formatNumber(restoreProgress.inserted) }}</span>
         </div>
-        <div class="stat-item" v-if="importStrategy === 'replace'">
+        <div v-if="importStrategy === 'replace'" class="stat-item">
           <span class="stat-label">{{ $t('import.updated') }}:</span>
           <span class="stat-value info">{{ formatNumber(restoreProgress.updated) }}</span>
         </div>
-        <div class="stat-item" v-if="restoreProgress.skipped > 0">
+        <div v-if="restoreProgress.skipped > 0" class="stat-item">
           <span class="stat-label">{{ $t('import.skipped') }}:</span>
           <span class="stat-value warning">{{ formatNumber(restoreProgress.skipped) }}</span>
         </div>

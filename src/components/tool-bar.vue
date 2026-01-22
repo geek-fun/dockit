@@ -37,7 +37,10 @@
         <Search />
       </template>
     </n-select>
-    <n-tooltip v-if="['ES_EDITOR', 'MANAGE'].includes(props.type ?? '')" trigger="hover">
+    <n-tooltip
+      v-if="props.type === 'ES_EDITOR' || (props.type === 'MANAGE' && isElasticsearchConnection)"
+      trigger="hover"
+    >
       <template #trigger>
         <n-switch
           v-model:value="hideSystemIndicesRef"
@@ -137,8 +140,22 @@
       </n-button>
     </div>
 
+    <n-button
+      v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.DYNAMODB"
+      type="default"
+      tertiary
+      @click="handleDynamoRefresh"
+    >
+      <template #icon>
+        <n-icon>
+          <Renew />
+        </n-icon>
+      </template>
+      {{ $t('manage.dynamo.refresh') }}
+    </n-button>
+
     <n-tabs
-      v-if="props.type === 'MANAGE'"
+      v-if="props.type === 'MANAGE' && isElasticsearchConnection"
       class="manage-container"
       type="line"
       animated
@@ -154,9 +171,9 @@
 </template>
 
 <script setup lang="ts">
-import { Add, Search, Code, Template, PlayFilledAlt } from '@vicons/carbon';
+import { Add, Search, Code, Template, PlayFilledAlt, Renew } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
-import { useClusterManageStore, useConnectionStore, useTabStore } from '../store';
+import { useClusterManageStore, useConnectionStore, useTabStore, DatabaseType } from '../store';
 import { useLang } from '../lang';
 import { CustomError, inputProps } from '../common';
 import { esSampleQueries } from '../common/monaco';
@@ -167,6 +184,7 @@ const emits = defineEmits([
   'insert-sample-query',
   'insert-partiql-sample',
   'execute-partiql-query',
+  'refresh-dynamo-manage',
 ]);
 
 const message = useMessage();
@@ -183,6 +201,11 @@ const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 const clusterManageStore = useClusterManageStore();
 const { setConnection, refreshStates } = clusterManageStore;
 const { connection, hideSystemIndices } = storeToRefs(clusterManageStore);
+
+// Check if connection is Elasticsearch type
+const isElasticsearchConnection = computed(() => {
+  return connection.value?.type === DatabaseType.ELASTICSEARCH;
+});
 
 const loadingRef = ref({ connection: false, index: false });
 
@@ -373,6 +396,10 @@ const handleSearch = async (input: string, type: 'CONNECTION' | 'INDEX') => {
 
 const handleManageTabChange = (tabName: string) => {
   emits('switch-manage-tab', tabName);
+};
+
+const handleDynamoRefresh = () => {
+  emits('refresh-dynamo-manage');
 };
 
 const handleHiddenChange = async (value: boolean) => {
