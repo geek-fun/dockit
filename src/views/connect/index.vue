@@ -9,8 +9,8 @@
   >
     <n-tab-pane
       v-for="(panel, index) in panels"
-      :closable="index > 0"
       :key="panel.id"
+      :closable="index > 0"
       :name="panel.name"
       class="tab-pane-container"
     >

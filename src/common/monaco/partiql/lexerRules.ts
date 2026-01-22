@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import { partiqlKeywords } from './keywords';
 
 export const partiql = {

@@ -41,7 +41,7 @@
       <!-- Editable attributes -->
       <n-divider title-placement="left">
         {{ $t('editor.dynamo.editableAttributes') }}
-        <n-icon size="20" @click="addAttribute" style="cursor: pointer; margin-left: 8px">
+        <n-icon size="20" style="cursor: pointer; margin-left: 8px" @click="addAttribute">
           <Add />
         </n-icon>
       </n-divider>
@@ -133,7 +133,7 @@
     </n-form>
     <template #action>
       <n-button @click="handleClose">{{ $t('dialogOps.cancel') }}</n-button>
-      <n-button type="primary" @click="handleSubmit" :loading="loading">
+      <n-button type="primary" :loading="loading" @click="handleSubmit">
         {{ $t('dialogOps.confirm') }}
       </n-button>
     </template>

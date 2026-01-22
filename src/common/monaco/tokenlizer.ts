@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import { Decoration, executeActions, monaco, SearchAction } from './';
 import { get } from 'lodash';
 import { CustomError } from '../customError.ts';

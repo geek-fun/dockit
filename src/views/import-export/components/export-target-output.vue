@@ -33,6 +33,7 @@
         <n-input
           v-model:value="fileName"
           :placeholder="$t('export.filenamePlaceholder')"
+          :input-props="inputProps"
           @update:value="handleFileNameChange"
         >
           <template #suffix>
@@ -45,8 +46,8 @@
       <n-grid-item span="2">
         <div class="field-label">{{ $t('export.destinationPath') }}</div>
         <div class="destination-path-row">
-          <n-input-group class="folder-selector">
-            <n-button @click="handleSelectFolder">
+          <n-input-group class="folder-selector" @click="handleSelectFolder">
+            <n-button>
               <template #icon>
                 <n-icon>
                   <FolderOpen />
@@ -57,12 +58,14 @@
               :value="folderPath || $t('export.selectFolderPlaceholder')"
               readonly
               class="folder-path-input"
+              :input-props="inputProps"
             />
           </n-input-group>
           <span class="path-separator">/</span>
           <n-input
             v-model:value="extraPath"
             :placeholder="$t('export.extraPathPlaceholder')"
+            :input-props="inputProps"
             class="extra-path-input"
             @update:value="handleExtraPathChange"
           />
@@ -76,24 +79,23 @@
 import { storeToRefs } from 'pinia';
 import { DocumentExport, FolderOpen } from '@vicons/carbon';
 import { useImportExportStore, FileType } from '../../../store';
-import { CustomError } from '../../../common';
+import { CustomError, inputProps } from '../../../common';
 
 const message = useMessage();
 
 const exportStore = useImportExportStore();
 const { folderPath, fileName, fileType, extraPath } = storeToRefs(exportStore);
 
-const selectedFileType = ref<FileType>(fileType.value || 'ndjson');
+const selectedFileType = ref<FileType>(fileType.value || 'jsonl');
 
 const fileTypeOptions = [
-  { label: 'NDJSON', value: 'ndjson' as FileType },
+  { label: 'JSONL', value: 'jsonl' as FileType },
   { label: 'JSON', value: 'json' as FileType },
   { label: 'CSV', value: 'csv' as FileType },
 ];
 
 // File extension based on selected type
 const fileExtension = computed(() => {
-  if (selectedFileType.value === 'ndjson') return 'json';
   return selectedFileType.value;
 });
 
@@ -177,9 +179,11 @@ watch(fileType, newType => {
 
     .folder-selector {
       flex: 1;
+      cursor: pointer;
 
       .folder-path-input {
         flex: 1;
+        cursor: pointer;
       }
     }
 
@@ -189,7 +193,7 @@ watch(fileType, newType => {
     }
 
     .extra-path-input {
-      width: 200px;
+      flex: 1;
     }
   }
 }

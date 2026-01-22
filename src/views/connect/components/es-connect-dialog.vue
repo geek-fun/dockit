@@ -44,9 +44,9 @@
                 >
                   <n-input-group>
                     <n-input
+                      v-model:value="formData.host"
                       :style="{ width: '80%' }"
                       clearable
-                      v-model:value="formData.host"
                       placeholder="http://localhost"
                       :input-props="inputProps"
                     />

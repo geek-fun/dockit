@@ -26,8 +26,8 @@
             <n-grid-item span="8">
               <n-form-item :label="$t('manage.index.newIndexForm.indexName')" path="indexName">
                 <n-input
-                  :input-props="inputProps"
                   v-model:value="formData.indexName"
+                  :input-props="inputProps"
                   clearable
                   :placeholder="$t('manage.index.newIndexForm.indexName')"
                 />

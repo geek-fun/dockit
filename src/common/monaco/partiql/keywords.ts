@@ -48,13 +48,7 @@ const functions = [
   'CONTAINS',
 ];
 
-const dynamoSpecific = [
-  'RETURNING',
-  'ALL_OLD',
-  'ALL_NEW',
-  'MODIFIED_OLD',
-  'MODIFIED_NEW',
-];
+const dynamoSpecific = ['RETURNING', 'ALL_OLD', 'ALL_NEW', 'MODIFIED_OLD', 'MODIFIED_NEW'];
 
 const dataTypes = ['STRING', 'NUMBER', 'BINARY', 'BOOLEAN', 'LIST', 'MAP', 'SS', 'NS', 'BS'];
 

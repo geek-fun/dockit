@@ -44,13 +44,13 @@ export const useFileStore = defineStore('fileStore', {
     },
     sortedFileList: (state): PathInfo[] => {
       const files = [...state.fileList];
-      
+
       files.sort((a, b) => {
         // Folders always come first
         if (a.type !== b.type) {
           return a.type === PathTypeEnum.FOLDER ? -1 : 1;
         }
-        
+
         // Then sort by the selected criteria
         switch (state.sortBy) {
           case SortBy.NAME:
@@ -66,7 +66,7 @@ export const useFileStore = defineStore('fileStore', {
             return 0;
         }
       });
-      
+
       return files;
     },
   },

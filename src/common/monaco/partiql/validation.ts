@@ -15,18 +15,36 @@ const PARTIQL_VALIDATION_OWNER = 'partiql-validation';
 
 // PartiQL keywords for validation
 const PARTIQL_STATEMENT_KEYWORDS = ['SELECT', 'INSERT', 'UPDATE', 'DELETE'];
-const PARTIQL_CLAUSES = ['FROM', 'WHERE', 'SET', 'VALUE', 'VALUES', 'INTO', 'AND', 'OR', 'NOT', 'LIKE', 'BETWEEN', 'IN', 'IS', 'NULL', 'ORDER', 'BY', 'ASC', 'DESC', 'LIMIT', 'OFFSET'];
+const PARTIQL_CLAUSES = [
+  'FROM',
+  'WHERE',
+  'SET',
+  'VALUE',
+  'VALUES',
+  'INTO',
+  'AND',
+  'OR',
+  'NOT',
+  'LIKE',
+  'BETWEEN',
+  'IN',
+  'IS',
+  'NULL',
+  'ORDER',
+  'BY',
+  'ASC',
+  'DESC',
+  'LIMIT',
+  'OFFSET',
+];
 
 /**
  * Validate a single PartiQL statement
  */
-const validatePartiqlStatement = (
-  statement: string,
-  startLine: number,
-): ValidationError[] => {
+const validatePartiqlStatement = (statement: string, startLine: number): ValidationError[] => {
   const errors: ValidationError[] = [];
   const trimmed = statement.trim();
-  
+
   if (!trimmed) {
     return errors;
   }
@@ -34,7 +52,7 @@ const validatePartiqlStatement = (
   // Check for basic statement structure
   const upperStatement = trimmed.toUpperCase();
   const firstWord = upperStatement.split(/\s+/)[0];
-  
+
   // Skip comments
   if (trimmed.startsWith('--') || trimmed.startsWith('//')) {
     return errors;
@@ -126,7 +144,7 @@ const validatePartiqlStatement = (
   // Check for unclosed quotes
   const singleQuotes = (trimmed.match(/'/g) || []).length;
   const doubleQuotes = (trimmed.match(/"/g) || []).length;
-  
+
   if (singleQuotes % 2 !== 0) {
     errors.push({
       message: 'Unclosed single quote',
@@ -137,7 +155,7 @@ const validatePartiqlStatement = (
       severity: MarkerSeverity.Error,
     });
   }
-  
+
   if (doubleQuotes % 2 !== 0) {
     errors.push({
       message: 'Unclosed double quote',
@@ -152,7 +170,7 @@ const validatePartiqlStatement = (
   // Check for unclosed parentheses
   const openParens = (trimmed.match(/\(/g) || []).length;
   const closeParens = (trimmed.match(/\)/g) || []).length;
-  
+
   if (openParens !== closeParens) {
     errors.push({
       message: `Mismatched parentheses: ${openParens} open, ${closeParens} close`,
@@ -167,7 +185,7 @@ const validatePartiqlStatement = (
   // Check for unclosed braces (for JSON objects in INSERT VALUE)
   const openBraces = (trimmed.match(/{/g) || []).length;
   const closeBraces = (trimmed.match(/}/g) || []).length;
-  
+
   if (openBraces !== closeBraces) {
     errors.push({
       message: `Mismatched braces: ${openBraces} open, ${closeBraces} close`,
@@ -182,7 +200,7 @@ const validatePartiqlStatement = (
   // Check for unclosed brackets
   const openBrackets = (trimmed.match(/\[/g) || []).length;
   const closeBrackets = (trimmed.match(/\]/g) || []).length;
-  
+
   if (openBrackets !== closeBrackets) {
     errors.push({
       message: `Mismatched brackets: ${openBrackets} open, ${closeBrackets} close`,
@@ -203,15 +221,15 @@ const validatePartiqlStatement = (
 export const validatePartiql = (content: string): ValidationResult => {
   const errors: ValidationError[] = [];
   const lines = content.split('\n');
-  
+
   let currentStatement = '';
   let statementStartLine = 1;
-  
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmedLine = line.trim();
     const lineNumber = i + 1;
-    
+
     // Skip empty lines and comments
     if (!trimmedLine || trimmedLine.startsWith('--') || trimmedLine.startsWith('//')) {
       // If we have accumulated a statement, validate it
@@ -221,27 +239,27 @@ export const validatePartiql = (content: string): ValidationResult => {
       }
       continue;
     }
-    
+
     // Check if this line starts a new statement
     const upperLine = trimmedLine.toUpperCase();
-    const startsNewStatement = PARTIQL_STATEMENT_KEYWORDS.some(keyword => 
-      upperLine.startsWith(keyword + ' ') || upperLine === keyword
+    const startsNewStatement = PARTIQL_STATEMENT_KEYWORDS.some(
+      keyword => upperLine.startsWith(keyword + ' ') || upperLine === keyword,
     );
-    
+
     if (startsNewStatement && currentStatement.trim()) {
       // Validate the previous statement
       errors.push(...validatePartiqlStatement(currentStatement, statementStartLine));
       currentStatement = '';
       statementStartLine = lineNumber;
     }
-    
+
     if (!currentStatement.trim()) {
       statementStartLine = lineNumber;
     }
-    
+
     // Append the line to current statement
     currentStatement += (currentStatement ? '\n' : '') + line;
-    
+
     // Check if statement ends with semicolon
     if (trimmedLine.endsWith(';')) {
       // Remove the semicolon and validate
@@ -250,12 +268,12 @@ export const validatePartiql = (content: string): ValidationResult => {
       currentStatement = '';
     }
   }
-  
+
   // Validate any remaining statement
   if (currentStatement.trim()) {
     errors.push(...validatePartiqlStatement(currentStatement, statementStartLine));
   }
-  
+
   return { errors };
 };
 

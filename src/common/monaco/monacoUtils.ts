@@ -14,7 +14,7 @@ export const setValidationMarkers = (
 ): void => {
   // Store errors for hover provider
   errorMarkersStore.set(model.uri.toString(), errors);
-  
+
   // Create Monaco markers
   const markers: editor.IMarkerData[] = errors.map(error => ({
     severity: error.severity,
@@ -24,7 +24,7 @@ export const setValidationMarkers = (
     endLineNumber: error.endLineNumber,
     endColumn: error.endColumn,
   }));
-  
+
   editor.setModelMarkers(model, owner, markers);
 };
 
@@ -38,10 +38,7 @@ export const getValidationErrors = (uri: string): ValidationError[] => {
 /**
  * Clear validation markers for a model
  */
-export const clearValidationMarkers = (
-  model: editor.ITextModel,
-  owner: string,
-): void => {
+export const clearValidationMarkers = (model: editor.ITextModel, owner: string): void => {
   errorMarkersStore.delete(model.uri.toString());
   editor.setModelMarkers(model, owner, []);
 };
@@ -53,25 +50,26 @@ export const createValidationHoverProvider = (): languages.HoverProvider => {
   return {
     provideHover: (model: editor.ITextModel, position: Position): languages.Hover | null => {
       const errors = getValidationErrors(model.uri.toString());
-      
+
       // Find errors at this position
-      const relevantErrors = errors.filter(error => 
-        position.lineNumber >= error.startLineNumber &&
-        position.lineNumber <= error.endLineNumber &&
-        (position.lineNumber !== error.startLineNumber || position.column >= error.startColumn) &&
-        (position.lineNumber !== error.endLineNumber || position.column <= error.endColumn)
+      const relevantErrors = errors.filter(
+        error =>
+          position.lineNumber >= error.startLineNumber &&
+          position.lineNumber <= error.endLineNumber &&
+          (position.lineNumber !== error.startLineNumber || position.column >= error.startColumn) &&
+          (position.lineNumber !== error.endLineNumber || position.column <= error.endColumn),
       );
-      
+
       if (relevantErrors.length === 0) {
         return null;
       }
-      
+
       // Build hover content
       const contents: IMarkdownString[] = relevantErrors.map(error => ({
         value: `**Error:** ${error.message}`,
         isTrusted: true,
       }));
-      
+
       return {
         contents,
         range: new Range(
@@ -88,13 +86,13 @@ export const createValidationHoverProvider = (): languages.HoverProvider => {
 /**
  * Create a debounced validation function
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export const createDebouncedValidator = <T extends (...args: any[]) => any>(
   fn: T,
   delay: number = 300,
 ): ((...args: Parameters<T>) => void) => {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
-  
+
   return (...args: Parameters<T>): void => {
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -119,13 +117,13 @@ export const compareVersions = (a: string, b: string): number => {
   const partsA = a.split('.').map(Number);
   const partsB = b.split('.').map(Number);
   const maxLength = Math.max(partsA.length, partsB.length);
-  
+
   const comparison = Array.from({ length: maxLength }, (_, i) => {
     const numA = partsA[i] || 0;
     const numB = partsB[i] || 0;
     return numA - numB;
   }).find(diff => diff !== 0);
-  
+
   return comparison === undefined ? 0 : Math.sign(comparison);
 };
 
@@ -209,12 +207,12 @@ export const isStatementStart = (line: string): boolean => {
  */
 export const parsePartiqlStatements = (content: string): PartiqlStatement[] => {
   const lines = content.split('\n');
-  
+
   type ParseState = {
     statements: PartiqlStatement[];
     currentIndex: number;
   };
-  
+
   const findStatementEnd = (startLine: number): number => {
     const subsequentLines = lines.slice(startLine);
     const endOffset = subsequentLines.findIndex((line, idx) => {
@@ -226,42 +224,42 @@ export const parsePartiqlStatements = (content: string): PartiqlStatement[] => {
         isStatementStart(trimmed)
       );
     });
-    
+
     // Check if last line ends with semicolon
     const lastLineWithSemicolon = subsequentLines.findIndex(line => line.trim().endsWith(';'));
     if (lastLineWithSemicolon !== -1 && (endOffset === -1 || lastLineWithSemicolon < endOffset)) {
       return startLine + lastLineWithSemicolon;
     }
-    
+
     return endOffset === -1 ? lines.length - 1 : startLine + endOffset - 1;
   };
-  
+
   const parseFromIndex = (state: ParseState): ParseState => {
     if (state.currentIndex >= lines.length) {
       return state;
     }
-    
+
     const line = lines[state.currentIndex].trim();
-    
+
     // Skip empty lines and comments
     if (line === '' || line.startsWith('--') || line.startsWith('//')) {
       return parseFromIndex({ ...state, currentIndex: state.currentIndex + 1 });
     }
-    
+
     // Check if this line starts a statement
     if (!isStatementStart(line)) {
       return parseFromIndex({ ...state, currentIndex: state.currentIndex + 1 });
     }
-    
+
     const startLine = state.currentIndex;
     const endLine = findStatementEnd(startLine);
     const statementLines = lines.slice(startLine, endLine + 1);
     const statement = statementLines.join('\n').trim().replace(/;$/, '');
-    
+
     if (statement.length === 0) {
       return parseFromIndex({ ...state, currentIndex: endLine + 1 });
     }
-    
+
     const newStatement: PartiqlStatement = {
       statement,
       position: {
@@ -271,13 +269,13 @@ export const parsePartiqlStatements = (content: string): PartiqlStatement[] => {
         endColumn: lines[endLine].length + 1,
       },
     };
-    
+
     return parseFromIndex({
       statements: [...state.statements, newStatement],
       currentIndex: endLine + 1,
     });
   };
-  
+
   return parseFromIndex({ statements: [], currentIndex: 0 }).statements;
 };
 

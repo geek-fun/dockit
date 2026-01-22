@@ -30,9 +30,13 @@ watch(themeType, () => {
   displayEditor?.updateOptions({ theme: vsTheme });
 });
 
-watch(editorConfig, () => {
-  displayEditor?.updateOptions(getEditorOptions());
-}, { deep: true });
+watch(
+  editorConfig,
+  () => {
+    displayEditor?.updateOptions(getEditorOptions());
+  },
+  { deep: true },
+);
 
 const display = (content: unknown) => {
   const model = displayEditor?.getModel();

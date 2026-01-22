@@ -37,11 +37,11 @@
         <Search />
       </template>
     </n-select>
-    <n-tooltip trigger="hover" v-if="['ES_EDITOR', 'MANAGE'].includes(props.type ?? '')">
+    <n-tooltip v-if="['ES_EDITOR', 'MANAGE'].includes(props.type ?? '')" trigger="hover">
       <template #trigger>
         <n-switch
-          :round="false"
           v-model:value="hideSystemIndicesRef"
+          :round="false"
           class="action-index-switch"
           @update:value="handleHiddenChange"
         >
@@ -126,9 +126,9 @@
       <n-button
         type="primary"
         size="small"
-        @click="handleExecuteQuery"
         :loading="isExecuting"
         :disabled="!activePanel.connection"
+        @click="handleExecuteQuery"
       >
         <template #icon>
           <n-icon><PlayFilledAlt /></n-icon>

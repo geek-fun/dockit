@@ -1,11 +1,11 @@
 /**
  * API Specification Provider
  * Provides endpoint and Query DSL definitions for Elasticsearch and OpenSearch
- * 
+ *
  * This module serves as the foundation for spec-driven completions.
  * In the future, this can be extended to load from elasticsearch-specification
  * and opensearch-api-specification repositories.
- * 
+ *
  * For i18n translation support:
  * - Each endpoint has a `descriptionKey` field (e.g., 'grammar.search')
  * - Translations are defined in src/lang/enUS.ts and src/lang/zhCN.ts
@@ -30,14 +30,28 @@ const commonEndpoints: ApiEndpoint[] = [
       { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
       { name: 'df', type: 'string', description: 'Default field for query string' },
       { name: 'analyzer', type: 'string', description: 'Analyzer to use for query string' },
-      { name: 'default_operator', type: 'string', description: 'Default operator for query string', enum: ['AND', 'OR'] },
+      {
+        name: 'default_operator',
+        type: 'string',
+        description: 'Default operator for query string',
+        enum: ['AND', 'OR'],
+      },
       { name: 'from', type: 'integer', description: 'Starting offset', default: 0 },
       { name: 'size', type: 'integer', description: 'Number of hits to return', default: 10 },
       { name: 'sort', type: 'string', description: 'Sort order' },
       { name: 'timeout', type: 'string', description: 'Search timeout' },
-      { name: 'terminate_after', type: 'integer', description: 'Maximum number of documents to collect' },
+      {
+        name: 'terminate_after',
+        type: 'integer',
+        description: 'Maximum number of documents to collect',
+      },
       { name: 'track_total_hits', type: 'boolean', description: 'Track total number of hits' },
-      { name: 'search_type', type: 'string', description: 'Search type', enum: ['query_then_fetch', 'dfs_query_then_fetch'] },
+      {
+        name: 'search_type',
+        type: 'string',
+        description: 'Search type',
+        enum: ['query_then_fetch', 'dfs_query_then_fetch'],
+      },
       { name: 'request_cache', type: 'boolean', description: 'Enable request cache' },
       { name: 'routing', type: 'string', description: 'Routing value' },
       { name: 'preference', type: 'string', description: 'Execution preference' },
@@ -67,7 +81,10 @@ const commonEndpoints: ApiEndpoint[] = [
         search_after: { type: 'array', description: 'Search after for pagination' },
         pit: { type: 'object', description: 'Point in time' },
         runtime_mappings: { type: 'object', description: 'Runtime mappings' },
-        seq_no_primary_term: { type: 'boolean', description: 'Return sequence number and primary term' },
+        seq_no_primary_term: {
+          type: 'boolean',
+          description: 'Return sequence number and primary term',
+        },
         version: { type: 'boolean', description: 'Return version number' },
         collapse: { type: 'object', description: 'Field collapsing' },
         slice: { type: 'object', description: 'Sliced scroll' },
@@ -81,7 +98,7 @@ const commonEndpoints: ApiEndpoint[] = [
     descriptionKey: 'grammar.searchIndex',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name(s)', required: true }],
   },
-  
+
   // Count API
   {
     path: '/_count',
@@ -92,7 +109,12 @@ const commonEndpoints: ApiEndpoint[] = [
       { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
       { name: 'df', type: 'string', description: 'Default field for query string' },
       { name: 'analyzer', type: 'string', description: 'Analyzer to use for query string' },
-      { name: 'default_operator', type: 'string', description: 'Default operator', enum: ['AND', 'OR'] },
+      {
+        name: 'default_operator',
+        type: 'string',
+        description: 'Default operator',
+        enum: ['AND', 'OR'],
+      },
       { name: 'routing', type: 'string', description: 'Routing value' },
     ],
   },
@@ -113,7 +135,12 @@ const commonEndpoints: ApiEndpoint[] = [
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       { name: 'routing', type: 'string', description: 'Routing value' },
-      { name: 'refresh', type: 'string', description: 'Refresh policy', enum: ['true', 'false', 'wait_for'] },
+      {
+        name: 'refresh',
+        type: 'string',
+        description: 'Refresh policy',
+        enum: ['true', 'false', 'wait_for'],
+      },
       { name: 'timeout', type: 'string', description: 'Operation timeout' },
       { name: 'pipeline', type: 'string', description: 'Ingest pipeline' },
     ],
@@ -156,7 +183,12 @@ const commonEndpoints: ApiEndpoint[] = [
     description: 'Perform multiple index/delete/update operations in a single request',
     descriptionKey: 'grammar.bulk',
     queryParams: [
-      { name: 'refresh', type: 'string', description: 'Refresh policy', enum: ['true', 'false', 'wait_for'] },
+      {
+        name: 'refresh',
+        type: 'string',
+        description: 'Refresh policy',
+        enum: ['true', 'false', 'wait_for'],
+      },
       { name: 'routing', type: 'string', description: 'Default routing' },
       { name: 'timeout', type: 'string', description: 'Operation timeout' },
       { name: 'pipeline', type: 'string', description: 'Default ingest pipeline' },
@@ -166,7 +198,9 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_bulk',
     methods: ['POST'],
     description: 'Perform bulk operations on a specific index',
-    pathParams: [{ name: 'index', type: 'string', description: 'Default index name', required: true }],
+    pathParams: [
+      { name: 'index', type: 'string', description: 'Default index name', required: true },
+    ],
   },
 
   // Index APIs
@@ -266,7 +300,12 @@ const commonEndpoints: ApiEndpoint[] = [
       { name: 'h', type: 'string', description: 'Columns to display' },
       { name: 's', type: 'string', description: 'Sort by column' },
       { name: 'v', type: 'boolean', description: 'Verbose output' },
-      { name: 'health', type: 'string', description: 'Filter by health', enum: ['green', 'yellow', 'red'] },
+      {
+        name: 'health',
+        type: 'string',
+        description: 'Filter by health',
+        enum: ['green', 'yellow', 'red'],
+      },
     ],
   },
   {
@@ -332,9 +371,19 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'Cluster health',
     queryParams: [
-      { name: 'wait_for_status', type: 'string', description: 'Wait for cluster status', enum: ['green', 'yellow', 'red'] },
+      {
+        name: 'wait_for_status',
+        type: 'string',
+        description: 'Wait for cluster status',
+        enum: ['green', 'yellow', 'red'],
+      },
       { name: 'timeout', type: 'string', description: 'Operation timeout' },
-      { name: 'level', type: 'string', description: 'Detail level', enum: ['cluster', 'indices', 'shards'] },
+      {
+        name: 'level',
+        type: 'string',
+        description: 'Detail level',
+        enum: ['cluster', 'indices', 'shards'],
+      },
     ],
   },
   {
@@ -391,19 +440,25 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_template/{template}',
     methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
     description: 'Index templates (legacy)',
-    pathParams: [{ name: 'template', type: 'string', description: 'Template name', required: true }],
+    pathParams: [
+      { name: 'template', type: 'string', description: 'Template name', required: true },
+    ],
   },
   {
     path: '/_index_template/{template}',
     methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
     description: 'Index templates (composable)',
-    pathParams: [{ name: 'template', type: 'string', description: 'Template name', required: true }],
+    pathParams: [
+      { name: 'template', type: 'string', description: 'Template name', required: true },
+    ],
   },
   {
     path: '/_component_template/{template}',
     methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
     description: 'Component templates',
-    pathParams: [{ name: 'template', type: 'string', description: 'Template name', required: true }],
+    pathParams: [
+      { name: 'template', type: 'string', description: 'Template name', required: true },
+    ],
   },
 
   // Analyze API
@@ -516,7 +571,12 @@ const commonEndpoints: ApiEndpoint[] = [
     queryParams: [
       { name: 'refresh', type: 'boolean', description: 'Refresh after update' },
       { name: 'timeout', type: 'string', description: 'Operation timeout' },
-      { name: 'conflicts', type: 'string', description: 'Conflict handling', enum: ['abort', 'proceed'] },
+      {
+        name: 'conflicts',
+        type: 'string',
+        description: 'Conflict handling',
+        enum: ['abort', 'proceed'],
+      },
     ],
     requestBody: {
       properties: {
@@ -535,7 +595,12 @@ const commonEndpoints: ApiEndpoint[] = [
     queryParams: [
       { name: 'refresh', type: 'boolean', description: 'Refresh after delete' },
       { name: 'timeout', type: 'string', description: 'Operation timeout' },
-      { name: 'conflicts', type: 'string', description: 'Conflict handling', enum: ['abort', 'proceed'] },
+      {
+        name: 'conflicts',
+        type: 'string',
+        description: 'Conflict handling',
+        enum: ['abort', 'proceed'],
+      },
     ],
     requestBody: {
       properties: {
@@ -554,7 +619,9 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_snapshot/{repository}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage snapshot repository',
-    pathParams: [{ name: 'repository', type: 'string', description: 'Repository name', required: true }],
+    pathParams: [
+      { name: 'repository', type: 'string', description: 'Repository name', required: true },
+    ],
   },
   {
     path: '/_snapshot/{repository}/{snapshot}',
@@ -583,7 +650,12 @@ const commonEndpoints: ApiEndpoint[] = [
     queryParams: [
       { name: 'actions', type: 'string', description: 'Action filter' },
       { name: 'detailed', type: 'boolean', description: 'Detailed output' },
-      { name: 'group_by', type: 'string', description: 'Group by', enum: ['nodes', 'parents', 'none'] },
+      {
+        name: 'group_by',
+        type: 'string',
+        description: 'Group by',
+        enum: ['nodes', 'parents', 'none'],
+      },
     ],
   },
   {
@@ -728,7 +800,11 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
       properties: {
         query: { type: 'string', description: 'SQL query' },
         fetch_size: { type: 'integer', description: 'Fetch size' },
-        format: { type: 'string', description: 'Response format', enum: ['csv', 'json', 'tsv', 'txt', 'yaml'] },
+        format: {
+          type: 'string',
+          description: 'Response format',
+          enum: ['csv', 'json', 'tsv', 'txt', 'yaml'],
+        },
       },
     },
   },
@@ -744,7 +820,9 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_transform/{transform_id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage transform',
-    pathParams: [{ name: 'transform_id', type: 'string', description: 'Transform ID', required: true }],
+    pathParams: [
+      { name: 'transform_id', type: 'string', description: 'Transform ID', required: true },
+    ],
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.2.0' } },
   },
 
@@ -759,7 +837,9 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_data_stream/{data_stream}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage data stream',
-    pathParams: [{ name: 'data_stream', type: 'string', description: 'Data stream name', required: true }],
+    pathParams: [
+      { name: 'data_stream', type: 'string', description: 'Data stream name', required: true },
+    ],
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.9.0' } },
   },
 
@@ -924,7 +1004,9 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_anomaly_detection/detectors/{detector_id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage anomaly detector',
-    pathParams: [{ name: 'detector_id', type: 'string', description: 'Detector ID', required: true }],
+    pathParams: [
+      { name: 'detector_id', type: 'string', description: 'Detector ID', required: true },
+    ],
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
   },
 
@@ -1090,15 +1172,9 @@ export class ApiSpecProvider {
    */
   private initializeEndpoints(): void {
     // Initialize with common endpoints for both backends
-    this.endpoints.set(BackendType.ELASTICSEARCH, [
-      ...commonEndpoints,
-      ...elasticsearchEndpoints,
-    ]);
-    
-    this.endpoints.set(BackendType.OPENSEARCH, [
-      ...commonEndpoints,
-      ...opensearchEndpoints,
-    ]);
+    this.endpoints.set(BackendType.ELASTICSEARCH, [...commonEndpoints, ...elasticsearchEndpoints]);
+
+    this.endpoints.set(BackendType.OPENSEARCH, [...commonEndpoints, ...opensearchEndpoints]);
   }
 
   /**
@@ -1106,7 +1182,7 @@ export class ApiSpecProvider {
    */
   getEndpoints(backend: BackendType, version?: string): ApiEndpoint[] {
     const endpoints = this.endpoints.get(backend) || [];
-    
+
     if (!version) {
       return endpoints;
     }
@@ -1122,9 +1198,14 @@ export class ApiSpecProvider {
   /**
    * Find endpoint by path pattern
    */
-  findEndpoint(backend: BackendType, path: string, method?: HttpMethod, version?: string): ApiEndpoint | undefined {
+  findEndpoint(
+    backend: BackendType,
+    path: string,
+    method?: HttpMethod,
+    version?: string,
+  ): ApiEndpoint | undefined {
     const endpoints = this.getEndpoints(backend, version);
-    
+
     return endpoints.find(endpoint => {
       if (method && !endpoint.methods.includes(method)) {
         return false;
@@ -1141,7 +1222,7 @@ export class ApiSpecProvider {
     const regexPattern = pattern
       .replace(/\{[^}]+\}/g, '[^/]+') // Replace {param} with [^/]+
       .replace(/\//g, '\\/'); // Escape slashes
-    
+
     const regex = new RegExp(`^${regexPattern}$`);
     return regex.test(path);
   }
@@ -1152,15 +1233,16 @@ export class ApiSpecProvider {
   getPathCompletions(backend: BackendType, version?: string, prefix?: string): string[] {
     const endpoints = this.getEndpoints(backend, version);
     const paths = endpoints.map(e => e.path);
-    
+
     if (!prefix) {
       return [...new Set(paths)];
     }
 
     // Filter and generate completions based on prefix
     const uniquePaths = endpoints
-      .filter(endpoint => 
-        endpoint.path.startsWith(prefix) || this.pathMatchesPrefix(endpoint.path, prefix)
+      .filter(
+        endpoint =>
+          endpoint.path.startsWith(prefix) || this.pathMatchesPrefix(endpoint.path, prefix),
       )
       .map(endpoint => this.getNextPathSegment(endpoint.path, prefix))
       .filter((segment): segment is string => segment !== undefined);
@@ -1174,10 +1256,10 @@ export class ApiSpecProvider {
   private pathMatchesPrefix(pattern: string, prefix: string): boolean {
     const patternParts = pattern.split('/');
     const prefixParts = prefix.split('/');
-    
-    return prefixParts.slice(0, -1).every((prefixPart, i) =>
-      patternParts[i] === prefixPart || patternParts[i]?.startsWith('{')
-    );
+
+    return prefixParts
+      .slice(0, -1)
+      .every((prefixPart, i) => patternParts[i] === prefixPart || patternParts[i]?.startsWith('{'));
   }
 
   /**
@@ -1186,7 +1268,7 @@ export class ApiSpecProvider {
   private getNextPathSegment(path: string, prefix: string): string | undefined {
     const pathParts = path.split('/');
     const prefixParts = prefix.split('/');
-    
+
     if (pathParts.length <= prefixParts.length) {
       return undefined;
     }

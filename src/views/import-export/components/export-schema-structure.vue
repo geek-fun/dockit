@@ -13,7 +13,7 @@
     </template>
     <template #header-extra>
       <div class="header-extra">
-        <n-button text type="primary" @click="handleRefresh" :loading="loading">
+        <n-button text type="primary" :loading="loading" @click="handleRefresh">
           {{ $t('export.refresh') }}
         </n-button>
         <span class="step-badge">{{ $t('export.step') }} 02</span>

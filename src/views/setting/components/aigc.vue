@@ -12,17 +12,17 @@
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.apiKey')">
             <n-input
+              v-model:value="openAi.apiKey"
               type="password"
               show-password-on="click"
-              v-model:value="openAi.apiKey"
               :placeholder="$t('setting.ai.apiKeyPlaceholder')"
               :input-props="inputProps"
             />
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.prompt')">
             <n-input
-              type="textarea"
               v-model:value="openAi.prompt"
+              type="textarea"
               :placeholder="$t('setting.ai.defaultPrompt')"
               :input-props="inputProps"
             />
@@ -35,10 +35,10 @@
               :input-props="inputProps"
             />
           </n-form-item-row>
-          <n-button type="error" @click="() => reset('openai')" class="action-button">
+          <n-button type="error" class="action-button" @click="() => reset('openai')">
             {{ $t('dialogOps.reset') }}
           </n-button>
-          <n-button type="success" @click="() => save('openai')" class="action-button">
+          <n-button type="success" class="action-button" @click="() => save('openai')">
             {{ $t('dialogOps.saveAndEnable') }}
           </n-button>
         </n-form>
@@ -54,17 +54,17 @@
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.apiKey')">
             <n-input
+              v-model:value="deepSeek.apiKey"
               type="password"
               show-password-on="click"
-              v-model:value="deepSeek.apiKey"
               :placeholder="$t('setting.ai.apiKeyPlaceholder')"
               :input-props="inputProps"
             />
           </n-form-item-row>
           <n-form-item-row :label="$t('setting.ai.prompt')">
             <n-input
-              type="textarea"
               v-model:value="deepSeek.prompt"
+              type="textarea"
               :placeholder="$t('setting.ai.defaultPrompt')"
               :input-props="inputProps"
             />
@@ -77,10 +77,10 @@
               :input-props="inputProps"
             />
           </n-form-item-row>
-          <n-button type="error" @click="() => reset('deepseek')" class="action-button">
+          <n-button type="error" class="action-button" @click="() => reset('deepseek')">
             {{ $t('dialogOps.reset') }}
           </n-button>
-          <n-button type="success" @click="() => save('deepseek')" class="action-button">
+          <n-button type="success" class="action-button" @click="() => save('deepseek')">
             {{ $t('dialogOps.saveAndEnable') }}
           </n-button>
         </n-form>

@@ -2,7 +2,7 @@
   <n-card class="create-item-container">
     <n-card :title="$t('editor.dynamo.addAttributesTitle')" class="create-item-container">
       <template #header-extra>
-        <n-icon size="26" @click="addAttributeItem" style="cursor: pointer">
+        <n-icon size="26" style="cursor: pointer" @click="addAttributeItem">
           <Add />
         </n-icon>
       </template>
@@ -187,16 +187,16 @@
         </n-button>
         <n-button
           type="primary"
-          @click="handleSubmit"
           :disabled="!validationPassed"
           :loading="loadingRef.createItem"
+          @click="handleSubmit"
         >
           {{ $t('dialogOps.create') }}
         </n-button>
       </div>
     </template>
   </n-card>
-  <n-card :title="$t('editor.dynamo.resultTitle')" v-if="queryResult.data">
+  <n-card v-if="queryResult.data" :title="$t('editor.dynamo.resultTitle')">
     <n-data-table :columns="queryResult.columns" :data="queryResult.data" />
   </n-card>
 </template>

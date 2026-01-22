@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import { jsonify } from '../../src/common';
 
 describe('Unit test for jsonify', () => {

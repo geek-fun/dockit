@@ -1,5 +1,5 @@
 <template>
-  <n-split direction="vertical" class="ui-editor" v-model:size="editorSize">
+  <n-split v-model:size="editorSize" direction="vertical" class="ui-editor">
     <template #1>
       <n-card class="query-container">
         <n-form
@@ -16,13 +16,13 @@
             <n-grid-item span="8">
               <n-form-item :label="$t('editor.dynamo.tableOrIndex')" path="index">
                 <n-select
-                  :placeholder="$t('editor.dynamo.selectTableOrIndex')"
                   v-model:value="dynamoQueryForm.index"
+                  :placeholder="$t('editor.dynamo.selectTableOrIndex')"
                   remote
                   :loading="loadingRef.index"
+                  :options="indicesOrTableOptions"
                   @update:show="handleIndexOpen"
                   @update:value="handleUpdate"
-                  :options="indicesOrTableOptions"
                 />
               </n-form-item>
             </n-grid-item>
@@ -59,7 +59,7 @@
           <!-- Dynamic additional form items -->
           <n-card :title="$t('editor.dynamo.filterTitle')" class="additional-filter-container">
             <template #header-extra>
-              <n-icon size="26" @click="addFilterItem" style="cursor: pointer">
+              <n-icon size="26" style="cursor: pointer" @click="addFilterItem">
                 <Add />
               </n-icon>
             </template>
@@ -142,9 +142,9 @@
             </n-button>
             <n-button
               type="primary"
-              @click="queryToDynamo"
               :disabled="!validationPassed"
               :loading="loadingRef.queryResult"
+              @click="queryToDynamo"
             >
               {{ $t('dialogOps.execute') }}
             </n-button>
