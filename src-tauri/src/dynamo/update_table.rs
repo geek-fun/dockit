@@ -9,21 +9,21 @@ use serde::Deserialize;
 use serde_json::json;
 
 #[derive(Debug, Deserialize)]
-pub struct CreateGsiInput<'a> {
-    pub table_name: &'a str,
-    pub payload: &'a serde_json::Value,
+pub struct CreateGsiInput {
+    pub table_name: String,
+    pub payload: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct UpdateGsiInput<'a> {
-    pub table_name: &'a str,
-    pub payload: &'a serde_json::Value,
+pub struct UpdateGsiInput {
+    pub table_name: String,
+    pub payload: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct DeleteGsiInput<'a> {
-    pub table_name: &'a str,
-    pub payload: &'a serde_json::Value,
+pub struct DeleteGsiInput {
+    pub table_name: String,
+    pub payload: serde_json::Value,
 }
 
 fn parse_scalar_type(type_str: &str) -> ScalarAttributeType {
@@ -46,7 +46,7 @@ fn parse_projection_type(type_str: &str) -> ProjectionType {
 
 pub async fn create_global_secondary_index(
     client: &Client,
-    input: CreateGsiInput<'_>,
+    input: CreateGsiInput,
 ) -> Result<ApiResponse, String> {
     let payload = input.payload;
 
@@ -191,7 +191,7 @@ pub async fn create_global_secondary_index(
 
 pub async fn update_global_secondary_index(
     client: &Client,
-    input: UpdateGsiInput<'_>,
+    input: UpdateGsiInput,
 ) -> Result<ApiResponse, String> {
     let payload = input.payload;
 
@@ -258,7 +258,7 @@ pub async fn update_global_secondary_index(
 
 pub async fn delete_global_secondary_index(
     client: &Client,
-    input: DeleteGsiInput<'_>,
+    input: DeleteGsiInput,
 ) -> Result<ApiResponse, String> {
     let payload = input.payload;
 

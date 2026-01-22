@@ -11,6 +11,8 @@ use crate::dynamo::update_table::{
     CreateGsiInput, DeleteGsiInput, UpdateGsiInput,
 };
 use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};
+use crate::dynamo::continuous_backups::describe_continuous_backups;
+use crate::dynamo::time_to_live::describe_time_to_live;
 use aws_config::meta::region::RegionProviderChain;
 use aws_config::Region;
 use aws_sdk_dynamodb::{config::Credentials, Client};
@@ -178,8 +180,8 @@ pub async fn dynamo_api(
         "CREATE_GLOBAL_SECONDARY_INDEX" => {
             if let Some(payload) = &options.payload {
                 let input = CreateGsiInput {
-                    table_name: &options.table_name,
-                    payload,
+                    table_name: options.table_name.clone(),
+                    payload: payload.clone(),
                 };
                 create_global_secondary_index(&client, input).await
             } else {
@@ -193,8 +195,8 @@ pub async fn dynamo_api(
         "UPDATE_GLOBAL_SECONDARY_INDEX" => {
             if let Some(payload) = &options.payload {
                 let input = UpdateGsiInput {
-                    table_name: &options.table_name,
-                    payload,
+                    table_name: options.table_name.clone(),
+                    payload: payload.clone(),
                 };
                 update_global_secondary_index(&client, input).await
             } else {
@@ -208,8 +210,8 @@ pub async fn dynamo_api(
         "DELETE_GLOBAL_SECONDARY_INDEX" => {
             if let Some(payload) = &options.payload {
                 let input = DeleteGsiInput {
-                    table_name: &options.table_name,
-                    payload,
+                    table_name: options.table_name.clone(),
+                    payload: payload.clone(),
                 };
                 delete_global_secondary_index(&client, input).await
             } else {
@@ -235,6 +237,12 @@ pub async fn dynamo_api(
                 period_hours,
             };
             get_table_metrics(&cloudwatch_client, input).await
+        }
+        "DESCRIBE_CONTINUOUS_BACKUPS" => {
+            describe_continuous_backups(&client, &options.table_name).await
+        }
+        "DESCRIBE_TIME_TO_LIVE" => {
+            describe_time_to_live(&client, &options.table_name).await
         }
         // Add more operations as needed
         _ => Ok(ApiResponse {

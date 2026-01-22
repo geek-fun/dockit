@@ -42,10 +42,21 @@ export type RawDynamoDBTableInfo = {
   status: string;
   itemCount: number;
   sizeBytes: number;
+  billingMode?: string;
   keySchema: KeySchema[]; // Based on connection store usage
   attributeDefinitions: AttributeDefinition[];
   indices: DynamoIndex[];
   creationDateTime: string;
+  streamSpecification?: {
+    streamEnabled?: boolean;
+    streamViewType?: string;
+  };
+  sseDescription?: {
+    status?: string;
+    sseType?: string;
+    kmsMasterKeyArn?: string;
+  };
+  tableClassSummary?: string;
 };
 
 export type DynamoDBTableInfo = {
@@ -54,6 +65,7 @@ export type DynamoDBTableInfo = {
   status: string;
   itemCount: number;
   sizeBytes: number;
+  billingMode?: string;
   partitionKey: {
     name: string;
     type: string;
@@ -68,6 +80,16 @@ export type DynamoDBTableInfo = {
   attributeDefinitions: AttributeDefinition[];
   indices?: DynamoIndex[];
   creationDateTime?: string;
+  streamSpecification?: {
+    streamEnabled?: boolean;
+    streamViewType?: string;
+  };
+  sseDescription?: {
+    status?: string;
+    sseType?: string;
+    kmsMasterKeyArn?: string;
+  };
+  tableClassSummary?: string;
 };
 
 export type QueryParams = {
@@ -400,6 +422,48 @@ const dynamoApi = {
       throw new CustomError(status, message);
     }
     return data;
+  },
+
+  // Get Point-in-Time Recovery status
+  describeContinuousBackups: async (con: DynamoDBConnection) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+    const options = {
+      table_name: con.tableName,
+      operation: 'DESCRIBE_CONTINUOUS_BACKUPS',
+      payload: {},
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+    return data as { pitrEnabled: boolean };
+  },
+
+  // Get Time To Live status
+  describeTimeToLive: async (con: DynamoDBConnection) => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+    };
+    const options = {
+      table_name: con.tableName,
+      operation: 'DESCRIBE_TIME_TO_LIVE',
+      payload: {},
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+    return data as { ttlEnabled: boolean; attributeName?: string };
   },
 
   // CloudWatch Metrics

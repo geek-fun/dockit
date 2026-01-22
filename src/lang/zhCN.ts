@@ -173,6 +173,7 @@ export const zhCN = {
       streams: '流',
       encryption: '加密',
       tableClass: '表类别',
+      comingSoon: '即将推出',
       // CloudWatch metrics
       cloudwatchNotAvailable:
         'CloudWatch 指标不可用。请启用 CloudWatch Contributor Insights 或确保您的 IAM 凭证具有 cloudwatch:GetMetricData 权限。',
@@ -180,8 +181,6 @@ export const zhCN = {
       deleteIndexConfirm: '确定要删除此索引吗?',
       deleteIndexSuccess: '索引删除成功',
       createGsiTitle: '创建全局二级索引',
-      modifyGsiTitle: '修改索引吞吐量',
-      tableSettingsTitle: '表设置',
       indexNamePlaceholder: '输入索引名称',
       partitionKeyPlaceholder: '输入分区键属性',
       partitionKeyType: '分区键类型',
@@ -193,16 +192,6 @@ export const zhCN = {
       rcuRequired: '读取容量单位为必填项',
       wcuRequired: '写入容量单位为必填项',
       createIndexSuccess: '索引创建成功',
-      modifyIndexSuccess: '索引修改成功',
-      settingsSaved: '设置保存成功',
-      enableStreams: '启用流',
-      streamViewType: '流视图类型',
-      enableTtl: '启用 TTL',
-      ttlAttribute: 'TTL 属性',
-      ttlAttributePlaceholder: '输入 TTL 属性名称',
-      enablePitr: '启用时间点恢复',
-      pitrWarning: '时间点恢复有助于保护您的 DynamoDB 表免受意外写入或删除操作的影响。',
-      tableClassInfo: 'Standard-IA 针对存储成本占主导的表进行了优化。',
     },
   },
   connection: {

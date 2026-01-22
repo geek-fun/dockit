@@ -224,7 +224,7 @@
         </template>
         <div class="settings-grid">
           <!-- Streams Setting -->
-          <div class="setting-item clickable" @click="showSettingsModal = true">
+          <div class="setting-item clickable" @click="message.info($t('manage.dynamo.comingSoon'))">
             <div class="setting-header">
               <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
               <n-switch :value="streamsEnabled" size="small" @click.stop />
@@ -240,7 +240,7 @@
             <span class="setting-value">{{ encryptionType }}</span>
           </div>
           <!-- Table Class Setting -->
-          <div class="setting-item clickable" @click="showSettingsModal = true">
+          <div class="setting-item clickable" @click="message.info($t('manage.dynamo.comingSoon'))">
             <div class="setting-header">
               <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
               <n-icon size="16"><DataTable /></n-icon>
@@ -264,21 +264,6 @@
       :table-name="dynamoConnection?.tableName || ''"
       @created="handleIndexCreated"
     />
-
-    <modify-index-modal
-      v-model:show="showModifyIndexModal"
-      :index-name="selectedIndex?.name || ''"
-      :table-name="dynamoConnection?.tableName || ''"
-      :index="selectedIndex"
-      @modified="handleIndexModified"
-    />
-
-    <table-settings-modal
-      v-model:show="showSettingsModal"
-      :table-name="dynamoConnection?.tableName || ''"
-      :current-settings="currentTableSettings"
-      @saved="handleSettingsSaved"
-    />
   </div>
 </template>
 
@@ -293,7 +278,6 @@ import {
   DataTable,
   CheckmarkFilled,
   CloseFilled,
-  Edit,
   TrashCan,
 } from '@vicons/carbon';
 import prettyBytes from 'pretty-bytes';
@@ -308,8 +292,6 @@ import { CustomError } from '../../../common';
 import { DynamoIndex, DynamoIndexType, dynamoApi } from '../../../datasources';
 import DeleteIndexModal from './delete-index-modal.vue';
 import CreateIndexModal from './create-index-modal.vue';
-import ModifyIndexModal from './modify-index-modal.vue';
-import TableSettingsModal from './table-settings-modal.vue';
 
 const message = useMessage();
 const lang = useLang();
@@ -324,8 +306,6 @@ const { tableInfo } = storeToRefs(dynamoManageStore);
 // Modal visibility states
 const showDeleteIndexModal = ref(false);
 const showCreateIndexModal = ref(false);
-const showModifyIndexModal = ref(false);
-const showSettingsModal = ref(false);
 const selectedIndex = ref<DynamoIndex | null>(null);
 
 // CloudWatch metrics state
@@ -344,22 +324,44 @@ const dynamoConnection = computed(() => {
 });
 
 const billingMode = computed(() => {
-  return lang.t('manage.dynamo.provisioned');
+  const mode = tableInfo.value?.billingMode;
+  if (!mode) return lang.t('manage.dynamo.provisioned');
+  return mode === 'PAY_PER_REQUEST'
+    ? lang.t('manage.dynamo.onDemand')
+    : lang.t('manage.dynamo.provisioned');
 });
 
-// Metrics values - updated from CloudWatch when available
-const pitrEnabled = ref(true);
-const ttlEnabled = ref(true);
-const ttlAttribute = ref('expiry_date');
+// Metrics values - will be fetched from server
+const pitrEnabled = ref(false);
+const ttlEnabled = ref(false);
+const ttlAttribute = ref<string>();
 const rcuUtilization = ref(0);
 const wcuUtilization = ref(0);
 const provisionedRcu = ref(0);
 const provisionedWcu = ref(0);
 const throttledEvents = ref(0);
-const streamsEnabled = ref(true);
-const streamsViewType = ref('NEW_AND_OLD_IMAGES');
-const encryptionType = ref('AWS Managed Key');
-const tableClass = ref('DynamoDB Standard');
+
+const streamsEnabled = computed(() => {
+  return tableInfo.value?.streamSpecification?.streamEnabled || false;
+});
+
+const streamsViewType = computed(() => {
+  return tableInfo.value?.streamSpecification?.streamViewType || '-';
+});
+
+const encryptionType = computed(() => {
+  const sse = tableInfo.value?.sseDescription;
+  if (!sse || sse.status !== 'ENABLED') return 'Not Enabled';
+  if (sse.sseType === 'KMS') {
+    return sse.kmsMasterKeyArn ? 'Customer Managed Key' : 'AWS Managed Key';
+  }
+  return 'AWS Owned Key';
+});
+
+const tableClass = computed(() => {
+  const cls = tableInfo.value?.tableClassSummary;
+  return cls === 'STANDARD_INFREQUENT_ACCESS' ? 'DynamoDB Standard-IA' : 'DynamoDB Standard';
+});
 
 // Generate SVG path points from data
 const readChartPoints = computed(() => {
@@ -459,18 +461,9 @@ const gsiColumns = computed(() => [
   {
     title: lang.t('manage.dynamo.actions'),
     key: 'actions',
-    width: 100,
+    width: 80,
     render: (row: DynamoIndex) => {
       return h('div', { class: 'action-buttons' }, [
-        h(
-          NButton,
-          {
-            quaternary: true,
-            size: 'small',
-            onClick: () => handleEditIndex(row),
-          },
-          { icon: () => h(NIcon, null, { default: () => h(Edit) }) },
-        ),
         h(
           NButton,
           {
@@ -532,6 +525,27 @@ const handleRefresh = async () => {
   }
   try {
     await fetchTableInfo(connection.value);
+
+    // Fetch PITR status
+    try {
+      const pitrData = await dynamoApi.describeContinuousBackups(connection.value);
+      pitrEnabled.value = pitrData.pitrEnabled || false;
+    } catch (err) {
+      console.warn('Failed to fetch PITR status:', err);
+      pitrEnabled.value = false;
+    }
+
+    // Fetch TTL status
+    try {
+      const ttlData = await dynamoApi.describeTimeToLive(connection.value);
+      ttlEnabled.value = ttlData.ttlEnabled;
+      ttlAttribute.value = ttlData.attributeName;
+    } catch (err) {
+      console.warn('Failed to fetch TTL status:', err);
+      ttlEnabled.value = false;
+      ttlAttribute.value = undefined;
+    }
+
     // Also fetch CloudWatch metrics
     await fetchCloudWatchMetrics();
   } catch (err) {
@@ -548,11 +562,6 @@ const handleCreateIndex = () => {
   showCreateIndexModal.value = true;
 };
 
-const handleEditIndex = (index: DynamoIndex) => {
-  selectedIndex.value = index;
-  showModifyIndexModal.value = true;
-};
-
 const handleDeleteIndex = (index: DynamoIndex) => {
   selectedIndex.value = index;
   showDeleteIndexModal.value = true;
@@ -567,26 +576,6 @@ const handleIndexCreated = async () => {
   message.success(lang.t('manage.dynamo.createIndexSuccess'));
   await handleRefresh();
 };
-
-const handleIndexModified = async () => {
-  message.success(lang.t('manage.dynamo.modifyIndexSuccess'));
-  await handleRefresh();
-};
-
-const handleSettingsSaved = async () => {
-  message.success(lang.t('manage.dynamo.settingsSaved'));
-  await handleRefresh();
-};
-
-// Computed for current table settings to pass to modal
-const currentTableSettings = computed(() => ({
-  streamsEnabled: streamsEnabled.value,
-  streamViewType: streamsViewType.value,
-  ttlEnabled: ttlEnabled.value,
-  ttlAttributeName: ttlAttribute.value,
-  pitrEnabled: pitrEnabled.value,
-  tableClass: tableClass.value,
-}));
 
 onMounted(async () => {
   if (connection.value && connection.value.type === DatabaseType.DYNAMODB) {

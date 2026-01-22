@@ -173,6 +173,7 @@ export const enUS = {
       streams: 'Streams',
       encryption: 'Encryption',
       tableClass: 'Table Class',
+      comingSoon: 'Coming soon',
       // CloudWatch metrics
       cloudwatchNotAvailable:
         'CloudWatch metrics are not available. Enable CloudWatch Contributor Insights or ensure your IAM credentials have cloudwatch:GetMetricData permission.',
@@ -180,8 +181,6 @@ export const enUS = {
       deleteIndexConfirm: 'Are you sure you want to delete this index?',
       deleteIndexSuccess: 'Index deleted successfully',
       createGsiTitle: 'Create Global Secondary Index',
-      modifyGsiTitle: 'Modify Index Throughput',
-      tableSettingsTitle: 'Table Settings',
       indexNamePlaceholder: 'Enter index name',
       partitionKeyPlaceholder: 'Enter partition key attribute',
       partitionKeyType: 'Partition Key Type',
@@ -193,17 +192,6 @@ export const enUS = {
       rcuRequired: 'Read capacity units is required',
       wcuRequired: 'Write capacity units is required',
       createIndexSuccess: 'Index created successfully',
-      modifyIndexSuccess: 'Index modified successfully',
-      settingsSaved: 'Settings saved successfully',
-      enableStreams: 'Enable Streams',
-      streamViewType: 'Stream View Type',
-      enableTtl: 'Enable TTL',
-      ttlAttribute: 'TTL Attribute',
-      ttlAttributePlaceholder: 'Enter TTL attribute name',
-      enablePitr: 'Enable Point-in-Time Recovery',
-      pitrWarning:
-        'Point-in-time recovery helps protect your DynamoDB tables from accidental write or delete operations.',
-      tableClassInfo: 'Standard-IA is optimized for tables where storage is the dominant cost.',
     },
   },
   connection: {

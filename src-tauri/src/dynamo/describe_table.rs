@@ -17,6 +17,7 @@ pub async fn describe_table(client: &Client, table_name: &str) -> Result<ApiResp
                 "status": response.table().and_then(|t| t.table_status().map(|s| s.as_str().to_string())),
                 "itemCount": response.table().and_then(|t| t.item_count()),
                 "sizeBytes": response.table().and_then(|t| t.table_size_bytes()),
+                "billingMode": response.table().and_then(|t| t.billing_mode_summary().and_then(|b| b.billing_mode().map(|m| m.as_str().to_string()))),
                 "keySchema": response.table().and_then(|t| {
                     Some(t.key_schema().iter().map(|k| {
                         json!({
@@ -33,6 +34,16 @@ pub async fn describe_table(client: &Client, table_name: &str) -> Result<ApiResp
                         })
                     }).collect::<Vec<_>>())
                 }),
+                "streamSpecification": response.table().and_then(|t| t.stream_specification().map(|s| json!({
+                    "streamEnabled": s.stream_enabled(),
+                    "streamViewType": s.stream_view_type().map(|v| v.as_str().to_string())
+                }))),
+                "sseDescription": response.table().and_then(|t| t.sse_description().map(|s| json!({
+                    "status": s.status().map(|st| st.as_str().to_string()),
+                    "sseType": s.sse_type().map(|t| t.as_str().to_string()),
+                    "kmsMasterKeyArn": s.kms_master_key_arn()
+                }))),
+                "tableClassSummary": response.table().and_then(|t| t.table_class_summary().and_then(|c| c.table_class().map(|tc| tc.as_str().to_string()))),
                 "indices": response.table().map(|t| {
                     let mut indices = Vec::new();
 
