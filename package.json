@@ -35,7 +35,7 @@
     "highlight.js": "^11.11.1",
     "json-with-bigint": "^3.5.2",
     "json5": "^2.2.3",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "markdown-it": "^14.1.0",
     "monaco-editor": "^0.55.1",
     "pinia": "^3.0.4",
