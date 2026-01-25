@@ -1473,10 +1473,10 @@ export const useImportExportStore = defineStore('importExportStore', {
         // Get table info to ensure we have attribute definitions
         const tableInfo = await dynamoApi.describeTable(dynamoConnection);
 
-        // Scan to get a sample document - always use the base table name
+        // Always scan the base table to get schema information (not GSI/LSI)
         const queryResult = await dynamoApi.scanTable(dynamoConnection, {
           tableName: dynamoConnection.tableName,
-          indexName: this.selectedIndex,
+          indexName: null,
           partitionKey: {
             name: dynamoConnection.partitionKey.name,
             value: null,
