@@ -343,20 +343,12 @@ export const useImportExportStore = defineStore('importExportStore', {
             const bulkData = allHits
               .slice(i, i + bulkSize)
               .flatMap(hit => {
-                // Extract _id and construct source from the document
-                // Handle both formats: {_id, _source: {...}} and {_id, field1, field2, ...}
                 const { _id, _source, _index, _score, sort: _sort, ...otherFields } = hit;
-                const source = _source || otherFields;
 
                 // Build action metadata
                 // - If _id exists: use it (will update in replace mode, skip in append mode via 409)
                 // - If _id missing: ES auto-generates (creates new doc in both modes)
-                const actionMeta: { _index: string; _id?: string } = { _index: input.index };
-                if (_id) {
-                  actionMeta._id = _id;
-                }
-
-                return [{ [action]: actionMeta }, source];
+                return [{ [action]: { _index: input.index, _id } }, _source || otherFields];
               })
               .map(item => jsonify.stringify(item));
 
@@ -490,18 +482,13 @@ export const useImportExportStore = defineStore('importExportStore', {
                   {} as { [key: string]: unknown },
                 );
 
-                // Extract _id from body if it exists
                 const { _id, ...source } = body as { _id?: string; [key: string]: unknown };
 
                 // Build action metadata
                 // - If _id exists: use it (will update in replace mode, skip in append mode via 409)
                 // - If _id missing: ES auto-generates (creates new doc in both modes)
-                const actionMeta: { _index: string; _id?: string } = { _index: input.index };
-                if (_id) {
-                  actionMeta._id = _id;
-                }
 
-                return [{ [action]: actionMeta }, source];
+                return [{ [action]: { _index: input.index, _id } }, source];
               })
               .map(item => jsonify.stringify(item));
 
