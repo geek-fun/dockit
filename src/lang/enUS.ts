@@ -639,6 +639,7 @@ export const enUS = {
     chooseData: 'Choose Data',
     chooseMetadata: 'Choose Metadata',
     ready: 'Ready',
+    error: 'Error',
     selectDataFile: 'Select Data File',
     selectMetadataFile: 'Select Metadata File',
     schemaFromMetadata: 'Schema from metadata.json',
