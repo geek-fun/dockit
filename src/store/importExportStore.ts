@@ -463,8 +463,8 @@ export const useImportExportStore = defineStore('importExportStore', {
 
                     let value = values[index];
 
-                    // Skip only null/undefined (unquoted empty fields)
-                    // Preserve '' (quoted empty strings from CSV) for round-trip fidelity
+                    // Skip only null/undefined (parseCsvLine returns null for unquoted empty fields)
+                    // Preserve '' (parseCsvLine returns '' for quoted empty strings "") for round-trip fidelity
                     if (value === null || value === undefined) {
                       return acc;
                     }
@@ -590,8 +590,8 @@ export const useImportExportStore = defineStore('importExportStore', {
 
                 let value: unknown = values[index];
 
-                // Skip only null/undefined (unquoted empty fields)
-                // Preserve '' (quoted empty strings from CSV) for round-trip fidelity
+                // Skip only null/undefined (parseCsvLine returns null for unquoted empty fields)
+                // Preserve '' (parseCsvLine returns '' for quoted empty strings "") for round-trip fidelity
                 if (value === null || value === undefined) {
                   return acc;
                 }
