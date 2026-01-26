@@ -425,10 +425,12 @@ const gsiColumns = computed(() => [
   {
     title: lang.t('manage.dynamo.indexName'),
     key: 'name',
+    ellipsis: { tooltip: true },
   },
   {
     title: lang.t('manage.dynamo.partitionKey'),
     key: 'partitionKey',
+    ellipsis: { tooltip: true },
     render: (row: DynamoIndex) => {
       const pks = row.keySchema?.filter(k => k.keyType.toUpperCase() === 'HASH') || [];
       if (pks.length === 0) return '-';
@@ -445,6 +447,7 @@ const gsiColumns = computed(() => [
   {
     title: lang.t('manage.dynamo.sortKey'),
     key: 'sortKey',
+    ellipsis: { tooltip: true },
     render: (row: DynamoIndex) => {
       const sks = row.keySchema?.filter(k => k.keyType.toUpperCase() === 'RANGE') || [];
       if (sks.length === 0) return '-';
@@ -461,6 +464,7 @@ const gsiColumns = computed(() => [
   {
     title: lang.t('manage.dynamo.projection'),
     key: 'projection',
+    ellipsis: { tooltip: true },
     render: (row: DynamoIndex) => {
       const projectionType = row.projection?.projectionType?.toUpperCase() || 'ALL';
       if (projectionType === 'INCLUDE') {
@@ -473,6 +477,7 @@ const gsiColumns = computed(() => [
   {
     title: lang.t('manage.dynamo.size'),
     key: 'size',
+    ellipsis: { tooltip: true },
     render: (row: DynamoIndex) => {
       if (!row.sizeBytes) return '-';
       const sizeInKB = row.sizeBytes / 1024;
@@ -487,6 +492,15 @@ const gsiColumns = computed(() => [
       } else {
         return `${row.sizeBytes} B`;
       }
+    },
+  },
+  {
+    title: lang.t('manage.dynamo.itemCount'),
+    key: 'itemCount',
+    ellipsis: { tooltip: true },
+    render: (row: DynamoIndex) => {
+      if (row.itemCount === undefined || row.itemCount === null) return '-';
+      return row.itemCount.toLocaleString();
     },
   },
   {
