@@ -233,7 +233,7 @@
             {{ lang.t('dialogOps.cancel') }}
           </n-button>
           <n-button type="primary" :loading="loading" @click="handleSubmit">
-            {{ lang.t('dialogOps.confirm') }}
+            {{ lang.t('dialogOps.create') }}
           </n-button>
         </div>
       </template>
