@@ -463,8 +463,9 @@ export const useImportExportStore = defineStore('importExportStore', {
 
                     let value = values[index];
 
-                    // Empty field from CSV becomes '', skip null/undefined/empty to avoid type errors
-                    if (value === '' || value === null || value === undefined) {
+                    // Skip only null/undefined (unquoted empty fields)
+                    // Preserve '' (quoted empty strings from CSV) for round-trip fidelity
+                    if (value === null || value === undefined) {
                       return acc;
                     }
 
@@ -589,8 +590,9 @@ export const useImportExportStore = defineStore('importExportStore', {
 
                 let value: unknown = values[index];
 
-                // Skip null/undefined/empty values
-                if (value === null || value === undefined || value === '') {
+                // Skip only null/undefined (unquoted empty fields)
+                // Preserve '' (quoted empty strings from CSV) for round-trip fidelity
+                if (value === null || value === undefined) {
                   return acc;
                 }
 
