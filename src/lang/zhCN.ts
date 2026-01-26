@@ -147,6 +147,7 @@ export const zhCN = {
       noLsi: '无本地二级索引',
       indexName: '索引名称',
       indexStatus: '状态',
+      size: '大小',
       rcu: '读取容量单位',
       wcu: '写入容量单位',
       attributeDefinitions: '属性定义',

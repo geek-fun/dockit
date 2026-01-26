@@ -55,6 +55,8 @@ pub async fn describe_table(client: &Client, table_name: &str) -> Result<ApiResp
                                 "type": "GSI",
                                 "name": gsi.index_name(),
                                 "status": gsi.index_status().map(|s| s.as_str().to_string()),
+                                "itemCount": gsi.item_count(),
+                                "sizeBytes": gsi.index_size_bytes(),
                                 "keySchema": gsi.key_schema().iter().map(|k| {
                                     json!({
                                         "attributeName": k.attribute_name(),
@@ -83,6 +85,8 @@ pub async fn describe_table(client: &Client, table_name: &str) -> Result<ApiResp
                             let index_info = json!({
                                 "type": "LSI",
                                 "name": lsi.index_name(),
+                                "itemCount": lsi.item_count(),
+                                "sizeBytes": lsi.index_size_bytes(),
                                 "keySchema": lsi.key_schema().iter().map(|k| {
                                     json!({
                                         "attributeName": k.attribute_name(),

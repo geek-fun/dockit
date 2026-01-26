@@ -147,6 +147,7 @@ export const enUS = {
       noLsi: 'No Local Secondary Indexes',
       indexName: 'Index Name',
       indexStatus: 'Status',
+      size: 'Size',
       rcu: 'RCU',
       wcu: 'WCU',
       attributeDefinitions: 'Attribute Definitions',

@@ -28,6 +28,8 @@ export type DynamoIndex = {
   type: DynamoIndexType;
   name: string;
   status?: string;
+  itemCount?: number;
+  sizeBytes?: number;
   keySchema: KeySchema[];
   projection?: {
     projectionType?: string;
