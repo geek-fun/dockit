@@ -57,6 +57,10 @@ export type RawDynamoDBTableInfo = {
     kmsMasterKeyArn?: string;
   };
   tableClassSummary?: string;
+  warmThroughput?: {
+    readUnitsPerSecond?: number;
+    writeUnitsPerSecond?: number;
+  };
 };
 
 export type DynamoDBTableInfo = {
@@ -90,6 +94,14 @@ export type DynamoDBTableInfo = {
     kmsMasterKeyArn?: string;
   };
   tableClassSummary?: string;
+  warmThroughput?: {
+    readUnitsPerSecond?: number;
+    writeUnitsPerSecond?: number;
+  };
+  provisionedThroughput?: {
+    readCapacityUnits?: number;
+    writeCapacityUnits?: number;
+  };
 };
 
 export type QueryParams = {
@@ -332,14 +344,19 @@ const dynamoApi = {
     con: DynamoDBConnection,
     indexConfig: {
       indexName: string;
-      partitionKey: string;
-      partitionKeyType: string;
-      sortKey?: string;
-      sortKeyType?: string;
+      keySchema: Array<{
+        attributeName: string;
+        keyType: 'HASH' | 'RANGE';
+        attributeType: string;
+      }>;
       projectionType: string;
       projectedAttributes?: string[];
-      readCapacityUnits: number;
-      writeCapacityUnits: number;
+      readCapacityUnits?: number;
+      writeCapacityUnits?: number;
+      warmThroughput?: {
+        readUnits: number;
+        writeUnits: number;
+      };
     },
   ) => {
     const credentials = {
@@ -352,14 +369,21 @@ const dynamoApi = {
       operation: 'CREATE_GLOBAL_SECONDARY_INDEX',
       payload: {
         index_name: indexConfig.indexName,
-        partition_key: indexConfig.partitionKey,
-        partition_key_type: indexConfig.partitionKeyType,
-        sort_key: indexConfig.sortKey,
-        sort_key_type: indexConfig.sortKeyType,
+        key_schema: indexConfig.keySchema.map(key => ({
+          attribute_name: key.attributeName,
+          key_type: key.keyType,
+          attribute_type: key.attributeType,
+        })),
         projection_type: indexConfig.projectionType,
         projected_attributes: indexConfig.projectedAttributes,
         read_capacity_units: indexConfig.readCapacityUnits,
         write_capacity_units: indexConfig.writeCapacityUnits,
+        warm_throughput: indexConfig.warmThroughput
+          ? {
+              read_units_per_second: indexConfig.warmThroughput.readUnits,
+              write_units_per_second: indexConfig.warmThroughput.writeUnits,
+            }
+          : undefined,
       },
     };
 

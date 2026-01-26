@@ -92,6 +92,16 @@ pub async fn describe_table(client: &Client, table_name: &str) -> Result<ApiResp
                 }),
                  "creationDateTime": response.table().and_then(|t|
                         t.creation_date_time().map(|dt| dt.to_string())),
+                "provisionedThroughput": response.table().and_then(|t| t.provisioned_throughput().map(|pt| json!({
+                    "readCapacityUnits": pt.read_capacity_units(),
+                    "writeCapacityUnits": pt.write_capacity_units()
+                }))),
+                "warmThroughput": response.table().and_then(|t| t.warm_throughput().and_then(|wt| {
+                    wt.read_units_per_second().or(wt.write_units_per_second()).map(|_| json!({
+                        "readUnitsPerSecond": wt.read_units_per_second(),
+                        "writeUnitsPerSecond": wt.write_units_per_second()
+                    }))
+                })),
             });
 
             Ok(ApiResponse {
