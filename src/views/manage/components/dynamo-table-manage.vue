@@ -430,30 +430,45 @@ const gsiColumns = computed(() => [
     title: lang.t('manage.dynamo.partitionKey'),
     key: 'partitionKey',
     render: (row: DynamoIndex) => {
-      const pk = row.keySchema?.find(k => k.keyType.toUpperCase() === 'HASH');
-      if (!pk) return '-';
-      const attrDef = tableInfo.value?.attributeDefinitions?.find(
-        a => a.attributeName === pk.attributeName,
-      );
-      return `${pk.attributeName} (${attrDef?.attributeType || 'S'})`;
+      const pks = row.keySchema?.filter(k => k.keyType.toUpperCase() === 'HASH') || [];
+      if (pks.length === 0) return '-';
+      return pks
+        .map(pk => {
+          const attrDef = tableInfo.value?.attributeDefinitions?.find(
+            a => a.attributeName === pk.attributeName,
+          );
+          return `${pk.attributeName} (${attrDef?.attributeType || 'S'})`;
+        })
+        .join(', ');
     },
   },
   {
     title: lang.t('manage.dynamo.sortKey'),
     key: 'sortKey',
     render: (row: DynamoIndex) => {
-      const sk = row.keySchema?.find(k => k.keyType.toUpperCase() === 'RANGE');
-      if (!sk) return '-';
-      const attrDef = tableInfo.value?.attributeDefinitions?.find(
-        a => a.attributeName === sk.attributeName,
-      );
-      return `${sk.attributeName} (${attrDef?.attributeType || 'S'})`;
+      const sks = row.keySchema?.filter(k => k.keyType.toUpperCase() === 'RANGE') || [];
+      if (sks.length === 0) return '-';
+      return sks
+        .map(sk => {
+          const attrDef = tableInfo.value?.attributeDefinitions?.find(
+            a => a.attributeName === sk.attributeName,
+          );
+          return `${sk.attributeName} (${attrDef?.attributeType || 'S'})`;
+        })
+        .join(', ');
     },
   },
   {
     title: lang.t('manage.dynamo.projection'),
     key: 'projection',
-    render: () => 'ALL',
+    render: (row: DynamoIndex) => {
+      const projectionType = row.projection?.projectionType?.toUpperCase() || 'ALL';
+      if (projectionType === 'INCLUDE') {
+        const attrs = row.projection?.nonKeyAttributes || [];
+        return attrs.length > 0 ? `INCLUDE [${attrs.join(', ')}]` : 'INCLUDE';
+      }
+      return projectionType;
+    },
   },
   {
     title: lang.t('manage.dynamo.indexStatus'),

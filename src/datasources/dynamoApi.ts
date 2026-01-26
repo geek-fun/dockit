@@ -29,6 +29,10 @@ export type DynamoIndex = {
   name: string;
   status?: string;
   keySchema: KeySchema[];
+  projection?: {
+    projectionType?: string;
+    nonKeyAttributes?: string[];
+  };
   provisionedThroughput?: {
     readCapacityUnits?: number;
     writeCapacityUnits?: number;
