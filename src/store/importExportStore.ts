@@ -312,11 +312,12 @@ export const useImportExportStore = defineStore('importExportStore', {
 
           // Parse all JSON arrays and flatten into single hits array
           const allHits: Array<{
-            _index: string;
+            _index?: string;
             _id: string;
-            _score: number;
-            _source: unknown;
-            sort: unknown[];
+            _score?: number;
+            _source?: unknown;
+            sort?: unknown[];
+            [key: string]: unknown;
           }> = [];
 
           for (const jsonArray of jsonArrays) {
@@ -341,7 +342,14 @@ export const useImportExportStore = defineStore('importExportStore', {
             const action = this.importStrategy === 'append' ? 'create' : 'index';
             const bulkData = allHits
               .slice(i, i + bulkSize)
-              .flatMap(hit => [{ [action]: { _index: input.index, _id: hit._id } }, hit._source])
+              .flatMap(hit => {
+                const { _id, _source, _index, _score, sort: _sort, ...otherFields } = hit;
+
+                // Build action metadata
+                // - If _id exists: use it (will update in replace mode, skip in append mode via 409)
+                // - If _id missing: ES auto-generates (creates new doc in both modes)
+                return [{ [action]: { _index: input.index, _id } }, _source || otherFields];
+              })
               .map(item => jsonify.stringify(item));
 
             const stats = await bulkRequest(client, bulkData);
@@ -370,7 +378,16 @@ export const useImportExportStore = defineStore('importExportStore', {
                 try {
                   const doc = jsonify.parse(line);
                   const { _id, ...source } = doc;
-                  return [{ [action]: { _index: input.index, _id } }, source];
+
+                  // Build action metadata
+                  // - If _id exists: use it (will update in replace mode, skip in append mode via 409)
+                  // - If _id missing: ES auto-generates (creates new doc in both modes)
+                  const actionMeta: { _index: string; _id?: string } = { _index: input.index };
+                  if (_id) {
+                    actionMeta._id = _id;
+                  }
+
+                  return [{ [action]: actionMeta }, source];
                 } catch {
                   return [];
                 }
@@ -386,7 +403,44 @@ export const useImportExportStore = defineStore('importExportStore', {
           }
         } else if (fileType === 'csv') {
           const lines = data.split('\r\n');
-          const headers = lines[0].split(',');
+
+          // Parse CSV line properly handling quoted fields
+          const parseCsvLine = (line: string): Array<string | null> => {
+            const result: Array<string | null> = [];
+            let current = '';
+            let inQuotes = false;
+            let hasQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              const nextChar = line[i + 1];
+
+              if (char === '"') {
+                hasQuotes = true;
+                if (inQuotes && nextChar === '"') {
+                  // Escaped quote
+                  current += '"';
+                  i++; // Skip next quote
+                } else {
+                  // Toggle quote state
+                  inQuotes = !inQuotes;
+                }
+              } else if (char === ',' && !inQuotes) {
+                // Field separator
+                // Unquoted empty field → null, Quoted empty field → ''
+                result.push(hasQuotes ? current : current === '' ? null : current);
+                current = '';
+                hasQuotes = false;
+              } else {
+                current += char;
+              }
+            }
+            // Add last field
+            result.push(hasQuotes ? current : current === '' ? null : current);
+            return result;
+          };
+
+          const headers = parseCsvLine(lines[0]);
           this.restoreProgress = {
             complete: 0,
             total: lines.length - 1,
@@ -396,25 +450,46 @@ export const useImportExportStore = defineStore('importExportStore', {
           };
 
           for (let i = 1; i < lines.length; i += bulkSize) {
+            const action = this.importStrategy === 'append' ? 'create' : 'index';
             const bulkData = lines
               .slice(i, i + bulkSize)
               .flatMap(line => {
-                const values = line.split(',');
+                if (!line.trim()) return [];
+
+                const values = parseCsvLine(line);
                 const body = headers.reduce(
                   (acc, header, index) => {
+                    if (header === null) return acc;
+
                     let value = values[index];
-                    try {
-                      value = jsonify.parse(value);
-                    } catch (_e) {
-                      // value is not a JSON string, keep it as is
+
+                    // Skip only null/undefined (parseCsvLine returns null for unquoted empty fields)
+                    // Preserve '' (parseCsvLine returns '' for quoted empty strings "") for round-trip fidelity
+                    if (value === null || value === undefined) {
+                      return acc;
                     }
+
+                    if (typeof value === 'string') {
+                      try {
+                        value = jsonify.parse(value);
+                      } catch {
+                        // Note: Not valid JSON, keep as string, Empty quoted strings "" are preserved here
+                      }
+                    }
+
                     acc[header] = value;
                     return acc;
                   },
                   {} as { [key: string]: unknown },
                 );
 
-                return [{ index: { _index: input.index } }, body];
+                const { _id, ...source } = body as { _id?: string; [key: string]: unknown };
+
+                // Build action metadata
+                // - If _id exists: use it (will update in replace mode, skip in append mode via 409)
+                // - If _id missing: ES auto-generates (creates new doc in both modes)
+
+                return [{ [action]: { _index: input.index, _id } }, source];
               })
               .map(item => jsonify.stringify(item));
 
@@ -470,18 +545,64 @@ export const useImportExportStore = defineStore('importExportStore', {
             })
             .filter(Boolean) as Array<Record<string, unknown>>;
         } else if (fileType === 'csv') {
-          // Parse CSV
+          // Parse CSV properly handling quoted fields
+          const parseCsvLine = (line: string): Array<string | null> => {
+            const result: Array<string | null> = [];
+            let current = '';
+            let inQuotes = false;
+            let hasQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              const nextChar = line[i + 1];
+
+              if (char === '"') {
+                hasQuotes = true;
+                if (inQuotes && nextChar === '"') {
+                  // Escaped quote
+                  current += '"';
+                  i++; // Skip next quote
+                } else {
+                  // Toggle quote state
+                  inQuotes = !inQuotes;
+                }
+              } else if (char === ',' && !inQuotes) {
+                // Field separator - unquoted empty becomes null
+                result.push(hasQuotes ? current : current === '' ? null : current);
+                current = '';
+                hasQuotes = false;
+              } else {
+                current += char;
+              }
+            }
+            // Add last field
+            result.push(hasQuotes ? current : current === '' ? null : current);
+            return result;
+          };
+
           const lines = data.split('\r\n').filter(line => line.trim());
-          const headers = lines[0].split(',');
+          const headers = parseCsvLine(lines[0]);
           items = lines.slice(1).map(line => {
-            const values = line.split(',');
+            const values = parseCsvLine(line);
             return headers.reduce(
               (acc, header, index) => {
+                if (header === null) return acc; // Skip null headers
+
                 let value: unknown = values[index];
-                try {
-                  value = jsonify.parse(values[index]);
-                } catch {
-                  // Keep as string
+
+                // Skip only null/undefined (parseCsvLine returns null for unquoted empty fields)
+                // Preserve '' (parseCsvLine returns '' for quoted empty strings "") for round-trip fidelity
+                if (value === null || value === undefined) {
+                  return acc;
+                }
+
+                // Try to parse as JSON
+                if (typeof value === 'string') {
+                  try {
+                    value = jsonify.parse(value);
+                  } catch {
+                    // Keep as string
+                  }
                 }
                 acc[header] = value;
                 return acc;
@@ -500,6 +621,20 @@ export const useImportExportStore = defineStore('importExportStore', {
           updated: 0,
           skipped: 0,
         };
+
+        // Get table schema once to ensure correct types during import
+        let attributeTypeMap: Map<string, string> | undefined;
+        try {
+          const tableInfo = await dynamoApi.describeTable(dynamoConnection);
+          if (tableInfo?.attributeDefinitions) {
+            attributeTypeMap = new Map<string, string>();
+            for (const attr of tableInfo.attributeDefinitions) {
+              attributeTypeMap.set(attr.attributeName, attr.attributeType);
+            }
+          }
+        } catch {
+          // If we can't get schema, proceed without type conversion
+        }
 
         // Import items in batches using createItem
         // Validation of partition keys happens in parseDataFileStructure
@@ -523,27 +658,80 @@ export const useImportExportStore = defineStore('importExportStore', {
             const partitionKeyName = dynamoConnection.partitionKey.name;
             const sortKeyName = dynamoConnection.sortKey?.name;
 
-            // Convert to DynamoDB attribute format, filtering out null/undefined/empty values
-            // but preserve partition key and sort key even if empty string
+            // Convert to DynamoDB attribute format, filtering out null/undefined values
+            // Preserve empty strings as they are valid DynamoDB values for string types
             const attributes = Object.entries(item)
               .filter(([key, value]) => {
-                // Always include partition key and sort key
+                // Always include partition key and sort key (must not be null/undefined)
                 if (key === partitionKeyName || (sortKeyName && key === sortKeyName)) {
                   return value !== null && value !== undefined;
                 }
-                // Filter out null, undefined, and empty strings for other fields
-                if (value === null || value === undefined) return false;
-                if (typeof value === 'string' && value.trim() === '') return false;
-                return true;
+                // Filter out only null and undefined for other fields
+                return value !== null && value !== undefined;
               })
-              .map(([key, value]) => ({
-                key: key,
-                value: value as string | number | boolean | null,
-                type: this.inferDynamoDBType(value),
-              }));
+              .map(([key, value]) => {
+                let typedValue = value;
+                let type = this.inferDynamoDBType(value);
+                const isKeyAttribute = key === partitionKeyName || key === sortKeyName;
 
-            // Create item if there are valid attributes
-            if (attributes.length > 0) {
+                // Convert value based on schema if available
+                if (attributeTypeMap && attributeTypeMap.has(key)) {
+                  const schemaType = attributeTypeMap.get(key);
+                  if (schemaType === 'N') {
+                    // Schema expects number
+                    if (typeof value === 'string') {
+                      if (value === '' || value.trim() === '') {
+                        // Empty string can't be a number
+                        // For key attributes, this is a critical error - skip the entire item
+                        if (isKeyAttribute) {
+                          return null;
+                        }
+                        // For non-key attributes, skip just this field
+                        return null;
+                      }
+                      const numValue = Number(value);
+                      if (!isNaN(numValue)) {
+                        typedValue = numValue;
+                        type = 'N';
+                      } else {
+                        // Invalid number - skip field or fail for keys
+                        return null;
+                      }
+                    } else if (typeof value === 'number') {
+                      typedValue = value;
+                      type = 'N';
+                    }
+                  } else if (schemaType === 'S') {
+                    // Schema expects string
+                    if (typeof value !== 'string') {
+                      typedValue = String(value);
+                    }
+                    type = 'S';
+                  } else if (schemaType) {
+                    // Use other schema types as-is
+                    type = schemaType;
+                  }
+                }
+
+                return {
+                  key: key,
+                  value: typedValue as string | number | boolean | null,
+                  type: type,
+                };
+              })
+              .filter(
+                (
+                  attr,
+                ): attr is { key: string; value: string | number | boolean | null; type: string } =>
+                  attr !== null,
+              );
+
+            // Validate that we have required keys
+            const hasPartitionKey = attributes.some(attr => attr.key === partitionKeyName);
+            const hasSortKey = !sortKeyName || attributes.some(attr => attr.key === sortKeyName);
+
+            // Create item if there are valid attributes and required keys
+            if (attributes.length > 0 && hasPartitionKey && hasSortKey) {
               try {
                 // In append mode, add condition to skip existing items
                 if (this.importStrategy === 'append') {
@@ -563,9 +751,13 @@ export const useImportExportStore = defineStore('importExportStore', {
                   this.restoreProgress.updated += 1;
                 }
               } catch (_error) {
-                // If error occurs, count as skipped
+                // Import error - count as skipped
+                // Error details available in _error object for debugging if needed
                 this.restoreProgress.skipped += 1;
               }
+            } else {
+              // No valid attributes, skip this item
+              this.restoreProgress.skipped += 1;
             }
             this.restoreProgress.complete += 1;
           }
@@ -603,12 +795,12 @@ export const useImportExportStore = defineStore('importExportStore', {
         });
         if (selected) {
           this.importDataFile = selected as string;
+          // Clear previous validation errors when selecting a new file
+          this.importValidationErrors = [];
           this.validateImportStep2();
 
-          // Only parse data file if step 2 validation passes
-          if (this.importValidationStatus.step2) {
-            await this.parseDataFileStructure();
-          }
+          // Parse data file to validate structure
+          await this.parseDataFileStructure();
         }
       } catch (error) {
         throw new CustomError(
@@ -674,12 +866,20 @@ export const useImportExportStore = defineStore('importExportStore', {
             await this.validateDataStructureForDynamoDB(data, fileType);
           }
 
-          // Build schema comparison
-          await this.buildSchemaComparison();
+          // Only build schema comparison if there are no validation errors
+          if (this.importValidationErrors.length === 0) {
+            await this.buildSchemaComparison();
+          } else {
+            // Clear schema fields when validation errors exist
+            this.importSchemaFields = [];
+          }
         }
       } catch {
         this.importValidationErrors.push('Failed to parse data file structure');
+      } finally {
+        // Always revalidate after parsing completes
         this.validateImportStep2();
+        this.validateImportStep3();
       }
     },
 
@@ -1052,8 +1252,9 @@ export const useImportExportStore = defineStore('importExportStore', {
           !!this.importMetadata &&
           this.importValidationErrors.length === 0;
       } else {
-        // Existing collection: only need data file
-        this.importValidationStatus.step2 = !!this.importDataFile;
+        // Existing collection: only need data file and no validation errors
+        this.importValidationStatus.step2 =
+          !!this.importDataFile && this.importValidationErrors.length === 0;
       }
 
       // Clear schema-related state if validation fails
@@ -1061,13 +1262,17 @@ export const useImportExportStore = defineStore('importExportStore', {
         this.importFields = [];
         this.importSchemaFields = [];
         this.importValidationStatus.step3 = false;
+      } else if (this.importValidationErrors.length > 0) {
+        // If there are validation errors, also fail step3
+        this.importValidationStatus.step3 = false;
       }
     },
 
     // Step 3: Schema validated
     validateImportStep3() {
-      // Step 3 is valid when schema comparison is done and there are schema fields
-      this.importValidationStatus.step3 = this.importSchemaFields.length > 0;
+      // Step 3 is valid when schema comparison is done, there are schema fields, and no validation errors
+      this.importValidationStatus.step3 =
+        this.importSchemaFields.length > 0 && this.importValidationErrors.length === 0;
     },
 
     setImportConnection(connection: Connection | undefined) {
@@ -1959,10 +2164,8 @@ export const useImportExportStore = defineStore('importExportStore', {
             isFirstBatch = false;
           } else {
             // CSV format
-            dataToWrite = convertToCsv(
-              includedFieldNames,
-              items.map(item => ({ _source: item })),
-            );
+            // For DynamoDB, items are already flat objects, no need to wrap in _source
+            dataToWrite = convertToCsv(includedFieldNames, items);
           }
 
           await sourceFileApi.saveFile(dataFilePath, dataToWrite, appendFile);
@@ -2065,22 +2268,34 @@ const bulkRequest = async (
   for (const item of items) {
     const operation = item.index || item.create || item.update || item.delete;
     if (operation) {
-      if (operation.result === 'created') {
-        inserted++;
-      } else if (operation.result === 'updated') {
-        updated++;
-      } else if (
-        operation.status === 409 ||
-        operation.error?.type === 'version_conflict_engine_exception'
-      ) {
-        // Document already exists (for create action in append mode)
-        skipped++;
-      } else if (operation.error) {
-        // Other errors are also considered skipped
-        skipped++;
+      // Check for errors first
+      if (operation.error) {
+        // Check if it's a conflict error (document already exists in append mode)
+        if (
+          operation.status === 409 ||
+          operation.error?.type === 'version_conflict_engine_exception'
+        ) {
+          skipped++;
+        } else {
+          // Other errors are also considered skipped
+          skipped++;
+        }
+      } else if (operation.status >= 200 && operation.status < 300) {
+        // Success - check result to determine if insert or update
+        if (operation.result === 'created') {
+          inserted++;
+        } else if (operation.result === 'updated') {
+          updated++;
+        } else if (operation.result === 'noop') {
+          // Document unchanged, count as updated (successful operation)
+          updated++;
+        } else {
+          // Other successful results (e.g., deleted) count as updated
+          updated++;
+        }
       } else {
-        // Assume success if no error
-        updated++;
+        // Unknown status, count as skipped to be safe
+        skipped++;
       }
     }
   }
@@ -2098,17 +2313,36 @@ const formatBytes = (bytes: number): string => {
 
 const convertToCsv = (
   headers: string[],
-  data: Array<{ _source: { [key: string]: unknown } }>,
+  data: Array<{ _id?: string; _source?: { [key: string]: unknown }; [key: string]: unknown }>,
 ): string => {
   return (
     data
       .map(item =>
         headers
           .map(header => {
-            const value = get(item, `_source.${header}`, null);
+            // Handle _id specially as it's a top-level property for Elasticsearch
+            let value;
+            if (header === '_id' && '_id' in item) {
+              value = item._id;
+            } else if ('_source' in item && item._source) {
+              // Elasticsearch format: data is in _source
+              value = get(item, `_source.${header}`, null);
+            } else {
+              // DynamoDB format: data is flat on the item
+              value = item[header];
+            }
+
+            // Distinguish between null/undefined and empty string
             if (value === null || value === undefined) {
+              // Export as empty field (will be null on import)
               return '';
             }
+
+            if (value === '') {
+              // Export empty string as quoted empty to preserve it
+              return '""';
+            }
+
             if (typeof value === 'object') {
               // Escape and quote JSON values
               const jsonStr = jsonify.stringify(value);

@@ -639,6 +639,7 @@ export const zhCN = {
     chooseData: '选择数据',
     chooseMetadata: '选择元数据',
     ready: '就绪',
+    error: '错误',
     selectDataFile: '选择数据文件',
     selectMetadataFile: '选择元数据文件',
     schemaFromMetadata: '来自 metadata.json 的数据结构',
