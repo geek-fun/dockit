@@ -312,11 +312,12 @@ export const useImportExportStore = defineStore('importExportStore', {
 
           // Parse all JSON arrays and flatten into single hits array
           const allHits: Array<{
-            _index: string;
+            _index?: string;
             _id: string;
-            _score: number;
-            _source: unknown;
-            sort: unknown[];
+            _score?: number;
+            _source?: unknown;
+            sort?: unknown[];
+            [key: string]: unknown;
           }> = [];
 
           for (const jsonArray of jsonArrays) {
@@ -341,7 +342,22 @@ export const useImportExportStore = defineStore('importExportStore', {
             const action = this.importStrategy === 'append' ? 'create' : 'index';
             const bulkData = allHits
               .slice(i, i + bulkSize)
-              .flatMap(hit => [{ [action]: { _index: input.index, _id: hit._id } }, hit._source])
+              .flatMap(hit => {
+                // Extract _id and construct source from the document
+                // Handle both formats: {_id, _source: {...}} and {_id, field1, field2, ...}
+                const { _id, _source, _index, _score, sort: _sort, ...otherFields } = hit;
+                const source = _source || otherFields;
+
+                // Build action metadata
+                // - If _id exists: use it (will update in replace mode, skip in append mode via 409)
+                // - If _id missing: ES auto-generates (creates new doc in both modes)
+                const actionMeta: { _index: string; _id?: string } = { _index: input.index };
+                if (_id) {
+                  actionMeta._id = _id;
+                }
+
+                return [{ [action]: actionMeta }, source];
+              })
               .map(item => jsonify.stringify(item));
 
             const stats = await bulkRequest(client, bulkData);
@@ -370,7 +386,16 @@ export const useImportExportStore = defineStore('importExportStore', {
                 try {
                   const doc = jsonify.parse(line);
                   const { _id, ...source } = doc;
-                  return [{ [action]: { _index: input.index, _id } }, source];
+
+                  // Build action metadata
+                  // - If _id exists: use it (will update in replace mode, skip in append mode via 409)
+                  // - If _id missing: ES auto-generates (creates new doc in both modes)
+                  const actionMeta: { _index: string; _id?: string } = { _index: input.index };
+                  if (_id) {
+                    actionMeta._id = _id;
+                  }
+
+                  return [{ [action]: actionMeta }, source];
                 } catch {
                   return [];
                 }
@@ -386,7 +411,44 @@ export const useImportExportStore = defineStore('importExportStore', {
           }
         } else if (fileType === 'csv') {
           const lines = data.split('\r\n');
-          const headers = lines[0].split(',');
+
+          // Parse CSV line properly handling quoted fields
+          const parseCsvLine = (line: string): Array<string | null> => {
+            const result: Array<string | null> = [];
+            let current = '';
+            let inQuotes = false;
+            let hasQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              const nextChar = line[i + 1];
+
+              if (char === '"') {
+                hasQuotes = true;
+                if (inQuotes && nextChar === '"') {
+                  // Escaped quote
+                  current += '"';
+                  i++; // Skip next quote
+                } else {
+                  // Toggle quote state
+                  inQuotes = !inQuotes;
+                }
+              } else if (char === ',' && !inQuotes) {
+                // Field separator
+                // Unquoted empty field → null, Quoted empty field → ''
+                result.push(hasQuotes ? current : current === '' ? null : current);
+                current = '';
+                hasQuotes = false;
+              } else {
+                current += char;
+              }
+            }
+            // Add last field
+            result.push(hasQuotes ? current : current === '' ? null : current);
+            return result;
+          };
+
+          const headers = parseCsvLine(lines[0]);
           this.restoreProgress = {
             complete: 0,
             total: lines.length - 1,
@@ -396,25 +458,50 @@ export const useImportExportStore = defineStore('importExportStore', {
           };
 
           for (let i = 1; i < lines.length; i += bulkSize) {
+            const action = this.importStrategy === 'append' ? 'create' : 'index';
             const bulkData = lines
               .slice(i, i + bulkSize)
               .flatMap(line => {
-                const values = line.split(',');
+                if (!line.trim()) return [];
+
+                const values = parseCsvLine(line);
                 const body = headers.reduce(
                   (acc, header, index) => {
+                    if (header === null) return acc;
+
                     let value = values[index];
-                    try {
-                      value = jsonify.parse(value);
-                    } catch (_e) {
-                      // value is not a JSON string, keep it as is
+
+                    // Empty field from CSV becomes '', skip null/undefined/empty to avoid type errors
+                    if (value === '' || value === null || value === undefined) {
+                      return acc;
                     }
+
+                    if (typeof value === 'string') {
+                      try {
+                        value = jsonify.parse(value);
+                      } catch {
+                        // Note: Not valid JSON, keep as string, Empty quoted strings "" are preserved here
+                      }
+                    }
+
                     acc[header] = value;
                     return acc;
                   },
                   {} as { [key: string]: unknown },
                 );
 
-                return [{ index: { _index: input.index } }, body];
+                // Extract _id from body if it exists
+                const { _id, ...source } = body as { _id?: string; [key: string]: unknown };
+
+                // Build action metadata
+                // - If _id exists: use it (will update in replace mode, skip in append mode via 409)
+                // - If _id missing: ES auto-generates (creates new doc in both modes)
+                const actionMeta: { _index: string; _id?: string } = { _index: input.index };
+                if (_id) {
+                  actionMeta._id = _id;
+                }
+
+                return [{ [action]: actionMeta }, source];
               })
               .map(item => jsonify.stringify(item));
 
@@ -2065,22 +2152,34 @@ const bulkRequest = async (
   for (const item of items) {
     const operation = item.index || item.create || item.update || item.delete;
     if (operation) {
-      if (operation.result === 'created') {
-        inserted++;
-      } else if (operation.result === 'updated') {
-        updated++;
-      } else if (
-        operation.status === 409 ||
-        operation.error?.type === 'version_conflict_engine_exception'
-      ) {
-        // Document already exists (for create action in append mode)
-        skipped++;
-      } else if (operation.error) {
-        // Other errors are also considered skipped
-        skipped++;
+      // Check for errors first
+      if (operation.error) {
+        // Check if it's a conflict error (document already exists in append mode)
+        if (
+          operation.status === 409 ||
+          operation.error?.type === 'version_conflict_engine_exception'
+        ) {
+          skipped++;
+        } else {
+          // Other errors are also considered skipped
+          skipped++;
+        }
+      } else if (operation.status >= 200 && operation.status < 300) {
+        // Success - check result to determine if insert or update
+        if (operation.result === 'created') {
+          inserted++;
+        } else if (operation.result === 'updated') {
+          updated++;
+        } else if (operation.result === 'noop') {
+          // Document unchanged, count as updated (successful operation)
+          updated++;
+        } else {
+          // Other successful results (e.g., deleted) count as updated
+          updated++;
+        }
       } else {
-        // Assume success if no error
-        updated++;
+        // Unknown status, count as skipped to be safe
+        skipped++;
       }
     }
   }
@@ -2098,17 +2197,32 @@ const formatBytes = (bytes: number): string => {
 
 const convertToCsv = (
   headers: string[],
-  data: Array<{ _source: { [key: string]: unknown } }>,
+  data: Array<{ _id?: string; _source: { [key: string]: unknown } }>,
 ): string => {
   return (
     data
       .map(item =>
         headers
           .map(header => {
-            const value = get(item, `_source.${header}`, null);
+            // Handle _id specially as it's a top-level property, not in _source
+            let value;
+            if (header === '_id') {
+              value = item._id;
+            } else {
+              value = get(item, `_source.${header}`, null);
+            }
+
+            // Distinguish between null/undefined and empty string
             if (value === null || value === undefined) {
+              // Export as empty field (will be null on import)
               return '';
             }
+
+            if (value === '') {
+              // Export empty string as quoted empty to preserve it
+              return '""';
+            }
+
             if (typeof value === 'object') {
               // Escape and quote JSON values
               const jsonStr = jsonify.stringify(value);
