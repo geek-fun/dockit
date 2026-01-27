@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
-import { DropdownMenuRadioItem, type DropdownMenuRadioItemEmits, type DropdownMenuRadioItemProps, DropdownMenuItemIndicator } from 'radix-vue';
+import {
+  DropdownMenuRadioItem,
+  type DropdownMenuRadioItemEmits,
+  type DropdownMenuRadioItemProps,
+  DropdownMenuItemIndicator,
+} from 'radix-vue';
 import { Circle } from 'lucide-vue-next';
 import { cn } from '@/lib/utils';
 

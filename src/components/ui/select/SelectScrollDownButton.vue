@@ -12,7 +12,9 @@ const props = defineProps<
 </script>
 
 <template>
-  <SelectScrollDownButton :class="cn('flex cursor-default items-center justify-center py-1', props.class)">
+  <SelectScrollDownButton
+    :class="cn('flex cursor-default items-center justify-center py-1', props.class)"
+  >
     <slot>
       <ChevronDown class="w-4 h-4" />
     </slot>

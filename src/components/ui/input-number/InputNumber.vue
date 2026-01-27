@@ -34,7 +34,13 @@ const inputValue = computed({
     if (val === null || val === '') {
       emit('update:modelValue', null);
     } else {
-      const num = typeof val === 'string' ? parseFloat(val) : val;
+      // Validate string input before parsing
+      const trimmedVal = typeof val === 'string' ? val.trim() : val;
+      if (trimmedVal === '' || trimmedVal === null) {
+        emit('update:modelValue', null);
+        return;
+      }
+      const num = typeof trimmedVal === 'string' ? parseFloat(trimmedVal) : trimmedVal;
       if (!isNaN(num)) {
         let value = num;
         if (props.min !== undefined) value = Math.max(props.min, value);

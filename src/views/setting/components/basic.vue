@@ -30,7 +30,7 @@
             @update:model-value="langTypeChange"
           >
             <div v-for="langItem in langTypes" :key="langItem.type" class="flex items-center gap-2">
-              <RadioGroupItem :value="langItem.type" :id="`lang-${langItem.type}`" />
+              <RadioGroupItem :id="`lang-${langItem.type}`" :value="langItem.type" />
               <Label :for="`lang-${langItem.type}`">
                 {{ langItem.name === 'auto' ? $t('setting.auto') : langItem.name }}
               </Label>
@@ -73,9 +73,12 @@ const setTheme = (type: ThemeType) => {
 };
 
 const langTypeChange = (value: string) => {
-  languageType.value = value as LanguageType;
-  lang.global.locale.value =
-    languageType.value === LanguageType.ZH_CN ? LanguageType.ZH_CN : LanguageType.EN_US;
+  // Validate that the value is a valid LanguageType before assigning
+  if (Object.values(LanguageType).includes(value as LanguageType)) {
+    languageType.value = value as LanguageType;
+    lang.global.locale.value =
+      languageType.value === LanguageType.ZH_CN ? LanguageType.ZH_CN : LanguageType.EN_US;
+  }
 };
 </script>
 

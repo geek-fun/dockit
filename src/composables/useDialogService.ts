@@ -10,6 +10,9 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 
+// Animation cleanup delay in milliseconds
+const DIALOG_CLEANUP_DELAY = 200;
+
 interface DialogOptions {
   title: string;
   content: string;
@@ -55,7 +58,7 @@ export function useDialogService(): DialogReturn {
         setTimeout(() => {
           app.unmount();
           container.remove();
-        }, 200);
+        }, DIALOG_CLEANUP_DELAY);
       }
     };
 

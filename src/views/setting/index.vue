@@ -1,17 +1,31 @@
 <template>
   <div class="setting-container">
     <Tabs default-value="Basic" orientation="vertical" class="h-full flex">
-      <TabsList class="flex flex-col h-full w-[200px] justify-start rounded-none border-r border-border bg-transparent p-0">
-        <TabsTrigger value="Basic" class="w-full justify-end rounded-none border-r-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3">
+      <TabsList
+        class="flex flex-col h-full w-[200px] justify-start rounded-none border-r border-border bg-transparent p-0"
+      >
+        <TabsTrigger
+          value="Basic"
+          class="w-full justify-end rounded-none border-r-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3"
+        >
           {{ $t('setting.basic') }}
         </TabsTrigger>
-        <TabsTrigger value="Editor" class="w-full justify-end rounded-none border-r-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3">
+        <TabsTrigger
+          value="Editor"
+          class="w-full justify-end rounded-none border-r-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3"
+        >
           {{ $t('setting.editor.title') }}
         </TabsTrigger>
-        <TabsTrigger value="AI" class="w-full justify-end rounded-none border-r-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3">
+        <TabsTrigger
+          value="AI"
+          class="w-full justify-end rounded-none border-r-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3"
+        >
           {{ $t('setting.ai.title') }}
         </TabsTrigger>
-        <TabsTrigger value="About" class="w-full justify-end rounded-none border-r-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3">
+        <TabsTrigger
+          value="About"
+          class="w-full justify-end rounded-none border-r-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3"
+        >
           {{ $t('setting.about') }}
         </TabsTrigger>
       </TabsList>

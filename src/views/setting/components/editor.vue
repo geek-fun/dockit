@@ -5,7 +5,7 @@
         <div class="title">{{ $t('setting.editor.fontSize') }}</div>
         <div class="content">
           <InputNumber
-            v-model="editorConfig.fontSize"
+            :model-value="editorConfig.fontSize"
             :min="8"
             :max="32"
             :step="1"
@@ -18,20 +18,20 @@
         <div class="title">{{ $t('setting.editor.fontWeight') }}</div>
         <div class="content">
           <RadioGroup
-            v-model="editorConfig.fontWeight"
+            :model-value="editorConfig.fontWeight"
             class="flex flex-row gap-4"
             @update:model-value="updateFontWeight"
           >
             <div class="flex items-center gap-2">
-              <RadioGroupItem value="normal" id="font-normal" />
+              <RadioGroupItem id="font-normal" value="normal" />
               <Label for="font-normal">{{ $t('setting.editor.fontWeightNormal') }}</Label>
             </div>
             <div class="flex items-center gap-2">
-              <RadioGroupItem value="500" id="font-medium" />
+              <RadioGroupItem id="font-medium" value="500" />
               <Label for="font-medium">{{ $t('setting.editor.fontWeightMedium') }}</Label>
             </div>
             <div class="flex items-center gap-2">
-              <RadioGroupItem value="bold" id="font-bold" />
+              <RadioGroupItem id="font-bold" value="bold" />
               <Label for="font-bold">{{ $t('setting.editor.fontWeightBold') }}</Label>
             </div>
           </RadioGroup>
@@ -40,19 +40,13 @@
       <div class="col-span-4">
         <div class="title">{{ $t('setting.editor.showLineNumbers') }}</div>
         <div class="content">
-          <Switch
-            :checked="editorConfig.showLineNumbers"
-            @update:checked="updateShowLineNumbers"
-          />
+          <Switch :checked="editorConfig.showLineNumbers" @update:checked="updateShowLineNumbers" />
         </div>
       </div>
       <div class="col-span-4">
         <div class="title">{{ $t('setting.editor.showMinimap') }}</div>
         <div class="content">
-          <Switch
-            :checked="editorConfig.showMinimap"
-            @update:checked="updateShowMinimap"
-          />
+          <Switch :checked="editorConfig.showMinimap" @update:checked="updateShowMinimap" />
         </div>
       </div>
     </div>
