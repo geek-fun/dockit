@@ -1,9 +1,7 @@
 <template>
   <div class="history-empty-content">
     <div class="icon-box">
-      <n-icon>
-        <FileSearchOutlined />
-      </n-icon>
+      <FileSearchOutlined class="w-12 h-12 text-muted-foreground" />
     </div>
     <div class="main-desc">{{ $t('history.empty') }}</div>
     <div class="second-desc">{{ $t('history.emptyDesc') }}</div>
@@ -25,9 +23,7 @@ import { FileSearchOutlined } from '@vicons/antd';
   align-items: center;
   color: var(--gray-color);
   .icon-box {
-    .n-icon {
-      font-size: 50px;
-    }
+    font-size: 50px;
   }
   .main-desc {
     font-size: 18px;
