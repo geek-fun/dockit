@@ -1,54 +1,101 @@
 <template>
-  <div class="editor-setting">
-    <div class="grid grid-cols-4 gap-4">
-      <div class="col-span-4">
-        <div class="title">{{ $t('setting.editor.fontSize') }}</div>
-        <div class="content">
-          <InputNumber
-            :model-value="editorConfig.fontSize"
-            :min="8"
-            :max="32"
-            :step="1"
-            class="w-[200px]"
-            @update:model-value="updateFontSize"
-          />
-        </div>
+  <div class="editor-setting space-y-6 max-w-3xl">
+    <!-- Font Size Setting -->
+    <div class="py-4 px-5 border rounded-lg bg-card space-y-3">
+      <div>
+        <h4 class="text-sm font-semibold">{{ $t('setting.editor.fontSize') }}</h4>
+        <p class="text-xs text-muted-foreground mt-1">
+          Adjust the font size for the code editor (8-32px)
+        </p>
       </div>
-      <div class="col-span-4">
-        <div class="title">{{ $t('setting.editor.fontWeight') }}</div>
-        <div class="content">
-          <RadioGroup
-            :model-value="editorConfig.fontWeight"
-            class="flex flex-row gap-4"
-            @update:model-value="updateFontWeight"
-          >
-            <div class="flex items-center gap-2">
-              <RadioGroupItem id="font-normal" value="normal" />
-              <Label for="font-normal">{{ $t('setting.editor.fontWeightNormal') }}</Label>
-            </div>
-            <div class="flex items-center gap-2">
-              <RadioGroupItem id="font-medium" value="500" />
-              <Label for="font-medium">{{ $t('setting.editor.fontWeightMedium') }}</Label>
-            </div>
-            <div class="flex items-center gap-2">
-              <RadioGroupItem id="font-bold" value="bold" />
-              <Label for="font-bold">{{ $t('setting.editor.fontWeightBold') }}</Label>
-            </div>
-          </RadioGroup>
-        </div>
+      <InputNumber
+        :model-value="editorConfig.fontSize"
+        :min="8"
+        :max="32"
+        :step="1"
+        class="w-[200px]"
+        @update:model-value="updateFontSize"
+      />
+    </div>
+
+    <!-- Font Weight Setting -->
+    <div class="py-4 px-5 border rounded-lg bg-card space-y-3">
+      <div>
+        <h4 class="text-sm font-semibold">{{ $t('setting.editor.fontWeight') }}</h4>
+        <p class="text-xs text-muted-foreground mt-1">
+          Select the font weight for better readability
+        </p>
       </div>
-      <div class="col-span-4">
-        <div class="title">{{ $t('setting.editor.showLineNumbers') }}</div>
-        <div class="content">
-          <Switch :checked="editorConfig.showLineNumbers" @update:checked="updateShowLineNumbers" />
+      <RadioGroup
+        :model-value="editorConfig.fontWeight"
+        class="flex flex-row gap-3"
+        @update:model-value="updateFontWeight"
+      >
+        <div
+          :class="[
+            'flex items-center gap-2.5 py-2.5 px-4 rounded-lg border cursor-pointer transition-all min-w-[120px]',
+            editorConfig.fontWeight === 'normal'
+              ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20'
+              : 'border-input hover:border-primary/50 hover:bg-accent/50',
+          ]"
+          @click="updateFontWeight('normal')"
+        >
+          <RadioGroupItem id="font-normal" value="normal" />
+          <Label for="font-normal" class="font-medium cursor-pointer text-sm">
+            {{ $t('setting.editor.fontWeightNormal') }}
+          </Label>
         </div>
-      </div>
-      <div class="col-span-4">
-        <div class="title">{{ $t('setting.editor.showMinimap') }}</div>
-        <div class="content">
-          <Switch :checked="editorConfig.showMinimap" @update:checked="updateShowMinimap" />
+        <div
+          :class="[
+            'flex items-center gap-2.5 py-2.5 px-4 rounded-lg border cursor-pointer transition-all min-w-[120px]',
+            editorConfig.fontWeight === '500'
+              ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20'
+              : 'border-input hover:border-primary/50 hover:bg-accent/50',
+          ]"
+          @click="updateFontWeight('500')"
+        >
+          <RadioGroupItem id="font-medium" value="500" />
+          <Label for="font-medium" class="font-medium cursor-pointer text-sm">
+            {{ $t('setting.editor.fontWeightMedium') }}
+          </Label>
         </div>
+        <div
+          :class="[
+            'flex items-center gap-2.5 py-2.5 px-4 rounded-lg border cursor-pointer transition-all min-w-[120px]',
+            editorConfig.fontWeight === 'bold'
+              ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20'
+              : 'border-input hover:border-primary/50 hover:bg-accent/50',
+          ]"
+          @click="updateFontWeight('bold')"
+        >
+          <RadioGroupItem id="font-bold" value="bold" />
+          <Label for="font-bold" class="font-medium cursor-pointer text-sm">
+            {{ $t('setting.editor.fontWeightBold') }}
+          </Label>
+        </div>
+      </RadioGroup>
+    </div>
+
+    <!-- Line Numbers Toggle -->
+    <div
+      class="flex items-center justify-between py-4 px-5 border rounded-lg bg-card hover:bg-accent/20 transition-colors"
+    >
+      <div class="space-y-0.5">
+        <h4 class="text-sm font-semibold">{{ $t('setting.editor.showLineNumbers') }}</h4>
+        <p class="text-xs text-muted-foreground">Display line numbers in the editor</p>
       </div>
+      <Switch :checked="editorConfig.showLineNumbers" @update:checked="updateShowLineNumbers" />
+    </div>
+
+    <!-- Minimap Toggle -->
+    <div
+      class="flex items-center justify-between py-4 px-5 border rounded-lg bg-card hover:bg-accent/20 transition-colors"
+    >
+      <div class="space-y-0.5">
+        <h4 class="text-sm font-semibold">{{ $t('setting.editor.showMinimap') }}</h4>
+        <p class="text-xs text-muted-foreground">Show code overview minimap on the right side</p>
+      </div>
+      <Switch :checked="editorConfig.showMinimap" @update:checked="updateShowMinimap" />
     </div>
   </div>
 </template>
@@ -84,16 +131,4 @@ const updateShowMinimap = (value: boolean) => {
 };
 </script>
 
-<style lang="scss" scoped>
-.editor-setting {
-  .title {
-    font-weight: bold;
-    margin-bottom: 5px;
-  }
-  .content {
-    display: flex;
-    flex-wrap: wrap;
-    padding: 10px 0;
-  }
-}
-</style>
+<style lang="scss" scoped></style>
