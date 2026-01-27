@@ -268,14 +268,7 @@ export const useImportExportStore = defineStore('importExportStore', {
     },
 
     async restoreToElasticsearch(input: RestoreInput) {
-      const esConnection = input.connection as ElasticsearchConnection;
-      const client = loadHttpClient({
-        host: esConnection.host,
-        port: esConnection.port,
-        username: esConnection.username,
-        password: esConnection.password,
-        sslCertVerification: esConnection.sslCertVerification,
-      });
+      const client = loadHttpClient(input.connection as ElasticsearchConnection);
       const fileType = input.restoreFile.split('.').pop();
       const bulkSize = 1000;
       let data: string;
@@ -1102,13 +1095,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       if (!this.importConnection || !this.importTargetIndex) return null;
 
       if (this.importConnection.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient({
-          host: this.importConnection.host,
-          port: this.importConnection.port,
-          username: this.importConnection.username,
-          password: this.importConnection.password,
-          sslCertVerification: this.importConnection.sslCertVerification,
-        });
+        const client = loadHttpClient(this.importConnection as ElasticsearchConnection);
 
         const response = await client.get<{
           [index: string]: { mappings: { properties?: Record<string, { type?: string }> } };
@@ -1491,7 +1478,11 @@ export const useImportExportStore = defineStore('importExportStore', {
 
     setSelectedIndex(index: string) {
       this.selectedIndex = index;
+      this.fields = [];
+      this.estimatedRows = null;
+      this.estimatedSize = null;
       this.validateStep1();
+      this.validateStep2();
     },
 
     setFields(fields: FieldInfo[]) {
@@ -1566,12 +1557,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       if (!this.connection || !this.selectedIndex) return;
       if (this.connection.type !== DatabaseType.ELASTICSEARCH) return;
 
-      const esConnection = this.connection as ElasticsearchConnection;
-      const client = loadHttpClient({
-        host: esConnection.host,
-        port: esConnection.port,
-        sslCertVerification: esConnection.sslCertVerification,
-      });
+      const client = loadHttpClient(this.connection as ElasticsearchConnection);
 
       try {
         // Get mapping
@@ -1585,10 +1571,7 @@ export const useImportExportStore = defineStore('importExportStore', {
           };
         }>(`/${this.selectedIndex}/_mapping`);
 
-        const indexMapping = mappingResponse[this.selectedIndex];
-        if (!indexMapping?.mappings?.properties) {
-          throw new CustomError(404, 'No mapping found for index');
-        }
+        const { mappings = { properties: {} } } = mappingResponse[this.selectedIndex];
 
         // Get sample documents
         const sampleResponse = await client.get<{
@@ -1618,9 +1601,9 @@ export const useImportExportStore = defineStore('importExportStore', {
           },
         ];
 
-        // Then add fields from mappings
+        // Then add fields from mappings (if any exist)
         fields.push(
-          ...Object.entries(indexMapping.mappings.properties)
+          ...Object.entries(mappings.properties || {})
             .filter(([name]) => !name.includes('.')) // Only root-level fields
             .map(([name, config]) => {
               const type = (config as { type?: string }).type || 'object';
@@ -1774,11 +1757,7 @@ export const useImportExportStore = defineStore('importExportStore', {
         throw new CustomError(400, 'Connection must be Elasticsearch');
       }
       const esConnection = input.connection as ElasticsearchConnection;
-      const client = loadHttpClient({
-        host: esConnection.host,
-        port: esConnection.port,
-        sslCertVerification: esConnection.sslCertVerification,
-      });
+      const client = loadHttpClient(esConnection);
       const dbVersion = esConnection.version || '';
 
       // Use the configured fileName from input
