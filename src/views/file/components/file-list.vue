@@ -1,6 +1,6 @@
 <template>
   <div class="file-list-container" @contextmenu.prevent="showContextMenu($event, undefined)">
-    <n-scrollbar style="height: 100%">
+    <ScrollArea class="h-full">
       <div class="grid-container">
         <div
           v-for="(file, index) in sortedFileList"
@@ -11,12 +11,12 @@
           @contextmenu.prevent="showContextMenu($event, file)"
         >
           <div class="file-icon">
-            <n-icon v-if="file.type === PathTypeEnum.FOLDER" size="36" color="#0e7a0d">
+            <Icon v-if="file.type === PathTypeEnum.FOLDER" size="36" color="#0e7a0d">
               <Folder />
-            </n-icon>
-            <n-icon v-else size="36" color="#666">
+            </Icon>
+            <Icon v-else size="36" color="#666">
               <Document />
-            </n-icon>
+            </Icon>
           </div>
           <div class="file-info">
             <span class="file-item-name">{{ file.name }}</span>
@@ -39,7 +39,7 @@
         </div>
         <new-file-dialog ref="newFileDialogRef" />
       </div>
-    </n-scrollbar>
+    </ScrollArea>
   </div>
 </template>
 
@@ -54,6 +54,8 @@ import NewFileDialog from './new-file-dialog.vue';
 import { PathInfo, PathTypeEnum } from '../../../datasources';
 import prettyBytes from 'pretty-bytes';
 import { useMessageService } from '@/composables';
+import { Icon } from '@/components/ui/icon';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const router = useRouter();
 const message = useMessageService();
@@ -145,11 +147,11 @@ const handleContextMenu = async (action: ContextMenuAction) => {
 
 const getClass = (file: PathInfo, index: number) => {
   if (activeRef.value === file) {
-    return 'file-item-active';
+    return 'file-item file-item-active';
   } else if (index === sortedFileList.value.length - 1) {
     return 'file-item';
   } else {
-    return 'file-item-hover';
+    return 'file-item file-item-hover';
   }
 };
 
@@ -164,68 +166,63 @@ onUnmounted(() => {
 });
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .file-list-container {
   flex: 1;
   height: 0;
   padding-bottom: 10px;
   background-color: var(--bg-color-secondary);
+}
 
-  .grid-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 10px;
-    padding: 10px;
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+  padding: 10px;
+}
 
-    .file-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 8px;
-      cursor: pointer;
-      border-radius: 8px;
-      transition: background-color 0.2s;
+.file-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
 
-      .file-icon {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-bottom: 8px;
-      }
+.file-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 8px;
+}
 
-      .file-info {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 100%;
-        text-align: center;
+.file-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  text-align: center;
+}
 
-        .file-item-name {
-          font-size: 13px;
-          word-break: break-word;
-          margin-bottom: 4px;
-        }
+.file-item-name {
+  font-size: 13px;
+  word-break: break-word;
+  margin-bottom: 4px;
+}
 
-        .file-item-meta {
-          font-size: 11px;
-          color: #888;
-          margin-top: 2px;
-        }
-      }
-    }
+.file-item-meta {
+  font-size: 11px;
+  color: #888;
+  margin-top: 2px;
+}
 
-    .file-item-hover {
-      @extend .file-item;
+.file-item-hover:hover {
+  background-color: var(--connect-list-hover-bg);
+}
 
-      &:hover {
-        background-color: var(--connect-list-hover-bg);
-      }
-    }
-
-    .file-item-active {
-      @extend .file-item;
-      background-color: var(--connect-list-hover-bg);
-    }
-  }
+.file-item-active {
+  background-color: var(--connect-list-hover-bg);
 }
 </style>
