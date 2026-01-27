@@ -168,7 +168,7 @@ import {
   useConnectionStore,
 } from '../../../store';
 import { useLang } from '../../../lang';
-import type { FormItemRule, FormRules, FormValidationError } from '@/types';
+import type { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 
 const { freshConnection, saveConnection } = useConnectionStore();
 const lang = useLang();

@@ -243,7 +243,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue';
-import type { FormInst, FormRules } from '@/types';
+import type { FormInst, FormRules } from 'naive-ui';
 import { TrashCan } from '@vicons/carbon';
 import { MIN_LOADING_TIME, inputProps } from '../../../common';
 import { useLang } from '../../../lang';

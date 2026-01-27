@@ -189,7 +189,7 @@
 import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
 import { isEmpty } from 'lodash';
-import type { FormItemRule, FormRules, FormValidationError } from '@/types';
+import type { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 import { useMessageService, useLoadingBarService } from '@/composables';
 import {
   Connection,

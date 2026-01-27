@@ -62,7 +62,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
 import { Close } from '@vicons/carbon';
-import type { FormRules, FormValidationError } from '@/types';
+import type { FormRules, FormValidationError } from 'naive-ui';
 import { useMessageService } from '@/composables';
 import { cloneDeep } from 'lodash';
 import { useLang } from '../../../lang';

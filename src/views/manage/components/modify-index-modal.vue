@@ -62,7 +62,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import type { FormInst, FormRules } from '@/types';
+import type { FormInst, FormRules } from 'naive-ui';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import type { DynamoIndex } from '../../../datasources';

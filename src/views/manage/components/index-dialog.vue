@@ -116,7 +116,7 @@
 </template>
 
 <script setup lang="ts">
-import type { FormRules, FormValidationError, FormItemRule } from '@/types';
+import type { FormRules, FormValidationError, FormItemRule } from 'naive-ui';
 import { NButton, NIcon } from 'naive-ui';
 import { useMessageService } from '@/composables';
 import { Close } from '@vicons/carbon';

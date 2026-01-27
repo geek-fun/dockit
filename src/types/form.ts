@@ -11,7 +11,10 @@ export interface FormItemRule {
   required?: boolean;
   message?: string;
   trigger?: string | string[];
-  validator?: (rule: FormItemRule, value: unknown) => boolean | Error | Promise<boolean | Error>;
+  validator?: (
+    rule: FormItemRule,
+    value: unknown,
+  ) => boolean | Error | Promise<boolean | Error>;
   renderMessage?: () => string;
   level?: 'error' | 'warning';
   type?:
@@ -33,7 +36,7 @@ export interface FormItemRule {
   min?: number;
   max?: number;
   len?: number;
-  enum?: unknown[];
+  enum?: Array<string | number | boolean | null | undefined>;
   whitespace?: boolean;
   transform?: (value: unknown) => unknown;
   asyncValidator?: (

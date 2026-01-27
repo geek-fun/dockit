@@ -204,7 +204,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
-import type { FormValidationError } from '@/types';
+import type { FormValidationError } from 'naive-ui';
 import { useMessageService } from '@/composables';
 import { Connection, DynamoDBConnection, useConnectionStore, useTabStore } from '../../../../store';
 import { CustomError, inputProps } from '../../../../common';

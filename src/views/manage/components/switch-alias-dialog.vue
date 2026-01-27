@@ -64,7 +64,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import type { FormRules, FormValidationError } from '@/types';
+import type { FormRules, FormValidationError } from 'naive-ui';
 import { NButton, NIcon } from 'naive-ui';
 import { useMessageService } from '@/composables';
 import { Close } from '@vicons/carbon';
