@@ -109,7 +109,7 @@ const langTypeChange = (value: string) => {
 };
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .basic-setting {
   max-width: 1200px;
 }

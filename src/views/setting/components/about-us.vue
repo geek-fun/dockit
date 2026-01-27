@@ -63,4 +63,4 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 </script>
 
-<style lang="scss" scoped></style>
+<style scoped></style>

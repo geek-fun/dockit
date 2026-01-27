@@ -131,4 +131,4 @@ const updateShowMinimap = (value: boolean) => {
 };
 </script>
 
-<style lang="scss" scoped></style>
+<style scoped></style>
