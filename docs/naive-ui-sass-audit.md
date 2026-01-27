@@ -4,7 +4,7 @@ This document provides a comprehensive audit of Naive UI components, composables
 
 ## Migration Status
 
-### Batch 1: Atomic Components & Compatibility Layer (In Progress)
+### Batch 1: Atomic Components & Compatibility Layer (Complete)
 
 The shadcn-vue compatibility layer has been created at `src/components/ui/`. The following atomic components are now available:
 
@@ -16,17 +16,31 @@ The shadcn-vue compatibility layer has been created at `src/components/ui/`. The
 | `n-alert` | `Alert`, `AlertTitle`, `AlertDescription` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
 | `n-tag` | `Badge` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
 
+### Batch 2: Complex Components (In Progress)
+
+| Naive UI Component | shadcn-vue Replacement | Status | Documentation |
+|--------------------|------------------------|--------|---------------|
+| `n-modal` | `Dialog`, `DialogContent`, `DialogHeader`, etc. | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `useDialog()` | `AlertDialog`, `AlertDialogContent`, etc. | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-tabs`, `n-tab-pane` | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-select` | `Select`, `SelectTrigger`, `SelectContent`, `SelectItem` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-switch` | `Switch` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-dropdown` | `DropdownMenu`, `DropdownMenuItem`, etc. | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-tooltip` | `Tooltip`, `TooltipTrigger`, `TooltipContent` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-popover` | `Popover`, `PopoverTrigger`, `PopoverContent` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-scrollbar` | `ScrollArea`, `ScrollBar` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-input-number` | `InputNumber` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-divider` | `Separator` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-data-table` (basic) | `Table`, `TableHeader`, `TableRow`, `TableCell` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| - | `Label` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+
 ### Components Scheduled for Future Batches
 
 | Component | Batch | Notes |
 |-----------|-------|-------|
-| `n-form`, `n-form-item` | Batch 2 | Complex form validation |
-| `n-select` | Batch 2 | Dropdown with search |
-| `n-modal` | Batch 2 | Dialog/modal dialogs |
-| `n-tabs`, `n-tab-pane` | Batch 2 | Tab navigation |
-| `n-dropdown` | Batch 2 | Dropdown menus |
-| `n-data-table` | Batch 3 | Complex data table |
-| Provider components | Batch 4 | Infrastructure |
+| `n-form`, `n-form-item` | Batch 2 (remaining) | Complex form validation with vee-validate |
+| `n-data-table` (advanced) | Batch 3 | Sorting, filtering, pagination |
+| Provider components | Batch 4 | `n-config-provider`, `n-message-provider`, etc. |
 
 ---
 

@@ -1,7 +1,7 @@
 <template>
   <div class="basic-setting">
-    <n-grid cols="4" item-responsive responsive="screen" x-gap="10" y-gap="10">
-      <n-gi span="4">
+    <div class="grid grid-cols-4 gap-4">
+      <div class="col-span-4">
         <div class="title">{{ $t('setting.theme') }}</div>
         <div class="content">
           <div
@@ -16,28 +16,29 @@
             </div>
             <div class="item-desc">{{ $t(`setting.${theme.name}`) }}</div>
             <div class="item-checked">
-              <n-icon :size="18" color="#fff">
-                <CheckOutlined />
-              </n-icon>
+              <CheckOutlined class="w-4 h-4 text-white" />
             </div>
           </div>
         </div>
-      </n-gi>
-      <n-gi span="4">
+      </div>
+      <div class="col-span-4">
         <div class="title">{{ $t('setting.language') }}</div>
         <div class="content">
-          <n-radio-group
-            v-model:value="languageType"
-            name="radiogroup"
-            @update:value="langTypeChange"
+          <RadioGroup
+            v-model="languageType"
+            class="flex flex-row gap-4"
+            @update:model-value="langTypeChange"
           >
-            <n-radio v-for="langItem in langTypes" :key="langItem.type" :value="langItem.type">
-              {{ langItem.name === 'auto' ? $t('setting.auto') : langItem.name }}
-            </n-radio>
-          </n-radio-group>
+            <div v-for="langItem in langTypes" :key="langItem.type" class="flex items-center gap-2">
+              <RadioGroupItem :value="langItem.type" :id="`lang-${langItem.type}`" />
+              <Label :for="`lang-${langItem.type}`">
+                {{ langItem.name === 'auto' ? $t('setting.auto') : langItem.name }}
+              </Label>
+            </div>
+          </RadioGroup>
         </div>
-      </n-gi>
-    </n-grid>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -49,6 +50,8 @@ import autoImg from '../../../assets/img/theme-auto.png';
 import { LanguageType, ThemeType, useAppStore } from '../../../store';
 import { CheckOutlined } from '@vicons/antd';
 import { lang } from '../../../lang';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 const appStore = useAppStore();
 const { setThemeType } = appStore;
@@ -69,8 +72,8 @@ const setTheme = (type: ThemeType) => {
   setThemeType(type);
 };
 
-const langTypeChange = (value: LanguageType) => {
-  languageType.value = value;
+const langTypeChange = (value: string) => {
+  languageType.value = value as LanguageType;
   lang.global.locale.value =
     languageType.value === LanguageType.ZH_CN ? LanguageType.ZH_CN : LanguageType.EN_US;
 };
@@ -85,6 +88,7 @@ const langTypeChange = (value: LanguageType) => {
   .content {
     display: flex;
     flex-wrap: wrap;
+    padding: 10px 0;
     .content-item {
       width: 140px;
       height: 120px;
@@ -138,9 +142,6 @@ const langTypeChange = (value: LanguageType) => {
           opacity: 1;
         }
       }
-    }
-    .n-radio {
-      margin: 10px;
     }
   }
 }

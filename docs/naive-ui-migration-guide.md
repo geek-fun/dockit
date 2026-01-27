@@ -227,17 +227,226 @@ See `docs/naive-ui-sass-audit.md` for detailed migration status per component.
 | Alert | `n-alert` | `Alert` | ✅ Available |
 | Badge/Tag | `n-tag` | `Badge` | ✅ Available |
 
+### Batch 2 Components (Complex)
+
+| Component | Naive UI | shadcn-vue | Status |
+|-----------|----------|------------|--------|
+| Modal/Dialog | `n-modal` | `Dialog`, `DialogContent`, etc. | ✅ Available |
+| Alert Dialog | `useDialog()` | `AlertDialog`, `AlertDialogContent`, etc. | ✅ Available |
+| Tabs | `n-tabs`, `n-tab-pane` | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` | ✅ Available |
+| Select | `n-select` | `Select`, `SelectTrigger`, `SelectContent`, `SelectItem` | ✅ Available |
+| Switch | `n-switch` | `Switch` | ✅ Available |
+| Dropdown | `n-dropdown` | `DropdownMenu`, `DropdownMenuItem`, etc. | ✅ Available |
+| Tooltip | `n-tooltip` | `Tooltip`, `TooltipTrigger`, `TooltipContent` | ✅ Available |
+| Popover | `n-popover` | `Popover`, `PopoverTrigger`, `PopoverContent` | ✅ Available |
+| Table | `n-data-table` | `Table`, `TableHeader`, `TableRow`, `TableCell` | ✅ Available |
+| Scroll Area | `n-scrollbar` | `ScrollArea`, `ScrollBar` | ✅ Available |
+| Input Number | `n-input-number` | `InputNumber` | ✅ Available |
+| Label | - | `Label` | ✅ Available |
+| Separator | `n-divider` | `Separator` | ✅ Available |
+
 ### Components Still Using Naive UI (Temporary Exceptions)
 
 The following components are complex and will be migrated in later batches:
 
-- `n-form` / `n-form-item` - Complex form validation (Batch 2)
-- `n-select` - Complex dropdown with search (Batch 2)
-- `n-modal` - Modal dialogs (Batch 2)
-- `n-data-table` - Complex data table (Batch 3)
-- `n-tabs` / `n-tab-pane` - Tab navigation (Batch 2)
-- `n-dropdown` - Dropdown menus (Batch 2)
+- `n-form` / `n-form-item` - Complex form validation (Batch 2 - in progress)
+- `n-data-table` advanced features - Complex data table with sorting/filtering (Batch 3)
 - Provider components (`n-config-provider`, etc.) - Infrastructure (Batch 4)
+
+## Batch 2 Migration Patterns
+
+### Dialog Component
+
+**Before (Naive UI):**
+```vue
+<n-modal v-model:show="showModal">
+  <n-card title="Modal Title">
+    Content here
+    <template #footer>Footer</template>
+  </n-card>
+</n-modal>
+```
+
+**After (shadcn-vue):**
+```vue
+<script setup>
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogDescription, DialogFooter
+} from '@/components/ui/dialog';
+</script>
+
+<template>
+  <Dialog v-model:open="showModal">
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Modal Title</DialogTitle>
+        <DialogDescription>Description</DialogDescription>
+      </DialogHeader>
+      Content here
+      <DialogFooter>Footer</DialogFooter>
+    </DialogContent>
+  </Dialog>
+</template>
+```
+
+### Tabs Component
+
+**Before (Naive UI):**
+```vue
+<n-tabs type="card" v-model:value="activeTab">
+  <n-tab-pane name="tab1" tab="Tab 1">Content 1</n-tab-pane>
+  <n-tab-pane name="tab2" tab="Tab 2">Content 2</n-tab-pane>
+</n-tabs>
+```
+
+**After (shadcn-vue):**
+```vue
+<script setup>
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+</script>
+
+<template>
+  <Tabs v-model="activeTab" default-value="tab1">
+    <TabsList>
+      <TabsTrigger value="tab1">Tab 1</TabsTrigger>
+      <TabsTrigger value="tab2">Tab 2</TabsTrigger>
+    </TabsList>
+    <TabsContent value="tab1">Content 1</TabsContent>
+    <TabsContent value="tab2">Content 2</TabsContent>
+  </Tabs>
+</template>
+```
+
+### Select Component
+
+**Before (Naive UI):**
+```vue
+<n-select v-model:value="selected" :options="options" />
+```
+
+**After (shadcn-vue):**
+```vue
+<script setup>
+import {
+  Select, SelectContent, SelectItem,
+  SelectTrigger, SelectValue
+} from '@/components/ui/select';
+</script>
+
+<template>
+  <Select v-model="selected">
+    <SelectTrigger>
+      <SelectValue placeholder="Select..." />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem v-for="opt in options" :key="opt.value" :value="opt.value">
+        {{ opt.label }}
+      </SelectItem>
+    </SelectContent>
+  </Select>
+</template>
+```
+
+### Switch Component
+
+**Before (Naive UI):**
+```vue
+<n-switch v-model:value="checked" />
+```
+
+**After (shadcn-vue):**
+```vue
+<script setup>
+import { Switch } from '@/components/ui/switch';
+</script>
+
+<template>
+  <Switch v-model:checked="checked" />
+</template>
+```
+
+### Dropdown Menu
+
+**Before (Naive UI):**
+```vue
+<n-dropdown :options="options" @select="handleSelect">
+  <n-button>Actions</n-button>
+</n-dropdown>
+```
+
+**After (shadcn-vue):**
+```vue
+<script setup>
+import {
+  DropdownMenu, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+</script>
+
+<template>
+  <DropdownMenu>
+    <DropdownMenuTrigger as-child>
+      <Button>Actions</Button>
+    </DropdownMenuTrigger>
+    <DropdownMenuContent>
+      <DropdownMenuItem @click="handleOption1">Option 1</DropdownMenuItem>
+      <DropdownMenuItem @click="handleOption2">Option 2</DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
+</template>
+```
+
+### Tooltip
+
+**Before (Naive UI):**
+```vue
+<n-tooltip trigger="hover">
+  <template #trigger>Hover me</template>
+  Tooltip content
+</n-tooltip>
+```
+
+**After (shadcn-vue):**
+```vue
+<script setup>
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
+} from '@/components/ui/tooltip';
+</script>
+
+<template>
+  <TooltipProvider>
+    <Tooltip>
+      <TooltipTrigger>Hover me</TooltipTrigger>
+      <TooltipContent>Tooltip content</TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+</template>
+```
+
+### Scroll Area
+
+**Before (Naive UI):**
+```vue
+<n-scrollbar style="max-height: 400px">
+  <div>Long content...</div>
+</n-scrollbar>
+```
+
+**After (shadcn-vue):**
+```vue
+<script setup>
+import { ScrollArea } from '@/components/ui/scroll-area';
+</script>
+
+<template>
+  <ScrollArea class="h-[400px]">
+    <div>Long content...</div>
+  </ScrollArea>
+</template>
+```
 
 ## Best Practices
 

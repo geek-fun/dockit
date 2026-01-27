@@ -1,54 +1,71 @@
 <template>
   <div class="editor-setting">
-    <n-grid cols="4" item-responsive responsive="screen" x-gap="10" y-gap="10">
-      <n-gi span="4">
+    <div class="grid grid-cols-4 gap-4">
+      <div class="col-span-4">
         <div class="title">{{ $t('setting.editor.fontSize') }}</div>
         <div class="content">
-          <n-input-number
-            v-model:value="editorConfig.fontSize"
+          <InputNumber
+            v-model="editorConfig.fontSize"
             :min="8"
             :max="32"
             :step="1"
-            @update:value="updateFontSize"
+            class="w-[200px]"
+            @update:model-value="updateFontSize"
           />
         </div>
-      </n-gi>
-      <n-gi span="4">
+      </div>
+      <div class="col-span-4">
         <div class="title">{{ $t('setting.editor.fontWeight') }}</div>
         <div class="content">
-          <n-radio-group
-            v-model:value="editorConfig.fontWeight"
-            name="fontWeightGroup"
-            @update:value="updateFontWeight"
+          <RadioGroup
+            v-model="editorConfig.fontWeight"
+            class="flex flex-row gap-4"
+            @update:model-value="updateFontWeight"
           >
-            <n-radio value="normal">{{ $t('setting.editor.fontWeightNormal') }}</n-radio>
-            <n-radio value="500">{{ $t('setting.editor.fontWeightMedium') }}</n-radio>
-            <n-radio value="bold">{{ $t('setting.editor.fontWeightBold') }}</n-radio>
-          </n-radio-group>
+            <div class="flex items-center gap-2">
+              <RadioGroupItem value="normal" id="font-normal" />
+              <Label for="font-normal">{{ $t('setting.editor.fontWeightNormal') }}</Label>
+            </div>
+            <div class="flex items-center gap-2">
+              <RadioGroupItem value="500" id="font-medium" />
+              <Label for="font-medium">{{ $t('setting.editor.fontWeightMedium') }}</Label>
+            </div>
+            <div class="flex items-center gap-2">
+              <RadioGroupItem value="bold" id="font-bold" />
+              <Label for="font-bold">{{ $t('setting.editor.fontWeightBold') }}</Label>
+            </div>
+          </RadioGroup>
         </div>
-      </n-gi>
-      <n-gi span="4">
+      </div>
+      <div class="col-span-4">
         <div class="title">{{ $t('setting.editor.showLineNumbers') }}</div>
         <div class="content">
-          <n-switch
-            v-model:value="editorConfig.showLineNumbers"
-            @update:value="updateShowLineNumbers"
+          <Switch
+            :checked="editorConfig.showLineNumbers"
+            @update:checked="updateShowLineNumbers"
           />
         </div>
-      </n-gi>
-      <n-gi span="4">
+      </div>
+      <div class="col-span-4">
         <div class="title">{{ $t('setting.editor.showMinimap') }}</div>
         <div class="content">
-          <n-switch v-model:value="editorConfig.showMinimap" @update:value="updateShowMinimap" />
+          <Switch
+            :checked="editorConfig.showMinimap"
+            @update:checked="updateShowMinimap"
+          />
         </div>
-      </n-gi>
-    </n-grid>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { useAppStore } from '../../../store';
+import { InputNumber } from '@/components/ui/input-number';
+import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
 
 const appStore = useAppStore();
 const { setEditorConfig } = appStore;
@@ -82,12 +99,7 @@ const updateShowMinimap = (value: boolean) => {
   .content {
     display: flex;
     flex-wrap: wrap;
-    .n-input-number {
-      width: 200px;
-    }
-    .n-radio {
-      margin: 10px;
-    }
+    padding: 10px 0;
   }
 }
 </style>

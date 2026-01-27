@@ -34,3 +34,4 @@ export * from './scroll-area';
 export * from './label';
 export * from './separator';
 export * from './input-number';
+export * from './radio-group';
