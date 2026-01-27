@@ -4,12 +4,14 @@ import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { NaiveUiResolver } from 'unplugin-vue-components/resolvers';
 import svgLoader from 'vite-svg-loader';
+import UnoCSS from 'unocss/vite';
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
     svgLoader(),
+    UnoCSS(),
     AutoImport({
       dts: './auto-imports.d.ts',
       eslintrc: {
