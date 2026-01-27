@@ -72,17 +72,16 @@ The project uses a hybrid styling approach during the migration period:
 ### Current Setup
 
 1. **UnoCSS** - Atomic CSS utilities loaded via `virtual:uno.css` in `src/main.ts`
-2. **Tailwind CSS / shadcn-vue** - Component library styles via `src/assets/styles/tailwind.css`
+2. **shadcn-vue** - Component library styles via `src/assets/styles/tailwind.css` (CSS variables)
 3. **Legacy SCSS** - Existing styles via `src/assets/styles/theme.scss` (retained for backward compatibility)
 4. **Naive UI** - Current component library with auto-imported components
 
 ### Style Entry Points
 
 - `src/main.ts` - Main entry point importing all style layers
-- `src/assets/styles/tailwind.css` - Tailwind/shadcn-vue CSS variables and base styles
+- `src/assets/styles/tailwind.css` - shadcn-vue CSS variables and base styles
 - `src/assets/styles/theme.scss` - Legacy CSS variables and theme definitions
-- `uno.config.ts` - UnoCSS configuration with presets and theme tokens
-- `tailwind.config.ts` - Tailwind CSS configuration with shadcn-vue theming
+- `uno.config.ts` - Unified UnoCSS configuration with all presets and theme tokens
 
 ### Theme Configuration
 
