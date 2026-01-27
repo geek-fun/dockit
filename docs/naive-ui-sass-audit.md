@@ -2,6 +2,34 @@
 
 This document provides a comprehensive audit of Naive UI components, composables, and SASS usage across the DocKit codebase.
 
+## Migration Status
+
+### Batch 1: Atomic Components & Compatibility Layer (In Progress)
+
+The shadcn-vue compatibility layer has been created at `src/components/ui/`. The following atomic components are now available:
+
+| Naive UI Component | shadcn-vue Replacement | Status | Documentation |
+|--------------------|------------------------|--------|---------------|
+| `n-button` | `Button` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-input` | `Input` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-card` | `Card`, `CardHeader`, `CardTitle`, etc. | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-alert` | `Alert`, `AlertTitle`, `AlertDescription` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+| `n-tag` | `Badge` | ✅ Available | [Migration Guide](./naive-ui-migration-guide.md) |
+
+### Components Scheduled for Future Batches
+
+| Component | Batch | Notes |
+|-----------|-------|-------|
+| `n-form`, `n-form-item` | Batch 2 | Complex form validation |
+| `n-select` | Batch 2 | Dropdown with search |
+| `n-modal` | Batch 2 | Dialog/modal dialogs |
+| `n-tabs`, `n-tab-pane` | Batch 2 | Tab navigation |
+| `n-dropdown` | Batch 2 | Dropdown menus |
+| `n-data-table` | Batch 3 | Complex data table |
+| Provider components | Batch 4 | Infrastructure |
+
+---
+
 ## Summary
 
 ### Naive UI Components Used (Auto-Imported via NaiveUiResolver)

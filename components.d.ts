@@ -11,7 +11,19 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    Alert: typeof import('./src/components/ui/alert/Alert.vue')['default']
+    AlertDescription: typeof import('./src/components/ui/alert/AlertDescription.vue')['default']
+    AlertTitle: typeof import('./src/components/ui/alert/AlertTitle.vue')['default']
     AppProvider: typeof import('./src/components/AppProvider.vue')['default']
+    Badge: typeof import('./src/components/ui/badge/Badge.vue')['default']
+    Button: typeof import('./src/components/ui/button/Button.vue')['default']
+    Card: typeof import('./src/components/ui/card/Card.vue')['default']
+    CardContent: typeof import('./src/components/ui/card/CardContent.vue')['default']
+    CardDescription: typeof import('./src/components/ui/card/CardDescription.vue')['default']
+    CardFooter: typeof import('./src/components/ui/card/CardFooter.vue')['default']
+    CardHeader: typeof import('./src/components/ui/card/CardHeader.vue')['default']
+    CardTitle: typeof import('./src/components/ui/card/CardTitle.vue')['default']
+    Input: typeof import('./src/components/ui/input/Input.vue')['default']
     MarkdownRender: typeof import('./src/components/markdown-render.vue')['default']
     NAlert: typeof import('naive-ui')['NAlert']
     NBreadcrumb: typeof import('naive-ui')['NBreadcrumb']
