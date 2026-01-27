@@ -69,14 +69,19 @@
         <div class="step-line" :class="{ completed: dataComplete }"></div>
 
         <!-- Step 3: Ready -->
-        <div :class="['step-node', { completed: allComplete }]">
-          <div :class="['step-circle', { completed: allComplete }]">
+        <div :class="['step-node', { completed: allComplete, error: hasDataError }]">
+          <div :class="['step-circle', { completed: allComplete, error: hasDataError }]">
             <n-icon v-if="allComplete" size="16">
               <Checkmark />
             </n-icon>
+            <n-icon v-else-if="hasDataError" size="16">
+              <ErrorFilled />
+            </n-icon>
             <span v-else>3</span>
           </div>
-          <span class="step-label">{{ $t('import.ready') }}</span>
+          <span class="step-label">
+            {{ hasDataError ? $t('import.error') : $t('import.ready') }}
+          </span>
         </div>
       </div>
 
@@ -142,14 +147,19 @@
         <div class="step-line" :class="{ completed: dataComplete }"></div>
 
         <!-- Step 2: Ready -->
-        <div :class="['step-node', { completed: dataComplete }]">
-          <div :class="['step-circle', { completed: dataComplete }]">
+        <div :class="['step-node', { completed: dataComplete, error: hasDataError }]">
+          <div :class="['step-circle', { completed: dataComplete, error: hasDataError }]">
             <n-icon v-if="dataComplete" size="16">
               <Checkmark />
             </n-icon>
+            <n-icon v-else-if="hasDataError" size="16">
+              <ErrorFilled />
+            </n-icon>
             <span v-else>2</span>
           </div>
-          <span class="step-label">{{ $t('import.ready') }}</span>
+          <span class="step-label">
+            {{ hasDataError ? $t('import.error') : $t('import.ready') }}
+          </span>
         </div>
       </div>
 
@@ -182,7 +192,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Document, DocumentAttachment, Checkmark, Close } from '@vicons/carbon';
+import { Document, DocumentAttachment, Checkmark, Close, ErrorFilled } from '@vicons/carbon';
 import { useImportExportStore } from '../../../store';
 import { CustomError } from '../../../common';
 
@@ -196,6 +206,7 @@ const {
   importMetadataFile,
   importMetadata,
   importValidationErrors,
+  importValidationStatus,
   importIsNewCollection,
   importConnection,
   importTargetIndex,
@@ -207,19 +218,27 @@ const hasTarget = computed(() => !!importConnection.value && !!importTargetIndex
 // Check if this is a new collection
 const isNewCollection = computed(() => importIsNewCollection.value);
 
-// Data file complete
-const dataComplete = computed(() => !!importDataFile.value);
+// Data file complete - must have file AND pass validation (step2)
+const dataComplete = computed(() => importValidationStatus.value.step2);
 
 // Metadata complete (only relevant for new collections)
 const metadataComplete = computed(() => !!importMetadata.value);
 
-// All complete - depends on collection type
+// All complete - depends on collection type and validation
 const allComplete = computed(() => {
   if (isNewCollection.value) {
-    return dataComplete.value && metadataComplete.value;
+    // New collection: need step3 to pass (which requires metadata, data, and no errors)
+    return importValidationStatus.value.step3;
   }
-  return dataComplete.value;
+  // Existing collection: need step3 to pass (which requires data and no errors)
+  return importValidationStatus.value.step3;
 });
+
+// Has validation errors
+const hasValidationErrors = computed(() => importValidationErrors.value.length > 0);
+
+// Check if data file is selected but validation failed
+const hasDataError = computed(() => !!importDataFile.value && hasValidationErrors.value);
 
 const dataFileName = computed(() => {
   if (!importDataFile.value) return '';
@@ -327,6 +346,12 @@ const clearMetadataFile = () => {
           &.completed {
             background: #18a058;
             border-color: #18a058;
+            color: white;
+          }
+
+          &.error {
+            background: #d03050;
+            border-color: #d03050;
             color: white;
           }
 

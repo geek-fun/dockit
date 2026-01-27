@@ -6,11 +6,13 @@ import {
   ClusterShard,
   ClusterTemplate,
   esApi,
+  dynamoApi,
   loadHttpClient,
 } from '../datasources';
 import { lang } from '../lang';
-import { Connection, DatabaseType } from './connectionStore.ts';
+import { Connection, DatabaseType, DynamoDBConnection } from './connectionStore.ts';
 import { CustomError, debug } from '../common';
+import type { DynamoDBTableInfo } from '../datasources/dynamoApi';
 
 export type RawClusterStats = {
   cluster_name: string;
@@ -266,6 +268,28 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (this.connection.type === DatabaseType.ELASTICSEARCH) {
         await esApi.switchAlias(this.connection, { aliasName, sourceIndexName, targetIndexName });
+      }
+      return undefined;
+    },
+
+    // DynamoDB Actions
+    async describeTable(): Promise<DynamoDBTableInfo | undefined> {
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.DYNAMODB) {
+        return await dynamoApi.describeTable(this.connection as DynamoDBConnection);
+      }
+      return undefined;
+    },
+
+    async createGlobalSecondaryIndex(
+      indexConfig: Parameters<typeof dynamoApi.createGlobalSecondaryIndex>[1],
+    ) {
+      if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
+      if (this.connection.type === DatabaseType.DYNAMODB) {
+        return await dynamoApi.createGlobalSecondaryIndex(
+          this.connection as DynamoDBConnection,
+          indexConfig,
+        );
       }
       return undefined;
     },

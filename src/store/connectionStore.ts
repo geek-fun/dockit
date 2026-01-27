@@ -272,7 +272,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
           [key: string]: string;
         }>;
-        connection.indices = data.map((index: { [key: string]: string }) => ({
+        const indices = data.map((index: { [key: string]: string }) => ({
           ...index,
           docs: {
             count: parseInt(index['docs.count'], 10),
@@ -280,6 +280,15 @@ export const useConnectionStore = defineStore('connectionStore', {
           },
           store: { size: index['store.size'] },
         })) as ElasticSearchIndex[];
+
+        // Sort indices: system indices (starting with .) go to the end
+        connection.indices = indices.sort((a, b) => {
+          const aIsSystem = a.index.startsWith('.');
+          const bIsSystem = b.index.startsWith('.');
+          if (aIsSystem && !bIsSystem) return 1;
+          if (!aIsSystem && bIsSystem) return -1;
+          return a.index.localeCompare(b.index);
+        });
 
         // Update dynamic completion options with fetched indices
         configureDynamicOptions({

@@ -55,12 +55,20 @@ pub async fn describe_table(client: &Client, table_name: &str) -> Result<ApiResp
                                 "type": "GSI",
                                 "name": gsi.index_name(),
                                 "status": gsi.index_status().map(|s| s.as_str().to_string()),
+                                "itemCount": gsi.item_count(),
+                                "sizeBytes": gsi.index_size_bytes(),
                                 "keySchema": gsi.key_schema().iter().map(|k| {
                                     json!({
                                         "attributeName": k.attribute_name(),
                                         "keyType": format!("{:?}", k.key_type())
                                     })
                                 }).collect::<Vec<_>>(),
+                                "projection": gsi.projection().map(|p| {
+                                    json!({
+                                        "projectionType": p.projection_type().map(|pt| pt.as_str().to_string()),
+                                        "nonKeyAttributes": p.non_key_attributes().to_vec()
+                                    })
+                                }),
                                 "provisionedThroughput": gsi.provisioned_throughput().map(|pt| json!({
                                     "readCapacityUnits": pt.read_capacity_units(),
                                     "writeCapacityUnits": pt.write_capacity_units()
@@ -77,12 +85,20 @@ pub async fn describe_table(client: &Client, table_name: &str) -> Result<ApiResp
                             let index_info = json!({
                                 "type": "LSI",
                                 "name": lsi.index_name(),
+                                "itemCount": lsi.item_count(),
+                                "sizeBytes": lsi.index_size_bytes(),
                                 "keySchema": lsi.key_schema().iter().map(|k| {
                                     json!({
                                         "attributeName": k.attribute_name(),
                                         "keyType": format!("{:?}", k.key_type())
                                     })
-                                }).collect::<Vec<_>>()
+                                }).collect::<Vec<_>>(),
+                                "projection": lsi.projection().map(|p| {
+                                    json!({
+                                        "projectionType": p.projection_type().map(|pt| pt.as_str().to_string()),
+                                        "nonKeyAttributes": p.non_key_attributes().to_vec()
+                                    })
+                                })
                             });
                             indices.push(index_info);
                         }
@@ -92,6 +108,16 @@ pub async fn describe_table(client: &Client, table_name: &str) -> Result<ApiResp
                 }),
                  "creationDateTime": response.table().and_then(|t|
                         t.creation_date_time().map(|dt| dt.to_string())),
+                "provisionedThroughput": response.table().and_then(|t| t.provisioned_throughput().map(|pt| json!({
+                    "readCapacityUnits": pt.read_capacity_units(),
+                    "writeCapacityUnits": pt.write_capacity_units()
+                }))),
+                "warmThroughput": response.table().and_then(|t| t.warm_throughput().and_then(|wt| {
+                    wt.read_units_per_second().or(wt.write_units_per_second()).map(|_| json!({
+                        "readUnitsPerSecond": wt.read_units_per_second(),
+                        "writeUnitsPerSecond": wt.write_units_per_second()
+                    }))
+                })),
             });
 
             Ok(ApiResponse {

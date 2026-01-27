@@ -425,35 +425,83 @@ const gsiColumns = computed(() => [
   {
     title: lang.t('manage.dynamo.indexName'),
     key: 'name',
+    ellipsis: { tooltip: true },
   },
   {
     title: lang.t('manage.dynamo.partitionKey'),
     key: 'partitionKey',
+    ellipsis: { tooltip: true },
     render: (row: DynamoIndex) => {
-      const pk = row.keySchema?.find(k => k.keyType.toUpperCase() === 'HASH');
-      if (!pk) return '-';
-      const attrDef = tableInfo.value?.attributeDefinitions?.find(
-        a => a.attributeName === pk.attributeName,
-      );
-      return `${pk.attributeName} (${attrDef?.attributeType || 'S'})`;
+      const pks = row.keySchema?.filter(k => k.keyType.toUpperCase() === 'HASH') || [];
+      if (pks.length === 0) return '-';
+      return pks
+        .map(pk => {
+          const attrDef = tableInfo.value?.attributeDefinitions?.find(
+            a => a.attributeName === pk.attributeName,
+          );
+          return `${pk.attributeName} (${attrDef?.attributeType || 'S'})`;
+        })
+        .join(', ');
     },
   },
   {
     title: lang.t('manage.dynamo.sortKey'),
     key: 'sortKey',
+    ellipsis: { tooltip: true },
     render: (row: DynamoIndex) => {
-      const sk = row.keySchema?.find(k => k.keyType.toUpperCase() === 'RANGE');
-      if (!sk) return '-';
-      const attrDef = tableInfo.value?.attributeDefinitions?.find(
-        a => a.attributeName === sk.attributeName,
-      );
-      return `${sk.attributeName} (${attrDef?.attributeType || 'S'})`;
+      const sks = row.keySchema?.filter(k => k.keyType.toUpperCase() === 'RANGE') || [];
+      if (sks.length === 0) return '-';
+      return sks
+        .map(sk => {
+          const attrDef = tableInfo.value?.attributeDefinitions?.find(
+            a => a.attributeName === sk.attributeName,
+          );
+          return `${sk.attributeName} (${attrDef?.attributeType || 'S'})`;
+        })
+        .join(', ');
     },
   },
   {
     title: lang.t('manage.dynamo.projection'),
     key: 'projection',
-    render: () => 'ALL',
+    ellipsis: { tooltip: true },
+    render: (row: DynamoIndex) => {
+      const projectionType = row.projection?.projectionType?.toUpperCase() || 'ALL';
+      if (projectionType === 'INCLUDE') {
+        const attrs = row.projection?.nonKeyAttributes || [];
+        return attrs.length > 0 ? `INCLUDE [${attrs.join(', ')}]` : 'INCLUDE';
+      }
+      return projectionType;
+    },
+  },
+  {
+    title: lang.t('manage.dynamo.size'),
+    key: 'size',
+    ellipsis: { tooltip: true },
+    render: (row: DynamoIndex) => {
+      if (!row.sizeBytes) return '-';
+      const sizeInKB = row.sizeBytes / 1024;
+      const sizeInMB = sizeInKB / 1024;
+      const sizeInGB = sizeInMB / 1024;
+      if (sizeInGB >= 1) {
+        return `${sizeInGB.toFixed(2)} GB`;
+      } else if (sizeInMB >= 1) {
+        return `${sizeInMB.toFixed(2)} MB`;
+      } else if (sizeInKB >= 1) {
+        return `${sizeInKB.toFixed(2)} KB`;
+      } else {
+        return `${row.sizeBytes} B`;
+      }
+    },
+  },
+  {
+    title: lang.t('manage.dynamo.itemCount'),
+    key: 'itemCount',
+    ellipsis: { tooltip: true },
+    render: (row: DynamoIndex) => {
+      if (row.itemCount === undefined || row.itemCount === null) return '-';
+      return row.itemCount.toLocaleString();
+    },
   },
   {
     title: lang.t('manage.dynamo.indexStatus'),
