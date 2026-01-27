@@ -116,7 +116,9 @@
 </template>
 
 <script setup lang="ts">
-import { FormRules, FormValidationError, NButton, NIcon, FormItemRule } from 'naive-ui';
+import type { FormRules, FormValidationError, FormItemRule } from '@/types';
+import { NButton, NIcon } from 'naive-ui';
+import { useMessageService } from '@/composables';
 import { Close } from '@vicons/carbon';
 import { CustomError, inputProps, jsonify } from '../../../common';
 import { useClusterManageStore } from '../../../store';
@@ -126,7 +128,7 @@ const clusterManageStore = useClusterManageStore();
 const { createIndex } = clusterManageStore;
 
 const lang = useLang();
-const message = useMessage();
+const message = useMessageService();
 
 const showIndexModal = ref(false);
 const createLoading = ref(false);

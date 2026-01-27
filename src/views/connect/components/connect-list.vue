@@ -58,7 +58,8 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
-import { NDropdown, NIcon, useDialog, useMessage } from 'naive-ui';
+import { NDropdown, NIcon } from 'naive-ui';
+import { useDialogService, useMessageService } from '@/composables';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
@@ -73,8 +74,8 @@ import ConnectingModal from './connecting-modal.vue';
 
 const emits = defineEmits(['tab-panel']);
 
-const dialog = useDialog();
-const message = useMessage();
+const dialog = useDialogService();
+const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();

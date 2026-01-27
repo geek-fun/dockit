@@ -177,6 +177,7 @@ import { useClusterManageStore, useConnectionStore, useTabStore, DatabaseType } 
 import { useLang } from '../lang';
 import { CustomError, inputProps } from '../common';
 import { esSampleQueries } from '../common/monaco';
+import { useMessageService } from '@/composables';
 
 const props = defineProps({ type: String });
 const emits = defineEmits([
@@ -187,7 +188,7 @@ const emits = defineEmits([
   'refresh-dynamo-manage',
 ]);
 
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();

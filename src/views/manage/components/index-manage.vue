@@ -74,6 +74,7 @@ import { storeToRefs } from 'pinia';
 import { get } from 'lodash';
 import { useClusterManageStore } from '../../../store';
 import { NButton, NDropdown, NIcon, NTag, NInput } from 'naive-ui';
+import { useMessageService, useDialogService } from '@/composables';
 import {
   Add,
   ArrowsHorizontal,
@@ -94,8 +95,8 @@ import { CustomError, inputProps } from '../../../common';
 import SwitchAliasDialog from './switch-alias-dialog.vue';
 import { ClusterAlias, ClusterIndex, IndexHealth } from '../../../datasources';
 
-const message = useMessage();
-const dialog = useDialog();
+const message = useMessageService();
+const dialog = useDialogService();
 const lang = useLang();
 
 const clusterManageStore = useClusterManageStore();

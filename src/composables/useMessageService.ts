@@ -1,4 +1,4 @@
-import { ref, createApp, h } from 'vue';
+import { createApp, h } from 'vue';
 import { Toast } from '@/components/ui/toast';
 
 // Default duration for messages in milliseconds

@@ -62,7 +62,8 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
 import { Close } from '@vicons/carbon';
-import { FormRules, FormValidationError } from 'naive-ui';
+import type { FormRules, FormValidationError } from '@/types';
+import { useMessageService } from '@/composables';
 import { cloneDeep } from 'lodash';
 import { useLang } from '../../../lang';
 import { ContextMenuAction, ToolBarAction, useFileStore } from '../../../store';
@@ -92,7 +93,7 @@ const formRules = reactive<FormRules>({
   ],
 });
 
-const message = useMessage();
+const message = useMessageService();
 
 const cleanUp = () => {
   formData.value = cloneDeep(defaultFormData);

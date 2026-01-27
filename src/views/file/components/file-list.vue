@@ -53,9 +53,10 @@ import ContextMenu from './context-menu.vue';
 import NewFileDialog from './new-file-dialog.vue';
 import { PathInfo, PathTypeEnum } from '../../../datasources';
 import prettyBytes from 'pretty-bytes';
+import { useMessageService } from '@/composables';
 
 const router = useRouter();
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 const fileStore = useFileStore();
 const { deleteFileOrFolder, changeDirectory } = fileStore;

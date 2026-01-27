@@ -70,8 +70,9 @@ import {
   useConnectionStore,
   useImportExportStore,
 } from '../../../store';
+import { useMessageService } from '@/composables';
 
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();

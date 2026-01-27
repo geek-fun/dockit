@@ -64,7 +64,9 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { FormRules, FormValidationError, NButton, NIcon } from 'naive-ui';
+import type { FormRules, FormValidationError } from '@/types';
+import { NButton, NIcon } from 'naive-ui';
+import { useMessageService } from '@/composables';
 import { Close } from '@vicons/carbon';
 import { CustomError, inputProps } from '../../../common';
 import { useClusterManageStore } from '../../../store';
@@ -74,7 +76,7 @@ const clusterManageStore = useClusterManageStore();
 const { switchAlias, fetchAliases } = clusterManageStore;
 const { indexWithAliases } = storeToRefs(clusterManageStore);
 const lang = useLang();
-const message = useMessage();
+const message = useMessageService();
 
 const showModal = ref(false);
 const createLoading = ref(false);

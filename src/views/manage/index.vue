@@ -35,8 +35,9 @@ import ShardManage from './components/shard-manage.vue';
 import { useLang } from '../../lang';
 import IndexManage from './components/index-manage.vue';
 import { CustomError } from '../../common';
+import { useMessageService } from '@/composables';
 
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 
 const activeTab = ref(lang.t('manage.cluster'));

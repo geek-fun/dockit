@@ -35,7 +35,7 @@ import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
-import { useMessage, useLoadingBar } from 'naive-ui';
+import { useMessageService, useLoadingBarService } from '@/composables';
 import { CustomError, jsonify } from '../../../common';
 import {
   ElasticsearchConnection,
@@ -66,8 +66,8 @@ import {
 } from '../../../common/monaco';
 
 const appStore = useAppStore();
-const message = useMessage();
-const loadingBar = useLoadingBar();
+const message = useMessageService();
+const loadingBar = useLoadingBarService();
 const lang = useLang();
 
 const tabStore = useTabStore();

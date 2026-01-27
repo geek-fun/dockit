@@ -281,6 +281,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { NTag, NButton, NIcon } from 'naive-ui';
+import { useMessageService } from '@/composables';
 import {
   ChartLineData,
   TableSplit,
@@ -304,7 +305,7 @@ import { DynamoIndex, DynamoIndexType, dynamoApi } from '../../../datasources';
 import DeleteIndexModal from './delete-index-modal.vue';
 import CreateIndexModal from './create-index-modal.vue';
 
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 
 const clusterManageStore = useClusterManageStore();

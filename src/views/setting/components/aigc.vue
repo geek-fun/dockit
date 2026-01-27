@@ -94,7 +94,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { useMessage } from 'naive-ui';
+import { useMessageService } from '@/composables';
 import { cloneDeep } from 'lodash';
 import { AiConfig, useAppStore } from '../../../store';
 import { inputProps } from '../../../common';
@@ -104,7 +104,7 @@ const appStore = useAppStore();
 const { fetchAiConfigs, saveAiConfig } = appStore;
 const { aiConfigs } = storeToRefs(appStore);
 
-const message = useMessage();
+const message = useMessageService();
 
 const openAiConfig =
   aiConfigs.value.find(({ provider }) => provider === ProviderEnum.OPENAI) ?? ({} as AiConfig);

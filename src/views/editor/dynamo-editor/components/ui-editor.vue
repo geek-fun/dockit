@@ -189,7 +189,8 @@
 import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
 import { isEmpty } from 'lodash';
-import { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
+import type { FormItemRule, FormRules, FormValidationError } from '@/types';
+import { useMessageService, useLoadingBarService } from '@/composables';
 import {
   Connection,
   DynamoDBConnection,
@@ -258,8 +259,8 @@ const filterConditions = ref([
 const loadingRef = ref({ index: false, queryResult: false });
 const editorSize = ref(dynamoData.value.queryData.showResultPanel ? 0.5 : 1);
 
-const message = useMessage();
-const loadingBar = useLoadingBar();
+const message = useMessageService();
+const loadingBar = useLoadingBarService();
 
 // Edit state
 const showEditModal = ref(false);

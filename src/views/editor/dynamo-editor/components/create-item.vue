@@ -204,7 +204,8 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
-import { FormValidationError } from 'naive-ui';
+import type { FormValidationError } from '@/types';
+import { useMessageService } from '@/composables';
 import { Connection, DynamoDBConnection, useConnectionStore, useTabStore } from '../../../../store';
 import { CustomError, inputProps } from '../../../../common';
 import { useLang } from '../../../../lang';
@@ -233,7 +234,7 @@ const attributeType = ref([
   { label: 'Binary Set', value: 'BS' },
 ]);
 
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 
 const dynamoRecordForm = ref<{

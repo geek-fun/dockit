@@ -114,9 +114,10 @@ import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import { ulid } from 'ulidx';
 import { sourceFileApi } from '../../../datasources';
+import { useMessageService, useDialogService } from '@/composables';
 
-const message = useMessage();
-const dialog = useDialog();
+const message = useMessageService();
+const dialog = useDialogService();
 const lang = useLang();
 
 const exportStore = useImportExportStore();

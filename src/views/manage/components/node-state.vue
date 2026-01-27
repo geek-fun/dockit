@@ -79,12 +79,13 @@ import { storeToRefs } from 'pinia';
 import { FolderMoveTo, Network3, Star, StarFilled, VmdkDisk } from '@vicons/carbon';
 import { CustomError } from '../../../common';
 import { NodeRoleEnum } from '../../../datasources';
+import { useMessageService } from '@/composables';
 
 const clusterManageStore = useClusterManageStore();
 const { fetchNodes } = clusterManageStore;
 const { nodes } = storeToRefs(clusterManageStore);
 
-const message = useMessage();
+const message = useMessageService();
 
 type NodeStats = {
   key: string;

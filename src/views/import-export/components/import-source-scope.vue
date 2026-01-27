@@ -195,10 +195,11 @@ import { storeToRefs } from 'pinia';
 import { Document, DocumentAttachment, Checkmark, Close, ErrorFilled } from '@vicons/carbon';
 import { useImportExportStore } from '../../../store';
 import { CustomError } from '../../../common';
+import { useMessageService } from '@/composables';
 
 const UploadIcon = Document;
 
-const message = useMessage();
+const message = useMessageService();
 
 const importExportStore = useImportExportStore();
 const {

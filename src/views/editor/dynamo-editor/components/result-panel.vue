@@ -76,7 +76,7 @@
 import { computed, h, ref } from 'vue';
 import { Close, Edit, TrashCan } from '@vicons/carbon';
 import { NButton, NIcon } from 'naive-ui';
-import type { DataTableColumn, PaginationProps } from 'naive-ui';
+import type { DataTableColumn, PaginationProps } from '@/types';
 import { useLang } from '../../../../lang';
 import { useTabStore, DynamoDBConnection } from '../../../../store';
 import DeleteConfirmModal from './delete-confirm-modal.vue';

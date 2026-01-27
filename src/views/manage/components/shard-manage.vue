@@ -89,7 +89,8 @@ import {
 } from '@vicons/carbon';
 import { Memory } from '@vicons/fa';
 import { NButton, NIcon, NInput, NTag } from 'naive-ui';
-import { TableColumn } from 'naive-ui/es/data-table/src/interface';
+import type { DataTableColumn } from '@/types';
+import { useMessageService } from '@/composables';
 import { CustomError, inputProps } from '../../../common';
 import { ClusterShard } from '../../../datasources';
 import { useClusterManageStore } from '../../../store';
@@ -97,7 +98,7 @@ import { useClusterManageStore } from '../../../store';
 const clusterManageStore = useClusterManageStore();
 const { fetchNodes, fetchShards } = clusterManageStore;
 const { indices } = storeToRefs(clusterManageStore);
-const message = useMessage();
+const message = useMessageService();
 
 type IndexShard = ClusterShard & {
   details: Array<{
@@ -204,7 +205,7 @@ const nodeShardsTable = computed(() => {
           ),
         );
       },
-    })) as TableColumn[],
+    })) as DataTableColumn[],
     data,
   };
 });

@@ -80,8 +80,9 @@ import {
 } from '../../../store';
 import { CustomError, inputProps } from '../../../common';
 import { useLang } from '../../../lang';
+import { useMessageService } from '@/composables';
 
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();

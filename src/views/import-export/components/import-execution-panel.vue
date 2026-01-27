@@ -125,9 +125,10 @@ import { Flash, Upload } from '@vicons/carbon';
 import { useImportExportStore, ImportStrategy } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
+import { useMessageService, useDialogService } from '@/composables';
 
-const message = useMessage();
-const dialog = useDialog();
+const message = useMessageService();
+const dialog = useDialogService();
 const lang = useLang();
 
 const importExportStore = useImportExportStore();

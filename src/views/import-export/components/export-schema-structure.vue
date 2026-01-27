@@ -64,8 +64,9 @@ import { DataStructured } from '@vicons/carbon';
 import { useImportExportStore } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
+import { useMessageService } from '@/composables';
 
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 
 const exportStore = useImportExportStore();

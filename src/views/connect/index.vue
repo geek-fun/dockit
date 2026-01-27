@@ -41,10 +41,11 @@ import DynamoEditor from '../editor/dynamo-editor/index.vue';
 import ToolBar from '../../components/tool-bar.vue';
 import { useLang } from '../../lang';
 import { CustomError } from '../../common';
+import { useDialogService, useMessageService } from '@/composables';
 
 const route = useRoute();
-const dialog = useDialog();
-const message = useMessage();
+const dialog = useDialogService();
+const message = useMessageService();
 const lang = useLang();
 
 const tabStore = useTabStore();

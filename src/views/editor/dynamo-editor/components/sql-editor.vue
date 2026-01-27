@@ -57,7 +57,7 @@
 <script setup lang="ts">
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
-import { useMessage, useLoadingBar } from 'naive-ui';
+import { useMessageService, useLoadingBarService } from '@/composables';
 import { storeToRefs } from 'pinia';
 import { CustomError, jsonify } from '../../../../common';
 import {
@@ -86,8 +86,8 @@ import ResultPanel from './result-panel.vue';
 import EditItem from './edit-item.vue';
 
 const lang = useLang();
-const message = useMessage();
-const loadingBar = useLoadingBar();
+const message = useMessageService();
+const loadingBar = useLoadingBarService();
 
 const appStore = useAppStore();
 const { getEditorTheme, getEditorOptions } = appStore;

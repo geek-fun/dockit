@@ -23,6 +23,7 @@ import { Folder } from '@vicons/carbon';
 import { useFileStore } from '../store';
 import { storeToRefs } from 'pinia';
 import { CustomError } from '../common';
+import { useMessageService } from '@/composables';
 
 const fileStore = useFileStore();
 const { changeDirectory } = fileStore;
@@ -30,7 +31,7 @@ const { breadCrumbPath } = storeToRefs(fileStore);
 
 const props = defineProps({ clickable: { type: Boolean, default: true } });
 
-const message = useMessage();
+const message = useMessageService();
 
 const handleBreadcrumb = async (index: number) => {
   const subPath = breadCrumbPath?.value

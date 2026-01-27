@@ -142,7 +142,7 @@
 
 <script setup lang="ts">
 import { Add, Delete } from '@vicons/carbon';
-import { FormValidationError } from 'naive-ui';
+import type { FormValidationError } from '@/types';
 import { inputProps } from '../../../../common';
 import { useLang } from '../../../../lang';
 

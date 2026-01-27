@@ -80,8 +80,9 @@ import { storeToRefs } from 'pinia';
 import { DocumentExport, FolderOpen } from '@vicons/carbon';
 import { useImportExportStore, FileType } from '../../../store';
 import { CustomError, inputProps } from '../../../common';
+import { useMessageService } from '@/composables';
 
-const message = useMessage();
+const message = useMessageService();
 
 const exportStore = useImportExportStore();
 const { folderPath, fileName, fileType, extraPath } = storeToRefs(exportStore);
