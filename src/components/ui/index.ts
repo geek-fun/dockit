@@ -1,26 +1,36 @@
 /**
  * shadcn-vue UI Components
  *
- * This module exports all shadcn-vue atomic components used in the DocKit application.
+ * This module exports all shadcn-vue components used in the DocKit application.
  * These components are designed to work alongside Naive UI components during the migration period.
  *
- * Usage:
- * ```typescript
- * import { Button } from '@/components/ui/button';
- * import { Input } from '@/components/ui/input';
- * import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
- * import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
- * import { Badge } from '@/components/ui/badge';
- * ```
+ * Batch 1 (Atomic Components):
+ * - Button, Input, Card, Alert, Badge
  *
- * Or using relative imports:
- * ```typescript
- * import { Button } from '../components/ui/button';
- * ```
+ * Batch 2 (Complex Components):
+ * - Dialog, AlertDialog, Tabs, Select, Switch
+ * - Tooltip, Popover, DropdownMenu
+ * - Table, ScrollArea, Label, Separator, InputNumber
  */
 
+// Batch 1: Atomic Components
 export * from './button';
 export * from './input';
 export * from './card';
 export * from './alert';
 export * from './badge';
+
+// Batch 2: Complex Components
+export * from './dialog';
+export * from './alert-dialog';
+export * from './tabs';
+export * from './select';
+export * from './switch';
+export * from './tooltip';
+export * from './popover';
+export * from './dropdown-menu';
+export * from './table';
+export * from './scroll-area';
+export * from './label';
+export * from './separator';
+export * from './input-number';
