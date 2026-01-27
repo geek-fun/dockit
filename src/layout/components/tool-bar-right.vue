@@ -11,9 +11,9 @@
         :class="{ active: item.id === `${selectedItemId}` }"
         @click="navClick(item)"
       >
-        <n-icon size="26">
+        <Icon :size="26">
           <component :is="item.icon" />
-        </n-icon>
+        </Icon>
       </div>
     </the-aside-icon>
   </div>
@@ -24,6 +24,7 @@ import { markRaw, ref } from 'vue';
 import { ChatBot } from '@vicons/carbon';
 import TheAsideIcon from './the-aside-icon.vue';
 import ChatbotBox from './chatbot-box.vue';
+import { Icon } from '@/components/ui/icon';
 
 const selectedItemId = ref(-1);
 const chatBot = ref({ active: false });
@@ -52,35 +53,33 @@ const smallNavList = ref([
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border-color);
+}
 
-  .icon-item {
-    height: var(--aside-width);
-    margin: 10px 0;
-    display: flex;
-    box-sizing: border-box;
-    justify-content: center;
-    align-items: center;
-    color: var(--text-color);
-    cursor: pointer;
+.icon-item {
+  height: var(--aside-width);
+  margin: 10px 0;
+  display: flex;
+  box-sizing: border-box;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-color);
+  cursor: pointer;
+}
 
-    .n-icon {
-      opacity: 0.4;
-      transition: 0.3s;
-    }
+.icon-item :deep(span) {
+  opacity: 0.4;
+  transition: 0.3s;
+}
 
-    &.active {
-      position: relative;
+.icon-item.active {
+  position: relative;
+}
 
-      .n-icon {
-        opacity: 1;
-      }
-    }
+.icon-item.active :deep(span) {
+  opacity: 1;
+}
 
-    &:hover {
-      .n-icon {
-        opacity: 0.9;
-      }
-    }
-  }
+.icon-item:hover :deep(span) {
+  opacity: 0.9;
 }
 </style>

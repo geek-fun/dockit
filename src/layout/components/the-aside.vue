@@ -13,9 +13,9 @@
           }"
           @click="navClick(item)"
         >
-          <n-icon size="26">
+          <Icon :size="26">
             <component :is="item.icon" />
-          </n-icon>
+          </Icon>
         </div>
       </the-aside-icon>
     </div>
@@ -32,9 +32,9 @@
           }"
           @click="navClick(item)"
         >
-          <n-icon size="26">
+          <Icon :size="26">
             <component :is="item.icon" />
-          </n-icon>
+          </Icon>
         </div>
       </the-aside-icon>
     </div>
@@ -57,6 +57,7 @@ import {
 } from '@vicons/carbon';
 import { useAppStore } from '../../store';
 import TheAsideIcon from './the-aside-icon.vue';
+import { Icon } from '@/components/ui/icon';
 
 const router = useRouter();
 const route = useRoute();
@@ -152,7 +153,7 @@ const navClick = (item: RouteItem) => {
 };
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .left-aside {
   --aside-width: 60px;
   width: var(--aside-width);
@@ -160,51 +161,48 @@ const navClick = (item: RouteItem) => {
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--border-color);
+}
 
-  .main-nav {
-    flex: 1;
-    height: 0;
-  }
+.main-nav {
+  flex: 1;
+  height: 0;
+}
 
-  .icon-item {
-    height: var(--aside-width);
-    height: 40px;
-    margin: 10px 0;
-    display: flex;
-    box-sizing: border-box;
-    justify-content: center;
-    align-items: center;
-    color: var(--text-color);
-    cursor: pointer;
+.icon-item {
+  height: 40px;
+  margin: 10px 0;
+  display: flex;
+  box-sizing: border-box;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-color);
+  cursor: pointer;
+}
 
-    .n-icon {
-      opacity: 0.4;
-      transition: 0.3s;
-    }
+.icon-item :deep(span) {
+  opacity: 0.4;
+  transition: 0.3s;
+}
 
-    &.active {
-      position: relative;
+.icon-item.active {
+  position: relative;
+}
 
-      &::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        width: 5px;
-        background-color: var(--border-color);
-      }
+.icon-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 5px;
+  background-color: var(--border-color);
+}
 
-      .n-icon {
-        opacity: 1;
-      }
-    }
+.icon-item.active :deep(span) {
+  opacity: 1;
+}
 
-    &:hover {
-      .n-icon {
-        opacity: 0.9;
-      }
-    }
-  }
+.icon-item:hover :deep(span) {
+  opacity: 0.9;
 }
 </style>

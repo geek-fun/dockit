@@ -14,14 +14,15 @@ import RouterMain from '../components/RouterMain.vue';
 import ToolBarRight from './components/tool-bar-right.vue';
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .layout-container {
   height: 100%;
   width: 100%;
   display: flex;
-  .right-layout {
-    flex: 1;
-    width: 0;
-  }
+}
+
+.right-layout {
+  flex: 1;
+  width: 0;
 }
 </style>
