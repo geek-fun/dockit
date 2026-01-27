@@ -1,40 +1,47 @@
 /**
  * shadcn-vue UI Components
  *
- * This module exports all shadcn-vue components used in the DocKit application.
- * These components are designed to work alongside Naive UI components during the migration period.
- *
- * Batch 1 (Atomic Components):
- * - Button, Input, Card, Alert, Badge
- *
- * Batch 2 (Complex Components):
- * - Dialog, AlertDialog, Tabs, Select, Switch
- * - Tooltip, Popover, DropdownMenu
- * - Table, ScrollArea, Label, Separator, InputNumber
+ * This module exports all UI components used in the DocKit application.
+ * These components replace Naive UI components with shadcn-vue/Radix-based equivalents.
  */
 
-// Batch 1: Atomic Components
+// Atomic Components
 export * from './button';
 export * from './input';
 export * from './card';
 export * from './alert';
 export * from './badge';
+export * from './label';
+export * from './separator';
+export * from './checkbox';
+export * from './icon';
 
-// Batch 2: Complex Components
-export * from './dialog';
-export * from './alert-dialog';
-export * from './tabs';
+// Form Components
+export * from './form';
+export * from './input-number';
 export * from './select';
 export * from './switch';
+export * from './radio-group';
+
+// Layout Components
+export * from './grid';
+export * from './split-pane';
+export * from './scroll-area';
+export * from './collapse';
+
+// Overlay Components
+export * from './dialog';
+export * from './alert-dialog';
 export * from './tooltip';
 export * from './popover';
 export * from './dropdown-menu';
+
+// Data Display Components
+export * from './tabs';
 export * from './table';
-export * from './scroll-area';
-export * from './label';
-export * from './separator';
-export * from './input-number';
-export * from './radio-group';
+export * from './progress';
+export * from './spinner';
+export * from './empty';
 
 // Utility Components
 export * from './toast';
