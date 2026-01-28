@@ -51,7 +51,6 @@
   "devDependencies": {
     "@iconify-json/carbon": "^1.2.18",
     "@iconify-json/lucide": "^1.2.87",
-    "@iconify-json/mdi": "^1.2.3",
     "@tauri-apps/cli": "^2.9.6",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
@@ -60,7 +59,7 @@
     "@typescript-eslint/eslint-plugin": "^8.50.1",
     "@typescript-eslint/parser": "^8.50.1",
     "@unocss/preset-icons": "^66.6.0",
-    "@unocss/preset-uno": "^66.6.0",
+    "@unocss/preset-wind4": "^66.6.0",
     "@unocss/transformer-directives": "^66.6.0",
     "@unocss/transformer-variant-group": "^66.6.0",
     "@vitejs/plugin-vue": "^6.0.3",

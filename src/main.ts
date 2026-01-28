@@ -9,7 +9,6 @@ import piniaPluginPersistence from 'pinia-plugin-persistedstate';
 import 'virtual:uno.css';
 
 // Styles - Single source of truth for all theme tokens
-import './assets/styles/normalize.css';
 import './assets/styles/index.css';
 
 const pinia = createPinia();

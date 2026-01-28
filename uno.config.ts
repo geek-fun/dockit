@@ -1,17 +1,16 @@
-import {
-  defineConfig,
-  presetUno,
-  presetIcons,
-  presetWind,
-  transformerDirectives,
-  transformerVariantGroup,
-} from 'unocss';
+import { defineConfig, presetIcons, transformerDirectives, transformerVariantGroup } from 'unocss';
+import { presetWind4 } from '@unocss/preset-wind4';
 import presetAnimations from 'unocss-preset-animations';
 
 export default defineConfig({
   presets: [
-    presetUno(),
-    presetWind(),
+    presetWind4({
+      preflights: {
+        reset: true, // Built-in reset styles (replaces @unocss/reset)
+        theme: 'on-demand', // Generate theme CSS variables on-demand
+        property: true, // Generate @property rules for better optimization
+      },
+    }),
     presetIcons({
       scale: 1.2,
       warn: true,
@@ -59,12 +58,12 @@ export default defineConfig({
         foreground: 'hsl(var(--card-foreground))',
       },
     },
-    borderRadius: {
+    radius: {
       lg: 'var(--radius)',
       md: 'calc(var(--radius) - 2px)',
       sm: 'calc(var(--radius) - 4px)',
     },
-    container: {
+    containers: {
       center: true,
       padding: '2rem',
     },
@@ -77,7 +76,7 @@ export default defineConfig({
         'accordion-down': '0.2s',
         'accordion-up': '0.2s',
       },
-      timingFns: {
+      ease: {
         'accordion-down': 'ease-out',
         'accordion-up': 'ease-out',
       },
