@@ -3,27 +3,70 @@
     <div class="version-card">
       <div class="version-card-header">
         <div class="version-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect width="24" height="24" rx="4" fill="#E8F5E9"/>
-            <path d="M12 4L4 8v8l8 4 8-4V8l-8-4z" stroke="#4CAF50" stroke-width="1.5" fill="none"/>
-            <path d="M12 12v4M12 8v2" stroke="#4CAF50" stroke-width="1.5" stroke-linecap="round"/>
+          <svg
+            class="version-icon-svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <rect
+              x="7"
+              y="4"
+              width="10"
+              height="16"
+              rx="2"
+              stroke="currentColor"
+              stroke-width="1.6"
+            />
+            <path d="M12 8v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <path
+              d="M9.5 12.5L12 15l2.5-2.5"
+              stroke="currentColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <circle cx="12" cy="17" r="0.8" fill="currentColor" />
           </svg>
         </div>
         <div class="version-text">
           <div class="version-title">{{ $t('version.newVersion') }}</div>
-          <div class="version-message">{{ $t('version.message') }} ({{ version }})</div>
+          <div class="version-message">A newer version ({{ version }}) is ready for you.</div>
         </div>
         <button class="close-button" @click="later">
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M9 3L3 9M3 3l6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M9 3L3 9M3 3l6 6"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+            />
           </svg>
         </button>
       </div>
+      <div class="version-divider"></div>
       <div class="version-card-footer">
         <button class="skip-button" @click="skip">{{ $t('version.skip') }}</button>
         <div class="action-buttons">
-          <Button variant="outline" size="sm" @click="later">{{ $t('version.later') }}</Button>
-          <Button variant="default" size="sm" @click="download">{{ $t('version.download') }}</Button>
+          <Button variant="outline" size="sm" class="version-action-button outline" @click="later">
+            {{ $t('version.later') }}
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            class="version-action-button primary"
+            @click="download"
+          >
+            Download Now
+          </Button>
         </div>
       </div>
     </div>
@@ -31,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue';
 import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/plugin-shell';
 import { storeToRefs } from 'pinia';
@@ -62,8 +106,9 @@ const getLatestReleaseInfo = async (): Promise<{
   version: string;
   assets: Array<{ name: string; url: string }>;
 }> => {
-  const data = await fetch('https://api.github.com/repos/geek-fun/dockit/releases/latest')
-    .then(res => res.json());
+  const data = await fetch('https://api.github.com/repos/geek-fun/dockit/releases/latest').then(
+    res => res.json(),
+  );
   const assets = data.assets.map((item: { name: string; browser_download_url: string }) => ({
     name: item.name,
     url: item.browser_download_url,
@@ -102,22 +147,35 @@ onMounted(async () => {
 }
 
 .version-card {
-  width: 320px;
-  background: var(--card-bg-color, #fff);
-  border-radius: 12px;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  width: 420px;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   overflow: hidden;
 }
 
 .version-card-header {
   display: flex;
   align-items: flex-start;
-  padding: 16px;
+  padding: 20px 20px 16px;
   gap: 12px;
 }
 
 .version-icon {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #eaf7ee;
+  border: 1px solid #cfead7;
+}
+
+.version-icon-svg {
+  color: #22a559;
 }
 
 .version-text {
@@ -126,34 +184,42 @@ onMounted(async () => {
 }
 
 .version-title {
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--text-color, #333);
+  font-weight: 700;
+  font-size: 16px;
+  color: hsl(var(--foreground));
   margin-bottom: 4px;
 }
 
 .version-message {
   font-size: 13px;
-  color: var(--gray-color, #666);
+  color: #8b94a1;
 }
 
 .close-button {
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
   background: transparent;
   cursor: pointer;
-  color: var(--gray-color, #999);
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  color: hsl(var(--muted-foreground));
+  border-radius: 8px;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 }
 
 .close-button:hover {
-  background-color: var(--bg-color, #f5f5f5);
+  background-color: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+
+.version-divider {
+  height: 1px;
+  background: #eef1f4;
 }
 
 .version-card-footer {
@@ -161,24 +227,56 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-top: 1px solid var(--border-color, #eee);
 }
 
 .skip-button {
-  background: transparent;
-  border: none;
-  color: var(--gray-color, #666);
-  font-size: 13px;
-  cursor: pointer;
   padding: 0;
+  border: none;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.2s;
 }
 
 .skip-button:hover {
-  color: var(--text-color, #333);
+  color: hsl(var(--foreground));
 }
 
 .action-buttons {
   display: flex;
   gap: 8px;
+}
+
+.action-buttons :deep(button) {
+  cursor: pointer;
+}
+
+.version-action-button {
+  min-width: 96px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.version-action-button.outline {
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  color: #1f2937 !important;
+  box-shadow: none !important;
+}
+
+.version-action-button.primary {
+  background: #27ae60 !important;
+  border: 1px solid #219653 !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 12px rgba(39, 174, 96, 0.24) !important;
+}
+
+.version-action-button.primary:hover {
+  background: #239a56;
+  border-color: #1f8d4f;
 }
 </style>

@@ -13,7 +13,9 @@
       <Alert v-else-if="resultMessage" variant="destructive" class="mb-3">
         <AlertDescription class="flex items-center justify-between">
           <span>{{ resultMessage }}</span>
-          <button class="ml-2 text-sm hover:opacity-70" @click="resultMessage = ''">×</button>
+          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="resultMessage = ''">
+            ×
+          </button>
         </AlertDescription>
       </Alert>
 

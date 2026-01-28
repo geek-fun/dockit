@@ -323,6 +323,7 @@ const selectDatabaseType = (type: DatabaseType) => {
   width: 32px;
   height: 32px;
   padding: 0;
+  cursor: pointer;
 }
 
 .database-type-dialog {
@@ -339,6 +340,7 @@ const selectDatabaseType = (type: DatabaseType) => {
   width: 100%;
   justify-content: flex-start;
   gap: 8px;
+  cursor: pointer;
 }
 
 .database-type-icon {

@@ -30,7 +30,9 @@
       <Alert v-if="errorMessage" variant="destructive" class="mt-3">
         <AlertDescription class="flex items-center justify-between">
           <span>{{ errorMessage }}</span>
-          <button class="ml-2 text-sm hover:opacity-70" @click="errorMessage = ''">×</button>
+          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
+            ×
+          </button>
         </AlertDescription>
       </Alert>
 

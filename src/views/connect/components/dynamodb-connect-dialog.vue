@@ -15,13 +15,17 @@
         <Alert v-if="successMessage" variant="success" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ successMessage }}
-            <button class="ml-2 hover:opacity-70" @click="successMessage = ''">×</button>
+            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="successMessage = ''">
+              ×
+            </button>
           </AlertDescription>
         </Alert>
         <Alert v-if="errorMessage" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ errorMessage }}
-            <button class="ml-2 hover:opacity-70" @click="errorMessage = ''">×</button>
+            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
+              ×
+            </button>
           </AlertDescription>
         </Alert>
 

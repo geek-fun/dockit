@@ -25,5 +25,10 @@ const handleAddClick = () => {
   width: 50px;
   height: 50px;
   border-radius: 50%;
+  cursor: pointer;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

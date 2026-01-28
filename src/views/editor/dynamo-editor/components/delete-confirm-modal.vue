@@ -20,7 +20,9 @@
         <Alert v-else-if="resultMessage" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ resultMessage }}
-            <button class="ml-2 hover:opacity-70" @click="resultMessage = ''">×</button>
+            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="resultMessage = ''">
+              ×
+            </button>
           </AlertDescription>
         </Alert>
         <p v-else>{{ lang.t('editor.dynamo.deleteItemConfirm') }}</p>
