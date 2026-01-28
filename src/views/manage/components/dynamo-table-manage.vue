@@ -48,10 +48,7 @@
             <CardContent class="p-4 flex flex-col gap-2">
               <span class="metric-label">{{ $t('manage.dynamo.pitr') }}</span>
               <div class="metric-value-status">
-                <span
-                  v-if="pitrEnabled"
-                  class="i-carbon-checkmark-filled h-4 w-4 text-green-500"
-                />
+                <span v-if="pitrEnabled" class="i-carbon-checkmark-filled h-4 w-4 text-green-500" />
                 <span v-else class="i-carbon-close-filled h-4 w-4 text-red-500" />
                 <span :class="pitrEnabled ? 'status-enabled' : 'status-disabled'">
                   {{ pitrEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}

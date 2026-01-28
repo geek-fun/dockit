@@ -11,10 +11,7 @@
         <div v-for="msg in activeChat?.messages" :key="msg.id">
           <div :class="['message-row', msg.role === ChatMessageRole.USER ? 'user' : '']">
             <div class="message-row-header">
-              <span
-                v-if="msg.role === ChatMessageRole.BOT"
-                class="i-carbon-bot mr-2 h-5 w-5"
-              />
+              <span v-if="msg.role === ChatMessageRole.BOT" class="i-carbon-bot mr-2 h-5 w-5" />
               <span v-else class="i-carbon-face-cool mr-2 h-5 w-5" />
               <span>{{ msg.role }}</span>
             </div>

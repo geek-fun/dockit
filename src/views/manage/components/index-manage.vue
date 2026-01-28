@@ -51,7 +51,9 @@
                           <Button variant="ghost" size="icon" class="h-6 w-6">
                             <span
                               class="i-carbon-search h-3.5 w-3.5"
-                              :style="{ color: filterState[col.key] ? 'var(--theme-color)' : undefined }"
+                              :style="{
+                                color: filterState[col.key] ? 'var(--theme-color)' : undefined,
+                              }"
                             />
                           </Button>
                         </PopoverTrigger>
@@ -168,7 +170,9 @@
                           <Button variant="ghost" size="icon" class="h-6 w-6">
                             <span
                               class="i-carbon-search h-3.5 w-3.5"
-                              :style="{ color: filterState[col.key] ? 'var(--theme-color)' : undefined }"
+                              :style="{
+                                color: filterState[col.key] ? 'var(--theme-color)' : undefined,
+                              }"
                             />
                           </Button>
                         </PopoverTrigger>

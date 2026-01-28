@@ -97,7 +97,7 @@
                     "
                     class="m-1 cursor-pointer"
                   >
-                    <component :is="shardsDetail.icon()" class="h-3 w-3 mr-1" />
+                    <span :class="[shardsDetail.iconClass, 'h-3 w-3 mr-1']" />
                     {{ shardsDetail.content }}
                   </Badge>
                 </PopoverTrigger>
@@ -115,24 +115,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-
 import prettyBytes from 'pretty-bytes';
-import {
-  AiResults,
-  Application,
-  Document,
-  Insert,
-  LaunchStudy1,
-  Layers,
-  QueryQueue,
-  Rotate360,
-  SearchLocate,
-  ShapeExcept,
-  Version,
-  VmdkDisk,
-  WarningAlt,
-} from '@vicons/carbon';
-import { Memory } from '@vicons/fa';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -158,7 +141,7 @@ const message = useMessageService();
 
 type IndexShard = ClusterShard & {
   details: Array<{
-    icon: () => Component;
+    iconClass: string;
     content: string;
     desc: string;
     tagType: 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error';
@@ -242,13 +225,13 @@ const handleShardClick = async (shard: ClusterShard) => {
     ...shard,
     details: [
       {
-        icon: () => Document,
+        iconClass: 'i-carbon-document',
         content: `docs: ${shard.docs.count}`,
         desc: 'docs',
         tagType: 'success',
       },
       {
-        icon: () => VmdkDisk,
+        iconClass: 'i-carbon-vmdk-disk',
         content: `size: ${shard.store.size ? prettyBytes(shard.store.size) : null}, dataset: ${
           shard.dataset.size ? prettyBytes(shard.dataset.size) : null
         }`,
@@ -256,49 +239,49 @@ const handleShardClick = async (shard: ClusterShard) => {
         tagType: 'success',
       },
       {
-        icon: () => Memory,
+        iconClass: 'i-carbon-chip',
         content: `size: ${shard.completion.size ? prettyBytes(shard.completion.size) : null}`,
         desc: 'completion',
         tagType: 'success',
       },
       {
-        icon: () => Memory,
+        iconClass: 'i-carbon-chip',
         content: `memory_size: ${shard.fielddata.memorySize ? prettyBytes(shard.fielddata.memorySize) : null}, evictions: ${shard.fielddata.evictions}`,
         desc: 'fielddata',
         tagType: 'success',
       },
       {
-        icon: () => Layers,
+        iconClass: 'i-carbon-layers',
         content: `memory_size: ${shard.queryCache.memorySize ? prettyBytes(shard.queryCache.memorySize) : null}, evictions: ${shard.queryCache.evictions}`,
         desc: 'query_cache',
         tagType: 'success',
       },
       {
-        icon: () => QueryQueue,
+        iconClass: 'i-carbon-query-queue',
         content: `success: ${shard.get.existsTotal}, ${shard.get.existsTime} failure: ${shard.get.missingTotal}, ${shard.get.missingTime}`,
         desc: 'GET OPERATION',
         tagType: 'success',
       },
       {
-        icon: () => Insert,
+        iconClass: 'i-carbon-insert',
         content: `index: ${shard.indexing.indexTime} delete: ${shard.indexing.deleteTotal}, ${shard.indexing.deleteTime} failures: ${shard.indexing.indexFailed}`,
         desc: 'INDEXING OPERATION',
         tagType: 'success',
       },
       {
-        icon: () => SearchLocate,
+        iconClass: 'i-carbon-search-locate',
         content: `fetch: ${shard.search.fetchTotal}/${shard.search.fetchTime}, query: ${shard.search.queryTotal}/${shard.search.queryTime}, scroll: ${shard.search.scrollTotal}/${shard.search.scrollTime}, open: ${shard.search.openContexts}`,
         desc: 'SEARCH OPERATION',
         tagType: 'success',
       },
       {
-        icon: () => ShapeExcept,
+        iconClass: 'i-carbon-shape-except',
         content: `total: ${shard.merges.total}, size: ${shard.merges.totalSize ? prettyBytes(shard.merges.totalSize) : null}, docs: ${shard.merges.totalDocs} time: ${shard.merges.totalTime}`,
         desc: 'MERGES OPERATION',
         tagType: 'success',
       },
       {
-        icon: () => Application,
+        iconClass: 'i-carbon-application',
         content: `count: ${shard.segments.count}/${prettyBytes(shard.segments.memory ?? 0)}, writer: ${
           shard.segments.indexWriterMemory ? prettyBytes(shard.segments.indexWriterMemory) : null
         }, version_map: ${shard.segments.versionMapMemory ? prettyBytes(shard.segments.versionMapMemory) : null}, fixed_bitset: ${
@@ -309,32 +292,32 @@ const handleShardClick = async (shard: ClusterShard) => {
       },
 
       {
-        icon: () => Rotate360,
+        iconClass: 'i-carbon-rotate-360',
         content: `total: ${shard.refresh.total}, time: ${shard.refresh.time}`,
         desc: 'refresh',
         tagType: 'success',
       },
       {
-        icon: () => LaunchStudy1,
+        iconClass: 'i-carbon-launch-study-1',
         content: `total: ${shard.flush.total}, time: ${shard.flush.totalTime}`,
         desc: 'flush',
         tagType: 'success',
       },
       {
-        icon: () => Version,
+        iconClass: 'i-carbon-version',
         content: `max: ${shard.seqNo.max}, global: ${shard.seqNo.globalCheckpoint}, local: ${shard.seqNo.localCheckpoint}`,
         desc: 'seq_no',
         tagType: 'success',
       },
       {
-        icon: () => AiResults,
+        iconClass: 'i-carbon-ai-results',
         content: `total: ${shard.suggest.total},time: ${shard.suggest.time}`,
         desc: 'suggest',
         tagType: 'success',
       },
       shard.unassigned.at
         ? {
-            icon: () => WarningAlt,
+            iconClass: 'i-carbon-warning-alt',
             content: `details: ${shard.unassigned.details}, reason: ${shard.unassigned.reason}, for: ${shard.unassigned.for} at: ${shard.unassigned.at}`,
             desc: 'unassigned',
             tagType: 'warning',

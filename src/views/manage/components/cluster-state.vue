@@ -11,9 +11,18 @@
       <CardContent class="pt-6">
         <p>
           <span>{{ $t('manage.cluster') }}</span>
-          <span v-if="props.cluster?.status == 'green'" class="i-carbon-checkmark-outline h-6 w-6 ml-2 align-middle" />
-          <span v-else-if="props.cluster?.status == 'yellow'" class="i-carbon-warning-alt h-6 w-6 ml-2 align-middle" />
-          <span v-else-if="props.cluster?.status == 'red'" class="i-carbon-misuse-outline h-6 w-6 ml-2 align-middle" />
+          <span
+            v-if="props.cluster?.status == 'green'"
+            class="i-carbon-checkmark-outline h-6 w-6 ml-2 align-middle"
+          />
+          <span
+            v-else-if="props.cluster?.status == 'yellow'"
+            class="i-carbon-warning-alt h-6 w-6 ml-2 align-middle"
+          />
+          <span
+            v-else-if="props.cluster?.status == 'red'"
+            class="i-carbon-misuse-outline h-6 w-6 ml-2 align-middle"
+          />
         </p>
         <p>name: {{ props.cluster?.cluster_name }}</p>
         <p>id: {{ props.cluster?.cluster_uuid }}</p>
