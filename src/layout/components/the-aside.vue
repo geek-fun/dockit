@@ -148,7 +148,7 @@ const navClick = (item: RouteItem) => {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid hsl(var(--border));
 }
 
 .main-nav {
@@ -163,7 +163,7 @@ const navClick = (item: RouteItem) => {
   box-sizing: border-box;
   justify-content: center;
   align-items: center;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
   cursor: pointer;
 }
 
@@ -183,7 +183,7 @@ const navClick = (item: RouteItem) => {
   bottom: 0;
   left: 0;
   width: 5px;
-  background-color: var(--border-color);
+  background-color: hsl(var(--border));
 }
 
 .icon-item.active :deep(span) {

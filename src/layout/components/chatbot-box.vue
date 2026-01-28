@@ -177,7 +177,7 @@ loadChats();
   width: 460px;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--border-color);
+  border-left: 1px solid hsl(var(--border));
 }
 
 .chat-box-header {
@@ -186,7 +186,7 @@ loadChats();
   padding: 0 15px;
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .header-title {
@@ -211,9 +211,9 @@ loadChats();
 }
 
 .message-row.user {
-  background-color: var(--bg-color);
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
+  background-color: hsl(var(--background));
+  border-top: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .message-row-header {
@@ -252,17 +252,17 @@ loadChats();
   min-height: 72px;
   max-height: 144px;
   padding: 8px 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
-  background: var(--bg-color);
-  color: var(--text-color);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
   font-size: 14px;
   resize: vertical;
 }
 
 .chat-textarea:focus {
   outline: none;
-  border-color: var(--theme-color);
+  border-color: hsl(var(--primary));
 }
 
 .footer-operation {

@@ -19,18 +19,12 @@ export default defineConfig({
     presetAnimations(),
   ],
   transformers: [transformerDirectives(), transformerVariantGroup()],
-  // Content paths for scanning
   content: {
     filesystem: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
   },
-  // Theme configuration combining DocKit brand colors and shadcn-vue CSS variables
   theme: {
     colors: {
-      // DocKit brand colors
-      'dockit-primary': '#36ad6a',
-      'dockit-primary-hover': '#19934e',
-      'dockit-danger': '#cd2158',
-      // shadcn-vue semantic colors (CSS variable based)
+      // All colors reference CSS variables from src/assets/styles/index.css
       border: 'hsl(var(--border))',
       input: 'hsl(var(--input))',
       ring: 'hsl(var(--ring))',
@@ -89,11 +83,9 @@ export default defineConfig({
       },
     },
   },
-  // Shortcuts for commonly used utility combinations
   shortcuts: {
     'flex-center': 'flex items-center justify-center',
     'flex-col-center': 'flex flex-col items-center justify-center',
   },
-  // SafeList for classes that might be dynamically generated
   safelist: [],
 });

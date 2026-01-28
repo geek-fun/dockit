@@ -335,6 +335,7 @@ const selectDatabaseType = (type: DatabaseType) => {
   justify-content: flex-start;
   gap: 8px;
   cursor: pointer;
+  border: 1px solid hsl(var(--border));
 }
 
 .database-type-icon {

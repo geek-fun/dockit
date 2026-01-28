@@ -144,7 +144,7 @@ onMounted(async () => {
   flex-shrink: 0;
   width: 100%;
   justify-content: flex-start;
-  background-color: var(--bg-color);
+  background-color: hsl(var(--background));
   border-radius: 0;
   height: auto;
   padding: 0;
@@ -162,7 +162,7 @@ onMounted(async () => {
 }
 
 .tab-trigger[data-state='active'] {
-  background-color: var(--bg-color-secondary);
+  background-color: hsl(var(--card));
 }
 
 .tab-close-btn {
@@ -187,7 +187,7 @@ onMounted(async () => {
 .tab-pane-container {
   width: 100%;
   flex: 1;
-  background-color: var(--bg-color-secondary);
+  background-color: hsl(var(--card));
   margin-top: 0;
   overflow: hidden;
 }

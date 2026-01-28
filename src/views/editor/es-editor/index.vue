@@ -614,13 +614,13 @@ onUnmounted(async () => {
 .editor #display-editor {
   width: 100%;
   height: 100%;
-  border-left: 1px solid var(--border-color);
+  border-left: 1px solid hsl(var(--border));
 }
 
 .es-context-menu {
   position: fixed;
-  background-color: var(--bg-color);
-  border: 1px solid var(--border-color);
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 10000;
   border-radius: 4px;
@@ -641,13 +641,13 @@ onUnmounted(async () => {
 }
 
 .es-context-menu ul li:hover {
-  background: var(--border-color);
+  background: hsl(var(--accent));
 }
 
 :deep(.execute-button-decoration) {
   cursor: pointer;
-  height: 0 !important;
-  width: 0 !important;
+  height: 0;
+  width: 0;
   margin-top: 3px;
   margin-left: 8px;
   border-radius: 3px;
@@ -656,7 +656,7 @@ onUnmounted(async () => {
   border-bottom-width: 7px;
   border-right-width: 0;
   border-top-color: transparent;
-  border-left-color: var(--theme-color);
+  border-left-color: hsl(var(--primary));
   border-bottom-color: transparent;
   border-right-color: transparent;
   border-style: solid;

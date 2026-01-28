@@ -457,8 +457,8 @@ const handleEditorSwitch = async (
   margin: 0;
   padding: 0;
   justify-content: flex-start;
-  border-right: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .sample-btn {
@@ -499,7 +499,7 @@ const handleEditorSwitch = async (
   padding: 0;
   max-width: 300px;
   min-width: 200px;
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid hsl(var(--border));
   border-radius: 0;
   border-top: none;
   border-bottom: none;
@@ -511,7 +511,7 @@ const handleEditorSwitch = async (
   padding: 0;
   max-width: 300px;
   min-width: 200px;
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid hsl(var(--border));
   border-radius: 0;
   border-top: none;
   border-bottom: none;
@@ -520,28 +520,28 @@ const handleEditorSwitch = async (
 
 .select-search-container {
   padding: 8px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .select-search-input {
   width: 100%;
   padding: 6px 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid hsl(var(--border));
   border-radius: 4px;
   font-size: 14px;
-  background: var(--background-color);
+  background: hsl(var(--background));
   color: inherit;
 }
 
 .select-search-input:focus {
   outline: none;
-  border-color: var(--theme-color);
+  border-color: hsl(var(--primary));
 }
 
 .select-loading {
   padding: 8px;
   text-align: center;
-  color: var(--text-muted);
+  color: hsl(var(--muted-foreground));
   font-size: 12px;
 }
 

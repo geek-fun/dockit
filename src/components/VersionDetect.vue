@@ -11,24 +11,13 @@
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <rect
-              x="7"
-              y="4"
-              width="10"
-              height="16"
-              rx="2"
-              stroke="currentColor"
-              stroke-width="1.6"
-            />
-            <path d="M12 8v6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
             <path
-              d="M9.5 12.5L12 15l2.5-2.5"
+              d="M12 4v13m0 0l-5-5m5 5l5-5M5 21h14"
               stroke="currentColor"
-              stroke-width="1.6"
+              stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
             />
-            <circle cx="12" cy="17" r="0.8" fill="currentColor" />
           </svg>
         </div>
         <div class="version-text">
@@ -262,17 +251,23 @@ onMounted(async () => {
 }
 
 .version-action-button.outline {
-  background: #ffffff !important;
-  border: 1px solid #e5e7eb !important;
-  color: #1f2937 !important;
-  box-shadow: none !important;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #1f2937;
+  box-shadow: none;
+  outline: none;
+}
+
+.version-action-button.outline:focus-visible {
+  outline: 2px solid #e5e7eb;
+  outline-offset: 2px;
 }
 
 .version-action-button.primary {
-  background: #27ae60 !important;
-  border: 1px solid #219653 !important;
-  color: #ffffff !important;
-  box-shadow: 0 6px 12px rgba(39, 174, 96, 0.24) !important;
+  background: #27ae60;
+  border: 1px solid #219653;
+  color: #ffffff;
+  box-shadow: 0 6px 12px rgba(39, 174, 96, 0.24);
 }
 
 .version-action-button.primary:hover {

@@ -286,13 +286,13 @@ onMounted(async () => {
 
 .step-card .step-badge {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
 
 .step-card .field-label {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   margin-bottom: 8px;
   text-transform: uppercase;
   font-weight: 500;

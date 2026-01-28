@@ -51,7 +51,7 @@ const smallNavList = ref([
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--border-color);
+  border-left: 1px solid hsl(var(--border));
 }
 
 .icon-item {
@@ -61,7 +61,7 @@ const smallNavList = ref([
   box-sizing: border-box;
   justify-content: center;
   align-items: center;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
   cursor: pointer;
 }
 

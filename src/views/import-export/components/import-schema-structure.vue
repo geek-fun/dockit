@@ -229,7 +229,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 
 .step-card .step-header .step-title-container .step-subtitle {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
 }
 
 .step-card .header-extra {
@@ -240,7 +240,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 
 .step-card .header-extra .step-badge {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
 
@@ -258,7 +258,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 
 .step-card .empty-state-small .loading-text {
   font-size: 13px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
 }
 
 .step-card .schema-info .info-section {
@@ -267,7 +267,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 
 .step-card .schema-info .info-section .section-title {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 600;
   margin-bottom: 12px;
@@ -287,7 +287,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 
 .step-card .schema-info .info-section .info-grid .info-item .info-label {
   font-size: 11px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
 }
 
@@ -298,14 +298,14 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 
 .step-card .schema-info .schema-section .section-title {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 600;
   margin-bottom: 12px;
 }
 
 .step-card .schema-info .schema-section .schema-table {
-  border: 1px solid var(--border-color);
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
   overflow: hidden;
 }
@@ -313,10 +313,10 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 .step-card .schema-info .schema-section .schema-table .schema-header {
   display: flex;
   padding: 12px 16px;
-  background: var(--card-color);
-  border-bottom: 1px solid var(--border-color);
+  background: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
   font-size: 11px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 600;
 }
@@ -329,7 +329,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 .step-card .schema-info .schema-section .schema-table .schema-row {
   display: flex;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid hsl(var(--border));
   align-items: center;
 }
 
@@ -371,12 +371,12 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 }
 
 .step-card .schema-info .schema-section .schema-table .no-match {
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
 }
 
 .step-card .schema-info .schema-section .schema-hint {
   font-size: 11px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   margin-top: 8px;
   margin-bottom: 0;
 }
@@ -387,7 +387,7 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 
 .step-card .schema-info .comments-section .section-title {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 600;
   margin-bottom: 8px;
@@ -395,9 +395,9 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
 
 .step-card .schema-info .comments-section .comments-text {
   font-size: 13px;
-  color: var(--text-color-2);
+  color: hsl(var(--muted-foreground));
   padding: 12px;
-  background: var(--card-color);
+  background: hsl(var(--card));
   border-radius: 8px;
   margin: 0;
 }

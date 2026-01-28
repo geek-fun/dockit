@@ -3,7 +3,7 @@
     <Card v-if="errorMessage" class="error-card">
       <CardHeader class="p-3 flex flex-row items-center justify-between">
         <CardTitle class="text-base">{{ $t('editor.dynamo.partiql.error') }}</CardTitle>
-        <Button v-if="closable" variant="ghost" size="icon" @click="handleClose">
+        <Button v-if="closable" variant="ghost" size="icon" class="close-btn" @click="handleClose">
           <span class="i-carbon-close h-4 w-4" />
         </Button>
       </CardHeader>
@@ -18,7 +18,13 @@
           <span v-if="itemCount !== undefined" class="text-muted-foreground text-sm">
             {{ $t('editor.dynamo.partiql.itemsReturned', { count: itemCount }) }}
           </span>
-          <Button v-if="closable" variant="ghost" size="icon" @click="handleClose">
+          <Button
+            v-if="closable"
+            variant="ghost"
+            size="icon"
+            class="close-btn"
+            @click="handleClose"
+          >
             <span class="i-carbon-close h-4 w-4" />
           </Button>
         </div>
@@ -103,7 +109,7 @@
     <Card v-else-if="hasData && data.length === 0 && !loading" class="success-card">
       <CardHeader class="p-3 flex flex-row items-center justify-between">
         <CardTitle class="text-base">{{ $t('editor.dynamo.resultTitle') }}</CardTitle>
-        <Button v-if="closable" variant="ghost" size="icon" @click="handleClose">
+        <Button v-if="closable" variant="ghost" size="icon" class="close-btn" @click="handleClose">
           <span class="i-carbon-close h-4 w-4" />
         </Button>
       </CardHeader>
@@ -297,5 +303,15 @@ const handleClose = () => {
 .table-container {
   height: 100%;
   overflow-y: auto;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+}
+
+.close-btn:hover {
+  background: transparent;
+  opacity: 0.8;
 }
 </style>

@@ -19,7 +19,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: var(--gray-color);
+  color: hsl(var(--muted-foreground));
 }
 
 .history-empty-content .icon-box {

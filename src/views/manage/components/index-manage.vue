@@ -52,7 +52,7 @@
                             <span
                               class="i-carbon-search h-3.5 w-3.5"
                               :style="{
-                                color: filterState[col.key] ? 'var(--theme-color)' : undefined,
+                                color: filterState[col.key] ? 'hsl(var(--primary))' : undefined,
                               }"
                             />
                           </Button>
@@ -171,7 +171,7 @@
                             <span
                               class="i-carbon-search h-3.5 w-3.5"
                               :style="{
-                                color: filterState[col.key] ? 'var(--theme-color)' : undefined,
+                                color: filterState[col.key] ? 'hsl(var(--primary))' : undefined,
                               }"
                             />
                           </Button>

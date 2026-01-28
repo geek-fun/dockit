@@ -98,7 +98,7 @@ const handleSortChange = (value: string) => {
   width: 100%;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .tool-bar-item {
@@ -110,7 +110,7 @@ const handleSortChange = (value: string) => {
 }
 
 .tool-bar-item:hover {
-  color: var(--theme-color);
+  color: hsl(var(--primary));
 }
 
 .sort-container {

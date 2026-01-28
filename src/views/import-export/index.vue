@@ -75,7 +75,7 @@ const activeMode = ref('import');
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-color);
+  background-color: hsl(var(--background));
 }
 
 .content-layout {
@@ -114,8 +114,8 @@ const activeMode = ref('import');
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background-color: var(--bg-color);
-  border: 1px solid var(--border-color);
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   padding: 3px;
   gap: 3px;
 }
@@ -132,19 +132,19 @@ const activeMode = ref('import');
   font-size: 13px;
   font-weight: 500;
   transition: all 0.2s ease;
-  color: var(--gray-color);
+  color: hsl(var(--muted-foreground));
 }
 
 .segment-label:hover {
-  color: var(--text-color);
+  color: hsl(var(--foreground));
 }
 
 .segment-label.active {
-  background: var(--card-bg-color);
+  background: hsl(var(--card));
   box-shadow:
     0 1px 3px 0 rgba(0, 0, 0, 0.1),
     0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  color: var(--theme-color);
+  color: hsl(var(--primary));
   font-weight: 700;
 }
 

@@ -375,12 +375,12 @@ defineExpose({ showMedal });
 .modal-content .ssl-unchecked-icon {
   transition: 0.3s;
   overflow: hidden;
-  color: var(--dange-color);
+  color: hsl(var(--destructive));
 }
 
 .modal-content .ssl-checked-icon {
   transition: 0.3s;
   overflow: hidden;
-  color: var(--theme-color);
+  color: hsl(var(--primary));
 }
 </style>

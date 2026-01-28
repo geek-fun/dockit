@@ -164,7 +164,7 @@ watch(
 
 .step-card .step-header .step-title-container .step-subtitle {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
 }
 
 .step-card .header-extra {
@@ -175,7 +175,7 @@ watch(
 
 .step-card .header-extra .step-badge {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
 
@@ -186,9 +186,9 @@ watch(
 .step-card .schema-table .schema-header {
   display: flex;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid hsl(var(--border));
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 500;
 }
@@ -201,7 +201,7 @@ watch(
 .step-card .schema-table .schema-row {
   display: flex;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid hsl(var(--border));
   align-items: center;
 }
 
@@ -220,7 +220,7 @@ watch(
 
 .step-card .schema-table .col-sample {
   flex: 2;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;

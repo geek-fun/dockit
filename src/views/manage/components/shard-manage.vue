@@ -17,7 +17,7 @@
                       <Button variant="ghost" size="icon" class="h-6 w-6">
                         <span
                           class="i-carbon-search h-3.5 w-3.5"
-                          :style="{ color: filterState.index ? 'var(--theme-color)' : undefined }"
+                          :style="{ color: filterState.index ? 'hsl(var(--primary))' : undefined }"
                         />
                       </Button>
                     </PopoverTrigger>
@@ -364,13 +364,13 @@ onMounted(async () => {
   width: 100%;
   display: flex;
   flex-direction: column;
-  background-color: var(--card-bg-color);
+  background-color: hsl(var(--card));
 }
 
 .shard-title-container {
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .shard-statistic-title {
@@ -382,7 +382,7 @@ onMounted(async () => {
 
 .close-index-shard-icon {
   cursor: pointer;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
   transition: 0.3s;
   margin-left: 10px;
   margin-top: 10px;
@@ -404,7 +404,7 @@ onMounted(async () => {
   cursor: default;
   overflow: hidden;
   border-radius: 6px;
-  border: 1px solid var(--border-color);
+  border: 1px solid hsl(var(--border));
 }
 
 .shard-item-primary {

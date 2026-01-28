@@ -168,7 +168,7 @@ onUnmounted(() => {
   flex: 1;
   height: 0;
   padding-bottom: 10px;
-  background-color: var(--bg-color-secondary);
+  background-color: hsl(var(--card));
 }
 
 .grid-container {
@@ -216,10 +216,10 @@ onUnmounted(() => {
 }
 
 .file-item-hover:hover {
-  background-color: var(--connect-list-hover-bg);
+  background-color: hsl(var(--accent));
 }
 
 .file-item-active {
-  background-color: var(--connect-list-hover-bg);
+  background-color: hsl(var(--accent));
 }
 </style>

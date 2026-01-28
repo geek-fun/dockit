@@ -8,12 +8,9 @@ import piniaPluginPersistence from 'pinia-plugin-persistedstate';
 // UnoCSS utilities - virtual import
 import 'virtual:uno.css';
 
-// Base styles
+// Styles - Single source of truth for all theme tokens
 import './assets/styles/normalize.css';
-import './assets/styles/theme.css';
-
-// Tailwind/shadcn-vue styles
-import './assets/styles/tailwind.css';
+import './assets/styles/index.css';
 
 const pinia = createPinia();
 pinia.use(piniaPluginPersistence);

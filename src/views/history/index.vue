@@ -22,7 +22,7 @@ import HistoryEmpty from './components/history-empty.vue';
   width: 200px;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid hsl(var(--border));
 }
 
 .history-container-details {

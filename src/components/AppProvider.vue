@@ -14,7 +14,7 @@
  * - System preference detection for automatic theme switching
  *
  * The theming system uses CSS custom properties defined in:
- * - src/assets/styles/tailwind.css (shadcn-vue variables)
+ * - src/assets/styles/index.css (theme CSS variables)
  * - src/assets/styles/theme.scss (legacy DocKit variables)
  *
  * Dark/light mode is controlled by the [theme] attribute on the root element,

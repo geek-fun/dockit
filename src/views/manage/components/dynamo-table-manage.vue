@@ -669,7 +669,7 @@ defineExpose({
   overflow-x: hidden;
   padding: 24px;
   padding-right: 32px;
-  background-color: var(--bg-color);
+  background-color: hsl(var(--background));
   box-sizing: border-box;
   position: relative;
   -ms-overflow-style: none;
@@ -697,7 +697,7 @@ defineExpose({
 .refresh-text {
   margin-top: 8px;
   font-size: 14px;
-  color: var(--gray-color);
+  color: hsl(var(--muted-foreground));
 }
 
 .metrics-section {
@@ -723,8 +723,8 @@ defineExpose({
 }
 
 .metric-card {
-  background: var(--card-bg-color);
-  border: 1px solid var(--border-color);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 12px;
 }
 
@@ -733,19 +733,19 @@ defineExpose({
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--gray-color);
+  color: hsl(var(--muted-foreground));
 }
 
 .metric-value {
   font-size: 20px;
   font-weight: 700;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
 }
 
 .metric-value-small {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
 }
 
 .status-value {
@@ -758,7 +758,7 @@ defineExpose({
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--gray-color);
+  background-color: hsl(var(--muted-foreground));
 }
 
 .status-indicator.status-active {
@@ -831,7 +831,7 @@ defineExpose({
 .ttl-attribute {
   font-family: monospace;
   font-size: 10px;
-  color: var(--gray-color);
+  color: hsl(var(--muted-foreground));
 }
 
 .performance-section {
@@ -839,8 +839,8 @@ defineExpose({
 }
 
 .performance-card {
-  background: var(--card-bg-color);
-  border: 1px solid var(--border-color);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 12px;
 }
 
@@ -855,7 +855,7 @@ defineExpose({
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
 }
 
 .time-range {
@@ -889,7 +889,7 @@ defineExpose({
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--gray-color);
+  color: hsl(var(--muted-foreground));
 }
 
 .chart-legend {
@@ -902,7 +902,7 @@ defineExpose({
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: var(--gray-color);
+  color: hsl(var(--muted-foreground));
 }
 
 .legend-color {
@@ -921,8 +921,8 @@ defineExpose({
 
 .chart-placeholder {
   height: 200px;
-  border-left: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
+  border-left: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
   padding: 8px;
 }
 
@@ -963,7 +963,7 @@ defineExpose({
   transform: translate(-50%, -50%);
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
 }
 
 .utilization-info {
@@ -975,28 +975,28 @@ defineExpose({
 .utilization-label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
 }
 
 .utilization-detail {
   font-size: 10px;
-  color: var(--gray-color);
+  color: hsl(var(--muted-foreground));
 }
 
 .throttled-events {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--bg-color);
+  background: hsl(var(--background));
   padding: 12px 16px;
   border-radius: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid hsl(var(--border));
 }
 
 .throttled-label {
   font-size: 12px;
   font-weight: 500;
-  color: var(--gray-color);
+  color: hsl(var(--muted-foreground));
 }
 
 .throttled-value {
@@ -1013,8 +1013,8 @@ defineExpose({
 }
 
 .indexes-card {
-  background: var(--card-bg-color);
-  border: 1px solid var(--border-color);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 12px;
 }
 
@@ -1032,8 +1032,8 @@ defineExpose({
 }
 
 .settings-card {
-  background: var(--card-bg-color);
-  border: 1px solid var(--border-color);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 12px;
 }
 
@@ -1050,8 +1050,8 @@ defineExpose({
 }
 
 .setting-item {
-  background: var(--bg-color);
-  border: 1px solid var(--border-color);
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
   padding: 12px 16px;
   transition: all 0.2s ease;
@@ -1077,13 +1077,13 @@ defineExpose({
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
-  color: var(--gray-color);
+  color: hsl(var(--muted-foreground));
 }
 
 .setting-value {
   font-size: 12px;
   font-weight: 500;
-  color: var(--gray-color);
+  color: hsl(var(--muted-foreground));
 }
 
 @keyframes pulse {

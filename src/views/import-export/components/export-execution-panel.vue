@@ -307,8 +307,8 @@ const executeExport = async () => {
 }
 
 .execution-card .validation-section {
-  background-color: var(--card-color);
-  border: 1px solid var(--border-color);
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 16px;
@@ -323,7 +323,7 @@ const executeExport = async () => {
 
 .execution-card .validation-section .section-header .section-title {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 500;
 }
@@ -356,12 +356,12 @@ const executeExport = async () => {
 }
 
 .execution-card .validation-section .stats-rows .stat-row:not(:last-child) {
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .execution-card .validation-section .stats-rows .stat-row .stat-label {
   font-size: 13px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
 }
 
 .execution-card .validation-section .stats-rows .stat-row .stat-value {
@@ -370,7 +370,7 @@ const executeExport = async () => {
 }
 
 .execution-card .file-handling-section {
-  border: 1px solid var(--border-color);
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 16px;
@@ -378,7 +378,7 @@ const executeExport = async () => {
 
 .execution-card .file-handling-section .section-title-small {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   text-transform: uppercase;
   font-weight: 500;
   margin-bottom: 12px;
@@ -386,7 +386,7 @@ const executeExport = async () => {
 
 .execution-card .file-handling-section .option-item {
   padding: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
   margin-bottom: 8px;
 }
@@ -407,7 +407,7 @@ const executeExport = async () => {
 
 .execution-card .file-handling-section .option-item .option-content .option-desc {
   font-size: 11px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
 }
 
 .execution-card .file-handling-section .option-item.toggle-item {
@@ -427,7 +427,7 @@ const executeExport = async () => {
 
 .execution-card .progress-section .progress-text {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   text-align: center;
   margin-top: 8px;
 }
@@ -439,7 +439,7 @@ const executeExport = async () => {
 
 .execution-card .export-action .export-note {
   font-size: 11px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   text-align: center;
   margin-top: 8px;
 }

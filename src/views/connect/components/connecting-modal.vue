@@ -104,7 +104,7 @@ defineExpose({
 <style scoped>
 .connecting-modal-card {
   width: 500px;
-  background-color: var(--bg-color);
+  background-color: hsl(var(--background));
 }
 
 .close-icon {
@@ -161,14 +161,14 @@ defineExpose({
 .connecting-text {
   font-size: 18px;
   font-weight: 500;
-  color: var(--text-color);
+  color: hsl(var(--foreground));
   margin-bottom: 12px;
   text-align: center;
 }
 
 .connecting-subtext {
   font-size: 14px;
-  color: var(--text-color-secondary);
+  color: hsl(var(--muted-foreground));
   margin-bottom: 32px;
   text-align: center;
 }

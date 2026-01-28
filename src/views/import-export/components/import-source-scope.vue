@@ -276,7 +276,7 @@ const clearMetadataFile = () => {
 
 .step-card .step-badge {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
 
@@ -289,8 +289,8 @@ const clearMetadataFile = () => {
   align-items: flex-start;
   justify-content: center;
   padding: 24px 16px;
-  background-color: var(--card-color);
-  border: 2px dashed var(--border-color);
+  background-color: hsl(var(--card));
+  border: 2px dashed hsl(var(--border));
   border-radius: 12px;
   margin-bottom: 16px;
 }
@@ -306,8 +306,8 @@ const clearMetadataFile = () => {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 2px solid var(--border-color);
-  background: var(--card-color);
+  border: 2px solid hsl(var(--border));
+  background: hsl(var(--card));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -347,13 +347,13 @@ const clearMetadataFile = () => {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  color: var(--text-color-1);
+  color: hsl(var(--foreground));
 }
 
 .step-card .import-steps .step-progress .step-node .step-file {
   margin-top: 4px;
   font-size: 10px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -363,7 +363,7 @@ const clearMetadataFile = () => {
 .step-card .import-steps .step-progress .step-line {
   flex: 1;
   height: 2px;
-  background: var(--border-color);
+  background: hsl(var(--border));
   margin: 20px 8px 0;
   max-width: 80px;
   transition: background 0.3s;
@@ -385,15 +385,15 @@ const clearMetadataFile = () => {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: var(--card-color);
-  border: 1px solid var(--border-color);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
 }
 
 .step-card .import-steps .selected-files .file-item .file-path {
   flex: 1;
   font-size: 12px;
-  color: var(--text-color-2);
+  color: hsl(var(--muted-foreground));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

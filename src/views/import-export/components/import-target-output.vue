@@ -289,13 +289,13 @@ const handleIndexChange = (value: string) => {
 
 .step-card .step-badge {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   font-weight: 500;
 }
 
 .step-card .field-label {
   font-size: 12px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   margin-bottom: 8px;
   text-transform: uppercase;
   font-weight: 500;
@@ -303,7 +303,7 @@ const handleIndexChange = (value: string) => {
 
 .step-card .field-hint {
   font-size: 11px;
-  color: var(--text-color-3);
+  color: hsl(var(--muted-foreground));
   margin-top: 4px;
   display: block;
 }
@@ -311,8 +311,8 @@ const handleIndexChange = (value: string) => {
 .step-card .collection-indicator {
   margin-top: 16px;
   padding: 12px;
-  background: var(--card-color);
-  border: 1px solid var(--border-color);
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -321,6 +321,6 @@ const handleIndexChange = (value: string) => {
 
 .step-card .collection-indicator .indicator-text {
   font-size: 12px;
-  color: var(--text-color-2);
+  color: hsl(var(--muted-foreground));
 }
 </style>
