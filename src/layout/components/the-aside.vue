@@ -1,43 +1,45 @@
 <template>
   <div class="left-aside">
-    <div class="main-nav">
-      <the-aside-icon
-        v-for="item in mainNavList"
-        :key="item.path"
-        :popover-content="$t(`aside.${item.name}`)"
-      >
-        <div
-          class="icon-item"
-          :class="{
-            active: isActive(item),
-          }"
-          @click="navClick(item)"
+    <TooltipProvider>
+      <div class="main-nav">
+        <the-aside-icon
+          v-for="item in mainNavList"
+          :key="item.path"
+          :popover-content="$t(`aside.${item.name}`)"
         >
-          <Icon :size="26">
-            <component :is="item.icon" />
-          </Icon>
-        </div>
-      </the-aside-icon>
-    </div>
-    <div class="samll-nav">
-      <the-aside-icon
-        v-for="item in samllNavList"
-        :key="item.path"
-        :popover-content="$t(`aside.${item.name}`)"
-      >
-        <div
-          class="icon-item"
-          :class="{
-            active: isActive(item),
-          }"
-          @click="navClick(item)"
+          <div
+            class="icon-item"
+            :class="{
+              active: isActive(item),
+            }"
+            @click="navClick(item)"
+          >
+            <Icon :size="26">
+              <component :is="item.icon" />
+            </Icon>
+          </div>
+        </the-aside-icon>
+      </div>
+      <div class="samll-nav">
+        <the-aside-icon
+          v-for="item in samllNavList"
+          :key="item.path"
+          :popover-content="$t(`aside.${item.name}`)"
         >
-          <Icon :size="26">
-            <component :is="item.icon" />
-          </Icon>
-        </div>
-      </the-aside-icon>
-    </div>
+          <div
+            class="icon-item"
+            :class="{
+              active: isActive(item),
+            }"
+            @click="navClick(item)"
+          >
+            <Icon :size="26">
+              <component :is="item.icon" />
+            </Icon>
+          </div>
+        </the-aside-icon>
+      </div>
+    </TooltipProvider>
   </div>
 </template>
 
@@ -58,6 +60,7 @@ import {
 import { useAppStore } from '../../store';
 import TheAsideIcon from './the-aside-icon.vue';
 import { Icon } from '@/components/ui/icon';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const router = useRouter();
 const route = useRoute();

@@ -1,21 +1,23 @@
 <template>
   <chatbot-box v-if="chatBot.active" />
   <div class="tool-bar-right">
-    <the-aside-icon
-      v-for="item in smallNavList"
-      :key="item.id"
-      :popover-content="$t(`aside.${item.name}`)"
-    >
-      <div
-        class="icon-item"
-        :class="{ active: item.id === `${selectedItemId}` }"
-        @click="navClick(item)"
+    <TooltipProvider>
+      <the-aside-icon
+        v-for="item in smallNavList"
+        :key="item.id"
+        :popover-content="$t(`aside.${item.name}`)"
       >
-        <Icon :size="26">
-          <component :is="item.icon" />
-        </Icon>
-      </div>
-    </the-aside-icon>
+        <div
+          class="icon-item"
+          :class="{ active: item.id === `${selectedItemId}` }"
+          @click="navClick(item)"
+        >
+          <Icon :size="26">
+            <component :is="item.icon" />
+          </Icon>
+        </div>
+      </the-aside-icon>
+    </TooltipProvider>
   </div>
 </template>
 
@@ -25,6 +27,7 @@ import { ChatBot } from '@vicons/carbon';
 import TheAsideIcon from './the-aside-icon.vue';
 import ChatbotBox from './chatbot-box.vue';
 import { Icon } from '@/components/ui/icon';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const selectedItemId = ref(-1);
 const chatBot = ref({ active: false });

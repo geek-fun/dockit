@@ -9,10 +9,7 @@
       <TabsContent value="OpenAI">
         <Form class="form-tab-pane">
           <FormItem :label="$t('setting.ai.model')">
-            <Input
-              v-model="openAi.model"
-              :placeholder="$t('setting.ai.modelPlaceholder')"
-            />
+            <Input v-model="openAi.model" :placeholder="$t('setting.ai.modelPlaceholder')" />
           </FormItem>
           <FormItem :label="$t('setting.ai.apiKey')">
             <Input
@@ -30,10 +27,7 @@
           </FormItem>
           <Separator class="my-4" />
           <FormItem :label="$t('setting.ai.proxy')">
-            <Input
-              v-model="openAi.httpProxy"
-              placeholder="http://127.0.0.1:7890"
-            />
+            <Input v-model="openAi.httpProxy" placeholder="http://127.0.0.1:7890" />
           </FormItem>
           <div class="flex gap-2">
             <Button variant="destructive" @click="() => reset('openai')">
@@ -48,10 +42,7 @@
       <TabsContent value="DeepSeek">
         <Form class="form-tab-pane">
           <FormItem :label="$t('setting.ai.model')">
-            <Input
-              v-model="deepSeek.model"
-              :placeholder="$t('setting.ai.modelPlaceholder')"
-            />
+            <Input v-model="deepSeek.model" :placeholder="$t('setting.ai.modelPlaceholder')" />
           </FormItem>
           <FormItem :label="$t('setting.ai.apiKey')">
             <Input
@@ -69,10 +60,7 @@
           </FormItem>
           <Separator class="my-4" />
           <FormItem :label="$t('setting.ai.proxy')">
-            <Input
-              v-model="deepSeek.httpProxy"
-              placeholder="http://127.0.0.1:7890"
-            />
+            <Input v-model="deepSeek.httpProxy" placeholder="http://127.0.0.1:7890" />
           </FormItem>
           <div class="flex gap-2">
             <Button variant="destructive" @click="() => reset('deepseek')">
@@ -84,9 +72,7 @@
           </div>
         </Form>
       </TabsContent>
-      <TabsContent value="others">
-        Coming soon
-      </TabsContent>
+      <TabsContent value="others">Coming soon</TabsContent>
     </Tabs>
   </div>
 </template>
