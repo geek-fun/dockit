@@ -1,66 +1,69 @@
 <template>
-  <n-card class="step-card">
-    <template #header>
+  <Card class="step-card">
+    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="step-header">
-        <n-icon size="20" color="#18a058">
-          <DataStructured />
-        </n-icon>
+        <Icon :size="20" color="#18a058" :component="DataStructured" />
         <div class="step-title-container">
           <span class="step-title">{{ $t('export.schemaStructure') }}</span>
           <span v-if="selectedIndex" class="step-subtitle">{{ selectedIndex }} schema</span>
         </div>
       </div>
-    </template>
-    <template #header-extra>
       <div class="header-extra">
-        <n-button text type="primary" :loading="loading" @click="handleRefresh">
+        <Button variant="link" :disabled="loading" @click="handleRefresh">
+          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
           {{ $t('export.refresh') }}
-        </n-button>
+        </Button>
         <span class="step-badge">{{ $t('export.step') }} 02</span>
       </div>
-    </template>
-
-    <div v-if="fields.length === 0" class="empty-state">
-      <n-empty :description="$t('export.selectSourceFirst')">
-        <template #icon>
-          <n-icon size="48">
-            <DataStructured />
-          </n-icon>
-        </template>
-      </n-empty>
-    </div>
-
-    <div v-else class="schema-table">
-      <div class="schema-header">
-        <span class="col-field">{{ $t('export.field') }}</span>
-        <span class="col-type">{{ $t('export.type') }}</span>
-        <span class="col-sample">{{ $t('export.sampleValue') }}</span>
-        <span class="col-include">{{ $t('export.includeInExport') }}</span>
+    </CardHeader>
+    <CardContent>
+      <div v-if="fields.length === 0" class="empty-state">
+        <Empty :description="$t('export.selectSourceFirst')">
+          <template #icon>
+            <Icon :size="48" :component="DataStructured" />
+          </template>
+        </Empty>
       </div>
-      <div class="schema-body">
-        <div v-for="field in fields" :key="field.name" class="schema-row">
-          <span class="col-field">{{ field.name }}</span>
-          <span class="col-type">
-            <n-tag :type="getTypeColor(field.type)" size="small">
-              {{ field.type }}
-            </n-tag>
-          </span>
-          <span class="col-sample">{{ field.sampleValue || '-' }}</span>
-          <span class="col-include">
-            <n-switch
-              :value="field.includeInExport"
-              @update:value="() => toggleField(field.name)"
-            />
-          </span>
+
+      <div v-else class="schema-table">
+        <div class="schema-header">
+          <span class="col-field">{{ $t('export.field') }}</span>
+          <span class="col-type">{{ $t('export.type') }}</span>
+          <span class="col-sample">{{ $t('export.sampleValue') }}</span>
+          <span class="col-include">{{ $t('export.includeInExport') }}</span>
+        </div>
+        <div class="schema-body">
+          <div v-for="field in fields" :key="field.name" class="schema-row">
+            <span class="col-field">{{ field.name }}</span>
+            <span class="col-type">
+              <Badge :variant="getTypeColor(field.type)">
+                {{ field.type }}
+              </Badge>
+            </span>
+            <span class="col-sample">{{ field.sampleValue || '-' }}</span>
+            <span class="col-include">
+              <Switch
+                :checked="field.includeInExport"
+                @update:checked="() => toggleField(field.name)"
+              />
+            </span>
+          </div>
         </div>
       </div>
-    </div>
-  </n-card>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { DataStructured } from '@vicons/carbon';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Icon } from '@/components/ui/icon';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Empty } from '@/components/ui/empty';
+import { Spinner } from '@/components/ui/spinner';
 import { useImportExportStore } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
@@ -100,8 +103,8 @@ const toggleField = (fieldName: string) => {
   exportStore.toggleFieldInclusion(fieldName);
 };
 
-const getTypeColor = (type: string): 'info' | 'success' | 'warning' | 'error' | 'default' => {
-  const typeColors: { [key: string]: 'info' | 'success' | 'warning' | 'error' | 'default' } = {
+const getTypeColor = (type: string): 'success' | 'info' | 'warning' | 'destructive' | 'default' => {
+  const typeColors: { [key: string]: 'success' | 'info' | 'warning' | 'destructive' | 'default' } = {
     TEXT: 'success',
     STRING: 'success',
     KEYWORD: 'success',
@@ -112,9 +115,9 @@ const getTypeColor = (type: string): 'info' | 'success' | 'warning' | 'error' | 
     DOUBLE: 'info',
     BOOLEAN: 'warning',
     DATE: 'warning',
-    OBJECT: 'error',
-    NESTED: 'error',
-    ARRAY: 'error',
+    OBJECT: 'destructive',
+    NESTED: 'destructive',
+    ARRAY: 'destructive',
   };
   return typeColors[type] || 'default';
 };
@@ -143,94 +146,90 @@ watch(
 );
 </script>
 
-<style lang="scss" scoped>
-.step-card {
-  .step-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+<style scoped>
+.step-card .step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-    .step-title-container {
-      display: flex;
-      flex-direction: column;
+.step-card .step-header .step-title-container {
+  display: flex;
+  flex-direction: column;
+}
 
-      .step-title {
-        font-size: 16px;
-        font-weight: 600;
-      }
+.step-card .step-header .step-title-container .step-title {
+  font-size: 16px;
+  font-weight: 600;
+}
 
-      .step-subtitle {
-        font-size: 12px;
-        color: var(--text-color-3);
-      }
-    }
-  }
+.step-card .step-header .step-title-container .step-subtitle {
+  font-size: 12px;
+  color: var(--text-color-3);
+}
 
-  .header-extra {
-    display: flex;
-    align-items: center;
-    gap: 16px;
+.step-card .header-extra {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
 
-    .step-badge {
-      font-size: 12px;
-      color: var(--text-color-3);
-      font-weight: 500;
-    }
-  }
+.step-card .header-extra .step-badge {
+  font-size: 12px;
+  color: var(--text-color-3);
+  font-weight: 500;
+}
 
-  .empty-state {
-    padding: 40px 0;
-  }
+.step-card .empty-state {
+  padding: 40px 0;
+}
 
-  .schema-table {
-    .schema-header {
-      display: flex;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border-color);
-      font-size: 12px;
-      color: var(--text-color-3);
-      text-transform: uppercase;
-      font-weight: 500;
-    }
+.step-card .schema-table .schema-header {
+  display: flex;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 12px;
+  color: var(--text-color-3);
+  text-transform: uppercase;
+  font-weight: 500;
+}
 
-    .schema-body {
-      max-height: 300px;
-      overflow-y: auto;
-    }
+.step-card .schema-table .schema-body {
+  max-height: 300px;
+  overflow-y: auto;
+}
 
-    .schema-row {
-      display: flex;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border-color);
-      align-items: center;
+.step-card .schema-table .schema-row {
+  display: flex;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+  align-items: center;
+}
 
-      &:last-child {
-        border-bottom: none;
-      }
-    }
+.step-card .schema-table .schema-row:last-child {
+  border-bottom: none;
+}
 
-    .col-field {
-      flex: 2;
-      font-weight: 500;
-    }
+.step-card .schema-table .col-field {
+  flex: 2;
+  font-weight: 500;
+}
 
-    .col-type {
-      flex: 1;
-    }
+.step-card .schema-table .col-type {
+  flex: 1;
+}
 
-    .col-sample {
-      flex: 2;
-      color: var(--text-color-3);
-      font-size: 13px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+.step-card .schema-table .col-sample {
+  flex: 2;
+  color: var(--text-color-3);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-    .col-include {
-      flex: 1;
-      text-align: right;
-    }
-  }
+.step-card .schema-table .col-include {
+  flex: 1;
+  text-align: right;
 }
 </style>
