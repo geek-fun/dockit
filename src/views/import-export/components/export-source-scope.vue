@@ -15,10 +15,7 @@
             v-model="inputData.selectedConnection"
             @update:model-value="handleConnectionChange"
           >
-            <SelectTrigger
-              class="w-full"
-              @click="handleConnectionOpen(true)"
-            >
+            <SelectTrigger class="w-full" @click="handleConnectionOpen(true)">
               <SelectValue :placeholder="$t('connection.selectConnection')" />
             </SelectTrigger>
             <SelectContent>
@@ -44,10 +41,7 @@
             :disabled="!inputData.selectedConnection || loadingStat.connection"
             @update:model-value="handleIndexChange"
           >
-            <SelectTrigger
-              class="w-full"
-              @click="handleIndexOpen(true)"
-            >
+            <SelectTrigger class="w-full" @click="handleIndexOpen(true)">
               <SelectValue :placeholder="$t('connection.selectIndex')" />
             </SelectTrigger>
             <SelectContent>
@@ -89,7 +83,13 @@ import { storeToRefs } from 'pinia';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Grid, GridItem } from '@/components/ui/grid';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 import { Collapse, CollapseItem } from '@/components/ui/collapse';
 import { Spinner } from '@/components/ui/spinner';
 import { CustomError } from '../../../common';

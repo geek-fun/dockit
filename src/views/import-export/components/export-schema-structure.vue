@@ -104,21 +104,22 @@ const toggleField = (fieldName: string) => {
 };
 
 const getTypeColor = (type: string): 'success' | 'info' | 'warning' | 'destructive' | 'default' => {
-  const typeColors: { [key: string]: 'success' | 'info' | 'warning' | 'destructive' | 'default' } = {
-    TEXT: 'success',
-    STRING: 'success',
-    KEYWORD: 'success',
-    NUMBER: 'info',
-    INTEGER: 'info',
-    LONG: 'info',
-    FLOAT: 'info',
-    DOUBLE: 'info',
-    BOOLEAN: 'warning',
-    DATE: 'warning',
-    OBJECT: 'destructive',
-    NESTED: 'destructive',
-    ARRAY: 'destructive',
-  };
+  const typeColors: { [key: string]: 'success' | 'info' | 'warning' | 'destructive' | 'default' } =
+    {
+      TEXT: 'success',
+      STRING: 'success',
+      KEYWORD: 'success',
+      NUMBER: 'info',
+      INTEGER: 'info',
+      LONG: 'info',
+      FLOAT: 'info',
+      DOUBLE: 'info',
+      BOOLEAN: 'warning',
+      DATE: 'warning',
+      OBJECT: 'destructive',
+      NESTED: 'destructive',
+      ARRAY: 'destructive',
+    };
   return typeColors[type] || 'default';
 };
 

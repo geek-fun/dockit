@@ -54,10 +54,7 @@
 
         <div class="option-item">
           <label class="flex items-start gap-3 cursor-pointer">
-            <Checkbox
-              :checked="createDirectory"
-              @update:checked="val => (createDirectory = val)"
-            />
+            <Checkbox :checked="createDirectory" @update:checked="val => (createDirectory = val)" />
             <div class="option-content">
               <span class="option-label">{{ $t('export.createDirectory') }}</span>
               <span class="option-desc">{{ $t('export.createDirectoryDesc') }}</span>
@@ -67,10 +64,7 @@
 
         <div class="option-item toggle-item">
           <span class="option-label">{{ $t('export.beautifyJson') }}</span>
-          <Switch
-            :checked="beautifyJson"
-            @update:checked="val => (beautifyJson = val)"
-          />
+          <Switch :checked="beautifyJson" @update:checked="val => (beautifyJson = val)" />
         </div>
       </div>
 
