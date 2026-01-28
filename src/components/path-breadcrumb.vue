@@ -1,21 +1,23 @@
 <template>
-  <n-breadcrumb class="tool-bar-path-breadcrumb">
-    <n-breadcrumb-item
-      v-for="(path, index) in breadCrumbPath?.split('/')"
-      v-if="props.clickable && breadCrumbPath"
-      @click="handleBreadcrumb(index)"
-    >
-      <n-icon v-if="index !== 0" :component="Folder" />
-      {{ path }}
-    </n-breadcrumb-item>
-    <n-breadcrumb-item
-      v-for="path in breadCrumbPath?.split('/')"
-      v-else
-      :clickable="props.clickable"
-    >
-      {{ path }}
-    </n-breadcrumb-item>
-  </n-breadcrumb>
+  <div class="tool-bar-path-breadcrumb">
+    <template v-if="props.clickable && breadCrumbPath">
+      <template v-for="(path, index) in breadCrumbPath?.split('/')" :key="index">
+        <span class="breadcrumb-separator" v-if="index !== 0">/</span>
+        <span class="breadcrumb-item clickable" @click="handleBreadcrumb(index)">
+          <Icon v-if="index !== 0" :component="Folder" class="breadcrumb-icon" />
+          {{ path }}
+        </span>
+      </template>
+    </template>
+    <template v-else>
+      <template v-for="(path, index) in breadCrumbPath?.split('/')" :key="index">
+        <span class="breadcrumb-separator" v-if="index !== 0">/</span>
+        <span class="breadcrumb-item">
+          {{ path }}
+        </span>
+      </template>
+    </template>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -24,6 +26,7 @@ import { useFileStore } from '../store';
 import { storeToRefs } from 'pinia';
 import { CustomError } from '../common';
 import { useMessageService } from '@/composables';
+import { Icon } from '@/components/ui/icon';
 
 const fileStore = useFileStore();
 const { changeDirectory } = fileStore;
@@ -52,18 +55,41 @@ const handleBreadcrumb = async (index: number) => {
 };
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .tool-bar-path-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
   overflow: scroll;
   scrollbar-width: none; /* For Firefox */
   -ms-overflow-style: none; /* For Internet Explorer and Edge */
+}
 
-  &::-webkit-scrollbar {
-    display: none; /* For Chrome, Safari, and Opera */
-  }
+.tool-bar-path-breadcrumb::-webkit-scrollbar {
+  display: none; /* For Chrome, Safari, and Opera */
+}
 
-  :deep(.n-breadcrumb-item__separator) {
-    margin: 0 1px;
-  }
+.breadcrumb-item {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.breadcrumb-item.clickable {
+  cursor: pointer;
+}
+
+.breadcrumb-item.clickable:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  margin: 0 4px;
+  color: var(--foreground);
+  opacity: 0.5;
+}
+
+.breadcrumb-icon {
+  margin-right: 4px;
 }
 </style>
