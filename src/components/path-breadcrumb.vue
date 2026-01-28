@@ -2,7 +2,7 @@
   <div class="tool-bar-path-breadcrumb">
     <template v-if="props.clickable && breadCrumbPath">
       <template v-for="(path, index) in breadCrumbPath?.split('/')" :key="index">
-        <span class="breadcrumb-separator" v-if="index !== 0">/</span>
+        <span v-if="index !== 0" class="breadcrumb-separator">/</span>
         <span class="breadcrumb-item clickable" @click="handleBreadcrumb(index)">
           <Icon v-if="index !== 0" :component="Folder" class="breadcrumb-icon" />
           {{ path }}
@@ -11,7 +11,7 @@
     </template>
     <template v-else>
       <template v-for="(path, index) in breadCrumbPath?.split('/')" :key="index">
-        <span class="breadcrumb-separator" v-if="index !== 0">/</span>
+        <span v-if="index !== 0" class="breadcrumb-separator">/</span>
         <span class="breadcrumb-item">
           {{ path }}
         </span>

@@ -11,10 +11,7 @@ export interface FormItemRule {
   required?: boolean;
   message?: string;
   trigger?: string | string[];
-  validator?: (
-    rule: FormItemRule,
-    value: unknown,
-  ) => boolean | Error | Promise<boolean | Error>;
+  validator?: (rule: FormItemRule, value: unknown) => boolean | Error | Promise<boolean | Error>;
   renderMessage?: () => string;
   level?: 'error' | 'warning';
   type?:

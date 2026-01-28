@@ -20,10 +20,7 @@
       </div>
       <DialogFooter>
         <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
-        <Button
-          :disabled="!validationPassed || saveLoading"
-          @click="submitNewFile"
-        >
+        <Button :disabled="!validationPassed || saveLoading" @click="submitNewFile">
           <span v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin">⏳</span>
           {{ $t('dialogOps.confirm') }}
         </Button>
@@ -121,14 +118,11 @@ const submitNewFile = async (event: MouseEvent) => {
       );
     }
   } catch (e) {
-    message.error(
-      `status: ${(e as CustomError).status}, details: ${(e as CustomError).details}`,
-      {
-        closable: true,
-        keepAliveOnHover: true,
-        duration: 3600,
-      },
-    );
+    message.error(`status: ${(e as CustomError).status}, details: ${(e as CustomError).details}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3600,
+    });
   } finally {
     saveLoading.value = false;
     closeModal();

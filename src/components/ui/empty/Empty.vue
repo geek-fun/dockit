@@ -11,7 +11,9 @@ const props = defineProps<EmptyProps>();
 </script>
 
 <template>
-  <div :class="cn('flex flex-col items-center justify-center py-8 text-muted-foreground', props.class)">
+  <div
+    :class="cn('flex flex-col items-center justify-center py-8 text-muted-foreground', props.class)"
+  >
     <slot name="icon">
       <Inbox class="h-12 w-12 mb-4 opacity-50" />
     </slot>

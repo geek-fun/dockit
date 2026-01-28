@@ -50,11 +50,7 @@
         />
       </div>
       <div class="footer-operation">
-        <Button
-          class="submit-button"
-          :disabled="isChatMsgFinish"
-          @click="submitMsg"
-        >
+        <Button class="submit-button" :disabled="isChatMsgFinish" @click="submitMsg">
           <Spinner v-if="isChatMsgFinish" size="sm" />
           <Icon v-else :size="26">
             <SendAlt />
@@ -104,13 +100,14 @@ const chatBotNotification = ref<{
 });
 
 // Map alert types to shadcn-vue alert variants
-const alertVariantMap: Record<string, 'default' | 'destructive' | 'success' | 'warning' | 'info'> = {
-  default: 'default',
-  success: 'success',
-  error: 'destructive',
-  warning: 'warning',
-  info: 'info',
-};
+const alertVariantMap: Record<string, 'default' | 'destructive' | 'success' | 'warning' | 'info'> =
+  {
+    default: 'default',
+    success: 'success',
+    error: 'destructive',
+    warning: 'warning',
+    info: 'info',
+  };
 
 const loadChats = async () => {
   try {

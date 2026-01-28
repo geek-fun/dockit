@@ -19,11 +19,7 @@
           <SelectValue :placeholder="$t('file.sortBy.name')" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem
-            v-for="option in sortOptions"
-            :key="option.value"
-            :value="option.value"
-          >
+          <SelectItem v-for="option in sortOptions" :key="option.value" :value="option.value">
             {{ option.label }}
           </SelectItem>
         </SelectContent>
@@ -41,12 +37,7 @@ import NewFileDialog from './new-file-dialog.vue';
 import PathBreadcrumb from '../../../components/path-breadcrumb.vue';
 import { storeToRefs } from 'pinia';
 import { Icon } from '@/components/ui/icon';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,

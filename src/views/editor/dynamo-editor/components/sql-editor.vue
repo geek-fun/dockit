@@ -1,5 +1,5 @@
 <template>
-  <n-split v-model:size="editorSize" direction="vertical" class="partiql-editor">
+  <SplitPane v-model:size="editorSize" direction="vertical" class="partiql-editor">
     <template #1>
       <div class="editor-container">
         <div id="partiql-editor" ref="editorRef" class="monaco-editor-container" />
@@ -40,7 +40,7 @@
         @edit="handleEdit"
       />
     </template>
-  </n-split>
+  </SplitPane>
 
   <!-- Edit Item Modal -->
   <edit-item
@@ -59,6 +59,7 @@ import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
 import { useMessageService, useLoadingBarService } from '@/composables';
 import { storeToRefs } from 'pinia';
+import { SplitPane } from '@/components/ui/split-pane';
 import { CustomError, jsonify } from '../../../../common';
 import {
   clearPartiqlValidation,
@@ -696,21 +697,21 @@ defineExpose({
 });
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .partiql-editor {
   width: 100%;
   height: 100%;
+}
 
-  .editor-container {
-    width: 100%;
-    height: 100%;
-    position: relative;
+.partiql-editor .editor-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
 
-    .monaco-editor-container {
-      width: 100%;
-      height: 100%;
-    }
-  }
+.partiql-editor .monaco-editor-container {
+  width: 100%;
+  height: 100%;
 }
 
 .partiql-context-menu {
@@ -721,23 +722,23 @@ defineExpose({
   z-index: 10000;
   border-radius: 4px;
   overflow: hidden;
+}
 
-  ul {
-    list-style: none;
-    margin: 0;
-    padding: 4px 0;
-    min-width: 120px;
+.partiql-context-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  min-width: 120px;
+}
 
-    li {
-      padding: 6px 12px;
-      cursor: pointer;
-      font-size: 13px;
+.partiql-context-menu li {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
 
-      &:hover {
-        background: var(--border-color);
-      }
-    }
-  }
+.partiql-context-menu li:hover {
+  background: var(--border-color);
 }
 
 :deep(.partiql-execute-decoration) {

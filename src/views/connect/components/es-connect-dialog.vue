@@ -23,10 +23,7 @@
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
               <FormItem :label="$t('connection.name')" required>
-                <Input
-                  v-model="formData.name"
-                  :placeholder="$t('connection.name')"
-                />
+                <Input v-model="formData.name" :placeholder="$t('connection.name')" />
                 <p v-if="validationErrors.name" class="text-sm text-destructive mt-1">
                   {{ validationErrors.name }}
                 </p>
@@ -66,7 +63,10 @@
                       </TooltipContent>
                     </Tooltip>
                   </div>
-                  <p v-if="validationErrors.host || hostValidate.feedback" class="text-sm text-destructive mt-1">
+                  <p
+                    v-if="validationErrors.host || hostValidate.feedback"
+                    class="text-sm text-destructive mt-1"
+                  >
                     {{ validationErrors.host || hostValidate.feedback }}
                   </p>
                 </FormItem>
@@ -105,10 +105,7 @@
 
               <GridItem :span="8">
                 <FormItem :label="$t('connection.username')">
-                  <Input
-                    v-model="formData.username"
-                    :placeholder="$t('connection.username')"
-                  />
+                  <Input v-model="formData.username" :placeholder="$t('connection.username')" />
                 </FormItem>
               </GridItem>
 
@@ -141,10 +138,7 @@
           <Button variant="outline" @click="closeModal">
             {{ $t('dialogOps.cancel') }}
           </Button>
-          <Button
-            :disabled="!validationPassed || saveLoading"
-            @click="saveConnect"
-          >
+          <Button :disabled="!validationPassed || saveLoading" @click="saveConnect">
             <span v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
             {{ $t('dialogOps.confirm') }}
           </Button>

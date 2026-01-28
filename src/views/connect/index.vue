@@ -161,7 +161,7 @@ onMounted(async () => {
   padding: 8px 24px 8px 12px;
 }
 
-.tab-trigger[data-state="active"] {
+.tab-trigger[data-state='active'] {
   background-color: var(--bg-color-secondary);
 }
 

@@ -1,156 +1,137 @@
 <template>
-  <n-split v-model:size="editorSize" direction="vertical" class="ui-editor">
+  <SplitPane v-model:size="editorSize" direction="vertical" class="ui-editor">
     <template #1>
-      <n-card class="query-container">
-        <n-form
-          ref="dynamoQueryFormRef"
-          :model="dynamoQueryForm"
-          :rules="dynamoQueryFormRules"
-          label-placement="left"
-          require-mark-placement="right-hanging"
-          label-width="auto"
-          style="width: 100%; height: 100%"
-        >
-          <!-- First row with partition and sort key -->
-          <n-grid :cols="24" :x-gap="12">
-            <n-grid-item span="8">
-              <n-form-item :label="$t('editor.dynamo.tableOrIndex')" path="index">
-                <n-select
-                  v-model:value="dynamoQueryForm.index"
-                  :placeholder="$t('editor.dynamo.selectTableOrIndex')"
-                  remote
-                  :loading="loadingRef.index"
-                  :options="indicesOrTableOptions"
-                  @update:show="handleIndexOpen"
-                  @update:value="handleUpdate"
-                />
-              </n-form-item>
-            </n-grid-item>
-
-            <n-grid-item span="8">
-              <n-form-item
-                v-if="selectedIndexOrTable?.partitionKeyName"
-                :label="getLabel('PARTITION_KEY')"
-                path="partitionKey"
-              >
-                <n-input
-                  v-model:value="dynamoQueryForm.partitionKey"
-                  :placeholder="$t('editor.dynamo.enterPartitionKey')"
-                  :input-props="inputProps"
-                />
-              </n-form-item>
-            </n-grid-item>
-
-            <n-grid-item span="8">
-              <n-form-item
-                v-if="selectedIndexOrTable?.sortKeyName"
-                :label="getLabel('SORT_KEY')"
-                path="sortKey"
-              >
-                <n-input
-                  v-model:value="dynamoQueryForm.sortKey"
-                  :placeholder="$t('editor.dynamo.enterSortKey')"
-                  :input-props="inputProps"
-                />
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
-
-          <!-- Dynamic additional form items -->
-          <n-card :title="$t('editor.dynamo.filterTitle')" class="additional-filter-container">
-            <template #header-extra>
-              <n-icon size="26" style="cursor: pointer" @click="addFilterItem">
-                <Add />
-              </n-icon>
-            </template>
-            <div class="infinity-scroll-outer-container">
-              <div class="infinity-scroll-inner-container">
-                <n-infinite-scroll style="height: 100%">
-                  <n-grid
-                    v-for="(item, index) in dynamoQueryForm.formFilterItems"
-                    :key="index"
-                    :cols="24"
-                    :x-gap="12"
+      <Card class="query-container">
+        <CardContent class="p-4 h-full">
+          <Form ref="dynamoQueryFormRef" class="w-full h-full" style="width: 100%; height: 100%">
+            <!-- First row with partition and sort key -->
+            <Grid :cols="24" :x-gap="12">
+              <GridItem :span="8">
+                <FormItem :label="$t('editor.dynamo.tableOrIndex')">
+                  <Select
+                    :model-value="dynamoQueryForm.index ?? undefined"
+                    @update:open="handleIndexOpen"
+                    @update:model-value="handleSelectUpdate"
                   >
-                    <n-grid-item span="9">
-                      <n-form-item
-                        :path="`formFilterItems[${index}].key`"
-                        :rule="{
-                          required: true,
-                          message: `${lang.t('editor.dynamo.attributeNameRequired')}`,
-                          trigger: ['input', 'blur'],
-                        }"
+                    <SelectTrigger>
+                      <SelectValue :placeholder="$t('editor.dynamo.selectTableOrIndex')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        v-for="option in indicesOrTableOptions"
+                        :key="option.value"
+                        :value="option.value"
                       >
-                        <n-input
-                          v-model:value="item.key"
-                          :placeholder="$t('editor.dynamo.inputAttrName')"
-                          :input-props="inputProps"
-                        />
-                      </n-form-item>
-                    </n-grid-item>
-                    <n-grid-item span="4">
-                      <n-form-item
-                        :path="`formFilterItems[${index}].operator`"
-                        :rule="{
-                          required: true,
-                          message: `${lang.t('editor.dynamo.operatorRequired')}`,
-                          trigger: ['input', 'blur'],
-                        }"
-                      >
-                        <n-select
-                          v-model:value="item.operator"
-                          :placeholder="$t('editor.dynamo.inputOperator')"
-                          :options="filterConditions"
-                        />
-                      </n-form-item>
-                    </n-grid-item>
-                    <n-grid-item span="9">
-                      <n-form-item
-                        :path="`formFilterItems[${index}].value`"
-                        :rule="{
-                          required: true,
-                          message: `${lang.t('editor.dynamo.attributeValueRequired')}`,
-                          trigger: ['input', 'blur'],
-                        }"
-                      >
-                        <n-input
-                          v-model:value="item.value"
-                          :placeholder="$t('editor.dynamo.inputAttrValue')"
-                          :input-props="inputProps"
-                        />
-                      </n-form-item>
-                    </n-grid-item>
-                    <n-grid-item span="2">
-                      <n-button quaternary circle @click="removeFilterItem(index)">
-                        <template #icon>
-                          <n-icon>
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              </GridItem>
+
+              <GridItem :span="8">
+                <FormItem
+                  v-if="selectedIndexOrTable?.partitionKeyName"
+                  :label="getLabel('PARTITION_KEY')"
+                >
+                  <Input
+                    :model-value="dynamoQueryForm.partitionKey ?? ''"
+                    :placeholder="$t('editor.dynamo.enterPartitionKey')"
+                    @update:model-value="
+                      (val: string | number) => (dynamoQueryForm.partitionKey = String(val))
+                    "
+                  />
+                </FormItem>
+              </GridItem>
+
+              <GridItem :span="8">
+                <FormItem v-if="selectedIndexOrTable?.sortKeyName" :label="getLabel('SORT_KEY')">
+                  <Input
+                    :model-value="dynamoQueryForm.sortKey ?? ''"
+                    :placeholder="$t('editor.dynamo.enterSortKey')"
+                    @update:model-value="
+                      (val: string | number) => (dynamoQueryForm.sortKey = String(val))
+                    "
+                  />
+                </FormItem>
+              </GridItem>
+            </Grid>
+
+            <!-- Dynamic additional form items -->
+            <Card class="additional-filter-container mt-4">
+              <CardHeader class="p-3 flex flex-row items-center justify-between">
+                <CardTitle class="text-base">{{ $t('editor.dynamo.filterTitle') }}</CardTitle>
+                <Icon :size="26" class="cursor-pointer" @click="addFilterItem">
+                  <Add />
+                </Icon>
+              </CardHeader>
+              <CardContent class="p-3">
+                <ScrollArea class="h-full">
+                  <div class="space-y-2">
+                    <Grid
+                      v-for="(item, index) in dynamoQueryForm.formFilterItems"
+                      :key="index"
+                      :cols="24"
+                      :x-gap="12"
+                    >
+                      <GridItem :span="9">
+                        <FormItem>
+                          <Input
+                            v-model="item.key"
+                            :placeholder="$t('editor.dynamo.inputAttrName')"
+                          />
+                        </FormItem>
+                      </GridItem>
+                      <GridItem :span="4">
+                        <FormItem>
+                          <Select v-model="item.operator">
+                            <SelectTrigger>
+                              <SelectValue :placeholder="$t('editor.dynamo.inputOperator')" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem
+                                v-for="condition in filterConditions"
+                                :key="condition.value"
+                                :value="condition.value"
+                              >
+                                {{ condition.label }}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      </GridItem>
+                      <GridItem :span="9">
+                        <FormItem>
+                          <Input
+                            v-model="item.value"
+                            :placeholder="$t('editor.dynamo.inputAttrValue')"
+                          />
+                        </FormItem>
+                      </GridItem>
+                      <GridItem :span="2">
+                        <Button variant="ghost" size="icon" @click="removeFilterItem(index)">
+                          <Icon>
                             <Delete />
-                          </n-icon>
-                        </template>
-                      </n-button>
-                    </n-grid-item>
-                  </n-grid>
-                </n-infinite-scroll>
-              </div>
-            </div>
-          </n-card>
-        </n-form>
-        <template #footer>
-          <div class="card-footer">
-            <n-button type="warning" tertiary @click="handleReset">
-              {{ $t('dialogOps.reset') }}
-            </n-button>
-            <n-button
-              type="primary"
-              :disabled="!validationPassed"
-              :loading="loadingRef.queryResult"
-              @click="queryToDynamo"
-            >
-              {{ $t('dialogOps.execute') }}
-            </n-button>
-          </div>
-        </template>
-      </n-card>
+                          </Icon>
+                        </Button>
+                      </GridItem>
+                    </Grid>
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </Form>
+        </CardContent>
+        <CardFooter class="card-footer">
+          <Button variant="outline" @click="handleReset">
+            {{ $t('dialogOps.reset') }}
+          </Button>
+          <Button :disabled="!validationPassed || loadingRef.queryResult" @click="queryToDynamo">
+            <Spinner v-if="loadingRef.queryResult" class="mr-2 h-4 w-4" />
+            {{ $t('dialogOps.execute') }}
+          </Button>
+        </CardFooter>
+      </Card>
     </template>
     <template #2>
       <result-panel
@@ -171,7 +152,7 @@
         @edit="handleEdit"
       />
     </template>
-  </n-split>
+  </SplitPane>
 
   <!-- Edit Item Modal -->
   <edit-item
@@ -188,9 +169,23 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { Add, Delete } from '@vicons/carbon';
-import { isEmpty } from 'lodash';
-import type { FormItemRule, FormRules, FormValidationError } from 'naive-ui';
 import { useMessageService, useLoadingBarService } from '@/composables';
+import { SplitPane } from '@/components/ui/split-pane';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Form, FormItem } from '@/components/ui/form';
+import { Grid, GridItem } from '@/components/ui/grid';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icon';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Connection,
   DynamoDBConnection,
@@ -199,7 +194,7 @@ import {
   useDbDataStore,
   useTabStore,
 } from '../../../../store';
-import { CustomError, inputProps } from '../../../../common';
+import { CustomError } from '../../../../common';
 import { useLang } from '../../../../lang';
 import EditItem from './edit-item.vue';
 import ResultPanel from './result-panel.vue';
@@ -266,24 +261,6 @@ const loadingBar = useLoadingBarService();
 const showEditModal = ref(false);
 const editingItem = ref<Record<string, unknown> | null>(null);
 
-const dynamoQueryFormRules = reactive<FormRules>({
-  index: [
-    {
-      required: true,
-      renderMessage: () => lang.t('editor.dynamo.indexIsRequired'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-  partitionKey: [
-    {
-      validator: (_: FormItemRule, value) => !isEmpty(value),
-      renderMessage: () => lang.t('editor.dynamo.scanWarning'),
-      level: 'warning',
-      trigger: ['input', 'blur'],
-    },
-  ],
-});
-
 const addFilterItem = () => {
   dynamoQueryForm.value.formFilterItems.push({ key: '', value: '', operator: '' });
 };
@@ -294,10 +271,12 @@ const removeFilterItem = (index: number) => {
 
 const indicesOrTableOptions = ref<Array<DynamoIndexOrTableOption>>([]);
 
-const handleUpdate = (value: string, options: DynamoIndexOrTableOption) => {
+const handleSelectUpdate = (value: string) => {
   const indices = getDynamoIndexOrTableOption.value(activeConnection.value as DynamoDBConnection);
-  selectedIndexOrTable.value = indices.find(({ label }) => label === options.label);
-
+  const option = indicesOrTableOptions.value.find(opt => opt.value === value);
+  if (option) {
+    selectedIndexOrTable.value = indices.find(({ label }) => label === option.label);
+  }
   dynamoQueryForm.value.index = value;
 };
 
@@ -337,19 +316,19 @@ const handleIndexOpen = async (isOpen: boolean) => {
   }
 };
 
-const validateForm = async () => {
-  try {
-    return await dynamoQueryFormRef.value?.validate(
-      (errors: Array<FormValidationError>) => !errors,
-    );
-  } catch (e) {
-    return false;
+// Simple validation: check if required fields are filled
+const validationPassed = computed(() => {
+  const form = dynamoQueryForm.value;
+  if (!form.index) return false;
+  // Check filter items if any exist
+  for (const item of form.formFilterItems) {
+    if (item.key || item.operator || item.value) {
+      // If any field is filled, all must be filled
+      if (!item.key || !item.operator || !item.value) return false;
+    }
   }
-};
-const validationPassed = watch(
-  [dynamoQueryForm.value, dynamoQueryForm.value.formFilterItems],
-  validateForm,
-);
+  return true;
+});
 
 const queryToDynamo = async (event?: MouseEvent) => {
   if (event?.preventDefault) {
@@ -359,7 +338,7 @@ const queryToDynamo = async (event?: MouseEvent) => {
     message.error(`status: 500, ${lang.t('connection.selectIndex')}`);
     return;
   }
-  if (!(await validateForm())) {
+  if (!validationPassed.value) {
     message.error(lang.t('connection.validationFailed'));
     return;
   }
@@ -456,37 +435,28 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
 };
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .ui-editor {
   width: 100%;
   height: 100%;
-
-  .query-container {
-    width: 100%;
-    height: 100%;
-
-    .additional-filter-container {
-      width: 100%;
-      height: calc(100% - 60px);
-    }
-
-    .card-footer {
-      display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-    }
-  }
 }
 
-.infinity-scroll-outer-container {
+.ui-editor .query-container {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+}
 
-  .infinity-scroll-inner-container {
-    flex: 1;
-    height: 0;
-  }
+.ui-editor .additional-filter-container {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
 }
 </style>

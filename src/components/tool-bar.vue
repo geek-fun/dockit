@@ -17,11 +17,7 @@
             @input="e => handleSearch((e.target as HTMLInputElement).value, 'CONNECTION')"
           />
         </div>
-        <SelectItem
-          v-for="option in options.connection"
-          :key="option.value"
-          :value="option.value"
-        >
+        <SelectItem v-for="option in options.connection" :key="option.value" :value="option.value">
           {{ option.label }}
         </SelectItem>
         <div v-if="loadingRef.connection" class="select-loading">Loading...</div>
@@ -45,11 +41,7 @@
             @input="e => handleSearch((e.target as HTMLInputElement).value, 'INDEX')"
           />
         </div>
-        <SelectItem
-          v-for="option in options.index"
-          :key="option.value"
-          :value="option.value"
-        >
+        <SelectItem v-for="option in options.index" :key="option.value" :value="option.value">
           {{ option.label }}
         </SelectItem>
         <div v-if="loadingRef.index" class="select-loading">Loading...</div>
@@ -70,9 +62,7 @@
             <Label class="switch-label">{{ hideSystemIndicesRef ? 'Hidden' : 'Display' }}</Label>
           </div>
         </TooltipTrigger>
-        <TooltipContent>
-          Hide/Display system indices
-        </TooltipContent>
+        <TooltipContent>Hide/Display system indices</TooltipContent>
       </Tooltip>
     </TooltipProvider>
 
@@ -214,12 +204,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {

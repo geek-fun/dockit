@@ -4,11 +4,7 @@
       <h1>DocKit</h1>
       <Form>
         <FormItem>
-          <Input
-            v-model="loginForm.name"
-            :placeholder="$t('login.enterName')"
-            class="w-full"
-          />
+          <Input v-model="loginForm.name" :placeholder="$t('login.enterName')" class="w-full" />
           <p v-if="errors.name" class="text-sm text-destructive mt-1">{{ errors.name }}</p>
         </FormItem>
         <FormItem>
