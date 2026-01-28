@@ -214,17 +214,29 @@
                   <TableCell>{{ (row as any).alias_count }}</TableCell>
                   <TableCell>{{ (row as any).metadata }}</TableCell>
                   <TableCell>
-                    <Badge v-for="included in (row as any).included_in || []" :key="included" class="m-0.5">
+                    <Badge
+                      v-for="included in (row as any).included_in || []"
+                      :key="included"
+                      class="m-0.5"
+                    >
                       {{ included }}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge v-for="pattern in (row as any).index_patterns || []" :key="pattern" class="m-0.5">
+                    <Badge
+                      v-for="pattern in (row as any).index_patterns || []"
+                      :key="pattern"
+                      class="m-0.5"
+                    >
                       {{ pattern }}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge v-for="composed in (row as any).composed_of || []" :key="composed" class="m-0.5">
+                    <Badge
+                      v-for="composed in (row as any).composed_of || []"
+                      :key="composed"
+                      class="m-0.5"
+                    >
                       {{ composed }}
                     </Badge>
                   </TableCell>
@@ -271,7 +283,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   DropdownMenu,
