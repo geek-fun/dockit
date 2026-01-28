@@ -4,7 +4,7 @@
       <Spinner size="lg" />
       <span class="refresh-text">{{ $t('manage.dynamo.refresh') }}...</span>
     </div>
-    <div :class="{ 'opacity-50': refreshLoading }">
+    <div :class="{ 'opacity-50 pointer-events-none': refreshLoading }">
       <!-- Metrics Cards Section -->
       <section class="metrics-section">
         <div class="metrics-grid">
@@ -715,7 +715,7 @@ defineExpose({
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.8);
+  background: hsl(var(--background) / 0.8);
   z-index: 10;
 }
 

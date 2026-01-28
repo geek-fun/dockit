@@ -146,6 +146,7 @@
                   <button
                     type="button"
                     class="ml-1 hover:text-destructive"
+                    aria-label="Remove attribute"
                     @click="removeProjectedAttribute(index)"
                   >
                     ×
@@ -277,7 +278,14 @@
       <Alert v-if="errorMessage" variant="destructive" class="mt-3">
         <AlertDescription class="flex items-center justify-between">
           {{ errorMessage }}
-          <button type="button" class="ml-2 hover:opacity-70" @click="errorMessage = ''">×</button>
+          <button
+            type="button"
+            class="ml-2 hover:opacity-70"
+            aria-label="Dismiss error"
+            @click="errorMessage = ''"
+          >
+            ×
+          </button>
         </AlertDescription>
       </Alert>
 
