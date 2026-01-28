@@ -14,9 +14,7 @@
             }"
             @click="navClick(item)"
           >
-            <Icon :size="26">
-              <component :is="item.icon" />
-            </Icon>
+            <span :class="[item.iconClass, 'h-6 w-6']" />
           </div>
         </the-aside-icon>
       </div>
@@ -33,9 +31,7 @@
             }"
             @click="navClick(item)"
           >
-            <Icon :size="26">
-              <component :is="item.icon" />
-            </Icon>
+            <span :class="[item.iconClass, 'h-6 w-6']" />
           </div>
         </the-aside-icon>
       </div>
@@ -44,22 +40,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, markRaw } from 'vue';
+import { ref } from 'vue';
 import { open } from '@tauri-apps/plugin-shell';
 import { useRouter, useRoute } from 'vue-router';
-import {
-  DataBase,
-  Folders,
-  LogoGithub,
-  Settings,
-  UserAvatar,
-  ExpandAll,
-  Equalizer,
-  ImportExport,
-} from '@vicons/carbon';
 import { useAppStore } from '../../store';
 import TheAsideIcon from './the-aside-icon.vue';
-import { Icon } from '@/components/ui/icon';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 const router = useRouter();
@@ -72,42 +57,42 @@ const mainNavList = ref([
     id: 'manage',
     path: '/manage',
     name: 'manage',
-    icon: markRaw(Equalizer),
+    iconClass: 'i-carbon-equalizer',
     isLink: false,
   },
   {
     id: 'connect',
     path: '/connect',
     name: 'connect',
-    icon: markRaw(DataBase),
+    iconClass: 'i-carbon-data-base',
     isLink: false,
   },
   {
     id: 'file',
     path: '/file',
     name: 'file',
-    icon: markRaw(Folders),
+    iconClass: 'i-carbon-folders',
     isLink: false,
   },
   {
     id: 'history',
     path: '/history',
     name: 'history',
-    icon: markRaw(ExpandAll),
+    iconClass: 'i-carbon-expand-all',
     isLink: false,
   },
   {
     id: 'import-export',
     path: '/import-export',
     name: 'importExport',
-    icon: markRaw(ImportExport),
+    iconClass: 'i-carbon-import-export',
     isLink: false,
   },
   {
     id: 'github',
     path: '',
     name: 'github',
-    icon: markRaw(LogoGithub),
+    iconClass: 'i-carbon-logo-github',
     isLink: true,
   },
 ]);
@@ -116,14 +101,14 @@ const samllNavList = ref([
   {
     path: '/',
     id: 'user',
-    icon: markRaw(UserAvatar),
+    iconClass: 'i-carbon-user-avatar',
     name: 'user',
     isLink: false,
   },
   {
     path: '/setting',
     id: 'setting',
-    icon: markRaw(Settings),
+    iconClass: 'i-carbon-settings',
     name: 'setting',
     isLink: false,
   },
@@ -132,7 +117,7 @@ const samllNavList = ref([
 interface RouteItem {
   path: string;
   id: string;
-  icon: Component;
+  iconClass: string;
   name: string;
   isLink: boolean;
 }

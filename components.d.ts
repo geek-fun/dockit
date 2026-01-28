@@ -113,6 +113,7 @@ declare module 'vue' {
     TooltipContent: typeof import('./src/components/ui/tooltip/TooltipContent.vue')['default']
     TooltipProvider: typeof import('./src/components/ui/tooltip/TooltipProvider.vue')['default']
     TooltipTrigger: typeof import('./src/components/ui/tooltip/TooltipTrigger.vue')['default']
+    UnoIcon: typeof import('./src/components/ui/icon/UnoIcon.vue')['default']
     VersionDetect: typeof import('./src/components/VersionDetect.vue')['default']
   }
 }

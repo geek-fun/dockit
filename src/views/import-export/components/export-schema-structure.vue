@@ -2,7 +2,7 @@
   <Card class="step-card">
     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="step-header">
-        <Icon :size="20" color="#18a058" :component="DataStructured" />
+        <span class="i-carbon-data-structured h-5 w-5" style="color: #18a058" />
         <div class="step-title-container">
           <span class="step-title">{{ $t('export.schemaStructure') }}</span>
           <span v-if="selectedIndex" class="step-subtitle">{{ selectedIndex }} schema</span>
@@ -20,7 +20,7 @@
       <div v-if="fields.length === 0" class="empty-state">
         <Empty :description="$t('export.selectSourceFirst')">
           <template #icon>
-            <Icon :size="48" :component="DataStructured" />
+            <span class="i-carbon-data-structured h-12 w-12" />
           </template>
         </Empty>
       </div>
@@ -56,9 +56,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { DataStructured } from '@vicons/carbon';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';

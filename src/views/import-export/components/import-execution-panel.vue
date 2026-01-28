@@ -2,7 +2,7 @@
   <Card class="execution-card flex flex-col h-full">
     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="execution-header">
-        <Icon :size="20" color="#f0a020" :component="Flash" />
+        <span class="i-carbon-flash h-5 w-5" style="color: #f0a020" />
         <span class="execution-title">{{ $t('export.execution') }}</span>
       </div>
     </CardHeader>
@@ -95,7 +95,7 @@
           :disabled="!canStartImport || isImporting"
           @click="handleStartImport"
         >
-          <Icon :component="Upload" class="mr-2" />
+          <span class="i-carbon-upload h-4 w-4 mr-2" />
           {{ $t('import.startImportTask') }}
         </Button>
         <p class="import-note">{{ $t('import.importNote') }}</p>
@@ -106,9 +106,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Flash, Upload } from '@vicons/carbon';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';

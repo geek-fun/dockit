@@ -69,9 +69,7 @@
     <DropdownMenu v-if="props.type === 'ES_EDITOR'">
       <DropdownMenuTrigger as-child>
         <Button variant="ghost" size="sm" class="sample-btn">
-          <Icon size="16" class="mr-1">
-            <Code />
-          </Icon>
+          <span class="i-carbon-code mr-1 h-4 w-4" />
           {{ $t('editor.sampleQueries') }}
         </Button>
       </DropdownMenuTrigger>
@@ -92,9 +90,7 @@
         class="button-group-first"
         @click="handleEditorSwitch('DYNAMO_EDITOR_UI')"
       >
-        <Icon size="16" class="mr-1">
-          <Template />
-        </Icon>
+        <span class="i-carbon-template mr-1 h-4 w-4" />
         {{ $t('editor.dynamo.uiQuery') }}
       </Button>
       <Button
@@ -103,9 +99,7 @@
         class="button-group-middle"
         @click="handleEditorSwitch('DYNAMO_EDITOR_SQL')"
       >
-        <Icon size="16" class="mr-1">
-          <Code />
-        </Icon>
+        <span class="i-carbon-code mr-1 h-4 w-4" />
         {{ $t('editor.dynamo.sqlEditor') }}
       </Button>
       <Button
@@ -114,9 +108,7 @@
         class="button-group-last"
         @click="handleEditorSwitch('DYNAMO_EDITOR_CREATE_ITEM')"
       >
-        <Icon size="16" class="mr-1">
-          <Add />
-        </Icon>
+        <span class="i-carbon-add mr-1 h-4 w-4" />
         {{ $t('editor.dynamo.createItem') }}
       </Button>
     </div>
@@ -126,9 +118,7 @@
     >
       <DropdownMenuTrigger as-child>
         <Button variant="ghost" size="sm" class="sample-btn">
-          <Icon size="16" class="mr-1">
-            <Code />
-          </Icon>
+          <span class="i-carbon-code mr-1 h-4 w-4" />
           {{ $t('editor.dynamo.partiql.samples') }}
         </Button>
       </DropdownMenuTrigger>
@@ -152,9 +142,7 @@
         :disabled="!activePanel.connection || isExecuting"
         @click="handleExecuteQuery"
       >
-        <Icon size="16" class="mr-1">
-          <PlayFilledAlt />
-        </Icon>
+        <span class="i-carbon-play-filled-alt mr-1 h-4 w-4" />
         {{ isExecuting ? 'Executing...' : $t('dialogOps.execute') }}
       </Button>
     </div>
@@ -165,9 +153,7 @@
       size="sm"
       @click="handleDynamoRefresh"
     >
-      <Icon size="16" class="mr-1">
-        <Renew />
-      </Icon>
+      <span class="i-carbon-renew mr-1 h-4 w-4" />
       {{ $t('manage.dynamo.refresh') }}
     </Button>
 
@@ -188,7 +174,6 @@
 </template>
 
 <script setup lang="ts">
-import { Add, Code, Template, PlayFilledAlt, Renew } from '@vicons/carbon';
 import { storeToRefs } from 'pinia';
 import { useClusterManageStore, useConnectionStore, useTabStore, DatabaseType } from '../store';
 import { useLang } from '../lang';
@@ -196,7 +181,6 @@ import { CustomError } from '../common';
 import { esSampleQueries } from '../common/monaco';
 import { useMessageService } from '@/composables';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 import {
   Select,
   SelectContent,

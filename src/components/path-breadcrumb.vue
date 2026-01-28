@@ -4,7 +4,7 @@
       <template v-for="(path, index) in breadCrumbPath?.split('/')" :key="index">
         <span v-if="index !== 0" class="breadcrumb-separator">/</span>
         <span class="breadcrumb-item clickable" @click="handleBreadcrumb(index)">
-          <Icon v-if="index !== 0" :component="Folder" class="breadcrumb-icon" />
+          <span v-if="index !== 0" class="i-carbon-folder breadcrumb-icon" />
           {{ path }}
         </span>
       </template>
@@ -21,12 +21,10 @@
 </template>
 
 <script setup lang="ts">
-import { Folder } from '@vicons/carbon';
 import { useFileStore } from '../store';
 import { storeToRefs } from 'pinia';
 import { CustomError } from '../common';
 import { useMessageService } from '@/composables';
-import { Icon } from '@/components/ui/icon';
 
 const fileStore = useFileStore();
 const { changeDirectory } = fileStore;

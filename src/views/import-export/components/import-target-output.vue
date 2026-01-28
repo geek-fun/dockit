@@ -2,7 +2,7 @@
   <Card class="step-card">
     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="step-header">
-        <Icon :size="20" color="#18a058" :component="DataBase" />
+        <span class="i-carbon-data-base h-5 w-5" style="color: #18a058" />
         <span class="step-title">{{ $t('import.targetOutput') }}</span>
       </div>
       <span class="step-badge">{{ $t('export.step') }} 01</span>
@@ -76,9 +76,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { DataBase } from '@vicons/carbon';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
 import { Grid, GridItem } from '@/components/ui/grid';
 import {
   Select,

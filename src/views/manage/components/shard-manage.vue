@@ -15,12 +15,10 @@
                   <Popover v-if="col.key === 'index'">
                     <PopoverTrigger as-child>
                       <Button variant="ghost" size="icon" class="h-6 w-6">
-                        <Icon
-                          :color="filterState.index ? 'var(--theme-color)' : undefined"
-                          :size="14"
-                        >
-                          <Search />
-                        </Icon>
+                        <span
+                          class="i-carbon-search h-3.5 w-3.5"
+                          :style="{ color: filterState.index ? 'var(--theme-color)' : undefined }"
+                        />
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent class="w-48 p-2">
@@ -68,9 +66,7 @@
               }}, unassigned: {{ indexShards.shards.filter(shard => !shard.node).length }}
             </span>
           </h3>
-          <Icon size="26" class="close-index-shard-icon" @click="closeindexShards">
-            <Close />
-          </Icon>
+          <span class="i-carbon-close h-6 w-6 close-index-shard-icon" @click="closeindexShards" />
         </div>
 
         <div class="shard-list-scrollbar-box">
@@ -101,7 +97,7 @@
                     "
                     class="m-1 cursor-pointer"
                   >
-                    <Icon :component="shardsDetail.icon()" :size="12" class="mr-1" />
+                    <component :is="shardsDetail.icon()" class="h-3 w-3 mr-1" />
                     {{ shardsDetail.content }}
                   </Badge>
                 </PopoverTrigger>
@@ -124,7 +120,6 @@ import prettyBytes from 'pretty-bytes';
 import {
   AiResults,
   Application,
-  Close,
   Document,
   Insert,
   LaunchStudy1,
@@ -136,11 +131,9 @@ import {
   Version,
   VmdkDisk,
   WarningAlt,
-  Search,
 } from '@vicons/carbon';
 import { Memory } from '@vicons/fa';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';

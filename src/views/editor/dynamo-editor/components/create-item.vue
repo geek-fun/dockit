@@ -3,7 +3,7 @@
     <CardHeader class="flex flex-row items-center justify-between pb-2">
       <CardTitle>{{ $t('editor.dynamo.addAttributesTitle') }}</CardTitle>
       <Button variant="ghost" size="icon" @click="addAttributeItem">
-        <Icon :size="20" :component="Add" />
+        <span class="i-carbon-add h-5 w-5" />
       </Button>
     </CardHeader>
     <CardContent class="form-container">
@@ -106,7 +106,7 @@
               </GridItem>
               <GridItem :span="2">
                 <Button variant="ghost" size="icon" @click="removeKeyAttributeItem(index)">
-                  <Icon :size="16" :component="Delete" />
+                  <span class="i-carbon-delete h-4 w-4" />
                 </Button>
               </GridItem>
             </Grid>
@@ -165,7 +165,7 @@
               </GridItem>
               <GridItem :span="2">
                 <Button variant="ghost" size="icon" @click="removeAttributeItem(index)">
-                  <Icon :size="16" :component="Delete" />
+                  <span class="i-carbon-delete h-4 w-4" />
                 </Button>
               </GridItem>
             </Grid>
@@ -187,7 +187,6 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Add, Delete } from '@vicons/carbon';
 import { useMessageService } from '@/composables';
 import { Connection, DynamoDBConnection, useConnectionStore, useTabStore } from '../../../../store';
 import { CustomError } from '../../../../common';
@@ -198,7 +197,6 @@ import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { InputNumber } from '@/components/ui/input-number';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';

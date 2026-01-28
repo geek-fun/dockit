@@ -49,12 +49,10 @@
                       <Popover v-if="col.filterable">
                         <PopoverTrigger as-child>
                           <Button variant="ghost" size="icon" class="h-6 w-6">
-                            <Icon
-                              :color="filterState[col.key] ? 'var(--theme-color)' : undefined"
-                              :size="14"
-                            >
-                              <Search />
-                            </Icon>
+                            <span
+                              class="i-carbon-search h-3.5 w-3.5"
+                              :style="{ color: filterState[col.key] ? 'var(--theme-color)' : undefined }"
+                            />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent class="w-48 p-2">
@@ -94,9 +92,7 @@
                     <DropdownMenu v-for="alias in row.aliases" :key="alias.alias">
                       <DropdownMenuTrigger as-child>
                         <Button variant="ghost" size="sm" class="m-0.5">
-                          <Icon class="mr-1" :size="14">
-                            <SettingsAdjust />
-                          </Icon>
+                          <span class="i-carbon-settings-adjust h-3.5 w-3.5 mr-1" />
                           {{ alias.alias }}
                         </Button>
                       </DropdownMenuTrigger>
@@ -105,17 +101,13 @@
                           class="text-destructive"
                           @click="handleAction('removeAlias', alias.index, alias.alias)"
                         >
-                          <Icon class="mr-2" color="red">
-                            <Unlink />
-                          </Icon>
+                          <span class="i-carbon-unlink h-4 w-4 mr-2" style="color: red" />
                           {{ lang.t('manage.index.actions.removeAlias') }}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           @click="handleAction('switchAlias', alias.index, alias.alias)"
                         >
-                          <Icon class="mr-2">
-                            <ArrowsHorizontal />
-                          </Icon>
+                          <span class="i-carbon-arrows-horizontal h-4 w-4 mr-2" />
                           {{ lang.t('manage.index.actions.switchAlias') }}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -125,9 +117,7 @@
                     <DropdownMenu>
                       <DropdownMenuTrigger as-child>
                         <Button variant="ghost" size="icon">
-                          <Icon>
-                            <OverflowMenuHorizontal />
-                          </Icon>
+                          <span class="i-carbon-overflow-menu-horizontal h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
@@ -135,24 +125,18 @@
                           class="text-destructive"
                           @click="handleAction('deleteIndex', row.index)"
                         >
-                          <Icon class="mr-2" color="red">
-                            <Delete />
-                          </Icon>
+                          <span class="i-carbon-delete h-4 w-4 mr-2" style="color: red" />
                           {{ lang.t('manage.index.actions.deleteIndex') }}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           v-if="row.status === 'open'"
                           @click="handleAction('closIndex', row.index)"
                         >
-                          <Icon class="mr-2" color="yellow">
-                            <Locked />
-                          </Icon>
+                          <span class="i-carbon-locked h-4 w-4 mr-2" style="color: yellow" />
                           {{ lang.t('manage.index.actions.closeIndex') }}
                         </DropdownMenuItem>
                         <DropdownMenuItem v-else @click="handleAction('openIndex', row.index)">
-                          <Icon class="mr-2" color="green">
-                            <Unlocked />
-                          </Icon>
+                          <span class="i-carbon-unlocked h-4 w-4 mr-2" style="color: green" />
                           {{ lang.t('manage.index.actions.openIndex') }}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -182,12 +166,10 @@
                       <Popover v-if="col.filterable">
                         <PopoverTrigger as-child>
                           <Button variant="ghost" size="icon" class="h-6 w-6">
-                            <Icon
-                              :color="filterState[col.key] ? 'var(--theme-color)' : undefined"
-                              :size="14"
-                            >
-                              <Search />
-                            </Icon>
+                            <span
+                              class="i-carbon-search h-3.5 w-3.5"
+                              :style="{ color: filterState[col.key] ? 'var(--theme-color)' : undefined }"
+                            />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent class="w-48 p-2">
@@ -259,18 +241,6 @@ import { storeToRefs } from 'pinia';
 import { get } from 'lodash';
 import { useClusterManageStore } from '../../../store';
 import { useMessageService, useDialogService } from '@/composables';
-import {
-  Add,
-  ArrowsHorizontal,
-  Renew,
-  SettingsAdjust,
-  Unlink,
-  OverflowMenuHorizontal,
-  Delete,
-  Locked,
-  Unlocked,
-  Search,
-} from '@vicons/carbon';
 import IndexDialog from './index-dialog.vue';
 import AliasDialog from './alias-dialog.vue';
 import TemplateDialog from './template-dialog.vue';
@@ -278,7 +248,6 @@ import { useLang } from '../../../lang';
 import { CustomError } from '../../../common';
 import SwitchAliasDialog from './switch-alias-dialog.vue';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';

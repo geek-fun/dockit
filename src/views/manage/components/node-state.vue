@@ -16,9 +16,7 @@
               <TooltipProvider v-if="node.master">
                 <Tooltip>
                   <TooltipTrigger as-child>
-                    <Icon :size="24">
-                      <StarFilled />
-                    </Icon>
+                    <span class="i-carbon-star-filled h-6 w-6" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <span>{{ $t('manage.masterNode') }}</span>
@@ -30,9 +28,7 @@
               >
                 <Tooltip>
                   <TooltipTrigger as-child>
-                    <Icon :size="24">
-                      <Star />
-                    </Icon>
+                    <span class="i-carbon-star h-6 w-6" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <span>{{ $t('manage.masterEligible') }}</span>
@@ -42,9 +38,7 @@
               <TooltipProvider v-if="node.roles.includes(NodeRoleEnum.DATA)">
                 <Tooltip>
                   <TooltipTrigger as-child>
-                    <Icon :size="24">
-                      <VmdkDisk />
-                    </Icon>
+                    <span class="i-carbon-vmdk-disk h-6 w-6" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <span>{{ $t('manage.dataNode') }}</span>
@@ -54,9 +48,7 @@
               <TooltipProvider v-if="node.roles.includes(NodeRoleEnum.INGEST)">
                 <Tooltip>
                   <TooltipTrigger as-child>
-                    <Icon :size="24">
-                      <FolderMoveTo />
-                    </Icon>
+                    <span class="i-carbon-folder-move-to h-6 w-6" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <span>{{ $t('manage.ingestNode') }}</span>
@@ -66,9 +58,7 @@
               <TooltipProvider v-if="node.roles.includes(NodeRoleEnum.COORDINATING)">
                 <Tooltip>
                   <TooltipTrigger as-child>
-                    <Icon :size="24">
-                      <Network3 />
-                    </Icon>
+                    <span class="i-carbon-network-3 h-6 w-6" />
                   </TooltipTrigger>
                   <TooltipContent>
                     <span>{{ $t('manage.coordinatingNode') }}</span>
@@ -127,12 +117,10 @@
 import prettyBytes from 'pretty-bytes';
 import { useClusterManageStore } from '../../../store';
 import { storeToRefs } from 'pinia';
-import { FolderMoveTo, Network3, Star, StarFilled, VmdkDisk } from '@vicons/carbon';
 import { CustomError } from '../../../common';
 import { NodeRoleEnum } from '../../../datasources';
 import { useMessageService } from '@/composables';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 

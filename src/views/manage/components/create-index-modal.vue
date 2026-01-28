@@ -59,9 +59,7 @@
                   :disabled="formValue.partitionKeyAttributes.length === 1"
                   @click="removePartitionKeyAttribute(index)"
                 >
-                  <Icon class="h-4 w-4 text-destructive">
-                    <TrashCan />
-                  </Icon>
+                  <span class="i-carbon-trash-can h-4 w-4 text-destructive" />
                 </Button>
               </div>
               <Button
@@ -105,9 +103,7 @@
                   </SelectContent>
                 </Select>
                 <Button variant="ghost" size="icon" @click="removeSortKeyAttribute(index)">
-                  <Icon class="h-4 w-4 text-destructive">
-                    <TrashCan />
-                  </Icon>
+                  <span class="i-carbon-trash-can h-4 w-4 text-destructive" />
                 </Button>
               </div>
               <Button variant="outline" class="w-full border-dashed" @click="addSortKeyAttribute">
@@ -304,7 +300,6 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue';
-import { TrashCan } from '@vicons/carbon';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { useClusterManageStore, DatabaseType } from '../../../store';
@@ -325,7 +320,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Icon } from '@/components/ui/icon';
 import {
   Select,
   SelectContent,

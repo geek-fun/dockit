@@ -7,7 +7,7 @@
           class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           @click="closeModal"
         >
-          <Icon :size="20" :component="X" />
+          <span class="i-lucide-x h-5 w-5" />
         </button>
       </DialogHeader>
 
@@ -49,14 +49,13 @@
                           class="inline-flex items-center justify-center px-3 border border-l-0 border-input rounded-r-md bg-muted hover:bg-accent"
                           @click="switchSSL(!formData.sslCertVerification)"
                         >
-                          <Icon
-                            :class="
+                          <span
+                            :class="[
                               formData.sslCertVerification
-                                ? 'ssl-checked-icon'
-                                : 'ssl-unchecked-icon'
-                            "
-                            :size="24"
-                            :component="formData.sslCertVerification ? Locked : Unlocked"
+                                ? 'i-carbon-locked ssl-checked-icon'
+                                : 'i-carbon-unlocked ssl-unchecked-icon',
+                              'h-6 w-6',
+                            ]"
                           />
                         </button>
                       </TooltipTrigger>
@@ -152,8 +151,6 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { X } from 'lucide-vue-next';
-import { Locked, Unlocked } from '@vicons/carbon';
 import { cloneDeep } from 'lodash';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import {
@@ -175,7 +172,6 @@ import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { InputNumber } from '@/components/ui/input-number';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';

@@ -3,9 +3,7 @@
     <div class="chat-box-header">
       <div class="header-title">{{ $t('aside.chatBot') }}</div>
       <div>
-        <Icon class="chat-header-delete-icon" @click="removeChat">
-          <Delete />
-        </Icon>
+        <span class="i-carbon-delete chat-header-delete-icon cursor-pointer" @click="removeChat" />
       </div>
     </div>
     <div class="message-list">
@@ -13,10 +11,11 @@
         <div v-for="msg in activeChat?.messages" :key="msg.id">
           <div :class="['message-row', msg.role === ChatMessageRole.USER ? 'user' : '']">
             <div class="message-row-header">
-              <Icon :size="20">
-                <bot v-if="msg.role === ChatMessageRole.BOT" />
-                <face-cool v-else />
-              </Icon>
+              <span
+                v-if="msg.role === ChatMessageRole.BOT"
+                class="i-carbon-bot mr-2 h-5 w-5"
+              />
+              <span v-else class="i-carbon-face-cool mr-2 h-5 w-5" />
               <span>{{ msg.role }}</span>
             </div>
             <div class="message-row-content">
@@ -52,9 +51,7 @@
       <div class="footer-operation">
         <Button class="submit-button" :disabled="isChatMsgFinish" @click="submitMsg">
           <Spinner v-if="isChatMsgFinish" size="sm" />
-          <Icon v-else :size="26">
-            <SendAlt />
-          </Icon>
+          <span v-else class="i-carbon-send-alt h-6 w-6" />
         </Button>
       </div>
     </div>
@@ -63,13 +60,10 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Bot, SendAlt, FaceCool } from '@vicons/carbon';
 import { useAppStore, useChatStore } from '../../store';
 import MarkdownRender from '../../components/markdown-render.vue';
 import { ErrorCodes } from '../../common';
 import { ChatMessageRole } from '../../datasources';
-import { Delete } from '@vicons/carbon';
-import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';

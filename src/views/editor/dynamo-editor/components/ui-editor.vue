@@ -61,9 +61,7 @@
             <Card class="additional-filter-container mt-4">
               <CardHeader class="p-3 flex flex-row items-center justify-between">
                 <CardTitle class="text-base">{{ $t('editor.dynamo.filterTitle') }}</CardTitle>
-                <Icon :size="26" class="cursor-pointer" @click="addFilterItem">
-                  <Add />
-                </Icon>
+                <span class="i-carbon-add h-6 w-6 cursor-pointer" @click="addFilterItem" />
               </CardHeader>
               <CardContent class="p-3">
                 <ScrollArea class="h-full">
@@ -110,9 +108,7 @@
                       </GridItem>
                       <GridItem :span="2">
                         <Button variant="ghost" size="icon" @click="removeFilterItem(index)">
-                          <Icon>
-                            <Delete />
-                          </Icon>
+                          <span class="i-carbon-delete h-4 w-4" />
                         </Button>
                       </GridItem>
                     </Grid>
@@ -168,7 +164,6 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Add, Delete } from '@vicons/carbon';
 import { useMessageService, useLoadingBarService } from '@/composables';
 import { SplitPane } from '@/components/ui/split-pane';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -183,7 +178,6 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Spinner } from '@/components/ui/spinner';
 import {

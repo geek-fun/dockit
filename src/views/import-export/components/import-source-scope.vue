@@ -2,7 +2,7 @@
   <Card class="step-card">
     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="step-header">
-        <Icon :size="20" color="#18a058" :component="UploadIcon" />
+        <span class="i-carbon-document h-5 w-5" style="color: #18a058" />
         <span class="step-title">{{ $t('import.sourceScope') }}</span>
       </div>
       <span class="step-badge">{{ $t('export.step') }} 02</span>
@@ -12,7 +12,7 @@
       <div v-if="!hasTarget" class="empty-state">
         <Empty :description="$t('import.selectTargetFirst')">
           <template #icon>
-            <Icon :size="48" :component="UploadIcon" />
+            <span class="i-carbon-document h-12 w-12" />
           </template>
         </Empty>
       </div>
@@ -30,7 +30,7 @@
               ]"
               @click="handleSelectMetadataFile"
             >
-              <Icon v-if="metadataComplete" :size="16" :component="Checkmark" />
+              <span v-if="metadataComplete" class="i-carbon-checkmark h-4 w-4" />
               <span v-else>1</span>
             </div>
             <span class="step-label">{{ $t('import.chooseMetadata') }}</span>
@@ -49,7 +49,7 @@
               ]"
               @click="handleSelectDataFile"
             >
-              <Icon v-if="dataComplete" :size="16" :component="Checkmark" />
+              <span v-if="dataComplete" class="i-carbon-checkmark h-4 w-4" />
               <span v-else>2</span>
             </div>
             <span class="step-label">{{ $t('import.chooseData') }}</span>
@@ -61,8 +61,8 @@
           <!-- Step 3: Ready -->
           <div :class="['step-node', { completed: allComplete, error: hasDataError }]">
             <div :class="['step-circle', { completed: allComplete, error: hasDataError }]">
-              <Icon v-if="allComplete" :size="16" :component="Checkmark" />
-              <Icon v-else-if="hasDataError" :size="16" :component="ErrorFilled" />
+              <span v-if="allComplete" class="i-carbon-checkmark h-4 w-4" />
+              <span v-else-if="hasDataError" class="i-carbon-error-filled h-4 w-4" />
               <span v-else>3</span>
             </div>
             <span class="step-label">
@@ -74,18 +74,18 @@
         <!-- Selected Files -->
         <div v-if="importDataFile || importMetadataFile" class="selected-files">
           <div v-if="importMetadataFile" class="file-item">
-            <Icon :size="18" :component="DocumentAttachment" />
+            <span class="i-carbon-document-attachment h-4.5 w-4.5" />
             <span class="file-path">{{ importMetadataFile }}</span>
             <Button variant="ghost" size="icon" class="h-6 w-6" @click="clearMetadataFile">
-              <Icon :size="16" :component="Close" />
+              <span class="i-carbon-close h-4 w-4" />
             </Button>
           </div>
 
           <div v-if="importDataFile" class="file-item">
-            <Icon :size="18" :component="Document" />
+            <span class="i-carbon-document h-4.5 w-4.5" />
             <span class="file-path">{{ importDataFile }}</span>
             <Button variant="ghost" size="icon" class="h-6 w-6" @click="clearDataFile">
-              <Icon :size="16" :component="Close" />
+              <span class="i-carbon-close h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -116,7 +116,7 @@
               ]"
               @click="handleSelectDataFile"
             >
-              <Icon v-if="dataComplete" :size="16" :component="Checkmark" />
+              <span v-if="dataComplete" class="i-carbon-checkmark h-4 w-4" />
               <span v-else>1</span>
             </div>
             <span class="step-label">{{ $t('import.chooseData') }}</span>
@@ -128,8 +128,8 @@
           <!-- Step 2: Ready -->
           <div :class="['step-node', { completed: dataComplete, error: hasDataError }]">
             <div :class="['step-circle', { completed: dataComplete, error: hasDataError }]">
-              <Icon v-if="dataComplete" :size="16" :component="Checkmark" />
-              <Icon v-else-if="hasDataError" :size="16" :component="ErrorFilled" />
+              <span v-if="dataComplete" class="i-carbon-checkmark h-4 w-4" />
+              <span v-else-if="hasDataError" class="i-carbon-error-filled h-4 w-4" />
               <span v-else>2</span>
             </div>
             <span class="step-label">
@@ -141,10 +141,10 @@
         <!-- Selected Files -->
         <div v-if="importDataFile" class="selected-files">
           <div class="file-item">
-            <Icon :size="18" :component="Document" />
+            <span class="i-carbon-document h-4.5 w-4.5" />
             <span class="file-path">{{ importDataFile }}</span>
             <Button variant="ghost" size="icon" class="h-6 w-6" @click="clearDataFile">
-              <Icon :size="16" :component="Close" />
+              <span class="i-carbon-close h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -167,17 +167,13 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Document, DocumentAttachment, Checkmark, Close, ErrorFilled } from '@vicons/carbon';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useImportExportStore } from '../../../store';
 import { CustomError } from '../../../common';
 import { useMessageService } from '@/composables';
-
-const UploadIcon = Document;
 
 const message = useMessageService();
 

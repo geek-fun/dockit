@@ -2,7 +2,7 @@
   <Card class="execution-card flex flex-col h-full">
     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="execution-header">
-        <Icon :size="20" color="#f0a020" :component="Flash" />
+        <span class="i-carbon-flash h-5 w-5" style="color: #f0a020" />
         <span class="execution-title">{{ $t('export.execution') }}</span>
       </div>
     </CardHeader>
@@ -88,7 +88,7 @@
           @click="handleStartExport"
         >
           <Spinner v-if="isExporting" class="mr-2 h-4 w-4" />
-          <Icon v-else :component="Download" class="mr-2" />
+          <span v-else class="i-carbon-download h-4 w-4 mr-2" />
           {{ $t('export.startExportTask') }}
         </Button>
         <p class="export-note">{{ $t('export.exportNote') }}</p>
@@ -99,9 +99,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Flash, Download } from '@vicons/carbon';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';

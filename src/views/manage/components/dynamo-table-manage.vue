@@ -48,10 +48,11 @@
             <CardContent class="p-4 flex flex-col gap-2">
               <span class="metric-label">{{ $t('manage.dynamo.pitr') }}</span>
               <div class="metric-value-status">
-                <Icon :class="pitrEnabled ? 'text-green-500' : 'text-red-500'" class="h-4 w-4">
-                  <CheckmarkFilled v-if="pitrEnabled" />
-                  <CloseFilled v-else />
-                </Icon>
+                <span
+                  v-if="pitrEnabled"
+                  class="i-carbon-checkmark-filled h-4 w-4 text-green-500"
+                />
+                <span v-else class="i-carbon-close-filled h-4 w-4 text-red-500" />
                 <span :class="pitrEnabled ? 'status-enabled' : 'status-disabled'">
                   {{ pitrEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
                 </span>
@@ -82,9 +83,7 @@
           <CardHeader>
             <div class="section-header">
               <div class="section-title">
-                <Icon class="h-4 w-4">
-                  <ChartLineData />
-                </Icon>
+                <span class="i-carbon-chart-line-data h-4 w-4" />
                 <span>{{ $t('manage.dynamo.performanceCapacity') }}</span>
               </div>
               <span class="time-range">{{ $t('manage.dynamo.last24Hours') }}</span>
@@ -214,9 +213,7 @@
           <CardHeader>
             <div class="section-header">
               <div class="section-title">
-                <Icon class="h-4 w-4">
-                  <TableSplit />
-                </Icon>
+                <span class="i-carbon-table-split h-4 w-4" />
                 <span>{{ $t('manage.dynamo.gsiTitle') }}</span>
               </div>
               <Button size="sm" @click="handleCreateIndex">
@@ -257,9 +254,7 @@
                     <TableCell>
                       <div class="action-buttons">
                         <Button variant="ghost" size="icon" @click="handleDeleteIndex(row)">
-                          <Icon class="h-4 w-4 text-destructive">
-                            <TrashCan />
-                          </Icon>
+                          <span class="i-carbon-trash-can h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </TableCell>
@@ -278,9 +273,7 @@
           <CardHeader>
             <div class="section-header">
               <div class="section-title">
-                <Icon class="h-4 w-4">
-                  <SettingsAdjust />
-                </Icon>
+                <span class="i-carbon-settings-adjust h-4 w-4" />
                 <span>{{ $t('manage.dynamo.tableSettings') }}</span>
               </div>
             </div>
@@ -302,9 +295,7 @@
               <div class="setting-item">
                 <div class="setting-header">
                   <span class="setting-label">{{ $t('manage.dynamo.encryption') }}</span>
-                  <Icon class="h-4 w-4">
-                    <Locked />
-                  </Icon>
+                  <span class="i-carbon-locked h-4 w-4" />
                 </div>
                 <span class="setting-value">{{ encryptionType }}</span>
               </div>
@@ -315,9 +306,7 @@
               >
                 <div class="setting-header">
                   <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
-                  <Icon class="h-4 w-4">
-                    <DataTable />
-                  </Icon>
+                  <span class="i-carbon-data-table h-4 w-4" />
                 </div>
                 <span class="setting-value">{{ tableClass }}</span>
               </div>
@@ -348,16 +337,6 @@ import { storeToRefs } from 'pinia';
 import { useMessageService } from '@/composables';
 import prettyBytes from 'pretty-bytes';
 import {
-  ChartLineData,
-  TableSplit,
-  SettingsAdjust,
-  Locked,
-  DataTable,
-  CheckmarkFilled,
-  CloseFilled,
-  TrashCan,
-} from '@vicons/carbon';
-import {
   useClusterManageStore,
   useDynamoManageStore,
   DatabaseType,
@@ -375,7 +354,6 @@ import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Empty } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
-import { Icon } from '@/components/ui/icon';
 import {
   Table,
   TableBody,

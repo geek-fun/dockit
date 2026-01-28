@@ -12,16 +12,12 @@
             <div class="connection-card-header-content">
               <CardTitle class="connection-card-title">{{ connection.name }}</CardTitle>
               <div class="connection-card-actions">
-                <Icon :size="24">
-                  <component :is="getDatabaseIcon(connection.type)" />
-                </Icon>
+                <component :is="getDatabaseIcon(connection.type)" class="h-6 w-6" />
                 <div class="operation" @click.stop="">
                   <DropdownMenu>
                     <DropdownMenuTrigger as-child>
                       <Button variant="ghost" size="icon" class="dropdown-trigger-btn">
-                        <Icon :size="20">
-                          <MoreOutlined />
-                        </Icon>
+                        <span class="i-carbon-overflow-menu-vertical h-5 w-5" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
@@ -80,7 +76,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 import { useDialogService, useMessageService } from '@/composables';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
@@ -88,7 +83,6 @@ import elasticsearch from '../../../assets/svg/elasticsearch.svg';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { Connection, DatabaseType, useConnectionStore } from '../../../store';
-import { MoreOutlined } from '@vicons/antd';
 import FloatingMenu from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';

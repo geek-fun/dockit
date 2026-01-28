@@ -3,9 +3,10 @@
     <TooltipProvider>
       <Tooltip v-for="toolBar in toolBarList" :key="toolBar.id">
         <TooltipTrigger as-child>
-          <Icon size="26" class="tool-bar-item" @click="handleToolBarAction(toolBar.id)">
-            <component :is="toolBar.icon" />
-          </Icon>
+          <span
+            :class="[toolBar.iconClass, 'tool-bar-item h-6 w-6']"
+            @click="handleToolBarAction(toolBar.id)"
+          />
         </TooltipTrigger>
         <TooltipContent>
           {{ toolBar.title }}
@@ -30,13 +31,11 @@
 </template>
 
 <script setup lang="ts">
-import { DocumentAdd, FolderAdd, FolderOpen } from '@vicons/carbon';
 import { ContextMenuAction, SortBy, ToolBarAction, useFileStore } from '../../../store';
 import { useLang } from '../../../lang';
 import NewFileDialog from './new-file-dialog.vue';
 import PathBreadcrumb from '../../../components/path-breadcrumb.vue';
 import { storeToRefs } from 'pinia';
-import { Icon } from '@/components/ui/icon';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Select,
@@ -63,17 +62,17 @@ const sortOptions = computed(() => [
 const toolBarList = [
   {
     id: ToolBarAction.ADD_DOCUMENT,
-    icon: DocumentAdd,
+    iconClass: 'i-carbon-document-add',
     title: lang.t('file.newFile'),
   },
   {
     id: ToolBarAction.ADD_FOLDER,
-    icon: FolderAdd,
+    iconClass: 'i-carbon-folder-add',
     title: lang.t('file.newFolder'),
   },
   {
     id: ToolBarAction.OPEN_FOLDER,
-    icon: FolderOpen,
+    iconClass: 'i-carbon-folder-open',
     title: lang.t('file.open'),
   },
 ];

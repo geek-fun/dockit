@@ -11,11 +11,9 @@
       <CardContent class="pt-6">
         <p>
           <span>{{ $t('manage.cluster') }}</span>
-          <Icon :size="24">
-            <CheckmarkOutline v-if="props.cluster?.status == 'green'" />
-            <WarningAlt v-else-if="props.cluster?.status == 'yellow'" />
-            <MisuseOutline v-else-if="props.cluster?.status == 'red'" />
-          </Icon>
+          <span v-if="props.cluster?.status == 'green'" class="i-carbon-checkmark-outline h-6 w-6 ml-2 align-middle" />
+          <span v-else-if="props.cluster?.status == 'yellow'" class="i-carbon-warning-alt h-6 w-6 ml-2 align-middle" />
+          <span v-else-if="props.cluster?.status == 'red'" class="i-carbon-misuse-outline h-6 w-6 ml-2 align-middle" />
         </p>
         <p>name: {{ props.cluster?.cluster_name }}</p>
         <p>id: {{ props.cluster?.cluster_uuid }}</p>
@@ -54,10 +52,8 @@
 
 <script setup lang="ts">
 import prettyBytes from 'pretty-bytes';
-import { CheckmarkOutline, WarningAlt, MisuseOutline } from '@vicons/carbon';
 import { RawClusterStats } from '../../../store';
 import { Card, CardContent } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
 
 const props = defineProps<{ cluster: RawClusterStats | undefined }>();
 </script>

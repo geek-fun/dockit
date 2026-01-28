@@ -12,9 +12,7 @@
           :class="{ active: item.id === `${selectedItemId}` }"
           @click="navClick(item)"
         >
-          <Icon :size="26">
-            <component :is="item.icon" />
-          </Icon>
+          <span :class="[item.iconClass, 'h-6 w-6']" />
         </div>
       </the-aside-icon>
     </TooltipProvider>
@@ -22,11 +20,9 @@
 </template>
 
 <script setup lang="ts">
-import { markRaw, ref } from 'vue';
-import { ChatBot } from '@vicons/carbon';
+import { ref } from 'vue';
 import TheAsideIcon from './the-aside-icon.vue';
 import ChatbotBox from './chatbot-box.vue';
-import { Icon } from '@/components/ui/icon';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 const selectedItemId = ref(-1);
@@ -42,7 +38,7 @@ const navClick = async (item: any) => {
 const smallNavList = ref([
   {
     id: 'chat-bot',
-    icon: markRaw(ChatBot),
+    iconClass: 'i-carbon-chat-bot',
     name: 'chatBot',
   },
 ]);

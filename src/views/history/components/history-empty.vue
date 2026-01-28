@@ -1,9 +1,7 @@
 <template>
   <div class="history-empty-content">
     <div class="icon-box">
-      <Icon :size="48" class="text-muted-foreground">
-        <FileSearchOutlined />
-      </Icon>
+      <span class="i-carbon-search h-12 w-12 text-muted-foreground" />
     </div>
     <div class="main-desc">{{ $t('history.empty') }}</div>
     <div class="second-desc">{{ $t('history.emptyDesc') }}</div>
@@ -11,8 +9,6 @@
 </template>
 
 <script lang="ts" setup>
-import { FileSearchOutlined } from '@vicons/antd';
-import { Icon } from '@/components/ui/icon';
 </script>
 
 <style scoped>

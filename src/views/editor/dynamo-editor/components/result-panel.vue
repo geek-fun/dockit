@@ -4,7 +4,7 @@
       <CardHeader class="p-3 flex flex-row items-center justify-between">
         <CardTitle class="text-base">{{ $t('editor.dynamo.partiql.error') }}</CardTitle>
         <Button v-if="closable" variant="ghost" size="icon" @click="handleClose">
-          <Icon><Close /></Icon>
+          <span class="i-carbon-close h-4 w-4" />
         </Button>
       </CardHeader>
       <CardContent class="p-3">
@@ -19,7 +19,7 @@
             {{ $t('editor.dynamo.partiql.itemsReturned', { count: itemCount }) }}
           </span>
           <Button v-if="closable" variant="ghost" size="icon" @click="handleClose">
-            <Icon><Close /></Icon>
+            <span class="i-carbon-close h-4 w-4" />
           </Button>
         </div>
       </CardHeader>
@@ -54,10 +54,10 @@
                     <template v-if="col.key === 'actions'">
                       <div class="flex gap-2">
                         <Button size="icon" variant="ghost" @click="$emit('edit', row)">
-                          <Icon><Edit /></Icon>
+                          <span class="i-carbon-edit h-4 w-4" />
                         </Button>
                         <Button size="icon" variant="ghost" @click="handleDeleteClick(row)">
-                          <Icon><TrashCan /></Icon>
+                          <span class="i-carbon-trash-can h-4 w-4" />
                         </Button>
                       </div>
                     </template>
@@ -104,7 +104,7 @@
       <CardHeader class="p-3 flex flex-row items-center justify-between">
         <CardTitle class="text-base">{{ $t('editor.dynamo.resultTitle') }}</CardTitle>
         <Button v-if="closable" variant="ghost" size="icon" @click="handleClose">
-          <Icon><Close /></Icon>
+          <span class="i-carbon-close h-4 w-4" />
         </Button>
       </CardHeader>
       <CardContent class="p-3">
@@ -126,10 +126,8 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
-import { Close, Edit, TrashCan } from '@vicons/carbon';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 import {
   Table,
   TableBody,

@@ -7,7 +7,7 @@
           class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           @click="handleClose"
         >
-          <Icon :size="20" :component="X" />
+          <X class="h-5 w-5" />
         </button>
       </DialogHeader>
 
@@ -62,7 +62,7 @@
               {{ $t('editor.dynamo.editableAttributes') }}
             </span>
             <Button variant="ghost" size="icon" class="h-6 w-6" @click="addAttribute">
-              <Icon :size="16" :component="Add" />
+              <span class="i-carbon-add h-4 w-4" />
             </Button>
           </div>
           <Grid
@@ -133,7 +133,7 @@
             </GridItem>
             <GridItem :span="2">
               <Button variant="ghost" size="icon" @click="removeAttribute(index)">
-                <Icon :size="16" :component="Delete" />
+                <span class="i-carbon-delete h-4 w-4" />
               </Button>
             </GridItem>
           </Grid>
@@ -152,7 +152,6 @@
 </template>
 
 <script setup lang="ts">
-import { Add, Delete } from '@vicons/carbon';
 import { X } from 'lucide-vue-next';
 import { useLang } from '../../../../lang';
 
@@ -167,7 +166,6 @@ import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { InputNumber } from '@/components/ui/input-number';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';

@@ -1,15 +1,11 @@
 <template>
   <Button class="floating-button" variant="default" size="icon" @click="handleAddClick">
-    <Icon :size="32">
-      <Add />
-    </Icon>
+    <span class="i-carbon-add h-8 w-8" />
   </Button>
 </template>
 
 <script setup lang="ts">
-import { Add } from '@vicons/carbon';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 
 const emit = defineEmits(['add']);
 const handleAddClick = () => {

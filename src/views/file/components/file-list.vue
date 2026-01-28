@@ -11,12 +11,11 @@
           @contextmenu.prevent="showContextMenu($event, file)"
         >
           <div class="file-icon">
-            <Icon v-if="file.type === PathTypeEnum.FOLDER" size="36" color="#0e7a0d">
-              <Folder />
-            </Icon>
-            <Icon v-else size="36" color="#666">
-              <Document />
-            </Icon>
+            <span
+              v-if="file.type === PathTypeEnum.FOLDER"
+              class="i-carbon-folder h-9 w-9 text-green-600"
+            />
+            <span v-else class="i-carbon-document h-9 w-9 text-gray-500" />
           </div>
           <div class="file-info">
             <span class="file-item-name">{{ file.name }}</span>
@@ -47,14 +46,12 @@
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { ContextMenuAction, useFileStore } from '../../../store';
-import { Folder, Document } from '@vicons/carbon';
 import { useLang } from '../../../lang';
 import ContextMenu from './context-menu.vue';
 import NewFileDialog from './new-file-dialog.vue';
 import { PathInfo, PathTypeEnum } from '../../../datasources';
 import prettyBytes from 'pretty-bytes';
 import { useMessageService } from '@/composables';
-import { Icon } from '@/components/ui/icon';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 const router = useRouter();

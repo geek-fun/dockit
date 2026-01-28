@@ -2,7 +2,7 @@
   <Card class="step-card">
     <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="step-header">
-        <Icon :size="20" color="#18a058" :component="DocumentExport" />
+        <span class="i-carbon-document-export h-5 w-5" style="color: #18a058" />
         <span class="step-title">{{ $t('export.targetOutput') }}</span>
       </div>
       <span class="step-badge">{{ $t('export.step') }} 03</span>
@@ -47,7 +47,7 @@
           <div class="destination-path-row">
             <div class="folder-selector" @click="handleSelectFolder">
               <Button variant="outline" size="icon">
-                <Icon :component="FolderOpen" />
+                <span class="i-carbon-folder-open h-4 w-4" />
               </Button>
               <Input
                 :model-value="folderPath || $t('export.selectFolderPlaceholder')"
@@ -79,9 +79,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { DocumentExport, FolderOpen } from '@vicons/carbon';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
-import { Icon } from '@/components/ui/icon';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

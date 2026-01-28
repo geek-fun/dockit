@@ -25,7 +25,7 @@
                 v-if="themeType === theme.type"
                 class="absolute top-2 right-2 h-6 w-6 rounded-full bg-primary flex items-center justify-center shadow-lg"
               >
-                <CheckOutlined class="w-4 h-4 text-primary-foreground" />
+                <span class="i-carbon-checkmark w-4 h-4 text-primary-foreground" />
               </div>
             </div>
             <div class="text-center">
@@ -74,7 +74,6 @@ import lightImg from '../../../assets/img/theme-light.png';
 import darkImg from '../../../assets/img/theme-dark.png';
 import autoImg from '../../../assets/img/theme-auto.png';
 import { LanguageType, ThemeType, useAppStore } from '../../../store';
-import { CheckOutlined } from '@vicons/antd';
 import { lang } from '../../../lang';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
