@@ -1,7 +1,6 @@
 html,
 body,
-#app,
-.n-config-provider {
+#app {
   height: 100%;
   width: 100%;
 }

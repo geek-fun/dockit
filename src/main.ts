@@ -8,9 +8,9 @@ import piniaPluginPersistence from 'pinia-plugin-persistedstate';
 // UnoCSS utilities - virtual import
 import 'virtual:uno.css';
 
-// Legacy styles - keeping for backward compatibility during migration
+// Base styles
 import './assets/styles/normalize.css';
-import './assets/styles/theme.scss';
+import './assets/styles/theme.css';
 
 // Tailwind/shadcn-vue styles
 import './assets/styles/tailwind.css';
