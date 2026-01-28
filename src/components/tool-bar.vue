@@ -485,10 +485,6 @@ const handleEditorSwitch = async (
   min-width: 50px;
 }
 
-.action-index-switch {
-  cursor: pointer;
-}
-
 .manage-container {
   margin-left: auto;
   margin-right: 10px;

@@ -108,7 +108,6 @@ defineExpose({
 }
 
 .close-icon {
-  cursor: pointer;
   position: absolute;
   right: 16px;
   top: 16px;
@@ -144,7 +143,6 @@ defineExpose({
   background: none;
   border: none;
   padding: 4px;
-  cursor: pointer;
   color: inherit;
   opacity: 0.7;
   transition: opacity 0.2s;

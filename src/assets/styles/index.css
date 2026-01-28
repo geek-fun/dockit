@@ -34,30 +34,31 @@
     --tool-bar-height: 40px;
   }
 
-  /* Dark Mode */
+  /* Dark Mode - Modern design with better contrast */
   [theme='dark'] {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --background: 222 14% 10%;
+    --foreground: 210 20% 95%;
+    --card: 222 14% 12%;
+    --card-foreground: 210 20% 95%;
+    --popover: 222 14% 12%;
+    --popover-foreground: 210 20% 95%;
     --primary: 144 52% 45%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 217 10% 20%;
+    --secondary-foreground: 210 20% 95%;
     --destructive: 341 73% 47%;
     --destructive-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
+    --muted: 217 10% 18%;
+    --muted-foreground: 215 15% 65%;
+    --accent: 217 10% 22%;
+    --accent-foreground: 210 20% 95%;
+    --border: 217 10% 28%;
+    --input: 217 10% 25%;
     --ring: 144 52% 45%;
   }
 
   /* Base Styles */
+  /* stylelint-disable-next-line at-rule-no-unknown */
   * {
     @apply border-border;
   }
@@ -69,9 +70,15 @@
     width: 100%;
   }
 
+  /* stylelint-disable-next-line at-rule-no-unknown */
   body {
     @apply bg-background text-foreground;
     transition: 0.3s;
     font-size: 14px;
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
   }
 }

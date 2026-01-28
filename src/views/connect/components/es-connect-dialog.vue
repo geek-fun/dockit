@@ -42,27 +42,29 @@
                       placeholder="http://localhost"
                       @input="handleHostInput"
                     />
-                    <Tooltip>
-                      <TooltipTrigger as-child>
-                        <button
-                          type="button"
-                          class="inline-flex items-center justify-center px-3 border border-l-0 border-input rounded-r-md bg-muted hover:bg-accent"
-                          @click="switchSSL(!formData.sslCertVerification)"
-                        >
-                          <span
-                            :class="[
-                              formData.sslCertVerification
-                                ? 'i-carbon-locked ssl-checked-icon'
-                                : 'i-carbon-unlocked ssl-unchecked-icon',
-                              'h-6 w-6',
-                            ]"
-                          />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <span>{{ $t('connection.sslCertVerification') }}</span>
-                      </TooltipContent>
-                    </Tooltip>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <button
+                            type="button"
+                            class="inline-flex items-center justify-center px-3 border border-l-0 border-input rounded-r-md bg-muted hover:bg-accent"
+                            @click="switchSSL(!formData.sslCertVerification)"
+                          >
+                            <span
+                              :class="[
+                                formData.sslCertVerification
+                                  ? 'i-carbon-locked ssl-checked-icon'
+                                  : 'i-carbon-unlocked ssl-unchecked-icon',
+                                'h-6 w-6',
+                              ]"
+                            />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <span>{{ $t('connection.sslCertVerification') }}</span>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <p
                     v-if="validationErrors.host || hostValidate.feedback"
@@ -174,7 +176,7 @@ import { InputNumber } from '@/components/ui/input-number';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Grid, GridItem } from '@/components/ui/grid';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const { freshConnection, saveConnection } = useConnectionStore();
 const lang = useLang();

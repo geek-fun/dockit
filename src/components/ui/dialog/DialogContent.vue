@@ -64,7 +64,6 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits);
   border-radius: 0.125rem;
   opacity: 0.7;
   transition: opacity 0.2s;
-  cursor: pointer;
   background: transparent;
   border: none;
   padding: 0;

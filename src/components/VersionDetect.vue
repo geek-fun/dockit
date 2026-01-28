@@ -193,7 +193,6 @@ onMounted(async () => {
   justify-content: center;
   border: none;
   background: transparent;
-  cursor: pointer;
   color: hsl(var(--muted-foreground));
   border-radius: 8px;
   transition:
@@ -225,7 +224,6 @@ onMounted(async () => {
   color: hsl(var(--muted-foreground));
   font-size: 13px;
   font-weight: 500;
-  cursor: pointer;
   transition: color 0.2s;
 }
 
@@ -236,10 +234,6 @@ onMounted(async () => {
 .action-buttons {
   display: flex;
   gap: 8px;
-}
-
-.action-buttons :deep(button) {
-  cursor: pointer;
 }
 
 .version-action-button {
