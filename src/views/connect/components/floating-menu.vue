@@ -1,10 +1,13 @@
 <template>
   <Button class="floating-button" variant="default" size="icon" @click="handleAddClick">
-    <Icon icon="Add" :size="32" />
+    <Icon :size="32">
+      <Add />
+    </Icon>
   </Button>
 </template>
 
 <script setup lang="ts">
+import { Add } from '@vicons/carbon';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 
