@@ -1,26 +1,27 @@
 <template>
-  <n-modal v-model:show="dialogVisible" :mask-closable="false" class="version-detect-modal">
-    <n-card
-      style="width: 400px"
-      :title="$t('version.newVersion')"
-      :bordered="false"
-      role="dialog"
-      aria-modal="true"
+  <Dialog v-model:open="dialogVisible">
+    <DialogContent
+      class="version-detect-modal sm:max-w-[400px]"
+      :show-close="false"
+      @interact-outside="(event: Event) => event.preventDefault()"
     >
+      <DialogHeader>
+        <DialogTitle>{{ $t('version.newVersion') }}</DialogTitle>
+      </DialogHeader>
       <div class="version-info-box">
         <span>{{ $t('version.message') }} ({{ version }})?</span>
       </div>
-      <template #footer>
+      <DialogFooter>
         <div class="action-button-group">
-          <n-button type="warning" secondary @click="skip">{{ $t('version.skip') }}</n-button>
-          <n-button type="tertiary" secondary @click="later">{{ $t('version.later') }}</n-button>
-          <n-button type="primary" secondary @click="download">
+          <Button variant="outline" @click="skip">{{ $t('version.skip') }}</Button>
+          <Button variant="secondary" @click="later">{{ $t('version.later') }}</Button>
+          <Button variant="default" @click="download">
             {{ $t('version.download') }}
-          </n-button>
+          </Button>
         </div>
-      </template>
-    </n-card>
-  </n-modal>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -28,6 +29,14 @@ import { getVersion } from '@tauri-apps/api/app';
 import { open } from '@tauri-apps/plugin-shell';
 import { storeToRefs } from 'pinia';
 import { useAppStore } from '../store';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 const appStore = useAppStore();
 const { skipVersion } = storeToRefs(appStore);
@@ -86,20 +95,14 @@ onMounted(async () => {
 });
 </script>
 
-<style scoped lang="scss">
-.version-detect-modal {
-  position: fixed;
-  right: 10px;
-  bottom: 10px;
-  width: 400px; /* adjust as needed */
-  .version-info-box {
-    margin: 20px 0;
-  }
+<style scoped>
+.version-info-box {
+  margin: 20px 0;
+}
 
-  .action-button-group {
-    margin-left: 50px;
-    display: flex;
-    justify-content: space-between;
-  }
+.action-button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>
