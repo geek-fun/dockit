@@ -292,6 +292,7 @@ const showMedal = (con: ElasticsearchConnection | null) => {
   if (con) {
     const selectedIndex = con.activeIndex?.index || '';
     formData.value = { ...cloneDeep(con), selectedIndex };
+    veeResetForm({ values: { ...cloneDeep(con), selectedIndex } });
     modalTitle.value = lang.t('connection.edit');
   } else {
     formData.value = cloneDeep(defaultFormData);

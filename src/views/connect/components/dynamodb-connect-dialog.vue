@@ -215,6 +215,7 @@ const showMedal = (con: DynamoDBConnection | null) => {
   successMessage.value = '';
   if (con) {
     formData.value = { ...con };
+    veeResetForm({ values: { ...con } });
     modalTitle.value = lang.t('connection.edit');
   } else {
     formData.value = cloneDeep(defaultFormData);

@@ -90,6 +90,10 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+import { useForm } from 'vee-validate';
+import { toTypedSchema } from '@vee-validate/zod';
+import * as z from 'zod';
 import { useMessageService } from '@/composables';
 import { CustomError, jsonify } from '../../../common';
 import { useClusterManageStore } from '../../../store';
@@ -137,9 +141,7 @@ const formData = ref<{
   body: string | null;
 }>({ ...defaultFormData });
 
-const errors = ref<{ indexName?: string; body?: string }>({});
-
-const isValidJson = (value: string | null): boolean => {
+const isValidJson = (value: string | null | undefined): boolean => {
   if (!value) return true;
   try {
     jsonify.parse(value);
@@ -149,19 +151,43 @@ const isValidJson = (value: string | null): boolean => {
   }
 };
 
-const validateForm = () => {
-  errors.value = {};
+// Zod validation schema
+const formSchema = toTypedSchema(
+  z.object({
+    indexName: z.string().min(1, lang.t('manage.index.newIndexForm.indexRequired')),
+    shards: z.number().nullable().optional(),
+    replicas: z.number().nullable().optional(),
+    master_timeout: z.number().nullable().optional(),
+    wait_for_active_shards: z.number().nullable().optional(),
+    timeout: z.number().nullable().optional(),
+    body: z
+      .string()
+      .nullable()
+      .optional()
+      .refine(val => isValidJson(val), {
+        message: lang.t('manage.index.newIndexForm.bodyJsonRequired'),
+      }),
+  }),
+);
 
-  if (!formData.value.indexName?.trim()) {
-    errors.value.indexName = lang.t('manage.index.newIndexForm.indexRequired');
-  }
+const {
+  errors,
+  validate,
+  resetForm: veeResetForm,
+  setValues,
+} = useForm({
+  validationSchema: formSchema,
+  initialValues: { ...defaultFormData },
+});
 
-  if (!isValidJson(formData.value.body)) {
-    errors.value.body = lang.t('manage.index.newIndexForm.bodyJsonRequired');
-  }
-
-  return Object.keys(errors.value).length === 0;
-};
+// Watch formData changes and sync with vee-validate
+watch(
+  formData,
+  newVal => {
+    setValues(newVal);
+  },
+  { deep: true },
+);
 
 const validationPassed = computed(() => {
   return !!formData.value.indexName?.trim() && isValidJson(formData.value.body);
@@ -178,12 +204,14 @@ const toggleModal = () => {
 const closeModal = () => {
   showIndexModal.value = false;
   formData.value = { ...defaultFormData };
-  errors.value = {};
+  veeResetForm({ values: { ...defaultFormData } });
 };
 
 const submitCreate = async (event: MouseEvent) => {
   event.preventDefault();
-  if (!validateForm()) return;
+
+  const { valid } = await validate();
+  if (!valid) return;
 
   createLoading.value = true;
   try {

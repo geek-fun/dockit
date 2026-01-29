@@ -145,7 +145,7 @@
                     aria-label="Remove attribute"
                     @click="removeProjectedAttribute(index)"
                   >
-                    ×
+                    <X class="w-3 h-3" />
                   </button>
                 </Badge>
               </div>
@@ -280,7 +280,7 @@
             aria-label="Dismiss error"
             @click="errorMessage = ''"
           >
-            ×
+            <X class="w-4 h-4" />
           </button>
         </AlertDescription>
       </Alert>
@@ -300,6 +300,10 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue';
+import { X } from 'lucide-vue-next';
+import { useForm } from 'vee-validate';
+import { toTypedSchema } from '@vee-validate/zod';
+import * as z from 'zod';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { useClusterManageStore, DatabaseType } from '../../../store';
@@ -370,6 +374,31 @@ const formValue = ref({
   warmWriteUnits: 0,
 });
 
+// Zod validation schema for basic fields
+const formSchema = toTypedSchema(
+  z.object({
+    indexName: z.string().min(1, lang.t('manage.dynamo.indexNameRequired')),
+  }),
+);
+
+const {
+  errors: veeErrors,
+  validate,
+  resetForm: veeResetForm,
+  setValues,
+} = useForm({
+  validationSchema: formSchema,
+  initialValues: { indexName: '' },
+});
+
+// Watch indexName changes and sync with vee-validate
+watch(
+  () => formValue.value.indexName,
+  newVal => {
+    setValues({ indexName: newVal });
+  },
+);
+
 const baseTableCapacityMode = computed(() => {
   return baseTableInfo.value?.billingMode || 'PAY_PER_REQUEST';
 });
@@ -400,11 +429,15 @@ const projectionOptions = [
   { label: 'INCLUDE', value: 'INCLUDE' },
 ];
 
-const validateForm = (): boolean => {
+const validateForm = async (): Promise<boolean> => {
   errors.value = {};
 
-  if (!formValue.value.indexName?.trim()) {
-    errors.value.indexName = lang.t('manage.dynamo.indexNameRequired');
+  // Validate with vee-validate
+  const { valid } = await validate();
+
+  // Copy vee-validate errors to our errors object
+  if (veeErrors.value.indexName) {
+    errors.value.indexName = veeErrors.value.indexName;
   }
 
   const hasValidPartitionKey = formValue.value.partitionKeyAttributes.some(
@@ -415,7 +448,7 @@ const validateForm = (): boolean => {
     errors.value.partitionKey = lang.t('manage.dynamo.partitionKeyRequired');
   }
 
-  return Object.keys(errors.value).length === 0;
+  return valid && Object.keys(errors.value).length === 0;
 };
 
 const addPartitionKeyAttribute = () => {
@@ -465,8 +498,8 @@ const fetchBaseTableInfo = async () => {
     const warmWrite = baseTableInfo.value?.warmThroughput?.writeUnitsPerSecond || 0;
     formValue.value.warmReadUnits = warmRead;
     formValue.value.warmWriteUnits = warmWrite;
-  } catch (error) {
-    console.error('Failed to fetch base table info:', error);
+  } catch {
+    // Failed to fetch base table info - continue with default values
   }
 };
 
@@ -488,6 +521,7 @@ watch(
         warmReadUnits: 0,
         warmWriteUnits: 0,
       };
+      veeResetForm({ values: { indexName: '' } });
       errors.value = {};
       errorMessage.value = '';
       loading.value = false;
@@ -508,7 +542,8 @@ const handleCancel = () => {
 };
 
 const handleSubmit = async () => {
-  if (!validateForm()) {
+  const isValid = await validateForm();
+  if (!isValid) {
     return;
   }
 
