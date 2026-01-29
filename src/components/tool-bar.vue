@@ -198,7 +198,13 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { useClusterManageStore, useConnectionStore, useTabStore, DatabaseType } from '../store';
+import {
+  useClusterManageStore,
+  useConnectionStore,
+  useTabStore,
+  DatabaseType,
+  ElasticsearchConnection,
+} from '../store';
 import { useLang } from '../lang';
 import { CustomError } from '../common';
 import { esSampleQueries } from '../common/monaco';
@@ -273,7 +279,11 @@ const connectionSelectValue = computed(() => {
 });
 
 const indexSelectValue = computed(() => {
-  return activePanel?.value?.connection?.activeIndex?.index;
+  const conn = activePanel?.value?.connection;
+  if (conn && conn.type === DatabaseType.ELASTICSEARCH) {
+    return (conn as ElasticsearchConnection).activeIndex?.index;
+  }
+  return undefined;
 });
 
 const esSampleQueryOptions = computed(() => [
@@ -457,14 +467,6 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
       return;
     }
     selectIndex(selectedConnection, value);
-  }
-};
-
-const handleSearch = async (input: string, type: 'CONNECTION' | 'INDEX') => {
-  if (type === 'CONNECTION') {
-    filterRef.value.connection = input;
-  } else {
-    filterRef.value.index = input;
   }
 };
 

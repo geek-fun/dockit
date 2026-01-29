@@ -7,7 +7,7 @@
           class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           @click="closeModal"
         >
-          <Icon :size="20" :component="X" />
+          <X class="h-4 w-4" />
         </button>
       </DialogHeader>
 
@@ -29,12 +29,18 @@
           </AlertDescription>
         </Alert>
 
-        <Form>
+        <Form @submit.prevent="saveConnect">
           <FormItem :label="$t('connection.name')" required>
             <Input v-model="formData.name" :placeholder="$t('connection.name')" />
+            <p v-if="errors.name" class="text-sm text-destructive mt-1">
+              {{ errors.name }}
+            </p>
           </FormItem>
           <FormItem :label="$t('connection.tableName')" required>
             <Input v-model="formData.tableName" :placeholder="$t('connection.tableName')" />
+            <p v-if="errors.tableName" class="text-sm text-destructive mt-1">
+              {{ errors.tableName }}
+            </p>
           </FormItem>
           <FormItem :label="$t('connection.region')" required>
             <Select v-model="formData.region">
@@ -51,9 +57,15 @@
                 </SelectItem>
               </SelectContent>
             </Select>
+            <p v-if="errors.region" class="text-sm text-destructive mt-1">
+              {{ errors.region }}
+            </p>
           </FormItem>
           <FormItem :label="$t('connection.accessKeyId')" required>
             <Input v-model="formData.accessKeyId" :placeholder="$t('connection.accessKeyId')" />
+            <p v-if="errors.accessKeyId" class="text-sm text-destructive mt-1">
+              {{ errors.accessKeyId }}
+            </p>
           </FormItem>
           <FormItem :label="$t('connection.secretAccessKey')" required>
             <Input
@@ -61,17 +73,16 @@
               type="password"
               :placeholder="$t('connection.secretAccessKey')"
             />
+            <p v-if="errors.secretAccessKey" class="text-sm text-destructive mt-1">
+              {{ errors.secretAccessKey }}
+            </p>
           </FormItem>
         </Form>
       </div>
 
       <DialogFooter class="flex justify-between sm:justify-between">
         <div class="left">
-          <Button
-            variant="secondary"
-            :disabled="!validationPassed || testLoading"
-            @click="testConnect"
-          >
+          <Button variant="secondary" :disabled="!isFormValid || testLoading" @click="testConnect">
             <span v-if="testLoading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
             {{ $t('connection.test') }}
           </Button>
@@ -80,7 +91,7 @@
           <Button variant="outline" @click="closeModal">
             {{ $t('dialogOps.cancel') }}
           </Button>
-          <Button :disabled="!validationPassed || saveLoading" @click="saveConnect">
+          <Button :disabled="!isFormValid || saveLoading" @click="saveConnect">
             <span v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
             {{ $t('dialogOps.confirm') }}
           </Button>
@@ -91,9 +102,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { X } from 'lucide-vue-next';
 import { cloneDeep } from 'lodash';
+import { useForm } from 'vee-validate';
+import { toTypedSchema } from '@vee-validate/zod';
+import * as z from 'zod';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { useConnectionStore } from '../../../store';
@@ -110,7 +124,6 @@ import {
 import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
@@ -148,6 +161,18 @@ const regionOptions = [
   { label: 'Europe (Ireland)', value: 'eu-west-1' },
 ];
 
+// Zod validation schema
+const formSchema = toTypedSchema(
+  z.object({
+    name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
+    tableName: z.string().min(1, lang.t('connection.formValidation.tableNameRequired')),
+    region: z.string().min(1, lang.t('connection.formValidation.regionRequired')),
+    accessKeyId: z.string().min(1, lang.t('connection.formValidation.accessKeyIdRequired')),
+    secretAccessKey: z.string().min(1, lang.t('connection.formValidation.secretAccessKeyRequired')),
+    type: z.nativeEnum(DatabaseType),
+  }),
+);
+
 const defaultFormData = {
   name: '',
   type: DatabaseType.DYNAMODB,
@@ -158,6 +183,25 @@ const defaultFormData = {
 } as DynamoDBConnection;
 
 const formData = ref<DynamoDBConnection>(cloneDeep(defaultFormData));
+
+const {
+  errors,
+  validate,
+  resetForm: veeResetForm,
+  setValues,
+} = useForm({
+  validationSchema: formSchema,
+  initialValues: cloneDeep(defaultFormData),
+});
+
+// Watch formData changes and sync with vee-validate
+watch(
+  formData,
+  newVal => {
+    setValues(newVal);
+  },
+  { deep: true },
+);
 
 const handleOpenChange = (open: boolean) => {
   if (!open) {
@@ -172,18 +216,22 @@ const showMedal = (con: DynamoDBConnection | null) => {
   if (con) {
     formData.value = { ...con };
     modalTitle.value = lang.t('connection.edit');
+  } else {
+    formData.value = cloneDeep(defaultFormData);
+    veeResetForm({ values: cloneDeep(defaultFormData) });
   }
 };
 
 const closeModal = () => {
   showModal.value = false;
   formData.value = cloneDeep(defaultFormData);
+  veeResetForm({ values: cloneDeep(defaultFormData) });
   modalTitle.value = lang.t('connection.new');
   errorMessage.value = '';
   successMessage.value = '';
 };
 
-const validationPassed = computed(() => {
+const isFormValid = computed(() => {
   return (
     formData.value.name &&
     formData.value.tableName &&
@@ -196,6 +244,13 @@ const validationPassed = computed(() => {
 const testConnect = async () => {
   errorMessage.value = '';
   successMessage.value = '';
+
+  const { valid } = await validate();
+  if (!valid) {
+    errorMessage.value = lang.t('connection.validationFailed');
+    return;
+  }
+
   testLoading.value = true;
   const startTime = Date.now();
 
@@ -235,9 +290,16 @@ const testConnect = async () => {
 };
 
 const saveConnect = async () => {
-  saveLoading.value = true;
   errorMessage.value = '';
   successMessage.value = '';
+
+  const { valid } = await validate();
+  if (!valid) {
+    errorMessage.value = lang.t('connection.validationFailed');
+    return;
+  }
+
+  saveLoading.value = true;
   const result = await connectionStore.saveConnection(formData.value);
   if (result.success) {
     // Success - just close the modal without showing a message

@@ -4,10 +4,10 @@
       <DialogHeader>
         <DialogTitle>{{ modalTitle }}</DialogTitle>
         <button
-          class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring"
+          class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           @click="closeModal"
         >
-          <X class="w-4 h-4" />
+          <X class="h-4 w-4" />
         </button>
       </DialogHeader>
 
@@ -21,13 +21,13 @@
           </AlertDescription>
         </Alert>
 
-        <Form>
+        <Form @submit.prevent="saveConnect">
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
               <FormItem :label="$t('connection.name')" required>
                 <Input v-model="formData.name" :placeholder="$t('connection.name')" />
-                <p v-if="validationErrors.name" class="text-sm text-destructive mt-1">
-                  {{ validationErrors.name }}
+                <p v-if="errors.name" class="text-sm text-destructive mt-1">
+                  {{ errors.name }}
                 </p>
               </FormItem>
             </GridItem>
@@ -67,10 +67,10 @@
                     </TooltipProvider>
                   </div>
                   <p
-                    v-if="validationErrors.host || hostValidate.feedback"
+                    v-if="errors.host || hostValidate.feedback"
                     class="text-sm text-destructive mt-1"
                   >
-                    {{ validationErrors.host || hostValidate.feedback }}
+                    {{ errors.host || hostValidate.feedback }}
                   </p>
                 </FormItem>
               </GridItem>
@@ -82,8 +82,8 @@
                     :show-button="false"
                     :placeholder="$t('connection.port')"
                   />
-                  <p v-if="validationErrors.port" class="text-sm text-destructive mt-1">
-                    {{ validationErrors.port }}
+                  <p v-if="errors.port" class="text-sm text-destructive mt-1">
+                    {{ errors.port }}
                   </p>
                 </FormItem>
               </GridItem>
@@ -128,11 +128,7 @@
 
       <DialogFooter class="flex justify-between sm:justify-between">
         <div class="left">
-          <Button
-            variant="secondary"
-            :disabled="!validationPassed || testLoading"
-            @click="testConnect"
-          >
+          <Button variant="secondary" :disabled="!isFormValid || testLoading" @click="testConnect">
             <span v-if="testLoading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
             {{ $t('connection.test') }}
           </Button>
@@ -141,7 +137,7 @@
           <Button variant="outline" @click="closeModal">
             {{ $t('dialogOps.cancel') }}
           </Button>
-          <Button :disabled="!validationPassed || saveLoading" @click="saveConnect">
+          <Button :disabled="!isFormValid || saveLoading" @click="saveConnect">
             <span v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
             {{ $t('dialogOps.confirm') }}
           </Button>
@@ -152,9 +148,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { X } from 'lucide-vue-next';
 import { cloneDeep } from 'lodash';
+import { useForm } from 'vee-validate';
+import { toTypedSchema } from '@vee-validate/zod';
+import * as z from 'zod';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import {
   Connection,
@@ -205,42 +204,46 @@ const formData = ref<ElasticsearchConnection & { selectedIndex: string }>(
   cloneDeep(defaultFormData),
 );
 
-const validationErrors = ref<{
-  name?: string;
-  host?: string;
-  port?: string;
-}>({});
-
 const hostValidate = ref<{
   status: 'error' | undefined;
   feedback: string;
 }>({ status: undefined, feedback: '' });
 
-const validateForm = (): boolean => {
-  validationErrors.value = {};
-  let isValid = true;
+// Zod validation schema
+const formSchema = toTypedSchema(
+  z.object({
+    name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
+    host: z.string().min(1, lang.t('connection.formValidation.hostRequired')),
+    port: z.number({ required_error: lang.t('connection.formValidation.portRequired') }).min(1),
+    username: z.string().optional(),
+    password: z.string().optional(),
+    selectedIndex: z.string().optional(),
+    queryParameters: z.string().optional(),
+    sslCertVerification: z.boolean().optional(),
+    type: z.nativeEnum(DatabaseType),
+  }),
+);
 
-  if (!formData.value.name || formData.value.name.trim() === '') {
-    validationErrors.value.name = lang.t('connection.formValidation.nameRequired');
-    isValid = false;
-  }
+const {
+  errors,
+  validate,
+  resetForm: veeResetForm,
+  setValues,
+} = useForm({
+  validationSchema: formSchema,
+  initialValues: cloneDeep(defaultFormData),
+});
 
-  if (formData.value.type === DatabaseType.ELASTICSEARCH) {
-    if (!formData.value.host || formData.value.host.trim() === '') {
-      validationErrors.value.host = lang.t('connection.formValidation.hostRequired');
-      isValid = false;
-    }
+// Watch formData changes and sync with vee-validate
+watch(
+  formData,
+  newVal => {
+    setValues(newVal);
+  },
+  { deep: true },
+);
 
-    if (formData.value.port === null || formData.value.port === undefined) {
-      validationErrors.value.port = lang.t('connection.formValidation.portRequired');
-      isValid = false;
-    }
-  }
-
-  return isValid;
-};
-
-const validationPassed = computed(() => {
+const isFormValid = computed(() => {
   const hasName = formData.value.name && formData.value.name.trim() !== '';
   const hasHost = formData.value.host && formData.value.host.trim() !== '';
   const hasPort = formData.value.port !== null && formData.value.port !== undefined;
@@ -285,30 +288,37 @@ const handleOpenChange = (open: boolean) => {
 const showMedal = (con: ElasticsearchConnection | null) => {
   showModal.value = true;
   errorMessage.value = '';
-  validationErrors.value = {};
+  hostValidate.value = { status: undefined, feedback: '' };
   if (con) {
     const selectedIndex = con.activeIndex?.index || '';
     formData.value = { ...cloneDeep(con), selectedIndex };
     modalTitle.value = lang.t('connection.edit');
+  } else {
+    formData.value = cloneDeep(defaultFormData);
+    veeResetForm({ values: cloneDeep(defaultFormData) });
   }
 };
 
 const closeModal = () => {
   showModal.value = false;
   formData.value = cloneDeep(defaultFormData);
+  veeResetForm({ values: cloneDeep(defaultFormData) });
   modalTitle.value = lang.t('connection.new');
   errorMessage.value = '';
-  validationErrors.value = {};
+  hostValidate.value = { status: undefined, feedback: '' };
 };
 
-const testConnect = (event: MouseEvent) => {
+const testConnect = async (event: MouseEvent) => {
   event.preventDefault();
   errorMessage.value = '';
-  if (validateForm()) {
-    testConnectConfirm();
-  } else {
+
+  const { valid } = await validate();
+  if (!valid) {
     errorMessage.value = lang.t('connection.validationFailed');
+    return;
   }
+
+  testConnectConfirm();
 };
 
 const testConnectConfirm = async () => {
@@ -343,14 +353,17 @@ const testConnectConfirm = async () => {
   }
 };
 
-const saveConnect = (event: MouseEvent) => {
+const saveConnect = async (event: MouseEvent) => {
   event.preventDefault();
   errorMessage.value = '';
-  if (validateForm()) {
-    saveConnectConfirm();
-  } else {
+
+  const { valid } = await validate();
+  if (!valid) {
     errorMessage.value = lang.t('connection.validationFailed');
+    return;
   }
+
+  saveConnectConfirm();
 };
 
 const saveConnectConfirm = async () => {
