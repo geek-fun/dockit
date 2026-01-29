@@ -23,7 +23,9 @@ const props = defineProps<
   >
     <slot />
     <SelectIcon as-child>
-      <ChevronDown class="w-4 h-4 opacity-50" />
+      <slot name="icon">
+        <ChevronDown class="w-4 h-4 opacity-50" />
+      </slot>
     </SelectIcon>
   </SelectTrigger>
 </template>

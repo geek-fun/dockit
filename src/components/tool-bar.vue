@@ -6,17 +6,29 @@
       @update:open="isOpen => handleOpen(isOpen, 'CONNECTION')"
     >
       <SelectTrigger class="connection-select">
-        <SelectValue :placeholder="$t('connection.selectConnection')" />
+        <input
+          v-if="selectionState.connection"
+          ref="connectionSearchInput"
+          v-model="filterRef.connection"
+          class="select-trigger-input"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          :placeholder="connectionSelectValue || $t('connection.selectConnection')"
+          @click.stop
+        />
+        <span v-else-if="connectionSelectValue" class="select-value-text">
+          {{ connectionSelectValue }}
+        </span>
+        <span v-else class="select-placeholder-text">{{ $t('connection.selectConnection') }}</span>
+        <SelectValue class="sr-only" :placeholder="$t('connection.selectConnection')" />
+        <template #icon>
+          <span v-if="selectionState.connection" class="i-carbon-search h-4 w-4 opacity-50" />
+          <span v-else class="i-carbon-chevron-down h-4 w-4 opacity-50" />
+        </template>
       </SelectTrigger>
       <SelectContent>
-        <div class="select-search-container">
-          <input
-            v-model="filterRef.connection"
-            class="select-search-input"
-            :placeholder="$t('connection.selectConnection')"
-            @input="e => handleSearch((e.target as HTMLInputElement).value, 'CONNECTION')"
-          />
-        </div>
         <SelectItem v-for="option in options.connection" :key="option.value" :value="option.value">
           {{ option.label }}
         </SelectItem>
@@ -26,21 +38,32 @@
 
     <Select
       v-if="props.type === 'ES_EDITOR'"
+      :model-value="indexSelectValue"
       @update:model-value="value => handleUpdate(value as string, 'INDEX')"
       @update:open="isOpen => handleOpen(isOpen, 'INDEX')"
     >
       <SelectTrigger class="index-select">
-        <SelectValue :placeholder="$t('connection.selectIndex')" />
+        <input
+          v-if="selectionState.index"
+          ref="indexSearchInput"
+          v-model="filterRef.index"
+          class="select-trigger-input"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          :placeholder="indexSelectValue || $t('connection.selectIndex')"
+          @click.stop
+        />
+        <span v-else-if="indexSelectValue" class="select-value-text">{{ indexSelectValue }}</span>
+        <span v-else class="select-placeholder-text">{{ $t('connection.selectIndex') }}</span>
+        <SelectValue class="sr-only" :placeholder="$t('connection.selectIndex')" />
+        <template #icon>
+          <span v-if="selectionState.index" class="i-carbon-search h-4 w-4 opacity-50" />
+          <span v-else class="i-carbon-chevron-down h-4 w-4 opacity-50" />
+        </template>
       </SelectTrigger>
       <SelectContent>
-        <div class="select-search-container">
-          <input
-            v-model="filterRef.index"
-            class="select-search-input"
-            :placeholder="$t('connection.selectIndex')"
-            @input="e => handleSearch((e.target as HTMLInputElement).value, 'INDEX')"
-          />
-        </div>
         <SelectItem v-for="option in options.index" :key="option.value" :value="option.value">
           {{ option.label }}
         </SelectItem>
@@ -232,6 +255,9 @@ const isElasticsearchConnection = computed(() => {
 const loadingRef = ref({ connection: false, index: false });
 
 const filterRef = ref({ connection: '', index: '' });
+const connectionSearchInput = ref<HTMLInputElement>();
+const indexSearchInput = ref<HTMLInputElement>();
+
 const selectionState = ref<{ connection: boolean; index: boolean }>({
   connection: false,
   index: false,
@@ -244,6 +270,10 @@ const connectionSelectValue = computed(() => {
   return ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
     ? activePanel?.value?.connection?.name
     : connection?.value?.name;
+});
+
+const indexSelectValue = computed(() => {
+  return activePanel?.value?.connection?.activeIndex?.index;
 });
 
 const esSampleQueryOptions = computed(() => [
@@ -330,12 +360,18 @@ const options = computed(
     ({
       connection: connections.value
         .filter(
-          ({ name }) => !filterRef.value.connection || name.includes(filterRef.value.connection),
+          ({ name }) =>
+            !filterRef.value.connection ||
+            name.toLowerCase().includes(filterRef.value.connection.toLowerCase()),
         )
         .map(({ name }) => ({ label: name, value: name })),
       index: activeElasticsearchIndexOption.value
         ?.filter(index => (hideSystemIndicesRef.value ? !index.value.startsWith('.') : true))
-        .filter(index => !filterRef.value.index || index.value.includes(filterRef.value.index)),
+        .filter(
+          index =>
+            !filterRef.value.index ||
+            index.value.toLowerCase().includes(filterRef.value.index.toLowerCase()),
+        ),
     }) as Record<string, { label: string; value: string }[]>,
 );
 
@@ -348,6 +384,16 @@ const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX') => {
   // @ts-ignore
   selectionState.value[type.toLowerCase()] = true;
   filterRef.value = { connection: '', index: '' }; // reset filters for each time it open
+
+  // Focus search input after state update
+  setTimeout(() => {
+    if (type === 'CONNECTION' && connectionSearchInput.value) {
+      connectionSearchInput.value.focus();
+    } else if (type === 'INDEX' && indexSearchInput.value) {
+      indexSearchInput.value.focus();
+    }
+  }, 0);
+
   if (type === 'CONNECTION') {
     loadingRef.value.connection = true;
     await fetchConnections();
@@ -492,26 +538,40 @@ const handleEditorSwitch = async (
 
 .connection-select {
   margin: 0;
-  padding: 0;
+  padding: 0 12px;
+  height: 35px;
   max-width: 300px;
   min-width: 200px;
+  border: none;
   border-right: 1px solid hsl(var(--border));
   border-radius: 0;
-  border-top: none;
-  border-bottom: none;
-  border-left: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.connection-select:focus {
+  outline: none;
+  ring: 0;
+  box-shadow: none;
 }
 
 .index-select {
   margin: 0;
-  padding: 0;
+  padding: 0 12px;
+  height: 35px;
   max-width: 300px;
   min-width: 200px;
+  border: none;
   border-right: 1px solid hsl(var(--border));
   border-radius: 0;
-  border-top: none;
-  border-bottom: none;
-  border-left: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.index-select:focus {
+  outline: none;
+  ring: 0;
+  box-shadow: none;
 }
 
 .select-search-container {
@@ -563,5 +623,46 @@ const handleEditorSwitch = async (
 
 .mr-1 {
   margin-right: 4px;
+}
+
+.select-value-text {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select-trigger-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  padding: 0;
+  width: 100%;
+}
+
+.select-trigger-input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.select-placeholder-text {
+  flex: 1;
+  text-align: left;
+  color: hsl(var(--muted-foreground));
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 </style>
