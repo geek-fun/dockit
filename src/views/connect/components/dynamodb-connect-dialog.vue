@@ -16,7 +16,7 @@
           <AlertDescription class="flex items-center justify-between">
             {{ successMessage }}
             <button class="ml-2 hover:opacity-70 cursor-pointer" @click="successMessage = ''">
-              ×
+              <X class="w-4 h-4" />
             </button>
           </AlertDescription>
         </Alert>
@@ -24,7 +24,7 @@
           <AlertDescription class="flex items-center justify-between">
             {{ errorMessage }}
             <button class="ml-2 hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
-              ×
+              <X class="w-4 h-4" />
             </button>
           </AlertDescription>
         </Alert>

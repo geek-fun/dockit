@@ -79,8 +79,8 @@ const decrement = () => {
   <div
     :class="
       cn(
-        'flex h-10 w-full rounded-md border border-input bg-background text-sm ring-offset-background',
-        'focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
+        'flex h-10 w-full rounded-md border border-border bg-background text-sm',
+        'focus-within:ring-1 focus-within:ring-ring',
         disabled && 'cursor-not-allowed opacity-50',
         props.class,
       )
@@ -102,7 +102,7 @@ const decrement = () => {
       "
       @input="handleInput"
     />
-    <div v-if="showButton" class="flex flex-col border-l">
+    <div v-if="showButton" class="flex flex-col border-l border-border">
       <button
         type="button"
         :disabled="disabled || (max !== undefined && (inputValue ?? 0) >= max)"
@@ -114,7 +114,7 @@ const decrement = () => {
       <button
         type="button"
         :disabled="disabled || (min !== undefined && (inputValue ?? 0) <= min)"
-        class="flex-1 px-2 border-t hover:bg-muted disabled:opacity-50"
+        class="flex-1 px-2 border-t border-border hover:bg-muted disabled:opacity-50"
         @click="decrement"
       >
         <span class="text-xs">▼</span>

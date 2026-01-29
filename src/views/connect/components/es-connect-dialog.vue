@@ -4,10 +4,10 @@
       <DialogHeader>
         <DialogTitle>{{ modalTitle }}</DialogTitle>
         <button
-          class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-1 focus:ring-ring"
           @click="closeModal"
         >
-          <span class="i-lucide-x h-5 w-5" />
+          <X class="w-4 h-4" />
         </button>
       </DialogHeader>
 
@@ -16,7 +16,7 @@
           <AlertDescription class="flex items-center justify-between">
             {{ errorMessage }}
             <button class="ml-2 hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
-              ×
+              <X class="w-4 h-4" />
             </button>
           </AlertDescription>
         </Alert>
@@ -153,6 +153,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { X } from 'lucide-vue-next';
 import { cloneDeep } from 'lodash';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import {

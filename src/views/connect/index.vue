@@ -14,7 +14,7 @@
           class="tab-close-btn"
           @click.stop="handleTabChange(panel.name, 'CLOSE')"
         >
-          ×
+          <X class="w-3 h-3" />
         </button>
       </div>
     </TabsList>
@@ -44,6 +44,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { X } from 'lucide-vue-next';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Connection, DatabaseType, useTabStore } from '../../store';
 import ConnectList from './components/connect-list.vue';
@@ -144,10 +145,11 @@ onMounted(async () => {
   flex-shrink: 0;
   width: 100%;
   justify-content: flex-start;
-  background-color: hsl(var(--background));
+  background-color: hsl(var(--muted));
   border-radius: 0;
   height: auto;
   padding: 0;
+  border-bottom: 1px solid hsl(var(--border));
 }
 
 .tab-trigger-wrapper {

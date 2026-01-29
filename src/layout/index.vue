@@ -1,7 +1,7 @@
 <template>
   <div class="layout-container">
     <the-aside />
-    <div class="right-layout">
+    <div class="main-layout">
       <router-main />
     </div>
     <tool-bar-right />
@@ -21,7 +21,7 @@ import ToolBarRight from './components/tool-bar-right.vue';
   display: flex;
 }
 
-.right-layout {
+.main-layout {
   flex: 1;
   width: 0;
 }

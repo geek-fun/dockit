@@ -106,8 +106,13 @@
                           />
                         </FormItem>
                       </GridItem>
-                      <GridItem :span="2">
-                        <Button variant="ghost" size="icon" @click="removeFilterItem(index)">
+                      <GridItem :span="2" class="flex items-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          type="button"
+                          @click.prevent="removeFilterItem(index)"
+                        >
                           <span class="i-carbon-delete h-4 w-4" />
                         </Button>
                       </GridItem>

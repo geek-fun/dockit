@@ -1,7 +1,7 @@
 <template>
   <div class="editor-setting space-y-6 max-w-3xl">
     <!-- Font Size Setting -->
-    <div class="py-4 px-5 border rounded-lg bg-card space-y-3">
+    <div class="py-4 px-5 border-border border rounded-lg bg-card space-y-3">
       <div>
         <h4 class="text-sm font-semibold">{{ $t('setting.editor.fontSize') }}</h4>
         <p class="text-xs text-muted-foreground mt-1">
@@ -19,7 +19,7 @@
     </div>
 
     <!-- Font Weight Setting -->
-    <div class="py-4 px-5 border rounded-lg bg-card space-y-3">
+    <div class="py-4 px-5 border-border border rounded-lg bg-card space-y-3">
       <div>
         <h4 class="text-sm font-semibold">{{ $t('setting.editor.fontWeight') }}</h4>
         <p class="text-xs text-muted-foreground mt-1">
@@ -78,7 +78,7 @@
 
     <!-- Line Numbers Toggle -->
     <div
-      class="flex items-center justify-between py-4 px-5 border rounded-lg bg-card hover:bg-accent/20 transition-colors"
+      class="flex items-center justify-between py-4 px-5 border-border border rounded-lg bg-card hover:bg-accent/20 transition-colors"
     >
       <div class="space-y-0.5">
         <h4 class="text-sm font-semibold">{{ $t('setting.editor.showLineNumbers') }}</h4>
@@ -89,7 +89,7 @@
 
     <!-- Minimap Toggle -->
     <div
-      class="flex items-center justify-between py-4 px-5 border rounded-lg bg-card hover:bg-accent/20 transition-colors"
+      class="flex items-center justify-between py-4 px-5 border-border border rounded-lg bg-card hover:bg-accent/20 transition-colors"
     >
       <div class="space-y-0.5">
         <h4 class="text-sm font-semibold">{{ $t('setting.editor.showMinimap') }}</h4>

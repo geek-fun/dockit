@@ -107,7 +107,7 @@
         <AlertDescription class="flex items-center justify-between">
           <span>{{ errorMessage }}</span>
           <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
-            ×
+            <X class="w-4 h-4" />
           </button>
         </AlertDescription>
       </Alert>
@@ -127,6 +127,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { X } from 'lucide-vue-next';
 import {
   Dialog,
   DialogContent,

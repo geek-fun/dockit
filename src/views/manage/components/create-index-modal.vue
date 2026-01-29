@@ -145,7 +145,7 @@
                     aria-label="Remove attribute"
                     @click="removeProjectedAttribute(index)"
                   >
-                    ×
+                    <X class="w-3 h-3" />
                   </button>
                 </Badge>
               </div>
@@ -280,7 +280,7 @@
             aria-label="Dismiss error"
             @click="errorMessage = ''"
           >
-            ×
+            <X class="w-4 h-4" />
           </button>
         </AlertDescription>
       </Alert>
@@ -300,6 +300,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue';
+import { X } from 'lucide-vue-next';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { useClusterManageStore, DatabaseType } from '../../../store';

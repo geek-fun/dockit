@@ -743,19 +743,13 @@ defineExpose({
 
 :deep(.partiql-execute-decoration) {
   cursor: pointer;
-  height: 0;
   width: 0;
-  margin-top: 3px;
-  margin-left: 8px;
-  border-radius: 3px;
-  border-left-width: 10px;
-  border-top-width: 7px;
-  border-bottom-width: 7px;
-  border-right-width: 0;
-  border-top-color: transparent;
-  border-left-color: hsl(var(--primary));
-  border-bottom-color: transparent;
-  border-right-color: transparent;
+  height: 0;
+  margin-top: 0;
+  margin-left: 4px;
+  border-radius: 4px;
   border-style: solid;
+  border-width: 10px 0 10px 12px;
+  border-color: transparent transparent transparent hsl(var(--primary));
 }
 </style>

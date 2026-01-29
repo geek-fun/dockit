@@ -29,52 +29,50 @@
           </Button>
         </div>
       </CardHeader>
-      <CardContent class="p-3">
+      <CardContent class="p-0 table-wrapper">
         <div class="table-container">
-          <ScrollArea class="h-full">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead
-                    v-for="col in tableColumnsWithActions"
-                    :key="col.key"
-                    :style="{ minWidth: col.width ? `${col.width}px` : '120px' }"
-                  >
-                    {{ col.title }}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-if="loading">
-                  <TableCell :colspan="tableColumnsWithActions.length" class="text-center py-8">
-                    <Spinner class="mx-auto" />
-                  </TableCell>
-                </TableRow>
-                <TableRow v-else-if="data.length === 0">
-                  <TableCell :colspan="tableColumnsWithActions.length" class="text-center py-8">
-                    <Empty :description="$t('editor.dynamo.noData')" />
-                  </TableCell>
-                </TableRow>
-                <TableRow v-for="(row, rowIndex) in paginatedData" v-else :key="rowIndex">
-                  <TableCell v-for="col in tableColumnsWithActions" :key="col.key">
-                    <template v-if="col.key === 'actions'">
-                      <div class="flex gap-2">
-                        <Button size="icon" variant="ghost" @click="$emit('edit', row)">
-                          <span class="i-carbon-edit h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" @click="handleDeleteClick(row)">
-                          <span class="i-carbon-trash-can h-4 w-4" />
-                        </Button>
-                      </div>
-                    </template>
-                    <template v-else>
-                      {{ formatCellValue(row[col.key]) }}
-                    </template>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </ScrollArea>
+          <Table>
+            <TableHeader class="sticky-header">
+              <TableRow>
+                <TableHead
+                  v-for="col in tableColumnsWithActions"
+                  :key="col.key"
+                  :style="{ minWidth: col.width ? `${col.width}px` : '120px' }"
+                >
+                  {{ col.title }}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-if="loading">
+                <TableCell :colspan="tableColumnsWithActions.length" class="text-center py-8">
+                  <Spinner class="mx-auto" />
+                </TableCell>
+              </TableRow>
+              <TableRow v-else-if="data.length === 0">
+                <TableCell :colspan="tableColumnsWithActions.length" class="text-center py-8">
+                  <Empty :description="$t('editor.dynamo.noData')" />
+                </TableCell>
+              </TableRow>
+              <TableRow v-for="(row, rowIndex) in paginatedData" v-else :key="rowIndex">
+                <TableCell v-for="col in tableColumnsWithActions" :key="col.key">
+                  <template v-if="col.key === 'actions'">
+                    <div class="flex gap-2">
+                      <Button size="icon" variant="ghost" @click="$emit('edit', row)">
+                        <span class="i-carbon-edit h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="ghost" @click="handleDeleteClick(row)">
+                        <span class="i-carbon-trash-can h-4 w-4" />
+                      </Button>
+                    </div>
+                  </template>
+                  <template v-else>
+                    {{ formatCellValue(row[col.key]) }}
+                  </template>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </div>
         <!-- Pagination -->
         <div v-if="pagination && !hasNextToken" class="flex items-center justify-end gap-2 mt-4">
@@ -284,7 +282,8 @@ const handleClose = () => {
 .result-panel {
   width: 100%;
   height: 100%;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .header-extra {
@@ -298,11 +297,51 @@ const handleClose = () => {
 .success-card {
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+:deep(.table-wrapper) {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .table-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+:deep(.table-container table) {
+  display: flex;
+  flex-direction: column;
   height: 100%;
+}
+
+:deep(.sticky-header) {
+  position: sticky;
+  top: 0;
+  background-color: hsl(var(--card));
+  z-index: 10;
+  box-shadow: 0 1px 0 0 hsl(var(--border));
+  display: table-header-group;
+}
+
+:deep(.table-container tbody) {
+  flex: 1;
   overflow-y: auto;
+  overflow-x: auto;
+  display: block;
+}
+
+:deep(.table-container thead),
+:deep(.table-container tbody tr) {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
 }
 
 .close-btn {

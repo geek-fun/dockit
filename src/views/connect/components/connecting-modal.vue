@@ -1,20 +1,19 @@
 <template>
   <Dialog :open="showModal" @update:open="handleDialogOpenChange">
     <DialogContent
-      class="connecting-modal-card"
-      :show-close="false"
+      class="connecting-modal-card !p-0"
       @interact-outside="(e: Event) => e.preventDefault()"
       @escape-key-down="(e: Event) => e.preventDefault()"
     >
-      <button class="close-icon" @click="handleCancel">
-        <Icon icon="Close" :size="24" />
-      </button>
+      <DialogHeader class="modal-header">
+        <DialogTitle>&nbsp;</DialogTitle>
+      </DialogHeader>
       <div class="modal-content">
         <Alert v-if="errorMessage" variant="destructive" class="alert-container">
           <AlertTitle>{{ $t('connection.connectionError') }}</AlertTitle>
           <AlertDescription>{{ errorMessage }}</AlertDescription>
           <button class="alert-close-btn" @click="errorMessage = ''">
-            <Icon icon="Close" :size="16" />
+            <X class="w-4 h-4" />
           </button>
         </Alert>
         <div v-if="!errorMessage" class="loading-container">
@@ -26,14 +25,14 @@
         <div v-if="!errorMessage" class="connecting-subtext">
           {{ $t('connection.connectingSubtext') }}
         </div>
-        <div class="button-container">
-          <Button v-if="errorMessage" variant="default" @click="handleRetry">
-            {{ $t('dialogOps.retry') }}
-          </Button>
-          <Button :variant="errorMessage ? 'outline' : 'secondary'" @click="handleCancel">
-            {{ $t('dialogOps.cancel') }}
-          </Button>
-        </div>
+      </div>
+      <div class="modal-footer">
+        <Button v-if="errorMessage" variant="default" @click="handleRetry">
+          {{ $t('dialogOps.retry') }}
+        </Button>
+        <Button :variant="errorMessage ? 'outline' : 'secondary'" @click="handleCancel">
+          {{ $t('dialogOps.cancel') }}
+        </Button>
       </div>
     </DialogContent>
   </Dialog>
@@ -41,11 +40,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { X } from 'lucide-vue-next';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Icon } from '@/components/ui/icon';
 
 const showModal = ref(false);
 const connectionName = ref('');
@@ -107,27 +106,15 @@ defineExpose({
   background-color: hsl(var(--background));
 }
 
-.close-icon {
-  position: absolute;
-  right: 16px;
-  top: 16px;
-  background: none;
-  border: none;
-  padding: 0;
-  color: inherit;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.close-icon:hover {
-  opacity: 1;
+.modal-header {
+  padding: calc(var(--spacing) * 6) calc(var(--spacing) * 6) 0;
 }
 
 .modal-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 0;
+  padding: 16px calc(var(--spacing) * 6) 16px;
 }
 
 .alert-container {
@@ -167,18 +154,19 @@ defineExpose({
 .connecting-subtext {
   font-size: 14px;
   color: hsl(var(--muted-foreground));
-  margin-bottom: 32px;
   text-align: center;
 }
 
-.button-container {
+.modal-footer {
   width: 100%;
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  padding: 8px 8px 8px 16px;
+  border-top: 1px solid hsl(var(--border));
 }
 
-.button-container button {
+.modal-footer button {
   min-width: 100px;
 }
 </style>

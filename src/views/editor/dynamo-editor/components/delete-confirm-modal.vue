@@ -21,7 +21,7 @@
           <AlertDescription class="flex items-center justify-between">
             {{ resultMessage }}
             <button class="ml-2 hover:opacity-70 cursor-pointer" @click="resultMessage = ''">
-              ×
+              <X class="w-4 h-4" />
             </button>
           </AlertDescription>
         </Alert>
