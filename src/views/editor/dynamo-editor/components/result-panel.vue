@@ -30,49 +30,67 @@
         </div>
       </CardHeader>
       <CardContent class="p-0 table-wrapper">
-        <div class="table-container">
-          <Table>
-            <TableHeader class="sticky-header">
-              <TableRow>
-                <TableHead
-                  v-for="col in tableColumnsWithActions"
-                  :key="col.key"
-                  :style="{ minWidth: col.width ? `${col.width}px` : '120px' }"
-                >
-                  {{ col.title }}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-if="loading">
-                <TableCell :colspan="tableColumnsWithActions.length" class="text-center py-8">
-                  <Spinner class="mx-auto" />
-                </TableCell>
-              </TableRow>
-              <TableRow v-else-if="data.length === 0">
-                <TableCell :colspan="tableColumnsWithActions.length" class="text-center py-8">
-                  <Empty :description="$t('editor.dynamo.noData')" />
-                </TableCell>
-              </TableRow>
-              <TableRow v-for="(row, rowIndex) in paginatedData" v-else :key="rowIndex">
-                <TableCell v-for="col in tableColumnsWithActions" :key="col.key">
-                  <template v-if="col.key === 'actions'">
-                    <div class="flex gap-2">
-                      <Button size="icon" variant="ghost" @click="$emit('edit', row)">
-                        <span class="i-carbon-edit h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" @click="handleDeleteClick(row)">
-                        <span class="i-carbon-trash-can h-4 w-4" />
-                      </Button>
-                    </div>
-                  </template>
-                  <template v-else>
-                    {{ formatCellValue(row[col.key]) }}
-                  </template>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+        <div class="table-scroll-wrapper">
+          <div class="table-container">
+            <Table>
+              <TableHeader class="sticky-header">
+                <TableRow>
+                  <TableHead
+                    v-for="col in tableColumnsWithActions"
+                    :key="col.key"
+                    :class="{ 'sticky-action-header': col.key === 'actions' }"
+                    :style="{ minWidth: col.width ? `${col.width}px` : '120px' }"
+                  >
+                    {{ col.title }}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-if="loading">
+                  <TableCell :colspan="tableColumnsWithActions.length" class="text-center py-8">
+                    <Spinner class="mx-auto" />
+                  </TableCell>
+                </TableRow>
+                <TableRow v-else-if="data.length === 0">
+                  <TableCell :colspan="tableColumnsWithActions.length" class="text-center py-8">
+                    <Empty :description="$t('editor.dynamo.noData')" />
+                  </TableCell>
+                </TableRow>
+                <TableRow v-for="(row, rowIndex) in paginatedData" v-else :key="rowIndex">
+                  <TableCell
+                    v-for="col in tableColumnsWithActions"
+                    :key="col.key"
+                    :class="{ 'sticky-action-cell': col.key === 'actions' }"
+                  >
+                    <template v-if="col.key === 'actions'">
+                      <div class="flex gap-2">
+                        <Button size="icon" variant="ghost" @click="$emit('edit', row)">
+                          <span class="i-carbon-edit h-4 w-4" />
+                        </Button>
+                        <Button size="icon" variant="ghost" @click="handleDeleteClick(row)">
+                          <span class="i-carbon-trash-can h-4 w-4" />
+                        </Button>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <TooltipProvider :delay-duration="300">
+                        <Tooltip>
+                          <TooltipTrigger as-child>
+                            <div class="cell-content">
+                              {{ formatCellValue(row[col.key]) }}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {{ formatCellValue(row[col.key]) }}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </template>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
         </div>
         <!-- Pagination -->
         <div v-if="pagination && !hasNextToken" class="flex items-center justify-end gap-2 mt-4">
@@ -143,6 +161,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Spinner } from '@/components/ui/spinner';
 import { Empty } from '@/components/ui/empty';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { DataTableColumn, PaginationProps } from '@/types';
 import { useLang } from '../../../../lang';
 import { useTabStore, DynamoDBConnection } from '../../../../store';
@@ -308,17 +327,24 @@ const handleClose = () => {
   flex-direction: column;
 }
 
-.table-container {
+.table-scroll-wrapper {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  overflow: auto;
+  max-height: calc(100vh - 300px);
+}
+
+.table-container {
+  min-width: 100%;
 }
 
 :deep(.table-container table) {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+  width: 100%;
+  min-width: max-content;
+  table-layout: auto;
+}
+
+:deep(.table-container thead) {
+  display: table-header-group;
 }
 
 :deep(.sticky-header) {
@@ -327,21 +353,51 @@ const handleClose = () => {
   background-color: hsl(var(--card));
   z-index: 10;
   box-shadow: 0 1px 0 0 hsl(var(--border));
-  display: table-header-group;
 }
 
 :deep(.table-container tbody) {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: auto;
-  display: block;
+  display: table-row-group;
 }
 
-:deep(.table-container thead),
+:deep(.table-container thead tr),
 :deep(.table-container tbody tr) {
-  display: table;
+  display: table-row;
+}
+
+:deep(.table-container thead th) {
+  white-space: nowrap;
+  padding: 12px 16px;
+}
+
+:deep(.sticky-action-header) {
+  position: sticky !important;
+  right: 0;
+  background-color: hsl(var(--card));
+  z-index: 11;
+  box-shadow: -1px 0 0 0 hsl(var(--border));
+}
+
+:deep(.sticky-action-cell) {
+  position: sticky !important;
+  right: 0;
+  background-color: hsl(var(--card));
+  z-index: 5;
+  box-shadow: -1px 0 0 0 hsl(var(--border));
+}
+
+:deep(.table-container tbody td) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.cell-content {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   width: 100%;
-  table-layout: fixed;
+  display: block;
 }
 
 .close-btn {
