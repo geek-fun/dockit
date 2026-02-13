@@ -36,7 +36,7 @@
     "json-with-bigint": "^3.5.2",
     "json5": "^2.2.3",
     "lodash": "^4.17.23",
-    "markdown-it": "^14.1.0",
+    "markdown-it": "^14.1.1",
     "monaco-editor": "^0.55.1",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
