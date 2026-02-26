@@ -1,17 +1,16 @@
-import {
-  defineConfig,
-  presetUno,
-  presetIcons,
-  presetWind,
-  transformerDirectives,
-  transformerVariantGroup,
-} from 'unocss';
+import { defineConfig, presetIcons, transformerDirectives, transformerVariantGroup } from 'unocss';
+import { presetWind4 } from '@unocss/preset-wind4';
 import presetAnimations from 'unocss-preset-animations';
 
 export default defineConfig({
   presets: [
-    presetUno(),
-    presetWind(),
+    presetWind4({
+      preflights: {
+        reset: true, // Built-in reset styles (replaces @unocss/reset)
+        theme: 'on-demand', // Generate theme CSS variables on-demand
+        property: true, // Generate @property rules for better optimization
+      },
+    }),
     presetIcons({
       scale: 1.2,
       warn: true,
@@ -19,18 +18,12 @@ export default defineConfig({
     presetAnimations(),
   ],
   transformers: [transformerDirectives(), transformerVariantGroup()],
-  // Content paths for scanning
   content: {
     filesystem: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
   },
-  // Theme configuration combining DocKit brand colors and shadcn-vue CSS variables
   theme: {
     colors: {
-      // DocKit brand colors
-      'dockit-primary': '#36ad6a',
-      'dockit-primary-hover': '#19934e',
-      'dockit-danger': '#cd2158',
-      // shadcn-vue semantic colors (CSS variable based)
+      // All colors reference CSS variables from src/assets/styles/index.css
       border: 'hsl(var(--border))',
       input: 'hsl(var(--input))',
       ring: 'hsl(var(--ring))',
@@ -65,12 +58,12 @@ export default defineConfig({
         foreground: 'hsl(var(--card-foreground))',
       },
     },
-    borderRadius: {
+    radius: {
       lg: 'var(--radius)',
       md: 'calc(var(--radius) - 2px)',
       sm: 'calc(var(--radius) - 4px)',
     },
-    container: {
+    containers: {
       center: true,
       padding: '2rem',
     },
@@ -83,17 +76,15 @@ export default defineConfig({
         'accordion-down': '0.2s',
         'accordion-up': '0.2s',
       },
-      timingFns: {
+      ease: {
         'accordion-down': 'ease-out',
         'accordion-up': 'ease-out',
       },
     },
   },
-  // Shortcuts for commonly used utility combinations
   shortcuts: {
     'flex-center': 'flex items-center justify-center',
     'flex-col-center': 'flex flex-col items-center justify-center',
   },
-  // SafeList for classes that might be dynamically generated
   safelist: [],
 });

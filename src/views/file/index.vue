@@ -10,7 +10,7 @@ import ToolBar from './components/tool-bar.vue';
 import FileList from './components/file-list.vue';
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .file-container {
   width: 100%;
   height: 100%;

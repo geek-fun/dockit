@@ -1,10 +1,8 @@
 <template>
-  <n-card class="step-card">
-    <template #header>
+  <Card class="step-card">
+    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="step-header">
-        <n-icon size="20" color="#18a058">
-          <DataStructured />
-        </n-icon>
+        <span class="i-carbon-data-structured h-5 w-5" style="color: #18a058" />
         <div class="step-title-container">
           <span class="step-title">{{ $t('import.schemaStructure') }}</span>
           <span v-if="hasSchemaData" class="step-subtitle">
@@ -14,138 +12,139 @@
           </span>
         </div>
       </div>
-    </template>
-    <template #header-extra>
       <div class="header-extra">
-        <n-button
+        <Button
           v-if="hasDataFile"
-          text
-          type="primary"
-          :loading="loading"
+          variant="ghost"
+          size="sm"
+          :disabled="loading"
           @click="handleRefreshSchema"
         >
           {{ $t('export.refresh') }}
-        </n-button>
+        </Button>
         <span class="step-badge">{{ $t('export.step') }} 03</span>
       </div>
-    </template>
-
-    <!-- Empty State: No data file selected -->
-    <div v-if="!hasDataFile" class="empty-state">
-      <n-empty :description="$t('import.selectDataFirst')">
-        <template #icon>
-          <n-icon size="48">
-            <DataStructured />
-          </n-icon>
-        </template>
-      </n-empty>
-    </div>
-
-    <!-- Schema Info -->
-    <div v-else class="schema-info">
-      <!-- Source Info (only for new collection with metadata) -->
-      <div v-if="isNewCollection && importMetadata" class="info-section">
-        <h4 class="section-title">{{ $t('import.sourceInfo') }}</h4>
-        <div class="info-grid">
-          <div class="info-item">
-            <span class="info-label">{{ $t('import.databaseType') }}</span>
-            <span class="info-value">
-              <n-tag :type="getDbTypeColor(importMetadata.source.dbType)">
-                {{ importMetadata.source.dbType.toUpperCase() }}
-              </n-tag>
-            </span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">{{ $t('import.sourceName') }}</span>
-            <span class="info-value">{{ importMetadata.source.sourceName }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">{{ $t('import.exportedAt') }}</span>
-            <span class="info-value">{{ formatDate(importMetadata.export.exportedAt) }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">{{ $t('import.rowCount') }}</span>
-            <span class="info-value">{{ formatNumber(importMetadata.export.rowCount) }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">{{ $t('import.schemaVersion') }}</span>
-            <span class="info-value">{{ importMetadata.version }}</span>
-          </div>
-          <div class="info-item">
-            <span class="info-label">{{ $t('import.format') }}</span>
-            <span class="info-value">{{ importMetadata.export.format.toUpperCase() }}</span>
-          </div>
-        </div>
+    </CardHeader>
+    <CardContent>
+      <!-- Empty State: No data file selected -->
+      <div v-if="!hasDataFile" class="empty-state">
+        <Empty :description="$t('import.selectDataFirst')">
+          <template #icon>
+            <span class="i-carbon-data-structured h-12 w-12" />
+          </template>
+        </Empty>
       </div>
 
-      <!-- Schema Comparison Table -->
-      <div v-if="importSchemaFields.length > 0" class="schema-section">
-        <h4 class="section-title">{{ $t('import.schemaComparison') }}</h4>
-        <div class="schema-table">
-          <div class="schema-header">
-            <span class="col-field">{{ $t('export.field') }}</span>
-            <span class="col-source-type">{{ $t('import.sourceType') }}</span>
-            <span class="col-target-type">{{ $t('import.targetType') }}</span>
-            <span class="col-match">{{ $t('import.matchStatus') }}</span>
-            <span class="col-exclude">{{ $t('import.exclude') }}</span>
-          </div>
-          <div class="schema-body">
-            <div
-              v-for="field in importSchemaFields"
-              :key="field.name"
-              :class="[
-                'schema-row',
-                { 'row-excluded': field.exclude, 'row-mismatch': !field.matched },
-              ]"
-            >
-              <span class="col-field">{{ field.name }}</span>
-              <span class="col-source-type">
-                <n-tag :type="getTypeColor(field.sourceType)" size="small">
-                  {{ field.sourceType }}
-                </n-tag>
+      <!-- Schema Info -->
+      <div v-else class="schema-info">
+        <!-- Source Info (only for new collection with metadata) -->
+        <div v-if="isNewCollection && importMetadata" class="info-section">
+          <h4 class="section-title">{{ $t('import.sourceInfo') }}</h4>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">{{ $t('import.databaseType') }}</span>
+              <span class="info-value">
+                <Badge :variant="getDbTypeVariant(importMetadata.source.dbType)">
+                  {{ importMetadata.source.dbType.toUpperCase() }}
+                </Badge>
               </span>
-              <span class="col-target-type">
-                <n-tag
-                  v-if="field.targetType !== '-'"
-                  :type="getTypeColor(field.targetType)"
-                  size="small"
-                >
-                  {{ field.targetType }}
-                </n-tag>
-                <span v-else class="no-match">-</span>
-              </span>
-              <span class="col-match">
-                <n-tag v-if="field.matched" type="success" size="small">
-                  {{ $t('import.matched') }}
-                </n-tag>
-                <n-tag v-else type="warning" size="small">
-                  {{ $t('import.notMatched') }}
-                </n-tag>
-              </span>
-              <span class="col-exclude">
-                <n-checkbox
-                  :checked="field.exclude"
-                  @update:checked="toggleFieldExclude(field.name)"
-                />
-              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ $t('import.sourceName') }}</span>
+              <span class="info-value">{{ importMetadata.source.sourceName }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ $t('import.exportedAt') }}</span>
+              <span class="info-value">{{ formatDate(importMetadata.export.exportedAt) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ $t('import.rowCount') }}</span>
+              <span class="info-value">{{ formatNumber(importMetadata.export.rowCount) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ $t('import.schemaVersion') }}</span>
+              <span class="info-value">{{ importMetadata.version }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">{{ $t('import.format') }}</span>
+              <span class="info-value">{{ importMetadata.export.format.toUpperCase() }}</span>
             </div>
           </div>
         </div>
-        <p class="schema-hint">{{ $t('import.excludeFieldsHint') }}</p>
-      </div>
 
-      <!-- Comments (only for new collection with metadata) -->
-      <div v-if="isNewCollection && importMetadata?.comments" class="comments-section">
-        <h4 class="section-title">{{ $t('import.comments') }}</h4>
-        <p class="comments-text">{{ importMetadata.comments }}</p>
+        <!-- Schema Comparison Table -->
+        <div v-if="importSchemaFields.length > 0" class="schema-section">
+          <h4 class="section-title">{{ $t('import.schemaComparison') }}</h4>
+          <div class="schema-table">
+            <div class="schema-header">
+              <span class="col-field">{{ $t('export.field') }}</span>
+              <span class="col-source-type">{{ $t('import.sourceType') }}</span>
+              <span class="col-target-type">{{ $t('import.targetType') }}</span>
+              <span class="col-match">{{ $t('import.matchStatus') }}</span>
+              <span class="col-exclude">{{ $t('import.exclude') }}</span>
+            </div>
+            <div class="schema-body">
+              <div
+                v-for="field in importSchemaFields"
+                :key="field.name"
+                :class="[
+                  'schema-row',
+                  { 'row-excluded': field.exclude, 'row-mismatch': !field.matched },
+                ]"
+              >
+                <span class="col-field">{{ field.name }}</span>
+                <span class="col-source-type">
+                  <Badge :variant="getTypeVariant(field.sourceType)" class="text-xs">
+                    {{ field.sourceType }}
+                  </Badge>
+                </span>
+                <span class="col-target-type">
+                  <Badge
+                    v-if="field.targetType !== '-'"
+                    :variant="getTypeVariant(field.targetType)"
+                    class="text-xs"
+                  >
+                    {{ field.targetType }}
+                  </Badge>
+                  <span v-else class="no-match">-</span>
+                </span>
+                <span class="col-match">
+                  <Badge v-if="field.matched" variant="success" class="text-xs">
+                    {{ $t('import.matched') }}
+                  </Badge>
+                  <Badge v-else variant="warning" class="text-xs">
+                    {{ $t('import.notMatched') }}
+                  </Badge>
+                </span>
+                <span class="col-exclude">
+                  <Checkbox
+                    :checked="field.exclude"
+                    @update:checked="toggleFieldExclude(field.name)"
+                  />
+                </span>
+              </div>
+            </div>
+          </div>
+          <p class="schema-hint">{{ $t('import.excludeFieldsHint') }}</p>
+        </div>
+
+        <!-- Comments (only for new collection with metadata) -->
+        <div v-if="isNewCollection && importMetadata?.comments" class="comments-section">
+          <h4 class="section-title">{{ $t('import.comments') }}</h4>
+          <p class="comments-text">{{ importMetadata.comments }}</p>
+        </div>
       </div>
-    </div>
-  </n-card>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { DataStructured } from '@vicons/carbon';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Empty } from '@/components/ui/empty';
+import { Badge, type BadgeVariants } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useImportExportStore } from '../../../store';
 
 const importExportStore = useImportExportStore();
@@ -183,16 +182,16 @@ const formatNumber = (num: number): string => {
   return num.toLocaleString();
 };
 
-const getDbTypeColor = (type: string): 'info' | 'success' | 'warning' | 'error' | 'default' => {
-  const typeColors: { [key: string]: 'info' | 'success' | 'warning' | 'error' | 'default' } = {
+const getDbTypeVariant = (type: string): BadgeVariants['variant'] => {
+  const typeVariants: { [key: string]: BadgeVariants['variant'] } = {
     elasticsearch: 'success',
     dynamodb: 'info',
   };
-  return typeColors[type.toLowerCase()] || 'default';
+  return typeVariants[type.toLowerCase()] || 'secondary';
 };
 
-const getTypeColor = (type: string): 'info' | 'success' | 'warning' | 'error' | 'default' => {
-  const typeColors: { [key: string]: 'info' | 'success' | 'warning' | 'error' | 'default' } = {
+const getTypeVariant = (type: string): BadgeVariants['variant'] => {
+  const typeVariants: { [key: string]: BadgeVariants['variant'] } = {
     TEXT: 'success',
     STRING: 'success',
     KEYWORD: 'success',
@@ -203,209 +202,203 @@ const getTypeColor = (type: string): 'info' | 'success' | 'warning' | 'error' | 
     DOUBLE: 'info',
     BOOLEAN: 'warning',
     DATE: 'warning',
-    OBJECT: 'error',
-    NESTED: 'error',
-    ARRAY: 'error',
+    OBJECT: 'destructive',
+    NESTED: 'destructive',
+    ARRAY: 'destructive',
   };
-  return typeColors[type] || 'default';
+  return typeVariants[type] || 'secondary';
 };
 </script>
 
-<style lang="scss" scoped>
-.step-card {
-  .step-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+<style scoped>
+.step-card .step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-    .step-title-container {
-      display: flex;
-      flex-direction: column;
+.step-card .step-header .step-title-container {
+  display: flex;
+  flex-direction: column;
+}
 
-      .step-title {
-        font-size: 16px;
-        font-weight: 600;
-      }
+.step-card .step-header .step-title-container .step-title {
+  font-size: 16px;
+  font-weight: 600;
+}
 
-      .step-subtitle {
-        font-size: 12px;
-        color: var(--text-color-3);
-      }
-    }
-  }
+.step-card .step-header .step-title-container .step-subtitle {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
 
-  .header-extra {
-    display: flex;
-    align-items: center;
-    gap: 16px;
+.step-card .header-extra {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
 
-    .step-badge {
-      font-size: 12px;
-      color: var(--text-color-3);
-      font-weight: 500;
-    }
-  }
+.step-card .header-extra .step-badge {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
 
-  .empty-state {
-    padding: 40px 0;
-  }
+.step-card .empty-state {
+  padding: 40px 0;
+}
 
-  .empty-state-small {
-    padding: 24px 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
+.step-card .empty-state-small {
+  padding: 24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
 
-    .loading-text {
-      font-size: 13px;
-      color: var(--text-color-3);
-    }
-  }
+.step-card .empty-state-small .loading-text {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+}
 
-  .schema-info {
-    .info-section {
-      margin-bottom: 24px;
+.step-card .schema-info .info-section {
+  margin-bottom: 24px;
+}
 
-      .section-title {
-        font-size: 12px;
-        color: var(--text-color-3);
-        text-transform: uppercase;
-        font-weight: 600;
-        margin-bottom: 12px;
-      }
+.step-card .schema-info .info-section .section-title {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
 
-      .info-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
+.step-card .schema-info .info-section .info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
 
-        .info-item {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
+.step-card .schema-info .info-section .info-grid .info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 
-          .info-label {
-            font-size: 11px;
-            color: var(--text-color-3);
-            text-transform: uppercase;
-          }
+.step-card .schema-info .info-section .info-grid .info-item .info-label {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+}
 
-          .info-value {
-            font-size: 13px;
-            font-weight: 500;
-          }
-        }
-      }
-    }
+.step-card .schema-info .info-section .info-grid .info-item .info-value {
+  font-size: 13px;
+  font-weight: 500;
+}
 
-    .schema-section {
-      .section-title {
-        font-size: 12px;
-        color: var(--text-color-3);
-        text-transform: uppercase;
-        font-weight: 600;
-        margin-bottom: 12px;
-      }
+.step-card .schema-info .schema-section .section-title {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
 
-      .schema-table {
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        overflow: hidden;
+.step-card .schema-info .schema-section .schema-table {
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+}
 
-        .schema-header {
-          display: flex;
-          padding: 12px 16px;
-          background: var(--card-color);
-          border-bottom: 1px solid var(--border-color);
-          font-size: 11px;
-          color: var(--text-color-3);
-          text-transform: uppercase;
-          font-weight: 600;
-        }
+.step-card .schema-info .schema-section .schema-table .schema-header {
+  display: flex;
+  padding: 12px 16px;
+  background: hsl(var(--card));
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  font-weight: 600;
+}
 
-        .schema-body {
-          max-height: 300px;
-          overflow-y: auto;
-        }
+.step-card .schema-info .schema-section .schema-table .schema-body {
+  max-height: 300px;
+  overflow-y: auto;
+}
 
-        .schema-row {
-          display: flex;
-          padding: 10px 16px;
-          border-bottom: 1px solid var(--border-color);
-          align-items: center;
+.step-card .schema-info .schema-section .schema-table .schema-row {
+  display: flex;
+  padding: 10px 16px;
+  border-bottom: 1px solid hsl(var(--border));
+  align-items: center;
+}
 
-          &:last-child {
-            border-bottom: none;
-          }
+.step-card .schema-info .schema-section .schema-table .schema-row:last-child {
+  border-bottom: none;
+}
 
-          &:hover {
-            background: rgba(0, 0, 0, 0.02);
-          }
+.step-card .schema-info .schema-section .schema-table .schema-row:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
 
-          &.row-excluded {
-            opacity: 0.5;
-            text-decoration: line-through;
-          }
+.step-card .schema-info .schema-section .schema-table .schema-row.row-excluded {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
 
-          &.row-mismatch {
-            background: rgba(250, 173, 20, 0.05);
-          }
-        }
+.step-card .schema-info .schema-section .schema-table .schema-row.row-mismatch {
+  background: rgba(250, 173, 20, 0.05);
+}
 
-        .col-field {
-          flex: 2;
-          font-family: monospace;
-          font-size: 12px;
-        }
+.step-card .schema-info .schema-section .schema-table .col-field {
+  flex: 2;
+  font-family: monospace;
+  font-size: 12px;
+}
 
-        .col-source-type,
-        .col-target-type {
-          flex: 1;
-        }
+.step-card .schema-info .schema-section .schema-table .col-source-type,
+.step-card .schema-info .schema-section .schema-table .col-target-type {
+  flex: 1;
+}
 
-        .col-match {
-          flex: 1;
-        }
+.step-card .schema-info .schema-section .schema-table .col-match {
+  flex: 1;
+}
 
-        .col-exclude {
-          flex: 0.5;
-          text-align: center;
-        }
+.step-card .schema-info .schema-section .schema-table .col-exclude {
+  flex: 0.5;
+  text-align: center;
+}
 
-        .no-match {
-          color: var(--text-color-3);
-        }
-      }
+.step-card .schema-info .schema-section .schema-table .no-match {
+  color: hsl(var(--muted-foreground));
+}
 
-      .schema-hint {
-        font-size: 11px;
-        color: var(--text-color-3);
-        margin-top: 8px;
-        margin-bottom: 0;
-      }
-    }
+.step-card .schema-info .schema-section .schema-hint {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  margin-top: 8px;
+  margin-bottom: 0;
+}
 
-    .comments-section {
-      margin-top: 24px;
+.step-card .schema-info .comments-section {
+  margin-top: 24px;
+}
 
-      .section-title {
-        font-size: 12px;
-        color: var(--text-color-3);
-        text-transform: uppercase;
-        font-weight: 600;
-        margin-bottom: 8px;
-      }
+.step-card .schema-info .comments-section .section-title {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
 
-      .comments-text {
-        font-size: 13px;
-        color: var(--text-color-2);
-        padding: 12px;
-        background: var(--card-color);
-        border-radius: 8px;
-        margin: 0;
-      }
-    }
-  }
+.step-card .schema-info .comments-section .comments-text {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+  padding: 12px;
+  background: hsl(var(--card));
+  border-radius: 8px;
+  margin: 0;
 }
 </style>

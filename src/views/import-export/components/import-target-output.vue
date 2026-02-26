@@ -1,76 +1,91 @@
 <template>
-  <n-card class="step-card">
-    <template #header>
+  <Card class="step-card">
+    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="step-header">
-        <n-icon size="20" color="#18a058">
-          <DataBase />
-        </n-icon>
+        <span class="i-carbon-data-base h-5 w-5" style="color: #18a058" />
         <span class="step-title">{{ $t('import.targetOutput') }}</span>
       </div>
-    </template>
-    <template #header-extra>
       <span class="step-badge">{{ $t('export.step') }} 01</span>
-    </template>
+    </CardHeader>
+    <CardContent>
+      <Grid :cols="2" :x-gap="16" :y-gap="16">
+        <GridItem>
+          <div class="field-label">{{ $t('import.targetDatabase') }}</div>
+          <Select
+            v-model="inputData.selectedConnection"
+            @update:model-value="handleConnectionChange"
+          >
+            <SelectTrigger>
+              <SelectValue :placeholder="$t('connection.selectConnection')" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="option in filteredConnectionOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </GridItem>
+        <GridItem>
+          <div class="field-label">{{ $t('import.collectionName') }}</div>
+          <Select
+            v-model="inputData.selectedIndex"
+            :disabled="!inputData.selectedConnection || loadingStat.connection"
+            @update:model-value="handleIndexChange"
+          >
+            <SelectTrigger>
+              <SelectValue :placeholder="$t('import.selectOrCreateIndex')" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                v-for="option in filteredIndexOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <span class="field-hint">
+            {{
+              importIsNewCollection
+                ? $t('import.newCollectionHint')
+                : $t('import.existingCollectionHint')
+            }}
+          </span>
+        </GridItem>
+      </Grid>
 
-    <n-grid cols="2" x-gap="16" y-gap="16">
-      <n-grid-item>
-        <div class="field-label">{{ $t('import.targetDatabase') }}</div>
-        <n-select
-          v-model:value="inputData.selectedConnection"
-          :options="filteredConnectionOptions"
-          :placeholder="$t('connection.selectConnection')"
-          :loading="loadingStat.connection"
-          filterable
-          remote
-          :input-props="inputProps"
-          @update:value="handleConnectionChange"
-          @update:show="handleConnectionOpen"
-          @search="handleConnectionSearch"
-        />
-      </n-grid-item>
-      <n-grid-item>
-        <div class="field-label">{{ $t('import.collectionName') }}</div>
-        <n-select
-          v-model:value="inputData.selectedIndex"
-          :options="filteredIndexOptions"
-          :placeholder="$t('import.selectOrCreateIndex')"
-          :loading="loadingStat.index"
-          filterable
-          remote
-          tag
-          :disabled="!inputData.selectedConnection || loadingStat.connection"
-          :input-props="inputProps"
-          @update:value="handleIndexChange"
-          @update:show="handleIndexOpen"
-          @search="handleIndexSearch"
-        />
-        <span class="field-hint">
+      <!-- Collection Type Indicator -->
+      <div v-if="inputData.selectedIndex" class="collection-indicator">
+        <Badge :variant="importIsNewCollection ? 'warning' : 'success'">
+          {{ importIsNewCollection ? $t('import.newCollection') : $t('import.existingCollection') }}
+        </Badge>
+        <span class="indicator-text">
           {{
-            importIsNewCollection
-              ? $t('import.newCollectionHint')
-              : $t('import.existingCollectionHint')
+            importIsNewCollection ? $t('import.metadataRequired') : $t('import.noMetadataRequired')
           }}
         </span>
-      </n-grid-item>
-    </n-grid>
-
-    <!-- Collection Type Indicator -->
-    <div v-if="inputData.selectedIndex" class="collection-indicator">
-      <n-tag :type="importIsNewCollection ? 'warning' : 'success'" size="small">
-        {{ importIsNewCollection ? $t('import.newCollection') : $t('import.existingCollection') }}
-      </n-tag>
-      <span class="indicator-text">
-        {{
-          importIsNewCollection ? $t('import.metadataRequired') : $t('import.noMetadataRequired')
-        }}
-      </span>
-    </div>
-  </n-card>
+      </div>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { DataBase } from '@vicons/carbon';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Grid, GridItem } from '@/components/ui/grid';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import {
   useImportExportStore,
   useConnectionStore,
@@ -78,10 +93,11 @@ import {
   DynamoDBConnection,
   DatabaseType,
 } from '../../../store';
-import { CustomError, inputProps } from '../../../common';
+import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
+import { useMessageService } from '@/composables';
 
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
@@ -109,13 +125,15 @@ const indexOptions = ref<Array<{ label: string; value: string }>>([]);
 const currentExistingIndices = ref<string[]>([]);
 
 // Initialize from store
-onMounted(() => {
+onMounted(async () => {
   if (importConnection.value) {
     inputData.value.selectedConnection = importConnection.value.name;
   }
   if (importTargetIndex.value) {
     inputData.value.selectedIndex = importTargetIndex.value;
   }
+  // Fetch connections on mount
+  await handleConnectionOpen();
 });
 
 const connectionOptions = computed(() =>
@@ -142,16 +160,7 @@ const filteredIndexOptions = computed(() => {
     .sort((a, b) => a.value.localeCompare(b.value));
 });
 
-const handleConnectionSearch = (query: string) => {
-  inputData.value.connectionSearchQuery = query;
-};
-
-const handleIndexSearch = (query: string) => {
-  inputData.value.indexSearchQuery = query;
-};
-
-const handleConnectionOpen = async (isOpen: boolean) => {
-  if (!isOpen) return;
+const handleConnectionOpen = async () => {
   loadingStat.value.connection = true;
   try {
     await fetchConnections();
@@ -167,8 +176,7 @@ const handleConnectionOpen = async (isOpen: boolean) => {
   }
 };
 
-const handleIndexOpen = async (isOpen: boolean) => {
-  if (!isOpen) return;
+const handleIndexOpen = async () => {
   if (!importConnection.value) {
     message.error(lang.t('editor.establishedRequired'), {
       closable: true,
@@ -242,6 +250,8 @@ const handleConnectionChange = async (value: string) => {
     indexOptions.value = [];
     inputData.value.indexSearchQuery = '';
     currentExistingIndices.value = [];
+    // Fetch indices after connection change
+    await handleIndexOpen();
   } catch (err) {
     const error = err as CustomError;
     message.error(`status: ${error.status}, details: ${error.details}`, {
@@ -265,54 +275,52 @@ const handleIndexChange = (value: string) => {
 };
 </script>
 
-<style lang="scss" scoped>
-.step-card {
-  .step-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+<style scoped>
+.step-card .step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-    .step-title {
-      font-size: 16px;
-      font-weight: 600;
-    }
-  }
+.step-card .step-header .step-title {
+  font-size: 16px;
+  font-weight: 600;
+}
 
-  .step-badge {
-    font-size: 12px;
-    color: var(--text-color-3);
-    font-weight: 500;
-  }
+.step-card .step-badge {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
 
-  .field-label {
-    font-size: 12px;
-    color: var(--text-color-3);
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    font-weight: 500;
-  }
+.step-card .field-label {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
 
-  .field-hint {
-    font-size: 11px;
-    color: var(--text-color-3);
-    margin-top: 4px;
-    display: block;
-  }
+.step-card .field-hint {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  margin-top: 4px;
+  display: block;
+}
 
-  .collection-indicator {
-    margin-top: 16px;
-    padding: 12px;
-    background: var(--card-color);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.step-card .collection-indicator {
+  margin-top: 16px;
+  padding: 12px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
-    .indicator-text {
-      font-size: 12px;
-      color: var(--text-color-2);
-    }
-  }
+.step-card .collection-indicator .indicator-text {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
 }
 </style>

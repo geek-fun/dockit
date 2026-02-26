@@ -1,5 +1,5 @@
 <template>
-  <n-split v-model:size="editorSize" direction="vertical" class="partiql-editor">
+  <SplitPane v-model:size="editorSize" direction="vertical" class="partiql-editor">
     <template #1>
       <div class="editor-container">
         <div id="partiql-editor" ref="editorRef" class="monaco-editor-container" />
@@ -40,7 +40,7 @@
         @edit="handleEdit"
       />
     </template>
-  </n-split>
+  </SplitPane>
 
   <!-- Edit Item Modal -->
   <edit-item
@@ -57,8 +57,9 @@
 <script setup lang="ts">
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
-import { useMessage, useLoadingBar } from 'naive-ui';
+import { useMessageService, useLoadingBarService } from '@/composables';
 import { storeToRefs } from 'pinia';
+import { SplitPane } from '@/components/ui/split-pane';
 import { CustomError, jsonify } from '../../../../common';
 import {
   clearPartiqlValidation,
@@ -86,8 +87,8 @@ import ResultPanel from './result-panel.vue';
 import EditItem from './edit-item.vue';
 
 const lang = useLang();
-const message = useMessage();
-const loadingBar = useLoadingBar();
+const message = useMessageService();
+const loadingBar = useLoadingBarService();
 
 const appStore = useAppStore();
 const { getEditorTheme, getEditorOptions } = appStore;
@@ -696,65 +697,59 @@ defineExpose({
 });
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .partiql-editor {
   width: 100%;
   height: 100%;
+}
 
-  .editor-container {
-    width: 100%;
-    height: 100%;
-    position: relative;
+.partiql-editor .editor-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
 
-    .monaco-editor-container {
-      width: 100%;
-      height: 100%;
-    }
-  }
+.partiql-editor .monaco-editor-container {
+  width: 100%;
+  height: 100%;
 }
 
 .partiql-context-menu {
   position: fixed;
-  background-color: var(--bg-color);
-  border: 1px solid var(--border-color);
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 10000;
   border-radius: 4px;
   overflow: hidden;
+}
 
-  ul {
-    list-style: none;
-    margin: 0;
-    padding: 4px 0;
-    min-width: 120px;
+.partiql-context-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  min-width: 120px;
+}
 
-    li {
-      padding: 6px 12px;
-      cursor: pointer;
-      font-size: 13px;
+.partiql-context-menu li {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
 
-      &:hover {
-        background: var(--border-color);
-      }
-    }
-  }
+.partiql-context-menu li:hover {
+  background: hsl(var(--accent));
 }
 
 :deep(.partiql-execute-decoration) {
   cursor: pointer;
-  height: 0 !important;
-  width: 0 !important;
-  margin-top: 3px;
-  margin-left: 8px;
-  border-radius: 3px;
-  border-left-width: 10px;
-  border-top-width: 7px;
-  border-bottom-width: 7px;
-  border-right-width: 0;
-  border-top-color: transparent;
-  border-left-color: var(--theme-color);
-  border-bottom-color: transparent;
-  border-right-color: transparent;
+  width: 0;
+  height: 0;
+  margin-top: 0;
+  margin-left: 4px;
+  border-radius: 4px;
   border-style: solid;
+  border-width: 10px 0 10px 12px;
+  border-color: transparent transparent transparent hsl(var(--primary));
 }
 </style>

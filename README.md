@@ -72,22 +72,23 @@ The project uses a hybrid styling approach during the migration period:
 ### Current Setup
 
 1. **UnoCSS** - Atomic CSS utilities loaded via `virtual:uno.css` in `src/main.ts`
-2. **shadcn-vue** - Component library styles via `src/assets/styles/tailwind.css` (CSS variables)
+2. **shadcn-vue** - Component library styles via `src/assets/styles/index.css` (CSS variables)
 3. **Legacy SCSS** - Existing styles via `src/assets/styles/theme.scss` (retained for backward compatibility)
 4. **Naive UI** - Current component library with auto-imported components
 
 ### Style Entry Points
 
 - `src/main.ts` - Main entry point importing all style layers
-- `src/assets/styles/tailwind.css` - shadcn-vue CSS variables and base styles
+- `src/assets/styles/index.css` - Theme CSS variables and base styles (single source of truth)
 - `src/assets/styles/theme.scss` - Legacy CSS variables and theme definitions
 - `uno.config.ts` - Unified UnoCSS configuration with all presets and theme tokens
 
 ### Theme Configuration
 
 Brand colors are defined in multiple places for compatibility:
+
 - CSS variables in `theme.scss` for legacy components
-- CSS variables in `tailwind.css` for shadcn-vue components
+- CSS variables in `index.css` for shadcn-vue components
 - Theme tokens in `uno.config.ts` for UnoCSS utilities
 
 For a detailed audit of component usage, see [docs/naive-ui-sass-audit.md](docs/naive-ui-sass-audit.md).

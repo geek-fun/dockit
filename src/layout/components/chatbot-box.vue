@@ -3,20 +3,16 @@
     <div class="chat-box-header">
       <div class="header-title">{{ $t('aside.chatBot') }}</div>
       <div>
-        <n-icon class="chat-header-delete-icon">
-          <Delete @click="removeChat" />
-        </n-icon>
+        <span class="i-carbon-delete chat-header-delete-icon cursor-pointer" @click="removeChat" />
       </div>
     </div>
     <div class="message-list">
-      <n-scrollbar ref="scrollbarRef" style="height: 100%">
+      <ScrollArea ref="scrollbarRef" class="h-full">
         <div v-for="msg in activeChat?.messages" :key="msg.id">
           <div :class="['message-row', msg.role === ChatMessageRole.USER ? 'user' : '']">
             <div class="message-row-header">
-              <n-icon size="20">
-                <bot v-if="msg.role === ChatMessageRole.BOT" />
-                <face-cool v-else />
-              </n-icon>
+              <span v-if="msg.role === ChatMessageRole.BOT" class="i-carbon-bot mr-2 h-5 w-5" />
+              <span v-else class="i-carbon-face-cool mr-2 h-5 w-5" />
               <span>{{ msg.role }}</span>
             </div>
             <div class="message-row-content">
@@ -25,48 +21,35 @@
           </div>
         </div>
         <div v-if="chatBotNotification.enabled">
-          <n-alert :type="chatBotNotification.level">
-            {{ chatBotNotification.message }}
-          </n-alert>
+          <Alert :variant="alertVariantMap[chatBotNotification.level || 'default']">
+            <AlertDescription>{{ chatBotNotification.message }}</AlertDescription>
+          </Alert>
           <br />
-          <n-button
+          <Button
             v-if="chatBotNotification.code === ErrorCodes.MISSING_GPT_CONFIG"
-            strong
-            secondary
-            type="primary"
+            variant="secondary"
             @click="configGpt"
           >
             {{ $t('setting.ai.configGpt') }}
-          </n-button>
+          </Button>
         </div>
-      </n-scrollbar>
+      </ScrollArea>
     </div>
     <div class="message-footer">
       <div class="chat-input">
-        <n-input
-          v-model:value="chatMsg"
-          type="textarea"
-          :autosize="{
-            minRows: 3,
-            maxRows: 6,
-          }"
+        <textarea
+          v-model="chatMsg"
+          class="chat-textarea"
           placeholder="Type your message here..."
-          :input-props="inputProps"
+          rows="3"
+          @keydown.enter.ctrl="submitMsg"
         />
       </div>
       <div class="footer-operation">
-        <n-button
-          type="primary"
-          :loading="isChatMsgFinish"
-          :disabled="isChatMsgFinish"
-          @click="submitMsg"
-        >
-          <template #icon>
-            <n-icon size="26">
-              <SendAlt />
-            </n-icon>
-          </template>
-        </n-button>
+        <Button class="submit-button" :disabled="isChatMsgFinish" @click="submitMsg">
+          <Spinner v-if="isChatMsgFinish" size="sm" />
+          <span v-else class="i-carbon-send-alt h-6 w-6" />
+        </Button>
       </div>
     </div>
   </div>
@@ -74,12 +57,14 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Bot, SendAlt, FaceCool } from '@vicons/carbon';
 import { useAppStore, useChatStore } from '../../store';
 import MarkdownRender from '../../components/markdown-render.vue';
-import { ErrorCodes, inputProps } from '../../common';
+import { ErrorCodes } from '../../common';
 import { ChatMessageRole } from '../../datasources';
-import { Delete } from '@vicons/carbon';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Spinner } from '@/components/ui/spinner';
 
 const appStore = useAppStore();
 const { aiConfigs } = storeToRefs(appStore);
@@ -105,11 +90,21 @@ const chatBotNotification = ref<{
   code: 0,
 });
 
+// Map alert types to shadcn-vue alert variants
+const alertVariantMap: Record<string, 'default' | 'destructive' | 'success' | 'warning' | 'info'> =
+  {
+    default: 'default',
+    success: 'success',
+    error: 'destructive',
+    warning: 'warning',
+    info: 'info',
+  };
+
 const loadChats = async () => {
   try {
     await fetchChats();
     // @ts-ignore
-    scrollbarRef?.value?.scrollTo({ top: 999999 });
+    scrollbarRef?.value?.$el?.scrollTo({ top: 999999 });
   } catch (err) {
     const { details, status } = err as { details: string; status: number };
     chatBotNotification.value = {
@@ -166,7 +161,7 @@ watch(
     nextTick(() => {
       if (scrollbarRef.value) {
         // @ts-ignore
-        scrollbarRef.value.scrollTo({ top: 999999, behavior: 'smooth' });
+        scrollbarRef.value?.$el?.scrollTo({ top: 999999, behavior: 'smooth' });
       }
     });
   },
@@ -176,97 +171,112 @@ watch(
 loadChats();
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .chat-box-container {
   height: 100%;
   width: 460px;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid var(--border-color);
+  border-left: 1px solid hsl(var(--border));
+}
 
-  .chat-box-header {
-    height: 40px;
-    line-height: 40px;
-    padding: 0 15px;
-    display: flex;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border-color);
+.chat-box-header {
+  height: 40px;
+  line-height: 40px;
+  padding: 0 15px;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid hsl(var(--border));
+}
 
-    .header-title {
-      font-size: 18px;
-      font-weight: bold;
-    }
+.header-title {
+  font-size: 18px;
+  font-weight: bold;
+}
 
-    .chat-header-delete-icon {
-      cursor: pointer;
-    }
-  }
+.chat-header-delete-icon {
+  cursor: pointer;
+}
 
-  .message-list {
-    flex: 1;
-    height: 0;
+.message-list {
+  flex: 1;
+  height: 0;
+}
 
-    .message-row {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-around;
-      padding: 5px;
+.message-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  padding: 5px;
+}
 
-      &.user {
-        background-color: var(--bg-color);
-        border-top: 1px solid var(--border-color);
-        border-bottom: 1px solid var(--border-color);
-      }
+.message-row.user {
+  background-color: hsl(var(--background));
+  border-top: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+}
 
-      &-header {
-        display: flex;
-        align-items: center;
+.message-row-header {
+  display: flex;
+  align-items: center;
+}
 
-        span {
-          font-weight: bold;
-        }
+.message-row-header span {
+  font-weight: bold;
+}
 
-        .n-icon {
-          margin-right: 10px;
-        }
-      }
+.message-row-header :deep(.inline-flex) {
+  margin-right: 10px;
+}
 
-      &-content {
-        pre {
-          width: 100%;
-          margin: 0;
-          padding: 0;
-          white-space: pre-wrap;
-          text-wrap: wrap;
-        }
-      }
-    }
-  }
+.message-row-content pre {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  white-space: pre-wrap;
+  text-wrap: wrap;
+}
 
-  .message-footer {
-    padding: 0 10px 10px 10px;
-    position: relative;
-    z-index: 1;
+.message-footer {
+  padding: 0 10px 10px 10px;
+  position: relative;
+  z-index: 1;
+}
 
-    .chat-input {
-      height: fit-content;
-    }
+.chat-input {
+  height: fit-content;
+}
 
-    .footer-operation {
-      position: absolute;
-      bottom: 13px;
-      right: 13px;
-      z-index: 2;
-      height: 30px;
+.chat-textarea {
+  width: 100%;
+  min-height: 72px;
+  max-height: 144px;
+  padding: 8px 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  resize: vertical;
+}
 
-      .n-button {
-        width: 40px;
-        height: 100%;
-        padding: 0;
-        margin: 0;
-        color: #fff;
-      }
-    }
-  }
+.chat-textarea:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+}
+
+.footer-operation {
+  position: absolute;
+  bottom: 13px;
+  right: 13px;
+  z-index: 2;
+  height: 30px;
+}
+
+.submit-button {
+  width: 40px;
+  height: 100%;
+  padding: 0;
+  margin: 0;
 }
 </style>

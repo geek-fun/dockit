@@ -1,54 +1,63 @@
 <template>
   <div class="connection-list-container">
     <div class="connection-scroll-container">
-      <n-infinite-scroll style="height: 100%">
-        <div class="connection-list-body">
-          <n-card
-            v-for="connection in connections"
-            :key="connection.id"
-            :title="connection.name"
-            hoverable
-            @dblclick="handleSelect('connect', connection)"
-          >
-            <template #header-extra>
-              <n-icon size="24">
-                <component :is="getDatabaseIcon(connection.type)" />
-              </n-icon>
-              <div class="operation" @click.stop="">
-                <n-dropdown
-                  trigger="click"
-                  :options="options"
-                  @select="(args: string) => handleSelect(args, connection)"
-                >
-                  <n-icon size="25">
-                    <MoreOutlined />
-                  </n-icon>
-                </n-dropdown>
+      <div class="connection-list-body">
+        <Card
+          v-for="connection in connections"
+          :key="connection.id"
+          class="connection-card"
+          @dblclick="handleSelect('connect', connection)"
+        >
+          <CardHeader class="connection-card-header">
+            <div class="connection-card-header-content">
+              <CardTitle class="connection-card-title">{{ connection.name }}</CardTitle>
+              <div class="connection-card-actions">
+                <component :is="getDatabaseIcon(connection.type)" class="h-6 w-6" />
+                <div class="operation" @click.stop="">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger as-child>
+                      <Button variant="ghost" size="icon" class="dropdown-trigger-btn">
+                        <span class="i-carbon-overflow-menu-vertical h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem
+                        v-for="option in options"
+                        :key="option.key"
+                        @click="handleSelect(option.key, connection)"
+                      >
+                        {{ option.label }}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
               </div>
-            </template>
-          </n-card>
-        </div>
-      </n-infinite-scroll>
+            </div>
+          </CardHeader>
+        </Card>
+      </div>
     </div>
   </div>
 
-  <n-modal v-model:show="showTypeSelect">
-    <n-card style="width: 400px" :title="$t('connection.selectDatabase')">
-      <n-space vertical>
-        <n-button
+  <Dialog v-model:open="showTypeSelect">
+    <DialogContent class="database-type-dialog">
+      <DialogHeader>
+        <DialogTitle>{{ $t('connection.selectDatabase') }}</DialogTitle>
+      </DialogHeader>
+      <div class="database-type-buttons">
+        <Button
           v-for="type in databaseTypes"
           :key="type.value"
-          block
+          variant="outline"
+          class="database-type-btn"
           @click="selectDatabaseType(type.value)"
         >
-          <template #icon>
-            <component :is="type.icon" />
-          </template>
+          <component :is="type.icon" class="database-type-icon" />
           {{ type.label }}
-        </n-button>
-      </n-space>
-    </n-card>
-  </n-modal>
+        </Button>
+      </div>
+    </DialogContent>
+  </Dialog>
 
   <floating-menu @add="showDatabaseTypeSelect" />
   <es-connect-dialog ref="esConnectDialog" />
@@ -58,14 +67,22 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue';
-import { NDropdown, NIcon, useDialog, useMessage } from 'naive-ui';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { useDialogService, useMessageService } from '@/composables';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { Connection, DatabaseType, useConnectionStore } from '../../../store';
-import { MoreOutlined } from '@vicons/antd';
 import FloatingMenu from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
@@ -73,8 +90,8 @@ import ConnectingModal from './connecting-modal.vue';
 
 const emits = defineEmits(['tab-panel']);
 
-const dialog = useDialog();
-const message = useMessage();
+const dialog = useDialogService();
+const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
@@ -232,31 +249,94 @@ const selectDatabaseType = (type: DatabaseType) => {
 };
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .connection-list-container {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+}
 
-  .connection-scroll-container {
-    flex: 1;
-    height: 0;
+.connection-scroll-container {
+  flex: 1;
+  height: 0;
+  overflow: auto;
+}
 
-    .connection-list-body {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      padding: 16px;
+.connection-list-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px;
+}
 
-      .n-card {
-        max-width: 300px;
-      }
+.connection-card {
+  max-width: 300px;
+  min-width: 200px;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
 
-      .n-card:hover {
-        cursor: pointer;
-      }
-    }
-  }
+.connection-card:hover {
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.connection-card-header {
+  padding: 16px;
+}
+
+.connection-card-header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.connection-card-title {
+  font-size: 16px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 8px;
+}
+
+.connection-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.operation {
+  display: flex;
+  align-items: center;
+}
+
+.dropdown-trigger-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.database-type-dialog {
+  max-width: 400px;
+}
+
+.database-type-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.database-type-btn {
+  width: 100%;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.database-type-icon {
+  width: 20px;
+  height: 20px;
 }
 </style>

@@ -1,90 +1,105 @@
 <template>
   <div class="dynamo-manage-container">
-    <n-spin :show="refreshLoading" size="large">
-      <template #description>{{ $t('manage.dynamo.refresh') }}...</template>
+    <div v-if="refreshLoading" class="refresh-overlay">
+      <Spinner size="lg" />
+      <span class="refresh-text">{{ $t('manage.dynamo.refresh') }}...</span>
+    </div>
+    <div :class="{ 'opacity-50 pointer-events-none': refreshLoading }">
       <!-- Metrics Cards Section -->
       <section class="metrics-section">
         <div class="metrics-grid">
           <!-- Status Card -->
-          <n-card class="metric-card">
-            <span class="metric-label">{{ $t('manage.dynamo.status') }}</span>
-            <div class="metric-value status-value">
-              <span class="status-indicator" :class="statusClass"></span>
-              <span class="status-text" :class="statusClass">{{ tableInfo?.status || '-' }}</span>
-            </div>
-          </n-card>
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.dynamo.status') }}</span>
+              <div class="metric-value status-value">
+                <span class="status-indicator" :class="statusClass"></span>
+                <span class="status-text" :class="statusClass">{{ tableInfo?.status || '-' }}</span>
+              </div>
+            </CardContent>
+          </Card>
 
           <!-- Item Count Card -->
-          <n-card class="metric-card">
-            <span class="metric-label">{{ $t('manage.dynamo.itemCount') }}</span>
-            <span class="metric-value">{{ formatNumber(tableInfo?.itemCount) }}</span>
-          </n-card>
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.dynamo.itemCount') }}</span>
+              <span class="metric-value">{{ formatNumber(tableInfo?.itemCount) }}</span>
+            </CardContent>
+          </Card>
 
           <!-- Table Size Card -->
-          <n-card class="metric-card">
-            <span class="metric-label">{{ $t('manage.dynamo.tableSize') }}</span>
-            <span class="metric-value">{{ formatBytes(tableInfo?.sizeBytes) }}</span>
-          </n-card>
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.dynamo.tableSize') }}</span>
+              <span class="metric-value">{{ formatBytes(tableInfo?.sizeBytes) }}</span>
+            </CardContent>
+          </Card>
 
           <!-- Mode Card -->
-          <n-card class="metric-card">
-            <span class="metric-label">{{ $t('manage.dynamo.mode') }}</span>
-            <span class="metric-value-small">{{ billingMode }}</span>
-          </n-card>
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.dynamo.mode') }}</span>
+              <span class="metric-value-small">{{ billingMode }}</span>
+            </CardContent>
+          </Card>
 
           <!-- PITR Card -->
-          <n-card class="metric-card">
-            <span class="metric-label">{{ $t('manage.dynamo.pitr') }}</span>
-            <div class="metric-value-status">
-              <n-icon :color="pitrEnabled ? '#36ad6a' : '#d03050'">
-                <CheckmarkFilled v-if="pitrEnabled" />
-                <CloseFilled v-else />
-              </n-icon>
-              <span :class="pitrEnabled ? 'status-enabled' : 'status-disabled'">
-                {{ pitrEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
-              </span>
-            </div>
-          </n-card>
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.dynamo.pitr') }}</span>
+              <div class="metric-value-status">
+                <span v-if="pitrEnabled" class="i-carbon-checkmark-filled h-4 w-4 text-green-500" />
+                <span v-else class="i-carbon-close-filled h-4 w-4 text-red-500" />
+                <span :class="pitrEnabled ? 'status-enabled' : 'status-disabled'">
+                  {{ pitrEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
 
           <!-- TTL Card -->
-          <n-card class="metric-card">
-            <span class="metric-label">{{ $t('manage.dynamo.ttl') }}</span>
-            <div class="ttl-value">
-              <span :class="ttlEnabled ? 'status-enabled' : 'status-disabled'">
-                {{ ttlEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
-              </span>
-              <span v-if="ttlEnabled && ttlAttribute" class="ttl-attribute">
-                {{ ttlAttribute }}
-              </span>
-            </div>
-          </n-card>
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.dynamo.ttl') }}</span>
+              <div class="ttl-value">
+                <span :class="ttlEnabled ? 'status-enabled' : 'status-disabled'">
+                  {{ ttlEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
+                </span>
+                <span v-if="ttlEnabled && ttlAttribute" class="ttl-attribute">
+                  {{ ttlAttribute }}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
       <!-- Performance & Capacity Section -->
       <section class="performance-section">
-        <n-card class="performance-card">
-          <template #header>
+        <Card class="performance-card">
+          <CardHeader>
             <div class="section-header">
               <div class="section-title">
-                <n-icon size="18"><ChartLineData /></n-icon>
+                <span class="i-carbon-chart-line-data h-4 w-4" />
                 <span>{{ $t('manage.dynamo.performanceCapacity') }}</span>
               </div>
               <span class="time-range">{{ $t('manage.dynamo.last24Hours') }}</span>
             </div>
-          </template>
+          </CardHeader>
+          <CardContent>
+            <!-- CloudWatch metrics not available message -->
+            <Alert
+              v-if="!metricsAvailable && metricsMessage && !metricsLoading"
+              variant="info"
+              class="mb-4"
+            >
+              <AlertDescription>{{ metricsMessage }}</AlertDescription>
+            </Alert>
 
-          <!-- CloudWatch metrics not available message -->
-          <n-alert
-            v-if="!metricsAvailable && metricsMessage && !metricsLoading"
-            type="info"
-            style="margin-bottom: 16px"
-          >
-            {{ metricsMessage }}
-          </n-alert>
-
-          <n-spin :show="metricsLoading">
-            <div class="performance-content">
+            <div v-if="metricsLoading" class="flex justify-center py-8">
+              <Spinner size="lg" />
+            </div>
+            <div v-else class="performance-content">
               <div class="chart-section">
                 <div class="chart-header">
                   <span class="chart-title">{{ $t('manage.dynamo.consumedCapacity') }}</span>
@@ -185,80 +200,116 @@
                 </div>
               </div>
             </div>
-          </n-spin>
-        </n-card>
+          </CardContent>
+        </Card>
       </section>
 
       <!-- Global Secondary Indexes Section -->
       <section class="indexes-section">
-        <n-card class="indexes-card">
-          <template #header>
+        <Card class="indexes-card">
+          <CardHeader>
             <div class="section-header">
               <div class="section-title">
-                <n-icon size="18"><TableSplit /></n-icon>
+                <span class="i-carbon-table-split h-4 w-4" />
                 <span>{{ $t('manage.dynamo.gsiTitle') }}</span>
               </div>
-              <n-button type="primary" size="small" @click="handleCreateIndex">
+              <Button size="sm" @click="handleCreateIndex">
                 {{ $t('manage.dynamo.createIndex') }}
-              </n-button>
+              </Button>
             </div>
-          </template>
-          <div v-if="globalSecondaryIndexes.length > 0" class="table-container">
-            <n-data-table
-              :columns="gsiColumns"
-              :data="globalSecondaryIndexes"
-              :bordered="false"
-              size="small"
-            />
-          </div>
-          <n-empty v-else :description="$t('manage.dynamo.noGsi')" />
-        </n-card>
+          </CardHeader>
+          <CardContent>
+            <div v-if="globalSecondaryIndexes.length > 0" class="table-container">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{{ lang.t('manage.dynamo.indexName') }}</TableHead>
+                    <TableHead>{{ lang.t('manage.dynamo.partitionKey') }}</TableHead>
+                    <TableHead>{{ lang.t('manage.dynamo.sortKey') }}</TableHead>
+                    <TableHead>{{ lang.t('manage.dynamo.projection') }}</TableHead>
+                    <TableHead>{{ lang.t('manage.dynamo.size') }}</TableHead>
+                    <TableHead>{{ lang.t('manage.dynamo.itemCount') }}</TableHead>
+                    <TableHead>{{ lang.t('manage.dynamo.indexStatus') }}</TableHead>
+                    <TableHead class="w-20">{{ lang.t('manage.dynamo.actions') }}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in globalSecondaryIndexes" :key="row.name">
+                    <TableCell class="font-medium">{{ row.name }}</TableCell>
+                    <TableCell>{{ getPartitionKey(row) }}</TableCell>
+                    <TableCell>{{ getSortKey(row) }}</TableCell>
+                    <TableCell>{{ getProjection(row) }}</TableCell>
+                    <TableCell>{{ formatIndexSize(row) }}</TableCell>
+                    <TableCell>{{ formatIndexItemCount(row) }}</TableCell>
+                    <TableCell>
+                      <Badge
+                        :variant="row.status?.toUpperCase() === 'ACTIVE' ? 'success' : 'warning'"
+                      >
+                        {{ row.status?.toUpperCase() || 'ACTIVE' }}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div class="action-buttons">
+                        <Button variant="ghost" size="icon" @click="handleDeleteIndex(row)">
+                          <span class="i-carbon-trash-can h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+            <Empty v-else :description="$t('manage.dynamo.noGsi')" />
+          </CardContent>
+        </Card>
       </section>
 
       <!-- Table Settings Section -->
       <section class="settings-section">
-        <n-card class="settings-card">
-          <template #header>
+        <Card class="settings-card">
+          <CardHeader>
             <div class="section-header">
               <div class="section-title">
-                <n-icon size="18"><SettingsAdjust /></n-icon>
+                <span class="i-carbon-settings-adjust h-4 w-4" />
                 <span>{{ $t('manage.dynamo.tableSettings') }}</span>
               </div>
             </div>
-          </template>
-          <div class="settings-grid">
-            <!-- Streams Setting -->
-            <div
-              class="setting-item clickable"
-              @click="message.info($t('manage.dynamo.comingSoon'))"
-            >
-              <div class="setting-header">
-                <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
-                <n-switch :value="streamsEnabled" size="small" @click.stop />
+          </CardHeader>
+          <CardContent>
+            <div class="settings-grid">
+              <!-- Streams Setting -->
+              <div
+                class="setting-item clickable"
+                @click="message.info($t('manage.dynamo.comingSoon'))"
+              >
+                <div class="setting-header">
+                  <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
+                  <Switch :checked="streamsEnabled" @click.stop />
+                </div>
+                <span class="setting-value">{{ streamsViewType || '-' }}</span>
               </div>
-              <span class="setting-value">{{ streamsViewType || '-' }}</span>
-            </div>
-            <!-- Encryption Setting -->
-            <div class="setting-item">
-              <div class="setting-header">
-                <span class="setting-label">{{ $t('manage.dynamo.encryption') }}</span>
-                <n-icon size="16"><Locked /></n-icon>
+              <!-- Encryption Setting -->
+              <div class="setting-item">
+                <div class="setting-header">
+                  <span class="setting-label">{{ $t('manage.dynamo.encryption') }}</span>
+                  <span class="i-carbon-locked h-4 w-4" />
+                </div>
+                <span class="setting-value">{{ encryptionType }}</span>
               </div>
-              <span class="setting-value">{{ encryptionType }}</span>
-            </div>
-            <!-- Table Class Setting -->
-            <div
-              class="setting-item clickable"
-              @click="message.info($t('manage.dynamo.comingSoon'))"
-            >
-              <div class="setting-header">
-                <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
-                <n-icon size="16"><DataTable /></n-icon>
+              <!-- Table Class Setting -->
+              <div
+                class="setting-item clickable"
+                @click="message.info($t('manage.dynamo.comingSoon'))"
+              >
+                <div class="setting-header">
+                  <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
+                  <span class="i-carbon-data-table h-4 w-4" />
+                </div>
+                <span class="setting-value">{{ tableClass }}</span>
               </div>
-              <span class="setting-value">{{ tableClass }}</span>
             </div>
-          </div>
-        </n-card>
+          </CardContent>
+        </Card>
       </section>
 
       <!-- Modals -->
@@ -274,23 +325,13 @@
         :table-name="dynamoConnection?.tableName || ''"
         @created="handleIndexCreated"
       />
-    </n-spin>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { NTag, NButton, NIcon } from 'naive-ui';
-import {
-  ChartLineData,
-  TableSplit,
-  SettingsAdjust,
-  Locked,
-  DataTable,
-  CheckmarkFilled,
-  CloseFilled,
-  TrashCan,
-} from '@vicons/carbon';
+import { useMessageService } from '@/composables';
 import prettyBytes from 'pretty-bytes';
 import {
   useClusterManageStore,
@@ -303,8 +344,23 @@ import { CustomError } from '../../../common';
 import { DynamoIndex, DynamoIndexType, dynamoApi } from '../../../datasources';
 import DeleteIndexModal from './delete-index-modal.vue';
 import CreateIndexModal from './create-index-modal.vue';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Empty } from '@/components/ui/empty';
+import { Spinner } from '@/components/ui/spinner';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 
 const clusterManageStore = useClusterManageStore();
@@ -421,122 +477,62 @@ const globalSecondaryIndexes = computed(() => {
   );
 });
 
-const gsiColumns = computed(() => [
-  {
-    title: lang.t('manage.dynamo.indexName'),
-    key: 'name',
-    ellipsis: { tooltip: true },
-  },
-  {
-    title: lang.t('manage.dynamo.partitionKey'),
-    key: 'partitionKey',
-    ellipsis: { tooltip: true },
-    render: (row: DynamoIndex) => {
-      const pks = row.keySchema?.filter(k => k.keyType.toUpperCase() === 'HASH') || [];
-      if (pks.length === 0) return '-';
-      return pks
-        .map(pk => {
-          const attrDef = tableInfo.value?.attributeDefinitions?.find(
-            a => a.attributeName === pk.attributeName,
-          );
-          return `${pk.attributeName} (${attrDef?.attributeType || 'S'})`;
-        })
-        .join(', ');
-    },
-  },
-  {
-    title: lang.t('manage.dynamo.sortKey'),
-    key: 'sortKey',
-    ellipsis: { tooltip: true },
-    render: (row: DynamoIndex) => {
-      const sks = row.keySchema?.filter(k => k.keyType.toUpperCase() === 'RANGE') || [];
-      if (sks.length === 0) return '-';
-      return sks
-        .map(sk => {
-          const attrDef = tableInfo.value?.attributeDefinitions?.find(
-            a => a.attributeName === sk.attributeName,
-          );
-          return `${sk.attributeName} (${attrDef?.attributeType || 'S'})`;
-        })
-        .join(', ');
-    },
-  },
-  {
-    title: lang.t('manage.dynamo.projection'),
-    key: 'projection',
-    ellipsis: { tooltip: true },
-    render: (row: DynamoIndex) => {
-      const projectionType = row.projection?.projectionType?.toUpperCase() || 'ALL';
-      if (projectionType === 'INCLUDE') {
-        const attrs = row.projection?.nonKeyAttributes || [];
-        return attrs.length > 0 ? `INCLUDE [${attrs.join(', ')}]` : 'INCLUDE';
-      }
-      return projectionType;
-    },
-  },
-  {
-    title: lang.t('manage.dynamo.size'),
-    key: 'size',
-    ellipsis: { tooltip: true },
-    render: (row: DynamoIndex) => {
-      if (!row.sizeBytes) return '-';
-      const sizeInKB = row.sizeBytes / 1024;
-      const sizeInMB = sizeInKB / 1024;
-      const sizeInGB = sizeInMB / 1024;
-      if (sizeInGB >= 1) {
-        return `${sizeInGB.toFixed(2)} GB`;
-      } else if (sizeInMB >= 1) {
-        return `${sizeInMB.toFixed(2)} MB`;
-      } else if (sizeInKB >= 1) {
-        return `${sizeInKB.toFixed(2)} KB`;
-      } else {
-        return `${row.sizeBytes} B`;
-      }
-    },
-  },
-  {
-    title: lang.t('manage.dynamo.itemCount'),
-    key: 'itemCount',
-    ellipsis: { tooltip: true },
-    render: (row: DynamoIndex) => {
-      if (row.itemCount === undefined || row.itemCount === null) return '-';
-      return row.itemCount.toLocaleString();
-    },
-  },
-  {
-    title: lang.t('manage.dynamo.indexStatus'),
-    key: 'status',
-    render: (row: DynamoIndex) => {
-      const status = row.status?.toUpperCase() || 'ACTIVE';
-      return h(
-        NTag,
-        {
-          type: status === 'ACTIVE' ? 'success' : 'warning',
-          size: 'small',
-        },
-        { default: () => status },
+// Helper functions for table rendering
+const getPartitionKey = (row: DynamoIndex): string => {
+  const pks = row.keySchema?.filter(k => k.keyType.toUpperCase() === 'HASH') || [];
+  if (pks.length === 0) return '-';
+  return pks
+    .map(pk => {
+      const attrDef = tableInfo.value?.attributeDefinitions?.find(
+        a => a.attributeName === pk.attributeName,
       );
-    },
-  },
-  {
-    title: lang.t('manage.dynamo.actions'),
-    key: 'actions',
-    width: 80,
-    render: (row: DynamoIndex) => {
-      return h('div', { class: 'action-buttons' }, [
-        h(
-          NButton,
-          {
-            quaternary: true,
-            size: 'small',
-            onClick: () => handleDeleteIndex(row),
-          },
-          { icon: () => h(NIcon, { color: '#d03050' }, { default: () => h(TrashCan) }) },
-        ),
-      ]);
-    },
-  },
-]);
+      return `${pk.attributeName} (${attrDef?.attributeType || 'S'})`;
+    })
+    .join(', ');
+};
+
+const getSortKey = (row: DynamoIndex): string => {
+  const sks = row.keySchema?.filter(k => k.keyType.toUpperCase() === 'RANGE') || [];
+  if (sks.length === 0) return '-';
+  return sks
+    .map(sk => {
+      const attrDef = tableInfo.value?.attributeDefinitions?.find(
+        a => a.attributeName === sk.attributeName,
+      );
+      return `${sk.attributeName} (${attrDef?.attributeType || 'S'})`;
+    })
+    .join(', ');
+};
+
+const getProjection = (row: DynamoIndex): string => {
+  const projectionType = row.projection?.projectionType?.toUpperCase() || 'ALL';
+  if (projectionType === 'INCLUDE') {
+    const attrs = row.projection?.nonKeyAttributes || [];
+    return attrs.length > 0 ? `INCLUDE [${attrs.join(', ')}]` : 'INCLUDE';
+  }
+  return projectionType;
+};
+
+const formatIndexSize = (row: DynamoIndex): string => {
+  if (!row.sizeBytes) return '-';
+  const sizeInKB = row.sizeBytes / 1024;
+  const sizeInMB = sizeInKB / 1024;
+  const sizeInGB = sizeInMB / 1024;
+  if (sizeInGB >= 1) {
+    return `${sizeInGB.toFixed(2)} GB`;
+  } else if (sizeInMB >= 1) {
+    return `${sizeInMB.toFixed(2)} MB`;
+  } else if (sizeInKB >= 1) {
+    return `${sizeInKB.toFixed(2)} KB`;
+  } else {
+    return `${row.sizeBytes} B`;
+  }
+};
+
+const formatIndexItemCount = (row: DynamoIndex): string => {
+  if (row.itemCount === undefined || row.itemCount === null) return '-';
+  return row.itemCount.toLocaleString();
+};
 
 const formatNumber = (num: number | undefined) => {
   if (num === undefined || num === null) return '-';
@@ -665,7 +661,7 @@ defineExpose({
 });
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .dynamo-manage-container {
   width: 100%;
   height: 100%;
@@ -673,444 +669,421 @@ defineExpose({
   overflow-x: hidden;
   padding: 24px;
   padding-right: 32px;
-  background-color: var(--bg-color);
+  background-color: hsl(var(--background));
   box-sizing: border-box;
+  position: relative;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
-  /* Hide scrollbar for Chrome, Safari and Opera */
-  &::-webkit-scrollbar {
-    display: none;
+.dynamo-manage-container::-webkit-scrollbar {
+  display: none;
+}
+
+.refresh-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: hsl(var(--background) / 0.8);
+  z-index: 10;
+}
+
+.refresh-text {
+  margin-top: 8px;
+  font-size: 14px;
+  color: hsl(var(--muted-foreground));
+}
+
+.metrics-section {
+  margin-bottom: 24px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1200px) {
+  .metrics-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
+}
 
-  /* Hide scrollbar for IE, Edge and Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
-
-  .metrics-section {
-    margin-bottom: 24px;
-
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(6, 1fr);
-      gap: 16px;
-
-      @media (max-width: 1200px) {
-        grid-template-columns: repeat(3, 1fr);
-      }
-
-      @media (max-width: 768px) {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .metric-card {
-        background: var(--card-bg-color);
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-
-        :deep(.n-card__content) {
-          padding: 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .metric-label {
-          font-size: 10px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          color: var(--gray-color);
-        }
-
-        .metric-value {
-          font-size: 20px;
-          font-weight: 700;
-          color: var(--text-color);
-        }
-
-        .metric-value-small {
-          font-size: 14px;
-          font-weight: 600;
-          color: var(--text-color);
-        }
-
-        .status-value {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-
-          .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background-color: var(--gray-color);
-
-            &.status-active {
-              background-color: #36ad6a;
-              animation: pulse 2s infinite;
-            }
-
-            &.status-creating,
-            &.status-updating {
-              background-color: #f0a020;
-            }
-
-            &.status-deleting {
-              background-color: #d03050;
-            }
-          }
-
-          .status-text {
-            font-size: 14px;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 4px;
-
-            &.status-active {
-              color: #166534;
-              background-color: #dcfce7;
-            }
-
-            &.status-creating,
-            &.status-updating {
-              color: #9a3412;
-              background-color: #ffedd5;
-            }
-
-            &.status-deleting {
-              color: #991b1b;
-              background-color: #fee2e2;
-            }
-          }
-        }
-
-        .metric-value-status {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-
-          .status-enabled {
-            color: #36ad6a;
-            font-weight: 500;
-          }
-
-          .status-disabled {
-            color: #d03050;
-            font-weight: 500;
-          }
-        }
-
-        .ttl-value {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-
-          .status-enabled {
-            color: #36ad6a;
-            font-weight: 500;
-            font-size: 14px;
-          }
-
-          .status-disabled {
-            color: #d03050;
-            font-weight: 500;
-            font-size: 14px;
-          }
-
-          .ttl-attribute {
-            font-family: monospace;
-            font-size: 10px;
-            color: var(--gray-color);
-          }
-        }
-      }
-    }
+@media (max-width: 768px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
+}
 
-  .performance-section {
-    margin-bottom: 24px;
+.metric-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+}
 
-    .performance-card {
-      background: var(--card-bg-color);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
+.metric-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: hsl(var(--muted-foreground));
+}
 
-      .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+.metric-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
 
-        .section-title {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-weight: 600;
-          color: var(--text-color);
-        }
+.metric-value-small {
+  font-size: 14px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
 
-        .time-range {
-          font-size: 10px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-          color: #36ad6a;
-        }
-      }
+.status-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-      .performance-content {
-        display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 32px;
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: hsl(var(--muted-foreground));
+}
 
-        @media (max-width: 900px) {
-          grid-template-columns: 1fr;
-        }
+.status-indicator.status-active {
+  background-color: #36ad6a;
+  animation: pulse 2s infinite;
+}
 
-        .chart-section {
-          .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
+.status-indicator.status-creating,
+.status-indicator.status-updating {
+  background-color: #f0a020;
+}
 
-            .chart-title {
-              font-size: 12px;
-              font-weight: 600;
-              text-transform: uppercase;
-              color: var(--gray-color);
-            }
+.status-indicator.status-deleting {
+  background-color: #d03050;
+}
 
-            .chart-legend {
-              display: flex;
-              gap: 16px;
+.status-text {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
 
-              .legend-item {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                font-size: 12px;
-                color: var(--gray-color);
+.status-text.status-active {
+  color: #166534;
+  background-color: #dcfce7;
+}
 
-                .legend-color {
-                  width: 12px;
-                  height: 12px;
-                  border-radius: 2px;
+.status-text.status-creating,
+.status-text.status-updating {
+  color: #9a3412;
+  background-color: #ffedd5;
+}
 
-                  &.read {
-                    background-color: #3b82f6;
-                  }
+.status-text.status-deleting {
+  color: #991b1b;
+  background-color: #fee2e2;
+}
 
-                  &.write {
-                    background-color: #fb923c;
-                  }
-                }
-              }
-            }
-          }
+.metric-value-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 
-          .chart-placeholder {
-            height: 200px;
-            border-left: 1px solid var(--border-color);
-            border-bottom: 1px solid var(--border-color);
-            padding: 8px;
+.status-enabled {
+  color: #36ad6a;
+  font-weight: 500;
+}
 
-            .chart-svg {
-              width: 100%;
-              height: 100%;
-            }
-          }
-        }
+.status-disabled {
+  color: #d03050;
+  font-weight: 500;
+}
 
-        .utilization-section {
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-          gap: 24px;
+.ttl-value {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 
-          .utilization-item {
-            display: flex;
-            align-items: center;
-            gap: 16px;
+.ttl-value .status-enabled {
+  font-size: 14px;
+}
 
-            .utilization-gauge {
-              position: relative;
-              width: 64px;
-              height: 64px;
+.ttl-value .status-disabled {
+  font-size: 14px;
+}
 
-              .gauge-svg {
-                width: 100%;
-                height: 100%;
-                transform: rotate(-90deg);
-              }
+.ttl-attribute {
+  font-family: monospace;
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+}
 
-              .gauge-value {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                font-size: 12px;
-                font-weight: 700;
-                color: var(--text-color);
-              }
-            }
+.performance-section {
+  margin-bottom: 24px;
+}
 
-            .utilization-info {
-              display: flex;
-              flex-direction: column;
-              gap: 2px;
+.performance-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+}
 
-              .utilization-label {
-                font-size: 12px;
-                font-weight: 600;
-                color: var(--text-color);
-              }
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-              .utilization-detail {
-                font-size: 10px;
-                color: var(--gray-color);
-              }
-            }
-          }
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
 
-          .throttled-events {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--bg-color);
-            padding: 12px 16px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
+.time-range {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #36ad6a;
+}
 
-            .throttled-label {
-              font-size: 12px;
-              font-weight: 500;
-              color: var(--gray-color);
-            }
+.performance-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 32px;
+}
 
-            .throttled-value {
-              font-size: 12px;
-              font-weight: 700;
-              color: #36ad6a;
-              background: #dcfce7;
-              padding: 2px 8px;
-              border-radius: 4px;
-            }
-          }
-        }
-      }
-    }
+@media (max-width: 900px) {
+  .performance-content {
+    grid-template-columns: 1fr;
   }
+}
 
-  .indexes-section {
-    margin-bottom: 24px;
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
 
-    .indexes-card {
-      background: var(--card-bg-color);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
+.chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
 
-      .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+.chart-legend {
+  display: flex;
+  gap: 16px;
+}
 
-        .section-title {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-weight: 600;
-          color: var(--text-color);
-        }
-      }
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
 
-      .table-container {
-        :deep(.n-data-table) {
-          .n-data-table-th {
-            font-size: 11px;
-            font-weight: 600;
-            text-transform: uppercase;
-            color: var(--gray-color);
-            background: var(--bg-color);
-          }
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
 
-          .n-data-table-td {
-            font-size: 13px;
-          }
-        }
+.legend-color.read {
+  background-color: #3b82f6;
+}
 
-        .action-buttons {
-          display: flex;
-          gap: 4px;
-        }
-      }
-    }
+.legend-color.write {
+  background-color: #fb923c;
+}
+
+.chart-placeholder {
+  height: 200px;
+  border-left: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 8px;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.utilization-section {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 24px;
+}
+
+.utilization-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.utilization-gauge {
+  position: relative;
+  width: 64px;
+  height: 64px;
+}
+
+.gauge-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.gauge-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.utilization-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.utilization-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.utilization-detail {
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+}
+
+.throttled-events {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: hsl(var(--background));
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+}
+
+.throttled-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+}
+
+.throttled-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #36ad6a;
+  background: #dcfce7;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.indexes-section {
+  margin-bottom: 24px;
+}
+
+.indexes-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.settings-section {
+  margin-bottom: 24px;
+}
+
+.settings-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
   }
+}
 
-  .settings-section {
-    margin-bottom: 24px;
+.setting-item {
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 12px 16px;
+  transition: all 0.2s ease;
+}
 
-    .settings-card {
-      background: var(--card-bg-color);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
+.setting-item.clickable {
+  cursor: pointer;
+}
 
-      .section-header {
-        .section-title {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-weight: 600;
-          color: var(--text-color);
-        }
-      }
+.setting-item.clickable:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
 
-      .settings-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 24px;
+.setting-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
 
-        @media (max-width: 768px) {
-          grid-template-columns: 1fr;
-        }
+.setting-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
 
-        .setting-item {
-          background: var(--bg-color);
-          border: 1px solid var(--border-color);
-          border-radius: 8px;
-          padding: 12px 16px;
-          transition: all 0.2s ease;
-
-          &.clickable {
-            cursor: pointer;
-
-            &:hover {
-              border-color: var(--primary-color);
-              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            }
-          }
-
-          .setting-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-
-            .setting-label {
-              font-size: 11px;
-              font-weight: 700;
-              text-transform: uppercase;
-              color: var(--gray-color);
-            }
-          }
-
-          .setting-value {
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--gray-color);
-          }
-        }
-      }
-    }
-  }
+.setting-value {
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
 }
 
 @keyframes pulse {

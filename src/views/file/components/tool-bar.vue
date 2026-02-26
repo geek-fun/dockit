@@ -1,34 +1,49 @@
 <template>
   <div class="tool-bar-container">
-    <n-tooltip v-for="toolBar in toolBarList" :key="toolBar.id" trigger="hover">
-      <template #trigger>
-        <n-icon size="26" class="tool-bar-item" @click="handleToolBarAction(toolBar.id)">
-          <component :is="toolBar.icon" />
-        </n-icon>
-      </template>
-      {{ toolBar.title }}
-    </n-tooltip>
+    <TooltipProvider>
+      <Tooltip v-for="toolBar in toolBarList" :key="toolBar.id">
+        <TooltipTrigger as-child>
+          <span
+            :class="[toolBar.iconClass, 'tool-bar-item h-6 w-6']"
+            @click="handleToolBarAction(toolBar.id)"
+          />
+        </TooltipTrigger>
+        <TooltipContent>
+          {{ toolBar.title }}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
     <path-breadcrumb />
     <div class="sort-container">
-      <n-select
-        v-model:value="sortBy"
-        :options="sortOptions"
-        size="small"
-        style="width: 140px"
-        @update:value="handleSortChange"
-      />
+      <Select v-model="sortBy" @update:model-value="handleSortChange">
+        <SelectTrigger class="w-[140px] h-8">
+          <SelectValue :placeholder="$t('file.sortBy.name')" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="option in sortOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
     </div>
     <new-file-dialog ref="newFileDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { DocumentAdd, FolderAdd, FolderOpen } from '@vicons/carbon';
 import { ContextMenuAction, SortBy, ToolBarAction, useFileStore } from '../../../store';
 import { useLang } from '../../../lang';
 import NewFileDialog from './new-file-dialog.vue';
 import PathBreadcrumb from '../../../components/path-breadcrumb.vue';
 import { storeToRefs } from 'pinia';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const fileStore = useFileStore();
 const { selectDirectory, setSortBy } = fileStore;
@@ -47,17 +62,17 @@ const sortOptions = computed(() => [
 const toolBarList = [
   {
     id: ToolBarAction.ADD_DOCUMENT,
-    icon: DocumentAdd,
+    iconClass: 'i-carbon-document-add',
     title: lang.t('file.newFile'),
   },
   {
     id: ToolBarAction.ADD_FOLDER,
-    icon: FolderAdd,
+    iconClass: 'i-carbon-folder-add',
     title: lang.t('file.newFolder'),
   },
   {
     id: ToolBarAction.OPEN_FOLDER,
-    icon: FolderOpen,
+    iconClass: 'i-carbon-folder-open',
     title: lang.t('file.open'),
   },
 ];
@@ -72,34 +87,34 @@ const handleToolBarAction = async (id: ToolBarAction) => {
   }
 };
 
-const handleSortChange = (value: SortBy) => {
-  setSortBy(value);
+const handleSortChange = (value: string) => {
+  setSortBy(value as SortBy);
 };
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .tool-bar-container {
   height: var(--tool-bar-height);
   width: 100%;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid hsl(var(--border));
+}
 
-  .tool-bar-item {
-    margin: 0 5px;
-    cursor: pointer;
-    display: flex;
-    align-items: flex-start;
-    color: gray;
+.tool-bar-item {
+  margin: 0 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  color: gray;
+}
 
-    &:hover {
-      color: var(--theme-color);
-    }
-  }
+.tool-bar-item:hover {
+  color: hsl(var(--primary));
+}
 
-  .sort-container {
-    margin-left: auto;
-    margin-right: 10px;
-  }
+.sort-container {
+  margin-left: auto;
+  margin-right: 10px;
 }
 </style>

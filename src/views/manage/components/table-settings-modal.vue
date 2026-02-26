@@ -1,93 +1,154 @@
 <template>
-  <n-modal :show="props.show" @update:show="val => emit('update:show', val)">
-    <n-card
-      style="width: 600px"
-      :title="lang.t('manage.dynamo.tableSettingsTitle')"
-      :bordered="false"
-      role="dialog"
-    >
-      <n-tabs type="line" animated>
+  <Dialog :open="props.show" @update:open="val => emit('update:show', val)">
+    <DialogContent class="max-w-[600px]">
+      <DialogHeader>
+        <DialogTitle>{{ lang.t('manage.dynamo.tableSettingsTitle') }}</DialogTitle>
+      </DialogHeader>
+
+      <Tabs default-value="streams" class="w-full">
+        <TabsList class="grid w-full grid-cols-4">
+          <TabsTrigger value="streams">{{ lang.t('manage.dynamo.streams') }}</TabsTrigger>
+          <TabsTrigger value="ttl">{{ lang.t('manage.dynamo.ttl') }}</TabsTrigger>
+          <TabsTrigger value="pitr">{{ lang.t('manage.dynamo.pitr') }}</TabsTrigger>
+          <TabsTrigger value="tableClass">{{ lang.t('manage.dynamo.tableClass') }}</TabsTrigger>
+        </TabsList>
+
         <!-- Streams Tab -->
-        <n-tab-pane name="streams" :tab="lang.t('manage.dynamo.streams')">
-          <n-form label-placement="left" label-width="160">
-            <n-form-item :label="lang.t('manage.dynamo.enableStreams')">
-              <n-switch v-model:value="formValue.streamsEnabled" />
-            </n-form-item>
-            <n-form-item
+        <TabsContent value="streams">
+          <Form class="space-y-4 pt-4">
+            <FormItem :label="lang.t('manage.dynamo.enableStreams')">
+              <Switch
+                :checked="formValue.streamsEnabled"
+                @update:checked="val => (formValue.streamsEnabled = val)"
+              />
+            </FormItem>
+            <FormItem
               v-if="formValue.streamsEnabled"
               :label="lang.t('manage.dynamo.streamViewType')"
             >
-              <n-select v-model:value="formValue.streamViewType" :options="streamViewTypeOptions" />
-            </n-form-item>
-          </n-form>
-        </n-tab-pane>
+              <Select v-model="formValue.streamViewType">
+                <SelectTrigger class="w-full">
+                  <SelectValue :placeholder="formValue.streamViewType" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in streamViewTypeOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+          </Form>
+        </TabsContent>
 
         <!-- TTL Tab -->
-        <n-tab-pane name="ttl" :tab="lang.t('manage.dynamo.ttl')">
-          <n-form label-placement="left" label-width="160">
-            <n-form-item :label="lang.t('manage.dynamo.enableTtl')">
-              <n-switch v-model:value="formValue.ttlEnabled" />
-            </n-form-item>
-            <n-form-item v-if="formValue.ttlEnabled" :label="lang.t('manage.dynamo.ttlAttribute')">
-              <n-input
-                v-model:value="formValue.ttlAttributeName"
+        <TabsContent value="ttl">
+          <Form class="space-y-4 pt-4">
+            <FormItem :label="lang.t('manage.dynamo.enableTtl')">
+              <Switch
+                :checked="formValue.ttlEnabled"
+                @update:checked="val => (formValue.ttlEnabled = val)"
+              />
+            </FormItem>
+            <FormItem v-if="formValue.ttlEnabled" :label="lang.t('manage.dynamo.ttlAttribute')">
+              <Input
+                v-model="formValue.ttlAttributeName"
                 :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')"
               />
-            </n-form-item>
-          </n-form>
-        </n-tab-pane>
+            </FormItem>
+          </Form>
+        </TabsContent>
 
         <!-- PITR Tab -->
-        <n-tab-pane name="pitr" :tab="lang.t('manage.dynamo.pitr')">
-          <n-form label-placement="left" label-width="160">
-            <n-form-item :label="lang.t('manage.dynamo.enablePitr')">
-              <n-switch v-model:value="formValue.pitrEnabled" />
-            </n-form-item>
-            <n-alert v-if="formValue.pitrEnabled" type="info" style="margin-top: 8px">
-              {{ lang.t('manage.dynamo.pitrWarning') }}
-            </n-alert>
-          </n-form>
-        </n-tab-pane>
+        <TabsContent value="pitr">
+          <Form class="space-y-4 pt-4">
+            <FormItem :label="lang.t('manage.dynamo.enablePitr')">
+              <Switch
+                :checked="formValue.pitrEnabled"
+                @update:checked="val => (formValue.pitrEnabled = val)"
+              />
+            </FormItem>
+            <Alert v-if="formValue.pitrEnabled" variant="info" class="mt-2">
+              <AlertDescription>{{ lang.t('manage.dynamo.pitrWarning') }}</AlertDescription>
+            </Alert>
+          </Form>
+        </TabsContent>
 
         <!-- Table Class Tab -->
-        <n-tab-pane name="tableClass" :tab="lang.t('manage.dynamo.tableClass')">
-          <n-form label-placement="left" label-width="160">
-            <n-form-item :label="lang.t('manage.dynamo.tableClass')">
-              <n-select v-model:value="formValue.tableClass" :options="tableClassOptions" />
-            </n-form-item>
-            <n-alert type="info" style="margin-top: 8px">
-              {{ lang.t('manage.dynamo.tableClassInfo') }}
-            </n-alert>
-          </n-form>
-        </n-tab-pane>
-      </n-tabs>
+        <TabsContent value="tableClass">
+          <Form class="space-y-4 pt-4">
+            <FormItem :label="lang.t('manage.dynamo.tableClass')">
+              <Select v-model="formValue.tableClass">
+                <SelectTrigger class="w-full">
+                  <SelectValue :placeholder="formValue.tableClass" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in tableClassOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+            <Alert variant="info" class="mt-2">
+              <AlertDescription>{{ lang.t('manage.dynamo.tableClassInfo') }}</AlertDescription>
+            </Alert>
+          </Form>
+        </TabsContent>
+      </Tabs>
 
-      <n-alert
-        v-if="errorMessage"
-        type="error"
-        style="margin-top: 12px"
-        closable
-        @close="errorMessage = ''"
-      >
-        {{ errorMessage }}
-      </n-alert>
+      <Alert v-if="errorMessage" variant="destructive" class="mt-3">
+        <AlertDescription class="flex items-center justify-between">
+          <span>{{ errorMessage }}</span>
+          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
+            <X class="w-4 h-4" />
+          </button>
+        </AlertDescription>
+      </Alert>
 
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 12px">
-          <n-button :disabled="loading" @click="handleCancel">
-            {{ lang.t('dialogOps.cancel') }}
-          </n-button>
-          <n-button type="primary" :loading="loading" @click="handleSubmit">
-            {{ lang.t('dialogOps.save') }}
-          </n-button>
-        </div>
-      </template>
-    </n-card>
-  </n-modal>
+      <DialogFooter class="mt-4">
+        <Button variant="outline" :disabled="loading" @click="handleCancel">
+          {{ lang.t('dialogOps.cancel') }}
+        </Button>
+        <Button :disabled="loading" @click="handleSubmit">
+          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+          {{ lang.t('dialogOps.save') }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { X } from 'lucide-vue-next';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Form, FormItem } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 

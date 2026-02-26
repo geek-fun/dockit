@@ -2,28 +2,24 @@
   <div class="login-container">
     <div class="login-form-content">
       <h1>DocKit</h1>
-      <n-form ref="loginFormRef" :model="loginForm" :rules="loginRules" :show-label="false">
-        <n-form-item path="name">
-          <n-input
-            v-model:value="loginForm.name"
-            clearable
-            :placeholder="$t('login.enterName')"
-            :input-props="inputProps"
-          />
-        </n-form-item>
-        <n-form-item path="password">
-          <n-input
-            v-model:value="loginForm.password"
+      <Form>
+        <FormItem>
+          <Input v-model="loginForm.name" :placeholder="$t('login.enterName')" class="w-full" />
+          <p v-if="errors.name" class="text-sm text-destructive mt-1">{{ errors.name }}</p>
+        </FormItem>
+        <FormItem>
+          <Input
+            v-model="loginForm.password"
             type="password"
-            show-password-on="mousedown"
             :placeholder="$t('login.enterPwd')"
-            :input-props="inputProps"
+            class="w-full"
           />
-        </n-form-item>
-        <n-button type="primary" @click="handleLogin">
+          <p v-if="errors.password" class="text-sm text-destructive mt-1">{{ errors.password }}</p>
+        </FormItem>
+        <Button class="w-full" @click="handleLogin">
           {{ $t('login.title') }}
-        </n-button>
-      </n-form>
+        </Button>
+      </Form>
       <div class="opration">
         <div class="left">{{ $t('login.forget') }}</div>
         <div class="right">{{ $t('login.register') }}</div>
@@ -36,70 +32,72 @@
 import { useUserStore } from '../../store';
 import { router } from '../../router';
 import { useLang } from '../../lang';
-import { inputProps } from '../../common';
+import { Form, FormItem } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 
 const userStore = useUserStore();
 const lang = useLang();
 
-const loginFormRef = ref(null);
 const loginForm = ref({
   name: '',
   password: '',
 });
 
-const loginRules = ref({
-  name: [
-    {
-      required: true,
-      message: lang.t('login.enterName'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-  password: [
-    {
-      required: true,
-      message: lang.t('login.enterPwd'),
-      trigger: ['input', 'blur'],
-    },
-  ],
+const errors = ref({
+  name: '',
+  password: '',
 });
+
+const validate = (): boolean => {
+  let isValid = true;
+  errors.value.name = '';
+  errors.value.password = '';
+
+  if (!loginForm.value.name) {
+    errors.value.name = lang.t('login.enterName');
+    isValid = false;
+  }
+  if (!loginForm.value.password) {
+    errors.value.password = lang.t('login.enterPwd');
+    isValid = false;
+  }
+  return isValid;
+};
 
 const handleLogin = (e: MouseEvent) => {
   e.preventDefault();
-  // @ts-ignore
-  loginFormRef.value?.validate((errors: unknown) => {
-    if (!errors) {
-      userStore.setToken('setToken');
-      router.push('/');
-    }
-  });
+  if (validate()) {
+    userStore.setToken('setToken');
+    router.push('/');
+  }
 };
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .login-container {
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  .login-form-content {
-    width: 280px;
-    text-align: center;
-    .n-button {
-      width: 100%;
-    }
-    .opration {
-      height: 40px;
-      line-height: 40px;
-      margin-top: 10px;
-      display: flex;
-      justify-content: space-between;
-      .left,
-      .right {
-        cursor: pointer;
-        text-decoration: underline;
-      }
-    }
-  }
+}
+
+.login-form-content {
+  width: 280px;
+  text-align: center;
+}
+
+.opration {
+  height: 40px;
+  line-height: 40px;
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.opration .left,
+.opration .right {
+  cursor: pointer;
+  text-decoration: underline;
 }
 </style>

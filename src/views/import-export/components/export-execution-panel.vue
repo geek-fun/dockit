@@ -1,122 +1,119 @@
 <template>
-  <n-card
-    class="execution-card"
-    :content-style="{ display: 'flex', flexDirection: 'column', flex: 1 }"
-  >
-    <template #header>
+  <Card class="execution-card flex flex-col h-full">
+    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="execution-header">
-        <n-icon size="20" color="#f0a020">
-          <Flash />
-        </n-icon>
+        <span class="i-carbon-flash h-5 w-5" style="color: #f0a020" />
         <span class="execution-title">{{ $t('export.execution') }}</span>
       </div>
-    </template>
-
-    <!-- Validation Readiness - with border and background -->
-    <div class="validation-section">
-      <div class="section-header">
-        <span class="section-title">{{ $t('export.validationReadiness') }}</span>
-        <span :class="['validation-status', validationClass]">
-          {{ validationPercentage }}% {{ $t('export.pass') }}
-        </span>
-      </div>
-      <n-progress
-        type="line"
-        :percentage="validationPercentage"
-        :status="validationPercentage === 100 ? 'success' : 'warning'"
-        :show-indicator="false"
-      />
-      <div class="stats-rows">
-        <div class="stat-row">
-          <span class="stat-label">{{ $t('export.rowsToExport') }}</span>
-          <span class="stat-value">{{ formatNumber(estimatedRows) }}</span>
+    </CardHeader>
+    <CardContent class="flex flex-col flex-1">
+      <!-- Validation Readiness - with border and background -->
+      <div class="validation-section">
+        <div class="section-header">
+          <span class="section-title">{{ $t('export.validationReadiness') }}</span>
+          <span :class="['validation-status', validationClass]">
+            {{ validationPercentage }}% {{ $t('export.pass') }}
+          </span>
         </div>
-        <div class="stat-row">
-          <span class="stat-label">{{ $t('export.estimatedDuration') }}</span>
-          <span class="stat-value">{{ estimatedDuration }}</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">{{ $t('export.estimatedSize') }}</span>
-          <span class="stat-value">{{ estimatedSize || '-' }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- File Handling Options - with border -->
-    <div class="file-handling-section">
-      <div class="section-title-small">{{ $t('export.fileHandling') }}</div>
-
-      <div class="option-item">
-        <n-checkbox v-model:checked="overwriteExisting">
-          <div class="option-content">
-            <span class="option-label">{{ $t('export.overwriteExisting') }}</span>
-            <span class="option-desc">{{ $t('export.overwriteExistingDesc') }}</span>
+        <Progress
+          :percentage="validationPercentage"
+          :status="validationPercentage === 100 ? 'success' : 'warning'"
+        />
+        <div class="stats-rows">
+          <div class="stat-row">
+            <span class="stat-label">{{ $t('export.rowsToExport') }}</span>
+            <span class="stat-value">{{ formatNumber(estimatedRows) }}</span>
           </div>
-        </n-checkbox>
-      </div>
-
-      <div class="option-item">
-        <n-checkbox v-model:checked="createDirectory">
-          <div class="option-content">
-            <span class="option-label">{{ $t('export.createDirectory') }}</span>
-            <span class="option-desc">{{ $t('export.createDirectoryDesc') }}</span>
+          <div class="stat-row">
+            <span class="stat-label">{{ $t('export.estimatedDuration') }}</span>
+            <span class="stat-value">{{ estimatedDuration }}</span>
           </div>
-        </n-checkbox>
+          <div class="stat-row">
+            <span class="stat-label">{{ $t('export.estimatedSize') }}</span>
+            <span class="stat-value">{{ estimatedSize || '-' }}</span>
+          </div>
+        </div>
       </div>
 
-      <div class="option-item toggle-item">
-        <span class="option-label">{{ $t('export.beautifyJson') }}</span>
-        <n-switch v-model:value="beautifyJson" />
+      <!-- File Handling Options - with border -->
+      <div class="file-handling-section">
+        <div class="section-title-small">{{ $t('export.fileHandling') }}</div>
+
+        <div class="option-item">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <Checkbox
+              :checked="overwriteExisting"
+              @update:checked="val => (overwriteExisting = val)"
+            />
+            <div class="option-content">
+              <span class="option-label">{{ $t('export.overwriteExisting') }}</span>
+              <span class="option-desc">{{ $t('export.overwriteExistingDesc') }}</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="option-item">
+          <label class="flex items-start gap-3 cursor-pointer">
+            <Checkbox :checked="createDirectory" @update:checked="val => (createDirectory = val)" />
+            <div class="option-content">
+              <span class="option-label">{{ $t('export.createDirectory') }}</span>
+              <span class="option-desc">{{ $t('export.createDirectoryDesc') }}</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="option-item toggle-item">
+          <span class="option-label">{{ $t('export.beautifyJson') }}</span>
+          <Switch :checked="beautifyJson" @update:checked="val => (beautifyJson = val)" />
+        </div>
       </div>
-    </div>
 
-    <!-- Progress Display -->
-    <div v-if="exportProgress" class="progress-section">
-      <n-progress
-        type="line"
-        :percentage="progressPercentage"
-        :status="progressPercentage === 100 ? 'success' : 'info'"
-        indicator-placement="inside"
-        :processing="progressPercentage < 100"
-      />
-      <p class="progress-text">
-        {{ exportProgress.complete }} / {{ exportProgress.total }} {{ $t('export.documents') }}
-      </p>
-    </div>
+      <!-- Progress Display -->
+      <div v-if="exportProgress" class="progress-section">
+        <Progress
+          :percentage="progressPercentage"
+          :status="progressPercentage === 100 ? 'success' : 'info'"
+        />
+        <p class="progress-text">
+          {{ exportProgress.complete }} / {{ exportProgress.total }} {{ $t('export.documents') }}
+        </p>
+      </div>
 
-    <!-- Export Button - at bottom -->
-    <div class="export-action">
-      <n-button
-        type="primary"
-        size="large"
-        block
-        :disabled="!canStartExport"
-        :loading="isExporting"
-        @click="handleStartExport"
-      >
-        <template #icon>
-          <n-icon>
-            <Download />
-          </n-icon>
-        </template>
-        {{ $t('export.startExportTask') }}
-      </n-button>
-      <p class="export-note">{{ $t('export.exportNote') }}</p>
-    </div>
-  </n-card>
+      <!-- Export Button - at bottom -->
+      <div class="export-action">
+        <Button
+          class="w-full"
+          size="lg"
+          :disabled="!canStartExport || isExporting"
+          @click="handleStartExport"
+        >
+          <Spinner v-if="isExporting" class="mr-2 h-4 w-4" />
+          <span v-else class="i-carbon-download h-4 w-4 mr-2" />
+          {{ $t('export.startExportTask') }}
+        </Button>
+        <p class="export-note">{{ $t('export.exportNote') }}</p>
+      </div>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Flash, Download } from '@vicons/carbon';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
+import { Spinner } from '@/components/ui/spinner';
 import { useImportExportStore, ExportInput } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import { ulid } from 'ulidx';
 import { sourceFileApi } from '../../../datasources';
+import { useMessageService, useDialogService } from '@/composables';
 
-const message = useMessage();
-const dialog = useDialog();
+const message = useMessageService();
+const dialog = useDialogService();
 const lang = useLang();
 
 const exportStore = useImportExportStore();
@@ -297,161 +294,153 @@ const executeExport = async () => {
 };
 </script>
 
-<style lang="scss" scoped>
-.execution-card {
+<style scoped>
+.execution-card .execution-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.execution-card .execution-header .execution-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.execution-card .validation-section {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.execution-card .validation-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.execution-card .validation-section .section-header .section-title {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.execution-card .validation-section .section-header .validation-status {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.execution-card .validation-section .section-header .validation-status.success {
+  color: #18a058;
+}
+
+.execution-card .validation-section .section-header .validation-status.warning {
+  color: #f0a020;
+}
+
+.execution-card .validation-section .section-header .validation-status.error {
+  color: #d03050;
+}
+
+.execution-card .validation-section .stats-rows {
+  margin-top: 12px;
+}
+
+.execution-card .validation-section .stats-rows .stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.execution-card .validation-section .stats-rows .stat-row:not(:last-child) {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.execution-card .validation-section .stats-rows .stat-row .stat-label {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+}
+
+.execution-card .validation-section .stats-rows .stat-row .stat-value {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.execution-card .file-handling-section {
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.execution-card .file-handling-section .section-title-small {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.execution-card .file-handling-section .option-item {
+  padding: 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.execution-card .file-handling-section .option-item:last-child {
+  margin-bottom: 0;
+}
+
+.execution-card .file-handling-section .option-item .option-content {
   display: flex;
   flex-direction: column;
-  height: 100%;
+}
 
-  .execution-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.execution-card .file-handling-section .option-item .option-content .option-label {
+  font-size: 13px;
+  font-weight: 500;
+}
 
-    .execution-title {
-      font-size: 16px;
-      font-weight: 600;
-    }
-  }
+.execution-card .file-handling-section .option-item .option-content .option-desc {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+}
 
-  .validation-section {
-    background-color: var(--card-color);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 16px;
+.execution-card .file-handling-section .option-item.toggle-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
+.execution-card .file-handling-section .option-item.toggle-item .option-label {
+  font-size: 13px;
+  font-weight: 500;
+}
 
-      .section-title {
-        font-size: 12px;
-        color: var(--text-color-3);
-        text-transform: uppercase;
-        font-weight: 500;
-      }
+.execution-card .progress-section {
+  margin-bottom: 16px;
+}
 
-      .validation-status {
-        font-size: 12px;
-        font-weight: 600;
+.execution-card .progress-section .progress-text {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  margin-top: 8px;
+}
 
-        &.success {
-          color: #18a058;
-        }
-        &.warning {
-          color: #f0a020;
-        }
-        &.error {
-          color: #d03050;
-        }
-      }
-    }
+.execution-card .export-action {
+  margin-top: auto;
+  padding-top: 16px;
+}
 
-    .stats-rows {
-      margin-top: 12px;
-
-      .stat-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 8px 0;
-
-        &:not(:last-child) {
-          border-bottom: 1px solid var(--border-color);
-        }
-
-        .stat-label {
-          font-size: 13px;
-          color: var(--text-color-3);
-        }
-
-        .stat-value {
-          font-size: 13px;
-          font-weight: 500;
-        }
-      }
-    }
-  }
-
-  .section {
-    margin-bottom: 16px;
-  }
-
-  .file-handling-section {
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 16px;
-
-    .section-title-small {
-      font-size: 12px;
-      color: var(--text-color-3);
-      text-transform: uppercase;
-      font-weight: 500;
-      margin-bottom: 12px;
-    }
-
-    .option-item {
-      padding: 8px;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      margin-bottom: 8px;
-
-      &:last-child {
-        margin-bottom: 0;
-      }
-
-      .option-content {
-        display: flex;
-        flex-direction: column;
-
-        .option-label {
-          font-size: 13px;
-          font-weight: 500;
-        }
-
-        .option-desc {
-          font-size: 11px;
-          color: var(--text-color-3);
-        }
-      }
-
-      &.toggle-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-
-        .option-label {
-          font-size: 13px;
-          font-weight: 500;
-        }
-      }
-    }
-  }
-
-  .progress-section {
-    margin-bottom: 16px;
-
-    .progress-text {
-      font-size: 12px;
-      color: var(--text-color-3);
-      text-align: center;
-      margin-top: 8px;
-    }
-  }
-
-  .export-action {
-    margin-top: auto;
-    padding-top: 16px;
-
-    .export-note {
-      font-size: 11px;
-      color: var(--text-color-3);
-      text-align: center;
-      margin-top: 8px;
-    }
-  }
+.execution-card .export-action .export-note {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  margin-top: 8px;
 }
 </style>

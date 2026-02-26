@@ -57,7 +57,7 @@ import AboutUs from './components/about-us.vue';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .setting-container {
   height: 100%;
   width: 100%;

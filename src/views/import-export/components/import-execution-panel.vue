@@ -1,133 +1,122 @@
 <template>
-  <n-card
-    class="execution-card"
-    :content-style="{ display: 'flex', flexDirection: 'column', flex: 1 }"
-  >
-    <template #header>
+  <Card class="execution-card flex flex-col h-full">
+    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="execution-header">
-        <n-icon size="20" color="#f0a020">
-          <Flash />
-        </n-icon>
+        <span class="i-carbon-flash h-5 w-5" style="color: #f0a020" />
         <span class="execution-title">{{ $t('export.execution') }}</span>
       </div>
-    </template>
-
-    <!-- Validation Readiness -->
-    <div class="validation-section">
-      <div class="section-header">
-        <span class="section-title">{{ $t('export.validationReadiness') }}</span>
-        <span :class="['validation-status', validationClass]">
-          {{ validationPercentage }}% {{ $t('export.pass') }}
-        </span>
-      </div>
-      <n-progress
-        type="line"
-        :percentage="validationPercentage"
-        :status="validationPercentage === 100 ? 'success' : 'warning'"
-        :show-indicator="false"
-      />
-      <div class="stats-rows">
-        <div class="stat-row">
-          <span class="stat-label">{{ $t('import.rowsDetected') }}</span>
-          <span class="stat-value">{{ formatNumber(rowCount) }}</span>
+    </CardHeader>
+    <CardContent class="flex flex-col flex-1">
+      <!-- Validation Readiness -->
+      <div class="validation-section">
+        <div class="section-header">
+          <span class="section-title">{{ $t('export.validationReadiness') }}</span>
+          <span :class="['validation-status', validationClass]">
+            {{ validationPercentage }}% {{ $t('export.pass') }}
+          </span>
         </div>
-        <div class="stat-row">
-          <span class="stat-label">{{ $t('import.estimatedDuration') }}</span>
-          <span class="stat-value">{{ estimatedDuration }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Import Strategy -->
-    <div class="strategy-section">
-      <div class="section-title-small">{{ $t('import.importStrategy') }}</div>
-
-      <div class="strategy-options">
-        <label
-          :class="['strategy-option', { selected: importStrategy === 'append' }]"
-          @click="handleStrategyChange('append')"
-        >
-          <n-radio :checked="importStrategy === 'append'" value="append" />
-          <div class="strategy-content">
-            <span class="strategy-label">{{ $t('import.appendRecords') }}</span>
-            <span class="strategy-desc">{{ $t('import.appendRecordsDesc') }}</span>
+        <Progress
+          :percentage="validationPercentage"
+          :status="validationPercentage === 100 ? 'success' : 'warning'"
+        />
+        <div class="stats-rows">
+          <div class="stat-row">
+            <span class="stat-label">{{ $t('import.rowsDetected') }}</span>
+            <span class="stat-value">{{ formatNumber(rowCount) }}</span>
           </div>
-        </label>
-
-        <label
-          :class="['strategy-option', { selected: importStrategy === 'replace' }]"
-          @click="handleStrategyChange('replace')"
-        >
-          <n-radio :checked="importStrategy === 'replace'" value="replace" />
-          <div class="strategy-content">
-            <span class="strategy-label">{{ $t('import.replaceCollection') }}</span>
-            <span class="strategy-desc">{{ $t('import.replaceCollectionDesc') }}</span>
+          <div class="stat-row">
+            <span class="stat-label">{{ $t('import.estimatedDuration') }}</span>
+            <span class="stat-value">{{ estimatedDuration }}</span>
           </div>
-        </label>
-      </div>
-    </div>
-
-    <!-- Progress Display -->
-    <div v-if="restoreProgress" class="progress-section">
-      <n-progress
-        type="line"
-        :percentage="progressPercentage"
-        :status="progressPercentage === 100 ? 'success' : 'info'"
-        indicator-placement="inside"
-        :processing="progressPercentage < 100"
-      />
-      <p class="progress-text">
-        {{ restoreProgress.complete }} / {{ restoreProgress.total }} {{ $t('export.documents') }}
-      </p>
-
-      <!-- Statistics Box -->
-      <div v-if="restoreProgress.complete > 0" class="statistics-box">
-        <div class="stat-item">
-          <span class="stat-label">{{ $t('import.inserted') }}:</span>
-          <span class="stat-value success">{{ formatNumber(restoreProgress.inserted) }}</span>
-        </div>
-        <div v-if="importStrategy === 'replace'" class="stat-item">
-          <span class="stat-label">{{ $t('import.updated') }}:</span>
-          <span class="stat-value info">{{ formatNumber(restoreProgress.updated) }}</span>
-        </div>
-        <div v-if="restoreProgress.skipped > 0" class="stat-item">
-          <span class="stat-label">{{ $t('import.skipped') }}:</span>
-          <span class="stat-value warning">{{ formatNumber(restoreProgress.skipped) }}</span>
         </div>
       </div>
-    </div>
 
-    <!-- Import Button -->
-    <div class="import-action">
-      <n-button
-        type="primary"
-        size="large"
-        block
-        :disabled="!canStartImport"
-        :loading="isImporting"
-        @click="handleStartImport"
-      >
-        <template #icon>
-          <n-icon>
-            <Upload />
-          </n-icon>
-        </template>
-        {{ $t('import.startImportTask') }}
-      </n-button>
-      <p class="import-note">{{ $t('import.importNote') }}</p>
-    </div>
-  </n-card>
+      <!-- Import Strategy -->
+      <div class="strategy-section">
+        <div class="section-title-small">{{ $t('import.importStrategy') }}</div>
+
+        <RadioGroup v-model="currentStrategy" class="strategy-options">
+          <label
+            :class="['strategy-option', { selected: currentStrategy === 'append' }]"
+            @click="handleStrategyChange('append')"
+          >
+            <RadioGroupItem value="append" />
+            <div class="strategy-content">
+              <span class="strategy-label">{{ $t('import.appendRecords') }}</span>
+              <span class="strategy-desc">{{ $t('import.appendRecordsDesc') }}</span>
+            </div>
+          </label>
+
+          <label
+            :class="['strategy-option', { selected: currentStrategy === 'replace' }]"
+            @click="handleStrategyChange('replace')"
+          >
+            <RadioGroupItem value="replace" />
+            <div class="strategy-content">
+              <span class="strategy-label">{{ $t('import.replaceCollection') }}</span>
+              <span class="strategy-desc">{{ $t('import.replaceCollectionDesc') }}</span>
+            </div>
+          </label>
+        </RadioGroup>
+      </div>
+
+      <!-- Progress Display -->
+      <div v-if="restoreProgress" class="progress-section">
+        <Progress
+          :percentage="progressPercentage"
+          :status="progressPercentage === 100 ? 'success' : 'info'"
+        />
+        <p class="progress-text">
+          {{ restoreProgress.complete }} / {{ restoreProgress.total }} {{ $t('export.documents') }}
+        </p>
+
+        <!-- Statistics Box -->
+        <div v-if="restoreProgress.complete > 0" class="statistics-box">
+          <div class="stat-item">
+            <span class="stat-label">{{ $t('import.inserted') }}:</span>
+            <span class="stat-value success">{{ formatNumber(restoreProgress.inserted) }}</span>
+          </div>
+          <div v-if="currentStrategy === 'replace'" class="stat-item">
+            <span class="stat-label">{{ $t('import.updated') }}:</span>
+            <span class="stat-value info">{{ formatNumber(restoreProgress.updated) }}</span>
+          </div>
+          <div v-if="restoreProgress.skipped > 0" class="stat-item">
+            <span class="stat-label">{{ $t('import.skipped') }}:</span>
+            <span class="stat-value warning">{{ formatNumber(restoreProgress.skipped) }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Import Button -->
+      <div class="import-action">
+        <Button
+          class="w-full"
+          size="lg"
+          :disabled="!canStartImport || isImporting"
+          @click="handleStartImport"
+        >
+          <span class="i-carbon-upload h-4 w-4 mr-2" />
+          {{ $t('import.startImportTask') }}
+        </Button>
+        <p class="import-note">{{ $t('import.importNote') }}</p>
+      </div>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Flash, Upload } from '@vicons/carbon';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useImportExportStore, ImportStrategy } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
+import { useMessageService, useDialogService } from '@/composables';
 
-const message = useMessage();
-const dialog = useDialog();
+const message = useMessageService();
+const dialog = useDialogService();
 const lang = useLang();
 
 const importExportStore = useImportExportStore();
@@ -141,6 +130,12 @@ const {
 } = storeToRefs(importExportStore);
 
 const isImporting = ref(false);
+const currentStrategy = ref<ImportStrategy>(importStrategy.value);
+
+// Sync currentStrategy with store
+watch(importStrategy, newVal => {
+  currentStrategy.value = newVal;
+});
 
 const validationPercentage = computed(() => importValidationPercentage.value);
 
@@ -174,6 +169,7 @@ const formatNumber = (num: number | null): string => {
 };
 
 const handleStrategyChange = (strategy: ImportStrategy) => {
+  currentStrategy.value = strategy;
   importExportStore.setImportStrategy(strategy);
 };
 
@@ -181,7 +177,7 @@ const handleStartImport = async () => {
   if (!canStartImport.value) return;
 
   // If replace strategy, show confirmation dialog
-  if (importStrategy.value === 'replace') {
+  if (currentStrategy.value === 'replace') {
     dialog.warning({
       title: lang.t('dialogOps.warning'),
       content: lang.t('import.replaceWarning', { index: importTargetIndex.value }),
@@ -189,10 +185,9 @@ const handleStartImport = async () => {
       negativeText: lang.t('dialogOps.cancel'),
       onPositiveClick: () => {
         executeImport();
-        return true; // Close dialog immediately
       },
       onNegativeClick: () => {
-        return true; // Close dialog immediately
+        // Do nothing, dialog closes automatically
       },
     });
     return;
@@ -233,198 +228,204 @@ const executeImport = async () => {
 };
 </script>
 
-<style lang="scss" scoped>
-.execution-card {
+<style scoped>
+.execution-card .execution-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.execution-card .execution-header .execution-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.execution-card .validation-section {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.execution-card .validation-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.execution-card .validation-section .section-header .section-title {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.execution-card .validation-section .section-header .validation-status {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.execution-card .validation-section .section-header .validation-status.success {
+  color: #18a058;
+}
+
+.execution-card .validation-section .section-header .validation-status.warning {
+  color: #f0a020;
+}
+
+.execution-card .validation-section .section-header .validation-status.error {
+  color: #d03050;
+}
+
+.execution-card .validation-section .stats-rows {
+  margin-top: 12px;
+}
+
+.execution-card .validation-section .stats-rows .stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.execution-card .validation-section .stats-rows .stat-row:not(:last-child) {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.execution-card .validation-section .stats-rows .stat-row .stat-label {
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
+}
+
+.execution-card .validation-section .stats-rows .stat-row .stat-value {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.execution-card .strategy-section {
+  margin-bottom: 16px;
+}
+
+.execution-card .strategy-section .section-title-small {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+.execution-card .strategy-section .strategy-options {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  gap: 8px;
+}
 
-  .execution-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.execution-card .strategy-section .strategy-options .strategy-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
 
-    .execution-title {
-      font-size: 16px;
-      font-weight: 600;
-    }
-  }
+.execution-card .strategy-section .strategy-options .strategy-option:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
 
-  .validation-section {
-    background-color: var(--card-color);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 12px;
-    margin-bottom: 16px;
+.execution-card .strategy-section .strategy-options .strategy-option.selected {
+  border-color: #18a058;
+  background: rgba(24, 160, 88, 0.05);
+}
 
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
+.execution-card .strategy-section .strategy-options .strategy-option .strategy-content {
+  display: flex;
+  flex-direction: column;
+}
 
-      .section-title {
-        font-size: 12px;
-        color: var(--text-color-3);
-        text-transform: uppercase;
-        font-weight: 500;
-      }
+.execution-card
+  .strategy-section
+  .strategy-options
+  .strategy-option
+  .strategy-content
+  .strategy-label {
+  font-size: 13px;
+  font-weight: 500;
+}
 
-      .validation-status {
-        font-size: 12px;
-        font-weight: 600;
+.execution-card
+  .strategy-section
+  .strategy-options
+  .strategy-option
+  .strategy-content
+  .strategy-desc {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+}
 
-        &.success {
-          color: #18a058;
-        }
-        &.warning {
-          color: #f0a020;
-        }
-        &.error {
-          color: #d03050;
-        }
-      }
-    }
+.execution-card .progress-section {
+  margin-bottom: 16px;
+}
 
-    .stats-rows {
-      margin-top: 12px;
+.execution-card .progress-section .progress-text {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  margin-top: 8px;
+}
 
-      .stat-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 8px 0;
+.execution-card .progress-section .statistics-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+}
 
-        &:not(:last-child) {
-          border-bottom: 1px solid var(--border-color);
-        }
+.execution-card .progress-section .statistics-box .stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
 
-        .stat-label {
-          font-size: 13px;
-          color: var(--text-color-3);
-        }
+.execution-card .progress-section .statistics-box .stat-item .stat-label {
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
 
-        .stat-value {
-          font-size: 13px;
-          font-weight: 500;
-        }
-      }
-    }
-  }
+.execution-card .progress-section .statistics-box .stat-item .stat-value {
+  font-weight: 600;
+  font-size: 14px;
+}
 
-  .strategy-section {
-    margin-bottom: 16px;
+.execution-card .progress-section .statistics-box .stat-item .stat-value.success {
+  color: #18a058;
+}
 
-    .section-title-small {
-      font-size: 12px;
-      color: var(--text-color-3);
-      text-transform: uppercase;
-      font-weight: 500;
-      margin-bottom: 12px;
-    }
+.execution-card .progress-section .statistics-box .stat-item .stat-value.info {
+  color: #2080f0;
+}
 
-    .strategy-options {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+.execution-card .progress-section .statistics-box .stat-item .stat-value.warning {
+  color: #f0a020;
+}
 
-      .strategy-option {
-        display: flex;
-        align-items: flex-start;
-        gap: 12px;
-        padding: 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
+.execution-card .import-action {
+  margin-top: auto;
+  padding-top: 16px;
+}
 
-        &:hover {
-          background: rgba(0, 0, 0, 0.02);
-        }
-
-        &.selected {
-          border-color: #18a058;
-          background: rgba(24, 160, 88, 0.05);
-        }
-
-        .strategy-content {
-          display: flex;
-          flex-direction: column;
-
-          .strategy-label {
-            font-size: 13px;
-            font-weight: 500;
-          }
-
-          .strategy-desc {
-            font-size: 11px;
-            color: var(--text-color-3);
-          }
-        }
-      }
-    }
-  }
-
-  .progress-section {
-    margin-bottom: 16px;
-
-    .progress-text {
-      font-size: 12px;
-      color: var(--text-color-3);
-      text-align: center;
-      margin-top: 8px;
-    }
-
-    .statistics-box {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 12px;
-      padding: 12px;
-      background: rgba(0, 0, 0, 0.02);
-      border-radius: 8px;
-      border: 1px solid var(--border-color);
-
-      .stat-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 12px;
-
-        .stat-label {
-          color: var(--text-color-2);
-          font-weight: 500;
-        }
-
-        .stat-value {
-          font-weight: 600;
-          font-size: 14px;
-
-          &.success {
-            color: #18a058;
-          }
-
-          &.info {
-            color: #2080f0;
-          }
-
-          &.warning {
-            color: #f0a020;
-          }
-        }
-      }
-    }
-  }
-
-  .import-action {
-    margin-top: auto;
-    padding-top: 16px;
-
-    .import-note {
-      font-size: 11px;
-      color: var(--text-color-3);
-      text-align: center;
-      margin-top: 8px;
-    }
-  }
+.execution-card .import-action .import-note {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  margin-top: 8px;
 }
 </style>

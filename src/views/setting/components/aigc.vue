@@ -1,110 +1,99 @@
 <template>
   <div>
-    <n-tabs type="line" animated>
-      <n-tab-pane name="OpenAI" tab="OpenAI">
-        <n-form class="form-tab-pane">
-          <n-form-item-row :label="$t('setting.ai.model')">
-            <n-input
-              v-model:value="openAi.model"
-              :placeholder="$t('setting.ai.modelPlaceholder')"
-              :input-props="inputProps"
-            />
-          </n-form-item-row>
-          <n-form-item-row :label="$t('setting.ai.apiKey')">
-            <n-input
-              v-model:value="openAi.apiKey"
+    <Tabs default-value="OpenAI">
+      <TabsList>
+        <TabsTrigger value="OpenAI">OpenAI</TabsTrigger>
+        <TabsTrigger value="DeepSeek">DeepSeek</TabsTrigger>
+        <TabsTrigger value="others">{{ $t('setting.ai.others') }}</TabsTrigger>
+      </TabsList>
+      <TabsContent value="OpenAI">
+        <Form class="form-tab-pane">
+          <FormItem :label="$t('setting.ai.model')">
+            <Input v-model="openAi.model" :placeholder="$t('setting.ai.modelPlaceholder')" />
+          </FormItem>
+          <FormItem :label="$t('setting.ai.apiKey')">
+            <Input
+              v-model="openAi.apiKey"
               type="password"
-              show-password-on="click"
               :placeholder="$t('setting.ai.apiKeyPlaceholder')"
-              :input-props="inputProps"
             />
-          </n-form-item-row>
-          <n-form-item-row :label="$t('setting.ai.prompt')">
-            <n-input
-              v-model:value="openAi.prompt"
-              type="textarea"
+          </FormItem>
+          <FormItem :label="$t('setting.ai.prompt')">
+            <textarea
+              v-model="openAi.prompt"
+              class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               :placeholder="$t('setting.ai.defaultPrompt')"
-              :input-props="inputProps"
             />
-          </n-form-item-row>
-          <n-divider />
-          <n-form-item-row :label="$t('setting.ai.proxy')">
-            <n-input
-              v-model:value="openAi.httpProxy"
-              placeholder="http://127.0.0.1:7890"
-              :input-props="inputProps"
-            />
-          </n-form-item-row>
-          <n-button type="error" class="action-button" @click="() => reset('openai')">
-            {{ $t('dialogOps.reset') }}
-          </n-button>
-          <n-button type="success" class="action-button" @click="() => save('openai')">
-            {{ $t('dialogOps.saveAndEnable') }}
-          </n-button>
-        </n-form>
-      </n-tab-pane>
-      <n-tab-pane name="DeepSeek" tab="DeepSeek">
-        <n-form class="form-tab-pane">
-          <n-form-item-row :label="$t('setting.ai.model')">
-            <n-input
-              v-model:value="deepSeek.model"
-              :placeholder="$t('setting.ai.modelPlaceholder')"
-              :input-props="inputProps"
-            />
-          </n-form-item-row>
-          <n-form-item-row :label="$t('setting.ai.apiKey')">
-            <n-input
-              v-model:value="deepSeek.apiKey"
+          </FormItem>
+          <Separator class="my-4" />
+          <FormItem :label="$t('setting.ai.proxy')">
+            <Input v-model="openAi.httpProxy" placeholder="http://127.0.0.1:7890" />
+          </FormItem>
+          <div class="flex gap-2">
+            <Button variant="destructive" @click="() => reset('openai')">
+              {{ $t('dialogOps.reset') }}
+            </Button>
+            <Button variant="default" @click="() => save('openai')">
+              {{ $t('dialogOps.saveAndEnable') }}
+            </Button>
+          </div>
+        </Form>
+      </TabsContent>
+      <TabsContent value="DeepSeek">
+        <Form class="form-tab-pane">
+          <FormItem :label="$t('setting.ai.model')">
+            <Input v-model="deepSeek.model" :placeholder="$t('setting.ai.modelPlaceholder')" />
+          </FormItem>
+          <FormItem :label="$t('setting.ai.apiKey')">
+            <Input
+              v-model="deepSeek.apiKey"
               type="password"
-              show-password-on="click"
               :placeholder="$t('setting.ai.apiKeyPlaceholder')"
-              :input-props="inputProps"
             />
-          </n-form-item-row>
-          <n-form-item-row :label="$t('setting.ai.prompt')">
-            <n-input
-              v-model:value="deepSeek.prompt"
-              type="textarea"
+          </FormItem>
+          <FormItem :label="$t('setting.ai.prompt')">
+            <textarea
+              v-model="deepSeek.prompt"
+              class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               :placeholder="$t('setting.ai.defaultPrompt')"
-              :input-props="inputProps"
             />
-          </n-form-item-row>
-          <n-divider />
-          <n-form-item-row :label="$t('setting.ai.proxy')">
-            <n-input
-              v-model:value="deepSeek.httpProxy"
-              placeholder="http://127.0.0.1:7890"
-              :input-props="inputProps"
-            />
-          </n-form-item-row>
-          <n-button type="error" class="action-button" @click="() => reset('deepseek')">
-            {{ $t('dialogOps.reset') }}
-          </n-button>
-          <n-button type="success" class="action-button" @click="() => save('deepseek')">
-            {{ $t('dialogOps.saveAndEnable') }}
-          </n-button>
-        </n-form>
-      </n-tab-pane>
-      <n-tab-pane :name="$t('setting.ai.others')" :tab="$t('setting.ai.others')">
-        Coming soon
-      </n-tab-pane>
-    </n-tabs>
+          </FormItem>
+          <Separator class="my-4" />
+          <FormItem :label="$t('setting.ai.proxy')">
+            <Input v-model="deepSeek.httpProxy" placeholder="http://127.0.0.1:7890" />
+          </FormItem>
+          <div class="flex gap-2">
+            <Button variant="destructive" @click="() => reset('deepseek')">
+              {{ $t('dialogOps.reset') }}
+            </Button>
+            <Button variant="default" @click="() => save('deepseek')">
+              {{ $t('dialogOps.saveAndEnable') }}
+            </Button>
+          </div>
+        </Form>
+      </TabsContent>
+      <TabsContent value="others">Coming soon</TabsContent>
+    </Tabs>
   </div>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { useMessage } from 'naive-ui';
+import { useMessageService } from '@/composables';
 import { cloneDeep } from 'lodash';
 import { AiConfig, useAppStore } from '../../../store';
-import { inputProps } from '../../../common';
 import { ProviderEnum } from '../../../datasources';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Form, FormItem } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
 const appStore = useAppStore();
 const { fetchAiConfigs, saveAiConfig } = appStore;
 const { aiConfigs } = storeToRefs(appStore);
 
-const message = useMessage();
+const message = useMessageService();
 
 const openAiConfig =
   aiConfigs.value.find(({ provider }) => provider === ProviderEnum.OPENAI) ?? ({} as AiConfig);
@@ -147,12 +136,8 @@ const save = async (provider: 'openai' | 'deepseek') => {
 fetchAiConfigs();
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .form-tab-pane {
   width: 96%;
-
-  .action-button {
-    margin-right: 10px;
-  }
 }
 </style>

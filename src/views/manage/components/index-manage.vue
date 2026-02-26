@@ -1,68 +1,239 @@
 <template>
-  <n-tabs type="segment" animated class="tabs-container" @update:value="refresh">
-    <n-tab-pane name="indices" tab="INDICES" class="tabs-tab-pane-container">
-      <div class="table-container">
-        <div class="table-scroll-container">
-          <n-infinite-scroll style="height: 100%">
-            <n-data-table
-              :columns="indexTable.columns as any"
-              :data="indexTable.data"
-              :bordered="false"
-            />
-          </n-infinite-scroll>
-        </div>
-      </div>
-    </n-tab-pane>
-    <n-tab-pane name="templates" tab="TEMPLATES" class="tabs-tab-pane-container">
-      <div class="table-container">
-        <div class="table-scroll-container">
-          <n-infinite-scroll style="height: 100%">
-            <n-data-table
-              :columns="templateTable.columns as any"
-              :data="templateTable.data"
-              :bordered="false"
-            />
-          </n-infinite-scroll>
-        </div>
-      </div>
-    </n-tab-pane>
-    <template #suffix>
+  <Tabs default-value="indices" class="tabs-container" @update:model-value="refresh">
+    <div class="tabs-header">
+      <TabsList>
+        <TabsTrigger value="indices">INDICES</TabsTrigger>
+        <TabsTrigger value="templates">TEMPLATES</TabsTrigger>
+      </TabsList>
       <div class="tab-action-group">
-        <n-button type="default" tertiary @click="handleRefresh">
-          <template #icon>
-            <n-icon>
-              <Renew />
-            </n-icon>
-          </template>
+        <Button variant="ghost" @click="handleRefresh">
+          <Icon class="mr-2">
+            <Renew />
+          </Icon>
           Refresh
-        </n-button>
-        <n-button secondary type="success" @click="toggleModal('index')">
-          <template #icon>
-            <n-icon>
-              <Add />
-            </n-icon>
-          </template>
+        </Button>
+        <Button variant="secondary" @click="toggleModal('index')">
+          <Icon class="mr-2">
+            <Add />
+          </Icon>
           New Index
-        </n-button>
-        <n-button secondary type="success" @click="toggleModal('alias')">
-          <template #icon>
-            <n-icon>
-              <Add />
-            </n-icon>
-          </template>
+        </Button>
+        <Button variant="secondary" @click="toggleModal('alias')">
+          <Icon class="mr-2">
+            <Add />
+          </Icon>
           New Alias
-        </n-button>
-        <n-button secondary type="success" @click="toggleModal('template')">
-          <template #icon>
-            <n-icon>
-              <Add />
-            </n-icon>
-          </template>
+        </Button>
+        <Button variant="secondary" @click="toggleModal('template')">
+          <Icon class="mr-2">
+            <Add />
+          </Icon>
           New Template
-        </n-button>
+        </Button>
       </div>
-    </template>
-  </n-tabs>
+    </div>
+    <TabsContent value="indices" class="tabs-tab-pane-container">
+      <div class="table-container">
+        <div class="table-scroll-container">
+          <ScrollArea class="h-full">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead
+                    v-for="col in indexTableColumns"
+                    :key="col.key"
+                    class="whitespace-nowrap"
+                  >
+                    <div class="flex items-center gap-1">
+                      {{ col.title }}
+                      <Popover v-if="col.filterable">
+                        <PopoverTrigger as-child>
+                          <Button variant="ghost" size="icon" class="h-6 w-6">
+                            <span
+                              class="i-carbon-search h-3.5 w-3.5"
+                              :style="{
+                                color: filterState[col.key] ? 'hsl(var(--primary))' : undefined,
+                              }"
+                            />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent class="w-48 p-2">
+                          <Input
+                            :model-value="filterState[col.key]"
+                            :placeholder="`type to filter ${col.key}`"
+                            class="h-8"
+                            @update:model-value="val => (filterState[col.key] = String(val))"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(row, rowIndex) in indexTable.data" :key="rowIndex">
+                  <TableCell>{{ row.index }}</TableCell>
+                  <TableCell>{{ row.uuid }}</TableCell>
+                  <TableCell>
+                    {{
+                      (row.health === 'green' ? '🟢' : row.health === 'yellow' ? '🟡' : '🔴') +
+                      ` ${row.health}`
+                    }}
+                  </TableCell>
+                  <TableCell>{{ row.status }}</TableCell>
+                  <TableCell>{{ row.docs?.count }}</TableCell>
+                  <TableCell>{{ row.storage }}</TableCell>
+                  <TableCell>
+                    {{
+                      row.shards && Array.isArray(row.shards)
+                        ? `${row.shards.filter((s: any) => s.prirep === 'p').length}p/${row.shards.filter((s: any) => s.prirep === 'r').length}r`
+                        : '0p/0r'
+                    }}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu v-for="alias in row.aliases" :key="alias.alias">
+                      <DropdownMenuTrigger as-child>
+                        <Button variant="ghost" size="sm" class="m-0.5">
+                          <span class="i-carbon-settings-adjust h-3.5 w-3.5 mr-1" />
+                          {{ alias.alias }}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          class="text-destructive"
+                          @click="handleAction('removeAlias', alias.index, alias.alias)"
+                        >
+                          <span class="i-carbon-unlink h-4 w-4 mr-2" style="color: red" />
+                          {{ lang.t('manage.index.actions.removeAlias') }}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          @click="handleAction('switchAlias', alias.index, alias.alias)"
+                        >
+                          <span class="i-carbon-arrows-horizontal h-4 w-4 mr-2" />
+                          {{ lang.t('manage.index.actions.switchAlias') }}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger as-child>
+                        <Button variant="ghost" size="icon">
+                          <span class="i-carbon-overflow-menu-horizontal h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          class="text-destructive"
+                          @click="handleAction('deleteIndex', row.index)"
+                        >
+                          <span class="i-carbon-delete h-4 w-4 mr-2" style="color: red" />
+                          {{ lang.t('manage.index.actions.deleteIndex') }}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          v-if="row.status === 'open'"
+                          @click="handleAction('closIndex', row.index)"
+                        >
+                          <span class="i-carbon-locked h-4 w-4 mr-2" style="color: yellow" />
+                          {{ lang.t('manage.index.actions.closeIndex') }}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem v-else @click="handleAction('openIndex', row.index)">
+                          <span class="i-carbon-unlocked h-4 w-4 mr-2" style="color: green" />
+                          {{ lang.t('manage.index.actions.openIndex') }}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </div>
+      </div>
+    </TabsContent>
+    <TabsContent value="templates" class="tabs-tab-pane-container">
+      <div class="table-container">
+        <div class="table-scroll-container">
+          <ScrollArea class="h-full">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead
+                    v-for="col in templateTableColumns"
+                    :key="col.key"
+                    class="whitespace-nowrap"
+                  >
+                    <div class="flex items-center gap-1">
+                      {{ col.title }}
+                      <Popover v-if="col.filterable">
+                        <PopoverTrigger as-child>
+                          <Button variant="ghost" size="icon" class="h-6 w-6">
+                            <span
+                              class="i-carbon-search h-3.5 w-3.5"
+                              :style="{
+                                color: filterState[col.key] ? 'hsl(var(--primary))' : undefined,
+                              }"
+                            />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent class="w-48 p-2">
+                          <Input
+                            :model-value="filterState[col.key]"
+                            :placeholder="`type to filter ${col.key}`"
+                            class="h-8"
+                            @update:model-value="val => (filterState[col.key] = String(val))"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(row, rowIndex) in templateTable.data" :key="rowIndex">
+                  <TableCell>{{ (row as any).name }}</TableCell>
+                  <TableCell>{{ (row as any).type }}</TableCell>
+                  <TableCell>{{ (row as any).order }}</TableCell>
+                  <TableCell>{{ (row as any).version }}</TableCell>
+                  <TableCell>{{ (row as any).mapping_count }}</TableCell>
+                  <TableCell>{{ (row as any).settings_count }}</TableCell>
+                  <TableCell>{{ (row as any).alias_count }}</TableCell>
+                  <TableCell>{{ (row as any).metadata }}</TableCell>
+                  <TableCell>
+                    <Badge
+                      v-for="included in (row as any).included_in || []"
+                      :key="included"
+                      class="m-0.5"
+                    >
+                      {{ included }}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      v-for="pattern in (row as any).index_patterns || []"
+                      :key="pattern"
+                      class="m-0.5"
+                    >
+                      {{ pattern }}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      v-for="composed in (row as any).composed_of || []"
+                      :key="composed"
+                      class="m-0.5"
+                    >
+                      {{ composed }}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </div>
+      </div>
+    </TabsContent>
+  </Tabs>
   <index-dialog ref="indexDialogRef" />
   <alias-dialog ref="aliasDialogRef" />
   <template-dialog ref="templateDialogRef" />
@@ -73,29 +244,36 @@
 import { storeToRefs } from 'pinia';
 import { get } from 'lodash';
 import { useClusterManageStore } from '../../../store';
-import { NButton, NDropdown, NIcon, NTag, NInput } from 'naive-ui';
-import {
-  Add,
-  ArrowsHorizontal,
-  Renew,
-  SettingsAdjust,
-  Unlink,
-  OverflowMenuHorizontal,
-  Delete,
-  Locked,
-  Unlocked,
-  Search,
-} from '@vicons/carbon';
+import { useMessageService, useDialogService } from '@/composables';
 import IndexDialog from './index-dialog.vue';
 import AliasDialog from './alias-dialog.vue';
 import TemplateDialog from './template-dialog.vue';
 import { useLang } from '../../../lang';
-import { CustomError, inputProps } from '../../../common';
+import { CustomError } from '../../../common';
 import SwitchAliasDialog from './switch-alias-dialog.vue';
-import { ClusterAlias, ClusterIndex, IndexHealth } from '../../../datasources';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-const message = useMessage();
-const dialog = useDialog();
+const message = useMessageService();
+const dialog = useDialogService();
 const lang = useLang();
 
 const clusterManageStore = useClusterManageStore();
@@ -112,174 +290,37 @@ const filterState = ref<{ [key: string]: string }>({
   uuid: '',
   health: '',
   status: '',
-  name: '', // for template table
-  type: '', // for template table
+  name: '',
+  type: '',
 });
 
-const handleFilter = (key: string, value: string) => {
-  filterState.value[key] = value;
-};
+const indexTableColumns = [
+  { title: 'Index', key: 'index', filterable: true },
+  { title: 'UUID', key: 'uuid', filterable: true },
+  { title: 'Health', key: 'health', filterable: true },
+  { title: 'Status', key: 'status', filterable: true },
+  { title: 'Docs', key: 'docs', filterable: false },
+  { title: 'Storage', key: 'storage', filterable: false },
+  { title: 'Shards', key: 'shards', filterable: false },
+  { title: 'Aliases', key: 'aliases', filterable: false },
+  { title: 'Actions', key: 'actions', filterable: false },
+];
 
-const filterProps = (key: string) => ({
-  filter: true,
-  renderFilterMenu(_: { hide: () => void }) {
-    return h(NInput, {
-      value: filterState.value[key],
-      placeholder: `type to filter ${key}`,
-      clearable: true,
-      size: 'small',
-      'on-update:value': (value: string) => handleFilter(key, value),
-      'input-props': inputProps,
-    });
-  },
-  renderFilterIcon() {
-    return h(
-      NIcon,
-      { color: filterState.value[key] ? 'var(--theme-color)' : 'var(--n-text-color)' },
-      { default: () => h(Search) },
-    );
-  },
-});
+const templateTableColumns = [
+  { title: 'Name', key: 'name', filterable: true },
+  { title: 'Type', key: 'type', filterable: true },
+  { title: 'Order', key: 'order', filterable: false },
+  { title: 'Version', key: 'version', filterable: false },
+  { title: 'Mappings', key: 'mapping_count', filterable: false },
+  { title: 'Settings', key: 'settings_count', filterable: false },
+  { title: 'Aliases', key: 'alias_count', filterable: false },
+  { title: 'Metadata', key: 'metadata', filterable: false },
+  { title: 'Included In', key: 'included_in', filterable: false },
+  { title: 'Index Patterns', key: 'index_patterns', filterable: false },
+  { title: 'Composed Of', key: 'composed_of', filterable: false },
+];
 
 const indexTable = computed(() => {
-  const columns = [
-    {
-      title: 'Index',
-      dataIndex: 'index',
-      key: 'index',
-      ...filterProps('index'),
-      sorter: 'default',
-    },
-    { title: 'UUID', dataIndex: 'uuid', key: 'uuid', ...filterProps('uuid'), sorter: 'default' },
-    {
-      title: 'health',
-      dataIndex: 'health',
-      key: 'health',
-      ...filterProps('health'),
-      sorter: 'default',
-      render({ health }: { health: IndexHealth }) {
-        return (
-          (health === IndexHealth.GREEN ? '🟢' : health === IndexHealth.YELLOW ? '🟡' : '🔴') +
-          ` ${health}`
-        );
-      },
-    },
-    {
-      title: 'status',
-      dataIndex: 'status',
-      key: 'status',
-      ...filterProps('status'),
-      sorter: 'default',
-    },
-    {
-      title: 'Docs',
-      dataIndex: 'docs',
-      key: 'docs',
-      sorter: (a: ClusterIndex, b: ClusterIndex) => (a.docs?.count ?? 0) - (b.docs?.count ?? 0),
-      render({ docs }: ClusterIndex) {
-        return docs.count;
-      },
-    },
-    { title: 'Storage', dataIndex: 'storage', key: 'storage', sorter: 'default' },
-    {
-      title: 'shards',
-      dataIndex: 'shards',
-      key: 'shards',
-      render({ shards }: ClusterIndex) {
-        if (!shards || !Array.isArray(shards)) {
-          return '0p/0r';
-        }
-
-        const primaryCount = shards.filter(shard => shard.prirep === 'p').length;
-        const replicaCount = shards.filter(shard => shard.prirep === 'r').length;
-
-        return `${primaryCount}p/${replicaCount}r`;
-      },
-    },
-    {
-      title: 'Aliases',
-      dataIndex: 'aliases',
-      key: 'aliases',
-      resizable: true,
-      render: ({ aliases }: { aliases: Array<ClusterAlias> }) =>
-        aliases.map(alias =>
-          h(
-            NButton,
-            {
-              strong: true,
-              type: 'default',
-              tertiary: true,
-              size: 'small',
-              iconPlacement: 'left',
-              style: 'margin: 2px',
-            },
-            {
-              default: () => `${alias.alias}`,
-              icon: () =>
-                h(
-                  NDropdown,
-                  {
-                    trigger: 'click',
-                    placement: 'bottom-end',
-                    onSelect: event => handleAction(event, alias.index, alias.alias),
-                    options: [
-                      {
-                        label: lang.t('manage.index.actions.removeAlias'),
-                        key: 'removeAlias',
-                        icon: () => h(NIcon, { color: 'red' }, { default: () => h(Unlink) }),
-                      },
-                      {
-                        label: lang.t('manage.index.actions.switchAlias'),
-                        key: 'switchAlias',
-                        icon: () => h(NIcon, {}, { default: () => h(ArrowsHorizontal) }),
-                      },
-                    ],
-                  },
-                  { default: () => h(NIcon, {}, { default: () => h(SettingsAdjust) }) },
-                ),
-            },
-          ),
-        ),
-    },
-    {
-      title: 'Actions',
-      dataIndex: 'actions',
-      key: 'actions',
-      render(index: ClusterIndex) {
-        return h(
-          NDropdown,
-          {
-            trigger: 'click',
-            placement: 'bottom-end',
-            onSelect: event => handleAction(event, index.index),
-            options: [
-              {
-                label: lang.t('manage.index.actions.deleteIndex'),
-                key: 'deleteIndex',
-                icon: () => h(NIcon, { color: 'red' }, { default: () => h(Delete) }),
-              },
-              index.status === 'open'
-                ? {
-                    label: lang.t('manage.index.actions.closeIndex'),
-                    key: 'closIndex',
-                    icon: () => h(NIcon, { color: 'yellow' }, { default: () => h(Locked) }),
-                  }
-                : {
-                    label: lang.t('manage.index.actions.openIndex'),
-                    key: 'openIndex',
-                    icon: () => h(NIcon, { color: 'green' }, { default: () => h(Unlocked) }),
-                  },
-            ],
-          },
-          {
-            default: () =>
-              h(NIcon, { style: 'cursor: pointer' }, { default: () => h(OverflowMenuHorizontal) }),
-          },
-        );
-      },
-    },
-  ];
-
   const data = indexWithAliases.value
     .filter(item =>
       filterState.value.uuid
@@ -302,57 +343,10 @@ const indexTable = computed(() => {
         : true,
     );
 
-  return { columns, data };
+  return { data };
 });
 
 const templateTable = computed(() => {
-  const columns = [
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      ...filterProps('name'),
-      sorter: 'default',
-    },
-    { title: 'Type', dataIndex: 'type', key: 'type', ...filterProps('type'), sorter: 'default' },
-    { title: 'Order', dataIndex: 'order', key: 'order', sorter: 'default' },
-    { title: 'Version', dataIndex: 'version', key: 'version', sorter: 'default' },
-    { title: 'Mappings', dataIndex: 'mapping_count', key: 'mapping_count', sorter: 'default' },
-    { title: 'Settings', dataIndex: 'settings_count', key: 'settings_count', sorter: 'default' },
-    { title: 'Aliases', dataIndex: 'alias_count', key: 'alias_count' },
-    { title: 'Metadata', dataIndex: 'metadata', key: 'metadata' },
-    {
-      title: 'Included In',
-      dataIndex: 'included_in',
-      key: 'included_in',
-      resizable: true,
-      render: ({ included_in }: { included_in: Array<string> }) =>
-        included_in?.map(included =>
-          h(NTag, { style: 'margin: 2px' }, { default: () => included }),
-        ),
-    },
-    {
-      title: 'Index Patterns',
-      dataIndex: 'index_patterns',
-      key: 'index_patterns',
-      resizable: true,
-      render: ({ index_patterns }: { index_patterns: Array<string> }) =>
-        index_patterns?.map(pattern =>
-          h(NTag, { style: 'margin: 2px' }, { default: () => pattern }),
-        ),
-    },
-    {
-      title: 'Composed Of',
-      dataIndex: 'composed_of',
-      key: 'composed_of',
-      resizable: true,
-      render: ({ composed_of }: { composed_of: Array<string> }) =>
-        composed_of?.map(composed =>
-          h(NTag, { style: 'margin: 2px' }, { default: () => composed }),
-        ),
-    },
-  ];
-
   const data = templates.value
     .filter(item =>
       filterState.value.name
@@ -365,7 +359,7 @@ const templateTable = computed(() => {
         : true,
     );
 
-  return { columns, data };
+  return { data };
 });
 
 const refresh = async () => {
@@ -473,45 +467,41 @@ onMounted(async () => {
 });
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .tabs-container {
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 
-  .tabs-tab-pane-container {
-    width: 100%;
-    height: 100%;
+.tabs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
 
-    .table-container {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
+.tabs-tab-pane-container {
+  width: 100%;
+  flex: 1;
+  height: 0;
+}
 
-      .table-scroll-container {
-        flex: 1;
-        height: 0;
-      }
-    }
-  }
+.table-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 
-  .tab-action-group {
-    display: flex;
-    justify-content: space-around;
-    width: 500px;
-  }
+.table-scroll-container {
+  flex: 1;
+  height: 0;
+}
 
-  :deep(.n-tabs-pane-wrapper) {
-    width: 100%;
-    height: 100%;
-  }
-
-  :deep(.n-tab-pane) {
-    padding: 0;
-  }
-
-  :deep(.n-data-table-th__title) {
-    white-space: nowrap;
-  }
+.tab-action-group {
+  display: flex;
+  gap: 8px;
 }
 </style>
