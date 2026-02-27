@@ -365,7 +365,7 @@ const handleClose = () => {
 
 :deep(.table-container thead th) {
   white-space: nowrap;
-  padding: 12px 16px;
+  padding: 6px 8px;
 }
 
 :deep(.sticky-action-header) {

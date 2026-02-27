@@ -20,7 +20,7 @@ const props = withDefaults(defineProps<FormItemProps>(), {
 </script>
 
 <template>
-  <div :class="cn('space-y-2', props.class)">
+  <div :class="cn('space-y-1', props.class)">
     <Label v-if="label" class="flex items-center gap-1">
       {{ label }}
       <span v-if="required" class="text-destructive">*</span>

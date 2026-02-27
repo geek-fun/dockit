@@ -1,57 +1,60 @@
 <template>
-  <Card class="create-item-container">
+  <Card class="create-item-container flex flex-col overflow-hidden">
     <CardHeader class="flex flex-row items-center justify-between pb-2">
       <CardTitle>{{ $t('editor.dynamo.addAttributesTitle') }}</CardTitle>
-      <Button variant="ghost" size="icon" @click="addAttributeItem">
-        <span class="i-carbon-add h-5 w-5" />
-      </Button>
     </CardHeader>
     <CardContent class="form-container">
-      <div class="form-scroll-container">
-        <ScrollArea class="h-full">
-          <Form>
-            <!-- First row with partition and sort key -->
-            <Grid :cols="24" :x-gap="12">
-              <GridItem :span="10">
-                <FormItem
-                  v-if="selectedTable.partitionKeyLabel"
-                  :label="selectedTable.partitionKeyLabel"
-                  :required="true"
-                  :error="errors.partitionKey"
-                >
-                  <Input
-                    v-model="dynamoRecordForm.partitionKey"
-                    :placeholder="$t('editor.dynamo.enterPartitionKey')"
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="off"
-                    spellcheck="false"
-                  />
-                </FormItem>
-              </GridItem>
+      <Form class="flex flex-col h-full gap-3" @submit.prevent>
+        <!-- Top box: Partition Key + Sort Key (fixed) -->
+        <div class="border border-border rounded-lg p-3 shrink-0">
+          <div class="text-sm font-medium text-muted-foreground mb-2">Primary Key</div>
+          <Grid :cols="24" :x-gap="12">
+            <GridItem :span="10">
+              <FormItem
+                v-if="selectedTable.partitionKeyLabel"
+                :label="selectedTable.partitionKeyLabel"
+                :required="true"
+                :error="errors.partitionKey"
+              >
+                <Input
+                  v-model="dynamoRecordForm.partitionKey"
+                  :placeholder="$t('editor.dynamo.enterPartitionKey')"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                />
+              </FormItem>
+            </GridItem>
 
-              <GridItem :span="12">
-                <FormItem
-                  v-if="selectedTable.sortKeyLabel"
-                  :label="selectedTable.sortKeyLabel"
-                  :required="true"
-                  :error="errors.sortKey"
-                >
-                  <Input
-                    v-model="dynamoRecordForm.sortKey"
-                    :placeholder="$t('editor.dynamo.enterSortKey')"
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="off"
-                    spellcheck="false"
-                  />
-                </FormItem>
-              </GridItem>
-            </Grid>
+            <GridItem :span="12">
+              <FormItem
+                v-if="selectedTable.sortKeyLabel"
+                :label="selectedTable.sortKeyLabel"
+                :required="true"
+                :error="errors.sortKey"
+              >
+                <Input
+                  v-model="dynamoRecordForm.sortKey"
+                  :placeholder="$t('editor.dynamo.enterSortKey')"
+                  autocomplete="off"
+                  autocorrect="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                />
+              </FormItem>
+            </GridItem>
+          </Grid>
+        </div>
 
-            <Separator class="my-4" />
-            <div class="text-sm font-medium text-muted-foreground mb-2">Key Attributes</div>
-
+        <!-- Key Attributes box -->
+        <div
+          v-if="dynamoRecordForm.keyAttributes.length > 0"
+          class="border border-border rounded-lg p-3 shrink-0 flex flex-col"
+          style="max-height: 35%"
+        >
+          <div class="text-sm font-medium text-muted-foreground mb-2 shrink-0">Key Attributes</div>
+          <ScrollArea class="flex-1 min-h-0">
             <Grid
               v-for="(item, index) in dynamoRecordForm.keyAttributes"
               :key="index"
@@ -104,17 +107,24 @@
                   />
                 </FormItem>
               </GridItem>
-              <GridItem :span="2">
+              <GridItem :span="2" class="flex items-end mb-px">
                 <Button variant="ghost" size="icon" @click="removeKeyAttributeItem(index)">
-                  <span class="i-carbon-delete h-4 w-4" />
+                  <span class="i-carbon-trash-can h-4 w-4" />
                 </Button>
               </GridItem>
             </Grid>
+          </ScrollArea>
+        </div>
 
-            <!-- Dynamically additional form items -->
-            <Separator class="my-4" />
-            <div class="text-sm font-medium text-muted-foreground mb-2">Additional Attributes</div>
-
+        <!-- Additional Attributes box -->
+        <div class="border border-border rounded-lg p-3 flex-1 min-h-0 flex flex-col">
+          <div class="flex items-center justify-between mb-2 shrink-0">
+            <div class="text-sm font-medium text-muted-foreground">Additional Attributes</div>
+            <Button variant="ghost" size="icon" class="h-6 w-6" @click="addAttributeItem">
+              <span class="i-carbon-add h-4 w-4" />
+            </Button>
+          </div>
+          <ScrollArea class="flex-1 min-h-0">
             <Grid
               v-for="(item, index) in dynamoRecordForm.attributes"
               :key="index"
@@ -163,17 +173,17 @@
                   />
                 </FormItem>
               </GridItem>
-              <GridItem :span="2">
+              <GridItem :span="2" class="flex items-end mb-px">
                 <Button variant="ghost" size="icon" @click="removeAttributeItem(index)">
-                  <span class="i-carbon-delete h-4 w-4" />
+                  <span class="i-carbon-trash-can h-4 w-4" />
                 </Button>
               </GridItem>
             </Grid>
-          </Form>
-        </ScrollArea>
-      </div>
+          </ScrollArea>
+        </div>
+      </Form>
     </CardContent>
-    <CardFooter class="card-footer">
+    <CardFooter class="card-footer shrink-0">
       <Button variant="outline" @click="handleReset">
         {{ $t('dialogOps.reset') }}
       </Button>
@@ -200,7 +210,6 @@ import { InputNumber } from '@/components/ui/input-number';
 import { Button } from '@/components/ui/button';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import {
   Select,
   SelectContent,
@@ -445,20 +454,17 @@ fetchIndices(activeConnection.value as Connection).then(() => {
 }
 
 .form-container {
-  width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-}
-
-.form-scroll-container {
-  flex: 1;
-  height: 0;
 }
 
 .card-footer {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  padding: 12px 16px;
 }
 </style>

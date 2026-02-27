@@ -120,11 +120,12 @@
                           />
                         </FormItem>
                       </GridItem>
-                      <GridItem :span="2" class="flex items-center">
+                      <GridItem :span="2" class="flex items-end">
                         <Button
                           variant="ghost"
                           size="icon"
                           type="button"
+                          class="h-8 w-8 mb-px"
                           @click.prevent="removeFilterItem(index)"
                         >
                           <span class="i-carbon-trash-can h-4 w-4" />

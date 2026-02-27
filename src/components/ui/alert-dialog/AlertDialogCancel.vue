@@ -12,9 +12,7 @@ const props = defineProps<
 </script>
 
 <template>
-  <AlertDialogCancel
-    :class="cn(buttonVariants({ variant: 'outline' }), 'mt-2 sm:mt-0', props.class)"
-  >
+  <AlertDialogCancel :class="cn(buttonVariants({ variant: 'outline' }), props.class)">
     <slot />
   </AlertDialogCancel>
 </template>
