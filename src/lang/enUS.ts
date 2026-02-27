@@ -2,6 +2,7 @@ export const enUS = {
   aside: {
     manage: 'Manage',
     connect: 'Connect',
+    dataStudio: 'Data Studio',
     file: 'File',
     history: 'History',
     github: 'GitHub',
@@ -426,6 +427,40 @@ export const enUS = {
   history: {
     empty: 'No history yet',
     emptyDesc: 'History of queries will appear here as you execute Scans and Queries',
+  },
+  dataStudio: {
+    title: 'DATA STUDIO BETA',
+    configuration: 'Configuration',
+    activeAgents: 'ACTIVE AGENTS',
+    manage: 'Manage',
+    connectedSources: 'CONNECTED SOURCES',
+    mcpProtocol: 'MCP PROTOCOL',
+    contextWindow: 'Context Window',
+    temperature: 'Temperature',
+    inputPlaceholder: 'Ask a follow-up question or type a command...',
+    disclaimer: 'DocKit AI can make mistakes. Please verify important data.',
+    addSource: {
+      title: 'Add Datasource',
+      selectConnection: 'Select Connection',
+      selectConnectionPlaceholder: 'Choose a connection to add...',
+      noConnections: 'No available connections. Please create a connection first.',
+    },
+    modifySource: {
+      title: 'Modify Datasource',
+      accessPermissions: 'Access Permissions',
+      unifiedAccessConfig: 'Unified Access Config',
+      read: 'Read',
+      create: 'Create',
+      update: 'Update',
+      delete: 'Delete',
+      saveChanges: 'Save Changes',
+    },
+    detachSource: {
+      title: 'Detach Source',
+      message:
+        'Are you sure you want to detach this datasource? This will remove the connection from Data Studio.',
+      confirm: 'Detach',
+    },
   },
   importExport: {
     export: 'Export',

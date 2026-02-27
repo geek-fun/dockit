@@ -2,6 +2,7 @@ export const zhCN = {
   aside: {
     manage: '管理',
     connect: '连接',
+    dataStudio: '数据工坊',
     file: '文件',
     history: '历史',
     github: 'GitHub',
@@ -426,6 +427,39 @@ export const zhCN = {
   history: {
     empty: '无历史记录',
     emptyDesc: '执行扫描和查询时，查询历史记录将显示在此处',
+  },
+  dataStudio: {
+    title: '数据工坊 BETA',
+    configuration: '配置',
+    activeAgents: '活跃代理',
+    manage: '管理',
+    connectedSources: '已连接数据源',
+    mcpProtocol: 'MCP 协议',
+    contextWindow: '上下文窗口',
+    temperature: '温度',
+    inputPlaceholder: '输入后续问题或命令...',
+    disclaimer: 'DocKit AI 可能会出错，请验证重要数据。',
+    addSource: {
+      title: '添加数据源',
+      selectConnection: '选择连接',
+      selectConnectionPlaceholder: '选择要添加的连接...',
+      noConnections: '没有可用的连接，请先创建连接。',
+    },
+    modifySource: {
+      title: '修改数据源',
+      accessPermissions: '访问权限',
+      unifiedAccessConfig: '统一访问配置',
+      read: '读取',
+      create: '创建',
+      update: '更新',
+      delete: '删除',
+      saveChanges: '保存更改',
+    },
+    detachSource: {
+      title: '解除连接',
+      message: '确定要解除此数据源吗？这将从数据工坊中移除该连接。',
+      confirm: '解除',
+    },
   },
   importExport: {
     export: '导出',
