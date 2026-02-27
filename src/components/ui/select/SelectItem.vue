@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
-import { SelectItem, SelectItemIndicator, type SelectItemProps } from 'radix-vue';
+import { SelectItem, SelectItemIndicator, SelectItemText, type SelectItemProps } from 'radix-vue';
 import { Check } from 'lucide-vue-next';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +21,9 @@ const props = defineProps<
       )
     "
   >
-    <slot />
+    <SelectItemText>
+      <slot />
+    </SelectItemText>
 
     <span class="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
       <SelectItemIndicator>

@@ -26,6 +26,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'update:modelValue': [value: number | null];
+  'blur': [event: FocusEvent];
 }>();
 
 const inputValue = computed({
@@ -54,6 +55,10 @@ const inputValue = computed({
 const handleInput = (event: Event) => {
   const target = event.target as HTMLInputElement;
   inputValue.value = target.value;
+};
+
+const handleBlur = (event: FocusEvent) => {
+  emit('blur', event);
 };
 
 const increment = () => {
@@ -101,6 +106,7 @@ const decrement = () => {
         )
       "
       @input="handleInput"
+      @blur="handleBlur"
     />
     <div v-if="showButton" class="flex flex-col border-l border-border">
       <button

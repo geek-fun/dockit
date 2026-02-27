@@ -12,18 +12,12 @@
 
         <Separator class="my-4" />
 
-        <FormItem :label="lang.t('manage.dynamo.rcu')" required>
-          <InputNumber v-model:model-value="formValue.readCapacityUnits" :min="1" class="w-full" />
-          <p v-if="errors.readCapacityUnits" class="text-sm text-destructive mt-1">
-            {{ errors.readCapacityUnits }}
-          </p>
+        <FormItem :label="lang.t('manage.dynamo.rcu')" required :error="getError('readCapacityUnits', fieldErrors.readCapacityUnits)">
+          <InputNumber v-model:model-value="formValue.readCapacityUnits" :min="1" class="w-full" @blur="handleBlur('readCapacityUnits')" />
         </FormItem>
 
-        <FormItem :label="lang.t('manage.dynamo.wcu')" required>
-          <InputNumber v-model:model-value="formValue.writeCapacityUnits" :min="1" class="w-full" />
-          <p v-if="errors.writeCapacityUnits" class="text-sm text-destructive mt-1">
-            {{ errors.writeCapacityUnits }}
-          </p>
+        <FormItem :label="lang.t('manage.dynamo.wcu')" required :error="getError('writeCapacityUnits', fieldErrors.writeCapacityUnits)">
+          <InputNumber v-model:model-value="formValue.writeCapacityUnits" :min="1" class="w-full" @blur="handleBlur('writeCapacityUnits')" />
         </FormItem>
       </Form>
 
@@ -50,7 +44,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { X } from 'lucide-vue-next';
 import {
   Dialog,
@@ -67,6 +61,7 @@ import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
+import { useFormValidation } from '@/composables';
 import type { DynamoIndex } from '../../../datasources';
 import { dynamoApi } from '../../../datasources';
 import { useClusterManageStore, DynamoDBConnection, DatabaseType } from '../../../store';
@@ -75,6 +70,7 @@ import { storeToRefs } from 'pinia';
 const lang = useLang();
 const clusterManageStore = useClusterManageStore();
 const { connection } = storeToRefs(clusterManageStore);
+const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 interface Props {
   show: boolean;
@@ -98,28 +94,19 @@ const formValue = ref({
   writeCapacityUnits: 5,
 });
 
-const errors = reactive({
-  readCapacityUnits: '',
-  writeCapacityUnits: '',
-});
+const fieldErrors = computed(() => ({
+  readCapacityUnits:
+    !formValue.value.readCapacityUnits || formValue.value.readCapacityUnits < 1
+      ? lang.t('manage.dynamo.rcuRequired')
+      : undefined,
+  writeCapacityUnits:
+    !formValue.value.writeCapacityUnits || formValue.value.writeCapacityUnits < 1
+      ? lang.t('manage.dynamo.wcuRequired')
+      : undefined,
+}));
 
 const validate = (): boolean => {
-  errors.readCapacityUnits = '';
-  errors.writeCapacityUnits = '';
-
-  let isValid = true;
-
-  if (!formValue.value.readCapacityUnits || formValue.value.readCapacityUnits < 1) {
-    errors.readCapacityUnits = lang.t('manage.dynamo.rcuRequired');
-    isValid = false;
-  }
-
-  if (!formValue.value.writeCapacityUnits || formValue.value.writeCapacityUnits < 1) {
-    errors.writeCapacityUnits = lang.t('manage.dynamo.wcuRequired');
-    isValid = false;
-  }
-
-  return isValid;
+  return !fieldErrors.value.readCapacityUnits && !fieldErrors.value.writeCapacityUnits;
 };
 
 // Reset form when modal opens
@@ -132,8 +119,7 @@ watch(
         writeCapacityUnits: props.index.provisionedThroughput?.writeCapacityUnits || 5,
       };
       errorMessage.value = '';
-      errors.readCapacityUnits = '';
-      errors.writeCapacityUnits = '';
+      resetValidation();
       loading.value = false;
     }
   },
@@ -144,6 +130,7 @@ const handleCancel = () => {
 };
 
 const handleSubmit = async () => {
+  markSubmitted();
   if (!validate()) {
     return;
   }

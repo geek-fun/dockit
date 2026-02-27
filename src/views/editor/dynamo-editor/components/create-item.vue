@@ -178,7 +178,7 @@
         {{ $t('dialogOps.reset') }}
       </Button>
       <Button :disabled="!validationPassed || loadingRef.createItem" @click="handleSubmit">
-        <span v-if="loadingRef.createItem" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+        <Loader2 v-if="loadingRef.createItem" class="mr-2 h-4 w-4 animate-spin" />
         {{ $t('dialogOps.create') }}
       </Button>
     </CardFooter>
@@ -187,6 +187,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { Loader2 } from 'lucide-vue-next';
 import { useMessageService } from '@/composables';
 import { Connection, DynamoDBConnection, useConnectionStore, useTabStore } from '../../../../store';
 import { CustomError } from '../../../../common';

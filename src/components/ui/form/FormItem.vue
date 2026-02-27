@@ -7,6 +7,7 @@ interface FormItemProps {
   required?: boolean;
   class?: string;
   labelWidth?: string | number;
+  error?: string;
 }
 
 const props = withDefaults(defineProps<FormItemProps>(), {
@@ -21,5 +22,6 @@ const props = withDefaults(defineProps<FormItemProps>(), {
       <span v-if="required" class="text-destructive">*</span>
     </Label>
     <slot />
+    <p v-if="error" class="text-sm text-destructive mt-1">{{ error }}</p>
   </div>
 </template>

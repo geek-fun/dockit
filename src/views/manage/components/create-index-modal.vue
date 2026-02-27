@@ -12,7 +12,7 @@
             <span class="section-title">{{ lang.t('manage.dynamo.indexDetails') }}</span>
           </div>
 
-          <FormItem :label="lang.t('manage.dynamo.indexName')" required>
+          <FormItem :label="lang.t('manage.dynamo.indexName')" required :error="getError('indexName', veeErrors.indexName || errors.indexName)">
             <Input
               v-model="formValue.indexName"
               :placeholder="lang.t('manage.dynamo.indexNamePlaceholder')"
@@ -20,14 +20,12 @@
               autocomplete="off"
               :spellcheck="false"
               autocorrect="off"
+              @blur="handleBlur('indexName')"
             />
-            <p v-if="errors.indexName" class="text-sm text-destructive mt-1">
-              {{ errors.indexName }}
-            </p>
           </FormItem>
 
           <!-- Partition Key Attributes -->
-          <FormItem :label="lang.t('manage.dynamo.partitionKey')" required>
+          <FormItem :label="lang.t('manage.dynamo.partitionKey')" required :error="getError('partitionKey', errors.partitionKey)">
             <div class="w-full flex flex-col gap-2">
               <div
                 v-for="(attr, index) in formValue.partitionKeyAttributes"
@@ -70,9 +68,6 @@
                 {{ lang.t('manage.dynamo.addAttribute') }}
               </Button>
             </div>
-            <p v-if="errors.partitionKey" class="text-sm text-destructive mt-1">
-              {{ errors.partitionKey }}
-            </p>
           </FormItem>
 
           <!-- Sort Key Attributes (Optional) -->
@@ -290,7 +285,7 @@
           {{ lang.t('dialogOps.cancel') }}
         </Button>
         <Button :disabled="loading" @click="handleSubmit">
-          <span v-if="loading" class="mr-2 h-4 w-4 animate-spin">⏳</span>
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.create') }}
         </Button>
       </DialogFooter>
@@ -300,7 +295,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
@@ -308,6 +303,7 @@ import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { useClusterManageStore, DatabaseType } from '../../../store';
 import { storeToRefs } from 'pinia';
+import { useFormValidation } from '@/composables';
 import {
   Dialog,
   DialogContent,
@@ -357,6 +353,7 @@ const loading = ref(false);
 const errorMessage = ref('');
 const baseTableInfo = ref<any>(null);
 const newProjectedAttribute = ref('');
+const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 const errors = ref<{ indexName?: string; partitionKey?: string }>({});
 
@@ -526,6 +523,7 @@ watch(
       errorMessage.value = '';
       loading.value = false;
       newProjectedAttribute.value = '';
+      resetValidation();
       fetchBaseTableInfo();
     }
   },
@@ -542,6 +540,7 @@ const handleCancel = () => {
 };
 
 const handleSubmit = async () => {
+  markSubmitted();
   const isValid = await validateForm();
   if (!isValid) {
     return;

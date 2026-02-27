@@ -2,8 +2,8 @@
   <SplitPane v-model:size="editorSize" direction="vertical" class="ui-editor">
     <template #1>
       <Card class="query-container">
-        <CardContent class="p-4 h-full">
-          <Form ref="dynamoQueryFormRef" class="w-full h-full" style="width: 100%; height: 100%">
+        <CardContent class="p-4 h-full overflow-hidden">
+          <Form ref="dynamoQueryFormRef" class="query-form">
             <!-- First row with partition and sort key -->
             <Grid :cols="24" :x-gap="12">
               <GridItem :span="8">
@@ -77,8 +77,8 @@
                 <CardTitle class="text-base">{{ $t('editor.dynamo.filterTitle') }}</CardTitle>
                 <span class="i-carbon-add h-6 w-6 cursor-pointer" @click="addFilterItem" />
               </CardHeader>
-              <CardContent class="p-3">
-                <ScrollArea class="h-full">
+              <CardContent class="filter-card-content p-3">
+                <ScrollArea class="filter-scroll-area">
                   <div class="space-y-2">
                     <Grid
                       v-for="(item, index) in dynamoQueryForm.formFilterItems"
@@ -127,7 +127,7 @@
                           type="button"
                           @click.prevent="removeFilterItem(index)"
                         >
-                          <span class="i-carbon-delete h-4 w-4" />
+                          <span class="i-carbon-trash-can h-4 w-4" />
                         </Button>
                       </GridItem>
                     </Grid>
@@ -515,12 +515,35 @@ const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem
   height: 100%;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.ui-editor .query-form {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .ui-editor .additional-filter-container {
   width: 100%;
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ui-editor .filter-card-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ui-editor .filter-scroll-area {
+  height: 100%;
+  max-height: 100%;
 }
 
 .card-footer {

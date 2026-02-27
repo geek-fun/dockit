@@ -30,20 +30,14 @@
         </Alert>
 
         <Form @submit.prevent="saveConnect">
-          <FormItem :label="$t('connection.name')" required>
-            <Input v-model="formData.name" :placeholder="$t('connection.name')" />
-            <p v-if="errors.name" class="text-sm text-destructive mt-1">
-              {{ errors.name }}
-            </p>
+          <FormItem :label="$t('connection.name')" required :error="getError('name', errors.name)">
+            <Input v-model="formData.name" :placeholder="$t('connection.name')" @blur="handleBlur('name')" />
           </FormItem>
-          <FormItem :label="$t('connection.tableName')" required>
-            <Input v-model="formData.tableName" :placeholder="$t('connection.tableName')" />
-            <p v-if="errors.tableName" class="text-sm text-destructive mt-1">
-              {{ errors.tableName }}
-            </p>
+          <FormItem :label="$t('connection.tableName')" required :error="getError('tableName', errors.tableName)">
+            <Input v-model="formData.tableName" :placeholder="$t('connection.tableName')" @blur="handleBlur('tableName')" />
           </FormItem>
-          <FormItem :label="$t('connection.region')" required>
-            <Select v-model="formData.region">
+          <FormItem :label="$t('connection.region')" required :error="getError('region', errors.region)">
+            <Select v-model="formData.region" @update:open="(open: boolean) => !open && handleBlur('region')">
               <SelectTrigger>
                 <SelectValue :placeholder="$t('connection.selectRegion')" />
               </SelectTrigger>
@@ -57,25 +51,17 @@
                 </SelectItem>
               </SelectContent>
             </Select>
-            <p v-if="errors.region" class="text-sm text-destructive mt-1">
-              {{ errors.region }}
-            </p>
           </FormItem>
-          <FormItem :label="$t('connection.accessKeyId')" required>
-            <Input v-model="formData.accessKeyId" :placeholder="$t('connection.accessKeyId')" />
-            <p v-if="errors.accessKeyId" class="text-sm text-destructive mt-1">
-              {{ errors.accessKeyId }}
-            </p>
+          <FormItem :label="$t('connection.accessKeyId')" required :error="getError('accessKeyId', errors.accessKeyId)">
+            <Input v-model="formData.accessKeyId" :placeholder="$t('connection.accessKeyId')" @blur="handleBlur('accessKeyId')" />
           </FormItem>
-          <FormItem :label="$t('connection.secretAccessKey')" required>
+          <FormItem :label="$t('connection.secretAccessKey')" required :error="getError('secretAccessKey', errors.secretAccessKey)">
             <Input
               v-model="formData.secretAccessKey"
               type="password"
               :placeholder="$t('connection.secretAccessKey')"
+              @blur="handleBlur('secretAccessKey')"
             />
-            <p v-if="errors.secretAccessKey" class="text-sm text-destructive mt-1">
-              {{ errors.secretAccessKey }}
-            </p>
           </FormItem>
         </Form>
       </div>
@@ -83,7 +69,7 @@
       <DialogFooter class="flex justify-between sm:justify-between">
         <div class="left">
           <Button variant="secondary" :disabled="!isFormValid || testLoading" @click="testConnect">
-            <span v-if="testLoading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+            <Loader2 v-if="testLoading" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('connection.test') }}
           </Button>
         </div>
@@ -92,7 +78,7 @@
             {{ $t('dialogOps.cancel') }}
           </Button>
           <Button :disabled="!isFormValid || saveLoading" @click="saveConnect">
-            <span v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+            <Loader2 v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('dialogOps.confirm') }}
           </Button>
         </div>
@@ -103,7 +89,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import { cloneDeep } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -113,6 +99,7 @@ import { useLang } from '../../../lang';
 import { useConnectionStore } from '../../../store';
 import { DatabaseType, DynamoDBConnection } from '../../../store';
 import { ApiClientError } from '../../../datasources/ApiClients';
+import { useFormValidation } from '@/composables';
 
 import {
   Dialog,
@@ -145,6 +132,7 @@ const testLoading = ref(false);
 const saveLoading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
+const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 const regionOptions = [
   { label: 'US East (N. Virginia)', value: 'us-east-1' },
@@ -221,6 +209,7 @@ const showMedal = (con: DynamoDBConnection | null) => {
     formData.value = cloneDeep(defaultFormData);
     veeResetForm({ values: cloneDeep(defaultFormData) });
   }
+  resetValidation();
 };
 
 const closeModal = () => {
@@ -230,6 +219,7 @@ const closeModal = () => {
   modalTitle.value = lang.t('connection.new');
   errorMessage.value = '';
   successMessage.value = '';
+  resetValidation();
 };
 
 const isFormValid = computed(() => {
@@ -245,6 +235,7 @@ const isFormValid = computed(() => {
 const testConnect = async () => {
   errorMessage.value = '';
   successMessage.value = '';
+  markSubmitted();
 
   const { valid } = await validate();
   if (!valid) {
@@ -293,6 +284,7 @@ const testConnect = async () => {
 const saveConnect = async () => {
   errorMessage.value = '';
   successMessage.value = '';
+  markSubmitted();
 
   const { valid } = await validate();
   if (!valid) {

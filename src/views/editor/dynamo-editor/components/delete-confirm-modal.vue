@@ -38,7 +38,7 @@
           :disabled="loading"
           @click="handleRetry"
         >
-          <span v-if="loading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.retry') }}
         </Button>
         <Button
@@ -47,7 +47,7 @@
           :disabled="loading"
           @click="handleConfirm"
         >
-          <span v-if="loading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.confirm') }}
         </Button>
       </DialogFooter>
@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../../common';
 import { useLang } from '../../../../lang';
 import { DynamoDBConnection, useDbDataStore, useTabStore } from '../../../../store';

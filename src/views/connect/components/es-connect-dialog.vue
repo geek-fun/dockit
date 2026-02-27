@@ -12,6 +12,14 @@
       </DialogHeader>
 
       <div class="modal-content">
+        <Alert v-if="successMessage" variant="success" class="mb-4">
+          <AlertDescription class="flex items-center justify-between">
+            {{ successMessage }}
+            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="successMessage = ''">
+              <X class="w-4 h-4" />
+            </button>
+          </AlertDescription>
+        </Alert>
         <Alert v-if="errorMessage" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ errorMessage }}
@@ -24,23 +32,21 @@
         <Form @submit.prevent="saveConnect">
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
-              <FormItem :label="$t('connection.name')" required>
-                <Input v-model="formData.name" :placeholder="$t('connection.name')" />
-                <p v-if="errors.name" class="text-sm text-destructive mt-1">
-                  {{ errors.name }}
-                </p>
+              <FormItem :label="$t('connection.name')" required :error="getError('name', errors.name)">
+                <Input v-model="formData.name" :placeholder="$t('connection.name')" @blur="handleBlur('name')" />
               </FormItem>
             </GridItem>
 
             <template v-if="formData.type === DatabaseType.ELASTICSEARCH">
               <GridItem :span="5">
-                <FormItem :label="$t('connection.host')" required>
+                <FormItem :label="$t('connection.host')" required :error="getError('host', errors.host) || hostValidate.feedback">
                   <div class="flex">
                     <Input
                       v-model="formData.host"
                       class="flex-1 rounded-r-none"
                       placeholder="http://localhost"
                       @input="handleHostInput"
+                      @blur="handleBlur('host')"
                     />
                     <TooltipProvider>
                       <Tooltip>
@@ -66,25 +72,17 @@
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <p
-                    v-if="errors.host || hostValidate.feedback"
-                    class="text-sm text-destructive mt-1"
-                  >
-                    {{ errors.host || hostValidate.feedback }}
-                  </p>
                 </FormItem>
               </GridItem>
 
               <GridItem :span="3">
-                <FormItem :label="$t('connection.port')" required>
+                <FormItem :label="$t('connection.port')" required :error="getError('port', errors.port)">
                   <InputNumber
                     v-model="formData.port"
                     :show-button="false"
                     :placeholder="$t('connection.port')"
+                    @blur="handleBlur('port')"
                   />
-                  <p v-if="errors.port" class="text-sm text-destructive mt-1">
-                    {{ errors.port }}
-                  </p>
                 </FormItem>
               </GridItem>
 
@@ -129,7 +127,7 @@
       <DialogFooter class="flex justify-between sm:justify-between">
         <div class="left">
           <Button variant="secondary" :disabled="!isFormValid || testLoading" @click="testConnect">
-            <span v-if="testLoading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+            <Loader2 v-if="testLoading" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('connection.test') }}
           </Button>
         </div>
@@ -138,7 +136,7 @@
             {{ $t('dialogOps.cancel') }}
           </Button>
           <Button :disabled="!isFormValid || saveLoading" @click="saveConnect">
-            <span v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+            <Loader2 v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('dialogOps.confirm') }}
           </Button>
         </div>
@@ -149,7 +147,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import { cloneDeep } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -162,6 +160,7 @@ import {
   useConnectionStore,
 } from '../../../store';
 import { useLang } from '../../../lang';
+import { useFormValidation } from '@/composables';
 
 import {
   Dialog,
@@ -186,7 +185,9 @@ const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
 const errorMessage = ref('');
+const successMessage = ref('');
 const showPassword = ref(false);
+const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 const defaultFormData = {
   name: '',
@@ -288,6 +289,7 @@ const handleOpenChange = (open: boolean) => {
 const showMedal = (con: ElasticsearchConnection | null) => {
   showModal.value = true;
   errorMessage.value = '';
+  successMessage.value = '';
   hostValidate.value = { status: undefined, feedback: '' };
   if (con) {
     const selectedIndex = con.activeIndex?.index || '';
@@ -298,6 +300,7 @@ const showMedal = (con: ElasticsearchConnection | null) => {
     formData.value = cloneDeep(defaultFormData);
     veeResetForm({ values: cloneDeep(defaultFormData) });
   }
+  resetValidation();
 };
 
 const closeModal = () => {
@@ -306,12 +309,16 @@ const closeModal = () => {
   veeResetForm({ values: cloneDeep(defaultFormData) });
   modalTitle.value = lang.t('connection.new');
   errorMessage.value = '';
+  successMessage.value = '';
   hostValidate.value = { status: undefined, feedback: '' };
+  resetValidation();
 };
 
 const testConnect = async (event: MouseEvent) => {
   event.preventDefault();
   errorMessage.value = '';
+  successMessage.value = '';
+  markSubmitted();
 
   const { valid } = await validate();
   if (!valid) {
@@ -325,6 +332,7 @@ const testConnect = async (event: MouseEvent) => {
 const testConnectConfirm = async () => {
   testLoading.value = true;
   errorMessage.value = '';
+  successMessage.value = '';
   const startTime = Date.now();
 
   try {
@@ -340,6 +348,8 @@ const testConnectConfirm = async () => {
     if (remainingTime > 0) {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
+
+    successMessage.value = lang.t('connection.testSuccess');
   } catch (e) {
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
@@ -357,6 +367,8 @@ const testConnectConfirm = async () => {
 const saveConnect = async (event: MouseEvent) => {
   event.preventDefault();
   errorMessage.value = '';
+  successMessage.value = '';
+  markSubmitted();
 
   const { valid } = await validate();
   if (!valid) {

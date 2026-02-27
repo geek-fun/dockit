@@ -143,7 +143,7 @@
       <DialogFooter>
         <Button variant="outline" @click="handleClose">{{ $t('dialogOps.cancel') }}</Button>
         <Button :disabled="loading" @click="handleSubmit">
-          <span v-if="loading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ $t('dialogOps.confirm') }}
         </Button>
       </DialogFooter>
@@ -152,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import { useLang } from '../../../../lang';
 
 import {

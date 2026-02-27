@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { cn } from '@/lib/utils';
 
 interface SplitPaneProps {
@@ -69,6 +69,15 @@ const handleMouseUp = () => {
 onMounted(() => {
   currentSize.value = props.size;
 });
+
+watch(
+  () => props.size,
+  newSize => {
+    if (!isDragging.value) {
+      currentSize.value = newSize;
+    }
+  },
+);
 
 onUnmounted(() => {
   document.removeEventListener('mousemove', handleMouseMove);
