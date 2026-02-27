@@ -89,7 +89,7 @@ const handleAdd = () => {
   if (!selectedConnectionId.value) return;
 
   const conn = connections.value.find(c => String(c.id) === selectedConnectionId.value);
-  if (!conn) return;
+  if (!conn || conn.id === undefined) return;
 
   const source: ConnectedSource = {
     connectionId: conn.id,

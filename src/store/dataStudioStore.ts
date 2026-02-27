@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia';
-import { Connection, useConnectionStore } from './connectionStore';
 
 export type DataSourcePermissions = {
   read: boolean;
@@ -40,13 +39,6 @@ export const useDataStudioStore = defineStore('dataStudio', {
       if (index >= 0 && index < this.connectedSources.length) {
         this.connectedSources.splice(index, 1);
       }
-    },
-    getAvailableConnections(): Array<{ label: string; value: number | undefined }> {
-      const connectionStore = useConnectionStore();
-      return connectionStore.connections.map(conn => ({
-        label: conn.name,
-        value: (conn as Connection & { id?: number }).id,
-      }));
     },
   },
 });
