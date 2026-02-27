@@ -12,6 +12,10 @@ interface FormItemProps {
 
 const props = withDefaults(defineProps<FormItemProps>(), {
   required: false,
+  label: undefined,
+  class: undefined,
+  labelWidth: undefined,
+  error: undefined,
 });
 </script>
 

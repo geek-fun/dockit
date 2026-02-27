@@ -18,15 +18,20 @@
           <div class="text-sm font-medium text-muted-foreground mb-2">
             {{ $t('editor.dynamo.keyAttributes') }}
           </div>
-          <Grid v-for="(item, index) in editForm.keys" :key="`key-${index}`" :cols="24" :x-gap="12">
+          <Grid
+            v-for="(keyEntry, index) in editForm.keys"
+            :key="`key-${index}`"
+            :cols="24"
+            :x-gap="12"
+          >
             <GridItem :span="8">
               <FormItem>
-                <Input v-model="item.key" disabled />
+                <Input v-model="keyEntry.key" disabled />
               </FormItem>
             </GridItem>
             <GridItem :span="4">
               <FormItem>
-                <Select v-model="item.type" disabled>
+                <Select v-model="keyEntry.type" disabled>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -45,12 +50,12 @@
             <GridItem :span="12">
               <FormItem>
                 <InputNumber
-                  v-if="item.type === 'N'"
-                  v-model:model-value="item.value as number"
+                  v-if="keyEntry.type === 'N'"
+                  v-model:model-value="keyEntry.value as number"
                   class="w-full"
                   disabled
                 />
-                <Input v-else v-model="item.value as string" disabled />
+                <Input v-else v-model="keyEntry.value as string" disabled />
               </FormItem>
             </GridItem>
           </Grid>
@@ -66,7 +71,7 @@
             </Button>
           </div>
           <Grid
-            v-for="(item, index) in editForm.attributes"
+            v-for="(attrEntry, index) in editForm.attributes"
             :key="`attr-${index}`"
             :cols="24"
             :x-gap="12"
@@ -74,7 +79,7 @@
             <GridItem :span="7">
               <FormItem :error="getAttributeError(index, 'key')">
                 <Input
-                  v-model="item.key"
+                  v-model="attrEntry.key"
                   :placeholder="$t('editor.dynamo.inputAttrName')"
                   autocomplete="off"
                   autocorrect="off"
@@ -85,7 +90,7 @@
             </GridItem>
             <GridItem :span="4">
               <FormItem :error="getAttributeError(index, 'type')">
-                <Select v-model="item.type">
+                <Select v-model="attrEntry.type">
                   <SelectTrigger>
                     <SelectValue :placeholder="$t('editor.dynamo.type')" />
                   </SelectTrigger>
@@ -104,19 +109,19 @@
             <GridItem :span="11">
               <FormItem :error="getAttributeError(index, 'value')">
                 <InputNumber
-                  v-if="item.type === 'N'"
-                  v-model:model-value="item.value as number"
+                  v-if="attrEntry.type === 'N'"
+                  v-model:model-value="attrEntry.value as number"
                   :placeholder="$t('editor.dynamo.inputAttrValue')"
                   class="w-full"
                 />
                 <Switch
-                  v-else-if="item.type === 'BOOL'"
-                  :checked="item.value as boolean"
-                  @update:checked="val => (item.value = val)"
+                  v-else-if="attrEntry.type === 'BOOL'"
+                  :checked="attrEntry.value as boolean"
+                  @update:checked="val => (attrEntry.value = val)"
                 />
                 <Input
-                  v-else-if="item.type && item.type !== 'NULL'"
-                  v-model="item.value as string"
+                  v-else-if="attrEntry.type && attrEntry.type !== 'NULL'"
+                  v-model="attrEntry.value as string"
                   :placeholder="$t('editor.dynamo.inputAttrValue')"
                   autocomplete="off"
                   autocorrect="off"

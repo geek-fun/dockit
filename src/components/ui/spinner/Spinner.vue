@@ -11,6 +11,7 @@ interface SpinnerProps {
 const props = withDefaults(defineProps<SpinnerProps>(), {
   show: true,
   size: 'md',
+  class: undefined,
 });
 
 const sizeClass = {

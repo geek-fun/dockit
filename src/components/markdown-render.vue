@@ -1,4 +1,5 @@
 <template>
+  <!-- eslint-disable-next-line vue/no-v-html -->
   <div v-html="parsedMarkdown"></div>
 </template>
 
@@ -42,7 +43,9 @@ const md = new MarkdownIt({
     if (lang && hljs.getLanguage(lang)) {
       try {
         highlightedCode = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
-      } catch (__) {}
+      } catch (_e) {
+        // highlight failed, fallback to escaped HTML
+      }
     } else {
       highlightedCode = md.utils.escapeHtml(str);
     }
@@ -65,7 +68,7 @@ const md = new MarkdownIt({
 });
 
 // @ts-ignore
-md.renderer.rules['code'] = (tokens, idx, options, env, self) => {
+md.renderer.rules['code'] = (tokens, idx, _options, _env, _self) => {
   const token = tokens[idx];
   const code = token.content.trim();
   return `${code}`;

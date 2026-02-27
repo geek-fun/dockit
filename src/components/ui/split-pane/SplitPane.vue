@@ -15,6 +15,7 @@ const props = withDefaults(defineProps<SplitPaneProps>(), {
   size: 0.5,
   min: 0.1,
   max: 0.9,
+  class: undefined,
 });
 
 const emit = defineEmits<{

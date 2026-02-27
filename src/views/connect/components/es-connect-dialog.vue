@@ -32,14 +32,26 @@
         <Form @submit.prevent="saveConnect">
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
-              <FormItem :label="$t('connection.name')" required :error="getError('name', errors.name)">
-                <Input v-model="formData.name" :placeholder="$t('connection.name')" @blur="handleBlur('name')" />
+              <FormItem
+                :label="$t('connection.name')"
+                required
+                :error="getError('name', errors.name)"
+              >
+                <Input
+                  v-model="formData.name"
+                  :placeholder="$t('connection.name')"
+                  @blur="handleBlur('name')"
+                />
               </FormItem>
             </GridItem>
 
             <template v-if="formData.type === DatabaseType.ELASTICSEARCH">
               <GridItem :span="5">
-                <FormItem :label="$t('connection.host')" required :error="getError('host', errors.host) || hostValidate.feedback">
+                <FormItem
+                  :label="$t('connection.host')"
+                  required
+                  :error="getError('host', errors.host) || hostValidate.feedback"
+                >
                   <div class="flex">
                     <Input
                       v-model="formData.host"
@@ -76,7 +88,11 @@
               </GridItem>
 
               <GridItem :span="3">
-                <FormItem :label="$t('connection.port')" required :error="getError('port', errors.port)">
+                <FormItem
+                  :label="$t('connection.port')"
+                  required
+                  :error="getError('port', errors.port)"
+                >
                   <InputNumber
                     v-model="formData.port"
                     :show-button="false"

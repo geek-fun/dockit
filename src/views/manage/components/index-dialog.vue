@@ -8,7 +8,11 @@
         <Form>
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
-              <FormItem :label="$t('manage.index.newIndexForm.indexName')" required :error="getError('indexName', errors.indexName)">
+              <FormItem
+                :label="$t('manage.index.newIndexForm.indexName')"
+                required
+                :error="getError('indexName', errors.indexName)"
+              >
                 <Input
                   v-model="formData.indexName"
                   autocapitalize="off"
@@ -65,7 +69,11 @@
                 </GridItem>
                 <GridItem :span="8">
                   <FormItem label="body" :error="getError('body', errors.body)">
-                    <textarea v-model="formData.body" class="textarea-input" @blur="handleBlur('body')" />
+                    <textarea
+                      v-model="formData.body"
+                      class="textarea-input"
+                      @blur="handleBlur('body')"
+                    />
                   </FormItem>
                 </GridItem>
               </Grid>

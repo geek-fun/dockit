@@ -11,5 +11,5 @@
 <script lang="ts" setup>
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
-defineProps({ popoverContent: String });
+defineProps({ popoverContent: { type: String, default: undefined } });
 </script>

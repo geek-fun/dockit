@@ -84,8 +84,11 @@ import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { Connection, DatabaseType, useConnectionStore } from '../../../store';
 import FloatingMenu from './floating-menu.vue';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import EsConnectDialog from './es-connect-dialog.vue';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import ConnectingModal from './connecting-modal.vue';
 
 const emits = defineEmits(['tab-panel']);
@@ -191,7 +194,7 @@ const establishConnect = async (connection: Connection) => {
 // edit connect info
 const editConnect = (connection: Connection) => {
   if (!connection.type) {
-    console.error('Connection type is missing');
+    console.error('Connection type is missing'); // eslint-disable-line no-console
     return;
   }
   if (connection.type === DatabaseType.ELASTICSEARCH) {
@@ -211,7 +214,7 @@ const removeConnect = (connection: Connection) => {
       try {
         await removeConnection(connection);
         message.success(lang.t('dialogOps.removeSuccess'));
-      } catch (error) {
+      } catch (_error) {
         message.error(lang.t('connection.unknownError'));
       }
     },

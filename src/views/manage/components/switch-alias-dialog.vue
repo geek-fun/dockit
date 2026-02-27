@@ -30,8 +30,15 @@
               </FormItem>
             </GridItem>
             <GridItem :span="8">
-              <FormItem :label="$t('manage.index.switchAliasForm.targetIndex')" required :error="getError('targetIndex', fieldErrors.targetIndex)">
-                <Select v-model="formData.targetIndex" @update:open="(open: boolean) => !open && handleBlur('targetIndex')">
+              <FormItem
+                :label="$t('manage.index.switchAliasForm.targetIndex')"
+                required
+                :error="getError('targetIndex', fieldErrors.targetIndex)"
+              >
+                <Select
+                  v-model="formData.targetIndex"
+                  @update:open="(open: boolean) => !open && handleBlur('targetIndex')"
+                >
                   <SelectTrigger>
                     <SelectValue :placeholder="$t('manage.index.switchAliasForm.targetIndex')" />
                   </SelectTrigger>

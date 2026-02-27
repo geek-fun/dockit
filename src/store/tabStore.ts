@@ -90,11 +90,7 @@ export const useTabStore = defineStore('panel', {
     async checkFileExists(panel: Panel | undefined): Promise<boolean> {
       let checkPanel = panel ?? this.activePanel;
       if (!checkPanel?.file) return false;
-      try {
-        return await sourceFileApi.exists(checkPanel.file);
-      } catch (err) {
-        throw err;
-      }
+      return await sourceFileApi.exists(checkPanel.file);
     },
 
     async closePanel(panel: Panel | undefined, saveFile: boolean): Promise<void> {

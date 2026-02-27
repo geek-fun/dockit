@@ -26,7 +26,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'update:modelValue': [value: number | null];
-  'blur': [event: FocusEvent];
+  blur: [event: FocusEvent];
 }>();
 
 const inputValue = computed({

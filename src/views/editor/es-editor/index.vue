@@ -228,10 +228,10 @@ const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor, position:
         },
       ],
       // @ts-ignore
-      inverseEditOperations => [],
+      _inverseEditOperations => [],
     );
     editor.setPosition({ lineNumber: startLineNumber + 1, column: 1 });
-  } catch (err) {
+  } catch (_err) {
     message.error(lang.t('editor.invalidJson'), {
       closable: true,
       keepAliveOnHover: true,
@@ -574,7 +574,7 @@ onMounted(async () => {
   if (activeConnection.value) {
     try {
       await fetchIndices(activeConnection.value);
-    } catch (err) {
+    } catch (_err) {
       // Silently fail
     }
   }

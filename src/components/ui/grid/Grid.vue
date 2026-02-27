@@ -13,6 +13,7 @@ const props = withDefaults(defineProps<GridProps>(), {
   cols: 24,
   xGap: 0,
   yGap: 0,
+  class: undefined,
 });
 
 const gridStyle = computed(() => ({

@@ -229,7 +229,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const props = defineProps({ type: String });
+const props = defineProps({ type: { type: String, default: undefined } });
 const emits = defineEmits([
   'switch-manage-tab',
   'insert-sample-query',

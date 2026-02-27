@@ -12,12 +12,30 @@
 
         <Separator class="my-4" />
 
-        <FormItem :label="lang.t('manage.dynamo.rcu')" required :error="getError('readCapacityUnits', fieldErrors.readCapacityUnits)">
-          <InputNumber v-model:model-value="formValue.readCapacityUnits" :min="1" class="w-full" @blur="handleBlur('readCapacityUnits')" />
+        <FormItem
+          :label="lang.t('manage.dynamo.rcu')"
+          required
+          :error="getError('readCapacityUnits', fieldErrors.readCapacityUnits)"
+        >
+          <InputNumber
+            v-model:model-value="formValue.readCapacityUnits"
+            :min="1"
+            class="w-full"
+            @blur="handleBlur('readCapacityUnits')"
+          />
         </FormItem>
 
-        <FormItem :label="lang.t('manage.dynamo.wcu')" required :error="getError('writeCapacityUnits', fieldErrors.writeCapacityUnits)">
-          <InputNumber v-model:model-value="formValue.writeCapacityUnits" :min="1" class="w-full" @blur="handleBlur('writeCapacityUnits')" />
+        <FormItem
+          :label="lang.t('manage.dynamo.wcu')"
+          required
+          :error="getError('writeCapacityUnits', fieldErrors.writeCapacityUnits)"
+        >
+          <InputNumber
+            v-model:model-value="formValue.writeCapacityUnits"
+            :min="1"
+            class="w-full"
+            @blur="handleBlur('writeCapacityUnits')"
+          />
         </FormItem>
       </Form>
 

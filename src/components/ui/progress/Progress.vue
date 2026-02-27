@@ -16,6 +16,9 @@ const props = withDefaults(defineProps<ProgressProps>(), {
   percentage: 0,
   modelValue: undefined,
   type: 'line',
+  class: undefined,
+  indicatorClass: undefined,
+  status: undefined,
 });
 
 const value = computed(() => props.modelValue ?? props.percentage);

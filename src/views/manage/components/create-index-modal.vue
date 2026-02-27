@@ -12,7 +12,11 @@
             <span class="section-title">{{ lang.t('manage.dynamo.indexDetails') }}</span>
           </div>
 
-          <FormItem :label="lang.t('manage.dynamo.indexName')" required :error="getError('indexName', veeErrors.indexName || errors.indexName)">
+          <FormItem
+            :label="lang.t('manage.dynamo.indexName')"
+            required
+            :error="getError('indexName', veeErrors.indexName || errors.indexName)"
+          >
             <Input
               v-model="formValue.indexName"
               :placeholder="lang.t('manage.dynamo.indexNamePlaceholder')"
@@ -25,7 +29,11 @@
           </FormItem>
 
           <!-- Partition Key Attributes -->
-          <FormItem :label="lang.t('manage.dynamo.partitionKey')" required :error="getError('partitionKey', errors.partitionKey)">
+          <FormItem
+            :label="lang.t('manage.dynamo.partitionKey')"
+            required
+            :error="getError('partitionKey', errors.partitionKey)"
+          >
             <div class="w-full flex flex-col gap-2">
               <div
                 v-for="(attr, index) in formValue.partitionKeyAttributes"

@@ -4,7 +4,12 @@
       <h1>DocKit</h1>
       <Form>
         <FormItem :error="getError('name', fieldErrors.name)">
-          <Input v-model="loginForm.name" :placeholder="$t('login.enterName')" class="w-full" @blur="handleBlur('name')" />
+          <Input
+            v-model="loginForm.name"
+            :placeholder="$t('login.enterName')"
+            class="w-full"
+            @blur="handleBlur('name')"
+          />
         </FormItem>
         <FormItem :error="getError('password', fieldErrors.password)">
           <Input

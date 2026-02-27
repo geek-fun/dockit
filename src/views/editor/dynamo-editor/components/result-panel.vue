@@ -172,8 +172,8 @@ const tabStore = useTabStore();
 interface Props {
   errorMessage?: string | null;
   hasData?: boolean;
-  columns: DataTableColumn[];
-  data: Record<string, unknown>[];
+  columns?: DataTableColumn[];
+  data?: Record<string, unknown>[];
   itemCount?: number;
   loading?: boolean;
   hasNextToken?: boolean;

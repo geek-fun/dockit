@@ -8,7 +8,11 @@
         <Form>
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
-              <FormItem :label="$t('manage.index.newAliasForm.aliasName')" required :error="getError('aliasName', fieldErrors.aliasName)">
+              <FormItem
+                :label="$t('manage.index.newAliasForm.aliasName')"
+                required
+                :error="getError('aliasName', fieldErrors.aliasName)"
+              >
                 <Input
                   v-model="formData.aliasName"
                   autocapitalize="off"
@@ -21,8 +25,15 @@
               </FormItem>
             </GridItem>
             <GridItem :span="8">
-              <FormItem :label="$t('manage.index.newAliasForm.indexName')" required :error="getError('indexName', fieldErrors.indexName)">
-                <Select v-model="formData.indexName" @update:open="(open: boolean) => !open && handleBlur('indexName')">
+              <FormItem
+                :label="$t('manage.index.newAliasForm.indexName')"
+                required
+                :error="getError('indexName', fieldErrors.indexName)"
+              >
+                <Select
+                  v-model="formData.indexName"
+                  @update:open="(open: boolean) => !open && handleBlur('indexName')"
+                >
                   <SelectTrigger>
                     <SelectValue :placeholder="$t('manage.index.newAliasForm.indexName')" />
                   </SelectTrigger>
@@ -76,7 +87,11 @@
                 </GridItem>
                 <GridItem :span="8">
                   <FormItem label="filter" :error="getError('filter', fieldErrors.filter)">
-                    <textarea v-model="formData.filter" class="textarea-input" @blur="handleBlur('filter')" />
+                    <textarea
+                      v-model="formData.filter"
+                      class="textarea-input"
+                      @blur="handleBlur('filter')"
+                    />
                   </FormItem>
                 </GridItem>
               </Grid>

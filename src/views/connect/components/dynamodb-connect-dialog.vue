@@ -31,13 +31,32 @@
 
         <Form @submit.prevent="saveConnect">
           <FormItem :label="$t('connection.name')" required :error="getError('name', errors.name)">
-            <Input v-model="formData.name" :placeholder="$t('connection.name')" @blur="handleBlur('name')" />
+            <Input
+              v-model="formData.name"
+              :placeholder="$t('connection.name')"
+              @blur="handleBlur('name')"
+            />
           </FormItem>
-          <FormItem :label="$t('connection.tableName')" required :error="getError('tableName', errors.tableName)">
-            <Input v-model="formData.tableName" :placeholder="$t('connection.tableName')" @blur="handleBlur('tableName')" />
+          <FormItem
+            :label="$t('connection.tableName')"
+            required
+            :error="getError('tableName', errors.tableName)"
+          >
+            <Input
+              v-model="formData.tableName"
+              :placeholder="$t('connection.tableName')"
+              @blur="handleBlur('tableName')"
+            />
           </FormItem>
-          <FormItem :label="$t('connection.region')" required :error="getError('region', errors.region)">
-            <Select v-model="formData.region" @update:open="(open: boolean) => !open && handleBlur('region')">
+          <FormItem
+            :label="$t('connection.region')"
+            required
+            :error="getError('region', errors.region)"
+          >
+            <Select
+              v-model="formData.region"
+              @update:open="(open: boolean) => !open && handleBlur('region')"
+            >
               <SelectTrigger>
                 <SelectValue :placeholder="$t('connection.selectRegion')" />
               </SelectTrigger>
@@ -52,10 +71,22 @@
               </SelectContent>
             </Select>
           </FormItem>
-          <FormItem :label="$t('connection.accessKeyId')" required :error="getError('accessKeyId', errors.accessKeyId)">
-            <Input v-model="formData.accessKeyId" :placeholder="$t('connection.accessKeyId')" @blur="handleBlur('accessKeyId')" />
+          <FormItem
+            :label="$t('connection.accessKeyId')"
+            required
+            :error="getError('accessKeyId', errors.accessKeyId)"
+          >
+            <Input
+              v-model="formData.accessKeyId"
+              :placeholder="$t('connection.accessKeyId')"
+              @blur="handleBlur('accessKeyId')"
+            />
           </FormItem>
-          <FormItem :label="$t('connection.secretAccessKey')" required :error="getError('secretAccessKey', errors.secretAccessKey)">
+          <FormItem
+            :label="$t('connection.secretAccessKey')"
+            required
+            :error="getError('secretAccessKey', errors.secretAccessKey)"
+          >
             <Input
               v-model="formData.secretAccessKey"
               type="password"

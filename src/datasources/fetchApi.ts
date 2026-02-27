@@ -49,18 +49,14 @@ const fetchWrapper = async ({
   port: number;
   ssl: boolean;
 }) => {
-  try {
-    const url = buildURL(host, port, path, queryParameters);
-    const { data, status, details } = await fetchRequest(url, {
-      method,
-      headers: { ...buildAuthHeader(username, password) },
-      payload,
-      agent: { ssl },
-    });
-    return handleFetch({ data, status, details });
-  } catch (err) {
-    throw err;
-  }
+  const url = buildURL(host, port, path, queryParameters);
+  const { data, status, details } = await fetchRequest(url, {
+    method,
+    headers: { ...buildAuthHeader(username, password) },
+    payload,
+    agent: { ssl },
+  });
+  return handleFetch({ data, status, details });
 };
 
 const fetchRequest = async (
