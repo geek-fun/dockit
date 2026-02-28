@@ -37,7 +37,7 @@ export const useHistoryStore = defineStore('historyStore', {
     async addEntry(entry: Omit<HistoryEntry, 'id' | 'timestamp'>) {
       const newEntry: HistoryEntry = {
         ...entry,
-        id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        id: crypto.randomUUID(),
         timestamp: Date.now(),
       };
       this.entries.unshift(newEntry);

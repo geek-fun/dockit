@@ -150,10 +150,14 @@ const formatFullTime = (timestamp: number) => {
   return new Date(timestamp).toLocaleString();
 };
 
+const buildQueryText = (entry: { method: string; path: string; index?: string; qdsl?: string }) => {
+  const { method, path, index, qdsl } = entry;
+  return `${method} ${index ? index + '/' : ''}${path}${qdsl ? '\n' + qdsl : ''}`;
+};
+
 const handleCopyQuery = async () => {
   if (!selectedEntry.value) return;
-  const { method, path, index, qdsl } = selectedEntry.value;
-  const queryText = `${method} ${index ? index + '/' : ''}${path}${qdsl ? '\n' + qdsl : ''}`;
+  const queryText = buildQueryText(selectedEntry.value);
   try {
     await navigator.clipboard.writeText(queryText);
     message.success(lang.t('editor.copySuccess'));
@@ -164,10 +168,9 @@ const handleCopyQuery = async () => {
 
 const handleAddToEditor = () => {
   if (!selectedEntry.value) return;
-  const { method, path, index, qdsl } = selectedEntry.value;
-  const queryText = `${method} ${index ? index + '/' : ''}${path}${qdsl ? '\n' + qdsl : ''}`;
+  const queryText = buildQueryText(selectedEntry.value);
 
-  if (activePanel.value?.content !== undefined) {
+  if (activePanel.value?.content != null) {
     const current = activePanel.value.content || '';
     activePanel.value.content = current ? current + '\n\n' + queryText : queryText;
   }
