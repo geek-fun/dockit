@@ -77,11 +77,13 @@ import {
 import type { PartiqlDecoration, PartiqlStatement } from '../../../../common/monaco/partiql';
 import { useLang } from '../../../../lang';
 import {
+  DatabaseType,
   DynamoDBConnection,
   useAppStore,
   useTabStore,
   useDbDataStore,
   useConnectionStore,
+  useHistoryStore,
 } from '../../../../store';
 import ResultPanel from './result-panel.vue';
 import EditItem from './edit-item.vue';
@@ -100,6 +102,8 @@ const { activePanel, activeConnection } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
 const { dynamoData } = storeToRefs(dbDataStore);
+
+const historyStore = useHistoryStore();
 const partiqlData = computed(() => dynamoData.value.partiqlData);
 
 let editor: Editor | null = null;
@@ -193,6 +197,18 @@ const executePartiqlStatement = async (statement: string, nextToken?: string | n
       statement,
       { nextToken },
     );
+
+    if (!nextToken) {
+      historyStore.addEntry({
+        databaseType: DatabaseType.DYNAMODB,
+        method: 'PartiQL',
+        path: (activeConnection.value as DynamoDBConnection).tableName,
+        qdsl: statement,
+        connectionName: activeConnection.value.name,
+        connectionId: activeConnection.value.id,
+      });
+    }
+
     loadingBar.finish();
   } catch (err) {
     loadingBar.error();
