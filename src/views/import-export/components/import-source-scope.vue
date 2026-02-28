@@ -1,204 +1,181 @@
 <template>
-  <n-card class="step-card">
-    <template #header>
+  <Card class="step-card">
+    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="step-header">
-        <n-icon size="20" color="#18a058">
-          <UploadIcon />
-        </n-icon>
+        <span class="i-carbon-document h-5 w-5" style="color: #18a058" />
         <span class="step-title">{{ $t('import.sourceScope') }}</span>
       </div>
-    </template>
-    <template #header-extra>
       <span class="step-badge">{{ $t('export.step') }} 02</span>
-    </template>
+    </CardHeader>
+    <CardContent>
+      <!-- Not configured yet -->
+      <div v-if="!hasTarget" class="empty-state">
+        <Empty :description="$t('import.selectTargetFirst')">
+          <template #icon>
+            <span class="i-carbon-document h-12 w-12" />
+          </template>
+        </Empty>
+      </div>
 
-    <!-- Not configured yet -->
-    <div v-if="!hasTarget" class="empty-state">
-      <n-empty :description="$t('import.selectTargetFirst')">
-        <template #icon>
-          <n-icon size="48">
-            <UploadIcon />
-          </n-icon>
-        </template>
-      </n-empty>
-    </div>
-
-    <!-- New Collection Flow: CHOOSE METADATA -> CHOOSE DATA -> READY -->
-    <div v-else-if="isNewCollection" class="import-steps">
-      <div class="step-progress">
-        <!-- Step 1: Choose Metadata (required for new collection) -->
-        <div :class="['step-node', { completed: metadataComplete }]">
-          <div
-            :class="[
-              'step-circle',
-              'clickable',
-              { completed: metadataComplete, active: !metadataComplete },
-            ]"
-            @click="handleSelectMetadataFile"
-          >
-            <n-icon v-if="metadataComplete" size="16">
-              <Checkmark />
-            </n-icon>
-            <span v-else>1</span>
+      <!-- New Collection Flow: CHOOSE METADATA -> CHOOSE DATA -> READY -->
+      <div v-else-if="isNewCollection" class="import-steps">
+        <div class="step-progress">
+          <!-- Step 1: Choose Metadata (required for new collection) -->
+          <div :class="['step-node', { completed: metadataComplete }]">
+            <div
+              :class="[
+                'step-circle',
+                'clickable',
+                { completed: metadataComplete, active: !metadataComplete },
+              ]"
+              @click="handleSelectMetadataFile"
+            >
+              <span v-if="metadataComplete" class="i-carbon-checkmark h-4 w-4" />
+              <span v-else>1</span>
+            </div>
+            <span class="step-label">{{ $t('import.chooseMetadata') }}</span>
+            <span v-if="metadataFileName" class="step-file">{{ metadataFileName }}</span>
           </div>
-          <span class="step-label">{{ $t('import.chooseMetadata') }}</span>
-          <span v-if="metadataFileName" class="step-file">{{ metadataFileName }}</span>
-        </div>
 
-        <div class="step-line" :class="{ completed: metadataComplete }"></div>
+          <div class="step-line" :class="{ completed: metadataComplete }"></div>
 
-        <!-- Step 2: Choose Data -->
-        <div :class="['step-node', { completed: dataComplete }]">
-          <div
-            :class="[
-              'step-circle',
-              'clickable',
-              { completed: dataComplete, active: metadataComplete && !dataComplete },
-            ]"
-            @click="handleSelectDataFile"
-          >
-            <n-icon v-if="dataComplete" size="16">
-              <Checkmark />
-            </n-icon>
-            <span v-else>2</span>
+          <!-- Step 2: Choose Data -->
+          <div :class="['step-node', { completed: dataComplete }]">
+            <div
+              :class="[
+                'step-circle',
+                'clickable',
+                { completed: dataComplete, active: metadataComplete && !dataComplete },
+              ]"
+              @click="handleSelectDataFile"
+            >
+              <span v-if="dataComplete" class="i-carbon-checkmark h-4 w-4" />
+              <span v-else>2</span>
+            </div>
+            <span class="step-label">{{ $t('import.chooseData') }}</span>
+            <span v-if="dataFileName" class="step-file">{{ dataFileName }}</span>
           </div>
-          <span class="step-label">{{ $t('import.chooseData') }}</span>
-          <span v-if="dataFileName" class="step-file">{{ dataFileName }}</span>
-        </div>
 
-        <div class="step-line" :class="{ completed: dataComplete }"></div>
+          <div class="step-line" :class="{ completed: dataComplete }"></div>
 
-        <!-- Step 3: Ready -->
-        <div :class="['step-node', { completed: allComplete, error: hasDataError }]">
-          <div :class="['step-circle', { completed: allComplete, error: hasDataError }]">
-            <n-icon v-if="allComplete" size="16">
-              <Checkmark />
-            </n-icon>
-            <n-icon v-else-if="hasDataError" size="16">
-              <ErrorFilled />
-            </n-icon>
-            <span v-else>3</span>
+          <!-- Step 3: Ready -->
+          <div :class="['step-node', { completed: allComplete, error: hasDataError }]">
+            <div :class="['step-circle', { completed: allComplete, error: hasDataError }]">
+              <span v-if="allComplete" class="i-carbon-checkmark h-4 w-4" />
+              <span v-else-if="hasDataError" class="i-carbon-error-filled h-4 w-4" />
+              <span v-else>3</span>
+            </div>
+            <span class="step-label">
+              {{ hasDataError ? $t('import.error') : $t('import.ready') }}
+            </span>
           </div>
-          <span class="step-label">
-            {{ hasDataError ? $t('import.error') : $t('import.ready') }}
-          </span>
-        </div>
-      </div>
-
-      <!-- Selected Files -->
-      <div v-if="importDataFile || importMetadataFile" class="selected-files">
-        <div v-if="importMetadataFile" class="file-item">
-          <n-icon size="18">
-            <DocumentAttachment />
-          </n-icon>
-          <span class="file-path">{{ importMetadataFile }}</span>
-          <n-button text @click="clearMetadataFile">
-            <n-icon size="16">
-              <Close />
-            </n-icon>
-          </n-button>
         </div>
 
-        <div v-if="importDataFile" class="file-item">
-          <n-icon size="18">
-            <Document />
-          </n-icon>
-          <span class="file-path">{{ importDataFile }}</span>
-          <n-button text @click="clearDataFile">
-            <n-icon size="16">
-              <Close />
-            </n-icon>
-          </n-button>
-        </div>
-      </div>
-
-      <!-- Validation Errors -->
-      <div v-if="importValidationErrors.length > 0" class="validation-errors">
-        <n-alert type="error" :title="$t('import.validationErrors')">
-          <ul class="error-list">
-            <li v-for="(error, index) in importValidationErrors" :key="index">{{ error }}</li>
-          </ul>
-        </n-alert>
-      </div>
-    </div>
-
-    <!-- Existing Collection Flow: CHOOSE DATA -> READY (no metadata needed) -->
-    <div v-else class="import-steps">
-      <div class="step-progress">
-        <!-- Step 1: Choose Data -->
-        <div :class="['step-node', { completed: dataComplete }]">
-          <div
-            :class="[
-              'step-circle',
-              'clickable',
-              { completed: dataComplete, active: !dataComplete },
-            ]"
-            @click="handleSelectDataFile"
-          >
-            <n-icon v-if="dataComplete" size="16">
-              <Checkmark />
-            </n-icon>
-            <span v-else>1</span>
+        <!-- Selected Files -->
+        <div v-if="importDataFile || importMetadataFile" class="selected-files">
+          <div v-if="importMetadataFile" class="file-item">
+            <span class="i-carbon-document-attachment h-4.5 w-4.5" />
+            <span class="file-path">{{ importMetadataFile }}</span>
+            <Button variant="ghost" size="icon" class="h-6 w-6" @click="clearMetadataFile">
+              <span class="i-carbon-close h-4 w-4" />
+            </Button>
           </div>
-          <span class="step-label">{{ $t('import.chooseData') }}</span>
-          <span v-if="dataFileName" class="step-file">{{ dataFileName }}</span>
-        </div>
 
-        <div class="step-line" :class="{ completed: dataComplete }"></div>
-
-        <!-- Step 2: Ready -->
-        <div :class="['step-node', { completed: dataComplete, error: hasDataError }]">
-          <div :class="['step-circle', { completed: dataComplete, error: hasDataError }]">
-            <n-icon v-if="dataComplete" size="16">
-              <Checkmark />
-            </n-icon>
-            <n-icon v-else-if="hasDataError" size="16">
-              <ErrorFilled />
-            </n-icon>
-            <span v-else>2</span>
+          <div v-if="importDataFile" class="file-item">
+            <span class="i-carbon-document h-4.5 w-4.5" />
+            <span class="file-path">{{ importDataFile }}</span>
+            <Button variant="ghost" size="icon" class="h-6 w-6" @click="clearDataFile">
+              <span class="i-carbon-close h-4 w-4" />
+            </Button>
           </div>
-          <span class="step-label">
-            {{ hasDataError ? $t('import.error') : $t('import.ready') }}
-          </span>
+        </div>
+
+        <!-- Validation Errors -->
+        <div v-if="importValidationErrors.length > 0" class="validation-errors">
+          <Alert variant="destructive">
+            <AlertTitle>{{ $t('import.validationErrors') }}</AlertTitle>
+            <AlertDescription>
+              <ul class="error-list">
+                <li v-for="(error, index) in importValidationErrors" :key="index">{{ error }}</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
         </div>
       </div>
 
-      <!-- Selected Files -->
-      <div v-if="importDataFile" class="selected-files">
-        <div class="file-item">
-          <n-icon size="18">
-            <Document />
-          </n-icon>
-          <span class="file-path">{{ importDataFile }}</span>
-          <n-button text @click="clearDataFile">
-            <n-icon size="16">
-              <Close />
-            </n-icon>
-          </n-button>
+      <!-- Existing Collection Flow: CHOOSE DATA -> READY (no metadata needed) -->
+      <div v-else class="import-steps">
+        <div class="step-progress">
+          <!-- Step 1: Choose Data -->
+          <div :class="['step-node', { completed: dataComplete }]">
+            <div
+              :class="[
+                'step-circle',
+                'clickable',
+                { completed: dataComplete, active: !dataComplete },
+              ]"
+              @click="handleSelectDataFile"
+            >
+              <span v-if="dataComplete" class="i-carbon-checkmark h-4 w-4" />
+              <span v-else>1</span>
+            </div>
+            <span class="step-label">{{ $t('import.chooseData') }}</span>
+            <span v-if="dataFileName" class="step-file">{{ dataFileName }}</span>
+          </div>
+
+          <div class="step-line" :class="{ completed: dataComplete }"></div>
+
+          <!-- Step 2: Ready -->
+          <div :class="['step-node', { completed: dataComplete, error: hasDataError }]">
+            <div :class="['step-circle', { completed: dataComplete, error: hasDataError }]">
+              <span v-if="dataComplete" class="i-carbon-checkmark h-4 w-4" />
+              <span v-else-if="hasDataError" class="i-carbon-error-filled h-4 w-4" />
+              <span v-else>2</span>
+            </div>
+            <span class="step-label">
+              {{ hasDataError ? $t('import.error') : $t('import.ready') }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Selected Files -->
+        <div v-if="importDataFile" class="selected-files">
+          <div class="file-item">
+            <span class="i-carbon-document h-4.5 w-4.5" />
+            <span class="file-path">{{ importDataFile }}</span>
+            <Button variant="ghost" size="icon" class="h-6 w-6" @click="clearDataFile">
+              <span class="i-carbon-close h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <!-- Validation Errors -->
+        <div v-if="importValidationErrors.length > 0" class="validation-errors">
+          <Alert variant="destructive">
+            <AlertTitle>{{ $t('import.validationErrors') }}</AlertTitle>
+            <AlertDescription>
+              <ul class="error-list">
+                <li v-for="(error, index) in importValidationErrors" :key="index">{{ error }}</li>
+              </ul>
+            </AlertDescription>
+          </Alert>
         </div>
       </div>
-
-      <!-- Validation Errors -->
-      <div v-if="importValidationErrors.length > 0" class="validation-errors">
-        <n-alert type="error" :title="$t('import.validationErrors')">
-          <ul class="error-list">
-            <li v-for="(error, index) in importValidationErrors" :key="index">{{ error }}</li>
-          </ul>
-        </n-alert>
-      </div>
-    </div>
-  </n-card>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Document, DocumentAttachment, Checkmark, Close, ErrorFilled } from '@vicons/carbon';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Empty } from '@/components/ui/empty';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useImportExportStore } from '../../../store';
 import { CustomError } from '../../../common';
+import { useMessageService } from '@/composables';
 
-const UploadIcon = Document;
-
-const message = useMessage();
+const message = useMessageService();
 
 const importExportStore = useImportExportStore();
 const {
@@ -285,158 +262,154 @@ const clearMetadataFile = () => {
 };
 </script>
 
-<style lang="scss" scoped>
-.step-card {
-  .step-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+<style scoped>
+.step-card .step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-    .step-title {
-      font-size: 16px;
-      font-weight: 600;
-    }
-  }
+.step-card .step-header .step-title {
+  font-size: 16px;
+  font-weight: 600;
+}
 
-  .step-badge {
-    font-size: 12px;
-    color: var(--text-color-3);
-    font-weight: 500;
-  }
+.step-card .step-badge {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
 
-  .empty-state {
-    padding: 40px 0;
-  }
+.step-card .empty-state {
+  padding: 40px 0;
+}
 
-  .import-steps {
-    .step-progress {
-      display: flex;
-      align-items: flex-start;
-      justify-content: center;
-      padding: 24px 16px;
-      background-color: var(--card-color);
-      border: 2px dashed var(--border-color);
-      border-radius: 12px;
-      margin-bottom: 16px;
+.step-card .import-steps .step-progress {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  background-color: hsl(var(--card));
+  border: 2px dashed hsl(var(--border));
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
 
-      .step-node {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        min-width: 100px;
+.step-card .import-steps .step-progress .step-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 100px;
+}
 
-        .step-circle {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          border: 2px solid var(--border-color);
-          background: var(--card-color);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 600;
-          font-size: 14px;
-          transition: all 0.3s;
+.step-card .import-steps .step-progress .step-node .step-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid hsl(var(--border));
+  background: hsl(var(--card));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.3s;
+}
 
-          &.active {
-            border-color: #18a058;
-            color: #18a058;
-          }
+.step-card .import-steps .step-progress .step-node .step-circle.active {
+  border-color: #18a058;
+  color: #18a058;
+}
 
-          &.completed {
-            background: #18a058;
-            border-color: #18a058;
-            color: white;
-          }
+.step-card .import-steps .step-progress .step-node .step-circle.completed {
+  background: #18a058;
+  border-color: #18a058;
+  color: white;
+}
 
-          &.error {
-            background: #d03050;
-            border-color: #d03050;
-            color: white;
-          }
+.step-card .import-steps .step-progress .step-node .step-circle.error {
+  background: #d03050;
+  border-color: #d03050;
+  color: white;
+}
 
-          &.clickable {
-            cursor: pointer;
+.step-card .import-steps .step-progress .step-node .step-circle.clickable {
+  cursor: pointer;
+}
 
-            &:hover {
-              border-color: #18a058;
-              opacity: 0.8;
-            }
-          }
-        }
+.step-card .import-steps .step-progress .step-node .step-circle.clickable:hover {
+  border-color: #18a058;
+  opacity: 0.8;
+}
 
-        .step-label {
-          margin-top: 8px;
-          font-size: 11px;
-          font-weight: 600;
-          text-transform: uppercase;
-          color: var(--text-color-1);
-        }
+.step-card .import-steps .step-progress .step-node .step-label {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: hsl(var(--foreground));
+}
 
-        .step-file {
-          margin-top: 4px;
-          font-size: 10px;
-          color: var(--text-color-3);
-          max-width: 100px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      }
+.step-card .import-steps .step-progress .step-node .step-file {
+  margin-top: 4px;
+  font-size: 10px;
+  color: hsl(var(--muted-foreground));
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-      .step-line {
-        flex: 1;
-        height: 2px;
-        background: var(--border-color);
-        margin: 20px 8px 0;
-        max-width: 80px;
-        transition: background 0.3s;
+.step-card .import-steps .step-progress .step-line {
+  flex: 1;
+  height: 2px;
+  background: hsl(var(--border));
+  margin: 20px 8px 0;
+  max-width: 80px;
+  transition: background 0.3s;
+}
 
-        &.completed {
-          background: #18a058;
-        }
-      }
-    }
+.step-card .import-steps .step-progress .step-line.completed {
+  background: #18a058;
+}
 
-    .selected-files {
-      margin-top: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+.step-card .import-steps .selected-files {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 
-      .file-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px 12px;
-        background: var(--card-color);
-        border: 1px solid var(--border-color);
-        border-radius: 6px;
+.step-card .import-steps .selected-files .file-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+}
 
-        .file-path {
-          flex: 1;
-          font-size: 12px;
-          color: var(--text-color-2);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-      }
-    }
+.step-card .import-steps .selected-files .file-item .file-path {
+  flex: 1;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-    .validation-errors {
-      margin-top: 16px;
+.step-card .import-steps .validation-errors {
+  margin-top: 16px;
+}
 
-      .error-list {
-        margin: 0;
-        padding-left: 20px;
+.step-card .import-steps .validation-errors .error-list {
+  margin: 0;
+  padding-left: 20px;
+}
 
-        li {
-          margin: 4px 0;
-          font-size: 12px;
-        }
-      }
-    }
-  }
+.step-card .import-steps .validation-errors .error-list li {
+  margin: 4px 0;
+  font-size: 12px;
 }
 </style>

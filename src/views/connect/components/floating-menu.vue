@@ -1,34 +1,11 @@
 <template>
-  <n-float-button
-    position="fixed"
-    type="primary"
-    menu-trigger="click"
-    bottom="40px"
-    right="80px"
-    width="50px"
-    height="50px"
-  >
-    <n-icon size="32">
-      <Add />
-    </n-icon>
-    <template #menu>
-      <n-float-button type="primary" width="50px" height="50px" @click="handleAddClick">
-        <n-icon size="32">
-          <Add />
-        </n-icon>
-        <!--        <template #description>New Connection</template>-->
-      </n-float-button>
-      <!--      <n-float-button>-->
-      <!--        <n-icon size="24">-->
-      <!--          <Add />-->
-      <!--        </n-icon>-->
-      <!--      </n-float-button>-->
-    </template>
-  </n-float-button>
+  <Button class="floating-button" variant="default" size="icon" @click="handleAddClick">
+    <span class="i-carbon-add h-8 w-8" />
+  </Button>
 </template>
 
 <script setup lang="ts">
-import { Add } from '@vicons/carbon';
+import { Button } from '@/components/ui/button';
 
 const emit = defineEmits(['add']);
 const handleAddClick = () => {
@@ -36,4 +13,17 @@ const handleAddClick = () => {
 };
 </script>
 
-<style lang="scss" scoped></style>
+<style scoped>
+.floating-button {
+  position: fixed;
+  bottom: 40px;
+  right: 80px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+</style>

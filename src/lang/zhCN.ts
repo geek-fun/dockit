@@ -13,7 +13,9 @@ export const zhCN = {
   setting: {
     basic: '通用设置',
     theme: '主题外观',
+    themeDesc: '选择您偏好的主题外观',
     language: '系统语言',
+    languageDesc: '选择您偏好的系统语言',
     about: '关于软件',
     auto: '跟随系统',
     dark: '暗黑主题',

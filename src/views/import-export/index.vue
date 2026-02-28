@@ -70,12 +70,12 @@ import ImportExecutionPanel from './components/import-execution-panel.vue';
 const activeMode = ref('import');
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .import-export-container {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: var(--bg-color);
+  background-color: hsl(var(--background));
 }
 
 .content-layout {
@@ -94,76 +94,74 @@ const activeMode = ref('import');
   gap: 16px;
   overflow-y: auto;
   padding-right: 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
 
-  /* Hide scrollbar */
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
+.steps-container::-webkit-scrollbar {
+  display: none;
+}
 
-  &::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
-  }
+.mode-switch-wrapper {
+  display: flex;
+  justify-content: flex-start;
+}
 
-  .mode-switch-wrapper {
-    display: flex;
-    justify-content: flex-start;
+.segmented-control {
+  display: flex;
+  height: 29px;
+  width: 220px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  padding: 3px;
+  gap: 3px;
+}
 
-    .segmented-control {
-      display: flex;
-      height: 29px;
-      width: 220px;
-      align-items: center;
-      justify-content: center;
-      border-radius: 8px;
-      background-color: var(--bg-color);
-      border: 1px solid var(--border-color);
-      padding: 3px;
-      gap: 3px;
+.segment-label {
+  display: flex;
+  cursor: pointer;
+  height: 100%;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  color: hsl(var(--muted-foreground));
+}
 
-      .segment-label {
-        display: flex;
-        cursor: pointer;
-        height: 100%;
-        flex: 1;
-        align-items: center;
-        justify-content: center;
-        border-radius: 6px;
-        padding: 0 8px;
-        font-size: 13px;
-        font-weight: 500;
-        transition: all 0.2s ease;
-        color: var(--gray-color);
+.segment-label:hover {
+  color: hsl(var(--foreground));
+}
 
-        &:hover {
-          color: var(--text-color);
-        }
+.segment-label.active {
+  background: hsl(var(--card));
+  box-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  color: hsl(var(--primary));
+  font-weight: 700;
+}
 
-        &.active {
-          background: var(--card-bg-color);
-          box-shadow:
-            0 1px 3px 0 rgba(0, 0, 0, 0.1),
-            0 1px 2px 0 rgba(0, 0, 0, 0.06);
-          color: var(--theme-color);
-          font-weight: 700;
-        }
+.segment-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-        .segment-text {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
+.segment-input {
+  display: none;
+}
 
-        .segment-input {
-          display: none;
-        }
-      }
-    }
-  }
-
-  .steps-content {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
+.steps-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .execution-container {

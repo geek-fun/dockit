@@ -90,37 +90,40 @@ onMounted(() => {
 });
 </script>
 
-<style lang="scss">
+<style>
 pre {
   margin: 0;
   padding: 0;
+}
 
-  code.language-json,
-  code.language-bash {
-    position: relative;
+pre code.language-json,
+pre code.language-bash {
+  position: relative;
+}
 
-    .code-actions {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      height: 18px;
-      display: none;
-      border-radius: 5px;
+pre code.language-json .code-actions,
+pre code.language-bash .code-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  height: 18px;
+  display: none;
+  border-radius: 5px;
+}
 
-      .code-action-copy {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-        margin-right: 5px;
-      }
+pre code.language-json .code-actions .code-action-copy,
+pre code.language-bash .code-actions .code-action-copy {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  margin-right: 5px;
+}
 
-      .code-action-insert {
-        width: 18px;
-        height: 18px;
-        margin-left: 5px;
-        cursor: pointer;
-      }
-    }
-  }
+pre code.language-json .code-actions .code-action-insert,
+pre code.language-bash .code-actions .code-action-insert {
+  width: 18px;
+  height: 18px;
+  margin-left: 5px;
+  cursor: pointer;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <n-split v-model:size="queryEditorSize" direction="horizontal" class="editor">
+  <SplitPane v-model:size="queryEditorSize" direction="horizontal" class="editor">
     <template #1>
       <div class="query-editor-container">
         <div id="query-editor" ref="queryEditorRef" />
@@ -27,7 +27,7 @@
     <template #2>
       <DisplayEditor id="display-editor" ref="displayRef" />
     </template>
-  </n-split>
+  </SplitPane>
 </template>
 <script setup lang="ts">
 import { open } from '@tauri-apps/plugin-shell';
@@ -35,7 +35,8 @@ import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
-import { useMessage, useLoadingBar } from 'naive-ui';
+import { SplitPane } from '@/components/ui/split-pane';
+import { useMessageService, useLoadingBarService } from '@/composables';
 import { CustomError, jsonify } from '../../../common';
 import {
   ElasticsearchConnection,
@@ -66,8 +67,8 @@ import {
 } from '../../../common/monaco';
 
 const appStore = useAppStore();
-const message = useMessage();
-const loadingBar = useLoadingBar();
+const message = useMessageService();
+const loadingBar = useLoadingBarService();
 const lang = useLang();
 
 const tabStore = useTabStore();
@@ -593,78 +594,69 @@ onUnmounted(async () => {
 });
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .editor {
   width: 100%;
   height: 100%;
+}
 
-  .query-editor-container {
-    width: 100%;
-    height: 100%;
-    position: relative;
+.editor .query-editor-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
 
-    #query-editor {
-      width: 100%;
-      height: 100%;
-    }
-  }
+.editor .query-editor-container #query-editor {
+  width: 100%;
+  height: 100%;
+}
 
-  #display-editor {
-    width: 100%;
-    height: 100%;
-    border-left: 1px solid var(--border-color);
-  }
+.editor #display-editor {
+  width: 100%;
+  height: 100%;
+  border-left: 1px solid hsl(var(--border));
 }
 
 .es-context-menu {
   position: fixed;
-  background-color: var(--bg-color);
-  border: 1px solid var(--border-color);
+  background-color: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 10000;
   border-radius: 4px;
   overflow: hidden;
+}
 
-  ul {
-    list-style: none;
-    margin: 0;
-    padding: 4px 0;
-    min-width: 140px;
+.es-context-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  min-width: 140px;
+}
 
-    li {
-      padding: 6px 12px;
-      cursor: pointer;
-      font-size: 13px;
+.es-context-menu ul li {
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+}
 
-      &:hover {
-        background: var(--border-color);
-      }
-    }
-  }
+.es-context-menu ul li:hover {
+  background: hsl(var(--accent));
 }
 
 :deep(.execute-button-decoration) {
   cursor: pointer;
-  height: 0 !important;
-  width: 0 !important;
-  margin-top: 3px;
-  margin-left: 8px;
-  border-radius: 3px;
-  border-left-width: 10px;
-  border-top-width: 7px;
-  border-bottom-width: 7px;
-  border-right-width: 0;
-  border-top-color: transparent;
-  border-left-color: var(--theme-color);
-  border-bottom-color: transparent;
-  border-right-color: transparent;
+  width: 0;
+  height: 0;
+  margin-top: 0;
+  margin-left: 4px;
+  border-radius: 4px;
   border-style: solid;
+  border-width: 10px 0 10px 12px;
+  border-color: transparent transparent transparent hsl(var(--primary));
 }
 
-:deep(.mtk14, .mtk19) {
-  color: #00756c;
-}
-
+:deep(.mtk14),
 :deep(.mtk19) {
   color: #00756c;
 }

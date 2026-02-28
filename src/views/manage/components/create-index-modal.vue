@@ -1,254 +1,336 @@
 <template>
-  <n-modal :show="props.show" @update:show="val => emit('update:show', val)">
-    <n-card
-      style="width: 700px"
-      :title="lang.t('manage.dynamo.createGsiTitle')"
-      :bordered="false"
-      role="dialog"
-    >
-      <div style="max-height: 65vh; overflow-y: auto; overflow-x: hidden" class="hide-scrollbar">
-        <n-form
-          ref="formRef"
-          :model="formValue"
-          :rules="rules"
-          label-placement="left"
-          label-width="160"
-        >
+  <Dialog :open="props.show" @update:open="val => emit('update:show', val)">
+    <DialogContent class="sm:max-w-[700px]">
+      <DialogHeader>
+        <DialogTitle>{{ lang.t('manage.dynamo.createGsiTitle') }}</DialogTitle>
+      </DialogHeader>
+      <ScrollArea class="max-h-[65vh] pr-4">
+        <Form>
           <!-- Index Details Section -->
-          <n-divider title-placement="left">
-            {{ lang.t('manage.dynamo.indexDetails') }}
-          </n-divider>
+          <div class="section-divider">
+            <Separator />
+            <span class="section-title">{{ lang.t('manage.dynamo.indexDetails') }}</span>
+          </div>
 
-          <n-form-item :label="lang.t('manage.dynamo.indexName')" path="indexName">
-            <n-input
-              v-model:value="formValue.indexName"
+          <FormItem :label="lang.t('manage.dynamo.indexName')" required>
+            <Input
+              v-model="formValue.indexName"
               :placeholder="lang.t('manage.dynamo.indexNamePlaceholder')"
-              :input-props="inputProps"
+              autocapitalize="off"
+              autocomplete="off"
+              :spellcheck="false"
+              autocorrect="off"
             />
-          </n-form-item>
+            <p v-if="errors.indexName" class="text-sm text-destructive mt-1">
+              {{ errors.indexName }}
+            </p>
+          </FormItem>
 
           <!-- Partition Key Attributes -->
-          <n-form-item :label="lang.t('manage.dynamo.partitionKey')" path="partitionKeyAttributes">
-            <div style="width: 100%; display: flex; flex-direction: column; gap: 8px">
+          <FormItem :label="lang.t('manage.dynamo.partitionKey')" required>
+            <div class="w-full flex flex-col gap-2">
               <div
                 v-for="(attr, index) in formValue.partitionKeyAttributes"
                 :key="index"
-                style="display: flex; gap: 8px; align-items: center"
+                class="flex gap-2 items-center"
               >
-                <n-input
-                  v-model:value="attr.name"
+                <Input
+                  v-model="attr.name"
                   :placeholder="lang.t('manage.dynamo.keyAttributeName')"
-                  :input-props="inputProps"
-                  style="flex: 1"
+                  autocapitalize="off"
+                  autocomplete="off"
+                  :spellcheck="false"
+                  autocorrect="off"
+                  class="flex-1"
                 />
-                <n-select
-                  v-model:value="attr.type"
-                  :options="keyTypeOptions"
-                  style="width: 140px"
-                />
-                <n-button
-                  text
-                  type="error"
+                <Select v-model="attr.type">
+                  <SelectTrigger class="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="opt in keyTypeOptions" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   :disabled="formValue.partitionKeyAttributes.length === 1"
                   @click="removePartitionKeyAttribute(index)"
                 >
-                  <template #icon>
-                    <n-icon><TrashCan /></n-icon>
-                  </template>
-                </n-button>
+                  <span class="i-carbon-trash-can h-4 w-4 text-destructive" />
+                </Button>
               </div>
-              <n-button dashed block @click="addPartitionKeyAttribute">
+              <Button
+                variant="outline"
+                class="w-full border-dashed"
+                @click="addPartitionKeyAttribute"
+              >
                 {{ lang.t('manage.dynamo.addAttribute') }}
-              </n-button>
+              </Button>
             </div>
-          </n-form-item>
+            <p v-if="errors.partitionKey" class="text-sm text-destructive mt-1">
+              {{ errors.partitionKey }}
+            </p>
+          </FormItem>
 
           <!-- Sort Key Attributes (Optional) -->
-          <n-form-item :label="lang.t('manage.dynamo.sortKey')" path="sortKeyAttributes">
-            <div style="width: 100%; display: flex; flex-direction: column; gap: 8px">
+          <FormItem :label="lang.t('manage.dynamo.sortKey')">
+            <div class="w-full flex flex-col gap-2">
               <div
                 v-for="(attr, index) in formValue.sortKeyAttributes"
                 :key="index"
-                style="display: flex; gap: 8px; align-items: center"
+                class="flex gap-2 items-center"
               >
-                <n-input
-                  v-model:value="attr.name"
+                <Input
+                  v-model="attr.name"
                   :placeholder="lang.t('manage.dynamo.keyAttributeNameOptional')"
-                  :input-props="inputProps"
-                  style="flex: 1"
+                  autocapitalize="off"
+                  autocomplete="off"
+                  :spellcheck="false"
+                  autocorrect="off"
+                  class="flex-1"
                 />
-                <n-select
-                  v-model:value="attr.type"
-                  :options="keyTypeOptions"
-                  style="width: 140px"
-                />
-                <n-button text type="error" @click="removeSortKeyAttribute(index)">
-                  <template #icon>
-                    <n-icon><TrashCan /></n-icon>
-                  </template>
-                </n-button>
+                <Select v-model="attr.type">
+                  <SelectTrigger class="w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="opt in keyTypeOptions" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="ghost" size="icon" @click="removeSortKeyAttribute(index)">
+                  <span class="i-carbon-trash-can h-4 w-4 text-destructive" />
+                </Button>
               </div>
-              <n-button dashed block @click="addSortKeyAttribute">
+              <Button variant="outline" class="w-full border-dashed" @click="addSortKeyAttribute">
                 {{ lang.t('manage.dynamo.addAttribute') }}
-              </n-button>
+              </Button>
             </div>
-          </n-form-item>
+          </FormItem>
 
           <!-- Attribute Projections -->
-          <n-form-item :label="lang.t('manage.dynamo.projection')" path="projectionType">
-            <n-select v-model:value="formValue.projectionType" :options="projectionOptions" />
-          </n-form-item>
+          <FormItem :label="lang.t('manage.dynamo.projection')">
+            <Select v-model="formValue.projectionType">
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="opt in projectionOptions" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </FormItem>
 
-          <n-form-item
+          <FormItem
             v-if="formValue.projectionType === 'INCLUDE'"
             :label="lang.t('manage.dynamo.projectedAttributes')"
-            path="projectedAttributes"
           >
-            <n-dynamic-tags v-model:value="formValue.projectedAttributes" />
-          </n-form-item>
+            <div class="w-full flex flex-col gap-2">
+              <div class="flex flex-wrap gap-2">
+                <Badge
+                  v-for="(attr, index) in formValue.projectedAttributes"
+                  :key="index"
+                  variant="secondary"
+                  class="flex items-center gap-1"
+                >
+                  {{ attr }}
+                  <button
+                    type="button"
+                    class="ml-1 hover:text-destructive cursor-pointer"
+                    aria-label="Remove attribute"
+                    @click="removeProjectedAttribute(index)"
+                  >
+                    <X class="w-3 h-3" />
+                  </button>
+                </Badge>
+              </div>
+              <div class="flex gap-2">
+                <Input
+                  v-model="newProjectedAttribute"
+                  placeholder="Add attribute"
+                  autocapitalize="off"
+                  autocomplete="off"
+                  :spellcheck="false"
+                  autocorrect="off"
+                  class="flex-1"
+                  @keyup.enter="addProjectedAttribute"
+                />
+                <Button variant="outline" @click="addProjectedAttribute">Add</Button>
+              </div>
+            </div>
+          </FormItem>
 
           <!-- Index Capacity Section -->
-          <n-divider title-placement="left">
-            {{ lang.t('manage.dynamo.indexCapacity') }}
-          </n-divider>
+          <div class="section-divider">
+            <Separator />
+            <span class="section-title">{{ lang.t('manage.dynamo.indexCapacity') }}</span>
+          </div>
 
-          <n-form-item :label="lang.t('manage.dynamo.capacityMode')">
-            <div style="width: 100%">
-              <div style="margin-bottom: 8px; font-weight: 500">
+          <FormItem :label="lang.t('manage.dynamo.capacityMode')">
+            <div class="w-full">
+              <div class="mb-2 font-medium">
                 {{ baseTableCapacityMode }}
               </div>
-              <n-alert type="info" :bordered="false" style="padding: 8px 12px">
-                {{ lang.t('manage.dynamo.capacityModeNotice') }}
-              </n-alert>
+              <Alert variant="info">
+                <AlertDescription>
+                  {{ lang.t('manage.dynamo.capacityModeNotice') }}
+                </AlertDescription>
+              </Alert>
             </div>
-          </n-form-item>
+          </FormItem>
 
-          <n-form-item
+          <FormItem
             v-if="baseTableCapacityMode === 'PROVISIONED'"
             :label="lang.t('manage.dynamo.maxTableThroughput')"
-            path="throughputMode"
           >
-            <n-radio-group v-model:value="formValue.throughputMode">
-              <n-space vertical>
-                <n-radio value="copy">
+            <RadioGroup v-model="formValue.throughputMode" class="flex flex-col gap-2">
+              <div class="flex items-center space-x-2">
+                <RadioGroupItem id="copy" value="copy" />
+                <label for="copy" class="text-sm cursor-pointer">
                   {{ lang.t('manage.dynamo.copyFromBaseTable') }}
-                </n-radio>
-                <n-radio value="customize">
+                </label>
+              </div>
+              <div class="flex items-center space-x-2">
+                <RadioGroupItem id="customize" value="customize" />
+                <label for="customize" class="text-sm cursor-pointer">
                   {{ lang.t('manage.dynamo.customizeSettings') }}
-                </n-radio>
-              </n-space>
-            </n-radio-group>
-          </n-form-item>
+                </label>
+              </div>
+            </RadioGroup>
+          </FormItem>
 
-          <n-form-item
+          <FormItem
             v-if="
               baseTableCapacityMode === 'PROVISIONED' && formValue.throughputMode === 'customize'
             "
             :label="lang.t('manage.dynamo.rcu')"
-            path="readCapacityUnits"
           >
-            <n-input-number
-              v-model:value="formValue.readCapacityUnits"
-              :min="1"
-              style="width: 100%"
-            />
-          </n-form-item>
+            <InputNumber v-model="formValue.readCapacityUnits" :min="1" class="w-full" />
+          </FormItem>
 
-          <n-form-item
+          <FormItem
             v-if="
               baseTableCapacityMode === 'PROVISIONED' && formValue.throughputMode === 'customize'
             "
             :label="lang.t('manage.dynamo.wcu')"
-            path="writeCapacityUnits"
           >
-            <n-input-number
-              v-model:value="formValue.writeCapacityUnits"
-              :min="1"
-              style="width: 100%"
-            />
-          </n-form-item>
+            <InputNumber v-model="formValue.writeCapacityUnits" :min="1" class="w-full" />
+          </FormItem>
 
           <!-- Warm Throughput Section -->
-          <n-divider title-placement="left">
-            {{ lang.t('manage.dynamo.warmThroughput') }}
-          </n-divider>
+          <div class="section-divider">
+            <Separator />
+            <span class="section-title">{{ lang.t('manage.dynamo.warmThroughput') }}</span>
+          </div>
 
-          <n-form-item
-            :label="lang.t('manage.dynamo.warmThroughputMode')"
-            path="warmThroughputMode"
-          >
-            <n-radio-group v-model:value="formValue.warmThroughputMode">
-              <n-space vertical>
-                <n-radio value="default">
+          <FormItem :label="lang.t('manage.dynamo.warmThroughputMode')">
+            <RadioGroup v-model="formValue.warmThroughputMode" class="flex flex-col gap-2">
+              <div class="flex items-center space-x-2">
+                <RadioGroupItem id="default" value="default" />
+                <label for="default" class="text-sm cursor-pointer">
                   {{ warmThroughputDefaultLabel }}
-                </n-radio>
-                <n-radio value="increase">
+                </label>
+              </div>
+              <div class="flex items-center space-x-2">
+                <RadioGroupItem id="increase" value="increase" />
+                <label for="increase" class="text-sm cursor-pointer">
                   {{ lang.t('manage.dynamo.increaseWarmThroughput') }}
-                </n-radio>
-              </n-space>
-            </n-radio-group>
-          </n-form-item>
+                </label>
+              </div>
+            </RadioGroup>
+          </FormItem>
 
-          <n-form-item
+          <FormItem
             v-if="formValue.warmThroughputMode === 'increase'"
             :label="lang.t('manage.dynamo.warmReadUnits')"
-            path="warmReadUnits"
           >
-            <n-input-number
-              v-model:value="formValue.warmReadUnits"
+            <InputNumber
+              v-model="formValue.warmReadUnits"
               :min="0"
               :placeholder="String(warmThroughputDefaults.read)"
-              style="width: 100%"
+              class="w-full"
             />
-          </n-form-item>
+          </FormItem>
 
-          <n-form-item
+          <FormItem
             v-if="formValue.warmThroughputMode === 'increase'"
             :label="lang.t('manage.dynamo.warmWriteUnits')"
-            path="warmWriteUnits"
           >
-            <n-input-number
-              v-model:value="formValue.warmWriteUnits"
+            <InputNumber
+              v-model="formValue.warmWriteUnits"
               :min="0"
               :placeholder="String(warmThroughputDefaults.write)"
-              style="width: 100%"
+              class="w-full"
             />
-          </n-form-item>
-        </n-form>
-      </div>
+          </FormItem>
+        </Form>
+      </ScrollArea>
 
-      <n-alert
-        v-if="errorMessage"
-        type="error"
-        style="margin-top: 12px"
-        closable
-        @close="errorMessage = ''"
-      >
-        {{ errorMessage }}
-      </n-alert>
+      <Alert v-if="errorMessage" variant="destructive" class="mt-3">
+        <AlertDescription class="flex items-center justify-between">
+          {{ errorMessage }}
+          <button
+            type="button"
+            class="ml-2 hover:opacity-70 cursor-pointer"
+            aria-label="Dismiss error"
+            @click="errorMessage = ''"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </AlertDescription>
+      </Alert>
 
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 12px">
-          <n-button :disabled="loading" @click="handleCancel">
-            {{ lang.t('dialogOps.cancel') }}
-          </n-button>
-          <n-button type="primary" :loading="loading" @click="handleSubmit">
-            {{ lang.t('dialogOps.create') }}
-          </n-button>
-        </div>
-      </template>
-    </n-card>
-  </n-modal>
+      <DialogFooter>
+        <Button variant="outline" :disabled="loading" @click="handleCancel">
+          {{ lang.t('dialogOps.cancel') }}
+        </Button>
+        <Button :disabled="loading" @click="handleSubmit">
+          <span v-if="loading" class="mr-2 h-4 w-4 animate-spin">⏳</span>
+          {{ lang.t('dialogOps.create') }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed, onMounted } from 'vue';
-import type { FormInst, FormRules } from 'naive-ui';
-import { TrashCan } from '@vicons/carbon';
-import { MIN_LOADING_TIME, inputProps } from '../../../common';
+import { X } from 'lucide-vue-next';
+import { useForm } from 'vee-validate';
+import { toTypedSchema } from '@vee-validate/zod';
+import * as z from 'zod';
+import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { useClusterManageStore, DatabaseType } from '../../../store';
 import { storeToRefs } from 'pinia';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { InputNumber } from '@/components/ui/input-number';
+import { Form, FormItem } from '@/components/ui/form';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const lang = useLang();
 const clusterManageStore = useClusterManageStore();
@@ -271,10 +353,12 @@ type KeyAttribute = {
   type: string;
 };
 
-const formRef = ref<FormInst | null>(null);
 const loading = ref(false);
 const errorMessage = ref('');
 const baseTableInfo = ref<any>(null);
+const newProjectedAttribute = ref('');
+
+const errors = ref<{ indexName?: string; partitionKey?: string }>({});
 
 const formValue = ref({
   indexName: '',
@@ -289,6 +373,31 @@ const formValue = ref({
   warmReadUnits: 0,
   warmWriteUnits: 0,
 });
+
+// Zod validation schema for basic fields
+const formSchema = toTypedSchema(
+  z.object({
+    indexName: z.string().min(1, lang.t('manage.dynamo.indexNameRequired')),
+  }),
+);
+
+const {
+  errors: veeErrors,
+  validate,
+  resetForm: veeResetForm,
+  setValues,
+} = useForm({
+  validationSchema: formSchema,
+  initialValues: { indexName: '' },
+});
+
+// Watch indexName changes and sync with vee-validate
+watch(
+  () => formValue.value.indexName,
+  newVal => {
+    setValues({ indexName: newVal });
+  },
+);
 
 const baseTableCapacityMode = computed(() => {
   return baseTableInfo.value?.billingMode || 'PAY_PER_REQUEST';
@@ -320,27 +429,26 @@ const projectionOptions = [
   { label: 'INCLUDE', value: 'INCLUDE' },
 ];
 
-const rules: FormRules = {
-  indexName: {
-    required: true,
-    message: lang.t('manage.dynamo.indexNameRequired'),
-    trigger: 'blur',
-  },
-  partitionKeyAttributes: {
-    required: true,
-    validator: (_rule, value: KeyAttribute[]) => {
-      if (!value || value.length === 0) {
-        return new Error(lang.t('manage.dynamo.partitionKeyRequired'));
-      }
-      for (const attr of value) {
-        if (!attr.name || attr.name.trim() === '') {
-          return new Error(lang.t('manage.dynamo.partitionKeyRequired'));
-        }
-      }
-      return true;
-    },
-    trigger: 'blur',
-  },
+const validateForm = async (): Promise<boolean> => {
+  errors.value = {};
+
+  // Validate with vee-validate
+  const { valid } = await validate();
+
+  // Copy vee-validate errors to our errors object
+  if (veeErrors.value.indexName) {
+    errors.value.indexName = veeErrors.value.indexName;
+  }
+
+  const hasValidPartitionKey = formValue.value.partitionKeyAttributes.some(
+    attr => attr.name && attr.name.trim() !== '',
+  );
+
+  if (!hasValidPartitionKey) {
+    errors.value.partitionKey = lang.t('manage.dynamo.partitionKeyRequired');
+  }
+
+  return valid && Object.keys(errors.value).length === 0;
 };
 
 const addPartitionKeyAttribute = () => {
@@ -357,6 +465,17 @@ const addSortKeyAttribute = () => {
 
 const removeSortKeyAttribute = (index: number) => {
   formValue.value.sortKeyAttributes.splice(index, 1);
+};
+
+const addProjectedAttribute = () => {
+  if (newProjectedAttribute.value.trim()) {
+    formValue.value.projectedAttributes.push(newProjectedAttribute.value.trim());
+    newProjectedAttribute.value = '';
+  }
+};
+
+const removeProjectedAttribute = (index: number) => {
+  formValue.value.projectedAttributes.splice(index, 1);
 };
 
 // Fetch base table info when modal opens
@@ -379,8 +498,8 @@ const fetchBaseTableInfo = async () => {
     const warmWrite = baseTableInfo.value?.warmThroughput?.writeUnitsPerSecond || 0;
     formValue.value.warmReadUnits = warmRead;
     formValue.value.warmWriteUnits = warmWrite;
-  } catch (error) {
-    console.error('Failed to fetch base table info:', error);
+  } catch {
+    // Failed to fetch base table info - continue with default values
   }
 };
 
@@ -402,8 +521,11 @@ watch(
         warmReadUnits: 0,
         warmWriteUnits: 0,
       };
+      veeResetForm({ values: { indexName: '' } });
+      errors.value = {};
       errorMessage.value = '';
       loading.value = false;
+      newProjectedAttribute.value = '';
       fetchBaseTableInfo();
     }
   },
@@ -420,9 +542,8 @@ const handleCancel = () => {
 };
 
 const handleSubmit = async () => {
-  try {
-    await formRef.value?.validate();
-  } catch {
+  const isValid = await validateForm();
+  if (!isValid) {
     return;
   }
 
@@ -526,16 +647,20 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-.n-divider {
+.section-divider {
+  position: relative;
   margin: 24px 0 16px 0;
 }
 
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.section-title {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: hsl(var(--background));
+  padding-right: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
 }
 </style>
