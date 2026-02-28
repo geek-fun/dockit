@@ -47,6 +47,7 @@ export type DynamoDBConnection = {
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
+  endpointUrl?: string;
   tableName: string;
   keySchema?: Array<KeySchema>;
   partitionKey: {

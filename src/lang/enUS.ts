@@ -182,6 +182,8 @@ export const enUS = {
       // CloudWatch metrics
       cloudwatchNotAvailable:
         'CloudWatch metrics are not available. Enable CloudWatch Contributor Insights or ensure your IAM credentials have cloudwatch:GetMetricData permission.',
+      localMetricsNotAvailable:
+        'DynamoDB Local does not support CloudWatch metrics. Metrics data is not available for local connections.',
       // Modal translations
       deleteIndexConfirm: 'Are you sure you want to delete this index?',
       deleteIndexSuccess: 'Index deleted successfully',
@@ -244,6 +246,12 @@ export const enUS = {
     accessKeyId: 'Access Key ID',
     secretAccessKey: 'Secret Access Key',
     selectRegion: 'Please select region',
+    endpointUrl: 'Endpoint URL',
+    connectionTarget: 'Connection Target',
+    cloudTarget: 'AWS Cloud',
+    localTarget: 'Local',
+    localLimitations:
+      'DynamoDB Local does not support CloudWatch metrics, continuous backups, global tables, IAM roles, or streams.',
     unsupportedType: 'Unsupported database type provided',
     formValidation: {
       nameRequired: 'Name is required',
@@ -254,6 +262,7 @@ export const enUS = {
       regionRequired: 'Please select region',
       accessKeyIdRequired: 'Please enter Access Key ID',
       secretAccessKeyRequired: 'Please enter Secret Access Key',
+      endpointUrlRequired: 'Endpoint URL is required for local connections',
     },
     operations: {
       connect: 'Connect',

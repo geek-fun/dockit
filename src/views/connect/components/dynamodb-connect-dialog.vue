@@ -48,12 +48,44 @@
               @blur="handleBlur('tableName')"
             />
           </FormItem>
+          <FormItem :label="$t('connection.connectionTarget')">
+            <RadioGroup
+              :model-value="connectionTarget"
+              class="flex gap-4"
+              @update:model-value="onTargetChange"
+            >
+              <div class="flex items-center gap-2">
+                <RadioGroupItem value="cloud" />
+                <Label>{{ $t('connection.cloudTarget') }}</Label>
+              </div>
+              <div class="flex items-center gap-2">
+                <RadioGroupItem value="local" />
+                <Label>{{ $t('connection.localTarget') }}</Label>
+              </div>
+            </RadioGroup>
+          </FormItem>
+          <Alert v-if="isLocal" variant="info" class="mb-4">
+            <AlertDescription>{{ $t('connection.localLimitations') }}</AlertDescription>
+          </Alert>
+          <FormItem
+            v-if="isLocal"
+            :label="$t('connection.endpointUrl')"
+            required
+            :error="getError('endpointUrl', errors.endpointUrl)"
+          >
+            <Input
+              v-model="formData.endpointUrl"
+              placeholder="http://localhost:8000"
+              @blur="handleBlur('endpointUrl')"
+            />
+          </FormItem>
           <FormItem
             :label="$t('connection.region')"
             required
             :error="getError('region', errors.region)"
           >
             <Select
+              v-if="!isLocal"
               v-model="formData.region"
               @update:open="(open: boolean) => !open && handleBlur('region')"
             >
@@ -70,8 +102,15 @@
                 </SelectItem>
               </SelectContent>
             </Select>
+            <Input
+              v-else
+              v-model="formData.region"
+              placeholder="us-east-1"
+              @blur="handleBlur('region')"
+            />
           </FormItem>
           <FormItem
+            v-if="!isLocal"
             :label="$t('connection.accessKeyId')"
             required
             :error="getError('accessKeyId', errors.accessKeyId)"
@@ -83,6 +122,7 @@
             />
           </FormItem>
           <FormItem
+            v-if="!isLocal"
             :label="$t('connection.secretAccessKey')"
             required
             :error="getError('secretAccessKey', errors.secretAccessKey)"
@@ -143,6 +183,8 @@ import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Select,
   SelectContent,
@@ -163,7 +205,10 @@ const testLoading = ref(false);
 const saveLoading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
+const connectionTarget = ref<'cloud' | 'local'>('cloud');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
+
+const isLocal = computed(() => connectionTarget.value === 'local');
 
 const regionOptions = [
   { label: 'US East (N. Virginia)', value: 'us-east-1' },
@@ -188,6 +233,7 @@ const formSchema = toTypedSchema(
     region: z.string().min(1, lang.t('connection.formValidation.regionRequired')),
     accessKeyId: z.string().min(1, lang.t('connection.formValidation.accessKeyIdRequired')),
     secretAccessKey: z.string().min(1, lang.t('connection.formValidation.secretAccessKeyRequired')),
+    endpointUrl: z.string().optional(),
     type: z.nativeEnum(DatabaseType),
   }),
 );
@@ -199,6 +245,7 @@ const defaultFormData = {
   accessKeyId: '',
   secretAccessKey: '',
   tableName: '',
+  endpointUrl: '',
 } as DynamoDBConnection;
 
 const formData = ref<DynamoDBConnection>(cloneDeep(defaultFormData));
@@ -222,6 +269,20 @@ watch(
   { deep: true },
 );
 
+const onTargetChange = (value: string) => {
+  connectionTarget.value = value as 'cloud' | 'local';
+  if (value === 'local') {
+    formData.value.accessKeyId = 'dummy';
+    formData.value.secretAccessKey = 'dummy';
+    formData.value.region = formData.value.region || 'us-east-1';
+    formData.value.endpointUrl = formData.value.endpointUrl || 'http://localhost:8000';
+  } else {
+    formData.value.accessKeyId = '';
+    formData.value.secretAccessKey = '';
+    formData.value.endpointUrl = '';
+  }
+};
+
 const handleOpenChange = (open: boolean) => {
   if (!open) {
     closeModal();
@@ -235,10 +296,12 @@ const showMedal = (con: DynamoDBConnection | null) => {
   if (con) {
     formData.value = { ...con };
     veeResetForm({ values: { ...con } });
+    connectionTarget.value = con.endpointUrl ? 'local' : 'cloud';
     modalTitle.value = lang.t('connection.edit');
   } else {
     formData.value = cloneDeep(defaultFormData);
     veeResetForm({ values: cloneDeep(defaultFormData) });
+    connectionTarget.value = 'cloud';
   }
   resetValidation();
 };
@@ -250,17 +313,22 @@ const closeModal = () => {
   modalTitle.value = lang.t('connection.new');
   errorMessage.value = '';
   successMessage.value = '';
+  connectionTarget.value = 'cloud';
   resetValidation();
 };
 
 const isFormValid = computed(() => {
-  return (
+  const base =
     formData.value.name &&
     formData.value.tableName &&
     formData.value.region &&
     formData.value.accessKeyId &&
-    formData.value.secretAccessKey
-  );
+    formData.value.secretAccessKey;
+
+  if (isLocal.value) {
+    return base && formData.value.endpointUrl;
+  }
+  return base;
 });
 
 const testConnect = async () => {
