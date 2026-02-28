@@ -1,9 +1,11 @@
-import type { languages } from 'monaco-editor';
+import type { languages, editor } from 'monaco-editor';
 import { partiql } from './lexerRules';
 import { partiqlCompletionProvider } from './completion';
+import { formatPartiql } from './formatter';
 
 export { partiqlKeywords, partiqlKeywordCategories } from './keywords';
 export * from './validation';
+export { formatPartiql } from './formatter';
 export {
   setPartiqlDynamicOptions,
   getPartiqlDynamicOptions,
@@ -32,5 +34,13 @@ export const registerPartiqlLanguage = (monaco: typeof import('monaco-editor')):
   monaco.languages.registerCompletionItemProvider(partiql.id, {
     triggerCharacters: [' ', '.', '"', "'", '('],
     provideCompletionItems: partiqlCompletionProvider,
+  });
+  monaco.languages.registerDocumentFormattingEditProvider(partiql.id, {
+    provideDocumentFormattingEdits: (model: editor.ITextModel) => {
+      const content = model.getValue();
+      const formatted = formatPartiql(content);
+      const fullRange = model.getFullModelRange();
+      return [{ range: fullRange, text: formatted }];
+    },
   });
 };

@@ -34,6 +34,7 @@ jest.mock('monaco-editor', () => ({
     setMonarchTokensProvider: jest.fn(),
     setLanguageConfiguration: jest.fn(),
     registerCompletionItemProvider: jest.fn(),
+    registerDocumentFormattingEditProvider: jest.fn(),
     registerHoverProvider: jest.fn(),
     CodeLens: {},
   },
