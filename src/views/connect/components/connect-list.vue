@@ -93,10 +93,10 @@
     </DialogContent>
   </Dialog>
 
-  <floating-menu @add="showDatabaseTypeSelect" />
-  <es-connect-dialog ref="esConnectDialog" />
-  <dynamodb-connect-dialog ref="dynamodbConnectDialog" />
-  <connecting-modal ref="connectingModal" />
+  <FloatingMenu @add="showDatabaseTypeSelect" />
+  <EsConnectDialog ref="esConnectDialog" />
+  <DynamodbConnectDialog ref="dynamodbConnectDialog" />
+  <ConnectingModal ref="connectingModal" />
 </template>
 
 <script setup lang="ts">
@@ -125,11 +125,8 @@ import {
   useConnectionStore,
 } from '../../../store';
 import FloatingMenu from './floating-menu.vue';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import EsConnectDialog from './es-connect-dialog.vue';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import ConnectingModal from './connecting-modal.vue';
 
 const emits = defineEmits(['tab-panel']);
