@@ -85,7 +85,7 @@ const decrement = () => {
     :class="
       cn(
         'flex h-8 w-full rounded-md border border-border bg-background text-sm',
-        'focus-within:ring-1 focus-within:ring-ring',
+        'focus-within:border-ring',
         disabled && 'cursor-not-allowed opacity-50',
         props.class,
       )

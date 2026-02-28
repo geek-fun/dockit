@@ -115,7 +115,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
         indexName: label.startsWith('Table - ') ? null : (value ?? null),
         partitionKey: { name: partitionKeyName, value: partitionKey },
         sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
-        filters: queryInput.filters,
+        filters: queryInput.filters?.filter(f => f.key && f.operator),
       };
 
       const queryStr = JSON.stringify(omit(queryParams, ['limit', 'exclusiveStartKey']));

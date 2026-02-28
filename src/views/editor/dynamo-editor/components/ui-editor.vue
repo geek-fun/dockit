@@ -87,7 +87,7 @@
                       :x-gap="12"
                     >
                       <GridItem :span="9">
-                        <FormItem>
+                        <FormItem :error="getFilterError(index, 'key')">
                           <Input
                             v-model="item.key"
                             :placeholder="$t('editor.dynamo.inputAttrName')"
@@ -95,7 +95,7 @@
                         </FormItem>
                       </GridItem>
                       <GridItem :span="4">
-                        <FormItem>
+                        <FormItem :error="getFilterError(index, 'operator')">
                           <Select v-model="item.operator">
                             <SelectTrigger>
                               <SelectValue :placeholder="$t('editor.dynamo.inputOperator')" />
@@ -113,14 +113,14 @@
                         </FormItem>
                       </GridItem>
                       <GridItem :span="9">
-                        <FormItem>
+                        <FormItem :error="getFilterError(index, 'value')">
                           <Input
                             v-model="item.value"
                             :placeholder="$t('editor.dynamo.inputAttrValue')"
                           />
                         </FormItem>
                       </GridItem>
-                      <GridItem :span="2" class="flex items-end">
+                      <GridItem :span="2" class="flex items-start pt-px">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -334,6 +334,15 @@ const validationPassed = computed(() => {
 
   return true;
 });
+
+const getFilterError = (index: number, field: 'key' | 'operator' | 'value') => {
+  const item = dynamoQueryForm.value.formFilterItems[index];
+  if (!item) return undefined;
+  const hasAny = item.key || item.operator || item.value;
+  if (!hasAny) return undefined;
+  if (!item[field]) return lang.t('editor.dynamo.attributeValueRequired');
+  return undefined;
+};
 
 const showScanWarning = computed(() => {
   return (
