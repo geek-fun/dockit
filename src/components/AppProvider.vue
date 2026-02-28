@@ -13,12 +13,9 @@
  * - Theme switching (light/dark mode via CSS custom properties and [theme] attribute)
  * - System preference detection for automatic theme switching
  *
- * The theming system uses CSS custom properties defined in:
- * - src/assets/styles/index.css (theme CSS variables)
- * - src/assets/styles/theme.scss (legacy DocKit variables)
- *
  * Dark/light mode is controlled by the [theme] attribute on the root element,
- * which toggles CSS variable values for both systems.
+ * which toggles CSS variable values.
+ *
  *
  * For messaging and dialogs, use the composables:
  * - useMessageService() for toast notifications
@@ -31,7 +28,7 @@ import { ThemeType, useAppStore } from '../store';
 
 const appStore = useAppStore();
 const { setUiThemeType } = appStore;
-const { uiThemeType } = storeToRefs(appStore);
+const { uiThemeType, themeType } = storeToRefs(appStore);
 
 // System theme preference detection
 const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
@@ -43,11 +40,14 @@ const handleSystemThemeChange = (event: MediaQueryListEvent | MediaQueryList) =>
 
 // Initialize theme on mount
 onMounted(() => {
-  // Set initial theme based on system preference
-  handleSystemThemeChange(sysPreferLight);
+  // Only follow system preference when in AUTO mode
+  if (themeType.value === ThemeType.AUTO) {
+    // Set initial theme based on system preference
+    handleSystemThemeChange(sysPreferLight);
 
-  // Listen for system theme changes
-  sysPreferLight.addEventListener('change', handleSystemThemeChange);
+    // Listen for system theme changes
+    sysPreferLight.addEventListener('change', handleSystemThemeChange);
+  }
 });
 
 // Cleanup listener on unmount
