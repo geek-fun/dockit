@@ -11,6 +11,9 @@ interface IconProps {
 
 const props = withDefaults(defineProps<IconProps>(), {
   size: 16,
+  color: undefined,
+  component: undefined,
+  class: undefined,
 });
 
 const iconStyle = computed(() => ({

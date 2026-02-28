@@ -8,7 +8,11 @@
         <Form>
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
-              <FormItem :label="$t('manage.index.newAliasForm.aliasName')" required>
+              <FormItem
+                :label="$t('manage.index.newAliasForm.aliasName')"
+                required
+                :error="getError('aliasName', fieldErrors.aliasName)"
+              >
                 <Input
                   v-model="formData.aliasName"
                   autocapitalize="off"
@@ -16,15 +20,20 @@
                   :spellcheck="false"
                   autocorrect="off"
                   :placeholder="$t('manage.index.newAliasForm.aliasName')"
+                  @blur="handleBlur('aliasName')"
                 />
-                <p v-if="errors.aliasName" class="text-sm text-destructive mt-1">
-                  {{ errors.aliasName }}
-                </p>
               </FormItem>
             </GridItem>
             <GridItem :span="8">
-              <FormItem :label="$t('manage.index.newAliasForm.indexName')" required>
-                <Select v-model="formData.indexName">
+              <FormItem
+                :label="$t('manage.index.newAliasForm.indexName')"
+                required
+                :error="getError('indexName', fieldErrors.indexName)"
+              >
+                <Select
+                  v-model="formData.indexName"
+                  @update:open="(open: boolean) => !open && handleBlur('indexName')"
+                >
                   <SelectTrigger>
                     <SelectValue :placeholder="$t('manage.index.newAliasForm.indexName')" />
                   </SelectTrigger>
@@ -34,9 +43,6 @@
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <p v-if="errors.indexName" class="text-sm text-destructive mt-1">
-                  {{ errors.indexName }}
-                </p>
               </FormItem>
             </GridItem>
           </Grid>
@@ -80,11 +86,12 @@
                   </FormItem>
                 </GridItem>
                 <GridItem :span="8">
-                  <FormItem label="filter">
-                    <textarea v-model="formData.filter" class="textarea-input" />
-                    <p v-if="errors.filter" class="text-sm text-destructive mt-1">
-                      {{ errors.filter }}
-                    </p>
+                  <FormItem label="filter" :error="getError('filter', fieldErrors.filter)">
+                    <textarea
+                      v-model="formData.filter"
+                      class="textarea-input"
+                      @blur="handleBlur('filter')"
+                    />
                   </FormItem>
                 </GridItem>
               </Grid>
@@ -95,7 +102,7 @@
       <DialogFooter>
         <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
         <Button :disabled="!validationPassed || createLoading" @click="submitCreate">
-          <span v-if="createLoading" class="mr-2 h-4 w-4 animate-spin">⏳</span>
+          <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
           {{ $t('dialogOps.create') }}
         </Button>
       </DialogFooter>
@@ -105,7 +112,8 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { useMessageService } from '@/composables';
+import { Loader2 } from 'lucide-vue-next';
+import { useMessageService, useFormValidation } from '@/composables';
 import { CustomError, jsonify } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
@@ -136,6 +144,7 @@ const { createAlias } = clusterManageStore;
 const { indexWithAliases } = storeToRefs(clusterManageStore);
 const lang = useLang();
 const message = useMessageService();
+const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 const showModal = ref(false);
 const createLoading = ref(false);
@@ -164,8 +173,6 @@ const formData = ref<{
   index_routing: number | null;
 }>({ ...defaultFormData });
 
-const errors = ref<{ aliasName?: string; indexName?: string; filter?: string }>({});
-
 const isValidJson = (value: string | null): boolean => {
   if (!value) return true;
   try {
@@ -176,30 +183,20 @@ const isValidJson = (value: string | null): boolean => {
   }
 };
 
-const validateForm = () => {
-  errors.value = {};
-
-  if (!formData.value.aliasName?.trim()) {
-    errors.value.aliasName = lang.t('manage.index.newAliasForm.aliasRequired');
-  }
-
-  if (!formData.value.indexName?.trim()) {
-    errors.value.indexName = lang.t('manage.index.newAliasForm.indexRequired');
-  }
-
-  if (!isValidJson(formData.value.filter)) {
-    errors.value.filter = lang.t('manage.index.newAliasForm.filterJsonRequired');
-  }
-
-  return Object.keys(errors.value).length === 0;
-};
+const fieldErrors = computed(() => ({
+  aliasName: !formData.value.aliasName?.trim()
+    ? lang.t('manage.index.newAliasForm.aliasRequired')
+    : undefined,
+  indexName: !formData.value.indexName?.trim()
+    ? lang.t('manage.index.newAliasForm.indexRequired')
+    : undefined,
+  filter: !isValidJson(formData.value.filter)
+    ? lang.t('manage.index.newAliasForm.filterJsonRequired')
+    : undefined,
+}));
 
 const validationPassed = computed(() => {
-  return (
-    !!formData.value.aliasName?.trim() &&
-    !!formData.value.indexName?.trim() &&
-    isValidJson(formData.value.filter)
-  );
+  return !fieldErrors.value.aliasName && !fieldErrors.value.indexName && !fieldErrors.value.filter;
 });
 
 const toggleModal = () => {
@@ -213,12 +210,13 @@ const toggleModal = () => {
 const closeModal = () => {
   showModal.value = false;
   formData.value = { ...defaultFormData };
-  errors.value = {};
+  resetValidation();
 };
 
 const submitCreate = async (event: MouseEvent) => {
   event.preventDefault();
-  if (!validateForm()) return;
+  markSubmitted();
+  if (!validationPassed.value) return;
 
   createLoading.value = true;
   try {

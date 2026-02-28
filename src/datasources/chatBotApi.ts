@@ -42,20 +42,16 @@ const chatBotApi = {
     model: string;
     httpProxy?: string;
   }): Promise<{ assistantId: string; threadId: string }> => {
-    try {
-      const {
-        data: { assistant_id, thread_id },
-      } = await tauriClient.invoke('create_assistant', {
-        apiKey,
-        model,
-        instructions: prompt,
-        httpProxy,
-      });
+    const {
+      data: { assistant_id, thread_id },
+    } = await tauriClient.invoke('create_assistant', {
+      apiKey,
+      model,
+      instructions: prompt,
+      httpProxy,
+    });
 
-      return { assistantId: assistant_id as string, threadId: thread_id as string };
-    } catch (err) {
-      throw err;
-    }
+    return { assistantId: assistant_id as string, threadId: thread_id as string };
   },
 
   modifyAssistant: async ({
@@ -146,7 +142,7 @@ const chatBotApi = {
     try {
       await invoke('create_openai_client', config);
       return true;
-    } catch (err) {
+    } catch (_err) {
       return false;
     }
   },
@@ -156,11 +152,7 @@ const chatBotApi = {
     model: string;
     httpProxy?: string;
   }) => {
-    try {
-      await invoke('create_openai_client', config);
-    } catch (err) {
-      throw err;
-    }
+    await invoke('create_openai_client', config);
   },
   chatStream: async (
     config: {
@@ -182,11 +174,7 @@ const chatBotApi = {
       receiveRegistration = true;
     }
 
-    try {
-      await invoke('chat_stream', config);
-    } catch (err) {
-      throw err;
-    }
+    await invoke('chat_stream', config);
   },
 };
 

@@ -8,7 +8,11 @@
         <Form>
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
-              <FormItem :label="$t('manage.index.newIndexForm.indexName')" required>
+              <FormItem
+                :label="$t('manage.index.newIndexForm.indexName')"
+                required
+                :error="getError('indexName', errors.indexName)"
+              >
                 <Input
                   v-model="formData.indexName"
                   autocapitalize="off"
@@ -16,10 +20,8 @@
                   :spellcheck="false"
                   autocorrect="off"
                   :placeholder="$t('manage.index.newIndexForm.indexName')"
+                  @blur="handleBlur('indexName')"
                 />
-                <p v-if="errors.indexName" class="text-sm text-destructive mt-1">
-                  {{ errors.indexName }}
-                </p>
               </FormItem>
             </GridItem>
 
@@ -66,11 +68,12 @@
                   </FormItem>
                 </GridItem>
                 <GridItem :span="8">
-                  <FormItem label="body">
-                    <textarea v-model="formData.body" class="textarea-input" />
-                    <p v-if="errors.body" class="text-sm text-destructive mt-1">
-                      {{ errors.body }}
-                    </p>
+                  <FormItem label="body" :error="getError('body', errors.body)">
+                    <textarea
+                      v-model="formData.body"
+                      class="textarea-input"
+                      @blur="handleBlur('body')"
+                    />
                   </FormItem>
                 </GridItem>
               </Grid>
@@ -81,7 +84,7 @@
       <DialogFooter>
         <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
         <Button :disabled="!validationPassed || createLoading" @click="submitCreate">
-          <span v-if="createLoading" class="mr-2 h-4 w-4 animate-spin">⏳</span>
+          <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
           {{ $t('dialogOps.create') }}
         </Button>
       </DialogFooter>
@@ -95,9 +98,11 @@ import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
 import { useMessageService } from '@/composables';
+import { Loader2 } from 'lucide-vue-next';
 import { CustomError, jsonify } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
+import { useFormValidation } from '@/composables';
 import {
   Dialog,
   DialogContent,
@@ -120,6 +125,7 @@ const message = useMessageService();
 
 const showIndexModal = ref(false);
 const createLoading = ref(false);
+const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 const defaultFormData = {
   indexName: '',
@@ -205,10 +211,12 @@ const closeModal = () => {
   showIndexModal.value = false;
   formData.value = { ...defaultFormData };
   veeResetForm({ values: { ...defaultFormData } });
+  resetValidation();
 };
 
 const submitCreate = async (event: MouseEvent) => {
   event.preventDefault();
+  markSubmitted();
 
   const { valid } = await validate();
   if (!valid) return;

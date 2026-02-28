@@ -12,6 +12,7 @@ const props = withDefaults(
   {
     orientation: 'horizontal',
     decorative: true,
+    class: undefined,
   },
 );
 </script>

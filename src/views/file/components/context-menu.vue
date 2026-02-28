@@ -1,7 +1,9 @@
 <template>
   <div class="context-menu" :style="{ top: `${position?.y}px`, left: `${position?.x}px` }">
     <ul>
-      <li v-for="action in actions" @click="handleAction(action.action)">{{ action.label }}</li>
+      <li v-for="action in actions" :key="action.action" @click="handleAction(action.action)">
+        {{ action.label }}
+      </li>
     </ul>
   </div>
 </template>
@@ -11,8 +13,8 @@ import { ContextMenuAction } from '../../../store';
 import { useLang } from '../../../lang';
 
 const props = defineProps({
-  position: Object,
-  file: Object,
+  position: { type: Object, default: undefined },
+  file: { type: Object, default: undefined },
 });
 
 const lang = useLang();

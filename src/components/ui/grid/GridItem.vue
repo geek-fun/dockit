@@ -11,6 +11,7 @@ interface GridItemProps {
 const props = withDefaults(defineProps<GridItemProps>(), {
   span: 1,
   offset: 0,
+  class: undefined,
 });
 
 const gridItemStyle = computed(() => ({

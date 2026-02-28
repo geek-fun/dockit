@@ -86,5 +86,15 @@ export default defineConfig({
     'flex-center': 'flex items-center justify-center',
     'flex-col-center': 'flex flex-col items-center justify-center',
   },
-  safelist: [],
+  safelist: [
+    'bg-destructive',
+    'text-destructive-foreground',
+    'hover:bg-destructive/90',
+    'bg-primary',
+    'text-primary-foreground',
+    'hover:bg-primary/90',
+    'bg-secondary',
+    'text-secondary-foreground',
+    'hover:bg-secondary/80',
+  ],
 });

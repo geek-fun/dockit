@@ -44,7 +44,7 @@
           @click="handleConfirm"
         >
           <Spinner v-if="loading" class="mr-2 h-4 w-4" />
-          {{ lang.t('dialogOps.confirm') }}
+          {{ lang.t('dialogOps.delete') }}
         </Button>
       </DialogFooter>
     </DialogContent>

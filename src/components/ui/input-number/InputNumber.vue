@@ -26,6 +26,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'update:modelValue': [value: number | null];
+  blur: [event: FocusEvent];
 }>();
 
 const inputValue = computed({
@@ -56,6 +57,10 @@ const handleInput = (event: Event) => {
   inputValue.value = target.value;
 };
 
+const handleBlur = (event: FocusEvent) => {
+  emit('blur', event);
+};
+
 const increment = () => {
   if (props.disabled) return;
   const current = inputValue.value ?? 0;
@@ -79,8 +84,8 @@ const decrement = () => {
   <div
     :class="
       cn(
-        'flex h-10 w-full rounded-md border border-border bg-background text-sm',
-        'focus-within:ring-1 focus-within:ring-ring',
+        'flex h-8 w-full rounded-md border border-border bg-background text-sm',
+        'focus-within:border-ring',
         disabled && 'cursor-not-allowed opacity-50',
         props.class,
       )
@@ -101,23 +106,24 @@ const decrement = () => {
         )
       "
       @input="handleInput"
+      @blur="handleBlur"
     />
     <div v-if="showButton" class="flex flex-col border-l border-border">
       <button
         type="button"
         :disabled="disabled || (max !== undefined && (inputValue ?? 0) >= max)"
-        class="flex-1 px-2 hover:bg-muted disabled:opacity-50"
+        class="flex-1 px-1 hover:bg-muted disabled:opacity-50 flex items-center justify-center"
         @click="increment"
       >
-        <span class="text-xs">▲</span>
+        <span class="i-carbon-chevron-up h-3 w-3" />
       </button>
       <button
         type="button"
         :disabled="disabled || (min !== undefined && (inputValue ?? 0) <= min)"
-        class="flex-1 px-2 border-t border-border hover:bg-muted disabled:opacity-50"
+        class="flex-1 px-1 border-t border-border hover:bg-muted disabled:opacity-50 flex items-center justify-center"
         @click="decrement"
       >
-        <span class="text-xs">▼</span>
+        <span class="i-carbon-chevron-down h-3 w-3" />
       </button>
     </div>
   </div>

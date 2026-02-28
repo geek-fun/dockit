@@ -279,6 +279,7 @@ export const zhCN = {
     create: '创建',
     confirm: '确认',
     cancel: '取消',
+    delete: '删除',
     retry: '重试',
     save: '保存',
     removeSuccess: '移除成功',

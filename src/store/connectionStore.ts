@@ -193,7 +193,7 @@ export const useConnectionStore = defineStore('connectionStore', {
           ...connection,
           type: connection.type?.toUpperCase() ?? DatabaseType.ELASTICSEARCH,
         })) as Connection[];
-      } catch (error) {
+      } catch (_error) {
         this.connections = [];
       }
     },
@@ -255,14 +255,10 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
     },
     async removeConnection(connection: Connection) {
-      try {
-        const updatedConnections = this.connections.filter(c => c.id !== connection.id);
-        this.connections = updatedConnections;
+      const updatedConnections = this.connections.filter(c => c.id !== connection.id);
+      this.connections = updatedConnections;
 
-        await storeApi.set('connections', pureObject(updatedConnections));
-      } catch (error) {
-        throw error;
-      }
+      await storeApi.set('connections', pureObject(updatedConnections));
     },
     async fetchIndices(con: Connection) {
       const connection = this.connections.find(({ id }) => id === con.id);
@@ -368,7 +364,9 @@ export const useConnectionStore = defineStore('connectionStore', {
             connection.activeIndex = newIndex;
           }
         }
-      } catch (err) {}
+      } catch (_err) {
+        // Silently ignore mapping fetch errors
+      }
 
       const reqPath = buildPath(index, path, connection);
 

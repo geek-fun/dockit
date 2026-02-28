@@ -594,7 +594,7 @@ const handleRefresh = async () => {
       const pitrData = await dynamoApi.describeContinuousBackups(connection.value);
       pitrEnabled.value = pitrData.pitrEnabled || false;
     } catch (err) {
-      console.warn('Failed to fetch PITR status:', err);
+      console.warn('Failed to fetch PITR status:', err); // eslint-disable-line no-console
       pitrEnabled.value = false;
     }
 
@@ -604,7 +604,7 @@ const handleRefresh = async () => {
       ttlEnabled.value = ttlData.ttlEnabled;
       ttlAttribute.value = ttlData.attributeName;
     } catch (err) {
-      console.warn('Failed to fetch TTL status:', err);
+      console.warn('Failed to fetch TTL status:', err); // eslint-disable-line no-console
       ttlEnabled.value = false;
       ttlAttribute.value = undefined;
     }

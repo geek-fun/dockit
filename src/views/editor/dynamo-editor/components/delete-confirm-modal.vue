@@ -4,7 +4,7 @@
       <DialogHeader>
         <DialogTitle>{{ lang.t('dialogOps.warning') }}</DialogTitle>
         <button
-          class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
           @click="handleCancel"
         >
           <Icon :size="20" :component="X" />
@@ -38,7 +38,7 @@
           :disabled="loading"
           @click="handleRetry"
         >
-          <span v-if="loading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.retry') }}
         </Button>
         <Button
@@ -47,8 +47,8 @@
           :disabled="loading"
           @click="handleConfirm"
         >
-          <span v-if="loading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
-          {{ lang.t('dialogOps.confirm') }}
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+          {{ lang.t('dialogOps.delete') }}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -57,7 +57,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../../common';
 import { useLang } from '../../../../lang';
 import { DynamoDBConnection, useDbDataStore, useTabStore } from '../../../../store';

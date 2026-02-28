@@ -28,8 +28,17 @@ let toastContainer: HTMLElement | null = null;
 function getToastContainer(): HTMLElement {
   if (!toastContainer) {
     toastContainer = document.createElement('div');
-    toastContainer.className =
-      'fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none w-full max-w-[420px]';
+    Object.assign(toastContainer.style, {
+      position: 'fixed',
+      top: '48px',
+      right: '16px',
+      zIndex: '9999',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+      pointerEvents: 'none',
+      maxWidth: '420px',
+    });
     document.body.appendChild(toastContainer);
   }
   return toastContainer;

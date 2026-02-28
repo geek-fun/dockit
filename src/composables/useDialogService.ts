@@ -86,7 +86,13 @@ export function useDialogService(): DialogReturn {
                         options.negativeText
                           ? h(
                               AlertDialogCancel,
-                              { onClick: handleNegative },
+                              {
+                                onClick: handleNegative,
+                                class:
+                                  options.type === 'warning' || options.type === 'error'
+                                    ? 'border-destructive text-destructive hover:bg-destructive/10'
+                                    : '',
+                              },
                               { default: () => options.negativeText },
                             )
                           : null,

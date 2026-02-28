@@ -30,8 +30,15 @@
               </FormItem>
             </GridItem>
             <GridItem :span="8">
-              <FormItem :label="$t('manage.index.switchAliasForm.targetIndex')" required>
-                <Select v-model="formData.targetIndex">
+              <FormItem
+                :label="$t('manage.index.switchAliasForm.targetIndex')"
+                required
+                :error="getError('targetIndex', fieldErrors.targetIndex)"
+              >
+                <Select
+                  v-model="formData.targetIndex"
+                  @update:open="(open: boolean) => !open && handleBlur('targetIndex')"
+                >
                   <SelectTrigger>
                     <SelectValue :placeholder="$t('manage.index.switchAliasForm.targetIndex')" />
                   </SelectTrigger>
@@ -41,9 +48,6 @@
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <p v-if="errors.targetIndex" class="text-sm text-destructive mt-1">
-                  {{ errors.targetIndex }}
-                </p>
               </FormItem>
             </GridItem>
           </Grid>
@@ -52,7 +56,7 @@
       <DialogFooter>
         <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
         <Button :disabled="!validationPassed || createLoading" @click="submitCreate">
-          <span v-if="createLoading" class="mr-2 h-4 w-4 animate-spin">⏳</span>
+          <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
           {{ $t('dialogOps.confirm') }}
         </Button>
       </DialogFooter>
@@ -62,7 +66,8 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { useMessageService } from '@/composables';
+import { Loader2 } from 'lucide-vue-next';
+import { useMessageService, useFormValidation } from '@/composables';
 import { CustomError } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
@@ -90,6 +95,7 @@ const { switchAlias, fetchAliases } = clusterManageStore;
 const { indexWithAliases } = storeToRefs(clusterManageStore);
 const lang = useLang();
 const message = useMessageService();
+const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 const showModal = ref(false);
 const createLoading = ref(false);
@@ -100,22 +106,14 @@ const formData = ref<{
   targetIndex: string;
 }>({ aliasName: '', sourceIndex: '', targetIndex: '' });
 
-const errors = ref<{ targetIndex?: string }>({});
-
-const validateForm = () => {
-  errors.value = {};
-  let isValid = true;
-
-  if (!formData.value.targetIndex?.trim()) {
-    errors.value.targetIndex = lang.t('manage.index.newAliasForm.indexRequired');
-    isValid = false;
-  }
-
-  return isValid;
-};
+const fieldErrors = computed(() => ({
+  targetIndex: !formData.value.targetIndex?.trim()
+    ? lang.t('manage.index.newAliasForm.indexRequired')
+    : undefined,
+}));
 
 const validationPassed = computed(() => {
-  return !!formData.value.targetIndex?.trim();
+  return !fieldErrors.value.targetIndex;
 });
 
 const toggleModal = (aliasName: string, sourceIndex: string) => {
@@ -130,12 +128,13 @@ const toggleModal = (aliasName: string, sourceIndex: string) => {
 const closeModal = () => {
   showModal.value = false;
   formData.value = { aliasName: '', sourceIndex: '', targetIndex: '' };
-  errors.value = {};
+  resetValidation();
 };
 
 const submitCreate = async (event: MouseEvent) => {
   event.preventDefault();
-  if (!validateForm()) return;
+  markSubmitted();
+  if (!validationPassed.value) return;
 
   createLoading.value = true;
   try {

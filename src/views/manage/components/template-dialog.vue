@@ -109,7 +109,7 @@
       <DialogFooter>
         <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
         <Button :disabled="!validationPassed || createLoading" @click="submitCreate">
-          <span v-if="createLoading" class="mr-2 h-4 w-4 animate-spin">⏳</span>
+          <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
           {{ $t('dialogOps.create') }}
         </Button>
       </DialogFooter>
@@ -119,6 +119,7 @@
 
 <script setup lang="ts">
 import { useMessageService } from '@/composables';
+import { Loader2 } from 'lucide-vue-next';
 import { CustomError, jsonify } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
