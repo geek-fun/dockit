@@ -350,12 +350,25 @@ const actionColumn = computed<DataTableColumn<Record<string, unknown>>>(() => ({
   width: 100,
 }));
 
+// Flatten columns that have children (e.g., Primary Key group → partition key + sort key columns)
+const flattenedColumns = computed(() => {
+  const result: DataTableColumn[] = [];
+  for (const col of props.columns) {
+    if (col.children && col.children.length > 0) {
+      result.push(...col.children);
+    } else {
+      result.push(col);
+    }
+  }
+  return result;
+});
+
 // Combine original columns with action column if needed
 const tableColumnsWithActions = computed(() => {
-  if (props.showActions && props.columns.length > 0) {
-    return [...props.columns, actionColumn.value];
+  if (props.showActions && flattenedColumns.value.length > 0) {
+    return [...flattenedColumns.value, actionColumn.value];
   }
-  return props.columns;
+  return flattenedColumns.value;
 });
 
 const handlePageChange = (page: number) => {

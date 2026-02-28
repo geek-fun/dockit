@@ -48,7 +48,7 @@
           @click="handleConfirm"
         >
           <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
-          {{ lang.t('dialogOps.confirm') }}
+          {{ lang.t('dialogOps.delete') }}
         </Button>
       </DialogFooter>
     </DialogContent>

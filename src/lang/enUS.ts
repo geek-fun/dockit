@@ -279,6 +279,7 @@ export const enUS = {
     create: 'Create',
     confirm: 'Confirm',
     cancel: 'Cancel',
+    delete: 'Delete',
     retry: 'Retry',
     save: 'Save',
     removeSuccess: 'removed successfully',

@@ -12,12 +12,12 @@
       </DialogHeader>
 
       <div class="modal-content">
-        <Form>
+        <Form class="edit-form" @submit.prevent>
           <!-- Key attributes (read-only) -->
-          <Separator class="my-4" />
-          <div class="text-sm font-medium text-muted-foreground mb-2">
-            {{ $t('editor.dynamo.keyAttributes') }}
-          </div>
+          <div class="key-attributes-section">
+            <div class="text-sm font-medium text-muted-foreground mb-2">
+              {{ $t('editor.dynamo.keyAttributes') }}
+            </div>
           <Grid
             v-for="(keyEntry, index) in editForm.keys"
             :key="`key-${index}`"
@@ -59,10 +59,11 @@
               </FormItem>
             </GridItem>
           </Grid>
+          </div>
 
           <!-- Editable attributes -->
           <Separator class="my-4" />
-          <div class="flex items-center gap-2 mb-2">
+          <div class="flex items-center gap-2 mb-2 shrink-0">
             <span class="text-sm font-medium text-muted-foreground">
               {{ $t('editor.dynamo.editableAttributes') }}
             </span>
@@ -70,6 +71,7 @@
               <span class="i-carbon-add h-4 w-4" />
             </Button>
           </div>
+          <ScrollArea class="editable-attributes-scroll">
           <Grid
             v-for="(attrEntry, index) in editForm.attributes"
             :key="`attr-${index}`"
@@ -138,10 +140,11 @@
             </GridItem>
             <GridItem :span="2">
               <Button variant="ghost" size="icon" @click="removeAttribute(index)">
-                <span class="i-carbon-delete h-4 w-4" />
+                <span class="i-carbon-trash-can h-4 w-4" />
               </Button>
             </GridItem>
           </Grid>
+          </ScrollArea>
         </Form>
       </div>
 
@@ -172,6 +175,7 @@ import { Input } from '@/components/ui/input';
 import { InputNumber } from '@/components/ui/input-number';
 import { Button } from '@/components/ui/button';
 import { Grid, GridItem } from '@/components/ui/grid';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -388,4 +392,28 @@ const handleSubmit = async () => {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+.modal-content {
+  min-height: 0;
+  max-height: 60vh;
+  overflow: hidden;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 60vh;
+  overflow: hidden;
+}
+
+.key-attributes-section {
+  flex-shrink: 0;
+}
+
+.editable-attributes-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+}
+</style>
