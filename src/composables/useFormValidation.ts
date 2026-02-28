@@ -27,7 +27,7 @@ export function useFormValidation() {
    * Mark a field as touched (typically called on blur/focusout).
    */
   const handleBlur = (fieldName: string) => {
-    touchedFields.value.add(fieldName);
+    touchedFields.value = new Set([...touchedFields.value, fieldName]);
   };
 
   /**
