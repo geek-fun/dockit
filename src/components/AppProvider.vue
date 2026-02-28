@@ -1,54 +1,66 @@
 <template>
-  <n-config-provider
-    :theme="getTheme"
-    :locale="locale"
-    :date-locale="dateLocale"
-    :theme-overrides="naiveThemeOverrides"
-  >
-    <n-loading-bar-provider>
-      <n-dialog-provider>
-        <n-notification-provider>
-          <n-message-provider>
-            <slot></slot>
-            <NaiveProviderContent />
-          </n-message-provider>
-        </n-notification-provider>
-      </n-dialog-provider>
-    </n-loading-bar-provider>
-  </n-config-provider>
+  <div class="app-provider h-full w-full">
+    <slot></slot>
+  </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, defineComponent, h } from 'vue';
-import { darkTheme, dateEnUS, dateZhCN, enUS, zhCN } from 'naive-ui';
+/**
+ * AppProvider Component
+ *
+ * This component provides application-level context and theming.
+ * It manages:
+ * - Theme switching (light/dark mode via CSS custom properties and [theme] attribute)
+ * - System preference detection for automatic theme switching
+ *
+ * Dark/light mode is controlled by the [theme] attribute on the root element,
+ * which toggles CSS variable values.
+ *
+ *
+ * For messaging and dialogs, use the composables:
+ * - useMessageService() for toast notifications
+ * - useDialogService() for confirmation dialogs
+ * - useLoadingBarService() for loading indicators
+ */
+import { watch, onMounted, onUnmounted } from 'vue';
 import { storeToRefs } from 'pinia';
-import { LanguageType, ThemeType, useAppStore } from '../store';
-import { naiveThemeOverrides } from '../assets/theme/naive-theme-overrides';
+import { ThemeType, useAppStore } from '../store';
 
 const appStore = useAppStore();
 const { setUiThemeType } = appStore;
-const { languageType, uiThemeType } = storeToRefs(appStore);
+const { uiThemeType, themeType } = storeToRefs(appStore);
 
-// system theme type
+// System theme preference detection
 const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
-setUiThemeType(sysPreferLight.matches ? ThemeType.LIGHT : ThemeType.DARK);
-sysPreferLight.addListener(event =>
-  setUiThemeType(event.matches ? ThemeType.LIGHT : ThemeType.DARK),
-);
 
-const getTheme = computed(() => {
-  document.documentElement.setAttribute('theme', uiThemeType.value);
-  return uiThemeType.value === ThemeType.DARK ? darkTheme : undefined;
+// Handler for system theme changes
+const handleSystemThemeChange = (event: MediaQueryListEvent | MediaQueryList) => {
+  setUiThemeType(event.matches ? ThemeType.LIGHT : ThemeType.DARK);
+};
+
+// Initialize theme on mount
+onMounted(() => {
+  // Only follow system preference when in AUTO mode
+  if (themeType.value === ThemeType.AUTO) {
+    // Set initial theme based on system preference
+    handleSystemThemeChange(sysPreferLight);
+
+    // Listen for system theme changes
+    sysPreferLight.addEventListener('change', handleSystemThemeChange);
+  }
 });
 
-const locale = computed(() => (languageType.value === LanguageType.ZH_CN ? zhCN : enUS));
-const dateLocale = computed(() =>
-  languageType.value === LanguageType.ZH_CN ? dateZhCN : dateEnUS,
-);
+// Cleanup listener on unmount
+onUnmounted(() => {
+  sysPreferLight.removeEventListener('change', handleSystemThemeChange);
+});
 
-const NaiveProviderContent = defineComponent({
-  render() {
-    return h('div');
+// Watch for theme changes and update the DOM attribute
+watch(
+  uiThemeType,
+  newTheme => {
+    document.documentElement.setAttribute('theme', newTheme);
   },
-});
+  { immediate: true },
+);
 </script>

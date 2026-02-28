@@ -13,7 +13,9 @@ export const enUS = {
   setting: {
     basic: 'Basic',
     theme: 'Theme',
+    themeDesc: 'Choose your preferred theme appearance',
     language: 'Language',
+    languageDesc: 'Select your preferred language',
     about: 'About Us',
     auto: 'Follow OS',
     dark: 'Dark Theme',
@@ -277,6 +279,7 @@ export const enUS = {
     create: 'Create',
     confirm: 'Confirm',
     cancel: 'Cancel',
+    delete: 'Delete',
     retry: 'Retry',
     save: 'Save',
     removeSuccess: 'removed successfully',

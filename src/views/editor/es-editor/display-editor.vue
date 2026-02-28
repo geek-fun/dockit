@@ -20,6 +20,7 @@ const setupDisplayEditor = () => {
     value: '',
     language: 'json',
     automaticLayout: true,
+    readOnly: true,
     scrollBeyondLastLine: false,
     ...getEditorOptions(),
   });

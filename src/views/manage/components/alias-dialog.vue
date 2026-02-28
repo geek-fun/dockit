@@ -1,150 +1,164 @@
 <template>
-  <n-modal v-model:show="showModal">
-    <n-card
-      :bordered="false"
-      role="dialog"
-      aria-modal="true"
-      style="width: 800px"
-      :title="$t('manage.index.newAliasForm.title')"
-      @mask-click="closeModal"
-    >
-      <template #header-extra>
-        <n-icon size="26" @click="closeModal">
-          <Close />
-        </n-icon>
-      </template>
+  <Dialog v-model:open="showModal">
+    <DialogContent class="sm:max-w-[800px]">
+      <DialogHeader>
+        <DialogTitle>{{ $t('manage.index.newAliasForm.title') }}</DialogTitle>
+      </DialogHeader>
       <div class="modal-content">
-        <n-form
-          ref="formRef"
-          label-placement="left"
-          label-align="right"
-          label-width="180"
-          :model="formData"
-          :rules="formRules"
-        >
-          <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
-            <n-grid-item span="8">
-              <n-form-item :label="$t('manage.index.newAliasForm.aliasName')" path="aliasName">
-                <n-input
-                  v-model:value="formData.aliasName"
-                  :input-props="inputProps"
-                  clearable
+        <Form>
+          <Grid :cols="8" :x-gap="10" :y-gap="10">
+            <GridItem :span="8">
+              <FormItem
+                :label="$t('manage.index.newAliasForm.aliasName')"
+                required
+                :error="getError('aliasName', fieldErrors.aliasName)"
+              >
+                <Input
+                  v-model="formData.aliasName"
+                  autocapitalize="off"
+                  autocomplete="off"
+                  :spellcheck="false"
+                  autocorrect="off"
                   :placeholder="$t('manage.index.newAliasForm.aliasName')"
+                  @blur="handleBlur('aliasName')"
                 />
-              </n-form-item>
-            </n-grid-item>
-            <n-grid-item span="8">
-              <n-form-item :label="$t('manage.index.newAliasForm.indexName')" path="indexName">
-                <n-select v-model:value="formData.indexName" clearable :options="indices" />
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
-          <n-collapse>
-            <n-collapse-item title="Advanced" name="Advanced">
-              <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
-                <n-grid-item span="4">
-                  <n-form-item label="master_timeout" path="master_timeout">
-                    <n-input-number v-model:value="formData.master_timeout" clearable>
-                      <template #suffix>
-                        <span>s</span>
-                      </template>
-                    </n-input-number>
-                  </n-form-item>
-                </n-grid-item>
-                <n-grid-item span="4">
-                  <n-form-item label="timeout" path="timeout">
-                    <n-input-number v-model:value="formData.timeout" clearable>
-                      <template #suffix>
-                        <span>s</span>
-                      </template>
-                    </n-input-number>
-                  </n-form-item>
-                </n-grid-item>
-                <n-grid-item span="4">
-                  <n-form-item label="is_write_index" path="is_write_index">
-                    <n-switch v-model:value="formData.is_write_index" clearable />
-                  </n-form-item>
-                </n-grid-item>
-                <n-grid-item span="4">
-                  <n-form-item label="routing" path="routing">
-                    <n-input-number v-model:value="formData.routing" clearable />
-                  </n-form-item>
-                </n-grid-item>
-                <n-grid-item span="4">
-                  <n-form-item label="search_routing" path="search_routing">
-                    <n-input-number v-model:value="formData.search_routing" clearable />
-                  </n-form-item>
-                </n-grid-item>
-                <n-grid-item span="4">
-                  <n-form-item label="index_routing" path="index_routing">
-                    <n-input-number v-model:value="formData.index_routing" clearable />
-                  </n-form-item>
-                </n-grid-item>
-                <n-grid-item span="8">
-                  <n-form-item label="filter" path="filter">
-                    <n-input
-                      v-model:value="formData.filter"
-                      clearable
-                      type="textarea"
-                      :autosize="{
-                        minRows: 10,
-                        maxRows: 15,
-                      }"
+              </FormItem>
+            </GridItem>
+            <GridItem :span="8">
+              <FormItem
+                :label="$t('manage.index.newAliasForm.indexName')"
+                required
+                :error="getError('indexName', fieldErrors.indexName)"
+              >
+                <Select
+                  v-model="formData.indexName"
+                  @update:open="(open: boolean) => !open && handleBlur('indexName')"
+                >
+                  <SelectTrigger>
+                    <SelectValue :placeholder="$t('manage.index.newAliasForm.indexName')" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem v-for="idx in indices" :key="idx.value" :value="idx.value">
+                      {{ idx.label }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            </GridItem>
+          </Grid>
+          <Collapse class="mt-4">
+            <CollapseItem title="Advanced" name="Advanced">
+              <Grid :cols="8" :x-gap="10" :y-gap="10">
+                <GridItem :span="4">
+                  <FormItem label="master_timeout">
+                    <div class="flex items-center gap-2">
+                      <InputNumber v-model="formData.master_timeout" class="flex-1" />
+                      <span class="text-sm text-muted-foreground">s</span>
+                    </div>
+                  </FormItem>
+                </GridItem>
+                <GridItem :span="4">
+                  <FormItem label="timeout">
+                    <div class="flex items-center gap-2">
+                      <InputNumber v-model="formData.timeout" class="flex-1" />
+                      <span class="text-sm text-muted-foreground">s</span>
+                    </div>
+                  </FormItem>
+                </GridItem>
+                <GridItem :span="4">
+                  <FormItem label="is_write_index">
+                    <Switch v-model:checked="formData.is_write_index" />
+                  </FormItem>
+                </GridItem>
+                <GridItem :span="4">
+                  <FormItem label="routing">
+                    <InputNumber v-model="formData.routing" />
+                  </FormItem>
+                </GridItem>
+                <GridItem :span="4">
+                  <FormItem label="search_routing">
+                    <InputNumber v-model="formData.search_routing" />
+                  </FormItem>
+                </GridItem>
+                <GridItem :span="4">
+                  <FormItem label="index_routing">
+                    <InputNumber v-model="formData.index_routing" />
+                  </FormItem>
+                </GridItem>
+                <GridItem :span="8">
+                  <FormItem label="filter" :error="getError('filter', fieldErrors.filter)">
+                    <textarea
+                      v-model="formData.filter"
+                      class="textarea-input"
+                      @blur="handleBlur('filter')"
                     />
-                  </n-form-item>
-                </n-grid-item>
-              </n-grid>
-            </n-collapse-item>
-          </n-collapse>
-        </n-form>
+                  </FormItem>
+                </GridItem>
+              </Grid>
+            </CollapseItem>
+          </Collapse>
+        </Form>
       </div>
-      <template #footer>
-        <div class="card-footer">
-          <n-button @click="closeModal">{{ $t('dialogOps.cancel') }}</n-button>
-          <n-button
-            type="primary"
-            :loading="createLoading"
-            :disabled="!validationPassed"
-            @click="submitCreate"
-          >
-            {{ $t('dialogOps.create') }}
-          </n-button>
-        </div>
-      </template>
-    </n-card>
-  </n-modal>
+      <DialogFooter>
+        <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
+        <Button :disabled="!validationPassed || createLoading" @click="submitCreate">
+          <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
+          {{ $t('dialogOps.create') }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { FormRules, FormValidationError, NButton, NIcon, FormItemRule } from 'naive-ui';
-import { Close } from '@vicons/carbon';
-import { CustomError, inputProps, jsonify } from '../../../common';
+import { Loader2 } from 'lucide-vue-next';
+import { useMessageService, useFormValidation } from '@/composables';
+import { CustomError, jsonify } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { InputNumber } from '@/components/ui/input-number';
+import { Form, FormItem } from '@/components/ui/form';
+import { Grid, GridItem } from '@/components/ui/grid';
+import { Collapse, CollapseItem } from '@/components/ui/collapse';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 const clusterManageStore = useClusterManageStore();
 const { createAlias } = clusterManageStore;
 const { indexWithAliases } = storeToRefs(clusterManageStore);
 const lang = useLang();
-const message = useMessage();
+const message = useMessageService();
+const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 const showModal = ref(false);
 const createLoading = ref(false);
-const formRef = ref();
 
 const defaultFormData = {
   aliasName: '',
   indexName: '',
-  shards: null,
-  replicas: null,
-  master_timeout: null,
-  timeout: null,
-  is_write_index: undefined,
-  filter: null,
-  routing: null,
-  search_routing: null,
-  index_routing: null,
+  master_timeout: null as number | null,
+  timeout: null as number | null,
+  is_write_index: undefined as boolean | undefined,
+  filter: null as string | null,
+  routing: null as number | null,
+  search_routing: null as number | null,
+  index_routing: null as number | null,
 };
 
 const formData = ref<{
@@ -159,6 +173,32 @@ const formData = ref<{
   index_routing: number | null;
 }>({ ...defaultFormData });
 
+const isValidJson = (value: string | null): boolean => {
+  if (!value) return true;
+  try {
+    jsonify.parse(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const fieldErrors = computed(() => ({
+  aliasName: !formData.value.aliasName?.trim()
+    ? lang.t('manage.index.newAliasForm.aliasRequired')
+    : undefined,
+  indexName: !formData.value.indexName?.trim()
+    ? lang.t('manage.index.newAliasForm.indexRequired')
+    : undefined,
+  filter: !isValidJson(formData.value.filter)
+    ? lang.t('manage.index.newAliasForm.filterJsonRequired')
+    : undefined,
+}));
+
+const validationPassed = computed(() => {
+  return !fieldErrors.value.aliasName && !fieldErrors.value.indexName && !fieldErrors.value.filter;
+});
+
 const toggleModal = () => {
   if (showModal.value) {
     closeModal();
@@ -166,82 +206,36 @@ const toggleModal = () => {
     showModal.value = true;
   }
 };
+
 const closeModal = () => {
   showModal.value = false;
   formData.value = { ...defaultFormData };
+  resetValidation();
 };
-
-const formRules = reactive<FormRules>({
-  // @ts-ignore
-  aliasName: [
-    {
-      required: true,
-      renderMessage: () => lang.t('manage.index.newAliasForm.aliasRequired'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-  indexName: [
-    {
-      required: true,
-      renderMessage: () => lang.t('manage.index.newAliasForm.indexRequired'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-
-  // validate filter should be a json
-  filter: [
-    {
-      required: false,
-      validator: (_: FormItemRule, value: string) => {
-        if (!value) return true;
-        try {
-          jsonify.parse(value);
-          return true;
-        } catch (e) {
-          return false;
-        }
-      },
-      renderMessage: () => lang.t('manage.index.newAliasForm.filterJsonRequired'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-});
 
 const submitCreate = async (event: MouseEvent) => {
   event.preventDefault();
-  formRef.value?.validate(async (errors: boolean) => {
-    if (errors) {
-      return;
-    }
-    createLoading.value = !createLoading.value;
-    try {
-      await createAlias({
-        ...formData.value,
-        filter: formData.value.filter ? jsonify.parse(formData.value.filter) : undefined,
-      });
-      message.success(lang.t('dialogOps.createSuccess'));
-    } catch (err) {
-      message.error((err as CustomError).details, {
-        closable: true,
-        keepAliveOnHover: true,
-        duration: 7200,
-      });
-      return;
-    } finally {
-      createLoading.value = !createLoading.value;
-    }
+  markSubmitted();
+  if (!validationPassed.value) return;
 
-    closeModal();
-  });
-};
-
-const validationPassed = watch(formData.value, async () => {
+  createLoading.value = true;
   try {
-    return await formRef.value?.validate((errors: Array<FormValidationError>) => !errors);
-  } catch (e) {
-    return false;
+    await createAlias({
+      ...formData.value,
+      filter: formData.value.filter ? jsonify.parse(formData.value.filter) : undefined,
+    });
+    message.success(lang.t('dialogOps.createSuccess'));
+    closeModal();
+  } catch (err) {
+    message.error((err as CustomError).details, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 7200,
+    });
+  } finally {
+    createLoading.value = false;
   }
-});
+};
 
 const indices = computed(() =>
   indexWithAliases.value.map(index => ({
@@ -253,16 +247,36 @@ const indices = computed(() =>
 defineExpose({ toggleModal });
 </script>
 
-<style lang="scss" scoped>
-:deep(.n-card-header) {
-  .n-card-header__extra {
-    cursor: pointer;
-  }
+<style scoped>
+.modal-content {
+  padding: 1rem 0;
 }
 
-.card-footer {
+.textarea-input {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  min-height: 200px;
+  max-height: 300px;
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--input));
+  background-color: hsl(var(--background));
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  resize: vertical;
+}
+
+.textarea-input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--ring));
+}
+
+.textarea-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.textarea-input::placeholder {
+  color: hsl(var(--muted-foreground));
 }
 </style>

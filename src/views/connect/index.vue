@@ -1,17 +1,27 @@
 <template>
-  <n-tabs
-    type="card"
-    :addable="false"
-    :value="activePanel.name"
+  <Tabs
+    :model-value="activePanel.name"
     class="connect-tab-container"
-    @close="value => handleTabChange(value, 'CLOSE')"
-    @update:value="value => handleTabChange(value, 'CHANGE')"
+    @update:model-value="value => handleTabChange(value as string, 'CHANGE')"
   >
-    <n-tab-pane
-      v-for="(panel, index) in panels"
+    <TabsList class="tabs-list">
+      <div v-for="(panel, index) in panels" :key="panel.id" class="tab-trigger-wrapper">
+        <TabsTrigger :value="panel.name" class="tab-trigger">
+          {{ panel.name }}
+        </TabsTrigger>
+        <button
+          v-if="index > 0"
+          class="tab-close-btn"
+          @click.stop="handleTabChange(panel.name, 'CLOSE')"
+        >
+          <X class="w-3 h-3" />
+        </button>
+      </div>
+    </TabsList>
+    <TabsContent
+      v-for="panel in panels"
       :key="panel.id"
-      :closable="index > 0"
-      :name="panel.name"
+      :value="panel.name"
       class="tab-pane-container"
     >
       <connect-list v-if="panel.id === 0" @tab-panel="tabPanelHandler" />
@@ -28,12 +38,14 @@
           </div>
         </div>
       </template>
-    </n-tab-pane>
-  </n-tabs>
+    </TabsContent>
+  </Tabs>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { X } from 'lucide-vue-next';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Connection, DatabaseType, useTabStore } from '../../store';
 import ConnectList from './components/connect-list.vue';
 import EsEditor from '../editor/es-editor/index.vue';
@@ -41,10 +53,11 @@ import DynamoEditor from '../editor/dynamo-editor/index.vue';
 import ToolBar from '../../components/tool-bar.vue';
 import { useLang } from '../../lang';
 import { CustomError } from '../../common';
+import { useDialogService, useMessageService } from '@/composables';
 
 const route = useRoute();
-const dialog = useDialog();
-const message = useMessage();
+const dialog = useDialogService();
+const message = useMessageService();
 const lang = useLang();
 
 const tabStore = useTabStore();
@@ -120,51 +133,82 @@ onMounted(async () => {
 });
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .connect-tab-container {
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
+}
 
-  :deep(.n-tab-pane) {
-    padding: 0;
-  }
+.tabs-list {
+  flex-shrink: 0;
+  width: 100%;
+  justify-content: flex-start;
+  background-color: hsl(var(--muted));
+  border-radius: 0;
+  height: auto;
+  padding: 0;
+  border-bottom: 1px solid hsl(var(--border));
+}
 
-  :deep(.n-tabs-wrapper) {
-    .n-tabs-tab-wrapper {
-      background-color: var(--bg-color);
+.tab-trigger-wrapper {
+  display: flex;
+  align-items: center;
+  position: relative;
+}
 
-      .n-tabs-tab--active {
-        background-color: var(--bg-color-secondary);
-      }
-    }
-  }
+.tab-trigger {
+  border-radius: 0;
+  padding: 8px 24px 8px 12px;
+}
 
-  .tab-pane-container {
-    width: 100%;
-    height: 100%;
-    background-color: var(--bg-color-secondary);
+.tab-trigger[data-state='active'] {
+  background-color: hsl(var(--card));
+}
 
-    .es-editor {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
+.tab-close-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  color: inherit;
+  opacity: 0.6;
+}
 
-      .es-editor-container {
-        flex: 1;
-        overflow: hidden;
-        position: relative;
-      }
-    }
+.tab-close-btn:hover {
+  opacity: 1;
+}
 
-    .dynamo-editor {
-      height: 100%;
-      display: flex;
-      flex-direction: column;
+.tab-pane-container {
+  width: 100%;
+  flex: 1;
+  background-color: hsl(var(--card));
+  margin-top: 0;
+  overflow: hidden;
+}
 
-      .n-tabs {
-        flex: 1;
-      }
-    }
-  }
+.es-editor {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.es-editor-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.dynamo-editor {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 </style>

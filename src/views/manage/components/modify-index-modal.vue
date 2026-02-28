@@ -1,70 +1,85 @@
 <template>
-  <n-modal :show="props.show" @update:show="val => emit('update:show', val)">
-    <n-card
-      style="width: 500px"
-      :title="lang.t('manage.dynamo.modifyGsiTitle')"
-      :bordered="false"
-      role="dialog"
-    >
-      <n-form
-        ref="formRef"
-        :model="formValue"
-        :rules="rules"
-        label-placement="left"
-        label-width="180"
-      >
-        <n-form-item :label="lang.t('manage.dynamo.indexName')">
-          <n-text>{{ props.indexName }}</n-text>
-        </n-form-item>
+  <Dialog :open="props.show" @update:open="val => emit('update:show', val)">
+    <DialogContent class="max-w-[500px]">
+      <DialogHeader>
+        <DialogTitle>{{ lang.t('manage.dynamo.modifyGsiTitle') }}</DialogTitle>
+      </DialogHeader>
 
-        <n-divider />
+      <Form>
+        <FormItem :label="lang.t('manage.dynamo.indexName')">
+          <span class="text-sm">{{ props.indexName }}</span>
+        </FormItem>
 
-        <n-form-item :label="lang.t('manage.dynamo.rcu')" path="readCapacityUnits">
-          <n-input-number
-            v-model:value="formValue.readCapacityUnits"
+        <Separator class="my-4" />
+
+        <FormItem
+          :label="lang.t('manage.dynamo.rcu')"
+          required
+          :error="getError('readCapacityUnits', fieldErrors.readCapacityUnits)"
+        >
+          <InputNumber
+            v-model:model-value="formValue.readCapacityUnits"
             :min="1"
-            style="width: 100%"
+            class="w-full"
+            @blur="handleBlur('readCapacityUnits')"
           />
-        </n-form-item>
+        </FormItem>
 
-        <n-form-item :label="lang.t('manage.dynamo.wcu')" path="writeCapacityUnits">
-          <n-input-number
-            v-model:value="formValue.writeCapacityUnits"
+        <FormItem
+          :label="lang.t('manage.dynamo.wcu')"
+          required
+          :error="getError('writeCapacityUnits', fieldErrors.writeCapacityUnits)"
+        >
+          <InputNumber
+            v-model:model-value="formValue.writeCapacityUnits"
             :min="1"
-            style="width: 100%"
+            class="w-full"
+            @blur="handleBlur('writeCapacityUnits')"
           />
-        </n-form-item>
-      </n-form>
+        </FormItem>
+      </Form>
 
-      <n-alert
-        v-if="errorMessage"
-        type="error"
-        style="margin-top: 12px"
-        closable
-        @close="errorMessage = ''"
-      >
-        {{ errorMessage }}
-      </n-alert>
+      <Alert v-if="errorMessage" variant="destructive" class="mt-3">
+        <AlertDescription class="flex items-center justify-between">
+          <span>{{ errorMessage }}</span>
+          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
+            <X class="w-4 h-4" />
+          </button>
+        </AlertDescription>
+      </Alert>
 
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 12px">
-          <n-button :disabled="loading" @click="handleCancel">
-            {{ lang.t('dialogOps.cancel') }}
-          </n-button>
-          <n-button type="primary" :loading="loading" @click="handleSubmit">
-            {{ lang.t('dialogOps.confirm') }}
-          </n-button>
-        </div>
-      </template>
-    </n-card>
-  </n-modal>
+      <DialogFooter class="mt-4">
+        <Button variant="outline" :disabled="loading" @click="handleCancel">
+          {{ lang.t('dialogOps.cancel') }}
+        </Button>
+        <Button :disabled="loading" @click="handleSubmit">
+          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+          {{ lang.t('dialogOps.confirm') }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import type { FormInst, FormRules } from 'naive-ui';
+import { ref, watch, computed } from 'vue';
+import { X } from 'lucide-vue-next';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Form, FormItem } from '@/components/ui/form';
+import { InputNumber } from '@/components/ui/input-number';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
+import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
+import { useFormValidation } from '@/composables';
 import type { DynamoIndex } from '../../../datasources';
 import { dynamoApi } from '../../../datasources';
 import { useClusterManageStore, DynamoDBConnection, DatabaseType } from '../../../store';
@@ -73,6 +88,7 @@ import { storeToRefs } from 'pinia';
 const lang = useLang();
 const clusterManageStore = useClusterManageStore();
 const { connection } = storeToRefs(clusterManageStore);
+const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 interface Props {
   show: boolean;
@@ -88,7 +104,6 @@ const emit = defineEmits<{
   (e: 'modified'): void;
 }>();
 
-const formRef = ref<FormInst | null>(null);
 const loading = ref(false);
 const errorMessage = ref('');
 
@@ -97,19 +112,19 @@ const formValue = ref({
   writeCapacityUnits: 5,
 });
 
-const rules: FormRules = {
-  readCapacityUnits: {
-    required: true,
-    type: 'number',
-    message: lang.t('manage.dynamo.rcuRequired'),
-    trigger: 'blur',
-  },
-  writeCapacityUnits: {
-    required: true,
-    type: 'number',
-    message: lang.t('manage.dynamo.wcuRequired'),
-    trigger: 'blur',
-  },
+const fieldErrors = computed(() => ({
+  readCapacityUnits:
+    !formValue.value.readCapacityUnits || formValue.value.readCapacityUnits < 1
+      ? lang.t('manage.dynamo.rcuRequired')
+      : undefined,
+  writeCapacityUnits:
+    !formValue.value.writeCapacityUnits || formValue.value.writeCapacityUnits < 1
+      ? lang.t('manage.dynamo.wcuRequired')
+      : undefined,
+}));
+
+const validate = (): boolean => {
+  return !fieldErrors.value.readCapacityUnits && !fieldErrors.value.writeCapacityUnits;
 };
 
 // Reset form when modal opens
@@ -122,6 +137,7 @@ watch(
         writeCapacityUnits: props.index.provisionedThroughput?.writeCapacityUnits || 5,
       };
       errorMessage.value = '';
+      resetValidation();
       loading.value = false;
     }
   },
@@ -132,9 +148,8 @@ const handleCancel = () => {
 };
 
 const handleSubmit = async () => {
-  try {
-    await formRef.value?.validate();
-  } catch {
+  markSubmitted();
+  if (!validate()) {
     return;
   }
 

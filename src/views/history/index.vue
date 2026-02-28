@@ -11,20 +11,22 @@
 import HistoryEmpty from './components/history-empty.vue';
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .history-container {
   height: 100%;
   width: 100%;
   display: flex;
-  &-list {
-    width: 200px;
-    display: flex;
-    flex-direction: column;
-    border-right: 1px solid var(--border-color);
-  }
-  &-details {
-    flex: 1;
-    width: 0;
-  }
+}
+
+.history-container-list {
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid hsl(var(--border));
+}
+
+.history-container-details {
+  flex: 1;
+  width: 0;
 }
 </style>

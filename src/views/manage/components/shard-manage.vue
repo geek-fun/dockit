@@ -1,13 +1,59 @@
 <template>
   <main class="shard-container">
     <div class="shard-table-container">
-      <n-infinite-scroll style="height: 100%">
-        <n-data-table
-          :columns="nodeShardsTable?.columns"
-          :data="nodeShardsTable?.data"
-          :bordered="false"
-        />
-      </n-infinite-scroll>
+      <ScrollArea class="h-full">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead
+                v-for="col in nodeShardsTable?.columns"
+                :key="col.key"
+                class="whitespace-nowrap"
+              >
+                <div class="flex items-center gap-1">
+                  {{ col.title }}
+                  <Popover v-if="col.key === 'index'">
+                    <PopoverTrigger as-child>
+                      <Button variant="ghost" size="icon" class="h-6 w-6">
+                        <span
+                          class="i-carbon-search h-3.5 w-3.5"
+                          :style="{ color: filterState.index ? 'hsl(var(--primary))' : undefined }"
+                        />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent class="w-48 p-2">
+                      <Input
+                        v-model="filterState.index"
+                        placeholder="type to filter index"
+                        class="h-8"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="(row, rowIndex) in nodeShardsTable?.data" :key="rowIndex">
+              <TableCell v-for="col in nodeShardsTable?.columns" :key="col.key">
+                <template v-if="col.key === 'index'">{{ row.index }}</template>
+                <template v-else>
+                  <Button
+                    v-for="shard in row[col.key] || []"
+                    :key="`${shard.prirep}${shard.shard}`"
+                    :variant="shard.prirep === 'p' ? 'secondary' : 'outline'"
+                    size="xs"
+                    class="shard-box m-1"
+                    @click="handleShardClick(shard)"
+                  >
+                    {{ shard.prirep }}{{ shard.shard }}
+                  </Button>
+                </template>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </ScrollArea>
     </div>
     <transition name="shard-slip">
       <div v-if="indexShards" class="shard-statistic-container">
@@ -20,45 +66,47 @@
               }}, unassigned: {{ indexShards.shards.filter(shard => !shard.node).length }}
             </span>
           </h3>
-          <n-icon size="26" class="close-index-shard-icon" @click="closeindexShards">
-            <Close />
-          </n-icon>
+          <span class="i-carbon-close h-6 w-6 close-index-shard-icon" @click="closeindexShards" />
         </div>
 
         <div class="shard-list-scrollbar-box">
-          <n-scrollbar style="height: 100%">
-            <n-button
+          <ScrollArea class="h-full">
+            <div
               v-for="shard in indexShards.shards"
-              strong
-              tag="div"
-              :type="shard.node ? 'primary' : 'warning'"
-              :dashed="shard.prirep == 'r'"
-              :secondary="shard.prirep == 'p'"
+              :key="`${shard.prirep}${shard.shard}`"
+              :class="[
+                'shard-item-box',
+                shard.node ? 'shard-item-primary' : 'shard-item-warning',
+                shard.prirep === 'r' ? 'shard-item-dashed' : '',
+              ]"
               :title="shard.prirep + shard.shard"
-              class="shard-item-box"
             >
               <h3 class="shard-detail-title">
                 shard: {{ shard.prirep }}{{ shard.shard }} node: {{ shard.node }}
               </h3>
 
-              <n-popover
-                v-for="shardsDetail in shard.details"
-                trigger="hover"
-                :delay="500"
-                :duration="500"
-              >
-                <template #trigger>
-                  <n-tag :type="shardsDetail.tagType">
+              <Popover v-for="(shardsDetail, idx) in shard.details" :key="idx">
+                <PopoverTrigger as-child>
+                  <Badge
+                    :variant="
+                      shardsDetail.tagType === 'warning'
+                        ? 'warning'
+                        : shardsDetail.tagType === 'success'
+                          ? 'success'
+                          : 'default'
+                    "
+                    class="m-1 cursor-pointer"
+                  >
+                    <span :class="[shardsDetail.iconClass, 'h-3 w-3 mr-1']" />
                     {{ shardsDetail.content }}
-                    <template #icon>
-                      <n-icon :component="shardsDetail.icon()" />
-                    </template>
-                  </n-tag>
-                </template>
-                <span>{{ shardsDetail.desc }}</span>
-              </n-popover>
-            </n-button>
-          </n-scrollbar>
+                  </Badge>
+                </PopoverTrigger>
+                <PopoverContent class="w-auto">
+                  <span>{{ shardsDetail.desc }}</span>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </ScrollArea>
         </div>
       </div>
     </transition>
@@ -67,41 +115,33 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { get, size } from 'lodash';
-
 import prettyBytes from 'pretty-bytes';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
-  AiResults,
-  Application,
-  Close,
-  Document,
-  Insert,
-  LaunchStudy1,
-  Layers,
-  QueryQueue,
-  Rotate360,
-  SearchLocate,
-  ShapeExcept,
-  Version,
-  VmdkDisk,
-  WarningAlt,
-  Search,
-} from '@vicons/carbon';
-import { Memory } from '@vicons/fa';
-import { NButton, NIcon, NInput, NTag } from 'naive-ui';
-import { TableColumn } from 'naive-ui/es/data-table/src/interface';
-import { CustomError, inputProps } from '../../../common';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useMessageService } from '@/composables';
+import { CustomError } from '../../../common';
 import { ClusterShard } from '../../../datasources';
 import { useClusterManageStore } from '../../../store';
 
 const clusterManageStore = useClusterManageStore();
 const { fetchNodes, fetchShards } = clusterManageStore;
 const { indices } = storeToRefs(clusterManageStore);
-const message = useMessage();
+const message = useMessageService();
 
 type IndexShard = ClusterShard & {
   details: Array<{
-    icon: () => Component;
+    iconClass: string;
     content: string;
     desc: string;
     tagType: 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error';
@@ -110,31 +150,6 @@ type IndexShard = ClusterShard & {
 
 const filterState = ref<{ [key: string]: string }>({
   index: '',
-});
-
-const handleFilter = (key: string, value: string) => {
-  filterState.value[key] = value;
-};
-
-const filterProps = (key: string) => ({
-  filter: true,
-  renderFilterMenu(_: { hide: () => void }) {
-    return h(NInput, {
-      value: filterState.value[key],
-      placeholder: `type to filter ${key}`,
-      clearable: true,
-      size: 'small',
-      'on-update:value': (value: string) => handleFilter(key, value),
-      'input-props': inputProps,
-    });
-  },
-  renderFilterIcon() {
-    return h(
-      NIcon,
-      { color: filterState.value[key] ? 'var(--theme-color)' : 'var(--n-text-color)' },
-      { default: () => h(Search) },
-    );
-  },
 });
 
 const nodeShardsTable = computed(() => {
@@ -147,7 +162,11 @@ const nodeShardsTable = computed(() => {
     ),
   );
 
-  const columns = [{ name: 'index' }, ...nodes.map(name => ({ name })), { name: 'unassigned' }];
+  const columns = [
+    { title: 'index', key: 'index' },
+    ...nodes.map(name => ({ title: name, key: name })),
+    { title: 'unassigned', key: 'unassigned' },
+  ];
 
   // Group shards by index and then by node
   const data = indices.value
@@ -159,8 +178,8 @@ const nodeShardsTable = computed(() => {
 
       // Initialize empty arrays for each node and unassigned
       columns.forEach(column => {
-        if (column.name !== 'index') {
-          result[column.name] = [];
+        if (column.key !== 'index') {
+          result[column.key] = [];
         }
       });
 
@@ -176,37 +195,7 @@ const nodeShardsTable = computed(() => {
       return result;
     });
 
-  return {
-    columns: columns.map(column => ({
-      title: column.name,
-      key: column.name,
-      sorter:
-        column.name === 'index'
-          ? 'default'
-          : (a: any, b: any) => size(get(a, column.name)) - size(get(b, column.name)),
-      ...(column.name === 'index' ? filterProps(column.name) : {}),
-      render(row: { [key: string]: any }) {
-        if (column.name === 'index') return row.index;
-        return (row[column.name] || []).map((shard: ClusterShard) =>
-          h(
-            NButton,
-            {
-              strong: true,
-              type: 'primary',
-              secondary: shard.prirep == 'p',
-              dashed: shard.prirep == 'r',
-              onClick: () => handleShardClick(shard),
-              class: 'shard-box',
-            },
-            {
-              default: () => `${shard.prirep}${shard.shard}`,
-            },
-          ),
-        );
-      },
-    })) as TableColumn[],
-    data,
-  };
+  return { columns, data };
 });
 
 const indexShards = ref<{
@@ -236,13 +225,13 @@ const handleShardClick = async (shard: ClusterShard) => {
     ...shard,
     details: [
       {
-        icon: () => Document,
+        iconClass: 'i-carbon-document',
         content: `docs: ${shard.docs.count}`,
         desc: 'docs',
         tagType: 'success',
       },
       {
-        icon: () => VmdkDisk,
+        iconClass: 'i-carbon-vmdk-disk',
         content: `size: ${shard.store.size ? prettyBytes(shard.store.size) : null}, dataset: ${
           shard.dataset.size ? prettyBytes(shard.dataset.size) : null
         }`,
@@ -250,49 +239,49 @@ const handleShardClick = async (shard: ClusterShard) => {
         tagType: 'success',
       },
       {
-        icon: () => Memory,
+        iconClass: 'i-carbon-chip',
         content: `size: ${shard.completion.size ? prettyBytes(shard.completion.size) : null}`,
         desc: 'completion',
         tagType: 'success',
       },
       {
-        icon: () => Memory,
+        iconClass: 'i-carbon-chip',
         content: `memory_size: ${shard.fielddata.memorySize ? prettyBytes(shard.fielddata.memorySize) : null}, evictions: ${shard.fielddata.evictions}`,
         desc: 'fielddata',
         tagType: 'success',
       },
       {
-        icon: () => Layers,
+        iconClass: 'i-carbon-layers',
         content: `memory_size: ${shard.queryCache.memorySize ? prettyBytes(shard.queryCache.memorySize) : null}, evictions: ${shard.queryCache.evictions}`,
         desc: 'query_cache',
         tagType: 'success',
       },
       {
-        icon: () => QueryQueue,
+        iconClass: 'i-carbon-query-queue',
         content: `success: ${shard.get.existsTotal}, ${shard.get.existsTime} failure: ${shard.get.missingTotal}, ${shard.get.missingTime}`,
         desc: 'GET OPERATION',
         tagType: 'success',
       },
       {
-        icon: () => Insert,
+        iconClass: 'i-carbon-insert',
         content: `index: ${shard.indexing.indexTime} delete: ${shard.indexing.deleteTotal}, ${shard.indexing.deleteTime} failures: ${shard.indexing.indexFailed}`,
         desc: 'INDEXING OPERATION',
         tagType: 'success',
       },
       {
-        icon: () => SearchLocate,
+        iconClass: 'i-carbon-search-locate',
         content: `fetch: ${shard.search.fetchTotal}/${shard.search.fetchTime}, query: ${shard.search.queryTotal}/${shard.search.queryTime}, scroll: ${shard.search.scrollTotal}/${shard.search.scrollTime}, open: ${shard.search.openContexts}`,
         desc: 'SEARCH OPERATION',
         tagType: 'success',
       },
       {
-        icon: () => ShapeExcept,
+        iconClass: 'i-carbon-shape-except',
         content: `total: ${shard.merges.total}, size: ${shard.merges.totalSize ? prettyBytes(shard.merges.totalSize) : null}, docs: ${shard.merges.totalDocs} time: ${shard.merges.totalTime}`,
         desc: 'MERGES OPERATION',
         tagType: 'success',
       },
       {
-        icon: () => Application,
+        iconClass: 'i-carbon-application',
         content: `count: ${shard.segments.count}/${prettyBytes(shard.segments.memory ?? 0)}, writer: ${
           shard.segments.indexWriterMemory ? prettyBytes(shard.segments.indexWriterMemory) : null
         }, version_map: ${shard.segments.versionMapMemory ? prettyBytes(shard.segments.versionMapMemory) : null}, fixed_bitset: ${
@@ -303,32 +292,32 @@ const handleShardClick = async (shard: ClusterShard) => {
       },
 
       {
-        icon: () => Rotate360,
+        iconClass: 'i-carbon-rotate-360',
         content: `total: ${shard.refresh.total}, time: ${shard.refresh.time}`,
         desc: 'refresh',
         tagType: 'success',
       },
       {
-        icon: () => LaunchStudy1,
+        iconClass: 'i-carbon-launch-study-1',
         content: `total: ${shard.flush.total}, time: ${shard.flush.totalTime}`,
         desc: 'flush',
         tagType: 'success',
       },
       {
-        icon: () => Version,
+        iconClass: 'i-carbon-version',
         content: `max: ${shard.seqNo.max}, global: ${shard.seqNo.globalCheckpoint}, local: ${shard.seqNo.localCheckpoint}`,
         desc: 'seq_no',
         tagType: 'success',
       },
       {
-        icon: () => AiResults,
+        iconClass: 'i-carbon-ai-results',
         content: `total: ${shard.suggest.total},time: ${shard.suggest.time}`,
         desc: 'suggest',
         tagType: 'success',
       },
       shard.unassigned.at
         ? {
-            icon: () => WarningAlt,
+            iconClass: 'i-carbon-warning-alt',
             content: `details: ${shard.unassigned.details}, reason: ${shard.unassigned.reason}, for: ${shard.unassigned.for} at: ${shard.unassigned.at}`,
             desc: 'unassigned',
             tagType: 'warning',
@@ -352,95 +341,92 @@ onMounted(async () => {
 });
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .shard-container {
   height: 100%;
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px;
-
-  .shard-table-container {
-    margin-top: 10px;
-    flex: 1;
-    height: 0;
-    display: flex;
-    justify-content: space-around;
-    gap: 10px;
-
-    :deep(.n-data-table-tbody) {
-      .shard-box {
-        margin: 5px;
-      }
-    }
-    :deep(.n-data-table-th__title) {
-      white-space: nowrap;
-    }
-  }
-
-  .shard-statistic-container {
-    height: 100%;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    background-color: var(--card-bg-color);
-
-    .shard-title-container {
-      display: flex;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border-color);
-
-      .shard-statistic-title {
-        margin: 10px 20px;
-        flex-grow: 1;
-        display: flex;
-        justify-content: space-between;
-      }
-
-      .close-index-shard-icon {
-        cursor: pointer;
-        color: var(--text-color);
-        transition: 0.3s;
-        margin-left: 10px;
-        margin-top: 10px;
-        margin-right: 30px;
-      }
-    }
-
-    .shard-list-scrollbar-box {
-      flex: 1;
-      height: 0;
-      gap: 5px;
-
-      :deep(.n-button) {
-        .n-button__content {
-          display: block;
-          text-align: left;
-        }
-      }
-
-      .shard-item-box {
-        margin: 10px;
-        padding: 0;
-        width: 450px;
-        height: 450px;
-        text-wrap: wrap;
-        cursor: default;
-        overflow: hidden;
-
-        .n-tag {
-          margin: 5px;
-        }
-
-        .shard-detail-title {
-          margin-left: 5px;
-        }
-      }
-    }
-  }
 }
 
-//animation for shard-statistic-container
+.shard-table-container {
+  margin-top: 10px;
+  flex: 1;
+  height: 0;
+  display: flex;
+  justify-content: space-around;
+  gap: 10px;
+}
+
+.shard-statistic-container {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: hsl(var(--card));
+}
+
+.shard-title-container {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.shard-statistic-title {
+  margin: 10px 20px;
+  flex-grow: 1;
+  display: flex;
+  justify-content: space-between;
+}
+
+.close-index-shard-icon {
+  cursor: pointer;
+  color: hsl(var(--foreground));
+  transition: 0.3s;
+  margin-left: 10px;
+  margin-top: 10px;
+  margin-right: 30px;
+}
+
+.shard-list-scrollbar-box {
+  flex: 1;
+  height: 0;
+  gap: 5px;
+}
+
+.shard-item-box {
+  margin: 10px;
+  padding: 10px;
+  width: 450px;
+  height: 450px;
+  text-wrap: wrap;
+  cursor: default;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid hsl(var(--border));
+}
+
+.shard-item-primary {
+  background-color: hsl(var(--primary) / 0.1);
+  border-color: hsl(var(--primary));
+}
+
+.shard-item-warning {
+  background-color: hsl(45 93% 47% / 0.1);
+  border-color: hsl(45 93% 47%);
+}
+
+.shard-item-dashed {
+  border-style: dashed;
+}
+
+.shard-detail-title {
+  margin-left: 5px;
+  margin-bottom: 8px;
+}
+
+/* animation for shard-statistic-container */
 .shard-slip-enter-active,
 .shard-slip-leave-active {
   transition:

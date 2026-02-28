@@ -1,11 +1,15 @@
 <template>
-  <n-popover placement="right" trigger="hover" :delay="700">
-    <template #trigger>
+  <Tooltip :delay-duration="700">
+    <TooltipTrigger as-child>
       <slot />
-    </template>
-    <span>{{ popoverContent }}</span>
-  </n-popover>
+    </TooltipTrigger>
+    <TooltipContent side="right">
+      <span>{{ popoverContent }}</span>
+    </TooltipContent>
+  </Tooltip>
 </template>
 <script lang="ts" setup>
-defineProps({ popoverContent: String });
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+
+defineProps({ popoverContent: { type: String, default: undefined } });
 </script>

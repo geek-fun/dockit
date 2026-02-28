@@ -1,59 +1,69 @@
 <template>
-  <n-modal :show="props.show" @update:show="val => emit('update:show', val)">
-    <n-card
-      style="width: 400px"
-      :title="lang.t('dialogOps.warning')"
-      :bordered="false"
-      role="dialog"
-    >
-      <n-result
-        v-if="resultType === 'success' && resultMessage"
-        status="success"
-        :title="lang.t('manage.dynamo.deleteIndexSuccess')"
-        size="small"
-      />
-      <n-alert
-        v-else-if="resultMessage"
-        :type="resultType"
-        style="margin-bottom: 12px"
-        closable
-        @close="resultMessage = ''"
-      >
-        {{ resultMessage }}
-      </n-alert>
+  <Dialog :open="props.show" @update:open="val => emit('update:show', val)">
+    <DialogContent class="max-w-[400px]">
+      <DialogHeader>
+        <DialogTitle>{{ lang.t('dialogOps.warning') }}</DialogTitle>
+      </DialogHeader>
+
+      <div v-if="resultType === 'success' && resultMessage" class="text-center py-4">
+        <div class="text-green-500 text-4xl mb-2">✓</div>
+        <p class="text-sm font-medium">{{ lang.t('manage.dynamo.deleteIndexSuccess') }}</p>
+      </div>
+
+      <Alert v-else-if="resultMessage" variant="destructive" class="mb-3">
+        <AlertDescription class="flex items-center justify-between">
+          <span>{{ resultMessage }}</span>
+          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="resultMessage = ''">
+            <X class="w-4 h-4" />
+          </button>
+        </AlertDescription>
+      </Alert>
+
       <div v-else>
         <p>{{ lang.t('manage.dynamo.deleteIndexConfirm') }}</p>
         <p class="index-name">{{ props.indexName }}</p>
       </div>
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 12px">
-          <n-button :disabled="loading" @click="handleCancel">
-            {{ lang.t('dialogOps.cancel') }}
-          </n-button>
-          <n-button
-            v-if="resultType === 'error'"
-            type="warning"
-            :loading="loading"
-            @click="handleRetry"
-          >
-            {{ lang.t('dialogOps.retry') }}
-          </n-button>
-          <n-button
-            v-else-if="!resultMessage"
-            type="warning"
-            :loading="loading"
-            @click="handleConfirm"
-          >
-            {{ lang.t('dialogOps.confirm') }}
-          </n-button>
-        </div>
-      </template>
-    </n-card>
-  </n-modal>
+
+      <DialogFooter class="mt-4">
+        <Button variant="outline" :disabled="loading" @click="handleCancel">
+          {{ lang.t('dialogOps.cancel') }}
+        </Button>
+        <Button
+          v-if="resultType === 'error'"
+          variant="destructive"
+          :disabled="loading"
+          @click="handleRetry"
+        >
+          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+          {{ lang.t('dialogOps.retry') }}
+        </Button>
+        <Button
+          v-else-if="!resultMessage"
+          variant="destructive"
+          :disabled="loading"
+          @click="handleConfirm"
+        >
+          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+          {{ lang.t('dialogOps.delete') }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { X } from 'lucide-vue-next';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../common';
 import { useLang } from '../../../lang';
 import { dynamoApi } from '../../../datasources';
@@ -157,7 +167,7 @@ const handleConfirm = async () => {
 <style scoped>
 .index-name {
   font-weight: 600;
-  color: var(--primary-color);
+  color: hsl(var(--primary));
   margin-top: 8px;
 }
 </style>

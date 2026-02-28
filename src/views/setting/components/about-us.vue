@@ -1,73 +1,66 @@
 <template>
-  <div class="about-us">
-    <h1 class="title">About Us</h1>
-    <div class="section">
-      <h2 class="subtitle">DocKit</h2>
-      <p>
-        DocKit is a modern cross-platform NoSQL/NewSQL GUI client. Explore your data any time from
-        your Mac, Windows, and Linux.
-      </p>
+  <div class="about-us max-w-3xl space-y-6">
+    <div class="space-y-2">
+      <h1 class="text-3xl font-bold">About Us</h1>
+      <p class="text-muted-foreground">Learn more about DocKit</p>
     </div>
-    <div class="section">
-      <h2 class="subtitle">Features</h2>
-      <ul>
-        <li>
-          Full-featured editor, powered by monaco-editor, the backbone of VSCode, providing a
-          familiar editor environment for developers.
-        </li>
-        <li>Keep your connections in desktop apps, moving the dependencies of dashboard tools.</li>
-        <li>
-          File persistence, allowing you to save your code in your machine as a file, never lost.
-        </li>
-        <li>Supports multiple engines including Elasticsearch, OpenSearch, and more to come.</li>
-      </ul>
-    </div>
-    <div class="section">
-      <h2 class="subtitle">License</h2>
-      <p>DocKit is an open-source project under the Apache 2.0 License.</p>
-    </div>
+
+    <Card>
+      <CardHeader>
+        <CardTitle>DocKit</CardTitle>
+        <CardDescription>
+          DocKit is a modern cross-platform NoSQL/NewSQL GUI client. Explore your data any time from
+          your Mac, Windows, and Linux.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+
+    <Card>
+      <CardHeader>
+        <CardTitle>Features</CardTitle>
+      </CardHeader>
+      <CardContent class="space-y-3">
+        <div class="flex gap-3">
+          <div class="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0"></div>
+          <p class="text-sm">
+            Full-featured editor, powered by monaco-editor, the backbone of VSCode, providing a
+            familiar editor environment for developers.
+          </p>
+        </div>
+        <div class="flex gap-3">
+          <div class="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0"></div>
+          <p class="text-sm">
+            Keep your connections in desktop apps, moving the dependencies of dashboard tools.
+          </p>
+        </div>
+        <div class="flex gap-3">
+          <div class="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0"></div>
+          <p class="text-sm">
+            File persistence, allowing you to save your code in your machine as a file, never lost.
+          </p>
+        </div>
+        <div class="flex gap-3">
+          <div class="w-1.5 h-1.5 rounded-full bg-primary mt-2 shrink-0"></div>
+          <p class="text-sm">
+            Supports multiple engines including Elasticsearch, OpenSearch, and more to come.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader>
+        <CardTitle>License</CardTitle>
+        <CardDescription>
+          DocKit is an open-source project under the Apache 2.0 License.
+        </CardDescription>
+      </CardHeader>
+    </Card>
   </div>
 </template>
 
 <script setup lang="ts">
-// Add any necessary TypeScript code here
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 </script>
 
-<style lang="scss" scoped>
-@keyframes fadeIn {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-.about-us {
-  animation: fadeIn 2s ease-in;
-
-  .title {
-    font-size: 2em;
-    text-align: center;
-    margin-bottom: 1em;
-  }
-
-  .section {
-    margin-bottom: 2em;
-
-    .subtitle {
-      font-size: 1.5em;
-    }
-
-    p,
-    ul {
-      font-size: 1.2em;
-      line-height: 1.5;
-    }
-
-    ul {
-      padding-left: 1em;
-    }
-  }
-}
-</style>
+<style scoped></style>

@@ -1,4 +1,5 @@
 <template>
+  <!-- eslint-disable-next-line vue/no-v-html -->
   <div v-html="parsedMarkdown"></div>
 </template>
 
@@ -42,7 +43,9 @@ const md = new MarkdownIt({
     if (lang && hljs.getLanguage(lang)) {
       try {
         highlightedCode = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
-      } catch (__) {}
+      } catch (_e) {
+        // highlight failed, fallback to escaped HTML
+      }
     } else {
       highlightedCode = md.utils.escapeHtml(str);
     }
@@ -65,7 +68,7 @@ const md = new MarkdownIt({
 });
 
 // @ts-ignore
-md.renderer.rules['code'] = (tokens, idx, options, env, self) => {
+md.renderer.rules['code'] = (tokens, idx, _options, _env, _self) => {
   const token = tokens[idx];
   const code = token.content.trim();
   return `${code}`;
@@ -90,37 +93,40 @@ onMounted(() => {
 });
 </script>
 
-<style lang="scss">
+<style>
 pre {
   margin: 0;
   padding: 0;
+}
 
-  code.language-json,
-  code.language-bash {
-    position: relative;
+pre code.language-json,
+pre code.language-bash {
+  position: relative;
+}
 
-    .code-actions {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      height: 18px;
-      display: none;
-      border-radius: 5px;
+pre code.language-json .code-actions,
+pre code.language-bash .code-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  height: 18px;
+  display: none;
+  border-radius: 5px;
+}
 
-      .code-action-copy {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-        margin-right: 5px;
-      }
+pre code.language-json .code-actions .code-action-copy,
+pre code.language-bash .code-actions .code-action-copy {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  margin-right: 5px;
+}
 
-      .code-action-insert {
-        width: 18px;
-        height: 18px;
-        margin-left: 5px;
-        cursor: pointer;
-      }
-    }
-  }
+pre code.language-json .code-actions .code-action-insert,
+pre code.language-bash .code-actions .code-action-insert {
+  width: 18px;
+  height: 18px;
+  margin-left: 5px;
+  cursor: pointer;
 }
 </style>
