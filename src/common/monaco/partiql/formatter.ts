@@ -163,8 +163,6 @@ const formatStatement = (statement: string): string => {
 
   const lines: string[] = [];
   let currentLine: string[] = [];
-  let indentLevel = 0;
-  const indent = '  ';
 
   for (let i = 0; i < nonSpaceTokens.length; i++) {
     const token = nonSpaceTokens[i];
@@ -182,7 +180,7 @@ const formatStatement = (statement: string): string => {
     ) {
       // Flush current line
       if (currentLine.length > 0) {
-        lines.push(indent.repeat(indentLevel) + currentLine.join(' '));
+        lines.push(currentLine.join(' '));
       }
       currentLine = ['ORDER', 'BY'];
       i++; // skip 'BY'
@@ -193,7 +191,7 @@ const formatStatement = (statement: string): string => {
     if (NEW_LINE_KEYWORDS.includes(upper) && upper !== 'ORDER BY') {
       // Flush current line before starting new clause
       if (currentLine.length > 0) {
-        lines.push(indent.repeat(indentLevel) + currentLine.join(' '));
+        lines.push(currentLine.join(' '));
       }
       currentLine = [displayToken];
       continue;
@@ -202,7 +200,7 @@ const formatStatement = (statement: string): string => {
     // Statement keywords start on their own line (for multi-statement formatting)
     if (STATEMENT_KEYWORDS.includes(upper) && (currentLine.length > 0 || lines.length > 0)) {
       if (currentLine.length > 0) {
-        lines.push(indent.repeat(indentLevel) + currentLine.join(' '));
+        lines.push(currentLine.join(' '));
       }
       currentLine = [displayToken];
       continue;
@@ -213,7 +211,7 @@ const formatStatement = (statement: string): string => {
 
   // Flush remaining tokens
   if (currentLine.length > 0) {
-    lines.push(indent.repeat(indentLevel) + currentLine.join(' '));
+    lines.push(currentLine.join(' '));
   }
 
   return lines.join('\n');
