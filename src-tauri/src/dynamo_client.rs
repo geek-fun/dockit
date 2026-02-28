@@ -24,6 +24,7 @@ pub struct DynamoCredentials {
     pub region: String,
     pub access_key_id: String,     // AWS access key ID
     pub secret_access_key: String, // AWS secret access key
+    pub endpoint_url: Option<String>, // Optional custom endpoint for DynamoDB Local
 }
 
 #[derive(Debug, Deserialize)]
@@ -54,11 +55,17 @@ pub async fn dynamo_api(
     );
 
     // Configure AWS SDK
-    let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+    let mut config_builder = aws_config::defaults(aws_config::BehaviorVersion::latest())
         .region(region_provider)
-        .credentials_provider(creds)
-        .load()
-        .await;
+        .credentials_provider(creds);
+
+    if let Some(ref endpoint) = credentials.endpoint_url {
+        if !endpoint.is_empty() {
+            config_builder = config_builder.endpoint_url(endpoint);
+        }
+    }
+
+    let config = config_builder.load().await;
 
     let client = Client::new(&config);
 
