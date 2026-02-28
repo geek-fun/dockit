@@ -3,7 +3,10 @@
     <div class="chat-box-header">
       <div class="header-title">{{ $t('aside.chatBot') }}</div>
       <div>
-        <span class="i-carbon-trash-can chat-header-delete-icon cursor-pointer" @click="removeChat" />
+        <span
+          class="i-carbon-trash-can chat-header-delete-icon cursor-pointer"
+          @click="removeChat"
+        />
       </div>
     </div>
     <div class="message-list">
