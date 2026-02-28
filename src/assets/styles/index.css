@@ -1,10 +1,6 @@
 /* DocKit Theme System - Single Source of Truth */
 /* All theme colors, spacing, and design tokens defined here */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 @layer base {
   /* Root CSS Variables - Modern shadcn-vue tokens */
   :root {
