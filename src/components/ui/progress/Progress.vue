@@ -36,7 +36,7 @@ const statusClass = computed(() => {
 
 <template>
   <ProgressRoot
-    v-model="value"
+    :model-value="value"
     :class="cn('relative h-2 w-full overflow-hidden rounded-full bg-secondary', props.class)"
   >
     <ProgressIndicator

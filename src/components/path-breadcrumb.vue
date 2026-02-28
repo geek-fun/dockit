@@ -83,7 +83,7 @@ const handleBreadcrumb = async (index: number) => {
 
 .breadcrumb-separator {
   margin: 0 4px;
-  color: var(--foreground);
+  color: hsl(var(--foreground));
   opacity: 0.5;
 }
 

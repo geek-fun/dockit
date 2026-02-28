@@ -114,8 +114,7 @@ Example - changing primary color:
 
 ```
 src/assets/styles/
-├── normalize.css    # CSS reset
-└── index.css        # 🎨 THEME SOURCE OF TRUTH
+└── index.css        # 🎨 THEME SOURCE OF TRUTH (includes reset + theme)
 ```
 
 **Removed Files:**

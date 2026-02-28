@@ -1,5 +1,5 @@
 <template>
-  <Dialog v-model:open="showModal">
+  <Dialog v-model:open="isOpen">
     <DialogContent class="sm:max-w-[600px]">
       <DialogHeader>
         <DialogTitle>{{ modalTitle }}</DialogTitle>
@@ -52,7 +52,7 @@ const lang = useLang();
 const fileStore = useFileStore();
 const { createFileOrFolder, renameFileOrFolder } = fileStore;
 
-const showModal = ref(false);
+const isOpen = ref(false);
 const modalTitle = ref('');
 const saveLoading = ref(false);
 const selectedFileRef = ref<PathInfo>();
@@ -67,7 +67,7 @@ const cleanUp = () => {
   modalTitle.value = '';
 };
 
-const showMedal = (action: ContextMenuAction, selectedFile?: PathInfo) => {
+const showModal = (action: ContextMenuAction, selectedFile?: PathInfo) => {
   cleanUp();
   selectedFileRef.value = selectedFile;
   if (action === ContextMenuAction.CONTEXT_MENU_ACTION_NEW_FOLDER) {
@@ -78,12 +78,12 @@ const showMedal = (action: ContextMenuAction, selectedFile?: PathInfo) => {
     modalTitle.value = lang.t('file.rename');
     formData.value.path = selectedFile?.name ?? '';
   }
-  showModal.value = true;
+  isOpen.value = true;
 };
 
 const closeModal = () => {
   cleanUp();
-  showModal.value = false;
+  isOpen.value = false;
 };
 
 const validationPassed = computed(() => {
@@ -129,7 +129,7 @@ const submitNewFile = async (event: MouseEvent) => {
   }
 };
 
-defineExpose({ showModal: showMedal });
+defineExpose({ showModal });
 </script>
 
 <style scoped>

@@ -1,4 +1,5 @@
 import { ref, createApp, h } from 'vue';
+import { buttonVariants } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -64,6 +65,8 @@ export function useDialogService(): DialogReturn {
 
     const app = createApp({
       setup() {
+        const actionVariant =
+          options.type === 'error' || options.type === 'warning' ? 'destructive' : 'default';
         return () =>
           h(
             AlertDialog,
@@ -92,7 +95,7 @@ export function useDialogService(): DialogReturn {
                           : null,
                         h(
                           AlertDialogAction,
-                          { onClick: handlePositive },
+                          { onClick: handlePositive, class: buttonVariants({ variant: actionVariant }) },
                           { default: () => options.positiveText || 'OK' },
                         ),
                       ],

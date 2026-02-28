@@ -2,7 +2,7 @@
   <div class="login-container">
     <div class="login-form-content">
       <h1>DocKit</h1>
-      <Form>
+      <Form @submit.prevent="handleLogin">
         <FormItem>
           <Input v-model="loginForm.name" :placeholder="$t('login.enterName')" class="w-full" />
           <p v-if="errors.name" class="text-sm text-destructive mt-1">{{ errors.name }}</p>
@@ -16,7 +16,7 @@
           />
           <p v-if="errors.password" class="text-sm text-destructive mt-1">{{ errors.password }}</p>
         </FormItem>
-        <Button class="w-full" @click="handleLogin">
+        <Button type="submit" class="w-full">
           {{ $t('login.title') }}
         </Button>
       </Form>
@@ -65,8 +65,7 @@ const validate = (): boolean => {
   return isValid;
 };
 
-const handleLogin = (e: MouseEvent) => {
-  e.preventDefault();
+const handleLogin = () => {
   if (validate()) {
     userStore.setToken('setToken');
     router.push('/');

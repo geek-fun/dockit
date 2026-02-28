@@ -1,4 +1,4 @@
-import { ref, createApp, h, nextTick } from 'vue';
+import { ref, createApp, h } from 'vue';
 import { LoadingBar } from '@/components/ui/loading-bar';
 
 // Loading bar animation timing
@@ -71,34 +71,15 @@ export function useLoadingBarService(): LoadingBarReturn {
         progressValue.value = Math.min(90, progressValue.value + increment);
       }
     }, PROGRESS_INTERVAL);
-
-    // Force re-render
-    nextTick(() => {
-      if (loadingBarApp) {
-        loadingBarApp._instance?.update();
-      }
-    });
   };
 
   const finish = () => {
     clearIntervalSafe();
     progressValue.value = 100;
 
-    // Force re-render
-    nextTick(() => {
-      if (loadingBarApp) {
-        loadingBarApp._instance?.update();
-      }
-    });
-
     setTimeout(() => {
       isVisible.value = false;
       progressValue.value = 0;
-      nextTick(() => {
-        if (loadingBarApp) {
-          loadingBarApp._instance?.update();
-        }
-      });
     }, FINISH_DELAY);
   };
 
@@ -107,22 +88,10 @@ export function useLoadingBarService(): LoadingBarReturn {
     isError.value = true;
     progressValue.value = 100;
 
-    // Force re-render
-    nextTick(() => {
-      if (loadingBarApp) {
-        loadingBarApp._instance?.update();
-      }
-    });
-
     setTimeout(() => {
       isVisible.value = false;
       progressValue.value = 0;
       isError.value = false;
-      nextTick(() => {
-        if (loadingBarApp) {
-          loadingBarApp._instance?.update();
-        }
-      });
     }, ERROR_DELAY);
   };
 

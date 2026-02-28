@@ -13,12 +13,8 @@
  * - Theme switching (light/dark mode via CSS custom properties and [theme] attribute)
  * - System preference detection for automatic theme switching
  *
- * The theming system uses CSS custom properties defined in:
- * - src/assets/styles/index.css (theme CSS variables)
- * - src/assets/styles/theme.scss (legacy DocKit variables)
- *
  * Dark/light mode is controlled by the [theme] attribute on the root element,
- * which toggles CSS variable values for both systems.
+ * which toggles CSS variable values.
  *
  * For messaging and dialogs, use the composables:
  * - useMessageService() for toast notifications
