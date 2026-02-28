@@ -437,6 +437,7 @@ export const enUS = {
     clearAllConfirm: 'Are you sure you want to clear all history?',
     noConnection: 'No active connection to execute query',
     details: 'Details',
+    type: 'Database',
     method: 'Method',
     path: 'Path',
     index: 'Index',

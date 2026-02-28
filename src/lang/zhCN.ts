@@ -437,6 +437,7 @@ export const zhCN = {
     clearAllConfirm: '确定要清空所有历史记录吗？',
     noConnection: '没有活动连接来执行查询',
     details: '详情',
+    type: '数据库',
     method: '方法',
     path: '路径',
     index: '索引',

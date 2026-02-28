@@ -19,11 +19,8 @@
             <Badge :variant="getMethodVariant(entry.method)">{{ entry.method }}</Badge>
             <span class="history-item-time">{{ formatTime(entry.timestamp) }}</span>
           </div>
-          <div
-            class="history-item-path"
-            :title="`/${entry.index ? entry.index + '/' : ''}${entry.path}`"
-          >
-            /{{ entry.index ? entry.index + '/' : '' }}{{ entry.path }}
+          <div class="history-item-path" :title="getDisplayPath(entry)">
+            {{ getDisplayPath(entry) }}
           </div>
           <div class="history-item-connection">{{ entry.connectionName }}</div>
         </div>
@@ -54,6 +51,12 @@
         </div>
         <div class="details-body">
           <div class="details-meta">
+            <div class="meta-row">
+              <span class="meta-label">{{ $t('history.type') }}</span>
+              <Badge variant="outline">
+                {{ selectedEntry.databaseType || DatabaseType.ELASTICSEARCH }}
+              </Badge>
+            </div>
             <div class="meta-row">
               <span class="meta-label">{{ $t('history.method') }}</span>
               <Badge :variant="getMethodVariant(selectedEntry.method)">
@@ -92,7 +95,14 @@
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
-import { useHistoryStore, useConnectionStore, useTabStore } from '../../store';
+import {
+  useHistoryStore,
+  useConnectionStore,
+  useTabStore,
+  DatabaseType,
+  useDbDataStore,
+} from '../../store';
+import type { DynamoDBConnection } from '../../store';
 import { useLang } from '../../lang';
 import { useMessageService, useDialogService } from '@/composables';
 import { Button } from '@/components/ui/button';
@@ -115,6 +125,8 @@ const { searchQDSL } = connectionStore;
 const tabStore = useTabStore();
 const { activePanel, activeConnection } = storeToRefs(tabStore);
 
+const dbDataStore = useDbDataStore();
+
 onMounted(async () => {
   await fetchHistory();
 });
@@ -126,6 +138,8 @@ const getMethodVariant = (method: string) => {
     PUT: 'warning',
     DELETE: 'destructive',
     HEAD: 'secondary',
+    PartiQL: 'info',
+    Query: 'success',
   };
   return (map[method] || 'outline') as
     | 'info'
@@ -134,6 +148,13 @@ const getMethodVariant = (method: string) => {
     | 'destructive'
     | 'secondary'
     | 'outline';
+};
+
+const getDisplayPath = (entry: { databaseType?: string; index?: string; path: string }) => {
+  if (entry.databaseType === DatabaseType.DYNAMODB) {
+    return entry.index ? `${entry.path} / ${entry.index}` : entry.path;
+  }
+  return `/${entry.index ? entry.index + '/' : ''}${entry.path}`;
 };
 
 const formatTime = (timestamp: number) => {
@@ -150,7 +171,16 @@ const formatFullTime = (timestamp: number) => {
   return new Date(timestamp).toLocaleString();
 };
 
-const buildQueryText = (entry: { method: string; path: string; index?: string; qdsl?: string }) => {
+const buildQueryText = (entry: {
+  databaseType?: string;
+  method: string;
+  path: string;
+  index?: string;
+  qdsl?: string;
+}) => {
+  if (entry.databaseType === DatabaseType.DYNAMODB) {
+    return entry.qdsl || '';
+  }
   const { method, path, index, qdsl } = entry;
   return `${method} ${index ? index + '/' : ''}${path}${qdsl ? '\n' + qdsl : ''}`;
 };
@@ -168,11 +198,19 @@ const handleCopyQuery = async () => {
 
 const handleAddToEditor = () => {
   if (!selectedEntry.value) return;
-  const queryText = buildQueryText(selectedEntry.value);
+  const entry = selectedEntry.value;
 
-  if (activePanel.value?.content != null) {
-    const current = activePanel.value.content || '';
-    activePanel.value.content = current ? current + '\n\n' + queryText : queryText;
+  if (entry.databaseType === DatabaseType.DYNAMODB && entry.method === 'PartiQL' && entry.qdsl) {
+    if (activePanel.value?.content != null) {
+      const current = activePanel.value.content || '';
+      activePanel.value.content = current ? current + '\n\n' + entry.qdsl : entry.qdsl;
+    }
+  } else if (!entry.databaseType || entry.databaseType === DatabaseType.ELASTICSEARCH) {
+    const queryText = buildQueryText(entry);
+    if (activePanel.value?.content != null) {
+      const current = activePanel.value.content || '';
+      activePanel.value.content = current ? current + '\n\n' + queryText : queryText;
+    }
   }
 
   router.push('/connect');
@@ -184,9 +222,19 @@ const handleExecute = async () => {
     message.error(lang.t('history.noConnection'));
     return;
   }
-  const { method, path, index, qdsl } = selectedEntry.value;
+
+  const entry = selectedEntry.value;
+
   try {
-    await searchQDSL(activeConnection.value, { method, path, index, qdsl });
+    if (entry.databaseType === DatabaseType.DYNAMODB && entry.method === 'PartiQL' && entry.qdsl) {
+      await dbDataStore.executePartiqlStatement(
+        activeConnection.value as DynamoDBConnection,
+        entry.qdsl,
+      );
+    } else {
+      const { method, path, index, qdsl } = entry;
+      await searchQDSL(activeConnection.value, { method, path, index, qdsl });
+    }
     message.success(lang.t('history.executeSuccess'));
     router.push('/connect');
   } catch (err) {

@@ -39,6 +39,7 @@ import { SplitPane } from '@/components/ui/split-pane';
 import { useMessageService, useLoadingBarService } from '@/composables';
 import { CustomError, jsonify } from '../../../common';
 import {
+  DatabaseType,
   ElasticsearchConnection,
   useAppStore,
   useChatStore,
@@ -195,6 +196,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
     });
 
     historyStore.addEntry({
+      databaseType: DatabaseType.ELASTICSEARCH,
       method: action.method,
       path: action.path,
       index: action.index,

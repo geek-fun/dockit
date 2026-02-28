@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia';
 import { storeApi } from '../datasources';
 import { pureObject } from '../common';
+import { DatabaseType } from './connectionStore';
 
 export type HistoryEntry = {
   id: string;
   timestamp: number;
+  databaseType?: DatabaseType;
   method: string;
   path: string;
   index?: string;
