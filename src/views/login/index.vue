@@ -2,28 +2,28 @@
   <div class="login-container">
     <div class="login-form-content">
       <h1>DocKit</h1>
-      <n-form ref="loginFormRef" :model="loginForm" :rules="loginRules" :show-label="false">
-        <n-form-item path="name">
-          <n-input
-            v-model:value="loginForm.name"
-            clearable
+      <Form>
+        <FormItem :error="getError('name', fieldErrors.name)">
+          <Input
+            v-model="loginForm.name"
             :placeholder="$t('login.enterName')"
-            :input-props="inputProps"
+            class="w-full"
+            @blur="handleBlur('name')"
           />
-        </n-form-item>
-        <n-form-item path="password">
-          <n-input
-            v-model:value="loginForm.password"
+        </FormItem>
+        <FormItem :error="getError('password', fieldErrors.password)">
+          <Input
+            v-model="loginForm.password"
             type="password"
-            show-password-on="mousedown"
             :placeholder="$t('login.enterPwd')"
-            :input-props="inputProps"
+            class="w-full"
+            @blur="handleBlur('password')"
           />
-        </n-form-item>
-        <n-button type="primary" @click="handleLogin">
+        </FormItem>
+        <Button class="w-full" @click="handleLogin">
           {{ $t('login.title') }}
-        </n-button>
-      </n-form>
+        </Button>
+      </Form>
       <div class="opration">
         <div class="left">{{ $t('login.forget') }}</div>
         <div class="right">{{ $t('login.register') }}</div>
@@ -33,73 +33,62 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useUserStore } from '../../store';
 import { router } from '../../router';
 import { useLang } from '../../lang';
-import { inputProps } from '../../common';
+import { Form, FormItem } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useFormValidation } from '@/composables';
 
 const userStore = useUserStore();
 const lang = useLang();
+const { handleBlur, getError, markSubmitted } = useFormValidation();
 
-const loginFormRef = ref(null);
 const loginForm = ref({
   name: '',
   password: '',
 });
 
-const loginRules = ref({
-  name: [
-    {
-      required: true,
-      message: lang.t('login.enterName'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-  password: [
-    {
-      required: true,
-      message: lang.t('login.enterPwd'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-});
+const fieldErrors = computed(() => ({
+  name: !loginForm.value.name ? lang.t('login.enterName') : '',
+  password: !loginForm.value.password ? lang.t('login.enterPwd') : '',
+}));
 
 const handleLogin = (e: MouseEvent) => {
   e.preventDefault();
-  // @ts-ignore
-  loginFormRef.value?.validate((errors: unknown) => {
-    if (!errors) {
-      userStore.setToken('setToken');
-      router.push('/');
-    }
-  });
+  markSubmitted();
+  if (fieldErrors.value.name || fieldErrors.value.password) return;
+  userStore.setToken('setToken');
+  router.push('/');
 };
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .login-container {
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  .login-form-content {
-    width: 280px;
-    text-align: center;
-    .n-button {
-      width: 100%;
-    }
-    .opration {
-      height: 40px;
-      line-height: 40px;
-      margin-top: 10px;
-      display: flex;
-      justify-content: space-between;
-      .left,
-      .right {
-        cursor: pointer;
-        text-decoration: underline;
-      }
-    }
-  }
+}
+
+.login-form-content {
+  width: 280px;
+  text-align: center;
+}
+
+.opration {
+  height: 40px;
+  line-height: 40px;
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.opration .left,
+.opration .right {
+  cursor: pointer;
+  text-decoration: underline;
 }
 </style>

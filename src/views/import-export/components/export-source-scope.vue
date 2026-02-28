@@ -1,66 +1,94 @@
 <template>
-  <n-card class="step-card">
-    <template #header>
+  <Card class="step-card">
+    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="step-header">
-        <n-icon size="20" color="#18a058">
-          <DataBase />
-        </n-icon>
+        <span class="i-carbon-data-base h-5 w-5" style="color: #18a058" />
         <span class="step-title">{{ $t('export.sourceScope') }}</span>
       </div>
-    </template>
-    <template #header-extra>
       <span class="step-badge">{{ $t('export.step') }} 01</span>
-    </template>
+    </CardHeader>
+    <CardContent>
+      <Grid :cols="2" :x-gap="16" :y-gap="16">
+        <GridItem>
+          <div class="field-label">{{ $t('export.sourceDatabase') }}</div>
+          <Select
+            v-model="inputData.selectedConnection"
+            @update:model-value="handleConnectionChange"
+          >
+            <SelectTrigger class="w-full" @click="handleConnectionOpen(true)">
+              <SelectValue :placeholder="$t('connection.selectConnection')" />
+            </SelectTrigger>
+            <SelectContent>
+              <div v-if="loadingStat.connection" class="flex items-center justify-center py-4">
+                <Spinner class="h-4 w-4" />
+              </div>
+              <template v-else>
+                <SelectItem
+                  v-for="option in filteredConnectionOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </SelectItem>
+              </template>
+            </SelectContent>
+          </Select>
+        </GridItem>
+        <GridItem>
+          <div class="field-label">{{ $t('export.collectionName') }}</div>
+          <Select
+            v-model="inputData.selectedIndex"
+            :disabled="!inputData.selectedConnection || loadingStat.connection"
+            @update:model-value="handleIndexChange"
+          >
+            <SelectTrigger class="w-full" @click="handleIndexOpen(true)">
+              <SelectValue :placeholder="$t('connection.selectIndex')" />
+            </SelectTrigger>
+            <SelectContent>
+              <div v-if="loadingStat.index" class="flex items-center justify-center py-4">
+                <Spinner class="h-4 w-4" />
+              </div>
+              <template v-else>
+                <SelectItem
+                  v-for="option in filteredIndexOptions"
+                  :key="option.value"
+                  :value="option.value"
+                >
+                  {{ option.label }}
+                </SelectItem>
+              </template>
+            </SelectContent>
+          </Select>
+        </GridItem>
+      </Grid>
 
-    <n-grid cols="2" x-gap="16" y-gap="16">
-      <n-grid-item>
-        <div class="field-label">{{ $t('export.sourceDatabase') }}</div>
-        <n-select
-          v-model:value="inputData.selectedConnection"
-          :options="filteredConnectionOptions"
-          :placeholder="$t('connection.selectConnection')"
-          :loading="loadingStat.connection"
-          filterable
-          remote
-          @update:value="handleConnectionChange"
-          @update:show="handleConnectionOpen"
-          @search="handleConnectionSearch"
-        />
-      </n-grid-item>
-      <n-grid-item>
-        <div class="field-label">{{ $t('export.collectionName') }}</div>
-        <n-select
-          v-model:value="inputData.selectedIndex"
-          :options="filteredIndexOptions"
-          :placeholder="$t('connection.selectIndex')"
-          :loading="loadingStat.index"
-          filterable
-          remote
-          :disabled="!inputData.selectedConnection || loadingStat.connection"
-          @update:value="handleIndexChange"
-          @update:show="handleIndexOpen"
-          @search="handleIndexSearch"
-        />
-      </n-grid-item>
-    </n-grid>
-
-    <n-collapse class="advanced-section">
-      <n-collapse-item :title="$t('export.advanced')" name="advanced">
-        <div class="field-label">{{ $t('export.filterQuery') }}</div>
-        <n-input
-          v-model:value="filterQuery"
-          type="textarea"
-          :placeholder="$t('export.filterQueryPlaceholder')"
-          :autosize="{ minRows: 3, maxRows: 6 }"
-        />
-      </n-collapse-item>
-    </n-collapse>
-  </n-card>
+      <Collapse class="advanced-section">
+        <CollapseItem :title="$t('export.advanced')" name="advanced">
+          <div class="field-label">{{ $t('export.filterQuery') }}</div>
+          <textarea
+            v-model="filterQuery"
+            class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+            :placeholder="$t('export.filterQueryPlaceholder')"
+            rows="3"
+          />
+        </CollapseItem>
+      </Collapse>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup lang="ts">
-import { DataBase } from '@vicons/carbon';
-import { storeToRefs } from 'pinia';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Grid, GridItem } from '@/components/ui/grid';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
+import { Collapse, CollapseItem } from '@/components/ui/collapse';
+import { Spinner } from '@/components/ui/spinner';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import {
@@ -70,8 +98,10 @@ import {
   useConnectionStore,
   useImportExportStore,
 } from '../../../store';
+import { useMessageService } from '@/composables';
+import { storeToRefs } from 'pinia';
 
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
@@ -127,6 +157,11 @@ const handleConnectionSearch = (query: string) => {
 const handleIndexSearch = (query: string) => {
   inputData.value.indexSearchQuery = query;
 };
+
+// Note: handleConnectionSearch and handleIndexSearch are kept for future use
+// if search functionality is re-added to the Select component
+void handleConnectionSearch;
+void handleIndexSearch;
 
 const handleConnectionOpen = async (isOpen: boolean) => {
   if (!isOpen) return;
@@ -237,35 +272,33 @@ onMounted(async () => {
 });
 </script>
 
-<style lang="scss" scoped>
-.step-card {
-  .step-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+<style scoped>
+.step-card .step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-    .step-title {
-      font-size: 16px;
-      font-weight: 600;
-    }
-  }
+.step-card .step-header .step-title {
+  font-size: 16px;
+  font-weight: 600;
+}
 
-  .step-badge {
-    font-size: 12px;
-    color: var(--text-color-3);
-    font-weight: 500;
-  }
+.step-card .step-badge {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
 
-  .field-label {
-    font-size: 12px;
-    color: var(--text-color-3);
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    font-weight: 500;
-  }
+.step-card .field-label {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
 
-  .advanced-section {
-    margin-top: 16px;
-  }
+.step-card .advanced-section {
+  margin-top: 16px;
 }
 </style>

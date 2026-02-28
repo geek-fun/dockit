@@ -1,145 +1,140 @@
 <template>
-  <n-modal v-model:show="showIndexModal">
-    <n-card
-      :bordered="false"
-      role="dialog"
-      aria-modal="true"
-      style="width: 800px"
-      :title="$t('manage.index.newIndexForm.title')"
-      @mask-click="closeModal"
-    >
-      <template #header-extra>
-        <n-icon size="26" @click="closeModal">
-          <Close />
-        </n-icon>
-      </template>
+  <Dialog v-model:open="showIndexModal">
+    <DialogContent class="sm:max-w-[800px]">
+      <DialogHeader>
+        <DialogTitle>{{ $t('manage.index.newIndexForm.title') }}</DialogTitle>
+      </DialogHeader>
       <div class="modal-content">
-        <n-form
-          ref="formRef"
-          label-placement="left"
-          label-align="right"
-          label-width="180"
-          :model="formData"
-          :rules="formRules"
-        >
-          <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
-            <n-grid-item span="8">
-              <n-form-item :label="$t('manage.index.newIndexForm.indexName')" path="indexName">
-                <n-input
-                  v-model:value="formData.indexName"
-                  :input-props="inputProps"
-                  clearable
+        <Form>
+          <Grid :cols="8" :x-gap="10" :y-gap="10">
+            <GridItem :span="8">
+              <FormItem
+                :label="$t('manage.index.newIndexForm.indexName')"
+                required
+                :error="getError('indexName', errors.indexName)"
+              >
+                <Input
+                  v-model="formData.indexName"
+                  autocapitalize="off"
+                  autocomplete="off"
+                  :spellcheck="false"
+                  autocorrect="off"
                   :placeholder="$t('manage.index.newIndexForm.indexName')"
+                  @blur="handleBlur('indexName')"
                 />
-              </n-form-item>
-            </n-grid-item>
+              </FormItem>
+            </GridItem>
 
-            <n-grid-item span="4">
-              <n-form-item :label="$t('manage.index.newIndexForm.shards')" path="shards">
-                <n-input-number
-                  v-model:value="formData.shards"
-                  clearable
+            <GridItem :span="4">
+              <FormItem :label="$t('manage.index.newIndexForm.shards')">
+                <InputNumber
+                  v-model="formData.shards"
                   :placeholder="$t('manage.index.newIndexForm.shards')"
                 />
-              </n-form-item>
-            </n-grid-item>
+              </FormItem>
+            </GridItem>
 
-            <n-grid-item span="4">
-              <n-form-item :label="$t('manage.index.newIndexForm.replicas')" path="replicas">
-                <n-input-number
-                  v-model:value="formData.replicas"
-                  clearable
+            <GridItem :span="4">
+              <FormItem :label="$t('manage.index.newIndexForm.replicas')">
+                <InputNumber
+                  v-model="formData.replicas"
                   :placeholder="$t('manage.index.newIndexForm.replicas')"
                 />
-              </n-form-item>
-            </n-grid-item>
-          </n-grid>
-          <n-collapse>
-            <n-collapse-item title="Advanced" name="Advanced">
-              <n-grid cols="8" item-responsive responsive="screen" x-gap="10" y-gap="10">
-                <n-grid-item span="4">
-                  <n-form-item label="master_timeout" path="master_timeout">
-                    <n-input-number v-model:value="formData.master_timeout" clearable>
-                      <template #suffix>
-                        <span>s</span>
-                      </template>
-                    </n-input-number>
-                  </n-form-item>
-                </n-grid-item>
-                <n-grid-item span="4">
-                  <n-form-item label="timeout" path="timeout">
-                    <n-input-number v-model:value="formData.timeout" clearable>
-                      <template #suffix>
-                        <span>s</span>
-                      </template>
-                    </n-input-number>
-                  </n-form-item>
-                </n-grid-item>
-                <n-grid-item span="4">
-                  <n-form-item label="wait_for_active_shards" path="wait_for_active_shards">
-                    <n-input-number v-model:value="formData.wait_for_active_shards" clearable />
-                  </n-form-item>
-                </n-grid-item>
-                <n-grid-item span="8">
-                  <n-form-item label="body" path="body">
-                    <n-input
-                      v-model:value="formData.body"
-                      clearable
-                      type="textarea"
-                      :autosize="{
-                        minRows: 10,
-                        maxRows: 15,
-                      }"
+              </FormItem>
+            </GridItem>
+          </Grid>
+          <Collapse class="mt-4">
+            <CollapseItem title="Advanced" name="Advanced">
+              <Grid :cols="8" :x-gap="10" :y-gap="10">
+                <GridItem :span="4">
+                  <FormItem label="master_timeout">
+                    <div class="flex items-center gap-2">
+                      <InputNumber v-model="formData.master_timeout" class="flex-1" />
+                      <span class="text-sm text-muted-foreground">s</span>
+                    </div>
+                  </FormItem>
+                </GridItem>
+                <GridItem :span="4">
+                  <FormItem label="timeout">
+                    <div class="flex items-center gap-2">
+                      <InputNumber v-model="formData.timeout" class="flex-1" />
+                      <span class="text-sm text-muted-foreground">s</span>
+                    </div>
+                  </FormItem>
+                </GridItem>
+                <GridItem :span="4">
+                  <FormItem label="wait_for_active_shards">
+                    <InputNumber v-model="formData.wait_for_active_shards" />
+                  </FormItem>
+                </GridItem>
+                <GridItem :span="8">
+                  <FormItem label="body" :error="getError('body', errors.body)">
+                    <textarea
+                      v-model="formData.body"
+                      class="textarea-input"
+                      @blur="handleBlur('body')"
                     />
-                  </n-form-item>
-                </n-grid-item>
-              </n-grid>
-            </n-collapse-item>
-          </n-collapse>
-        </n-form>
+                  </FormItem>
+                </GridItem>
+              </Grid>
+            </CollapseItem>
+          </Collapse>
+        </Form>
       </div>
-      <template #footer>
-        <div class="card-footer">
-          <n-button @click="closeModal">{{ $t('dialogOps.cancel') }}</n-button>
-          <n-button
-            type="primary"
-            :loading="createLoading"
-            :disabled="!validationPassed"
-            @click="submitCreate"
-          >
-            {{ $t('dialogOps.create') }}
-          </n-button>
-        </div>
-      </template>
-    </n-card>
-  </n-modal>
+      <DialogFooter>
+        <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
+        <Button :disabled="!validationPassed || createLoading" @click="submitCreate">
+          <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
+          {{ $t('dialogOps.create') }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
-import { FormRules, FormValidationError, NButton, NIcon, FormItemRule } from 'naive-ui';
-import { Close } from '@vicons/carbon';
-import { CustomError, inputProps, jsonify } from '../../../common';
+import { ref, computed, watch } from 'vue';
+import { useForm } from 'vee-validate';
+import { toTypedSchema } from '@vee-validate/zod';
+import * as z from 'zod';
+import { useMessageService } from '@/composables';
+import { Loader2 } from 'lucide-vue-next';
+import { CustomError, jsonify } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
+import { useFormValidation } from '@/composables';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { InputNumber } from '@/components/ui/input-number';
+import { Form, FormItem } from '@/components/ui/form';
+import { Grid, GridItem } from '@/components/ui/grid';
+import { Collapse, CollapseItem } from '@/components/ui/collapse';
 
 const clusterManageStore = useClusterManageStore();
 const { createIndex } = clusterManageStore;
 
 const lang = useLang();
-const message = useMessage();
+const message = useMessageService();
 
 const showIndexModal = ref(false);
 const createLoading = ref(false);
-const formRef = ref();
+const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 const defaultFormData = {
   indexName: '',
-  shards: null,
-  replicas: null,
-  master_timeout: null,
-  wait_for_active_shards: null,
-  timeout: null,
-  body: null,
+  shards: null as number | null,
+  replicas: null as number | null,
+  master_timeout: null as number | null,
+  wait_for_active_shards: null as number | null,
+  timeout: null as number | null,
+  body: null as string | null,
 };
 
 const formData = ref<{
@@ -152,6 +147,58 @@ const formData = ref<{
   body: string | null;
 }>({ ...defaultFormData });
 
+const isValidJson = (value: string | null | undefined): boolean => {
+  if (!value) return true;
+  try {
+    jsonify.parse(value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Zod validation schema
+const formSchema = toTypedSchema(
+  z.object({
+    indexName: z.string().min(1, lang.t('manage.index.newIndexForm.indexRequired')),
+    shards: z.number().nullable().optional(),
+    replicas: z.number().nullable().optional(),
+    master_timeout: z.number().nullable().optional(),
+    wait_for_active_shards: z.number().nullable().optional(),
+    timeout: z.number().nullable().optional(),
+    body: z
+      .string()
+      .nullable()
+      .optional()
+      .refine(val => isValidJson(val), {
+        message: lang.t('manage.index.newIndexForm.bodyJsonRequired'),
+      }),
+  }),
+);
+
+const {
+  errors,
+  validate,
+  resetForm: veeResetForm,
+  setValues,
+} = useForm({
+  validationSchema: formSchema,
+  initialValues: { ...defaultFormData },
+});
+
+// Watch formData changes and sync with vee-validate
+watch(
+  formData,
+  newVal => {
+    setValues(newVal);
+  },
+  { deep: true },
+);
+
+const validationPassed = computed(() => {
+  return !!formData.value.indexName?.trim() && isValidJson(formData.value.body);
+});
+
 const toggleModal = () => {
   if (showIndexModal.value) {
     closeModal();
@@ -159,85 +206,70 @@ const toggleModal = () => {
     showIndexModal.value = true;
   }
 };
+
 const closeModal = () => {
   showIndexModal.value = false;
   formData.value = { ...defaultFormData };
+  veeResetForm({ values: { ...defaultFormData } });
+  resetValidation();
 };
-
-const formRules = reactive<FormRules>({
-  // @ts-ignore
-  indexName: [
-    {
-      required: true,
-      renderMessage: () => lang.t('manage.index.newIndexForm.indexRequired'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-  // validate body should be a json
-  body: [
-    {
-      required: false,
-      validator: (_: FormItemRule, value: string) => {
-        if (!value) return true;
-        try {
-          jsonify.parse(value);
-          return true;
-        } catch (e) {
-          return false;
-        }
-      },
-      renderMessage: () => lang.t('manage.index.newIndexForm.bodyJsonRequired'),
-      trigger: ['input', 'blur'],
-    },
-  ],
-});
 
 const submitCreate = async (event: MouseEvent) => {
   event.preventDefault();
-  formRef.value?.validate(async (errors: boolean) => {
-    if (errors) {
-      return;
-    }
-    createLoading.value = !createLoading.value;
-    try {
-      await createIndex(formData.value);
-      message.success(lang.t('dialogOps.createSuccess'));
-    } catch (err) {
-      message.error((err as CustomError).details, {
-        closable: true,
-        keepAliveOnHover: true,
-        duration: 7200,
-      });
-      return;
-    } finally {
-      createLoading.value = !createLoading.value;
-    }
+  markSubmitted();
 
-    closeModal();
-  });
-};
+  const { valid } = await validate();
+  if (!valid) return;
 
-const validationPassed = watch(formData.value, async () => {
+  createLoading.value = true;
   try {
-    return await formRef.value?.validate((errors: Array<FormValidationError>) => !errors);
-  } catch (e) {
-    return false;
+    await createIndex(formData.value);
+    message.success(lang.t('dialogOps.createSuccess'));
+    closeModal();
+  } catch (err) {
+    message.error((err as CustomError).details, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 7200,
+    });
+  } finally {
+    createLoading.value = false;
   }
-});
+};
 
 defineExpose({ toggleModal });
 </script>
 
-<style lang="scss" scoped>
-:deep(.n-card-header) {
-  .n-card-header__extra {
-    cursor: pointer;
-  }
+<style scoped>
+.modal-content {
+  padding: 1rem 0;
 }
 
-.card-footer {
+.textarea-input {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  min-height: 200px;
+  max-height: 300px;
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--input));
+  background-color: hsl(var(--background));
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  resize: vertical;
+}
+
+.textarea-input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--ring));
+}
+
+.textarea-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.textarea-input::placeholder {
+  color: hsl(var(--muted-foreground));
 }
 </style>

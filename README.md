@@ -65,6 +65,25 @@ npm install
 npm run tauri dev
 ```
 
+## Styling Architecture
+
+The project uses **shadcn-vue** (built on Radix Vue) for UI components and **UnoCSS** for utility-first styling.
+
+### Current Setup
+
+1. **UnoCSS** - Atomic CSS utilities loaded via `virtual:uno.css` in `src/main.ts`
+2. **shadcn-vue** - Headless UI components in `src/components/ui/` with CSS variable theming via `src/assets/styles/index.css`
+
+### Style Entry Points
+
+- `src/main.ts` - Main entry point importing all style layers
+- `src/assets/styles/index.css` - Theme CSS variables and base styles (single source of truth)
+- `uno.config.ts` - Unified UnoCSS configuration with all presets and theme tokens
+
+### Theme Configuration
+
+Brand colors and design tokens are defined via CSS variables in `src/assets/styles/index.css` (with light/dark mode support) and referenced in `uno.config.ts` for UnoCSS utilities.
+
 ## About
 
 ### Wechat Official Account

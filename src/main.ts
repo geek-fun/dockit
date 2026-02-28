@@ -5,8 +5,11 @@ import { router } from './router';
 import { lang } from './lang';
 import piniaPluginPersistence from 'pinia-plugin-persistedstate';
 
-import './assets/styles/normalize.css';
-import './assets/styles/theme.scss';
+// UnoCSS utilities - virtual import
+import 'virtual:uno.css';
+
+// Styles - Single source of truth for all theme tokens
+import './assets/styles/index.css';
 
 const pinia = createPinia();
 pinia.use(piniaPluginPersistence);

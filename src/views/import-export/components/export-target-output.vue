@@ -1,87 +1,93 @@
 <template>
-  <n-card class="step-card">
-    <template #header>
+  <Card class="step-card">
+    <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-4">
       <div class="step-header">
-        <n-icon size="20" color="#18a058">
-          <DocumentExport />
-        </n-icon>
+        <span class="i-carbon-document-export h-5 w-5" style="color: #18a058" />
         <span class="step-title">{{ $t('export.targetOutput') }}</span>
       </div>
-    </template>
-    <template #header-extra>
       <span class="step-badge">{{ $t('export.step') }} 03</span>
-    </template>
+    </CardHeader>
+    <CardContent>
+      <Grid :cols="2" :x-gap="16" :y-gap="16">
+        <!-- FILE TYPE and FILENAME in same row -->
+        <GridItem>
+          <div class="field-label">{{ $t('export.fileType') }}</div>
+          <div class="flex gap-2">
+            <Button
+              v-for="type in fileTypeOptions"
+              :key="type.value"
+              :variant="selectedFileType === type.value ? 'default' : 'outline'"
+              @click="handleFileTypeChange(type.value)"
+            >
+              {{ type.label }}
+            </Button>
+          </div>
+        </GridItem>
 
-    <n-grid cols="2" x-gap="16" y-gap="16">
-      <!-- FILE TYPE and FILENAME in same row -->
-      <n-grid-item>
-        <div class="field-label">{{ $t('export.fileType') }}</div>
-        <n-space>
-          <n-button
-            v-for="type in fileTypeOptions"
-            :key="type.value"
-            :type="selectedFileType === type.value ? 'primary' : 'default'"
-            @click="handleFileTypeChange(type.value)"
-          >
-            {{ type.label }}
-          </n-button>
-        </n-space>
-      </n-grid-item>
-
-      <n-grid-item>
-        <div class="field-label">{{ $t('export.filename') }}</div>
-        <n-input
-          v-model:value="fileName"
-          :placeholder="$t('export.filenamePlaceholder')"
-          :input-props="inputProps"
-          @update:value="handleFileNameChange"
-        >
-          <template #suffix>
-            <span class="file-extension">.{{ fileExtension }}</span>
-          </template>
-        </n-input>
-      </n-grid-item>
-
-      <!-- DESTINATION PATH with folder selector and extra path input -->
-      <n-grid-item span="2">
-        <div class="field-label">{{ $t('export.destinationPath') }}</div>
-        <div class="destination-path-row">
-          <n-input-group class="folder-selector" @click="handleSelectFolder">
-            <n-button>
-              <template #icon>
-                <n-icon>
-                  <FolderOpen />
-                </n-icon>
-              </template>
-            </n-button>
-            <n-input
-              :value="folderPath || $t('export.selectFolderPlaceholder')"
-              readonly
-              class="folder-path-input"
-              :input-props="inputProps"
+        <GridItem>
+          <div class="field-label">{{ $t('export.filename') }}</div>
+          <div class="relative">
+            <Input
+              v-model="fileName"
+              :placeholder="$t('export.filenamePlaceholder')"
+              class="pr-16"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              @update:model-value="handleFileNameChange"
             />
-          </n-input-group>
-          <span class="path-separator">/</span>
-          <n-input
-            v-model:value="extraPath"
-            :placeholder="$t('export.extraPathPlaceholder')"
-            :input-props="inputProps"
-            class="extra-path-input"
-            @update:value="handleExtraPathChange"
-          />
-        </div>
-      </n-grid-item>
-    </n-grid>
-  </n-card>
+            <span class="file-extension">{{ `.${fileExtension}` }}</span>
+          </div>
+        </GridItem>
+
+        <!-- DESTINATION PATH with folder selector and extra path input -->
+        <GridItem :span="2">
+          <div class="field-label">{{ $t('export.destinationPath') }}</div>
+          <div class="destination-path-row">
+            <div class="folder-selector" @click="handleSelectFolder">
+              <Button variant="outline" size="icon">
+                <span class="i-carbon-folder-open h-4 w-4" />
+              </Button>
+              <Input
+                :model-value="folderPath || $t('export.selectFolderPlaceholder')"
+                readonly
+                class="folder-path-input cursor-pointer"
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+              />
+            </div>
+            <span class="path-separator">/</span>
+            <Input
+              v-model="extraPath"
+              :placeholder="$t('export.extraPathPlaceholder')"
+              class="extra-path-input"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              @update:model-value="handleExtraPathChange"
+            />
+          </div>
+        </GridItem>
+      </Grid>
+    </CardContent>
+  </Card>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { DocumentExport, FolderOpen } from '@vicons/carbon';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Grid, GridItem } from '@/components/ui/grid';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useImportExportStore, FileType } from '../../../store';
-import { CustomError, inputProps } from '../../../common';
+import { CustomError } from '../../../common';
+import { useMessageService } from '@/composables';
 
-const message = useMessage();
+const message = useMessageService();
 
 const exportStore = useImportExportStore();
 const { folderPath, fileName, fileType, extraPath } = storeToRefs(exportStore);
@@ -111,12 +117,12 @@ const handleFileTypeChange = (type: FileType) => {
   exportStore.setFileType(type);
 };
 
-const handleFileNameChange = (value: string) => {
-  exportStore.setFileName(value);
+const handleFileNameChange = (value: string | number) => {
+  exportStore.setFileName(String(value));
 };
 
-const handleExtraPathChange = (value: string) => {
-  exportStore.setExtraPath(value);
+const handleExtraPathChange = (value: string | number) => {
+  exportStore.setExtraPath(String(value));
 };
 
 const handleSelectFolder = async () => {
@@ -140,61 +146,73 @@ watch(fileType, newType => {
 });
 </script>
 
-<style lang="scss" scoped>
-.step-card {
-  .step-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+<style scoped>
+.step-card .step-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-    .step-title {
-      font-size: 16px;
-      font-weight: 600;
-    }
-  }
+.step-card .step-header .step-title {
+  font-size: 16px;
+  font-weight: 600;
+}
 
-  .step-badge {
-    font-size: 12px;
-    color: var(--text-color-3);
-    font-weight: 500;
-  }
+.step-card .step-badge {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
 
-  .field-label {
-    font-size: 12px;
-    color: var(--text-color-3);
-    margin-bottom: 8px;
-    text-transform: uppercase;
-    font-weight: 500;
-  }
+.step-card .field-label {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
 
-  .file-extension {
-    color: var(--text-color-3);
-    font-size: 13px;
-  }
+.step-card .file-extension {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  pointer-events: none;
+}
 
-  .destination-path-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+.step-card .destination-path-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-    .folder-selector {
-      flex: 1;
-      cursor: pointer;
+.step-card .destination-path-row .folder-selector {
+  flex: 1;
+  display: flex;
+  cursor: pointer;
+  gap: 0;
+}
 
-      .folder-path-input {
-        flex: 1;
-        cursor: pointer;
-      }
-    }
+.step-card .destination-path-row .folder-selector .folder-path-input {
+  flex: 1;
+  cursor: pointer;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
 
-    .path-separator {
-      color: var(--text-color-3);
-      font-size: 14px;
-    }
+.step-card .destination-path-row .folder-selector button {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
 
-    .extra-path-input {
-      flex: 1;
-    }
-  }
+.step-card .destination-path-row .path-separator {
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+}
+
+.step-card .destination-path-row .extra-path-input {
+  flex: 1;
 }
 </style>

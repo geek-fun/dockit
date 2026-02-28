@@ -19,7 +19,7 @@
       <dynamo-table-manage ref="dynamoTableManageRef" class="state-container" />
     </template>
     <div v-else class="empty-state">
-      <n-empty :description="$t('manage.emptyNoConnection')" />
+      <Empty :description="$t('manage.emptyNoConnection')" />
     </div>
   </div>
 </template>
@@ -35,8 +35,10 @@ import ShardManage from './components/shard-manage.vue';
 import { useLang } from '../../lang';
 import IndexManage from './components/index-manage.vue';
 import { CustomError } from '../../common';
+import { useMessageService } from '@/composables';
+import { Empty } from '@/components/ui/empty';
 
-const message = useMessage();
+const message = useMessageService();
 const lang = useLang();
 
 const activeTab = ref(lang.t('manage.cluster'));
@@ -92,24 +94,24 @@ onMounted(async () => {
 });
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .manage-container {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+}
 
-  .state-container {
-    flex: 1;
-    height: 0;
-  }
+.state-container {
+  flex: 1;
+  height: 0;
+}
 
-  .empty-state {
-    flex: 1;
-    height: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+.empty-state {
+  flex: 1;
+  height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

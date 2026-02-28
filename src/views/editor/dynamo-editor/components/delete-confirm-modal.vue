@@ -1,59 +1,77 @@
 <template>
-  <n-modal :show="props.show" @update:show="val => emit('update:show', val)">
-    <n-card
-      style="width: 400px"
-      :title="lang.t('dialogOps.warning')"
-      :bordered="false"
-      role="dialog"
-    >
-      <n-result
-        v-if="resultType === 'success' && resultMessage"
-        status="success"
-        :title="lang.t('editor.dynamo.deleteItemSuccess')"
-        size="small"
-      />
-      <n-alert
-        v-else-if="resultMessage"
-        :type="resultType"
-        style="margin-bottom: 12px"
-        closable
-        @close="resultMessage = ''"
-      >
-        {{ resultMessage }}
-      </n-alert>
-      <p v-else>{{ lang.t('editor.dynamo.deleteItemConfirm') }}</p>
-      <template #footer>
-        <div style="display: flex; justify-content: flex-end; gap: 12px">
-          <n-button :disabled="loading" @click="handleCancel">
-            {{ lang.t('dialogOps.cancel') }}
-          </n-button>
-          <n-button
-            v-if="resultType === 'error'"
-            type="warning"
-            :loading="loading"
-            @click="handleRetry"
-          >
-            {{ lang.t('dialogOps.retry') }}
-          </n-button>
-          <n-button
-            v-else-if="!resultMessage"
-            type="warning"
-            :loading="loading"
-            @click="handleConfirm"
-          >
-            {{ lang.t('dialogOps.confirm') }}
-          </n-button>
-        </div>
-      </template>
-    </n-card>
-  </n-modal>
+  <Dialog :open="props.show" @update:open="handleOpenChange">
+    <DialogContent class="sm:max-w-[400px]" :show-close="false">
+      <DialogHeader>
+        <DialogTitle>{{ lang.t('dialogOps.warning') }}</DialogTitle>
+        <button
+          class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
+          @click="handleCancel"
+        >
+          <Icon :size="20" :component="X" />
+        </button>
+      </DialogHeader>
+
+      <div class="modal-content">
+        <Alert v-if="resultType === 'success' && resultMessage" variant="success" class="mb-4">
+          <AlertDescription>
+            {{ lang.t('editor.dynamo.deleteItemSuccess') }}
+          </AlertDescription>
+        </Alert>
+        <Alert v-else-if="resultMessage" variant="destructive" class="mb-4">
+          <AlertDescription class="flex items-center justify-between">
+            {{ resultMessage }}
+            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="resultMessage = ''">
+              <X class="w-4 h-4" />
+            </button>
+          </AlertDescription>
+        </Alert>
+        <p v-else>{{ lang.t('editor.dynamo.deleteItemConfirm') }}</p>
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" :disabled="loading" @click="handleCancel">
+          {{ lang.t('dialogOps.cancel') }}
+        </Button>
+        <Button
+          v-if="resultType === 'error'"
+          variant="destructive"
+          :disabled="loading"
+          @click="handleRetry"
+        >
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+          {{ lang.t('dialogOps.retry') }}
+        </Button>
+        <Button
+          v-else-if="!resultMessage"
+          variant="destructive"
+          :disabled="loading"
+          @click="handleConfirm"
+        >
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+          {{ lang.t('dialogOps.delete') }}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { X, Loader2 } from 'lucide-vue-next';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../../common';
 import { useLang } from '../../../../lang';
 import { DynamoDBConnection, useDbDataStore, useTabStore } from '../../../../store';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icon';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const lang = useLang();
 const dbDataStore = useDbDataStore();
@@ -70,6 +88,12 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   (e: 'update:show', value: boolean): void;
 }>();
+
+const handleOpenChange = (open: boolean) => {
+  if (!open) {
+    handleCancel();
+  }
+};
 
 const loading = ref(false);
 const resultMessage = ref('');
@@ -124,7 +148,7 @@ const handleConfirm = async () => {
     setTimeout(() => {
       emit('update:show', false);
     }, SUCCESS_MESSAGE_DELAY);
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Ensure minimum loading time before showing error
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
@@ -134,11 +158,14 @@ const handleConfirm = async () => {
 
     // Show error and keep modal open for retry
     resultType.value = 'error';
-    resultMessage.value = error?.details
-      ? `status: ${error?.status ?? 'unknown'}, details: ${error.details}`
-      : error?.message || String(error);
+    const err = error as { status?: string; details?: string; message?: string };
+    resultMessage.value = err?.details
+      ? `status: ${err?.status ?? 'unknown'}, details: ${err.details}`
+      : err?.message || String(error);
   } finally {
     loading.value = false;
   }
 };
 </script>
+
+<style scoped></style>

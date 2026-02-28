@@ -1,20 +1,16 @@
 <template>
   <div class="history-empty-content">
     <div class="icon-box">
-      <n-icon>
-        <FileSearchOutlined />
-      </n-icon>
+      <span class="i-carbon-search h-12 w-12 text-muted-foreground" />
     </div>
     <div class="main-desc">{{ $t('history.empty') }}</div>
     <div class="second-desc">{{ $t('history.emptyDesc') }}</div>
   </div>
 </template>
 
-<script lang="ts" setup>
-import { FileSearchOutlined } from '@vicons/antd';
-</script>
+<script lang="ts" setup></script>
 
-<style lang="scss" scoped>
+<style scoped>
 .history-empty-content {
   width: 80%;
   padding-top: 15%;
@@ -23,19 +19,20 @@ import { FileSearchOutlined } from '@vicons/antd';
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: var(--gray-color);
-  .icon-box {
-    .n-icon {
-      font-size: 50px;
-    }
-  }
-  .main-desc {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 10px 0;
-  }
-  .second-desc {
-    text-align: center;
-  }
+  color: hsl(var(--muted-foreground));
+}
+
+.history-empty-content .icon-box {
+  font-size: 50px;
+}
+
+.history-empty-content .main-desc {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 10px 0;
+}
+
+.history-empty-content .second-desc {
+  text-align: center;
 }
 </style>
