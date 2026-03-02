@@ -11,19 +11,12 @@
       <Grid :cols="2" :x-gap="16" :y-gap="16">
         <GridItem>
           <div class="field-label">{{ $t('import.targetDatabase') }}</div>
-          <Select
-            v-model="inputData.selectedConnection"
-            @update:model-value="handleConnectionChange"
-          >
+          <Select v-model="inputData.selectedConnection" @update:model-value="handleConnectionChange">
             <SelectTrigger>
               <SelectValue :placeholder="$t('connection.selectConnection')" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem
-                v-for="option in filteredConnectionOptions"
-                :key="option.value"
-                :value="option.value"
-              >
+              <SelectItem v-for="option in filteredConnectionOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </SelectItem>
             </SelectContent>
@@ -31,20 +24,13 @@
         </GridItem>
         <GridItem>
           <div class="field-label">{{ $t('import.collectionName') }}</div>
-          <Select
-            v-model="inputData.selectedIndex"
-            :disabled="!inputData.selectedConnection || loadingStat.connection"
-            @update:model-value="handleIndexChange"
-          >
+          <Select v-model="inputData.selectedIndex" :disabled="!inputData.selectedConnection || loadingStat.connection"
+            @update:model-value="handleIndexChange">
             <SelectTrigger>
               <SelectValue :placeholder="$t('import.selectOrCreateIndex')" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem
-                v-for="option in filteredIndexOptions"
-                :key="option.value"
-                :value="option.value"
-              >
+              <SelectItem v-for="option in filteredIndexOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </SelectItem>
             </SelectContent>
@@ -124,17 +110,6 @@ const loadingStat = ref({
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
 const currentExistingIndices = ref<string[]>([]);
 
-// Initialize from store
-onMounted(async () => {
-  if (importConnection.value) {
-    inputData.value.selectedConnection = importConnection.value.name;
-  }
-  if (importTargetIndex.value) {
-    inputData.value.selectedIndex = importTargetIndex.value;
-  }
-  // Fetch connections on mount
-  await handleConnectionOpen();
-});
 
 const connectionOptions = computed(() =>
   connections.value.map(({ name }) => ({ label: name, value: name })),
@@ -188,7 +163,10 @@ const handleIndexOpen = async () => {
 
   loadingStat.value.index = true;
   try {
-    await fetchIndices(importConnection.value);
+    // Only fetch indices for Elasticsearch — DynamoDB metadata is already populated by freshConnection.
+    if (importConnection.value.type === DatabaseType.ELASTICSEARCH) {
+      await fetchIndices(importConnection.value);
+    }
     updateIndexOptions();
   } catch (err) {
     const error = err as CustomError;
@@ -210,17 +188,23 @@ const updateIndexOptions = () => {
   }
 
   if (importConnection.value.type === DatabaseType.ELASTICSEARCH) {
+    // fetchIndices hits the server and updates connectionStore.connections[] in-place by id.
+    // importConnection.value (importExportStore copy) is a separate object and is not mutated,
+    // so look up the freshly updated entry from the connectionStore.
+    const updatedCon =
+      connections.value.find(c => c.id === importConnection.value?.id) ?? importConnection.value;
     const indices =
-      (importConnection.value as ElasticsearchConnection)?.indices?.map(index => index.index) ?? [];
+      (updatedCon as ElasticsearchConnection)?.indices?.map(index => index.index) ?? [];
     currentExistingIndices.value = indices;
     indexOptions.value = indices.map(index => ({
       label: index,
       value: index,
     }));
   } else if (importConnection.value.type === DatabaseType.DYNAMODB) {
-    // DynamoDB: only show table name (not GSIs)
+    // DynamoDB metadata is already populated by freshConnection — no extra fetch needed.
+    // importConnection.value holds the refreshed object; connectionStore.connections[] is NOT
+    // updated by freshConnection, so we must NOT use the connections.value lookup here.
     const dynamoOptions = getDynamoIndexOrTableOption(importConnection.value as DynamoDBConnection);
-    // Filter to only include the table (first option which starts with "Table -")
     const tableOption = dynamoOptions.find(opt => opt.label.startsWith('Table -'));
     if (tableOption) {
       const tableName = (importConnection.value as DynamoDBConnection).tableName;
@@ -243,8 +227,8 @@ const handleConnectionChange = async (value: string) => {
   if (!con) return;
   loadingStat.value.connection = true;
   try {
-    await freshConnection(con);
-    importExportStore.setImportConnection(con);
+    const refreshed = await freshConnection(con);
+    importExportStore.setImportConnection(refreshed);
     inputData.value.selectedConnection = value;
     inputData.value.selectedIndex = '';
     indexOptions.value = [];
@@ -273,6 +257,22 @@ const handleIndexChange = (value: string) => {
     loadingStat.value.index = false;
   }
 };
+
+
+// Initialize from store
+onMounted(async () => {
+  // Always refresh the connections list first
+  await handleConnectionOpen();
+  if (importConnection.value) {
+    inputData.value.selectedConnection = importConnection.value.name;
+    // Repopulate indexOptions from stored connection without resetting the selection
+    await handleIndexOpen();
+    // Restore the previously selected index
+    if (importTargetIndex.value) {
+      inputData.value.selectedIndex = importTargetIndex.value;
+    }
+  }
+});
 </script>
 
 <style scoped>

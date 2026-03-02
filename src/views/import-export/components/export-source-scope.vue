@@ -14,8 +14,9 @@
           <Select
             v-model="inputData.selectedConnection"
             @update:model-value="handleConnectionChange"
+            @update:open="handleConnectionOpen"
           >
-            <SelectTrigger class="w-full" @click="handleConnectionOpen(true)">
+            <SelectTrigger class="w-full">
               <SelectValue :placeholder="$t('connection.selectConnection')" />
             </SelectTrigger>
             <SelectContent>
@@ -40,8 +41,9 @@
             v-model="inputData.selectedIndex"
             :disabled="!inputData.selectedConnection || loadingStat.connection"
             @update:model-value="handleIndexChange"
+            @update:open="handleIndexOpen"
           >
-            <SelectTrigger class="w-full" @click="handleIndexOpen(true)">
+            <SelectTrigger class="w-full">
               <SelectValue :placeholder="$t('connection.selectIndex')" />
             </SelectTrigger>
             <SelectContent>
@@ -193,18 +195,23 @@ const handleIndexOpen = async (isOpen: boolean) => {
 
   loadingStat.value.index = true;
   try {
-    await fetchIndices(connection.value);
     if (connection.value.type === DatabaseType.ELASTICSEARCH) {
-      // Elasticsearch: use indices
+      // fetchIndices hits the server and updates connectionStore.connections[] in-place by id.
+      // connection.value (exportStore copy) is a separate object and is not mutated,
+      // so look up the freshly updated entry from the connectionStore afterwards.
+      await fetchIndices(connection.value);
+      const updatedCon =
+        connections.value.find(c => c.id === connection.value?.id) ?? connection.value;
       indexOptions.value =
-        (connection.value as ElasticsearchConnection)?.indices?.map(index => ({
+        (updatedCon as ElasticsearchConnection)?.indices?.map(index => ({
           label: index.index,
           value: index.index,
         })) ?? [];
     } else if (connection.value.type === DatabaseType.DYNAMODB) {
-      // DynamoDB: only show table name (not GSIs)
+      // DynamoDB metadata is already populated by freshConnection — no extra fetch needed.
+      // connection.value holds the refreshed object; connectionStore.connections[] is NOT updated
+      // by freshConnection, so we must NOT use the connections.value lookup here.
       const dynamoOptions = getDynamoIndexOrTableOption(connection.value as DynamoDBConnection);
-      // Filter to only include the table (first option which starts with "Table -")
       const tableOption = dynamoOptions.find(opt => opt.label.startsWith('Table -'));
       indexOptions.value = tableOption
         ? [
@@ -232,12 +239,14 @@ const handleConnectionChange = async (value: string) => {
   if (!con) return;
   loadingStat.value.connection = true;
   try {
-    await freshConnection(con);
-    setConnection(con);
+    const refreshed = await freshConnection(con);
+    setConnection(refreshed);
     inputData.value.selectedConnection = value;
     inputData.value.selectedIndex = '';
     indexOptions.value = [];
     inputData.value.indexSearchQuery = '';
+    // Fetch indices immediately after connection change
+    await handleIndexOpen(true);
   } catch (err) {
     const error = err as CustomError;
     message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
@@ -262,12 +271,16 @@ const handleIndexChange = (value: string) => {
 
 // Initialize from store
 onMounted(async () => {
+  // Always refresh the connections list first
+  await fetchConnections();
   if (connection.value) {
-    await handleConnectionChange(connection.value.name);
     inputData.value.selectedConnection = connection.value.name;
-  }
-  if (selectedIndex.value) {
-    handleIndexChange(selectedIndex.value);
+    // Repopulate indexOptions from stored connection without resetting selectedIndex
+    await handleIndexOpen(true);
+    // Restore the previously selected index
+    if (selectedIndex.value) {
+      inputData.value.selectedIndex = selectedIndex.value;
+    }
   }
 });
 </script>
