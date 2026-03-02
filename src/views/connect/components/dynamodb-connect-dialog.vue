@@ -64,76 +64,70 @@
               </div>
             </RadioGroup>
           </FormItem>
-          <Alert v-if="isLocal" variant="info" class="mb-4">
-            <AlertDescription>{{ $t('connection.localLimitations') }}</AlertDescription>
-          </Alert>
-          <FormItem
-            v-if="isLocal"
-            :label="$t('connection.endpointUrl')"
-            required
-            :error="getError('endpointUrl', errors.endpointUrl)"
-          >
-            <Input
-              v-model="formData.endpointUrl"
-              placeholder="http://localhost:8000"
-              @blur="handleBlur('endpointUrl')"
-            />
-          </FormItem>
-          <FormItem
-            :label="$t('connection.region')"
-            required
-            :error="getError('region', errors.region)"
-          >
-            <Select
-              v-if="!isLocal"
-              v-model="formData.region"
-              @update:open="(open: boolean) => !open && handleBlur('region')"
+          <template v-if="isLocal">
+            <Alert variant="info" class="mb-4">
+              <AlertDescription>{{ $t('connection.localLimitations') }}</AlertDescription>
+            </Alert>
+            <FormItem
+              :label="$t('connection.endpointUrl')"
+              required
+              :error="getError('endpointUrl', errors.endpointUrl)"
             >
-              <SelectTrigger>
-                <SelectValue :placeholder="$t('connection.selectRegion')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="option in regionOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <Input
-              v-else
-              v-model="formData.region"
-              placeholder="us-east-1"
-              @blur="handleBlur('region')"
-            />
-          </FormItem>
-          <FormItem
-            v-if="!isLocal"
-            :label="$t('connection.accessKeyId')"
-            required
-            :error="getError('accessKeyId', errors.accessKeyId)"
-          >
-            <Input
-              v-model="formData.accessKeyId"
-              :placeholder="$t('connection.accessKeyId')"
-              @blur="handleBlur('accessKeyId')"
-            />
-          </FormItem>
-          <FormItem
-            v-if="!isLocal"
-            :label="$t('connection.secretAccessKey')"
-            required
-            :error="getError('secretAccessKey', errors.secretAccessKey)"
-          >
-            <Input
-              v-model="formData.secretAccessKey"
-              type="password"
-              :placeholder="$t('connection.secretAccessKey')"
-              @blur="handleBlur('secretAccessKey')"
-            />
-          </FormItem>
+              <Input
+                v-model="formData.endpointUrl"
+                placeholder="http://localhost:8000"
+                @blur="handleBlur('endpointUrl')"
+              />
+            </FormItem>
+          </template>
+          <template v-else>
+            <FormItem
+              :label="$t('connection.region')"
+              required
+              :error="getError('region', errors.region)"
+            >
+              <Select
+                v-model="formData.region"
+                @update:open="(open: boolean) => !open && handleBlur('region')"
+              >
+                <SelectTrigger>
+                  <SelectValue :placeholder="$t('connection.selectRegion')" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in regionOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+            <FormItem
+              :label="$t('connection.accessKeyId')"
+              required
+              :error="getError('accessKeyId', errors.accessKeyId)"
+            >
+              <Input
+                v-model="formData.accessKeyId"
+                :placeholder="$t('connection.accessKeyId')"
+                @blur="handleBlur('accessKeyId')"
+              />
+            </FormItem>
+            <FormItem
+              :label="$t('connection.secretAccessKey')"
+              required
+              :error="getError('secretAccessKey', errors.secretAccessKey)"
+            >
+              <Input
+                v-model="formData.secretAccessKey"
+                type="password"
+                :placeholder="$t('connection.secretAccessKey')"
+                @blur="handleBlur('secretAccessKey')"
+              />
+            </FormItem>
+          </template>
         </Form>
       </div>
 
@@ -274,11 +268,12 @@ const onTargetChange = (value: string) => {
   if (value === 'local') {
     formData.value.accessKeyId = 'dummy';
     formData.value.secretAccessKey = 'dummy';
-    formData.value.region = formData.value.region || 'us-east-1';
+    formData.value.region = 'us-east-1';
     formData.value.endpointUrl = formData.value.endpointUrl || 'http://localhost:8000';
   } else {
     formData.value.accessKeyId = '';
     formData.value.secretAccessKey = '';
+    formData.value.region = '';
     formData.value.endpointUrl = '';
   }
 };
@@ -318,17 +313,16 @@ const closeModal = () => {
 };
 
 const isFormValid = computed(() => {
-  const base =
+  if (isLocal.value) {
+    return formData.value.name && formData.value.tableName && formData.value.endpointUrl;
+  }
+  return (
     formData.value.name &&
     formData.value.tableName &&
     formData.value.region &&
     formData.value.accessKeyId &&
-    formData.value.secretAccessKey;
-
-  if (isLocal.value) {
-    return base && formData.value.endpointUrl;
-  }
-  return base;
+    formData.value.secretAccessKey
+  );
 });
 
 const testConnect = async () => {
