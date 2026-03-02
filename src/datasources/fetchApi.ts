@@ -12,7 +12,7 @@ type FetchApiOptions = {
   payload?: string;
 };
 
-const handleFetch = (result: { data: unknown; status: number; details: string | undefined }) => {
+const handleFetch = (result: { data: unknown; status: number; details: string | undefined; errorType?: string }) => {
   if (result.status >= 200 && result.status < 300) {
     return result.data;
   }
@@ -25,7 +25,7 @@ const handleFetch = (result: { data: unknown; status: number; details: string | 
   if (result.status === 403) {
     throw new CustomError(result.status, get(result, 'data.error.reason', result.details || ''));
   }
-  throw new CustomError(result.status, result.details || '');
+  throw new CustomError(result.status, result.details || '', result.errorType);
 };
 
 const fetchWrapper = async ({
@@ -50,13 +50,13 @@ const fetchWrapper = async ({
   ssl: boolean;
 }) => {
   const url = buildURL(host, port, path, queryParameters);
-  const { data, status, details } = await fetchRequest(url, {
+  const { data, status, details, errorType } = await fetchRequest(url, {
     method,
     headers: { ...buildAuthHeader(username, password) },
     payload,
     agent: { ssl },
   });
-  return handleFetch({ data, status, details });
+  return handleFetch({ data, status, details, errorType });
 };
 
 const fetchRequest = async (
@@ -99,6 +99,7 @@ const fetchRequest = async (
         return {
           status: parsed.status || 500,
           details: parsed.message || e,
+          errorType: parsed.error_type,
         };
       } catch {
         return { status: 500, details: e };
