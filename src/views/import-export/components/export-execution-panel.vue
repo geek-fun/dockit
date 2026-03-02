@@ -283,7 +283,7 @@ const executeExport = async () => {
   } catch (err) {
     const error = err as CustomError;
     exportStore.updateTaskStatus(taskId, 'failed', undefined, error.details);
-    message.error(`status: ${error.status}, details: ${error.details}`, {
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 5000,

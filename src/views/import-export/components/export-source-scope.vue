@@ -170,7 +170,7 @@ const handleConnectionOpen = async (isOpen: boolean) => {
     await fetchConnections();
   } catch (err) {
     const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3000,
@@ -217,7 +217,7 @@ const handleIndexOpen = async (isOpen: boolean) => {
     }
   } catch (err) {
     const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3000,
@@ -240,7 +240,7 @@ const handleConnectionChange = async (value: string) => {
     inputData.value.indexSearchQuery = '';
   } catch (err) {
     const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3000,

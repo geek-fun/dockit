@@ -166,7 +166,7 @@ const handleConnectionOpen = async () => {
     await fetchConnections();
   } catch (err) {
     const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3000,
@@ -192,7 +192,7 @@ const handleIndexOpen = async () => {
     updateIndexOptions();
   } catch (err) {
     const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3000,
@@ -254,7 +254,7 @@ const handleConnectionChange = async (value: string) => {
     await handleIndexOpen();
   } catch (err) {
     const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3000,

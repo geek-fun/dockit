@@ -374,7 +374,7 @@ const testConnectConfirm = async () => {
     }
 
     const error = e as CustomError;
-    errorMessage.value = `status: ${error.status}, details: ${error.details}`;
+    errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
   } finally {
     testLoading.value = false;
   }
@@ -407,7 +407,7 @@ const saveConnectConfirm = async () => {
     closeModal();
   } catch (e) {
     const error = e as CustomError;
-    errorMessage.value = `status: ${error.status}, details: ${error.details}`;
+    errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
   } finally {
     saveLoading.value = false;
   }

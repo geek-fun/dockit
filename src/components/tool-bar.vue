@@ -448,7 +448,7 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
       }
     } catch (err) {
       const error = err as CustomError;
-      message.error(`status: ${error.status}, details: ${error.details}`, {
+      message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
         closable: true,
         keepAliveOnHover: true,
         duration: 36000000,

@@ -86,9 +86,27 @@ const fetchRequest = async (
 
     throw new CustomError(status, message);
   } catch (e) {
-    const error = typeof e == 'string' ? new CustomError(500, e) : (e as CustomError);
-    const details = error.details || error.message;
     debug('error encountered while node-fetch fetch target:', e);
+
+    // When Rust returns Err(String), Tauri passes it as a plain string (JSON)
+    if (typeof e === 'string') {
+      try {
+        const parsed = jsonify.parse(e) as {
+          status?: number;
+          message?: string;
+          error_type?: string;
+        };
+        return {
+          status: parsed.status || 500,
+          details: parsed.message || e,
+        };
+      } catch {
+        return { status: 500, details: e };
+      }
+    }
+
+    const error = e as CustomError;
+    const details = error.details || error.message;
     return {
       status: error.status || 500,
       details: typeof details === 'string' ? details : jsonify.stringify(details),
