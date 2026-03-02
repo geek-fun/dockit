@@ -82,7 +82,9 @@
               class="action-index-switch"
               @update:checked="handleHiddenChange"
             />
-            <Label class="switch-label">{{ hideSystemIndicesRef ? $t('toolBar.hidden') : $t('toolBar.display') }}</Label>
+            <Label class="switch-label">
+              {{ hideSystemIndicesRef ? $t('toolBar.hidden') : $t('toolBar.display') }}
+            </Label>
           </div>
         </TooltipTrigger>
         <TooltipContent>{{ $t('toolBar.hideSystemIndices') }}</TooltipContent>
