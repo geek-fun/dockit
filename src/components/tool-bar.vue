@@ -553,7 +553,6 @@ const handleEditorSwitch = async (
 
 .connection-select:focus {
   outline: none;
-  ring: 0;
   box-shadow: none;
 }
 
@@ -572,7 +571,6 @@ const handleEditorSwitch = async (
 
 .index-select:focus {
   outline: none;
-  ring: 0;
   box-shadow: none;
 }
 

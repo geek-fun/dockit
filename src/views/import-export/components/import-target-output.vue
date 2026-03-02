@@ -11,12 +11,19 @@
       <Grid :cols="2" :x-gap="16" :y-gap="16">
         <GridItem>
           <div class="field-label">{{ $t('import.targetDatabase') }}</div>
-          <Select v-model="inputData.selectedConnection" @update:model-value="handleConnectionChange">
+          <Select
+            v-model="inputData.selectedConnection"
+            @update:model-value="handleConnectionChange"
+          >
             <SelectTrigger>
               <SelectValue :placeholder="$t('connection.selectConnection')" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem v-for="option in filteredConnectionOptions" :key="option.value" :value="option.value">
+              <SelectItem
+                v-for="option in filteredConnectionOptions"
+                :key="option.value"
+                :value="option.value"
+              >
                 {{ option.label }}
               </SelectItem>
             </SelectContent>
@@ -24,13 +31,20 @@
         </GridItem>
         <GridItem>
           <div class="field-label">{{ $t('import.collectionName') }}</div>
-          <Select v-model="inputData.selectedIndex" :disabled="!inputData.selectedConnection || loadingStat.connection"
-            @update:model-value="handleIndexChange">
+          <Select
+            v-model="inputData.selectedIndex"
+            :disabled="!inputData.selectedConnection || loadingStat.connection"
+            @update:model-value="handleIndexChange"
+          >
             <SelectTrigger>
               <SelectValue :placeholder="$t('import.selectOrCreateIndex')" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem v-for="option in filteredIndexOptions" :key="option.value" :value="option.value">
+              <SelectItem
+                v-for="option in filteredIndexOptions"
+                :key="option.value"
+                :value="option.value"
+              >
                 {{ option.label }}
               </SelectItem>
             </SelectContent>
@@ -109,7 +123,6 @@ const loadingStat = ref({
 
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
 const currentExistingIndices = ref<string[]>([]);
-
 
 const connectionOptions = computed(() =>
   connections.value.map(({ name }) => ({ label: name, value: name })),
@@ -257,7 +270,6 @@ const handleIndexChange = (value: string) => {
     loadingStat.value.index = false;
   }
 };
-
 
 // Initialize from store
 onMounted(async () => {
