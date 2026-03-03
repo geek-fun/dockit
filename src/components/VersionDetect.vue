@@ -22,7 +22,7 @@
         </div>
         <div class="version-text">
           <div class="version-title">{{ $t('version.newVersion') }}</div>
-          <div class="version-message">A newer version ({{ version }}) is ready for you.</div>
+          <div class="version-message">{{ $t('version.readyMessage', { version }) }}</div>
         </div>
         <button class="close-button" @click="later">
           <svg
@@ -68,10 +68,13 @@ import { ref, onMounted } from 'vue';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { storeToRefs } from 'pinia';
 import { useAppStore } from '../store';
+import { useMessageService } from '@/composables';
 import { Button } from '@/components/ui/button';
+import { lang } from '@/lang';
 
 const appStore = useAppStore();
 const { skipVersion } = storeToRefs(appStore);
+const message = useMessageService();
 
 const dialogVisible = ref(false);
 const version = ref('');
@@ -83,9 +86,11 @@ const installUpdate = async () => {
   installing.value = true;
   try {
     await pendingUpdate.downloadAndInstall();
-  } catch {
-    installing.value = false;
     dialogVisible.value = false;
+  } catch {
+    message.error(lang.global.t('version.updateFailed'));
+  } finally {
+    installing.value = false;
   }
 };
 

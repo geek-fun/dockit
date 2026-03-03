@@ -481,12 +481,14 @@ export const zhCN = {
   },
   version: {
     newVersion: '发现新版本',
+    readyMessage: '新版本 ({version}) 已准备就绪。',
     message: '发现新版本，是否立即下载',
     skip: '跳过该版本',
     download: '下载',
     later: '忽略',
     updateNow: '立即更新',
     installing: '安装中...',
+    updateFailed: '更新安装失败，请重试。',
   },
   login: {
     title: '登录',
