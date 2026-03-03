@@ -157,7 +157,12 @@ const dynamoApi = {
     endpointUrl,
     tableName,
   }: DynamoDBConnection): Promise<DynamoDBTableInfo> => {
-    const credentials = { region, access_key_id: accessKeyId, secret_access_key: secretAccessKey, endpoint_url: endpointUrl };
+    const credentials = {
+      region,
+      access_key_id: accessKeyId,
+      secret_access_key: secretAccessKey,
+      endpoint_url: endpointUrl,
+    };
     const options = {
       table_name: tableName,
       operation: 'DESCRIBE_TABLE',

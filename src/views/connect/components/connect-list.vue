@@ -178,9 +178,7 @@ const getVersion = (connection: Connection) => {
 
 const getConnectionTarget = (connection: Connection) => {
   const dynamo = connection as DynamoDBConnection;
-  return dynamo.endpointUrl
-    ? lang.t('connection.localTarget')
-    : lang.t('connection.cloudTarget');
+  return dynamo.endpointUrl ? lang.t('connection.localTarget') : lang.t('connection.cloudTarget');
 };
 
 const handleSelect = (key: string, connection: Connection) => {
