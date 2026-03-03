@@ -273,7 +273,8 @@ export const useConnectionStore = defineStore('connectionStore', {
         const client = loadHttpClient(connection);
         const esCon = connection as ElasticsearchConnection;
         const majorVersionStr = esCon.version?.split('.')[0];
-        const majorVersion = majorVersionStr !== undefined ? parseInt(majorVersionStr, 10) : undefined;
+        const majorVersion =
+          majorVersionStr !== undefined ? parseInt(majorVersionStr, 10) : undefined;
         const expandWildcards =
           esCon.isOpenSearch || (majorVersion !== undefined && majorVersion >= 6)
             ? '&expand_wildcards=all'

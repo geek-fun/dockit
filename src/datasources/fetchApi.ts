@@ -12,7 +12,12 @@ type FetchApiOptions = {
   payload?: string;
 };
 
-const handleFetch = (result: { data: unknown; status: number; details: string | undefined; errorType?: string }) => {
+const handleFetch = (result: {
+  data: unknown;
+  status: number;
+  details: string | undefined;
+  errorType?: string;
+}) => {
   if (result.status >= 200 && result.status < 300) {
     return result.data;
   }
