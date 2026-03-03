@@ -44,6 +44,72 @@ where
         .collect()
 }
 
+/// Categorize a reqwest error into a user-friendly type and message
+fn categorize_request_error(e: &reqwest::Error) -> (&'static str, String) {
+    let url_hint = e.url().map(|u| u.host_str().unwrap_or("unknown")).unwrap_or("unknown");
+    let raw = format!("{}", e);
+
+    if e.is_connect() {
+        // Drill into source chain for more specific errors
+        let source_chain = format!("{:?}", e);
+
+        if source_chain.contains("dns error")
+            || source_chain.contains("Name or service not known")
+            || source_chain.contains("nodename nor servname provided")
+            || source_chain.contains("getaddrinfo")
+            || source_chain.contains("No such host")
+            || source_chain.contains("failed to lookup address")
+        {
+            return (
+                "DNS_ERROR",
+                format!("Cannot resolve hostname '{}'. Please verify the host address is correct and the DNS is reachable.", url_hint),
+            );
+        }
+
+        if source_chain.contains("Connection refused")
+            || source_chain.contains("connection refused")
+        {
+            return (
+                "CONNECTION_REFUSED",
+                format!("Connection refused by '{}'. Please verify the host and port are correct and the service is running.", url_hint),
+            );
+        }
+
+        if source_chain.contains("certificate")
+            || source_chain.contains("SSL")
+            || source_chain.contains("tls")
+            || source_chain.contains("HandshakeFailure")
+            || source_chain.contains("CertificateRequired")
+        {
+            return (
+                "SSL_ERROR",
+                format!("SSL/TLS error connecting to '{}'. Try disabling SSL verification or check the server's certificate.", url_hint),
+            );
+        }
+
+        return (
+            "CONNECTION_ERROR",
+            format!("Failed to connect to '{}'. Please check the host, port, and network connectivity. Detail: {}", url_hint, raw),
+        );
+    }
+
+    if e.is_timeout() {
+        return (
+            "TIMEOUT",
+            format!("Connection to '{}' timed out. The server may be unreachable or too slow to respond.", url_hint),
+        );
+    }
+
+    if e.is_request() {
+        return (
+            "REQUEST_ERROR",
+            format!("Invalid request to '{}'. Please check the connection settings. Detail: {}", url_hint, raw),
+        );
+    }
+
+    ("UNKNOWN_ERROR", format!("Unexpected error connecting to '{}': {}", url_hint, raw))
+}
+
 #[tauri::command]
 pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, String> {
     let client = unsafe {
@@ -111,9 +177,11 @@ pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, 
             }
         }
         Err(e) => {
+            let (error_type, user_message) = categorize_request_error(&e);
             let result = json!({
                 "status": 500,
-                "message": format!("Failed to fetch API {}", e),
+                "message": user_message,
+                "error_type": error_type,
                 "data": Option::<serde_json::Value>::None,
             });
             Err(result.to_string())

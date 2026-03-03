@@ -154,9 +154,15 @@ const dynamoApi = {
     region,
     accessKeyId,
     secretAccessKey,
+    endpointUrl,
     tableName,
   }: DynamoDBConnection): Promise<DynamoDBTableInfo> => {
-    const credentials = { region, access_key_id: accessKeyId, secret_access_key: secretAccessKey };
+    const credentials = {
+      region,
+      access_key_id: accessKeyId,
+      secret_access_key: secretAccessKey,
+      endpoint_url: endpointUrl,
+    };
     const options = {
       table_name: tableName,
       operation: 'DESCRIBE_TABLE',
@@ -193,6 +199,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
 
     const options = {
@@ -223,6 +230,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
 
     const options = {
@@ -254,6 +262,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
     const apiOptions = {
       table_name: con.tableName,
@@ -281,6 +290,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
 
     const options = {
@@ -311,6 +321,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
     const options = {
       table_name: con.tableName,
@@ -330,6 +341,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
     const options = {
       table_name: con.tableName,
@@ -369,6 +381,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
     const options = {
       table_name: con.tableName,
@@ -413,6 +426,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
     const options = {
       table_name: con.tableName,
@@ -437,6 +451,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
     const options = {
       table_name: con.tableName,
@@ -460,6 +475,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
     const options = {
       table_name: con.tableName,
@@ -481,6 +497,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
     const options = {
       table_name: con.tableName,
@@ -520,6 +537,7 @@ const dynamoApi = {
       region: con.region,
       access_key_id: con.accessKeyId,
       secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
     };
     const options = {
       table_name: con.tableName,
