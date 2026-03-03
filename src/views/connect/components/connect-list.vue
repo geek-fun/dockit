@@ -27,6 +27,13 @@
             <Badge v-if="getVersion(connection)" variant="secondary" class="card-badge">
               {{ getVersion(connection) }}
             </Badge>
+            <Badge
+              v-if="connection.type === DatabaseType.DYNAMODB"
+              variant="secondary"
+              class="card-badge"
+            >
+              {{ getConnectionTarget(connection) }}
+            </Badge>
           </div>
           <!-- Actions row -->
           <div class="card-actions" @click.stop="">
@@ -167,6 +174,11 @@ const getVersion = (connection: Connection) => {
     return es.version ? `v${es.version}` : '';
   }
   return '';
+};
+
+const getConnectionTarget = (connection: Connection) => {
+  const dynamo = connection as DynamoDBConnection;
+  return dynamo.endpointUrl ? lang.t('connection.localTarget') : lang.t('connection.cloudTarget');
 };
 
 const handleSelect = (key: string, connection: Connection) => {

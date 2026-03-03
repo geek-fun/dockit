@@ -182,6 +182,7 @@ export const zhCN = {
       // CloudWatch metrics
       cloudwatchNotAvailable:
         'CloudWatch 指标不可用。请启用 CloudWatch Contributor Insights 或确保您的 IAM 凭证具有 cloudwatch:GetMetricData 权限。',
+      localMetricsNotAvailable: 'DynamoDB Local 不支持 CloudWatch 指标。本地连接无法获取指标数据。',
       // Modal translations
       deleteIndexConfirm: '确定要删除此索引吗?',
       deleteIndexSuccess: '索引删除成功',
@@ -244,6 +245,11 @@ export const zhCN = {
     accessKeyId: 'Access Key ID',
     secretAccessKey: 'Secret Access Key',
     selectRegion: '请选择区域',
+    endpointUrl: '端点 URL',
+    connectionTarget: '连接目标',
+    cloudTarget: 'AWS 云',
+    localTarget: '本地',
+    localLimitations: 'DynamoDB Local 不支持 CloudWatch 指标、持续备份、全局表、IAM 角色或数据流。',
     unsupportedType: '提供了不支持的数据库类型',
     formValidation: {
       nameRequired: '请输入连接名称',
@@ -254,6 +260,7 @@ export const zhCN = {
       regionRequired: '请选择区域',
       accessKeyIdRequired: '请输入Access Key ID',
       secretAccessKeyRequired: '请输入Secret Access Key',
+      endpointUrlRequired: '本地连接需要输入端点 URL',
     },
     operations: {
       connect: '连接',
@@ -272,6 +279,11 @@ export const zhCN = {
       queryComingSoon: 'DynamoDB 查询功能开发中...',
       tablesComingSoon: 'DynamoDB 表管理功能开发中...',
     },
+  },
+  toolBar: {
+    hideSystemIndices: '显示/隐藏系统索引',
+    hidden: '已隐藏',
+    display: '展示中',
   },
   dialogOps: {
     warning: '提示',
@@ -395,6 +407,7 @@ export const zhCN = {
         contextMenu: {
           execute: '执行',
           copy: '复制',
+          format: '格式化',
         },
       },
     },

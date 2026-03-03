@@ -12,10 +12,15 @@
         >
           <ul>
             <li @click="handleContextMenuAction('execute')">
-              {{ lang.t('editor.dynamo.partiql.contextMenu.execute') }}
+              <span>{{ lang.t('editor.dynamo.partiql.contextMenu.execute') }}</span>
+              <span class="shortcut">{{ cmdKey }}↵</span>
+            </li>
+            <li @click="handleContextMenuAction('format')">
+              <span>{{ lang.t('editor.dynamo.partiql.contextMenu.format') }}</span>
+              <span class="shortcut">{{ cmdKey }}I</span>
             </li>
             <li @click="handleContextMenuAction('copy')">
-              {{ lang.t('editor.dynamo.partiql.contextMenu.copy') }}
+              <span>{{ lang.t('editor.dynamo.partiql.contextMenu.copy') }}</span>
             </li>
           </ul>
         </div>
@@ -302,10 +307,12 @@ const hideContextMenu = () => {
   contextMenuStatementLine.value = null;
 };
 
+const cmdKey = computed(() => (platform() === 'macos' ? '⌘' : 'Ctrl+'));
+
 /**
  * Handle context menu action
  */
-const handleContextMenuAction = (action: 'execute' | 'copy') => {
+const handleContextMenuAction = (action: 'execute' | 'copy' | 'format') => {
   const lineNumber = contextMenuStatementLine.value;
   hideContextMenu();
 
@@ -315,6 +322,8 @@ const handleContextMenuAction = (action: 'execute' | 'copy') => {
     executeStatementAtLine(lineNumber);
   } else if (action === 'copy') {
     copyStatementAtLine(lineNumber);
+  } else if (action === 'format') {
+    editor?.trigger('keyboard', 'editor.action.formatDocument', {});
   }
 };
 
@@ -744,13 +753,23 @@ defineExpose({
   list-style: none;
   margin: 0;
   padding: 4px 0;
-  min-width: 120px;
+  min-width: 180px;
 }
 
 .partiql-context-menu li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   padding: 6px 12px;
   cursor: pointer;
   font-size: 13px;
+}
+
+.partiql-context-menu li .shortcut {
+  font-size: 11px;
+  opacity: 0.5;
+  white-space: nowrap;
 }
 
 .partiql-context-menu li:hover {
