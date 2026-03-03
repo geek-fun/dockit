@@ -65,6 +65,29 @@
         </div>
       </RadioGroup>
     </div>
+
+    <!-- History Section -->
+    <div class="space-y-4">
+      <div>
+        <h3 class="text-lg font-semibold">{{ $t('setting.history.title') }}</h3>
+      </div>
+      <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-1.5">
+          <Label class="text-sm font-medium">{{ $t('setting.history.historyCap') }}</Label>
+          <p class="text-xs text-muted-foreground">{{ $t('setting.history.historyCapDesc') }}</p>
+          <InputNumber
+            :model-value="historyConfig.historyCap"
+            :min="HISTORY_CAP_MIN"
+            :max="HISTORY_CAP_MAX"
+            :step="10"
+            class="w-36"
+            @update:model-value="
+              val => setHistoryConfig({ historyCap: val ?? HISTORY_CAP_DEFAULT })
+            "
+          />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -74,14 +97,16 @@ import lightImg from '../../../assets/img/theme-light.png';
 import darkImg from '../../../assets/img/theme-dark.png';
 import autoImg from '../../../assets/img/theme-auto.png';
 import { LanguageType, ThemeType, useAppStore } from '../../../store';
+import { HISTORY_CAP_MIN, HISTORY_CAP_MAX, HISTORY_CAP_DEFAULT } from '../../../common';
 import { lang } from '../../../lang';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { InputNumber } from '@/components/ui/input-number';
 
 const appStore = useAppStore();
-const { setThemeType } = appStore;
-const { themeType, languageType } = storeToRefs(appStore);
+const { setThemeType, setHistoryConfig } = appStore;
+const { themeType, languageType, historyConfig } = storeToRefs(appStore);
 
 const themeTypes = [
   { type: ThemeType.AUTO, img: autoImg, name: 'auto' },

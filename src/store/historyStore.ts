@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { storeApi } from '../datasources';
 import { pureObject } from '../common';
 import { DatabaseType } from './connectionStore';
+import { useAppStore } from './appStore';
 
 export type HistoryEntry = {
   id: string;
@@ -14,8 +15,6 @@ export type HistoryEntry = {
   connectionName: string;
   connectionId?: number;
 };
-
-const MAX_HISTORY_ENTRIES = 500;
 
 export const useHistoryStore = defineStore('historyStore', {
   state: (): {
@@ -37,14 +36,16 @@ export const useHistoryStore = defineStore('historyStore', {
       }
     },
     async addEntry(entry: Omit<HistoryEntry, 'id' | 'timestamp'>) {
+      const appStore = useAppStore();
+      const cap = appStore.historyConfig.historyCap;
       const newEntry: HistoryEntry = {
         ...entry,
         id: crypto.randomUUID(),
         timestamp: Date.now(),
       };
       this.entries.unshift(newEntry);
-      if (this.entries.length > MAX_HISTORY_ENTRIES) {
-        this.entries = this.entries.slice(0, MAX_HISTORY_ENTRIES);
+      if (this.entries.length > cap) {
+        this.entries = this.entries.slice(0, cap);
       }
       await storeApi.set('queryHistory', pureObject(this.entries));
     },

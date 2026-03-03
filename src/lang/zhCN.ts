@@ -30,6 +30,11 @@ export const zhCN = {
       fontWeightMedium: '中等',
       fontWeightBold: '粗体',
     },
+    history: {
+      title: '历史记录',
+      historyCap: '历史记录上限',
+      historyCapDesc: '最多保留的查询历史条数（10–5百）',
+    },
     ai: {
       title: 'GPTs配置',
       configGpt: '前往配置GPT',
@@ -441,6 +446,7 @@ export const zhCN = {
     empty: '无历史记录',
     emptyDesc: '执行扫描和查询时，查询历史记录将显示在此处',
     title: '查询历史',
+    searchPlaceholder: '搜索历史...',
     executeSuccess: '查询执行成功',
     addToEditor: '添加到编辑器',
     execute: '执行',

@@ -30,6 +30,11 @@ export const enUS = {
       fontWeightMedium: 'Medium',
       fontWeightBold: 'Bold',
     },
+    history: {
+      title: 'History',
+      historyCap: 'History Limit',
+      historyCapDesc: 'Maximum number of query history entries to keep (10–500)',
+    },
     ai: {
       title: 'GPTs',
       configGpt: 'Configure GPT',
@@ -443,6 +448,7 @@ export const enUS = {
     empty: 'No history yet',
     emptyDesc: 'History of queries will appear here as you execute Scans and Queries',
     title: 'Query History',
+    searchPlaceholder: 'Search history...',
     executeSuccess: 'Query executed successfully',
     addToEditor: 'Add to Editor',
     execute: 'Execute',
