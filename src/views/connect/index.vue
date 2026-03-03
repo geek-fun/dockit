@@ -106,6 +106,8 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
         content: lang.t('file.saveFileBeforeClose.content'),
         positiveText: lang.t('file.saveFileBeforeClose.positiveText'),
         negativeText: lang.t('file.saveFileBeforeClose.negativeText'),
+        positiveVariant: 'default',
+        negativeVariant: 'destructive',
         onPositiveClick: async () => {
           try {
             await closePanel(panel, true);

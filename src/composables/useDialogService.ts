@@ -20,6 +20,8 @@ interface DialogOptions {
   positiveText?: string;
   negativeText?: string;
   type?: 'info' | 'warning' | 'error' | 'success';
+  positiveVariant?: 'default' | 'destructive' | 'outline' | 'secondary';
+  negativeVariant?: 'default' | 'destructive' | 'outline' | 'secondary';
   onPositiveClick?: () => void | Promise<void>;
   onNegativeClick?: () => void | Promise<void>;
 }
@@ -87,7 +89,12 @@ export function useDialogService(): DialogReturn {
                         options.negativeText
                           ? h(
                               AlertDialogCancel,
-                              { onClick: handleNegative },
+                              {
+                                onClick: handleNegative,
+                                class: options.negativeVariant
+                                  ? buttonVariants({ variant: options.negativeVariant })
+                                  : undefined,
+                              },
                               { default: () => options.negativeText },
                             )
                           : null,
@@ -95,8 +102,9 @@ export function useDialogService(): DialogReturn {
                           AlertDialogAction,
                           {
                             onClick: handlePositive,
-                            class:
-                              options.type === 'warning' || options.type === 'error'
+                            class: options.positiveVariant
+                              ? buttonVariants({ variant: options.positiveVariant })
+                              : options.type === 'warning' || options.type === 'error'
                                 ? buttonVariants({ variant: 'destructive' })
                                 : '',
                           },

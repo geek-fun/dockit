@@ -188,6 +188,7 @@ const handleStartExport = async () => {
       content: `Directory does not exist: ${exportPath}. Please enable "Create Directory" option or create the directory manually.`,
       positiveText: lang.t('dialogOps.createFolder'),
       negativeText: lang.t('dialogOps.cancel'),
+      positiveVariant: 'default',
       onPositiveClick: () => {
         // User confirmed, enable createDirectory option
         createDirectory.value = true;
