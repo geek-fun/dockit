@@ -22,7 +22,7 @@ const router = createRouter({
         keepAlive: false,
       },
       component: () => import('../layout/index.vue'),
-      redirect: '/connect/:filePath?',
+      redirect: '/connect',
       children: [
         {
           name: 'Connect',

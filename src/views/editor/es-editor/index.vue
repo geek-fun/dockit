@@ -41,10 +41,12 @@ import { SplitPane } from '@/components/ui/split-pane';
 import { useMessageService, useLoadingBarService } from '@/composables';
 import { CustomError, jsonify } from '../../../common';
 import {
+  DatabaseType,
   ElasticsearchConnection,
   useAppStore,
   useChatStore,
   useConnectionStore,
+  useHistoryStore,
   useTabStore,
 } from '../../../store';
 import { useLang } from '../../../lang';
@@ -82,6 +84,8 @@ const connectionStore = useConnectionStore();
 const { searchQDSL, queryToCurl, fetchIndices } = connectionStore;
 const { getEditorTheme, getEditorOptions } = appStore;
 const { themeType, editorConfig } = storeToRefs(appStore);
+
+const historyStore = useHistoryStore();
 
 const chatStore = useChatStore();
 const { insertBoard } = storeToRefs(chatStore);
@@ -192,6 +196,16 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
       queryParams: action.queryParams ?? undefined,
       qdsl: transformQDSL(action),
       index: action.index,
+    });
+
+    historyStore.addEntry({
+      databaseType: DatabaseType.ELASTICSEARCH,
+      method: action.method,
+      path: action.path,
+      index: action.index,
+      qdsl: transformQDSL(action),
+      connectionName: activeConnection.value.name,
+      connectionId: activeConnection.value.id,
     });
 
     showDisplayEditor(data);
