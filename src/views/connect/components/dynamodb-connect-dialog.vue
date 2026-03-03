@@ -49,20 +49,19 @@
             />
           </FormItem>
           <FormItem :label="$t('connection.connectionTarget')">
-            <RadioGroup
+            <Tabs
               :model-value="connectionTarget"
-              class="flex gap-4"
-              @update:model-value="onTargetChange"
+              @update:model-value="value => onTargetChange(value as string)"
             >
-              <div class="flex items-center gap-2">
-                <RadioGroupItem value="cloud" />
-                <Label>{{ $t('connection.cloudTarget') }}</Label>
-              </div>
-              <div class="flex items-center gap-2">
-                <RadioGroupItem value="local" />
-                <Label>{{ $t('connection.localTarget') }}</Label>
-              </div>
-            </RadioGroup>
+              <TabsList class="w-full">
+                <TabsTrigger class="flex-1" value="cloud">
+                  {{ $t('connection.cloudTarget') }}
+                </TabsTrigger>
+                <TabsTrigger class="flex-1" value="local">
+                  {{ $t('connection.localTarget') }}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </FormItem>
           <template v-if="isLocal">
             <Alert variant="info" class="mb-4">
@@ -177,8 +176,7 @@ import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
