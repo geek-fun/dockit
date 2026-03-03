@@ -219,7 +219,7 @@ export const useConnectionStore = defineStore('connectionStore', {
 
         const isOpenSearch =
           clusterInfo.version.distribution === 'opensearch' ||
-          clusterInfo.tagline?.toLowerCase().includes('opensearch') === true;
+          (clusterInfo.tagline ?? '').toLowerCase().includes('opensearch');
         return {
           ...con,
           version: clusterInfo.version.number,
@@ -272,9 +272,12 @@ export const useConnectionStore = defineStore('connectionStore', {
       if (connection.type === DatabaseType.ELASTICSEARCH) {
         const client = loadHttpClient(connection);
         const esCon = connection as ElasticsearchConnection;
-        const majorVersion = parseInt(esCon.version?.split('.')[0] ?? '7', 10);
+        const majorVersionStr = esCon.version?.split('.')[0];
+        const majorVersion = majorVersionStr !== undefined ? parseInt(majorVersionStr, 10) : undefined;
         const expandWildcards =
-          esCon.isOpenSearch || majorVersion >= 6 ? '&expand_wildcards=all' : '';
+          esCon.isOpenSearch || (majorVersion !== undefined && majorVersion >= 6)
+            ? '&expand_wildcards=all'
+            : '';
         const data = (await client.get('/_cat/indices', `format=json${expandWildcards}`)) as Array<{
           [key: string]: string;
         }>;
