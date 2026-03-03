@@ -273,6 +273,11 @@ export const zhCN = {
       tablesComingSoon: 'DynamoDB 表管理功能开发中...',
     },
   },
+  toolBar: {
+    hideSystemIndices: '显示/隐藏系统索引',
+    hidden: '已隐藏',
+    display: '展示中',
+  },
   dialogOps: {
     warning: '提示',
     removeNotice: '确认删除该连接？',

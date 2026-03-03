@@ -75,6 +75,7 @@ export type ElasticsearchConnection = {
   queryParameters?: string;
   activeIndex: ElasticSearchIndex | undefined;
   version: string;
+  isOpenSearch: boolean;
   clusterName: string;
   clusterUuid: string;
 };
@@ -90,6 +91,7 @@ type ElasticsearchClusterInfo = {
     build_hash: string;
     build_snapshot: boolean;
     build_type: string;
+    distribution?: string;
     lucene_version: string;
     minimum_index_compatibility_version: string;
     minimum_wire_compatibility_version: string;
@@ -215,9 +217,13 @@ export const useConnectionStore = defineStore('connectionStore', {
           'format=json',
         );
 
+        const isOpenSearch =
+          clusterInfo.version.distribution === 'opensearch' ||
+          (clusterInfo.tagline ?? '').toLowerCase().includes('opensearch');
         return {
           ...con,
           version: clusterInfo.version.number,
+          isOpenSearch,
           clusterName: clusterInfo.cluster_name,
           clusterUuid: clusterInfo.cluster_uuid,
         } as ElasticsearchConnection;
@@ -265,7 +271,15 @@ export const useConnectionStore = defineStore('connectionStore', {
       if (!connection) throw new Error('no connection established');
       if (connection.type === DatabaseType.ELASTICSEARCH) {
         const client = loadHttpClient(connection);
-        const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+        const esCon = connection as ElasticsearchConnection;
+        const majorVersionStr = esCon.version?.split('.')[0];
+        const majorVersion =
+          majorVersionStr !== undefined ? parseInt(majorVersionStr, 10) : undefined;
+        const expandWildcards =
+          esCon.isOpenSearch || (majorVersion !== undefined && majorVersion >= 6)
+            ? '&expand_wildcards=all'
+            : '';
+        const data = (await client.get('/_cat/indices', `format=json${expandWildcards}`)) as Array<{
           [key: string]: string;
         }>;
         const indices = data.map((index: { [key: string]: string }) => ({

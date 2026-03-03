@@ -82,10 +82,12 @@
               class="action-index-switch"
               @update:checked="handleHiddenChange"
             />
-            <Label class="switch-label">{{ hideSystemIndicesRef ? 'Hidden' : 'Display' }}</Label>
+            <Label class="switch-label">
+              {{ hideSystemIndicesRef ? $t('toolBar.hidden') : $t('toolBar.display') }}
+            </Label>
           </div>
         </TooltipTrigger>
-        <TooltipContent>Hide/Display system indices</TooltipContent>
+        <TooltipContent>{{ $t('toolBar.hideSystemIndices') }}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
 
@@ -448,7 +450,7 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
       }
     } catch (err) {
       const error = err as CustomError;
-      message.error(`status: ${error.status}, details: ${error.details}`, {
+      message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
         closable: true,
         keepAliveOnHover: true,
         duration: 36000000,
@@ -553,7 +555,6 @@ const handleEditorSwitch = async (
 
 .connection-select:focus {
   outline: none;
-  ring: 0;
   box-shadow: none;
 }
 
@@ -572,7 +573,6 @@ const handleEditorSwitch = async (
 
 .index-select:focus {
   outline: none;
-  ring: 0;
   box-shadow: none;
 }
 

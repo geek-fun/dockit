@@ -36,8 +36,8 @@
           <div v-for="field in fields" :key="field.name" class="schema-row">
             <span class="col-field">{{ field.name }}</span>
             <span class="col-type">
-              <Badge :variant="getTypeColor(field.type)">
-                {{ field.type }}
+              <Badge :variant="getTypeColor(field.type)" class="font-mono text-xs">
+                {{ getTypeLabel(field.type) }}
               </Badge>
             </span>
             <span class="col-sample">{{ field.sampleValue || '-' }}</span>
@@ -87,7 +87,7 @@ const handleRefresh = async () => {
     message.success(lang.t('export.schemaLoaded'));
   } catch (err) {
     const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3000,
@@ -104,6 +104,7 @@ const toggleField = (fieldName: string) => {
 const getTypeColor = (type: string): 'success' | 'info' | 'warning' | 'destructive' | 'default' => {
   const typeColors: { [key: string]: 'success' | 'info' | 'warning' | 'destructive' | 'default' } =
     {
+      // Elasticsearch types
       TEXT: 'success',
       STRING: 'success',
       KEYWORD: 'success',
@@ -117,8 +118,30 @@ const getTypeColor = (type: string): 'success' | 'info' | 'warning' | 'destructi
       OBJECT: 'destructive',
       NESTED: 'destructive',
       ARRAY: 'destructive',
+      // DynamoDB types
+      S: 'success',
+      N: 'info',
+      B: 'warning',
+      BOOL: 'warning',
+      NULL: 'default',
+      L: 'destructive',
+      M: 'destructive',
     };
   return typeColors[type] || 'default';
+};
+
+const dynamoTypeLabels: { [key: string]: string } = {
+  S: 'String',
+  N: 'Number',
+  B: 'Binary',
+  BOOL: 'Boolean',
+  NULL: 'Null',
+  L: 'List',
+  M: 'Map',
+};
+
+const getTypeLabel = (type: string): string => {
+  return dynamoTypeLabels[type] ?? type;
 };
 
 // Auto-fetch schema when index changes
@@ -131,7 +154,7 @@ watch(
         await exportStore.fetchSchemaAndSamples();
       } catch (err) {
         const error = err as CustomError;
-        message.error(`status: ${error.status}, details: ${error.details}`, {
+        message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
           closable: true,
           keepAliveOnHover: true,
           duration: 3000,
