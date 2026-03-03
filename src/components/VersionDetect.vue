@@ -52,9 +52,10 @@
             variant="default"
             size="sm"
             class="version-action-button primary"
-            @click="download"
+            :disabled="installing"
+            @click="installUpdate"
           >
-            Download Now
+            {{ installing ? $t('version.installing') : $t('version.updateNow') }}
           </Button>
         </div>
       </div>
@@ -64,8 +65,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { getVersion } from '@tauri-apps/api/app';
-import { open } from '@tauri-apps/plugin-shell';
+import { check, type Update } from '@tauri-apps/plugin-updater';
 import { storeToRefs } from 'pinia';
 import { useAppStore } from '../store';
 import { Button } from '@/components/ui/button';
@@ -75,11 +75,17 @@ const { skipVersion } = storeToRefs(appStore);
 
 const dialogVisible = ref(false);
 const version = ref('');
-const link = ref({ name: '', url: '' });
+const installing = ref(false);
+let pendingUpdate: Update | null = null;
 
-const download = async () => {
-  await open(link.value.url);
-  dialogVisible.value = false;
+const installUpdate = async () => {
+  if (!pendingUpdate) return;
+  installing.value = true;
+  try {
+    await pendingUpdate.downloadAndInstall();
+  } catch {
+    installing.value = false;
+  }
 };
 
 const later = () => {
@@ -91,34 +97,12 @@ const skip = () => {
   dialogVisible.value = false;
 };
 
-const getLatestReleaseInfo = async (): Promise<{
-  version: string;
-  assets: Array<{ name: string; url: string }>;
-}> => {
-  const data = await fetch('https://api.github.com/repos/geek-fun/dockit/releases/latest').then(
-    res => res.json(),
-  );
-  const assets = data.assets.map((item: { name: string; browser_download_url: string }) => ({
-    name: item.name,
-    url: item.browser_download_url,
-  }));
-
-  return { version: data.tag_name, assets };
-};
-const getLatestLink = async () => {
-  return 'https://dockit.geekfun.club/download.html';
-};
-
 onMounted(async () => {
   try {
-    const { version: newVersion } = await getLatestReleaseInfo();
-    const currentVersion = await getVersion();
-    if (newVersion.endsWith(currentVersion) && skipVersion.value !== newVersion) return;
-
-    const assetsLink = await getLatestLink();
-    if (link.value) {
-      version.value = newVersion;
-      link.value = { name: newVersion, url: assetsLink } as { name: string; url: string };
+    const update = await check();
+    if (update && update.version !== skipVersion.value) {
+      version.value = update.version;
+      pendingUpdate = update;
       dialogVisible.value = true;
     }
   } catch {

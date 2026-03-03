@@ -485,6 +485,8 @@ export const zhCN = {
     skip: '跳过该版本',
     download: '下载',
     later: '忽略',
+    updateNow: '立即更新',
+    installing: '安装中...',
   },
   login: {
     title: '登录',

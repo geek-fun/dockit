@@ -487,6 +487,8 @@ export const enUS = {
     download: 'Download',
     skip: 'Skip this version',
     later: 'Later',
+    updateNow: 'Update Now',
+    installing: 'Installing...',
   },
   login: {
     title: 'Log In',

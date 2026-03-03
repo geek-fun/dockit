@@ -13,6 +13,7 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "createUpdaterArtifacts": true,
     "windows": {
       "webviewInstallMode": {
         "type": "skip"
@@ -30,6 +31,12 @@
   "plugins": {
     "fs": {
       "requireLiteralLeadingDot": false
+    },
+    "updater": {
+      "endpoints": [
+        "https://github.com/geek-fun/dockit/releases/latest/download/latest.json"
+      ],
+      "pubkey": ""
     }
   },
   "app": {
