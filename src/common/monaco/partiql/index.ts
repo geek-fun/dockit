@@ -39,6 +39,9 @@ export const registerPartiqlLanguage = (monaco: typeof import('monaco-editor')):
     provideDocumentFormattingEdits: (model: editor.ITextModel) => {
       const content = model.getValue();
       const formatted = formatPartiql(content);
+      if (formatted === content) {
+        return [];
+      }
       const fullRange = model.getFullModelRange();
       return [{ range: fullRange, text: formatted }];
     },

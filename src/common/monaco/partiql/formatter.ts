@@ -6,7 +6,6 @@ const NEW_LINE_KEYWORDS = [
   'WHERE',
   'SET',
   'REMOVE',
-  'ORDER BY',
   'LIMIT',
   'OFFSET',
   'INTO',
@@ -93,6 +92,13 @@ const tokenize = (input: string): string[] => {
         i++;
       }
       tokens.push(comment);
+      // Preserve the newline that terminates the comment so that
+      // formatting does not accidentally move subsequent tokens onto
+      // the same line and into the comment.
+      if (i < input.length && input[i] === '\n') {
+        tokens.push('\n');
+        i++;
+      }
       continue;
     }
 
@@ -166,6 +172,16 @@ const formatStatement = (statement: string): string => {
 
   for (let i = 0; i < nonSpaceTokens.length; i++) {
     const token = nonSpaceTokens[i];
+
+    // Newline tokens (after inline comments) force a line break
+    if (token === '\n') {
+      if (currentLine.length > 0) {
+        lines.push(currentLine.join(' '));
+        currentLine = [];
+      }
+      continue;
+    }
+
     const upper = token.toUpperCase();
 
     // Uppercase keywords
@@ -188,7 +204,7 @@ const formatStatement = (statement: string): string => {
     }
 
     // Check if this keyword should start a new line
-    if (NEW_LINE_KEYWORDS.includes(upper) && upper !== 'ORDER BY') {
+    if (NEW_LINE_KEYWORDS.includes(upper)) {
       // Flush current line before starting new clause
       if (currentLine.length > 0) {
         lines.push(currentLine.join(' '));

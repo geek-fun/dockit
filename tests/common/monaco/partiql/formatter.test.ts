@@ -121,5 +121,14 @@ describe('PartiQL Formatter', () => {
       expect(result).toContain('REMOVE');
       expect(result).toContain('WHERE');
     });
+
+    it('should preserve inline comments without commenting out subsequent tokens', () => {
+      const input = 'SELECT -- columns\n* FROM "t"';
+      const result = formatPartiql(input);
+      // The comment must stay on its own line; `*` must not be on the comment line
+      expect(result).toContain('-- columns');
+      expect(result).not.toMatch(/-- columns \*/);
+      expect(result).toContain('FROM "t"');
+    });
   });
 });
