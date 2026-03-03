@@ -483,10 +483,14 @@ export const enUS = {
   },
   version: {
     newVersion: 'New version available',
+    readyMessage: 'A newer version ({version}) is ready for you.',
     message: 'A new version is available, download it now',
     download: 'Download',
     skip: 'Skip this version',
     later: 'Later',
+    updateNow: 'Update Now',
+    installing: 'Installing...',
+    updateFailed: 'Failed to install the update. Please try again.',
   },
   login: {
     title: 'Log In',

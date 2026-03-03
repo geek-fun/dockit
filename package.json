@@ -23,13 +23,14 @@
     "build:macos": "tauri build -t universal-apple-darwin"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.9.1",
+    "@tauri-apps/api": "^2.10.0",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "^2.4.4",
     "@tauri-apps/plugin-global-shortcut": "^2.3.1",
     "@tauri-apps/plugin-os": "^2.3.2",
     "@tauri-apps/plugin-shell": "^2.3.3",
     "@tauri-apps/plugin-store": "^2.4.2",
+    "@tauri-apps/plugin-updater": "^2.10.0",
     "@vee-validate/zod": "^4.15.1",
     "@vueuse/core": "^14.1.0",
     "antlr4": "^4.13.2",
@@ -47,14 +48,14 @@
     "ulidx": "^2.4.1",
     "vee-validate": "^4.15.1",
     "vue": "^3.5.26",
-    "zod": "^3.25.76",
     "vue-i18n": "^11.2.8",
-    "vue-router": "^4.6.4"
+    "vue-router": "^4.6.4",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@iconify-json/carbon": "^1.2.18",
     "@iconify-json/lucide": "^1.2.87",
-    "@tauri-apps/cli": "^2.9.6",
+    "@tauri-apps/cli": "^2.10.0",
     "@types/debug": "^4.1.12",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.21",
