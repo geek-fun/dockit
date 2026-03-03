@@ -410,6 +410,7 @@ export const enUS = {
         contextMenu: {
           execute: 'Execute',
           copy: 'Copy',
+          format: 'Format',
         },
       },
     },
