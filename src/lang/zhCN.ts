@@ -407,6 +407,7 @@ export const zhCN = {
         contextMenu: {
           execute: '执行',
           copy: '复制',
+          format: '格式化',
         },
       },
     },

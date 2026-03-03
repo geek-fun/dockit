@@ -12,13 +12,15 @@
         >
           <ul>
             <li @click="handleContextMenuAction('execute')">
-              {{ lang.t('editor.es.contextMenu.execute') }}
+              <span>{{ lang.t('editor.es.contextMenu.execute') }}</span>
+              <span class="shortcut">{{ cmdKey }}↵</span>
             </li>
             <li @click="handleContextMenuAction('autoIndent')">
-              {{ lang.t('editor.es.contextMenu.autoIndent') }}
+              <span>{{ lang.t('editor.es.contextMenu.autoIndent') }}</span>
+              <span class="shortcut">{{ cmdKey }}I</span>
             </li>
             <li @click="handleContextMenuAction('copyAsCurl')">
-              {{ lang.t('editor.es.contextMenu.copyAsCurl') }}
+              <span>{{ lang.t('editor.es.contextMenu.copyAsCurl') }}</span>
             </li>
           </ul>
         </div>
@@ -34,7 +36,7 @@ import { open } from '@tauri-apps/plugin-shell';
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { SplitPane } from '@/components/ui/split-pane';
 import { useMessageService, useLoadingBarService } from '@/composables';
 import { CustomError, jsonify } from '../../../common';
@@ -99,6 +101,7 @@ const MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS = 4;
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuActionLine = ref<number | null>(null);
+const cmdKey = computed(() => platform() === 'macos' ? '⌘' : 'Ctrl+');
 
 // Debounced syntax validation (300ms delay for performance)
 const debouncedValidate = createDebouncedValidator((model: monaco.editor.ITextModel) => {
@@ -631,13 +634,23 @@ onUnmounted(async () => {
   list-style: none;
   margin: 0;
   padding: 4px 0;
-  min-width: 140px;
+  min-width: 180px;
 }
 
 .es-context-menu ul li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   padding: 6px 12px;
   cursor: pointer;
   font-size: 13px;
+}
+
+.es-context-menu ul li .shortcut {
+  font-size: 11px;
+  opacity: 0.5;
+  white-space: nowrap;
 }
 
 .es-context-menu ul li:hover {
