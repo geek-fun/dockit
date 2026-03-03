@@ -85,6 +85,7 @@ const installUpdate = async () => {
     await pendingUpdate.downloadAndInstall();
   } catch {
     installing.value = false;
+    dialogVisible.value = false;
   }
 };
 
