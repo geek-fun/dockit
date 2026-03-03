@@ -520,7 +520,13 @@ const esApi: ESApi = {
   },
   catIndices: async connection => {
     const client = loadHttpClient(connection);
-    const data = (await client.get('/_cat/indices', 'format=json&s=index')) as Array<{
+    const majorVersion = parseInt(connection.version?.split('.')[0] ?? '7', 10);
+    const expandWildcards =
+      connection.isOpenSearch || majorVersion >= 6 ? '&expand_wildcards=all' : '';
+    const data = (await client.get(
+      '/_cat/indices',
+      `format=json&s=index${expandWildcards}`,
+    )) as Array<{
       [key: string]: string;
     }>;
 

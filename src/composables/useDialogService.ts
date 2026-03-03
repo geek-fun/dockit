@@ -9,6 +9,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import { buttonVariants } from '@/components/ui/button';
 
 // Animation cleanup delay in milliseconds
 const DIALOG_CLEANUP_DELAY = 200;
@@ -86,19 +87,19 @@ export function useDialogService(): DialogReturn {
                         options.negativeText
                           ? h(
                               AlertDialogCancel,
-                              {
-                                onClick: handleNegative,
-                                class:
-                                  options.type === 'warning' || options.type === 'error'
-                                    ? 'border-destructive text-destructive hover:bg-destructive/10'
-                                    : '',
-                              },
+                              { onClick: handleNegative },
                               { default: () => options.negativeText },
                             )
                           : null,
                         h(
                           AlertDialogAction,
-                          { onClick: handlePositive },
+                          {
+                            onClick: handlePositive,
+                            class:
+                              options.type === 'warning' || options.type === 'error'
+                                ? buttonVariants({ variant: 'destructive' })
+                                : '',
+                          },
                           { default: () => options.positiveText || 'OK' },
                         ),
                       ],

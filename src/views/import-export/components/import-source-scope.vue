@@ -232,7 +232,7 @@ const handleSelectDataFile = async () => {
     await importExportStore.selectImportDataFile();
   } catch (err) {
     const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3000,
@@ -245,7 +245,7 @@ const handleSelectMetadataFile = async () => {
     await importExportStore.selectImportMetadataFile();
   } catch (err) {
     const error = err as CustomError;
-    message.error(`status: ${error.status}, details: ${error.details}`, {
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 3000,

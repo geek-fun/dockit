@@ -282,6 +282,11 @@ export const enUS = {
       tablesComingSoon: 'DynamoDB tables management coming soon...',
     },
   },
+  toolBar: {
+    hideSystemIndices: 'Hide/Display system indices',
+    hidden: 'Hidden',
+    display: 'Display',
+  },
   dialogOps: {
     warning: 'Warning',
     removeNotice: 'Remove the connection permanently?',

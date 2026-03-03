@@ -361,9 +361,9 @@ const testConnect = async () => {
 
     // Handle both ApiClientError/CustomError (with status and details) and generic Error
     if (error instanceof CustomError) {
-      errorMessage.value = `status: ${error.status}, details: ${error.details}`;
+      errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
     } else if (error instanceof ApiClientError) {
-      errorMessage.value = `status: ${error.status}, details: ${error.details}`;
+      errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
     } else if (error instanceof Error) {
       errorMessage.value = error.message;
     } else {
