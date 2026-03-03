@@ -291,7 +291,7 @@ const hideContextMenu = () => {
   contextMenuStatementLine.value = null;
 };
 
-const cmdKey = computed(() => platform() === 'macos' ? '⌘' : 'Ctrl+');
+const cmdKey = computed(() => (platform() === 'macos' ? '⌘' : 'Ctrl+'));
 
 /**
  * Handle context menu action

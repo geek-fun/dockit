@@ -101,7 +101,7 @@ const MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS = 4;
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuActionLine = ref<number | null>(null);
-const cmdKey = computed(() => platform() === 'macos' ? '⌘' : 'Ctrl+');
+const cmdKey = computed(() => (platform() === 'macos' ? '⌘' : 'Ctrl+'));
 
 // Debounced syntax validation (300ms delay for performance)
 const debouncedValidate = createDebouncedValidator((model: monaco.editor.ITextModel) => {
