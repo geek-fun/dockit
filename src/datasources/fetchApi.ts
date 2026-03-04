@@ -1,4 +1,11 @@
-import { buildAuthHeader, buildURL, CustomError, debug, jsonify } from '../common';
+import {
+  buildAuthHeader,
+  buildApiKeyAuthHeader,
+  buildURL,
+  CustomError,
+  debug,
+  jsonify,
+} from '../common';
 import { lang } from '../lang';
 import { invoke } from '@tauri-apps/api/core';
 import { get } from 'lodash';
@@ -42,6 +49,8 @@ const fetchWrapper = async ({
   port,
   username,
   password,
+  authType,
+  apiKey,
   ssl,
 }: {
   method: string;
@@ -50,14 +59,18 @@ const fetchWrapper = async ({
   payload?: string;
   username?: string;
   password?: string;
+  authType?: 'basic' | 'apiKey';
+  apiKey?: string;
   host: string;
   port: number;
   ssl: boolean;
 }) => {
   const url = buildURL(host, port, path, queryParameters);
+  const authHeader =
+    authType === 'apiKey' ? buildApiKeyAuthHeader(apiKey) : buildAuthHeader(username, password);
   const { data, status, details, errorType } = await fetchRequest(url, {
     method,
-    headers: { ...buildAuthHeader(username, password) },
+    headers: { ...authHeader },
     payload,
     agent: { ssl },
   });
@@ -125,6 +138,8 @@ const loadHttpClient = (con: {
   port: number;
   username?: string;
   password?: string;
+  authType?: 'basic' | 'apiKey';
+  apiKey?: string;
   sslCertVerification: boolean;
 }) => ({
   get: async <T = unknown>(path?: string, queryParameters?: string, payload?: string): Promise<T> =>

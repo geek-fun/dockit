@@ -278,6 +278,11 @@ export const enUS = {
     selectConnection: 'No Connection selected',
     validationFailed: 'Form validation failed!',
     unAuthorized: 'Authorization failed, ensure your username and password are correct',
+    authenticationType: 'Authentication Type',
+    authTypeBasic: 'Basic',
+    authTypeApiKey: 'API Key',
+    apiKey: 'API Key',
+    apiKeyPlaceholder: 'Enter base64-encoded id:api_key',
     emptyState: {
       noConnections: 'No connections available',
       pleaseSelect: 'Please select a connection',

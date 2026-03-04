@@ -6,6 +6,11 @@ export const buildAuthHeader = (username: string | undefined, password: string |
   return authorization ? { authorization } : undefined;
 };
 
+export const buildApiKeyAuthHeader = (apiKey: string | undefined) => {
+  const authorization = apiKey ? `ApiKey ${apiKey}` : undefined;
+  return authorization ? { authorization } : undefined;
+};
+
 export const buildURL = (
   host: string,
   port: number,

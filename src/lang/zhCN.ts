@@ -276,6 +276,11 @@ export const zhCN = {
     selectConnection: '未选择连接',
     validationFailed: '表单验证失败！',
     unAuthorized: '认证失败，请输入正确的用户名和密码！',
+    authenticationType: '认证方式',
+    authTypeBasic: '基本认证',
+    authTypeApiKey: 'API 密钥',
+    apiKey: 'API 密钥',
+    apiKeyPlaceholder: '输入 Base64 编码的 id:api_key',
     emptyState: {
       noConnections: '暂无可用连接',
       pleaseSelect: '请选择一个连接',
