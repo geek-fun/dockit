@@ -70,9 +70,11 @@ export type ElasticsearchConnection = {
   indices: Array<ElasticSearchIndex>;
   host: string;
   port: number;
+  authType?: 'basic' | 'apiKey';
   username?: string;
   sslCertVerification: boolean;
   password?: string;
+  apiKey?: string;
   queryParameters?: string;
   activeIndex: ElasticSearchIndex | undefined;
   version: string;
@@ -398,17 +400,20 @@ export const useConnectionStore = defineStore('connectionStore', {
       if (connection?.type !== DatabaseType.ELASTICSEARCH) {
         throw new Error('Operation only supported for Elasticsearch connections');
       }
-      const { username, password, host, port, sslCertVerification } = connection ?? {
-        host: 'http://localhost',
-        port: 9200,
-        username: undefined,
-        password: undefined,
-        sslCertVerification: false,
-      };
+      const { username, password, host, port, sslCertVerification, authType, apiKey } =
+        connection ?? {
+          host: 'http://localhost',
+          port: 9200,
+          username: undefined,
+          password: undefined,
+          sslCertVerification: false,
+        };
       const url = buildURL(host, port, buildPath(index, path, connection), queryParams);
 
+      const authHeader = buildAuthHeader(authType, username, password, apiKey);
+
       const headers = {
-        ...buildAuthHeader(username, password),
+        ...authHeader,
         ...(qdsl ? { 'Content-Type': 'application/json' } : {}),
       };
 
