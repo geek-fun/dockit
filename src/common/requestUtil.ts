@@ -1,13 +1,19 @@
 import { base64Encode } from './base64.ts';
 
-export const buildAuthHeader = (username: string | undefined, password: string | undefined) => {
+export const buildAuthHeader = (
+  authType: 'basic' | 'apiKey' | undefined,
+  username: string | undefined,
+  password: string | undefined,
+  apiKey?: string | undefined,
+) => {
+  if (authType === 'apiKey') {
+    const authorization = apiKey ? `ApiKey ${apiKey}` : undefined;
+    return authorization ? { authorization } : undefined;
+  }
   const authorization =
-    username || password ? `Basic ${base64Encode(`${username}:${password}`)}` : undefined;
-  return authorization ? { authorization } : undefined;
-};
-
-export const buildApiKeyAuthHeader = (apiKey: string | undefined) => {
-  const authorization = apiKey ? `ApiKey ${apiKey}` : undefined;
+    username || password
+      ? `Basic ${base64Encode(`${username ?? ''}:${password ?? ''}`)}`
+      : undefined;
   return authorization ? { authorization } : undefined;
 };
 

@@ -1,11 +1,5 @@
 import { defineStore } from 'pinia';
-import {
-  buildAuthHeader,
-  buildApiKeyAuthHeader,
-  buildURL,
-  CustomError,
-  pureObject,
-} from '../common';
+import { buildAuthHeader, buildURL, CustomError, pureObject } from '../common';
 import { lang } from '../lang';
 import { SearchAction, transformToCurl, configureDynamicOptions } from '../common/monaco';
 import {
@@ -416,8 +410,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         };
       const url = buildURL(host, port, buildPath(index, path, connection), queryParams);
 
-      const authHeader =
-        authType === 'apiKey' ? buildApiKeyAuthHeader(apiKey) : buildAuthHeader(username, password);
+      const authHeader = buildAuthHeader(authType, username, password, apiKey);
 
       const headers = {
         ...authHeader,

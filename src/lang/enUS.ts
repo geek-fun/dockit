@@ -268,6 +268,7 @@ export const enUS = {
       accessKeyIdRequired: 'Please enter Access Key ID',
       secretAccessKeyRequired: 'Please enter Secret Access Key',
       endpointUrlRequired: 'Endpoint URL is required for local connections',
+      apiKeyRequired: 'API Key is required',
     },
     operations: {
       connect: 'Connect',
@@ -277,7 +278,7 @@ export const enUS = {
     selectIndex: 'No collection/index selected',
     selectConnection: 'No Connection selected',
     validationFailed: 'Form validation failed!',
-    unAuthorized: 'Authorization failed, ensure your username and password are correct',
+    unAuthorized: 'Authorization failed, please check your authentication credentials',
     authenticationType: 'Authentication Type',
     authTypeBasic: 'Basic',
     authTypeApiKey: 'API Key',

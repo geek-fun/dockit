@@ -268,19 +268,29 @@ const hostValidate = ref<{
 
 // Zod validation schema
 const formSchema = toTypedSchema(
-  z.object({
-    name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
-    host: z.string().min(1, lang.t('connection.formValidation.hostRequired')),
-    port: z.number({ required_error: lang.t('connection.formValidation.portRequired') }).min(1),
-    authType: z.enum(['basic', 'apiKey']).default('basic'),
-    username: z.string().optional(),
-    password: z.string().optional(),
-    apiKey: z.string().optional(),
-    selectedIndex: z.string().optional(),
-    queryParameters: z.string().optional(),
-    sslCertVerification: z.boolean().optional(),
-    type: z.nativeEnum(DatabaseType),
-  }),
+  z
+    .object({
+      name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
+      host: z.string().min(1, lang.t('connection.formValidation.hostRequired')),
+      port: z.number({ required_error: lang.t('connection.formValidation.portRequired') }).min(1),
+      authType: z.enum(['basic', 'apiKey']).default('basic'),
+      username: z.string().optional(),
+      password: z.string().optional(),
+      apiKey: z.string().optional(),
+      selectedIndex: z.string().optional(),
+      queryParameters: z.string().optional(),
+      sslCertVerification: z.boolean().optional(),
+      type: z.nativeEnum(DatabaseType),
+    })
+    .superRefine((data, ctx) => {
+      if (data.authType === 'apiKey' && !data.apiKey?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['apiKey'],
+          message: lang.t('connection.formValidation.apiKeyRequired'),
+        });
+      }
+    }),
 );
 
 const {
@@ -363,9 +373,10 @@ const showMedal = (con: ElasticsearchConnection | null) => {
   hostValidate.value = { status: undefined, feedback: '' };
   if (con) {
     const selectedIndex = con.activeIndex?.index || '';
-    formData.value = { ...cloneDeep(con), selectedIndex };
-    authType.value = con.authType || 'basic';
-    veeResetForm({ values: { ...cloneDeep(con), selectedIndex } });
+    const resolvedAuthType = (con.authType as 'basic' | 'apiKey' | undefined) || 'basic';
+    formData.value = { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType };
+    authType.value = resolvedAuthType;
+    veeResetForm({ values: { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType } });
     modalTitle.value = lang.t('connection.edit');
   } else {
     formData.value = cloneDeep(defaultFormData);

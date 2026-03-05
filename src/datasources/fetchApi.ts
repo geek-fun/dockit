@@ -1,11 +1,4 @@
-import {
-  buildAuthHeader,
-  buildApiKeyAuthHeader,
-  buildURL,
-  CustomError,
-  debug,
-  jsonify,
-} from '../common';
+import { buildAuthHeader, buildURL, CustomError, debug, jsonify } from '../common';
 import { lang } from '../lang';
 import { invoke } from '@tauri-apps/api/core';
 import { get } from 'lodash';
@@ -66,8 +59,7 @@ const fetchWrapper = async ({
   ssl: boolean;
 }) => {
   const url = buildURL(host, port, path, queryParameters);
-  const authHeader =
-    authType === 'apiKey' ? buildApiKeyAuthHeader(apiKey) : buildAuthHeader(username, password);
+  const authHeader = buildAuthHeader(authType, username, password, apiKey);
   const { data, status, details, errorType } = await fetchRequest(url, {
     method,
     headers: { ...authHeader },
