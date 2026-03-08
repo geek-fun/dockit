@@ -266,6 +266,7 @@ export const zhCN = {
       accessKeyIdRequired: '请输入Access Key ID',
       secretAccessKeyRequired: '请输入Secret Access Key',
       endpointUrlRequired: '本地连接需要输入端点 URL',
+      apiKeyRequired: '请输入 API 密钥',
     },
     operations: {
       connect: '连接',
@@ -275,7 +276,13 @@ export const zhCN = {
     selectIndex: '未选择集合/索引',
     selectConnection: '未选择连接',
     validationFailed: '表单验证失败！',
-    unAuthorized: '认证失败，请输入正确的用户名和密码！',
+    unAuthorized: '认证失败，请检查您的认证凭据！',
+    authenticationType: '认证方式',
+    authTypeNone: '无认证',
+    authTypeBasic: '基本认证',
+    authTypeApiKey: 'API 密钥',
+    apiKey: 'API 密钥',
+    apiKeyPlaceholder: '输入 Base64 编码的 id:api_key',
     emptyState: {
       noConnections: '暂无可用连接',
       pleaseSelect: '请选择一个连接',

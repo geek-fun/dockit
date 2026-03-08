@@ -121,20 +121,56 @@
               </GridItem>
 
               <GridItem :span="8">
-                <FormItem :label="$t('connection.username')">
-                  <Input v-model="formData.username" :placeholder="$t('connection.username')" />
+                <FormItem :label="$t('connection.authenticationType')">
+                  <Tabs
+                    :model-value="authType"
+                    @update:model-value="value => onAuthTypeChange(value as string)"
+                  >
+                    <TabsList class="w-full">
+                      <TabsTrigger class="flex-1" value="basic">
+                        {{ $t('connection.authTypeBasic') }}
+                      </TabsTrigger>
+                      <TabsTrigger class="flex-1" value="apiKey">
+                        {{ $t('connection.authTypeApiKey') }}
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
                 </FormItem>
               </GridItem>
 
-              <GridItem :span="8">
-                <FormItem :label="$t('connection.password')">
-                  <Input
-                    v-model="formData.password"
-                    :type="showPassword ? 'text' : 'password'"
-                    :placeholder="$t('connection.password')"
-                  />
-                </FormItem>
-              </GridItem>
+              <template v-if="authType === 'basic'">
+                <GridItem :span="8">
+                  <FormItem :label="$t('connection.username')">
+                    <Input v-model="formData.username" :placeholder="$t('connection.username')" />
+                  </FormItem>
+                </GridItem>
+
+                <GridItem :span="8">
+                  <FormItem :label="$t('connection.password')">
+                    <Input
+                      v-model="formData.password"
+                      :type="showPassword ? 'text' : 'password'"
+                      :placeholder="$t('connection.password')"
+                    />
+                  </FormItem>
+                </GridItem>
+              </template>
+
+              <template v-else>
+                <GridItem :span="8">
+                  <FormItem
+                    :label="$t('connection.apiKey')"
+                    :error="getError('apiKey', errors.apiKey)"
+                  >
+                    <Input
+                      v-model="formData.apiKey"
+                      type="password"
+                      :placeholder="$t('connection.apiKeyPlaceholder')"
+                      @blur="handleBlur('apiKey')"
+                    />
+                  </FormItem>
+                </GridItem>
+              </template>
             </template>
           </Grid>
         </Form>
@@ -192,6 +228,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const { freshConnection, saveConnection } = useConnectionStore();
 const lang = useLang();
@@ -203,6 +240,7 @@ const saveLoading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
 const showPassword = ref(false);
+const authType = ref<'basic' | 'apiKey'>('basic');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 const defaultFormData = {
@@ -211,6 +249,8 @@ const defaultFormData = {
   port: 9200,
   username: '',
   password: '',
+  apiKey: '',
+  authType: 'basic' as 'basic' | 'apiKey',
   selectedIndex: '',
   queryParameters: '',
   sslCertVerification: true,
@@ -228,17 +268,29 @@ const hostValidate = ref<{
 
 // Zod validation schema
 const formSchema = toTypedSchema(
-  z.object({
-    name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
-    host: z.string().min(1, lang.t('connection.formValidation.hostRequired')),
-    port: z.number({ required_error: lang.t('connection.formValidation.portRequired') }).min(1),
-    username: z.string().optional(),
-    password: z.string().optional(),
-    selectedIndex: z.string().optional(),
-    queryParameters: z.string().optional(),
-    sslCertVerification: z.boolean().optional(),
-    type: z.nativeEnum(DatabaseType),
-  }),
+  z
+    .object({
+      name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
+      host: z.string().min(1, lang.t('connection.formValidation.hostRequired')),
+      port: z.number({ required_error: lang.t('connection.formValidation.portRequired') }).min(1),
+      authType: z.enum(['basic', 'apiKey']).default('basic'),
+      username: z.string().optional(),
+      password: z.string().optional(),
+      apiKey: z.string().optional(),
+      selectedIndex: z.string().optional(),
+      queryParameters: z.string().optional(),
+      sslCertVerification: z.boolean().optional(),
+      type: z.nativeEnum(DatabaseType),
+    })
+    .superRefine((data, ctx) => {
+      if (data.authType === 'apiKey' && !data.apiKey?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['apiKey'],
+          message: lang.t('connection.formValidation.apiKeyRequired'),
+        });
+      }
+    }),
 );
 
 const {
@@ -296,6 +348,18 @@ const switchSSL = (target: boolean) => {
   }
 };
 
+const onAuthTypeChange = (value: string) => {
+  authType.value = value as 'basic' | 'apiKey';
+  formData.value.authType = authType.value;
+  if (value === 'apiKey') {
+    formData.value.username = '';
+    formData.value.password = '';
+  } else {
+    formData.value.apiKey = '';
+  }
+  resetValidation();
+};
+
 const handleOpenChange = (open: boolean) => {
   if (!open) {
     closeModal();
@@ -309,11 +373,14 @@ const showMedal = (con: ElasticsearchConnection | null) => {
   hostValidate.value = { status: undefined, feedback: '' };
   if (con) {
     const selectedIndex = con.activeIndex?.index || '';
-    formData.value = { ...cloneDeep(con), selectedIndex };
-    veeResetForm({ values: { ...cloneDeep(con), selectedIndex } });
+    const resolvedAuthType = (con.authType as 'basic' | 'apiKey' | undefined) || 'basic';
+    formData.value = { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType };
+    authType.value = resolvedAuthType;
+    veeResetForm({ values: { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType } });
     modalTitle.value = lang.t('connection.edit');
   } else {
     formData.value = cloneDeep(defaultFormData);
+    authType.value = 'basic';
     veeResetForm({ values: cloneDeep(defaultFormData) });
   }
   resetValidation();
@@ -327,6 +394,7 @@ const closeModal = () => {
   errorMessage.value = '';
   successMessage.value = '';
   hostValidate.value = { status: undefined, feedback: '' };
+  authType.value = 'basic';
   resetValidation();
 };
 
