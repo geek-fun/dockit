@@ -37,7 +37,10 @@
             <TooltipProvider v-if="getEsProtocol(connection)" :delay-duration="200">
               <Tooltip>
                 <TooltipTrigger as-child>
-                  <span :class="[getEsProtocol(connection)!.icon, getEsProtocol(connection)!.color]" class="h-3.5 w-3.5 cursor-default" />
+                  <span
+                    :class="[getEsProtocol(connection)!.icon, getEsProtocol(connection)!.color]"
+                    class="h-3.5 w-3.5 cursor-default"
+                  />
                 </TooltipTrigger>
                 <TooltipContent side="top">
                   {{ getEsProtocol(connection)!.label }}
@@ -47,7 +50,10 @@
             <TooltipProvider v-if="getEsAuthType(connection)" :delay-duration="200">
               <Tooltip>
                 <TooltipTrigger as-child>
-                  <span :class="[getEsAuthType(connection)!.icon, getEsAuthType(connection)!.color]" class="h-3.5 w-3.5 cursor-default" />
+                  <span
+                    :class="[getEsAuthType(connection)!.icon, getEsAuthType(connection)!.color]"
+                    class="h-3.5 w-3.5 cursor-default"
+                  />
                 </TooltipTrigger>
                 <TooltipContent side="top">
                   {{ getEsAuthType(connection)!.label }}
@@ -201,7 +207,9 @@ const getConnectionTarget = (connection: Connection) => {
   return dynamo.endpointUrl ? lang.t('connection.localTarget') : lang.t('connection.cloudTarget');
 };
 
-const getEsProtocol = (connection: Connection): { label: string; icon: string; color: string } | null => {
+const getEsProtocol = (
+  connection: Connection,
+): { label: string; icon: string; color: string } | null => {
   if (connection.type !== DatabaseType.ELASTICSEARCH) return null;
   const es = connection as ElasticsearchConnection;
   const isHttps = es.host?.toLowerCase().startsWith('https://');
@@ -210,14 +218,28 @@ const getEsProtocol = (connection: Connection): { label: string; icon: string; c
     : { label: 'HTTP', icon: 'i-carbon-unlocked', color: 'text-yellow-500' };
 };
 
-const getEsAuthType = (connection: Connection): { label: string; icon: string; color: string } | null => {
+const getEsAuthType = (
+  connection: Connection,
+): { label: string; icon: string; color: string } | null => {
   if (connection.type !== DatabaseType.ELASTICSEARCH) return null;
   const es = connection as ElasticsearchConnection;
   if (es.authType === 'basic')
-    return { label: lang.t('connection.authTypeBasic'), icon: 'i-carbon-password', color: 'text-blue-500' };
+    return {
+      label: lang.t('connection.authTypeBasic'),
+      icon: 'i-carbon-password',
+      color: 'text-blue-500',
+    };
   if (es.authType === 'apiKey')
-    return { label: lang.t('connection.authTypeApiKey'), icon: 'i-carbon-api', color: 'text-blue-500' };
-  return { label: lang.t('connection.authTypeNone'), icon: 'i-carbon-subtract', color: 'text-muted-foreground' };
+    return {
+      label: lang.t('connection.authTypeApiKey'),
+      icon: 'i-carbon-api',
+      color: 'text-blue-500',
+    };
+  return {
+    label: lang.t('connection.authTypeNone'),
+    icon: 'i-carbon-subtract',
+    color: 'text-muted-foreground',
+  };
 };
 
 const handleSelect = (key: string, connection: Connection) => {
