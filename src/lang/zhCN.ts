@@ -278,6 +278,7 @@ export const zhCN = {
     validationFailed: '表单验证失败！',
     unAuthorized: '认证失败，请检查您的认证凭据！',
     authenticationType: '认证方式',
+    authTypeNone: '无认证',
     authTypeBasic: '基本认证',
     authTypeApiKey: 'API 密钥',
     apiKey: 'API 密钥',
