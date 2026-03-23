@@ -8,6 +8,7 @@ mod openai_client;
 mod dynamo_client;
 mod dynamo;
 
+use tauri::Emitter;
 use fetch_client::fetch_api;
 use openai_client::{chat_stream, create_openai_client};
 use dynamo_client::dynamo_api;
@@ -22,6 +23,13 @@ fn main() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_system_info::init())
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if args.len() > 1 {
+                let deep_link = &args[1];
+                let _ = app.emit("deep-link-received", deep_link);
+            }
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
             create_openai_client,
             fetch_api,

@@ -505,6 +505,8 @@ export const zhCN = {
     register: '没有账号？立即注册',
     enterName: '请输入用户名',
     enterPwd: '请输入密码',
+    orContinueWith: '或通过以下方式登录',
+    loginWithGeekfun: '通过 Geekfun 登录',
   },
   grammar: {
     // Search APIs
