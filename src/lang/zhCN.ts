@@ -30,6 +30,11 @@ export const zhCN = {
       fontWeightMedium: '中等',
       fontWeightBold: '粗体',
     },
+    history: {
+      title: '历史记录',
+      historyCap: '历史记录上限',
+      historyCapDesc: '最多保留的查询历史条数（10–5百）',
+    },
     ai: {
       title: 'GPTs配置',
       configGpt: '前往配置GPT',
@@ -182,6 +187,7 @@ export const zhCN = {
       // CloudWatch metrics
       cloudwatchNotAvailable:
         'CloudWatch 指标不可用。请启用 CloudWatch Contributor Insights 或确保您的 IAM 凭证具有 cloudwatch:GetMetricData 权限。',
+      localMetricsNotAvailable: 'DynamoDB Local 不支持 CloudWatch 指标。本地连接无法获取指标数据。',
       // Modal translations
       deleteIndexConfirm: '确定要删除此索引吗?',
       deleteIndexSuccess: '索引删除成功',
@@ -244,6 +250,11 @@ export const zhCN = {
     accessKeyId: 'Access Key ID',
     secretAccessKey: 'Secret Access Key',
     selectRegion: '请选择区域',
+    endpointUrl: '端点 URL',
+    connectionTarget: '连接目标',
+    cloudTarget: 'AWS 云',
+    localTarget: '本地',
+    localLimitations: 'DynamoDB Local 不支持 CloudWatch 指标、持续备份、全局表、IAM 角色或数据流。',
     unsupportedType: '提供了不支持的数据库类型',
     formValidation: {
       nameRequired: '请输入连接名称',
@@ -254,6 +265,8 @@ export const zhCN = {
       regionRequired: '请选择区域',
       accessKeyIdRequired: '请输入Access Key ID',
       secretAccessKeyRequired: '请输入Secret Access Key',
+      endpointUrlRequired: '本地连接需要输入端点 URL',
+      apiKeyRequired: '请输入 API 密钥',
     },
     operations: {
       connect: '连接',
@@ -263,7 +276,13 @@ export const zhCN = {
     selectIndex: '未选择集合/索引',
     selectConnection: '未选择连接',
     validationFailed: '表单验证失败！',
-    unAuthorized: '认证失败，请输入正确的用户名和密码！',
+    unAuthorized: '认证失败，请检查您的认证凭据！',
+    authenticationType: '认证方式',
+    authTypeNone: '无认证',
+    authTypeBasic: '基本认证',
+    authTypeApiKey: 'API 密钥',
+    apiKey: 'API 密钥',
+    apiKeyPlaceholder: '输入 Base64 编码的 id:api_key',
     emptyState: {
       noConnections: '暂无可用连接',
       pleaseSelect: '请选择一个连接',
@@ -272,6 +291,11 @@ export const zhCN = {
       queryComingSoon: 'DynamoDB 查询功能开发中...',
       tablesComingSoon: 'DynamoDB 表管理功能开发中...',
     },
+  },
+  toolBar: {
+    hideSystemIndices: '显示/隐藏系统索引',
+    hidden: '已隐藏',
+    display: '展示中',
   },
   dialogOps: {
     warning: '提示',
@@ -395,6 +419,7 @@ export const zhCN = {
         contextMenu: {
           execute: '执行',
           copy: '复制',
+          format: '格式化',
         },
       },
     },
@@ -427,6 +452,24 @@ export const zhCN = {
   history: {
     empty: '无历史记录',
     emptyDesc: '执行扫描和查询时，查询历史记录将显示在此处',
+    title: '查询历史',
+    searchPlaceholder: '搜索历史...',
+    executeSuccess: '查询执行成功',
+    addToEditor: '添加到编辑器',
+    execute: '执行',
+    copyQuery: '复制查询',
+    delete: '删除',
+    clearAll: '清空全部',
+    clearAllConfirm: '确定要清空所有历史记录吗？',
+    noConnection: '没有活动连接来执行查询',
+    details: '详情',
+    type: '数据库',
+    method: '方法',
+    path: '路径',
+    index: '索引',
+    connection: '连接',
+    timestamp: '时间',
+    body: '请求体',
   },
   importExport: {
     export: '导出',
@@ -445,10 +488,14 @@ export const zhCN = {
   },
   version: {
     newVersion: '发现新版本',
+    readyMessage: '新版本 ({version}) 已准备就绪。',
     message: '发现新版本，是否立即下载',
     skip: '跳过该版本',
     download: '下载',
     later: '忽略',
+    updateNow: '立即更新',
+    installing: '安装中...',
+    updateFailed: '更新安装失败，请重试。',
   },
   login: {
     title: '登录',

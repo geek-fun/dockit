@@ -30,6 +30,11 @@ export const enUS = {
       fontWeightMedium: 'Medium',
       fontWeightBold: 'Bold',
     },
+    history: {
+      title: 'History',
+      historyCap: 'History Limit',
+      historyCapDesc: 'Maximum number of query history entries to keep (10–500)',
+    },
     ai: {
       title: 'GPTs',
       configGpt: 'Configure GPT',
@@ -182,6 +187,8 @@ export const enUS = {
       // CloudWatch metrics
       cloudwatchNotAvailable:
         'CloudWatch metrics are not available. Enable CloudWatch Contributor Insights or ensure your IAM credentials have cloudwatch:GetMetricData permission.',
+      localMetricsNotAvailable:
+        'DynamoDB Local does not support CloudWatch metrics. Metrics data is not available for local connections.',
       // Modal translations
       deleteIndexConfirm: 'Are you sure you want to delete this index?',
       deleteIndexSuccess: 'Index deleted successfully',
@@ -244,6 +251,12 @@ export const enUS = {
     accessKeyId: 'Access Key ID',
     secretAccessKey: 'Secret Access Key',
     selectRegion: 'Please select region',
+    endpointUrl: 'Endpoint URL',
+    connectionTarget: 'Connection Target',
+    cloudTarget: 'AWS Cloud',
+    localTarget: 'Local',
+    localLimitations:
+      'DynamoDB Local does not support CloudWatch metrics, continuous backups, global tables, IAM roles, or streams.',
     unsupportedType: 'Unsupported database type provided',
     formValidation: {
       nameRequired: 'Name is required',
@@ -254,6 +267,8 @@ export const enUS = {
       regionRequired: 'Please select region',
       accessKeyIdRequired: 'Please enter Access Key ID',
       secretAccessKeyRequired: 'Please enter Secret Access Key',
+      endpointUrlRequired: 'Endpoint URL is required for local connections',
+      apiKeyRequired: 'API Key is required',
     },
     operations: {
       connect: 'Connect',
@@ -263,7 +278,13 @@ export const enUS = {
     selectIndex: 'No collection/index selected',
     selectConnection: 'No Connection selected',
     validationFailed: 'Form validation failed!',
-    unAuthorized: 'Authorization failed, ensure your username and password are correct',
+    unAuthorized: 'Authorization failed, please check your authentication credentials',
+    authenticationType: 'Authentication Type',
+    authTypeNone: 'No Auth',
+    authTypeBasic: 'Basic Auth',
+    authTypeApiKey: 'API Key',
+    apiKey: 'API Key',
+    apiKeyPlaceholder: 'Enter base64-encoded id:api_key',
     emptyState: {
       noConnections: 'No connections available',
       pleaseSelect: 'Please select a connection',
@@ -272,6 +293,11 @@ export const enUS = {
       queryComingSoon: 'DynamoDB query interface coming soon...',
       tablesComingSoon: 'DynamoDB tables management coming soon...',
     },
+  },
+  toolBar: {
+    hideSystemIndices: 'Hide/Display system indices',
+    hidden: 'Hidden',
+    display: 'Display',
   },
   dialogOps: {
     warning: 'Warning',
@@ -396,6 +422,7 @@ export const enUS = {
         contextMenu: {
           execute: 'Execute',
           copy: 'Copy',
+          format: 'Format',
         },
       },
     },
@@ -427,6 +454,24 @@ export const enUS = {
   history: {
     empty: 'No history yet',
     emptyDesc: 'History of queries will appear here as you execute Scans and Queries',
+    title: 'Query History',
+    searchPlaceholder: 'Search history...',
+    executeSuccess: 'Query executed successfully',
+    addToEditor: 'Add to Editor',
+    execute: 'Execute',
+    copyQuery: 'Copy Query',
+    delete: 'Delete',
+    clearAll: 'Clear All',
+    clearAllConfirm: 'Are you sure you want to clear all history?',
+    noConnection: 'No active connection to execute query',
+    details: 'Details',
+    type: 'Database',
+    method: 'Method',
+    path: 'Path',
+    index: 'Index',
+    connection: 'Connection',
+    timestamp: 'Time',
+    body: 'Body',
   },
   importExport: {
     export: 'Export',
@@ -445,10 +490,14 @@ export const enUS = {
   },
   version: {
     newVersion: 'New version available',
+    readyMessage: 'A newer version ({version}) is ready for you.',
     message: 'A new version is available, download it now',
     download: 'Download',
     skip: 'Skip this version',
     later: 'Later',
+    updateNow: 'Update Now',
+    installing: 'Installing...',
+    updateFailed: 'Failed to install the update. Please try again.',
   },
   login: {
     title: 'Log In',

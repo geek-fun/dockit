@@ -47,6 +47,7 @@ export type DynamoDBConnection = {
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
+  endpointUrl?: string;
   tableName: string;
   keySchema?: Array<KeySchema>;
   partitionKey: {
@@ -69,12 +70,15 @@ export type ElasticsearchConnection = {
   indices: Array<ElasticSearchIndex>;
   host: string;
   port: number;
+  authType?: 'basic' | 'apiKey';
   username?: string;
   sslCertVerification: boolean;
   password?: string;
+  apiKey?: string;
   queryParameters?: string;
   activeIndex: ElasticSearchIndex | undefined;
   version: string;
+  isOpenSearch: boolean;
   clusterName: string;
   clusterUuid: string;
 };
@@ -90,6 +94,7 @@ type ElasticsearchClusterInfo = {
     build_hash: string;
     build_snapshot: boolean;
     build_type: string;
+    distribution?: string;
     lucene_version: string;
     minimum_index_compatibility_version: string;
     minimum_wire_compatibility_version: string;
@@ -215,9 +220,13 @@ export const useConnectionStore = defineStore('connectionStore', {
           'format=json',
         );
 
+        const isOpenSearch =
+          clusterInfo.version.distribution === 'opensearch' ||
+          (clusterInfo.tagline ?? '').toLowerCase().includes('opensearch');
         return {
           ...con,
           version: clusterInfo.version.number,
+          isOpenSearch,
           clusterName: clusterInfo.cluster_name,
           clusterUuid: clusterInfo.cluster_uuid,
         } as ElasticsearchConnection;
@@ -265,7 +274,15 @@ export const useConnectionStore = defineStore('connectionStore', {
       if (!connection) throw new Error('no connection established');
       if (connection.type === DatabaseType.ELASTICSEARCH) {
         const client = loadHttpClient(connection);
-        const data = (await client.get('/_cat/indices', 'format=json')) as Array<{
+        const esCon = connection as ElasticsearchConnection;
+        const majorVersionStr = esCon.version?.split('.')[0];
+        const majorVersion =
+          majorVersionStr !== undefined ? parseInt(majorVersionStr, 10) : undefined;
+        const expandWildcards =
+          esCon.isOpenSearch || (majorVersion !== undefined && majorVersion >= 6)
+            ? '&expand_wildcards=all'
+            : '';
+        const data = (await client.get('/_cat/indices', `format=json${expandWildcards}`)) as Array<{
           [key: string]: string;
         }>;
         const indices = data.map((index: { [key: string]: string }) => ({
@@ -383,17 +400,20 @@ export const useConnectionStore = defineStore('connectionStore', {
       if (connection?.type !== DatabaseType.ELASTICSEARCH) {
         throw new Error('Operation only supported for Elasticsearch connections');
       }
-      const { username, password, host, port, sslCertVerification } = connection ?? {
-        host: 'http://localhost',
-        port: 9200,
-        username: undefined,
-        password: undefined,
-        sslCertVerification: false,
-      };
+      const { username, password, host, port, sslCertVerification, authType, apiKey } =
+        connection ?? {
+          host: 'http://localhost',
+          port: 9200,
+          username: undefined,
+          password: undefined,
+          sslCertVerification: false,
+        };
       const url = buildURL(host, port, buildPath(index, path, connection), queryParams);
 
+      const authHeader = buildAuthHeader(authType, username, password, apiKey);
+
       const headers = {
-        ...buildAuthHeader(username, password),
+        ...authHeader,
         ...(qdsl ? { 'Content-Type': 'application/json' } : {}),
       };
 

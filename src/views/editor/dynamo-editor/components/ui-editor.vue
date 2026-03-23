@@ -205,10 +205,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Spinner } from '@/components/ui/spinner';
 import {
   Connection,
+  DatabaseType,
   DynamoDBConnection,
   DynamoIndexOrTableOption,
   useConnectionStore,
   useDbDataStore,
+  useHistoryStore,
   useTabStore,
 } from '../../../../store';
 import { CustomError } from '../../../../common';
@@ -236,6 +238,8 @@ const {
   refreshDynamoData,
 } = dbDataStore;
 const { dynamoData } = storeToRefs(dbDataStore);
+
+const historyStore = useHistoryStore();
 
 // Use store-persisted UI query form state
 const dynamoQueryForm = computed({
@@ -434,6 +438,28 @@ const queryToDynamo = async (event?: MouseEvent) => {
       filters: formFilterItems,
       index: index ?? undefined,
     });
+
+    const conn = activeConnection.value as DynamoDBConnection;
+    const queryDesc = [
+      partitionKey ? `PK=${partitionKey}` : null,
+      sortKey ? `SK=${sortKey}` : null,
+      ...(formFilterItems
+        ?.filter(f => f.key && f.operator)
+        .map(f => `${f.key}${f.operator}${f.value}`) ?? []),
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+    historyStore.addEntry({
+      databaseType: DatabaseType.DYNAMODB,
+      method: 'Query',
+      path: conn.tableName,
+      index: index ?? undefined,
+      qdsl: queryDesc || undefined,
+      connectionName: conn.name,
+      connectionId: conn.id,
+    });
+
     editorSize.value = 0.5;
     loadingBar.finish();
   } catch (error) {

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { pureObject } from '../common';
+import { pureObject, HISTORY_CAP_MIN, HISTORY_CAP_MAX, HISTORY_CAP_DEFAULT } from '../common';
 import { chatBotApi, ProviderEnum, storeApi } from '../datasources';
 import { lang } from '../lang';
 
@@ -34,6 +34,10 @@ export type EditorConfig = {
   // in a dedicated editor theme section.
 };
 
+export type HistoryConfig = {
+  historyCap: number;
+};
+
 export const useAppStore = defineStore('app', {
   state: (): {
     themeType: ThemeType;
@@ -43,6 +47,7 @@ export const useAppStore = defineStore('app', {
     skipVersion: string;
     aiConfigs: Array<AiConfig>;
     editorConfig: EditorConfig;
+    historyConfig: HistoryConfig;
   } => {
     return {
       themeType: ThemeType.AUTO,
@@ -56,6 +61,9 @@ export const useAppStore = defineStore('app', {
         fontWeight: 'normal',
         showLineNumbers: true,
         showMinimap: false,
+      },
+      historyConfig: {
+        historyCap: HISTORY_CAP_DEFAULT,
       },
     };
   },
@@ -95,6 +103,14 @@ export const useAppStore = defineStore('app', {
 
     setEditorConfig(config: Partial<EditorConfig>) {
       this.editorConfig = { ...this.editorConfig, ...config };
+    },
+
+    setHistoryConfig(config: Partial<HistoryConfig>) {
+      const cap = config.historyCap ?? this.historyConfig.historyCap;
+      this.historyConfig = {
+        ...this.historyConfig,
+        historyCap: Math.min(HISTORY_CAP_MAX, Math.max(HISTORY_CAP_MIN, cap)),
+      };
     },
 
     async fetchAiConfigs() {

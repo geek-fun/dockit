@@ -123,7 +123,9 @@ interface RouteItem {
 }
 
 const isActive = (item: RouteItem) => {
-  return item.path === route.path;
+  if (!item.path || item.isLink) return false;
+  if (item.path === '/') return route.path === '/';
+  return route.path === item.path || route.path.startsWith(item.path + '/');
 };
 // nav click handler method
 const navClick = (item: RouteItem) => {

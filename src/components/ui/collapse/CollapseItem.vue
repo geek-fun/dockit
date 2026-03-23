@@ -16,7 +16,7 @@ const itemValue = props.value || props.name || 'item';
 </script>
 
 <template>
-  <AccordionItem :value="itemValue" :class="cn('border-b', props.class)">
+  <AccordionItem :value="itemValue" :class="cn('border-b last:border-b-0', props.class)">
     <AccordionHeader class="flex">
       <AccordionTrigger
         class="flex flex-1 items-center justify-between py-4 font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180"

@@ -12,7 +12,12 @@ type FetchApiOptions = {
   payload?: string;
 };
 
-const handleFetch = (result: { data: unknown; status: number; details: string | undefined }) => {
+const handleFetch = (result: {
+  data: unknown;
+  status: number;
+  details: string | undefined;
+  errorType?: string;
+}) => {
   if (result.status >= 200 && result.status < 300) {
     return result.data;
   }
@@ -25,7 +30,7 @@ const handleFetch = (result: { data: unknown; status: number; details: string | 
   if (result.status === 403) {
     throw new CustomError(result.status, get(result, 'data.error.reason', result.details || ''));
   }
-  throw new CustomError(result.status, result.details || '');
+  throw new CustomError(result.status, result.details || '', result.errorType);
 };
 
 const fetchWrapper = async ({
@@ -37,6 +42,8 @@ const fetchWrapper = async ({
   port,
   username,
   password,
+  authType,
+  apiKey,
   ssl,
 }: {
   method: string;
@@ -45,18 +52,21 @@ const fetchWrapper = async ({
   payload?: string;
   username?: string;
   password?: string;
+  authType?: 'basic' | 'apiKey';
+  apiKey?: string;
   host: string;
   port: number;
   ssl: boolean;
 }) => {
   const url = buildURL(host, port, path, queryParameters);
-  const { data, status, details } = await fetchRequest(url, {
+  const authHeader = buildAuthHeader(authType, username, password, apiKey);
+  const { data, status, details, errorType } = await fetchRequest(url, {
     method,
-    headers: { ...buildAuthHeader(username, password) },
+    headers: { ...authHeader },
     payload,
     agent: { ssl },
   });
-  return handleFetch({ data, status, details });
+  return handleFetch({ data, status, details, errorType });
 };
 
 const fetchRequest = async (
@@ -86,9 +96,28 @@ const fetchRequest = async (
 
     throw new CustomError(status, message);
   } catch (e) {
-    const error = typeof e == 'string' ? new CustomError(500, e) : (e as CustomError);
-    const details = error.details || error.message;
     debug('error encountered while node-fetch fetch target:', e);
+
+    // When Rust returns Err(String), Tauri passes it as a plain string (JSON)
+    if (typeof e === 'string') {
+      try {
+        const parsed = jsonify.parse(e) as {
+          status?: number;
+          message?: string;
+          error_type?: string;
+        };
+        return {
+          status: parsed.status || 500,
+          details: parsed.message || e,
+          errorType: parsed.error_type,
+        };
+      } catch {
+        return { status: 500, details: e };
+      }
+    }
+
+    const error = e as CustomError;
+    const details = error.details || error.message;
     return {
       status: error.status || 500,
       details: typeof details === 'string' ? details : jsonify.stringify(details),
@@ -101,6 +130,8 @@ const loadHttpClient = (con: {
   port: number;
   username?: string;
   password?: string;
+  authType?: 'basic' | 'apiKey';
+  apiKey?: string;
   sslCertVerification: boolean;
 }) => ({
   get: async <T = unknown>(path?: string, queryParameters?: string, payload?: string): Promise<T> =>

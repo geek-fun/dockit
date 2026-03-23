@@ -68,7 +68,7 @@ const cleanUp = () => {
   modalTitle.value = '';
 };
 
-const showMedal = (action: ContextMenuAction, selectedFile?: PathInfo) => {
+const openModal = (action: ContextMenuAction, selectedFile?: PathInfo) => {
   cleanUp();
   selectedFileRef.value = selectedFile;
   if (action === ContextMenuAction.CONTEXT_MENU_ACTION_NEW_FOLDER) {
@@ -130,7 +130,7 @@ const submitNewFile = async (event: MouseEvent) => {
   }
 };
 
-defineExpose({ showModal: showMedal });
+defineExpose({ showModal: openModal });
 </script>
 
 <style scoped>

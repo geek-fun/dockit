@@ -9,6 +9,7 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import { buttonVariants } from '@/components/ui/button';
 
 // Animation cleanup delay in milliseconds
 const DIALOG_CLEANUP_DELAY = 200;
@@ -19,6 +20,8 @@ interface DialogOptions {
   positiveText?: string;
   negativeText?: string;
   type?: 'info' | 'warning' | 'error' | 'success';
+  positiveVariant?: 'default' | 'destructive' | 'outline' | 'secondary';
+  negativeVariant?: 'default' | 'destructive' | 'outline' | 'secondary';
   onPositiveClick?: () => void | Promise<void>;
   onNegativeClick?: () => void | Promise<void>;
 }
@@ -88,17 +91,23 @@ export function useDialogService(): DialogReturn {
                               AlertDialogCancel,
                               {
                                 onClick: handleNegative,
-                                class:
-                                  options.type === 'warning' || options.type === 'error'
-                                    ? 'border-destructive text-destructive hover:bg-destructive/10'
-                                    : '',
+                                class: options.negativeVariant
+                                  ? buttonVariants({ variant: options.negativeVariant })
+                                  : undefined,
                               },
                               { default: () => options.negativeText },
                             )
                           : null,
                         h(
                           AlertDialogAction,
-                          { onClick: handlePositive },
+                          {
+                            onClick: handlePositive,
+                            class: options.positiveVariant
+                              ? buttonVariants({ variant: options.positiveVariant })
+                              : options.type === 'warning' || options.type === 'error'
+                                ? buttonVariants({ variant: 'destructive' })
+                                : '',
+                          },
                           { default: () => options.positiveText || 'OK' },
                         ),
                       ],

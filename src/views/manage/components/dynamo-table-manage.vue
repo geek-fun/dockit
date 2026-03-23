@@ -549,9 +549,16 @@ const fetchCloudWatchMetrics = async () => {
     return;
   }
 
+  const dynCon = connection.value as DynamoDBConnection;
+  if (dynCon.endpointUrl) {
+    metricsAvailable.value = false;
+    metricsMessage.value = lang.t('manage.dynamo.localMetricsNotAvailable');
+    return;
+  }
+
   try {
     metricsLoading.value = true;
-    const result = await dynamoApi.getTableMetrics(connection.value as DynamoDBConnection, 24);
+    const result = await dynamoApi.getTableMetrics(dynCon, 24);
 
     metricsAvailable.value = result.available;
     metricsMessage.value = result.message || '';
