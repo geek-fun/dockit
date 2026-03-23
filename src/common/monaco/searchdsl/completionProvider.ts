@@ -235,7 +235,7 @@ const findMethodAndPath = (
 const getBodyPath = (text: string, offset: number): string[] | null => {
   const tokens = tokenize(text);
   const pathStack: string[] = [];
-  let inBody = false;
+  let bodyDepth = 0; // Track actual brace depth independently
   let lastKey: string | null = null;
 
   for (const token of tokens) {
@@ -243,8 +243,8 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
 
     switch (token.type) {
       case TokenType.BODY_START:
-        if (token.value === '{') {
-          inBody = true;
+        if (token.value === '{' || token.value === '[') {
+          bodyDepth++;
           if (lastKey) {
             pathStack.push(lastKey);
             lastKey = null;
@@ -252,12 +252,13 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
         }
         break;
       case TokenType.BODY_END:
-        if (token.value === '}') {
-          pathStack.pop();
+        if (token.value === '}' || token.value === ']') {
+          if (pathStack.length > 0) {
+            pathStack.pop();
+          }
           lastKey = null;
-          // If we've closed all braces, we're no longer in a body
-          if (pathStack.length === 0) {
-            inBody = false;
+          if (bodyDepth > 0) {
+            bodyDepth--;
           }
         }
         break;
@@ -283,7 +284,8 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
     }
   }
 
-  return inBody ? pathStack : null;
+  // We're in a body if we have unclosed braces
+  return bodyDepth > 0 ? pathStack : null;
 };
 
 /**
@@ -930,7 +932,19 @@ const getRootBodyFields = (
   const isIndexCreation =
     method === 'PUT' && pathSegments.length === 1 && !pathSegments[0].startsWith('_');
 
-  if (isIndexCreation || path?.includes('_mapping') || path?.includes('_settings')) {
+  // Check for specific endpoints - must check before index creation
+  // PUT /{index}/_mapping should only show mapping fields
+  if (path?.includes('/_mapping') && method === 'PUT') {
+    return getMappingsFields();
+  }
+
+  // PUT /{index}/_settings should only show settings fields
+  if (path?.includes('/_settings') && method === 'PUT') {
+    return getSettingsFields();
+  }
+
+  // PUT /{index} for index creation shows all fields (settings, mappings, aliases)
+  if (isIndexCreation) {
     return getIndexBodyFields();
   }
 
