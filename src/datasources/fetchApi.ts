@@ -12,6 +12,26 @@ type FetchApiOptions = {
   payload?: string;
 };
 
+const extractEsError = (data: unknown): string | null => {
+  const error = get(data, 'error');
+  if (!error) return null;
+  if (typeof error === 'string') return error;
+
+  const type = get(error, 'type');
+  const reason = get(error, 'reason');
+  if (type && reason) {
+    return `${type}: ${reason}`;
+  }
+  if (reason) return reason;
+  if (type) return type;
+  try {
+    const stringified = jsonify.stringify(error);
+    return stringified.length > 500 ? stringified.slice(0, 500) + '...' : stringified;
+  } catch {
+    return null;
+  }
+};
+
 const handleFetch = (result: {
   data: unknown;
   status: number;
@@ -28,9 +48,12 @@ const handleFetch = (result: {
     throw new CustomError(result.status, lang.global.t('connection.unAuthorized'));
   }
   if (result.status === 403) {
-    throw new CustomError(result.status, get(result, 'data.error.reason', result.details || ''));
+    const esError = extractEsError(result.data);
+    throw new CustomError(result.status, esError || result.details || '');
   }
-  throw new CustomError(result.status, result.details || '', result.errorType);
+
+  const esError = extractEsError(result.data);
+  throw new CustomError(result.status, esError || result.details || '', result.errorType);
 };
 
 const fetchWrapper = async ({

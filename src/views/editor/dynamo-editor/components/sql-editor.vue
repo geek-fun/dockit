@@ -540,7 +540,6 @@ const setupEditor = () => {
     automaticLayout: true,
     scrollBeyondLastLine: false,
     wordWrap: 'on',
-    tabSize: 2,
     ...getEditorOptions(),
   });
 
@@ -563,6 +562,8 @@ const setupEditor = () => {
   // Initial syntax validation
   const model = editor.getModel();
   if (model) {
+    const options = getEditorOptions();
+    model.updateOptions({ tabSize: options.tabSize, insertSpaces: options.insertSpaces });
     validatePartiqlModel(model);
   }
 
@@ -663,7 +664,12 @@ watch(themeType, () => {
 watch(
   editorConfig,
   () => {
-    editor?.updateOptions(getEditorOptions());
+    const options = getEditorOptions();
+    editor?.updateOptions(options);
+    editor?.getModel()?.updateOptions({
+      tabSize: options.tabSize,
+      insertSpaces: options.insertSpaces,
+    });
   },
   { deep: true },
 );

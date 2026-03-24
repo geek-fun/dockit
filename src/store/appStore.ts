@@ -29,9 +29,8 @@ export type EditorConfig = {
   fontWeight: string;
   showLineNumbers: boolean;
   showMinimap: boolean;
-  // Note: Theme/Color Scheme configuration is available via themeType/uiThemeType
-  // but is not exposed in editor settings. It's planned for future implementation
-  // in a dedicated editor theme section.
+  tabSize: number;
+  insertSpaces: boolean;
 };
 
 export type HistoryConfig = {
@@ -61,6 +60,8 @@ export const useAppStore = defineStore('app', {
         fontWeight: 'normal',
         showLineNumbers: true,
         showMinimap: false,
+        tabSize: 2,
+        insertSpaces: true,
       },
       historyConfig: {
         historyCap: HISTORY_CAP_DEFAULT,
@@ -98,6 +99,9 @@ export const useAppStore = defineStore('app', {
         fontWeight: this.editorConfig.fontWeight,
         lineNumbers: this.editorConfig.showLineNumbers ? ('on' as const) : ('off' as const),
         minimap: { enabled: this.editorConfig.showMinimap },
+        tabSize: this.editorConfig.tabSize,
+        insertSpaces: this.editorConfig.insertSpaces,
+        detectIndentation: false,
       };
     },
 

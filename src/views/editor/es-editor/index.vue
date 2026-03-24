@@ -141,7 +141,12 @@ watch(themeType, () => {
 watch(
   editorConfig,
   () => {
-    queryEditor?.updateOptions(getEditorOptions());
+    const options = getEditorOptions();
+    queryEditor?.updateOptions(options);
+    queryEditor?.getModel()?.updateOptions({
+      tabSize: options.tabSize,
+      insertSpaces: options.insertSpaces,
+    });
   },
   { deep: true },
 );
@@ -318,18 +323,23 @@ const handleDocumentClick = (event: MouseEvent) => {
 };
 
 const setupQueryEditor = () => {
+  const editorOptions = getEditorOptions();
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     theme: getEditorTheme(),
     value: activePanel.value.content ?? '',
     language: 'search',
     automaticLayout: true,
     scrollBeyondLastLine: false,
-    ...getEditorOptions(),
+    wordBasedSuggestions: 'off',
+    ...editorOptions,
   });
   if (!queryEditor) {
     return;
   }
-  queryEditor.getModel()?.updateOptions({ tabSize: 2 });
+  queryEditor.getModel()?.updateOptions({
+    tabSize: editorOptions.tabSize,
+    insertSpaces: editorOptions.insertSpaces,
+  });
 
   queryEditor.onDidChangeModelContent(_changes => {
     saveModelContent(false, false, false);
