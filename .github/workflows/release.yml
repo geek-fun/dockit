@@ -12,33 +12,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
         include:
           - os: 'macos-latest'
             args: '--target universal-apple-darwin'
             target: 'aarch64-apple-darwin,x86_64-apple-darwin'
             artifact-name: 'universal-apple-darwin'
-          - os: 'windows-latest'
-            args: '--target aarch64-pc-windows-msvc'
-            target: 'aarch64-pc-windows-msvc'
-            artifact-name: 'aarch64-pc-windows-msvc'
-            aarch64: true
+            node-version: '24.x'
           - os: 'windows-latest'
             args: '--target x86_64-pc-windows-msvc'
             target: 'x86_64-pc-windows-msvc'
             artifact-name: 'x86_64-pc-windows-msvc'
-            x86_64: true
-          - os: 'ubuntu-latest'
-            args: '--target aarch64-unknown-linux-gnu'
-            target: 'aarch64-unknown-linux-gnu'
-            artifact-name: 'aarch64-unknown-linux-gnu'
-            aarch64: true
+            node-version: '24.x'
           - os: 'ubuntu-latest'
             args: '--target x86_64-unknown-linux-gnu'
             target: 'x86_64-unknown-linux-gnu'
             artifact-name: 'x86_64-unknown-linux-gnu'
-            x86_64: true
-        node-version: [24.x]
+            node-version: '24.x'
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -58,7 +47,7 @@ jobs:
         run: |
           echo "deb http://gb.archive.ubuntu.com/ubuntu jammy main" | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev gcc-aarch64-linux-gnu
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
       - name: install frontend dependencies
         run: npm ci
       - run: npm run lint:check
@@ -100,8 +89,6 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PKG_CONFIG_ALLOW_CROSS: 1
-          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
@@ -162,7 +149,7 @@ jobs:
             echo "Error: artifacts/latest.json not found" >&2
             exit 1
           fi
-          EXPECTED_PLATFORMS="darwin-universal windows-x86_64 windows-aarch64 linux-x86_64 linux-aarch64"
+          EXPECTED_PLATFORMS="darwin-universal windows-x86_64 linux-x86_64"
           for platform in $EXPECTED_PLATFORMS; do
             sig=$(jq -r --arg p "$platform" '.platforms[$p].signature // empty' "$LATEST")
             url=$(jq -r --arg p "$platform" '.platforms[$p].url // empty' "$LATEST")

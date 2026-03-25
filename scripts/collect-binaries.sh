@@ -54,18 +54,6 @@ case "$TARGET" in
       > "artifacts/latest-${TARGET}.json"
     ;;
 
-  aarch64-pc-windows-msvc)
-    EXE_FILES=("${BUNDLE_DIR}"/nsis/*.exe)
-    SIG=$(collect_sig "${EXE_FILES[0]}.sig")
-    mv "${EXE_FILES[0]}" "artifacts/DocKit_${VERSION}_arm64-setup.exe"
-    jq -n \
-      --arg version "$VERSION" \
-      --arg sig "$SIG" \
-      --arg url "https://github.com/geek-fun/dockit/releases/download/v${VERSION}/DocKit_${VERSION}_arm64-setup.exe" \
-      '{version: $version, platforms: {"windows-aarch64": {signature: $sig, url: $url}}}' \
-      > "artifacts/latest-${TARGET}.json"
-    ;;
-
   x86_64-unknown-linux-gnu)
     APPIMAGE_FILES=("${BUNDLE_DIR}"/appimage/*.AppImage)
     SIG=$(collect_sig "${APPIMAGE_FILES[0]}.sig")
@@ -76,19 +64,6 @@ case "$TARGET" in
       --arg sig "$SIG" \
       --arg url "https://github.com/geek-fun/dockit/releases/download/v${VERSION}/DocKit_${VERSION}_amd64.AppImage" \
       '{version: $version, platforms: {"linux-x86_64": {signature: $sig, url: $url}}}' \
-      > "artifacts/latest-${TARGET}.json"
-    ;;
-
-  aarch64-unknown-linux-gnu)
-    APPIMAGE_FILES=("${BUNDLE_DIR}"/appimage/*.AppImage)
-    SIG=$(collect_sig "${APPIMAGE_FILES[0]}.sig")
-    mv "${BUNDLE_DIR}"/deb/*.deb "artifacts/DocKit_${VERSION}_arm64.deb"
-    mv "${APPIMAGE_FILES[0]}" "artifacts/DocKit_${VERSION}_arm64.AppImage"
-    jq -n \
-      --arg version "$VERSION" \
-      --arg sig "$SIG" \
-      --arg url "https://github.com/geek-fun/dockit/releases/download/v${VERSION}/DocKit_${VERSION}_arm64.AppImage" \
-      '{version: $version, platforms: {"linux-aarch64": {signature: $sig, url: $url}}}' \
       > "artifacts/latest-${TARGET}.json"
     ;;
 esac
