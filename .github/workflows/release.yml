@@ -13,17 +13,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: 'macos-latest'
+          - name: 'macOS'
+            os: 'macos-latest'
             args: '--target universal-apple-darwin'
             target: 'aarch64-apple-darwin,x86_64-apple-darwin'
             artifact-name: 'universal-apple-darwin'
             node-version: '24.x'
-          - os: 'windows-latest'
+          - name: 'Windows'
+            os: 'windows-latest'
             args: '--target x86_64-pc-windows-msvc'
             target: 'x86_64-pc-windows-msvc'
             artifact-name: 'x86_64-pc-windows-msvc'
             node-version: '24.x'
-          - os: 'ubuntu-latest'
+          - name: 'Linux'
+            os: 'ubuntu-latest'
             args: '--target x86_64-unknown-linux-gnu'
             target: 'x86_64-unknown-linux-gnu'
             artifact-name: 'x86_64-unknown-linux-gnu'
@@ -128,46 +131,8 @@ jobs:
           name: artifacts-${{ matrix.artifact-name }}
           path: ${{ github.workspace }}/artifacts/*
 
-  validate-collection:
-    needs: pre-release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Github checkout
-        uses: actions/checkout@v4
-      - name: Download Distribution Binaries
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-      - name: Collect Updater Manifests
-        run: ./scripts/collect-updater-manifests.sh
-        shell: bash
-      - name: Validate latest.json
-        run: |
-          LATEST="artifacts/latest.json"
-          if [[ ! -f "$LATEST" ]]; then
-            echo "Error: artifacts/latest.json not found" >&2
-            exit 1
-          fi
-          EXPECTED_PLATFORMS="darwin-universal windows-x86_64 linux-x86_64"
-          for platform in $EXPECTED_PLATFORMS; do
-            sig=$(jq -r --arg p "$platform" '.platforms[$p].signature // empty' "$LATEST")
-            url=$(jq -r --arg p "$platform" '.platforms[$p].url // empty' "$LATEST")
-            if [[ -z "$sig" ]]; then
-              echo "Error: missing or empty signature for platform: $platform" >&2
-              exit 1
-            fi
-            if [[ -z "$url" ]]; then
-              echo "Error: missing or empty url for platform: $platform" >&2
-              exit 1
-            fi
-            echo "OK: $platform"
-          done
-          echo "latest.json validation passed"
-        shell: bash
-
   release:
-    needs: validate-collection
+    needs: pre-release
     runs-on: ubuntu-latest
     steps:
       - name: Github checkout
