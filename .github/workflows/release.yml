@@ -1,7 +1,7 @@
 name: distributions release
 on:
   push:
-    branches: [ master ]
+    branches: [master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -12,28 +12,33 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ macos-latest, windows-latest, ubuntu-latest ]
+        os: [macos-latest, windows-latest, ubuntu-latest]
         include:
           - os: 'macos-latest'
             args: '--target universal-apple-darwin'
             target: 'aarch64-apple-darwin,x86_64-apple-darwin'
+            artifact-name: 'universal-apple-darwin'
           - os: 'windows-latest'
             args: '--target aarch64-pc-windows-msvc'
             target: 'aarch64-pc-windows-msvc'
+            artifact-name: 'aarch64-pc-windows-msvc'
             aarch64: true
           - os: 'windows-latest'
             args: '--target x86_64-pc-windows-msvc'
             target: 'x86_64-pc-windows-msvc'
+            artifact-name: 'x86_64-pc-windows-msvc'
             x86_64: true
           - os: 'ubuntu-latest'
             args: '--target aarch64-unknown-linux-gnu'
             target: 'aarch64-unknown-linux-gnu'
+            artifact-name: 'aarch64-unknown-linux-gnu'
             aarch64: true
           - os: 'ubuntu-latest'
             args: '--target x86_64-unknown-linux-gnu'
             target: 'x86_64-unknown-linux-gnu'
+            artifact-name: 'x86_64-unknown-linux-gnu'
             x86_64: true
-        node-version: [ 24.x ]
+        node-version: [24.x]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -109,31 +114,31 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
-#      - name: Sign Binaries with Trusted Signing
-#        if: matrix.os == 'windows-latest'
-#        uses: azure/trusted-signing-action@v0.3.19
-#        with:
-#          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-#          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-#          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-#          endpoint: https://eus.codesigning.azure.net/
-#          trusted-signing-account-name: geek-fun
-#          certificate-profile-name: geek-fun
-#          files-folder: ${{ github.workspace }}\src-tauri\target\${{ matrix.target }}\release\bundle\nsis\
-#          files-folder-depth: 7
-#          files-folder-filter: exe
-#          file-digest: SHA256
-#          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-#          timestamp-digest: SHA256
+      #      - name: Sign Binaries with Trusted Signing
+      #        if: matrix.os == 'windows-latest'
+      #        uses: azure/trusted-signing-action@v0.3.19
+      #        with:
+      #          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+      #          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+      #          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+      #          endpoint: https://eus.codesigning.azure.net/
+      #          trusted-signing-account-name: geek-fun
+      #          certificate-profile-name: geek-fun
+      #          files-folder: ${{ github.workspace }}\src-tauri\target\${{ matrix.target }}\release\bundle\nsis\
+      #          files-folder-depth: 7
+      #          files-folder-filter: exe
+      #          file-digest: SHA256
+      #          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+      #          timestamp-digest: SHA256
       - name: Collect Distribution Binaries
         env:
-          PLATFORM: ${{ matrix.os }}
+          TARGET: ${{ matrix.args }}
         run: ./scripts/collect-binaries.sh
         shell: bash
       - name: Upload Distribution Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-${{ matrix.os }}
+          name: artifacts-${{ matrix.artifact-name }}
           path: ${{ github.workspace }}/artifacts/*
 
   release:
@@ -150,7 +155,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             ${{ steps.changelog.outputs.compareurl }}
-            
+
             ${{ steps.changelog.outputs.changelog }}
       - name: Download Distribution Binaries
         uses: actions/download-artifact@v4
@@ -158,6 +163,10 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+      - name: Collect Updater Manifests
+        if: steps.tag_release.outputs.successful == 'true'
+        run: ./scripts/collect-updater-manifests.sh
+        shell: bash
       - name: Generate changelog
         uses: jaywcjlove/changelog-generator@main
         if: steps.tag_release.outputs.successful == 'true'
@@ -174,8 +183,7 @@ jobs:
             ${{ steps.changelog.outputs.compareurl }}
 
             ${{ steps.changelog.outputs.changelog }}
-          files:
-            ${{ github.workspace }}/artifacts/**/*
+          files: ${{ github.workspace }}/artifacts/**/*
 
       - name: Distribute Binaries to R2
         if: steps.tag_release.outputs.successful == 'true'
