@@ -9,6 +9,7 @@ concurrency:
 
 jobs:
   pre-release:
+    name: ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
