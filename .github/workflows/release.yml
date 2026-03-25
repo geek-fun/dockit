@@ -141,8 +141,46 @@ jobs:
           name: artifacts-${{ matrix.artifact-name }}
           path: ${{ github.workspace }}/artifacts/*
 
-  release:
+  validate-collection:
     needs: pre-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Github checkout
+        uses: actions/checkout@v4
+      - name: Download Distribution Binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Collect Updater Manifests
+        run: ./scripts/collect-updater-manifests.sh
+        shell: bash
+      - name: Validate latest.json
+        run: |
+          LATEST="artifacts/latest.json"
+          if [[ ! -f "$LATEST" ]]; then
+            echo "Error: artifacts/latest.json not found" >&2
+            exit 1
+          fi
+          EXPECTED_PLATFORMS="darwin-universal windows-x86_64 windows-aarch64 linux-x86_64 linux-aarch64"
+          for platform in $EXPECTED_PLATFORMS; do
+            sig=$(jq -r --arg p "$platform" '.platforms[$p].signature // empty' "$LATEST")
+            url=$(jq -r --arg p "$platform" '.platforms[$p].url // empty' "$LATEST")
+            if [[ -z "$sig" ]]; then
+              echo "Error: missing or empty signature for platform: $platform" >&2
+              exit 1
+            fi
+            if [[ -z "$url" ]]; then
+              echo "Error: missing or empty url for platform: $platform" >&2
+              exit 1
+            fi
+            echo "OK: $platform"
+          done
+          echo "latest.json validation passed"
+        shell: bash
+
+  release:
+    needs: validate-collection
     runs-on: ubuntu-latest
     steps:
       - name: Github checkout
