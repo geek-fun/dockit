@@ -29,6 +29,10 @@ export const enUS = {
       fontWeightNormal: 'Normal',
       fontWeightMedium: 'Medium',
       fontWeightBold: 'Bold',
+      tabSize: 'Tab Size',
+      tabSizeDesc: 'Number of spaces per indentation level (2-8)',
+      insertSpaces: 'Use Spaces',
+      insertSpacesDesc: 'Insert spaces instead of tab characters for indentation',
     },
     history: {
       title: 'History',

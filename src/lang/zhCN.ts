@@ -29,6 +29,10 @@ export const zhCN = {
       fontWeightNormal: '正常',
       fontWeightMedium: '中等',
       fontWeightBold: '粗体',
+      tabSize: '缩进大小',
+      tabSizeDesc: '每个缩进级别的空格数（2-8）',
+      insertSpaces: '使用空格',
+      insertSpacesDesc: '使用空格代替制表符进行缩进',
     },
     history: {
       title: '历史记录',

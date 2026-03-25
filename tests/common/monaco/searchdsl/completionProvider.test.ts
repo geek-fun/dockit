@@ -343,6 +343,153 @@ describe('grammarCompletionProvider', () => {
     });
   });
 
+  describe('PUT _mapping body completions', () => {
+    it('should provide mapping fields for PUT /{index}/_mapping', () => {
+      const text = `PUT /test_index/_mapping
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('properties');
+      expect(labels).toContain('dynamic');
+      expect(labels).not.toContain('settings');
+      expect(labels).not.toContain('aliases');
+    });
+
+    it('should provide mapping fields for PUT index/_mapping without leading slash', () => {
+      const text = `PUT test_index/_mapping
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('properties');
+      expect(labels).not.toContain('settings');
+    });
+
+    it('should not match _mapping in index name (edge case)', () => {
+      const text = `PUT my_mapping_index/_search
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('query');
+      expect(labels).toContain('from');
+      expect(labels).toContain('size');
+      expect(labels).not.toContain('properties');
+      expect(labels).not.toContain('dynamic');
+    });
+  });
+
+  describe('PUT _settings body completions', () => {
+    it('should provide settings fields for PUT /{index}/_settings', () => {
+      const text = `PUT /test_index/_settings
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('number_of_shards');
+      expect(labels).toContain('number_of_replicas');
+      expect(labels).toContain('refresh_interval');
+      expect(labels).not.toContain('mappings');
+      expect(labels).not.toContain('aliases');
+    });
+
+    it('should provide settings fields for PUT index/_settings without leading slash', () => {
+      const text = `PUT test_index/_settings
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('number_of_shards');
+      expect(labels).not.toContain('mappings');
+    });
+
+    it('should not match _settings in index name (edge case)', () => {
+      const text = `PUT my_settings_index/_search
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('query');
+      expect(labels).toContain('from');
+      expect(labels).toContain('size');
+      expect(labels).not.toContain('number_of_shards');
+      expect(labels).not.toContain('number_of_replicas');
+    });
+  });
+
+  describe('body completion after filled fields', () => {
+    it('should provide body fields after a completed field in search body', () => {
+      const text = `POST kibana_sample_data_flights/_search
+{
+    query: { match_all: {} },
+    
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 5 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('from');
+      expect(labels).toContain('size');
+      expect(labels).toContain('sort');
+      expect(labels).toContain('aggs');
+      expect(labels).not.toContain('GET');
+      expect(labels).not.toContain('POST');
+      expect(labels).not.toContain('PUT');
+    });
+
+    it('should provide body fields on empty line inside body', () => {
+      const text = `POST my_index/_search
+{
+    query: { match_all: {} },
+    size: 10,
+
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 5, column: 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('from');
+      expect(labels).toContain('sort');
+      expect(labels).not.toContain('GET');
+      expect(labels).not.toContain('POST');
+    });
+  });
+
   describe('index name completions', () => {
     it('should provide index names when typing path', () => {
       setDynamicOptions({
@@ -408,6 +555,321 @@ describe('grammarCompletionProvider', () => {
       for (const completion of searchCompletions) {
         expect(completion.sortText?.startsWith('0')).toBeTruthy();
       }
+    });
+  });
+
+  describe('PUT _update body completions', () => {
+    it('should provide update fields for POST /{index}/_update/{id}', () => {
+      const text = `POST /test_index/_update/123
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('doc');
+      expect(labels).toContain('script');
+      expect(labels).toContain('upsert');
+      expect(labels).toContain('doc_as_upsert');
+      expect(labels).not.toContain('query');
+    });
+
+    it('should provide update fields for POST index/_update/id without leading slash', () => {
+      const text = `POST test_index/_update/abc
+{
+  d
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 4 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('doc');
+      expect(labels).toContain('detect_noop');
+    });
+
+    it('should not match _update in index name (edge case)', () => {
+      const text = `PUT my_update_index/_search
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('query');
+      expect(labels).not.toContain('doc');
+      expect(labels).not.toContain('script');
+    });
+  });
+
+  describe('POST _reindex body completions', () => {
+    it('should provide reindex fields for POST _reindex', () => {
+      const text = `POST _reindex
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('source');
+      expect(labels).toContain('dest');
+      expect(labels).toContain('script');
+      expect(labels).toContain('max_docs');
+      expect(labels).toContain('conflicts');
+    });
+
+    it('should provide reindex fields for POST /_reindex', () => {
+      const text = `POST /_reindex
+{
+  s
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 4 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('source');
+      expect(labels).toContain('script');
+    });
+
+    it('should not match _reindex in index name (edge case)', () => {
+      const text = `PUT my_reindex_backup/_mapping
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('properties');
+      expect(labels).not.toContain('source');
+      expect(labels).not.toContain('dest');
+    });
+  });
+
+  describe('nested properties in mappings', () => {
+    it('should provide field types inside properties block', () => {
+      const text = `PUT test_index/_mapping
+{
+  properties: {
+    title: {
+      t
+    }
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 5, column: 7 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('text');
+      expect(labels).toContain('keyword');
+    });
+
+    it('should provide field types inside deeply nested properties', () => {
+      const text = `PUT test_index/_mapping
+{
+  properties: {
+    title: {
+      type: "text",
+      fields: {
+        keyword: {
+          t
+        }
+      }
+    }
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 8, column: 11 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('text');
+    });
+  });
+
+  describe('_search endpoint false match prevention', () => {
+    it('should not match _search in index name for search fields', () => {
+      const text = `PUT my_search_logs/_mapping
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('properties');
+      expect(labels).not.toContain('query');
+      expect(labels).not.toContain('size');
+    });
+
+    it('should not match _search when index name ends with _search suffix (e.g. my_custom_search)', () => {
+      const text = `PUT my_custom_search
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('query');
+      expect(labels).not.toContain('size');
+      expect(labels).not.toContain('from');
+      expect(labels).not.toContain('sort');
+    });
+
+    it('should provide search fields for actual _search endpoint', () => {
+      const text = `GET my_index/_search
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('query');
+      expect(labels).toContain('size');
+      expect(labels).toContain('from');
+    });
+  });
+
+  describe('HTTP methods not suggested inside body', () => {
+    it('should not suggest HTTP verbs when typing inside body after field', () => {
+      const text = `POST _search
+{
+  query: { match_all: {} },
+  p
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 4 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('post_filter');
+      expect(labels).not.toContain('POST');
+      expect(labels).not.toContain('PUT');
+      expect(labels).not.toContain('GET');
+    });
+  });
+
+  describe('_aliases endpoint completions', () => {
+    it('should provide actions field for POST my_index/_aliases', () => {
+      const text = `POST my_index/_aliases
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('actions');
+    });
+
+    it('should provide actions field for POST _aliases', () => {
+      const text = `POST _aliases
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('actions');
+    });
+  });
+
+  describe('_search endpoint profile field', () => {
+    it('should provide profile field for GET _search', () => {
+      const text = `GET _search
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('profile');
+    });
+
+    it('should provide profile field for POST my_index/_search', () => {
+      const text = `POST my_index/_search
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('profile');
+    });
+  });
+
+  describe('path level _alias completion', () => {
+    it('should suggest _alias when typing GET my_index/_ali', () => {
+      const text = `GET my_index/_ali`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 20 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('my_index/_alias');
+    });
+
+    it('should suggest _alias/{alias} when typing GET my_index/_', () => {
+      const text = `GET my_index/_`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 17 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('my_index/_alias');
+      expect(labels).toContain('my_index/_alias/{alias}');
+    });
+  });
+
+  describe('global _aliases endpoint', () => {
+    it('should suggest _aliases for POST /_ali', () => {
+      const text = `POST /_ali`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 11 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('/_aliases');
     });
   });
 });
