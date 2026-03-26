@@ -1,6 +1,6 @@
 <template>
   <div class="setting-container">
-    <Tabs default-value="Basic" orientation="vertical" class="h-full flex">
+    <Tabs v-model="activeTab" orientation="vertical" class="h-full flex">
       <TabsList
         class="flex flex-col h-full w-[200px] justify-start rounded-none border-r border-border bg-background p-2 gap-1"
       >
@@ -50,11 +50,23 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import BasicSetting from './components/basic.vue';
 import EditorSetting from './components/editor.vue';
 import Aigc from './components/aigc.vue';
 import AboutUs from './components/about-us.vue';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
+const route = useRoute();
+const router = useRouter();
+const activeTab = ref('Basic');
+
+onMounted(() => {
+  if (route.query.tab === 'about') {
+    activeTab.value = 'About';
+  }
+});
 </script>
 
 <style scoped>

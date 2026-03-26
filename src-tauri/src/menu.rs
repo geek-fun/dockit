@@ -2,8 +2,10 @@ use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder};
 use tauri::{App, Emitter, Error, Manager};
 
 pub fn create_menu(app: &App) -> Result<(), Error> {
+    let about_item = MenuItem::with_id(app, "about", "About DocKit", true, None::<&str>)?;
+
     let about_menu = SubmenuBuilder::new(app, "DocKit")
-        .about(None) // Provide the required argument
+        .item(&about_item)
         .separator()
         .services()
         .separator()
@@ -12,7 +14,7 @@ pub fn create_menu(app: &App) -> Result<(), Error> {
         .show_all()
         .separator()
         .quit()
-        .build()?; // Unwrap the Result
+        .build()?;
 
     let file_menu = SubmenuBuilder::new(app, "File")
         .item(
@@ -71,6 +73,9 @@ pub fn create_menu(app: &App) -> Result<(), Error> {
         let window = app_handle.get_webview_window("main").unwrap();
 
         match event.id().0.as_str() {
+            "about" => {
+                let _ = window.emit("showAbout", ());
+            }
             "save" => {
                 window.emit("saveFile", ()).unwrap();
             }
