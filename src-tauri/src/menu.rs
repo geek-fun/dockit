@@ -2,19 +2,34 @@ use tauri::menu::{MenuBuilder, MenuItem, SubmenuBuilder};
 use tauri::{App, Emitter, Error, Manager};
 
 pub fn create_menu(app: &App) -> Result<(), Error> {
-    let about_item = MenuItem::with_id(app, "about", "About DocKit", true, None::<&str>)?;
+    #[cfg(target_os = "macos")]
+    let about_menu = {
+        SubmenuBuilder::new(app, "DocKit")
+            .about(None)
+            .separator()
+            .services()
+            .separator()
+            .hide()
+            .hide_others()
+            .show_all()
+            .separator()
+            .quit()
+            .build()?
+    };
 
-    let about_menu = SubmenuBuilder::new(app, "DocKit")
-        .item(&about_item)
-        .separator()
-        .services()
-        .separator()
-        .hide()
-        .hide_others()
-        .show_all()
-        .separator()
-        .quit()
-        .build()?;
+    #[cfg(not(target_os = "macos"))]
+    let about_menu = {
+        let about_item = MenuItem::with_id(app, "about", "About DocKit", true, None::<&str>)?;
+        SubmenuBuilder::new(app, "DocKit")
+            .item(&about_item)
+            .separator()
+            .hide()
+            .hide_others()
+            .show_all()
+            .separator()
+            .quit()
+            .build()?
+    };
 
     let file_menu = SubmenuBuilder::new(app, "File")
         .item(
@@ -73,6 +88,7 @@ pub fn create_menu(app: &App) -> Result<(), Error> {
         let window = app_handle.get_webview_window("main").unwrap();
 
         match event.id().0.as_str() {
+            #[cfg(not(target_os = "macos"))]
             "about" => {
                 let _ = window.emit("showAbout", ());
             }

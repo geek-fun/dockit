@@ -1,21 +1,22 @@
 <template>
   <div class="app-provider h-full w-full">
     <slot></slot>
+    <AboutDialog ref="aboutDialog" />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { watch, onMounted, onUnmounted } from 'vue';
+import { watch, onMounted, onUnmounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { useRouter } from 'vue-router';
 import { ThemeType, useAppStore } from '../store';
+import AboutDialog from './AboutDialog.vue';
 
 const appStore = useAppStore();
 const { setUiThemeType } = appStore;
 const { uiThemeType, themeType } = storeToRefs(appStore);
-const router = useRouter();
 
+const aboutDialog = ref<InstanceType<typeof AboutDialog> | null>(null);
 let showAboutListener: UnlistenFn | undefined;
 
 const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
@@ -31,7 +32,7 @@ onMounted(async () => {
   }
 
   showAboutListener = await listen('showAbout', () => {
-    router.push({ path: '/setting', query: { tab: 'about' } });
+    aboutDialog.value?.show();
   });
 });
 
