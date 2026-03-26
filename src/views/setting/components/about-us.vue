@@ -61,13 +61,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { getName, getVersion } from '@tauri-apps/api/app';
+import { getVersion } from '@tauri-apps/api/app';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const version = ref('');
 
 onMounted(async () => {
-  const name = await getName();
   const ver = await getVersion();
   version.value = `v${ver}`;
 });
