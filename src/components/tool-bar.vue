@@ -195,6 +195,22 @@
         <TabsTrigger :value="$t('manage.indices')">{{ $t('manage.indices') }}</TabsTrigger>
       </TabsList>
     </Tabs>
+
+    <!-- Shortcuts Help Button for Editor contexts -->
+    <template v-if="props.type === 'ES_EDITOR' || props.type === 'DYNAMO_EDITOR'">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger as-child>
+            <Button variant="ghost" size="sm" class="help-btn" @click="showShortcutsDialog = true">
+              <span class="i-carbon-keyboard h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{{ $t('shortcuts.title') }}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <ShortcutsHelpDialog v-model:open="showShortcutsDialog" :editor-type="props.type" />
+    </template>
   </div>
 </template>
 
@@ -230,6 +246,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import ShortcutsHelpDialog from './shortcuts-help-dialog.vue';
 
 const props = defineProps({ type: { type: String, default: undefined } });
 const emits = defineEmits([
@@ -273,6 +290,7 @@ const selectionState = ref<{ connection: boolean; index: boolean }>({
 
 const hideSystemIndicesRef = ref(true);
 const isExecuting = ref(false);
+const showShortcutsDialog = ref(false);
 
 const connectionSelectValue = computed(() => {
   return ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
@@ -666,5 +684,9 @@ const handleEditorSwitch = async (
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border-width: 0;
+}
+
+.help-btn {
+  margin-left: 10px;
 }
 </style>
