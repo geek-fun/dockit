@@ -690,6 +690,7 @@ export const zhCN = {
     title: '快捷键',
     description: '提高效率的快捷操作',
     common: '通用快捷键',
+    showShortcuts: '显示键盘快捷键',
     execute: '执行查询',
     format: '自动缩进 / 格式化',
     autocomplete: '触发自动补全',

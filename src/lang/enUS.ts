@@ -692,6 +692,7 @@ export const enUS = {
     title: 'Keyboard Shortcuts',
     description: 'Quick shortcuts to boost your productivity',
     common: 'Common Shortcuts',
+    showShortcuts: 'Show Keyboard Shortcuts',
     execute: 'Execute Query',
     format: 'Auto Indent / Format',
     autocomplete: 'Trigger Autocomplete',

@@ -197,24 +197,32 @@
     </Tabs>
 
     <!-- Shortcuts Help Button for Editor contexts -->
-    <template v-if="props.type === 'ES_EDITOR' || props.type === 'DYNAMO_EDITOR'">
+    <div
+      v-if="props.type === 'ES_EDITOR' || props.type === 'DYNAMO_EDITOR'"
+      class="help-button-container"
+      :class="{ 'push-right': !showRunButton }"
+    >
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger as-child>
-            <Button variant="ghost" size="sm" class="help-btn" @click="showShortcutsDialog = true">
+            <Button variant="ghost" size="sm" @click="showShortcutsDialog = true">
               <span class="i-carbon-keyboard h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>{{ $t('shortcuts.title') }}</TooltipContent>
+          <TooltipContent>
+            {{ $t('shortcuts.title') }}
+            <span class="shortcut-hint">({{ cmdKey }}+Shift+/)</span>
+          </TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
       <ShortcutsHelpDialog v-model:open="showShortcutsDialog" :editor-type="props.type" />
-    </template>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
 import {
   useClusterManageStore,
@@ -277,6 +285,11 @@ const isElasticsearchConnection = computed(() => {
   return connection.value?.type === DatabaseType.ELASTICSEARCH;
 });
 
+// Check if run button is visible (DynamoDB SQL editor) — used to avoid margin conflict
+const showRunButton = computed(() => {
+  return props.type === 'DYNAMO_EDITOR' && activePanel.value.editorType === 'DYNAMO_EDITOR_SQL';
+});
+
 const loadingRef = ref({ connection: false, index: false });
 
 const filterRef = ref({ connection: '', index: '' });
@@ -291,6 +304,32 @@ const selectionState = ref<{ connection: boolean; index: boolean }>({
 const hideSystemIndicesRef = ref(true);
 const isExecuting = ref(false);
 const showShortcutsDialog = ref(false);
+
+// Platform-aware key display for shortcuts hint
+const cmdKey = computed(() => {
+  try {
+    return platform() === 'macos' ? '⌘' : 'Ctrl';
+  } catch {
+    return 'Ctrl';
+  }
+});
+
+// Keyboard shortcut to open shortcuts dialog (Ctrl+Shift+/ or Cmd+Shift+/)
+const handleKeyboardShortcut = (event: KeyboardEvent) => {
+  // Ctrl+Shift+/ on Windows/Linux, Cmd+Shift+/ on macOS
+  if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === '/') {
+    event.preventDefault();
+    showShortcutsDialog.value = true;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener('keydown', handleKeyboardShortcut);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyboardShortcut);
+});
 
 const connectionSelectValue = computed(() => {
   return ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
@@ -686,7 +725,18 @@ const handleEditorSwitch = async (
   border-width: 0;
 }
 
-.help-btn {
-  margin-left: 10px;
+.help-button-container {
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.help-button-container.push-right {
+  margin-left: auto;
+}
+
+.shortcut-hint {
+  opacity: 0.6;
+  margin-left: 6px;
 }
 </style>

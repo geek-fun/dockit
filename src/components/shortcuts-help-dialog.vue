@@ -13,6 +13,16 @@
           <table class="shortcuts-table">
             <tbody>
               <tr>
+                <td class="shortcut-action">{{ lang.t('shortcuts.showShortcuts') }}</td>
+                <td class="shortcut-keys">
+                  <kbd>{{ cmdKey }}</kbd>
+                  <span class="key-separator">+</span>
+                  <kbd>Shift</kbd>
+                  <span class="key-separator">+</span>
+                  <kbd>/</kbd>
+                </td>
+              </tr>
+              <tr>
                 <td class="shortcut-action">{{ lang.t('shortcuts.execute') }}</td>
                 <td class="shortcut-keys">
                   <kbd>{{ cmdKey }}</kbd>
