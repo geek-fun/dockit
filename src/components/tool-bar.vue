@@ -205,7 +205,7 @@
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger as-child>
-            <Button variant="ghost" size="sm" @click="showShortcutsDialog = true">
+            <Button variant="ghost" size="sm" @click="showShortcutsDialog = !showShortcutsDialog">
               <span class="i-carbon-keyboard h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -314,7 +314,7 @@ const cmdKey = computed(() => {
   }
 });
 
-// Keyboard shortcut to open shortcuts dialog (Ctrl+Shift+/ or Cmd+Shift+/)
+// Keyboard shortcut to toggle shortcuts dialog (Ctrl+Shift+/ or Cmd+Shift+/)
 // Note: Shift+/ produces '?' as event.key, so we check for both
 const handleKeyboardShortcut = (event: KeyboardEvent) => {
   // Ctrl+Shift+/ on Windows/Linux, Cmd+Shift+/ on macOS
@@ -324,7 +324,7 @@ const handleKeyboardShortcut = (event: KeyboardEvent) => {
     (event.key === '/' || event.key === '?')
   ) {
     event.preventDefault();
-    showShortcutsDialog.value = true;
+    showShortcutsDialog.value = !showShortcutsDialog.value;
   }
 };
 
