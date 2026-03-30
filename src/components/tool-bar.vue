@@ -329,7 +329,9 @@ const handleKeyboardShortcut = (event: KeyboardEvent) => {
 };
 
 onMounted(() => {
-  document.addEventListener('keydown', handleKeyboardShortcut);
+  if (props.type === 'ES_EDITOR' || props.type === 'DYNAMO_EDITOR') {
+    document.addEventListener('keydown', handleKeyboardShortcut);
+  }
 });
 
 onUnmounted(() => {
