@@ -315,9 +315,14 @@ const cmdKey = computed(() => {
 });
 
 // Keyboard shortcut to open shortcuts dialog (Ctrl+Shift+/ or Cmd+Shift+/)
+// Note: Shift+/ produces '?' as event.key, so we check for both
 const handleKeyboardShortcut = (event: KeyboardEvent) => {
   // Ctrl+Shift+/ on Windows/Linux, Cmd+Shift+/ on macOS
-  if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === '/') {
+  if (
+    (event.ctrlKey || event.metaKey) &&
+    event.shiftKey &&
+    (event.key === '/' || event.key === '?')
+  ) {
     event.preventDefault();
     showShortcutsDialog.value = true;
   }
