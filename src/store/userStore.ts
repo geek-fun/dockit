@@ -16,6 +16,8 @@ export const useUserStore = defineStore('user', {
     },
     resetToken(): void {
       this.accessToken = '';
+      this.username = '';
+      this.email = '';
     },
     setAuth(token: string, username: string, email: string): void {
       this.accessToken = token;

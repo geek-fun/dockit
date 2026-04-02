@@ -127,16 +127,16 @@ const installUpdate = async () => {
     });
     restarting.value = true;
     const relaunchTimeout = setTimeout(() => {
-      if (restarting.value) {
-        restarting.value = false;
-        installing.value = false;
-        message.error(lang.global.t('version.updateFailed'));
-      }
+      restarting.value = false;
+      installing.value = false;
+      message.error(lang.global.t('version.updateFailed'));
     }, 5000);
     try {
       await relaunch();
-    } finally {
       clearTimeout(relaunchTimeout);
+    } catch {
+      clearTimeout(relaunchTimeout);
+      throw new Error('relaunch failed');
     }
   } catch {
     message.error(lang.global.t('version.updateFailed'));

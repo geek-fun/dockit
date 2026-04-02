@@ -24,6 +24,9 @@ fn parse_auth_from_url(url: &str) -> Option<AuthPayload> {
     if url.scheme() != "dockit" || url.host_str() != Some("auth") {
         return None;
     }
+    // SECURITY: The token is passed as a URL query parameter (dockit://auth?token=...).
+    // Query parameters may be recorded in OS URL handler logs and browser history.
+    // Ensure the token is short-lived and single-use to limit exposure window.
     let params: std::collections::HashMap<_, _> = url.query_pairs().collect();
     let token = params.get("token")?.to_string();
     let username = params.get("username")?.to_string();
