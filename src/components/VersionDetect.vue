@@ -24,7 +24,7 @@
           <div class="version-title">{{ $t('version.newVersion') }}</div>
           <div class="version-message">{{ $t('version.readyMessage', { version }) }}</div>
         </div>
-        <button class="close-button" @click="later">
+        <button class="close-button" :disabled="installing" @click="later">
           <svg
             width="12"
             height="12"
@@ -43,9 +43,17 @@
       </div>
       <div class="version-divider"></div>
       <div class="version-card-footer">
-        <button class="skip-button" @click="skip">{{ $t('version.skip') }}</button>
+        <button class="skip-button" :disabled="installing" @click="skip">
+          {{ $t('version.skip') }}
+        </button>
         <div class="action-buttons">
-          <Button variant="outline" size="sm" class="version-action-button outline" @click="later">
+          <Button
+            variant="outline"
+            size="sm"
+            class="version-action-button outline"
+            :disabled="installing"
+            @click="later"
+          >
             {{ $t('version.later') }}
           </Button>
           <Button
@@ -55,7 +63,7 @@
             :disabled="installing"
             @click="installUpdate"
           >
-            {{ installing ? $t('version.installing') : $t('version.updateNow') }}
+            {{ installButtonLabel }}
           </Button>
         </div>
       </div>
@@ -64,8 +72,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { check, type Update } from '@tauri-apps/plugin-updater';
+import { ref, computed, onMounted } from 'vue';
+import { check, type Update, type DownloadEvent } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 import { storeToRefs } from 'pinia';
 import { useAppStore } from '../store';
 import { useMessageService } from '@/composables';
@@ -79,18 +88,62 @@ const message = useMessageService();
 const dialogVisible = ref(false);
 const version = ref('');
 const installing = ref(false);
+const downloading = ref(false);
+const downloadPercent = ref<number | null>(null);
+const restarting = ref(false);
 let pendingUpdate: Update | null = null;
+
+const installButtonLabel = computed(() => {
+  if (restarting.value) return lang.global.t('version.restarting');
+  if (downloadPercent.value !== null)
+    return lang.global.t('version.downloading', { percent: downloadPercent.value });
+  if (downloading.value) return lang.global.t('version.downloadingIndeterminate');
+  if (installing.value) return lang.global.t('version.installing');
+  return lang.global.t('version.updateNow');
+});
 
 const installUpdate = async () => {
   if (!pendingUpdate) return;
   installing.value = true;
+  downloadPercent.value = null;
+  let receivedBytes = 0;
+  let totalLength: number | undefined;
   try {
-    await pendingUpdate.downloadAndInstall();
-    dialogVisible.value = false;
+    await pendingUpdate.downloadAndInstall((event: DownloadEvent) => {
+      if (event.event === 'Started') {
+        receivedBytes = 0;
+        totalLength = event.data.contentLength;
+        downloading.value = true;
+        downloadPercent.value = totalLength ? 0 : null;
+      } else if (event.event === 'Progress') {
+        receivedBytes += event.data.chunkLength;
+        if (totalLength && totalLength > 0) {
+          downloadPercent.value = Math.min(100, Math.round((receivedBytes / totalLength) * 100));
+        }
+      } else if (event.event === 'Finished') {
+        downloading.value = false;
+        downloadPercent.value = null;
+      }
+    });
+    restarting.value = true;
+    const relaunchTimeout = setTimeout(() => {
+      if (restarting.value) {
+        restarting.value = false;
+        installing.value = false;
+        message.error(lang.global.t('version.updateFailed'));
+      }
+    }, 5000);
+    try {
+      await relaunch();
+    } finally {
+      clearTimeout(relaunchTimeout);
+    }
   } catch {
     message.error(lang.global.t('version.updateFailed'));
-  } finally {
     installing.value = false;
+    downloading.value = false;
+    downloadPercent.value = null;
+    restarting.value = false;
   }
 };
 
@@ -195,6 +248,11 @@ onMounted(async () => {
   color: hsl(var(--foreground));
 }
 
+.close-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .version-divider {
   height: 1px;
   background: #eef1f4;
@@ -219,6 +277,11 @@ onMounted(async () => {
 
 .skip-button:hover {
   color: hsl(var(--foreground));
+}
+
+.skip-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .action-buttons {

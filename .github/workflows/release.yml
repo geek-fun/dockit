@@ -138,6 +138,11 @@ jobs:
     steps:
       - name: Github checkout
         uses: actions/checkout@v4
+      - name: Generate changelog
+        uses: jaywcjlove/changelog-generator@main
+        id: changelog
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Tag Release
         uses: jaywcjlove/create-tag-action@main
         id: tag_release
@@ -158,12 +163,6 @@ jobs:
         if: steps.tag_release.outputs.successful == 'true'
         run: ./scripts/collect-updater-manifests.sh
         shell: bash
-      - name: Generate changelog
-        uses: jaywcjlove/changelog-generator@main
-        if: steps.tag_release.outputs.successful == 'true'
-        id: changelog
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Release App
         uses: softprops/action-gh-release@v2
         if: steps.tag_release.outputs.successful == 'true'

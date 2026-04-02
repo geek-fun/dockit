@@ -503,6 +503,9 @@ export const enUS = {
     updateNow: 'Update Now',
     installing: 'Installing...',
     updateFailed: 'Failed to install the update. Please try again.',
+    downloading: 'Downloading... {percent}%',
+    downloadingIndeterminate: 'Downloading...',
+    restarting: 'Restarting...',
   },
   login: {
     title: 'Log In',
