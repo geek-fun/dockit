@@ -501,6 +501,9 @@ export const zhCN = {
     updateNow: '立即更新',
     installing: '安装中...',
     updateFailed: '更新安装失败，请重试。',
+    downloading: '下载中... {percent}%',
+    downloadingIndeterminate: '下载中...',
+    restarting: '重启中...',
   },
   login: {
     title: '登录',

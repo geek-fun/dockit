@@ -1,13 +1,7 @@
 {
   "identifier": "desktop-capability",
-  "platforms": [
-    "macOS",
-    "windows",
-    "linux"
-  ],
-  "windows": [
-    "main"
-  ],
+  "platforms": ["macOS", "windows", "linux"],
+  "windows": ["main"],
   "permissions": [
     "os:default",
     "core:default",
@@ -21,6 +15,8 @@
     "global-shortcut:allow-is-registered",
     "global-shortcut:allow-register",
     "global-shortcut:allow-unregister",
-    "updater:default"
+    "updater:default",
+    "process:default",
+    "deep-link:default"
   ]
 }

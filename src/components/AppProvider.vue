@@ -9,15 +9,18 @@
 import { watch, onMounted, onUnmounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { ThemeType, useAppStore } from '../store';
+import { ThemeType, useAppStore, useUserStore } from '../store';
 import AboutDialog from './AboutDialog.vue';
 
 const appStore = useAppStore();
 const { setUiThemeType } = appStore;
 const { uiThemeType, themeType } = storeToRefs(appStore);
 
+const userStore = useUserStore();
+
 const aboutDialog = ref<InstanceType<typeof AboutDialog> | null>(null);
 let showAboutListener: UnlistenFn | undefined;
+let unlistenAuth: UnlistenFn | undefined;
 
 const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
 
@@ -34,11 +37,19 @@ onMounted(async () => {
   showAboutListener = await listen('showAbout', () => {
     aboutDialog.value?.show();
   });
+
+  unlistenAuth = await listen<{ token: string; username: string; email: string }>(
+    'dockit://auth',
+    event => {
+      userStore.setAuth(event.payload.token, event.payload.username, event.payload.email);
+    },
+  );
 });
 
 onUnmounted(() => {
   sysPreferLight.removeEventListener('change', handleSystemThemeChange);
   showAboutListener?.();
+  unlistenAuth?.();
 });
 
 watch(
