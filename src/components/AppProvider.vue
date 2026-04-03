@@ -76,12 +76,16 @@ onMounted(async () => {
     aboutDialog.value?.show();
   });
 
-  unlistenAuth = await listen<{ token: string; username: string; email: string }>(
-    'dockit://auth',
-    event => {
-      userStore.setAuth(event.payload.token, event.payload.username, event.payload.email);
-    },
-  );
+  unlistenAuth = await listen<{
+    token: string;
+    userId?: string;
+    username?: string;
+    email?: string;
+    avatar?: string;
+  }>('dockit://auth', event => {
+    userStore.setAuthFromCallback(event.payload);
+    router.push('/');
+  });
 });
 
 // Cleanup listeners on unmount

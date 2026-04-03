@@ -16,8 +16,11 @@ use dynamo_client::dynamo_api;
 #[derive(Clone, serde::Serialize)]
 struct AuthPayload {
     token: String,
-    username: String,
-    email: String,
+    #[serde(rename = "userId")]
+    user_id: Option<String>,
+    username: Option<String>,
+    email: Option<String>,
+    avatar: Option<String>,
 }
 
 fn parse_auth_from_url(url: &str) -> Option<AuthPayload> {
@@ -30,9 +33,11 @@ fn parse_auth_from_url(url: &str) -> Option<AuthPayload> {
     // Ensure the token is short-lived and single-use to limit exposure window.
     let params: std::collections::HashMap<_, _> = url.query_pairs().collect();
     let token = params.get("token")?.to_string();
-    let username = params.get("username")?.to_string();
-    let email = params.get("email")?.to_string();
-    Some(AuthPayload { token, username, email })
+    let user_id = params.get("userId").map(|v| v.to_string());
+    let username = params.get("username").map(|v| v.to_string());
+    let email = params.get("email").map(|v| v.to_string());
+    let avatar = params.get("avatar").map(|v| v.to_string());
+    Some(AuthPayload { token, user_id, username, email, avatar })
 }
 
 fn main() {

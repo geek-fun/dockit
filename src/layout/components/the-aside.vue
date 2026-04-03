@@ -37,7 +37,12 @@
             @click="navClick(item)"
           >
             <img
-              v-if="item.id === 'user' && userStore.isLoggedIn && userStore.avatar"
+              v-if="
+                item.id === 'user' &&
+                userStore.isLoggedIn &&
+                userStore.avatar &&
+                isSafeAvatarUrl(userStore.avatar)
+              "
               :src="userStore.avatar"
               :alt="userStore.username"
               class="user-avatar"
@@ -55,7 +60,7 @@ import { ref } from 'vue';
 import { open } from '@tauri-apps/plugin-shell';
 import { useRouter, useRoute } from 'vue-router';
 import { useAppStore, useUserStore } from '../../store';
-import { authService } from '../../datasources/authService';
+import { authService, isSafeAvatarUrl } from '../../datasources/authService';
 import TheAsideIcon from './the-aside-icon.vue';
 import { TooltipProvider } from '@/components/ui/tooltip';
 

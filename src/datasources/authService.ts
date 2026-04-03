@@ -11,9 +11,26 @@ export type AuthCallbackData = {
 const GEEKFUN_BASE_URL = 'https://console-geekfun.wentsen.com';
 const GEEKFUN_LOCAL_URL = 'http://localhost:5174';
 
+const ALLOWED_AVATAR_HOSTS = import.meta.env.DEV
+  ? ['console-geekfun.wentsen.com', 'localhost']
+  : ['console-geekfun.wentsen.com'];
+
 const getGeekfunUrl = (): string => {
   const isDev = import.meta.env.DEV;
   return isDev ? GEEKFUN_LOCAL_URL : GEEKFUN_BASE_URL;
+};
+
+export const isSafeAvatarUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    // Only allow exact hostname matches — no subdomain wildcards
+    return (
+      (parsed.protocol === 'https:' || (import.meta.env.DEV && parsed.protocol === 'http:')) &&
+      ALLOWED_AVATAR_HOSTS.includes(parsed.hostname)
+    );
+  } catch {
+    return false;
+  }
 };
 
 export const openLoginUrl = async (): Promise<void> => {
@@ -36,8 +53,7 @@ export const parseDeepLinkUrl = (url: string): AuthCallbackData | null => {
       return null;
     }
 
-    const pathParts = parsedUrl.pathname.split('/').filter(Boolean);
-    if (pathParts[0] !== 'auth') {
+    if (parsedUrl.hostname !== 'auth') {
       return null;
     }
 

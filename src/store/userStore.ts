@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import type { AuthCallbackData } from '../datasources/authService';
+import { isSafeAvatarUrl } from '../datasources/authService';
 
 export type UserState = {
   accessToken: string;
@@ -39,20 +40,11 @@ export const useUserStore = defineStore('user', {
       this.avatar = '';
     },
     setAuthFromCallback(data: AuthCallbackData): void {
-      this.userId = '';
-      this.username = '';
-      this.email = '';
-      this.avatar = '';
       this.accessToken = data.token;
       this.userId = data.userId || '';
       this.username = data.username || '';
       this.email = data.email || '';
-      this.avatar = data.avatar || '';
-    },
-    setAuth(token: string, username: string, email: string): void {
-      this.accessToken = token;
-      this.username = username;
-      this.email = email;
+      this.avatar = data.avatar && isSafeAvatarUrl(data.avatar) ? data.avatar : '';
     },
     logout(): void {
       this.resetToken();
