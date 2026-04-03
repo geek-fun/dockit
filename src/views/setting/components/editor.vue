@@ -97,6 +97,35 @@
       </div>
       <Switch :checked="editorConfig.showMinimap" @update:checked="updateShowMinimap" />
     </div>
+
+    <!-- Tab Size Setting -->
+    <div class="py-4 px-5 border-border border rounded-lg bg-card space-y-3">
+      <div>
+        <h4 class="text-sm font-semibold">{{ $t('setting.editor.tabSize') }}</h4>
+        <p class="text-xs text-muted-foreground mt-1">
+          {{ $t('setting.editor.tabSizeDesc') }}
+        </p>
+      </div>
+      <InputNumber
+        :model-value="editorConfig.tabSize"
+        :min="2"
+        :max="8"
+        :step="1"
+        class="w-[200px]"
+        @update:model-value="updateTabSize"
+      />
+    </div>
+
+    <!-- Insert Spaces Toggle -->
+    <div
+      class="flex items-center justify-between py-4 px-5 border-border border rounded-lg bg-card hover:bg-accent/20 transition-colors"
+    >
+      <div class="space-y-0.5">
+        <h4 class="text-sm font-semibold">{{ $t('setting.editor.insertSpaces') }}</h4>
+        <p class="text-xs text-muted-foreground">{{ $t('setting.editor.insertSpacesDesc') }}</p>
+      </div>
+      <Switch :checked="editorConfig.insertSpaces" @update:checked="updateInsertSpaces" />
+    </div>
   </div>
 </template>
 
@@ -128,6 +157,16 @@ const updateShowLineNumbers = (value: boolean) => {
 
 const updateShowMinimap = (value: boolean) => {
   setEditorConfig({ showMinimap: value });
+};
+
+const updateTabSize = (value: number | null) => {
+  if (value !== null && value >= 2 && value <= 8) {
+    setEditorConfig({ tabSize: value });
+  }
+};
+
+const updateInsertSpaces = (value: boolean) => {
+  setEditorConfig({ insertSpaces: value });
 };
 </script>
 
