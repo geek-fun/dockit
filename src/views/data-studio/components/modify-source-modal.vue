@@ -15,40 +15,51 @@
         </div>
       </DialogHeader>
       <div class="py-4">
-        <div class="bg-muted/30 border border-border rounded-xl overflow-hidden">
+        <div class="border border-border rounded-xl overflow-hidden">
+          <!-- Header row -->
           <div
-            class="px-4 py-3 flex items-center justify-between border-b border-border bg-muted/50"
+            class="px-4 py-3 flex items-start justify-between gap-3 border-b border-border bg-muted/40"
           >
             <div class="flex items-center gap-2">
-              <span class="i-carbon-security h-4 w-4" />
-              <span class="font-semibold text-sm">
-                {{ $t('dataStudio.modifySource.accessPermissions') }}
-              </span>
+              <span class="i-carbon-security h-4 w-4 shrink-0" />
+              <div>
+                <p class="font-semibold text-sm">
+                  {{ $t('dataStudio.modifySource.accessPermissions') }}
+                </p>
+              </div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 shrink-0">
               <span class="text-xs font-medium text-muted-foreground">
-                {{ $t('dataStudio.modifySource.unifiedAccessConfig') }}
+                {{ $t('dataStudio.modifySource.autoMode') }}
               </span>
-              <Switch v-model:checked="localUnifiedAccess" />
+              <Switch v-model:checked="localAutoMode" />
             </div>
           </div>
-          <div class="p-4">
-            <div class="grid grid-cols-2 gap-3">
-              <label
-                v-for="perm in permissionList"
-                :key="perm.key"
-                class="flex items-center space-x-3 cursor-pointer select-none p-2 rounded-lg hover:bg-background transition-colors"
-              >
-                <Checkbox
-                  :checked="localPermissions[perm.key as keyof typeof localPermissions]"
-                  @update:checked="
-                    (val: boolean) =>
-                      (localPermissions[perm.key as keyof typeof localPermissions] = val)
-                  "
-                />
-                <span class="text-sm font-medium">{{ perm.label }}</span>
-              </label>
-            </div>
+
+          <!-- Auto mode: description text -->
+          <div v-if="localAutoMode" class="flex gap-2 px-4 py-3">
+            <span class="i-carbon-information h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
+            <p class="text-xs text-muted-foreground leading-relaxed">
+              {{ $t('dataStudio.modifySource.autoModeDesc') }}
+            </p>
+          </div>
+
+          <!-- Manual mode: checkboxes -->
+          <div v-else class="grid grid-cols-2 gap-1 p-3">
+            <label
+              v-for="perm in permissionList"
+              :key="perm.key"
+              class="flex items-center gap-3 cursor-pointer select-none px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+            >
+              <Checkbox
+                :checked="localPermissions[perm.key as keyof typeof localPermissions]"
+                @update:checked="
+                  (val: boolean) =>
+                    (localPermissions[perm.key as keyof typeof localPermissions] = val)
+                "
+              />
+              <span class="text-sm font-medium">{{ perm.label }}</span>
+            </label>
           </div>
         </div>
       </div>
@@ -103,7 +114,7 @@ const localPermissions = ref<DataSourcePermissions>({
   delete: false,
 });
 
-const localUnifiedAccess = ref(true);
+const localAutoMode = ref(true);
 
 const permissionList = computed(() => [
   { key: 'read', label: t('dataStudio.modifySource.read') },
@@ -117,7 +128,7 @@ watch(
   newVal => {
     if (newVal && props.source) {
       localPermissions.value = { ...props.source.permissions };
-      localUnifiedAccess.value = props.source.unifiedAccess;
+      localAutoMode.value = props.source.autoMode;
     }
   },
 );
@@ -129,7 +140,7 @@ const handleSave = () => {
   const index = dataStudioStore.connectedSources.indexOf(source);
   dataStudioStore.updateSource(index, {
     permissions: { ...localPermissions.value },
-    unifiedAccess: localUnifiedAccess.value,
+    autoMode: localAutoMode.value,
   });
   emit('update:open', false);
 };

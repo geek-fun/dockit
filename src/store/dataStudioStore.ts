@@ -11,7 +11,7 @@ export type ConnectedSource = {
   connectionId: number | undefined;
   name: string;
   permissions: DataSourcePermissions;
-  unifiedAccess: boolean;
+  autoMode: boolean;
 };
 
 export const useDataStudioStore = defineStore('dataStudio', {

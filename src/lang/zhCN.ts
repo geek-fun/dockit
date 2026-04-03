@@ -491,13 +491,19 @@ export const zhCN = {
     addSource: {
       title: '添加数据源',
       selectConnection: '选择连接',
-      selectConnectionPlaceholder: '选择要添加的连接...',
+      selectConnectionPlaceholder: '搜索连接...',
       noConnections: '没有可用的连接，请先创建连接。',
+      selectHint: '选择一个在 DocKit 设置中配置的数据库连接。',
+      connectionsFound: '找到 {count} 个连接',
+      connectSource: '连接',
+      searchPlaceholder: '搜索连接...',
     },
     modifySource: {
       title: '修改数据源',
       accessPermissions: '访问权限',
-      unifiedAccessConfig: '统一访问配置',
+      autoMode: '自动',
+      autoModeDesc:
+        'Agent 将智能判断每个操作的安全性。危险操作（创建、更新、删除）在执行前需要您的确认。',
       read: '读取',
       create: '创建',
       update: '更新',
