@@ -1,4 +1,5 @@
 use crate::dynamo::types::ApiResponse;
+use aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use aws_sdk_dynamodb::Client;
 use serde_json::json;
 
@@ -126,10 +127,20 @@ pub async fn describe_table(client: &Client, table_name: &str) -> Result<ApiResp
                 data: Some(table_info),
             })
         }
-        Err(e) => Ok(ApiResponse {
-            status: 500,
-            message: format!("Failed to describe table: {}", e),
-            data: None,
-        }),
+        Err(e) => {
+            let error_code = e.code().unwrap_or("UnknownError").to_string();
+            let error_message = e
+                .message()
+                .map(|m| m.to_string())
+                .unwrap_or_else(|| format!("{:#}", e));
+            Ok(ApiResponse {
+                status: 500,
+                message: format!(
+                    "Failed to describe table: [{}] {}",
+                    error_code, error_message,
+                ),
+                data: None,
+            })
+        }
     }
 }

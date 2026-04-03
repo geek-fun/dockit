@@ -12,6 +12,8 @@ interface CollapseProps {
 const props = withDefaults(defineProps<CollapseProps>(), {
   type: 'single',
   collapsible: true,
+  defaultValue: undefined,
+  class: undefined,
 });
 </script>
 

@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    AboutDialog: typeof import('./src/components/AboutDialog.vue')['default']
     Alert: typeof import('./src/components/ui/alert/Alert.vue')['default']
     AlertDescription: typeof import('./src/components/ui/alert/AlertDescription.vue')['default']
     AlertDialog: typeof import('./src/components/ui/alert-dialog/AlertDialog.vue')['default']
@@ -93,6 +94,7 @@ declare module 'vue' {
     SelectTrigger: typeof import('./src/components/ui/select/SelectTrigger.vue')['default']
     SelectValue: typeof import('./src/components/ui/select/SelectValue.vue')['default']
     Separator: typeof import('./src/components/ui/separator/Separator.vue')['default']
+    ShortcutsHelpDialog: typeof import('./src/components/shortcuts-help-dialog.vue')['default']
     Spinner: typeof import('./src/components/ui/spinner/Spinner.vue')['default']
     SplitPane: typeof import('./src/components/ui/split-pane/SplitPane.vue')['default']
     Switch: typeof import('./src/components/ui/switch/Switch.vue')['default']

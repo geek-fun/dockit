@@ -12,7 +12,32 @@ type FetchApiOptions = {
   payload?: string;
 };
 
-const handleFetch = (result: { data: unknown; status: number; details: string | undefined }) => {
+const extractEsError = (data: unknown): string | null => {
+  const error = get(data, 'error');
+  if (!error) return null;
+  if (typeof error === 'string') return error;
+
+  const type = get(error, 'type');
+  const reason = get(error, 'reason');
+  if (type && reason) {
+    return `${type}: ${reason}`;
+  }
+  if (reason) return reason;
+  if (type) return type;
+  try {
+    const stringified = jsonify.stringify(error);
+    return stringified.length > 500 ? stringified.slice(0, 500) + '...' : stringified;
+  } catch {
+    return null;
+  }
+};
+
+const handleFetch = (result: {
+  data: unknown;
+  status: number;
+  details: string | undefined;
+  errorType?: string;
+}) => {
   if (result.status >= 200 && result.status < 300) {
     return result.data;
   }
@@ -23,9 +48,12 @@ const handleFetch = (result: { data: unknown; status: number; details: string | 
     throw new CustomError(result.status, lang.global.t('connection.unAuthorized'));
   }
   if (result.status === 403) {
-    throw new CustomError(result.status, get(result, 'data.error.reason', result.details || ''));
+    const esError = extractEsError(result.data);
+    throw new CustomError(result.status, esError || result.details || '');
   }
-  throw new CustomError(result.status, result.details || '');
+
+  const esError = extractEsError(result.data);
+  throw new CustomError(result.status, esError || result.details || '', result.errorType);
 };
 
 const fetchWrapper = async ({
@@ -37,6 +65,8 @@ const fetchWrapper = async ({
   port,
   username,
   password,
+  authType,
+  apiKey,
   ssl,
 }: {
   method: string;
@@ -45,22 +75,21 @@ const fetchWrapper = async ({
   payload?: string;
   username?: string;
   password?: string;
+  authType?: 'basic' | 'apiKey';
+  apiKey?: string;
   host: string;
   port: number;
   ssl: boolean;
 }) => {
-  try {
-    const url = buildURL(host, port, path, queryParameters);
-    const { data, status, details } = await fetchRequest(url, {
-      method,
-      headers: { ...buildAuthHeader(username, password) },
-      payload,
-      agent: { ssl },
-    });
-    return handleFetch({ data, status, details });
-  } catch (err) {
-    throw err;
-  }
+  const url = buildURL(host, port, path, queryParameters);
+  const authHeader = buildAuthHeader(authType, username, password, apiKey);
+  const { data, status, details, errorType } = await fetchRequest(url, {
+    method,
+    headers: { ...authHeader },
+    payload,
+    agent: { ssl },
+  });
+  return handleFetch({ data, status, details, errorType });
 };
 
 const fetchRequest = async (
@@ -90,9 +119,28 @@ const fetchRequest = async (
 
     throw new CustomError(status, message);
   } catch (e) {
-    const error = typeof e == 'string' ? new CustomError(500, e) : (e as CustomError);
-    const details = error.details || error.message;
     debug('error encountered while node-fetch fetch target:', e);
+
+    // When Rust returns Err(String), Tauri passes it as a plain string (JSON)
+    if (typeof e === 'string') {
+      try {
+        const parsed = jsonify.parse(e) as {
+          status?: number;
+          message?: string;
+          error_type?: string;
+        };
+        return {
+          status: parsed.status || 500,
+          details: parsed.message || e,
+          errorType: parsed.error_type,
+        };
+      } catch {
+        return { status: 500, details: e };
+      }
+    }
+
+    const error = e as CustomError;
+    const details = error.details || error.message;
     return {
       status: error.status || 500,
       details: typeof details === 'string' ? details : jsonify.stringify(details),
@@ -105,6 +153,8 @@ const loadHttpClient = (con: {
   port: number;
   username?: string;
   password?: string;
+  authType?: 'basic' | 'apiKey';
+  apiKey?: string;
   sslCertVerification: boolean;
 }) => ({
   get: async <T = unknown>(path?: string, queryParameters?: string, payload?: string): Promise<T> =>

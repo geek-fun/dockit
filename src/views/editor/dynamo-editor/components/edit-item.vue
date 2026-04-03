@@ -4,7 +4,7 @@
       <DialogHeader>
         <DialogTitle>{{ $t('editor.dynamo.editItemTitle') }}</DialogTitle>
         <button
-          class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
           @click="handleClose"
         >
           <X class="h-5 w-5" />
@@ -12,52 +12,58 @@
       </DialogHeader>
 
       <div class="modal-content">
-        <Form>
+        <Form class="edit-form" @submit.prevent>
           <!-- Key attributes (read-only) -->
-          <Separator class="my-4" />
-          <div class="text-sm font-medium text-muted-foreground mb-2">
-            {{ $t('editor.dynamo.keyAttributes') }}
+          <div class="key-attributes-section">
+            <div class="text-sm font-medium text-muted-foreground mb-2">
+              {{ $t('editor.dynamo.keyAttributes') }}
+            </div>
+            <Grid
+              v-for="(keyEntry, index) in editForm.keys"
+              :key="`key-${index}`"
+              :cols="24"
+              :x-gap="12"
+            >
+              <GridItem :span="8">
+                <FormItem>
+                  <Input v-model="keyEntry.key" disabled />
+                </FormItem>
+              </GridItem>
+              <GridItem :span="4">
+                <FormItem>
+                  <Select v-model="keyEntry.type" disabled>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        v-for="option in attributeTypeOptions"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              </GridItem>
+              <GridItem :span="12">
+                <FormItem>
+                  <InputNumber
+                    v-if="keyEntry.type === 'N'"
+                    v-model:model-value="keyEntry.value as number"
+                    class="w-full"
+                    disabled
+                  />
+                  <Input v-else v-model="keyEntry.value as string" disabled />
+                </FormItem>
+              </GridItem>
+            </Grid>
           </div>
-          <Grid v-for="(item, index) in editForm.keys" :key="`key-${index}`" :cols="24" :x-gap="12">
-            <GridItem :span="8">
-              <FormItem>
-                <Input v-model="item.key" disabled />
-              </FormItem>
-            </GridItem>
-            <GridItem :span="4">
-              <FormItem>
-                <Select v-model="item.type" disabled>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem
-                      v-for="option in attributeTypeOptions"
-                      :key="option.value"
-                      :value="option.value"
-                    >
-                      {{ option.label }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            </GridItem>
-            <GridItem :span="12">
-              <FormItem>
-                <InputNumber
-                  v-if="item.type === 'N'"
-                  v-model:model-value="item.value as number"
-                  class="w-full"
-                  disabled
-                />
-                <Input v-else v-model="item.value as string" disabled />
-              </FormItem>
-            </GridItem>
-          </Grid>
 
           <!-- Editable attributes -->
           <Separator class="my-4" />
-          <div class="flex items-center gap-2 mb-2">
+          <div class="flex items-center gap-2 mb-2 shrink-0">
             <span class="text-sm font-medium text-muted-foreground">
               {{ $t('editor.dynamo.editableAttributes') }}
             </span>
@@ -65,85 +71,87 @@
               <span class="i-carbon-add h-4 w-4" />
             </Button>
           </div>
-          <Grid
-            v-for="(item, index) in editForm.attributes"
-            :key="`attr-${index}`"
-            :cols="24"
-            :x-gap="12"
-          >
-            <GridItem :span="7">
-              <FormItem :error="getAttributeError(index, 'key')">
-                <Input
-                  v-model="item.key"
-                  :placeholder="$t('editor.dynamo.inputAttrName')"
-                  autocomplete="off"
-                  autocorrect="off"
-                  autocapitalize="off"
-                  spellcheck="false"
-                />
-              </FormItem>
-            </GridItem>
-            <GridItem :span="4">
-              <FormItem :error="getAttributeError(index, 'type')">
-                <Select v-model="item.type">
-                  <SelectTrigger>
-                    <SelectValue :placeholder="$t('editor.dynamo.type')" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem
-                      v-for="option in attributeTypeOptions"
-                      :key="option.value"
-                      :value="option.value"
-                    >
-                      {{ option.label }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            </GridItem>
-            <GridItem :span="11">
-              <FormItem :error="getAttributeError(index, 'value')">
-                <InputNumber
-                  v-if="item.type === 'N'"
-                  v-model:model-value="item.value as number"
-                  :placeholder="$t('editor.dynamo.inputAttrValue')"
-                  class="w-full"
-                />
-                <Switch
-                  v-else-if="item.type === 'BOOL'"
-                  :checked="item.value as boolean"
-                  @update:checked="val => (item.value = val)"
-                />
-                <Input
-                  v-else-if="item.type && item.type !== 'NULL'"
-                  v-model="item.value as string"
-                  :placeholder="$t('editor.dynamo.inputAttrValue')"
-                  autocomplete="off"
-                  autocorrect="off"
-                  autocapitalize="off"
-                  spellcheck="false"
-                />
-                <Input
-                  v-else
-                  model-value=""
-                  disabled
-                  :placeholder="$t('editor.dynamo.selectTypeFirst')"
-                />
-              </FormItem>
-            </GridItem>
-            <GridItem :span="2">
-              <Button variant="ghost" size="icon" @click="removeAttribute(index)">
-                <span class="i-carbon-delete h-4 w-4" />
-              </Button>
-            </GridItem>
-          </Grid>
+          <ScrollArea class="editable-attributes-scroll">
+            <Grid
+              v-for="(attrEntry, index) in editForm.attributes"
+              :key="`attr-${index}`"
+              :cols="24"
+              :x-gap="12"
+            >
+              <GridItem :span="7">
+                <FormItem :error="getAttributeError(index, 'key')">
+                  <Input
+                    v-model="attrEntry.key"
+                    :placeholder="$t('editor.dynamo.inputAttrName')"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                  />
+                </FormItem>
+              </GridItem>
+              <GridItem :span="4">
+                <FormItem :error="getAttributeError(index, 'type')">
+                  <Select v-model="attrEntry.type">
+                    <SelectTrigger>
+                      <SelectValue :placeholder="$t('editor.dynamo.type')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        v-for="option in attributeTypeOptions"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              </GridItem>
+              <GridItem :span="11">
+                <FormItem :error="getAttributeError(index, 'value')">
+                  <InputNumber
+                    v-if="attrEntry.type === 'N'"
+                    v-model:model-value="attrEntry.value as number"
+                    :placeholder="$t('editor.dynamo.inputAttrValue')"
+                    class="w-full"
+                  />
+                  <Switch
+                    v-else-if="attrEntry.type === 'BOOL'"
+                    :checked="attrEntry.value as boolean"
+                    @update:checked="val => (attrEntry.value = val)"
+                  />
+                  <Input
+                    v-else-if="attrEntry.type && attrEntry.type !== 'NULL'"
+                    v-model="attrEntry.value as string"
+                    :placeholder="$t('editor.dynamo.inputAttrValue')"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                  />
+                  <Input
+                    v-else
+                    model-value=""
+                    disabled
+                    :placeholder="$t('editor.dynamo.selectTypeFirst')"
+                  />
+                </FormItem>
+              </GridItem>
+              <GridItem :span="2">
+                <Button variant="ghost" size="icon" @click="removeAttribute(index)">
+                  <span class="i-carbon-trash-can h-4 w-4" />
+                </Button>
+              </GridItem>
+            </Grid>
+          </ScrollArea>
         </Form>
       </div>
 
       <DialogFooter>
         <Button variant="outline" @click="handleClose">{{ $t('dialogOps.cancel') }}</Button>
         <Button :disabled="loading" @click="handleSubmit">
-          <span v-if="loading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ $t('dialogOps.confirm') }}
         </Button>
       </DialogFooter>
@@ -152,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import { useLang } from '../../../../lang';
 
 import {
@@ -167,6 +175,7 @@ import { Input } from '@/components/ui/input';
 import { InputNumber } from '@/components/ui/input-number';
 import { Button } from '@/components/ui/button';
 import { Grid, GridItem } from '@/components/ui/grid';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import {
@@ -383,4 +392,28 @@ const handleSubmit = async () => {
 };
 </script>
 
-<style scoped></style>
+<style scoped>
+.modal-content {
+  min-height: 0;
+  max-height: 60vh;
+  overflow: hidden;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 60vh;
+  overflow: hidden;
+}
+
+.key-attributes-section {
+  flex-shrink: 0;
+}
+
+.editable-attributes-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: 100%;
+}
+</style>

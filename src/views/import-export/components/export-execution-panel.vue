@@ -188,6 +188,7 @@ const handleStartExport = async () => {
       content: `Directory does not exist: ${exportPath}. Please enable "Create Directory" option or create the directory manually.`,
       positiveText: lang.t('dialogOps.createFolder'),
       negativeText: lang.t('dialogOps.cancel'),
+      positiveVariant: 'default',
       onPositiveClick: () => {
         // User confirmed, enable createDirectory option
         createDirectory.value = true;
@@ -283,7 +284,7 @@ const executeExport = async () => {
   } catch (err) {
     const error = err as CustomError;
     exportStore.updateTaskStatus(taskId, 'failed', undefined, error.details);
-    message.error(`status: ${error.status}, details: ${error.details}`, {
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
       duration: 5000,

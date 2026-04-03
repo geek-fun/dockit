@@ -11,6 +11,8 @@ interface UnoIconProps {
 
 const props = withDefaults(defineProps<UnoIconProps>(), {
   size: 16,
+  color: undefined,
+  class: undefined,
 });
 
 const iconClass = computed(() => props.icon);

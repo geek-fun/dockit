@@ -2,39 +2,106 @@
   <div class="connection-list-container">
     <div class="connection-scroll-container">
       <div class="connection-list-body">
-        <Card
+        <div
           v-for="connection in connections"
           :key="connection.id"
           class="connection-card"
           @dblclick="handleSelect('connect', connection)"
         >
-          <CardHeader class="connection-card-header">
-            <div class="connection-card-header-content">
-              <CardTitle class="connection-card-title">{{ connection.name }}</CardTitle>
-              <div class="connection-card-actions">
-                <component :is="getDatabaseIcon(connection.type)" class="h-6 w-6" />
-                <div class="operation" @click.stop="">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger as-child>
-                      <Button variant="ghost" size="icon" class="dropdown-trigger-btn">
-                        <span class="i-carbon-overflow-menu-vertical h-5 w-5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem
-                        v-for="option in options"
-                        :key="option.key"
-                        @click="handleSelect(option.key, connection)"
-                      >
-                        {{ option.label }}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
+          <!-- Top section: icon -->
+          <div class="card-top">
+            <div class="card-icon-wrapper">
+              <component :is="getDatabaseIcon(connection.type)" class="h-6 w-6" />
             </div>
-          </CardHeader>
-        </Card>
+          </div>
+          <!-- Name + connection string -->
+          <div class="card-info">
+            <div class="card-name">{{ connection.name }}</div>
+            <div class="card-detail">{{ getConnectionDetail(connection) }}</div>
+          </div>
+          <!-- Badges -->
+          <div class="card-badges">
+            <Badge variant="outline" class="card-badge type-badge">
+              {{ getDatabaseLabel(connection.type) }}
+            </Badge>
+            <Badge v-if="getVersion(connection)" variant="secondary" class="card-badge">
+              {{ getVersion(connection) }}
+            </Badge>
+            <Badge
+              v-if="connection.type === DatabaseType.DYNAMODB"
+              variant="secondary"
+              class="card-badge"
+            >
+              {{ getConnectionTarget(connection) }}
+            </Badge>
+            <TooltipProvider v-if="getEsProtocol(connection)" :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span
+                    :class="[getEsProtocol(connection)!.icon, getEsProtocol(connection)!.color]"
+                    class="h-3.5 w-3.5 cursor-default"
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {{ getEsProtocol(connection)!.label }}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider v-if="getEsAuthType(connection)" :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span
+                    :class="[getEsAuthType(connection)!.icon, getEsAuthType(connection)!.color]"
+                    class="h-3.5 w-3.5 cursor-default"
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {{ getEsAuthType(connection)!.label }}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <!-- Actions row -->
+          <div class="card-actions" @click.stop="">
+            <TooltipProvider :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-7 w-7"
+                    @click="handleSelect('connect', connection)"
+                  >
+                    <span class="i-carbon-login h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {{ $t('connection.operations.connect') }}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <DropdownMenu>
+              <DropdownMenuTrigger as-child>
+                <Button variant="ghost" size="icon" class="h-7 w-7">
+                  <span class="i-carbon-overflow-menu-horizontal h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem @click="handleSelect('edit', connection)">
+                  <span class="i-carbon-edit h-4 w-4 mr-2" />
+                  {{ $t('connection.operations.edit') }}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  class="text-destructive"
+                  @click="handleSelect('remove', connection)"
+                >
+                  <span class="i-carbon-trash-can h-4 w-4 mr-2" />
+                  {{ $t('connection.operations.remove') }}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -59,15 +126,15 @@
     </DialogContent>
   </Dialog>
 
-  <floating-menu @add="showDatabaseTypeSelect" />
-  <es-connect-dialog ref="esConnectDialog" />
-  <dynamodb-connect-dialog ref="dynamodbConnectDialog" />
-  <connecting-modal ref="connectingModal" />
+  <FloatingMenu @add="showDatabaseTypeSelect" />
+  <EsConnectDialog ref="esConnectDialog" />
+  <DynamodbConnectDialog ref="dynamodbConnectDialog" />
+  <ConnectingModal ref="connectingModal" />
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
-import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { ref } from 'vue';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -76,13 +143,20 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDialogService, useMessageService } from '@/composables';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
-import { Connection, DatabaseType, useConnectionStore } from '../../../store';
+import {
+  Connection,
+  DatabaseType,
+  DynamoDBConnection,
+  ElasticsearchConnection,
+  useConnectionStore,
+} from '../../../store';
 import FloatingMenu from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
@@ -106,11 +180,67 @@ const getDatabaseIcon = (type: DatabaseType) => {
   return type === DatabaseType.ELASTICSEARCH ? elasticsearch : dynamoDB;
 };
 
-const options = reactive([
-  { key: 'connect', label: lang.t('connection.operations.connect') },
-  { key: 'edit', label: lang.t('connection.operations.edit') },
-  { key: 'remove', label: lang.t('connection.operations.remove') },
-]);
+const getDatabaseLabel = (type: DatabaseType) => {
+  return type === DatabaseType.ELASTICSEARCH ? 'Elasticsearch' : 'DynamoDB';
+};
+
+const getConnectionDetail = (connection: Connection) => {
+  if (connection.type === DatabaseType.ELASTICSEARCH) {
+    const es = connection as ElasticsearchConnection;
+    const url = `${es.host}:${es.port}`;
+    return url.length > 30 ? url.substring(0, 30) + '...' : url;
+  }
+  const dynamo = connection as DynamoDBConnection;
+  return dynamo.region ? `${dynamo.region} / ${dynamo.tableName}` : dynamo.tableName;
+};
+
+const getVersion = (connection: Connection) => {
+  if (connection.type === DatabaseType.ELASTICSEARCH) {
+    const es = connection as ElasticsearchConnection;
+    return es.version ? `v${es.version}` : '';
+  }
+  return '';
+};
+
+const getConnectionTarget = (connection: Connection) => {
+  const dynamo = connection as DynamoDBConnection;
+  return dynamo.endpointUrl ? lang.t('connection.localTarget') : lang.t('connection.cloudTarget');
+};
+
+const getEsProtocol = (
+  connection: Connection,
+): { label: string; icon: string; color: string } | null => {
+  if (connection.type !== DatabaseType.ELASTICSEARCH) return null;
+  const es = connection as ElasticsearchConnection;
+  const isHttps = es.host?.toLowerCase().startsWith('https://');
+  return isHttps
+    ? { label: 'HTTPS', icon: 'i-carbon-locked', color: 'text-green-500' }
+    : { label: 'HTTP', icon: 'i-carbon-unlocked', color: 'text-yellow-500' };
+};
+
+const getEsAuthType = (
+  connection: Connection,
+): { label: string; icon: string; color: string } | null => {
+  if (connection.type !== DatabaseType.ELASTICSEARCH) return null;
+  const es = connection as ElasticsearchConnection;
+  if (es.authType === 'basic')
+    return {
+      label: lang.t('connection.authTypeBasic'),
+      icon: 'i-carbon-password',
+      color: 'text-blue-500',
+    };
+  if (es.authType === 'apiKey')
+    return {
+      label: lang.t('connection.authTypeApiKey'),
+      icon: 'i-carbon-api',
+      color: 'text-blue-500',
+    };
+  return {
+    label: lang.t('connection.authTypeNone'),
+    icon: 'i-carbon-subtract',
+    color: 'text-muted-foreground',
+  };
+};
 
 const handleSelect = (key: string, connection: Connection) => {
   switch (key) {
@@ -191,7 +321,7 @@ const establishConnect = async (connection: Connection) => {
 // edit connect info
 const editConnect = (connection: Connection) => {
   if (!connection.type) {
-    console.error('Connection type is missing');
+    console.error('Connection type is missing'); // eslint-disable-line no-console
     return;
   }
   if (connection.type === DatabaseType.ELASTICSEARCH) {
@@ -211,7 +341,7 @@ const removeConnect = (connection: Connection) => {
       try {
         await removeConnection(connection);
         message.success(lang.t('dialogOps.removeSuccess'));
-      } catch (error) {
+      } catch (_error) {
         message.error(lang.t('connection.unknownError'));
       }
     },
@@ -264,59 +394,98 @@ const selectDatabaseType = (type: DatabaseType) => {
 }
 
 .connection-list-body {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 240px);
   gap: 16px;
   padding: 16px;
 }
 
 .connection-card {
-  max-width: 300px;
-  min-width: 200px;
+  width: 240px;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--card));
   cursor: pointer;
-  transition: box-shadow 0.2s ease;
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .connection-card:hover {
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-color: hsl(var(--primary) / 0.3);
 }
 
-.connection-card-header {
-  padding: 16px;
-}
-
-.connection-card-header-content {
+.card-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  width: 100%;
+  align-items: flex-start;
+  margin-bottom: 12px;
 }
 
-.connection-card-title {
-  font-size: 16px;
-  font-weight: 500;
+.card-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: hsl(var(--muted));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-info {
+  min-height: 0;
+  margin-bottom: 14px;
+}
+
+.card-name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
-  margin-right: 8px;
+  color: hsl(var(--foreground));
+  margin-bottom: 4px;
 }
 
-.connection-card-actions {
+.card-detail {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-badges {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  margin-bottom: auto;
+  align-content: flex-start;
 }
 
-.operation {
+.card-badge {
+  font-size: 11px;
+  padding: 1px 8px;
+  font-weight: 500;
+}
+
+.type-badge {
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.3);
+  background: hsl(var(--primary) / 0.06);
+}
+
+.card-actions {
   display: flex;
-  align-items: center;
-}
-
-.dropdown-trigger-btn {
-  width: 32px;
-  height: 32px;
-  padding: 0;
+  justify-content: flex-end;
+  gap: 2px;
 }
 
 .database-type-dialog {

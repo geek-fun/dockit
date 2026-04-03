@@ -21,7 +21,7 @@
       <DialogFooter>
         <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
         <Button :disabled="!validationPassed || saveLoading" @click="submitNewFile">
-          <span v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin">⏳</span>
+          <Loader2 v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin" />
           {{ $t('dialogOps.confirm') }}
         </Button>
       </DialogFooter>
@@ -31,6 +31,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { Loader2 } from 'lucide-vue-next';
 import { useMessageService } from '@/composables';
 import { cloneDeep } from 'lodash';
 import { useLang } from '../../../lang';
@@ -67,7 +68,7 @@ const cleanUp = () => {
   modalTitle.value = '';
 };
 
-const showMedal = (action: ContextMenuAction, selectedFile?: PathInfo) => {
+const openModal = (action: ContextMenuAction, selectedFile?: PathInfo) => {
   cleanUp();
   selectedFileRef.value = selectedFile;
   if (action === ContextMenuAction.CONTEXT_MENU_ACTION_NEW_FOLDER) {
@@ -129,7 +130,7 @@ const submitNewFile = async (event: MouseEvent) => {
   }
 };
 
-defineExpose({ showModal: showMedal });
+defineExpose({ showModal: openModal });
 </script>
 
 <style scoped>

@@ -101,98 +101,92 @@ export const useDbDataStore = defineStore('dbDataStore', {
     async getDynamoData(connection: DynamoDBConnection, queryInput: DynamoInput): Promise<void> {
       this.dynamoData.connection = connection;
 
-      try {
-        const { getDynamoIndexOrTableOption, queryTable } = useConnectionStore();
+      const { getDynamoIndexOrTableOption, queryTable } = useConnectionStore();
 
-        const { tableName } = connection;
-        const { partitionKey, sortKey } = queryInput;
-        const indices = getDynamoIndexOrTableOption(connection);
-        const { partitionKeyName, sortKeyName, label, value } = indices.find(
-          item => item.label === queryInput.index,
-        ) as DynamoIndexOrTableOption;
+      const { tableName } = connection;
+      const { partitionKey, sortKey } = queryInput;
+      const indices = getDynamoIndexOrTableOption(connection);
+      const { partitionKeyName, sortKeyName, label, value } = indices.find(
+        item => item.label === queryInput.index,
+      ) as DynamoIndexOrTableOption;
 
-        const queryParams = {
-          tableName,
-          indexName: label.startsWith('Table - ') ? null : (value ?? null),
-          partitionKey: { name: partitionKeyName, value: partitionKey },
-          sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
-          filters: queryInput.filters,
+      const queryParams = {
+        tableName,
+        indexName: label.startsWith('Table - ') ? null : (value ?? null),
+        partitionKey: { name: partitionKeyName, value: partitionKey },
+        sortKey: sortKeyName && sortKey ? { name: sortKeyName, value: sortKey } : undefined,
+        filters: queryInput.filters?.filter(f => f.key && f.operator),
+      };
+
+      const queryStr = JSON.stringify(omit(queryParams, ['limit', 'exclusiveStartKey']));
+
+      if (this.dynamoData.queryData.queryBody !== queryStr) {
+        this.dynamoData.queryData = {
+          showResultPanel: false,
+          columns: [],
+          data: undefined,
+          pagination: { ...cloneDeep(resetPagination) },
+          queryInput: undefined,
+          queryBody: queryStr,
+          lastEvaluatedKeys: [],
         };
-
-        const queryStr = JSON.stringify(omit(queryParams, ['limit', 'exclusiveStartKey']));
-
-        if (this.dynamoData.queryData.queryBody !== queryStr) {
-          this.dynamoData.queryData = {
-            showResultPanel: false,
-            columns: [],
-            data: undefined,
-            pagination: { ...cloneDeep(resetPagination) },
-            queryInput: undefined,
-            queryBody: queryStr,
-            lastEvaluatedKeys: [],
-          };
-        }
-
-        const limit = this.dynamoData.queryData.pagination.pageSize;
-        const exclusiveStartKey =
-          this.dynamoData.queryData.lastEvaluatedKeys[
-            this.dynamoData.queryData.pagination.page - 1
-          ];
-
-        const data = await queryTable(connection, { ...queryParams, limit, exclusiveStartKey });
-
-        const columnsSet = new Set<string>();
-        data.items.forEach(item => {
-          Object.keys(item).forEach(key => {
-            columnsSet.add(key);
-          });
-        });
-
-        const columnsData = data.items.map(item => {
-          const row: Record<string, unknown> = {};
-          columnsSet.forEach(key => {
-            row[key] = item[key];
-          });
-          return row;
-        });
-
-        const primaryColumn = {
-          title: 'Primary Key',
-          key: 'primaryKey',
-          children: [
-            {
-              title: `${partitionKeyName}(PK)`,
-              key: `${partitionKeyName}`,
-              ellipsis: { tooltip: false },
-            },
-            sortKeyName
-              ? { title: `${sortKeyName}(SK)`, key: `${sortKeyName}`, ellipsis: { tooltip: false } }
-              : undefined,
-          ].filter(Boolean) as Array<{
-            title: string;
-            key: string;
-            ellipsis?: { tooltip: boolean };
-          }>,
-        };
-        const columns: Array<DynamoColumn> = Array.from(columnsSet)
-          .filter(column => column !== partitionKeyName && column !== sortKeyName)
-          .map(column => ({ title: column, key: column, ellipsis: { tooltip: true } }));
-        columns.unshift(primaryColumn);
-
-        this.dynamoData.queryData.columns = columns;
-        this.dynamoData.queryData.data = columnsData;
-
-        if (data.last_evaluated_key) {
-          this.dynamoData.queryData.lastEvaluatedKeys[this.dynamoData.queryData.pagination.page] =
-            data.last_evaluated_key;
-          this.dynamoData.queryData.pagination.pageCount =
-            this.dynamoData.queryData.lastEvaluatedKeys.length;
-        }
-        this.dynamoData.queryData.queryInput = queryInput;
-        this.dynamoData.queryData.showResultPanel = true;
-      } catch (error) {
-        throw error;
       }
+
+      const limit = this.dynamoData.queryData.pagination.pageSize;
+      const exclusiveStartKey =
+        this.dynamoData.queryData.lastEvaluatedKeys[this.dynamoData.queryData.pagination.page - 1];
+
+      const data = await queryTable(connection, { ...queryParams, limit, exclusiveStartKey });
+
+      const columnsSet = new Set<string>();
+      data.items.forEach(item => {
+        Object.keys(item).forEach(key => {
+          columnsSet.add(key);
+        });
+      });
+
+      const columnsData = data.items.map(item => {
+        const row: Record<string, unknown> = {};
+        columnsSet.forEach(key => {
+          row[key] = item[key];
+        });
+        return row;
+      });
+
+      const primaryColumn = {
+        title: 'Primary Key',
+        key: 'primaryKey',
+        children: [
+          {
+            title: `${partitionKeyName}(PK)`,
+            key: `${partitionKeyName}`,
+            ellipsis: { tooltip: false },
+          },
+          sortKeyName
+            ? { title: `${sortKeyName}(SK)`, key: `${sortKeyName}`, ellipsis: { tooltip: false } }
+            : undefined,
+        ].filter(Boolean) as Array<{
+          title: string;
+          key: string;
+          ellipsis?: { tooltip: boolean };
+        }>,
+      };
+      const columns: Array<DynamoColumn> = Array.from(columnsSet)
+        .filter(column => column !== partitionKeyName && column !== sortKeyName)
+        .map(column => ({ title: column, key: column, ellipsis: { tooltip: true } }));
+      columns.unshift(primaryColumn);
+
+      this.dynamoData.queryData.columns = columns;
+      this.dynamoData.queryData.data = columnsData;
+
+      if (data.last_evaluated_key) {
+        this.dynamoData.queryData.lastEvaluatedKeys[this.dynamoData.queryData.pagination.page] =
+          data.last_evaluated_key;
+        this.dynamoData.queryData.pagination.pageCount =
+          this.dynamoData.queryData.lastEvaluatedKeys.length;
+      }
+      this.dynamoData.queryData.queryInput = queryInput;
+      this.dynamoData.queryData.showResultPanel = true;
     },
 
     async changePage(page: number) {

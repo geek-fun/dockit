@@ -12,13 +12,15 @@
         >
           <ul>
             <li @click="handleContextMenuAction('execute')">
-              {{ lang.t('editor.es.contextMenu.execute') }}
+              <span>{{ lang.t('editor.es.contextMenu.execute') }}</span>
+              <span class="shortcut">{{ cmdKey }}↵</span>
             </li>
             <li @click="handleContextMenuAction('autoIndent')">
-              {{ lang.t('editor.es.contextMenu.autoIndent') }}
+              <span>{{ lang.t('editor.es.contextMenu.autoIndent') }}</span>
+              <span class="shortcut">{{ cmdKey }}I</span>
             </li>
             <li @click="handleContextMenuAction('copyAsCurl')">
-              {{ lang.t('editor.es.contextMenu.copyAsCurl') }}
+              <span>{{ lang.t('editor.es.contextMenu.copyAsCurl') }}</span>
             </li>
           </ul>
         </div>
@@ -34,15 +36,17 @@ import { open } from '@tauri-apps/plugin-shell';
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
-import { onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { SplitPane } from '@/components/ui/split-pane';
 import { useMessageService, useLoadingBarService } from '@/composables';
 import { CustomError, jsonify } from '../../../common';
 import {
+  DatabaseType,
   ElasticsearchConnection,
   useAppStore,
   useChatStore,
   useConnectionStore,
+  useHistoryStore,
   useTabStore,
 } from '../../../store';
 import { useLang } from '../../../lang';
@@ -81,6 +85,8 @@ const { searchQDSL, queryToCurl, fetchIndices } = connectionStore;
 const { getEditorTheme, getEditorOptions } = appStore;
 const { themeType, editorConfig } = storeToRefs(appStore);
 
+const historyStore = useHistoryStore();
+
 const chatStore = useChatStore();
 const { insertBoard } = storeToRefs(chatStore);
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
@@ -99,6 +105,7 @@ const MOUSE_TARGET_TYPE_GUTTER_LINE_DECORATIONS = 4;
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuActionLine = ref<number | null>(null);
+const cmdKey = computed(() => (platform() === 'macos' ? '⌘' : 'Ctrl+'));
 
 // Debounced syntax validation (300ms delay for performance)
 const debouncedValidate = createDebouncedValidator((model: monaco.editor.ITextModel) => {
@@ -134,7 +141,12 @@ watch(themeType, () => {
 watch(
   editorConfig,
   () => {
-    queryEditor?.updateOptions(getEditorOptions());
+    const options = getEditorOptions();
+    queryEditor?.updateOptions(options);
+    queryEditor?.getModel()?.updateOptions({
+      tabSize: options.tabSize,
+      insertSpaces: options.insertSpaces,
+    });
   },
   { deep: true },
 );
@@ -191,6 +203,16 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
       index: action.index,
     });
 
+    historyStore.addEntry({
+      databaseType: DatabaseType.ELASTICSEARCH,
+      method: action.method,
+      path: action.path,
+      index: action.index,
+      qdsl: transformQDSL(action),
+      connectionName: activeConnection.value.name,
+      connectionId: activeConnection.value.id,
+    });
+
     showDisplayEditor(data);
     loadingBar.finish();
   } catch (err) {
@@ -228,10 +250,10 @@ const autoIndentAction = (editor: monaco.editor.IStandaloneCodeEditor, position:
         },
       ],
       // @ts-ignore
-      inverseEditOperations => [],
+      _inverseEditOperations => [],
     );
     editor.setPosition({ lineNumber: startLineNumber + 1, column: 1 });
-  } catch (err) {
+  } catch (_err) {
     message.error(lang.t('editor.invalidJson'), {
       closable: true,
       keepAliveOnHover: true,
@@ -301,18 +323,23 @@ const handleDocumentClick = (event: MouseEvent) => {
 };
 
 const setupQueryEditor = () => {
+  const editorOptions = getEditorOptions();
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     theme: getEditorTheme(),
     value: activePanel.value.content ?? '',
     language: 'search',
     automaticLayout: true,
     scrollBeyondLastLine: false,
-    ...getEditorOptions(),
+    wordBasedSuggestions: 'off',
+    ...editorOptions,
   });
   if (!queryEditor) {
     return;
   }
-  queryEditor.getModel()?.updateOptions({ tabSize: 2 });
+  queryEditor.getModel()?.updateOptions({
+    tabSize: editorOptions.tabSize,
+    insertSpaces: editorOptions.insertSpaces,
+  });
 
   queryEditor.onDidChangeModelContent(_changes => {
     saveModelContent(false, false, false);
@@ -574,7 +601,7 @@ onMounted(async () => {
   if (activeConnection.value) {
     try {
       await fetchIndices(activeConnection.value);
-    } catch (err) {
+    } catch (_err) {
       // Silently fail
     }
   }
@@ -631,13 +658,23 @@ onUnmounted(async () => {
   list-style: none;
   margin: 0;
   padding: 4px 0;
-  min-width: 140px;
+  min-width: 180px;
 }
 
 .es-context-menu ul li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   padding: 6px 12px;
   cursor: pointer;
   font-size: 13px;
+}
+
+.es-context-menu ul li .shortcut {
+  font-size: 11px;
+  opacity: 0.5;
+  white-space: nowrap;
 }
 
 .es-context-menu ul li:hover {

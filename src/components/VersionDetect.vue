@@ -22,9 +22,9 @@
         </div>
         <div class="version-text">
           <div class="version-title">{{ $t('version.newVersion') }}</div>
-          <div class="version-message">A newer version ({{ version }}) is ready for you.</div>
+          <div class="version-message">{{ $t('version.readyMessage', { version }) }}</div>
         </div>
-        <button class="close-button" @click="later">
+        <button class="close-button" :disabled="installing" @click="later">
           <svg
             width="12"
             height="12"
@@ -43,18 +43,27 @@
       </div>
       <div class="version-divider"></div>
       <div class="version-card-footer">
-        <button class="skip-button" @click="skip">{{ $t('version.skip') }}</button>
+        <button class="skip-button" :disabled="installing" @click="skip">
+          {{ $t('version.skip') }}
+        </button>
         <div class="action-buttons">
-          <Button variant="outline" size="sm" class="version-action-button outline" @click="later">
+          <Button
+            variant="outline"
+            size="sm"
+            class="version-action-button outline"
+            :disabled="installing"
+            @click="later"
+          >
             {{ $t('version.later') }}
           </Button>
           <Button
             variant="default"
             size="sm"
             class="version-action-button primary"
-            @click="download"
+            :disabled="installing"
+            @click="installUpdate"
           >
-            Download Now
+            {{ installButtonLabel }}
           </Button>
         </div>
       </div>
@@ -63,23 +72,79 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { getVersion } from '@tauri-apps/api/app';
-import { open } from '@tauri-apps/plugin-shell';
+import { ref, computed, onMounted } from 'vue';
+import { check, type Update, type DownloadEvent } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 import { storeToRefs } from 'pinia';
 import { useAppStore } from '../store';
+import { useMessageService } from '@/composables';
 import { Button } from '@/components/ui/button';
+import { lang } from '@/lang';
 
 const appStore = useAppStore();
 const { skipVersion } = storeToRefs(appStore);
+const message = useMessageService();
 
 const dialogVisible = ref(false);
 const version = ref('');
-const link = ref({ name: '', url: '' });
+const installing = ref(false);
+const downloading = ref(false);
+const downloadPercent = ref<number | null>(null);
+const restarting = ref(false);
+let pendingUpdate: Update | null = null;
 
-const download = async () => {
-  await open(link.value.url);
-  dialogVisible.value = false;
+const installButtonLabel = computed(() => {
+  if (restarting.value) return lang.global.t('version.restarting');
+  if (downloadPercent.value !== null)
+    return lang.global.t('version.downloading', { percent: downloadPercent.value });
+  if (downloading.value) return lang.global.t('version.downloadingIndeterminate');
+  if (installing.value) return lang.global.t('version.installing');
+  return lang.global.t('version.updateNow');
+});
+
+const installUpdate = async () => {
+  if (!pendingUpdate) return;
+  installing.value = true;
+  downloadPercent.value = null;
+  let receivedBytes = 0;
+  let totalLength: number | undefined;
+  try {
+    await pendingUpdate.downloadAndInstall((event: DownloadEvent) => {
+      if (event.event === 'Started') {
+        receivedBytes = 0;
+        totalLength = event.data.contentLength;
+        downloading.value = true;
+        downloadPercent.value = totalLength ? 0 : null;
+      } else if (event.event === 'Progress') {
+        receivedBytes += event.data.chunkLength;
+        if (totalLength && totalLength > 0) {
+          downloadPercent.value = Math.min(100, Math.round((receivedBytes / totalLength) * 100));
+        }
+      } else if (event.event === 'Finished') {
+        downloading.value = false;
+        downloadPercent.value = null;
+      }
+    });
+    restarting.value = true;
+    const relaunchTimeout = setTimeout(() => {
+      restarting.value = false;
+      installing.value = false;
+      message.error(lang.global.t('version.updateFailed'));
+    }, 5000);
+    try {
+      await relaunch();
+      clearTimeout(relaunchTimeout);
+    } catch {
+      clearTimeout(relaunchTimeout);
+      throw new Error('relaunch failed');
+    }
+  } catch {
+    message.error(lang.global.t('version.updateFailed'));
+    installing.value = false;
+    downloading.value = false;
+    downloadPercent.value = null;
+    restarting.value = false;
+  }
 };
 
 const later = () => {
@@ -91,34 +156,12 @@ const skip = () => {
   dialogVisible.value = false;
 };
 
-const getLatestReleaseInfo = async (): Promise<{
-  version: string;
-  assets: Array<{ name: string; url: string }>;
-}> => {
-  const data = await fetch('https://api.github.com/repos/geek-fun/dockit/releases/latest').then(
-    res => res.json(),
-  );
-  const assets = data.assets.map((item: { name: string; browser_download_url: string }) => ({
-    name: item.name,
-    url: item.browser_download_url,
-  }));
-
-  return { version: data.tag_name, assets };
-};
-const getLatestLink = async () => {
-  return 'https://dockit.geekfun.club/download.html';
-};
-
 onMounted(async () => {
   try {
-    const { version: newVersion } = await getLatestReleaseInfo();
-    const currentVersion = await getVersion();
-    if (newVersion.endsWith(currentVersion) && skipVersion.value !== newVersion) return;
-
-    const assetsLink = await getLatestLink();
-    if (link.value) {
-      version.value = newVersion;
-      link.value = { name: newVersion, url: assetsLink } as { name: string; url: string };
+    const update = await check();
+    if (update && update.version !== skipVersion.value) {
+      version.value = update.version;
+      pendingUpdate = update;
       dialogVisible.value = true;
     }
   } catch {
@@ -205,6 +248,11 @@ onMounted(async () => {
   color: hsl(var(--foreground));
 }
 
+.close-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .version-divider {
   height: 1px;
   background: #eef1f4;
@@ -229,6 +277,11 @@ onMounted(async () => {
 
 .skip-button:hover {
   color: hsl(var(--foreground));
+}
+
+.skip-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .action-buttons {

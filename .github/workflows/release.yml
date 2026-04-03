@@ -1,7 +1,7 @@
 name: distributions release
 on:
   push:
-    branches: [ master ]
+    branches: [master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -9,31 +9,29 @@ concurrency:
 
 jobs:
   pre-release:
+    name: ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ macos-latest, windows-latest, ubuntu-latest ]
         include:
-          - os: 'macos-latest'
+          - name: 'macOS'
+            os: 'macos-latest'
             args: '--target universal-apple-darwin'
             target: 'aarch64-apple-darwin,x86_64-apple-darwin'
-          - os: 'windows-latest'
-            args: '--target aarch64-pc-windows-msvc'
-            target: 'aarch64-pc-windows-msvc'
-            aarch64: true
-          - os: 'windows-latest'
+            artifact-name: 'universal-apple-darwin'
+            node-version: '24.x'
+          - name: 'Windows'
+            os: 'windows-latest'
             args: '--target x86_64-pc-windows-msvc'
             target: 'x86_64-pc-windows-msvc'
-            x86_64: true
-          - os: 'ubuntu-latest'
-            args: '--target aarch64-unknown-linux-gnu'
-            target: 'aarch64-unknown-linux-gnu'
-            aarch64: true
-          - os: 'ubuntu-latest'
+            artifact-name: 'x86_64-pc-windows-msvc'
+            node-version: '24.x'
+          - name: 'Linux'
+            os: 'ubuntu-latest'
             args: '--target x86_64-unknown-linux-gnu'
             target: 'x86_64-unknown-linux-gnu'
-            x86_64: true
-        node-version: [ 24.x ]
+            artifact-name: 'x86_64-unknown-linux-gnu'
+            node-version: '24.x'
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -53,7 +51,7 @@ jobs:
         run: |
           echo "deb http://gb.archive.ubuntu.com/ubuntu jammy main" | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev gcc-aarch64-linux-gnu
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
       - name: install frontend dependencies
         run: npm ci
       - run: npm run lint:check
@@ -95,43 +93,43 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PKG_CONFIG_ALLOW_CROSS: 1
-          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           NODE_OPTIONS: '--max-old-space-size=4096'
         with:
           args: ${{ matrix.args }}
 
-#      - name: Sign Binaries with Trusted Signing
-#        if: matrix.os == 'windows-latest'
-#        uses: azure/trusted-signing-action@v0.3.19
-#        with:
-#          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-#          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-#          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-#          endpoint: https://eus.codesigning.azure.net/
-#          trusted-signing-account-name: geek-fun
-#          certificate-profile-name: geek-fun
-#          files-folder: ${{ github.workspace }}\src-tauri\target\${{ matrix.target }}\release\bundle\nsis\
-#          files-folder-depth: 7
-#          files-folder-filter: exe
-#          file-digest: SHA256
-#          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-#          timestamp-digest: SHA256
+      #      - name: Sign Binaries with Trusted Signing
+      #        if: matrix.os == 'windows-latest'
+      #        uses: azure/trusted-signing-action@v0.3.19
+      #        with:
+      #          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+      #          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+      #          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+      #          endpoint: https://eus.codesigning.azure.net/
+      #          trusted-signing-account-name: geek-fun
+      #          certificate-profile-name: geek-fun
+      #          files-folder: ${{ github.workspace }}\src-tauri\target\${{ matrix.target }}\release\bundle\nsis\
+      #          files-folder-depth: 7
+      #          files-folder-filter: exe
+      #          file-digest: SHA256
+      #          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+      #          timestamp-digest: SHA256
       - name: Collect Distribution Binaries
         env:
-          PLATFORM: ${{ matrix.os }}
+          TARGET: ${{ matrix.args }}
         run: ./scripts/collect-binaries.sh
         shell: bash
       - name: Upload Distribution Binaries
         uses: actions/upload-artifact@v4
         with:
-          name: artifacts-${{ matrix.os }}
+          name: artifacts-${{ matrix.artifact-name }}
           path: ${{ github.workspace }}/artifacts/*
 
   release:
@@ -140,6 +138,11 @@ jobs:
     steps:
       - name: Github checkout
         uses: actions/checkout@v4
+      - name: Generate changelog
+        uses: jaywcjlove/changelog-generator@main
+        id: changelog
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Tag Release
         uses: jaywcjlove/create-tag-action@main
         id: tag_release
@@ -148,7 +151,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             ${{ steps.changelog.outputs.compareurl }}
-            
+
             ${{ steps.changelog.outputs.changelog }}
       - name: Download Distribution Binaries
         uses: actions/download-artifact@v4
@@ -156,12 +159,10 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-      - name: Generate changelog
-        uses: jaywcjlove/changelog-generator@main
+      - name: Collect Updater Manifests
         if: steps.tag_release.outputs.successful == 'true'
-        id: changelog
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/collect-updater-manifests.sh
+        shell: bash
       - name: Release App
         uses: softprops/action-gh-release@v2
         if: steps.tag_release.outputs.successful == 'true'
@@ -172,8 +173,7 @@ jobs:
             ${{ steps.changelog.outputs.compareurl }}
 
             ${{ steps.changelog.outputs.changelog }}
-          files:
-            ${{ github.workspace }}/artifacts/**/*
+          files: ${{ github.workspace }}/artifacts/**/*
 
       - name: Distribute Binaries to R2
         if: steps.tag_release.outputs.successful == 'true'

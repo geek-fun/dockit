@@ -127,7 +127,7 @@
                           class="text-destructive"
                           @click="handleAction('deleteIndex', row.index)"
                         >
-                          <span class="i-carbon-delete h-4 w-4 mr-2" style="color: red" />
+                          <span class="i-carbon-trash-can h-4 w-4 mr-2" style="color: red" />
                           {{ lang.t('manage.index.actions.deleteIndex') }}
                         </DropdownMenuItem>
                         <DropdownMenuItem

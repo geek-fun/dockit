@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { pureObject } from '../common';
+import { pureObject, HISTORY_CAP_MIN, HISTORY_CAP_MAX, HISTORY_CAP_DEFAULT } from '../common';
 import { chatBotApi, ProviderEnum, storeApi } from '../datasources';
 import { lang } from '../lang';
 
@@ -29,9 +29,12 @@ export type EditorConfig = {
   fontWeight: string;
   showLineNumbers: boolean;
   showMinimap: boolean;
-  // Note: Theme/Color Scheme configuration is available via themeType/uiThemeType
-  // but is not exposed in editor settings. It's planned for future implementation
-  // in a dedicated editor theme section.
+  tabSize: number;
+  insertSpaces: boolean;
+};
+
+export type HistoryConfig = {
+  historyCap: number;
 };
 
 export const useAppStore = defineStore('app', {
@@ -43,6 +46,7 @@ export const useAppStore = defineStore('app', {
     skipVersion: string;
     aiConfigs: Array<AiConfig>;
     editorConfig: EditorConfig;
+    historyConfig: HistoryConfig;
   } => {
     return {
       themeType: ThemeType.AUTO,
@@ -56,6 +60,11 @@ export const useAppStore = defineStore('app', {
         fontWeight: 'normal',
         showLineNumbers: true,
         showMinimap: false,
+        tabSize: 2,
+        insertSpaces: true,
+      },
+      historyConfig: {
+        historyCap: HISTORY_CAP_DEFAULT,
       },
     };
   },
@@ -90,11 +99,22 @@ export const useAppStore = defineStore('app', {
         fontWeight: this.editorConfig.fontWeight,
         lineNumbers: this.editorConfig.showLineNumbers ? ('on' as const) : ('off' as const),
         minimap: { enabled: this.editorConfig.showMinimap },
+        tabSize: this.editorConfig.tabSize,
+        insertSpaces: this.editorConfig.insertSpaces,
+        detectIndentation: false,
       };
     },
 
     setEditorConfig(config: Partial<EditorConfig>) {
       this.editorConfig = { ...this.editorConfig, ...config };
+    },
+
+    setHistoryConfig(config: Partial<HistoryConfig>) {
+      const cap = config.historyCap ?? this.historyConfig.historyCap;
+      this.historyConfig = {
+        ...this.historyConfig,
+        historyCap: Math.min(HISTORY_CAP_MAX, Math.max(HISTORY_CAP_MIN, cap)),
+      };
     },
 
     async fetchAiConfigs() {

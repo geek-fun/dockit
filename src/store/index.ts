@@ -9,3 +9,4 @@ export * from './importExportStore.ts';
 export * from './tabStore.ts';
 export * from './dbDataStore.ts';
 export * from './dataStudioStore.ts';
+export * from './historyStore.ts';

@@ -16,6 +16,9 @@ const props = withDefaults(defineProps<ProgressProps>(), {
   percentage: 0,
   modelValue: undefined,
   type: 'line',
+  class: undefined,
+  indicatorClass: undefined,
+  status: undefined,
 });
 
 const value = computed(() => props.modelValue ?? props.percentage);
@@ -36,7 +39,7 @@ const statusClass = computed(() => {
 
 <template>
   <ProgressRoot
-    v-model="value"
+    :model-value="value"
     :class="cn('relative h-2 w-full overflow-hidden rounded-full bg-secondary', props.class)"
   >
     <ProgressIndicator

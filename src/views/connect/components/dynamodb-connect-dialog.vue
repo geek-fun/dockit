@@ -4,7 +4,7 @@
       <DialogHeader>
         <DialogTitle>{{ modalTitle }}</DialogTitle>
         <button
-          class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
           @click="closeModal"
         >
           <X class="h-4 w-4" />
@@ -30,60 +30,110 @@
         </Alert>
 
         <Form @submit.prevent="saveConnect">
-          <FormItem :label="$t('connection.name')" required>
-            <Input v-model="formData.name" :placeholder="$t('connection.name')" />
-            <p v-if="errors.name" class="text-sm text-destructive mt-1">
-              {{ errors.name }}
-            </p>
-          </FormItem>
-          <FormItem :label="$t('connection.tableName')" required>
-            <Input v-model="formData.tableName" :placeholder="$t('connection.tableName')" />
-            <p v-if="errors.tableName" class="text-sm text-destructive mt-1">
-              {{ errors.tableName }}
-            </p>
-          </FormItem>
-          <FormItem :label="$t('connection.region')" required>
-            <Select v-model="formData.region">
-              <SelectTrigger>
-                <SelectValue :placeholder="$t('connection.selectRegion')" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="option in regionOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <p v-if="errors.region" class="text-sm text-destructive mt-1">
-              {{ errors.region }}
-            </p>
-          </FormItem>
-          <FormItem :label="$t('connection.accessKeyId')" required>
-            <Input v-model="formData.accessKeyId" :placeholder="$t('connection.accessKeyId')" />
-            <p v-if="errors.accessKeyId" class="text-sm text-destructive mt-1">
-              {{ errors.accessKeyId }}
-            </p>
-          </FormItem>
-          <FormItem :label="$t('connection.secretAccessKey')" required>
+          <FormItem :label="$t('connection.name')" required :error="getError('name', errors.name)">
             <Input
-              v-model="formData.secretAccessKey"
-              type="password"
-              :placeholder="$t('connection.secretAccessKey')"
+              v-model="formData.name"
+              :placeholder="$t('connection.name')"
+              @blur="handleBlur('name')"
             />
-            <p v-if="errors.secretAccessKey" class="text-sm text-destructive mt-1">
-              {{ errors.secretAccessKey }}
-            </p>
           </FormItem>
+          <FormItem
+            :label="$t('connection.tableName')"
+            required
+            :error="getError('tableName', errors.tableName)"
+          >
+            <Input
+              v-model="formData.tableName"
+              :placeholder="$t('connection.tableName')"
+              @blur="handleBlur('tableName')"
+            />
+          </FormItem>
+          <FormItem :label="$t('connection.connectionTarget')">
+            <Tabs
+              :model-value="connectionTarget"
+              @update:model-value="value => onTargetChange(value as string)"
+            >
+              <TabsList class="w-full">
+                <TabsTrigger class="flex-1" value="cloud">
+                  {{ $t('connection.cloudTarget') }}
+                </TabsTrigger>
+                <TabsTrigger class="flex-1" value="local">
+                  {{ $t('connection.localTarget') }}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </FormItem>
+          <template v-if="isLocal">
+            <Alert variant="info" class="mb-4">
+              <AlertDescription>{{ $t('connection.localLimitations') }}</AlertDescription>
+            </Alert>
+            <FormItem
+              :label="$t('connection.endpointUrl')"
+              required
+              :error="getError('endpointUrl', errors.endpointUrl)"
+            >
+              <Input
+                v-model="formData.endpointUrl"
+                placeholder="http://localhost:8000"
+                @blur="handleBlur('endpointUrl')"
+              />
+            </FormItem>
+          </template>
+          <template v-else>
+            <FormItem
+              :label="$t('connection.region')"
+              required
+              :error="getError('region', errors.region)"
+            >
+              <Select
+                v-model="formData.region"
+                @update:open="(open: boolean) => !open && handleBlur('region')"
+              >
+                <SelectTrigger>
+                  <SelectValue :placeholder="$t('connection.selectRegion')" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in regionOptions"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </FormItem>
+            <FormItem
+              :label="$t('connection.accessKeyId')"
+              required
+              :error="getError('accessKeyId', errors.accessKeyId)"
+            >
+              <Input
+                v-model="formData.accessKeyId"
+                :placeholder="$t('connection.accessKeyId')"
+                @blur="handleBlur('accessKeyId')"
+              />
+            </FormItem>
+            <FormItem
+              :label="$t('connection.secretAccessKey')"
+              required
+              :error="getError('secretAccessKey', errors.secretAccessKey)"
+            >
+              <Input
+                v-model="formData.secretAccessKey"
+                type="password"
+                :placeholder="$t('connection.secretAccessKey')"
+                @blur="handleBlur('secretAccessKey')"
+              />
+            </FormItem>
+          </template>
         </Form>
       </div>
 
       <DialogFooter class="flex justify-between sm:justify-between">
         <div class="left">
           <Button variant="secondary" :disabled="!isFormValid || testLoading" @click="testConnect">
-            <span v-if="testLoading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+            <Loader2 v-if="testLoading" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('connection.test') }}
           </Button>
         </div>
@@ -92,7 +142,7 @@
             {{ $t('dialogOps.cancel') }}
           </Button>
           <Button :disabled="!isFormValid || saveLoading" @click="saveConnect">
-            <span v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin">⟳</span>
+            <Loader2 v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('dialogOps.confirm') }}
           </Button>
         </div>
@@ -103,7 +153,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import { cloneDeep } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -113,6 +163,7 @@ import { useLang } from '../../../lang';
 import { useConnectionStore } from '../../../store';
 import { DatabaseType, DynamoDBConnection } from '../../../store';
 import { ApiClientError } from '../../../datasources/ApiClients';
+import { useFormValidation } from '@/composables';
 
 import {
   Dialog,
@@ -125,6 +176,7 @@ import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -145,6 +197,10 @@ const testLoading = ref(false);
 const saveLoading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
+const connectionTarget = ref<'cloud' | 'local'>('cloud');
+const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
+
+const isLocal = computed(() => connectionTarget.value === 'local');
 
 const regionOptions = [
   { label: 'US East (N. Virginia)', value: 'us-east-1' },
@@ -169,6 +225,7 @@ const formSchema = toTypedSchema(
     region: z.string().min(1, lang.t('connection.formValidation.regionRequired')),
     accessKeyId: z.string().min(1, lang.t('connection.formValidation.accessKeyIdRequired')),
     secretAccessKey: z.string().min(1, lang.t('connection.formValidation.secretAccessKeyRequired')),
+    endpointUrl: z.string().optional(),
     type: z.nativeEnum(DatabaseType),
   }),
 );
@@ -180,6 +237,7 @@ const defaultFormData = {
   accessKeyId: '',
   secretAccessKey: '',
   tableName: '',
+  endpointUrl: '',
 } as DynamoDBConnection;
 
 const formData = ref<DynamoDBConnection>(cloneDeep(defaultFormData));
@@ -203,6 +261,21 @@ watch(
   { deep: true },
 );
 
+const onTargetChange = (value: string) => {
+  connectionTarget.value = value as 'cloud' | 'local';
+  if (value === 'local') {
+    formData.value.accessKeyId = 'dummy';
+    formData.value.secretAccessKey = 'dummy';
+    formData.value.region = 'us-east-1';
+    formData.value.endpointUrl = formData.value.endpointUrl || 'http://localhost:8000';
+  } else {
+    formData.value.accessKeyId = '';
+    formData.value.secretAccessKey = '';
+    formData.value.region = '';
+    formData.value.endpointUrl = '';
+  }
+};
+
 const handleOpenChange = (open: boolean) => {
   if (!open) {
     closeModal();
@@ -216,11 +289,14 @@ const showMedal = (con: DynamoDBConnection | null) => {
   if (con) {
     formData.value = { ...con };
     veeResetForm({ values: { ...con } });
+    connectionTarget.value = con.endpointUrl ? 'local' : 'cloud';
     modalTitle.value = lang.t('connection.edit');
   } else {
     formData.value = cloneDeep(defaultFormData);
     veeResetForm({ values: cloneDeep(defaultFormData) });
+    connectionTarget.value = 'cloud';
   }
+  resetValidation();
 };
 
 const closeModal = () => {
@@ -230,9 +306,14 @@ const closeModal = () => {
   modalTitle.value = lang.t('connection.new');
   errorMessage.value = '';
   successMessage.value = '';
+  connectionTarget.value = 'cloud';
+  resetValidation();
 };
 
 const isFormValid = computed(() => {
+  if (isLocal.value) {
+    return formData.value.name && formData.value.tableName && formData.value.endpointUrl;
+  }
   return (
     formData.value.name &&
     formData.value.tableName &&
@@ -245,6 +326,7 @@ const isFormValid = computed(() => {
 const testConnect = async () => {
   errorMessage.value = '';
   successMessage.value = '';
+  markSubmitted();
 
   const { valid } = await validate();
   if (!valid) {
@@ -277,9 +359,9 @@ const testConnect = async () => {
 
     // Handle both ApiClientError/CustomError (with status and details) and generic Error
     if (error instanceof CustomError) {
-      errorMessage.value = `status: ${error.status}, details: ${error.details}`;
+      errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
     } else if (error instanceof ApiClientError) {
-      errorMessage.value = `status: ${error.status}, details: ${error.details}`;
+      errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
     } else if (error instanceof Error) {
       errorMessage.value = error.message;
     } else {
@@ -293,6 +375,7 @@ const testConnect = async () => {
 const saveConnect = async () => {
   errorMessage.value = '';
   successMessage.value = '';
+  markSubmitted();
 
   const { valid } = await validate();
   if (!valid) {

@@ -11,15 +11,7 @@ const props = defineProps<
 </script>
 
 <template>
-  <TabsContent
-    :class="
-      cn(
-        'mt-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-        props.class,
-      )
-    "
-    v-bind="props"
-  >
+  <TabsContent :class="cn('mt-2 focus-visible:outline-none', props.class)" v-bind="props">
     <slot />
   </TabsContent>
 </template>
