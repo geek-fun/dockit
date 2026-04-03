@@ -43,6 +43,11 @@
     "updater": {
       "endpoints": ["https://github.com/geek-fun/dockit/releases/latest/download/latest.json"],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDdDMkIyRkZDRDNBOTJDMzAKUldRd0xLblQvQzhyZlBpMWxpMWpCY09LVk5lWXZuZFBEdTJiQjRaVEFGbWFmRk92S3VFazlWUWIK"
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": ["dockit"]
+      }
     }
   },
   "app": {

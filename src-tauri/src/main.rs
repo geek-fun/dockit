@@ -8,6 +8,7 @@ mod openai_client;
 mod dynamo_client;
 mod dynamo;
 
+use tauri::Emitter;
 use fetch_client::fetch_api;
 use openai_client::{chat_stream, create_openai_client};
 use dynamo_client::dynamo_api;
@@ -15,8 +16,11 @@ use dynamo_client::dynamo_api;
 #[derive(Clone, serde::Serialize)]
 struct AuthPayload {
     token: String,
-    username: String,
-    email: String,
+    #[serde(rename = "userId")]
+    user_id: Option<String>,
+    username: Option<String>,
+    email: Option<String>,
+    avatar: Option<String>,
 }
 
 fn parse_auth_from_url(url: &str) -> Option<AuthPayload> {
@@ -29,9 +33,11 @@ fn parse_auth_from_url(url: &str) -> Option<AuthPayload> {
     // Ensure the token is short-lived and single-use to limit exposure window.
     let params: std::collections::HashMap<_, _> = url.query_pairs().collect();
     let token = params.get("token")?.to_string();
-    let username = params.get("username")?.to_string();
-    let email = params.get("email")?.to_string();
-    Some(AuthPayload { token, username, email })
+    let user_id = params.get("userId").map(|v| v.to_string());
+    let username = params.get("username").map(|v| v.to_string());
+    let email = params.get("email").map(|v| v.to_string());
+    let avatar = params.get("avatar").map(|v| v.to_string());
+    Some(AuthPayload { token, user_id, username, email, avatar })
 }
 
 fn main() {
@@ -45,6 +51,12 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_system_info::init())
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if args.len() > 1 {
+                let deep_link = &args[1];
+                let _ = app.emit("deep-link-received", deep_link);
+            }
+        }))
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
             create_openai_client,
