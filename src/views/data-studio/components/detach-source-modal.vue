@@ -42,7 +42,7 @@ import { useDataStudioStore, type ConnectedSource } from '@/store/dataStudioStor
 const props = defineProps<{
   open: boolean;
   source: ConnectedSource | null;
-  sourceIndex: number;
+  connectionId: number | undefined;
 }>();
 
 const emit = defineEmits<{
@@ -52,7 +52,8 @@ const emit = defineEmits<{
 const dataStudioStore = useDataStudioStore();
 
 const handleDetach = () => {
-  dataStudioStore.removeSource(props.sourceIndex);
+  if (props.connectionId === undefined) return;
+  dataStudioStore.removeSourceById(props.connectionId);
   emit('update:open', false);
 };
 </script>

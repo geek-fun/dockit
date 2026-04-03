@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   Dialog,
@@ -86,7 +86,7 @@ import {
 const props = defineProps<{
   open: boolean;
   source: ConnectedSource | null;
-  sourceIndex: number;
+  connectionId: number | undefined;
 }>();
 
 const emit = defineEmits<{
@@ -105,12 +105,12 @@ const localPermissions = ref<DataSourcePermissions>({
 
 const localUnifiedAccess = ref(true);
 
-const permissionList = [
+const permissionList = computed(() => [
   { key: 'read', label: t('dataStudio.modifySource.read') },
   { key: 'create', label: t('dataStudio.modifySource.create') },
   { key: 'update', label: t('dataStudio.modifySource.update') },
   { key: 'delete', label: t('dataStudio.modifySource.delete') },
-];
+]);
 
 watch(
   () => props.open,
@@ -123,7 +123,11 @@ watch(
 );
 
 const handleSave = () => {
-  dataStudioStore.updateSource(props.sourceIndex, {
+  if (props.connectionId === undefined) return;
+  const source = dataStudioStore.getSourceById(props.connectionId);
+  if (!source) return;
+  const index = dataStudioStore.connectedSources.indexOf(source);
+  dataStudioStore.updateSource(index, {
     permissions: { ...localPermissions.value },
     unifiedAccess: localUnifiedAccess.value,
   });

@@ -77,10 +77,13 @@ watch(
   newVal => {
     if (newVal) {
       selectedConnectionId.value = '';
-      availableConnections.value = connections.value.map(conn => ({
-        label: conn.name,
-        value: conn.id,
-      }));
+      const connectedIds = new Set(dataStudioStore.connectedSources.map(s => s.connectionId));
+      availableConnections.value = connections.value
+        .filter(conn => !connectedIds.has(conn.id))
+        .map(conn => ({
+          label: conn.name,
+          value: conn.id,
+        }));
     }
   },
 );

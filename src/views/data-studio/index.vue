@@ -29,25 +29,32 @@
             <p class="text-sm text-muted-foreground mt-4">{{ $t('dataStudio.disclaimer') }}</p>
           </div>
         </div>
-      </div>
 
-      <!-- Input Area -->
-      <div class="data-studio-input">
-        <div class="input-container">
-          <span class="i-carbon-add-alt h-5 w-5 text-muted-foreground cursor-pointer" />
-          <input
-            type="text"
-            class="chat-input"
-            :placeholder="$t('dataStudio.inputPlaceholder')"
-            disabled
-          />
-          <button class="send-button" disabled>
-            <span class="i-carbon-arrow-up h-4 w-4" />
-          </button>
+        <!-- Input Area -->
+        <div class="data-studio-input-wrapper">
+          <div class="data-studio-input">
+            <div class="input-row">
+              <textarea
+                class="chat-input"
+                rows="3"
+                :placeholder="$t('dataStudio.inputPlaceholder')"
+              />
+            </div>
+            <div class="toolbox-row">
+              <div class="toolbox-left">
+                <button class="icon-button-sm" :title="$t('dataStudio.addSource.title')">
+                  <span class="i-carbon-add-alt h-4 w-4" />
+                </button>
+              </div>
+              <button class="send-button">
+                <span class="i-carbon-arrow-up h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <p class="disclaimer-text">
+            {{ $t('dataStudio.disclaimer') }}
+          </p>
         </div>
-        <p class="text-xs text-muted-foreground text-center mt-2">
-          {{ $t('dataStudio.disclaimer') }}
-        </p>
       </div>
     </div>
 
@@ -165,12 +172,12 @@
     <ModifySourceModal
       v-model:open="showModifyModal"
       :source="selectedSource"
-      :source-index="selectedSourceIndex"
+      :connection-id="selectedConnectionId"
     />
     <DetachSourceModal
       v-model:open="showDetachModal"
       :source="selectedSource"
-      :source-index="selectedSourceIndex"
+      :connection-id="selectedConnectionId"
     />
   </div>
 </template>
@@ -190,23 +197,26 @@ const showAddModal = ref(false);
 const showModifyModal = ref(false);
 const showDetachModal = ref(false);
 const selectedSource = ref<ConnectedSource | null>(null);
-const selectedSourceIndex = ref(-1);
+const selectedConnectionId = ref<number | undefined>(undefined);
 
 const openModifyModal = (index: number) => {
-  selectedSource.value = connectedSources.value[index];
-  selectedSourceIndex.value = index;
+  const source = connectedSources.value[index];
+  selectedSource.value = source;
+  selectedConnectionId.value = source?.connectionId;
   showModifyModal.value = true;
 };
 
 const openDetachModal = (index: number) => {
-  selectedSource.value = connectedSources.value[index];
-  selectedSourceIndex.value = index;
+  const source = connectedSources.value[index];
+  selectedSource.value = source;
+  selectedConnectionId.value = source?.connectionId;
   showDetachModal.value = true;
 };
 </script>
 
 <style scoped>
 .data-studio-container {
+  position: relative;
   height: 100%;
   width: 100%;
   display: flex;
@@ -231,12 +241,17 @@ const openDetachModal = (index: number) => {
 .data-studio-conversation {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 20px 20px 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
 .conversation-content {
+  flex: 1;
   max-width: 800px;
   margin: 0 auto;
+  width: 100%;
 }
 
 .empty-state {
@@ -254,34 +269,71 @@ const openDetachModal = (index: number) => {
   justify-content: center;
 }
 
-.data-studio-input {
-  padding: 16px 20px 12px;
-  border-top: 1px solid hsl(var(--border));
+.data-studio-input-wrapper {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  padding: 16px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: auto;
+  background: linear-gradient(to top, hsl(var(--background)) 75%, transparent);
 }
 
-.input-container {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 24px;
-  background: hsl(var(--background));
+.data-studio-input {
+  width: 100%;
   max-width: 800px;
-  margin: 0 auto;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.input-row {
+  padding: 12px 16px 8px;
 }
 
 .chat-input {
-  flex: 1;
+  width: 100%;
+  min-height: 56px;
   border: none;
   outline: none;
   background: transparent;
   font-size: 14px;
   color: hsl(var(--foreground));
+  resize: none;
+  line-height: 1.5;
+  font-family: inherit;
 }
 
 .chat-input::placeholder {
   color: hsl(var(--muted-foreground));
+}
+
+.toolbox-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 40px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.toolbox-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.disclaimer-text {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  text-align: center;
+  margin-top: 6px;
 }
 
 .send-button {

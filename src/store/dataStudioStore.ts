@@ -27,8 +27,12 @@ export const useDataStudioStore = defineStore('dataStudio', {
     toggleConfigPanel() {
       this.configPanelOpen = !this.configPanelOpen;
     },
-    addSource(source: ConnectedSource) {
+    addSource(source: ConnectedSource): boolean {
+      if (source.connectionId === undefined) return false;
+      const exists = this.connectedSources.some(s => s.connectionId === source.connectionId);
+      if (exists) return false;
       this.connectedSources.push(source);
+      return true;
     },
     updateSource(index: number, source: Partial<ConnectedSource>) {
       if (index >= 0 && index < this.connectedSources.length) {
@@ -39,6 +43,15 @@ export const useDataStudioStore = defineStore('dataStudio', {
       if (index >= 0 && index < this.connectedSources.length) {
         this.connectedSources.splice(index, 1);
       }
+    },
+    removeSourceById(connectionId: number) {
+      const index = this.connectedSources.findIndex(s => s.connectionId === connectionId);
+      if (index !== -1) {
+        this.connectedSources.splice(index, 1);
+      }
+    },
+    getSourceById(connectionId: number): ConnectedSource | undefined {
+      return this.connectedSources.find(s => s.connectionId === connectionId);
     },
   },
 });
