@@ -1,35 +1,19 @@
 <template>
   <div class="app-provider h-full w-full">
     <slot></slot>
+    <AboutDialog ref="aboutDialog" />
   </div>
 </template>
 
 <script lang="ts" setup>
-/**
- * AppProvider Component
- *
- * This component provides application-level context and theming.
- * It manages:
- * - Theme switching (light/dark mode via CSS custom properties and [theme] attribute)
- * - System preference detection for automatic theme switching
- *
- * Dark/light mode is controlled by the [theme] attribute on the root element,
- * which toggles CSS variable values.
- *
- *
- * For messaging and dialogs, use the composables:
- * - useMessageService() for toast notifications
- * - useDialogService() for confirmation dialogs
- * - useLoadingBarService() for loading indicators
- */
-import { watch, onMounted, onUnmounted } from 'vue';
+import { watch, onMounted, onUnmounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { onOpenUrl } from '@tauri-apps/plugin-deep-link';
-import { listen } from '@tauri-apps/api/event';
-import { ThemeType, useAppStore } from '../store';
-import { useUserStore } from '../store';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { ThemeType, useAppStore, useUserStore } from '../store';
 import { router } from '../router';
 import { parseDeepLinkUrl } from '../datasources/authService';
+import AboutDialog from './AboutDialog.vue';
 
 const appStore = useAppStore();
 const { setUiThemeType } = appStore;
@@ -37,10 +21,15 @@ const { uiThemeType, themeType } = storeToRefs(appStore);
 
 const userStore = useUserStore();
 
+const aboutDialog = ref<InstanceType<typeof AboutDialog> | null>(null);
+let showAboutListener: UnlistenFn | undefined;
+let unlistenAuth: UnlistenFn | undefined;
+let unlistenDeepLink: UnlistenFn | undefined;
+let unlistenTauriEvent: UnlistenFn | undefined;
+
 // System theme preference detection
 const sysPreferLight = window.matchMedia('(prefers-color-scheme: light)');
 
-// Handler for system theme changes
 const handleSystemThemeChange = (event: MediaQueryListEvent | MediaQueryList) => {
   setUiThemeType(event.matches ? ThemeType.LIGHT : ThemeType.DARK);
 };
@@ -57,17 +46,11 @@ const handleDeepLink = (urls: string[]) => {
   }
 };
 
-let unlistenDeepLink: (() => void) | null = null;
-let unlistenTauriEvent: (() => void) | null = null;
-
 // Initialize theme on mount
 onMounted(async () => {
   // Only follow system preference when in AUTO mode
   if (themeType.value === ThemeType.AUTO) {
-    // Set initial theme based on system preference
     handleSystemThemeChange(sysPreferLight);
-
-    // Listen for system theme changes
     sysPreferLight.addEventListener('change', handleSystemThemeChange);
   }
 
@@ -88,16 +71,28 @@ onMounted(async () => {
   } catch (error) {
     console.error('Failed to register deep-link-received event listener:', error);
   }
+
+  showAboutListener = await listen('showAbout', () => {
+    aboutDialog.value?.show();
+  });
+
+  unlistenAuth = await listen<{ token: string; username: string; email: string }>(
+    'dockit://auth',
+    event => {
+      userStore.setAuth(event.payload.token, event.payload.username, event.payload.email);
+    },
+  );
 });
 
 // Cleanup listeners on unmount
 onUnmounted(() => {
   sysPreferLight.removeEventListener('change', handleSystemThemeChange);
-  if (unlistenDeepLink) unlistenDeepLink();
-  if (unlistenTauriEvent) unlistenTauriEvent();
+  showAboutListener?.();
+  unlistenAuth?.();
+  unlistenDeepLink?.();
+  unlistenTauriEvent?.();
 });
 
-// Watch for theme changes and update the DOM attribute
 watch(
   uiThemeType,
   newTheme => {

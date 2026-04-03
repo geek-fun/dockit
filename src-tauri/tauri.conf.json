@@ -19,6 +19,9 @@
         "type": "skip"
       }
     },
+    "macOS": {
+      "infoPlist": "Info.plist"
+    },
     "category": "DeveloperTool",
     "icon": [
       "icons/32x32.png",
@@ -31,6 +34,11 @@
   "plugins": {
     "fs": {
       "requireLiteralLeadingDot": false
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": ["dockit"]
+      }
     },
     "updater": {
       "endpoints": ["https://github.com/geek-fun/dockit/releases/latest/download/latest.json"],

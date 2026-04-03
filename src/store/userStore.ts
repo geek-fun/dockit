@@ -49,6 +49,11 @@ export const useUserStore = defineStore('user', {
       this.email = data.email || '';
       this.avatar = data.avatar || '';
     },
+    setAuth(token: string, username: string, email: string): void {
+      this.accessToken = token;
+      this.username = username;
+      this.email = email;
+    },
     logout(): void {
       this.resetToken();
     },

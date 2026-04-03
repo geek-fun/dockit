@@ -157,21 +157,9 @@ const getCompletionContext = (
     };
   }
 
-  // Check if line starts with a partial HTTP method (suggesting methods)
-  // Use trimmedLine for exact matching without trailing spaces
-  const partialMethodMatch =
-    /^(G|GE|GET|P|PO|POS|POST|PU|PUT|D|DE|DEL|DELE|DELET|DELETE|H|HE|HEA|HEAD|PA|PAT|PATC|PATCH|O|OP|OPT|OPTI|OPTIO|OPTION|OPTIONS)$/i.exec(
-      trimmedLine,
-    );
-  if (partialMethodMatch) {
-    return {
-      backend: currentConfig.backend,
-      version: currentConfig.version,
-      position: 'method',
-    };
-  }
-
-  // Check if we're inside a body (JSON)
+  // IMPORTANT: Check if we're inside a body BEFORE checking partial method match
+  // This prevents HTTP verbs from being suggested inside JSON bodies when typing
+  // field names that start with method letters (e.g., 'p' for 'post_filter')
   const fullText = model.getValue();
   const offset = model.getOffsetAt(position);
 
@@ -187,6 +175,20 @@ const getCompletionContext = (
       method,
       path,
       bodyPath,
+    };
+  }
+
+  // Check if line starts with a partial HTTP method (suggesting methods)
+  // Use trimmedLine for exact matching without trailing spaces
+  const partialMethodMatch =
+    /^(G|GE|GET|P|PO|POS|POST|PU|PUT|D|DE|DEL|DELE|DELET|DELETE|H|HE|HEA|HEAD|PA|PAT|PATC|PATCH|O|OP|OPT|OPTI|OPTIO|OPTION|OPTIONS)$/i.exec(
+      trimmedLine,
+    );
+  if (partialMethodMatch) {
+    return {
+      backend: currentConfig.backend,
+      version: currentConfig.version,
+      position: 'method',
     };
   }
 
@@ -235,7 +237,7 @@ const findMethodAndPath = (
 const getBodyPath = (text: string, offset: number): string[] | null => {
   const tokens = tokenize(text);
   const pathStack: string[] = [];
-  let inBody = false;
+  let bodyDepth = 0; // Track actual brace depth independently
   let lastKey: string | null = null;
 
   for (const token of tokens) {
@@ -243,8 +245,8 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
 
     switch (token.type) {
       case TokenType.BODY_START:
-        if (token.value === '{') {
-          inBody = true;
+        if (token.value === '{' || token.value === '[') {
+          bodyDepth++;
           if (lastKey) {
             pathStack.push(lastKey);
             lastKey = null;
@@ -252,12 +254,13 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
         }
         break;
       case TokenType.BODY_END:
-        if (token.value === '}') {
-          pathStack.pop();
+        if (token.value === '}' || token.value === ']') {
+          if (pathStack.length > 0) {
+            pathStack.pop();
+          }
           lastKey = null;
-          // If we've closed all braces, we're no longer in a body
-          if (pathStack.length === 0) {
-            inBody = false;
+          if (bodyDepth > 0) {
+            bodyDepth--;
           }
         }
         break;
@@ -283,7 +286,8 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
     }
   }
 
-  return inBody ? pathStack : null;
+  // We're in a body if we have unclosed braces
+  return bodyDepth > 0 ? pathStack : null;
 };
 
 /**
@@ -535,6 +539,11 @@ const getIndexSpecificEndpoints = (): Array<{
       methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
       description: 'Index alias',
     },
+    {
+      path: '_alias',
+      methods: ['GET'],
+      description: 'Get index aliases',
+    },
     { path: '_analyze', methods: ['GET', 'POST'], description: 'Analyze text' },
     { path: '_validate/query', methods: ['GET', 'POST'], description: 'Validate query' },
     { path: '_msearch', methods: ['GET', 'POST'], description: 'Multi search' },
@@ -676,7 +685,7 @@ const provideBodyCompletions = (
         insertText: field.snippet,
         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         detail: field.description,
-        sortText: '0' + field.label,
+        sortText: String(field.sortOrder).padStart(3, '0'),
         range,
       });
     }
@@ -690,28 +699,12 @@ const provideBodyCompletions = (
         insertText: field.snippet,
         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         detail: field.description,
-        sortText: '0' + field.label,
+        sortText: String(field.sortOrder).padStart(3, '0'),
         range,
       });
     }
-  } else if (bodyPath[0] === 'mappings') {
-    // Inside mappings - determine depth
-    if (bodyPath.length === 1) {
-      // Direct inside mappings - provide mappings fields
-      const mappingsFields = getMappingsFields();
-      for (const field of mappingsFields) {
-        completions.push({
-          label: field.label,
-          kind: monaco.languages.CompletionItemKind.Property,
-          insertText: field.snippet,
-          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-          detail: field.description,
-          sortText: '0' + field.label,
-          range,
-        });
-      }
-    } else if (bodyPath.includes('properties')) {
-      // Inside properties - provide field type options
+  } else if (bodyPath[0] === 'mappings' || bodyPath[0] === 'properties') {
+    if (bodyPath[0] === 'properties' || bodyPath.includes('properties')) {
       const fieldTypes = getFieldTypeOptions();
       for (const fieldType of fieldTypes) {
         completions.push({
@@ -724,11 +717,47 @@ const provideBodyCompletions = (
           range,
         });
       }
+    } else if (bodyPath[0] === 'mappings' && bodyPath.length === 1) {
+      const mappingsFields = getMappingsFields();
+      for (const field of mappingsFields) {
+        completions.push({
+          label: field.label,
+          kind: monaco.languages.CompletionItemKind.Property,
+          insertText: field.snippet,
+          insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+          detail: field.description,
+          sortText: String(field.sortOrder).padStart(3, '0'),
+          range,
+        });
+      }
     }
   } else if (bodyPath[0] === 'query' || bodyPath.includes('query')) {
     // Inside query - provide query types
+    const queryPopularityOrder: Record<string, number> = {
+      bool: 1,
+      match: 2,
+      term: 3,
+      range: 4,
+      match_all: 5,
+      terms: 6,
+      multi_match: 7,
+      exists: 8,
+      prefix: 9,
+      wildcard: 10,
+      match_phrase: 11,
+      ids: 12,
+      constant_score: 13,
+      regexp: 14,
+      fuzzy: 15,
+      geo_distance: 16,
+      geo_polygon: 17,
+      more_like_this: 18,
+    };
+
     const queryTypes = queryDslProvider.getQueryTypes(backend, version);
     for (const [name, query] of Object.entries(queryTypes)) {
+      const popularitySort = queryPopularityOrder[name] || 50;
+      const deprecatedSort = query.deprecated ? 90 : 0;
       completions.push({
         label: name,
         kind: monaco.languages.CompletionItemKind.Class,
@@ -738,7 +767,7 @@ const provideBodyCompletions = (
         documentation: query.docUrl
           ? { value: `[Documentation](${query.docUrl})`, isTrusted: true }
           : undefined,
-        sortText: query.deprecated ? '9' + name : '1' + name,
+        sortText: String(deprecatedSort + popularitySort).padStart(3, '0'),
         range,
       });
     }
@@ -796,141 +825,230 @@ const findQueryTypeInPath = (bodyPath: string[]): string | null => {
 const getRootBodyFields = (
   path?: string,
   method?: HttpMethod,
-): Array<{ label: string; snippet: string; description: string }> => {
+): Array<{ label: string; snippet: string; description: string; sortOrder: number }> => {
+  const normalizedPath = path?.replace(/^\/+/, '') || '';
+
+  const pathEndsWith = (endpoint: string): boolean => {
+    if (!normalizedPath) return false;
+    return normalizedPath === endpoint || normalizedPath.endsWith('/' + endpoint);
+  };
+
+  // pathMatchesEndpoint: Matches endpoints that require trailing path segments (e.g., _update/{id}, _doc/{id})
+  // Different from pathEndsWith because these endpoints always have an ID or type suffix in the URL path
+  const pathMatchesEndpoint = (endpoint: string): boolean => {
+    if (!normalizedPath) return false;
+    if (pathEndsWith(endpoint)) return true;
+    const endpointPattern = new RegExp(`/${endpoint}/[^/]+(/[^/]+)*$`);
+    return endpointPattern.test('/' + normalizedPath) || normalizedPath.startsWith(endpoint + '/');
+  };
+
   // Check if this is a search endpoint
-  if (path?.includes('_search')) {
+  if (pathEndsWith('_search')) {
     return [
-      { label: 'query', snippet: 'query: {\n\t$0\n}', description: 'Query DSL' },
-      { label: 'from', snippet: 'from: ${1:0}', description: 'Starting offset' },
-      { label: 'size', snippet: 'size: ${1:10}', description: 'Number of hits to return' },
-      { label: 'sort', snippet: 'sort: [\n\t$0\n]', description: 'Sort order' },
-      { label: '_source', snippet: '_source: $0', description: 'Source filtering' },
+      { label: 'query', snippet: 'query: {\n\t$0\n}', description: 'Query DSL', sortOrder: 1 },
+      {
+        label: 'size',
+        snippet: 'size: ${1:10}',
+        description: 'Number of hits to return',
+        sortOrder: 2,
+      },
+      { label: 'from', snippet: 'from: ${1:0}', description: 'Starting offset', sortOrder: 3 },
+      { label: 'sort', snippet: 'sort: [\n\t$0\n]', description: 'Sort order', sortOrder: 4 },
       {
         label: 'aggs',
         snippet: 'aggs: {\n\t"${1:agg_name}": {\n\t\t$0\n\t}\n}',
         description: 'Aggregations',
+        sortOrder: 5,
       },
+      { label: '_source', snippet: '_source: $0', description: 'Source filtering', sortOrder: 6 },
       {
         label: 'highlight',
         snippet: 'highlight: {\n\tfields: {\n\t\t"${1:field}": {}\n\t}\n}',
         description: 'Highlighting',
-      },
-      { label: 'post_filter', snippet: 'post_filter: {\n\t$0\n}', description: 'Post filter' },
-      {
-        label: 'track_total_hits',
-        snippet: 'track_total_hits: ${1:true}',
-        description: 'Track total hits',
-      },
-      { label: 'explain', snippet: 'explain: ${1:true}', description: 'Explain scoring' },
-      { label: 'timeout', snippet: 'timeout: "${1:10s}"', description: 'Search timeout' },
-      {
-        label: 'min_score',
-        snippet: 'min_score: ${1:0.5}',
-        description: 'Minimum score threshold',
+        sortOrder: 7,
       },
       {
-        label: 'stored_fields',
-        snippet: 'stored_fields: [$0]',
-        description: 'Stored fields to retrieve',
-      },
-      {
-        label: 'docvalue_fields',
-        snippet: 'docvalue_fields: [$0]',
-        description: 'Doc value fields',
-      },
-      {
-        label: 'script_fields',
-        snippet:
-          'script_fields: {\n\t"${1:field}": {\n\t\tscript: {\n\t\t\tsource: "$0"\n\t\t}\n\t}\n}',
-        description: 'Script fields',
-      },
-      {
-        label: 'rescore',
-        snippet: 'rescore: {\n\tquery: {\n\t\trescore_query: {\n\t\t\t$0\n\t\t}\n\t}\n}',
-        description: 'Query rescoring',
+        label: 'post_filter',
+        snippet: 'post_filter: {\n\t$0\n}',
+        description: 'Post filter',
+        sortOrder: 8,
       },
       {
         label: 'collapse',
         snippet: 'collapse: {\n\tfield: "${1:field}"\n}',
         description: 'Field collapsing',
-      },
-      {
-        label: 'search_after',
-        snippet: 'search_after: [$0]',
-        description: 'Search after for pagination',
+        sortOrder: 9,
       },
       {
         label: 'suggest',
         snippet:
           'suggest: {\n\t"${1:suggest_name}": {\n\t\ttext: "${2:text}",\n\t\tterm: {\n\t\t\tfield: "${3:field}"\n\t\t}\n\t}\n}',
         description: 'Suggest queries',
+        sortOrder: 10,
+      },
+      {
+        label: 'track_total_hits',
+        snippet: 'track_total_hits: ${1:true}',
+        description: 'Track total hits',
+        sortOrder: 11,
+      },
+      {
+        label: 'search_after',
+        snippet: 'search_after: [$0]',
+        description: 'Search after for pagination',
+        sortOrder: 12,
+      },
+      {
+        label: 'explain',
+        snippet: 'explain: ${1:true}',
+        description: 'Explain scoring',
+        sortOrder: 13,
+      },
+      {
+        label: 'timeout',
+        snippet: 'timeout: "${1:10s}"',
+        description: 'Search timeout',
+        sortOrder: 14,
+      },
+      {
+        label: 'min_score',
+        snippet: 'min_score: ${1:0.5}',
+        description: 'Minimum score threshold',
+        sortOrder: 15,
+      },
+      {
+        label: 'stored_fields',
+        snippet: 'stored_fields: [$0]',
+        description: 'Stored fields to retrieve',
+        sortOrder: 16,
+      },
+      {
+        label: 'docvalue_fields',
+        snippet: 'docvalue_fields: [$0]',
+        description: 'Doc value fields',
+        sortOrder: 17,
+      },
+      {
+        label: 'script_fields',
+        snippet:
+          'script_fields: {\n\t"${1:field}": {\n\t\tscript: {\n\t\t\tsource: "$0"\n\t\t}\n\t}\n}',
+        description: 'Script fields',
+        sortOrder: 18,
+      },
+      {
+        label: 'rescore',
+        snippet: 'rescore: {\n\tquery: {\n\t\trescore_query: {\n\t\t\t$0\n\t\t}\n\t}\n}',
+        description: 'Query rescoring',
+        sortOrder: 19,
+      },
+      {
+        label: 'profile',
+        snippet: 'profile: ${1:true}',
+        description: 'Profile query execution',
+        sortOrder: 20,
       },
     ];
   }
 
   // Check if this is an update endpoint
-  if (path?.includes('_update')) {
+  if (pathMatchesEndpoint('_update')) {
     return [
-      { label: 'doc', snippet: 'doc: {\n\t$0\n}', description: 'Partial document' },
-      { label: 'script', snippet: 'script: {\n\tsource: "$0"\n}', description: 'Update script' },
-      { label: 'upsert', snippet: 'upsert: {\n\t$0\n}', description: 'Document to upsert' },
+      { label: 'doc', snippet: 'doc: {\n\t$0\n}', description: 'Partial document', sortOrder: 1 },
+      {
+        label: 'script',
+        snippet: 'script: {\n\tsource: "$0"\n}',
+        description: 'Update script',
+        sortOrder: 2,
+      },
+      {
+        label: 'upsert',
+        snippet: 'upsert: {\n\t$0\n}',
+        description: 'Document to upsert',
+        sortOrder: 3,
+      },
       {
         label: 'doc_as_upsert',
         snippet: 'doc_as_upsert: ${1:true}',
         description: 'Use doc as upsert',
+        sortOrder: 4,
       },
       {
         label: 'detect_noop',
         snippet: 'detect_noop: ${1:true}',
         description: 'Detect noop updates',
+        sortOrder: 5,
       },
     ];
   }
 
   // Check if this is a reindex endpoint
-  if (path?.includes('_reindex')) {
+  if (pathEndsWith('_reindex')) {
     return [
       {
         label: 'source',
         snippet: 'source: {\n\tindex: "${1:source_index}"\n}',
         description: 'Source index configuration',
+        sortOrder: 1,
       },
       {
         label: 'dest',
         snippet: 'dest: {\n\tindex: "${1:dest_index}"\n}',
         description: 'Destination index configuration',
+        sortOrder: 2,
       },
-      { label: 'script', snippet: 'script: {\n\tsource: "$0"\n}', description: 'Reindex script' },
-      { label: 'max_docs', snippet: 'max_docs: ${1:1000}', description: 'Maximum documents' },
+      {
+        label: 'script',
+        snippet: 'script: {\n\tsource: "$0"\n}',
+        description: 'Reindex script',
+        sortOrder: 3,
+      },
+      {
+        label: 'max_docs',
+        snippet: 'max_docs: ${1:1000}',
+        description: 'Maximum documents',
+        sortOrder: 4,
+      },
       {
         label: 'conflicts',
         snippet: 'conflicts: "${1:proceed}"',
         description: 'Conflict handling',
+        sortOrder: 5,
       },
     ];
   }
 
   // Check if this is an aliases endpoint (/_aliases or ends with /_aliases)
-  const normalizedPathForAliases = path?.replace(/^\/+/, '') || '';
-  if (normalizedPathForAliases === '_aliases' || normalizedPathForAliases.endsWith('/_aliases')) {
+  if (pathEndsWith('_aliases')) {
     return [
       {
         label: 'actions',
         snippet:
           'actions: [\n\t{\n\t\t${1|add,remove,remove_index|}: {\n\t\t\tindex: "${2:index_name}",\n\t\t\talias: "${3:alias_name}"\n\t\t}\n\t}\n]',
         description: 'Actions to perform on aliases (add, remove, remove_index)',
+        sortOrder: 1,
       },
     ];
   }
 
   // Check if this is an index creation (PUT /{index}) or mapping/settings endpoint
   // An index creation is typically PUT /index_name (path that doesn't start with _ after the leading /)
-  const normalizedPath = path?.replace(/^\/+/, '') || '';
   const pathSegments = normalizedPath.split('/').filter(Boolean);
   const isIndexCreation =
     method === 'PUT' && pathSegments.length === 1 && !pathSegments[0].startsWith('_');
 
-  if (isIndexCreation || path?.includes('_mapping') || path?.includes('_settings')) {
+  // Check for specific endpoints - must check before index creation
+  // PUT /{index}/_mapping should only show mapping fields
+  if (pathEndsWith('_mapping') && method === 'PUT') {
+    return getMappingsFields();
+  }
+
+  // PUT /{index}/_settings should only show settings fields
+  if (pathEndsWith('_settings') && method === 'PUT') {
+    return getSettingsFields();
+  }
+
+  // PUT /{index} for index creation shows all fields (settings, mappings, aliases)
+  if (isIndexCreation) {
     return getIndexBodyFields();
   }
 
@@ -941,18 +1059,30 @@ const getRootBodyFields = (
 /**
  * Get body fields for index creation (PUT /{index})
  */
-const getIndexBodyFields = (): Array<{ label: string; snippet: string; description: string }> => {
+const getIndexBodyFields = (): Array<{
+  label: string;
+  snippet: string;
+  description: string;
+  sortOrder: number;
+}> => {
   return [
-    { label: 'settings', snippet: 'settings: {\n\t$0\n}', description: 'Index settings' },
+    {
+      label: 'settings',
+      snippet: 'settings: {\n\t$0\n}',
+      description: 'Index settings',
+      sortOrder: 1,
+    },
     {
       label: 'mappings',
       snippet: 'mappings: {\n\tproperties: {\n\t\t$0\n\t}\n}',
       description: 'Index mappings',
+      sortOrder: 2,
     },
     {
       label: 'aliases',
       snippet: 'aliases: {\n\t"${1:alias_name}": {}\n}',
       description: 'Index aliases',
+      sortOrder: 3,
     },
   ];
 };
@@ -960,60 +1090,90 @@ const getIndexBodyFields = (): Array<{ label: string; snippet: string; descripti
 /**
  * Get settings fields for completion
  */
-const getSettingsFields = (): Array<{ label: string; snippet: string; description: string }> => {
+const getSettingsFields = (): Array<{
+  label: string;
+  snippet: string;
+  description: string;
+  sortOrder: number;
+}> => {
   return [
     {
       label: 'number_of_shards',
       snippet: 'number_of_shards: ${1:1}',
       description: 'Number of primary shards',
+      sortOrder: 1,
     },
     {
       label: 'number_of_replicas',
       snippet: 'number_of_replicas: ${1:1}',
       description: 'Number of replica shards',
+      sortOrder: 2,
     },
     {
       label: 'refresh_interval',
       snippet: 'refresh_interval: "${1:1s}"',
       description: 'How often to refresh the index',
+      sortOrder: 3,
     },
     {
       label: 'max_result_window',
       snippet: 'max_result_window: ${1:10000}',
       description: 'Maximum value of from + size for searches',
+      sortOrder: 4,
     },
-    { label: 'analysis', snippet: 'analysis: {\n\t$0\n}', description: 'Analysis settings' },
+    {
+      label: 'analysis',
+      snippet: 'analysis: {\n\t$0\n}',
+      description: 'Analysis settings',
+      sortOrder: 5,
+    },
     {
       label: 'index.routing.allocation.include._tier_preference',
       snippet: 'index.routing.allocation.include._tier_preference: "${1:data_content}"',
       description: 'Tier preference for index routing',
+      sortOrder: 6,
     },
     {
       label: 'codec',
       snippet: 'codec: "${1|default,best_compression|}"',
       description: 'Compression codec',
+      sortOrder: 7,
     },
     {
       label: 'routing_partition_size',
       snippet: 'routing_partition_size: ${1:1}',
       description: 'Number of shards a custom routing value can go to',
+      sortOrder: 8,
     },
     {
       label: 'soft_deletes.retention_lease.period',
       snippet: 'soft_deletes.retention_lease.period: "${1:12h}"',
       description: 'Retention period for soft deletes',
+      sortOrder: 9,
     },
     {
       label: 'load_fixed_bitset_filters_eagerly',
       snippet: 'load_fixed_bitset_filters_eagerly: ${1:true}',
       description: 'Load fixed bitset filters eagerly',
+      sortOrder: 10,
     },
-    { label: 'hidden', snippet: 'hidden: ${1:false}', description: 'Make the index hidden' },
-    { label: 'priority', snippet: 'priority: ${1:1}', description: 'Recovery priority for index' },
+    {
+      label: 'hidden',
+      snippet: 'hidden: ${1:false}',
+      description: 'Make the index hidden',
+      sortOrder: 11,
+    },
+    {
+      label: 'priority',
+      snippet: 'priority: ${1:1}',
+      description: 'Recovery priority for index',
+      sortOrder: 12,
+    },
     {
       label: 'auto_expand_replicas',
       snippet: 'auto_expand_replicas: "${1:0-1}"',
       description: 'Auto expand replicas based on cluster state',
+      sortOrder: 13,
     },
   ];
 };
@@ -1021,39 +1181,55 @@ const getSettingsFields = (): Array<{ label: string; snippet: string; descriptio
 /**
  * Get mappings fields for completion
  */
-const getMappingsFields = (): Array<{ label: string; snippet: string; description: string }> => {
+const getMappingsFields = (): Array<{
+  label: string;
+  snippet: string;
+  description: string;
+  sortOrder: number;
+}> => {
   return [
-    { label: 'properties', snippet: 'properties: {\n\t$0\n}', description: 'Field mappings' },
+    {
+      label: 'properties',
+      snippet: 'properties: {\n\t$0\n}',
+      description: 'Field mappings',
+      sortOrder: 1,
+    },
     {
       label: 'dynamic',
       snippet: 'dynamic: ${1|true,false,strict|}',
       description: 'Dynamic mapping behavior',
-    },
-    {
-      label: '_source',
-      snippet: '_source: {\n\tenabled: ${1:true}\n}',
-      description: 'Source field configuration',
-    },
-    {
-      label: '_routing',
-      snippet: '_routing: {\n\trequired: ${1:false}\n}',
-      description: 'Routing configuration',
-    },
-    {
-      label: 'date_detection',
-      snippet: 'date_detection: ${1:true}',
-      description: 'Date detection in dynamic mapping',
-    },
-    {
-      label: 'numeric_detection',
-      snippet: 'numeric_detection: ${1:false}',
-      description: 'Numeric detection in dynamic mapping',
+      sortOrder: 2,
     },
     {
       label: 'dynamic_templates',
       snippet:
         'dynamic_templates: [\n\t{\n\t\t"${1:template_name}": {\n\t\t\tmatch: "${2:*}",\n\t\t\tmapping: {\n\t\t\t\ttype: "${3:keyword}"\n\t\t\t}\n\t\t}\n\t}\n]',
       description: 'Dynamic templates for field mapping',
+      sortOrder: 3,
+    },
+    {
+      label: '_source',
+      snippet: '_source: {\n\tenabled: ${1:true}\n}',
+      description: 'Source field configuration',
+      sortOrder: 4,
+    },
+    {
+      label: '_routing',
+      snippet: '_routing: {\n\trequired: ${1:false}\n}',
+      description: 'Routing configuration',
+      sortOrder: 5,
+    },
+    {
+      label: 'date_detection',
+      snippet: 'date_detection: ${1:true}',
+      description: 'Date detection in dynamic mapping',
+      sortOrder: 6,
+    },
+    {
+      label: 'numeric_detection',
+      snippet: 'numeric_detection: ${1:false}',
+      description: 'Numeric detection in dynamic mapping',
+      sortOrder: 7,
     },
   ];
 };

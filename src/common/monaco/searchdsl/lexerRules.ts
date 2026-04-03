@@ -184,5 +184,9 @@ export const search = {
       lineComment: '//',
       blockComment: ['/*', '*/'],
     },
+    indentationRules: {
+      increaseIndentPattern: /[{[(]\s*$/,
+      decreaseIndentPattern: /^\s*[}\])]/,
+    },
   },
 };
