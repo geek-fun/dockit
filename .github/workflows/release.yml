@@ -2,71 +2,81 @@ name: distributions release
 on:
   push:
     branches: [master]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  pre-release:
+  release:
     name: ${{ matrix.name }}
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: 'macOS'
-            os: 'macos-latest'
-            args: '--target universal-apple-darwin'
-            target: 'aarch64-apple-darwin,x86_64-apple-darwin'
-            artifact-name: 'universal-apple-darwin'
-            node-version: '24.x'
-          - name: 'Windows'
-            os: 'windows-latest'
-            args: '--target x86_64-pc-windows-msvc'
-            target: 'x86_64-pc-windows-msvc'
-            artifact-name: 'x86_64-pc-windows-msvc'
-            node-version: '24.x'
-          - name: 'Linux'
-            os: 'ubuntu-latest'
-            args: '--target x86_64-unknown-linux-gnu'
-            target: 'x86_64-unknown-linux-gnu'
-            artifact-name: 'x86_64-unknown-linux-gnu'
-            node-version: '24.x'
-    runs-on: ${{ matrix.os }}
+          - name: macOS
+            platform: macos-latest
+            args: --target universal-apple-darwin
+            target: aarch64-apple-darwin,x86_64-apple-darwin
+          - name: Windows
+            platform: windows-latest
+            args: --target x86_64-pc-windows-msvc
+            target: x86_64-pc-windows-msvc
+          - name: Linux
+            platform: ubuntu-latest
+            args: --target x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-gnu
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Github checkout
-        uses: actions/checkout@v4
-      - name: install Rust stable
+        uses: actions/checkout@v5
+
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v5
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-      - name: install dependencies (ubuntu only)
-        if: matrix.os == 'ubuntu-latest'
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
         run: |
           echo "deb http://gb.archive.ubuntu.com/ubuntu jammy main" | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
-      - name: install frontend dependencies
+
+      - name: Install frontend dependencies
         run: npm ci
+
       - run: npm run lint:check
+
       - run: npm audit --audit-level=critical
+
       - run: npm run test:ci
+
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
       - run: npm run build
         env:
-          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Import Apple Developer Certificate
-        if: matrix.os == 'macos-latest'
+        if: runner.os == 'macOS'
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -76,20 +86,20 @@ jobs:
           security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
-          # Prevents keychain from locking automatically for 3600 seconds.
           security set-keychain-settings -t 3600 -u build.keychain
           security import certificate.p12 -k build.keychain -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
-      - name: Verify Certificate
-        if: matrix.os == 'macos-latest'
+
+      - name: Extract Signing Identity
+        if: runner.os == 'macOS'
         run: |
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Developer ID Application")
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           echo "Certificate imported."
 
-      - name: Build Distribution Binaries
+      - name: Build and Release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -101,87 +111,12 @@ jobs:
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_OPTIONS: --max-old-space-size=4096
         with:
+          tagName: v__VERSION__
+          releaseName: v__VERSION__
+          releaseBody: See the assets to download this version and install.
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
           args: ${{ matrix.args }}
-
-      #      - name: Sign Binaries with Trusted Signing
-      #        if: matrix.os == 'windows-latest'
-      #        uses: azure/trusted-signing-action@v0.3.19
-      #        with:
-      #          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-      #          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-      #          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-      #          endpoint: https://eus.codesigning.azure.net/
-      #          trusted-signing-account-name: geek-fun
-      #          certificate-profile-name: geek-fun
-      #          files-folder: ${{ github.workspace }}\src-tauri\target\${{ matrix.target }}\release\bundle\nsis\
-      #          files-folder-depth: 7
-      #          files-folder-filter: exe
-      #          file-digest: SHA256
-      #          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-      #          timestamp-digest: SHA256
-      - name: Collect Distribution Binaries
-        env:
-          TARGET: ${{ matrix.args }}
-        run: ./scripts/collect-binaries.sh
-        shell: bash
-      - name: Upload Distribution Binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: artifacts-${{ matrix.artifact-name }}
-          path: ${{ github.workspace }}/artifacts/*
-
-  release:
-    needs: pre-release
-    runs-on: ubuntu-latest
-    steps:
-      - name: Github checkout
-        uses: actions/checkout@v4
-      - name: Generate changelog
-        uses: jaywcjlove/changelog-generator@main
-        id: changelog
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Tag Release
-        uses: jaywcjlove/create-tag-action@main
-        id: tag_release
-        with:
-          prerelease: true
-          token: ${{ secrets.GITHUB_TOKEN }}
-          body: |
-            ${{ steps.changelog.outputs.compareurl }}
-
-            ${{ steps.changelog.outputs.changelog }}
-      - name: Download Distribution Binaries
-        uses: actions/download-artifact@v4
-        if: steps.tag_release.outputs.successful == 'true'
-        with:
-          path: artifacts
-          merge-multiple: true
-      - name: Collect Updater Manifests
-        if: steps.tag_release.outputs.successful == 'true'
-        run: ./scripts/collect-updater-manifests.sh
-        shell: bash
-      - name: Release App
-        uses: softprops/action-gh-release@v2
-        if: steps.tag_release.outputs.successful == 'true'
-        with:
-          tag_name: ${{ steps.tag_release.outputs.version }}
-          name: ${{ steps.tag_release.outputs.version }}
-          body: |
-            ${{ steps.changelog.outputs.compareurl }}
-
-            ${{ steps.changelog.outputs.changelog }}
-          files: ${{ github.workspace }}/artifacts/**/*
-
-      - name: Distribute Binaries to R2
-        if: steps.tag_release.outputs.successful == 'true'
-        uses: ryand56/r2-upload-action@master
-        with:
-          r2-account-id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
-          r2-bucket: ${{ secrets.CLOUDFLARE_ARTIFACTS_R2 }}
-          source-dir: ${{ github.workspace }}/artifacts/
-          destination-dir: dockit

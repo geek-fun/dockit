@@ -9,3 +9,4 @@ export { useDialogService } from './useDialogService';
 export { useMessageService } from './useMessageService';
 export { useLoadingBarService } from './useLoadingBarService';
 export { useFormValidation } from './useFormValidation';
+export { useAppUpdater } from './useAppUpdater';

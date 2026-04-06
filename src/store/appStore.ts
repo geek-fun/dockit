@@ -43,7 +43,6 @@ export const useAppStore = defineStore('app', {
     languageType: LanguageType;
     connectPanel: boolean;
     uiThemeType: Exclude<ThemeType, ThemeType.AUTO>;
-    skipVersion: string;
     aiConfigs: Array<AiConfig>;
     editorConfig: EditorConfig;
     historyConfig: HistoryConfig;
@@ -53,7 +52,6 @@ export const useAppStore = defineStore('app', {
       languageType: LanguageType.AUTO,
       connectPanel: true, //
       uiThemeType: ThemeType.LIGHT,
-      skipVersion: '',
       aiConfigs: [],
       editorConfig: {
         fontSize: 14,
