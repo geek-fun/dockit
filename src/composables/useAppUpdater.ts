@@ -2,21 +2,21 @@ import type { Update } from '@tauri-apps/plugin-updater';
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { ref } from 'vue';
+import { useLocalStorage } from '@vueuse/core';
 import { useMessageService } from './useMessageService';
 import { lang } from '@/lang';
 
-const skipVersion = ref('');
+const skipVersion = useLocalStorage('dockit-skip-version', '');
+const updateAvailable = ref(false);
+const updateInfo = ref<Update | null>(null);
+const isChecking = ref(false);
+const isDownloading = ref(false);
+const downloadPercent = ref<number | null>(null);
+const isInstalling = ref(false);
+const isRestarting = ref(false);
 
 export function useAppUpdater() {
   const message = useMessageService();
-
-  const updateAvailable = ref(false);
-  const updateInfo = ref<Update | null>(null);
-  const isChecking = ref(false);
-  const isDownloading = ref(false);
-  const downloadPercent = ref<number | null>(null);
-  const isInstalling = ref(false);
-  const isRestarting = ref(false);
 
   const checkForUpdates = async (showMessage = false): Promise<Update | null> => {
     if (isChecking.value) return null;
@@ -47,7 +47,8 @@ export function useAppUpdater() {
   };
 
   const downloadAndInstall = async () => {
-    if (!updateInfo.value) return;
+    const update = updateInfo.value;
+    if (!update) return;
 
     let receivedBytes = 0;
     let totalLength: number | undefined;
@@ -56,7 +57,7 @@ export function useAppUpdater() {
       isDownloading.value = true;
       downloadPercent.value = null;
 
-      await updateInfo.value.downloadAndInstall(event => {
+      await update.downloadAndInstall(event => {
         if (event.event === 'Started') {
           receivedBytes = 0;
           totalLength = event.data.contentLength;
