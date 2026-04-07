@@ -504,6 +504,9 @@ export const zhCN = {
     downloading: '下载中... {percent}%',
     downloadingIndeterminate: '下载中...',
     restarting: '重启中...',
+    checkForUpdates: '检查更新',
+    upToDate: 'DocKit 已是最新版本',
+    checkFailed: '检查更新失败',
   },
   login: {
     title: '登录',

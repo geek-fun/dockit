@@ -4,8 +4,17 @@ use tauri::{App, Emitter, Error, Manager};
 pub fn create_menu(app: &App) -> Result<(), Error> {
     #[cfg(target_os = "macos")]
     let about_menu = {
+        let check_updates_item = MenuItem::with_id(
+            app,
+            "check_for_updates",
+            "Check for Updates...",
+            true,
+            None::<&str>,
+        )?;
         SubmenuBuilder::new(app, "DocKit")
             .about(None)
+            .separator()
+            .item(&check_updates_item)
             .separator()
             .services()
             .separator()
@@ -20,8 +29,17 @@ pub fn create_menu(app: &App) -> Result<(), Error> {
     #[cfg(not(target_os = "macos"))]
     let about_menu = {
         let about_item = MenuItem::with_id(app, "about", "About DocKit", true, None::<&str>)?;
+        let check_updates_item = MenuItem::with_id(
+            app,
+            "check_for_updates",
+            "Check for Updates...",
+            true,
+            None::<&str>,
+        )?;
         SubmenuBuilder::new(app, "DocKit")
             .item(&about_item)
+            .separator()
+            .item(&check_updates_item)
             .separator()
             .hide()
             .hide_others()
@@ -91,6 +109,9 @@ pub fn create_menu(app: &App) -> Result<(), Error> {
             #[cfg(not(target_os = "macos"))]
             "about" => {
                 let _ = window.emit("showAbout", ());
+            }
+            "check_for_updates" => {
+                let _ = window.emit("checkForUpdates", ());
             }
             "save" => {
                 window.emit("saveFile", ()).unwrap();
