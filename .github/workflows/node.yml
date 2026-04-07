@@ -3,7 +3,7 @@ run-name: ${{ github.event.head_commit.message }}
 
 on:
   pull_request:
-    branches:  [master]
+    branches: [master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -22,34 +22,46 @@ jobs:
 
     steps:
       - name: Github checkout
-        uses: actions/checkout@v4
-      - name: install Rust stable
+        uses: actions/checkout@v5
+
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-        if: matrix.os == 'ubuntu-latest'
+        if: runner.os == 'Linux'
+
       - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-      - name: install dependencies (ubuntu only)
-        if: matrix.os == 'ubuntu-latest'
+          cache: npm
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
         run: |
           echo "deb http://gb.archive.ubuntu.com/ubuntu jammy main" | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-      - name: install frontend dependencies
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
+
+      - name: Install frontend dependencies
         run: npm ci
+
       - run: npm run lint:check
+
       - run: npm audit --audit-level=critical
+
       - run: npm run test:ci
+
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-     
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
       - run: npm run build
         env:
-          NODE_OPTIONS: '--max-old-space-size=4096'  # Increase Node.js heap size to prevent out-of-memory errors during build
+          NODE_OPTIONS: --max-old-space-size=4096
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

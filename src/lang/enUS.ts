@@ -506,6 +506,9 @@ export const enUS = {
     downloading: 'Downloading... {percent}%',
     downloadingIndeterminate: 'Downloading...',
     restarting: 'Restarting...',
+    checkForUpdates: 'Check for Updates',
+    upToDate: 'DocKit is up to date',
+    checkFailed: 'Failed to check for updates',
   },
   login: {
     title: 'Log In',
