@@ -9,8 +9,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_body: ${{ steps.release_notes.outputs.release_body }}
+
+    steps:
+      - name: Github checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Build Release Notes
+        id: release_notes
+        run: |
+          bash scripts/build-release-notes.sh
+          {
+            echo 'release_body<<EOF'
+            cat release-notes.md
+            echo EOF
+          } >> $GITHUB_OUTPUT
+
   release:
     name: ${{ matrix.name }}
+    needs: prepare
     permissions:
       contents: write
     strategy:
@@ -115,7 +140,7 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: v__VERSION__
-          releaseBody: See the assets to download this version and install.
+          releaseBody: ${{ needs.prepare.outputs.release_body }}
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
