@@ -396,11 +396,6 @@ const setupQueryEditor = () => {
     }
   });
 
-  // comments/uncomment line or block
-  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash, () => {
-    queryEditor!.trigger('keyboard', 'editor.action.commentLine', {});
-  });
-
   // Auto indent current request
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
     const { position } = getAction(queryEditor!.getPosition()) || {};
@@ -462,33 +457,51 @@ const setupQueryEditor = () => {
     }
   });
 
-  // Collapse/expand current scope
-  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyL, () => {
-    queryEditor!.trigger('keyboard', 'editor.toggleFold', {});
-  });
-
-  // Collapse all scopes but the current one
-  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Digit0, () => {
-    queryEditor!.trigger('keyboard', 'editor.foldAll', {});
-    queryEditor!.trigger('keyboard', 'editor.unfoldRecursively', {});
-  });
-
-  // Open the documentation for the current action
-  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
-    const docLink = getActionApiDoc(
-      EngineType.ELASTICSEARCH,
-      'current',
-      getAction(queryEditor?.getPosition()) as SearchAction,
+  // Toggle Fold: platform-specific (Ctrl+Shift+L on Windows/Linux, Cmd+Alt+L on macOS)
+  // Ctrl+Shift+F/E are claimed by Sogou/Microsoft Pinyin IME on Windows, so use Ctrl+Shift+L.
+  if (platform() === 'windows' || platform() === 'linux') {
+    queryEditor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyL,
+      () => {
+        queryEditor!.trigger('keyboard', 'editor.toggleFold', {});
+      },
     );
-    if (docLink) {
-      open(docLink);
-    }
+  } else {
+    queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyL, () => {
+      queryEditor!.trigger('keyboard', 'editor.toggleFold', {});
+    });
+  }
+
+  // Fold All Except Current: Ctrl/Cmd+K, Ctrl/Cmd+Minus (VS Code default — chorded, works on all platforms)
+  queryEditor.addCommand(
+    monaco.KeyMod.chord(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.Minus,
+    ),
+    () => {
+      queryEditor!.trigger('keyboard', 'editor.foldAll', {});
+      queryEditor!.trigger('keyboard', 'editor.unfoldRecursively', {});
+    },
+  );
+  // Unfold All: Ctrl/Cmd+K, Ctrl/Cmd+J (VS Code default — chorded, works on all platforms)
+  queryEditor.addCommand(
+    monaco.KeyMod.chord(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ,
+    ),
+    () => {
+      queryEditor!.trigger('keyboard', 'editor.unfoldAll', {});
+    },
+  );
+
+  // Open ES API doc: ⌘+D on Mac, Ctrl+D on Windows/Linux
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
+    const action = getAction(queryEditor!.getPosition());
+    if (!action) return;
+    const docLink = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action as SearchAction);
+    if (docLink) open(docLink);
   });
 
-  /**
-   * Save the current file
-   * @see https://github.com/tauri-apps/wry/issues/451
-   */
   if (platform() === 'windows') {
     queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
       saveModelContent(true, true, true);
