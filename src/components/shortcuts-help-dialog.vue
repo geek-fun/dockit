@@ -113,16 +113,9 @@
               <tr>
                 <td class="shortcut-action">{{ lang.t('shortcuts.openDocs') }}</td>
                 <td class="shortcut-keys">
-                  <template v-if="isMac">
-                    <kbd>{{ cmdKey }}</kbd>
-                    <span class="key-separator">+</span>
-                    <kbd>D</kbd>
-                  </template>
-                  <template v-else>
-                    <kbd>Ctrl</kbd>
-                    <span class="key-separator">+</span>
-                    <kbd>D</kbd>
-                  </template>
+                  <kbd>{{ cmdKey }}</kbd>
+                  <span class="key-separator">+</span>
+                  <kbd>D</kbd>
                 </td>
               </tr>
               <tr>
