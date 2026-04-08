@@ -705,6 +705,7 @@ export const enUS = {
     comment: 'Comment / Uncomment',
     toggleFold: 'Toggle Fold',
     foldAll: 'Fold All Except Current',
+    expandAll: 'Expand All Scopes',
     saveFile: 'Save File',
     esSpecific: 'Elasticsearch Shortcuts',
     openDocs: 'Open API Documentation',

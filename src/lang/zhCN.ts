@@ -703,6 +703,7 @@ export const zhCN = {
     comment: '注释 / 取消注释',
     toggleFold: '折叠 / 展开',
     foldAll: '折叠除当前外所有',
+    expandAll: '展开所有折叠',
     saveFile: '保存文件',
     esSpecific: 'Elasticsearch 快捷键',
     openDocs: '打开 API 文档',

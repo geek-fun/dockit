@@ -602,11 +602,6 @@ const setupEditor = () => {
     }
   });
 
-  // Comment/uncomment line or block (Ctrl+/ or Cmd+/)
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Slash, () => {
-    editor!.trigger('keyboard', 'editor.action.commentLine', {});
-  });
-
   // Auto indent (Ctrl+I or Cmd+I)
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => {
     editor!.trigger('keyboard', 'editor.action.formatDocument', {});
@@ -622,16 +617,39 @@ const setupEditor = () => {
     executeQuery();
   });
 
-  // Collapse/expand current scope (Ctrl+Alt+L or Cmd+Alt+L)
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyL, () => {
-    editor!.trigger('keyboard', 'editor.toggleFold', {});
-  });
+  // Toggle Fold: platform-specific (Ctrl+Shift+L on Windows/Linux, Cmd+Alt+L on macOS)
+  // Ctrl+Shift+F/E are claimed by Sogou/Microsoft Pinyin IME on Windows, so use Ctrl+Shift+L.
+  if (platform() === 'windows' || platform() === 'linux') {
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyL, () => {
+      editor!.trigger('keyboard', 'editor.toggleFold', {});
+    });
+  } else {
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.KeyL, () => {
+      editor!.trigger('keyboard', 'editor.toggleFold', {});
+    });
+  }
 
-  // Collapse all scopes but the current one (Ctrl+Alt+0 or Cmd+Alt+0)
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Digit0, () => {
-    editor!.trigger('keyboard', 'editor.foldAll', {});
-    editor!.trigger('keyboard', 'editor.unfoldRecursively', {});
-  });
+  // Fold All Except Current: Ctrl/Cmd+K, Ctrl/Cmd+Minus (VS Code default — chorded, works on all platforms)
+  editor.addCommand(
+    monaco.KeyMod.chord(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.Minus,
+    ),
+    () => {
+      editor!.trigger('keyboard', 'editor.foldAll', {});
+      editor!.trigger('keyboard', 'editor.unfoldRecursively', {});
+    },
+  );
+  // Unfold All: Ctrl/Cmd+K, Ctrl/Cmd+J (VS Code default — chorded, works on all platforms)
+  editor.addCommand(
+    monaco.KeyMod.chord(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ,
+    ),
+    () => {
+      editor!.trigger('keyboard', 'editor.unfoldAll', {});
+    },
+  );
 
   /**
    * Save file (Ctrl+S or Cmd+S on Windows only)

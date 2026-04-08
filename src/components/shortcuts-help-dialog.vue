@@ -59,7 +59,12 @@
                 <td class="shortcut-keys">
                   <kbd>{{ cmdKey }}</kbd>
                   <span class="key-separator">+</span>
-                  <kbd>Alt</kbd>
+                  <template v-if="isMac">
+                    <kbd>⌥</kbd>
+                  </template>
+                  <template v-else>
+                    <kbd>Shift</kbd>
+                  </template>
                   <span class="key-separator">+</span>
                   <kbd>L</kbd>
                 </td>
@@ -69,9 +74,23 @@
                 <td class="shortcut-keys">
                   <kbd>{{ cmdKey }}</kbd>
                   <span class="key-separator">+</span>
-                  <kbd>Alt</kbd>
+                  <kbd>K</kbd>
+                  <span class="key-separator">,</span>
+                  <kbd>{{ cmdKey }}</kbd>
                   <span class="key-separator">+</span>
-                  <kbd>0</kbd>
+                  <kbd>-</kbd>
+                </td>
+              </tr>
+              <tr>
+                <td class="shortcut-action">{{ lang.t('shortcuts.expandAll') }}</td>
+                <td class="shortcut-keys">
+                  <kbd>{{ cmdKey }}</kbd>
+                  <span class="key-separator">+</span>
+                  <kbd>K</kbd>
+                  <span class="key-separator">,</span>
+                  <kbd>{{ cmdKey }}</kbd>
+                  <span class="key-separator">+</span>
+                  <kbd>J</kbd>
                 </td>
               </tr>
               <tr>
@@ -94,9 +113,18 @@
               <tr>
                 <td class="shortcut-action">{{ lang.t('shortcuts.openDocs') }}</td>
                 <td class="shortcut-keys">
-                  <kbd>{{ cmdKey }}</kbd>
-                  <span class="key-separator">+</span>
-                  <kbd>D</kbd>
+                  <template v-if="isMac">
+                    <kbd>{{ cmdKey }}</kbd>
+                    <span class="key-separator">+</span>
+                    <kbd>D</kbd>
+                  </template>
+                  <template v-else>
+                    <kbd>Ctrl</kbd>
+                    <span class="key-separator">+</span>
+                    <kbd>Shift</kbd>
+                    <span class="key-separator">+</span>
+                    <kbd>D</kbd>
+                  </template>
                 </td>
               </tr>
               <tr>
@@ -164,6 +192,14 @@ const cmdKey = computed(() => {
   }
 });
 
+const isMac = computed(() => {
+  try {
+    return platform() === 'macos';
+  } catch {
+    return false;
+  }
+});
+
 // Sync open state with parent
 watch(
   () => props.open,
@@ -190,8 +226,6 @@ const closeDialog = () => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-height: 400px;
-  overflow-y: auto;
 }
 
 .shortcuts-section {
