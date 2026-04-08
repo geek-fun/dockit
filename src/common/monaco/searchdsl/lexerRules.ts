@@ -58,6 +58,9 @@ export const search = {
         { include: '@json5' },
       ],
       json5: [
+        // Recovery: action line while in json5 means braces didn't balance (e.g. commented `// }`).
+        // Pop state levels until we reach root where the action line is properly tokenized.
+        [/^(GET|POST|PUT|DELETE)\s/, { token: '@rematch', next: '@pop' }],
         // @TODO add painless highlighting & tokenization support
         // [
         //   /["']?(.*_?script|inline|source)["']?(\s*?)(:)(\s*?)("""|''')/,

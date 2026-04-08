@@ -29,7 +29,10 @@ export const buildSearchToken = (model: monaco.editor.IModel) => {
       lines
         .slice(lineNumber, nexCommandLineNumber)
         .reverse()
-        .find(({ lineContent }) => lineContent.trim().endsWith('}'))?.lineNumber || lineNumber;
+        .find(({ lineContent }) => {
+          const t = lineContent.trim();
+          return !t.startsWith('//') && !t.startsWith('#') && (t.endsWith('}') || t.endsWith(']'));
+        })?.lineNumber || lineNumber;
 
     const qdsl = lines
       .slice(lineNumber, endLineNumber)
