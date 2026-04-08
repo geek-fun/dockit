@@ -121,8 +121,6 @@
                   <template v-else>
                     <kbd>Ctrl</kbd>
                     <span class="key-separator">+</span>
-                    <kbd>Shift</kbd>
-                    <span class="key-separator">+</span>
                     <kbd>D</kbd>
                   </template>
                 </td>

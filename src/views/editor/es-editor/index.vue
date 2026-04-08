@@ -494,29 +494,13 @@ const setupQueryEditor = () => {
     },
   );
 
-  // Open ES API doc: ⌘+D on Mac, Ctrl+Shift+D on Windows/Linux (Ctrl+D conflicts with browser bookmark)
-  if (platform() === 'macos') {
-    queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
-      const action = getAction(queryEditor!.getPosition());
-      if (!action) return;
-      const docLink = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action as SearchAction);
-      if (docLink) open(docLink);
-    });
-  } else {
-    queryEditor.addCommand(
-      monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyD,
-      () => {
-        const action = getAction(queryEditor!.getPosition());
-        if (!action) return;
-        const docLink = getActionApiDoc(
-          EngineType.ELASTICSEARCH,
-          'current',
-          action as SearchAction,
-        );
-        if (docLink) open(docLink);
-      },
-    );
-  }
+  // Open ES API doc: ⌘+D on Mac, Ctrl+D on Windows/Linux
+  queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
+    const action = getAction(queryEditor!.getPosition());
+    if (!action) return;
+    const docLink = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action as SearchAction);
+    if (docLink) open(docLink);
+  });
 
   if (platform() === 'windows') {
     queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
