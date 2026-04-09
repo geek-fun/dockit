@@ -69,6 +69,7 @@ import {
   clearEsValidation,
   createDebouncedValidator,
 } from '../../../common/monaco';
+import { setupEditorKeyboardShortcuts } from '../../../composables';
 
 const appStore = useAppStore();
 const message = useMessageService();
@@ -96,6 +97,7 @@ const queryEditorRef = ref();
 const displayRef = ref();
 
 let executeDecorations: Array<Decoration | string> = [];
+let cleanupKeyboardShortcuts: (() => void) | null = null;
 
 // Monaco editor target type for gutter line decorations
 // See: https://microsoft.github.io/monaco-editor/api/enums/editor.MouseTargetType.html
@@ -472,27 +474,8 @@ const setupQueryEditor = () => {
     });
   }
 
-  // Fold All Except Current: Ctrl/Cmd+K, Ctrl/Cmd+Minus (VS Code default — chorded, works on all platforms)
-  queryEditor.addCommand(
-    monaco.KeyMod.chord(
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.Minus,
-    ),
-    () => {
-      queryEditor!.trigger('keyboard', 'editor.foldAll', {});
-      queryEditor!.trigger('keyboard', 'editor.unfoldRecursively', {});
-    },
-  );
-  // Unfold All: Ctrl/Cmd+K, Ctrl/Cmd+J (VS Code default — chorded, works on all platforms)
-  queryEditor.addCommand(
-    monaco.KeyMod.chord(
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ,
-    ),
-    () => {
-      queryEditor!.trigger('keyboard', 'editor.unfoldAll', {});
-    },
-  );
+  // Fold All Except Current: Ctrl/Cmd+K, Ctrl/Cmd+- (handled via DOM-level keydown for keyboard layout compatibility)
+  // Unfold All: Ctrl/Cmd+K, Ctrl/Cmd+J (also handled via DOM-level keydown to share chord state with fold-all)
 
   // Open ES API doc: ⌘+D on Mac, Ctrl+D on Windows/Linux
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
@@ -507,6 +490,42 @@ const setupQueryEditor = () => {
       saveModelContent(true, true, true);
     });
   }
+
+  // Layout-dependent shortcuts (/, -) are handled via DOM keydown events
+  // instead of Monaco's addCommand, which assumes US keyboard layout.
+  // See: src/composables/useKeyboardShortcuts.ts
+  cleanupKeyboardShortcuts = setupEditorKeyboardShortcuts(queryEditor, {
+    shortcuts: [
+      {
+        key: '/',
+        ctrlOrMeta: true,
+        handler: () => queryEditor!.trigger('keyboard', 'editor.action.commentLine', {}),
+      },
+      {
+        key: ['/', '?'],
+        ctrlOrMeta: true,
+        shift: true,
+        handler: () => emits('toggle-shortcuts-dialog'),
+      },
+    ],
+    chords: [
+      {
+        first: { key: 'k', ctrlOrMeta: true },
+        second: { key: '-', ctrlOrMeta: true },
+        handler: () => {
+          queryEditor!.trigger('keyboard', 'editor.foldAll', {});
+          queryEditor!.trigger('keyboard', 'editor.unfoldRecursively', {});
+        },
+      },
+      {
+        first: { key: 'k', ctrlOrMeta: true },
+        second: { key: 'j', ctrlOrMeta: true },
+        handler: () => {
+          queryEditor!.trigger('keyboard', 'editor.unfoldAll', {});
+        },
+      },
+    ],
+  });
 };
 
 const queryEditorSize = ref(1);
@@ -600,6 +619,8 @@ const insertSampleQuery = (queryTemplate: string) => {
   queryEditor.revealLine(newLineNumber);
 };
 
+const emits = defineEmits(['toggle-shortcuts-dialog']);
+
 defineExpose({
   insertSampleQuery,
 });
@@ -622,6 +643,7 @@ onMounted(async () => {
 
 onUnmounted(async () => {
   await cleanupFileListener();
+  cleanupKeyboardShortcuts?.();
   // Remove document click listener
   document.removeEventListener('click', handleDocumentClick);
   // Clear validation markers before disposing

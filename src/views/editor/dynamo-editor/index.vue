@@ -1,17 +1,23 @@
 <template>
   <div class="dynamo-editor">
     <tool-bar
+      ref="toolBarRef"
       type="DYNAMO_EDITOR"
       @insert-partiql-sample="handleInsertPartiqlSample"
       @execute-partiql-query="handleExecutePartiqlQuery"
     />
     <ui-editor v-if="activePanel.editorType === 'DYNAMO_EDITOR_UI'"></ui-editor>
     <create-item v-else-if="activePanel.editorType === 'DYNAMO_EDITOR_CREATE_ITEM'" />
-    <sql-editor v-else :ref="el => setSqlEditorRef(el)" />
+    <sql-editor
+      v-else
+      :ref="el => setSqlEditorRef(el)"
+      @toggle-shortcuts-dialog="handleToggleShortcutsDialog"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import ToolBar from '../../../components/tool-bar.vue';
 import UiEditor from './components/ui-editor.vue';
@@ -22,6 +28,7 @@ import { useTabStore } from '../../../store';
 const tabStore = useTabStore();
 const { activePanel } = storeToRefs(tabStore);
 
+const toolBarRef = ref<InstanceType<typeof ToolBar>>();
 let sqlEditorRef: InstanceType<typeof SqlEditor> | null = null;
 
 const setSqlEditorRef = (el: any) => {
@@ -38,6 +45,10 @@ const handleExecutePartiqlQuery = () => {
   if (sqlEditorRef) {
     sqlEditorRef.executeQuery();
   }
+};
+
+const handleToggleShortcutsDialog = () => {
+  toolBarRef.value?.toggleShortcutsDialog();
 };
 </script>
 

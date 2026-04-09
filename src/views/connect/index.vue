@@ -32,9 +32,16 @@
       </template>
       <template v-else>
         <div class="es-editor">
-          <tool-bar type="ES_EDITOR" @insert-sample-query="handleInsertSampleQuery" />
+          <tool-bar
+            :ref="el => setToolBarRef(el, panel.id)"
+            type="ES_EDITOR"
+            @insert-sample-query="handleInsertSampleQuery"
+          />
           <div class="es-editor-container">
-            <es-editor :ref="el => setEditorRef(el, panel.id)" />
+            <es-editor
+              :ref="el => setEditorRef(el, panel.id)"
+              @toggle-shortcuts-dialog="handleToggleShortcutsDialog"
+            />
           </div>
         </div>
       </template>
@@ -65,6 +72,7 @@ const { establishPanel, closePanel, setActivePanel, checkFileExists } = tabStore
 const { panels, activePanel } = storeToRefs(tabStore);
 
 const esEditorRefs = new Map<number, InstanceType<typeof EsEditor>>();
+const toolBarRefs = new Map<number, InstanceType<typeof ToolBar>>();
 
 const setEditorRef = (el: any, panelId: number) => {
   if (el) {
@@ -74,9 +82,21 @@ const setEditorRef = (el: any, panelId: number) => {
   }
 };
 
+const setToolBarRef = (el: any, panelId: number) => {
+  if (el) {
+    toolBarRefs.set(panelId, el);
+  } else {
+    toolBarRefs.delete(panelId);
+  }
+};
+
 const handleInsertSampleQuery = (query: string) => {
   const editor = esEditorRefs.get(activePanel.value.id);
   editor?.insertSampleQuery(query);
+};
+
+const handleToggleShortcutsDialog = () => {
+  toolBarRefs.get(activePanel.value.id)?.toggleShortcutsDialog();
 };
 
 const tabPanelHandler = async ({
