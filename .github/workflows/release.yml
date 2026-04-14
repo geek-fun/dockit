@@ -9,8 +9,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check-version:
+    name: Check Version Bump
+    runs-on: ubuntu-latest
+    outputs:
+      is_new_version: ${{ steps.check.outputs.is_new_version }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Github checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check if version is new
+        id: check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          if git tag --list | grep -q "^v${VERSION}$"; then
+            echo "Tag v${VERSION} already exists, skipping release"
+            echo "is_new_version=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag v${VERSION} not found, proceeding with release"
+            echo "is_new_version=true" >> $GITHUB_OUTPUT
+          fi
+
   prepare:
     name: Prepare Release
+    needs: check-version
+    if: needs.check-version.outputs.is_new_version == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -35,7 +62,8 @@ jobs:
 
   release:
     name: ${{ matrix.name }}
-    needs: prepare
+    needs: [check-version, prepare]
+    if: needs.check-version.outputs.is_new_version == 'true'
     permissions:
       contents: write
     strategy:
