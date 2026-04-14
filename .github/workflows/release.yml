@@ -169,7 +169,20 @@ jobs:
           tagName: v__VERSION__
           releaseName: v__VERSION__
           releaseBody: ${{ needs.prepare.outputs.release_body }}
-          releaseDraft: false
+          releaseDraft: true
           prerelease: false
           includeUpdaterJson: true
           args: ${{ matrix.args }}
+
+  publish:
+    name: Publish Release
+    needs: [check-version, release]
+    if: needs.check-version.outputs.is_new_version == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Publish draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "v${{ needs.check-version.outputs.version }}" --draft=false --repo ${{ github.repository }}
