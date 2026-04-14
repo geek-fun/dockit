@@ -8,11 +8,7 @@
     />
     <ui-editor v-if="activePanel.editorType === 'DYNAMO_EDITOR_UI'"></ui-editor>
     <create-item v-else-if="activePanel.editorType === 'DYNAMO_EDITOR_CREATE_ITEM'" />
-    <sql-editor
-      v-else
-      :ref="el => setSqlEditorRef(el)"
-      @toggle-shortcuts-dialog="handleToggleShortcutsDialog"
-    />
+    <sql-editor v-else :ref="el => setSqlEditorRef(el)" />
   </div>
 </template>
 
@@ -47,9 +43,9 @@ const handleExecutePartiqlQuery = () => {
   }
 };
 
-const handleToggleShortcutsDialog = () => {
-  toolBarRef.value?.toggleShortcutsDialog();
-};
+defineExpose({
+  toggleShortcutsDialog: () => toolBarRef.value?.toggleShortcutsDialog(),
+});
 </script>
 
 <style scoped></style>

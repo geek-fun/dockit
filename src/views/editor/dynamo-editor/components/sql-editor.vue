@@ -642,9 +642,11 @@ const setupEditor = () => {
     });
   }
 
-  // Layout-dependent shortcuts (/, -) are handled via DOM keydown events
+  // Layout-dependent shortcuts (/) are handled via DOM keydown events
   // instead of Monaco's addCommand, which assumes US keyboard layout.
+  // Chord shortcuts (Ctrl+K,Ctrl+0 / Ctrl+K,Ctrl+J) also use DOM events to share chord state.
   // See: src/composables/useKeyboardShortcuts.ts
+  // Note: Ctrl/Cmd+Shift+/ (show shortcuts dialog) is handled globally at connect/index.vue
   cleanupKeyboardShortcuts = setupEditorKeyboardShortcuts(editor, {
     shortcuts: [
       {
@@ -652,17 +654,15 @@ const setupEditor = () => {
         ctrlOrMeta: true,
         handler: () => editor!.trigger('keyboard', 'editor.action.commentLine', {}),
       },
-      {
-        key: ['/', '?'],
-        ctrlOrMeta: true,
-        shift: true,
-        handler: () => emits('toggle-shortcuts-dialog'),
-      },
     ],
     chords: [
       {
+        // Fold All Except Current: Ctrl/Cmd+K, Ctrl/Cmd+0
+        // Uses '0' (like VS Code's Fold All) — works on all keyboard layouts
+        // unlike '-' which requires Shift on AZERTY, or 'f' which conflicts
+        // with Monaco's built-in Format Selection (Ctrl/Cmd+K, Ctrl/Cmd+F)
         first: { key: 'k', ctrlOrMeta: true },
-        second: { key: '-', ctrlOrMeta: true },
+        second: { key: '0', ctrlOrMeta: true },
         handler: () => {
           editor!.trigger('keyboard', 'editor.foldAll', {});
           editor!.trigger('keyboard', 'editor.unfoldRecursively', {});
@@ -755,8 +755,6 @@ onUnmounted(async () => {
   }
   editor?.dispose();
 });
-
-const emits = defineEmits(['toggle-shortcuts-dialog']);
 
 // Expose methods for parent component
 defineExpose({

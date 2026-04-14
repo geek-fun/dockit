@@ -27,7 +27,7 @@
       <connect-list v-if="panel.id === 0" @tab-panel="tabPanelHandler" />
       <template v-else-if="panel.connection && panel.connection.type === DatabaseType.DYNAMODB">
         <div class="dynamo-editor">
-          <dynamo-editor />
+          <dynamo-editor :ref="el => setDynamoEditorRef(el, panel.id)" />
         </div>
       </template>
       <template v-else>
@@ -38,10 +38,7 @@
             @insert-sample-query="handleInsertSampleQuery"
           />
           <div class="es-editor-container">
-            <es-editor
-              :ref="el => setEditorRef(el, panel.id)"
-              @toggle-shortcuts-dialog="handleToggleShortcutsDialog"
-            />
+            <es-editor :ref="el => setEditorRef(el, panel.id)" />
           </div>
         </div>
       </template>
@@ -60,7 +57,7 @@ import DynamoEditor from '../editor/dynamo-editor/index.vue';
 import ToolBar from '../../components/tool-bar.vue';
 import { useLang } from '../../lang';
 import { CustomError } from '../../common';
-import { useDialogService, useMessageService } from '@/composables';
+import { useDialogService, useMessageService, setupGlobalShortcuts } from '@/composables';
 
 const route = useRoute();
 const dialog = useDialogService();
@@ -73,6 +70,8 @@ const { panels, activePanel } = storeToRefs(tabStore);
 
 const esEditorRefs = new Map<number, InstanceType<typeof EsEditor>>();
 const toolBarRefs = new Map<number, InstanceType<typeof ToolBar>>();
+const dynamoEditorRefs = new Map<number, InstanceType<typeof DynamoEditor>>();
+let cleanupGlobalShortcuts: (() => void) | null = null;
 
 const setEditorRef = (el: any, panelId: number) => {
   if (el) {
@@ -90,13 +89,27 @@ const setToolBarRef = (el: any, panelId: number) => {
   }
 };
 
+const setDynamoEditorRef = (el: any, panelId: number) => {
+  if (el) {
+    dynamoEditorRefs.set(panelId, el);
+  } else {
+    dynamoEditorRefs.delete(panelId);
+  }
+};
+
 const handleInsertSampleQuery = (query: string) => {
   const editor = esEditorRefs.get(activePanel.value.id);
   editor?.insertSampleQuery(query);
 };
 
 const handleToggleShortcutsDialog = () => {
-  toolBarRefs.get(activePanel.value.id)?.toggleShortcutsDialog();
+  const panelId = activePanel.value.id;
+  const esToolBar = toolBarRefs.get(panelId);
+  if (esToolBar) {
+    esToolBar.toggleShortcutsDialog();
+  } else {
+    dynamoEditorRefs.get(panelId)?.toggleShortcutsDialog();
+  }
 };
 
 const tabPanelHandler = async ({
@@ -149,9 +162,26 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
 };
 
 onMounted(async () => {
+  // Global shortcuts work when any editor tab is active (not the connect-list)
+  cleanupGlobalShortcuts = setupGlobalShortcuts({
+    shortcuts: [
+      {
+        key: ['/', '?'],
+        ctrlOrMeta: true,
+        shift: true,
+        handler: handleToggleShortcutsDialog,
+      },
+    ],
+    isActive: () => activePanel.value.id !== 0,
+  });
+
   if (route.params.filePath && route.params.filePath !== ':filePath') {
     await establishPanel(route.params.filePath as string);
   }
+});
+
+onUnmounted(() => {
+  cleanupGlobalShortcuts?.();
 });
 </script>
 
