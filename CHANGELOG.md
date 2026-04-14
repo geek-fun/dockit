@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-04-14
+
+### Added
+
+- Add sort and filter to connections list with ascending/descending direction toggle (#360)
+- Add progress bar with percentage indicator during update download and install (#360)
+
+### Fixed
+
+- Fix keyboard shortcuts not working on Windows (#359)
+
+### Changed
+
+- Gate release pipeline on version bump to prevent spurious CI runs
+
 ## [0.9.3] - 2026-04-08
 
 ### Fixed
