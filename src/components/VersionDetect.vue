@@ -48,8 +48,23 @@
         </button>
       </div>
       <div class="version-divider"></div>
+      <div v-if="isDownloading || isInstalling || isRestarting" class="version-progress-area">
+        <div class="version-progress-header">
+          <span class="version-progress-label">{{ progressLabel }}</span>
+          <span v-if="isDownloading && downloadPercent !== null" class="version-progress-percent">
+            {{ downloadPercent }}%
+          </span>
+        </div>
+        <div class="version-progress-track">
+          <div :class="['version-progress-fill', progressBarClass]" :style="progressBarStyle" />
+        </div>
+      </div>
       <div class="version-card-footer">
-        <button class="skip-button" :disabled="isInstalling || isDownloading" @click="skipUpdate">
+        <button
+          class="skip-button"
+          :disabled="isInstalling || isDownloading || isRestarting"
+          @click="skipUpdate"
+        >
           {{ $t('version.skip') }}
         </button>
         <div class="action-buttons">
@@ -57,7 +72,7 @@
             variant="outline"
             size="sm"
             class="version-action-button outline"
-            :disabled="isInstalling || isDownloading"
+            :disabled="isInstalling || isDownloading || isRestarting"
             @click="dismissUpdate"
           >
             {{ $t('version.later') }}
@@ -66,7 +81,7 @@
             variant="default"
             size="sm"
             class="version-action-button primary"
-            :disabled="isInstalling || isDownloading"
+            :disabled="isInstalling || isDownloading || isRestarting"
             @click="downloadAndInstall"
           >
             {{ installButtonLabel }}
@@ -103,6 +118,23 @@ const installButtonLabel = computed(() => {
   if (isDownloading.value) return lang.global.t('version.downloadingIndeterminate');
   if (isInstalling.value) return lang.global.t('version.installing');
   return lang.global.t('version.updateNow');
+});
+
+const progressLabel = computed(() => {
+  if (isRestarting.value) return lang.global.t('version.restarting');
+  if (isInstalling.value) return lang.global.t('version.installing');
+  return lang.global.t('version.downloadingIndeterminate');
+});
+
+const progressBarClass = computed(() => {
+  if (isInstalling.value || isRestarting.value) return 'indeterminate';
+  if (isDownloading.value && downloadPercent.value === null) return 'indeterminate';
+  return '';
+});
+
+const progressBarStyle = computed(() => {
+  if (progressBarClass.value === 'indeterminate') return {};
+  return { width: `${downloadPercent.value ?? 0}%` };
 });
 
 onMounted(() => {
@@ -260,5 +292,59 @@ onMounted(() => {
 .version-action-button.primary:hover {
   background: #239a56;
   border-color: #1f8d4f;
+}
+
+.version-progress-area {
+  padding: 12px 20px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.version-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.version-progress-label {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  font-weight: 500;
+}
+
+.version-progress-percent {
+  font-size: 12px;
+  font-weight: 600;
+  color: #27ae60;
+}
+
+.version-progress-track {
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: hsl(var(--secondary));
+  overflow: hidden;
+}
+
+.version-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #27ae60;
+  transition: width 0.3s ease;
+}
+
+.version-progress-fill.indeterminate {
+  width: 40%;
+  animation: progress-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
 }
 </style>
