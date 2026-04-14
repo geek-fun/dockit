@@ -1,9 +1,61 @@
 <template>
   <div class="connection-list-container">
+    <div v-if="connections.length > 0" class="connection-toolbar">
+      <div class="toolbar-left">
+        <span class="connections-title">{{ $t('connection.savedConnections') }}</span>
+        <span class="connections-count">{{ filteredConnections.length }}</span>
+      </div>
+      <div class="toolbar-right">
+        <div class="filter-input-wrapper">
+          <span class="i-carbon-search filter-icon" />
+          <Input
+            v-model="filterText"
+            :placeholder="$t('connection.filterPlaceholder')"
+            class="filter-input"
+          />
+          <button v-if="filterText" class="filter-clear-btn" @click="filterText = ''">
+            <span class="i-carbon-close h-3.5 w-3.5" />
+          </button>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button variant="outline" size="sm" class="sort-trigger">
+              <span :class="sortDirIcon" class="h-4 w-4" />
+              {{ $t(`connection.sortBy.${activeSortKey}`) }}
+              <span class="i-carbon-chevron-down h-3 w-3 opacity-60" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" class="sort-dropdown-content">
+            <div class="sort-section-label">{{ $t('connection.sortBy.sortBy') }}</div>
+            <DropdownMenuItem
+              v-for="option in sortOptions"
+              :key="option.key"
+              class="sort-menu-item"
+              @click="handleSortSelect(option.key)"
+            >
+              <span class="sort-item-label">{{ option.label }}</span>
+              <span
+                v-if="activeSortKey === option.key"
+                :class="sortDirIcon"
+                class="h-3.5 w-3.5 ml-auto text-primary"
+              />
+            </DropdownMenuItem>
+            <div class="sort-divider" />
+            <div class="sort-section-label">{{ $t('connection.sortBy.direction') }}</div>
+            <DropdownMenuItem class="sort-menu-item" @click="toggleSortDir">
+              <span class="sort-item-label">
+                {{ $t(`connection.sortBy.${sortDir === 'asc' ? 'ascending' : 'descending'}`) }}
+              </span>
+              <span :class="sortDirIcon" class="h-3.5 w-3.5 ml-auto text-primary" />
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
     <div class="connection-scroll-container">
-      <div class="connection-list-body">
+      <div v-if="filteredConnections.length > 0" class="connection-list-body">
         <div
-          v-for="connection in connections"
+          v-for="connection in filteredConnections"
           :key="connection.id"
           class="connection-card"
           @dblclick="handleSelect('connect', connection)"
@@ -103,6 +155,10 @@
           </div>
         </div>
       </div>
+      <div v-if="filterText && filteredConnections.length === 0" class="filter-empty-state">
+        <span class="i-carbon-search h-8 w-8 text-muted-foreground" />
+        <p class="text-sm text-muted-foreground">{{ $t('connection.noMatchingConnections') }}</p>
+      </div>
     </div>
   </div>
 
@@ -133,7 +189,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -143,6 +199,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDialogService, useMessageService } from '@/composables';
 import { storeToRefs } from 'pinia';
@@ -162,6 +219,8 @@ import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
 import ConnectingModal from './connecting-modal.vue';
 
+type SortKey = 'name' | 'type' | 'dateCreated';
+
 const emits = defineEmits(['tab-panel']);
 
 const dialog = useDialogService();
@@ -172,6 +231,52 @@ const connectionStore = useConnectionStore();
 const { fetchConnections, removeConnection, freshConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 fetchConnections();
+
+const filterText = ref('');
+const activeSortKey = ref<SortKey>('name');
+const sortDir = ref<'asc' | 'desc'>('asc');
+
+const sortDirIcon = computed(() =>
+  sortDir.value === 'asc' ? 'i-carbon-arrow-up' : 'i-carbon-arrow-down',
+);
+
+const sortFns: Record<SortKey, (a: Connection, b: Connection) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+  type: (a, b) =>
+    a.type.localeCompare(b.type) ||
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+  dateCreated: (a, b) => (a.id ?? 0) - (b.id ?? 0),
+};
+
+const sortOptions = computed(() => [
+  { key: 'name' as SortKey, label: lang.t('connection.sortBy.name') },
+  { key: 'type' as SortKey, label: lang.t('connection.sortBy.type') },
+  { key: 'dateCreated' as SortKey, label: lang.t('connection.sortBy.dateCreated') },
+]);
+
+const handleSortSelect = (key: SortKey) => {
+  if (activeSortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    activeSortKey.value = key;
+    sortDir.value = 'asc';
+  }
+};
+
+const toggleSortDir = () => {
+  sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
+};
+
+const filteredConnections = computed(() => {
+  const keyword = filterText.value.toLowerCase().trim();
+  const dir = sortDir.value === 'asc' ? 1 : -1;
+
+  const filtered = keyword
+    ? connections.value.filter(c => c.name.toLowerCase().includes(keyword))
+    : connections.value;
+
+  return [...filtered].sort((a, b) => sortFns[activeSortKey.value](a, b) * dir);
+});
 
 const connectionCancelled = ref(false);
 const connectingModal = ref();
@@ -385,6 +490,134 @@ const selectDatabaseType = (type: DatabaseType) => {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.connection-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.connections-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+}
+
+.connections-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.filter-input-wrapper {
+  position: relative;
+  flex: 1;
+  max-width: 320px;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+}
+
+.filter-input {
+  padding-left: 28px;
+  padding-right: 28px;
+}
+
+.filter-clear-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: hsl(var(--muted-foreground));
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.filter-clear-btn:hover {
+  color: hsl(var(--foreground));
+  background: hsl(var(--muted));
+}
+
+.sort-trigger {
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.sort-dropdown-content {
+  min-width: 180px;
+}
+
+.sort-section-label {
+  padding: 6px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+.sort-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sort-item-label {
+  flex: 1;
+}
+
+.sort-divider {
+  height: 1px;
+  background: hsl(var(--border));
+  margin: 4px 8px;
+}
+
+.filter-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 16px;
 }
 
 .connection-scroll-container {
