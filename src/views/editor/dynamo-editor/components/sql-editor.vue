@@ -79,6 +79,7 @@ import {
   setPartiqlDynamicOptions,
   validatePartiqlModel,
 } from '../../../../common/monaco';
+import { setupEditorKeyboardShortcuts } from '../../../../composables';
 import type { PartiqlDecoration, PartiqlStatement } from '../../../../common/monaco/partiql';
 import { useLang } from '../../../../lang';
 import {
@@ -112,6 +113,7 @@ const historyStore = useHistoryStore();
 const partiqlData = computed(() => dynamoData.value.partiqlData);
 
 let editor: Editor | null = null;
+let cleanupKeyboardShortcuts: (() => void) | null = null;
 const editorRef = ref<HTMLElement>();
 const editorSize = ref(partiqlData.value.showResultPanel ? 0.5 : 1);
 const loadingRef = ref(false);
@@ -629,28 +631,6 @@ const setupEditor = () => {
     });
   }
 
-  // Fold All Except Current: Ctrl/Cmd+K, Ctrl/Cmd+Minus (VS Code default — chorded, works on all platforms)
-  editor.addCommand(
-    monaco.KeyMod.chord(
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.Minus,
-    ),
-    () => {
-      editor!.trigger('keyboard', 'editor.foldAll', {});
-      editor!.trigger('keyboard', 'editor.unfoldRecursively', {});
-    },
-  );
-  // Unfold All: Ctrl/Cmd+K, Ctrl/Cmd+J (VS Code default — chorded, works on all platforms)
-  editor.addCommand(
-    monaco.KeyMod.chord(
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ,
-    ),
-    () => {
-      editor!.trigger('keyboard', 'editor.unfoldAll', {});
-    },
-  );
-
   /**
    * Save file (Ctrl+S or Cmd+S on Windows only)
    * On macOS and Linux, the OS handles Cmd+S/Ctrl+S natively via the saveFile event
@@ -661,6 +641,42 @@ const setupEditor = () => {
       saveModelContent(true, true, true);
     });
   }
+
+  // Layout-dependent shortcuts (/) are handled via DOM keydown events
+  // instead of Monaco's addCommand, which assumes US keyboard layout.
+  // Chord shortcuts (Ctrl+K,Ctrl+0 / Ctrl+K,Ctrl+J) also use DOM events to share chord state.
+  // See: src/composables/useKeyboardShortcuts.ts
+  // Note: Ctrl/Cmd+Shift+/ (show shortcuts dialog) is handled globally at connect/index.vue
+  cleanupKeyboardShortcuts = setupEditorKeyboardShortcuts(editor, {
+    shortcuts: [
+      {
+        key: '/',
+        ctrlOrMeta: true,
+        handler: () => editor!.trigger('keyboard', 'editor.action.commentLine', {}),
+      },
+    ],
+    chords: [
+      {
+        // Fold All Except Current: Ctrl/Cmd+K, Ctrl/Cmd+0
+        // Uses '0' (like VS Code's Fold All) — works on all keyboard layouts
+        // unlike '-' which requires Shift on AZERTY, or 'f' which conflicts
+        // with Monaco's built-in Format Selection (Ctrl/Cmd+K, Ctrl/Cmd+F)
+        first: { key: 'k', ctrlOrMeta: true },
+        second: { key: '0', ctrlOrMeta: true },
+        handler: () => {
+          editor!.trigger('keyboard', 'editor.foldAll', {});
+          editor!.trigger('keyboard', 'editor.unfoldRecursively', {});
+        },
+      },
+      {
+        first: { key: 'k', ctrlOrMeta: true },
+        second: { key: 'j', ctrlOrMeta: true },
+        handler: () => {
+          editor!.trigger('keyboard', 'editor.unfoldAll', {});
+        },
+      },
+    ],
+  });
 
   // Update dynamic options for autocomplete
   if (activeConnection.value) {
@@ -730,6 +746,8 @@ onUnmounted(async () => {
   await cleanupFileListener();
   // Remove document click listener
   document.removeEventListener('click', handleDocumentClick);
+  // Clean up DOM keyboard shortcut listeners
+  cleanupKeyboardShortcuts?.();
   // Clear validation markers before disposing
   const model = editor?.getModel();
   if (model) {

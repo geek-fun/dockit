@@ -17,9 +17,7 @@
                 <td class="shortcut-keys">
                   <kbd>{{ cmdKey }}</kbd>
                   <span class="key-separator">+</span>
-                  <kbd>Shift</kbd>
-                  <span class="key-separator">+</span>
-                  <kbd>/</kbd>
+                  <kbd>?</kbd>
                 </td>
               </tr>
               <tr>
@@ -78,7 +76,7 @@
                   <span class="key-separator">,</span>
                   <kbd>{{ cmdKey }}</kbd>
                   <span class="key-separator">+</span>
-                  <kbd>-</kbd>
+                  <kbd>0</kbd>
                 </td>
               </tr>
               <tr>

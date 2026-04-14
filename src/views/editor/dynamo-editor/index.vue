@@ -1,6 +1,7 @@
 <template>
   <div class="dynamo-editor">
     <tool-bar
+      ref="toolBarRef"
       type="DYNAMO_EDITOR"
       @insert-partiql-sample="handleInsertPartiqlSample"
       @execute-partiql-query="handleExecutePartiqlQuery"
@@ -12,6 +13,7 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import ToolBar from '../../../components/tool-bar.vue';
 import UiEditor from './components/ui-editor.vue';
@@ -22,6 +24,7 @@ import { useTabStore } from '../../../store';
 const tabStore = useTabStore();
 const { activePanel } = storeToRefs(tabStore);
 
+const toolBarRef = ref<InstanceType<typeof ToolBar>>();
 let sqlEditorRef: InstanceType<typeof SqlEditor> | null = null;
 
 const setSqlEditorRef = (el: any) => {
@@ -39,6 +42,10 @@ const handleExecutePartiqlQuery = () => {
     sqlEditorRef.executeQuery();
   }
 };
+
+defineExpose({
+  toggleShortcutsDialog: () => toolBarRef.value?.toggleShortcutsDialog(),
+});
 </script>
 
 <style scoped></style>
