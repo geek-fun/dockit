@@ -2,6 +2,8 @@ name: Node.js CI
 run-name: ${{ github.event.head_commit.message }}
 
 on:
+  push:
+    branches: [master]
   pull_request:
     branches: [master]
 
