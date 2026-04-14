@@ -47,8 +47,7 @@ export function useAppUpdater() {
   };
 
   const downloadAndInstall = async () => {
-    const update = updateInfo.value;
-    if (!update) return;
+    if (!updateInfo.value) return;
 
     let receivedBytes = 0;
     let totalLength: number | undefined;
@@ -57,7 +56,14 @@ export function useAppUpdater() {
       isDownloading.value = true;
       downloadPercent.value = null;
 
-      await update.downloadAndInstall(event => {
+      const freshUpdate = await check();
+      if (!freshUpdate) {
+        isDownloading.value = false;
+        return;
+      }
+      updateInfo.value = freshUpdate;
+
+      await freshUpdate.downloadAndInstall(event => {
         if (event.event === 'Started') {
           receivedBytes = 0;
           totalLength = event.data.contentLength;
@@ -73,7 +79,8 @@ export function useAppUpdater() {
           isInstalling.value = true;
         }
       });
-    } catch {
+    } catch (error) {
+      console.error('Update download/install failed:', error);
       message.error(lang.global.t('version.updateFailed'));
       isDownloading.value = false;
       downloadPercent.value = null;
