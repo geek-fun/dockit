@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-04-14
+
+### Fixed
+
+- Fix update install failing immediately on click due to relaunch error propagation
+- Extend update relaunch timeout from 5s to 30s to accommodate slower platforms (macOS notarization, Windows installer)
+
+### Changed
+
+- Gate CI checks on push to master in addition to pull requests
+- Gate release publish on all platform builds succeeding to prevent partial releases
+
 ## [0.9.4] - 2026-04-14
 
 ### Added
