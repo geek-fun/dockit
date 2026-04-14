@@ -1,76 +1,56 @@
-/**
- * DOM-level keyboard shortcut handler for Monaco Editor.
- *
- * Monaco standalone uses `USLayoutResolvedKeybinding` which maps KeyCode values
- * to physical US key positions. This breaks shortcuts like Ctrl+/ and Ctrl+- on
- * non-US layouts (French AZERTY, German QWERTZ, etc.) where `/` and `-` are at
- * different physical key positions.
- *
- * This module intercepts `keydown` events and checks `event.key` (logical
- * character) instead of `event.keyCode` (physical position), which works
- * correctly regardless of keyboard layout.
- *
- * Single-stroke shortcuts are attached to the editor DOM node (capture phase).
- * Chord shortcuts are attached to `document` (capture phase) because on
- * macOS/WKWebView the second stroke's keydown event may be retargeted after the
- * first stroke's stopPropagation, causing it to miss the editor DOM node
- * listener. Document-level capture ensures the second stroke is always caught.
- */
-
 import type { Editor } from '../common/monaco';
 
-interface StrokeSpec {
+type StrokeSpec = {
   key: string | string[];
   ctrlOrMeta: boolean;
   shift?: boolean;
   alt?: boolean;
-}
+};
 
-interface ShortcutBinding extends StrokeSpec {
+type ShortcutBinding = StrokeSpec & {
   handler: () => void;
-}
+};
 
-interface ChordBinding {
+type ChordBinding = {
   first: StrokeSpec;
   second: StrokeSpec;
   handler: () => void;
-}
+};
 
-interface EditorShortcutOptions {
+type EditorShortcutOptions = {
   shortcuts?: ShortcutBinding[];
   chords?: ChordBinding[];
-}
+};
 
-function hasCtrlOrMeta(e: KeyboardEvent): boolean {
-  return e.ctrlKey || e.metaKey;
-}
-
-function matchesStroke(e: KeyboardEvent, stroke: StrokeSpec): boolean {
-  if (stroke.ctrlOrMeta && !hasCtrlOrMeta(e)) return false;
-  if (!stroke.ctrlOrMeta && hasCtrlOrMeta(e)) return false;
-  if ((stroke.shift ?? false) !== e.shiftKey) return false;
-  if ((stroke.alt ?? false) !== e.altKey) return false;
-  const keys = Array.isArray(stroke.key) ? stroke.key : [stroke.key];
-  return keys.some(k => e.key.toLowerCase() === k.toLowerCase());
-}
+type ChordState = {
+  candidates: ChordBinding[];
+  timeoutId: ReturnType<typeof setTimeout>;
+};
 
 const CHORD_TIMEOUT_MS = 2000;
 
 let activeChordOwner: symbol | null = null;
 
-export function setupEditorKeyboardShortcuts(
+const hasCtrlOrMeta = (e: KeyboardEvent): boolean => e.ctrlKey || e.metaKey;
+
+const matchesStroke = (e: KeyboardEvent, stroke: StrokeSpec): boolean => {
+  if (stroke.ctrlOrMeta !== hasCtrlOrMeta(e)) return false;
+  if ((stroke.shift ?? false) !== e.shiftKey) return false;
+  if ((stroke.alt ?? false) !== e.altKey) return false;
+  const keys = Array.isArray(stroke.key) ? stroke.key : [stroke.key];
+  return keys.some(k => e.key.toLowerCase() === k.toLowerCase());
+};
+
+export const setupEditorKeyboardShortcuts = (
   editor: Editor,
   options: EditorShortcutOptions,
-): () => void {
+): (() => void) => {
   const { shortcuts = [], chords = [] } = options;
   const ownerId = Symbol();
 
-  let chordState: {
-    candidates: ChordBinding[];
-    timeoutId: ReturnType<typeof setTimeout>;
-  } | null = null;
+  let chordState: ChordState | null = null;
 
-  function clearChordState() {
+  const clearChordState = () => {
     if (chordState) {
       clearTimeout(chordState.timeoutId);
       chordState = null;
@@ -78,21 +58,18 @@ export function setupEditorKeyboardShortcuts(
     if (activeChordOwner === ownerId) {
       activeChordOwner = null;
     }
-  }
+  };
 
-  function handleChordKeyDown(e: KeyboardEvent) {
+  const handleChordKeyDown = (e: KeyboardEvent) => {
     if (chordState) {
       if (activeChordOwner !== ownerId) return;
-      for (const candidate of chordState.candidates) {
-        if (matchesStroke(e, candidate.second)) {
-          e.preventDefault();
-          e.stopPropagation();
-          clearChordState();
-          candidate.handler();
-          return;
-        }
-      }
+      const matched = chordState.candidates.find(c => matchesStroke(e, c.second));
       clearChordState();
+      if (matched) {
+        e.preventDefault();
+        e.stopPropagation();
+        matched.handler();
+      }
       return;
     }
 
@@ -109,21 +86,17 @@ export function setupEditorKeyboardShortcuts(
         timeoutId: setTimeout(clearChordState, CHORD_TIMEOUT_MS),
       };
     }
-  }
+  };
 
-  // Single-stroke handler on editor DOM node — unaffected by the chord bug.
-  function handleSingleKeyDown(e: KeyboardEvent) {
+  const handleSingleKeyDown = (e: KeyboardEvent) => {
     if (chordState) return;
-
-    for (const shortcut of shortcuts) {
-      if (matchesStroke(e, shortcut)) {
-        e.preventDefault();
-        e.stopPropagation();
-        shortcut.handler();
-        return;
-      }
+    const matched = shortcuts.find(s => matchesStroke(e, s));
+    if (matched) {
+      e.preventDefault();
+      e.stopPropagation();
+      matched.handler();
     }
-  }
+  };
 
   if (chords.length > 0) {
     document.addEventListener('keydown', handleChordKeyDown, true);
@@ -141,4 +114,4 @@ export function setupEditorKeyboardShortcuts(
       domNode.removeEventListener('keydown', handleSingleKeyDown, true);
     }
   };
-}
+};
