@@ -56,11 +56,14 @@ function matchesStroke(e: KeyboardEvent, stroke: StrokeSpec): boolean {
 
 const CHORD_TIMEOUT_MS = 2000;
 
+let activeChordOwner: symbol | null = null;
+
 export function setupEditorKeyboardShortcuts(
   editor: Editor,
   options: EditorShortcutOptions,
 ): () => void {
   const { shortcuts = [], chords = [] } = options;
+  const ownerId = Symbol();
 
   let chordState: {
     candidates: ChordBinding[];
@@ -72,12 +75,14 @@ export function setupEditorKeyboardShortcuts(
       clearTimeout(chordState.timeoutId);
       chordState = null;
     }
+    if (activeChordOwner === ownerId) {
+      activeChordOwner = null;
+    }
   }
 
-  // Chord handler on document — first stroke requires editor focus,
-  // second stroke fires regardless of target (handles WKWebView retargeting).
   function handleChordKeyDown(e: KeyboardEvent) {
     if (chordState) {
+      if (activeChordOwner !== ownerId) return;
       for (const candidate of chordState.candidates) {
         if (matchesStroke(e, candidate.second)) {
           e.preventDefault();
@@ -91,12 +96,14 @@ export function setupEditorKeyboardShortcuts(
       return;
     }
 
+    if (activeChordOwner !== null) return;
     if (!editor.hasTextFocus()) return;
 
     const candidates = chords.filter(chord => matchesStroke(e, chord.first));
     if (candidates.length > 0) {
       e.preventDefault();
       e.stopPropagation();
+      activeChordOwner = ownerId;
       chordState = {
         candidates,
         timeoutId: setTimeout(clearChordState, CHORD_TIMEOUT_MS),
