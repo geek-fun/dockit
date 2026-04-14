@@ -73,28 +73,28 @@ export function useAppUpdater() {
           isInstalling.value = true;
         }
       });
-
-      isRestarting.value = true;
-      isInstalling.value = false;
-
-      const relaunchTimeout = setTimeout(() => {
-        isRestarting.value = false;
-        message.error(lang.global.t('version.updateFailed'));
-      }, 5000);
-
-      try {
-        await relaunch();
-        clearTimeout(relaunchTimeout);
-      } catch {
-        clearTimeout(relaunchTimeout);
-        throw new Error('relaunch failed');
-      }
     } catch {
       message.error(lang.global.t('version.updateFailed'));
       isDownloading.value = false;
       downloadPercent.value = null;
       isInstalling.value = false;
+      return;
+    }
+
+    isRestarting.value = true;
+    isInstalling.value = false;
+
+    const relaunchTimeout = setTimeout(() => {
       isRestarting.value = false;
+      message.error(lang.global.t('version.updateFailed'));
+    }, 30000);
+
+    try {
+      await relaunch();
+    } catch {
+      clearTimeout(relaunchTimeout);
+      isRestarting.value = false;
+      message.error(lang.global.t('version.updateFailed'));
     }
   };
 
