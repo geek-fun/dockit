@@ -149,6 +149,15 @@ export type PartiQLParams = {
   limit?: number;
 };
 
+export type BatchWriteResult = {
+  inserted: number;
+  skipped: number;
+  errorCount: number;
+  errors: Array<{ error: string; message?: string; details?: string }>;
+  unprocessedItems: Array<{ attributes: Record<string, unknown> }>;
+  unprocessedCount: number;
+};
+
 const dynamoApi = {
   describeTable: async ({
     region,
@@ -280,6 +289,36 @@ const dynamoApi = {
       throw new CustomError(status, message);
     }
     return { message, data } as { message: string; data: QueryResult };
+  },
+
+  batchWriteItems: async (
+    con: DynamoDBConnection,
+    items: Array<{ attributes: DynamoAttributeItem[] }>,
+    options?: { skipExisting?: boolean; partitionKey?: string },
+  ): Promise<BatchWriteResult> => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
+    };
+    const apiOptions = {
+      table_name: con.tableName,
+      operation: 'BATCH_WRITE_ITEM',
+      payload: {
+        items,
+        skipExisting: options?.skipExisting,
+        partitionKey: options?.partitionKey,
+      },
+    };
+
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, apiOptions);
+
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+
+    return data as BatchWriteResult;
   },
 
   executeStatement: async (

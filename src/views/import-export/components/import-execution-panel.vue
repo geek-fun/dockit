@@ -135,6 +135,7 @@ import { useImportExportStore, ImportStrategy } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import { useMessageService, useDialogService } from '@/composables';
+import { ulid } from 'ulidx';
 
 const message = useMessageService();
 const dialog = useDialogService();
@@ -155,7 +156,6 @@ const {
 const isImporting = ref(false);
 const currentStrategy = ref<ImportStrategy>(importStrategy.value);
 
-// Sync currentStrategy with store
 watch(importStrategy, newVal => {
   currentStrategy.value = newVal;
 });
@@ -172,7 +172,6 @@ const rowCount = computed(() => importMetadata.value?.export?.rowCount ?? null);
 
 const estimatedDuration = computed(() => {
   if (!rowCount.value) return '-';
-  // Rough estimate: ~1000 docs per second
   const seconds = Math.ceil(rowCount.value / 1000);
   if (seconds < 60) return `~${seconds} secs`;
   const minutes = Math.ceil(seconds / 60);
@@ -222,8 +221,23 @@ const handleStartImport = async () => {
 const executeImport = async () => {
   isImporting.value = true;
 
+  const taskId = ulid();
+  importExportStore.addRunningTask({
+    id: taskId,
+    kind: 'import',
+    status: 'running',
+    progress: { complete: 0, total: importMetadata.value?.export?.rowCount || 0 },
+    connection: importExportStore.importConnection!,
+    index: importExportStore.importTargetIndex,
+    sourceFile: importExportStore.importDataFile,
+    startTime: new Date(),
+  });
+  importExportStore.activeImportTaskId = taskId;
+
   try {
     const result = await importExportStore.executeImport();
+
+    importExportStore.updateTaskStatus(taskId, 'completed', restoreProgress.value ?? undefined);
 
     if (result.warning) {
       message.warning(result.warning, {
@@ -243,6 +257,8 @@ const executeImport = async () => {
   } catch (err) {
     const error = err as CustomError;
     const errorMsg = error.details || error.message || '';
+
+    importExportStore.updateTaskStatus(taskId, 'failed', undefined, errorMsg);
 
     if (
       errorMsg.includes('already_exists') ||

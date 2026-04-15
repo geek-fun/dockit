@@ -262,6 +262,7 @@ const executeExport = async () => {
   const taskId = ulid();
   exportStore.addRunningTask({
     id: taskId,
+    kind: 'export',
     status: 'running',
     progress: { complete: 0, total: estimatedRows.value || 0 },
     connection: connection.value,
@@ -272,6 +273,7 @@ const executeExport = async () => {
     fields: fields.value,
     startTime: new Date(),
   });
+  exportStore.activeExportTaskId = taskId;
 
   try {
     const filePath = await exportStore.exportToFile(exportInput);

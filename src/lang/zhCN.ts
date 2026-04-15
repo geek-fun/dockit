@@ -9,6 +9,18 @@ export const zhCN = {
     setting: '设置',
     chatBot: 'AI助手',
     importExport: '导入/导出',
+    taskManager: '任务管理器',
+  },
+  taskManager: {
+    clearCompleted: '清除已完成',
+    noTasks: '暂无后台任务',
+    goToTask: '前往任务',
+    status: {
+      pending: '等待中',
+      running: '运行中',
+      completed: '已完成',
+      failed: '失败',
+    },
   },
   setting: {
     basic: '通用设置',

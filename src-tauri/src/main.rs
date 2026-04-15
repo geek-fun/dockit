@@ -3,12 +3,14 @@
 
 mod common;
 mod fetch_client;
+mod file_api;
 mod menu;
 mod openai_client;
 mod dynamo_client;
 mod dynamo;
 
 use fetch_client::fetch_api;
+use file_api::{get_file_info, read_file_batch, stream_file_lines};
 use openai_client::{chat_stream, create_openai_client};
 use dynamo_client::dynamo_api;
 
@@ -51,6 +53,9 @@ fn main() {
             fetch_api,
             chat_stream,
             dynamo_api,
+            get_file_info,
+            read_file_batch,
+            stream_file_lines,
         ])
         .setup(|app| {
             menu::create_menu(app)?;

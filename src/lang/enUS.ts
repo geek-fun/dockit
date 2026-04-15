@@ -9,6 +9,18 @@ export const enUS = {
     setting: 'Setting',
     chatBot: 'AI Assistant',
     importExport: 'Import/Export',
+    taskManager: 'Task Manager',
+  },
+  taskManager: {
+    clearCompleted: 'Clear Completed',
+    noTasks: 'No background tasks yet',
+    goToTask: 'Go to Task',
+    status: {
+      pending: 'Pending',
+      running: 'Running',
+      completed: 'Completed',
+      failed: 'Failed',
+    },
   },
   setting: {
     basic: 'Basic',

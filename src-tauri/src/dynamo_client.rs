@@ -1,3 +1,4 @@
+use crate::dynamo::batch_write_item::{batch_write_item, BatchWriteInput};
 use crate::dynamo::create_item::{create_item, CreateItemInput};
 use crate::dynamo::create_table::{create_table, CreateTableInput};
 use crate::dynamo::delete_item::{delete_item, DeleteItemInput};
@@ -84,6 +85,26 @@ pub async fn dynamo_api(
                 Ok(ApiResponse {
                     status: 400,
                     message: "Item payload is required".to_string(),
+                    data: None,
+                })
+            }
+        }
+        "BATCH_WRITE_ITEM" => {
+            if let Some(payload) = &options.payload {
+                let items = payload
+                    .get("items")
+                    .and_then(|v| v.as_array())
+                    .cloned()
+                    .unwrap_or_default();
+                let input = BatchWriteInput {
+                    table_name: &options.table_name,
+                    items: &items,
+                };
+                batch_write_item(&client, input).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "Batch write payload is required".to_string(),
                     data: None,
                 })
             }
