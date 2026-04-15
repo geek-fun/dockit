@@ -39,6 +39,65 @@
       <div v-else class="schema-info">
         <!-- Source Info (only for new collection with metadata) -->
         <div v-if="isNewCollection && importMetadata" class="info-section">
+          <!-- NEW Creation Plan Panel -->
+          <div v-if="hasSchemaData" class="creation-plan-panel mb-6">
+            <h4 class="section-title">{{ $t('import.creationPlan') }}</h4>
+
+            <div class="plan-card">
+              <!-- ES Plan -->
+              <div v-if="importConnection?.type === DatabaseType.ELASTICSEARCH" class="plan-grid">
+                <div class="plan-item">
+                  <span class="plan-label">{{ $t('export.index') }}</span>
+                  <span class="plan-value">{{ importTargetIndex }}</span>
+                </div>
+                <div class="plan-item">
+                  <span class="plan-label">{{ $t('import.shards') }}</span>
+                  <span class="plan-value">{{ importCreationOptions.shards }}</span>
+                </div>
+                <div class="plan-item">
+                  <span class="plan-label">{{ $t('import.replicas') }}</span>
+                  <span class="plan-value">{{ importCreationOptions.replicas }}</span>
+                </div>
+                <div class="plan-item">
+                  <span class="plan-label">{{ $t('export.field') }}</span>
+                  <span class="plan-value">{{ importSchemaFields.length }}</span>
+                </div>
+                <div class="plan-item">
+                  <span class="plan-label">{{ $t('import.rowCount') }}</span>
+                  <span class="plan-value">{{ importMetadata?.export.rowCount || 0 }}</span>
+                </div>
+                <div class="plan-item">
+                  <span class="plan-label">Strategy</span>
+                  <Badge variant="success">Will be created</Badge>
+                </div>
+              </div>
+
+              <!-- DynamoDB Plan -->
+              <div v-else-if="importConnection?.type === DatabaseType.DYNAMODB" class="plan-grid">
+                <div class="plan-item">
+                  <span class="plan-label">TABLE</span>
+                  <span class="plan-value">{{ importTargetIndex }}</span>
+                </div>
+                <div class="plan-item">
+                  <span class="plan-label">{{ $t('import.billingMode') }}</span>
+                  <span class="plan-value">{{ importCreationOptions.billingMode }}</span>
+                </div>
+                <div class="plan-item">
+                  <span class="plan-label">PARTITION KEY</span>
+                  <span class="plan-value">{{ getDynamoPartitionKey() }}</span>
+                </div>
+                <div v-if="getDynamoSortKey()" class="plan-item">
+                  <span class="plan-label">SORT KEY</span>
+                  <span class="plan-value">{{ getDynamoSortKey() }}</span>
+                </div>
+                <div class="plan-item">
+                  <span class="plan-label">Strategy</span>
+                  <Badge variant="success">Will be created</Badge>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <h4 class="section-title">{{ $t('import.sourceInfo') }}</h4>
           <div class="info-grid">
             <div class="info-item">
@@ -79,7 +138,10 @@
             <div class="schema-header">
               <span class="col-field">{{ $t('export.field') }}</span>
               <span class="col-source-type">{{ $t('import.sourceType') }}</span>
-              <span class="col-target-type">{{ $t('import.targetType') }}</span>
+              <span v-if="!isNewCollection" class="col-target-type">
+                {{ $t('import.targetType') }}
+              </span>
+              <span v-if="isNewCollection" class="col-target-type">WILL CREATE</span>
               <span class="col-match">{{ $t('import.matchStatus') }}</span>
               <span class="col-exclude">{{ $t('import.exclude') }}</span>
             </div>
@@ -89,7 +151,10 @@
                 :key="field.name"
                 :class="[
                   'schema-row',
-                  { 'row-excluded': field.exclude, 'row-mismatch': !field.matched },
+                  {
+                    'row-excluded': field.exclude,
+                    'row-mismatch': !field.matched && !isNewCollection,
+                  },
                 ]"
               >
                 <span class="col-field">{{ field.name }}</span>
@@ -100,16 +165,20 @@
                 </span>
                 <span class="col-target-type">
                   <Badge
-                    v-if="field.targetType !== '-'"
+                    v-if="!isNewCollection && field.targetType !== '-'"
                     :variant="getTypeVariant(field.targetType)"
                     class="text-xs"
                   >
                     {{ field.targetType }}
                   </Badge>
+                  <Badge v-else-if="isNewCollection" variant="success" class="text-xs">
+                    {{ getWillCreateType(field) }}
+                  </Badge>
                   <span v-else class="no-match">-</span>
                 </span>
                 <span class="col-match">
-                  <Badge v-if="field.matched" variant="success" class="text-xs">
+                  <Badge v-if="isNewCollection" variant="success" class="text-xs">New Field</Badge>
+                  <Badge v-else-if="field.matched" variant="success" class="text-xs">
                     {{ $t('import.matched') }}
                   </Badge>
                   <Badge v-else variant="warning" class="text-xs">
@@ -145,17 +214,53 @@ import { Button } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
 import { Badge, type BadgeVariants } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useImportExportStore } from '../../../store';
+import { useImportExportStore, DatabaseType } from '../../../store';
+import { inferredTypeToEsType } from '../utils/schemaMapping';
 
 const importExportStore = useImportExportStore();
-const { importMetadata, importDataFile, importSchemaFields, importIsNewCollection } =
-  storeToRefs(importExportStore);
+const {
+  importMetadata,
+  importDataFile,
+  importSchemaFields,
+  importIsNewCollection,
+  importConnection,
+  importTargetIndex,
+  importCreationOptions,
+  importSchemaOverrides,
+} = storeToRefs(importExportStore);
 
 const loading = ref(false);
 
 const hasDataFile = computed(() => !!importDataFile.value);
 const isNewCollection = computed(() => importIsNewCollection.value);
 const hasSchemaData = computed(() => importSchemaFields.value.length > 0);
+
+const getDynamoPartitionKey = () => {
+  const schema = importMetadata.value?.schema as any;
+  const keySchema = schema?.keySchema;
+  const attrDefs = schema?.attributeDefinitions;
+  const hashKey = keySchema?.find((k: any) => k.keyType?.toUpperCase() === 'HASH');
+  if (!hashKey) return '-';
+  const hashAttr = attrDefs?.find((a: any) => a.attributeName === hashKey.attributeName);
+  return `${hashKey.attributeName} (${hashAttr?.attributeType ?? 'S'})`;
+};
+
+const getDynamoSortKey = () => {
+  const schema = importMetadata.value?.schema as any;
+  const keySchema = schema?.keySchema;
+  const attrDefs = schema?.attributeDefinitions;
+  const rangeKey = keySchema?.find((k: any) => k.keyType?.toUpperCase() === 'RANGE');
+  if (!rangeKey) return null;
+  const rangeAttr = attrDefs?.find((a: any) => a.attributeName === rangeKey.attributeName);
+  return `${rangeKey.attributeName} (${rangeAttr?.attributeType ?? 'S'})`;
+};
+
+const getWillCreateType = (field: any) => {
+  if (importConnection.value?.type === DatabaseType.ELASTICSEARCH) {
+    return inferredTypeToEsType(field.sourceType, importSchemaOverrides.value[field.name]);
+  }
+  return field.sourceType;
+};
 
 const handleRefreshSchema = async () => {
   loading.value = true;
@@ -379,6 +484,50 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
   color: hsl(var(--muted-foreground));
   margin-top: 8px;
   margin-bottom: 0;
+}
+
+.step-card .schema-info .creation-plan-panel {
+  margin-bottom: 24px;
+}
+
+.step-card .schema-info .creation-plan-panel .section-title {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.step-card .schema-info .creation-plan-panel .plan-card {
+  padding: 16px;
+  background-color: rgba(24, 160, 88, 0.05);
+  border: 1px solid rgba(24, 160, 88, 0.2);
+  border-left: 4px solid #18a058;
+  border-radius: 8px;
+}
+
+.step-card .schema-info .creation-plan-panel .plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.step-card .schema-info .creation-plan-panel .plan-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.step-card .schema-info .creation-plan-panel .plan-label {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+}
+
+.step-card .schema-info .creation-plan-panel .plan-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
 }
 
 .step-card .schema-info .comments-section {

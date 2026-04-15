@@ -3,7 +3,8 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { get } from 'lodash';
 import { defineStore } from 'pinia';
 import { CustomError, jsonify } from '../common';
-import { dynamoApi, loadHttpClient, sourceFileApi } from '../datasources';
+import { dynamoApi, esApi, loadHttpClient, sourceFileApi } from '../datasources';
+import { buildEsMappingBody } from '../views/import-export/utils/schemaMapping';
 import {
   Connection,
   DatabaseType,
@@ -117,6 +118,16 @@ export const useImportExportStore = defineStore('importExportStore', {
       matched: boolean;
       exclude: boolean;
     }>; // Schema comparison fields
+    importSchemaOverrides: Record<string, string>;
+    importCreationOptions: {
+      shards: number;
+      replicas: number;
+      billingMode: 'PAY_PER_REQUEST' | 'PROVISIONED';
+      readCapacity: number;
+      writeCapacity: number;
+    };
+    importCreationPhase: 'idle' | 'creating' | 'importing' | 'done' | 'error';
+    importCreationError: string | null;
     importValidationStatus: {
       step1: boolean; // Target configured (connection + index)
       step2: boolean; // Data file selected (+ metadata if new collection)
@@ -160,6 +171,16 @@ export const useImportExportStore = defineStore('importExportStore', {
       importStrategy: 'append',
       importFields: [],
       importSchemaFields: [],
+      importSchemaOverrides: {},
+      importCreationOptions: {
+        shards: 1,
+        replicas: 1,
+        billingMode: 'PAY_PER_REQUEST' as const,
+        readCapacity: 5,
+        writeCapacity: 5,
+      },
+      importCreationPhase: 'idle' as const,
+      importCreationError: null,
       importValidationStatus: {
         step1: false,
         step2: false,
@@ -1384,6 +1405,16 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.importStrategy = 'append';
       this.importFields = [];
       this.importSchemaFields = [];
+      this.importSchemaOverrides = {};
+      this.importCreationOptions = {
+        shards: 1,
+        replicas: 1,
+        billingMode: 'PAY_PER_REQUEST',
+        readCapacity: 5,
+        writeCapacity: 5,
+      };
+      this.importCreationPhase = 'idle';
+      this.importCreationError = null;
       this.importValidationStatus = {
         step1: false,
         step2: false,
@@ -1392,18 +1423,88 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.importValidationErrors = [];
     },
 
+    async createTargetCollection() {
+      if (!this.importConnection || !this.importTargetIndex) {
+        throw new CustomError(400, 'Connection and target index are required');
+      }
+      this.importCreationPhase = 'creating';
+      this.importCreationError = null;
+
+      try {
+        if (this.importConnection.type === DatabaseType.ELASTICSEARCH) {
+          const mappingBody = buildEsMappingBody(this.importMetadata, this.importSchemaOverrides);
+          await esApi.createIndex(this.importConnection as ElasticsearchConnection, {
+            indexName: this.importTargetIndex,
+            shards: this.importCreationOptions.shards,
+            replicas: this.importCreationOptions.replicas,
+            body: mappingBody,
+          });
+        } else if (this.importConnection.type === DatabaseType.DYNAMODB) {
+          const schema = this.importMetadata?.schema as
+            | {
+                keySchema?: Array<{ attributeName: string; keyType: string }>;
+                attributeDefinitions?: Array<{ attributeName: string; attributeType: string }>;
+              }
+            | undefined;
+          const keySchema = schema?.keySchema;
+          const attrDefs = schema?.attributeDefinitions;
+          const hashKey = keySchema?.find(k => k.keyType.toUpperCase() === 'HASH');
+          const rangeKey = keySchema?.find(k => k.keyType.toUpperCase() === 'RANGE');
+
+          if (!hashKey) {
+            throw new CustomError(400, 'No partition key found in metadata schema');
+          }
+
+          const hashAttr = attrDefs?.find(a => a.attributeName === hashKey.attributeName);
+          const rangeAttr = rangeKey
+            ? attrDefs?.find(a => a.attributeName === rangeKey.attributeName)
+            : undefined;
+
+          await dynamoApi.createTable(this.importConnection as DynamoDBConnection, {
+            tableName: this.importTargetIndex,
+            partitionKey: {
+              name: hashKey.attributeName,
+              type: (hashAttr?.attributeType ?? 'S') as 'S' | 'N' | 'B',
+            },
+            sortKey:
+              rangeKey && rangeAttr
+                ? {
+                    name: rangeKey.attributeName,
+                    type: rangeAttr.attributeType as 'S' | 'N' | 'B',
+                  }
+                : undefined,
+            billingMode: this.importCreationOptions.billingMode,
+            readCapacity: this.importCreationOptions.readCapacity,
+            writeCapacity: this.importCreationOptions.writeCapacity,
+          });
+        }
+      } catch (error) {
+        this.importCreationPhase = 'error';
+        this.importCreationError = get(
+          error,
+          'details',
+          get(error, 'message', 'Failed to create collection'),
+        );
+        throw error;
+      }
+    },
+
     async executeImport() {
       if (!this.importConnection || !this.importTargetIndex || !this.importDataFile) {
         throw new CustomError(400, 'Import configuration is incomplete');
       }
 
-      // Validate database compatibility
+      if (this.importIsNewCollection) {
+        await this.createTargetCollection();
+      }
+
+      this.importCreationPhase = 'importing';
+
       const compatibility = await this.validateDatabaseCompatibility();
       if (!compatibility.valid) {
         throw new CustomError(400, compatibility.errors.join('; '));
       }
 
-      // Use existing restoreFromFile logic with the new data file
       const restoreInput: RestoreInput = {
         connection: this.importConnection,
         index: this.importTargetIndex,
@@ -1411,14 +1512,13 @@ export const useImportExportStore = defineStore('importExportStore', {
       };
 
       await this.restoreFromFile(restoreInput);
+      this.importCreationPhase = 'done';
 
-      // Verify row count if metadata is available
       if (this.importMetadata && this.restoreProgress) {
         const expectedCount = this.importMetadata.export.rowCount;
         const actualCount = this.restoreProgress.complete;
 
         if (actualCount !== expectedCount) {
-          // Return warning but don't fail
           return {
             success: true,
             warning: `Row count mismatch: expected ${expectedCount}, imported ${actualCount}`,

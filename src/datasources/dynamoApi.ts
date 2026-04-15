@@ -569,6 +569,41 @@ const dynamoApi = {
       };
     };
   },
+
+  createTable: async (
+    con: DynamoDBConnection,
+    config: {
+      tableName: string;
+      partitionKey: { name: string; type: 'S' | 'N' | 'B' };
+      sortKey?: { name: string; type: 'S' | 'N' | 'B' };
+      billingMode: 'PAY_PER_REQUEST' | 'PROVISIONED';
+      readCapacity?: number;
+      writeCapacity?: number;
+    },
+  ): Promise<void> => {
+    const credentials = {
+      region: con.region,
+      access_key_id: con.accessKeyId,
+      secret_access_key: con.secretAccessKey,
+      endpoint_url: con.endpointUrl,
+    };
+    const options = {
+      table_name: config.tableName,
+      operation: 'CREATE_TABLE',
+      payload: {
+        table_name: config.tableName,
+        partition_key: config.partitionKey.name,
+        partition_key_type: config.partitionKey.type,
+        sort_key: config.sortKey?.name,
+        sort_key_type: config.sortKey?.type,
+        billing_mode: config.billingMode,
+        read_capacity_units: config.readCapacity,
+        write_capacity_units: config.writeCapacity,
+      },
+    };
+    const { status, message } = await tauriClient.invokeDynamoApi(credentials, options);
+    if (status >= 400) throw new CustomError(status, message);
+  },
 };
 
 export { dynamoApi };

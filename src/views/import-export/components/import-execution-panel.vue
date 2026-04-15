@@ -60,6 +60,26 @@
         </RadioGroup>
       </div>
 
+      <!-- Phase Status Display -->
+      <div v-if="importCreationPhase !== 'idle'" class="phase-status mb-4">
+        <div v-if="importCreationPhase === 'creating'" class="phase-banner creating">
+          <span class="i-carbon-loading h-4 w-4 animate-spin mr-2" />
+          {{ $t('import.phase1Creating') }}
+        </div>
+        <div v-else-if="importCreationPhase === 'importing'" class="phase-banner importing">
+          <span class="i-carbon-loading h-4 w-4 animate-spin mr-2" />
+          {{ $t('import.phase2Importing') }}
+        </div>
+        <div v-else-if="importCreationPhase === 'done'" class="phase-banner done">
+          <span class="i-carbon-checkmark-filled h-4 w-4 mr-2" />
+          {{ $t('import.importSuccess') }}
+        </div>
+        <Alert v-else-if="importCreationPhase === 'error'" variant="destructive">
+          <AlertTitle>{{ $t('import.creationFailed') }}</AlertTitle>
+          <AlertDescription>{{ importCreationError }}</AlertDescription>
+        </Alert>
+      </div>
+
       <!-- Progress Display -->
       <div v-if="restoreProgress" class="progress-section">
         <Progress
@@ -110,6 +130,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useImportExportStore, ImportStrategy } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
@@ -127,6 +148,8 @@ const {
   importStrategy,
   importTargetIndex,
   restoreProgress,
+  importCreationPhase,
+  importCreationError,
 } = storeToRefs(importExportStore);
 
 const isImporting = ref(false);
@@ -210,18 +233,39 @@ const executeImport = async () => {
       });
     }
 
-    message.success(lang.t('import.importSuccess'), {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 5000,
-    });
+    if (importCreationPhase.value !== 'done') {
+      message.success(lang.t('import.importSuccess'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 5000,
+      });
+    }
   } catch (err) {
     const error = err as CustomError;
-    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 5000,
-    });
+    const errorMsg = error.details || error.message || '';
+
+    if (
+      errorMsg.includes('already_exists') ||
+      errorMsg.includes('resource_already_exists_exception') ||
+      errorMsg.includes('Table already exists')
+    ) {
+      dialog.warning({
+        title: lang.t('dialogOps.warning'),
+        content: lang.t('import.indexAlreadyExists'),
+        positiveText: lang.t('dialogOps.confirm'),
+        negativeText: lang.t('dialogOps.cancel'),
+        onPositiveClick: () => {
+          importExportStore.importIsNewCollection = false;
+          executeImport();
+        },
+      });
+    } else {
+      message.error(`${errorMsg || 'Operation failed (status: ' + error.status + ')'}`, {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 5000,
+      });
+    }
   } finally {
     isImporting.value = false;
   }
@@ -427,5 +471,33 @@ const executeImport = async () => {
   color: hsl(var(--muted-foreground));
   text-align: center;
   margin-top: 8px;
+}
+
+.phase-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.phase-banner.creating {
+  background-color: rgba(24, 160, 88, 0.1);
+  color: #18a058;
+  border: 1px solid rgba(24, 160, 88, 0.2);
+}
+
+.phase-banner.importing {
+  background-color: rgba(32, 128, 240, 0.1);
+  color: #2080f0;
+  border: 1px solid rgba(32, 128, 240, 0.2);
+}
+
+.phase-banner.done {
+  background-color: rgba(24, 160, 88, 0.1);
+  color: #18a058;
+  border: 1px solid rgba(24, 160, 88, 0.2);
 }
 </style>
