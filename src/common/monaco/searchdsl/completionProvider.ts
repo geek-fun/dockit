@@ -125,21 +125,47 @@ const getCompletionContext = (
     };
   }
 
-  // Check if we're completing query parameters (path contains ?)
-  // Use textUntilPosition to preserve spaces
-  const queryParamMatch = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+(\S+\?[^?\s]*)$/i.exec(
+  const queryStringMatch = /^(GET|POST|PUT|DELETE|HEAD|PATCH|OPTIONS)\s+([^\s?]+\?[^\s]*)$/i.exec(
     textUntilPosition,
   );
-  if (queryParamMatch) {
-    const fullPath = queryParamMatch[2];
-    const [basePath] = fullPath.split('?');
-    return {
-      backend: currentConfig.backend,
-      version: currentConfig.version,
-      position: 'queryParam',
-      method: queryParamMatch[1].toUpperCase() as HttpMethod,
-      path: basePath,
-    };
+  if (queryStringMatch) {
+    const method = queryStringMatch[1].toUpperCase() as HttpMethod;
+    const fullQueryString = queryStringMatch[2];
+    const [basePath, paramString] = fullQueryString.split('?');
+
+    const typedParams = paramString
+      ? paramString
+          .split('&')
+          .map(p => p.split('=')[0])
+          .filter(Boolean)
+      : [];
+
+    const valueMatch = /[?&]([^&=]+)=[^&]*$/.exec(textUntilPosition);
+    if (valueMatch) {
+      return {
+        backend: currentConfig.backend,
+        version: currentConfig.version,
+        position: 'queryParamValue',
+        method,
+        path: basePath,
+        currentParam: valueMatch[1],
+        typedParams,
+      };
+    }
+
+    const paramNameMatch = /[?&][^=&]*$/.test(textUntilPosition);
+    if (paramNameMatch) {
+      const partialName = /[?&]([^=&]*)$/.exec(textUntilPosition)?.[1] ?? '';
+      const completeParams = partialName.length > 0 ? typedParams.slice(0, -1) : typedParams;
+      return {
+        backend: currentConfig.backend,
+        version: currentConfig.version,
+        position: 'queryParam',
+        method,
+        path: basePath,
+        typedParams: completeParams,
+      };
+    }
   }
 
   // If we have a complete method followed by space, we're completing path
@@ -603,6 +629,7 @@ const provideQueryParamCompletions = (
   if (!endpoint?.queryParams) return completions;
 
   for (const param of endpoint.queryParams) {
+    if (context.typedParams?.includes(param.name)) continue;
     const insertText = createQueryParamInsertText(param);
 
     completions.push({
@@ -620,9 +647,36 @@ const provideQueryParamCompletions = (
   return completions;
 };
 
-/**
- * Create insert text for a query parameter
- */
+const provideQueryParamValueCompletions = (
+  context: CompletionContext,
+  range: monaco.Range,
+): monaco.languages.CompletionItem[] => {
+  const { backend, version, method, path, currentParam } = context;
+  if (!path || !currentParam) return [];
+
+  const endpoint = apiSpecProvider.findEndpoint(backend, path, method, version);
+  const param = endpoint?.queryParams?.find(p => p.name === currentParam);
+  if (!param) return [];
+
+  const values: string[] =
+    param.enum && param.enum.length > 0
+      ? param.enum
+      : param.type === 'boolean'
+        ? ['true', 'false']
+        : [];
+
+  return values.map(v => ({
+    label: v,
+    kind: monaco.languages.CompletionItemKind.Value,
+    insertText: v,
+    insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
+    detail: `${param.name} value`,
+    documentation: param.description,
+    sortText: v,
+    range,
+  }));
+};
+
 const createQueryParamInsertText = (param: QueryParam): string => {
   if (param.enum && param.enum.length > 0) {
     // For enum params, provide first value as placeholder
@@ -1669,6 +1723,9 @@ export const grammarCompletionProvider = (
       break;
     case 'queryParam':
       suggestions = provideQueryParamCompletions(context, defaultRange);
+      break;
+    case 'queryParamValue':
+      suggestions = provideQueryParamValueCompletions(context, defaultRange);
       break;
   }
 

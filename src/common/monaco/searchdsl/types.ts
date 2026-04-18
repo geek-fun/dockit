@@ -91,10 +91,12 @@ export type BodyProperty = {
 export type CompletionContext = {
   backend: BackendType;
   version?: string;
-  position: 'method' | 'path' | 'queryParam' | 'body';
+  position: 'method' | 'path' | 'queryParam' | 'queryParamValue' | 'body';
   method?: HttpMethod;
   path?: string;
   bodyPath?: string[];
+  currentParam?: string;
+  typedParams?: string[];
 };
 
 /**

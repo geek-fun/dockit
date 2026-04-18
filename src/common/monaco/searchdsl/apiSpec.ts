@@ -97,6 +97,36 @@ const commonEndpoints: ApiEndpoint[] = [
     description: 'Execute a search query on a specific index',
     descriptionKey: 'grammar.searchIndex',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name(s)', required: true }],
+    queryParams: [
+      { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
+      { name: 'df', type: 'string', description: 'Default field for query string' },
+      { name: 'analyzer', type: 'string', description: 'Analyzer to use for query string' },
+      {
+        name: 'default_operator',
+        type: 'string',
+        description: 'Default operator for query string',
+        enum: ['AND', 'OR'],
+      },
+      { name: 'from', type: 'integer', description: 'Starting offset', default: 0 },
+      { name: 'size', type: 'integer', description: 'Number of hits to return', default: 10 },
+      { name: 'sort', type: 'string', description: 'Sort order' },
+      { name: 'timeout', type: 'string', description: 'Search timeout' },
+      {
+        name: 'terminate_after',
+        type: 'integer',
+        description: 'Maximum number of documents to collect',
+      },
+      { name: 'track_total_hits', type: 'boolean', description: 'Track total number of hits' },
+      {
+        name: 'search_type',
+        type: 'string',
+        description: 'Search type',
+        enum: ['query_then_fetch', 'dfs_query_then_fetch'],
+      },
+      { name: 'request_cache', type: 'boolean', description: 'Enable request cache' },
+      { name: 'routing', type: 'string', description: 'Routing value' },
+      { name: 'preference', type: 'string', description: 'Execution preference' },
+    ],
   },
 
   // Count API
@@ -124,6 +154,18 @@ const commonEndpoints: ApiEndpoint[] = [
     description: 'Count documents in a specific index',
     descriptionKey: 'grammar.countIndex',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name(s)', required: true }],
+    queryParams: [
+      { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
+      { name: 'df', type: 'string', description: 'Default field for query string' },
+      { name: 'analyzer', type: 'string', description: 'Analyzer to use for query string' },
+      {
+        name: 'default_operator',
+        type: 'string',
+        description: 'Default operator',
+        enum: ['AND', 'OR'],
+      },
+      { name: 'routing', type: 'string', description: 'Routing value' },
+    ],
   },
 
   // Document APIs
@@ -153,6 +195,24 @@ const commonEndpoints: ApiEndpoint[] = [
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'id', type: 'string', description: 'Document ID', required: true },
+    ],
+    queryParams: [
+      { name: 'routing', type: 'string', description: 'Routing value' },
+      { name: 'preference', type: 'string', description: 'Execution preference' },
+      { name: 'realtime', type: 'boolean', description: 'Realtime get' },
+      {
+        name: 'version',
+        type: 'integer',
+        description: 'Document version for optimistic concurrency',
+      },
+      { name: '_source', type: 'string', description: 'Source fields to return' },
+      {
+        name: 'refresh',
+        type: 'string',
+        description: 'Refresh policy',
+        enum: ['true', 'false', 'wait_for'],
+      },
+      { name: 'timeout', type: 'string', description: 'Operation timeout' },
     ],
   },
   {
@@ -200,6 +260,17 @@ const commonEndpoints: ApiEndpoint[] = [
     description: 'Perform bulk operations on a specific index',
     pathParams: [
       { name: 'index', type: 'string', description: 'Default index name', required: true },
+    ],
+    queryParams: [
+      {
+        name: 'refresh',
+        type: 'string',
+        description: 'Refresh policy',
+        enum: ['true', 'false', 'wait_for'],
+      },
+      { name: 'routing', type: 'string', description: 'Default routing' },
+      { name: 'timeout', type: 'string', description: 'Operation timeout' },
+      { name: 'pipeline', type: 'string', description: 'Default ingest pipeline' },
     ],
   },
 
@@ -1218,13 +1289,11 @@ export class ApiSpecProvider {
    * Match a path against an endpoint pattern
    */
   private matchPath(pattern: string, path: string): boolean {
-    // Convert pattern to regex
-    const regexPattern = pattern
-      .replace(/\{[^}]+\}/g, '[^/]+') // Replace {param} with [^/]+
-      .replace(/\//g, '\\/'); // Escape slashes
-
-    const regex = new RegExp(`^${regexPattern}$`);
-    return regex.test(path);
+    const normalize = (p: string) => p.replace(/^\//, '');
+    const regexPattern = normalize(pattern)
+      .replace(/\{[^}]+\}/g, '[^/]+')
+      .replace(/\//g, '\\/');
+    return new RegExp(`^${regexPattern}$`).test(normalize(path));
   }
 
   /**
