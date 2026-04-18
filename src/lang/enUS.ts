@@ -542,6 +542,32 @@ export const enUS = {
         'Are you sure you want to detach this datasource? This will remove the connection from Data Studio.',
       confirm: 'Detach',
     },
+    agent: {
+      sendMessage: 'Send message',
+      clearChat: 'Clear chat',
+      noSource: 'Connect a data source to start',
+      noAiConfig: 'Configure an AI provider in Settings to use Data Studio',
+      loading: 'Thinking...',
+      error: 'An error occurred',
+      emptyState: 'Ask a question about your data',
+      toolConfirmation: {
+        title: 'Tool Confirmation Required',
+        allowOnce: 'Allow Once',
+        allowAlways: 'Allow Always',
+        deny: 'Deny',
+        denyAlways: 'Deny Always',
+      },
+      riskLevel: {
+        safe: 'Safe',
+        elevated: 'Elevated',
+        destructive: 'Destructive',
+      },
+      message: {
+        toolResult: 'Tool Result',
+        toolDenied: 'Tool execution denied',
+        toolError: 'Tool execution failed',
+      },
+    },
   },
   importExport: {
     export: 'Export',

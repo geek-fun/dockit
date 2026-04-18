@@ -539,6 +539,32 @@ export const zhCN = {
       message: '确定要解除此数据源吗？这将从数据工坊中移除该连接。',
       confirm: '解除',
     },
+    agent: {
+      sendMessage: '发送消息',
+      clearChat: '清除聊天',
+      noSource: '连接数据源以开始使用',
+      noAiConfig: '请在设置中配置 AI 服务商以使用数据工坊',
+      loading: '思考中...',
+      error: '发生错误',
+      emptyState: '询问关于您数据的问题',
+      toolConfirmation: {
+        title: '需要确认工具执行',
+        allowOnce: '允许一次',
+        allowAlways: '始终允许',
+        deny: '拒绝',
+        denyAlways: '始终拒绝',
+      },
+      riskLevel: {
+        safe: '安全',
+        elevated: '提升',
+        destructive: '危险',
+      },
+      message: {
+        toolResult: '工具结果',
+        toolDenied: '工具执行已拒绝',
+        toolError: '工具执行失败',
+      },
+    },
   },
   importExport: {
     export: '导出',
