@@ -32,7 +32,10 @@
                   {{ providerLabel(model.providerConfigId) }}
                 </span>
               </div>
-              <span v-if="model.id === modelValue" class="model-picker-checkmark i-carbon-checkmark h-4 w-4 shrink-0" />
+              <span
+                v-if="model.id === modelValue"
+                class="model-picker-checkmark i-carbon-checkmark h-4 w-4 shrink-0"
+              />
             </button>
           </div>
 
@@ -49,7 +52,10 @@
                 <span class="model-picker-name">{{ model.label }}</span>
                 <span v-if="model.category" class="model-picker-meta">{{ model.category }}</span>
               </div>
-              <span v-if="model.id === modelValue" class="model-picker-checkmark i-carbon-checkmark h-4 w-4 shrink-0" />
+              <span
+                v-if="model.id === modelValue"
+                class="model-picker-checkmark i-carbon-checkmark h-4 w-4 shrink-0"
+              />
             </button>
           </div>
 

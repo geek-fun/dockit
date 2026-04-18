@@ -449,7 +449,10 @@ export const useAppStore = defineStore('app', {
       };
     },
     async fetchLlmSettings() {
-      const storedSettings = await storeApi.getSecret<LlmSettings | undefined>('llmSettings', undefined);
+      const storedSettings = await storeApi.getSecret<LlmSettings | undefined>(
+        'llmSettings',
+        undefined,
+      );
       if (storedSettings) {
         this.llmSettings = mergeLlmSettings(storedSettings);
         return this.llmSettings;

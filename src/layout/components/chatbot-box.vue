@@ -74,7 +74,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Spinner } from '@/components/ui/spinner';
 import type { AgentMessage } from '../../store/dataStudioStore';
 
-type ProviderKind = 'openai' | 'deepseek' | 'openrouter' | 'ollama' | 'custom-openai' | 'custom-anthropic';
+type ProviderKind =
+  | 'openai'
+  | 'deepseek'
+  | 'openrouter'
+  | 'ollama'
+  | 'custom-openai'
+  | 'custom-anthropic';
 
 const kindToProviderEnum = (kind: ProviderKind): ProviderEnum => {
   switch (kind) {
@@ -167,9 +173,7 @@ const submitMsg = async () => {
     unlisten = await agentApi.onAgentDelta(event => {
       if (event.requestId !== requestId) return;
       messages.value = messages.value.map(m =>
-        m.id === assistantMsgId
-          ? { ...m, content: m.content + event.content }
-          : m,
+        m.id === assistantMsgId ? { ...m, content: m.content + event.content } : m,
       );
       scrollToBottom();
     });
