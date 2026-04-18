@@ -140,7 +140,7 @@ const getCompletionContext = (
           .filter(Boolean)
       : [];
 
-    const valueMatch = /[?&]([^&=]+)=$/.exec(textUntilPosition);
+    const valueMatch = /[?&]([^&=]+)=[^&]*$/.exec(textUntilPosition);
     if (valueMatch) {
       return {
         backend: currentConfig.backend,
@@ -155,7 +155,8 @@ const getCompletionContext = (
 
     const paramNameMatch = /[?&][^=&]*$/.test(textUntilPosition);
     if (paramNameMatch) {
-      const completeParams = typedParams.slice(0, -1);
+      const partialName = /[?&]([^=&]*)$/.exec(textUntilPosition)?.[1] ?? '';
+      const completeParams = partialName.length > 0 ? typedParams.slice(0, -1) : typedParams;
       return {
         backend: currentConfig.backend,
         version: currentConfig.version,
