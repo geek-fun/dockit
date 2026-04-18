@@ -1,11 +1,26 @@
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::OnceLock;
 
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
 use serde_json::json;
 
 use crate::common::http_client::create_http_client;
+
+static SECURE_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+static INSECURE_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+fn get_client(ssl: bool, http_proxy: Option<String>) -> reqwest::Client {
+    let has_proxy = http_proxy.as_deref().is_some_and(|p| !p.is_empty());
+    if has_proxy {
+        create_http_client(http_proxy, Some(ssl))
+    } else if ssl {
+        SECURE_CLIENT.get_or_init(|| create_http_client(None, Some(true))).clone()
+    } else {
+        INSECURE_CLIENT.get_or_init(|| create_http_client(None, Some(false))).clone()
+    }
+}
 
 #[derive(Deserialize)]
 struct Agent {
@@ -104,7 +119,7 @@ fn categorize_request_error(e: &reqwest::Error) -> (&'static str, String) {
 
 #[tauri::command]
 pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, String> {
-    let client = create_http_client(options.agent.http_proxy, Some(options.agent.ssl));
+    let client = get_client(options.agent.ssl, options.agent.http_proxy);
 
     let response = client
         .request(
