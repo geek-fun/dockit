@@ -1,18 +1,18 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod agent;
 mod common;
 mod fetch_client;
 mod file_api;
 mod menu;
-mod openai_client;
 mod dynamo_client;
 mod dynamo;
 
 use tauri::Emitter;
+use agent::{execute_tool, get_available_tools, introspect_schema, run_agent_step, validate_llm_config};
 use fetch_client::fetch_api;
 use file_api::{get_file_info, read_file_batch, stream_file_lines};
-use openai_client::{chat_stream, create_openai_client};
 use dynamo_client::dynamo_api;
 
 #[derive(Clone, serde::Serialize)]
@@ -61,13 +61,16 @@ fn main() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
-            create_openai_client,
             fetch_api,
-            chat_stream,
             dynamo_api,
             get_file_info,
             read_file_batch,
             stream_file_lines,
+            run_agent_step,
+            validate_llm_config,
+            execute_tool,
+            introspect_schema,
+            get_available_tools,
         ])
         .setup(|app| {
             menu::create_menu(app)?;
