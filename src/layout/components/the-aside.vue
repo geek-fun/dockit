@@ -86,6 +86,13 @@ const mainNavList = ref([
     isLink: false,
   },
   {
+    id: 'data-studio',
+    path: '/data-studio',
+    name: 'dataStudio',
+    iconClass: 'i-carbon-ibm-watsonx-assistant',
+    isLink: false,
+  },
+  {
     id: 'file',
     path: '/file',
     name: 'file',
