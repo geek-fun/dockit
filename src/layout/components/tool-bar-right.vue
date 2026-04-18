@@ -1,5 +1,5 @@
 <template>
-  <task-manager-box v-if="taskManager.active" />
+  <task-manager-box v-if="taskManager.active" @close="closeTaskManager" />
   <chatbot-box v-if="chatBot.active" />
   <div class="tool-bar-right">
     <TooltipProvider>
@@ -10,7 +10,7 @@
       >
         <div
           class="icon-item"
-          :class="{ active: item.id === `${selectedItemId}` }"
+          :class="{ active: item.id === selectedItemId }"
           @click="navClick(item)"
         >
           <span :class="[item.iconClass, 'h-6 w-6']" />
@@ -35,12 +35,12 @@ import { useImportExportStore } from '../../store';
 const importExportStore = useImportExportStore();
 const { runningTaskCount } = storeToRefs(importExportStore);
 
-const selectedItemId = ref(-1);
+const selectedItemId = ref('');
 const chatBot = ref({ active: false });
 const taskManager = ref({ active: false });
 
 const navClick = async (item: { id: string }) => {
-  selectedItemId.value = item.id as unknown as number;
+  selectedItemId.value = item.id;
   if (item.id === 'chat-bot') {
     chatBot.value.active = !chatBot.value.active;
     if (chatBot.value.active) taskManager.value.active = false;
@@ -48,6 +48,11 @@ const navClick = async (item: { id: string }) => {
     taskManager.value.active = !taskManager.value.active;
     if (taskManager.value.active) chatBot.value.active = false;
   }
+};
+
+const closeTaskManager = () => {
+  taskManager.value.active = false;
+  selectedItemId.value = '';
 };
 
 const smallNavList = ref([

@@ -96,7 +96,9 @@
             <AlertTitle>{{ $t('import.validationErrors') }}</AlertTitle>
             <AlertDescription>
               <ul class="error-list">
-                <li v-for="(error, index) in importValidationErrors" :key="index">{{ error }}</li>
+                <li v-for="(error, index) in importValidationErrors" :key="index">
+                  {{ error.rawText || $t(error.key, error.params || {}) }}
+                </li>
               </ul>
             </AlertDescription>
           </Alert>
@@ -110,21 +112,10 @@
           class="config-panel"
         >
           <div class="panel-header">
-            <span class="panel-title">Schema Configuration</span>
+            <span class="panel-title">{{ $t('import.schemaConfiguration') }}</span>
           </div>
           <div class="panel-content">
-            <div class="settings-grid">
-              <div class="setting-item">
-                <Label class="mb-2 block">{{ $t('import.shards') }}</Label>
-                <Input v-model.number="importCreationOptions.shards" type="number" min="1" />
-              </div>
-              <div class="setting-item">
-                <Label class="mb-2 block">{{ $t('import.replicas') }}</Label>
-                <Input v-model.number="importCreationOptions.replicas" type="number" min="0" />
-              </div>
-            </div>
-
-            <div v-if="importSchemaFields.length > 0" class="schema-override-table mt-4">
+            <div v-if="importSchemaFields.length > 0" class="schema-override-table">
               <div class="override-header">
                 <span class="col-field">{{ $t('export.field') }}</span>
                 <span class="col-inferred">{{ $t('import.targetType') }}</span>
@@ -164,41 +155,6 @@
                     </Select>
                   </span>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Table Configuration (DynamoDB) -->
-        <div
-          v-if="isNewCollection && allComplete && importConnection?.type === DatabaseType.DYNAMODB"
-          class="config-panel"
-        >
-          <div class="panel-header">
-            <span class="panel-title">Table Configuration</span>
-          </div>
-          <div class="panel-content">
-            <div class="setting-item mb-4">
-              <Label class="mb-2 block">{{ $t('import.billingMode') }}</Label>
-              <RadioGroup v-model="importCreationOptions.billingMode" class="flex gap-4">
-                <div class="flex items-center space-x-2">
-                  <RadioGroupItem id="mode-pay" value="PAY_PER_REQUEST" />
-                  <Label for="mode-pay">{{ $t('import.payPerRequest') }}</Label>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <RadioGroupItem id="mode-prov" value="PROVISIONED" />
-                  <Label for="mode-prov">{{ $t('import.provisioned') }}</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            <div v-if="importCreationOptions.billingMode === 'PROVISIONED'" class="settings-grid">
-              <div class="setting-item">
-                <Label class="mb-2 block">{{ $t('import.readCapacity') }}</Label>
-                <Input v-model.number="importCreationOptions.readCapacity" type="number" min="1" />
-              </div>
-              <div class="setting-item">
-                <Label class="mb-2 block">{{ $t('import.writeCapacity') }}</Label>
-                <Input v-model.number="importCreationOptions.writeCapacity" type="number" min="1" />
               </div>
             </div>
           </div>
@@ -257,7 +213,9 @@
             <AlertTitle>{{ $t('import.validationErrors') }}</AlertTitle>
             <AlertDescription>
               <ul class="error-list">
-                <li v-for="(error, index) in importValidationErrors" :key="index">{{ error }}</li>
+                <li v-for="(error, index) in importValidationErrors" :key="index">
+                  {{ error.rawText || $t(error.key, error.params || {}) }}
+                </li>
               </ul>
             </AlertDescription>
           </Alert>
@@ -280,9 +238,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useImportExportStore, DatabaseType } from '../../../store';
 import { CustomError } from '../../../common';
 import { useMessageService } from '@/composables';
@@ -300,7 +255,6 @@ const {
   importConnection,
   importTargetIndex,
   importSchemaOverrides,
-  importCreationOptions,
   importSchemaFields,
 } = storeToRefs(importExportStore);
 

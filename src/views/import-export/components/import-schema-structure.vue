@@ -37,96 +37,190 @@
 
       <!-- Schema Info -->
       <div v-else class="schema-info">
-        <!-- Source Info (only for new collection with metadata) -->
+        <!-- Source Info + Creation Plan (side by side: source → target) -->
         <div v-if="isNewCollection && importMetadata" class="info-section">
-          <!-- NEW Creation Plan Panel -->
-          <div v-if="hasSchemaData" class="creation-plan-panel mb-6">
-            <h4 class="section-title">{{ $t('import.creationPlan') }}</h4>
-
-            <div class="plan-card">
-              <!-- ES Plan -->
-              <div v-if="importConnection?.type === DatabaseType.ELASTICSEARCH" class="plan-grid">
-                <div class="plan-item">
-                  <span class="plan-label">{{ $t('export.index') }}</span>
-                  <span class="plan-value">{{ importTargetIndex }}</span>
-                </div>
-                <div class="plan-item">
-                  <span class="plan-label">{{ $t('import.shards') }}</span>
-                  <span class="plan-value">{{ importCreationOptions.shards }}</span>
-                </div>
-                <div class="plan-item">
-                  <span class="plan-label">{{ $t('import.replicas') }}</span>
-                  <span class="plan-value">{{ importCreationOptions.replicas }}</span>
-                </div>
-                <div class="plan-item">
-                  <span class="plan-label">{{ $t('export.field') }}</span>
-                  <span class="plan-value">{{ importSchemaFields.length }}</span>
-                </div>
-                <div class="plan-item">
-                  <span class="plan-label">{{ $t('import.rowCount') }}</span>
-                  <span class="plan-value">{{ importMetadata?.export.rowCount || 0 }}</span>
-                </div>
-                <div class="plan-item">
-                  <span class="plan-label">Strategy</span>
-                  <Badge variant="success">Will be created</Badge>
-                </div>
-              </div>
-
-              <!-- DynamoDB Plan -->
-              <div v-else-if="importConnection?.type === DatabaseType.DYNAMODB" class="plan-grid">
-                <div class="plan-item">
-                  <span class="plan-label">TABLE</span>
-                  <span class="plan-value">{{ importTargetIndex }}</span>
-                </div>
-                <div class="plan-item">
-                  <span class="plan-label">{{ $t('import.billingMode') }}</span>
-                  <span class="plan-value">{{ importCreationOptions.billingMode }}</span>
-                </div>
-                <div class="plan-item">
-                  <span class="plan-label">PARTITION KEY</span>
-                  <span class="plan-value">{{ getDynamoPartitionKey() }}</span>
-                </div>
-                <div v-if="getDynamoSortKey()" class="plan-item">
-                  <span class="plan-label">SORT KEY</span>
-                  <span class="plan-value">{{ getDynamoSortKey() }}</span>
-                </div>
-                <div class="plan-item">
-                  <span class="plan-label">Strategy</span>
-                  <Badge variant="success">Will be created</Badge>
+          <div class="source-target-row">
+            <!-- SOURCE INFORMATION (left) -->
+            <div class="source-panel">
+              <h4 class="section-title">{{ $t('import.sourceInfo') }}</h4>
+              <div class="panel-card source-card">
+                <div class="panel-grid">
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('import.databaseType') }}</span>
+                    <span class="panel-value">
+                      <Badge :variant="getDbTypeVariant(importMetadata.source.dbType)">
+                        {{ importMetadata.source.dbType.toUpperCase() }}
+                      </Badge>
+                    </span>
+                  </div>
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('import.sourceName') }}</span>
+                    <span class="panel-value" :title="importMetadata.source.sourceName">
+                      {{ importMetadata.source.sourceName }}
+                    </span>
+                  </div>
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('import.exportedAt') }}</span>
+                    <span class="panel-value" :title="formatDate(importMetadata.export.exportedAt)">
+                      {{ formatDate(importMetadata.export.exportedAt) }}
+                    </span>
+                  </div>
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('import.rowCount') }}</span>
+                    <span class="panel-value">
+                      {{ formatNumber(importMetadata.export.rowCount) }}
+                    </span>
+                  </div>
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('import.schemaVersion') }}</span>
+                    <span class="panel-value">{{ importMetadata.version }}</span>
+                  </div>
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('import.format') }}</span>
+                    <span class="panel-value">
+                      {{ importMetadata.export.format.toUpperCase() }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <h4 class="section-title">{{ $t('import.sourceInfo') }}</h4>
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="info-label">{{ $t('import.databaseType') }}</span>
-              <span class="info-value">
-                <Badge :variant="getDbTypeVariant(importMetadata.source.dbType)">
-                  {{ importMetadata.source.dbType.toUpperCase() }}
-                </Badge>
-              </span>
+            <!-- Arrow separator -->
+            <div class="flow-arrow">
+              <span class="i-carbon-arrow-right h-5 w-5" />
             </div>
-            <div class="info-item">
-              <span class="info-label">{{ $t('import.sourceName') }}</span>
-              <span class="info-value">{{ importMetadata.source.sourceName }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ $t('import.exportedAt') }}</span>
-              <span class="info-value">{{ formatDate(importMetadata.export.exportedAt) }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ $t('import.rowCount') }}</span>
-              <span class="info-value">{{ formatNumber(importMetadata.export.rowCount) }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ $t('import.schemaVersion') }}</span>
-              <span class="info-value">{{ importMetadata.version }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ $t('import.format') }}</span>
-              <span class="info-value">{{ importMetadata.export.format.toUpperCase() }}</span>
+
+            <!-- CREATION PLAN (right) -->
+            <div v-if="hasSchemaData" class="target-panel">
+              <h4 class="section-title">{{ $t('import.creationPlan') }}</h4>
+              <div class="panel-card plan-card">
+                <!-- ES Plan -->
+                <div
+                  v-if="importConnection?.type === DatabaseType.ELASTICSEARCH"
+                  class="panel-grid"
+                >
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('export.index') }}</span>
+                    <span class="panel-value" :title="importTargetIndex">
+                      {{ importTargetIndex }}
+                    </span>
+                  </div>
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('export.field') }}</span>
+                    <span class="panel-value">{{ importSchemaFields.length }}</span>
+                  </div>
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('import.rowCount') }}</span>
+                    <span class="panel-value">{{ importMetadata?.export.rowCount || 0 }}</span>
+                  </div>
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('import.strategy') }}</span>
+                    <Badge variant="success">{{ $t('import.willBeCreated') }}</Badge>
+                  </div>
+                  <!-- Shards + Replicas in their own full-width row -->
+                  <div class="panel-item-editable-row">
+                    <div class="capacity-sub-row">
+                      <div class="panel-item-editable">
+                        <span class="panel-label">{{ $t('import.shards') }}</span>
+                        <input
+                          v-model.number="importCreationOptions.shards"
+                          type="number"
+                          class="plan-input"
+                          min="1"
+                        />
+                      </div>
+                      <div class="panel-item-editable">
+                        <span class="panel-label">{{ $t('import.replicas') }}</span>
+                        <input
+                          v-model.number="importCreationOptions.replicas"
+                          type="number"
+                          class="plan-input"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- DynamoDB Plan -->
+                <div
+                  v-else-if="importConnection?.type === DatabaseType.DYNAMODB"
+                  class="panel-grid"
+                >
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('import.table') }}</span>
+                    <span class="panel-value" :title="importTargetIndex">
+                      {{ importTargetIndex }}
+                    </span>
+                  </div>
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('import.strategy') }}</span>
+                    <Badge variant="success">{{ $t('import.willBeCreated') }}</Badge>
+                  </div>
+                  <!-- PK (left) + SK (right) on their own row -->
+                  <div class="panel-item">
+                    <span class="panel-label">{{ $t('import.partitionKey') }}</span>
+                    <span class="panel-value" :title="getDynamoPartitionKey() ?? undefined">
+                      {{ getDynamoPartitionKey() }}
+                    </span>
+                  </div>
+                  <div class="panel-item">
+                    <span v-if="getDynamoSortKey()" class="panel-label">
+                      {{ $t('import.sortKey') }}
+                    </span>
+                    <span
+                      v-if="getDynamoSortKey()"
+                      class="panel-value"
+                      :title="getDynamoSortKey() ?? undefined"
+                    >
+                      {{ getDynamoSortKey() }}
+                    </span>
+                  </div>
+                  <!-- Billing Mode + Capacity in their own full-width row -->
+                  <div class="panel-item-editable-row">
+                    <div class="panel-item-editable panel-item-editable--radio">
+                      <span class="panel-label">{{ $t('import.billingMode') }}</span>
+                      <RadioGroup v-model="importCreationOptions.billingMode" class="flex gap-3">
+                        <div class="flex items-center gap-1.5">
+                          <RadioGroupItem id="dynamo-pay" value="PAY_PER_REQUEST" />
+                          <label for="dynamo-pay" class="plan-radio-label">
+                            {{ $t('import.payPerRequest') }}
+                          </label>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                          <RadioGroupItem id="dynamo-prov" value="PROVISIONED" />
+                          <label for="dynamo-prov" class="plan-radio-label">
+                            {{ $t('import.provisioned') }}
+                          </label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    <div
+                      v-if="importCreationOptions.billingMode === 'PROVISIONED'"
+                      class="capacity-sub-row"
+                    >
+                      <div class="panel-item-editable">
+                        <span class="panel-label">{{ $t('import.readCapacity') }}</span>
+                        <input
+                          v-model.number="importCreationOptions.readCapacity"
+                          type="number"
+                          class="plan-input"
+                          min="1"
+                        />
+                      </div>
+                      <div class="panel-item-editable">
+                        <span class="panel-label">{{ $t('import.writeCapacity') }}</span>
+                        <input
+                          v-model.number="importCreationOptions.writeCapacity"
+                          type="number"
+                          class="plan-input"
+                          min="1"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -141,7 +235,9 @@
               <span v-if="!isNewCollection" class="col-target-type">
                 {{ $t('import.targetType') }}
               </span>
-              <span v-if="isNewCollection" class="col-target-type">WILL CREATE</span>
+              <span v-if="isNewCollection" class="col-target-type">
+                {{ $t('import.willBeCreated') }}
+              </span>
               <span class="col-match">{{ $t('import.matchStatus') }}</span>
               <span class="col-exclude">{{ $t('import.exclude') }}</span>
             </div>
@@ -177,7 +273,9 @@
                   <span v-else class="no-match">-</span>
                 </span>
                 <span class="col-match">
-                  <Badge v-if="isNewCollection" variant="success" class="text-xs">New Field</Badge>
+                  <Badge v-if="isNewCollection" variant="success" class="text-xs">
+                    {{ $t('import.notMatched') }}
+                  </Badge>
                   <Badge v-else-if="field.matched" variant="success" class="text-xs">
                     {{ $t('import.matched') }}
                   </Badge>
@@ -214,6 +312,7 @@ import { Button } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
 import { Badge, type BadgeVariants } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useImportExportStore, DatabaseType } from '../../../store';
 import { inferredTypeToEsType } from '../utils/schemaMapping';
 
@@ -378,27 +477,129 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
   margin-bottom: 12px;
 }
 
-.step-card .schema-info .info-section .info-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.step-card .schema-info .info-section .info-grid .info-item {
+/* Source → Target horizontal layout */
+.step-card .schema-info .source-target-row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 0;
+  align-items: stretch;
 }
 
-.step-card .schema-info .info-section .info-grid .info-item .info-label {
+.step-card .schema-info .source-panel,
+.step-card .schema-info .target-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.step-card .schema-info .flow-arrow {
+  display: flex;
+  align-items: center;
+  padding: 24px 12px 0;
+  color: hsl(var(--muted-foreground));
+  flex-shrink: 0;
+}
+
+.step-card .schema-info .panel-card {
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+}
+
+.step-card .schema-info .source-card {
+  background: hsl(var(--card));
+}
+
+.step-card .schema-info .plan-card {
+  background-color: rgba(24, 160, 88, 0.05);
+  border-color: rgba(24, 160, 88, 0.2);
+  border-left: 4px solid #18a058;
+}
+
+.step-card .schema-info .panel-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 16px;
+}
+
+.step-card .schema-info .panel-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.step-card .schema-info .panel-label {
   font-size: 11px;
   color: hsl(var(--muted-foreground));
   text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.step-card .schema-info .info-section .info-grid .info-item .info-value {
+.step-card .schema-info .panel-label::after {
+  content: ':';
+}
+
+.step-card .schema-info .panel-value {
   font-size: 13px;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-card .schema-info .panel-item-editable-row {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 16px;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px dashed hsl(var(--border));
+  flex-wrap: wrap;
+}
+
+.step-card .schema-info .panel-item-editable {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.step-card .schema-info .panel-item-editable--radio {
+  flex: 2;
+}
+
+.step-card .schema-info .capacity-sub-row {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+}
+
+.step-card .schema-info .plan-radio-label {
+  font-size: 12px;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+}
+
+.step-card .schema-info .plan-input {
+  width: 60px;
+  padding: 2px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  text-align: center;
+  outline: none;
+}
+
+.step-card .schema-info .plan-input:focus {
+  border-color: #18a058;
 }
 
 .step-card .schema-info .schema-section .section-title {
@@ -484,50 +685,6 @@ const getTypeVariant = (type: string): BadgeVariants['variant'] => {
   color: hsl(var(--muted-foreground));
   margin-top: 8px;
   margin-bottom: 0;
-}
-
-.step-card .schema-info .creation-plan-panel {
-  margin-bottom: 24px;
-}
-
-.step-card .schema-info .creation-plan-panel .section-title {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-  text-transform: uppercase;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
-.step-card .schema-info .creation-plan-panel .plan-card {
-  padding: 16px;
-  background-color: rgba(24, 160, 88, 0.05);
-  border: 1px solid rgba(24, 160, 88, 0.2);
-  border-left: 4px solid #18a058;
-  border-radius: 8px;
-}
-
-.step-card .schema-info .creation-plan-panel .plan-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.step-card .schema-info .creation-plan-panel .plan-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.step-card .schema-info .creation-plan-panel .plan-label {
-  font-size: 11px;
-  color: hsl(var(--muted-foreground));
-  text-transform: uppercase;
-}
-
-.step-card .schema-info .creation-plan-panel .plan-value {
-  font-size: 13px;
-  font-weight: 600;
-  color: hsl(var(--foreground));
 }
 
 .step-card .schema-info .comments-section {

@@ -60,24 +60,19 @@
         </RadioGroup>
       </div>
 
-      <!-- Phase Status Display -->
-      <div v-if="importCreationPhase !== 'idle'" class="phase-status mb-4">
+      <!-- Phase Status Display (creating/importing only - shown above progress) -->
+      <div
+        v-if="importCreationPhase === 'creating' || importCreationPhase === 'importing'"
+        class="phase-status mb-4"
+      >
         <div v-if="importCreationPhase === 'creating'" class="phase-banner creating">
-          <span class="i-carbon-loading h-4 w-4 animate-spin mr-2" />
+          <Spinner class="h-4 w-4 mr-2" />
           {{ $t('import.phase1Creating') }}
         </div>
         <div v-else-if="importCreationPhase === 'importing'" class="phase-banner importing">
-          <span class="i-carbon-loading h-4 w-4 animate-spin mr-2" />
+          <Spinner class="h-4 w-4 mr-2" />
           {{ $t('import.phase2Importing') }}
         </div>
-        <div v-else-if="importCreationPhase === 'done'" class="phase-banner done">
-          <span class="i-carbon-checkmark-filled h-4 w-4 mr-2" />
-          {{ $t('import.importSuccess') }}
-        </div>
-        <Alert v-else-if="importCreationPhase === 'error'" variant="destructive">
-          <AlertTitle>{{ $t('import.creationFailed') }}</AlertTitle>
-          <AlertDescription>{{ importCreationError }}</AlertDescription>
-        </Alert>
       </div>
 
       <!-- Progress Display -->
@@ -96,16 +91,34 @@
             <span class="stat-label">{{ $t('import.inserted') }}:</span>
             <span class="stat-value success">{{ formatNumber(restoreProgress.inserted) }}</span>
           </div>
-          <div v-if="currentStrategy === 'replace'" class="stat-item">
+          <div class="stat-item">
             <span class="stat-label">{{ $t('import.updated') }}:</span>
             <span class="stat-value info">{{ formatNumber(restoreProgress.updated) }}</span>
           </div>
-          <div v-if="restoreProgress.skipped > 0" class="stat-item">
+          <div class="stat-item">
             <span class="stat-label">{{ $t('import.skipped') }}:</span>
             <span class="stat-value warning">{{ formatNumber(restoreProgress.skipped) }}</span>
           </div>
         </div>
       </div>
+
+      <!-- Phase Status Display (done/error - shown after stats) -->
+      <div
+        v-if="importCreationPhase === 'done' || importCreationPhase === 'error'"
+        class="phase-status mt-2 mb-4"
+      >
+        <div v-if="importCreationPhase === 'done'" class="phase-banner done">
+          <span class="i-carbon-checkmark-filled h-4 w-4 mr-2" />
+          {{ $t('import.importSuccess') }}
+        </div>
+        <Alert v-else-if="importCreationPhase === 'error'" variant="destructive">
+          <AlertTitle>{{ $t('import.creationFailed') }}</AlertTitle>
+          <AlertDescription>{{ importCreationError }}</AlertDescription>
+        </Alert>
+      </div>
+
+      <!-- Spacer pushes button to bottom -->
+      <div class="flex-1" />
 
       <!-- Import Button -->
       <div class="import-action">
@@ -131,7 +144,8 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { useImportExportStore, ImportStrategy } from '../../../store';
+import { Spinner } from '@/components/ui/spinner';
+import { useImportExportStore, ImportStrategy, ImportTaskConfig } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import { useMessageService, useDialogService } from '@/composables';
@@ -222,13 +236,24 @@ const executeImport = async () => {
   isImporting.value = true;
 
   const taskId = ulid();
+  const configSnapshot: ImportTaskConfig = {
+    connection: importExportStore.importConnection!,
+    index: importExportStore.importTargetIndex,
+    dataFile: importExportStore.importDataFile,
+    metadataFile: importExportStore.importMetadataFile,
+    strategy: currentStrategy.value,
+    isNewCollection: importExportStore.importIsNewCollection,
+  };
+  const estimatedTotal = importMetadata.value?.export?.rowCount || 0;
   importExportStore.addRunningTask({
     id: taskId,
     kind: 'import',
     status: 'running',
-    progress: { complete: 0, total: importMetadata.value?.export?.rowCount || 0 },
+    progress: { complete: 0, total: estimatedTotal },
     connection: importExportStore.importConnection!,
     index: importExportStore.importTargetIndex,
+    config: configSnapshot,
+    runtime: { complete: 0, total: estimatedTotal, inserted: 0, updated: 0, skipped: 0 },
     sourceFile: importExportStore.importDataFile,
     startTime: new Date(),
   });
@@ -272,6 +297,7 @@ const executeImport = async () => {
         negativeText: lang.t('dialogOps.cancel'),
         onPositiveClick: () => {
           importExportStore.importIsNewCollection = false;
+          importExportStore.removeTask(taskId);
           executeImport();
         },
       });
@@ -478,7 +504,6 @@ const executeImport = async () => {
 }
 
 .execution-card .import-action {
-  margin-top: auto;
   padding-top: 16px;
 }
 

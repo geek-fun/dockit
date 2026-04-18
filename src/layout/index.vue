@@ -24,5 +24,6 @@ import ToolBarRight from './components/tool-bar-right.vue';
 .main-layout {
   flex: 1;
   width: 0;
+  overflow: hidden;
 }
 </style>

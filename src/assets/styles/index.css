@@ -27,11 +27,11 @@
     --radius: 0.5rem;
 
     /* HTTP / query method colors */
-    --method-get:    213 94% 62%;
-    --method-post:   142 71% 45%;
-    --method-put:    45 93% 47%;
+    --method-get: 213 94% 62%;
+    --method-post: 142 71% 45%;
+    --method-put: 45 93% 47%;
     --method-delete: 341 73% 47%;
-    --method-head:   0 0% 45%;
+    --method-head: 0 0% 45%;
 
     /* Spacing */
     --tool-bar-height: 40px;
@@ -60,11 +60,11 @@
     --ring: 144 52% 45%;
 
     /* HTTP / query method colors */
-    --method-get:    213 94% 68%;
-    --method-post:   142 71% 52%;
-    --method-put:    45 93% 55%;
+    --method-get: 213 94% 68%;
+    --method-post: 142 71% 52%;
+    --method-put: 45 93% 55%;
     --method-delete: 341 73% 55%;
-    --method-head:   215 15% 55%;
+    --method-head: 215 15% 55%;
   }
 
   /* Base Styles */
@@ -78,6 +78,7 @@
   #app {
     height: 100%;
     width: 100%;
+    overflow: hidden;
   }
 
   /* stylelint-disable-next-line at-rule-no-unknown */

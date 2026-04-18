@@ -80,7 +80,7 @@
 
           <div class="task-footer">
             <span class="task-time">{{ formatTime(task.startTime) }}</span>
-            <button class="goto-btn" @click="goToImportExport">
+            <button class="goto-btn" @click="goToImportExport(task)">
               {{ $t('taskManager.goToTask') }}
               <span class="i-carbon-arrow-right h-3 w-3 ml-1" />
             </button>
@@ -100,6 +100,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 const router = useRouter();
 const importExportStore = useImportExportStore();
 const { runningTasks } = storeToRefs(importExportStore);
+
+const emit = defineEmits<{ close: [] }>();
 
 const hasDismissable = computed(() =>
   runningTasks.value.some(t => t.status === 'completed' || t.status === 'failed'),
@@ -132,7 +134,10 @@ const formatTime = (date: Date | undefined) => {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
-const goToImportExport = () => router.push({ path: '/import-export' });
+const goToImportExport = (task: BackgroundTask) => {
+  emit('close');
+  router.push({ path: '/import-export', query: { mode: task.kind, taskId: task.id } });
+};
 </script>
 
 <style scoped>

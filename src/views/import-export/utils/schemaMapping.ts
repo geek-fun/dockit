@@ -20,12 +20,21 @@ export const buildEsMappingBody = (
   metadata: ImportMetadata | null,
   overrides: Record<string, string>,
 ): string => {
-  const properties: Record<string, { type: string }> = {};
+  const properties: Record<string, unknown> = {};
 
   if (metadata?.schema?.properties) {
     for (const [fieldName, fieldInfo] of Object.entries(metadata.schema.properties)) {
-      const rawType = (fieldInfo as { type?: string }).type ?? 'TEXT';
-      properties[fieldName] = { type: inferredTypeToEsType(rawType, overrides[fieldName]) };
+      const info = fieldInfo as Record<string, unknown>;
+
+      if (overrides[fieldName]) {
+        properties[fieldName] = { type: overrides[fieldName] };
+      } else if (!info.type && info.properties) {
+        properties[fieldName] = info;
+      } else {
+        const rawType = (info.type as string) ?? 'TEXT';
+        const inferredEsType = INFERRED_TO_ES_TYPE[rawType.toUpperCase()];
+        properties[fieldName] = inferredEsType ? { type: inferredEsType } : info;
+      }
     }
   }
 

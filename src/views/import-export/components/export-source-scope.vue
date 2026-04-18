@@ -4,10 +4,17 @@
       <div class="step-header">
         <span class="i-carbon-data-base h-5 w-5" style="color: #18a058" />
         <span class="step-title">{{ $t('export.sourceScope') }}</span>
+        <span v-if="selectionSummary" class="selection-summary">{{ selectionSummary }}</span>
       </div>
       <span class="step-badge">{{ $t('export.step') }} 01</span>
     </CardHeader>
     <CardContent>
+      <div v-if="loadingStat.connecting" class="connecting-overlay">
+        <Spinner class="h-5 w-5" />
+        <span class="connecting-label">
+          {{ $t('connection.connecting', { name: inputData.selectedConnection }) }}
+        </span>
+      </div>
       <Grid :cols="2" :x-gap="16" :y-gap="16">
         <GridItem>
           <div class="field-label">{{ $t('export.sourceDatabase') }}</div>
@@ -39,12 +46,18 @@
           <div class="field-label">{{ $t('export.collectionName') }}</div>
           <Select
             v-model="inputData.selectedIndex"
-            :disabled="!inputData.selectedConnection || loadingStat.connection"
+            :disabled="
+              !inputData.selectedConnection || loadingStat.connection || loadingStat.connecting
+            "
             @update:model-value="handleIndexChange"
             @update:open="handleIndexOpen"
           >
             <SelectTrigger class="w-full">
-              <SelectValue :placeholder="$t('connection.selectIndex')" />
+              <div v-if="loadingStat.index" class="flex items-center gap-2">
+                <Spinner class="h-3 w-3" />
+                <span class="text-muted-foreground text-sm">{{ $t('export.loadingIndices') }}</span>
+              </div>
+              <SelectValue v-else :placeholder="$t('connection.selectIndex')" />
             </SelectTrigger>
             <SelectContent>
               <div v-if="loadingStat.index" class="flex items-center justify-center py-4">
@@ -123,7 +136,16 @@ const inputData = ref({
 });
 const loadingStat = ref({
   connection: false,
+  connecting: false,
   index: false,
+});
+
+const selectionSummary = computed(() => {
+  const conn = inputData.value.selectedConnection;
+  const idx = inputData.value.selectedIndex;
+  if (conn && idx) return `${conn} → ${idx}`;
+  if (conn) return conn;
+  return '';
 });
 
 const connectionOptions = computed(() =>
@@ -237,7 +259,8 @@ const handleIndexOpen = async (isOpen: boolean) => {
 const handleConnectionChange = async (value: string) => {
   const con = connections.value.find(({ name }) => name === value);
   if (!con) return;
-  loadingStat.value.connection = true;
+  exportStore.detachActiveTask('export');
+  loadingStat.value.connecting = true;
   try {
     const refreshed = await freshConnection(con);
     setConnection(refreshed);
@@ -255,18 +278,14 @@ const handleConnectionChange = async (value: string) => {
       duration: 3000,
     });
   } finally {
-    loadingStat.value.connection = false;
+    loadingStat.value.connecting = false;
   }
 };
 
 const handleIndexChange = (value: string) => {
-  loadingStat.value.index = true;
-  try {
-    inputData.value.selectedIndex = value;
-    exportStore.setSelectedIndex(value);
-  } finally {
-    loadingStat.value.index = false;
-  }
+  exportStore.detachActiveTask('export');
+  inputData.value.selectedIndex = value;
+  exportStore.setSelectedIndex(value);
 };
 
 // Initialize from store
@@ -282,6 +301,16 @@ onMounted(async () => {
       inputData.value.selectedIndex = selectedIndex.value;
     }
   }
+});
+
+watch(connection, newConn => {
+  if (newConn) {
+    inputData.value.selectedConnection = newConn.name;
+  }
+});
+
+watch(selectedIndex, newIdx => {
+  inputData.value.selectedIndex = newIdx;
 });
 </script>
 
@@ -301,6 +330,31 @@ onMounted(async () => {
   font-size: 12px;
   color: hsl(var(--muted-foreground));
   font-weight: 500;
+}
+
+.step-card .step-header .selection-summary {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  font-weight: 400;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: hsl(var(--muted));
+}
+
+.step-card .connecting-overlay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  background: hsl(var(--muted));
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+}
+
+.step-card .connecting-label {
+  font-size: 13px;
 }
 
 .step-card .field-label {

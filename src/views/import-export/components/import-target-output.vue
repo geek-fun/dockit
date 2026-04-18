@@ -305,6 +305,7 @@ const updateIndexOptions = () => {
 const handleConnectionChange = async (value: string) => {
   const con = connections.value.find(({ name }) => name === value);
   if (!con) return;
+  importExportStore.detachActiveTask('import');
   loadingStat.value.connection = true;
   try {
     const refreshed = await freshConnection(con);
@@ -329,6 +330,7 @@ const handleConnectionChange = async (value: string) => {
 };
 
 const handleIndexChange = (value: string) => {
+  importExportStore.detachActiveTask('import');
   loadingStat.value.index = true;
   try {
     inputData.value.selectedIndex = value;
@@ -351,6 +353,16 @@ onMounted(async () => {
       inputData.value.selectedIndex = importTargetIndex.value;
     }
   }
+});
+
+watch(importConnection, newConn => {
+  if (newConn) {
+    inputData.value.selectedConnection = newConn.name;
+  }
+});
+
+watch(importTargetIndex, newIdx => {
+  inputData.value.selectedIndex = newIdx;
 });
 </script>
 
