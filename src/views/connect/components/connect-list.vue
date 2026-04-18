@@ -143,6 +143,10 @@
                   <span class="i-carbon-edit h-4 w-4 mr-2" />
                   {{ $t('connection.operations.edit') }}
                 </DropdownMenuItem>
+                <DropdownMenuItem @click="handleSelect('clone', connection)">
+                  <span class="i-carbon-copy h-4 w-4 mr-2" />
+                  {{ $t('connection.operations.clone') }}
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   class="text-destructive"
                   @click="handleSelect('remove', connection)"
@@ -190,6 +194,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { cloneDeep } from 'lodash';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -355,6 +360,9 @@ const handleSelect = (key: string, connection: Connection) => {
     case 'edit':
       editConnect(connection);
       break;
+    case 'clone':
+      cloneConnect(connection);
+      break;
     case 'remove':
       removeConnect(connection);
       break;
@@ -433,6 +441,33 @@ const editConnect = (connection: Connection) => {
     esConnectDialog.value.showMedal(connection);
   } else if (connection.type === DatabaseType.DYNAMODB) {
     dynamodbConnectDialog.value.showMedal(connection);
+  }
+};
+
+// clone connection
+const cloneConnect = (connection: Connection) => {
+  if (!connection.type) {
+    console.error('Connection type is missing'); // eslint-disable-line no-console
+    return;
+  }
+
+  const clonedConnection = cloneDeep(connection);
+  clonedConnection.id = undefined;
+  clonedConnection.name = `${connection.name} (copy)`;
+
+  if (connection.type === DatabaseType.ELASTICSEARCH) {
+    const esClone = clonedConnection as ElasticsearchConnection;
+    esClone.indices = [];
+    esClone.activeIndex = undefined;
+    esClone.version = '';
+    esClone.clusterName = '';
+    esClone.clusterUuid = '';
+    esConnectDialog.value.showMedal(esClone);
+  } else if (connection.type === DatabaseType.DYNAMODB) {
+    const dynamoClone = clonedConnection as DynamoDBConnection;
+    dynamoClone.indices = undefined;
+    dynamoClone.keySchema = undefined;
+    dynamodbConnectDialog.value.showMedal(dynamoClone);
   }
 };
 
