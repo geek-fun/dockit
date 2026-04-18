@@ -96,10 +96,68 @@
             <AlertTitle>{{ $t('import.validationErrors') }}</AlertTitle>
             <AlertDescription>
               <ul class="error-list">
-                <li v-for="(error, index) in importValidationErrors" :key="index">{{ error }}</li>
+                <li v-for="(error, index) in importValidationErrors" :key="index">
+                  {{ error.rawText || $t(error.key, error.params || {}) }}
+                </li>
               </ul>
             </AlertDescription>
           </Alert>
+        </div>
+
+        <!-- Schema Configuration (Elasticsearch) -->
+        <div
+          v-if="
+            isNewCollection && allComplete && importConnection?.type === DatabaseType.ELASTICSEARCH
+          "
+          class="config-panel"
+        >
+          <div class="panel-header">
+            <span class="panel-title">{{ $t('import.schemaConfiguration') }}</span>
+          </div>
+          <div class="panel-content">
+            <div v-if="importSchemaFields.length > 0" class="schema-override-table">
+              <div class="override-header">
+                <span class="col-field">{{ $t('export.field') }}</span>
+                <span class="col-inferred">{{ $t('import.targetType') }}</span>
+                <span class="col-override">{{ $t('import.typeOverride') }}</span>
+              </div>
+              <div class="override-body">
+                <div v-for="field in importSchemaFields" :key="field.name" class="override-row">
+                  <span class="col-field">{{ field.name }}</span>
+                  <span class="col-inferred">
+                    <span class="type-badge">{{ field.targetType }}</span>
+                  </span>
+                  <span class="col-override">
+                    <Select v-model="importSchemaOverrides[field.name]">
+                      <SelectTrigger class="h-8">
+                        <SelectValue placeholder="Override type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          v-for="t in [
+                            'text',
+                            'keyword',
+                            'long',
+                            'integer',
+                            'float',
+                            'double',
+                            'date',
+                            'boolean',
+                            'object',
+                            'nested',
+                          ]"
+                          :key="t"
+                          :value="t"
+                        >
+                          {{ t }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -155,7 +213,9 @@
             <AlertTitle>{{ $t('import.validationErrors') }}</AlertTitle>
             <AlertDescription>
               <ul class="error-list">
-                <li v-for="(error, index) in importValidationErrors" :key="index">{{ error }}</li>
+                <li v-for="(error, index) in importValidationErrors" :key="index">
+                  {{ error.rawText || $t(error.key, error.params || {}) }}
+                </li>
               </ul>
             </AlertDescription>
           </Alert>
@@ -171,7 +231,14 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Empty } from '@/components/ui/empty';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { useImportExportStore } from '../../../store';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useImportExportStore, DatabaseType } from '../../../store';
 import { CustomError } from '../../../common';
 import { useMessageService } from '@/composables';
 
@@ -187,6 +254,8 @@ const {
   importIsNewCollection,
   importConnection,
   importTargetIndex,
+  importSchemaOverrides,
+  importSchemaFields,
 } = storeToRefs(importExportStore);
 
 // Check if target is configured (Step 1 complete)
@@ -411,5 +480,94 @@ const clearMetadataFile = () => {
 .step-card .import-steps .validation-errors .error-list li {
   margin: 4px 0;
   font-size: 12px;
+}
+
+.config-panel {
+  margin-top: 24px;
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.config-panel .panel-header {
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.config-panel .panel-title {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.config-panel .panel-content {
+  padding: 16px;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.schema-override-table {
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.schema-override-table .override-header {
+  display: flex;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.schema-override-table .override-body {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.schema-override-table .override-row {
+  display: flex;
+  padding: 8px 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  align-items: center;
+}
+
+.schema-override-table .override-row:last-child {
+  border-bottom: none;
+}
+
+.schema-override-table .col-field {
+  flex: 2;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.schema-override-table .col-inferred {
+  flex: 1;
+}
+
+.schema-override-table .col-override {
+  flex: 1.5;
+}
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
 }
 </style>

@@ -1,9 +1,10 @@
 import { open } from '@tauri-apps/plugin-dialog';
-
+import { ulid } from 'ulidx';
 import { get } from 'lodash';
 import { defineStore } from 'pinia';
-import { CustomError, jsonify } from '../common';
-import { dynamoApi, loadHttpClient, sourceFileApi } from '../datasources';
+import { CustomError, debug, jsonify, retryWithBackoff, isRetryableError } from '../common';
+import { dynamoApi, esApi, loadHttpClient, sourceFileApi } from '../datasources';
+import { buildEsMappingBody } from '../views/import-export/utils/schemaMapping';
 import {
   Connection,
   DatabaseType,
@@ -62,20 +63,63 @@ export type FieldInfo = {
   includeInExport: boolean;
 };
 
-export type ExportTask = {
+export type TaskKind = 'import' | 'export';
+export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export type ExportTaskConfig = {
+  connection: Connection;
+  index: string;
+  folderPath: string;
+  extraPath: string;
+  fileName: string;
+  fileType: FileType;
+  fields: FieldInfo[];
+  filterQuery: string;
+  overwriteExisting: boolean;
+  createDirectory: boolean;
+  beautifyJson: boolean;
+};
+
+export type ImportTaskConfig = {
+  connection: Connection;
+  index: string;
+  dataFile: string;
+  metadataFile: string;
+  strategy: ImportStrategy;
+  isNewCollection: boolean;
+};
+
+export type TaskRuntime = {
+  complete: number;
+  total: number;
+  inserted: number;
+  updated: number;
+  skipped: number;
+};
+
+export type BackgroundTask = {
   id: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  kind: TaskKind;
+  status: TaskStatus;
   progress: { complete: number; total: number };
   connection: Connection;
   index: string;
-  fileName: string;
-  folderPath: string;
-  fileType: FileType;
-  fields: FieldInfo[];
+  config?: ExportTaskConfig | ImportTaskConfig;
+  runtime?: TaskRuntime;
+  fileName?: string;
+  folderPath?: string;
+  fileType?: FileType;
+  fields?: FieldInfo[];
+  sourceFile?: string;
+  inserted?: number;
+  updated?: number;
+  skipped?: number;
   startTime?: Date;
   endTime?: Date;
   error?: string;
 };
+
+export type ExportTask = BackgroundTask;
 
 export type ExportInput = {
   connection: Connection;
@@ -88,11 +132,11 @@ export type ExportInput = {
   overwriteExisting: boolean;
   createDirectory: boolean;
   beautifyJson: boolean;
+  includeMetadata: boolean;
 };
 
 export const useImportExportStore = defineStore('importExportStore', {
   state(): {
-    // Import state
     restoreProgress: {
       complete: number;
       total: number;
@@ -106,8 +150,8 @@ export const useImportExportStore = defineStore('importExportStore', {
     importMetadataFile: string;
     importMetadata: ImportMetadata | null;
     importTargetIndex: string;
-    importIsNewCollection: boolean; // true if user entered a new collection name
-    importExistingIndices: string[]; // list of existing indices for the connection
+    importIsNewCollection: boolean;
+    importExistingIndices: string[];
     importStrategy: ImportStrategy;
     importFields: ImportFieldInfo[];
     importSchemaFields: Array<{
@@ -116,15 +160,23 @@ export const useImportExportStore = defineStore('importExportStore', {
       targetType: string;
       matched: boolean;
       exclude: boolean;
-    }>; // Schema comparison fields
-    importValidationStatus: {
-      step1: boolean; // Target configured (connection + index)
-      step2: boolean; // Data file selected (+ metadata if new collection)
-      step3: boolean; // Schema validated
+    }>;
+    importSchemaOverrides: Record<string, string>;
+    importCreationOptions: {
+      shards: number;
+      replicas: number;
+      billingMode: 'PAY_PER_REQUEST' | 'PROVISIONED';
+      readCapacity: number;
+      writeCapacity: number;
     };
-    importValidationErrors: string[];
-
-    // Export state
+    importCreationPhase: 'idle' | 'creating' | 'importing' | 'done' | 'error';
+    importCreationError: string | null;
+    importValidationStatus: {
+      step1: boolean;
+      step2: boolean;
+      step3: boolean;
+    };
+    importValidationErrors: { key: string; params?: Record<string, string>; rawText?: string }[];
     folderPath: string;
     extraPath: string;
     fileName: string;
@@ -137,6 +189,7 @@ export const useImportExportStore = defineStore('importExportStore', {
     overwriteExisting: boolean;
     createDirectory: boolean;
     beautifyJson: boolean;
+    includeMetadata: boolean;
     validationStatus: {
       step1: boolean;
       step2: boolean;
@@ -144,10 +197,12 @@ export const useImportExportStore = defineStore('importExportStore', {
     };
     estimatedRows: number | null;
     estimatedSize: string | null;
-    runningTasks: ExportTask[];
+    activeMode: 'import' | 'export';
+    runningTasks: BackgroundTask[];
+    activeImportTaskId: string | null;
+    activeExportTaskId: string | null;
   } {
     return {
-      // Import state
       restoreProgress: null,
       restoreFile: '',
       importConnection: undefined,
@@ -160,14 +215,22 @@ export const useImportExportStore = defineStore('importExportStore', {
       importStrategy: 'append',
       importFields: [],
       importSchemaFields: [],
+      importSchemaOverrides: {},
+      importCreationOptions: {
+        shards: 1,
+        replicas: 1,
+        billingMode: 'PAY_PER_REQUEST' as const,
+        readCapacity: 5,
+        writeCapacity: 5,
+      },
+      importCreationPhase: 'idle' as const,
+      importCreationError: null,
       importValidationStatus: {
         step1: false,
         step2: false,
         step3: false,
       },
       importValidationErrors: [],
-
-      // Export state
       folderPath: '',
       extraPath: '',
       fileName: '',
@@ -180,6 +243,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       overwriteExisting: false,
       createDirectory: true,
       beautifyJson: true,
+      includeMetadata: true,
       validationStatus: {
         step1: false,
         step2: false,
@@ -187,7 +251,10 @@ export const useImportExportStore = defineStore('importExportStore', {
       },
       estimatedRows: null,
       estimatedSize: null,
+      activeMode: 'import',
       runningTasks: [],
+      activeImportTaskId: null,
+      activeExportTaskId: null,
     };
   },
   getters: {
@@ -202,12 +269,14 @@ export const useImportExportStore = defineStore('importExportStore', {
     hasRunningTasks(): boolean {
       return this.runningTasks.some(t => t.status === 'running');
     },
+    runningTaskCount(): number {
+      return this.runningTasks.filter(t => t.status === 'running').length;
+    },
     getExportPath(): string {
       if (!this.folderPath) return '';
       if (!this.extraPath) return this.folderPath;
       return `${this.folderPath}/${this.extraPath}`;
     },
-    // Import getters
     canStartImport(): boolean {
       return (
         this.importValidationStatus.step1 &&
@@ -271,19 +340,52 @@ export const useImportExportStore = defineStore('importExportStore', {
       const client = loadHttpClient(input.connection as ElasticsearchConnection);
       const fileType = input.restoreFile.split('.').pop();
       const bulkSize = 1000;
-      let data: string;
-      try {
-        data = await sourceFileApi.readFile(input.restoreFile);
-      } catch (error) {
-        throw new CustomError(
-          get(error, 'status', 500),
-          get(error, 'details', get(error, 'message', '')),
-        );
-      }
+
+      const parseCsvLine = (line: string): Array<string | null> => {
+        const result: Array<string | null> = [];
+        let current = '';
+        let inQuotes = false;
+        let hasQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          const nextChar = line[i + 1];
+
+          if (char === '"') {
+            hasQuotes = true;
+            if (inQuotes && nextChar === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === ',' && !inQuotes) {
+            result.push(hasQuotes ? current : current === '' ? null : current);
+            current = '';
+            hasQuotes = false;
+          } else {
+            current += char;
+          }
+        }
+        result.push(hasQuotes ? current : current === '' ? null : current);
+        return result;
+      };
 
       try {
+        const fileInfo = await sourceFileApi.getFileInfo(input.restoreFile);
+
+        this.restoreProgress = {
+          complete: 0,
+          total: fileInfo.totalLines,
+          inserted: 0,
+          updated: 0,
+          skipped: 0,
+        };
+        this.syncImportProgressToTask();
+
         if (fileType === 'json') {
-          // Parse multiple JSON arrays that were concatenated during backup
+          const data = await sourceFileApi.readFile(input.restoreFile);
+
           const jsonArrays: string[] = [];
           let depth = 0;
           let currentArray = '';
@@ -303,7 +405,6 @@ export const useImportExportStore = defineStore('importExportStore', {
             }
           }
 
-          // Parse all JSON arrays and flatten into single hits array
           const allHits: Array<{
             _index?: string;
             _id: string;
@@ -319,134 +420,71 @@ export const useImportExportStore = defineStore('importExportStore', {
               if (Array.isArray(hits)) {
                 allHits.push(...hits);
               }
-            } catch (_e) {
-              // Continue with other arrays even if one fails
-            }
+            } catch {}
           }
 
-          this.restoreProgress = {
-            complete: 0,
-            total: allHits.length,
-            inserted: 0,
-            updated: 0,
-            skipped: 0,
-          };
+          if (this.restoreProgress) {
+            this.restoreProgress.total = allHits.length;
+            this.syncImportProgressToTask();
+          }
+
           for (let i = 0; i < allHits.length; i += bulkSize) {
-            const action = this.importStrategy === 'append' ? 'create' : 'index';
+            const action =
+              this.importIsNewCollection || this.importStrategy !== 'append' ? 'index' : 'create';
             const bulkData = allHits
               .slice(i, i + bulkSize)
               .flatMap(hit => {
                 const { _id, _source, _index, _score, sort: _sort, ...otherFields } = hit;
-
-                // Build action metadata
-                // - If _id exists: use it (will update in replace mode, skip in append mode via 409)
-                // - If _id missing: ES auto-generates (creates new doc in both modes)
                 return [{ [action]: { _index: input.index, _id } }, _source || otherFields];
               })
               .map(item => jsonify.stringify(item));
 
             const stats = await bulkRequest(client, bulkData);
 
-            this.restoreProgress.complete += bulkData.length / 2;
-            this.restoreProgress.inserted += stats.inserted;
-            this.restoreProgress.updated += stats.updated;
-            this.restoreProgress.skipped += stats.skipped;
+            if (this.restoreProgress) {
+              this.restoreProgress.complete += bulkData.length / 2;
+              this.restoreProgress.inserted += stats.inserted;
+              this.restoreProgress.updated += stats.updated;
+              this.restoreProgress.skipped += stats.skipped;
+              this.syncImportProgressToTask();
+            }
           }
-        } else if (fileType === 'jsonl') {
-          // Parse JSONL format - one JSON object per line
-          const lines = data.split('\n').filter(line => line.trim());
-          this.restoreProgress = {
-            complete: 0,
-            total: lines.length,
-            inserted: 0,
-            updated: 0,
-            skipped: 0,
-          };
+        } else if (fileType === 'jsonl' || fileType === 'csv') {
+          let headers: Array<string | null> = [];
+          let isFirstBatch = true;
+          let accumulatedBulkLines: string[] = [];
 
-          for (let i = 0; i < lines.length; i += bulkSize) {
-            const action = this.importStrategy === 'append' ? 'create' : 'index';
-            const bulkData = lines
-              .slice(i, i + bulkSize)
-              .flatMap(line => {
+          await sourceFileApi.streamFileLines(input.restoreFile, bulkSize, async batch => {
+            const action =
+              this.importIsNewCollection || this.importStrategy !== 'append' ? 'index' : 'create';
+            let bulkLines: string[] = [];
+
+            if (fileType === 'jsonl') {
+              bulkLines = batch.lines.flatMap(line => {
                 try {
                   const doc = jsonify.parse(line);
                   const { _id, ...source } = doc;
 
-                  // Build action metadata
-                  // - If _id exists: use it (will update in replace mode, skip in append mode via 409)
-                  // - If _id missing: ES auto-generates (creates new doc in both modes)
                   const actionMeta: { _index: string; _id?: string } = { _index: input.index };
                   if (_id) {
                     actionMeta._id = _id;
                   }
 
-                  return [{ [action]: actionMeta }, source];
+                  return [jsonify.stringify({ [action]: actionMeta }), jsonify.stringify(source)];
                 } catch {
                   return [];
                 }
-              })
-              .map(item => jsonify.stringify(item));
+              });
+            } else if (fileType === 'csv') {
+              let csvLines = batch.lines;
 
-            const stats = await bulkRequest(client, bulkData);
-
-            this.restoreProgress.complete += bulkData.length / 2;
-            this.restoreProgress.inserted += stats.inserted;
-            this.restoreProgress.updated += stats.updated;
-            this.restoreProgress.skipped += stats.skipped;
-          }
-        } else if (fileType === 'csv') {
-          const lines = data.split('\r\n');
-
-          // Parse CSV line properly handling quoted fields
-          const parseCsvLine = (line: string): Array<string | null> => {
-            const result: Array<string | null> = [];
-            let current = '';
-            let inQuotes = false;
-            let hasQuotes = false;
-
-            for (let i = 0; i < line.length; i++) {
-              const char = line[i];
-              const nextChar = line[i + 1];
-
-              if (char === '"') {
-                hasQuotes = true;
-                if (inQuotes && nextChar === '"') {
-                  // Escaped quote
-                  current += '"';
-                  i++; // Skip next quote
-                } else {
-                  // Toggle quote state
-                  inQuotes = !inQuotes;
-                }
-              } else if (char === ',' && !inQuotes) {
-                // Field separator
-                // Unquoted empty field → null, Quoted empty field → ''
-                result.push(hasQuotes ? current : current === '' ? null : current);
-                current = '';
-                hasQuotes = false;
-              } else {
-                current += char;
+              if (isFirstBatch) {
+                headers = parseCsvLine(csvLines[0] || '');
+                isFirstBatch = false;
+                csvLines = csvLines.slice(1);
               }
-            }
-            // Add last field
-            result.push(hasQuotes ? current : current === '' ? null : current);
-            return result;
-          };
 
-          const headers = parseCsvLine(lines[0]);
-          this.restoreProgress = {
-            complete: 0,
-            total: lines.length - 1,
-            inserted: 0,
-            updated: 0,
-            skipped: 0,
-          };
-
-          for (let i = 1; i < lines.length; i += bulkSize) {
-            const action = this.importStrategy === 'append' ? 'create' : 'index';
-            const bulkData = lines
-              .slice(i, i + bulkSize)
-              .flatMap(line => {
+              bulkLines = csvLines.flatMap(line => {
                 if (!line.trim()) return [];
 
                 const values = parseCsvLine(line);
@@ -456,8 +494,6 @@ export const useImportExportStore = defineStore('importExportStore', {
 
                     let value = values[index];
 
-                    // Skip only null/undefined (parseCsvLine returns null for unquoted empty fields)
-                    // Preserve '' (parseCsvLine returns '' for quoted empty strings "") for round-trip fidelity
                     if (value === null || value === undefined) {
                       return acc;
                     }
@@ -465,9 +501,7 @@ export const useImportExportStore = defineStore('importExportStore', {
                     if (typeof value === 'string') {
                       try {
                         value = jsonify.parse(value);
-                      } catch {
-                        // Note: Not valid JSON, keep as string, Empty quoted strings "" are preserved here
-                      }
+                      } catch {}
                     }
 
                     acc[header] = value;
@@ -478,20 +512,41 @@ export const useImportExportStore = defineStore('importExportStore', {
 
                 const { _id, ...source } = body as { _id?: string; [key: string]: unknown };
 
-                // Build action metadata
-                // - If _id exists: use it (will update in replace mode, skip in append mode via 409)
-                // - If _id missing: ES auto-generates (creates new doc in both modes)
+                return [
+                  jsonify.stringify({ [action]: { _index: input.index, _id } }),
+                  jsonify.stringify(source),
+                ];
+              });
+            }
 
-                return [{ [action]: { _index: input.index, _id } }, source];
-              })
-              .map(item => jsonify.stringify(item));
+            accumulatedBulkLines.push(...bulkLines);
 
-            const stats = await bulkRequest(client, bulkData);
+            while (accumulatedBulkLines.length >= bulkSize * 2) {
+              const bulkChunk = accumulatedBulkLines.slice(0, bulkSize * 2);
+              accumulatedBulkLines = accumulatedBulkLines.slice(bulkSize * 2);
 
-            this.restoreProgress.complete += bulkData.length / 2;
-            this.restoreProgress.inserted += stats.inserted;
-            this.restoreProgress.updated += stats.updated;
-            this.restoreProgress.skipped += stats.skipped;
+              const stats = await bulkRequest(client, bulkChunk);
+
+              if (this.restoreProgress) {
+                this.restoreProgress.complete += bulkChunk.length / 2;
+                this.restoreProgress.inserted += stats.inserted;
+                this.restoreProgress.updated += stats.updated;
+                this.restoreProgress.skipped += stats.skipped;
+                this.syncImportProgressToTask();
+              }
+            }
+          });
+
+          if (accumulatedBulkLines.length > 0) {
+            const stats = await bulkRequest(client, accumulatedBulkLines);
+
+            if (this.restoreProgress) {
+              this.restoreProgress.complete += accumulatedBulkLines.length / 2;
+              this.restoreProgress.inserted += stats.inserted;
+              this.restoreProgress.updated += stats.updated;
+              this.restoreProgress.skipped += stats.skipped;
+              this.syncImportProgressToTask();
+            }
           }
         } else {
           throw new CustomError(400, 'Unsupported file type');
@@ -507,115 +562,49 @@ export const useImportExportStore = defineStore('importExportStore', {
     async restoreToDynamoDB(input: RestoreInput) {
       const dynamoConnection = input.connection as DynamoDBConnection;
       const fileType = input.restoreFile.split('.').pop();
-      let data: string;
 
-      try {
-        data = await sourceFileApi.readFile(input.restoreFile);
-      } catch (error) {
-        throw new CustomError(
-          get(error, 'status', 500),
-          get(error, 'details', get(error, 'message', '')),
-        );
-      }
+      const parseCsvLine = (line: string): Array<string | null> => {
+        const result: Array<string | null> = [];
+        let current = '';
+        let inQuotes = false;
+        let hasQuotes = false;
 
-      try {
-        let items: Array<Record<string, unknown>> = [];
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          const nextChar = line[i + 1];
 
-        if (fileType === 'json') {
-          // Parse JSON array
-          const parsed = jsonify.parse(data);
-          items = Array.isArray(parsed) ? parsed : [parsed];
-        } else if (fileType === 'jsonl') {
-          // Parse JSONL format - one JSON object per line
-          const lines = data.split('\n').filter(line => line.trim());
-          items = lines
-            .map(line => {
-              try {
-                return jsonify.parse(line);
-              } catch {
-                return null;
-              }
-            })
-            .filter(Boolean) as Array<Record<string, unknown>>;
-        } else if (fileType === 'csv') {
-          // Parse CSV properly handling quoted fields
-          const parseCsvLine = (line: string): Array<string | null> => {
-            const result: Array<string | null> = [];
-            let current = '';
-            let inQuotes = false;
-            let hasQuotes = false;
-
-            for (let i = 0; i < line.length; i++) {
-              const char = line[i];
-              const nextChar = line[i + 1];
-
-              if (char === '"') {
-                hasQuotes = true;
-                if (inQuotes && nextChar === '"') {
-                  // Escaped quote
-                  current += '"';
-                  i++; // Skip next quote
-                } else {
-                  // Toggle quote state
-                  inQuotes = !inQuotes;
-                }
-              } else if (char === ',' && !inQuotes) {
-                // Field separator - unquoted empty becomes null
-                result.push(hasQuotes ? current : current === '' ? null : current);
-                current = '';
-                hasQuotes = false;
-              } else {
-                current += char;
-              }
+          if (char === '"') {
+            hasQuotes = true;
+            if (inQuotes && nextChar === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
             }
-            // Add last field
+          } else if (char === ',' && !inQuotes) {
             result.push(hasQuotes ? current : current === '' ? null : current);
-            return result;
-          };
-
-          const lines = data.split('\r\n').filter(line => line.trim());
-          const headers = parseCsvLine(lines[0]);
-          items = lines.slice(1).map(line => {
-            const values = parseCsvLine(line);
-            return headers.reduce(
-              (acc, header, index) => {
-                if (header === null) return acc; // Skip null headers
-
-                let value: unknown = values[index];
-
-                // Skip only null/undefined (parseCsvLine returns null for unquoted empty fields)
-                // Preserve '' (parseCsvLine returns '' for quoted empty strings "") for round-trip fidelity
-                if (value === null || value === undefined) {
-                  return acc;
-                }
-
-                // Try to parse as JSON
-                if (typeof value === 'string') {
-                  try {
-                    value = jsonify.parse(value);
-                  } catch {
-                    // Keep as string
-                  }
-                }
-                acc[header] = value;
-                return acc;
-              },
-              {} as Record<string, unknown>,
-            );
-          });
-        } else {
-          throw new CustomError(400, 'Unsupported file type');
+            current = '';
+            hasQuotes = false;
+          } else {
+            current += char;
+          }
         }
+        result.push(hasQuotes ? current : current === '' ? null : current);
+        return result;
+      };
+
+      try {
+        const fileInfo = await sourceFileApi.getFileInfo(input.restoreFile);
 
         this.restoreProgress = {
           complete: 0,
-          total: items.length,
+          total: fileInfo.totalLines,
           inserted: 0,
           updated: 0,
           skipped: 0,
         };
+        this.syncImportProgressToTask();
 
-        // Get table schema once to ensure correct types during import
         let attributeTypeMap: Map<string, string> | undefined;
         try {
           const tableInfo = await dynamoApi.describeTable(dynamoConnection);
@@ -625,135 +614,247 @@ export const useImportExportStore = defineStore('importExportStore', {
               attributeTypeMap.set(attr.attributeName, attr.attributeType);
             }
           }
-        } catch {
-          // If we can't get schema, proceed without type conversion
-        }
+        } catch {}
 
-        // Import items in batches using createItem
-        // Validation of partition keys happens in parseDataFileStructure
-        const batchSize = 25; // DynamoDB batch write limit
+        const batchSize = 25;
+        const fileBatchSize = 1000;
+        const partitionKeyName = dynamoConnection.partitionKey.name;
+        const sortKeyName = dynamoConnection.sortKey?.name;
 
-        for (let i = 0; i < items.length; i += batchSize) {
-          const batch = items.slice(i, i + batchSize);
-
-          for (let j = 0; j < batch.length; j++) {
-            const item = batch[j];
-
-            // Skip empty items (validated earlier, but check again for safety)
-            if (!item || Object.keys(item).length === 0) {
-              this.restoreProgress.complete += 1;
-              this.restoreProgress.skipped += 1;
-              continue;
+        const writeItemBatch = async (
+          writeBatch: Array<{
+            attributes: Array<{
+              key: string;
+              value: string | number | boolean | null;
+              type: string;
+            }>;
+          }>,
+        ) => {
+          try {
+            const result = await dynamoApi.batchWriteItems(dynamoConnection, writeBatch, {
+              skipExisting: this.importStrategy === 'append',
+              partitionKey: partitionKeyName,
+            });
+            if (this.restoreProgress) {
+              this.restoreProgress.inserted += result.inserted;
+              this.restoreProgress.skipped += result.skipped;
             }
-
-            // Partition key validation happens in parseDataFileStructure
-            // Here we just convert and import the data
-            const partitionKeyName = dynamoConnection.partitionKey.name;
-            const sortKeyName = dynamoConnection.sortKey?.name;
-
-            // Convert to DynamoDB attribute format, filtering out null/undefined values
-            // Preserve empty strings as they are valid DynamoDB values for string types
-            const attributes = Object.entries(item)
-              .filter(([key, value]) => {
-                // Always include partition key and sort key (must not be null/undefined)
-                if (key === partitionKeyName || (sortKeyName && key === sortKeyName)) {
-                  return value !== null && value !== undefined;
-                }
-                // Filter out only null and undefined for other fields
-                return value !== null && value !== undefined;
-              })
-              .map(([key, value]) => {
-                let typedValue = value;
-                let type = this.inferDynamoDBType(value);
-                const isKeyAttribute = key === partitionKeyName || key === sortKeyName;
-
-                // Convert value based on schema if available
-                if (attributeTypeMap && attributeTypeMap.has(key)) {
-                  const schemaType = attributeTypeMap.get(key);
-                  if (schemaType === 'N') {
-                    // Schema expects number
-                    if (typeof value === 'string') {
-                      if (value === '' || value.trim() === '') {
-                        // Empty string can't be a number
-                        // For key attributes, this is a critical error - skip the entire item
-                        if (isKeyAttribute) {
-                          return null;
-                        }
-                        // For non-key attributes, skip just this field
-                        return null;
-                      }
-                      const numValue = Number(value);
-                      if (!isNaN(numValue)) {
-                        typedValue = numValue;
-                        type = 'N';
-                      } else {
-                        // Invalid number - skip field or fail for keys
-                        return null;
-                      }
-                    } else if (typeof value === 'number') {
-                      typedValue = value;
-                      type = 'N';
-                    }
-                  } else if (schemaType === 'S') {
-                    // Schema expects string
-                    if (typeof value !== 'string') {
-                      typedValue = String(value);
-                    }
-                    type = 'S';
-                  } else if (schemaType) {
-                    // Use other schema types as-is
-                    type = schemaType;
-                  }
-                }
-
-                return {
-                  key: key,
-                  value: typedValue as string | number | boolean | null,
-                  type: type,
-                };
-              })
-              .filter(
-                (
-                  attr,
-                ): attr is { key: string; value: string | number | boolean | null; type: string } =>
-                  attr !== null,
-              );
-
-            // Validate that we have required keys
-            const hasPartitionKey = attributes.some(attr => attr.key === partitionKeyName);
-            const hasSortKey = !sortKeyName || attributes.some(attr => attr.key === sortKeyName);
-
-            // Create item if there are valid attributes and required keys
-            if (attributes.length > 0 && hasPartitionKey && hasSortKey) {
+            this.syncImportProgressToTask();
+          } catch (error) {
+            if (isRetryableError(error)) {
               try {
-                // In append mode, add condition to skip existing items
-                if (this.importStrategy === 'append') {
-                  const result = await dynamoApi.createItem(dynamoConnection, attributes, {
-                    skipExisting: true,
-                    partitionKey: partitionKeyName,
-                  });
-                  // Check message to determine if item was created or skipped
-                  if (result.message.includes('already exists')) {
-                    this.restoreProgress.skipped += 1;
-                  } else {
-                    this.restoreProgress.inserted += 1;
-                  }
-                } else {
-                  await dynamoApi.createItem(dynamoConnection, attributes);
-                  // In replace mode, we don't know if it's insert or update, count as updated
-                  this.restoreProgress.updated += 1;
+                const retryResult = await retryWithBackoff(
+                  () =>
+                    dynamoApi.batchWriteItems(dynamoConnection, writeBatch, {
+                      skipExisting: this.importStrategy === 'append',
+                      partitionKey: partitionKeyName,
+                    }),
+                  { maxRetries: 3 },
+                  isRetryableError,
+                );
+                if (this.restoreProgress) {
+                  this.restoreProgress.inserted += retryResult.inserted;
+                  this.restoreProgress.skipped += retryResult.skipped;
                 }
-              } catch (_error) {
-                // Import error - count as skipped
-                // Error details available in _error object for debugging if needed
-                this.restoreProgress.skipped += 1;
+                this.syncImportProgressToTask();
+              } catch {
+                if (this.restoreProgress) {
+                  this.restoreProgress.skipped += writeBatch.length;
+                }
+                this.syncImportProgressToTask();
               }
             } else {
-              // No valid attributes, skip this item
-              this.restoreProgress.skipped += 1;
+              if (this.restoreProgress) {
+                this.restoreProgress.skipped += writeBatch.length;
+              }
+              this.syncImportProgressToTask();
             }
-            this.restoreProgress.complete += 1;
           }
+        };
+
+        const convertItemToAttributes = (
+          item: Record<string, unknown>,
+        ): {
+          attributes: Array<{ key: string; value: string | number | boolean | null; type: string }>;
+        } | null => {
+          if (!item || Object.keys(item).length === 0) {
+            return null;
+          }
+
+          const attributes = Object.entries(item)
+            .filter(([key, value]) => {
+              if (key === partitionKeyName || (sortKeyName && key === sortKeyName)) {
+                return value !== null && value !== undefined;
+              }
+              return value !== null && value !== undefined;
+            })
+            .map(([key, value]) => {
+              let typedValue = value;
+              let type = this.inferDynamoDBType(value);
+
+              if (attributeTypeMap && attributeTypeMap.has(key)) {
+                const schemaType = attributeTypeMap.get(key);
+                if (schemaType === 'N') {
+                  if (typeof value === 'string') {
+                    if (value === '' || value.trim() === '') {
+                      return null;
+                    }
+                    const numValue = Number(value);
+                    if (!isNaN(numValue)) {
+                      typedValue = numValue;
+                      type = 'N';
+                    } else {
+                      return null;
+                    }
+                  } else if (typeof value === 'number') {
+                    typedValue = value;
+                    type = 'N';
+                  }
+                } else if (schemaType === 'S') {
+                  if (typeof value !== 'string') {
+                    typedValue = String(value);
+                  }
+                  type = 'S';
+                } else if (schemaType) {
+                  type = schemaType;
+                }
+              }
+
+              return {
+                key: key,
+                value: typedValue as string | number | boolean | null,
+                type: type,
+              };
+            })
+            .filter(
+              (
+                attr,
+              ): attr is { key: string; value: string | number | boolean | null; type: string } =>
+                attr !== null,
+            );
+
+          const hasPartitionKey = attributes.some(attr => attr.key === partitionKeyName);
+          const hasSortKey = !sortKeyName || attributes.some(attr => attr.key === sortKeyName);
+
+          if (attributes.length > 0 && hasPartitionKey && hasSortKey) {
+            return { attributes };
+          }
+          return null;
+        };
+
+        if (fileType === 'json') {
+          const data = await sourceFileApi.readFile(input.restoreFile);
+          const parsed = jsonify.parse(data);
+          const allItems: Array<Record<string, unknown>> = Array.isArray(parsed)
+            ? parsed
+            : [parsed];
+
+          if (this.restoreProgress) {
+            this.restoreProgress.total = allItems.length;
+          }
+          this.syncImportProgressToTask();
+
+          const batchPayload = allItems
+            .map(item => convertItemToAttributes(item))
+            .filter((payload): payload is NonNullable<typeof payload> => payload !== null);
+
+          if (this.restoreProgress) {
+            this.restoreProgress.skipped += allItems.length - batchPayload.length;
+          }
+          this.syncImportProgressToTask();
+
+          for (let i = 0; i < batchPayload.length; i += batchSize) {
+            const writeBatch = batchPayload.slice(i, i + batchSize);
+            await writeItemBatch(writeBatch);
+            if (this.restoreProgress) {
+              this.restoreProgress.complete += writeBatch.length;
+            }
+            this.syncImportProgressToTask();
+          }
+        } else if (fileType === 'jsonl' || fileType === 'csv') {
+          let headers: Array<string | null> = [];
+          let isFirstBatch = true;
+          let accumulatedItems: Array<{
+            attributes: Array<{
+              key: string;
+              value: string | number | boolean | null;
+              type: string;
+            }>;
+          }> = [];
+
+          await sourceFileApi.streamFileLines(input.restoreFile, fileBatchSize, async batch => {
+            let items: Array<Record<string, unknown>> = [];
+
+            if (fileType === 'jsonl') {
+              items = batch.lines
+                .map(line => {
+                  try {
+                    return jsonify.parse(line);
+                  } catch {
+                    return null;
+                  }
+                })
+                .filter(Boolean) as Array<Record<string, unknown>>;
+            } else {
+              const csvLines = isFirstBatch ? batch.lines.slice(1) : batch.lines;
+              if (isFirstBatch) {
+                headers = parseCsvLine(batch.lines[0] || '');
+                isFirstBatch = false;
+              }
+
+              items = csvLines.map(line => {
+                const values = parseCsvLine(line);
+                return headers.reduce(
+                  (acc, header, index) => {
+                    if (header === null) return acc;
+
+                    let value: unknown = values[index];
+
+                    if (value === null || value === undefined) {
+                      return acc;
+                    }
+
+                    if (typeof value === 'string') {
+                      try {
+                        value = jsonify.parse(value);
+                      } catch {}
+                    }
+                    acc[header] = value;
+                    return acc;
+                  },
+                  {} as Record<string, unknown>,
+                );
+              });
+            }
+
+            const batchPayload = items
+              .map(item => convertItemToAttributes(item))
+              .filter((payload): payload is NonNullable<typeof payload> => payload !== null);
+
+            if (this.restoreProgress) {
+              this.restoreProgress.skipped += items.length - batchPayload.length;
+            }
+            this.syncImportProgressToTask();
+
+            accumulatedItems = [...accumulatedItems, ...batchPayload];
+
+            while (accumulatedItems.length >= batchSize) {
+              const writeBatch = accumulatedItems.slice(0, batchSize);
+              accumulatedItems = accumulatedItems.slice(batchSize);
+              await writeItemBatch(writeBatch);
+            }
+
+            if (this.restoreProgress) {
+              this.restoreProgress.complete += batch.lines.length;
+            }
+            this.syncImportProgressToTask();
+          });
+
+          if (accumulatedItems.length > 0) {
+            await writeItemBatch(accumulatedItems);
+          }
+        } else {
+          throw new CustomError(400, 'Unsupported file type');
         }
       } catch (error) {
         throw new CustomError(
@@ -868,7 +969,7 @@ export const useImportExportStore = defineStore('importExportStore', {
           }
         }
       } catch {
-        this.importValidationErrors.push('Failed to parse data file structure');
+        this.importValidationErrors.push({ key: 'import.failedToParseDataFile' });
       } finally {
         // Always revalidate after parsing completes
         this.validateImportStep2();
@@ -941,16 +1042,23 @@ export const useImportExportStore = defineStore('importExportStore', {
 
         // Add validation errors if found
         if (invalidItems.length > 0) {
-          const errorMsg = `Found ${invalidItems.length} invalid item(s):\n${invalidItems
-            .slice(0, 5)
-            .map(item => `Row ${item.index}: ${item.reason}`)
-            .join(', ')}${invalidItems.length > 5 ? `, and ${invalidItems.length - 5} more` : ''}`;
-          this.importValidationErrors.push(errorMsg);
+          const errorDetails =
+            invalidItems
+              .slice(0, 5)
+              .map(item => `Row ${item.index}: ${item.reason}`)
+              .join(', ') +
+            (invalidItems.length > 5 ? `, and ${invalidItems.length - 5} more` : '');
+          this.importValidationErrors.push({
+            key: 'import.invalidItemsFound',
+            params: { count: String(invalidItems.length) },
+          });
+          this.importValidationErrors.push({ key: '', rawText: errorDetails });
         }
       } catch (error) {
-        this.importValidationErrors.push(
-          `Failed to validate data structure: ${get(error, 'message', 'Unknown error')}`,
-        );
+        this.importValidationErrors.push({
+          key: 'import.failedToValidateData',
+          params: { error: get(error, 'message', 'Unknown error') },
+        });
       }
     },
 
@@ -1158,7 +1266,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       if (!this.importMetadataFile) {
         this.importMetadata = null;
         this.importFields = [];
-        this.importValidationErrors = ['Metadata file is required'];
+        this.importValidationErrors = [{ key: 'import.metadataFileRequired' }];
         this.validateImportStep2();
         return;
       }
@@ -1168,22 +1276,36 @@ export const useImportExportStore = defineStore('importExportStore', {
         const metadata = jsonify.parse(content) as ImportMetadata;
 
         // Validate metadata structure
-        const errors: string[] = [];
+        const errors: { key: string; params?: Record<string, string> }[] = [];
 
         if (!metadata.version) {
-          errors.push('Missing schema version in metadata');
+          errors.push({ key: 'import.missingSchemaVersion' });
         }
 
         if (!metadata.source?.dbType) {
-          errors.push('Missing database type in metadata');
+          errors.push({ key: 'import.missingDbType' });
         }
 
         if (!metadata.export?.dataFile) {
-          errors.push('Missing data file reference in metadata');
+          errors.push({ key: 'import.missingDataFile' });
         }
 
         if (typeof metadata.export?.rowCount !== 'number') {
-          errors.push('Missing row count in metadata');
+          errors.push({ key: 'import.missingRowCount' });
+        }
+
+        if (
+          metadata.source?.dbType &&
+          this.importConnection &&
+          metadata.source.dbType.toLowerCase() !== this.importConnection.type.toLowerCase()
+        ) {
+          errors.push({
+            key: 'import.dbTypeMismatch',
+            params: {
+              sourceType: metadata.source.dbType,
+              targetType: this.importConnection.type,
+            },
+          });
         }
 
         this.importValidationErrors = errors;
@@ -1216,7 +1338,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       } catch (error) {
         this.importMetadata = null;
         this.importFields = [];
-        this.importValidationErrors = ['Failed to parse metadata file: Invalid JSON format'];
+        this.importValidationErrors = [{ key: 'import.failedToParseMetadata' }];
         this.validateImportStep2();
         throw new CustomError(
           get(error, 'status', 500),
@@ -1384,6 +1506,16 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.importStrategy = 'append';
       this.importFields = [];
       this.importSchemaFields = [];
+      this.importSchemaOverrides = {};
+      this.importCreationOptions = {
+        shards: 1,
+        replicas: 1,
+        billingMode: 'PAY_PER_REQUEST',
+        readCapacity: 5,
+        writeCapacity: 5,
+      };
+      this.importCreationPhase = 'idle';
+      this.importCreationError = null;
       this.importValidationStatus = {
         step1: false,
         step2: false,
@@ -1392,18 +1524,88 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.importValidationErrors = [];
     },
 
+    async createTargetCollection() {
+      if (!this.importConnection || !this.importTargetIndex) {
+        throw new CustomError(400, 'Connection and target index are required');
+      }
+      this.importCreationPhase = 'creating';
+      this.importCreationError = null;
+
+      try {
+        if (this.importConnection.type === DatabaseType.ELASTICSEARCH) {
+          const mappingBody = buildEsMappingBody(this.importMetadata, this.importSchemaOverrides);
+          await esApi.createIndex(this.importConnection as ElasticsearchConnection, {
+            indexName: this.importTargetIndex,
+            shards: this.importCreationOptions.shards,
+            replicas: this.importCreationOptions.replicas,
+            body: mappingBody,
+          });
+        } else if (this.importConnection.type === DatabaseType.DYNAMODB) {
+          const schema = this.importMetadata?.schema as
+            | {
+                keySchema?: Array<{ attributeName: string; keyType: string }>;
+                attributeDefinitions?: Array<{ attributeName: string; attributeType: string }>;
+              }
+            | undefined;
+          const keySchema = schema?.keySchema;
+          const attrDefs = schema?.attributeDefinitions;
+          const hashKey = keySchema?.find(k => k.keyType.toUpperCase() === 'HASH');
+          const rangeKey = keySchema?.find(k => k.keyType.toUpperCase() === 'RANGE');
+
+          if (!hashKey) {
+            throw new CustomError(400, 'No partition key found in metadata schema');
+          }
+
+          const hashAttr = attrDefs?.find(a => a.attributeName === hashKey.attributeName);
+          const rangeAttr = rangeKey
+            ? attrDefs?.find(a => a.attributeName === rangeKey.attributeName)
+            : undefined;
+
+          await dynamoApi.createTable(this.importConnection as DynamoDBConnection, {
+            tableName: this.importTargetIndex,
+            partitionKey: {
+              name: hashKey.attributeName,
+              type: (hashAttr?.attributeType ?? 'S') as 'S' | 'N' | 'B',
+            },
+            sortKey:
+              rangeKey && rangeAttr
+                ? {
+                    name: rangeKey.attributeName,
+                    type: rangeAttr.attributeType as 'S' | 'N' | 'B',
+                  }
+                : undefined,
+            billingMode: this.importCreationOptions.billingMode,
+            readCapacity: this.importCreationOptions.readCapacity,
+            writeCapacity: this.importCreationOptions.writeCapacity,
+          });
+        }
+      } catch (error) {
+        this.importCreationPhase = 'error';
+        this.importCreationError = get(
+          error,
+          'details',
+          get(error, 'message', 'Failed to create collection'),
+        );
+        throw error;
+      }
+    },
+
     async executeImport() {
       if (!this.importConnection || !this.importTargetIndex || !this.importDataFile) {
         throw new CustomError(400, 'Import configuration is incomplete');
       }
 
-      // Validate database compatibility
       const compatibility = await this.validateDatabaseCompatibility();
       if (!compatibility.valid) {
         throw new CustomError(400, compatibility.errors.join('; '));
       }
 
-      // Use existing restoreFromFile logic with the new data file
+      if (this.importIsNewCollection) {
+        await this.createTargetCollection();
+      }
+
+      this.importCreationPhase = 'importing';
+
       const restoreInput: RestoreInput = {
         connection: this.importConnection,
         index: this.importTargetIndex,
@@ -1411,14 +1613,13 @@ export const useImportExportStore = defineStore('importExportStore', {
       };
 
       await this.restoreFromFile(restoreInput);
+      this.importCreationPhase = 'done';
 
-      // Verify row count if metadata is available
       if (this.importMetadata && this.restoreProgress) {
         const expectedCount = this.importMetadata.export.rowCount;
         const actualCount = this.restoreProgress.complete;
 
         if (actualCount !== expectedCount) {
-          // Return warning but don't fail
           return {
             success: true,
             warning: `Row count mismatch: expected ${expectedCount}, imported ${actualCount}`,
@@ -1472,6 +1673,11 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.fields = [];
       this.estimatedRows = null;
       this.estimatedSize = null;
+      if (connection) {
+        const dbType = connection.type.toLowerCase();
+        const date = new Date().toISOString().slice(0, 10);
+        this.fileName = `export-${dbType}-${date}-${ulid()}`;
+      }
       this.validateStep1();
       this.validateStep2();
     },
@@ -1508,6 +1714,10 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.validateStep3();
     },
 
+    setIncludeMetadata(value: boolean) {
+      this.includeMetadata = value;
+    },
+
     setExtraPath(path: string) {
       this.extraPath = path;
       this.validateStep3();
@@ -1530,6 +1740,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.overwriteExisting = false;
       this.createDirectory = true;
       this.beautifyJson = true;
+      this.includeMetadata = true;
       this.validationStatus = {
         step1: false,
         step2: false,
@@ -1752,6 +1963,27 @@ export const useImportExportStore = defineStore('importExportStore', {
       }
     },
 
+    syncExportProgressToTask() {
+      if (this.activeExportTaskId && this.exportProgress) {
+        this.updateTaskRuntime(this.activeExportTaskId, {
+          complete: this.exportProgress.complete,
+          total: this.exportProgress.total,
+        });
+      }
+    },
+
+    syncImportProgressToTask() {
+      if (this.activeImportTaskId && this.restoreProgress) {
+        this.updateTaskRuntime(this.activeImportTaskId, {
+          complete: this.restoreProgress.complete,
+          total: this.restoreProgress.total,
+          inserted: this.restoreProgress.inserted,
+          updated: this.restoreProgress.updated,
+          skipped: this.restoreProgress.skipped,
+        });
+      }
+    },
+
     async exportElasticsearchToFile(input: ExportInput): Promise<string> {
       if (input.connection.type !== DatabaseType.ELASTICSEARCH) {
         throw new CustomError(400, 'Connection must be Elasticsearch');
@@ -1785,6 +2017,7 @@ export const useImportExportStore = defineStore('importExportStore', {
           complete: 0,
           total: countResponse.count,
         };
+        this.syncExportProgressToTask();
 
         // Get mapping for metadata
         const mappingResponse = await client.get<{
@@ -1846,11 +2079,13 @@ export const useImportExportStore = defineStore('importExportStore', {
         };
 
         // Write metadata file (beautify based on user preference)
-        await sourceFileApi.saveFile(
-          metadataFilePath,
-          input.beautifyJson ? jsonify.stringify(metadata, null, 2) : jsonify.stringify(metadata),
-          false,
-        );
+        if (input.includeMetadata) {
+          await sourceFileApi.saveFile(
+            metadataFilePath,
+            input.beautifyJson ? jsonify.stringify(metadata, null, 2) : jsonify.stringify(metadata),
+            false,
+          );
+        }
 
         // Build CSV headers if needed
         const includedFieldNames = input.fields.filter(f => f.includeInExport).map(f => f.name);
@@ -1926,6 +2161,7 @@ export const useImportExportStore = defineStore('importExportStore', {
 
           if (this.exportProgress) {
             this.exportProgress.complete += hits.length;
+            this.syncExportProgressToTask();
           }
 
           if (hits.length === 0) {
@@ -1975,11 +2211,13 @@ export const useImportExportStore = defineStore('importExportStore', {
 
         // Update metadata with actual row count exported
         metadata.export.rowCount = this.exportProgress?.complete || 0;
-        await sourceFileApi.saveFile(
-          metadataFilePath,
-          input.beautifyJson ? jsonify.stringify(metadata, null, 2) : jsonify.stringify(metadata),
-          false,
-        );
+        if (input.includeMetadata) {
+          await sourceFileApi.saveFile(
+            metadataFilePath,
+            input.beautifyJson ? jsonify.stringify(metadata, null, 2) : jsonify.stringify(metadata),
+            false,
+          );
+        }
 
         return dataFilePath;
       } catch (error) {
@@ -2021,6 +2259,7 @@ export const useImportExportStore = defineStore('importExportStore', {
           complete: 0,
           total: tableInfo.itemCount || 0,
         };
+        this.syncExportProgressToTask();
 
         // Build metadata
         const metadata = {
@@ -2089,6 +2328,7 @@ export const useImportExportStore = defineStore('importExportStore', {
 
           if (this.exportProgress) {
             this.exportProgress.complete += items.length;
+            this.syncExportProgressToTask();
           }
 
           if (items.length === 0) {
@@ -2165,11 +2405,13 @@ export const useImportExportStore = defineStore('importExportStore', {
 
         // Update metadata with actual row count
         metadata.export.rowCount = totalItems;
-        await sourceFileApi.saveFile(
-          metadataFilePath,
-          input.beautifyJson ? jsonify.stringify(metadata, null, 2) : jsonify.stringify(metadata),
-          false,
-        );
+        if (input.includeMetadata) {
+          await sourceFileApi.saveFile(
+            metadataFilePath,
+            input.beautifyJson ? jsonify.stringify(metadata, null, 2) : jsonify.stringify(metadata),
+            false,
+          );
+        }
 
         return dataFilePath;
       } catch (error) {
@@ -2180,42 +2422,123 @@ export const useImportExportStore = defineStore('importExportStore', {
       }
     },
 
-    addRunningTask(task: ExportTask) {
-      this.runningTasks.push(task);
+    addRunningTask(task: BackgroundTask) {
+      this.runningTasks = [...this.runningTasks, task];
+    },
+
+    updateTaskRuntime(taskId: string, runtime: Partial<TaskRuntime>) {
+      this.runningTasks = this.runningTasks.map(t => {
+        if (t.id !== taskId) return t;
+        const prev = t.runtime ?? { complete: 0, total: 0, inserted: 0, updated: 0, skipped: 0 };
+        const updated = { ...prev, ...runtime };
+        return {
+          ...t,
+          runtime: updated,
+          progress: { complete: updated.complete, total: updated.total },
+          ...(t.kind === 'import'
+            ? { inserted: updated.inserted, updated: updated.updated, skipped: updated.skipped }
+            : {}),
+        };
+      });
     },
 
     updateTaskStatus(
       taskId: string,
-      status: ExportTask['status'],
+      status: TaskStatus,
       progress?: { complete: number; total: number },
       error?: string,
     ) {
-      const task = this.runningTasks.find(t => t.id === taskId);
-      if (task) {
-        task.status = status;
-        if (progress) {
-          task.progress = progress;
-        }
-        if (error) {
-          task.error = error;
-        }
-        if (status === 'completed' || status === 'failed') {
-          task.endTime = new Date();
-        }
-      }
+      this.runningTasks = this.runningTasks.map(t => {
+        if (t.id !== taskId) return t;
+        return {
+          ...t,
+          status,
+          ...(progress ? { progress } : {}),
+          ...(error ? { error } : {}),
+          ...(status === 'completed' || status === 'failed' ? { endTime: new Date() } : {}),
+        };
+      });
+    },
+
+    updateImportTaskProgress(
+      taskId: string,
+      progress: { complete: number; total: number },
+      stats: { inserted: number; updated: number; skipped: number },
+    ) {
+      this.runningTasks = this.runningTasks.map(t =>
+        t.id === taskId ? { ...t, progress, ...stats } : t,
+      );
     },
 
     removeTask(taskId: string) {
-      const index = this.runningTasks.findIndex(t => t.id === taskId);
-      if (index !== -1) {
-        this.runningTasks.splice(index, 1);
-      }
+      this.runningTasks = this.runningTasks.filter(t => t.id !== taskId);
     },
 
     clearCompletedTasks() {
       this.runningTasks = this.runningTasks.filter(
         t => t.status === 'pending' || t.status === 'running',
       );
+    },
+
+    openTask(taskId: string) {
+      const task = this.runningTasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      if (task.kind === 'export' && task.config) {
+        const cfg = task.config as ExportTaskConfig;
+        this.connection = cfg.connection;
+        this.selectedIndex = cfg.index;
+        this.folderPath = cfg.folderPath;
+        this.extraPath = cfg.extraPath;
+        this.fileName = cfg.fileName;
+        this.fileType = cfg.fileType;
+        this.fields = cfg.fields;
+        this.filterQuery = cfg.filterQuery;
+        this.overwriteExisting = cfg.overwriteExisting;
+        this.createDirectory = cfg.createDirectory;
+        this.beautifyJson = cfg.beautifyJson;
+        this.activeExportTaskId = taskId;
+        this.activeMode = 'export';
+
+        if (task.runtime) {
+          this.exportProgress = { complete: task.runtime.complete, total: task.runtime.total };
+        }
+
+        this.validateStep1();
+        this.validateStep2();
+        this.validateStep3();
+      } else if (task.kind === 'import' && task.config) {
+        const cfg = task.config as ImportTaskConfig;
+        this.importConnection = cfg.connection;
+        this.importTargetIndex = cfg.index;
+        this.importDataFile = cfg.dataFile;
+        this.importMetadataFile = cfg.metadataFile;
+        this.importStrategy = cfg.strategy;
+        this.importIsNewCollection = cfg.isNewCollection;
+        this.activeImportTaskId = taskId;
+        this.activeMode = 'import';
+
+        if (task.runtime) {
+          this.restoreProgress = {
+            complete: task.runtime.complete,
+            total: task.runtime.total,
+            inserted: task.runtime.inserted,
+            updated: task.runtime.updated,
+            skipped: task.runtime.skipped,
+          };
+        }
+
+        this.validateImportStep1();
+        this.validateImportStep2();
+      }
+    },
+
+    detachActiveTask(kind: TaskKind) {
+      if (kind === 'export') {
+        this.activeExportTaskId = null;
+      } else {
+        this.activeImportTaskId = null;
+      }
     },
   },
 });
@@ -2225,7 +2548,7 @@ const bulkRequest = async (
   client: { post: Function },
   bulkData: Array<unknown>,
 ): Promise<{ inserted: number; updated: number; skipped: number }> => {
-  const response = await client.post(`/_bulk`, undefined, bulkData.join('\r\n') + '\r\n');
+  const response = await client.post(`/_bulk`, undefined, bulkData.join('\n') + '\n');
 
   if (response.status && response.status !== 200) {
     throw new CustomError(
@@ -2244,11 +2567,18 @@ const bulkRequest = async (
   let skipped = 0;
 
   const items = response?.items || [];
+  let firstErrorLogged = false;
   for (const item of items) {
     const operation = item.index || item.create || item.update || item.delete;
     if (operation) {
       // Check for errors first
       if (operation.error) {
+        if (!firstErrorLogged) {
+          debug(
+            `bulk item error: ${jsonify.stringify(operation.error)}, status: ${operation.status}`,
+          );
+          firstErrorLogged = true;
+        }
         // Check if it's a conflict error (document already exists in append mode)
         if (
           operation.status === 409 ||

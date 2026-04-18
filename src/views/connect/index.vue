@@ -50,7 +50,7 @@
 import { storeToRefs } from 'pinia';
 import { X } from 'lucide-vue-next';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Connection, DatabaseType, useTabStore } from '../../store';
+import { Connection, DatabaseType, useTabStore, useDbDataStore } from '../../store';
 import ConnectList from './components/connect-list.vue';
 import EsEditor from '../editor/es-editor/index.vue';
 import DynamoEditor from '../editor/dynamo-editor/index.vue';
@@ -67,6 +67,8 @@ const lang = useLang();
 const tabStore = useTabStore();
 const { establishPanel, closePanel, setActivePanel, checkFileExists } = tabStore;
 const { panels, activePanel } = storeToRefs(tabStore);
+
+const dbDataStore = useDbDataStore();
 
 const esEditorRefs = new Map<number, InstanceType<typeof EsEditor>>();
 const toolBarRefs = new Map<number, InstanceType<typeof ToolBar>>();
@@ -132,6 +134,7 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
   if (action === 'CHANGE') {
     setActivePanel(panel.id);
   } else if (action === 'CLOSE') {
+    const isDynamo = panel.connection?.type === DatabaseType.DYNAMODB;
     const exists = await checkFileExists(panel);
     if (!exists) {
       dialog.warning({
@@ -144,6 +147,7 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
         onPositiveClick: async () => {
           try {
             await closePanel(panel, true);
+            if (isDynamo) dbDataStore.resetDynamoData();
             message.success(lang.t('dialogOps.fileSaveSuccess'));
           } catch (err) {
             message.error(
@@ -153,10 +157,12 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
         },
         onNegativeClick: async () => {
           await closePanel(panel, false);
+          if (isDynamo) dbDataStore.resetDynamoData();
         },
       });
     } else {
       await closePanel(panel, true);
+      if (isDynamo) dbDataStore.resetDynamoData();
     }
   }
 };

@@ -68,7 +68,7 @@ const router = createRouter({
           name: 'ImportExport',
           path: '/import-export',
           meta: {
-            keepAlive: false,
+            keepAlive: true,
           },
           component: () => import('../views/import-export/index.vue'),
         },

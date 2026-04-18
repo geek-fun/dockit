@@ -1,4 +1,6 @@
+use crate::dynamo::batch_write_item::{batch_write_item, BatchWriteInput};
 use crate::dynamo::create_item::{create_item, CreateItemInput};
+use crate::dynamo::create_table::{create_table, CreateTableInput};
 use crate::dynamo::delete_item::{delete_item, DeleteItemInput};
 use crate::dynamo::describe_table::describe_table;
 use crate::dynamo::execute_statement::{execute_statement, ExecuteStatementInput};
@@ -83,6 +85,26 @@ pub async fn dynamo_api(
                 Ok(ApiResponse {
                     status: 400,
                     message: "Item payload is required".to_string(),
+                    data: None,
+                })
+            }
+        }
+        "BATCH_WRITE_ITEM" => {
+            if let Some(payload) = &options.payload {
+                let items = payload
+                    .get("items")
+                    .and_then(|v| v.as_array())
+                    .cloned()
+                    .unwrap_or_default();
+                let input = BatchWriteInput {
+                    table_name: &options.table_name,
+                    items: &items,
+                };
+                batch_write_item(&client, input).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "Batch write payload is required".to_string(),
                     data: None,
                 })
             }
@@ -251,7 +273,21 @@ pub async fn dynamo_api(
         "DESCRIBE_TIME_TO_LIVE" => {
             describe_time_to_live(&client, &options.table_name).await
         }
-        // Add more operations as needed
+        "CREATE_TABLE" => {
+            if let Some(payload) = &options.payload {
+                let input = CreateTableInput {
+                    table_name: options.table_name.clone(),
+                    payload: payload.clone(),
+                };
+                create_table(&client, input).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "Create table payload is required".to_string(),
+                    data: None,
+                })
+            }
+        }
         _ => Ok(ApiResponse {
             status: 400,
             message: format!("Unsupported operation: {}", options.operation),
