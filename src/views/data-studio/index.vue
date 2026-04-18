@@ -12,7 +12,15 @@
           </span>
         </div>
         <div class="flex items-center gap-2">
-          <button class="icon-button" :title="$t('history.empty')">
+          <button
+            v-if="hasMessages"
+            class="icon-button"
+            :title="$t('dataStudio.agent.clearChat')"
+            @click="clearChat"
+          >
+            <span class="i-carbon-trash-can h-5 w-5" />
+          </button>
+          <button v-else class="icon-button" :title="$t('history.empty')">
             <span class="i-carbon-time h-5 w-5" />
           </button>
         </div>
@@ -20,14 +28,55 @@
 
       <!-- Conversation Area -->
       <div class="data-studio-conversation">
-        <div class="conversation-content">
+        <div ref="conversationRef" class="conversation-content">
           <!-- Empty state -->
-          <div class="empty-state">
+          <div v-if="!hasMessages" class="empty-state">
             <div class="empty-state-icon">
               <span class="i-carbon-ibm-watsonx-assistant h-12 w-12 opacity-20" />
             </div>
-            <p class="text-sm text-muted-foreground mt-4">{{ $t('dataStudio.disclaimer') }}</p>
+            <p class="text-sm text-muted-foreground mt-4">
+              {{
+                activeConnectionId
+                  ? $t('dataStudio.agent.emptyState')
+                  : $t('dataStudio.agent.noSource')
+              }}
+            </p>
           </div>
+
+          <!-- Messages -->
+          <template v-if="hasMessages">
+            <template v-for="msg in activeSession?.messages" :key="msg.id">
+              <AgentMessageBubble :message="msg" />
+
+              <!-- Confirmation cards for pending tool calls on this message -->
+              <template
+                v-if="
+                  msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.status === 'pending')
+                "
+              >
+                <ToolConfirmationCard
+                  v-for="tc in msg.toolCalls.filter(tc => tc.status === 'pending')"
+                  :key="tc.id"
+                  :tool-call="tc"
+                  @confirm="handleConfirmation(msg.id, $event)"
+                />
+              </template>
+            </template>
+
+            <!-- Loading indicator -->
+            <div v-if="isLoading" class="flex items-center gap-2 py-2">
+              <span class="i-carbon-renew h-4 w-4 animate-spin text-muted-foreground" />
+              <span class="text-xs text-muted-foreground">
+                {{ $t('dataStudio.agent.loading') }}
+              </span>
+            </div>
+
+            <!-- Error display -->
+            <div v-if="error" class="error-banner">
+              <span class="i-carbon-warning h-4 w-4" />
+              <span class="text-xs">{{ error }}</span>
+            </div>
+          </template>
         </div>
 
         <!-- Input Area -->
@@ -35,18 +84,25 @@
           <div class="data-studio-input">
             <div class="input-row">
               <textarea
+                v-model="inputText"
                 class="chat-input"
                 rows="3"
                 :placeholder="$t('dataStudio.inputPlaceholder')"
+                :disabled="!activeConnectionId"
+                @keydown.enter.exact.prevent="handleSend"
               />
             </div>
             <div class="toolbox-row">
               <div class="toolbox-left">
-                <button class="icon-button-sm" :title="$t('dataStudio.addSource.title')">
+                <button
+                  class="icon-button-sm"
+                  :title="$t('dataStudio.addSource.title')"
+                  @click="showAddModal = true"
+                >
                   <span class="i-carbon-add-alt h-4 w-4" />
                 </button>
               </div>
-              <button class="send-button">
+              <button class="send-button" :disabled="!canSend" @click="handleSend">
                 <span class="i-carbon-arrow-up h-4 w-4" />
               </button>
             </div>
@@ -129,12 +185,25 @@
           </button>
         </div>
         <div class="source-list">
-          <div v-for="(source, index) in connectedSources" :key="index" class="source-item">
+          <div
+            v-for="(source, index) in connectedSources"
+            :key="index"
+            class="source-item"
+            :class="{ 'active-source': source.connectionId === dataStudioStore.activeConnectionId }"
+            @click="dataStudioStore.setActiveConnection(source.connectionId!)"
+          >
             <div class="flex items-center gap-2 min-w-0">
-              <span class="i-carbon-data-base h-4 w-4 text-muted-foreground shrink-0" />
+              <span
+                class="h-4 w-4 shrink-0"
+                :class="[
+                  source.connectionId === dataStudioStore.activeConnectionId
+                    ? 'i-carbon-data-base-alt text-foreground'
+                    : 'i-carbon-data-base text-muted-foreground',
+                ]"
+              />
               <span class="text-sm truncate">{{ source.name }}</span>
             </div>
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1" @click.stop>
               <button
                 class="icon-button-sm"
                 :title="$t('dataStudio.modifySource.title')"
@@ -183,21 +252,67 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useDataStudioStore, type ConnectedSource } from '@/store/dataStudioStore';
+import { useDataStudioAgent } from '@/composables/useDataStudioAgent';
 import AddSourceModal from './components/add-source-modal.vue';
 import ModifySourceModal from './components/modify-source-modal.vue';
 import DetachSourceModal from './components/detach-source-modal.vue';
+import AgentMessageBubble from '@/components/agent-message-bubble.vue';
+import ToolConfirmationCard from './components/tool-confirmation-card.vue';
+import type { ConfirmationAction } from './components/tool-confirmation-card.vue';
 
 const dataStudioStore = useDataStudioStore();
 const { connectedSources, configPanelOpen } = storeToRefs(dataStudioStore);
+
+const { isLoading, error, activeSession, sendMessage, confirmToolCall, clearChat } =
+  useDataStudioAgent();
 
 const showAddModal = ref(false);
 const showModifyModal = ref(false);
 const showDetachModal = ref(false);
 const selectedSource = ref<ConnectedSource | null>(null);
 const selectedConnectionId = ref<number | undefined>(undefined);
+const inputText = ref('');
+const conversationRef = ref<HTMLElement | null>(null);
+
+const activeConnectionId = computed(() => dataStudioStore.activeConnectionId);
+
+const hasMessages = computed(() => activeSession.value && activeSession.value.messages.length > 0);
+
+const canSend = computed(
+  () => !!activeConnectionId.value && !isLoading.value && inputText.value.trim().length > 0,
+);
+
+const handleSend = () => {
+  if (!canSend.value) return;
+  const text = inputText.value.trim();
+  inputText.value = '';
+  sendMessage(text, activeConnectionId.value!);
+};
+
+const handleConfirmation = (msgId: string, event: ConfirmationAction) => {
+  confirmToolCall(msgId, event.toolCallId, event.action);
+};
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    if (conversationRef.value) {
+      conversationRef.value.scrollTop = conversationRef.value.scrollHeight;
+    }
+  });
+};
+
+watch(
+  () => activeSession.value?.messages[activeSession.value.messages.length - 1]?.content,
+  () => scrollToBottom(),
+);
+
+watch(
+  () => activeSession.value?.messages.length,
+  () => scrollToBottom(),
+);
 
 const openModifyModal = (index: number) => {
   const source = connectedSources.value[index];
@@ -252,6 +367,7 @@ const openDetachModal = (index: number) => {
   max-width: 800px;
   margin: 0 auto;
   width: 100%;
+  overflow-y: auto;
 }
 
 .empty-state {
@@ -267,6 +383,17 @@ const openDetachModal = (index: number) => {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
+  margin: 8px 0;
 }
 
 .data-studio-input-wrapper {
@@ -312,6 +439,11 @@ const openDetachModal = (index: number) => {
 
 .chat-input::placeholder {
   color: hsl(var(--muted-foreground));
+}
+
+.chat-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .toolbox-row {
@@ -466,11 +598,18 @@ const openDetachModal = (index: number) => {
   justify-content: space-between;
   padding: 6px 8px;
   border-radius: 6px;
-  transition: background 0.2s;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
 }
 
 .source-item:hover {
   background: hsl(var(--muted));
+}
+
+.source-item.active-source {
+  background: hsl(var(--muted));
+  border-color: hsl(var(--border));
 }
 
 /* Buttons */
