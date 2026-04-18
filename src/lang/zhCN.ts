@@ -287,6 +287,7 @@ export const zhCN = {
     operations: {
       connect: '连接',
       edit: '编辑',
+      clone: '克隆',
       remove: '删除',
     },
     filterPlaceholder: '筛选连接...',

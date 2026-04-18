@@ -289,6 +289,7 @@ export const enUS = {
     operations: {
       connect: 'Connect',
       edit: 'Edit',
+      clone: 'Clone',
       remove: 'Remove',
     },
     filterPlaceholder: 'Filter connections...',
