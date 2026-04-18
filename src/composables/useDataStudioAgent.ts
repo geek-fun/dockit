@@ -13,8 +13,8 @@ import {
   type ElasticsearchConnection,
   type DynamoDBConnection,
 } from '../store/connectionStore';
-import { getOpenAiConfig } from '../store/chatStore';
-import type { AiConfig } from '../store/appStore';
+import { getFeatureModelConfig } from '../store/chatStore';
+import { ProviderEnum } from '../datasources';
 import { agentApi, type ToolDefinition, type ToolMetadata } from '../datasources/agentApi';
 
 const MAX_AGENT_ITERATIONS = 10;
@@ -42,18 +42,27 @@ const buildConnectionConfig = (connection: Connection): Record<string, unknown> 
   };
 };
 
-const buildSystemPrompt = (schema?: string): string => {
-  const base = [
-    'You are a Data Studio agent embedded in DocKit, a desktop database client.',
-    'You help users query, analyze, and manage their database data through natural language.',
-    '',
-    'Rules:',
-    '- Always use the available tools to interact with the database.',
-    '- Never fabricate data — only return actual query results.',
-    '- Explain your reasoning before executing queries.',
-    '- For destructive operations, clearly explain what will be affected.',
-    '- If a query might return large results, add appropriate limits.',
-  ].join('\n');
+const buildSystemPrompt = (schema?: string, noConnection?: boolean): string => {
+  const base = noConnection
+    ? [
+        'You are a helpful AI assistant embedded in DocKit, a desktop database client.',
+        'You help users with database-related questions, query writing, data analysis, and general programming topics.',
+        '',
+        'Rules:',
+        '- Be helpful and concise.',
+        '- If the user asks about specific data in a database, remind them to connect a data source first.',
+      ].join('\n')
+    : [
+        'You are a Data Studio agent embedded in DocKit, a desktop database client.',
+        'You help users query, analyze, and manage their database data through natural language.',
+        '',
+        'Rules:',
+        '- Always use the available tools to interact with the database.',
+        '- Never fabricate data — only return actual query results.',
+        '- Explain your reasoning before executing queries.',
+        '- For destructive operations, clearly explain what will be affected.',
+        '- If a query might return large results, add appropriate limits.',
+      ].join('\n');
 
   return schema ? `${base}\n\nDatabase Schema:\n${schema}` : base;
 };
@@ -61,8 +70,9 @@ const buildSystemPrompt = (schema?: string): string => {
 const buildOpenAiMessages = (
   messages: Array<AgentMessage>,
   schema?: string,
+  noConnection?: boolean,
 ): Array<Record<string, unknown>> => {
-  const systemMsg = { role: 'system', content: buildSystemPrompt(schema) };
+  const systemMsg = { role: 'system', content: buildSystemPrompt(schema, noConnection) };
 
   const conversationMsgs = messages.map(msg => {
     if (msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0) {
@@ -193,12 +203,14 @@ export const useDataStudioAgent = () => {
   const runAgentLoop = async (sessionId: string) => {
     const session = dataStudioStore.sessions.find(s => s.id === sessionId);
     const runtime = getRuntime(sessionId);
-    if (!session || !runtime.tools || !runtime.metadata || !runtime.config) return;
+    if (!session) return;
 
-    const source = dataStudioStore.connectedSources.find(
-      s => s.connectionId === session.connectionId,
-    );
-    if (!source) return;
+    const noConnection = session.connectionId === -1;
+    const source = noConnection
+      ? undefined
+      : dataStudioStore.connectedSources.find(s => s.connectionId === session.connectionId);
+
+    if (!noConnection && (!runtime.tools || !runtime.metadata || !runtime.config)) return;
 
     dataStudioStore.setSessionStatus(sessionId, 'running');
     isLoading.value = true;
@@ -221,22 +233,24 @@ export const useDataStudioAgent = () => {
           dataStudioStore.updateStreamingContent(sessionId, assistantMsgId, event.content);
         });
 
-        const aiConfig: AiConfig = await getOpenAiConfig();
+        const { provider, model } = await getFeatureModelConfig('dataStudio');
         const openAiMessages = buildOpenAiMessages(
           session.messages.filter(m => m.id !== assistantMsgId),
           session.schema,
+          noConnection,
         );
 
         let result;
         try {
           result = await agentApi.runAgentStep({
             requestId,
-            provider: aiConfig.provider,
-            model: aiConfig.model,
+            provider: kindToProviderEnum(provider.kind),
+            model: model.label,
             messages: openAiMessages,
-            tools: runtime.tools,
-            httpProxy: aiConfig.httpProxy,
-            apiKey: aiConfig.apiKey,
+            tools: noConnection ? [] : runtime.tools!,
+            httpProxy: provider.proxy || undefined,
+            apiKey: provider.apiKey ?? '',
+            baseUrl: provider.baseUrl,
           });
         } finally {
           runtime.unlistenDelta?.();
@@ -254,7 +268,7 @@ export const useDataStudioAgent = () => {
           break;
         }
 
-        if (result.finishReason === 'tool_calls' && result.toolCalls.length > 0) {
+        if (result.finishReason === 'tool_calls' && result.toolCalls.length > 0 && !noConnection) {
           const toolCalls: Array<AgentToolCall> = result.toolCalls.map(tc => {
             const meta = runtime.metadata![tc.name];
             const riskLevel = meta?.riskLevel ?? 'elevated';
@@ -262,7 +276,7 @@ export const useDataStudioAgent = () => {
               tc.name,
               riskLevel,
               session.connectionId,
-              source.autoMode,
+              source?.autoMode ?? false,
             );
             return {
               id: tc.id,
@@ -317,8 +331,21 @@ export const useDataStudioAgent = () => {
     }
   };
 
-  const sendMessage = async (content: string, connectionId: number) => {
+  const sendMessage = async (content: string, connectionId?: number) => {
     error.value = undefined;
+
+    if (!connectionId) {
+      const sessionId = dataStudioStore.getOrCreateSession(-1);
+      dataStudioStore.addMessage(sessionId, {
+        id: ulid(),
+        role: 'user',
+        content,
+        status: 'done',
+        timestamp: Date.now(),
+      });
+      await runAgentLoop(sessionId);
+      return;
+    }
 
     const connection = connectionStore.connections.find(c => c.id === connectionId);
     if (!connection) {
@@ -446,4 +473,19 @@ export const useDataStudioAgent = () => {
     confirmToolCall,
     clearChat,
   };
+};
+
+const kindToProviderEnum = (
+  kind: 'openai' | 'deepseek' | 'openrouter' | 'ollama' | 'custom-openai' | 'custom-anthropic',
+): ProviderEnum => {
+  switch (kind) {
+    case 'deepseek':
+      return ProviderEnum.DEEP_SEEK;
+    case 'openrouter':
+      return ProviderEnum.OPENROUTER;
+    case 'ollama':
+      return ProviderEnum.OLLAMA;
+    default:
+      return ProviderEnum.OPENAI;
+  }
 };

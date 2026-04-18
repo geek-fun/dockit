@@ -23,6 +23,13 @@
           <button v-else class="icon-button" :title="$t('history.empty')">
             <span class="i-carbon-time h-5 w-5" />
           </button>
+          <button
+            v-if="!configPanelOpen"
+            class="icon-button"
+            @click="dataStudioStore.toggleConfigPanel()"
+          >
+            <span class="i-carbon-settings-adjust h-5 w-5" />
+          </button>
         </div>
       </div>
 
@@ -88,7 +95,6 @@
                 class="chat-input"
                 rows="3"
                 :placeholder="$t('dataStudio.inputPlaceholder')"
-                :disabled="!activeConnectionId"
                 @keydown.enter.exact.prevent="handleSend"
               />
             </div>
@@ -101,6 +107,17 @@
                 >
                   <span class="i-carbon-add-alt h-4 w-4" />
                 </button>
+              </div>
+              <div class="toolbox-center">
+                <ModelPicker
+                  :groups="enabledModelGroups"
+                  :model-value="dataStudioRoute.selectedModelId ?? undefined"
+                  :recent-model-ids="recentDataStudioModelIds"
+                  trigger-class="model-select-trigger compact-select-trigger"
+                  panel-class="w-[380px] p-0 bg-[#151515] text-white border-[#2b2b2b]"
+                  @open="syncAllProviderModels"
+                  @update:model-value="updateDataStudioModel"
+                />
               </div>
               <button class="send-button" :disabled="!canSend" @click="handleSend">
                 <span class="i-carbon-arrow-up h-4 w-4" />
@@ -227,15 +244,6 @@
       </div>
     </div>
 
-    <!-- Toggle config button when panel is closed -->
-    <button
-      v-if="!configPanelOpen"
-      class="config-toggle"
-      @click="dataStudioStore.toggleConfigPanel()"
-    >
-      <span class="i-carbon-settings-adjust h-5 w-5" />
-    </button>
-
     <!-- Modals -->
     <AddSourceModal v-model:open="showAddModal" />
     <ModifySourceModal
@@ -254,8 +262,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
 import { storeToRefs } from 'pinia';
+import { useAppStore } from '@/store';
 import { useDataStudioStore, type ConnectedSource } from '@/store/dataStudioStore';
 import { useDataStudioAgent } from '@/composables/useDataStudioAgent';
+import ModelPicker from '@/components/model-picker.vue';
 import AddSourceModal from './components/add-source-modal.vue';
 import ModifySourceModal from './components/modify-source-modal.vue';
 import DetachSourceModal from './components/detach-source-modal.vue';
@@ -263,6 +273,8 @@ import AgentMessageBubble from '@/components/agent-message-bubble.vue';
 import ToolConfirmationCard from './components/tool-confirmation-card.vue';
 import type { ConfirmationAction } from './components/tool-confirmation-card.vue';
 
+const appStore = useAppStore();
+const { llmSettings } = storeToRefs(appStore);
 const dataStudioStore = useDataStudioStore();
 const { connectedSources, configPanelOpen } = storeToRefs(dataStudioStore);
 
@@ -280,16 +292,40 @@ const conversationRef = ref<HTMLElement | null>(null);
 const activeConnectionId = computed(() => dataStudioStore.activeConnectionId);
 
 const hasMessages = computed(() => activeSession.value && activeSession.value.messages.length > 0);
-
-const canSend = computed(
-  () => !!activeConnectionId.value && !isLoading.value && inputText.value.trim().length > 0,
+const enabledModelGroups = computed(() =>
+  llmSettings.value.providers
+    .filter(provider => provider.enabled && provider.discoveredModels.length > 0)
+    .map(provider => ({
+      id: provider.id,
+      label: provider.label,
+      models: provider.discoveredModels,
+    })),
 );
+const dataStudioRoute = computed(() => llmSettings.value.models.dataStudio);
+const recentDataStudioModelIds = computed(() =>
+  dataStudioRoute.value.selectedModelId ? [dataStudioRoute.value.selectedModelId] : [],
+);
+
+const canSend = computed(() => !isLoading.value && inputText.value.trim().length > 0);
+
+const updateDataStudioModel = async (value: string) => {
+  await appStore.setFeatureModelRoute('dataStudio', {
+    selectedModelId: value,
+    useRecommendedModel: false,
+  });
+};
+
+const syncAllProviderModels = () => {
+  llmSettings.value.providers
+    .filter(provider => provider.enabled)
+    .forEach(provider => appStore.syncProviderModels(provider.id));
+};
 
 const handleSend = () => {
   if (!canSend.value) return;
   const text = inputText.value.trim();
   inputText.value = '';
-  sendMessage(text, activeConnectionId.value!);
+  sendMessage(text, activeConnectionId.value ?? undefined);
 };
 
 const handleConfirmation = (msgId: string, event: ConfirmationAction) => {
@@ -449,7 +485,7 @@ const openDetachModal = (index: number) => {
 .toolbox-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
   padding: 0 12px;
   height: 40px;
   border-top: 1px solid hsl(var(--border));
@@ -459,6 +495,24 @@ const openDetachModal = (index: number) => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.toolbox-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.model-select-trigger {
+  border-radius: 9999px;
+  background: hsl(var(--muted) / 0.5);
+}
+
+.compact-select-trigger {
+  height: 30px;
+  min-width: 200px;
+  max-width: 280px;
 }
 
 .disclaimer-text {
@@ -653,27 +707,5 @@ const openDetachModal = (index: number) => {
 
 .detach-button:hover {
   color: hsl(var(--destructive));
-}
-
-.config-toggle {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--background));
-  color: hsl(var(--muted-foreground));
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.config-toggle:hover {
-  background: hsl(var(--muted));
-  color: hsl(var(--foreground));
 }
 </style>

@@ -6,6 +6,8 @@ import { jsonify } from '../common';
 export enum ProviderEnum {
   OPENAI = 'OPENAI',
   DEEP_SEEK = 'DEEP_SEEK',
+  OPENROUTER = 'OPENROUTER',
+  OLLAMA = 'OLLAMA',
 }
 
 export enum ChatMessageStatus {
@@ -138,11 +140,24 @@ const chatBotApi = {
     apiKey: string;
     model: string;
     httpProxy?: string;
+    baseUrl?: string;
   }) => {
     try {
       return await invoke<boolean>('validate_llm_config', config);
     } catch (_err) {
       return false;
+    }
+  },
+  listModels: async (config: {
+    provider: ProviderEnum;
+    apiKey: string;
+    httpProxy?: string;
+    baseUrl?: string;
+  }) => {
+    try {
+      return await invoke<Array<string>>('list_llm_models', config);
+    } catch (_err) {
+      return [];
     }
   },
 };

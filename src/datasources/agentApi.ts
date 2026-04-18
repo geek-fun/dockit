@@ -54,6 +54,7 @@ const agentApi = {
     tools: Array<ToolDefinition>;
     httpProxy?: string;
     apiKey: string;
+    baseUrl?: string;
   }): Promise<AgentStepResult> => {
     const result = await invoke<string>('run_agent_step', params);
     return jsonify.parse(result) as AgentStepResult;

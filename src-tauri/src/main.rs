@@ -10,7 +10,10 @@ mod dynamo_client;
 mod dynamo;
 
 use tauri::Emitter;
-use agent::{execute_tool, get_available_tools, introspect_schema, run_agent_step, validate_llm_config};
+use agent::{
+    execute_tool, get_available_tools, introspect_schema, list_llm_models, run_agent_step,
+    validate_llm_config,
+};
 use fetch_client::fetch_api;
 use file_api::{get_file_info, read_file_batch, stream_file_lines};
 use dynamo_client::dynamo_api;
@@ -68,6 +71,7 @@ fn main() {
             stream_file_lines,
             run_agent_step,
             validate_llm_config,
+            list_llm_models,
             execute_tool,
             introspect_schema,
             get_available_tools,

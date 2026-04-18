@@ -4,19 +4,74 @@ use async_openai::types::chat::{
 };
 use async_openai::{config::OpenAIConfig, Client};
 use futures::StreamExt;
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use serde_json::{json, Value};
 use tauri::Emitter;
 
 use crate::common::http_client::create_http_client;
 
 static OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
-static DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com";
+static DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com/v1";
+static OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
+static OLLAMA_BASE_URL: &str = "http://127.0.0.1:11434/v1";
 
-fn get_base_url(provider: &str) -> &'static str {
-    match provider {
-        "DEEP_SEEK" => DEEPSEEK_BASE_URL,
-        _ => OPENAI_BASE_URL,
+fn get_base_url(provider: &str, base_url: Option<String>) -> String {
+    if let Some(explicit) = base_url {
+        if !explicit.trim().is_empty() {
+            return explicit;
+        }
     }
+
+    match provider {
+        "DEEP_SEEK" => DEEPSEEK_BASE_URL.to_string(),
+        "OPENROUTER" => OPENROUTER_BASE_URL.to_string(),
+        "OLLAMA" => OLLAMA_BASE_URL.to_string(),
+        _ => OPENAI_BASE_URL.to_string(),
+    }
+}
+
+fn build_headers(api_key: &str) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    if !api_key.is_empty() {
+        if let Ok(value) = HeaderValue::from_str(&format!("Bearer {}", api_key)) {
+            headers.insert(AUTHORIZATION, value);
+        }
+    }
+    headers
+}
+
+fn extract_model_ids(provider: &str, payload: &Value) -> Vec<String> {
+    if provider == "OLLAMA" {
+        return payload
+            .get("data")
+            .and_then(|data| data.as_array())
+            .or_else(|| payload.get("models").and_then(|models| models.as_array()))
+            .map(|models| {
+                models
+                    .iter()
+                    .filter_map(|model| {
+                        model
+                            .get("id")
+                            .or_else(|| model.get("model"))
+                            .and_then(|value| value.as_str())
+                            .map(|value| value.to_string())
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+    }
+
+    payload
+        .get("data")
+        .and_then(|data| data.as_array())
+        .map(|models| {
+            models
+                .iter()
+                .filter_map(|model| model.get("id").and_then(|value| value.as_str()))
+                .map(|value| value.to_string())
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 #[tauri::command]
@@ -29,10 +84,12 @@ pub async fn run_agent_step(
     tools: Vec<Value>,
     http_proxy: Option<String>,
     api_key: String,
+    base_url: Option<String>,
 ) -> Result<String, String> {
+    let resolved_base_url = get_base_url(&provider, base_url);
     let config = OpenAIConfig::new()
         .with_api_key(api_key)
-        .with_api_base(get_base_url(&provider));
+        .with_api_base(resolved_base_url);
     let http_client = create_http_client(http_proxy, None);
     let client = Client::with_config(config).with_http_client(http_client);
 
@@ -171,16 +228,86 @@ pub async fn validate_llm_config(
     api_key: String,
     model: String,
     http_proxy: Option<String>,
+    base_url: Option<String>,
 ) -> Result<bool, String> {
     let http_client = create_http_client(http_proxy, None);
-    let url = format!("{}/models/{}", get_base_url(&provider), model);
+    let resolved_base_url = get_base_url(&provider, base_url);
 
-    let response = http_client
-        .get(&url)
-        .header("Authorization", format!("Bearer {}", api_key))
+    if provider == "OLLAMA" {
+        let url = format!("{}/api/tags", resolved_base_url.trim_end_matches("/v1"));
+        let response = http_client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("Validation request failed: {}", e))?;
+
+        return Ok(response.status().is_success());
+    }
+
+    if provider == "DEEP_SEEK" {
+        let url = format!("{}/models", resolved_base_url);
+        let response = http_client
+            .get(&url)
+            .headers(build_headers(&api_key))
+            .send()
+            .await
+            .map_err(|e| format!("Validation request failed: {}", e))?;
+
+        return Ok(response.status().is_success());
+    }
+
+    let url = format!("{}/models/{}", resolved_base_url, model);
+
+    let request = if api_key.is_empty() {
+        http_client.get(&url)
+    } else {
+        http_client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", api_key))
+    };
+
+    let response = request
         .send()
         .await
         .map_err(|e| format!("Validation request failed: {}", e))?;
 
     Ok(response.status().is_success())
+}
+
+#[tauri::command]
+pub async fn list_llm_models(
+    provider: String,
+    api_key: String,
+    http_proxy: Option<String>,
+    base_url: Option<String>,
+) -> Result<Vec<String>, String> {
+    let http_client = create_http_client(http_proxy, None);
+    let resolved_base_url = get_base_url(&provider, base_url);
+    let (url, requires_auth) = if provider == "OLLAMA" {
+        (format!("{}/api/tags", resolved_base_url.trim_end_matches("/v1")), false)
+    } else {
+        (format!("{}/models", resolved_base_url), !api_key.is_empty())
+    };
+
+    let request = if requires_auth {
+        http_client.get(&url).headers(build_headers(&api_key))
+    } else {
+        http_client.get(&url)
+    };
+
+    let response = request
+        .send()
+        .await
+        .map_err(|e| format!("Failed to list models: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Failed to list models: HTTP {}", response.status()));
+    }
+
+    let payload: Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse models response: {}", e))?;
+
+    Ok(extract_model_ids(&provider, &payload))
 }

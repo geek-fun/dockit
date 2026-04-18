@@ -9,6 +9,7 @@ export const enUS = {
     user: 'User',
     setting: 'Setting',
     chatBot: 'AI Assistant',
+    chatBotEmptyHint: 'Ask me anything about your database or code.',
     importExport: 'Import/Export',
     taskManager: 'Task Manager',
   },
@@ -53,17 +54,14 @@ export const enUS = {
       historyCapDesc: 'Maximum number of query history entries to keep (10–500)',
     },
     ai: {
-      title: 'GPTs',
-      configGpt: 'Configure GPT',
-      others: 'Other GPTs',
+      title: 'AI Models',
+      description: 'Manage provider access and choose which models power each DocKit feature.',
+      configGpt: 'Configure AI Models',
       model: 'Model',
-      modelPlaceholder: 'Please enter the GPT model name',
       apiKey: 'API Key',
       apiKeyPlaceholder: 'Please enter the API Key',
-      prompt: 'Prompt',
       proxy: 'Network Proxy',
-      invalid: 'GPT configuration is invalid!',
-      missing: 'GPT is not configured or not enabled',
+      missing: 'No enabled provider with an available model is ready yet',
       firstMsg: 'Hello, I am your AI assistant, how can I help you?',
       defaultPrompt: `You are a professional database engineer,
       familiar with the following databases:
@@ -82,6 +80,70 @@ export const enUS = {
         - Do not add format=json request parameter unless the user specifies the response in JSON format.
         - Answer questions in English unless the user specifies to use another language.
         - If the user asks non-database related questions, politely decline.`,
+      providers: {
+        title: 'Providers',
+        description:
+          'Set up provider access, proxy settings, and model catalogs before selecting models.',
+        addedTitle: 'Added Providers',
+        addedDescription:
+          'Providers are shared across AI Assistant and Data Studio. Only added providers appear here.',
+        addProvider: 'Add Provider',
+        emptyState:
+          'No providers added yet. Add one to start syncing models for AI Assistant and Data Studio.',
+        providerType: 'Provider type',
+        selectProviderType: 'Select a provider type',
+        displayName: 'Display name',
+        displayNamePlaceholder: 'Friendly provider label',
+        enabled: 'Enabled',
+        connected: 'Connected',
+        notConnected: 'Not connected',
+        comingSoon: 'Coming soon',
+        baseUrl: 'Base URL',
+        authMode: 'Auth mode',
+        endpointSummary: 'Endpoint',
+        lastSync: 'Catalog status',
+        refreshModels: 'Refresh models',
+        discoveredModelsDesc: 'DocKit groups discovered models by provider for feature routing.',
+        noModels: 'No models discovered yet.',
+        testConnection: 'Test connection',
+        testSuccess: 'Connection successful',
+        testFailed: 'Unable to connect',
+        openrouterAuthTitle: 'Connect OpenRouter',
+        openrouterAuthDesc:
+          'Use website auth first, or fall back to a standard API key if you prefer manual setup.',
+        websiteTab: 'Website',
+        apiKeyTab: 'API Key',
+        websiteTabDescription:
+          'Open OpenRouter in your browser, finish setup there, then return and save your provider if you want to keep it shared in DocKit.',
+        openRouterConnect: 'Open OpenRouter website',
+        useApiKey: 'Use API key instead',
+        featureRequest: 'Create feature request',
+        customAnthropicDescription:
+          'Anthropic-compatible providers are not implemented in this pass. Use the feature request button to track it on GitHub.',
+      },
+      models: {
+        title: 'Models',
+        routingTitle: 'Model Routing',
+        routingDescription:
+          'Choose which shared provider model powers AI Assistant and Data Studio.',
+        emptyState:
+          'Enable and connect at least one provider to choose models for Sidebar Assistant and Data Studio.',
+        sidebarTitle: 'Sidebar Assistant',
+        sidebarDescription:
+          'Choose the model used for chat help, explanations, and query guidance.',
+        dataStudioTitle: 'Data Studio',
+        dataStudioDescription:
+          'Choose the model used for schema-aware analysis and tool-driven workflows.',
+        useRecommended: 'Use recommended model',
+        useRecommendedDesc:
+          'DocKit automatically picks the best available model from your enabled providers.',
+        dataStudioRecommendedDesc:
+          'DocKit picks the best enabled model for the selected Data Studio task style.',
+        model: 'Selected model',
+        selectModel: 'Select a model',
+        taskStyle: 'Task style',
+        discoveredModels: 'Discovered models',
+      },
     },
   },
   manage: {
@@ -336,6 +398,7 @@ export const enUS = {
     cancel: 'Cancel',
     close: 'Close',
     delete: 'Delete',
+    edit: 'Edit',
     retry: 'Retry',
     save: 'Save',
     removeSuccess: 'removed successfully',

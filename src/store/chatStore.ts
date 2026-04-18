@@ -10,17 +10,19 @@ import {
   ProviderEnum,
   storeApi,
 } from '../datasources';
-import { AiConfig } from './appStore.ts';
+import { useAppStore, type ProviderConfig, type ModelRef } from './appStore.ts';
 import { agentApi } from '../datasources/agentApi';
 
-export const getOpenAiConfig = async () => {
-  const aigcConfigs = await storeApi.getSecret('aiConfigs', []);
-  const enabledAigc = aigcConfigs.find((config: AiConfig) => config.enabled);
+export const getFeatureModelConfig = async (feature: 'sidebarAssistant' | 'dataStudio') => {
+  const appStore = useAppStore();
+  await appStore.fetchLlmSettings();
+  const resolved = appStore.getResolvedFeatureModel(feature);
 
-  if (!enabledAigc) {
+  if (!resolved) {
     throw new CustomError(ErrorCodes.MISSING_GPT_CONFIG, lang.global.t('setting.ai.missing'));
   }
-  return enabledAigc;
+
+  return resolved as { provider: ProviderConfig; model: ModelRef };
 };
 
 type Chat = {
@@ -38,7 +40,10 @@ export const useChatStore = defineStore('chat', {
   },
   actions: {
     async fetchChats() {
-      const { provider } = await getOpenAiConfig();
+      const {
+        provider: { kind },
+      } = await getFeatureModelConfig('sidebarAssistant');
+      const provider = kindToProviderEnum(kind);
 
       const { chats = [], activeChat } = await storeApi.get<{ chats: Chat[]; activeChat: Chat }>(
         'chatStore',
@@ -97,7 +102,7 @@ export const useChatStore = defineStore('chat', {
       );
 
       try {
-        const { model, provider, apiKey, httpProxy } = await getOpenAiConfig();
+        const { provider, model } = await getFeatureModelConfig('sidebarAssistant');
         const history = messages.filter(({ status }) =>
           [ChatMessageStatus.RECEIVED, ChatMessageStatus.SENT].includes(status),
         );
@@ -126,12 +131,13 @@ export const useChatStore = defineStore('chat', {
         try {
           await agentApi.runAgentStep({
             requestId,
-            provider,
-            model,
+            provider: kindToProviderEnum(provider.kind),
+            model: model.label,
             messages: openAiMessages,
             tools: [],
-            httpProxy,
-            apiKey,
+            httpProxy: provider.proxy || undefined,
+            apiKey: provider.apiKey ?? '',
+            baseUrl: provider.baseUrl,
           });
           this.activeChat!.messages[this.activeChat!.messages.length - 1].status =
             ChatMessageStatus.RECEIVED;
@@ -168,3 +174,16 @@ export const useChatStore = defineStore('chat', {
     },
   },
 });
+
+const kindToProviderEnum = (kind: ProviderConfig['kind']): ProviderEnum => {
+  switch (kind) {
+    case 'deepseek':
+      return ProviderEnum.DEEP_SEEK;
+    case 'openrouter':
+      return ProviderEnum.OPENROUTER;
+    case 'ollama':
+      return ProviderEnum.OLLAMA;
+    default:
+      return ProviderEnum.OPENAI;
+  }
+};
