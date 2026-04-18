@@ -13,6 +13,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { ThemeType, useAppStore, useUserStore } from '../store';
 import { router } from '../router';
 import { parseDeepLinkUrl } from '../datasources/authService';
+import { useAppUpdater } from '@/composables';
 import AboutDialog from './AboutDialog.vue';
 
 const appStore = useAppStore();
@@ -20,9 +21,11 @@ const { setUiThemeType } = appStore;
 const { uiThemeType, themeType } = storeToRefs(appStore);
 
 const userStore = useUserStore();
+const { checkForUpdates } = useAppUpdater();
 
 const aboutDialog = ref<InstanceType<typeof AboutDialog> | null>(null);
 let showAboutListener: UnlistenFn | undefined;
+let checkForUpdatesListener: UnlistenFn | undefined;
 let unlistenAuth: UnlistenFn | undefined;
 let unlistenDeepLink: UnlistenFn | undefined;
 let unlistenTauriEvent: UnlistenFn | undefined;
@@ -76,6 +79,10 @@ onMounted(async () => {
     aboutDialog.value?.show();
   });
 
+  checkForUpdatesListener = await listen('checkForUpdates', () => {
+    checkForUpdates(true);
+  });
+
   unlistenAuth = await listen<{
     token: string;
     userId?: string;
@@ -92,6 +99,7 @@ onMounted(async () => {
 onUnmounted(() => {
   sysPreferLight.removeEventListener('change', handleSystemThemeChange);
   showAboutListener?.();
+  checkForUpdatesListener?.();
   unlistenAuth?.();
   unlistenDeepLink?.();
   unlistenTauriEvent?.();

@@ -3,7 +3,7 @@
     <template #1>
       <Card class="query-container">
         <CardContent class="p-4 h-full overflow-hidden">
-          <Form ref="dynamoQueryFormRef" class="query-form">
+          <Form class="query-form">
             <!-- First row with partition and sort key -->
             <Grid :cols="24" :x-gap="12">
               <GridItem :span="8">
@@ -184,9 +184,6 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { useForm } from 'vee-validate';
-import { toTypedSchema } from '@vee-validate/zod';
-import * as z from 'zod';
 import { useMessageService, useLoadingBarService } from '@/composables';
 import { SplitPane } from '@/components/ui/split-pane';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -256,7 +253,6 @@ const selectedIndexOrTable = computed({
   },
 });
 
-const dynamoQueryFormRef = ref();
 const filterConditions = ref([
   { label: lang.t('editor.dynamo.filterLabels.eq'), value: '=' },
   { label: lang.t('editor.dynamo.filterLabels.ne'), value: '!=' },
@@ -289,43 +285,6 @@ watch(
 // Edit state
 const showEditModal = ref(false);
 const editingItem = ref<Record<string, unknown> | null>(null);
-
-const validationSchema = computed(() =>
-  toTypedSchema(
-    z.object({
-      index: z
-        .string()
-        .nullable()
-        .refine(val => val !== null && val.length > 0, {
-          message: lang.t('editor.dynamo.indexIsRequired'),
-        }),
-      partitionKey: z.string().nullable().optional(),
-      sortKey: z.string().nullable().optional(),
-      formFilterItems: z
-        .array(
-          z.object({
-            key: z.string(),
-            operator: z.string(),
-            value: z.string(),
-          }),
-        )
-        .refine(
-          items =>
-            items.every(item => {
-              const hasAny = item.key || item.operator || item.value;
-              const hasAll = item.key && item.operator && item.value;
-              return !hasAny || hasAll;
-            }),
-          { message: lang.t('connection.validationFailed') },
-        ),
-    }),
-  ),
-);
-
-const { validate } = useForm({
-  validationSchema,
-  initialValues: dynamoQueryForm.value,
-});
 
 const validationPassed = computed(() => {
   if (!dynamoQueryForm.value.index) return false;
@@ -415,14 +374,12 @@ const queryToDynamo = async (event?: MouseEvent) => {
     event.preventDefault();
   }
 
-  const { valid } = await validate();
-
   if (!activeConnection.value || !selectedIndexOrTable.value) {
     message.error(`status: 500, ${lang.t('connection.selectIndex')}`);
     return;
   }
 
-  if (!valid || !validationPassed.value) {
+  if (!validationPassed.value) {
     return;
   }
 
@@ -477,10 +434,6 @@ const queryToDynamo = async (event?: MouseEvent) => {
 
 const handleReset = () => {
   resetUiQueryForm();
-
-  if (dynamoQueryFormRef.value) {
-    dynamoQueryFormRef.value.restoreValidation();
-  }
   editorSize.value = 1;
   resetDynamoData();
 };

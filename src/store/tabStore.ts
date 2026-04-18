@@ -79,7 +79,7 @@ export const useTabStore = defineStore('panel', {
           connection: connectionOrFile,
           file: fileInfo?.path,
           content,
-          editorType: isDynamoDB ? 'DYNAMO_EDITOR_SQL' : undefined,
+          editorType: isDynamoDB ? 'DYNAMO_EDITOR_UI' : undefined,
         };
 
         this.panels.push(newPanel);

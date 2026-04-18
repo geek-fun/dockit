@@ -31,24 +31,68 @@
         </GridItem>
         <GridItem>
           <div class="field-label">{{ $t('import.collectionName') }}</div>
-          <Select
-            v-model="inputData.selectedIndex"
-            :disabled="!inputData.selectedConnection || loadingStat.connection"
-            @update:model-value="handleIndexChange"
-          >
-            <SelectTrigger>
-              <SelectValue :placeholder="$t('import.selectOrCreateIndex')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="option in filteredIndexOptions"
-                :key="option.value"
-                :value="option.value"
+
+          <!-- Combobox: searchable dropdown + free-text entry -->
+          <Popover v-model:open="indexDropdownOpen">
+            <PopoverTrigger as-child>
+              <Button
+                variant="outline"
+                role="combobox"
+                :aria-expanded="indexDropdownOpen"
+                :disabled="!inputData.selectedConnection || loadingStat.connection"
+                class="combobox-trigger"
               >
-                {{ option.label }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+                <span :class="inputData.selectedIndex ? 'combobox-value' : 'combobox-placeholder'">
+                  {{ inputData.selectedIndex || $t('import.selectOrCreateIndex') }}
+                </span>
+                <span class="i-carbon-chevron-down h-4 w-4 combobox-icon" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent class="combobox-content" :align="'start'">
+              <div class="combobox-search">
+                <Input
+                  v-model="inputData.indexSearchQuery"
+                  :placeholder="$t('import.selectOrCreateIndex')"
+                  class="combobox-input"
+                  @keydown.enter="handleIndexInputEnter"
+                />
+              </div>
+              <div class="combobox-list">
+                <!-- Existing options filtered by query -->
+                <div
+                  v-for="option in filteredIndexOptions"
+                  :key="option.value"
+                  :class="['combobox-item', { selected: option.value === inputData.selectedIndex }]"
+                  @click="selectIndexOption(option.value)"
+                >
+                  <span
+                    v-if="option.value === inputData.selectedIndex"
+                    class="i-carbon-checkmark h-4 w-4 combobox-check"
+                  />
+                  <span v-else class="combobox-check-placeholder" />
+                  {{ option.label }}
+                </div>
+
+                <!-- "Create new" option when query doesn't match any existing -->
+                <div
+                  v-if="inputData.indexSearchQuery && !exactMatchExists"
+                  class="combobox-item combobox-create"
+                  @click="selectIndexOption(inputData.indexSearchQuery)"
+                >
+                  <span class="i-carbon-add h-4 w-4 combobox-check" />
+                  {{ $t('import.createNew') }}: "{{ inputData.indexSearchQuery }}"
+                </div>
+
+                <div
+                  v-if="filteredIndexOptions.length === 0 && !inputData.indexSearchQuery"
+                  class="combobox-empty"
+                >
+                  {{ $t('import.noIndicesFound') }}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <span class="field-hint">
             {{
               importIsNewCollection
@@ -86,6 +130,9 @@ import {
   SelectItem,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   useImportExportStore,
   useConnectionStore,
@@ -121,6 +168,7 @@ const loadingStat = ref({
   index: false,
 });
 
+const indexDropdownOpen = ref(false);
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
 const currentExistingIndices = ref<string[]>([]);
 
@@ -147,6 +195,25 @@ const filteredIndexOptions = computed(() => {
     .filter(option => option.value.toLowerCase().includes(query))
     .sort((a, b) => a.value.localeCompare(b.value));
 });
+
+const exactMatchExists = computed(() => {
+  const query = inputData.value.indexSearchQuery.toLowerCase();
+  return indexOptions.value.some(opt => opt.value.toLowerCase() === query);
+});
+
+const selectIndexOption = (value: string) => {
+  inputData.value.selectedIndex = value;
+  inputData.value.indexSearchQuery = '';
+  indexDropdownOpen.value = false;
+  handleIndexChange(value);
+};
+
+const handleIndexInputEnter = () => {
+  const query = inputData.value.indexSearchQuery.trim();
+  if (query) {
+    selectIndexOption(query);
+  }
+};
 
 const handleConnectionOpen = async () => {
   loadingStat.value.connection = true;
@@ -238,6 +305,7 @@ const updateIndexOptions = () => {
 const handleConnectionChange = async (value: string) => {
   const con = connections.value.find(({ name }) => name === value);
   if (!con) return;
+  importExportStore.detachActiveTask('import');
   loadingStat.value.connection = true;
   try {
     const refreshed = await freshConnection(con);
@@ -262,6 +330,7 @@ const handleConnectionChange = async (value: string) => {
 };
 
 const handleIndexChange = (value: string) => {
+  importExportStore.detachActiveTask('import');
   loadingStat.value.index = true;
   try {
     inputData.value.selectedIndex = value;
@@ -284,6 +353,16 @@ onMounted(async () => {
       inputData.value.selectedIndex = importTargetIndex.value;
     }
   }
+});
+
+watch(importConnection, newConn => {
+  if (newConn) {
+    inputData.value.selectedConnection = newConn.name;
+  }
+});
+
+watch(importTargetIndex, newIdx => {
+  inputData.value.selectedIndex = newIdx;
 });
 </script>
 
@@ -332,6 +411,91 @@ onMounted(async () => {
 }
 
 .step-card .collection-indicator .indicator-text {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Combobox styles */
+.combobox-trigger {
+  width: 100%;
+  justify-content: space-between;
+  font-weight: 400;
+}
+
+.combobox-value {
+  color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.combobox-placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+.combobox-icon {
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.combobox-content {
+  padding: 4px;
+  min-width: 240px;
+}
+
+.combobox-search {
+  padding: 4px 4px 8px;
+}
+
+.combobox-input {
+  height: 32px;
+  font-size: 13px;
+}
+
+.combobox-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.combobox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.combobox-item:hover {
+  background: hsl(var(--accent));
+}
+
+.combobox-item.selected {
+  background: hsl(var(--accent));
+  font-weight: 500;
+}
+
+.combobox-item.combobox-create {
+  color: #18a058;
+  font-style: italic;
+}
+
+.combobox-check {
+  flex-shrink: 0;
+}
+
+.combobox-check-placeholder {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.combobox-empty {
+  padding: 12px;
+  text-align: center;
   font-size: 12px;
   color: hsl(var(--muted-foreground));
 }

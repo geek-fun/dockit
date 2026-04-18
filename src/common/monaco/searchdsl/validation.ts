@@ -74,14 +74,20 @@ const validateJsonBody = (jsonContent: string, startLineNumber: number): Validat
     return errors;
   }
 
-  // Check for common JSON issues before parsing
-  // Count braces and brackets
+  const withoutComments = trimmed
+    .split('\n')
+    .filter(l => {
+      const t = l.trim();
+      return !t.startsWith('//') && !t.startsWith('#');
+    })
+    .join('\n');
+
   let braceCount = 0;
   let bracketCount = 0;
   let inString = false;
   let escapeNext = false;
 
-  for (const char of trimmed) {
+  for (const char of withoutComments) {
     if (escapeNext) {
       escapeNext = false;
       continue;
@@ -128,9 +134,7 @@ const validateJsonBody = (jsonContent: string, startLineNumber: number): Validat
     return errors;
   }
 
-  // Try to parse JSON
   try {
-    // First try standard JSON5 (which allows trailing commas, comments, etc.)
     jsonify.parse5(trimmed);
   } catch (parseError) {
     const error = parseError as Error;
@@ -196,103 +200,37 @@ const validateEsAction = (
 };
 
 /**
- * Validate ES/OpenSearch content
+ * Validate ES/OpenSearch content.
+ * Two-pass: action-line boundaries isolate each request so broken JSON cannot cascade.
  */
 export const validateEs = (content: string): ValidationResult => {
   const errors: ValidationError[] = [];
   const lines = content.split('\n');
 
-  let currentBody = '';
-  let currentMethod = '';
-  let currentPath = '';
-  let methodLineNumber = 0;
-  let bodyStartLineNumber = 0;
-  let inBody = false;
-
+  const actions: { index: number; method: string; path: string }[] = [];
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmedLine = line.trim();
-    const lineNumber = i + 1;
-
-    // Skip empty lines outside of body
-    if (!trimmedLine && !inBody) {
-      continue;
-    }
-
-    // Skip comments
-    if (trimmedLine.startsWith('//') || trimmedLine.startsWith('#')) {
-      continue;
-    }
-
-    // Check if this line is a new action (HTTP method)
-    // We check this even if we're currently in a body, to handle cases where
-    // the previous body has syntax errors (e.g., unclosed braces)
-    const actionMatch = executeActions.regexp.exec(trimmedLine);
-    if (actionMatch) {
-      // Validate previous action if any (even if body was incomplete)
-      if (currentMethod) {
-        errors.push(
-          ...validateEsAction(
-            currentMethod,
-            currentPath,
-            currentBody,
-            methodLineNumber,
-            bodyStartLineNumber,
-          ),
-        );
-      }
-
-      // Parse new action and reset state
-      const parts = trimmedLine.split(/\s+/);
-      currentMethod = parts[0];
-      currentPath = parts.slice(1).join(' ');
-      methodLineNumber = lineNumber;
-      currentBody = '';
-      bodyStartLineNumber = lineNumber + 1;
-      inBody = false;
-      continue;
-    }
-
-    // Check for body start
-    if (trimmedLine.startsWith('{') || trimmedLine.startsWith('[')) {
-      if (!inBody) {
-        bodyStartLineNumber = lineNumber;
-      }
-      inBody = true;
-      currentBody += (currentBody ? '\n' : '') + line;
-      continue;
-    }
-
-    // Continue body
-    if (inBody) {
-      currentBody += '\n' + line;
-
-      // Check if body ends
-      if (trimmedLine.endsWith('}') || trimmedLine.endsWith(']')) {
-        // Check if braces/brackets are balanced
-        const openBraces = (currentBody.match(/{/g) || []).length;
-        const closeBraces = (currentBody.match(/}/g) || []).length;
-        const openBrackets = (currentBody.match(/\[/g) || []).length;
-        const closeBrackets = (currentBody.match(/\]/g) || []).length;
-
-        if (openBraces === closeBraces && openBrackets === closeBrackets) {
-          inBody = false;
-        }
-      }
+    const trimmed = lines[i].trim();
+    if (trimmed.startsWith('//') || trimmed.startsWith('#')) continue;
+    if (executeActions.regexp.test(trimmed)) {
+      const parts = trimmed.split(/\s+/);
+      actions.push({ index: i, method: parts[0], path: parts.slice(1).join(' ') });
     }
   }
 
-  // Validate the last action
-  if (currentMethod) {
-    errors.push(
-      ...validateEsAction(
-        currentMethod,
-        currentPath,
-        currentBody,
-        methodLineNumber,
-        bodyStartLineNumber,
-      ),
-    );
+  for (let a = 0; a < actions.length; a++) {
+    const { index, method, path } = actions[a];
+    const nextIndex = a + 1 < actions.length ? actions[a + 1].index : lines.length;
+    const bodyLines = lines.slice(index + 1, nextIndex);
+    const body = bodyLines.join('\n');
+
+    const firstContentOffset = bodyLines.findIndex(l => {
+      const t = l.trim();
+      return t.length > 0 && !t.startsWith('//') && !t.startsWith('#');
+    });
+    const bodyStartLineNumber =
+      firstContentOffset >= 0 ? index + 2 + firstContentOffset : index + 2;
+
+    errors.push(...validateEsAction(method, path, body, index + 1, bodyStartLineNumber));
   }
 
   return { errors };

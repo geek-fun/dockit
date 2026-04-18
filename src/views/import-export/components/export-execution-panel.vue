@@ -79,6 +79,21 @@
         </p>
       </div>
 
+      <!-- Export Phase Status Banner - shown after progress -->
+      <div v-if="exportPhase === 'done' || exportPhase === 'error'" class="phase-status mt-2 mb-4">
+        <div v-if="exportPhase === 'done'" class="phase-banner done">
+          <span class="i-carbon-checkmark-filled h-4 w-4 mr-2" />
+          {{ $t('export.exportSuccess') }}
+        </div>
+        <div v-else-if="exportPhase === 'error'" class="phase-banner error">
+          <span class="i-carbon-warning h-4 w-4 mr-2" />
+          {{ exportErrorMessage }}
+        </div>
+      </div>
+
+      <!-- Spacer to push button to bottom -->
+      <div class="flex-1" />
+
       <!-- Export Button - at bottom -->
       <div class="export-action">
         <Button
@@ -105,7 +120,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/ui/spinner';
-import { useImportExportStore, ExportInput } from '../../../store';
+import { useImportExportStore, ExportInput, ExportTaskConfig } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import { ulid } from 'ulidx';
@@ -136,6 +151,8 @@ const {
 } = storeToRefs(exportStore);
 
 const isExporting = ref(false);
+const exportPhase = ref<'idle' | 'done' | 'error'>('idle');
+const exportErrorMessage = ref('');
 
 const validationPercentage = computed(() => {
   const steps = [
@@ -242,6 +259,7 @@ const executeExport = async () => {
   if (!connection.value) return;
 
   isExporting.value = true;
+  exportPhase.value = 'idle';
 
   const exportPath = getExportPath.value;
 
@@ -256,26 +274,45 @@ const executeExport = async () => {
     overwriteExisting: overwriteExisting.value,
     createDirectory: createDirectory.value,
     beautifyJson: beautifyJson.value,
+    includeMetadata: exportStore.includeMetadata,
   };
 
-  // Create task for tracking
+  // Create task for tracking with config snapshot
   const taskId = ulid();
+  const configSnapshot: ExportTaskConfig = {
+    connection: connection.value,
+    index: selectedIndex.value,
+    folderPath: exportPath,
+    extraPath: exportStore.extraPath,
+    fileName: fileName.value,
+    fileType: fileType.value,
+    fields: [...fields.value],
+    filterQuery: filterQuery.value,
+    overwriteExisting: overwriteExisting.value,
+    createDirectory: createDirectory.value,
+    beautifyJson: beautifyJson.value,
+  };
   exportStore.addRunningTask({
     id: taskId,
+    kind: 'export',
     status: 'running',
     progress: { complete: 0, total: estimatedRows.value || 0 },
     connection: connection.value,
     index: selectedIndex.value,
+    config: configSnapshot,
+    runtime: { complete: 0, total: estimatedRows.value || 0, inserted: 0, updated: 0, skipped: 0 },
     fileName: fileName.value,
     folderPath: exportPath,
     fileType: fileType.value,
     fields: fields.value,
     startTime: new Date(),
   });
+  exportStore.activeExportTaskId = taskId;
 
   try {
     const filePath = await exportStore.exportToFile(exportInput);
     exportStore.updateTaskStatus(taskId, 'completed');
+    exportPhase.value = 'done';
     message.success(lang.t('export.exportSuccess') + `: ${filePath}`, {
       closable: true,
       keepAliveOnHover: true,
@@ -284,6 +321,8 @@ const executeExport = async () => {
   } catch (err) {
     const error = err as CustomError;
     exportStore.updateTaskStatus(taskId, 'failed', undefined, error.details);
+    exportPhase.value = 'error';
+    exportErrorMessage.value = error.details || `Operation failed (status: ${error.status})`;
     message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
       closable: true,
       keepAliveOnHover: true,
@@ -434,7 +473,6 @@ const executeExport = async () => {
 }
 
 .execution-card .export-action {
-  margin-top: auto;
   padding-top: 16px;
 }
 
@@ -443,5 +481,27 @@ const executeExport = async () => {
   color: hsl(var(--muted-foreground));
   text-align: center;
   margin-top: 8px;
+}
+
+.phase-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.phase-banner.done {
+  background-color: rgba(24, 160, 88, 0.1);
+  color: #18a058;
+  border: 1px solid rgba(24, 160, 88, 0.2);
+}
+
+.phase-banner.error {
+  background-color: rgba(208, 48, 80, 0.1);
+  color: #d03050;
+  border: 1px solid rgba(208, 48, 80, 0.2);
 }
 </style>

@@ -1,4 +1,6 @@
+pub mod batch_write_item;
 pub mod create_item;
+pub mod create_table;
 pub mod delete_item;
 pub mod describe_table;
 pub mod execute_statement;

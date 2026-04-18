@@ -111,3 +111,7 @@ dist-ssr
 *.sln
 *.sw?
 /artifacts/
+
+# Local scratch / draft files (not part of the project)
+docs/data-studio.md
+reddit-post-dockit.md

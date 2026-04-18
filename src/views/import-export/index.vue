@@ -2,9 +2,9 @@
   <main class="import-export-container">
     <!-- Content Layout -->
     <div class="content-layout">
-      <!-- Left: Steps Container -->
-      <div class="steps-container">
-        <!-- Segmented Control Switch -->
+      <!-- Left: Steps Column -->
+      <div class="steps-column">
+        <!-- Segmented Control Switch (fixed) -->
         <div class="mode-switch-wrapper">
           <div class="segmented-control">
             <label :class="['segment-label', { active: activeMode === 'import' }]">
@@ -30,7 +30,7 @@
           </div>
         </div>
 
-        <!-- Steps Content -->
+        <!-- Steps Content (scrollable) -->
         <div class="steps-content">
           <!-- Export Steps -->
           <template v-if="activeMode === 'export'">
@@ -58,6 +58,8 @@
 </template>
 
 <script setup lang="ts">
+import { storeToRefs } from 'pinia';
+import { useImportExportStore } from '../../store';
 import ExportSourceScope from './components/export-source-scope.vue';
 import ExportSchemaStructure from './components/export-schema-structure.vue';
 import ExportTargetOutput from './components/export-target-output.vue';
@@ -67,7 +69,19 @@ import ImportSchemaStructure from './components/import-schema-structure.vue';
 import ImportTargetOutput from './components/import-target-output.vue';
 import ImportExecutionPanel from './components/import-execution-panel.vue';
 
-const activeMode = ref('import');
+const route = useRoute();
+const importExportStore = useImportExportStore();
+const { activeMode } = storeToRefs(importExportStore);
+
+watch(
+  () => route.query.taskId,
+  taskId => {
+    if (taskId && typeof taskId === 'string') {
+      importExportStore.openTask(taskId);
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>
@@ -87,7 +101,22 @@ const activeMode = ref('import');
   box-sizing: border-box;
 }
 
-.steps-container {
+.steps-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  min-width: 0;
+}
+
+.mode-switch-wrapper {
+  display: flex;
+  justify-content: flex-start;
+  flex-shrink: 0;
+}
+
+.steps-content {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -98,13 +127,20 @@ const activeMode = ref('import');
   -ms-overflow-style: none;
 }
 
-.steps-container::-webkit-scrollbar {
+.steps-content::-webkit-scrollbar {
   display: none;
 }
 
-.mode-switch-wrapper {
-  display: flex;
-  justify-content: flex-start;
+.execution-container {
+  width: 300px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.execution-container::-webkit-scrollbar {
+  display: none;
 }
 
 .segmented-control {
@@ -156,16 +192,5 @@ const activeMode = ref('import');
 
 .segment-input {
   display: none;
-}
-
-.steps-content {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.execution-container {
-  width: 300px;
-  flex-shrink: 0;
 }
 </style>

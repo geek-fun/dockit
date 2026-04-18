@@ -7,11 +7,45 @@
 
     <Card>
       <CardHeader>
-        <CardTitle>DocKit {{ version }}</CardTitle>
-        <CardDescription>
-          DocKit is a modern cross-platform NoSQL/NewSQL GUI client. Explore your data any time from
-          your Mac, Windows, and Linux.
-        </CardDescription>
+        <div class="flex items-center justify-between">
+          <div>
+            <CardTitle>DocKit {{ version }}</CardTitle>
+            <CardDescription class="mt-1.5">
+              DocKit is a modern cross-platform NoSQL/NewSQL GUI client. Explore your data any time
+              from your Mac, Windows, and Linux.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="isChecking"
+            class="shrink-0 ml-4"
+            @click="checkForUpdates(true)"
+          >
+            <svg
+              v-if="isChecking"
+              class="animate-spin mr-2 h-4 w-4"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            {{ $t('version.checkForUpdates') }}
+          </Button>
+        </div>
       </CardHeader>
     </Card>
 
@@ -63,8 +97,11 @@
 import { ref, onMounted } from 'vue';
 import { getVersion } from '@tauri-apps/api/app';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useAppUpdater } from '@/composables';
 
 const version = ref('');
+const { isChecking, checkForUpdates } = useAppUpdater();
 
 onMounted(async () => {
   const ver = await getVersion();

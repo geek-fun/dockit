@@ -10,6 +10,7 @@ import {
   stat,
 } from '@tauri-apps/plugin-fs';
 import { platform } from '@tauri-apps/plugin-os';
+import { invoke } from '@tauri-apps/api/core';
 
 import { homeDir, isAbsolute, basename, sep, extname, join } from '@tauri-apps/api/path';
 import { open } from '@tauri-apps/plugin-dialog';
@@ -29,6 +30,19 @@ export type PathInfo = {
   type: PathTypeEnum;
   size?: number;
   lastModified?: Date | null;
+};
+
+export type FileInfoResult = {
+  totalLines: number;
+  fileSizeBytes: number;
+  estimatedBatches: number;
+};
+
+export type FileBatchResult = {
+  lines: string[];
+  batchNumber: number;
+  totalLinesEstimate: number;
+  isLastBatch: boolean;
 };
 
 const DEFAULT_FOLDER = '.dockit';
@@ -241,6 +255,53 @@ const getDisplayPath = async (filePath?: string) => {
   } else return filePath.replace(/\\/g, '/');
 };
 
+const getFileInfo = async (filePath: string): Promise<FileInfoResult> => {
+  try {
+    const result = await invoke<FileInfoResult>('get_file_info', { filePath });
+    return result;
+  } catch (err) {
+    throw new CustomError(500, String(err));
+  }
+};
+
+const readFileBatch = async (
+  filePath: string,
+  startLine: number,
+  batchSize: number,
+): Promise<FileBatchResult> => {
+  try {
+    const result = await invoke<FileBatchResult>('read_file_batch', {
+      filePath,
+      startLine,
+      batchSize,
+    });
+    return result;
+  } catch (err) {
+    throw new CustomError(500, String(err));
+  }
+};
+
+const streamFileLines = async (
+  filePath: string,
+  batchSize: number,
+  onBatch: (batch: FileBatchResult) => void | Promise<void>,
+): Promise<void> => {
+  try {
+    let currentLine = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const batch = await readFileBatch(filePath, currentLine, batchSize);
+      await onBatch(batch);
+
+      currentLine += batch.lines.length;
+      hasMore = !batch.isLastBatch && batch.lines.length > 0;
+    }
+  } catch (err) {
+    throw new CustomError(500, String(err));
+  }
+};
+
 const sourceFileApi = {
   saveFile: (filePath: string, content: string, append = false) =>
     saveFile(filePath, content, append),
@@ -252,6 +313,9 @@ const sourceFileApi = {
   exists: async (filePath: string) => await exists(filePath, { baseDir: BaseDirectory.Home }),
   readDir: readDirs,
   getPathInfo,
+  getFileInfo,
+  readFileBatch,
+  streamFileLines,
 };
 
 export { sourceFileApi };

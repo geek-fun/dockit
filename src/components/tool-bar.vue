@@ -305,6 +305,13 @@ const hideSystemIndicesRef = ref(true);
 const isExecuting = ref(false);
 const showShortcutsDialog = ref(false);
 
+// Called by parent when editor emits toggle-shortcuts-dialog
+const toggleShortcutsDialog = () => {
+  showShortcutsDialog.value = !showShortcutsDialog.value;
+};
+
+defineExpose({ toggleShortcutsDialog });
+
 // Platform-aware key display for shortcuts hint
 const cmdKey = computed(() => {
   try {
@@ -312,30 +319,6 @@ const cmdKey = computed(() => {
   } catch {
     return 'Ctrl';
   }
-});
-
-// Keyboard shortcut to toggle shortcuts dialog (Ctrl+Shift+/ or Cmd+Shift+/)
-// Note: Shift+/ produces '?' as event.key, so we check for both
-const handleKeyboardShortcut = (event: KeyboardEvent) => {
-  // Ctrl+Shift+/ on Windows/Linux, Cmd+Shift+/ on macOS
-  if (
-    (event.ctrlKey || event.metaKey) &&
-    event.shiftKey &&
-    (event.key === '/' || event.key === '?')
-  ) {
-    event.preventDefault();
-    showShortcutsDialog.value = !showShortcutsDialog.value;
-  }
-};
-
-onMounted(() => {
-  if (props.type === 'ES_EDITOR' || props.type === 'DYNAMO_EDITOR') {
-    document.addEventListener('keydown', handleKeyboardShortcut);
-  }
-});
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeyboardShortcut);
 });
 
 const connectionSelectValue = computed(() => {
