@@ -1017,14 +1017,14 @@ describe('grammarCompletionProvider', () => {
       const textWithSlash = `GET /_cat/indices?`;
       const textWithoutSlash = `GET _cat/indices?`;
 
-      const resultWith = grammarCompletionProvider(
-        createMockModel(textWithSlash),
-        { lineNumber: 1, column: textWithSlash.length + 1 } as monaco.Position,
-      );
-      const resultWithout = grammarCompletionProvider(
-        createMockModel(textWithoutSlash),
-        { lineNumber: 1, column: textWithoutSlash.length + 1 } as monaco.Position,
-      );
+      const resultWith = grammarCompletionProvider(createMockModel(textWithSlash), {
+        lineNumber: 1,
+        column: textWithSlash.length + 1,
+      } as monaco.Position);
+      const resultWithout = grammarCompletionProvider(createMockModel(textWithoutSlash), {
+        lineNumber: 1,
+        column: textWithoutSlash.length + 1,
+      } as monaco.Position);
 
       const labelsWith = resultWith.suggestions.map(s => s.label).sort();
       const labelsWithout = resultWithout.suggestions.map(s => s.label).sort();
