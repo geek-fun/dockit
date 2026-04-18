@@ -9,7 +9,7 @@ import { storeToRefs } from 'pinia';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js'; // https://highlightjs.org
 
-import { useAppStore, useChatStore } from '../store';
+import { useAppStore, useCodeActionStore } from '../store';
 
 const props = defineProps({
   markdown: {
@@ -33,8 +33,8 @@ watch(
   { immediate: true },
 );
 
-const chatStore = useChatStore();
-const { insertBoard } = storeToRefs(chatStore);
+const codeActionStore = useCodeActionStore();
+const { insertBuffer } = storeToRefs(codeActionStore);
 
 const parsedMarkdown = ref('');
 const md = new MarkdownIt({
@@ -87,7 +87,7 @@ onMounted(() => {
     if (detail.action === 'copy') {
       navigator.clipboard.writeText(atob(detail.code));
     } else if (detail.action === 'insert') {
-      insertBoard.value = atob(detail.code);
+      insertBuffer.value = atob(detail.code);
     }
   });
 });

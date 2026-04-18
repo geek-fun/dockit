@@ -140,41 +140,10 @@ const chatBotApi = {
     httpProxy?: string;
   }) => {
     try {
-      await invoke('create_openai_client', config);
-      return true;
+      return await invoke<boolean>('validate_llm_config', config);
     } catch (_err) {
       return false;
     }
-  },
-  createClient: async (config: {
-    provider: ProviderEnum;
-    apiKey: string;
-    model: string;
-    httpProxy?: string;
-  }) => {
-    await invoke('create_openai_client', config);
-  },
-  chatStream: async (
-    config: {
-      provider: ProviderEnum;
-      model: string;
-      question: string;
-      history: Array<ChatMessage>;
-    },
-    callback: (event: {
-      role: ChatMessageRole;
-      content: Array<{ text: { value: string } }>;
-      state: string;
-    }) => void,
-  ) => {
-    if (!receiveRegistration) {
-      await listen<string>('chatbot-message', event => {
-        callback(jsonify.parse(event.payload));
-      });
-      receiveRegistration = true;
-    }
-
-    await invoke('chat_stream', config);
   },
 };
 

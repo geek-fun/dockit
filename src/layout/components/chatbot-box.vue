@@ -12,16 +12,7 @@
     <div class="message-list">
       <ScrollArea ref="scrollbarRef" class="h-full">
         <div v-for="msg in activeChat?.messages" :key="msg.id">
-          <div :class="['message-row', msg.role === ChatMessageRole.USER ? 'user' : '']">
-            <div class="message-row-header">
-              <span v-if="msg.role === ChatMessageRole.BOT" class="i-carbon-bot mr-2 h-5 w-5" />
-              <span v-else class="i-carbon-face-cool mr-2 h-5 w-5" />
-              <span>{{ msg.role }}</span>
-            </div>
-            <div class="message-row-content">
-              <markdown-render :markdown="msg.content" />
-            </div>
-          </div>
+          <AgentMessageBubble :message="msg" />
         </div>
         <div v-if="chatBotNotification.enabled">
           <Alert :variant="alertVariantMap[chatBotNotification.level || 'default']">
@@ -61,9 +52,8 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { useAppStore, useChatStore } from '../../store';
-import MarkdownRender from '../../components/markdown-render.vue';
+import AgentMessageBubble from '../../components/agent-message-bubble.vue';
 import { ErrorCodes } from '../../common';
-import { ChatMessageRole } from '../../datasources';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -204,40 +194,7 @@ loadChats();
 .message-list {
   flex: 1;
   height: 0;
-}
-
-.message-row {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  padding: 5px;
-}
-
-.message-row.user {
-  background-color: hsl(var(--background));
-  border-top: 1px solid hsl(var(--border));
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.message-row-header {
-  display: flex;
-  align-items: center;
-}
-
-.message-row-header span {
-  font-weight: bold;
-}
-
-.message-row-header :deep(.inline-flex) {
-  margin-right: 10px;
-}
-
-.message-row-content pre {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  white-space: pre-wrap;
-  text-wrap: wrap;
+  padding: 10px;
 }
 
 .message-footer {
