@@ -19,8 +19,14 @@ async fn introspect_es(config: &Value) -> Result<String, String> {
         .send()
         .await
         .map_err(|e| format!("Failed to fetch indices: {}", e))?;
+    if !indices_resp.status().is_success() {
+        let status = indices_resp.status();
+        let body = indices_resp.text().await.unwrap_or_default();
+        return Err(format!("Failed to fetch indices: HTTP {} - {}", status, body));
+    }
     let indices_body = indices_resp.text().await.map_err(|e| e.to_string())?;
-    let indices: Vec<Value> = serde_json::from_str(&indices_body).unwrap_or_default();
+    let indices: Vec<Value> = serde_json::from_str(&indices_body)
+        .map_err(|e| format!("Failed to parse indices response: {}", e))?;
 
     let index_names: Vec<String> = indices
         .iter()

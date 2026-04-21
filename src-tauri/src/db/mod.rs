@@ -50,7 +50,8 @@ pub fn migrate(db: &AgentDb) -> Result<(), String> {
             id TEXT PRIMARY KEY,
             tool_call_id TEXT NOT NULL,
             full_result TEXT NOT NULL,
-            created_at INTEGER NOT NULL
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY (tool_call_id) REFERENCES agent_tool_calls(id) ON DELETE CASCADE
         );
         "#,
     )

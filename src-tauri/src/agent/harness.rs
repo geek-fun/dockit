@@ -244,7 +244,7 @@ pub async fn validate_llm_config(
         return Ok(response.status().is_success());
     }
 
-    if provider == "DEEP_SEEK" {
+    if provider == "DEEP_SEEK" || provider == "OPENROUTER" {
         let url = format!("{}/models", resolved_base_url);
         let response = http_client
             .get(&url)
