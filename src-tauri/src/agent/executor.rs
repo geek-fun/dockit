@@ -1,7 +1,22 @@
+use async_trait::async_trait;
 use base64::Engine;
 use serde_json::{json, Value};
 
 use crate::common::http_client::create_http_client;
+
+const TOOL_OUTPUT_MAX_BYTES: usize = 8 * 1024; // 8 KB
+
+fn truncate_tool_output(output: String) -> String {
+    if output.len() <= TOOL_OUTPUT_MAX_BYTES {
+        return output;
+    }
+    let truncated = &output[..TOOL_OUTPUT_MAX_BYTES];
+    let omitted = output.len() - TOOL_OUTPUT_MAX_BYTES;
+    format!(
+        "{}\n\n[Output truncated: {} bytes omitted. Consider refining your query to return fewer results.]",
+        truncated, omitted
+    )
+}
 use crate::dynamo::describe_table::describe_table;
 use crate::dynamo::execute_statement::{execute_statement, ExecuteStatementInput};
 
@@ -225,7 +240,7 @@ async fn execute_es_tool(
         "data": serde_json::from_str::<Value>(&body).unwrap_or(Value::String(body))
     });
 
-    Ok(result.to_string())
+    Ok(truncate_tool_output(result.to_string()))
 }
 
 async fn execute_dynamo_tool(
@@ -247,7 +262,9 @@ async fn execute_dynamo_tool(
                 limit: None,
             };
             let response = execute_statement(&client, input).await?;
-            serde_json::to_string(&response).map_err(|e| e.to_string())
+            serde_json::to_string(&response)
+                .map(truncate_tool_output)
+                .map_err(|e| e.to_string())
         }
         "dynamo.describe_table" => {
             let table_name = args
@@ -255,7 +272,9 @@ async fn execute_dynamo_tool(
                 .and_then(|v| v.as_str())
                 .ok_or("Missing table_name")?;
             let response = describe_table(&client, table_name).await?;
-            serde_json::to_string(&response).map_err(|e| e.to_string())
+            serde_json::to_string(&response)
+                .map(truncate_tool_output)
+                .map_err(|e| e.to_string())
         }
         _ => Err(format!("Unknown DynamoDB tool: {}", tool_name)),
     }
@@ -276,5 +295,66 @@ pub async fn execute_tool(
         execute_dynamo_tool(&tool_name, &args, &connection_config).await
     } else {
         Err(format!("Unknown tool: {}", tool_name))
+    }
+}
+
+const TOOL_ENVELOPE_MAX_CHARS: usize = 8192;
+const TOOL_ENVELOPE_SUMMARY_CHARS: usize = 400;
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ToolResultMetadata {
+    pub tool_name: String,
+    pub duration_ms: u64,
+    pub truncated: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ToolEnvelope {
+    pub summary: String,
+    pub full_result: String,
+    pub metadata: ToolResultMetadata,
+}
+
+fn char_truncate(input: &str, max_chars: usize) -> (String, bool) {
+    if input.chars().count() <= max_chars {
+        return (input.to_string(), false);
+    }
+    let truncated: String = input.chars().take(max_chars).collect();
+    (truncated, true)
+}
+
+pub struct DocKitToolExecutor;
+
+#[async_trait]
+impl crate::agent::tool_executor::ToolExecutor for DocKitToolExecutor {
+    async fn execute(
+        &self,
+        tool_name: &str,
+        arguments: &Value,
+        connection_config: &Value,
+    ) -> Result<ToolEnvelope, String> {
+        let start = std::time::Instant::now();
+
+        let raw = if tool_name.starts_with("es.") {
+            execute_es_tool(tool_name, arguments, connection_config).await?
+        } else if tool_name.starts_with("dynamo.") {
+            execute_dynamo_tool(tool_name, arguments, connection_config).await?
+        } else {
+            return Err(format!("Unknown tool: {}", tool_name));
+        };
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+        let (full_result, truncated) = char_truncate(&raw, TOOL_ENVELOPE_MAX_CHARS);
+        let (summary, _) = char_truncate(&full_result, TOOL_ENVELOPE_SUMMARY_CHARS);
+
+        Ok(ToolEnvelope {
+            summary,
+            full_result,
+            metadata: ToolResultMetadata {
+                tool_name: tool_name.to_string(),
+                duration_ms,
+                truncated,
+            },
+        })
     }
 }

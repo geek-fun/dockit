@@ -2,6 +2,34 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { jsonify } from '../common';
 
+export type AgentSession = {
+  id: string;
+  title: string;
+  status: 'idle' | 'running' | 'error';
+  created_at: number;
+  updated_at: number;
+};
+
+export type AgentMessage = {
+  id: string;
+  session_id: string;
+  role: string;
+  content: string;
+  created_at: number;
+};
+
+export type ToolResultMetadata = {
+  tool_name: string;
+  duration_ms: number;
+  truncated: boolean;
+};
+
+export type ToolEnvelope = {
+  summary: string;
+  full_result: string;
+  metadata: ToolResultMetadata;
+};
+
 export type AgentDeltaEvent = {
   requestId: string;
   content: string;
@@ -105,4 +133,75 @@ const agentApi = {
   },
 };
 
-export { agentApi };
+const loadAgentSessions = () => invoke<AgentSession[]>('load_agent_sessions');
+const createAgentSession = (title: string) =>
+  invoke<AgentSession>('create_agent_session', { title });
+const updateSessionStatus = (sessionId: string, status: string) =>
+  invoke<void>('update_session_status', { sessionId, status });
+const deleteAgentSession = (sessionId: string) =>
+  invoke<void>('delete_agent_session', { sessionId });
+const loadSessionMessages = (sessionId: string) =>
+  invoke<AgentMessage[]>('load_session_messages', { sessionId });
+const exportAgentSession = (sessionId: string) =>
+  invoke<unknown>('export_agent_session', { sessionId });
+const importAgentSession = (data: unknown) =>
+  invoke<AgentSession>('import_agent_session', { data });
+
+const runAgentLoop = (sessionId: string, userMessage: string, settings: unknown) =>
+  invoke<void>('run_agent_loop', { sessionId, userMessage, settings });
+const cancelAgentLoop = (sessionId: string) => invoke<void>('cancel_agent_loop', { sessionId });
+const confirmToolCall = (toolCallId: string, allowed: boolean) =>
+  invoke<void>('confirm_tool_call', { toolCallId, allowed });
+const getToolFullResult = (toolCallId: string) =>
+  invoke<string>('get_tool_full_result', { toolCallId });
+
+const onAgentLoopDelta = (handler: (payload: { session_id: string; content: string }) => void) =>
+  listen('agent-loop-delta', e => handler(e.payload as { session_id: string; content: string }));
+
+const onAgentLoopToolCall = (
+  handler: (payload: {
+    session_id: string;
+    tool_call_id: string;
+    tool_name: string;
+    arguments: unknown;
+  }) => void,
+) => listen('agent-loop-tool-call', e => handler(e.payload as any));
+
+const onAgentLoopToolResult = (
+  handler: (payload: { session_id: string; tool_call_id: string; envelope: ToolEnvelope }) => void,
+) => listen('agent-loop-tool-result', e => handler(e.payload as any));
+
+const onAgentLoopStepDone = (
+  handler: (payload: { session_id: string; message_id: string }) => void,
+) => listen('agent-loop-step-done', e => handler(e.payload as any));
+
+const onAgentLoopDone = (handler: (payload: { session_id: string }) => void) =>
+  listen('agent-loop-done', e => handler(e.payload as any));
+
+const onAgentLoopError = (handler: (payload: { session_id: string; error: string }) => void) =>
+  listen('agent-loop-error', e => handler(e.payload as any));
+
+const onAgentLoopSummaryInjected = (handler: (payload: { session_id: string }) => void) =>
+  listen('agent-loop-summary-injected', e => handler(e.payload as any));
+
+export {
+  agentApi,
+  loadAgentSessions,
+  createAgentSession,
+  updateSessionStatus,
+  deleteAgentSession,
+  loadSessionMessages,
+  exportAgentSession,
+  importAgentSession,
+  runAgentLoop,
+  cancelAgentLoop,
+  confirmToolCall,
+  getToolFullResult,
+  onAgentLoopDelta,
+  onAgentLoopToolCall,
+  onAgentLoopToolResult,
+  onAgentLoopStepDone,
+  onAgentLoopDone,
+  onAgentLoopError,
+  onAgentLoopSummaryInjected,
+};

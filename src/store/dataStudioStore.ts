@@ -1,5 +1,12 @@
 import { defineStore } from 'pinia';
 import { ulid } from 'ulidx';
+import {
+  createAgentSession,
+  deleteAgentSession,
+  loadAgentSessions,
+  updateSessionStatus,
+  type AgentSession as BackendAgentSession,
+} from '../datasources/agentApi';
 
 export type DataSourcePermissions = {
   read: boolean;
@@ -57,6 +64,7 @@ export type AgentSession = {
   messages: Array<AgentMessage>;
   status: AgentSessionStatus;
   schema?: string;
+  maxIterations: number;
 };
 
 export type ConfirmationRule = {
@@ -131,10 +139,11 @@ export const useDataStudioStore = defineStore('dataStudio', {
     setActiveConnection(connectionId: number) {
       this.activeConnectionId = connectionId;
     },
-    createSession(connectionId: number): string {
+    createSession(connectionId: number, maxIterations = 10): string {
       const id = ulid();
-      this.sessions.push({ id, connectionId, messages: [], status: 'idle' });
+      this.sessions.push({ id, connectionId, messages: [], status: 'idle', maxIterations });
       this.activeSessionId = id;
+      createAgentSession(id).catch(() => undefined);
       return id;
     },
     setActiveSession(sessionId: string) {
@@ -195,12 +204,19 @@ export const useDataStudioStore = defineStore('dataStudio', {
       const session = this.sessions.find(s => s.id === sessionId);
       if (session) {
         session.status = status;
+        updateSessionStatus(sessionId, status).catch(() => undefined);
       }
     },
     setSessionSchema(sessionId: string, schema: string) {
       const session = this.sessions.find(s => s.id === sessionId);
       if (session) {
         session.schema = schema;
+      }
+    },
+    setSessionMaxIterations(sessionId: string, maxIterations: number) {
+      const session = this.sessions.find(s => s.id === sessionId);
+      if (session) {
+        session.maxIterations = maxIterations;
       }
     },
     findConfirmationRule(connectionId: number, toolName: string): ConfirmationRule | undefined {
@@ -224,6 +240,28 @@ export const useDataStudioStore = defineStore('dataStudio', {
         session.messages.splice(0, session.messages.length);
         session.status = 'idle';
         session.schema = undefined;
+      }
+    },
+    async loadSessions() {
+      const backendSessions = await loadAgentSessions();
+      const mapped: Array<AgentSession> = backendSessions.map((s: BackendAgentSession) => {
+        const existing = this.sessions.find(e => e.id === s.id);
+        return {
+          id: s.id,
+          connectionId: existing?.connectionId ?? -1,
+          messages: existing?.messages ?? [],
+          status: (s.status as AgentSessionStatus) ?? 'idle',
+          schema: existing?.schema,
+          maxIterations: existing?.maxIterations ?? 10,
+        };
+      });
+      this.sessions = mapped;
+    },
+    async removeSession(sessionId: string) {
+      await deleteAgentSession(sessionId).catch(() => undefined);
+      this.sessions = this.sessions.filter(s => s.id !== sessionId);
+      if (this.activeSessionId === sessionId) {
+        this.activeSessionId = this.sessions[0]?.id;
       }
     },
   },

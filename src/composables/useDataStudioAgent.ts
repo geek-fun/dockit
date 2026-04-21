@@ -1,11 +1,6 @@
 import { ref, computed, onUnmounted } from 'vue';
 import { ulid } from 'ulidx';
-import {
-  useDataStudioStore,
-  type AgentMessage,
-  type AgentToolCall,
-  type RiskLevel,
-} from '../store/dataStudioStore';
+import { useDataStudioStore, type AgentToolCall, type RiskLevel } from '../store/dataStudioStore';
 import {
   useConnectionStore,
   DatabaseType,
@@ -15,9 +10,21 @@ import {
 } from '../store/connectionStore';
 import { getFeatureModelConfig } from '../store/chatStore';
 import { ProviderEnum } from '../datasources';
-import { agentApi, type ToolDefinition, type ToolMetadata } from '../datasources/agentApi';
-
-const MAX_AGENT_ITERATIONS = 10;
+import {
+  agentApi,
+  type ToolDefinition,
+  type ToolMetadata,
+  runAgentLoop as invokeAgentLoop,
+  cancelAgentLoop as invokeCancelAgentLoop,
+  confirmToolCall as invokeConfirmToolCall,
+  onAgentLoopDelta,
+  onAgentLoopToolCall,
+  onAgentLoopToolResult,
+  onAgentLoopStepDone,
+  onAgentLoopDone,
+  onAgentLoopError,
+  onAgentLoopSummaryInjected,
+} from '../datasources/agentApi';
 
 const buildConnectionConfig = (connection: Connection): Record<string, unknown> => {
   if (connection.type === DatabaseType.ELASTICSEARCH) {
@@ -67,44 +74,6 @@ const buildSystemPrompt = (schema?: string, noConnection?: boolean): string => {
   return schema ? `${base}\n\nDatabase Schema:\n${schema}` : base;
 };
 
-const buildOpenAiMessages = (
-  messages: Array<AgentMessage>,
-  schema?: string,
-  noConnection?: boolean,
-): Array<Record<string, unknown>> => {
-  const systemMsg = { role: 'system', content: buildSystemPrompt(schema, noConnection) };
-
-  const conversationMsgs = messages.map(msg => {
-    if (msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0) {
-      return {
-        role: 'assistant',
-        content: msg.content || null,
-        tool_calls: msg.toolCalls.map(tc => ({
-          id: tc.id,
-          type: 'function' as const,
-          function: {
-            name: tc.toolName,
-            arguments: JSON.stringify(tc.args),
-          },
-        })),
-      };
-    }
-    if (msg.role === 'tool') {
-      return {
-        role: 'tool',
-        content: msg.content,
-        tool_call_id: msg.toolCallId,
-      };
-    }
-    return {
-      role: msg.role,
-      content: msg.content,
-    };
-  });
-
-  return [systemMsg, ...conversationMsgs];
-};
-
 export const useDataStudioAgent = () => {
   const dataStudioStore = useDataStudioStore();
   const connectionStore = useConnectionStore();
@@ -117,6 +86,8 @@ export const useDataStudioAgent = () => {
       unlistenDelta?: () => void;
     }
   >();
+
+  const unlisteners: Array<() => void> = [];
 
   const isLoading = ref(false);
   const error = ref<string | undefined>();
@@ -164,41 +135,129 @@ export const useDataStudioAgent = () => {
     return rule?.action === 'deny_always';
   };
 
-  const executeToolCall = async (
-    sessionId: string,
-    assistantMsgId: string,
-    tc: AgentToolCall,
-  ): Promise<void> => {
-    const runtime = getRuntime(sessionId);
-    dataStudioStore.updateToolCallStatus(sessionId, assistantMsgId, tc.id, 'executing');
-    try {
-      const toolResult = await agentApi.executeTool({
-        toolName: tc.toolName,
-        arguments: JSON.stringify(tc.args),
-        connectionConfig: runtime.config!,
-      });
-      dataStudioStore.updateToolCallStatus(sessionId, assistantMsgId, tc.id, 'done', toolResult);
-      dataStudioStore.addMessage(sessionId, {
+  const setupEventListeners = () => {
+    onAgentLoopDelta(({ session_id, content }) => {
+      const session = dataStudioStore.sessions.find(s => s.id === session_id);
+      if (!session) return;
+      const streamingMsg = [...session.messages]
+        .reverse()
+        .find((m): m is typeof m => m.role === 'assistant' && m.status === 'streaming');
+      if (streamingMsg) {
+        dataStudioStore.updateStreamingContent(session_id, streamingMsg.id, content);
+      }
+    }).then(unlisten => unlisteners.push(unlisten));
+
+    onAgentLoopToolCall(({ session_id, tool_call_id, tool_name, arguments: args }) => {
+      const session = dataStudioStore.sessions.find(s => s.id === session_id);
+      if (!session) return;
+
+      const source = dataStudioStore.connectedSources.find(
+        s => s.connectionId === session.connectionId,
+      );
+      const riskLevel: RiskLevel = 'elevated';
+      const needsConfirmation = shouldRequireConfirmation(
+        tool_name,
+        riskLevel,
+        session.connectionId,
+        source?.autoMode ?? false,
+      );
+      const denied = isDeniedByRule(tool_name, session.connectionId);
+
+      const toolCall: AgentToolCall = {
+        id: tool_call_id,
+        toolName: tool_name,
+        args: (args ?? {}) as Record<string, unknown>,
+        status: denied ? 'denied' : needsConfirmation ? 'pending' : 'executing',
+        riskLevel,
+        requiresConfirmation: needsConfirmation,
+      };
+
+      let assistantMsgId: string;
+      const lastAssistant = [...session.messages].reverse().find(m => m.role === 'assistant');
+      if (lastAssistant) {
+        assistantMsgId = lastAssistant.id;
+        const existing = lastAssistant.toolCalls ?? [];
+        dataStudioStore.setMessageToolCalls(session_id, assistantMsgId, [...existing, toolCall]);
+      } else {
+        assistantMsgId = ulid();
+        dataStudioStore.addMessage(session_id, {
+          id: assistantMsgId,
+          role: 'assistant',
+          content: '',
+          status: 'done',
+          toolCalls: [toolCall],
+          timestamp: Date.now(),
+        });
+      }
+
+      if (denied) {
+        invokeConfirmToolCall(tool_call_id, false).catch(() => undefined);
+        return;
+      }
+
+      if (!needsConfirmation) {
+        invokeConfirmToolCall(tool_call_id, true).catch(() => undefined);
+      } else {
+        dataStudioStore.setSessionStatus(session_id, 'waiting_confirmation');
+      }
+    }).then(unlisten => unlisteners.push(unlisten));
+
+    onAgentLoopToolResult(({ session_id, tool_call_id, envelope }) => {
+      const session = dataStudioStore.sessions.find(s => s.id === session_id);
+      if (!session) return;
+      const assistantMsg = [...session.messages]
+        .reverse()
+        .find(m => m.role === 'assistant' && m.toolCalls?.some(tc => tc.id === tool_call_id));
+      if (assistantMsg) {
+        dataStudioStore.updateToolCallStatus(
+          session_id,
+          assistantMsg.id,
+          tool_call_id,
+          'done',
+          envelope.summary,
+        );
+      }
+      dataStudioStore.addMessage(session_id, {
         id: ulid(),
         role: 'tool',
-        content: toolResult,
+        content: envelope.summary,
         status: 'done',
-        toolCallId: tc.id,
+        toolCallId: tool_call_id,
         timestamp: Date.now(),
       });
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      dataStudioStore.updateToolCallStatus(sessionId, assistantMsgId, tc.id, 'error', errMsg);
-      dataStudioStore.addMessage(sessionId, {
-        id: ulid(),
-        role: 'tool',
-        content: `Error: ${errMsg}`,
-        status: 'error',
-        toolCallId: tc.id,
-        timestamp: Date.now(),
-      });
-    }
+    }).then(unlisten => unlisteners.push(unlisten));
+
+    onAgentLoopStepDone(({ session_id, message_id }) => {
+      const session = dataStudioStore.sessions.find(s => s.id === session_id);
+      if (!session) return;
+      const msg = session.messages.find(m => m.id === message_id);
+      if (msg) {
+        dataStudioStore.setMessageStatus(session_id, message_id, 'done');
+      } else {
+        const streamingMsg = [...session.messages]
+          .reverse()
+          .find(m => m.role === 'assistant' && m.status === 'streaming');
+        if (streamingMsg) {
+          dataStudioStore.setMessageStatus(session_id, streamingMsg.id, 'done');
+        }
+      }
+    }).then(unlisten => unlisteners.push(unlisten));
+
+    onAgentLoopDone(({ session_id }) => {
+      dataStudioStore.setSessionStatus(session_id, 'idle');
+      isLoading.value = false;
+    }).then(unlisten => unlisteners.push(unlisten));
+
+    onAgentLoopError(({ session_id, error: errMsg }) => {
+      error.value = errMsg;
+      dataStudioStore.setSessionStatus(session_id, 'error');
+      isLoading.value = false;
+    }).then(unlisten => unlisteners.push(unlisten));
+
+    onAgentLoopSummaryInjected(_payload => {}).then(unlisten => unlisteners.push(unlisten));
   };
+
+  setupEventListeners();
 
   const runAgentLoop = async (sessionId: string) => {
     const session = dataStudioStore.sessions.find(s => s.id === sessionId);
@@ -206,128 +265,49 @@ export const useDataStudioAgent = () => {
     if (!session) return;
 
     const noConnection = session.connectionId === -1;
-    const source = noConnection
-      ? undefined
-      : dataStudioStore.connectedSources.find(s => s.connectionId === session.connectionId);
-
-    if (!noConnection && (!runtime.tools || !runtime.metadata || !runtime.config)) return;
 
     dataStudioStore.setSessionStatus(sessionId, 'running');
     isLoading.value = true;
     error.value = undefined;
 
+    const assistantMsgId = ulid();
+    dataStudioStore.addMessage(sessionId, {
+      id: assistantMsgId,
+      role: 'assistant',
+      content: '',
+      status: 'streaming',
+      timestamp: Date.now(),
+    });
+
+    const { provider, model } = await getFeatureModelConfig('dataStudio');
+    const schema = session.schema;
+
+    const settings: Record<string, unknown> = {
+      provider: kindToProviderEnum(provider.kind),
+      model: model.label,
+      apiKey: provider.apiKey ?? '',
+      baseUrl: provider.baseUrl,
+      httpProxy: provider.proxy || undefined,
+      systemPrompt: buildSystemPrompt(schema, noConnection),
+      tools: noConnection ? [] : (runtime.tools ?? []),
+    };
+
+    if (!noConnection && runtime.config) {
+      settings.connectionConfig = runtime.config;
+    }
+
+    const lastUserMsg = [...session.messages].reverse().find(m => m.role === 'user');
+    const userMessage = lastUserMsg?.content ?? '';
+
     try {
-      for (let iteration = 0; iteration < MAX_AGENT_ITERATIONS; iteration++) {
-        const assistantMsgId = ulid();
-        const requestId = ulid();
-        dataStudioStore.addMessage(sessionId, {
-          id: assistantMsgId,
-          role: 'assistant',
-          content: '',
-          status: 'streaming',
-          timestamp: Date.now(),
-        });
-
-        runtime.unlistenDelta = await agentApi.onAgentDelta(event => {
-          if (event.requestId !== requestId) return;
-          dataStudioStore.updateStreamingContent(sessionId, assistantMsgId, event.content);
-        });
-
-        const { provider, model } = await getFeatureModelConfig('dataStudio');
-        const openAiMessages = buildOpenAiMessages(
-          session.messages.filter(m => m.id !== assistantMsgId),
-          session.schema,
-          noConnection,
-        );
-
-        let result;
-        try {
-          result = await agentApi.runAgentStep({
-            requestId,
-            provider: kindToProviderEnum(provider.kind),
-            model: model.label,
-            messages: openAiMessages,
-            tools: noConnection ? [] : runtime.tools!,
-            httpProxy: provider.proxy || undefined,
-            apiKey: provider.apiKey ?? '',
-            baseUrl: provider.baseUrl,
-          });
-        } finally {
-          runtime.unlistenDelta?.();
-          runtime.unlistenDelta = undefined;
-        }
-
-        dataStudioStore.setMessageStatus(sessionId, assistantMsgId, 'done');
-
-        if (
-          result.finishReason === 'stop' ||
-          result.finishReason === 'length' ||
-          result.finishReason === 'content_filter'
-        ) {
-          dataStudioStore.setSessionStatus(sessionId, 'idle');
-          break;
-        }
-
-        if (result.finishReason === 'tool_calls' && result.toolCalls.length > 0 && !noConnection) {
-          const toolCalls: Array<AgentToolCall> = result.toolCalls.map(tc => {
-            const meta = runtime.metadata![tc.name];
-            const riskLevel = meta?.riskLevel ?? 'elevated';
-            const needsConfirmation = shouldRequireConfirmation(
-              tc.name,
-              riskLevel,
-              session.connectionId,
-              source?.autoMode ?? false,
-            );
-            return {
-              id: tc.id,
-              toolName: tc.name,
-              args: JSON.parse(tc.arguments || '{}') as Record<string, unknown>,
-              status: (needsConfirmation ? 'pending' : 'executing') as AgentToolCall['status'],
-              riskLevel,
-              requiresConfirmation: needsConfirmation,
-            };
-          });
-
-          dataStudioStore.setMessageToolCalls(sessionId, assistantMsgId, toolCalls);
-
-          const deniedTools = toolCalls.filter(tc =>
-            isDeniedByRule(tc.toolName, session.connectionId),
-          );
-          deniedTools.forEach(tc => {
-            dataStudioStore.updateToolCallStatus(sessionId, assistantMsgId, tc.id, 'denied');
-            dataStudioStore.addMessage(sessionId, {
-              id: ulid(),
-              role: 'tool',
-              content: 'Tool execution denied by saved rule.',
-              status: 'done',
-              toolCallId: tc.id,
-              timestamp: Date.now(),
-            });
-          });
-
-          const autoApproved = toolCalls.filter(tc => tc.status === 'executing');
-          for (const tc of autoApproved) {
-            await executeToolCall(sessionId, assistantMsgId, tc);
-          }
-
-          const hasPending = toolCalls.some(tc => tc.status === 'pending');
-          if (hasPending) {
-            dataStudioStore.setSessionStatus(sessionId, 'waiting_confirmation');
-            isLoading.value = false;
-            return;
-          }
-
-          continue;
-        }
-      }
+      await invokeAgentLoop(sessionId, userMessage, settings);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      error.value = errMsg;
-      dataStudioStore.setSessionStatus(sessionId, 'error');
-    } finally {
+      if (errMsg !== 'cancelled') {
+        error.value = errMsg;
+        dataStudioStore.setSessionStatus(sessionId, 'error');
+      }
       isLoading.value = false;
-      runtime.unlistenDelta?.();
-      runtime.unlistenDelta = undefined;
     }
   };
 
@@ -409,7 +389,7 @@ export const useDataStudioAgent = () => {
     action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always',
   ) => {
     const session = activeSession.value;
-    if (!session || !getRuntime(session.id).config) return;
+    if (!session) return;
 
     const assistantMsg = session.messages.find(m => m.id === assistantMsgId);
     const toolCall = assistantMsg?.toolCalls?.find(tc => tc.id === toolCallId);
@@ -430,8 +410,11 @@ export const useDataStudioAgent = () => {
       });
     }
 
-    if (action === 'allow_once' || action === 'allow_always') {
-      await executeToolCall(session.id, assistantMsgId, toolCall);
+    const allowed = action === 'allow_once' || action === 'allow_always';
+    await invokeConfirmToolCall(toolCallId, allowed);
+
+    if (allowed) {
+      dataStudioStore.updateToolCallStatus(session.id, assistantMsgId, toolCallId, 'executing');
     } else {
       dataStudioStore.updateToolCallStatus(session.id, assistantMsgId, toolCallId, 'denied');
       dataStudioStore.addMessage(session.id, {
@@ -446,21 +429,30 @@ export const useDataStudioAgent = () => {
 
     const allResolved = assistantMsg?.toolCalls?.every(tc => tc.status !== 'pending') ?? true;
     if (allResolved) {
-      await runAgentLoop(session.id);
+      dataStudioStore.setSessionStatus(session.id, 'running');
+      isLoading.value = true;
     }
+  };
+
+  const cancelLoop = async () => {
+    const session = activeSession.value;
+    if (!session) return;
+    await invokeCancelAgentLoop(session.id).catch(() => undefined);
+    dataStudioStore.setSessionStatus(session.id, 'idle');
+    isLoading.value = false;
   };
 
   const clearChat = () => {
     const session = activeSession.value;
     if (session) {
       dataStudioStore.clearSession(session.id);
-      getRuntime(session.id).unlistenDelta?.();
       sessionRuntime.delete(session.id);
     }
   };
 
   onUnmounted(() => {
-    sessionRuntime.forEach(runtime => runtime.unlistenDelta?.());
+    unlisteners.forEach(unlisten => unlisten());
+    unlisteners.length = 0;
     sessionRuntime.clear();
   });
 
@@ -471,6 +463,7 @@ export const useDataStudioAgent = () => {
     pendingToolCalls,
     sendMessage,
     confirmToolCall,
+    cancelLoop,
     clearChat,
   };
 };
