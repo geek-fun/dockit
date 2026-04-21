@@ -38,11 +38,6 @@ pub async fn load_agent_sessions(db: State<'_, AgentDb>) -> Result<Vec<AgentSess
     let conn_arc = db.0.clone();
     tokio::task::spawn_blocking(move || -> Result<Vec<AgentSession>, String> {
         let conn = conn_arc.lock().map_err(|e| e.to_string())?;
-        conn.execute(
-            "UPDATE agent_sessions SET status = 'idle' WHERE status = 'running'",
-            [],
-        )
-        .map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare(
                 "SELECT id, title, status, created_at, updated_at FROM agent_sessions ORDER BY updated_at DESC",
@@ -67,6 +62,15 @@ pub async fn load_agent_sessions(db: State<'_, AgentDb>) -> Result<Vec<AgentSess
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+pub fn recover_stuck_sessions(conn: &rusqlite::Connection) -> Result<(), String> {
+    conn.execute(
+        "UPDATE agent_sessions SET status = 'idle' WHERE status = 'running'",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -128,6 +132,37 @@ pub async fn delete_agent_session(
             rusqlite::params![session_id],
         )
         .map_err(|e| format!("Failed to delete session: {}", e))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn clear_agent_session_messages(
+    session_id: String,
+    db: State<'_, AgentDb>,
+) -> Result<(), String> {
+    let conn_arc = db.0.clone();
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let mut conn = conn_arc.lock().map_err(|e| e.to_string())?;
+        let tx = conn.transaction().map_err(|e| e.to_string())?;
+        tx.execute(
+            "DELETE FROM tool_result_store WHERE tool_call_id IN (SELECT id FROM agent_tool_calls WHERE session_id = ?1)",
+            rusqlite::params![session_id],
+        )
+        .map_err(|e| format!("Failed to clear tool results: {}", e))?;
+        tx.execute(
+            "DELETE FROM agent_messages WHERE session_id = ?1",
+            rusqlite::params![session_id],
+        )
+        .map_err(|e| format!("Failed to clear messages: {}", e))?;
+        tx.execute(
+            "UPDATE agent_sessions SET status = 'idle', updated_at = ?1 WHERE id = ?2",
+            rusqlite::params![now_ms(), session_id],
+        )
+        .map_err(|e| format!("Failed to reset session status: {}", e))?;
+        tx.commit().map_err(|e| e.to_string())?;
         Ok(())
     })
     .await

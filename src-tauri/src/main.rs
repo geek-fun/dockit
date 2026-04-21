@@ -12,7 +12,7 @@ mod dynamo;
 
 use tauri::Emitter;
 use agent::{
-    execute_tool, get_available_tools, introspect_schema, list_llm_models, run_agent_step,
+    get_available_tools, introspect_schema, list_llm_models, run_agent_step,
     validate_llm_config,
 };
 use agent::executor::DocKitToolExecutor;
@@ -22,8 +22,9 @@ use agent::loop_runner::{
 };
 use agent::tool_executor::ToolExecutor;
 use agent::session_store::{
-    create_agent_session, delete_agent_session, export_agent_session, import_agent_session,
-    load_agent_sessions, load_session_messages, update_session_status,
+    clear_agent_session_messages, create_agent_session, delete_agent_session,
+    export_agent_session, import_agent_session, load_agent_sessions, load_session_messages,
+    recover_stuck_sessions, update_session_status,
 };
 use fetch_client::fetch_api;
 use file_api::{get_file_info, read_file_batch, stream_file_lines};
@@ -83,7 +84,6 @@ fn main() {
             run_agent_step,
             validate_llm_config,
             list_llm_models,
-            execute_tool,
             introspect_schema,
             get_available_tools,
             run_agent_loop,
@@ -94,6 +94,7 @@ fn main() {
             create_agent_session,
             update_session_status,
             delete_agent_session,
+            clear_agent_session_messages,
             load_session_messages,
             export_agent_session,
             import_agent_session,
@@ -109,6 +110,10 @@ fn main() {
             let db_path = app_data_dir.join("agent.sqlite");
             let agent_db = db::open(&db_path)?;
             db::migrate(&agent_db)?;
+            {
+                let conn = agent_db.0.lock().map_err(|e| e.to_string())?;
+                recover_stuck_sessions(&conn)?;
+            }
             app.manage(agent_db);
 
             use std::collections::HashMap;
