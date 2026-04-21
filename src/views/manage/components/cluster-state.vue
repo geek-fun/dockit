@@ -849,7 +849,7 @@ type ShardDetailTag = {
 
 const shardDetailState = ref<{ indexName: string; shard: ClusterShard } | undefined>();
 
-const metricColorClass = (percent: number | undefined) => {
+const metricColorClass = (percent: number | null | undefined) => {
   const p = percent ?? 0;
   if (p >= 85) return 'metric-danger';
   if (p >= 65) return 'metric-warning';

@@ -205,7 +205,7 @@ type ComponentTemplate = {
   metadata_count: number | null;
   included_in: Array<string>;
 };
-type IndexTemplate = {
+export type IndexTemplate = {
   name: string;
   type: TemplateType;
   index_patterns: Array<string>;

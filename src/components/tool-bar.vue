@@ -176,9 +176,11 @@
       v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.ELASTICSEARCH"
       variant="ghost"
       size="sm"
-      @click="handleEsRefresh"
+      :disabled="refreshLoading"
+      @click="refreshStates"
     >
-      <span class="i-carbon-renew mr-1 h-4 w-4" />
+      <Loader2 v-if="refreshLoading" class="mr-1 h-4 w-4 animate-spin" />
+      <span v-else class="i-carbon-renew mr-1 h-4 w-4" />
       {{ $t('manage.actions.refresh') }}
     </Button>
 
@@ -228,7 +230,7 @@ import {
   ElasticsearchConnection,
 } from '../store';
 import { useLang } from '../lang';
-import { CustomError, withLoadingDelay } from '../common';
+import { CustomError } from '../common';
 import { esSampleQueries } from '../common/monaco';
 import { useMessageService } from '@/composables';
 import { Button } from '@/components/ui/button';
@@ -262,7 +264,7 @@ const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
 const { setConnection, refreshStates } = clusterManageStore;
-const { connection, hideSystemIndices } = storeToRefs(clusterManageStore);
+const { connection, hideSystemIndices, refreshLoading } = storeToRefs(clusterManageStore);
 
 // Check if connection is Elasticsearch type
 const isElasticsearchConnection = computed(() => {
@@ -500,12 +502,6 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
       return;
     }
     selectIndex(selectedConnection, value);
-  }
-};
-
-const handleEsRefresh = async () => {
-  if (connection.value) {
-    await withLoadingDelay(refreshStates());
   }
 };
 

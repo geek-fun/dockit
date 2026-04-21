@@ -52,7 +52,7 @@
                       <InputNumber
                         v-model="formData.master_timeout"
                         class="flex-1"
-                        :placeholder="30"
+                        placeholder="30"
                       />
                       <span class="text-sm text-muted-foreground">s</span>
                     </div>
@@ -64,7 +64,7 @@
                 <GridItem :span="4">
                   <FormItem label="timeout">
                     <div class="flex items-center gap-2">
-                      <InputNumber v-model="formData.timeout" class="flex-1" :placeholder="30" />
+                      <InputNumber v-model="formData.timeout" class="flex-1" placeholder="30" />
                       <span class="text-sm text-muted-foreground">s</span>
                     </div>
                     <p class="text-xs text-muted-foreground mt-1">
@@ -74,7 +74,7 @@
                 </GridItem>
                 <GridItem :span="4">
                   <FormItem label="wait_for_active_shards">
-                    <InputNumber v-model="formData.wait_for_active_shards" :placeholder="1" />
+                    <InputNumber v-model="formData.wait_for_active_shards" placeholder="1" />
                     <p class="text-xs text-muted-foreground mt-1">
                       {{ $t('manage.index.newIndexForm.waitForActiveShardsDesc') }}
                     </p>

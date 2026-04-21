@@ -52,6 +52,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     aliases: Array<ClusterAlias>;
     templates: Array<ClusterTemplate>;
     hideSystemIndices: boolean;
+    refreshLoading: boolean;
   } => ({
     connection: undefined,
     cluster: undefined,
@@ -61,6 +62,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     aliases: [],
     templates: [],
     hideSystemIndices: true,
+    refreshLoading: false,
   }),
   persist: {
     pick: ['hideSystemIndices'],
@@ -102,6 +104,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         this.hideSystemIndices = hide;
       }
 
+      this.refreshLoading = true;
+      const start = Date.now();
+
       try {
         await this.fetchCluster();
         await this.fetchIndices();
@@ -111,6 +116,12 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         await this.fetchTemplates();
       } catch (err) {
         debug(`Error in refreshStates: ${err}`);
+      } finally {
+        const elapsed = Date.now() - start;
+        if (elapsed < 500) {
+          await new Promise(resolve => setTimeout(resolve, 500 - elapsed));
+        }
+        this.refreshLoading = false;
       }
     },
     async fetchCluster() {

@@ -599,10 +599,10 @@ const handleRefresh = async () => {
   try {
     await withLoadingDelay(
       (async () => {
-        await fetchTableInfo(connection.value);
+        await fetchTableInfo(dynamoConnection.value!);
 
         try {
-          const pitrData = await dynamoApi.describeContinuousBackups(connection.value);
+          const pitrData = await dynamoApi.describeContinuousBackups(dynamoConnection.value!);
           pitrEnabled.value = pitrData.pitrEnabled || false;
         } catch (err) {
           console.warn('Failed to fetch PITR status:', err); // eslint-disable-line no-console
@@ -610,7 +610,7 @@ const handleRefresh = async () => {
         }
 
         try {
-          const ttlData = await dynamoApi.describeTimeToLive(connection.value);
+          const ttlData = await dynamoApi.describeTimeToLive(dynamoConnection.value!);
           ttlEnabled.value = ttlData.ttlEnabled;
           ttlAttribute.value = ttlData.attributeName;
         } catch (err) {
