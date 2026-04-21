@@ -494,15 +494,25 @@ export const useAppStore = defineStore('app', {
         return provider.discoveredModels;
       }
 
-      const discoveredModelLabels =
-        modelLabels && modelLabels.length > 0
-          ? modelLabels
-          : await chatBotApi.listModels({
-              provider: providerKindToEnum(provider.kind),
-              apiKey: provider.apiKey ?? '',
-              httpProxy: provider.proxy || undefined,
-              baseUrl: provider.baseUrl,
-            });
+      let discoveredModelLabels: Array<string>;
+      if (modelLabels && modelLabels.length > 0) {
+        discoveredModelLabels = modelLabels;
+      } else {
+        try {
+          discoveredModelLabels = await chatBotApi.listModels({
+            provider: providerKindToEnum(provider.kind),
+            apiKey: provider.apiKey ?? '',
+            httpProxy: provider.proxy || undefined,
+            baseUrl: provider.baseUrl,
+          });
+        } catch (err) {
+          console.warn('[appStore] listModels failed, preserving existing models', err);
+          provider.connected = false;
+          provider.updatedAt = Date.now();
+          await this.persistLlmSettings();
+          return provider.discoveredModels;
+        }
+      }
 
       const discoveredModels = buildDiscoveredModels(
         provider.id,
@@ -567,7 +577,7 @@ export const useAppStore = defineStore('app', {
       }
 
       const provider = this.llmSettings.providers.find(
-        item => item.id === resolvedModel.providerConfigId && item.enabled,
+        item => item.id === resolvedModel.providerConfigId && item.enabled && item.connected,
       );
 
       if (!provider) {
