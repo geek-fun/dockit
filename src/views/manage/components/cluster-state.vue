@@ -1,78 +1,1502 @@
 <template>
-  <div class="flex flex-wrap justify-around gap-4 mb-6">
-    <Card
-      class="mt-3 max-w-[300px] max-h-[300px] w-full cluster-cluster-box"
-      :class="{
-        'text-primary': props.cluster?.status == 'green',
-        'text-[hsl(var(--method-put))]': props.cluster?.status == 'yellow',
-        'text-destructive': props.cluster?.status == 'red',
-      }"
-    >
-      <CardContent class="p-6 flex flex-col gap-2">
-        <p class="text-2xl font-bold m-0 flex items-center gap-2">
-          <span>{{ $t('manage.cluster') }}</span>
-          <span
-            v-if="props.cluster?.status == 'green'"
-            class="i-carbon-checkmark-outline h-6 w-6"
-          />
-          <span
-            v-else-if="props.cluster?.status == 'yellow'"
-            class="i-carbon-warning-alt h-6 w-6"
-          />
-          <span
-            v-else-if="props.cluster?.status == 'red'"
-            class="i-carbon-misuse-outline h-6 w-6"
-          />
-        </p>
-        <p class="m-0">name: {{ props.cluster?.cluster_name }}</p>
-        <p class="m-0">id: {{ props.cluster?.cluster_uuid }}</p>
-        <p class="m-0">version: {{ props.cluster?.nodes.versions }}</p>
-      </CardContent>
-    </Card>
-    <Card class="mt-3 max-w-[300px] max-h-[300px] w-full text-primary">
-      <CardContent class="p-6 flex flex-col gap-2">
-        <p class="text-2xl font-bold m-0">
-          {{ $t('manage.nodes') }}: {{ props.cluster?.nodes.count.total }}
-        </p>
-        <p class="m-0 text-foreground">master: {{ props.cluster?.nodes.count.master }}</p>
-        <p class="m-0 text-foreground">data: {{ props.cluster?.nodes.count.data }}</p>
-      </CardContent>
-    </Card>
-    <Card class="mt-3 max-w-[300px] max-h-[300px] w-full text-primary">
-      <CardContent class="p-6 flex flex-col gap-2">
-        <p class="text-2xl font-bold m-0">
-          {{ $t('manage.shards') }}: {{ props.cluster?.indices.shards.total }}
-        </p>
-        <p class="m-0 text-foreground">primaries: {{ props.cluster?.indices.shards.primaries }}</p>
-        <p class="m-0 text-foreground">
-          replicas:
-          {{
-            (props.cluster?.indices?.shards?.total || 0) -
-            (props.cluster?.indices.shards?.primaries || 0)
-          }}
-        </p>
-      </CardContent>
-    </Card>
-    <Card class="mt-3 max-w-[300px] max-h-[300px] w-full text-primary">
-      <CardContent class="p-6 flex flex-col gap-2">
-        <p class="text-2xl font-bold m-0">
-          {{ $t('manage.indices') }}: {{ props.cluster?.indices.count }}
-        </p>
-        <p class="m-0 text-foreground">docs: {{ props.cluster?.indices.docs.count }}</p>
-        <p class="m-0 text-foreground">
-          size: {{ prettyBytes(props.cluster?.indices.store.size_in_bytes || 0) }}
-        </p>
-      </CardContent>
-    </Card>
+  <div class="cluster-manage-container">
+    <div :class="{ 'pointer-events-none': loading }">
+      <!-- Metrics Cards Section -->
+      <section class="metrics-section">
+        <div v-if="loading" class="metrics-grid">
+          <Card v-for="i in 5" :key="i" class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <div class="skeleton skeleton-label"></div>
+              <div class="skeleton skeleton-value"></div>
+            </CardContent>
+          </Card>
+        </div>
+        <div v-else class="metrics-grid">
+          <!-- Cluster Card -->
+          <Card class="metric-card cluster-card" :class="statusCardClass">
+            <CardContent class="p-4">
+              <div class="cluster-header">
+                <span class="metric-label">{{ $t('manage.cluster') }}</span>
+                <div class="cluster-status-badge">
+                  <span class="status-indicator" :class="statusClass"></span>
+                  <span class="status-badge-text" :class="statusClass">
+                    {{ cluster?.status || '-' }}
+                  </span>
+                </div>
+              </div>
+              <div class="cluster-info">
+                <div class="cluster-info-row">
+                  <span class="info-label">NAME</span>
+                  <span class="info-value">{{ cluster?.cluster_name || '-' }}</span>
+                </div>
+                <div class="cluster-info-row">
+                  <span class="info-label">VERSION</span>
+                  <span class="info-value">{{ cluster?.nodes.versions?.join(', ') || '-' }}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <!-- Nodes Card -->
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.nodes') }}</span>
+              <span class="metric-value">{{ cluster?.nodes.count.total || 0 }}</span>
+            </CardContent>
+          </Card>
+
+          <!-- Indices Card -->
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.indices') }}</span>
+              <span class="metric-value">{{ cluster?.indices.count || 0 }}</span>
+            </CardContent>
+          </Card>
+
+          <!-- Shards Card -->
+          <Card class="metric-card shards-card">
+            <CardContent class="p-4">
+              <span class="metric-label">{{ $t('manage.shards') }}</span>
+              <div class="shards-info">
+                <div class="shards-info-item">
+                  <span class="info-label">TOTAL</span>
+                  <span class="info-value">{{ cluster?.indices.shards.total || 0 }}</span>
+                </div>
+                <div class="shards-info-item">
+                  <span class="info-label">PRIMARY</span>
+                  <span class="info-value">{{ cluster?.indices.shards.primaries || 0 }}</span>
+                </div>
+                <div class="shards-info-item">
+                  <span class="info-label">REPLICA</span>
+                  <span class="info-value">{{ shardReplicas }}</span>
+                </div>
+                <div class="shards-info-item">
+                  <span class="info-label">UNASSIGNED</span>
+                  <span class="info-value" :class="{ 'shard-unassigned': shardUnassigned > 0 }">
+                    {{ shardUnassigned }}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <!-- Docs Card -->
+          <Card class="metric-card docs-card">
+            <CardContent class="p-4">
+              <span class="metric-label">DOCS</span>
+              <div class="docs-info">
+                <div class="docs-info-item">
+                  <span class="info-label">COUNT</span>
+                  <span class="info-value">{{ formatNumber(cluster?.indices.docs.count) }}</span>
+                </div>
+                <div class="docs-info-item">
+                  <span class="info-label">SIZE</span>
+                  <span class="info-value">
+                    {{ prettyBytes(cluster?.indices.store.size_in_bytes || 0) }}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <!-- Nodes Section -->
+      <section class="nodes-section">
+        <Card class="nodes-card">
+          <CardHeader>
+            <div class="section-header">
+              <div class="section-title">
+                <span class="i-carbon-datacenter h-4 w-4" />
+                <span>{{ $t('manage.nodes') }}</span>
+              </div>
+              <span class="node-count">{{ nodes.length }} nodes</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div v-if="nodesLoading" class="flex justify-center py-4">
+              <Spinner size="md" />
+            </div>
+            <div v-else-if="nodes.length === 0" class="empty-nodes">
+              <Empty :description="$t('manage.emptyNoConnection')" />
+            </div>
+            <div v-else class="nodes-grid">
+              <div v-for="node in nodes" :key="node.name" class="node-card">
+                <div class="node-header">
+                  <div class="node-roles">
+                    <TooltipProvider v-if="node.master">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <span class="i-carbon-star-filled node-role-icon master" />
+                        </TooltipTrigger>
+                        <TooltipContent>{{ $t('manage.masterNode') }}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider
+                      v-if="node.roles.includes(NodeRoleEnum.MASTER_ELIGIBLE) && !node.master"
+                    >
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <span class="i-carbon-star node-role-icon" />
+                        </TooltipTrigger>
+                        <TooltipContent>{{ $t('manage.masterEligible') }}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider v-if="node.roles.includes(NodeRoleEnum.DATA)">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <span class="i-carbon-vmdk-disk node-role-icon data" />
+                        </TooltipTrigger>
+                        <TooltipContent>{{ $t('manage.dataNode') }}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <TooltipProvider v-if="node.roles.includes(NodeRoleEnum.INGEST)">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <span class="i-carbon-folder-move-to node-role-icon" />
+                        </TooltipTrigger>
+                        <TooltipContent>{{ $t('manage.ingestNode') }}</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <span class="node-name-title">{{ node.name }}</span>
+                </div>
+                <div class="node-stats-row">
+                  <div class="node-stat">
+                    <span class="stat-label">{{ $t('manage.node.ip') }}</span>
+                    <span class="stat-text">{{ node.ip }}</span>
+                  </div>
+                  <div class="node-stat">
+                    <span class="stat-label">{{ $t('manage.node.shards') }}</span>
+                    <span class="stat-text">{{ node.shard.total || 0 }}</span>
+                  </div>
+                  <div class="node-stat">
+                    <span class="stat-label">{{ $t('manage.node.mappings') }}</span>
+                    <span class="stat-text">{{ node.mapping.total || 0 }}</span>
+                  </div>
+                </div>
+                <div class="node-gauges">
+                  <div class="gauge-item">
+                    <div class="gauge-mini">
+                      <svg class="gauge-svg-mini" viewBox="0 0 36 36">
+                        <path
+                          class="gauge-bg"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke-width="3"
+                        />
+                        <path
+                          class="gauge-fill"
+                          :class="metricColorClass(node.heap.percent)"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke-width="3"
+                          :stroke-dasharray="`${node.heap.percent || 0}, 100`"
+                        />
+                      </svg>
+                      <span class="gauge-value-mini" :class="metricColorClass(node.heap.percent)">
+                        {{ node.heap.percent || 0 }}%
+                      </span>
+                    </div>
+                    <span class="gauge-label">HEAP</span>
+                  </div>
+                  <div class="gauge-item">
+                    <div class="gauge-mini">
+                      <svg class="gauge-svg-mini" viewBox="0 0 36 36">
+                        <path
+                          class="gauge-bg"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke-width="3"
+                        />
+                        <path
+                          class="gauge-fill"
+                          :class="metricColorClass(node.ram.percent)"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke-width="3"
+                          :stroke-dasharray="`${node.ram.percent || 0}, 100`"
+                        />
+                      </svg>
+                      <span class="gauge-value-mini" :class="metricColorClass(node.ram.percent)">
+                        {{ node.ram.percent || 0 }}%
+                      </span>
+                    </div>
+                    <span class="gauge-label">RAM</span>
+                  </div>
+                  <div class="gauge-item">
+                    <div class="gauge-mini">
+                      <svg class="gauge-svg-mini" viewBox="0 0 36 36">
+                        <path
+                          class="gauge-bg"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke-width="3"
+                        />
+                        <path
+                          class="gauge-fill"
+                          :class="metricColorClass(node.disk.percent)"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                          fill="none"
+                          stroke-width="3"
+                          :stroke-dasharray="`${node.disk.percent || 0}, 100`"
+                        />
+                      </svg>
+                      <span class="gauge-value-mini" :class="metricColorClass(node.disk.percent)">
+                        {{ node.disk.percent || 0 }}%
+                      </span>
+                    </div>
+                    <span class="gauge-label">DISK</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <!-- Indices Section -->
+      <section class="indices-section">
+        <Card class="indices-card">
+          <CardHeader>
+            <div class="section-header">
+              <div class="section-title">
+                <span class="i-carbon-data-table h-4 w-4" />
+                <span>{{ $t('manage.indices') }}</span>
+              </div>
+              <div class="section-actions">
+                <Input
+                  v-model="indexFilter"
+                  placeholder="Filter indices…"
+                  class="h-7 text-xs filter-input"
+                />
+                <Button size="sm" @click="toggleModal('index')">
+                  <span class="i-carbon-add h-3.5 w-3.5 mr-1" />
+                  {{ $t('manage.actions.newIndex') }}
+                </Button>
+                <Button variant="outline" size="sm" @click="toggleModal('alias')">
+                  <span class="i-carbon-add h-3.5 w-3.5 mr-1" />
+                  {{ $t('manage.actions.newAlias') }}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent class="p-0">
+            <div class="table-container">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Index</TableHead>
+                    <TableHead>Health</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Docs</TableHead>
+                    <TableHead>Storage</TableHead>
+                    <TableHead>Shards</TableHead>
+                    <TableHead>Aliases</TableHead>
+                    <TableHead class="w-12"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="(row, i) in filteredIndices" :key="i">
+                    <TableCell class="font-medium font-mono text-xs">{{ row.index }}</TableCell>
+                    <TableCell>
+                      <span
+                        :class="[
+                          'health-dot',
+                          row.health === 'green'
+                            ? 'health-green'
+                            : row.health === 'yellow'
+                              ? 'health-yellow'
+                              : 'health-red',
+                        ]"
+                      />
+                      <span class="health-text">{{ row.health }}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        :variant="row.status === 'open' ? 'outline' : 'secondary'"
+                        class="text-xs"
+                      >
+                        {{ row.status }}
+                      </Badge>
+                    </TableCell>
+                    <TableCell class="text-xs">{{ formatNumber(row.docs?.count) }}</TableCell>
+                    <TableCell class="text-xs">{{ formatStorage(row.storage) }}</TableCell>
+                    <TableCell>
+                      <div class="shard-boxes">
+                        <template
+                          v-if="row.shards && Array.isArray(row.shards) && row.shards.length"
+                        >
+                          <Button
+                            v-for="shard in row.shards"
+                            :key="`${shard.prirep}${shard.shard}`"
+                            :variant="shard.prirep === 'p' ? 'secondary' : 'outline'"
+                            size="xs"
+                            :class="[
+                              'shard-box',
+                              !shard.node ? 'shard-unassigned-btn' : shardStateClass(shard.state),
+                            ]"
+                            :title="`${shard.prirep === 'p' ? 'Primary' : 'Replica'} shard ${shard.shard} — ${shard.state}${!shard.node ? ' (unassigned)' : ' on ' + shard.node}`"
+                            @click="openShardDetail(row.index, shard)"
+                          >
+                            {{ shard.prirep }}{{ shard.shard }}
+                          </Button>
+                          <span class="shard-balance">
+                            {{ row.shards.filter((s: ClusterShard) => s.node).length }}/{{
+                              row.shards.length
+                            }}
+                          </span>
+                        </template>
+                        <span v-else class="shard-empty">—</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu v-for="alias in row.aliases" :key="alias.alias">
+                        <DropdownMenuTrigger as-child>
+                          <Button variant="ghost" size="sm" class="m-0.5">
+                            <span class="i-carbon-settings-adjust h-3.5 w-3.5 mr-1" />
+                            {{ alias.alias }}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            class="text-destructive"
+                            @click="handleIndexAction('removeAlias', alias.index, alias.alias)"
+                          >
+                            <span class="i-carbon-unlink h-4 w-4 mr-2 text-destructive" />
+                            {{ lang.t('manage.index.actions.removeAlias') }}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            @click="handleIndexAction('switchAlias', alias.index, alias.alias)"
+                          >
+                            <span class="i-carbon-arrows-horizontal h-4 w-4 mr-2" />
+                            {{ lang.t('manage.index.actions.switchAlias') }}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                          <Button variant="ghost" size="icon">
+                            <span class="i-carbon-overflow-menu-horizontal h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            class="text-destructive"
+                            @click="handleIndexAction('deleteIndex', row.index)"
+                          >
+                            <span class="i-carbon-trash-can h-4 w-4 mr-2 text-destructive" />
+                            {{ lang.t('manage.index.actions.deleteIndex') }}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            v-if="row.status === 'open'"
+                            @click="handleIndexAction('closeIndex', row.index)"
+                          >
+                            <span
+                              class="i-carbon-locked h-4 w-4 mr-2"
+                              style="color: hsl(var(--method-put))"
+                            />
+                            {{ lang.t('manage.index.actions.closeIndex') }}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            v-else
+                            @click="handleIndexAction('openIndex', row.index)"
+                          >
+                            <span class="i-carbon-unlocked h-4 w-4 mr-2 text-primary" />
+                            {{ lang.t('manage.index.actions.openIndex') }}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <!-- Templates Section -->
+      <section class="templates-section">
+        <Card class="templates-card">
+          <CardHeader>
+            <div class="section-header">
+              <div class="section-title">
+                <span class="i-carbon-template h-4 w-4" />
+                <span>{{ $t('manage.tabs.templates') }}</span>
+              </div>
+              <div class="section-actions">
+                <Input
+                  v-model="templateFilter"
+                  placeholder="Filter templates…"
+                  class="h-7 text-xs filter-input"
+                />
+                <Button size="sm" @click="toggleModal('template')">
+                  <span class="i-carbon-add h-3.5 w-3.5 mr-1" />
+                  {{ $t('manage.actions.newTemplate') }}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent class="p-0">
+            <div class="table-container">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Order</TableHead>
+                    <TableHead>Version</TableHead>
+                    <TableHead>Mappings</TableHead>
+                    <TableHead>Settings</TableHead>
+                    <TableHead>Aliases</TableHead>
+                    <TableHead>Index Patterns</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="(row, i) in filteredTemplates" :key="i">
+                    <TableCell class="font-medium text-xs">{{ (row as any).name }}</TableCell>
+                    <TableCell class="text-xs">{{ (row as any).type }}</TableCell>
+                    <TableCell class="text-xs">{{ (row as any).order }}</TableCell>
+                    <TableCell class="text-xs">{{ (row as any).version }}</TableCell>
+                    <TableCell class="text-xs">{{ (row as any).mapping_count }}</TableCell>
+                    <TableCell class="text-xs">{{ (row as any).settings_count }}</TableCell>
+                    <TableCell class="text-xs">{{ (row as any).alias_count }}</TableCell>
+                    <TableCell>
+                      <Badge
+                        v-for="pattern in (row as any).index_patterns || []"
+                        :key="pattern"
+                        variant="outline"
+                        class="m-0.5 text-xs"
+                      >
+                        {{ pattern }}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <!-- Dialogs -->
+      <index-dialog ref="indexDialogRef" />
+      <alias-dialog ref="aliasDialogRef" />
+      <template-dialog ref="templateDialogRef" />
+      <switch-alias-dialog ref="switchAliasDialogRef" />
+
+      <!-- Shard Detail Modal -->
+      <Dialog
+        :open="!!shardDetailState"
+        @update:open="
+          val => {
+            if (!val) shardDetailState = undefined;
+          }
+        "
+      >
+        <DialogContent class="shard-modal-content">
+          <DialogHeader>
+            <DialogTitle class="shard-modal-title">
+              <span>{{ shardDetailState?.indexName }}</span>
+              <div class="shard-modal-meta">
+                <span
+                  :class="[
+                    'shard-modal-badge',
+                    shardDetailState?.shard.prirep === 'p' ? 'badge-primary' : 'badge-replica',
+                  ]"
+                >
+                  {{ shardDetailState?.shard.prirep === 'p' ? 'PRIMARY' : 'REPLICA' }}
+                </span>
+                <span class="shard-modal-num">Shard {{ shardDetailState?.shard.shard }}</span>
+                <span
+                  v-if="!shardDetailState?.shard.node"
+                  class="shard-modal-badge badge-unassigned"
+                >
+                  UNASSIGNED
+                </span>
+                <span v-else class="shard-modal-node">{{ shardDetailState?.shard.node }}</span>
+              </div>
+            </DialogTitle>
+            <DialogDescription
+              v-if="shardDetailState?.shard.unassigned?.reason"
+              class="shard-unassigned-reason"
+            >
+              <span class="i-carbon-warning-alt h-3.5 w-3.5 mr-1" />
+              Unassigned: {{ shardDetailState?.shard.unassigned.reason }}
+              <template v-if="shardDetailState?.shard.unassigned.details">
+                — {{ shardDetailState?.shard.unassigned.details }}
+              </template>
+            </DialogDescription>
+          </DialogHeader>
+          <div v-if="shardDetailState" class="shard-modal-body">
+            <div class="shard-badges">
+              <Popover
+                v-for="(detail, idx) in buildShardDetails(shardDetailState.shard)"
+                :key="idx"
+              >
+                <PopoverTrigger as-child>
+                  <Badge
+                    :variant="detail.tagType === 'warning' ? 'warning' : 'outline'"
+                    class="cursor-pointer shard-detail-badge"
+                  >
+                    <span :class="[detail.iconClass, 'h-3 w-3 mr-1']" />
+                    {{ detail.content }}
+                  </Badge>
+                </PopoverTrigger>
+                <PopoverContent class="w-auto">
+                  <span>{{ detail.desc }}</span>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { get } from 'lodash';
 import prettyBytes from 'pretty-bytes';
-import { RawClusterStats } from '../../../store';
-import { Card, CardContent } from '@/components/ui/card';
+import { storeToRefs } from 'pinia';
+import { useClusterManageStore, RawClusterStats } from '../../../store';
+import { NodeRoleEnum, ClusterShard, ShardStateEnum } from '../../../datasources';
+import { useLang } from '../../../lang';
+import { CustomError } from '../../../common';
+import { useMessageService, useDialogService } from '@/composables';
+import IndexDialog from './index-dialog.vue';
+import AliasDialog from './alias-dialog.vue';
+import TemplateDialog from './template-dialog.vue';
+import SwitchAliasDialog from './switch-alias-dialog.vue';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Spinner } from '@/components/ui/spinner';
+import { Empty } from '@/components/ui/empty';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const props = defineProps<{ cluster: RawClusterStats | undefined }>();
+
+const lang = useLang();
+const message = useMessageService();
+const dialog = useDialogService();
+
+const clusterManageStore = useClusterManageStore();
+const { fetchNodes, refreshStates, deleteIndex, closeIndex, openIndex, removeAlias } =
+  clusterManageStore;
+const { nodes, indices, indexWithAliases, templates } = storeToRefs(clusterManageStore);
+
+// --- Cluster metrics ---
+
+const shardReplicas = computed(() => {
+  const total = props.cluster?.indices.shards.total ?? 0;
+  const primaries = props.cluster?.indices.shards.primaries ?? 0;
+  return total - primaries;
+});
+
+const shardUnassigned = computed(
+  () => indices.value.flatMap(idx => idx.shards ?? []).filter(s => !s.node).length,
+);
+
+const loading = ref(false);
+const nodesLoading = ref(false);
+
+const statusClass = computed(() => {
+  const status = props.cluster?.status?.toLowerCase();
+  return {
+    'status-green': status === 'green',
+    'status-yellow': status === 'yellow',
+    'status-red': status === 'red',
+  };
+});
+
+const statusCardClass = computed(() => {
+  const status = props.cluster?.status?.toLowerCase();
+  return {
+    'card-green': status === 'green',
+    'card-yellow': status === 'yellow',
+    'card-red': status === 'red',
+  };
+});
+
+const formatNumber = (num: number | undefined | null) => {
+  if (num === undefined || num === null) return '-';
+  return num.toLocaleString();
+};
+
+const formatStorage = (storage: string | undefined | null) => {
+  if (!storage) return '-';
+  return storage.replace(/([0-9.]+)([a-zA-Z]+)/, (_, val, unit) => `${val} ${unit.toUpperCase()}`);
+};
+
+const loadNodes = async () => {
+  nodesLoading.value = true;
+  try {
+    await fetchNodes();
+  } catch (err) {
+    console.warn('Failed to fetch nodes:', err);
+  } finally {
+    nodesLoading.value = false;
+  }
+};
+
+// --- Index management ---
+
+const indexDialogRef = ref();
+const aliasDialogRef = ref();
+const templateDialogRef = ref();
+const switchAliasDialogRef = ref();
+
+const indexFilter = ref('');
+const templateFilter = ref('');
+
+const filteredIndices = computed(() =>
+  indexFilter.value
+    ? indexWithAliases.value.filter(item =>
+        get(item, 'index', '').toLowerCase().includes(indexFilter.value.toLowerCase()),
+      )
+    : indexWithAliases.value,
+);
+
+const filteredTemplates = computed(() =>
+  templateFilter.value
+    ? templates.value.filter(item =>
+        get(item, 'name', '').toLowerCase().includes(templateFilter.value.toLowerCase()),
+      )
+    : templates.value,
+);
+
+const toggleModal = (target: string) => {
+  if (target === 'index') indexDialogRef.value.toggleModal();
+  if (target === 'alias') aliasDialogRef.value.toggleModal();
+  if (target === 'template') templateDialogRef.value.toggleModal();
+};
+
+const handleIndexAction = async (action: string, indexName: string, aliasName?: string) => {
+  if (action === 'deleteIndex') {
+    dialog.warning({
+      title: lang.t('dialogOps.warning'),
+      content: lang.t('manage.index.actions.deleteIndexWarning') + `:${indexName} ?`,
+      positiveText: lang.t('dialogOps.confirm'),
+      negativeText: lang.t('dialogOps.cancel'),
+      onPositiveClick: async () => {
+        try {
+          await deleteIndex(indexName);
+          await refreshStates();
+          message.success(lang.t('dialogOps.deleteSuccess'));
+        } catch (err) {
+          message.error((err as CustomError).details, { closable: true, keepAliveOnHover: true });
+        }
+      },
+    });
+  } else if (action === 'closeIndex') {
+    dialog.warning({
+      title: lang.t('dialogOps.warning'),
+      content: lang.t('manage.index.actions.closeIndexWarning') + `:${indexName} ?`,
+      positiveText: lang.t('dialogOps.confirm'),
+      negativeText: lang.t('dialogOps.cancel'),
+      onPositiveClick: async () => {
+        try {
+          await closeIndex(indexName);
+          await refreshStates();
+          message.success(lang.t('dialogOps.closeSuccess'));
+        } catch (err) {
+          message.error((err as CustomError).details, { closable: true, keepAliveOnHover: true });
+        }
+      },
+    });
+  } else if (action === 'openIndex') {
+    try {
+      await openIndex(indexName);
+      await refreshStates();
+      message.success(lang.t('dialogOps.openSuccess'));
+    } catch (err) {
+      message.error((err as CustomError).details, { closable: true, keepAliveOnHover: true });
+    }
+  } else if (action === 'removeAlias') {
+    dialog.warning({
+      title: lang.t('dialogOps.warning'),
+      content: lang.t('manage.index.actions.removeAliasWarning') + ` ${indexName}@${aliasName} ?`,
+      positiveText: lang.t('dialogOps.confirm'),
+      negativeText: lang.t('dialogOps.cancel'),
+      onPositiveClick: async () => {
+        try {
+          await removeAlias(indexName, aliasName as string);
+          await refreshStates();
+          message.success(lang.t('dialogOps.removeSuccess'));
+        } catch (err) {
+          message.error((err as CustomError).details, {
+            closable: true,
+            keepAliveOnHover: true,
+            duration: 7200,
+          });
+        }
+      },
+    });
+  } else if (action === 'switchAlias') {
+    switchAliasDialogRef.value.toggleModal(aliasName, indexName);
+  }
+};
+
+// --- Shard detail ---
+
+type ShardDetailTag = {
+  iconClass: string;
+  content: string;
+  desc: string;
+  tagType: 'default' | 'primary' | 'info' | 'success' | 'warning' | 'error';
+};
+
+const shardDetailState = ref<{ indexName: string; shard: ClusterShard } | undefined>();
+
+const metricColorClass = (percent: number | undefined) => {
+  const p = percent ?? 0;
+  if (p >= 85) return 'metric-danger';
+  if (p >= 65) return 'metric-warning';
+  return 'metric-safe';
+};
+
+const shardStateClass = (state: string) => {
+  if (state === ShardStateEnum.STARTED) return 'shard-state-started';
+  if (state === ShardStateEnum.RELOCATING) return 'shard-state-relocating';
+  if (state === ShardStateEnum.INITIALIZING) return 'shard-state-initializing';
+  return '';
+};
+
+const openShardDetail = (indexName: string, shard: ClusterShard) => {
+  shardDetailState.value = { indexName, shard };
+};
+
+const buildShardDetails = (shard: ClusterShard): ShardDetailTag[] =>
+  [
+    {
+      iconClass: 'i-carbon-document',
+      content: `docs: ${shard.docs.count ?? '-'}`,
+      desc: 'docs',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-vmdk-disk',
+      content: `size: ${shard.store.size ? prettyBytes(shard.store.size) : '-'}, dataset: ${shard.dataset.size ? prettyBytes(shard.dataset.size) : '-'}`,
+      desc: 'store',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-chip',
+      content: `size: ${shard.completion.size ? prettyBytes(shard.completion.size) : '-'}`,
+      desc: 'completion',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-chip',
+      content: `memory_size: ${shard.fielddata.memorySize ? prettyBytes(shard.fielddata.memorySize) : '-'}, evictions: ${shard.fielddata.evictions ?? '-'}`,
+      desc: 'fielddata',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-layers',
+      content: `memory_size: ${shard.queryCache.memorySize ? prettyBytes(shard.queryCache.memorySize) : '-'}, evictions: ${shard.queryCache.evictions ?? '-'}`,
+      desc: 'query_cache',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-query-queue',
+      content: `success: ${shard.get.existsTotal}, ${shard.get.existsTime} failure: ${shard.get.missingTotal}, ${shard.get.missingTime}`,
+      desc: 'GET OPERATION',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-insert',
+      content: `index: ${shard.indexing.indexTime} delete: ${shard.indexing.deleteTotal}, ${shard.indexing.deleteTime} failures: ${shard.indexing.indexFailed}`,
+      desc: 'INDEXING OPERATION',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-search-locate',
+      content: `fetch: ${shard.search.fetchTotal}/${shard.search.fetchTime}, query: ${shard.search.queryTotal}/${shard.search.queryTime}, scroll: ${shard.search.scrollTotal}/${shard.search.scrollTime}`,
+      desc: 'SEARCH OPERATION',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-shape-except',
+      content: `total: ${shard.merges.total}, size: ${shard.merges.totalSize ? prettyBytes(shard.merges.totalSize) : '-'}, docs: ${shard.merges.totalDocs} time: ${shard.merges.totalTime}`,
+      desc: 'MERGES OPERATION',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-application',
+      content: `count: ${shard.segments.count}/${prettyBytes(shard.segments.memory ?? 0)}, writer: ${shard.segments.indexWriterMemory ? prettyBytes(shard.segments.indexWriterMemory) : '-'}`,
+      desc: 'segments',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-rotate-360',
+      content: `total: ${shard.refresh.total}, time: ${shard.refresh.time}`,
+      desc: 'refresh',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-launch-study-1',
+      content: `total: ${shard.flush.total}, time: ${shard.flush.totalTime}`,
+      desc: 'flush',
+      tagType: 'success',
+    },
+    {
+      iconClass: 'i-carbon-version',
+      content: `max: ${shard.seqNo.max}, global: ${shard.seqNo.globalCheckpoint}, local: ${shard.seqNo.localCheckpoint}`,
+      desc: 'seq_no',
+      tagType: 'success',
+    },
+    shard.unassigned.at
+      ? {
+          iconClass: 'i-carbon-warning-alt',
+          content: `reason: ${shard.unassigned.reason}, at: ${shard.unassigned.at}`,
+          desc: 'unassigned',
+          tagType: 'warning' as const,
+        }
+      : undefined,
+  ].filter((d): d is ShardDetailTag => d !== undefined);
+
+// --- Lifecycle ---
+
+onMounted(async () => {
+  await loadNodes();
+});
+
+watch(
+  () => props.cluster,
+  async () => {
+    await loadNodes();
+  },
+);
 </script>
 
-<style scoped></style>
+<style scoped>
+.cluster-manage-container {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  padding-right: 32px;
+  background-color: hsl(var(--background));
+  box-sizing: border-box;
+  position: relative;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.cluster-manage-container::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted) / 0.6) 25%,
+    hsl(var(--muted) / 0.9) 50%,
+    hsl(var(--muted) / 0.6) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.skeleton-label {
+  height: 10px;
+  width: 60%;
+}
+.skeleton-value {
+  height: 24px;
+  width: 80%;
+}
+
+/* ---- Metrics ---- */
+.metrics-section {
+  margin-bottom: 24px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.metric-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+}
+
+.metric-card.cluster-card {
+  min-width: 280px;
+}
+.metric-card.docs-card {
+  min-width: 200px;
+}
+.metric-card.shards-card {
+  min-width: 220px;
+}
+
+.metric-card.card-green {
+  border-color: hsl(var(--primary) / 0.3);
+}
+.metric-card.card-yellow {
+  border-color: hsl(var(--method-put) / 0.3);
+}
+.metric-card.card-red {
+  border-color: hsl(var(--destructive) / 0.3);
+}
+
+.metric-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: hsl(var(--muted-foreground));
+}
+
+.metric-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+
+.cluster-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.cluster-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: hsl(var(--muted-foreground));
+}
+
+.status-indicator.status-green {
+  background-color: hsl(var(--primary));
+  animation: pulse 2s infinite;
+}
+
+.status-indicator.status-yellow {
+  background-color: hsl(var(--method-put));
+}
+.status-indicator.status-red {
+  background-color: hsl(var(--destructive));
+}
+
+.status-badge-text {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.status-badge-text.status-green {
+  color: hsl(var(--primary));
+}
+.status-badge-text.status-yellow {
+  color: hsl(var(--method-put));
+}
+.status-badge-text.status-red {
+  color: hsl(var(--destructive));
+}
+
+.cluster-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cluster-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.shards-info {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 16px;
+  margin-top: 8px;
+}
+
+.shards-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shard-unassigned {
+  color: hsl(var(--destructive));
+}
+
+.docs-info {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.docs-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: hsl(var(--muted-foreground));
+}
+
+.info-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+/* ---- Nodes ---- */
+.nodes-section {
+  margin-bottom: 24px;
+}
+
+.nodes-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-count {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: hsl(var(--primary));
+}
+
+.nodes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.node-card {
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.node-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.node-roles {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.node-role-icon {
+  width: 16px;
+  height: 16px;
+  color: hsl(var(--muted-foreground));
+}
+.node-role-icon.master {
+  color: hsl(var(--primary));
+}
+.node-role-icon.data {
+  color: hsl(var(--method-get));
+}
+
+.node-name-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.node-stats-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.node-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: hsl(var(--muted-foreground));
+}
+
+.stat-text {
+  font-size: 11px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.node-gauges {
+  display: flex;
+  justify-content: space-around;
+  padding-top: 4px;
+}
+.gauge-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.gauge-mini {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+
+.gauge-svg-mini {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.gauge-bg {
+  stroke: hsl(var(--border));
+}
+.gauge-fill.metric-safe {
+  stroke: hsl(142 71% 45%);
+}
+.gauge-fill.metric-warning {
+  stroke: hsl(38 92% 50%);
+}
+.gauge-fill.metric-danger {
+  stroke: hsl(var(--destructive));
+}
+
+.gauge-value-mini {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 9px;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+.gauge-value-mini.metric-safe {
+  color: hsl(142 71% 38%);
+}
+.gauge-value-mini.metric-warning {
+  color: hsl(38 92% 42%);
+}
+.gauge-value-mini.metric-danger {
+  color: hsl(var(--destructive));
+}
+
+.gauge-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: hsl(var(--muted-foreground));
+}
+
+.empty-nodes {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+}
+
+/* ---- Indices ---- */
+.indices-section {
+  margin-bottom: 24px;
+}
+
+.indices-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ---- Templates ---- */
+.templates-section {
+  margin-bottom: 24px;
+}
+
+.templates-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* ---- Shared table/section ---- */
+.filter-input {
+  max-width: 220px;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+/* Health dot */
+.health-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.health-green {
+  background: hsl(var(--primary));
+}
+.health-yellow {
+  background: hsl(var(--method-put));
+}
+.health-red {
+  background: hsl(var(--destructive));
+}
+
+.health-text {
+  font-size: 12px;
+  vertical-align: middle;
+  text-transform: capitalize;
+}
+
+/* ---- Shard boxes ---- */
+.shard-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  max-width: 260px;
+  padding: 4px 6px;
+  background: hsl(var(--muted) / 0.4);
+  border: 1px solid hsl(var(--border) / 0.6);
+  border-radius: 8px;
+}
+
+.shard-box {
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 5px !important;
+  font-size: 10px !important;
+  height: 20px !important;
+  padding: 0 5px !important;
+  line-height: 1;
+}
+
+.shard-unassigned-btn {
+  opacity: 0.55;
+  border-color: hsl(var(--destructive) / 0.7) !important;
+  color: hsl(var(--destructive)) !important;
+}
+
+.shard-state-started {
+  border-color: hsl(var(--primary) / 0.5);
+}
+.shard-state-relocating {
+  border-color: hsl(var(--method-put) / 0.7);
+}
+.shard-state-initializing {
+  border-color: hsl(var(--method-get) / 0.7);
+}
+
+.shard-balance {
+  font-size: 10px;
+  font-weight: 700;
+  color: hsl(var(--muted-foreground));
+  margin-left: 2px;
+  padding: 1px 5px;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  border-radius: 99px;
+  white-space: nowrap;
+  font-family: monospace;
+  letter-spacing: 0.3px;
+}
+
+.shard-empty {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+/* ---- Shard detail modal ---- */
+.shard-modal-content {
+  max-width: 680px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.shard-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 15px;
+}
+
+.shard-modal-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.shard-modal-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.badge-primary {
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+  border: 1px solid hsl(var(--primary) / 0.4);
+}
+
+.badge-replica {
+  background: hsl(var(--method-get) / 0.15);
+  color: hsl(var(--method-get));
+  border: 1px solid hsl(var(--method-get) / 0.4);
+}
+
+.badge-unassigned {
+  background: hsl(var(--destructive) / 0.15);
+  color: hsl(var(--destructive));
+  border: 1px solid hsl(var(--destructive) / 0.4);
+}
+
+.shard-modal-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.shard-modal-node {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  font-family: monospace;
+}
+
+.shard-unassigned-reason {
+  font-size: 12px;
+  color: hsl(var(--destructive));
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.shard-modal-body {
+  padding-top: 8px;
+}
+.shard-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.shard-detail-badge {
+  cursor: pointer;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+</style>
