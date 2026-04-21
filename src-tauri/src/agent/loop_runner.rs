@@ -141,20 +141,22 @@ fn replace_messages_with_summary(
     ids_to_remove: &[String],
     summary: &str,
 ) -> Result<(), String> {
-    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let mut conn = db.0.lock().map_err(|e| e.to_string())?;
     let tx_now = now_ms();
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
     for id in ids_to_remove {
-        conn.execute(
+        tx.execute(
             "DELETE FROM agent_messages WHERE id = ?1",
             rusqlite::params![id],
         )
         .map_err(|e| e.to_string())?;
     }
-    conn.execute(
+    tx.execute(
         "INSERT INTO agent_messages (id, session_id, role, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
         rusqlite::params![new_id(), session_id, "system", format!("[Summary] {}", summary), tx_now - 1_000_000],
     )
     .map_err(|e| e.to_string())?;
+    tx.commit().map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -493,6 +495,13 @@ pub async fn run_agent_loop(
     let executor_state: State<Arc<dyn ToolExecutor>> = app.state::<Arc<dyn ToolExecutor>>();
     let executor: Arc<dyn ToolExecutor> = executor_state.inner().clone();
 
+    {
+        let cm = cancel_map.lock().map_err(|e| e.to_string())?;
+        if cm.contains_key(&session_id) {
+            return Err(format!("session already running: {}", session_id));
+        }
+    }
+
     let result = run_agent_loop_inner(
         &session_id,
         &user_message,
@@ -506,6 +515,12 @@ pub async fn run_agent_loop(
     .await;
 
     let _ = update_session_status_inline(&db, &session_id, "idle");
+
+    {
+        if let Ok(mut cm) = cancel_map.lock() {
+            cm.remove(&session_id);
+        }
+    }
 
     if let Err(ref e) = result {
         let _ = app.emit(
@@ -548,29 +563,42 @@ async fn run_agent_loop_inner(
     let http_proxy = settings_get_str(settings, "httpProxy").map(|s| s.to_string());
     let http_client = create_http_client(http_proxy, None);
 
-    for _iter in 0..MAX_ITERATIONS {
-        match cancel_rx.try_recv() {
-            Ok(_) | Err(oneshot::error::TryRecvError::Closed) => {
-                return Err("cancelled".to_string());
-            }
-            Err(oneshot::error::TryRecvError::Empty) => {}
-        }
+    let allowed_tools: std::collections::HashSet<String> = settings
+        .get("tools")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|t| {
+                    t.get("function")
+                        .and_then(|f| f.get("name"))
+                        .and_then(|n| n.as_str())
+                })
+                .map(|s| s.to_string())
+                .collect()
+        })
+        .unwrap_or_default();
 
+    for _iter in 0..MAX_ITERATIONS {
         maybe_summarize_context(session_id, settings, app, db).await?;
 
         let history = load_messages(db, session_id)?;
         let chat_msgs = db_messages_to_chat(&history, system_prompt.as_deref());
         let body = build_request_body(settings, &chat_msgs, true);
 
-        let acc = stream_chat(
-            &http_client,
-            &base_url,
-            headers.clone(),
-            body,
-            session_id,
-            app,
-        )
-        .await?;
+        let acc = tokio::select! {
+            biased;
+            _ = &mut cancel_rx => {
+                return Err("cancelled".to_string());
+            }
+            res = stream_chat(
+                &http_client,
+                &base_url,
+                headers.clone(),
+                body,
+                session_id,
+                app,
+            ) => res?,
+        };
 
         let assistant_message_id = new_id();
 
@@ -592,12 +620,19 @@ async fn run_agent_loop_inner(
             return Ok(());
         }
 
+        let resolved_tool_ids: Vec<String> = acc
+            .tool_calls
+            .iter()
+            .map(|t| if t.id.is_empty() { new_id() } else { t.id.clone() })
+            .collect();
+
         let tool_calls_json: Vec<Value> = acc
             .tool_calls
             .iter()
-            .map(|t| {
+            .zip(resolved_tool_ids.iter())
+            .map(|(t, resolved_id)| {
                 json!({
-                    "id": t.id,
+                    "id": resolved_id,
                     "type": "function",
                     "function": {"name": t.name, "arguments": t.arguments}
                 })
@@ -619,8 +654,8 @@ async fn run_agent_loop_inner(
             json!({"session_id": session_id, "message_id": assistant_message_id}),
         );
 
-        for tc in &acc.tool_calls {
-            let tool_call_id = if tc.id.is_empty() { new_id() } else { tc.id.clone() };
+        for (tc, tool_call_id) in acc.tool_calls.iter().zip(resolved_tool_ids.iter()) {
+            let tool_call_id = tool_call_id.clone();
             let arguments_value: Value =
                 serde_json::from_str(&tc.arguments).unwrap_or(Value::Null);
 
@@ -633,6 +668,11 @@ async fn run_agent_loop_inner(
                 &tc.arguments,
                 "pending",
             )?;
+
+            if !allowed_tools.is_empty() && !allowed_tools.contains(&tc.name) {
+                update_tool_call_status(db, &tool_call_id, "failed")?;
+                return Err(format!("tool not allowed: {}", tc.name));
+            }
 
             let _ = app.emit(
                 "agent-loop-tool-call",
@@ -650,19 +690,27 @@ async fn run_agent_loop_inner(
                 cm.insert(tool_call_id.clone(), confirm_tx);
             }
 
-            let allowed = match tokio::time::timeout(
+            let confirm_future = tokio::time::timeout(
                 Duration::from_secs(CONFIRM_TIMEOUT_SECS),
                 confirm_rx,
-            )
-            .await
-            {
-                Ok(Ok(v)) => v,
-                Ok(Err(_)) => false,
-                Err(_) => {
+            );
+
+            let allowed = tokio::select! {
+                biased;
+                _ = &mut cancel_rx => {
                     let mut cm = confirm_map.lock().map_err(|e| e.to_string())?;
                     cm.remove(&tool_call_id);
-                    return Err(format!("tool confirmation timeout: {}", tool_call_id));
+                    return Err("cancelled".to_string());
                 }
+                res = confirm_future => match res {
+                    Ok(Ok(v)) => v,
+                    Ok(Err(_)) => false,
+                    Err(_) => {
+                        let mut cm = confirm_map.lock().map_err(|e| e.to_string())?;
+                        cm.remove(&tool_call_id);
+                        return Err(format!("tool confirmation timeout: {}", tool_call_id));
+                    }
+                },
             };
 
             if !allowed {
@@ -672,15 +720,19 @@ async fn run_agent_loop_inner(
 
             update_tool_call_status(db, &tool_call_id, "approved")?;
 
-            let envelope: ToolEnvelope = match tool_executor
-                .execute(&tc.name, &arguments_value, &connection_config)
-                .await
-            {
-                Ok(env) => env,
-                Err(e) => {
+            let envelope: ToolEnvelope = tokio::select! {
+                biased;
+                _ = &mut cancel_rx => {
                     update_tool_call_status(db, &tool_call_id, "failed")?;
-                    return Err(format!("tool execution failed: {}", e));
+                    return Err("cancelled".to_string());
                 }
+                res = tool_executor.execute(&tc.name, &arguments_value, &connection_config) => match res {
+                    Ok(env) => env,
+                    Err(e) => {
+                        update_tool_call_status(db, &tool_call_id, "failed")?;
+                        return Err(format!("tool execution failed: {}", e));
+                    }
+                },
             };
 
             insert_tool_result(db, &tool_call_id, &envelope.full_result)?;

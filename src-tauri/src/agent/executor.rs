@@ -281,11 +281,16 @@ async fn execute_dynamo_tool(
 }
 
 #[tauri::command]
+#[allow(dead_code)]
 pub async fn execute_tool(
     tool_name: String,
     arguments: String,
     connection_config: serde_json::Value,
 ) -> Result<String, String> {
+    // Security note: Not registered in the Tauri invoke_handler.
+    // Tool execution is gated by the agent loop, which enforces per-session
+    // tool allow-lists and user confirmation. This helper remains only for
+    // potential internal callers; it is not reachable from the webview.
     let args: Value =
         serde_json::from_str(&arguments).map_err(|e| format!("Failed to parse arguments: {}", e))?;
 
