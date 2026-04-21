@@ -219,7 +219,10 @@
             </div>
           </CardHeader>
           <CardContent>
-            <div v-if="globalSecondaryIndexes.length > 0" class="table-container">
+            <div
+              v-if="globalSecondaryIndexes.length > 0"
+              class="table-container gsi-table-container"
+            >
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -340,7 +343,7 @@ import {
   DynamoDBConnection,
 } from '../../../store';
 import { useLang } from '../../../lang';
-import { CustomError } from '../../../common';
+import { CustomError, withLoadingDelay } from '../../../common';
 import { DynamoIndex, DynamoIndexType, dynamoApi } from '../../../datasources';
 import DeleteIndexModal from './delete-index-modal.vue';
 import CreateIndexModal from './create-index-modal.vue';
@@ -594,30 +597,31 @@ const handleRefresh = async () => {
   }, 30000);
 
   try {
-    await fetchTableInfo(connection.value);
+    await withLoadingDelay(
+      (async () => {
+        await fetchTableInfo(connection.value);
 
-    // Fetch PITR status
-    try {
-      const pitrData = await dynamoApi.describeContinuousBackups(connection.value);
-      pitrEnabled.value = pitrData.pitrEnabled || false;
-    } catch (err) {
-      console.warn('Failed to fetch PITR status:', err); // eslint-disable-line no-console
-      pitrEnabled.value = false;
-    }
+        try {
+          const pitrData = await dynamoApi.describeContinuousBackups(connection.value);
+          pitrEnabled.value = pitrData.pitrEnabled || false;
+        } catch (err) {
+          console.warn('Failed to fetch PITR status:', err); // eslint-disable-line no-console
+          pitrEnabled.value = false;
+        }
 
-    // Fetch TTL status
-    try {
-      const ttlData = await dynamoApi.describeTimeToLive(connection.value);
-      ttlEnabled.value = ttlData.ttlEnabled;
-      ttlAttribute.value = ttlData.attributeName;
-    } catch (err) {
-      console.warn('Failed to fetch TTL status:', err); // eslint-disable-line no-console
-      ttlEnabled.value = false;
-      ttlAttribute.value = undefined;
-    }
+        try {
+          const ttlData = await dynamoApi.describeTimeToLive(connection.value);
+          ttlEnabled.value = ttlData.ttlEnabled;
+          ttlAttribute.value = ttlData.attributeName;
+        } catch (err) {
+          console.warn('Failed to fetch TTL status:', err); // eslint-disable-line no-console
+          ttlEnabled.value = false;
+          ttlAttribute.value = undefined;
+        }
 
-    // Also fetch CloudWatch metrics
-    await fetchCloudWatchMetrics();
+        await fetchCloudWatchMetrics();
+      })(),
+    );
   } catch (err) {
     const error = err as CustomError;
     message.error(`${error.status}: ${error.details}`, {
@@ -1056,6 +1060,12 @@ defineExpose({
 
 .table-container {
   overflow-x: auto;
+}
+
+.gsi-table-container {
+  min-height: 150px;
+  max-height: 250px;
+  overflow-y: auto;
 }
 
 .action-buttons {

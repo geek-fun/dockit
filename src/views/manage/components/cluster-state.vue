@@ -282,7 +282,7 @@
             </div>
           </CardHeader>
           <CardContent class="p-0">
-            <div class="table-container">
+            <div class="table-container indices-table-container">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -310,7 +310,18 @@
                               : 'health-red',
                         ]"
                       />
-                      <span class="health-text">{{ row.health }}</span>
+                      <span
+                        :class="[
+                          'health-text',
+                          row.health === 'green'
+                            ? 'health-green'
+                            : row.health === 'yellow'
+                              ? 'health-yellow'
+                              : 'health-red',
+                        ]"
+                      >
+                        {{ row.health }}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -327,25 +338,55 @@
                         <template
                           v-if="row.shards && Array.isArray(row.shards) && row.shards.length"
                         >
-                          <Button
-                            v-for="shard in row.shards"
-                            :key="`${shard.prirep}${shard.shard}`"
-                            :variant="shard.prirep === 'p' ? 'secondary' : 'outline'"
-                            size="xs"
-                            :class="[
-                              'shard-box',
-                              !shard.node ? 'shard-unassigned-btn' : shardStateClass(shard.state),
-                            ]"
-                            :title="`${shard.prirep === 'p' ? 'Primary' : 'Replica'} shard ${shard.shard} — ${shard.state}${!shard.node ? ' (unassigned)' : ' on ' + shard.node}`"
-                            @click="openShardDetail(row.index, shard)"
+                          <div class="shard-stats">
+                            <span class="i-carbon-data-enrichment h-3.5 w-3.5 shard-stats-icon" />
+                            <span class="shard-stat">
+                              {{ row.shards.filter((s: ClusterShard) => s.node).length }}/{{
+                                row.shards.length
+                              }}
+                            </span>
+                            <span class="shard-stat-separator">|</span>
+                            <span class="shard-stat-primary">
+                              Primary:
+                              {{ row.shards.filter((s: ClusterShard) => s.prirep === 'p').length }}
+                            </span>
+                            <span class="shard-stat-replica">
+                              Replica:
+                              {{ row.shards.filter((s: ClusterShard) => s.prirep === 'r').length }}
+                            </span>
+                          </div>
+                          <div
+                            v-for="group in groupShardsByNode(row.shards)"
+                            :key="group.node || '__unassigned__'"
+                            class="shard-node-group"
                           >
-                            {{ shard.prirep }}{{ shard.shard }}
-                          </Button>
-                          <span class="shard-balance">
-                            {{ row.shards.filter((s: ClusterShard) => s.node).length }}/{{
-                              row.shards.length
-                            }}
-                          </span>
+                            <div
+                              :class="[
+                                'shard-node-label',
+                                !group.node ? 'shard-node-unassigned' : '',
+                              ]"
+                            >
+                              {{ group.node || 'UNASSIGNED' }}
+                            </div>
+                            <div class="shard-node-content">
+                              <Button
+                                v-for="shard in group.shards"
+                                :key="`${shard.prirep}${shard.shard}`"
+                                :variant="'outline'"
+                                :class="[
+                                  'shard-box',
+                                  shard.prirep === 'r' ? 'shard-replica-btn' : '',
+                                  !shard.node
+                                    ? 'shard-unassigned-btn'
+                                    : shardStateClass(shard.state),
+                                ]"
+                                :title="`${shard.prirep === 'p' ? 'Primary' : 'Replica'} shard ${shard.shard} — ${shard.state}${!shard.node ? ' (unassigned)' : ''}`"
+                                @click="openShardDetail(row.index, shard)"
+                              >
+                                {{ shard.prirep }}{{ shard.shard }}
+                              </Button>
+                            </div>
+                          </div>
                         </template>
                         <span v-else class="shard-empty">—</span>
                       </div>
@@ -441,7 +482,7 @@
             </div>
           </CardHeader>
           <CardContent class="p-0">
-            <div class="table-container">
+            <div class="table-container templates-table-container">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -565,7 +606,7 @@ import { storeToRefs } from 'pinia';
 import { useClusterManageStore, RawClusterStats } from '../../../store';
 import { NodeRoleEnum, ClusterShard, ShardStateEnum } from '../../../datasources';
 import { useLang } from '../../../lang';
-import { CustomError } from '../../../common';
+import { CustomError, withLoadingDelay } from '../../../common';
 import { useMessageService, useDialogService } from '@/composables';
 import IndexDialog from './index-dialog.vue';
 import AliasDialog from './alias-dialog.vue';
@@ -676,6 +717,39 @@ const switchAliasDialogRef = ref();
 const indexFilter = ref('');
 const templateFilter = ref('');
 
+type ShardGroup = {
+  node: string;
+  shards: ClusterShard[];
+};
+
+const groupShardsByNode = (shards: ClusterShard[] | undefined): ShardGroup[] => {
+  if (!shards || shards.length === 0) return [];
+
+  const groups: Map<string, ClusterShard[]> = new Map();
+
+  for (const shard of shards) {
+    const nodeKey = shard.node || '__unassigned__';
+    if (!groups.has(nodeKey)) {
+      groups.set(nodeKey, []);
+    }
+    groups.get(nodeKey)!.push(shard);
+  }
+
+  return Array.from(groups.entries())
+    .map(([node, nodeShards]) => ({
+      node: node === '__unassigned__' ? '' : node,
+      shards: nodeShards.sort((a, b) => {
+        if (a.prirep !== b.prirep) return a.prirep === 'p' ? -1 : 1;
+        return parseInt(a.shard) - parseInt(b.shard);
+      }),
+    }))
+    .sort((a, b) => {
+      if (!a.node && b.node) return 1;
+      if (a.node && !b.node) return -1;
+      return a.node.localeCompare(b.node);
+    });
+};
+
 const filteredIndices = computed(() =>
   indexFilter.value
     ? indexWithAliases.value.filter(item =>
@@ -707,7 +781,7 @@ const handleIndexAction = async (action: string, indexName: string, aliasName?: 
       negativeText: lang.t('dialogOps.cancel'),
       onPositiveClick: async () => {
         try {
-          await deleteIndex(indexName);
+          await withLoadingDelay(deleteIndex(indexName));
           await refreshStates();
           message.success(lang.t('dialogOps.deleteSuccess'));
         } catch (err) {
@@ -723,7 +797,7 @@ const handleIndexAction = async (action: string, indexName: string, aliasName?: 
       negativeText: lang.t('dialogOps.cancel'),
       onPositiveClick: async () => {
         try {
-          await closeIndex(indexName);
+          await withLoadingDelay(closeIndex(indexName));
           await refreshStates();
           message.success(lang.t('dialogOps.closeSuccess'));
         } catch (err) {
@@ -733,7 +807,7 @@ const handleIndexAction = async (action: string, indexName: string, aliasName?: 
     });
   } else if (action === 'openIndex') {
     try {
-      await openIndex(indexName);
+      await withLoadingDelay(openIndex(indexName));
       await refreshStates();
       message.success(lang.t('dialogOps.openSuccess'));
     } catch (err) {
@@ -747,7 +821,7 @@ const handleIndexAction = async (action: string, indexName: string, aliasName?: 
       negativeText: lang.t('dialogOps.cancel'),
       onPositiveClick: async () => {
         try {
-          await removeAlias(indexName, aliasName as string);
+          await withLoadingDelay(removeAlias(indexName, aliasName as string));
           await refreshStates();
           message.success(lang.t('dialogOps.removeSuccess'));
         } catch (err) {
@@ -1325,6 +1399,18 @@ watch(
   overflow-x: auto;
 }
 
+.indices-table-container {
+  min-height: 300px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.templates-table-container {
+  min-height: 200px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
 /* Health dot */
 .health-dot {
   display: inline-block;
@@ -1350,28 +1436,84 @@ watch(
   vertical-align: middle;
   text-transform: capitalize;
 }
+.health-text.health-green {
+  color: hsl(var(--primary));
+  background: transparent;
+}
+.health-text.health-yellow {
+  color: hsl(var(--method-put));
+  background: transparent;
+}
+.health-text.health-red {
+  color: hsl(var(--destructive));
+  background: transparent;
+}
 
 /* ---- Shard boxes ---- */
 .shard-boxes {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 4px;
-  align-items: center;
-  max-width: 260px;
+  max-width: 280px;
   padding: 4px 6px;
   background: hsl(var(--muted) / 0.4);
   border: 1px solid hsl(var(--border) / 0.6);
   border-radius: 8px;
 }
 
+.shard-node-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 6px 3px 6px;
+  margin-top: 7px;
+  background: hsl(var(--background) / 0.6);
+  border: 1px solid hsl(var(--border) / 0.4);
+  border-radius: 6px;
+}
+
+.shard-node-label {
+  position: absolute;
+  top: -5px;
+  left: 6px;
+  font-size: 9px;
+  font-weight: 600;
+  padding: 0 5px;
+  height: 10px;
+  line-height: 10px;
+  background: hsl(var(--muted));
+  border-radius: 999px;
+  white-space: nowrap;
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+}
+
+.shard-node-unassigned {
+  background: hsl(var(--destructive) / 0.2);
+  color: hsl(var(--destructive));
+}
+
+.shard-node-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
 .shard-box {
   cursor: pointer;
   flex-shrink: 0;
-  border-radius: 5px !important;
+  border-radius: 4px !important;
   font-size: 10px !important;
-  height: 20px !important;
-  padding: 0 5px !important;
+  height: 18px !important;
+  padding: 0 4px !important;
   line-height: 1;
+}
+
+.shard-replica-btn {
+  border-color: hsl(var(--primary) / 0.7) !important;
+  border-style: dotted !important;
+  color: hsl(var(--primary)) !important;
 }
 
 .shard-unassigned-btn {
@@ -1390,18 +1532,33 @@ watch(
   border-color: hsl(var(--method-get) / 0.7);
 }
 
-.shard-balance {
-  font-size: 10px;
-  font-weight: 700;
+.shard-stats {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.shard-stats-icon {
   color: hsl(var(--muted-foreground));
-  margin-left: 2px;
-  padding: 1px 5px;
-  background: hsl(var(--background));
-  border: 1px solid hsl(var(--border));
-  border-radius: 99px;
-  white-space: nowrap;
-  font-family: monospace;
-  letter-spacing: 0.3px;
+}
+
+.shard-stat {
+  color: hsl(var(--muted-foreground));
+}
+
+.shard-stat-separator {
+  color: hsl(var(--border));
+}
+
+.shard-stat-primary {
+  color: hsl(var(--primary));
+}
+
+.shard-stat-replica {
+  color: hsl(var(--method-get));
 }
 
 .shard-empty {

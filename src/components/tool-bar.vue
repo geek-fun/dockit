@@ -174,7 +174,7 @@
 
     <Button
       v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.ELASTICSEARCH"
-      variant="outline"
+      variant="ghost"
       size="sm"
       @click="handleEsRefresh"
     >
@@ -184,7 +184,7 @@
 
     <Button
       v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.DYNAMODB"
-      variant="outline"
+      variant="ghost"
       size="sm"
       @click="handleDynamoRefresh"
     >
@@ -228,7 +228,7 @@ import {
   ElasticsearchConnection,
 } from '../store';
 import { useLang } from '../lang';
-import { CustomError } from '../common';
+import { CustomError, withLoadingDelay } from '../common';
 import { esSampleQueries } from '../common/monaco';
 import { useMessageService } from '@/composables';
 import { Button } from '@/components/ui/button';
@@ -505,7 +505,7 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
 
 const handleEsRefresh = async () => {
   if (connection.value) {
-    await refreshStates();
+    await withLoadingDelay(refreshStates());
   }
 };
 

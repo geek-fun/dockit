@@ -411,11 +411,14 @@ const esApi: ESApi = {
       }
     });
 
+    const esTemplatePath =
+      type === TemplateType.INDEX_TEMPLATE ? '_index_template' : '_component_template';
+
     try {
       const response = await client.put<{
         status: number;
         error: { type: string; reason: string };
-      }>(`/${type}/${name}`, queryParams.toString(), body ?? undefined);
+      }>(`/${esTemplatePath}/${name}`, queryParams.toString(), body ?? undefined);
       if (response.status >= 300) {
         throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
       }
