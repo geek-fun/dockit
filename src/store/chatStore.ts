@@ -32,10 +32,15 @@ type Chat = {
 };
 
 export const useChatStore = defineStore('chat', {
-  state: (): { activeChat: Chat | undefined; chats: Array<Chat> } => {
+  state: (): {
+    activeChat: Chat | undefined;
+    chats: Array<Chat>;
+    pendingChatIds: Set<string>;
+  } => {
     return {
       chats: [],
       activeChat: undefined,
+      pendingChatIds: new Set(),
     };
   },
   actions: {
@@ -51,7 +56,10 @@ export const useChatStore = defineStore('chat', {
       );
 
       this.chats = chats;
-      this.activeChat = activeChat ?? this.chats.reverse().find(chat => chat.provider === provider);
+      const storedActiveMatches =
+        activeChat && activeChat.provider === provider ? activeChat : undefined;
+      this.activeChat =
+        storedActiveMatches ?? this.chats.reverse().find(chat => chat.provider === provider);
 
       if (!this.activeChat) {
         this.activeChat = {
@@ -82,6 +90,7 @@ export const useChatStore = defineStore('chat', {
         throw new CustomError(ErrorCodes.MISSING_GPT_CONFIG, lang.global.t('setting.ai.missing'));
       }
 
+      const chatId = this.activeChat.id;
       const { messages } = this.activeChat;
       const requestMsg = {
         id: ulid(),
@@ -101,6 +110,11 @@ export const useChatStore = defineStore('chat', {
         lang.global.t('setting.ai.defaultPrompt'),
       );
 
+      const assistantMsgId = ulid();
+      const findChat = () => this.chats.find(chat => chat.id === chatId);
+      const findMessage = (msgId: string) => findChat()?.messages.find(m => m.id === msgId);
+
+      this.pendingChatIds.add(chatId);
       try {
         const { provider, model } = await getFeatureModelConfig('sidebarAssistant');
         const history = messages.filter(({ status }) =>
@@ -116,17 +130,24 @@ export const useChatStore = defineStore('chat', {
         const requestId = ulid();
         const unlistenDelta = await agentApi.onAgentDelta(event => {
           if (event.requestId !== requestId) return;
-          this.activeChat!.messages[this.activeChat!.messages.length - 1].content += event.content;
+          const assistantMsg = findMessage(assistantMsgId);
+          if (assistantMsg) {
+            assistantMsg.content += event.content;
+          }
         });
 
-        this.activeChat!.messages[this.activeChat!.messages.length - 1].status =
-          ChatMessageStatus.SENT;
-        this.activeChat!.messages.push({
-          id: ulid(),
-          status: ChatMessageStatus.SENDING,
-          role: ChatMessageRole.BOT,
-          content: '',
-        });
+        const userMsg = findMessage(requestMsg.id);
+        if (userMsg) userMsg.status = ChatMessageStatus.SENT;
+
+        const targetChat = findChat();
+        if (targetChat) {
+          targetChat.messages.push({
+            id: assistantMsgId,
+            status: ChatMessageStatus.SENDING,
+            role: ChatMessageRole.BOT,
+            content: '',
+          });
+        }
 
         try {
           await agentApi.runAgentStep({
@@ -139,8 +160,8 @@ export const useChatStore = defineStore('chat', {
             apiKey: provider.apiKey ?? '',
             baseUrl: provider.baseUrl,
           });
-          this.activeChat!.messages[this.activeChat!.messages.length - 1].status =
-            ChatMessageStatus.RECEIVED;
+          const assistantMsg = findMessage(assistantMsgId);
+          if (assistantMsg) assistantMsg.status = ChatMessageStatus.RECEIVED;
         } finally {
           unlistenDelta();
           await storeApi.set(
@@ -149,20 +170,30 @@ export const useChatStore = defineStore('chat', {
           );
         }
       } catch (err) {
-        requestMsg.status = ChatMessageStatus.FAILED;
-        this.activeChat!.messages[this.activeChat!.messages.length - 1].status =
-          ChatMessageStatus.FAILED;
+        const userMsg = findMessage(requestMsg.id);
+        if (userMsg) userMsg.status = ChatMessageStatus.FAILED;
+        const assistantMsg = findMessage(assistantMsgId);
+        if (assistantMsg) assistantMsg.status = ChatMessageStatus.FAILED;
         await storeApi.set(
           'chatStore',
           pureObject({ activeChat: this.activeChat, chats: this.chats }),
         );
         throw new CustomError(ErrorCodes.OPENAI_CLIENT_ERROR, (err as Error).message);
+      } finally {
+        this.pendingChatIds.delete(chatId);
       }
     },
 
     async deleteChat() {
       if (!this.activeChat) {
         return;
+      }
+
+      if (this.pendingChatIds.has(this.activeChat.id)) {
+        throw new CustomError(
+          ErrorCodes.OPENAI_CLIENT_ERROR,
+          'Cannot delete chat while a message is in flight',
+        );
       }
 
       const chatIndex = this.chats.findIndex(chat => chat.id === this.activeChat!.id);

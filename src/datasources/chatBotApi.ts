@@ -154,11 +154,7 @@ const chatBotApi = {
     httpProxy?: string;
     baseUrl?: string;
   }) => {
-    try {
-      return await invoke<Array<string>>('list_llm_models', config);
-    } catch (_err) {
-      return [];
-    }
+    return await invoke<Array<string>>('list_llm_models', config);
   },
 };
 
