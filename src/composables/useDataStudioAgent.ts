@@ -155,7 +155,8 @@ export const useDataStudioAgent = () => {
       const source = dataStudioStore.connectedSources.find(
         s => s.connectionId === session.connectionId,
       );
-      const riskLevel = (runtime.metadata?.[tool_name]?.riskLevel as RiskLevel | undefined) ?? 'elevated';
+      const riskLevel =
+        (runtime.metadata?.[tool_name]?.riskLevel as RiskLevel | undefined) ?? 'elevated';
       const needsConfirmation = shouldRequireConfirmation(
         tool_name,
         riskLevel,
@@ -280,27 +281,27 @@ export const useDataStudioAgent = () => {
       timestamp: Date.now(),
     });
 
-    const { provider, model } = await getFeatureModelConfig('dataStudio');
-    const schema = session.schema;
-
-    const settings: Record<string, unknown> = {
-      provider: kindToProviderEnum(provider.kind),
-      model: model.label,
-      apiKey: provider.apiKey ?? '',
-      baseUrl: provider.baseUrl,
-      httpProxy: provider.proxy || undefined,
-      systemPrompt: buildSystemPrompt(schema, noConnection),
-      tools: noConnection ? [] : (runtime.tools ?? []),
-    };
-
-    if (!noConnection && runtime.config) {
-      settings.connectionConfig = runtime.config;
-    }
-
-    const lastUserMsg = [...session.messages].reverse().find(m => m.role === 'user');
-    const userMessage = lastUserMsg?.content ?? '';
-
     try {
+      const { provider, model } = await getFeatureModelConfig('dataStudio');
+      const schema = session.schema;
+
+      const settings: Record<string, unknown> = {
+        provider: kindToProviderEnum(provider.kind),
+        model: model.label,
+        apiKey: provider.apiKey ?? '',
+        baseUrl: provider.baseUrl,
+        httpProxy: provider.proxy || undefined,
+        systemPrompt: buildSystemPrompt(schema, noConnection),
+        tools: noConnection ? [] : (runtime.tools ?? []),
+      };
+
+      if (!noConnection && runtime.config) {
+        settings.connectionConfig = runtime.config;
+      }
+
+      const lastUserMsg = [...session.messages].reverse().find(m => m.role === 'user');
+      const userMessage = lastUserMsg?.content ?? '';
+
       await invokeAgentLoop(sessionId, userMessage, settings);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -316,7 +317,7 @@ export const useDataStudioAgent = () => {
     error.value = undefined;
 
     if (!connectionId) {
-      const sessionId = dataStudioStore.getOrCreateSession(-1);
+      const sessionId = await dataStudioStore.getOrCreateSession(-1);
       dataStudioStore.addMessage(sessionId, {
         id: ulid(),
         role: 'user',
@@ -340,7 +341,7 @@ export const useDataStudioAgent = () => {
       return;
     }
 
-    const sessionId = dataStudioStore.getOrCreateSession(connectionId);
+    const sessionId = await dataStudioStore.getOrCreateSession(connectionId);
 
     dataStudioStore.addMessage(sessionId, {
       id: ulid(),
@@ -429,9 +430,15 @@ export const useDataStudioAgent = () => {
     }
 
     const allResolved = assistantMsg?.toolCalls?.every(tc => tc.status !== 'pending') ?? true;
-    if (allResolved) {
+    const anyAllowed =
+      assistantMsg?.toolCalls?.some(tc => tc.status === 'executing' || tc.status === 'done') ??
+      false;
+    if (allResolved && anyAllowed) {
       dataStudioStore.setSessionStatus(session.id, 'running');
       isLoading.value = true;
+    } else if (allResolved && !anyAllowed) {
+      dataStudioStore.setSessionStatus(session.id, 'idle');
+      isLoading.value = false;
     }
   };
 
@@ -443,10 +450,10 @@ export const useDataStudioAgent = () => {
     isLoading.value = false;
   };
 
-  const clearChat = () => {
+  const clearChat = async () => {
     const session = activeSession.value;
     if (session) {
-      dataStudioStore.clearSession(session.id);
+      await dataStudioStore.clearSession(session.id);
       sessionRuntime.delete(session.id);
     }
   };

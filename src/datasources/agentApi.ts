@@ -140,6 +140,8 @@ const updateSessionStatus = (sessionId: string, status: string) =>
   invoke<void>('update_session_status', { sessionId, status });
 const deleteAgentSession = (sessionId: string) =>
   invoke<void>('delete_agent_session', { sessionId });
+const clearAgentSessionMessages = (sessionId: string) =>
+  invoke<void>('clear_agent_session_messages', { sessionId });
 const loadSessionMessages = (sessionId: string) =>
   invoke<AgentMessage[]>('load_session_messages', { sessionId });
 const exportAgentSession = (sessionId: string) =>
@@ -190,6 +192,7 @@ export {
   createAgentSession,
   updateSessionStatus,
   deleteAgentSession,
+  clearAgentSessionMessages,
   loadSessionMessages,
   exportAgentSession,
   importAgentSession,

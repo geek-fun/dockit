@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
-import { ulid } from 'ulidx';
 import {
+  clearAgentSessionMessages,
   createAgentSession,
   deleteAgentSession,
   loadAgentSessions,
@@ -139,17 +139,22 @@ export const useDataStudioStore = defineStore('dataStudio', {
     setActiveConnection(connectionId: number) {
       this.activeConnectionId = connectionId;
     },
-    createSession(connectionId: number, maxIterations = 10): string {
-      const id = ulid();
-      this.sessions.push({ id, connectionId, messages: [], status: 'idle', maxIterations });
-      this.activeSessionId = id;
-      createAgentSession(id).catch(() => undefined);
-      return id;
+    async createSession(connectionId: number, maxIterations = 10): Promise<string> {
+      const backend = await createAgentSession('New Session');
+      this.sessions.push({
+        id: backend.id,
+        connectionId,
+        messages: [],
+        status: 'idle',
+        maxIterations,
+      });
+      this.activeSessionId = backend.id;
+      return backend.id;
     },
     setActiveSession(sessionId: string) {
       this.activeSessionId = sessionId;
     },
-    getOrCreateSession(connectionId: number): string {
+    async getOrCreateSession(connectionId: number): Promise<string> {
       const existing = this.sessions.find(
         s => s.connectionId === connectionId && s.id === this.activeSessionId,
       );
@@ -234,13 +239,13 @@ export const useDataStudioStore = defineStore('dataStudio', {
         this.confirmationRules.push(rule);
       }
     },
-    clearSession(sessionId: string) {
+    async clearSession(sessionId: string) {
       const session = this.sessions.find(s => s.id === sessionId);
-      if (session) {
-        session.messages.splice(0, session.messages.length);
-        session.status = 'idle';
-        session.schema = undefined;
-      }
+      if (!session) return;
+      await clearAgentSessionMessages(sessionId);
+      session.messages.splice(0, session.messages.length);
+      session.status = 'idle';
+      session.schema = undefined;
     },
     async loadSessions() {
       const backendSessions = await loadAgentSessions();

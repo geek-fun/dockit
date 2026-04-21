@@ -321,11 +321,15 @@ const syncAllProviderModels = () => {
     .forEach(provider => appStore.syncProviderModels(provider.id));
 };
 
-const handleSend = () => {
+const handleSend = async () => {
   if (!canSend.value) return;
   const text = inputText.value.trim();
   inputText.value = '';
-  sendMessage(text, activeConnectionId.value ?? undefined);
+  try {
+    await sendMessage(text, activeConnectionId.value ?? undefined);
+  } catch (err) {
+    console.error('[data-studio] sendMessage failed', err);
+  }
 };
 
 const handleConfirmation = (msgId: string, event: ConfirmationAction) => {
