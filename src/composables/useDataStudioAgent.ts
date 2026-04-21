@@ -150,11 +150,12 @@ export const useDataStudioAgent = () => {
     onAgentLoopToolCall(({ session_id, tool_call_id, tool_name, arguments: args }) => {
       const session = dataStudioStore.sessions.find(s => s.id === session_id);
       if (!session) return;
+      const runtime = getRuntime(session_id);
 
       const source = dataStudioStore.connectedSources.find(
         s => s.connectionId === session.connectionId,
       );
-      const riskLevel: RiskLevel = 'elevated';
+      const riskLevel = (runtime.metadata?.[tool_name]?.riskLevel as RiskLevel | undefined) ?? 'elevated';
       const needsConfirmation = shouldRequireConfirmation(
         tool_name,
         riskLevel,

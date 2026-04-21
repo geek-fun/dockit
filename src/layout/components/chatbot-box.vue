@@ -59,57 +59,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
-import { ulid } from 'ulidx';
-import { useAppStore } from '../../store';
-import { getFeatureModelConfig } from '../../store/chatStore';
-import { agentApi } from '../../datasources/agentApi';
-import { ProviderEnum } from '../../datasources';
-import { useAgentContext } from '../../composables/useAgentContext';
+import { useAppStore, useChatStore } from '../../store';
 import AgentMessageBubble from '../../components/agent-message-bubble.vue';
 import ModelPicker from '@/components/model-picker.vue';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Spinner } from '@/components/ui/spinner';
-import type { AgentMessage } from '../../store/dataStudioStore';
-
-type ProviderKind =
-  | 'openai'
-  | 'deepseek'
-  | 'openrouter'
-  | 'ollama'
-  | 'custom-openai'
-  | 'custom-anthropic';
-
-const kindToProviderEnum = (kind: ProviderKind): ProviderEnum => {
-  switch (kind) {
-    case 'deepseek':
-      return ProviderEnum.DEEP_SEEK;
-    case 'openrouter':
-      return ProviderEnum.OPENROUTER;
-    case 'ollama':
-      return ProviderEnum.OLLAMA;
-    default:
-      return ProviderEnum.OPENAI;
-  }
-};
-
-const SYSTEM_PROMPT = [
-  'You are a helpful AI assistant embedded in DocKit, a desktop database client.',
-  'You help users with database queries, data analysis, and general programming questions.',
-  'Be concise and precise. When the user references editor content or a database, use the provided context.',
-].join('\n');
 
 const appStore = useAppStore();
 const { llmSettings } = storeToRefs(appStore);
-const { buildPromptWithContext } = useAgentContext();
+const chatStore = useChatStore();
+const { activeChat } = storeToRefs(chatStore);
+const { fetchChats, sendMessage, deleteChat } = chatStore;
 
 const scrollbarRef = ref<{ $el: HTMLElement } | null>(null);
 const chatMsg = ref('');
 const isLoading = ref(false);
 const error = ref<string | undefined>();
-const messages = ref<AgentMessage[]>([]);
+const messages = computed(() => activeChat.value?.messages ?? []);
 
 const enabledModelGroups = computed(() =>
   llmSettings.value.providers
@@ -139,86 +108,21 @@ const submitMsg = async () => {
   chatMsg.value = '';
   error.value = undefined;
 
-  const userMsg: AgentMessage = {
-    id: ulid(),
-    role: 'user',
-    content: buildPromptWithContext(text, ''),
-    status: 'done',
-    timestamp: Date.now(),
-  };
-
-  // Store the display message with just the user's text (not the enriched prompt)
-  const displayUserMsg: AgentMessage = { ...userMsg, content: text };
-  messages.value = [...messages.value, displayUserMsg];
-  scrollToBottom();
-
-  const assistantMsgId = ulid();
-  const assistantMsg: AgentMessage = {
-    id: assistantMsgId,
-    role: 'assistant',
-    content: '',
-    status: 'streaming',
-    timestamp: Date.now(),
-  };
-  messages.value = [...messages.value, assistantMsg];
-
   isLoading.value = true;
 
-  const requestId = ulid();
-  let unlisten: (() => void) | undefined;
-
   try {
-    const { provider, model } = await getFeatureModelConfig('sidebarAssistant');
-
-    unlisten = await agentApi.onAgentDelta(event => {
-      if (event.requestId !== requestId) return;
-      messages.value = messages.value.map(m =>
-        m.id === assistantMsgId ? { ...m, content: m.content + event.content } : m,
-      );
-      scrollToBottom();
-    });
-
-    const openAiMessages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      // All previous messages except the streaming assistant placeholder
-      ...messages.value
-        .filter(m => m.id !== assistantMsgId)
-        .map(m => ({
-          role: m.role as string,
-          content: m.id === userMsg.id ? userMsg.content : m.content,
-        })),
-    ];
-
-    await agentApi.runAgentStep({
-      requestId,
-      provider: kindToProviderEnum(provider.kind as ProviderKind),
-      model: model.label,
-      messages: openAiMessages,
-      tools: [],
-      httpProxy: provider.proxy || undefined,
-      apiKey: provider.apiKey ?? '',
-      baseUrl: provider.baseUrl,
-    });
-
-    messages.value = messages.value.map(m =>
-      m.id === assistantMsgId ? { ...m, status: 'done' as const } : m,
-    );
+    await sendMessage(text);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
-    messages.value = messages.value.map(m =>
-      m.id === assistantMsgId
-        ? { ...m, status: 'error' as const, content: m.content || error.value! }
-        : m,
-    );
   } finally {
-    unlisten?.();
     isLoading.value = false;
     scrollToBottom();
   }
 };
 
-const clearMessages = () => {
-  messages.value = [];
+const clearMessages = async () => {
+  await deleteChat();
+  await fetchChats();
   error.value = undefined;
 };
 
@@ -235,7 +139,19 @@ const syncAllProviderModels = () => {
     .forEach(provider => appStore.syncProviderModels(provider.id));
 };
 
-appStore.fetchLlmSettings();
+watch(
+  messages,
+  () => {
+    scrollToBottom();
+  },
+  { deep: true },
+);
+
+onMounted(async () => {
+  await appStore.fetchLlmSettings();
+  await fetchChats();
+  scrollToBottom();
+});
 </script>
 
 <style scoped>

@@ -256,7 +256,11 @@ pub async fn validate_llm_config(
         return Ok(response.status().is_success());
     }
 
-    let url = format!("{}/models/{}", resolved_base_url, model);
+    let url = if model.trim().is_empty() {
+        format!("{}/models", resolved_base_url)
+    } else {
+        format!("{}/models/{}", resolved_base_url, model)
+    };
 
     let request = if api_key.is_empty() {
         http_client.get(&url)
