@@ -2,33 +2,33 @@
   <Tabs default-value="indices" class="tabs-container" @update:model-value="refresh">
     <div class="tabs-header">
       <TabsList>
-        <TabsTrigger value="indices">INDICES</TabsTrigger>
-        <TabsTrigger value="templates">TEMPLATES</TabsTrigger>
+        <TabsTrigger value="indices">{{ $t('manage.tabs.indices') }}</TabsTrigger>
+        <TabsTrigger value="templates">{{ $t('manage.tabs.templates') }}</TabsTrigger>
       </TabsList>
       <div class="tab-action-group">
         <Button variant="ghost" @click="handleRefresh">
           <Icon class="mr-2">
             <Renew />
           </Icon>
-          Refresh
+          {{ $t('manage.actions.refresh') }}
         </Button>
         <Button variant="secondary" @click="toggleModal('index')">
           <Icon class="mr-2">
             <Add />
           </Icon>
-          New Index
+          {{ $t('manage.actions.newIndex') }}
         </Button>
         <Button variant="secondary" @click="toggleModal('alias')">
           <Icon class="mr-2">
             <Add />
           </Icon>
-          New Alias
+          {{ $t('manage.actions.newAlias') }}
         </Button>
         <Button variant="secondary" @click="toggleModal('template')">
           <Icon class="mr-2">
             <Add />
           </Icon>
-          New Template
+          {{ $t('manage.actions.newTemplate') }}
         </Button>
       </div>
     </div>
@@ -48,7 +48,12 @@
                       {{ col.title }}
                       <Popover v-if="col.filterable">
                         <PopoverTrigger as-child>
-                          <Button variant="ghost" size="icon" class="h-6 w-6">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            class="h-6 w-6"
+                            :aria-label="`Filter by ${col.title}`"
+                          >
                             <span
                               class="i-carbon-search h-3.5 w-3.5"
                               :style="{
@@ -103,7 +108,7 @@
                           class="text-destructive"
                           @click="handleAction('removeAlias', alias.index, alias.alias)"
                         >
-                          <span class="i-carbon-unlink h-4 w-4 mr-2" style="color: red" />
+                          <span class="i-carbon-unlink h-4 w-4 mr-2 text-destructive" />
                           {{ lang.t('manage.index.actions.removeAlias') }}
                         </DropdownMenuItem>
                         <DropdownMenuItem
@@ -118,7 +123,11 @@
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger as-child>
-                        <Button variant="ghost" size="icon">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          :aria-label="`Actions for ${row.index}`"
+                        >
                           <span class="i-carbon-overflow-menu-horizontal h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -127,18 +136,21 @@
                           class="text-destructive"
                           @click="handleAction('deleteIndex', row.index)"
                         >
-                          <span class="i-carbon-trash-can h-4 w-4 mr-2" style="color: red" />
+                          <span class="i-carbon-trash-can h-4 w-4 mr-2 text-destructive" />
                           {{ lang.t('manage.index.actions.deleteIndex') }}
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           v-if="row.status === 'open'"
                           @click="handleAction('closIndex', row.index)"
                         >
-                          <span class="i-carbon-locked h-4 w-4 mr-2" style="color: yellow" />
+                          <span
+                            class="i-carbon-locked h-4 w-4 mr-2"
+                            style="color: hsl(var(--method-put))"
+                          />
                           {{ lang.t('manage.index.actions.closeIndex') }}
                         </DropdownMenuItem>
                         <DropdownMenuItem v-else @click="handleAction('openIndex', row.index)">
-                          <span class="i-carbon-unlocked h-4 w-4 mr-2" style="color: green" />
+                          <span class="i-carbon-unlocked h-4 w-4 mr-2 text-primary" />
                           {{ lang.t('manage.index.actions.openIndex') }}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -167,7 +179,12 @@
                       {{ col.title }}
                       <Popover v-if="col.filterable">
                         <PopoverTrigger as-child>
-                          <Button variant="ghost" size="icon" class="h-6 w-6">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            class="h-6 w-6"
+                            :aria-label="`Filter by ${col.title}`"
+                          >
                             <span
                               class="i-carbon-search h-3.5 w-3.5"
                               :style="{
@@ -479,7 +496,7 @@ onMounted(async () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 24px;
 }
 
 .tabs-tab-pane-container {
@@ -502,6 +519,7 @@ onMounted(async () => {
 
 .tab-action-group {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 16px;
 }
 </style>

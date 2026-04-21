@@ -102,6 +102,16 @@ export const zhCN = {
       mappings: '映射',
       statisticTitle: '节点统计',
     },
+    tabs: {
+      indices: '索引',
+      templates: '模板',
+    },
+    actions: {
+      newIndex: '新建索引',
+      newAlias: '新建别名',
+      newTemplate: '新建模板',
+      refresh: '刷新',
+    },
     index: {
       actions: {
         deleteIndex: '删除索引',

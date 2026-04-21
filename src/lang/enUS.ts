@@ -102,6 +102,16 @@ export const enUS = {
       mappings: 'Mappings',
       statisticTitle: 'Node Statistics',
     },
+    tabs: {
+      indices: 'Indices',
+      templates: 'Templates',
+    },
+    actions: {
+      newIndex: 'New Index',
+      newAlias: 'New Alias',
+      newTemplate: 'New Template',
+      refresh: 'Refresh',
+    },
     index: {
       actions: {
         deleteIndex: 'Delete Index',
