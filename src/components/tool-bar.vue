@@ -173,28 +173,26 @@
     </div>
 
     <Button
+      v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.ELASTICSEARCH"
+      variant="ghost"
+      size="sm"
+      :disabled="refreshLoading"
+      @click="refreshStates"
+    >
+      <Loader2 v-if="refreshLoading" class="mr-1 h-4 w-4 animate-spin" />
+      <span v-else class="i-carbon-renew mr-1 h-4 w-4" />
+      {{ $t('manage.actions.refresh') }}
+    </Button>
+
+    <Button
       v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.DYNAMODB"
-      variant="outline"
+      variant="ghost"
       size="sm"
       @click="handleDynamoRefresh"
     >
       <span class="i-carbon-renew mr-1 h-4 w-4" />
       {{ $t('manage.dynamo.refresh') }}
     </Button>
-
-    <Tabs
-      v-if="props.type === 'MANAGE' && isElasticsearchConnection"
-      :default-value="$t('manage.cluster')"
-      class="manage-container"
-      @update:model-value="handleManageTabChange"
-    >
-      <TabsList>
-        <TabsTrigger :value="$t('manage.cluster')">{{ $t('manage.cluster') }}</TabsTrigger>
-        <TabsTrigger :value="$t('manage.nodes')">{{ $t('manage.nodes') }}</TabsTrigger>
-        <TabsTrigger :value="$t('manage.shards')">{{ $t('manage.shards') }}</TabsTrigger>
-        <TabsTrigger :value="$t('manage.indices')">{{ $t('manage.indices') }}</TabsTrigger>
-      </TabsList>
-    </Tabs>
 
     <!-- Shortcuts Help Button for Editor contexts -->
     <div
@@ -244,21 +242,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import ShortcutsHelpDialog from './shortcuts-help-dialog.vue';
 
 const props = defineProps({ type: { type: String, default: undefined } });
 const emits = defineEmits([
-  'switch-manage-tab',
   'insert-sample-query',
   'insert-partiql-sample',
   'execute-partiql-query',
@@ -278,7 +264,7 @@ const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
 const { setConnection, refreshStates } = clusterManageStore;
-const { connection, hideSystemIndices } = storeToRefs(clusterManageStore);
+const { connection, hideSystemIndices, refreshLoading } = storeToRefs(clusterManageStore);
 
 // Check if connection is Elasticsearch type
 const isElasticsearchConnection = computed(() => {
@@ -517,10 +503,6 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
     }
     selectIndex(selectedConnection, value);
   }
-};
-
-const handleManageTabChange = (tabName: string | number) => {
-  emits('switch-manage-tab', String(tabName));
 };
 
 const handleDynamoRefresh = () => {

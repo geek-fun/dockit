@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.8] - 2026-04-22
+
+### Added
+
+- Add keyboard navigation and empty state CTA to history view for improved accessibility (#368)
+
+## [0.9.7] - 2026-04-20
+
+### Added
+
+- Add ability to clone an existing connection from the connection list (#365)
+- Add query parameter value autocomplete in the editor (#364)
+- Support creating a new index/table during import (#361)
+
 ## [0.9.6] - 2026-04-14
 
 ### Fixed

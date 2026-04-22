@@ -4,111 +4,92 @@
       <DialogHeader>
         <DialogTitle>{{ $t('manage.index.newTemplateForm.title') }}</DialogTitle>
       </DialogHeader>
-      <Tabs :default-value="TemplateType.INDEX_TEMPLATE" @update:model-value="handleTabSwitch">
-        <TabsList class="grid w-full grid-cols-2">
-          <TabsTrigger :value="TemplateType.INDEX_TEMPLATE">
-            {{ $t('manage.index.newTemplateForm.indexTemplate') }}
-          </TabsTrigger>
-          <TabsTrigger :value="TemplateType.COMPONENT_TEMPLATE">
-            {{ $t('manage.index.newTemplateForm.componentTemplate') }}
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent :value="TemplateType.INDEX_TEMPLATE">
-          <Form class="mt-4">
-            <Grid :cols="8" :x-gap="10" :y-gap="10">
-              <GridItem :span="8">
-                <FormItem :label="$t('manage.index.newTemplateForm.templateName')" required>
-                  <Input
-                    v-model="indexFormData.name"
-                    autocapitalize="off"
-                    autocomplete="off"
-                    :spellcheck="false"
-                    autocorrect="off"
-                    :placeholder="$t('manage.index.newTemplateForm.templateName')"
-                  />
-                  <p v-if="indexErrors.name" class="text-sm text-destructive mt-1">
-                    {{ indexErrors.name }}
-                  </p>
-                </FormItem>
-              </GridItem>
-              <GridItem :span="4">
-                <FormItem label="master_timeout">
-                  <div class="flex items-center gap-2">
-                    <InputNumber v-model="indexFormData.master_timeout" class="flex-1" />
-                    <span class="text-sm text-muted-foreground">s</span>
-                  </div>
-                </FormItem>
-              </GridItem>
-              <GridItem :span="4">
-                <FormItem label="create">
-                  <Switch v-model:checked="indexFormData.create" />
-                </FormItem>
-              </GridItem>
-              <GridItem :span="8">
-                <FormItem label="body" required>
-                  <textarea
-                    v-model="indexFormData.body"
-                    class="textarea-input"
-                    placeholder="Enter JSON body"
-                  />
-                  <p v-if="indexErrors.body" class="text-sm text-destructive mt-1">
-                    {{ indexErrors.body }}
-                  </p>
-                </FormItem>
-              </GridItem>
-            </Grid>
-          </Form>
-        </TabsContent>
-        <TabsContent :value="TemplateType.COMPONENT_TEMPLATE">
-          <Form class="mt-4">
-            <Grid :cols="8" :x-gap="10" :y-gap="10">
-              <GridItem :span="8">
-                <FormItem :label="$t('manage.index.newTemplateForm.templateName')" required>
-                  <Input
-                    v-model="componentFormData.name"
-                    autocapitalize="off"
-                    autocomplete="off"
-                    :spellcheck="false"
-                    autocorrect="off"
-                    :placeholder="$t('manage.index.newTemplateForm.templateName')"
-                  />
-                  <p v-if="componentErrors.name" class="text-sm text-destructive mt-1">
-                    {{ componentErrors.name }}
-                  </p>
-                </FormItem>
-              </GridItem>
-              <GridItem :span="4">
-                <FormItem label="master_timeout">
-                  <div class="flex items-center gap-2">
-                    <InputNumber v-model="componentFormData.master_timeout" class="flex-1" />
-                    <span class="text-sm text-muted-foreground">s</span>
-                  </div>
-                </FormItem>
-              </GridItem>
-              <GridItem :span="4">
-                <FormItem label="create">
-                  <Switch v-model:checked="componentFormData.create" />
-                </FormItem>
-              </GridItem>
-              <GridItem :span="8">
-                <FormItem label="body" required>
-                  <textarea
-                    v-model="componentFormData.body"
-                    class="textarea-input"
-                    placeholder="Enter JSON body"
-                  />
-                  <p v-if="componentErrors.body" class="text-sm text-destructive mt-1">
-                    {{ componentErrors.body }}
-                  </p>
-                </FormItem>
-              </GridItem>
-            </Grid>
-          </Form>
-        </TabsContent>
-      </Tabs>
+
+      <Form class="mt-4">
+        <div class="form-grid">
+          <!-- Row 1: Template Name -->
+          <div class="form-row-full">
+            <FormItem :label="$t('manage.index.newTemplateForm.templateName')" required>
+              <Input
+                v-model="formData.name"
+                autocapitalize="off"
+                autocomplete="off"
+                :spellcheck="false"
+                autocorrect="off"
+                :placeholder="$t('manage.index.newTemplateForm.templateName')"
+              />
+              <p v-if="errors.name" class="text-sm text-destructive mt-1">
+                {{ errors.name }}
+              </p>
+            </FormItem>
+          </div>
+
+          <!-- Row 2: Type | master_timeout | Fail if exists (each 1/3) -->
+          <div class="form-row-third">
+            <div v-if="supportsComponentTemplates" class="form-col-third">
+              <FormItem label="Type">
+                <Select v-model="templateType">
+                  <SelectTrigger>
+                    <SelectValue :placeholder="$t('manage.index.newTemplateForm.selectType')" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem :value="TemplateType.INDEX_TEMPLATE">
+                      {{ $t('manage.index.newTemplateForm.indexTemplate') }}
+                    </SelectItem>
+                    <SelectItem :value="TemplateType.COMPONENT_TEMPLATE">
+                      {{ $t('manage.index.newTemplateForm.componentTemplate') }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            </div>
+            <div class="form-col-third">
+              <FormItem :label="precedenceLabel">
+                <InputNumber v-model="formData.precedence" class="flex-1" />
+                <p class="text-xs text-muted-foreground mt-1">
+                  {{
+                    $t('manage.index.newTemplateForm.precedenceDesc', { field: precedenceLabel })
+                  }}
+                </p>
+              </FormItem>
+            </div>
+            <div class="form-col-third">
+              <FormItem label="master_timeout">
+                <div class="flex items-center gap-2">
+                  <InputNumber v-model="formData.master_timeout" class="flex-1" />
+                  <span class="text-sm text-muted-foreground">s</span>
+                </div>
+              </FormItem>
+            </div>
+            <div class="form-col-third">
+              <FormItem :label="$t('manage.index.newTemplateForm.failIfExists')">
+                <Switch v-model:checked="formData.create" />
+                <p class="text-xs text-muted-foreground mt-1">
+                  {{ $t('manage.index.newTemplateForm.failIfExistsDesc') }}
+                </p>
+              </FormItem>
+            </div>
+          </div>
+
+          <!-- Row 3: Body -->
+          <div class="form-row-full">
+            <FormItem label="body" required>
+              <textarea
+                v-model="formData.body"
+                class="textarea-input"
+                placeholder="Enter JSON body"
+              />
+              <p v-if="errors.body" class="text-sm text-destructive mt-1">
+                {{ errors.body }}
+              </p>
+            </FormItem>
+          </div>
+        </div>
+      </Form>
+
       <DialogFooter>
         <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
-        <Button :disabled="!validationPassed || createLoading" @click="submitCreate">
+        <Button :disabled="createLoading" @click="submitCreate">
           <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
           {{ $t('dialogOps.create') }}
         </Button>
@@ -118,12 +99,13 @@
 </template>
 
 <script setup lang="ts">
-import { useMessageService } from '@/composables';
+import { useMessageService, useDialogService } from '@/composables';
+import { storeToRefs } from 'pinia';
 import { Loader2 } from 'lucide-vue-next';
-import { CustomError, jsonify } from '../../../common';
+import { CustomError, jsonify, withLoadingDelay } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
-import { TemplateType } from '../../../datasources';
+import { TemplateApiMode, TemplateType } from '../../../datasources';
 import {
   Dialog,
   DialogContent,
@@ -135,15 +117,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { InputNumber } from '@/components/ui/input-number';
 import { Form, FormItem } from '@/components/ui/form';
-import { Grid, GridItem } from '@/components/ui/grid';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const clusterManageStore = useClusterManageStore();
-const { createTemplate } = clusterManageStore;
+const { createTemplate, refreshStates } = clusterManageStore;
+const { templates, templateApiMode } = storeToRefs(clusterManageStore);
 
 const lang = useLang();
 const message = useMessageService();
+const dialog = useDialogService();
 
 const showModal = ref(false);
 const createLoading = ref(false);
@@ -153,23 +142,52 @@ const templateType = ref(TemplateType.INDEX_TEMPLATE);
 const defaultFormData = {
   name: '',
   create: undefined as boolean | undefined,
+  precedence: null as number | null,
   master_timeout: null as number | null,
-  body: null as string | null,
+  body: '',
 };
 
 type TemplateFormData = {
   name: string;
   create?: boolean;
+  precedence: number | null;
   master_timeout: number | null;
-  body: string | null;
+  body: string;
 };
-const indexFormData = ref<TemplateFormData>({ ...defaultFormData });
-const componentFormData = ref<TemplateFormData>({ ...defaultFormData });
 
-const indexErrors = ref<{ name?: string; body?: string }>({});
-const componentErrors = ref<{ name?: string; body?: string }>({});
+const formData = ref<TemplateFormData>({ ...defaultFormData });
 
-const isValidJson = (value: string | null): boolean => {
+const errors = ref<{ name?: string; body?: string }>({});
+
+const supportsComponentTemplates = computed(() => {
+  return templateApiMode.value === TemplateApiMode.COMPOSABLE;
+});
+
+const precedenceLabel = computed(() => {
+  return templateApiMode.value === TemplateApiMode.LEGACY
+    ? lang.t('manage.index.newTemplateForm.orderLabel')
+    : lang.t('manage.index.newTemplateForm.priorityLabel');
+});
+
+watch(
+  supportsComponentTemplates,
+  supports => {
+    if (!supports) {
+      templateType.value = TemplateType.INDEX_TEMPLATE;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  formData,
+  () => {
+    errors.value = validateForm(formData.value);
+  },
+  { deep: true },
+);
+
+const isValidJson = (value: string): boolean => {
   if (!value) return false;
   try {
     jsonify.parse(value);
@@ -179,34 +197,81 @@ const isValidJson = (value: string | null): boolean => {
   }
 };
 
-const validateForm = (formData: TemplateFormData): { name?: string; body?: string } => {
-  const errors: { name?: string; body?: string } = {};
+const validateForm = (data: TemplateFormData): { name?: string; body?: string } => {
+  const result: { name?: string; body?: string } = {};
 
-  if (!formData.name?.trim()) {
-    errors.name = lang.t('manage.index.newTemplateForm.templateRequired');
+  if (!data.name?.trim()) {
+    result.name = lang.t('manage.index.newTemplateForm.templateRequired');
   }
 
-  if (!formData.body?.trim()) {
-    errors.body = lang.t('manage.index.newTemplateForm.bodyJsonRequired');
-  } else if (!isValidJson(formData.body)) {
-    errors.body = lang.t('manage.index.newTemplateForm.bodyJsonRequired');
+  if (!data.body?.trim()) {
+    result.body = lang.t('manage.index.newTemplateForm.bodyJsonRequired');
+  } else if (!isValidJson(data.body)) {
+    result.body = lang.t('manage.index.newTemplateForm.bodyJsonRequired');
   }
 
-  return errors;
+  return result;
 };
 
-const validationPassed = computed(() => {
-  const currentFormData =
-    templateType.value === TemplateType.INDEX_TEMPLATE
-      ? indexFormData.value
-      : componentFormData.value;
+const getTemplatePrecedence = (bodyJson: Record<string, unknown>): number => {
+  const precedenceField =
+    templateApiMode.value === TemplateApiMode.LEGACY ? bodyJson.order : bodyJson.priority;
+  return (precedenceField as number | undefined) ?? 0;
+};
 
-  return (
-    !!currentFormData.name?.trim() &&
-    !!currentFormData.body?.trim() &&
-    isValidJson(currentFormData.body)
-  );
-});
+const getPatternPrefix = (pattern: string): string => {
+  const wildcardIndex = pattern.indexOf('*');
+  return wildcardIndex > 0 ? pattern.slice(0, wildcardIndex) : pattern;
+};
+
+const patternsOverlap = (patterns1: string[], patterns2: string[]): boolean => {
+  for (const p1 of patterns1) {
+    const prefix1 = getPatternPrefix(p1);
+    for (const p2 of patterns2) {
+      const prefix2 = getPatternPrefix(p2);
+      if (prefix1 && prefix2 && (prefix1.startsWith(prefix2) || prefix2.startsWith(prefix1))) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
+
+const checkTemplateConflict = (
+  bodyJson: Record<string, unknown>,
+): { hasConflict: boolean; conflicts: string[] } => {
+  if (templateType.value !== TemplateType.INDEX_TEMPLATE) {
+    return { hasConflict: false, conflicts: [] };
+  }
+
+  const newIndexPatterns = (bodyJson.index_patterns as string[] | undefined) || [];
+  const newPriority = getTemplatePrecedence(bodyJson);
+
+  if (newIndexPatterns.length === 0) {
+    return { hasConflict: false, conflicts: [] };
+  }
+
+  const conflicts: string[] = [];
+
+  for (const template of templates.value) {
+    if (template.type !== TemplateType.INDEX_TEMPLATE) continue;
+
+    if (template.name === formData.value.name) continue;
+
+    const existingPatterns = template.index_patterns || [];
+    const existingPriority = template.precedence ?? 0;
+
+    if (existingPatterns.length > 0 && existingPriority === newPriority) {
+      if (patternsOverlap(newIndexPatterns, existingPatterns)) {
+        conflicts.push(
+          `${template.name} (patterns: ${existingPatterns.join(', ')}, ${precedenceLabel.value}: ${existingPriority})`,
+        );
+      }
+    }
+  }
+
+  return { hasConflict: conflicts.length > 0, conflicts };
+};
 
 const toggleModal = () => {
   if (showModal.value) {
@@ -218,39 +283,66 @@ const toggleModal = () => {
 
 const closeModal = () => {
   showModal.value = false;
-  indexFormData.value = { ...defaultFormData };
-  componentFormData.value = { ...defaultFormData };
-  indexErrors.value = {};
-  componentErrors.value = {};
+  templateType.value = TemplateType.INDEX_TEMPLATE;
+  formData.value = { ...defaultFormData };
+  errors.value = {};
+};
+
+const buildTemplateBody = () => {
+  const parsedBody = jsonify.parse(formData.value.body) as Record<string, unknown>;
+  const precedenceKey = templateApiMode.value === TemplateApiMode.LEGACY ? 'order' : 'priority';
+  const incompatibleKey = templateApiMode.value === TemplateApiMode.LEGACY ? 'priority' : 'order';
+
+  const { [incompatibleKey]: _, ...bodyWithoutIncompatible } = parsedBody;
+
+  return jsonify.stringify({
+    ...bodyWithoutIncompatible,
+    ...(formData.value.precedence !== null ? { [precedenceKey]: formData.value.precedence } : {}),
+  });
 };
 
 const submitCreate = async (event: MouseEvent) => {
   event.preventDefault();
 
-  const currentFormData =
-    templateType.value === TemplateType.INDEX_TEMPLATE
-      ? indexFormData.value
-      : componentFormData.value;
+  const currentErrors = validateForm(formData.value);
+  errors.value = currentErrors;
 
-  const errors = validateForm(currentFormData);
-
-  if (templateType.value === TemplateType.INDEX_TEMPLATE) {
-    indexErrors.value = errors;
-  } else {
-    componentErrors.value = errors;
-  }
-
-  if (Object.keys(errors).length > 0) {
+  if (Object.keys(currentErrors).length > 0) {
     return;
   }
 
+  const bodyJson = jsonify.parse(buildTemplateBody()) as Record<string, unknown>;
+  const { hasConflict, conflicts } = checkTemplateConflict(bodyJson);
+
+  if (hasConflict) {
+    dialog.warning({
+      title: lang.t('manage.index.newTemplateForm.conflictWarning'),
+      content: lang.t('manage.index.newTemplateForm.conflictDesc') + '\n\n' + conflicts.join('\n'),
+      positiveText: lang.t('dialogOps.confirm'),
+      negativeText: lang.t('dialogOps.cancel'),
+      onPositiveClick: async () => {
+        await doCreateTemplate();
+      },
+    });
+  } else {
+    await doCreateTemplate();
+  }
+};
+
+const doCreateTemplate = async () => {
   createLoading.value = true;
   try {
-    await createTemplate({
-      ...currentFormData,
-      type: templateType.value,
-    });
+    await withLoadingDelay(
+      createTemplate({
+        name: formData.value.name,
+        create: formData.value.create,
+        master_timeout: formData.value.master_timeout,
+        type: supportsComponentTemplates.value ? templateType.value : TemplateType.INDEX_TEMPLATE,
+        body: buildTemplateBody(),
+      }),
+    );
     message.success(lang.t('dialogOps.createSuccess'));
+    await refreshStates();
     closeModal();
   } catch (err) {
     message.error((err as CustomError).details, {
@@ -263,18 +355,28 @@ const submitCreate = async (event: MouseEvent) => {
   }
 };
 
-const handleTabSwitch = (tabName: string | number) => {
-  templateType.value = tabName as TemplateType;
-};
-
 defineExpose({ toggleModal });
 </script>
 
 <style scoped>
-.card-footer {
+.form-grid {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-row-full {
+  width: 100%;
+}
+
+.form-row-third {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.form-col-third {
+  min-width: 0;
 }
 
 .textarea-input {

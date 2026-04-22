@@ -5,10 +5,23 @@
     </div>
     <div class="main-desc">{{ $t('history.empty') }}</div>
     <div class="second-desc">{{ $t('history.emptyDesc') }}</div>
+    <Button variant="outline" size="sm" class="empty-cta" @click="goToEditor">
+      <span class="i-carbon-play h-4 w-4 mr-1.5" />
+      {{ $t('history.goToEditor') }}
+    </Button>
   </div>
 </template>
 
-<script lang="ts" setup></script>
+<script lang="ts" setup>
+import { useRouter } from 'vue-router';
+import { Button } from '@/components/ui/button';
+
+const router = useRouter();
+
+const goToEditor = () => {
+  router.push('/connect');
+};
+</script>
 
 <style scoped>
 .history-empty-content {
@@ -34,5 +47,9 @@
 
 .history-empty-content .second-desc {
   text-align: center;
+}
+
+.empty-cta {
+  margin-top: 16px;
 }
 </style>

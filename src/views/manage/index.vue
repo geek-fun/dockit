@@ -1,19 +1,8 @@
 <template>
   <div class="manage-container">
-    <tool-bar
-      type="MANAGE"
-      @switch-manage-tab="handleManageTabChange"
-      @refresh-dynamo-manage="handleDynamoRefresh"
-    />
+    <tool-bar type="MANAGE" @refresh-dynamo-manage="handleDynamoRefresh" />
     <template v-if="connection?.type === DatabaseType.ELASTICSEARCH">
-      <cluster-state
-        v-if="activeTab === $t('manage.cluster')"
-        class="state-container"
-        :cluster="cluster"
-      />
-      <node-state v-if="activeTab === $t('manage.nodes')" class="state-container" />
-      <shard-manage v-if="activeTab === $t('manage.shards')" class="state-container" />
-      <index-manage v-if="activeTab === $t('manage.indices')" class="state-container" />
+      <cluster-state class="state-container" :cluster="cluster" />
     </template>
     <template v-else-if="connection?.type === DatabaseType.DYNAMODB">
       <dynamo-table-manage ref="dynamoTableManageRef" class="state-container" />
@@ -30,10 +19,7 @@ import ClusterState from './components/cluster-state.vue';
 import DynamoTableManage from './components/dynamo-table-manage.vue';
 import { useClusterManageStore, DatabaseType, useTabStore } from '../../store';
 import { storeToRefs } from 'pinia';
-import NodeState from './components/node-state.vue';
-import ShardManage from './components/shard-manage.vue';
 import { useLang } from '../../lang';
-import IndexManage from './components/index-manage.vue';
 import { CustomError } from '../../common';
 import { useMessageService } from '@/composables';
 import { Empty } from '@/components/ui/empty';
@@ -41,7 +27,6 @@ import { Empty } from '@/components/ui/empty';
 const message = useMessageService();
 const lang = useLang();
 
-const activeTab = ref(lang.t('manage.cluster'));
 const dynamoTableManageRef = ref<{ handleRefresh: () => Promise<void> }>();
 
 const tabStore = useTabStore();
@@ -67,10 +52,6 @@ const refreshData = async () => {
 watch(connection, async () => {
   await refreshData();
 });
-
-const handleManageTabChange = (tab: string) => {
-  activeTab.value = tab;
-};
 
 const handleDynamoRefresh = () => {
   dynamoTableManageRef.value?.handleRefresh();

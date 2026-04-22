@@ -5,6 +5,8 @@ import {
   ClusterNode,
   ClusterShard,
   ClusterTemplate,
+  getTemplateApiMode,
+  TemplateApiMode,
   esApi,
   dynamoApi,
   loadHttpClient,
@@ -51,7 +53,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     indices: Array<ClusterIndex>;
     aliases: Array<ClusterAlias>;
     templates: Array<ClusterTemplate>;
+    templateApiMode: TemplateApiMode;
     hideSystemIndices: boolean;
+    refreshLoading: boolean;
   } => ({
     connection: undefined,
     cluster: undefined,
@@ -60,7 +64,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     indices: [],
     aliases: [],
     templates: [],
+    templateApiMode: TemplateApiMode.COMPOSABLE,
     hideSystemIndices: true,
+    refreshLoading: false,
   }),
   persist: {
     pick: ['hideSystemIndices'],
@@ -96,11 +102,17 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
   actions: {
     setConnection(connection: Connection) {
       this.connection = connection;
+      if (connection.type === DatabaseType.ELASTICSEARCH) {
+        this.templateApiMode = getTemplateApiMode(connection);
+      }
     },
     async refreshStates(hide?: boolean) {
       if (hide !== undefined && hide !== null) {
         this.hideSystemIndices = hide;
       }
+
+      this.refreshLoading = true;
+      const start = Date.now();
 
       try {
         await this.fetchCluster();
@@ -111,6 +123,12 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         await this.fetchTemplates();
       } catch (err) {
         debug(`Error in refreshStates: ${err}`);
+      } finally {
+        const elapsed = Date.now() - start;
+        if (elapsed < 500) {
+          await new Promise(resolve => setTimeout(resolve, 500 - elapsed));
+        }
+        this.refreshLoading = false;
       }
     },
     async fetchCluster() {
@@ -178,7 +196,8 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     async fetchTemplates() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (this.connection.type === DatabaseType.ELASTICSEARCH) {
-        const templates = await esApi.catTemplates(this.connection);
+        this.templateApiMode = getTemplateApiMode(this.connection);
+        const templates = await esApi.listTemplates(this.connection);
 
         this.templates = templates.filter(template =>
           this.hideSystemIndices ? !template.name.startsWith('.') : true,
