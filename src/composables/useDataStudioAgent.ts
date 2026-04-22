@@ -18,6 +18,7 @@ import {
   cancelAgentLoop as invokeCancelAgentLoop,
   confirmToolCall as invokeConfirmToolCall,
   onAgentLoopDelta,
+  onAgentLoopThinkingDelta,
   onAgentLoopToolCall,
   onAgentLoopToolResult,
   onAgentLoopStepDone,
@@ -144,6 +145,36 @@ export const useDataStudioAgent = () => {
         .find((m): m is typeof m => m.role === 'assistant' && m.status === 'streaming');
       if (streamingMsg) {
         dataStudioStore.updateStreamingContent(session_id, streamingMsg.id, content);
+      } else {
+        const newId = ulid();
+        dataStudioStore.addMessage(session_id, {
+          id: newId,
+          role: 'assistant',
+          content,
+          status: 'streaming',
+          timestamp: Date.now(),
+        });
+      }
+    }).then(unlisten => unlisteners.push(unlisten));
+
+    onAgentLoopThinkingDelta(({ session_id, content }) => {
+      const session = dataStudioStore.sessions.find(s => s.id === session_id);
+      if (!session) return;
+      const streamingMsg = [...session.messages]
+        .reverse()
+        .find((m): m is typeof m => m.role === 'assistant' && m.status === 'streaming');
+      if (streamingMsg) {
+        dataStudioStore.updateStreamingThinking(session_id, streamingMsg.id, content);
+      } else {
+        const newId = ulid();
+        dataStudioStore.addMessage(session_id, {
+          id: newId,
+          role: 'assistant',
+          content: '',
+          thinking: content,
+          status: 'streaming',
+          timestamp: Date.now(),
+        });
       }
     }).then(unlisten => unlisteners.push(unlisten));
 
@@ -246,6 +277,12 @@ export const useDataStudioAgent = () => {
     }).then(unlisten => unlisteners.push(unlisten));
 
     onAgentLoopDone(({ session_id }) => {
+      const session = dataStudioStore.sessions.find(s => s.id === session_id);
+      if (session) {
+        session.messages
+          .filter(m => m.role === 'assistant' && m.status === 'streaming')
+          .forEach(m => dataStudioStore.setMessageStatus(session_id, m.id, 'done'));
+      }
       dataStudioStore.setSessionStatus(session_id, 'idle');
       isLoading.value = false;
     }).then(unlisten => unlisteners.push(unlisten));
@@ -254,6 +291,15 @@ export const useDataStudioAgent = () => {
       error.value = errMsg;
       dataStudioStore.setSessionStatus(session_id, 'error');
       isLoading.value = false;
+      const session = dataStudioStore.sessions.find(s => s.id === session_id);
+      if (session) {
+        const streamingMsg = [...session.messages]
+          .reverse()
+          .find(m => m.role === 'assistant' && m.status === 'streaming');
+        if (streamingMsg) {
+          dataStudioStore.setMessageStatus(session_id, streamingMsg.id, 'error');
+        }
+      }
     }).then(unlisten => unlisteners.push(unlisten));
 
     onAgentLoopSummaryInjected(_payload => {}).then(unlisten => unlisteners.push(unlisten));
@@ -271,15 +317,6 @@ export const useDataStudioAgent = () => {
     dataStudioStore.setSessionStatus(sessionId, 'running');
     isLoading.value = true;
     error.value = undefined;
-
-    const assistantMsgId = ulid();
-    dataStudioStore.addMessage(sessionId, {
-      id: assistantMsgId,
-      role: 'assistant',
-      content: '',
-      status: 'streaming',
-      timestamp: Date.now(),
-    });
 
     try {
       const { provider, model } = await getFeatureModelConfig('dataStudio');

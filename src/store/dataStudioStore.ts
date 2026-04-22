@@ -50,6 +50,7 @@ export type AgentMessage = {
   id: string;
   role: AgentMessageRole;
   content: string;
+  thinking?: string;
   status: AgentMessageStatus;
   toolCalls?: Array<AgentToolCall>;
   toolCallId?: string;
@@ -172,6 +173,13 @@ export const useDataStudioStore = defineStore('dataStudio', {
       const message = session?.messages.find(m => m.id === messageId);
       if (message) {
         message.content += chunk;
+      }
+    },
+    updateStreamingThinking(sessionId: string, messageId: string, chunk: string) {
+      const session = this.sessions.find(s => s.id === sessionId);
+      const message = session?.messages.find(m => m.id === messageId);
+      if (message) {
+        message.thinking = (message.thinking ?? '') + chunk;
       }
     },
     setMessageStatus(sessionId: string, messageId: string, status: AgentMessageStatus) {

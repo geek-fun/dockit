@@ -160,6 +160,13 @@ const getToolFullResult = (toolCallId: string) =>
 const onAgentLoopDelta = (handler: (payload: { session_id: string; content: string }) => void) =>
   listen('agent-loop-delta', e => handler(e.payload as { session_id: string; content: string }));
 
+const onAgentLoopThinkingDelta = (
+  handler: (payload: { session_id: string; content: string }) => void,
+) =>
+  listen('agent-loop-thinking-delta', e =>
+    handler(e.payload as { session_id: string; content: string }),
+  );
+
 const onAgentLoopToolCall = (
   handler: (payload: {
     session_id: string;
@@ -201,6 +208,7 @@ export {
   confirmToolCall,
   getToolFullResult,
   onAgentLoopDelta,
+  onAgentLoopThinkingDelta,
   onAgentLoopToolCall,
   onAgentLoopToolResult,
   onAgentLoopStepDone,
