@@ -215,6 +215,40 @@ export type ClusterTemplate = {
   included_in: Array<string>;
 };
 
+export type AllocationDecider = {
+  decider: string;
+  decision: string;
+  explanation: string;
+};
+
+export type NodeAllocationDecision = {
+  node_id: string;
+  node_name: string;
+  node_attributes: Record<string, string>;
+  node_decision: string;
+  weight_ranking: number | null;
+  deciders: AllocationDecider[];
+};
+
+export type UnassignedInfo = {
+  reason: string;
+  at: string;
+  last_allocation_status: string;
+  details?: string;
+  for?: string;
+};
+
+export type ClusterAllocationExplain = {
+  index: string;
+  shard: number;
+  primary: boolean;
+  current_state: string;
+  unassigned_info?: UnassignedInfo;
+  can_allocate: string;
+  allocate_explanation?: string;
+  node_allocation_decisions: NodeAllocationDecision[];
+};
+
 const parseVersionParts = (version: string | undefined) => {
   const parts = (version ?? '7.8').split('.').map(part => parseInt(part, 10));
   const major = parts[0];
@@ -451,6 +485,15 @@ interface ESApi {
   ): Promise<Array<{ index: string; shards: Array<ClusterShard> }>>;
 
   listTemplates(connection: ElasticsearchConnection): Promise<Array<ClusterTemplate>>;
+
+  allocationExplain(
+    connection: ElasticsearchConnection,
+    options: {
+      index: string;
+      shard: number;
+      primary: boolean;
+    },
+  ): Promise<ClusterAllocationExplain>;
 }
 
 const esApi: ESApi = {
@@ -973,6 +1016,26 @@ const esApi: ESApi = {
       ...(indexTemplatesResponse.index_templates || []).map(normalizeComposableIndexTemplate),
       ...(componentTemplatesResponse.component_templates || []).map(normalizeComponentTemplate),
     ];
+  },
+
+  allocationExplain: async (connection, { index, shard, primary }) => {
+    const client = loadHttpClient(connection);
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append('include_yes_decisions', 'true');
+      const data = await client.post<ClusterAllocationExplain>(
+        `/_cluster/allocation/explain?${queryParams.toString()}`,
+        undefined,
+        jsonify.stringify({ index, shard, primary }),
+      );
+      return data;
+    } catch (err) {
+      debug(`Failed to get allocation explanation: ${err}`);
+      throw new CustomError(
+        err instanceof CustomError ? err.status : 500,
+        err instanceof CustomError ? err.details : (err as Error).message,
+      );
+    }
   },
 };
 

@@ -102,6 +102,17 @@ export const enUS = {
       mappings: 'Mappings',
       statisticTitle: 'Node Statistics',
     },
+    shard: {
+      unassignedAlert: 'Shard Unassigned',
+      reason: 'Reason',
+      details: 'Details',
+      at: 'Time',
+      forDuration: 'Duration',
+      allocationExplanation: 'Allocation Explanation',
+      lastAllocationStatus: 'Last Allocation Status',
+      nodeDecisions: 'Node Allocation Decisions',
+      loadingExplanation: 'Loading allocation explanation...',
+    },
     tabs: {
       indices: 'Indices',
       templates: 'Templates',

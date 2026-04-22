@@ -102,6 +102,17 @@ export const zhCN = {
       mappings: '映射',
       statisticTitle: '节点统计',
     },
+    shard: {
+      unassignedAlert: '分片未分配',
+      reason: '原因',
+      details: '详情',
+      at: '时间',
+      forDuration: '持续时间',
+      allocationExplanation: '分配解释',
+      lastAllocationStatus: '上次分配状态',
+      nodeDecisions: '节点分配决策',
+      loadingExplanation: '加载分配解释...',
+    },
     tabs: {
       indices: '索引',
       templates: '模板',

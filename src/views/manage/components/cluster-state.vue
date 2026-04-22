@@ -534,7 +534,10 @@
         :open="!!shardDetailState"
         @update:open="
           val => {
-            if (!val) shardDetailState = undefined;
+            if (!val) {
+              shardDetailState = undefined;
+              allocationExplain = undefined;
+            }
           }
         "
       >
@@ -551,27 +554,103 @@
                 >
                   {{ shardDetailState?.shard.prirep === 'p' ? 'PRIMARY' : 'REPLICA' }}
                 </span>
-                <span class="shard-modal-num">Shard {{ shardDetailState?.shard.shard }}</span>
                 <span
                   v-if="!shardDetailState?.shard.node"
                   class="shard-modal-badge badge-unassigned"
                 >
                   UNASSIGNED
                 </span>
-                <span v-else class="shard-modal-node">{{ shardDetailState?.shard.node }}</span>
+                <template v-else>
+                  <span class="shard-modal-num">Shard {{ shardDetailState?.shard.shard }}</span>
+                  <span class="shard-modal-node">{{ shardDetailState?.shard.node }}</span>
+                </template>
               </div>
             </DialogTitle>
-            <DialogDescription
-              v-if="shardDetailState?.shard.unassigned?.reason"
-              class="shard-unassigned-reason"
-            >
-              <span class="i-carbon-warning-alt h-3.5 w-3.5 mr-1" />
-              Unassigned: {{ shardDetailState?.shard.unassigned.reason }}
-              <template v-if="shardDetailState?.shard.unassigned.details">
-                — {{ shardDetailState?.shard.unassigned.details }}
-              </template>
-            </DialogDescription>
           </DialogHeader>
+
+          <!-- Unassigned Shard Alert Banner -->
+          <div v-if="shardDetailState?.shard.unassigned?.reason" class="shard-unassigned-alert">
+            <span class="i-carbon-warning-alt h-4 w-4 shard-unassigned-icon" />
+            <span class="shard-unassigned-reason-text">
+              {{ shardDetailState?.shard.unassigned.reason }}
+            </span>
+            <Popover v-if="allocationExplain" class="shard-explain-popover">
+              <PopoverTrigger as-child>
+                <Button variant="ghost" size="xs" class="shard-explain-btn">
+                  <span class="i-carbon-information h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent class="shard-explain-popover-content">
+                <div class="shard-explain-popover-header">
+                  <span class="shard-explain-popover-title">
+                    {{ $t('manage.shard.allocationExplanation') }}
+                  </span>
+                  <span
+                    :class="[
+                      'shard-can-allocate-badge',
+                      allocationExplain.can_allocate === 'yes'
+                        ? 'can-allocate-yes'
+                        : 'can-allocate-no',
+                    ]"
+                  >
+                    {{ allocationExplain.can_allocate }}
+                  </span>
+                </div>
+                <div
+                  v-if="allocationExplain.allocate_explanation"
+                  class="shard-explain-popover-text"
+                >
+                  {{ allocationExplain.allocate_explanation }}
+                </div>
+                <div
+                  v-if="allocationExplain.node_allocation_decisions?.length"
+                  class="shard-explain-popover-deciders"
+                >
+                  <div
+                    v-for="nodeAllocDecision in allocationExplain.node_allocation_decisions"
+                    :key="nodeAllocDecision.node_id"
+                    class="shard-decider-node"
+                  >
+                    <div class="shard-decider-node-header">
+                      <span class="shard-decider-node-name">{{ nodeAllocDecision.node_name }}</span>
+                      <span
+                        :class="[
+                          'shard-decider-badge',
+                          nodeAllocDecision.node_decision === 'yes'
+                            ? 'decision-yes'
+                            : 'decision-no',
+                        ]"
+                      >
+                        {{ nodeAllocDecision.node_decision }}
+                      </span>
+                    </div>
+                    <div
+                      v-if="
+                        nodeAllocDecision.node_decision === 'no' &&
+                        nodeAllocDecision.deciders?.find(
+                          (d: AllocationDecider) =>
+                            d.decision?.toUpperCase() === 'NO' && d.explanation,
+                        )
+                      "
+                      class="shard-node-errors"
+                    >
+                      {{
+                        nodeAllocDecision.deciders.find(
+                          (d: AllocationDecider) =>
+                            d.decision?.toUpperCase() === 'NO' && d.explanation,
+                        )?.explanation
+                      }}
+                    </div>
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+            <span
+              v-if="allocationExplainLoading"
+              class="i-carbon-circle-dash h-3.5 w-3.5 animate-spin shard-loading-icon"
+            />
+          </div>
+
           <div v-if="shardDetailState" class="shard-modal-body">
             <div class="shard-badges">
               <Popover
@@ -604,9 +683,18 @@ import { get } from 'lodash';
 import prettyBytes from 'pretty-bytes';
 import { storeToRefs } from 'pinia';
 import { useClusterManageStore, RawClusterStats } from '../../../store';
-import { NodeRoleEnum, ClusterShard, ShardStateEnum, TemplateApiMode } from '../../../datasources';
+import {
+  NodeRoleEnum,
+  ClusterShard,
+  ShardStateEnum,
+  TemplateApiMode,
+  ClusterAllocationExplain,
+  AllocationDecider,
+  esApi,
+} from '../../../datasources';
 import { useLang } from '../../../lang';
-import { CustomError, withLoadingDelay } from '../../../common';
+import { CustomError, debug, withLoadingDelay } from '../../../common';
+import { ElasticsearchConnection, DatabaseType } from '../../../store';
 import { useMessageService, useDialogService } from '@/composables';
 import IndexDialog from './index-dialog.vue';
 import AliasDialog from './alias-dialog.vue';
@@ -635,13 +723,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const props = defineProps<{ cluster: RawClusterStats | undefined }>();
 
@@ -652,7 +734,7 @@ const dialog = useDialogService();
 const clusterManageStore = useClusterManageStore();
 const { fetchNodes, refreshStates, deleteIndex, closeIndex, openIndex, removeAlias } =
   clusterManageStore;
-const { nodes, indices, indexWithAliases, templates, templateApiMode } =
+const { nodes, indices, indexWithAliases, templates, templateApiMode, connection } =
   storeToRefs(clusterManageStore);
 
 // --- Cluster metrics ---
@@ -857,6 +939,8 @@ type ShardDetailTag = {
 };
 
 const shardDetailState = ref<{ indexName: string; shard: ClusterShard } | undefined>();
+const allocationExplain = ref<ClusterAllocationExplain | undefined>();
+const allocationExplainLoading = ref(false);
 
 const metricColorClass = (percent: number | null | undefined) => {
   const p = percent ?? 0;
@@ -872,8 +956,27 @@ const shardStateClass = (state: string) => {
   return '';
 };
 
-const openShardDetail = (indexName: string, shard: ClusterShard) => {
+const openShardDetail = async (indexName: string, shard: ClusterShard) => {
   shardDetailState.value = { indexName, shard };
+  allocationExplain.value = undefined;
+
+  if (!shard.node && connection.value && connection.value.type === DatabaseType.ELASTICSEARCH) {
+    allocationExplainLoading.value = true;
+    try {
+      allocationExplain.value = await esApi.allocationExplain(
+        connection.value as ElasticsearchConnection,
+        {
+          index: indexName,
+          shard: parseInt(shard.shard, 10),
+          primary: shard.prirep === 'p',
+        },
+      );
+    } catch (err) {
+      debug(`Failed to fetch allocation explain: ${err}`);
+    } finally {
+      allocationExplainLoading.value = false;
+    }
+  }
 };
 
 const buildShardDetails = (shard: ClusterShard): ShardDetailTag[] =>
@@ -956,14 +1059,6 @@ const buildShardDetails = (shard: ClusterShard): ShardDetailTag[] =>
       desc: 'seq_no',
       tagType: 'success',
     },
-    shard.unassigned.at
-      ? {
-          iconClass: 'i-carbon-warning-alt',
-          content: `reason: ${shard.unassigned.reason}, at: ${shard.unassigned.at}`,
-          desc: 'unassigned',
-          tagType: 'warning' as const,
-        }
-      : undefined,
   ].filter((d): d is ShardDetailTag => d !== undefined);
 
 // --- Lifecycle ---
@@ -1581,6 +1676,7 @@ onMounted(async () => {
   gap: 10px;
   flex-wrap: wrap;
   font-size: 15px;
+  padding-right: 2.5rem;
 }
 
 .shard-modal-meta {
@@ -1629,16 +1725,134 @@ onMounted(async () => {
   font-family: monospace;
 }
 
-.shard-unassigned-reason {
-  font-size: 12px;
-  color: hsl(var(--destructive));
+.shard-unassigned-alert {
   display: flex;
   align-items: center;
-  margin-top: 4px;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background-color: hsl(var(--destructive) / 0.1);
+  border: 1px solid hsl(var(--destructive) / 0.3);
+  border-radius: 6px;
+}
+
+.shard-unassigned-icon {
+  color: hsl(var(--destructive));
+}
+
+.shard-unassigned-reason-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: hsl(var(--destructive));
+}
+
+.shard-explain-btn {
+  padding: 2px;
+  margin-left: auto;
+}
+
+.shard-loading-icon {
+  color: hsl(var(--muted-foreground));
+  margin-left: auto;
+}
+
+.shard-explain-popover-content {
+  width: 400px;
+  max-width: 400px;
+  padding: 12px;
+}
+
+.shard-explain-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.shard-explain-popover-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: hsl(var(--foreground));
+}
+
+.shard-can-allocate-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.can-allocate-yes {
+  background-color: hsl(var(--success) / 0.15);
+  color: hsl(var(--success));
+}
+
+.can-allocate-no {
+  background-color: hsl(var(--destructive) / 0.15);
+  color: hsl(var(--destructive));
+}
+
+.shard-explain-popover-text {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.shard-explain-popover-deciders {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.shard-decider-node {
+  padding: 8px;
+  background-color: hsl(var(--muted) / 0.3);
+  border-radius: 6px;
+}
+
+.shard-decider-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.shard-decider-node-name {
+  font-size: 11px;
+  font-family: monospace;
+  color: hsl(var(--foreground));
+}
+
+.shard-node-errors {
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+  margin-top: 6px;
+  word-break: break-word;
+}
+
+.shard-decider-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.decision-yes {
+  background-color: hsl(var(--success) / 0.15);
+  color: hsl(var(--success));
+}
+
+.decision-no {
+  background-color: hsl(var(--destructive) / 0.15);
+  color: hsl(var(--destructive));
 }
 
 .shard-modal-body {
-  padding-top: 8px;
+  padding-top: 12px;
 }
 .shard-badges {
   display: flex;
