@@ -5,12 +5,26 @@
     </div>
 
     <div v-else-if="normalizedRole === 'assistant'" class="message-content assistant-content">
+      <details v-if="message.thinking" class="thinking-panel">
+        <summary class="thinking-summary">
+          <span class="i-carbon-idea thinking-icon" />
+          <span>{{ $t('dataStudio.agent.message.thinking') }}</span>
+          <span class="i-carbon-chevron-right thinking-chevron" />
+        </summary>
+        <pre class="thinking-body">{{ message.thinking }}</pre>
+      </details>
+      <div v-if="isStreaming && message.thinking && !message.content" class="thinking-indicator">
+        <span class="i-carbon-idea h-3.5 w-3.5 opacity-50" />
+        <span class="text-xs text-muted-foreground">
+          {{ $t('dataStudio.agent.message.thinkingInProgress') }}
+        </span>
+      </div>
       <MarkdownRender
         v-if="message.content"
         :markdown="message.content"
         class="markdown-body prose prose-sm max-w-none"
       />
-      <div v-if="isStreaming && !message.content" class="typing-indicator">
+      <div v-if="isStreaming && !message.content && !message.thinking" class="typing-indicator">
         <span class="dot" />
         <span class="dot" />
         <span class="dot" />
@@ -179,6 +193,68 @@ const toolStatusIcon = (status: string): string => {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
+}
+
+.thinking-panel {
+  margin-bottom: 8px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.thinking-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--background));
+  user-select: none;
+  list-style: none;
+}
+
+.thinking-summary::-webkit-details-marker {
+  display: none;
+}
+
+.thinking-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.thinking-chevron {
+  width: 12px;
+  height: 12px;
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+details[open] .thinking-chevron {
+  transform: rotate(90deg);
+}
+
+.thinking-body {
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--background));
+  border-top: 1px solid hsl(var(--border));
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  margin-bottom: 4px;
 }
 
 .tool-chip {

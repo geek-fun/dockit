@@ -629,6 +629,8 @@ export const enUS = {
         toolResult: 'Tool Result',
         toolDenied: 'Tool execution denied',
         toolError: 'Tool execution failed',
+        thinking: 'Thinking',
+        thinkingInProgress: 'Thinking…',
       },
     },
   },

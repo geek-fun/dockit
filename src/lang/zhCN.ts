@@ -616,6 +616,8 @@ export const zhCN = {
         toolResult: '工具结果',
         toolDenied: '工具执行已拒绝',
         toolError: '工具执行失败',
+        thinking: '思考过程',
+        thinkingInProgress: '思考中…',
       },
     },
   },

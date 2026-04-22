@@ -341,6 +341,7 @@ async fn maybe_summarize_context(
 #[derive(Default)]
 struct StreamAccumulator {
     content: String,
+    thinking: String,
     tool_calls: Vec<AccTool>,
     finish_reason: String,
 }
@@ -438,6 +439,21 @@ async fn stream_chat(
                                     }),
                                 );
                             }
+                        }
+                        let thinking_chunk = delta
+                            .get("reasoning_content")
+                            .or_else(|| delta.get("thinking"))
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        if !thinking_chunk.is_empty() {
+                            acc.thinking.push_str(thinking_chunk);
+                            let _ = app.emit(
+                                "agent-loop-thinking-delta",
+                                json!({
+                                    "session_id": session_id,
+                                    "content": thinking_chunk,
+                                }),
+                            );
                         }
                         if let Some(tcs) = delta.get("tool_calls").and_then(|t| t.as_array()) {
                             for tc in tcs {
@@ -603,13 +619,16 @@ async fn run_agent_loop_inner(
         let assistant_message_id = new_id();
 
         if acc.tool_calls.is_empty() {
-            insert_message(
-                db,
-                &assistant_message_id,
-                session_id,
-                "assistant",
-                &acc.content,
-            )?;
+            let payload = if acc.thinking.is_empty() {
+                acc.content.clone()
+            } else {
+                json!({
+                    "content": acc.content,
+                    "thinking": acc.thinking,
+                })
+                .to_string()
+            };
+            insert_message(db, &assistant_message_id, session_id, "assistant", &payload)?;
             let _ = app.emit(
                 "agent-loop-step-done",
                 json!({"session_id": session_id, "message_id": assistant_message_id}),
@@ -640,6 +659,7 @@ async fn run_agent_loop_inner(
             .collect();
         let assistant_payload = json!({
             "content": if acc.content.is_empty() { Value::Null } else { Value::String(acc.content.clone()) },
+            "thinking": if acc.thinking.is_empty() { Value::Null } else { Value::String(acc.thinking.clone()) },
             "tool_calls": tool_calls_json,
         });
         insert_message(
