@@ -5,6 +5,8 @@ import {
   ClusterNode,
   ClusterShard,
   ClusterTemplate,
+  getTemplateApiMode,
+  TemplateApiMode,
   esApi,
   dynamoApi,
   loadHttpClient,
@@ -51,6 +53,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     indices: Array<ClusterIndex>;
     aliases: Array<ClusterAlias>;
     templates: Array<ClusterTemplate>;
+    templateApiMode: TemplateApiMode;
     hideSystemIndices: boolean;
     refreshLoading: boolean;
   } => ({
@@ -61,6 +64,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     indices: [],
     aliases: [],
     templates: [],
+    templateApiMode: TemplateApiMode.COMPOSABLE,
     hideSystemIndices: true,
     refreshLoading: false,
   }),
@@ -98,6 +102,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
   actions: {
     setConnection(connection: Connection) {
       this.connection = connection;
+      if (connection.type === DatabaseType.ELASTICSEARCH) {
+        this.templateApiMode = getTemplateApiMode(connection);
+      }
     },
     async refreshStates(hide?: boolean) {
       if (hide !== undefined && hide !== null) {
@@ -189,7 +196,8 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     async fetchTemplates() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (this.connection.type === DatabaseType.ELASTICSEARCH) {
-        const templates = await esApi.catTemplates(this.connection);
+        this.templateApiMode = getTemplateApiMode(this.connection);
+        const templates = await esApi.listTemplates(this.connection);
 
         this.templates = templates.filter(template =>
           this.hideSystemIndices ? !template.name.startsWith('.') : true,

@@ -156,6 +156,12 @@ export const enUS = {
         indexTemplate: 'Index Template',
         templateName: 'Template Name',
         componentTemplate: 'Component Template',
+        orderLabel: 'Order',
+        priorityLabel: 'Priority',
+        precedenceDesc:
+          '{{field}} determines template precedence when multiple templates match. Higher values = higher precedence.',
+        componentTemplateUnsupported:
+          'Component templates require Elasticsearch 7.8+ or OpenSearch.',
         templateRequired: 'Template name is required',
         bodyJsonRequired: 'Request Body is not a valid JSON format',
         failIfExists: 'Fail if exists',

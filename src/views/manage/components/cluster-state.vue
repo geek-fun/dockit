@@ -488,7 +488,7 @@
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Type</TableHead>
-                    <TableHead>Order</TableHead>
+                    <TableHead>{{ templatePrecedenceLabel }}</TableHead>
                     <TableHead>Version</TableHead>
                     <TableHead>Mappings</TableHead>
                     <TableHead>Settings</TableHead>
@@ -500,14 +500,14 @@
                   <TableRow v-for="(row, i) in filteredTemplates" :key="i">
                     <TableCell class="font-medium text-xs">{{ (row as any).name }}</TableCell>
                     <TableCell class="text-xs">{{ (row as any).type }}</TableCell>
-                    <TableCell class="text-xs">{{ (row as any).order }}</TableCell>
+                    <TableCell class="text-xs">{{ row.precedence }}</TableCell>
                     <TableCell class="text-xs">{{ (row as any).version }}</TableCell>
-                    <TableCell class="text-xs">{{ (row as any).mapping_count }}</TableCell>
-                    <TableCell class="text-xs">{{ (row as any).settings_count }}</TableCell>
-                    <TableCell class="text-xs">{{ (row as any).alias_count }}</TableCell>
+                    <TableCell class="text-xs">{{ row.mapping_count }}</TableCell>
+                    <TableCell class="text-xs">{{ row.settings_count }}</TableCell>
+                    <TableCell class="text-xs">{{ row.alias_count }}</TableCell>
                     <TableCell>
                       <Badge
-                        v-for="pattern in (row as any).index_patterns || []"
+                        v-for="pattern in row.index_patterns || []"
                         :key="pattern"
                         variant="outline"
                         class="m-0.5 text-xs"
@@ -604,7 +604,7 @@ import { get } from 'lodash';
 import prettyBytes from 'pretty-bytes';
 import { storeToRefs } from 'pinia';
 import { useClusterManageStore, RawClusterStats } from '../../../store';
-import { NodeRoleEnum, ClusterShard, ShardStateEnum } from '../../../datasources';
+import { NodeRoleEnum, ClusterShard, ShardStateEnum, TemplateApiMode } from '../../../datasources';
 import { useLang } from '../../../lang';
 import { CustomError, withLoadingDelay } from '../../../common';
 import { useMessageService, useDialogService } from '@/composables';
@@ -617,6 +617,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
+
 import { Empty } from '@/components/ui/empty';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -651,7 +652,8 @@ const dialog = useDialogService();
 const clusterManageStore = useClusterManageStore();
 const { fetchNodes, refreshStates, deleteIndex, closeIndex, openIndex, removeAlias } =
   clusterManageStore;
-const { nodes, indices, indexWithAliases, templates } = storeToRefs(clusterManageStore);
+const { nodes, indices, indexWithAliases, templates, templateApiMode } =
+  storeToRefs(clusterManageStore);
 
 // --- Cluster metrics ---
 
@@ -700,11 +702,12 @@ const loadNodes = async () => {
   nodesLoading.value = true;
   try {
     await fetchNodes();
-  } catch (err) {
-    console.warn('Failed to fetch nodes:', err);
-  } finally {
+  } catch {
     nodesLoading.value = false;
+    return;
   }
+
+  nodesLoading.value = false;
 };
 
 // --- Index management ---
@@ -765,6 +768,12 @@ const filteredTemplates = computed(() =>
       )
     : templates.value,
 );
+
+const templatePrecedenceLabel = computed(() => {
+  return templateApiMode.value === TemplateApiMode.LEGACY
+    ? lang.t('manage.index.newTemplateForm.orderLabel')
+    : lang.t('manage.index.newTemplateForm.priorityLabel');
+});
 
 const toggleModal = (target: string) => {
   if (target === 'index') indexDialogRef.value.toggleModal();
@@ -962,13 +971,6 @@ const buildShardDetails = (shard: ClusterShard): ShardDetailTag[] =>
 onMounted(async () => {
   await loadNodes();
 });
-
-watch(
-  () => props.cluster,
-  async () => {
-    await loadNodes();
-  },
-);
 </script>
 
 <style scoped>

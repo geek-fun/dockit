@@ -26,7 +26,7 @@
 
           <!-- Row 2: Type | master_timeout | Fail if exists (each 1/3) -->
           <div class="form-row-third">
-            <div class="form-col-third">
+            <div v-if="supportsComponentTemplates" class="form-col-third">
               <FormItem label="Type">
                 <Select v-model="templateType">
                   <SelectTrigger>
@@ -41,6 +41,16 @@
                     </SelectItem>
                   </SelectContent>
                 </Select>
+              </FormItem>
+            </div>
+            <div class="form-col-third">
+              <FormItem :label="precedenceLabel">
+                <InputNumber v-model="formData.precedence" class="flex-1" />
+                <p class="text-xs text-muted-foreground mt-1">
+                  {{
+                    $t('manage.index.newTemplateForm.precedenceDesc', { field: precedenceLabel })
+                  }}
+                </p>
               </FormItem>
             </div>
             <div class="form-col-third">
@@ -95,7 +105,7 @@ import { Loader2 } from 'lucide-vue-next';
 import { CustomError, jsonify, withLoadingDelay } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
-import { TemplateType, IndexTemplate } from '../../../datasources';
+import { TemplateApiMode, TemplateType } from '../../../datasources';
 import {
   Dialog,
   DialogContent,
@@ -118,7 +128,7 @@ import {
 
 const clusterManageStore = useClusterManageStore();
 const { createTemplate, refreshStates } = clusterManageStore;
-const { templates } = storeToRefs(clusterManageStore);
+const { templates, templateApiMode } = storeToRefs(clusterManageStore);
 
 const lang = useLang();
 const message = useMessageService();
@@ -132,6 +142,7 @@ const templateType = ref(TemplateType.INDEX_TEMPLATE);
 const defaultFormData = {
   name: '',
   create: undefined as boolean | undefined,
+  precedence: null as number | null,
   master_timeout: null as number | null,
   body: '',
 };
@@ -139,6 +150,7 @@ const defaultFormData = {
 type TemplateFormData = {
   name: string;
   create?: boolean;
+  precedence: number | null;
   master_timeout: number | null;
   body: string;
 };
@@ -146,6 +158,26 @@ type TemplateFormData = {
 const formData = ref<TemplateFormData>({ ...defaultFormData });
 
 const errors = ref<{ name?: string; body?: string }>({});
+
+const supportsComponentTemplates = computed(() => {
+  return templateApiMode.value === TemplateApiMode.COMPOSABLE;
+});
+
+const precedenceLabel = computed(() => {
+  return templateApiMode.value === TemplateApiMode.LEGACY
+    ? lang.t('manage.index.newTemplateForm.orderLabel')
+    : lang.t('manage.index.newTemplateForm.priorityLabel');
+});
+
+watch(
+  supportsComponentTemplates,
+  supports => {
+    if (!supports) {
+      templateType.value = TemplateType.INDEX_TEMPLATE;
+    }
+  },
+  { immediate: true },
+);
 
 watch(
   formData,
@@ -181,6 +213,12 @@ const validateForm = (data: TemplateFormData): { name?: string; body?: string } 
   return result;
 };
 
+const getTemplatePrecedence = (bodyJson: Record<string, unknown>): number => {
+  const precedenceField =
+    templateApiMode.value === TemplateApiMode.LEGACY ? bodyJson.order : bodyJson.priority;
+  return (precedenceField as number | undefined) ?? 0;
+};
+
 const getPatternPrefix = (pattern: string): string => {
   const wildcardIndex = pattern.indexOf('*');
   return wildcardIndex > 0 ? pattern.slice(0, wildcardIndex) : pattern;
@@ -207,7 +245,7 @@ const checkTemplateConflict = (
   }
 
   const newIndexPatterns = (bodyJson.index_patterns as string[] | undefined) || [];
-  const newPriority = (bodyJson.priority as number | undefined) ?? 100;
+  const newPriority = getTemplatePrecedence(bodyJson);
 
   if (newIndexPatterns.length === 0) {
     return { hasConflict: false, conflicts: [] };
@@ -218,16 +256,15 @@ const checkTemplateConflict = (
   for (const template of templates.value) {
     if (template.type !== TemplateType.INDEX_TEMPLATE) continue;
 
-    const existingTemplate = template as IndexTemplate;
-    if (existingTemplate.name === formData.value.name) continue;
+    if (template.name === formData.value.name) continue;
 
-    const existingPatterns = existingTemplate.index_patterns || [];
-    const existingPriority = existingTemplate.order ?? 100;
+    const existingPatterns = template.index_patterns || [];
+    const existingPriority = template.precedence ?? 0;
 
     if (existingPatterns.length > 0 && existingPriority === newPriority) {
       if (patternsOverlap(newIndexPatterns, existingPatterns)) {
         conflicts.push(
-          `${existingTemplate.name} (patterns: ${existingPatterns.join(', ')}, priority: ${existingPriority})`,
+          `${template.name} (patterns: ${existingPatterns.join(', ')}, ${precedenceLabel.value}: ${existingPriority})`,
         );
       }
     }
@@ -246,8 +283,22 @@ const toggleModal = () => {
 
 const closeModal = () => {
   showModal.value = false;
+  templateType.value = TemplateType.INDEX_TEMPLATE;
   formData.value = { ...defaultFormData };
   errors.value = {};
+};
+
+const buildTemplateBody = () => {
+  const parsedBody = jsonify.parse(formData.value.body) as Record<string, unknown>;
+  const precedenceKey = templateApiMode.value === TemplateApiMode.LEGACY ? 'order' : 'priority';
+  const incompatibleKey = templateApiMode.value === TemplateApiMode.LEGACY ? 'priority' : 'order';
+
+  const { [incompatibleKey]: _, ...bodyWithoutIncompatible } = parsedBody;
+
+  return jsonify.stringify({
+    ...bodyWithoutIncompatible,
+    ...(formData.value.precedence !== null ? { [precedenceKey]: formData.value.precedence } : {}),
+  });
 };
 
 const submitCreate = async (event: MouseEvent) => {
@@ -260,7 +311,7 @@ const submitCreate = async (event: MouseEvent) => {
     return;
   }
 
-  const bodyJson = jsonify.parse(formData.value.body) as Record<string, unknown>;
+  const bodyJson = jsonify.parse(buildTemplateBody()) as Record<string, unknown>;
   const { hasConflict, conflicts } = checkTemplateConflict(bodyJson);
 
   if (hasConflict) {
@@ -283,8 +334,11 @@ const doCreateTemplate = async () => {
   try {
     await withLoadingDelay(
       createTemplate({
-        ...formData.value,
-        type: templateType.value,
+        name: formData.value.name,
+        create: formData.value.create,
+        master_timeout: formData.value.master_timeout,
+        type: supportsComponentTemplates.value ? templateType.value : TemplateType.INDEX_TEMPLATE,
+        body: buildTemplateBody(),
       }),
     );
     message.success(lang.t('dialogOps.createSuccess'));
