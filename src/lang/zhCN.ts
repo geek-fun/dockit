@@ -543,6 +543,7 @@ export const zhCN = {
     connection: '连接',
     timestamp: '时间',
     body: '请求体',
+    goToEditor: '前往编辑器',
   },
   importExport: {
     export: '导出',

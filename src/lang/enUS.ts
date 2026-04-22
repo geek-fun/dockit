@@ -547,6 +547,7 @@ export const enUS = {
     connection: 'Connection',
     timestamp: 'Time',
     body: 'Body',
+    goToEditor: 'Go to Editor',
   },
   importExport: {
     export: 'Export',

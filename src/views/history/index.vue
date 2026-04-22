@@ -3,7 +3,12 @@
     <div class="history-container-list">
       <div v-if="entries.length > 0" class="history-list-header">
         <span class="history-list-title">{{ $t('history.title') }}</span>
-        <Button variant="ghost" size="xs" @click="handleClearAll">
+        <Button
+          variant="ghost"
+          size="xs"
+          :aria-label="$t('history.clearAll')"
+          @click="handleClearAll"
+        >
           <span class="i-carbon-trash-can h-4 w-4" />
         </Button>
       </div>
@@ -14,37 +19,44 @@
         <Input
           v-model="searchQuery"
           :placeholder="$t('history.searchPlaceholder')"
+          :aria-label="$t('history.searchPlaceholder')"
           class="pl-7 h-7 text-xs"
         />
       </div>
       <ScrollArea v-if="entries.length > 0" class="history-scroll-area">
-        <div
-          v-for="entry in filteredEntries"
-          :key="entry.id"
-          class="history-item"
-          :class="{
-            active: selectedEntryId === entry.id,
-            [`method-item-${entry.method.toLowerCase()}`]: true,
-          }"
-          @click="selectEntry(entry.id)"
-        >
-          <div class="history-item-header">
-            <div class="history-item-left">
-              <component :is="getDbIcon(entry.databaseType)" class="db-icon" />
-              <Badge variant="outline" class="method-badge" :style="getMethodStyle(entry.method)">
-                {{ entry.method }}
-              </Badge>
+        <div role="list" class="history-list">
+          <div
+            v-for="(entry, index) in filteredEntries"
+            :key="entry.id"
+            role="listitem"
+            tabindex="0"
+            class="history-item"
+            :class="{ active: selectedEntryId === entry.id }"
+            :aria-selected="selectedEntryId === entry.id"
+            @click="selectEntry(entry.id)"
+            @keydown.enter="selectEntry(entry.id)"
+            @keydown.space.prevent="selectEntry(entry.id)"
+            @keydown.up.prevent="focusPrevItem(index)"
+            @keydown.down.prevent="focusNextItem(index)"
+          >
+            <div class="history-item-header">
+              <div class="history-item-left">
+                <component :is="getDbIcon(entry.databaseType)" class="db-icon" />
+                <Badge variant="outline" class="method-badge" :style="getMethodStyle(entry.method)">
+                  {{ entry.method }}
+                </Badge>
+              </div>
+              <span class="history-item-time" :title="formatFullTime(entry.timestamp)">
+                {{ formatTime(entry.timestamp) }}
+              </span>
             </div>
-            <span class="history-item-time" :title="formatFullTime(entry.timestamp)">
-              {{ formatTime(entry.timestamp) }}
-            </span>
-          </div>
-          <div class="history-item-path" :title="getDisplayPath(entry)">
-            {{ getDisplayPath(entry) }}
-          </div>
-          <div class="history-item-connection">
-            <span class="i-carbon-plug h-3 w-3 shrink-0" />
-            <span class="truncate">{{ entry.connectionName }}</span>
+            <div class="history-item-path" :title="getDisplayPath(entry)">
+              {{ getDisplayPath(entry) }}
+            </div>
+            <div class="history-item-connection">
+              <span class="i-carbon-plug h-3 w-3 shrink-0" />
+              <span class="truncate">{{ entry.connectionName }}</span>
+            </div>
           </div>
         </div>
         <div v-if="filteredEntries.length === 0" class="search-empty">
@@ -71,7 +83,12 @@
               <span class="i-carbon-play h-4 w-4 mr-1" />
               {{ $t('history.execute') }}
             </Button>
-            <Button variant="ghost" size="xs" @click="handleDelete">
+            <Button
+              variant="ghost"
+              size="xs"
+              :aria-label="$t('history.delete')"
+              @click="handleDelete"
+            >
               <span class="i-carbon-trash-can h-4 w-4" />
             </Button>
           </div>
@@ -181,6 +198,21 @@ const filteredEntries = computed(() => {
 const { activePanel, activeConnection } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
+
+// Keyboard navigation for history list
+const focusPrevItem = (currentIndex: number) => {
+  if (currentIndex > 0) {
+    const prevItem = document.querySelectorAll('.history-item')[currentIndex - 1];
+    (prevItem as HTMLElement)?.focus();
+  }
+};
+
+const focusNextItem = (currentIndex: number) => {
+  if (currentIndex < filteredEntries.value.length - 1) {
+    const nextItem = document.querySelectorAll('.history-item')[currentIndex + 1];
+    (nextItem as HTMLElement)?.focus();
+  }
+};
 
 onMounted(async () => {
   await fetchHistory();
@@ -325,10 +357,19 @@ const handleClearAll = () => {
 }
 
 .history-container-list {
-  width: 280px;
+  min-width: 240px;
+  max-width: 340px;
+  width: 30%;
   display: flex;
   flex-direction: column;
   border-right: 1px solid hsl(var(--border));
+}
+
+@media (max-width: 640px) {
+  .history-container-list {
+    min-width: 200px;
+    width: 45%;
+  }
 }
 
 .history-list-header {
@@ -356,49 +397,26 @@ const handleClearAll = () => {
   height: 0;
 }
 
+.history-list {
+  display: flex;
+  flex-direction: column;
+}
+
 .history-item {
-  padding: 8px 12px 8px 10px;
+  padding: 8px 12px;
   cursor: pointer;
   border-bottom: 1px solid hsl(var(--border));
-  border-left: 2px solid transparent;
-  transition:
-    background-color 0.15s,
-    border-left-color 0.15s;
+  transition: background-color 0.15s;
+}
+
+.history-item:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: -2px;
 }
 
 .history-item:hover,
 .history-item.active {
   background-color: hsl(var(--accent));
-}
-
-/* Per-method left border colors */
-.history-item.method-item-get:hover,
-.history-item.method-item-get.active {
-  border-left-color: hsl(var(--method-get));
-}
-.history-item.method-item-post:hover,
-.history-item.method-item-post.active {
-  border-left-color: hsl(var(--method-post));
-}
-.history-item.method-item-put:hover,
-.history-item.method-item-put.active {
-  border-left-color: hsl(var(--method-put));
-}
-.history-item.method-item-delete:hover,
-.history-item.method-item-delete.active {
-  border-left-color: hsl(var(--method-delete));
-}
-.history-item.method-item-head:hover,
-.history-item.method-item-head.active {
-  border-left-color: hsl(var(--method-head));
-}
-.history-item.method-item-partiql:hover,
-.history-item.method-item-partiql.active {
-  border-left-color: hsl(var(--method-get));
-}
-.history-item.method-item-query:hover,
-.history-item.method-item-query.active {
-  border-left-color: hsl(var(--method-post));
 }
 
 .history-item-header {
