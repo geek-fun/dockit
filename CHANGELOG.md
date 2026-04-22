@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.8] - 2026-04-22
+
+### Added
+
+- Add keyboard navigation and empty state CTA to history view for improved accessibility (#368)
+
 ## [0.9.7] - 2026-04-20
 
 ### Added
