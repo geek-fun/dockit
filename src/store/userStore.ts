@@ -1,14 +1,32 @@
 import { defineStore } from 'pinia';
+import type { AuthCallbackData } from '../datasources/authService';
+import { isSafeAvatarUrl } from '../datasources/authService';
+
+export type UserState = {
+  accessToken: string;
+  userId: string;
+  username: string;
+  email: string;
+  avatar: string;
+};
 
 export const useUserStore = defineStore('user', {
-  state: () => ({
+  state: (): UserState => ({
     accessToken: '',
+    userId: '',
     username: '',
     email: '',
+    avatar: '',
   }),
   getters: {
     getToken: state => state.accessToken,
-    isLoggedIn: state => state.accessToken.length > 0,
+    isLoggedIn: state => !!state.accessToken,
+    getUser: state => ({
+      id: state.userId,
+      username: state.username,
+      email: state.email,
+      avatar: state.avatar,
+    }),
   },
   actions: {
     setToken(accessToken: string): void {
@@ -16,17 +34,24 @@ export const useUserStore = defineStore('user', {
     },
     resetToken(): void {
       this.accessToken = '';
+      this.userId = '';
       this.username = '';
       this.email = '';
+      this.avatar = '';
     },
-    setAuth(token: string, username: string, email: string): void {
-      this.accessToken = token;
-      this.username = username;
-      this.email = email;
+    setAuthFromCallback(data: AuthCallbackData): void {
+      this.accessToken = data.token;
+      this.userId = data.userId || '';
+      this.username = data.username || '';
+      this.email = data.email || '';
+      this.avatar = data.avatar && isSafeAvatarUrl(data.avatar) ? data.avatar : '';
+    },
+    logout(): void {
+      this.resetToken();
     },
   },
   persist: {
-    pick: ['accessToken', 'username', 'email'],
+    pick: ['accessToken', 'userId', 'username', 'email', 'avatar'],
     storage: localStorage,
   },
 });
