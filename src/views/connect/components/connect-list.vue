@@ -166,27 +166,7 @@
     </div>
   </div>
 
-  <Dialog v-model:open="showTypeSelect">
-    <DialogContent class="database-type-dialog">
-      <DialogHeader>
-        <DialogTitle>{{ $t('connection.selectDatabase') }}</DialogTitle>
-      </DialogHeader>
-      <div class="database-type-buttons">
-        <Button
-          v-for="type in databaseTypes"
-          :key="type.value"
-          variant="outline"
-          class="database-type-btn"
-          @click="selectDatabaseType(type.value)"
-        >
-          <component :is="type.icon" class="database-type-icon" />
-          {{ type.label }}
-        </Button>
-      </div>
-    </DialogContent>
-  </Dialog>
-
-  <FloatingMenu @add="showDatabaseTypeSelect" />
+  <FloatingMenu @select="selectDatabaseType" />
   <EsConnectDialog ref="esConnectDialog" />
   <DynamodbConnectDialog ref="dynamodbConnectDialog" />
   <ConnectingModal ref="connectingModal" />
@@ -202,7 +182,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -488,29 +468,10 @@ const removeConnect = (connection: Connection) => {
   });
 };
 
-const showTypeSelect = ref(false);
 const esConnectDialog = ref();
 const dynamodbConnectDialog = ref();
 
-const databaseTypes = [
-  {
-    label: 'Elasticsearch',
-    value: DatabaseType.ELASTICSEARCH,
-    icon: elasticsearch,
-  },
-  {
-    label: 'DynamoDB',
-    value: DatabaseType.DYNAMODB,
-    icon: dynamoDB,
-  },
-];
-
-const showDatabaseTypeSelect = () => {
-  showTypeSelect.value = true;
-};
-
 const selectDatabaseType = (type: DatabaseType) => {
-  showTypeSelect.value = false;
   if (type === DatabaseType.ELASTICSEARCH) {
     esConnectDialog.value.showMedal(null);
   } else if (type === DatabaseType.DYNAMODB) {
@@ -754,26 +715,5 @@ const selectDatabaseType = (type: DatabaseType) => {
   display: flex;
   justify-content: flex-end;
   gap: 2px;
-}
-
-.database-type-dialog {
-  max-width: 400px;
-}
-
-.database-type-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.database-type-btn {
-  width: 100%;
-  justify-content: flex-start;
-  gap: 8px;
-}
-
-.database-type-icon {
-  width: 20px;
-  height: 20px;
 }
 </style>
