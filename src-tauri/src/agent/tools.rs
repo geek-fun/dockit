@@ -214,11 +214,19 @@ fn has_permission(permissions: &Permissions, required: &str) -> bool {
     }
 }
 
+fn internal_to_openai_name(name: &str) -> String {
+    name.replace('.', "__")
+}
+
+pub fn openai_name_to_internal(name: &str) -> String {
+    name.replace("__", ".")
+}
+
 fn to_openai_tool(tool: &ToolDefinition) -> Value {
     json!({
         "type": "function",
         "function": {
-            "name": tool.name,
+            "name": internal_to_openai_name(tool.name),
             "description": tool.description,
             "parameters": tool.parameters
         }

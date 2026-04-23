@@ -4,8 +4,10 @@ import {
   createAgentSession,
   deleteAgentSession,
   loadAgentSessions,
+  loadSessionMessages,
   updateSessionStatus,
   type AgentSession as BackendAgentSession,
+  type AgentMessage as BackendAgentMessage,
 } from '../datasources/agentApi';
 
 export type DataSourcePermissions = {
@@ -15,11 +17,14 @@ export type DataSourcePermissions = {
   delete: boolean;
 };
 
+export type PermissionsMode = 'default' | 'full';
+
 export type ConnectedSource = {
   connectionId: number | undefined;
   name: string;
   permissions: DataSourcePermissions;
   autoMode: boolean;
+  permissionsMode: PermissionsMode;
 };
 
 export type RiskLevel = 'safe' | 'elevated' | 'destructive';
@@ -51,6 +56,7 @@ export type AgentMessage = {
   role: AgentMessageRole;
   content: string;
   thinking?: string;
+  thinkingDuration?: number;
   status: AgentMessageStatus;
   toolCalls?: Array<AgentToolCall>;
   toolCallId?: string;
@@ -74,6 +80,64 @@ export type ConfirmationRule = {
   action: 'allow_always' | 'deny_always';
 };
 
+export type SessionMeta = {
+  connectionId: number;
+  schema?: string;
+  maxIterations: number;
+  title: string;
+  updatedAt: number;
+  modelId?: string | null;
+};
+
+const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
+  const base = {
+    id: m.id,
+    role: m.role as AgentMessageRole,
+    status: 'done' as AgentMessageStatus,
+    timestamp: m.created_at,
+  };
+
+  if (m.role === 'tool') {
+    try {
+      const parsed = JSON.parse(m.content) as { content?: string };
+      return { ...base, content: parsed.content ?? m.content };
+    } catch {
+      return { ...base, content: m.content };
+    }
+  }
+
+  if (m.role === 'user') {
+    return { ...base, content: m.content };
+  }
+
+  try {
+    const parsed = JSON.parse(m.content) as {
+      content?: string | null;
+      thinking?: string | null;
+      tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> | null;
+    };
+    if (typeof parsed === 'object' && parsed !== null && ('content' in parsed || 'thinking' in parsed || 'tool_calls' in parsed)) {
+      const toolCalls: AgentToolCall[] = (parsed.tool_calls ?? []).map(tc => ({
+        id: tc.id,
+        toolName: tc.function?.name ?? '',
+        args: (() => { try { return JSON.parse(tc.function?.arguments ?? '{}'); } catch { return {}; } })(),
+        status: 'done' as AgentToolCallStatus,
+        riskLevel: 'safe' as RiskLevel,
+        requiresConfirmation: false,
+      }));
+      return {
+        ...base,
+        content: parsed.content ?? '',
+        thinking: parsed.thinking ?? undefined,
+        toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+      };
+    }
+  } catch {
+    return { ...base, content: m.content };
+  }
+  return { ...base, content: m.content };
+};
+
 export const useDataStudioStore = defineStore('dataStudio', {
   state: (): {
     connectedSources: Array<ConnectedSource>;
@@ -82,6 +146,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     sessions: Array<AgentSession>;
     activeSessionId: string | undefined;
     confirmationRules: Array<ConfirmationRule>;
+    sessionMeta: Record<string, SessionMeta>;
   } => ({
     connectedSources: [],
     activeConnectionId: undefined,
@@ -89,9 +154,17 @@ export const useDataStudioStore = defineStore('dataStudio', {
     sessions: [],
     activeSessionId: undefined,
     confirmationRules: [],
+    sessionMeta: {},
   }),
   persist: {
-    pick: ['connectedSources', 'activeConnectionId', 'configPanelOpen', 'confirmationRules'],
+    pick: [
+      'connectedSources',
+      'activeConnectionId',
+      'configPanelOpen',
+      'confirmationRules',
+      'sessionMeta',
+      'activeSessionId',
+    ],
   },
   getters: {
     activeSession(state): AgentSession | undefined {
@@ -141,7 +214,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.activeConnectionId = connectionId;
     },
     async createSession(connectionId: number, maxIterations = 10): Promise<string> {
-      const backend = await createAgentSession('New Session');
+      const source = this.connectedSources.find(s => s.connectionId === connectionId);
+      const title = source?.name ?? 'New Session';
+      const backend = await createAgentSession(title);
       this.sessions.push({
         id: backend.id,
         connectionId,
@@ -149,6 +224,12 @@ export const useDataStudioStore = defineStore('dataStudio', {
         status: 'idle',
         maxIterations,
       });
+      this.sessionMeta[backend.id] = {
+        connectionId,
+        maxIterations,
+        title,
+        updatedAt: backend.updated_at,
+      };
       this.activeSessionId = backend.id;
       return backend.id;
     },
@@ -186,6 +267,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
       const session = this.sessions.find(s => s.id === sessionId);
       const message = session?.messages.find(m => m.id === messageId);
       if (message) {
+        if (status === 'done' && message.thinking && message.status === 'streaming') {
+          message.thinkingDuration = Math.round((Date.now() - message.timestamp) / 1000);
+        }
         message.status = status;
       }
     },
@@ -224,12 +308,23 @@ export const useDataStudioStore = defineStore('dataStudio', {
       const session = this.sessions.find(s => s.id === sessionId);
       if (session) {
         session.schema = schema;
+        if (this.sessionMeta[sessionId]) {
+          this.sessionMeta[sessionId].schema = schema;
+        }
       }
     },
     setSessionMaxIterations(sessionId: string, maxIterations: number) {
       const session = this.sessions.find(s => s.id === sessionId);
       if (session) {
         session.maxIterations = maxIterations;
+        if (this.sessionMeta[sessionId]) {
+          this.sessionMeta[sessionId].maxIterations = maxIterations;
+        }
+      }
+    },
+    setSessionModelId(sessionId: string, modelId: string | null) {
+      if (this.sessionMeta[sessionId]) {
+        this.sessionMeta[sessionId].modelId = modelId;
       }
     },
     findConfirmationRule(connectionId: number, toolName: string): ConfirmationRule | undefined {
@@ -254,25 +349,43 @@ export const useDataStudioStore = defineStore('dataStudio', {
       session.messages.splice(0, session.messages.length);
       session.status = 'idle';
       session.schema = undefined;
+      if (this.sessionMeta[sessionId]) {
+        this.sessionMeta[sessionId].schema = undefined;
+      }
     },
     async loadSessions() {
       const backendSessions = await loadAgentSessions();
-      const mapped: Array<AgentSession> = backendSessions.map((s: BackendAgentSession) => {
-        const existing = this.sessions.find(e => e.id === s.id);
-        return {
-          id: s.id,
-          connectionId: existing?.connectionId ?? -1,
-          messages: existing?.messages ?? [],
-          status: (s.status as AgentSessionStatus) ?? 'idle',
-          schema: existing?.schema,
-          maxIterations: existing?.maxIterations ?? 10,
-        };
-      });
-      this.sessions = mapped;
+      const loaded = await Promise.all(
+        backendSessions.map(async (s: BackendAgentSession) => {
+          const meta = this.sessionMeta[s.id];
+          const backendMessages = await loadSessionMessages(s.id).catch(
+            () => [] as BackendAgentMessage[],
+          );
+          const messages: Array<AgentMessage> = backendMessages.map(hydrateMessage);
+          return {
+            id: s.id,
+            connectionId: meta?.connectionId ?? -1,
+            messages,
+            status: 'idle' as AgentSessionStatus,
+            schema: meta?.schema,
+            maxIterations: meta?.maxIterations ?? 10,
+          };
+        }),
+      );
+      this.sessions = loaded;
+      if (backendSessions.length > 0) {
+        const latestId = backendSessions[0].id;
+        const stillValid =
+          this.activeSessionId && this.sessions.some(s => s.id === this.activeSessionId);
+        if (!stillValid) {
+          this.activeSessionId = latestId;
+        }
+      }
     },
     async removeSession(sessionId: string) {
       await deleteAgentSession(sessionId).catch(() => undefined);
       this.sessions = this.sessions.filter(s => s.id !== sessionId);
+      delete this.sessionMeta[sessionId];
       if (this.activeSessionId === sessionId) {
         this.activeSessionId = this.sessions[0]?.id;
       }

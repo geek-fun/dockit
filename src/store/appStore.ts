@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { pureObject, HISTORY_CAP_MIN, HISTORY_CAP_MAX, HISTORY_CAP_DEFAULT } from '../common';
-import { chatBotApi, ProviderEnum, storeApi } from '../datasources';
+import { chatBotApi, ProviderEnum, storeApi, validateLlmConfig } from '../datasources';
 
 export enum ThemeType {
   AUTO = 'auto',
@@ -546,6 +546,21 @@ export const useAppStore = defineStore('app', {
       await this.persistLlmSettings();
       return isValid;
     },
+    async verifyModelAvailability(modelId: string): Promise<boolean> {
+      const model = this.availableModels.find(m => m.id === modelId);
+      if (!model) return false;
+      const provider = this.llmSettings.providers.find(p => p.id === model.providerConfigId);
+      if (!provider || !provider.enabled) return false;
+      if (provider.kind === 'custom-anthropic') return false;
+
+      return validateLlmConfig({
+        provider: providerKindToEnum(provider.kind).toString(),
+        apiKey: provider.apiKey ?? '',
+        model: model.label,
+        httpProxy: provider.proxy || undefined,
+        baseUrl: provider.baseUrl,
+      }).catch(() => false);
+    },
     async setFeatureModelRoute(
       feature: 'sidebarAssistant' | 'dataStudio',
       route: Partial<FeatureModelRoute>,
@@ -577,7 +592,7 @@ export const useAppStore = defineStore('app', {
       }
 
       const provider = this.llmSettings.providers.find(
-        item => item.id === resolvedModel.providerConfigId && item.enabled && item.connected,
+        item => item.id === resolvedModel.providerConfigId && item.enabled,
       );
 
       if (!provider) {

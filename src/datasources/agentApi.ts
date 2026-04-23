@@ -149,6 +149,14 @@ const exportAgentSession = (sessionId: string) =>
 const importAgentSession = (data: unknown) =>
   invoke<AgentSession>('import_agent_session', { data });
 
+const validateLlmConfig = (params: {
+  provider: string;
+  apiKey: string;
+  model: string;
+  httpProxy?: string;
+  baseUrl?: string;
+}): Promise<boolean> => invoke<boolean>('validate_llm_config', params);
+
 const runAgentLoop = (sessionId: string, userMessage: string, settings: unknown) =>
   invoke<void>('run_agent_loop', { sessionId, userMessage, settings });
 const cancelAgentLoop = (sessionId: string) => invoke<void>('cancel_agent_loop', { sessionId });
@@ -195,6 +203,7 @@ const onAgentLoopSummaryInjected = (handler: (payload: { session_id: string }) =
 
 export {
   agentApi,
+  validateLlmConfig,
   loadAgentSessions,
   createAgentSession,
   updateSessionStatus,

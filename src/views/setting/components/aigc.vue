@@ -193,11 +193,27 @@
                   :error="draftProviderErrors.apiKey"
                   required
                 >
-                  <Input
-                    v-model="draftProvider.apiKey"
-                    type="password"
-                    :placeholder="$t('setting.ai.apiKeyPlaceholder')"
-                  />
+                  <div class="relative">
+                    <Input
+                      v-model="apiKeyDisplayValue"
+                      :type="showApiKey ? 'text' : 'password'"
+                      :readonly="hasExistingApiKey"
+                      class="pr-9"
+                      :placeholder="$t('setting.ai.apiKeyPlaceholder')"
+                      @click="beginReplaceApiKey"
+                    />
+                    <button
+                      type="button"
+                      class="absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground hover:text-foreground focus-visible:outline-none"
+                      :aria-label="showApiKey ? 'Hide API key' : 'Show API key'"
+                      @click.stop="showApiKey = !showApiKey"
+                    >
+                      <span
+                        :class="showApiKey ? 'i-carbon-view-off' : 'i-carbon-view'"
+                        class="h-4 w-4"
+                      />
+                    </button>
+                  </div>
                 </FormItem>
               </TabsContent>
             </Tabs>
@@ -209,11 +225,27 @@
                 :error="draftProviderErrors.apiKey"
                 :required="draftProvider.kind !== 'ollama'"
               >
-                <Input
-                  v-model="draftProvider.apiKey"
-                  type="password"
-                  :placeholder="$t('setting.ai.apiKeyPlaceholder')"
-                />
+                <div class="relative">
+                  <Input
+                    v-model="apiKeyDisplayValue"
+                    :type="showApiKey ? 'text' : 'password'"
+                    :readonly="hasExistingApiKey"
+                    class="pr-9"
+                    :placeholder="$t('setting.ai.apiKeyPlaceholder')"
+                    @click="beginReplaceApiKey"
+                  />
+                  <button
+                    type="button"
+                    class="absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground hover:text-foreground focus-visible:outline-none"
+                    :aria-label="showApiKey ? 'Hide API key' : 'Show API key'"
+                    @click.stop="showApiKey = !showApiKey"
+                  >
+                    <span
+                      :class="showApiKey ? 'i-carbon-view-off' : 'i-carbon-view'"
+                      class="h-4 w-4"
+                    />
+                  </button>
+                </div>
               </FormItem>
             </div>
 
@@ -291,7 +323,8 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { cloneDeep } from 'lodash';
 import { open } from '@tauri-apps/plugin-shell';
 import { storeToRefs } from 'pinia';
-import { useMessageService } from '@/composables';
+import { useLang } from '@/lang';
+import { useDialogService, useMessageService } from '@/composables';
 import { type ProviderConfig, type ProviderKind, useAppStore } from '@/store';
 import { chatBotApi, ProviderEnum } from '@/datasources';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -319,8 +352,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 type ProviderErrorMap = Partial<Record<'apiKey' | 'baseUrl' | 'proxy', string>>;
 type ProviderAuthTab = 'website' | 'api-key';
 
+const API_KEY_SENTINEL = '__UNCHANGED__';
+
 const appStore = useAppStore();
 const { llmSettings } = storeToRefs(appStore);
+const lang = useLang();
+const dialog = useDialogService();
 const message = useMessageService();
 
 const providerActionState = reactive<Record<string, 'idle' | 'testing'>>({});
@@ -329,6 +366,7 @@ const providerSyncState = reactive<Record<string, 'idle' | 'loading'>>({});
 const providerDialogOpen = ref(false);
 const providerDialogMode = ref<'create' | 'edit'>('create');
 const editingProviderId = ref<string | null>(null);
+const showApiKey = ref(false);
 const draftProviderKind = ref<ProviderKind | null>(null);
 const providerAuthTab = ref<ProviderAuthTab>('api-key');
 const draftProvider = ref<ProviderConfig | null>(null);
@@ -348,6 +386,36 @@ const providerPresets: Record<ProviderKind, Partial<ProviderConfig>> = {
 const configuredProviders = computed(() =>
   llmSettings.value.providers.filter(provider => provider.enabled),
 );
+
+const hasExistingApiKey = computed(() => draftProvider.value?.apiKey === API_KEY_SENTINEL);
+
+const API_KEY_MASK = '••••••••••••';
+
+// Sentinel state (existing saved key, not yet replaced):
+//   - eye closed → show mask dots (type=password, readonly)
+//   - eye open   → show real stored key (type=text, readonly)
+// Once the user clicks the field, sentinel is cleared and they type a fresh value.
+const apiKeyDisplayValue = computed<string>({
+  get: () => {
+    if (!hasExistingApiKey.value) return draftProvider.value?.apiKey ?? '';
+    if (showApiKey.value) {
+      return llmSettings.value.providers.find(p => p.id === draftProvider.value?.id)?.apiKey ?? '';
+    }
+    return API_KEY_MASK;
+  },
+  set: (val: string) => {
+    // Ignore writes of the mask constant (readonly state emitting its own value back)
+    if (val === API_KEY_MASK) return;
+    if (draftProvider.value) draftProvider.value.apiKey = val;
+  },
+});
+
+const beginReplaceApiKey = () => {
+  if (hasExistingApiKey.value && draftProvider.value) {
+    draftProvider.value.apiKey = '';
+    showApiKey.value = false;
+  }
+};
 
 const availableProviderOptions = computed(() =>
   llmSettings.value.providers
@@ -375,7 +443,7 @@ const resetDraftProviderErrors = () => {
 
 const normalizeProviderDraft = (provider: ProviderConfig): ProviderConfig => ({
   ...cloneDeep(provider),
-  apiKey: provider.apiKey ?? '',
+  apiKey: provider.apiKey ? API_KEY_SENTINEL : '',
   baseUrl: provider.baseUrl ?? '',
   proxy: provider.proxy ?? '',
   enabled: true,
@@ -404,10 +472,14 @@ const validateDraftProvider = () => {
   resetDraftProviderErrors();
   if (!draftProvider.value) return false;
 
+  const apiKeyValue = draftProvider.value.apiKey?.trim();
+  const apiKeyUnchanged = apiKeyValue === API_KEY_SENTINEL;
+
   if (
     showApiKeyField(draftProvider.value) &&
     providerAuthTab.value === 'api-key' &&
-    !draftProvider.value.apiKey?.trim()
+    !apiKeyUnchanged &&
+    !apiKeyValue
   ) {
     draftProviderErrors.apiKey = 'API key is required for this provider.';
   }
@@ -502,9 +574,18 @@ const testDraftProvider = async () => {
   if (!draftProvider.value) return;
   dialogTestState.value = 'testing';
   const draft = draftProvider.value;
+  const draftApiKey = draft.apiKey?.trim();
+  const originalProvider = llmSettings.value.providers.find(p => p.id === draft.id);
+  const resolvedApiKey =
+    providerAuthTab.value === 'website'
+      ? ''
+      : draftApiKey === API_KEY_SENTINEL
+        ? (originalProvider?.apiKey?.trim() ?? '')
+        : (draftApiKey ?? '');
+
   const isValid = await chatBotApi.validateConfig({
     provider: draftKindToEnum(draft.kind),
-    apiKey: providerAuthTab.value === 'website' ? '' : (draft.apiKey?.trim() ?? ''),
+    apiKey: resolvedApiKey,
     model: '',
     httpProxy: draft.proxy?.trim() || undefined,
     baseUrl: draft.baseUrl?.trim() || undefined,
@@ -519,6 +600,7 @@ const closeProviderDialog = () => {
   draftProvider.value = null;
   providerAuthTab.value = 'api-key';
   dialogTestState.value = 'idle';
+  showApiKey.value = false;
   resetDraftProviderErrors();
 };
 
@@ -535,6 +617,18 @@ const saveDraftProvider = async () => {
     return;
   }
 
+  const isWebsiteAuth =
+    draftProvider.value.kind === 'openrouter' && providerAuthTab.value === 'website';
+
+  // Sentinel means user didn't change the key — keep existing value
+  const draftApiKey = draftProvider.value.apiKey?.trim();
+  const originalProvider = llmSettings.value.providers.find(p => p.id === draftProvider.value!.id);
+  const resolvedApiKey = isWebsiteAuth
+    ? ''
+    : draftApiKey === API_KEY_SENTINEL
+      ? (originalProvider?.apiKey ?? '')
+      : (draftApiKey ?? '');
+
   await appStore.updateProviderConfig(draftProvider.value.id, {
     label: draftProvider.value.label.trim() || providerPresets[draftProvider.value.kind].label,
     authMode:
@@ -543,14 +637,14 @@ const saveDraftProvider = async () => {
           ? 'oauth'
           : 'api-key'
         : draftProvider.value.authMode,
-    apiKey: providerAuthTab.value === 'website' ? '' : (draftProvider.value.apiKey?.trim() ?? ''),
+    apiKey: resolvedApiKey,
     baseUrl: draftProvider.value.baseUrl?.trim() ?? '',
     proxy: draftProvider.value.proxy?.trim() ?? '',
     enabled: true,
     connected: draftProvider.value.kind === 'ollama' ? draftProvider.value.connected : false,
   });
 
-  if (draftProvider.value.kind === 'openrouter' && providerAuthTab.value === 'website') {
+  if (isWebsiteAuth) {
     await openOpenRouterWebsite();
   }
 
@@ -558,14 +652,22 @@ const saveDraftProvider = async () => {
   message.success('Provider saved.');
 };
 
-const removeProvider = async (providerId: string) => {
-  await appStore.updateProviderConfig(providerId, {
-    enabled: false,
-    connected: false,
-    apiKey: '',
-    discoveredModels: [],
+const removeProvider = (providerId: string) => {
+  dialog.warning({
+    title: lang.t('dialogOps.warning'),
+    content: lang.t('setting.ai.removeProviderNotice'),
+    positiveText: lang.t('dialogOps.delete'),
+    negativeText: lang.t('dialogOps.cancel'),
+    onPositiveClick: async () => {
+      await appStore.updateProviderConfig(providerId, {
+        enabled: false,
+        connected: false,
+        apiKey: '',
+        discoveredModels: [],
+      });
+      message.success('Provider removed.');
+    },
   });
-  message.success('Provider removed.');
 };
 
 const syncProviderModels = async (providerId: string) => {

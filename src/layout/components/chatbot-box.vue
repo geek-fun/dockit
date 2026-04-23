@@ -12,7 +12,7 @@
     <div class="message-list">
       <ScrollArea ref="scrollbarRef" class="h-full">
         <div v-for="msg in messages" :key="msg.id">
-          <AgentMessageBubble :message="msg" />
+          <AgentMessageBubble :message="msg" :iteration-index="iterationIndexMap[msg.id]" />
         </div>
         <div v-if="isLoading" class="flex items-center gap-2 px-4 py-2">
           <span class="i-carbon-renew h-4 w-4 animate-spin text-muted-foreground" />
@@ -49,7 +49,12 @@
         />
       </div>
       <div class="footer-operation">
-        <Button class="submit-button" :disabled="isLoading || !chatMsg.trim()" @click="submitMsg">
+        <Button
+          class="submit-button"
+          :class="{ 'submit-button--blocked': modelVerified === false }"
+          :disabled="(isLoading || !chatMsg.trim()) && modelVerified !== false"
+          @click="submitMsg"
+        >
           <Spinner v-if="isLoading" size="sm" />
           <span v-else class="i-carbon-send-alt h-6 w-6" />
         </Button>
@@ -62,6 +67,8 @@
 import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAppStore, useChatStore } from '../../store';
+import { useMessageService } from '@/composables';
+import { useLang } from '@/lang';
 import AgentMessageBubble from '../../components/agent-message-bubble.vue';
 import ModelPicker from '@/components/model-picker.vue';
 import { Button } from '@/components/ui/button';
@@ -73,12 +80,25 @@ const { llmSettings } = storeToRefs(appStore);
 const chatStore = useChatStore();
 const { activeChat } = storeToRefs(chatStore);
 const { fetchChats, sendMessage, deleteChat } = chatStore;
+const message = useMessageService();
+const lang = useLang();
 
 const scrollbarRef = ref<{ $el: HTMLElement } | null>(null);
 const chatMsg = ref('');
 const isLoading = ref(false);
 const error = ref<string | undefined>();
+const modelVerified = ref<boolean | null>(null);
 const messages = computed(() => activeChat.value?.messages ?? []);
+
+const iterationIndexMap = computed<Record<string, number>>(() => {
+  let count = 0;
+  return messages.value.reduce<Record<string, number>>((acc, msg) => {
+    if (msg.role === 'assistant' && msg.toolCalls?.length) {
+      acc[msg.id] = count++;
+    }
+    return acc;
+  }, {});
+});
 
 const enabledModelGroups = computed(() =>
   llmSettings.value.providers
@@ -102,6 +122,10 @@ const scrollToBottom = () => {
 };
 
 const submitMsg = async () => {
+  if (modelVerified.value === false) {
+    message.warning(lang.t('dataStudio.modelUnavailableSend'));
+    return;
+  }
   const text = chatMsg.value.trim();
   if (!text || isLoading.value) return;
 
@@ -127,12 +151,15 @@ const clearMessages = async () => {
 };
 
 const updateSidebarModel = async (value: string) => {
+  modelVerified.value = null;
   await appStore.setFeatureModelRoute('sidebarAssistant', {
     selectedModelId: value,
     useRecommendedModel: false,
   });
+  const ok = await appStore.verifyModelAvailability(value);
+  modelVerified.value = ok;
+  if (!ok) message.warning(lang.t('dataStudio.modelUnavailable'));
 };
-
 const syncAllProviderModels = () => {
   llmSettings.value.providers
     .filter(provider => provider.enabled)
@@ -242,6 +269,12 @@ onMounted(async () => {
   margin: 0;
 }
 
+.submit-button--blocked {
+  opacity: 0.5;
+  background: hsl(var(--destructive)) !important;
+  color: hsl(var(--destructive-foreground)) !important;
+  cursor: not-allowed !important;
+}
 .error-banner {
   display: flex;
   align-items: center;

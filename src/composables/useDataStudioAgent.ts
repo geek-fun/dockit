@@ -33,21 +33,22 @@ const buildConnectionConfig = (connection: Connection): Record<string, unknown> 
     return {
       host: es.host,
       port: es.port,
-      authType: es.authType,
-      username: es.username,
-      password: es.password,
-      apiKey: es.apiKey,
-      sslCertVerification: es.sslCertVerification,
+      sslCertVerification: es.sslCertVerification ?? false,
+      authType: es.authType ?? 'basic',
+      username: es.username ?? '',
+      password: es.password ?? '',
+      apiKey: es.apiKey ?? '',
     };
   }
   const dynamo = connection as DynamoDBConnection;
-  return {
+  const config: Record<string, unknown> = {
     region: dynamo.region,
     accessKeyId: dynamo.accessKeyId,
     secretAccessKey: dynamo.secretAccessKey,
-    endpointUrl: dynamo.endpointUrl,
-    tableName: dynamo.tableName,
   };
+  if (dynamo.endpointUrl) config.endpointUrl = dynamo.endpointUrl;
+  if (dynamo.tableName) config.tableName = dynamo.tableName;
+  return config;
 };
 
 const buildSystemPrompt = (schema?: string, noConnection?: boolean): string => {
@@ -125,9 +126,8 @@ export const useDataStudioAgent = () => {
     if (rule?.action === 'allow_always') return false;
     if (rule?.action === 'deny_always') return false;
 
-    if (!autoMode) return true;
-
     if (riskLevel === 'safe') return false;
+    if (!autoMode) return true;
     return true;
   };
 
@@ -250,14 +250,6 @@ export const useDataStudioAgent = () => {
           envelope.summary,
         );
       }
-      dataStudioStore.addMessage(session_id, {
-        id: ulid(),
-        role: 'tool',
-        content: envelope.summary,
-        status: 'done',
-        toolCallId: tool_call_id,
-        timestamp: Date.now(),
-      });
     }).then(unlisten => unlisteners.push(unlisten));
 
     onAgentLoopStepDone(({ session_id, message_id }) => {
@@ -314,6 +306,13 @@ export const useDataStudioAgent = () => {
 
     const noConnection = session.connectionId === -1;
 
+    if (!noConnection && !runtime.config) {
+      const connection = connectionStore.connections.find(c => c.id === session.connectionId);
+      if (connection) {
+        runtime.config = buildConnectionConfig(connection);
+      }
+    }
+
     dataStudioStore.setSessionStatus(sessionId, 'running');
     isLoading.value = true;
     error.value = undefined;
@@ -352,6 +351,7 @@ export const useDataStudioAgent = () => {
 
   const sendMessage = async (content: string, connectionId?: number) => {
     error.value = undefined;
+    isLoading.value = true;
 
     if (!connectionId) {
       const sessionId = await dataStudioStore.getOrCreateSession(-1);
@@ -369,12 +369,14 @@ export const useDataStudioAgent = () => {
     const connection = connectionStore.connections.find(c => c.id === connectionId);
     if (!connection) {
       error.value = 'Connection not found';
+      isLoading.value = false;
       return;
     }
 
     const source = dataStudioStore.connectedSources.find(s => s.connectionId === connectionId);
     if (!source) {
       error.value = 'Source not connected';
+      isLoading.value = false;
       return;
     }
 
@@ -416,6 +418,7 @@ export const useDataStudioAgent = () => {
       runtime.metadata = toolsResponse.metadata;
     } catch (err) {
       error.value = err instanceof Error ? err.message : String(err);
+      isLoading.value = false;
       return;
     }
 
@@ -456,14 +459,6 @@ export const useDataStudioAgent = () => {
       dataStudioStore.updateToolCallStatus(session.id, assistantMsgId, toolCallId, 'executing');
     } else {
       dataStudioStore.updateToolCallStatus(session.id, assistantMsgId, toolCallId, 'denied');
-      dataStudioStore.addMessage(session.id, {
-        id: ulid(),
-        role: 'tool',
-        content: 'Tool execution denied by user.',
-        status: 'done',
-        toolCallId,
-        timestamp: Date.now(),
-      });
     }
 
     const allResolved = assistantMsg?.toolCalls?.every(tc => tc.status !== 'pending') ?? true;

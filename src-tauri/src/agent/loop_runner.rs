@@ -10,6 +10,7 @@ use tokio::sync::oneshot;
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::executor::ToolEnvelope;
 use crate::agent::tool_executor::ToolExecutor;
+use crate::agent::tools::openai_name_to_internal;
 use crate::common::http_client::create_http_client;
 use crate::db::AgentDb;
 
@@ -589,7 +590,7 @@ async fn run_agent_loop_inner(
                         .and_then(|f| f.get("name"))
                         .and_then(|n| n.as_str())
                 })
-                .map(|s| s.to_string())
+                .map(|s| openai_name_to_internal(s))
                 .collect()
         })
         .unwrap_or_default();
@@ -676,6 +677,7 @@ async fn run_agent_loop_inner(
 
         for (tc, tool_call_id) in acc.tool_calls.iter().zip(resolved_tool_ids.iter()) {
             let tool_call_id = tool_call_id.clone();
+            let tool_name = openai_name_to_internal(&tc.name);
             let arguments_value: Value =
                 serde_json::from_str(&tc.arguments).unwrap_or(Value::Null);
 
@@ -684,14 +686,14 @@ async fn run_agent_loop_inner(
                 &tool_call_id,
                 &assistant_message_id,
                 session_id,
-                &tc.name,
+                &tool_name,
                 &tc.arguments,
                 "pending",
             )?;
 
-            if !allowed_tools.is_empty() && !allowed_tools.contains(&tc.name) {
+            if !allowed_tools.is_empty() && !allowed_tools.contains(&tool_name) {
                 update_tool_call_status(db, &tool_call_id, "failed")?;
-                return Err(format!("tool not allowed: {}", tc.name));
+                return Err(format!("tool not allowed: {}", tool_name));
             }
 
             let _ = app.emit(
@@ -699,7 +701,7 @@ async fn run_agent_loop_inner(
                 json!({
                     "session_id": session_id,
                     "tool_call_id": tool_call_id,
-                    "tool_name": tc.name,
+                    "tool_name": tool_name,
                     "arguments": arguments_value,
                 }),
             );
@@ -746,7 +748,7 @@ async fn run_agent_loop_inner(
                     update_tool_call_status(db, &tool_call_id, "failed")?;
                     return Err("cancelled".to_string());
                 }
-                res = tool_executor.execute(&tc.name, &arguments_value, &connection_config) => match res {
+                res = tool_executor.execute(&tool_name, &arguments_value, &connection_config) => match res {
                     Ok(env) => env,
                     Err(e) => {
                         update_tool_call_status(db, &tool_call_id, "failed")?;
@@ -769,7 +771,7 @@ async fn run_agent_loop_inner(
 
             let tool_msg = json!({
                 "tool_call_id": tool_call_id,
-                "name": tc.name,
+                "name": tool_name,
                 "content": envelope.summary,
             });
             insert_message(db, &new_id(), session_id, "tool", &tool_msg.to_string())?;

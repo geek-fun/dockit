@@ -1,10 +1,27 @@
 <template>
   <div class="data-studio-container">
+    <!-- History Panel (left sidebar) -->
+    <div v-if="historyPanelOpen" class="data-studio-history">
+      <SessionHistoryPanel
+        @select="switchSession"
+        @delete="deleteSession"
+        @new-session="startNewSession"
+      />
+    </div>
+
     <!-- Main Conversation Area -->
     <div class="data-studio-main">
       <!-- Header -->
       <div class="data-studio-header">
         <div class="flex items-center gap-2">
+          <button
+            class="icon-button"
+            :class="{ 'icon-button--active': historyPanelOpen }"
+            :title="$t('dataStudio.history.title')"
+            @click="historyPanelOpen = !historyPanelOpen"
+          >
+            <span class="i-carbon-time h-5 w-5" />
+          </button>
           <span
             class="text-xs font-bold tracking-wider px-3 py-1 border border-border rounded-full"
           >
@@ -19,9 +36,6 @@
             @click="clearChat"
           >
             <span class="i-carbon-trash-can h-5 w-5" />
-          </button>
-          <button v-else class="icon-button" :title="$t('history.empty')">
-            <span class="i-carbon-time h-5 w-5" />
           </button>
           <button
             v-if="!configPanelOpen"
@@ -53,7 +67,7 @@
           <!-- Messages -->
           <template v-if="hasMessages">
             <template v-for="msg in activeSession?.messages" :key="msg.id">
-              <AgentMessageBubble :message="msg" />
+              <AgentMessageBubble :message="msg" :iteration-index="iterationIndexMap[msg.id]" />
 
               <!-- Confirmation cards for pending tool calls on this message -->
               <template
@@ -71,11 +85,12 @@
             </template>
 
             <!-- Loading indicator -->
-            <div v-if="isLoading" class="flex items-center gap-2 py-2">
-              <span class="i-carbon-renew h-4 w-4 animate-spin text-muted-foreground" />
-              <span class="text-xs text-muted-foreground">
-                {{ $t('dataStudio.agent.loading') }}
-              </span>
+            <div v-if="isLoading" class="loading-dots-wrapper">
+              <div class="typing-indicator">
+                <span class="dot" />
+                <span class="dot" />
+                <span class="dot" />
+              </div>
             </div>
 
             <!-- Error display -->
@@ -107,6 +122,45 @@
                 >
                   <span class="i-carbon-add-alt h-4 w-4" />
                 </button>
+                <!-- Permission mode picker -->
+                <div v-if="activeSource" class="permission-picker">
+                  <button
+                    class="permission-trigger"
+                    :aria-expanded="permissionMenuOpen"
+                    :title="$t('dataStudio.modifySource.accessPermissions')"
+                    @click.stop="permissionMenuOpen = !permissionMenuOpen"
+                  >
+                    <span
+                      class="h-4 w-4 permission-trigger-icon"
+                      :class="activeSource.permissionsMode === 'full' ? 'i-carbon-unlocked' : 'i-carbon-locked'"
+                    />
+                    <span class="permission-trigger-label">{{ activeSource.permissionsMode === 'full' ? $t('dataStudio.modifySource.modeFull') : $t('dataStudio.modifySource.modeDefault') }}</span>
+                    <span class="i-carbon-chevron-down h-3 w-3 permission-trigger-chevron" />
+                  </button>
+                  <div v-if="permissionMenuOpen" class="permission-menu">
+                    <div class="permission-menu-title">{{ $t('dataStudio.modifySource.accessPermissions') }}</div>
+                    <button
+                      class="permission-menu-item"
+                      :class="{ 'permission-menu-item--active': activeSource.permissionsMode === 'default' }"
+                      :data-tooltip="$t('dataStudio.modifySource.modeDefaultDesc')"
+                      @click="setPermissionsMode('default')"
+                    >
+                      <span class="i-carbon-locked h-4 w-4 permission-menu-icon" />
+                      <span class="permission-menu-label">{{ $t('dataStudio.modifySource.modeDefault') }}</span>
+                      <span v-if="activeSource.permissionsMode === 'default'" class="i-carbon-checkmark h-3.5 w-3.5 permission-check" />
+                    </button>
+                    <button
+                      class="permission-menu-item"
+                      :class="{ 'permission-menu-item--active': activeSource.permissionsMode === 'full' }"
+                      :data-tooltip="$t('dataStudio.modifySource.modeFullDesc')"
+                      @click="setPermissionsMode('full')"
+                    >
+                      <span class="i-carbon-unlocked h-4 w-4 permission-menu-icon" />
+                      <span class="permission-menu-label">{{ $t('dataStudio.modifySource.modeFull') }}</span>
+                      <span v-if="activeSource.permissionsMode === 'full'" class="i-carbon-checkmark h-3.5 w-3.5 permission-check" />
+                    </button>
+                  </div>
+                </div>
               </div>
               <div class="toolbox-center">
                 <ModelPicker
@@ -119,7 +173,12 @@
                   @update:model-value="updateDataStudioModel"
                 />
               </div>
-              <button class="send-button" :disabled="!canSend" @click="handleSend">
+              <button
+                class="send-button"
+                :class="{ 'send-button--blocked': modelVerified === false }"
+                :disabled="!canSend && modelVerified !== false"
+                @click="handleSend"
+              >
                 <span class="i-carbon-arrow-up h-4 w-4" />
               </button>
             </div>
@@ -260,23 +319,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAppStore } from '@/store';
-import { useDataStudioStore, type ConnectedSource } from '@/store/dataStudioStore';
+import { useDataStudioStore, type ConnectedSource, type PermissionsMode } from '@/store/dataStudioStore';
 import { useDataStudioAgent } from '@/composables/useDataStudioAgent';
+import { useMessageService } from '@/composables';
+import { useLang } from '@/lang';
 import ModelPicker from '@/components/model-picker.vue';
 import AddSourceModal from './components/add-source-modal.vue';
 import ModifySourceModal from './components/modify-source-modal.vue';
 import DetachSourceModal from './components/detach-source-modal.vue';
 import AgentMessageBubble from '@/components/agent-message-bubble.vue';
 import ToolConfirmationCard from './components/tool-confirmation-card.vue';
+import SessionHistoryPanel from './components/session-history-panel.vue';
 import type { ConfirmationAction } from './components/tool-confirmation-card.vue';
 
 const appStore = useAppStore();
 const { llmSettings } = storeToRefs(appStore);
 const dataStudioStore = useDataStudioStore();
 const { connectedSources, configPanelOpen } = storeToRefs(dataStudioStore);
+const message = useMessageService();
+const lang = useLang();
 
 const { isLoading, error, activeSession, sendMessage, confirmToolCall, clearChat } =
   useDataStudioAgent();
@@ -288,10 +352,23 @@ const selectedSource = ref<ConnectedSource | null>(null);
 const selectedConnectionId = ref<number | undefined>(undefined);
 const inputText = ref('');
 const conversationRef = ref<HTMLElement | null>(null);
+const historyPanelOpen = ref(false);
+const permissionMenuOpen = ref(false);
 
 const activeConnectionId = computed(() => dataStudioStore.activeConnectionId);
-
 const hasMessages = computed(() => activeSession.value && activeSession.value.messages.length > 0);
+const canSend = computed(() => inputText.value.trim().length > 0 && !isLoading.value);
+
+const iterationIndexMap = computed<Record<string, number>>(() => {
+  const messages = activeSession.value?.messages ?? [];
+  let count = 0;
+  return messages.reduce<Record<string, number>>((acc, msg) => {
+    if (msg.role === 'assistant' && msg.toolCalls?.length) {
+      acc[msg.id] = count++;
+    }
+    return acc;
+  }, {});
+});
 const enabledModelGroups = computed(() =>
   llmSettings.value.providers
     .filter(provider => provider.enabled && provider.discoveredModels.length > 0)
@@ -305,14 +382,56 @@ const dataStudioRoute = computed(() => llmSettings.value.models.dataStudio);
 const recentDataStudioModelIds = computed(() =>
   dataStudioRoute.value.selectedModelId ? [dataStudioRoute.value.selectedModelId] : [],
 );
+const modelVerified = ref<boolean | null>(null);
+const activeSource = computed(() =>
+  activeConnectionId.value !== undefined
+    ? connectedSources.value.find(s => s.connectionId === activeConnectionId.value) ?? null
+    : null,
+);
 
-const canSend = computed(() => !isLoading.value && inputText.value.trim().length > 0);
+const setPermissionsMode = (mode: PermissionsMode) => {
+  permissionMenuOpen.value = false;
+  if (!activeSource.value) return;
+  const idx = connectedSources.value.findIndex(
+    s => s.connectionId === activeSource.value!.connectionId,
+  );
+  if (idx === -1) return;
+  const permissions =
+    mode === 'full'
+      ? { read: true, create: true, update: true, delete: true }
+      : { read: true, create: false, update: false, delete: false };
+  dataStudioStore.updateSource(idx, { permissionsMode: mode, permissions });
+};
+
+const closePermissionMenu = (e: MouseEvent) => {
+  const target = e.target as HTMLElement;
+  if (!target.closest('.permission-picker')) {
+    permissionMenuOpen.value = false;
+  }
+};
+
+onMounted(async () => {
+  await dataStudioStore.loadSessions();
+  document.addEventListener('click', closePermissionMenu);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', closePermissionMenu);
+});
 
 const updateDataStudioModel = async (value: string) => {
+  modelVerified.value = null;
   await appStore.setFeatureModelRoute('dataStudio', {
     selectedModelId: value,
     useRecommendedModel: false,
   });
+  // Remember the chosen model for the active session
+  if (activeSession.value?.id) {
+    dataStudioStore.setSessionModelId(activeSession.value.id, value);
+  }
+  const ok = await appStore.verifyModelAvailability(value);
+  modelVerified.value = ok;
+  if (!ok) message.warning(lang.t('dataStudio.modelUnavailable'));
 };
 
 const syncAllProviderModels = () => {
@@ -322,6 +441,10 @@ const syncAllProviderModels = () => {
 };
 
 const handleSend = async () => {
+  if (modelVerified.value === false) {
+    message.warning(lang.t('dataStudio.modelUnavailableSend'));
+    return;
+  }
   if (!canSend.value) return;
   const text = inputText.value.trim();
   inputText.value = '';
@@ -342,6 +465,36 @@ const scrollToBottom = () => {
       conversationRef.value.scrollTop = conversationRef.value.scrollHeight;
     }
   });
+};
+
+const switchSession = async (sessionId: string) => {
+  dataStudioStore.setActiveSession(sessionId);
+  const session = dataStudioStore.sessions.find(s => s.id === sessionId);
+  if (session && session.connectionId !== -1) {
+    dataStudioStore.setActiveConnection(session.connectionId);
+  }
+  // Restore the model that was last used in this session
+  const savedModelId = dataStudioStore.sessionMeta[sessionId]?.modelId;
+  if (savedModelId) {
+    modelVerified.value = null;
+    await appStore.setFeatureModelRoute('dataStudio', {
+      selectedModelId: savedModelId,
+      useRecommendedModel: false,
+    });
+    const ok = await appStore.verifyModelAvailability(savedModelId);
+    modelVerified.value = ok;
+  }
+  historyPanelOpen.value = false;
+  nextTick(() => scrollToBottom());
+};
+
+const deleteSession = async (sessionId: string) => {
+  await dataStudioStore.removeSession(sessionId);
+};
+
+const startNewSession = () => {
+  dataStudioStore.setActiveSession('');
+  historyPanelOpen.value = false;
 };
 
 watch(
@@ -395,11 +548,11 @@ const openDetachModal = (index: number) => {
 
 .data-studio-conversation {
   flex: 1;
-  overflow-y: auto;
   padding: 20px 20px 0;
   display: flex;
   flex-direction: column;
   position: relative;
+  min-height: 0;
 }
 
 .conversation-content {
@@ -437,14 +590,12 @@ const openDetachModal = (index: number) => {
 }
 
 .data-studio-input-wrapper {
-  position: sticky;
-  bottom: 0;
+  flex-shrink: 0;
   width: 100%;
   padding: 16px 20px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: auto;
   background: linear-gradient(to top, hsl(var(--background)) 75%, transparent);
 }
 
@@ -457,7 +608,6 @@ const openDetachModal = (index: number) => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .input-row {
@@ -545,7 +695,27 @@ const openDetachModal = (index: number) => {
   cursor: not-allowed;
 }
 
+.send-button--blocked {
+  opacity: 0.3;
+  cursor: not-allowed;
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+}
+
 /* Config Panel */
+.data-studio-history {
+  width: 280px;
+  border-right: 1px solid hsl(var(--border));
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.icon-button--active {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
 .data-studio-config {
   width: 280px;
   border-left: 1px solid hsl(var(--border));
@@ -711,5 +881,196 @@ const openDetachModal = (index: number) => {
 
 .detach-button:hover {
   color: hsl(var(--destructive));
+}
+
+/* ── Permission mode picker ── */
+.permission-picker {
+  position: relative;
+}
+
+.permission-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.5);
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.permission-trigger:hover {
+  background: hsl(var(--muted));
+}
+
+.permission-trigger-icon {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s;
+}
+
+.permission-trigger-label {
+  font-size: 12px;
+  color: hsl(var(--foreground));
+  transition: opacity 0.15s;
+}
+
+.permission-trigger-chevron {
+  color: hsl(var(--muted-foreground));
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.permission-picker .permission-trigger[aria-expanded='true'] .permission-trigger-chevron {
+  transform: rotate(180deg);
+}
+
+.permission-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 50;
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  border-radius: 10px;
+  padding: 6px;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  animation: menu-rise 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: bottom left;
+}
+
+@keyframes menu-rise {
+  from { opacity: 0; transform: scale(0.93) translateY(6px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0); }
+}
+
+.permission-menu-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: hsl(var(--muted-foreground));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 10px 6px;
+}
+
+.permission-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+  position: relative;
+}
+
+.permission-menu-item:hover {
+  background: hsl(var(--muted));
+}
+
+.permission-menu-item[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: hsl(var(--popover));
+  color: hsl(var(--muted-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: normal;
+  width: 200px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  z-index: 100;
+  animation: tooltip-in 0.15s ease;
+}
+
+@keyframes tooltip-in {
+  from { opacity: 0; transform: translateY(-50%) translateX(-4px); }
+  to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+}
+
+.permission-menu-icon {
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground));
+  transition: color 0.15s, transform 0.2s;
+}
+
+.permission-menu-item--active .permission-menu-icon {
+  color: hsl(var(--foreground));
+}
+
+.permission-menu-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.permission-check {
+  color: hsl(var(--foreground));
+  flex-shrink: 0;
+  animation: check-pop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes check-pop {
+  from { opacity: 0; transform: scale(0.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.loading-dots-wrapper {
+  display: flex;
+  padding: 10px 14px;
+  background: hsl(var(--muted));
+  border-radius: 12px;
+  border-bottom-left-radius: 4px;
+  width: fit-content;
+  margin-bottom: 16px;
+}
+
+.typing-indicator {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--muted-foreground));
+  animation: typing-bounce 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes typing-bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
 }
 </style>

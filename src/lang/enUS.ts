@@ -60,6 +60,7 @@ export const enUS = {
       model: 'Model',
       apiKey: 'API Key',
       apiKeyPlaceholder: 'Please enter the API Key',
+      apiKeySet: 'API key saved — type to replace',
       proxy: 'Network Proxy',
       missing: 'No enabled provider with an available model is ready yet',
       firstMsg: 'Hello, I am your AI assistant, how can I help you?',
@@ -393,6 +394,8 @@ export const enUS = {
   dialogOps: {
     warning: 'Warning',
     removeNotice: 'Remove the connection permanently?',
+    removeProviderNotice:
+      'Remove this provider? This will clear all credentials and model settings.',
     create: 'Create',
     confirm: 'Confirm',
     cancel: 'Cancel',
@@ -577,6 +580,9 @@ export const enUS = {
     temperature: 'Temperature',
     inputPlaceholder: 'Ask a follow-up question or type a command...',
     disclaimer: 'DocKit AI can make mistakes. Please verify important data.',
+    modelUnavailable: 'Model unavailable: check your API key or provider settings.',
+    modelUnavailableSend:
+      'Cannot send — selected model is unavailable. Check your API key or provider settings.',
     addSource: {
       title: 'Add Data Source',
       selectConnection: 'SELECT CONNECTION',
@@ -598,6 +604,12 @@ export const enUS = {
       update: 'Update',
       delete: 'Delete',
       saveChanges: 'Save Changes',
+      modeDefault: 'Default',
+      modeFull: 'Full Access',
+      modeDefaultDesc:
+        'Read-only access. The agent can query and analyze data but cannot modify anything. All safe operations run automatically.',
+      modeFullDesc:
+        'Full read and write access. The agent can create, update, and delete data. Destructive operations will require your confirmation.',
     },
     detachSource: {
       title: 'Detach Source',
@@ -631,7 +643,23 @@ export const enUS = {
         toolError: 'Tool execution failed',
         thinking: 'Thinking',
         thinkingInProgress: 'Thinking…',
+        thinkingDone: 'Done thinking',
+        thinkingDuration: '{s}s',
+        toolWrote: 'Wrote',
+        toolRead: 'Read',
+        toolExecuted: 'Executed',
+        toolSearched: 'Searched',
+        toolDeleted: 'Deleted',
+        toolUpdated: 'Updated',
+        toolResultSuccess: 'Result',
+        toolResultError: 'Failed',
+        iterationLabel: 'Loop {n}',
       },
+    },
+    history: {
+      title: 'Session History',
+      empty: 'No sessions yet',
+      delete: 'Delete session',
     },
   },
   importExport: {
