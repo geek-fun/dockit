@@ -34,6 +34,7 @@ declare module 'vue' {
     CardFooter: typeof import('./src/components/ui/card/CardFooter.vue')['default']
     CardHeader: typeof import('./src/components/ui/card/CardHeader.vue')['default']
     CardTitle: typeof import('./src/components/ui/card/CardTitle.vue')['default']
+    ChatPanel: typeof import('./src/components/chat-panel.vue')['default']
     Checkbox: typeof import('./src/components/ui/checkbox/Checkbox.vue')['default']
     Collapse: typeof import('./src/components/ui/collapse/Collapse.vue')['default']
     CollapseItem: typeof import('./src/components/ui/collapse/CollapseItem.vue')['default']

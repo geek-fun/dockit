@@ -90,6 +90,7 @@ import {
   useDbDataStore,
   useConnectionStore,
   useHistoryStore,
+  useCodeActionStore,
 } from '../../../../store';
 import ResultPanel from './result-panel.vue';
 import EditItem from './edit-item.vue';
@@ -110,6 +111,8 @@ const dbDataStore = useDbDataStore();
 const { dynamoData } = storeToRefs(dbDataStore);
 
 const historyStore = useHistoryStore();
+const codeActionStore = useCodeActionStore();
+const { insertBuffer } = storeToRefs(codeActionStore);
 const partiqlData = computed(() => dynamoData.value.partiqlData);
 
 let editor: Editor | null = null;
@@ -707,6 +710,28 @@ watch(
   },
   { deep: true },
 );
+
+watch(insertBuffer, () => {
+  if (!insertBuffer.value || !editor) return;
+  const position = editor.getPosition();
+  if (!position) return;
+  editor.getModel()?.pushEditOperations(
+    [],
+    [
+      {
+        range: new monaco.Range(
+          position.lineNumber,
+          position.column,
+          position.lineNumber,
+          position.column,
+        ),
+        text: insertBuffer.value,
+      },
+    ],
+    () => null,
+  );
+  codeActionStore.clearInsertBuffer();
+});
 
 // Watch for connection changes to update autocomplete options
 watch(activeConnection, newConnection => {

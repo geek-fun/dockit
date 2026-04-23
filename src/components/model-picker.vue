@@ -1,12 +1,12 @@
 <template>
   <Popover v-model:open="open">
     <PopoverTrigger as-child>
-      <Button variant="ghost" :class="triggerClass">
+      <Button variant="ghost" :class="triggerClasses">
         <span class="truncate text-left">{{ selectedLabel }}</span>
-        <span class="i-carbon-chevron-down ml-2 h-4 w-4 shrink-0 opacity-70" />
+        <span class="i-carbon-chevron-down ml-1 h-3 w-3 shrink-0 opacity-70" />
       </Button>
     </PopoverTrigger>
-    <PopoverContent align="end" :class="panelClass">
+    <PopoverContent align="end" :class="panelClasses">
       <div class="model-picker-panel">
         <div class="model-picker-header">
           <div>
@@ -91,20 +91,18 @@ type ModelPickerGroup = {
 const props = withDefaults(
   defineProps<{
     title?: string;
-    triggerClass?: string;
-    panelClass?: string;
     groups: Array<ModelPickerGroup>;
     modelValue?: string;
     recentModelIds?: Array<string>;
     emptyText?: string;
+    compact?: boolean;
   }>(),
   {
     title: 'Select model',
-    triggerClass: 'h-8 rounded-full px-3 bg-muted/50 hover:bg-muted',
-    panelClass: 'w-[360px] p-0 bg-[#151515] text-white border-[#2b2b2b]',
     modelValue: undefined,
     recentModelIds: () => [],
     emptyText: 'No models found.',
+    compact: false,
   },
 );
 
@@ -118,6 +116,18 @@ const open = ref(false);
 watch(open, value => {
   if (value) emit('open');
 });
+
+const triggerClasses = computed(() =>
+  props.compact
+    ? 'h-7 rounded-full px-2 text-xs bg-muted/40 hover:bg-muted/60 min-w-0 flex-1 max-w-[140px]'
+    : 'h-8 rounded-full px-3 bg-muted/50 hover:bg-muted min-w-[180px]',
+);
+
+const panelClasses = computed(() =>
+  props.compact
+    ? 'w-[280px] p-0 bg-popover text-foreground border-border'
+    : 'w-[360px] p-0 bg-[#151515] text-white border-[#2b2b2b]',
+);
 
 const flattenedModels = computed(() => props.groups.flatMap(group => group.models));
 
@@ -147,7 +157,7 @@ const selectModel = (value: string) => {
 <style scoped>
 .model-picker-panel {
   display: flex;
-  max-height: 520px;
+  max-height: 420px;
   flex-direction: column;
 }
 
@@ -155,36 +165,36 @@ const selectModel = (value: string) => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 18px 18px 10px;
+  padding: 14px 14px 8px;
 }
 
 .model-picker-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.03em;
 }
 
 .model-picker-subtitle {
-  margin-top: 4px;
-  font-size: 11px;
+  margin-top: 2px;
+  font-size: 10px;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.45);
+  color: hsl(var(--muted-foreground) / 0.6);
 }
 
 .model-picker-list {
   overflow-y: auto;
-  padding: 0 10px 14px;
+  padding: 0 8px 12px;
 }
 
 .model-picker-section + .model-picker-section {
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .model-picker-heading {
-  padding: 0 8px 8px;
-  font-size: 12px;
+  padding: 0 6px 6px;
+  font-size: 11px;
   font-weight: 700;
-  color: #b380ff;
+  color: hsl(var(--primary) / 0.8);
 }
 
 .model-picker-row {
@@ -192,41 +202,41 @@ const selectModel = (value: string) => {
   width: 100%;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  border-radius: 10px;
-  padding: 8px 10px;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 6px 8px;
   text-align: left;
-  color: rgba(255, 255, 255, 0.92);
+  color: hsl(var(--foreground));
 }
 
 .model-picker-row:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: hsl(var(--muted) / 0.4);
 }
 
 .model-picker-row.selected .model-picker-name {
-  color: #ffb27c;
+  color: hsl(var(--primary));
 }
 
 .model-picker-row.selected .model-picker-checkmark {
-  color: #ffb27c;
+  color: hsl(var(--primary));
 }
 
 .model-picker-main {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .model-picker-dot {
-  height: 10px;
-  width: 10px;
+  height: 8px;
+  width: 8px;
   border-radius: 9999px;
   background: transparent;
 }
 
 .model-picker-dot.active {
-  background: #ffb27c;
+  background: hsl(var(--primary));
 }
 
 .model-picker-name {
@@ -234,18 +244,18 @@ const selectModel = (value: string) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .model-picker-provider,
 .model-picker-meta {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
 }
 
 .model-picker-empty {
-  padding: 18px 10px;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.54);
+  padding: 14px 8px;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
 }
 </style>

@@ -10,6 +10,7 @@ export const zhCN = {
     setting: '设置',
     chatBot: 'AI助手',
     chatBotEmptyHint: '有什么关于数据库或代码的问题，尽管问我。',
+    chatBotPlaceholder: '在这里输入你的问题...',
     importExport: '导入/导出',
     taskManager: '任务管理器',
   },

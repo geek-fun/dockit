@@ -10,6 +10,7 @@ export const enUS = {
     setting: 'Setting',
     chatBot: 'AI Assistant',
     chatBotEmptyHint: 'Ask me anything about your database or code.',
+    chatBotPlaceholder: 'Type your question here...',
     importExport: 'Import/Export',
     taskManager: 'Task Manager',
   },
