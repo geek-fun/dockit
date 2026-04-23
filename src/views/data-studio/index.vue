@@ -132,32 +132,58 @@
                   >
                     <span
                       class="h-4 w-4 permission-trigger-icon"
-                      :class="activeSource.permissionsMode === 'full' ? 'i-carbon-unlocked' : 'i-carbon-locked'"
+                      :class="
+                        activeSource.permissionsMode === 'full'
+                          ? 'i-carbon-unlocked'
+                          : 'i-carbon-locked'
+                      "
                     />
-                    <span class="permission-trigger-label">{{ activeSource.permissionsMode === 'full' ? $t('dataStudio.modifySource.modeFull') : $t('dataStudio.modifySource.modeDefault') }}</span>
+                    <span class="permission-trigger-label">
+                      {{
+                        activeSource.permissionsMode === 'full'
+                          ? $t('dataStudio.modifySource.modeFull')
+                          : $t('dataStudio.modifySource.modeDefault')
+                      }}
+                    </span>
                     <span class="i-carbon-chevron-down h-3 w-3 permission-trigger-chevron" />
                   </button>
                   <div v-if="permissionMenuOpen" class="permission-menu">
-                    <div class="permission-menu-title">{{ $t('dataStudio.modifySource.accessPermissions') }}</div>
+                    <div class="permission-menu-title">
+                      {{ $t('dataStudio.modifySource.accessPermissions') }}
+                    </div>
                     <button
                       class="permission-menu-item"
-                      :class="{ 'permission-menu-item--active': activeSource.permissionsMode === 'default' }"
+                      :class="{
+                        'permission-menu-item--active': activeSource.permissionsMode === 'default',
+                      }"
                       :data-tooltip="$t('dataStudio.modifySource.modeDefaultDesc')"
                       @click="setPermissionsMode('default')"
                     >
                       <span class="i-carbon-locked h-4 w-4 permission-menu-icon" />
-                      <span class="permission-menu-label">{{ $t('dataStudio.modifySource.modeDefault') }}</span>
-                      <span v-if="activeSource.permissionsMode === 'default'" class="i-carbon-checkmark h-3.5 w-3.5 permission-check" />
+                      <span class="permission-menu-label">
+                        {{ $t('dataStudio.modifySource.modeDefault') }}
+                      </span>
+                      <span
+                        v-if="activeSource.permissionsMode === 'default'"
+                        class="i-carbon-checkmark h-3.5 w-3.5 permission-check"
+                      />
                     </button>
                     <button
                       class="permission-menu-item"
-                      :class="{ 'permission-menu-item--active': activeSource.permissionsMode === 'full' }"
+                      :class="{
+                        'permission-menu-item--active': activeSource.permissionsMode === 'full',
+                      }"
                       :data-tooltip="$t('dataStudio.modifySource.modeFullDesc')"
                       @click="setPermissionsMode('full')"
                     >
                       <span class="i-carbon-unlocked h-4 w-4 permission-menu-icon" />
-                      <span class="permission-menu-label">{{ $t('dataStudio.modifySource.modeFull') }}</span>
-                      <span v-if="activeSource.permissionsMode === 'full'" class="i-carbon-checkmark h-3.5 w-3.5 permission-check" />
+                      <span class="permission-menu-label">
+                        {{ $t('dataStudio.modifySource.modeFull') }}
+                      </span>
+                      <span
+                        v-if="activeSource.permissionsMode === 'full'"
+                        class="i-carbon-checkmark h-3.5 w-3.5 permission-check"
+                      />
                     </button>
                   </div>
                 </div>
@@ -322,7 +348,11 @@
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAppStore } from '@/store';
-import { useDataStudioStore, type ConnectedSource, type PermissionsMode } from '@/store/dataStudioStore';
+import {
+  useDataStudioStore,
+  type ConnectedSource,
+  type PermissionsMode,
+} from '@/store/dataStudioStore';
 import { useDataStudioAgent } from '@/composables/useDataStudioAgent';
 import { useMessageService } from '@/composables';
 import { useLang } from '@/lang';
@@ -385,7 +415,7 @@ const recentDataStudioModelIds = computed(() =>
 const modelVerified = ref<boolean | null>(null);
 const activeSource = computed(() =>
   activeConnectionId.value !== undefined
-    ? connectedSources.value.find(s => s.connectionId === activeConnectionId.value) ?? null
+    ? (connectedSources.value.find(s => s.connectionId === activeConnectionId.value) ?? null)
     : null,
 );
 
@@ -901,7 +931,10 @@ const openDetachModal = (index: number) => {
   font-size: 12px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s, border-color 0.2s, box-shadow 0.2s;
+  transition:
+    background 0.15s,
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .permission-trigger:hover {
@@ -909,7 +942,9 @@ const openDetachModal = (index: number) => {
 }
 
 .permission-trigger-icon {
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s;
+  transition:
+    transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.15s;
 }
 
 .permission-trigger-label {
@@ -944,8 +979,14 @@ const openDetachModal = (index: number) => {
 }
 
 @keyframes menu-rise {
-  from { opacity: 0; transform: scale(0.93) translateY(6px); }
-  to   { opacity: 1; transform: scale(1)    translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.93) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 .permission-menu-title {
@@ -999,14 +1040,22 @@ const openDetachModal = (index: number) => {
 }
 
 @keyframes tooltip-in {
-  from { opacity: 0; transform: translateY(-50%) translateX(-4px); }
-  to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
 }
 
 .permission-menu-icon {
   flex-shrink: 0;
   color: hsl(var(--muted-foreground));
-  transition: color 0.15s, transform 0.2s;
+  transition:
+    color 0.15s,
+    transform 0.2s;
 }
 
 .permission-menu-item--active .permission-menu-icon {
@@ -1027,8 +1076,14 @@ const openDetachModal = (index: number) => {
 }
 
 @keyframes check-pop {
-  from { opacity: 0; transform: scale(0.4); }
-  to   { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .loading-dots-wrapper {

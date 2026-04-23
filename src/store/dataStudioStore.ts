@@ -116,11 +116,21 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
       thinking?: string | null;
       tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> | null;
     };
-    if (typeof parsed === 'object' && parsed !== null && ('content' in parsed || 'thinking' in parsed || 'tool_calls' in parsed)) {
+    if (
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      ('content' in parsed || 'thinking' in parsed || 'tool_calls' in parsed)
+    ) {
       const toolCalls: AgentToolCall[] = (parsed.tool_calls ?? []).map(tc => ({
         id: tc.id,
         toolName: tc.function?.name ?? '',
-        args: (() => { try { return JSON.parse(tc.function?.arguments ?? '{}'); } catch { return {}; } })(),
+        args: (() => {
+          try {
+            return JSON.parse(tc.function?.arguments ?? '{}');
+          } catch {
+            return {};
+          }
+        })(),
         status: 'done' as AgentToolCallStatus,
         riskLevel: 'safe' as RiskLevel,
         requiresConfirmation: false,

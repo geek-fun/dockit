@@ -67,6 +67,7 @@
 import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAppStore, useChatStore } from '../../store';
+import { ChatMessageRole } from '../../datasources';
 import { useMessageService } from '@/composables';
 import { useLang } from '@/lang';
 import AgentMessageBubble from '../../components/agent-message-bubble.vue';
@@ -93,7 +94,7 @@ const messages = computed(() => activeChat.value?.messages ?? []);
 const iterationIndexMap = computed<Record<string, number>>(() => {
   let count = 0;
   return messages.value.reduce<Record<string, number>>((acc, msg) => {
-    if (msg.role === 'assistant' && msg.toolCalls?.length) {
+    if (msg.role === ChatMessageRole.BOT && msg.content) {
       acc[msg.id] = count++;
     }
     return acc;

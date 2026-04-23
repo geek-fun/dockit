@@ -122,7 +122,7 @@
             :label="$t('setting.ai.providers.providerType')"
           >
             <Select
-              :model-value="draftProviderKind"
+              :model-value="draftProviderKind ?? undefined"
               @update:model-value="updateDraftProviderKind($event)"
             >
               <SelectTrigger>
@@ -517,14 +517,14 @@ const showBaseUrlField = (provider: ProviderConfig) =>
 
 const supportsAuthTabs = (kind: ProviderKind) => kind === 'openrouter';
 
-const updateProviderAuthTab = (value: string) => {
+const updateProviderAuthTab = (value: string | number) => {
   providerAuthTab.value = value as ProviderAuthTab;
   dialogTestState.value = 'idle';
   if (!draftProvider.value) return;
   draftProvider.value.authMode = providerAuthTab.value === 'website' ? 'oauth' : 'api-key';
 };
 
-const updateDraftProviderKind = (value: string) => {
+const updateDraftProviderKind = (value: string | number) => {
   draftProviderKind.value = value as ProviderKind;
   draftProvider.value = createDraftProvider(draftProviderKind.value);
   providerAuthTab.value = draftProvider.value.kind === 'openrouter' ? 'website' : 'api-key';

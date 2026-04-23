@@ -6,14 +6,16 @@
 
     <div v-else-if="normalizedRole === 'assistant'" class="assistant-wrapper">
       <!-- Activity timeline: thinking + tool call/result pairs -->
-      <div
-        v-if="message.thinking || message.toolCalls?.length"
-        class="activity-list"
-      >
+      <div v-if="message.thinking || message.toolCalls?.length" class="activity-list">
         <!-- Iteration header (only when there are tool calls → marks this as an agent loop step) -->
-        <div v-if="iterationIndex !== undefined && message.toolCalls?.length" class="iteration-header">
+        <div
+          v-if="iterationIndex !== undefined && message.toolCalls?.length"
+          class="iteration-header"
+        >
           <span class="iteration-icon i-carbon-repeat" />
-          <span class="iteration-label">{{ t('dataStudio.agent.message.iterationLabel', { n: iterationIndex + 1 }) }}</span>
+          <span class="iteration-label">
+            {{ t('dataStudio.agent.message.iterationLabel', { n: iterationIndex + 1 }) }}
+          </span>
         </div>
 
         <!-- Thinking node -->
@@ -23,10 +25,16 @@
           :open="isStreaming && !message.content"
         >
           <summary class="activity-item">
-            <span class="activity-bullet" :class="{ 'is-streaming': isStreaming && !message.toolCalls?.length }" />
+            <span
+              class="activity-bullet"
+              :class="{ 'is-streaming': isStreaming && !message.toolCalls?.length }"
+            />
             <span class="activity-icon i-carbon-idea" />
             <span class="activity-label">
-              <span v-if="isStreaming && !message.toolCalls?.length" class="activity-label-streaming">
+              <span
+                v-if="isStreaming && !message.toolCalls?.length"
+                class="activity-label-streaming"
+              >
                 {{ t('dataStudio.agent.message.thinkingInProgress') }}
                 <span class="inline-dots">
                   <span class="dot" />
@@ -37,19 +45,27 @@
               <span v-else class="thinking-done-label">
                 {{ t('dataStudio.agent.message.thinkingDone') }}
                 <span v-if="message.thinkingDuration" class="duration-badge">
-                  {{ t('dataStudio.agent.message.thinkingDuration', { s: message.thinkingDuration }) }}
+                  {{
+                    t('dataStudio.agent.message.thinkingDuration', { s: message.thinkingDuration })
+                  }}
                 </span>
               </span>
             </span>
             <span class="activity-chevron i-carbon-chevron-down" />
           </summary>
           <div class="activity-body thinking-body">
-            <MarkdownRender :markdown="message.thinking" class="markdown-body prose prose-sm max-w-none" />
+            <MarkdownRender
+              :markdown="message.thinking"
+              class="markdown-body prose prose-sm max-w-none"
+            />
           </div>
         </details>
 
         <div v-if="message.content && message.toolCalls?.length" class="activity-inline-content">
-          <MarkdownRender :markdown="message.content" class="markdown-body prose prose-sm max-w-none" />
+          <MarkdownRender
+            :markdown="message.content"
+            class="markdown-body prose prose-sm max-w-none"
+          />
         </div>
 
         <template v-for="tc in message.toolCalls" :key="tc.id">
@@ -65,10 +81,22 @@
               />
               <span class="activity-icon" :class="toolIcon(tc.toolName)" />
               <span class="activity-label">{{ toolLabel(tc.toolName, tc) }}</span>
-              <span v-if="tc.status === 'executing'" class="i-carbon-renew animate-spin activity-status-icon executing" />
-              <span v-else-if="tc.status === 'pending'" class="i-carbon-time activity-status-icon pending" />
-              <span v-else-if="tc.status === 'error'" class="i-carbon-warning activity-status-icon error" />
-              <span v-else-if="tc.status === 'denied'" class="i-carbon-subtract activity-status-icon denied" />
+              <span
+                v-if="tc.status === 'executing'"
+                class="i-carbon-renew animate-spin activity-status-icon executing"
+              />
+              <span
+                v-else-if="tc.status === 'pending'"
+                class="i-carbon-time activity-status-icon pending"
+              />
+              <span
+                v-else-if="tc.status === 'error'"
+                class="i-carbon-warning activity-status-icon error"
+              />
+              <span
+                v-else-if="tc.status === 'denied'"
+                class="i-carbon-subtract activity-status-icon denied"
+              />
               <span class="activity-chevron i-carbon-chevron-down" />
             </summary>
             <pre class="activity-body tool-body">{{ formatToolArgs(tc) }}</pre>
@@ -80,7 +108,10 @@
             class="activity-item-details result-item-details"
           >
             <summary class="activity-item result-item" :class="`result-${resultStatus(tc)}`">
-              <span class="activity-bullet result-bullet" :class="`result-bullet-${resultStatus(tc)}`" />
+              <span
+                class="activity-bullet result-bullet"
+                :class="`result-bullet-${resultStatus(tc)}`"
+              />
               <span
                 class="activity-icon"
                 :class="{
@@ -90,8 +121,12 @@
                 }"
               />
               <span class="activity-label result-label" :class="`result-text-${resultStatus(tc)}`">
-                <span v-if="resultStatus(tc) === 'success'">{{ t('dataStudio.agent.message.toolResultSuccess') }}</span>
-                <span v-else-if="resultStatus(tc) === 'error'">{{ t('dataStudio.agent.message.toolResultError') }}</span>
+                <span v-if="resultStatus(tc) === 'success'">
+                  {{ t('dataStudio.agent.message.toolResultSuccess') }}
+                </span>
+                <span v-else-if="resultStatus(tc) === 'error'">
+                  {{ t('dataStudio.agent.message.toolResultError') }}
+                </span>
                 <span v-else>{{ t('dataStudio.agent.message.toolDenied') }}</span>
                 <span v-if="tc.result" class="result-preview">{{ resultPreview(tc.result) }}</span>
               </span>
@@ -99,7 +134,11 @@
             </summary>
             <pre v-if="tc.result" class="activity-body tool-body result-body">{{ tc.result }}</pre>
             <div v-else class="activity-body tool-body result-body muted-body">
-              {{ tc.status === 'denied' ? t('dataStudio.agent.message.toolDenied') : t('dataStudio.agent.message.toolError') }}
+              {{
+                tc.status === 'denied'
+                  ? t('dataStudio.agent.message.toolDenied')
+                  : t('dataStudio.agent.message.toolError')
+              }}
             </div>
           </details>
         </template>
@@ -175,15 +214,34 @@ const formatToolArgs = (tc: AgentToolCall): string => {
 
 const toolIcon = (toolName: string): string => {
   const name = toolName.toLowerCase();
-  if (name.includes('write') || name.includes('create') || name.includes('save')) return 'i-carbon-edit';
-  if (name.includes('read') || name.includes('open') || name.includes('view')) return 'i-carbon-document-view';
-  if (name.includes('search') || name.includes('find') || name.includes('query')) return 'i-carbon-search';
+  if (name.includes('write') || name.includes('create') || name.includes('save'))
+    return 'i-carbon-edit';
+  if (name.includes('read') || name.includes('open') || name.includes('view'))
+    return 'i-carbon-document-view';
+  if (name.includes('search') || name.includes('find') || name.includes('query'))
+    return 'i-carbon-search';
   if (name.includes('delete') || name.includes('remove')) return 'i-carbon-trash-can';
-  if (name.includes('execute') || name.includes('run') || name.includes('bash') || name.includes('command') || name.includes('shell')) return 'i-carbon-terminal';
-  if (name.includes('list') || name.includes('index') || name.includes('indices')) return 'i-carbon-list';
-  if (name.includes('update') || name.includes('edit') || name.includes('modify')) return 'i-carbon-pen';
-  if (name.includes('fetch') || name.includes('http') || name.includes('request') || name.includes('web')) return 'i-carbon-cloud';
-  if (name.includes('think') || name.includes('reason') || name.includes('analyze')) return 'i-carbon-idea';
+  if (
+    name.includes('execute') ||
+    name.includes('run') ||
+    name.includes('bash') ||
+    name.includes('command') ||
+    name.includes('shell')
+  )
+    return 'i-carbon-terminal';
+  if (name.includes('list') || name.includes('index') || name.includes('indices'))
+    return 'i-carbon-list';
+  if (name.includes('update') || name.includes('edit') || name.includes('modify'))
+    return 'i-carbon-pen';
+  if (
+    name.includes('fetch') ||
+    name.includes('http') ||
+    name.includes('request') ||
+    name.includes('web')
+  )
+    return 'i-carbon-cloud';
+  if (name.includes('think') || name.includes('reason') || name.includes('analyze'))
+    return 'i-carbon-idea';
   return 'i-carbon-settings';
 };
 
@@ -195,16 +253,32 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
   const truncated = argStr.length > 48 ? argStr.slice(0, 48) + '...' : argStr;
 
   const prefix = (() => {
-    if (name.includes('write') || name.includes('create')) return t('dataStudio.agent.message.toolWrote');
-    if (name.includes('read') || name.includes('open')) return t('dataStudio.agent.message.toolRead');
-    if (name.includes('execute') || name.includes('run') || name.includes('bash') || name.includes('command')) return t('dataStudio.agent.message.toolExecuted');
-    if (name.includes('search') || name.includes('find')) return t('dataStudio.agent.message.toolSearched');
-    if (name.includes('delete') || name.includes('remove')) return t('dataStudio.agent.message.toolDeleted');
-    if (name.includes('update') || name.includes('edit')) return t('dataStudio.agent.message.toolUpdated');
+    if (name.includes('write') || name.includes('create'))
+      return t('dataStudio.agent.message.toolWrote');
+    if (name.includes('read') || name.includes('open'))
+      return t('dataStudio.agent.message.toolRead');
+    if (
+      name.includes('execute') ||
+      name.includes('run') ||
+      name.includes('bash') ||
+      name.includes('command')
+    )
+      return t('dataStudio.agent.message.toolExecuted');
+    if (name.includes('search') || name.includes('find'))
+      return t('dataStudio.agent.message.toolSearched');
+    if (name.includes('delete') || name.includes('remove'))
+      return t('dataStudio.agent.message.toolDeleted');
+    if (name.includes('update') || name.includes('edit'))
+      return t('dataStudio.agent.message.toolUpdated');
     return null;
   })();
 
-  if (prefix) return truncated ? `${prefix} ${truncated}` : (prefix === t('dataStudio.agent.message.toolExecuted') ? `${prefix} ${toolName}` : toolName);
+  if (prefix)
+    return truncated
+      ? `${prefix} ${truncated}`
+      : prefix === t('dataStudio.agent.message.toolExecuted')
+        ? `${prefix} ${toolName}`
+        : toolName;
   return truncated ? `${toolName} ${truncated}` : toolName;
 };
 </script>
@@ -334,7 +408,9 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
   flex-shrink: 0;
   position: relative;
   z-index: 1;
-  transition: border-color 0.2s, background 0.2s;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
 }
 
 .activity-bullet.is-streaming,
@@ -579,8 +655,7 @@ details[open] .activity-chevron {
   color: hsl(var(--foreground));
 }
 
-.markdown-body
-.markdown-body :deep(p) {
+.markdown-body .markdown-body :deep(p) {
   margin: 0 0 8px;
 }
 
