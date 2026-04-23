@@ -166,6 +166,27 @@ export const enUS = {
       mappings: 'Mappings',
       statisticTitle: 'Node Statistics',
     },
+    shard: {
+      unassignedAlert: 'Shard Unassigned',
+      reason: 'Reason',
+      details: 'Details',
+      at: 'Time',
+      forDuration: 'Duration',
+      allocationExplanation: 'Allocation Explanation',
+      lastAllocationStatus: 'Last Allocation Status',
+      nodeDecisions: 'Node Allocation Decisions',
+      loadingExplanation: 'Loading allocation explanation...',
+    },
+    tabs: {
+      indices: 'Indices',
+      templates: 'Templates',
+    },
+    actions: {
+      newIndex: 'New Index',
+      newAlias: 'New Alias',
+      newTemplate: 'New Template',
+      refresh: 'Refresh',
+    },
     index: {
       actions: {
         deleteIndex: 'Delete Index',
@@ -184,6 +205,10 @@ export const enUS = {
         replicas: 'Number of Replicas',
         bodyJsonRequired: 'Body is not a valid JSON format',
         indexRequired: 'Index name is required',
+        masterTimeoutDesc: 'Default: 30s',
+        timeoutDesc: 'Default: 30s',
+        waitForActiveShardsDesc: 'Default: 1 (primary shard only)',
+        bodyPlaceholder: 'Optional JSON body for mappings, settings, aliases...',
       },
       newAliasForm: {
         title: 'Create Alias',
@@ -192,14 +217,34 @@ export const enUS = {
         aliasRequired: 'Alias name is required',
         indexRequired: 'Index name is required',
         filterJsonRequired: 'Filter is not a valid JSON format',
+        masterTimeoutDesc: 'Default: 30s',
+        timeoutDesc: 'Default: 30s',
+        isWriteIndexDesc: 'Set this index as write target for the alias',
+        routingDesc: 'Route operations to specific shard (optional)',
+        searchRoutingDesc: 'Route search operations (optional, overrides routing)',
+        indexRoutingDesc: 'Route indexing operations (optional, overrides routing)',
+        filterPlaceholder: 'Optional query filter, e.g. {"term": {"status": "active"}}',
       },
       newTemplateForm: {
         title: 'Create Template',
+        selectType: 'Select template type',
         indexTemplate: 'Index Template',
         templateName: 'Template Name',
         componentTemplate: 'Component Template',
+        orderLabel: 'Order',
+        priorityLabel: 'Priority',
+        precedenceDesc:
+          '{{field}} determines template precedence when multiple templates match. Higher values = higher precedence.',
+        componentTemplateUnsupported:
+          'Component templates require Elasticsearch 7.8+ or OpenSearch.',
         templateRequired: 'Template name is required',
         bodyJsonRequired: 'Request Body is not a valid JSON format',
+        failIfExists: 'Fail if exists',
+        failIfExistsDesc: 'Prevent overwriting existing template',
+        validationFailed: 'Form validation failed',
+        conflictWarning: 'Template Pattern Conflict',
+        conflictDesc:
+          'This template has index patterns matching existing templates with the same priority. This may cause errors during index creation. Consider using a different priority value.',
       },
       switchAliasForm: {
         title: 'Switch Alias',
@@ -353,6 +398,7 @@ export const enUS = {
     operations: {
       connect: 'Connect',
       edit: 'Edit',
+      clone: 'Clone',
       remove: 'Remove',
     },
     filterPlaceholder: 'Filter connections...',
@@ -568,6 +614,7 @@ export const enUS = {
     connection: 'Connection',
     timestamp: 'Time',
     body: 'Body',
+    goToEditor: 'Go to Editor',
   },
   dataStudio: {
     title: 'DATA STUDIO BETA',

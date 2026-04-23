@@ -52,37 +52,59 @@
                 <GridItem :span="4">
                   <FormItem label="master_timeout">
                     <div class="flex items-center gap-2">
-                      <InputNumber v-model="formData.master_timeout" class="flex-1" />
+                      <InputNumber
+                        v-model="formData.master_timeout"
+                        class="flex-1"
+                        placeholder="30"
+                      />
                       <span class="text-sm text-muted-foreground">s</span>
                     </div>
+                    <p class="text-xs text-muted-foreground mt-1">
+                      {{ $t('manage.index.newAliasForm.masterTimeoutDesc') }}
+                    </p>
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
                   <FormItem label="timeout">
                     <div class="flex items-center gap-2">
-                      <InputNumber v-model="formData.timeout" class="flex-1" />
+                      <InputNumber v-model="formData.timeout" class="flex-1" placeholder="30" />
                       <span class="text-sm text-muted-foreground">s</span>
                     </div>
+                    <p class="text-xs text-muted-foreground mt-1">
+                      {{ $t('manage.index.newAliasForm.timeoutDesc') }}
+                    </p>
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
                   <FormItem label="is_write_index">
                     <Switch v-model:checked="formData.is_write_index" />
+                    <p class="text-xs text-muted-foreground mt-1">
+                      {{ $t('manage.index.newAliasForm.isWriteIndexDesc') }}
+                    </p>
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
                   <FormItem label="routing">
-                    <InputNumber v-model="formData.routing" />
+                    <InputNumber v-model="formData.routing" placeholder="" />
+                    <p class="text-xs text-muted-foreground mt-1">
+                      {{ $t('manage.index.newAliasForm.routingDesc') }}
+                    </p>
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
                   <FormItem label="search_routing">
-                    <InputNumber v-model="formData.search_routing" />
+                    <InputNumber v-model="formData.search_routing" placeholder="" />
+                    <p class="text-xs text-muted-foreground mt-1">
+                      {{ $t('manage.index.newAliasForm.searchRoutingDesc') }}
+                    </p>
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
                   <FormItem label="index_routing">
-                    <InputNumber v-model="formData.index_routing" />
+                    <InputNumber v-model="formData.index_routing" placeholder="" />
+                    <p class="text-xs text-muted-foreground mt-1">
+                      {{ $t('manage.index.newAliasForm.indexRoutingDesc') }}
+                    </p>
                   </FormItem>
                 </GridItem>
                 <GridItem :span="8">
@@ -90,6 +112,7 @@
                     <textarea
                       v-model="formData.filter"
                       class="textarea-input"
+                      :placeholder="$t('manage.index.newAliasForm.filterPlaceholder')"
                       @blur="handleBlur('filter')"
                     />
                   </FormItem>
@@ -114,7 +137,7 @@
 import { storeToRefs } from 'pinia';
 import { Loader2 } from 'lucide-vue-next';
 import { useMessageService, useFormValidation } from '@/composables';
-import { CustomError, jsonify } from '../../../common';
+import { CustomError, jsonify, withLoadingDelay } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
 import {
@@ -140,7 +163,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 
 const clusterManageStore = useClusterManageStore();
-const { createAlias } = clusterManageStore;
+const { createAlias, refreshStates } = clusterManageStore;
 const { indexWithAliases } = storeToRefs(clusterManageStore);
 const lang = useLang();
 const message = useMessageService();
@@ -220,11 +243,14 @@ const submitCreate = async (event: MouseEvent) => {
 
   createLoading.value = true;
   try {
-    await createAlias({
-      ...formData.value,
-      filter: formData.value.filter ? jsonify.parse(formData.value.filter) : undefined,
-    });
+    await withLoadingDelay(
+      createAlias({
+        ...formData.value,
+        filter: formData.value.filter ? jsonify.parse(formData.value.filter) : undefined,
+      }),
+    );
     message.success(lang.t('dialogOps.createSuccess'));
+    await refreshStates();
     closeModal();
   } catch (err) {
     message.error((err as CustomError).details, {

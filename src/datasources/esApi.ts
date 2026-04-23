@@ -195,9 +195,18 @@ export enum TemplateType {
   COMPONENT_TEMPLATE = 'COMPONENT_TEMPLATE',
 }
 
-type ComponentTemplate = {
+export enum TemplateApiMode {
+  LEGACY = 'LEGACY',
+  COMPOSABLE = 'COMPOSABLE',
+}
+
+export type ClusterTemplate = {
   name: string;
   type: TemplateType;
+  api_mode: TemplateApiMode;
+  precedence: number | null;
+  index_patterns: Array<string>;
+  composed_of: Array<string>;
   version: number | null;
   alias_count: number | null;
   mapping_count: number | null;
@@ -205,16 +214,204 @@ type ComponentTemplate = {
   metadata_count: number | null;
   included_in: Array<string>;
 };
-type IndexTemplate = {
-  name: string;
-  type: TemplateType;
-  index_patterns: Array<string>;
-  order: number | null;
-  version: number | null;
-  composed_of: Array<string>;
+
+export type AllocationDecider = {
+  decider: string;
+  decision: string;
+  explanation: string;
 };
 
-export type ClusterTemplate = ComponentTemplate | IndexTemplate;
+export type NodeAllocationDecision = {
+  node_id: string;
+  node_name: string;
+  node_attributes: Record<string, string>;
+  node_decision: string;
+  weight_ranking: number | null;
+  deciders: AllocationDecider[];
+};
+
+export type UnassignedInfo = {
+  reason: string;
+  at: string;
+  last_allocation_status: string;
+  details?: string;
+  for?: string;
+};
+
+export type ClusterAllocationExplain = {
+  index: string;
+  shard: number;
+  primary: boolean;
+  current_state: string;
+  unassigned_info?: UnassignedInfo;
+  can_allocate: string;
+  allocate_explanation?: string;
+  node_allocation_decisions: NodeAllocationDecision[];
+};
+
+const parseVersionParts = (version: string | undefined) => {
+  const parts = (version ?? '7.8').split('.').map(part => parseInt(part, 10));
+  const major = parts[0];
+  const minor = parts[1];
+
+  return {
+    major: Number.isNaN(major) ? 7 : major,
+    minor: minor === undefined || Number.isNaN(minor) ? 8 : minor,
+  };
+};
+
+const getTemplateApiMode = (connection: ElasticsearchConnection): TemplateApiMode => {
+  if (connection.isOpenSearch) {
+    return TemplateApiMode.COMPOSABLE;
+  }
+
+  const { major, minor } = parseVersionParts(connection.version);
+
+  if (major < 7 || (major === 7 && minor < 8)) {
+    return TemplateApiMode.LEGACY;
+  }
+
+  return TemplateApiMode.COMPOSABLE;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+};
+
+const toStringArray = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string');
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .replace(/^\[/, '')
+      .replace(/\]$/, '')
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
+const countRecordKeys = (value: unknown): number | null => {
+  return isRecord(value) ? Object.keys(value).length : null;
+};
+
+const toNullableInt = (value: unknown): number | null => {
+  return optionalToNullableInt(
+    typeof value === 'string' || typeof value === 'number' ? value : undefined,
+  );
+};
+
+const normalizeComposableTemplateBody = (body: string | null) => {
+  if (!body) {
+    return undefined;
+  }
+
+  const parsedBody = jsonify.parse(body) as Record<string, unknown>;
+  const template = isRecord(parsedBody.template) ? parsedBody.template : {};
+  const { order, settings, mappings, aliases, template: _template, ...rest } = parsedBody;
+
+  const hasExistingPriority = rest.priority !== undefined || template.priority !== undefined;
+  const templateWithoutPriority = Object.fromEntries(
+    Object.entries(template).filter(([key]) => key !== 'priority'),
+  );
+
+  return jsonify.stringify({
+    ...rest,
+    ...(order !== undefined && !hasExistingPriority ? { priority: order } : {}),
+    template: {
+      ...(settings !== undefined && template.settings === undefined ? { settings } : {}),
+      ...(mappings !== undefined && template.mappings === undefined ? { mappings } : {}),
+      ...(aliases !== undefined && template.aliases === undefined ? { aliases } : {}),
+      ...templateWithoutPriority,
+    },
+  });
+};
+
+const normalizeLegacyTemplateBody = (body: string | null) => {
+  if (!body) {
+    return undefined;
+  }
+
+  const parsedBody = jsonify.parse(body) as Record<string, unknown>;
+  const template = isRecord(parsedBody.template) ? parsedBody.template : {};
+  const { priority, template: _template, composed_of, data_stream, ...rest } = parsedBody;
+
+  if (Array.isArray(composed_of) && composed_of.length > 0) {
+    throw new CustomError(400, 'Legacy templates do not support composed_of');
+  }
+
+  if (data_stream !== undefined) {
+    throw new CustomError(400, 'Legacy templates do not support data_stream');
+  }
+
+  return jsonify.stringify({
+    ...rest,
+    ...template,
+    ...(priority !== undefined && rest.order === undefined ? { order: priority } : {}),
+  });
+};
+
+const normalizeLegacyTemplate = (
+  name: string,
+  template: Record<string, unknown>,
+): ClusterTemplate => ({
+  name,
+  type: TemplateType.INDEX_TEMPLATE,
+  api_mode: TemplateApiMode.LEGACY,
+  precedence: toNullableInt(template.order),
+  index_patterns: toStringArray(template.index_patterns),
+  composed_of: [],
+  version: toNullableInt(template.version),
+  alias_count: countRecordKeys(template.aliases),
+  mapping_count: countRecordKeys(template.mappings),
+  settings_count: countRecordKeys(template.settings),
+  metadata_count: countRecordKeys(template._meta),
+  included_in: [],
+});
+
+const normalizeComposableIndexTemplate = (item: Record<string, unknown>): ClusterTemplate => {
+  const template = isRecord(item.index_template) ? item.index_template : {};
+  const templateBody = isRecord(template.template) ? template.template : {};
+
+  return {
+    name: typeof item.name === 'string' ? item.name : '',
+    type: TemplateType.INDEX_TEMPLATE,
+    api_mode: TemplateApiMode.COMPOSABLE,
+    precedence: toNullableInt(template.priority),
+    index_patterns: toStringArray(template.index_patterns),
+    composed_of: toStringArray(template.composed_of),
+    version: toNullableInt(template.version),
+    alias_count: countRecordKeys(templateBody.aliases),
+    mapping_count: countRecordKeys(templateBody.mappings),
+    settings_count: countRecordKeys(templateBody.settings),
+    metadata_count: countRecordKeys(template._meta),
+    included_in: [],
+  };
+};
+
+const normalizeComponentTemplate = (item: Record<string, unknown>): ClusterTemplate => {
+  const template = isRecord(item.component_template) ? item.component_template : {};
+  const templateBody = isRecord(template.template) ? template.template : {};
+
+  return {
+    name: typeof item.name === 'string' ? item.name : '',
+    type: TemplateType.COMPONENT_TEMPLATE,
+    api_mode: TemplateApiMode.COMPOSABLE,
+    precedence: null,
+    index_patterns: [],
+    composed_of: [],
+    version: toNullableInt(template.version),
+    alias_count: countRecordKeys(templateBody.aliases),
+    mapping_count: countRecordKeys(templateBody.mappings),
+    settings_count: countRecordKeys(templateBody.settings),
+    metadata_count: countRecordKeys(template._meta),
+    included_in: [],
+  };
+};
 
 interface ESApi {
   createIndex(
@@ -287,7 +484,16 @@ interface ESApi {
     connection: ElasticsearchConnection,
   ): Promise<Array<{ index: string; shards: Array<ClusterShard> }>>;
 
-  catTemplates(connection: ElasticsearchConnection): Promise<Array<ClusterTemplate>>;
+  listTemplates(connection: ElasticsearchConnection): Promise<Array<ClusterTemplate>>;
+
+  allocationExplain(
+    connection: ElasticsearchConnection,
+    options: {
+      index: string;
+      shard: number;
+      primary: boolean;
+    },
+  ): Promise<ClusterAllocationExplain>;
 }
 
 const esApi: ESApi = {
@@ -401,6 +607,7 @@ const esApi: ESApi = {
   },
   createTemplate: async (connection, { name, type, create, master_timeout, body }) => {
     const client = loadHttpClient(connection);
+    const templateApiMode = getTemplateApiMode(connection);
     const queryParams = new URLSearchParams();
     [
       { key: 'master_timeout', value: master_timeout },
@@ -411,11 +618,44 @@ const esApi: ESApi = {
       }
     });
 
+    if (templateApiMode === TemplateApiMode.LEGACY) {
+      if (type === TemplateType.COMPONENT_TEMPLATE) {
+        throw new CustomError(400, 'Component templates are not supported by this cluster');
+      }
+
+      try {
+        const response = await client.put<{
+          status: number;
+          error: { type: string; reason: string };
+        }>(`/_template/${name}`, queryParams.toString(), normalizeLegacyTemplateBody(body));
+        if (response.status >= 300) {
+          throw new CustomError(
+            response.status,
+            `${response.error.type}: ${response.error.reason}`,
+          );
+        }
+      } catch (err) {
+        throw new CustomError(
+          err instanceof CustomError ? err.status : 500,
+          err instanceof CustomError ? err.details : (err as Error).message,
+        );
+      }
+
+      return;
+    }
+
+    const esTemplatePath =
+      type === TemplateType.INDEX_TEMPLATE ? '_index_template' : '_component_template';
+
     try {
       const response = await client.put<{
         status: number;
         error: { type: string; reason: string };
-      }>(`/${type}/${name}`, queryParams.toString(), body ?? undefined);
+      }>(
+        `/${esTemplatePath}/${name}`,
+        queryParams.toString(),
+        normalizeComposableTemplateBody(body),
+      );
       if (response.status >= 300) {
         throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
       }
@@ -755,47 +995,54 @@ const esApi: ESApi = {
     }
   },
 
-  catTemplates: async connection => {
+  listTemplates: async connection => {
     const client = loadHttpClient(connection);
-    const fetchIndexTemplates = async () => {
-      const data = (await client.get('/_cat/templates', 'format=json')) as Array<{
-        [key: string]: string;
-      }>;
-      return data.map((template: { [key: string]: string }) => ({
-        name: template.name,
-        type: TemplateType.INDEX_TEMPLATE,
-        order: optionalToNullableInt(template.order),
-        version: optionalToNullableInt(template.version),
-        index_patterns: template.index_patterns.slice(1, -1).split(',').filter(Boolean),
-        composed_of: template.composed_of.slice(1, -1).split(',').filter(Boolean),
-      }));
-    };
-    const fetchComponentTemplates = async () => {
-      const data = (await client.get('/_component_template', 'format=json')) as {
-        component_templates: Array<{
-          [key: string]: string;
-        }>;
-      };
+    const templateApiMode = getTemplateApiMode(connection);
 
-      return data?.component_templates.map((template: { [key: string]: string }) => ({
-        name: template.name,
-        type: TemplateType.COMPONENT_TEMPLATE,
-        version: optionalToNullableInt(template.version),
-        alias_count: optionalToNullableInt(template.alias_count),
-        mapping_count: optionalToNullableInt(template.mapping_count),
-        settings_count: optionalToNullableInt(template.settings_count),
-        metadata_count: optionalToNullableInt(template.metadata_count),
-        included_in: template.included_in?.slice(1, -1).split(',').filter(Boolean),
-      }));
-    };
+    if (templateApiMode === TemplateApiMode.LEGACY) {
+      const data = (await client.get('/_template')) as Record<string, Record<string, unknown>>;
 
-    const [indexTemplates, componentTemplates] = await Promise.all([
-      fetchIndexTemplates(),
-      fetchComponentTemplates(),
+      return Object.entries(data).map(([name, template]) =>
+        normalizeLegacyTemplate(name, template),
+      );
+    }
+
+    const [indexTemplatesResponse, componentTemplatesResponse] = await Promise.all([
+      client.get<{ index_templates: Array<Record<string, unknown>> }>('/_index_template'),
+      client.get<{ component_templates: Array<Record<string, unknown>> }>('/_component_template'),
     ]);
 
-    return [...indexTemplates, ...componentTemplates];
+    return [
+      ...(indexTemplatesResponse.index_templates || []).map(normalizeComposableIndexTemplate),
+      ...(componentTemplatesResponse.component_templates || []).map(normalizeComponentTemplate),
+    ];
+  },
+
+  allocationExplain: async (connection, { index, shard, primary }) => {
+    const client = loadHttpClient(connection);
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.append('include_yes_decisions', 'true');
+      const data = await client.post<ClusterAllocationExplain>(
+        `/_cluster/allocation/explain?${queryParams.toString()}`,
+        undefined,
+        jsonify.stringify({ index, shard, primary }),
+      );
+      return data;
+    } catch (err) {
+      debug(`Failed to get allocation explanation: ${err}`);
+      throw new CustomError(
+        err instanceof CustomError ? err.status : 500,
+        err instanceof CustomError ? err.details : (err as Error).message,
+      );
+    }
   },
 };
 
-export { esApi };
+export {
+  esApi,
+  getTemplateApiMode,
+  parseVersionParts,
+  normalizeComposableTemplateBody,
+  normalizeLegacyTemplateBody,
+};

@@ -1,13 +1,17 @@
 <template>
   <div class="dynamo-manage-container">
-    <div v-if="refreshLoading" class="refresh-overlay">
-      <Spinner size="lg" />
-      <span class="refresh-text">{{ $t('manage.dynamo.refresh') }}...</span>
-    </div>
-    <div :class="{ 'opacity-50 pointer-events-none': refreshLoading }">
+    <div :class="{ 'pointer-events-none': refreshLoading }">
       <!-- Metrics Cards Section -->
       <section class="metrics-section">
-        <div class="metrics-grid">
+        <div v-if="refreshLoading" class="metrics-grid">
+          <Card v-for="i in 6" :key="i" class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <div class="skeleton skeleton-label"></div>
+              <div class="skeleton skeleton-value"></div>
+            </CardContent>
+          </Card>
+        </div>
+        <div v-else class="metrics-grid">
           <!-- Status Card -->
           <Card class="metric-card">
             <CardContent class="p-4 flex flex-col gap-2">
@@ -117,21 +121,21 @@
                 <div class="chart-placeholder">
                   <svg class="chart-svg" viewBox="0 0 400 100" preserveAspectRatio="none">
                     <path
+                      class="chart-grid"
                       d="M0 20 H400 M0 40 H400 M0 60 H400 M0 80 H400"
-                      stroke="#f1f5f9"
                       stroke-width="1"
                     />
                     <polyline
+                      class="chart-line-read"
                       fill="none"
                       :points="readChartPoints"
-                      stroke="#3b82f6"
                       stroke-width="2"
                       vector-effect="non-scaling-stroke"
                     />
                     <polyline
+                      class="chart-line-write"
                       fill="none"
                       :points="writeChartPoints"
-                      stroke="#fb923c"
                       stroke-width="2"
                       vector-effect="non-scaling-stroke"
                     />
@@ -147,14 +151,12 @@
                         class="gauge-bg"
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
-                        stroke="#e5e7eb"
                         stroke-width="3"
                       />
                       <path
                         class="gauge-fill rcu"
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
-                        stroke="#3b82f6"
                         stroke-width="3"
                         :stroke-dasharray="`${rcuUtilization}, 100`"
                       />
@@ -174,14 +176,12 @@
                         class="gauge-bg"
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
-                        stroke="#e5e7eb"
                         stroke-width="3"
                       />
                       <path
                         class="gauge-fill wcu"
                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
-                        stroke="#fb923c"
                         stroke-width="3"
                         :stroke-dasharray="`${wcuUtilization}, 100`"
                       />
@@ -219,7 +219,10 @@
             </div>
           </CardHeader>
           <CardContent>
-            <div v-if="globalSecondaryIndexes.length > 0" class="table-container">
+            <div
+              v-if="globalSecondaryIndexes.length > 0"
+              class="table-container gsi-table-container"
+            >
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -340,7 +343,7 @@ import {
   DynamoDBConnection,
 } from '../../../store';
 import { useLang } from '../../../lang';
-import { CustomError } from '../../../common';
+import { CustomError, withLoadingDelay } from '../../../common';
 import { DynamoIndex, DynamoIndexType, dynamoApi } from '../../../datasources';
 import DeleteIndexModal from './delete-index-modal.vue';
 import CreateIndexModal from './create-index-modal.vue';
@@ -434,7 +437,7 @@ const tableClass = computed(() => {
 // Generate SVG path points from data
 const readChartPoints = computed(() => {
   if (!consumedReadData.value.length) {
-    return '0,70 40,65 80,75 120,50 160,55 200,40 240,45 280,30 320,35 360,20 400,25';
+    return '0,90 400,90';
   }
   const data = consumedReadData.value;
   const maxVal = Math.max(...data, 1);
@@ -448,7 +451,7 @@ const readChartPoints = computed(() => {
 
 const writeChartPoints = computed(() => {
   if (!consumedWriteData.value.length) {
-    return '0,85 40,80 80,82 120,78 160,80 200,75 240,70 280,72 320,65 360,60 400,55';
+    return '0,90 400,90';
   }
   const data = consumedWriteData.value;
   const maxVal = Math.max(...data, 1);
@@ -594,30 +597,31 @@ const handleRefresh = async () => {
   }, 30000);
 
   try {
-    await fetchTableInfo(connection.value);
+    await withLoadingDelay(
+      (async () => {
+        await fetchTableInfo(dynamoConnection.value!);
 
-    // Fetch PITR status
-    try {
-      const pitrData = await dynamoApi.describeContinuousBackups(connection.value);
-      pitrEnabled.value = pitrData.pitrEnabled || false;
-    } catch (err) {
-      console.warn('Failed to fetch PITR status:', err); // eslint-disable-line no-console
-      pitrEnabled.value = false;
-    }
+        try {
+          const pitrData = await dynamoApi.describeContinuousBackups(dynamoConnection.value!);
+          pitrEnabled.value = pitrData.pitrEnabled || false;
+        } catch (err) {
+          console.warn('Failed to fetch PITR status:', err); // eslint-disable-line no-console
+          pitrEnabled.value = false;
+        }
 
-    // Fetch TTL status
-    try {
-      const ttlData = await dynamoApi.describeTimeToLive(connection.value);
-      ttlEnabled.value = ttlData.ttlEnabled;
-      ttlAttribute.value = ttlData.attributeName;
-    } catch (err) {
-      console.warn('Failed to fetch TTL status:', err); // eslint-disable-line no-console
-      ttlEnabled.value = false;
-      ttlAttribute.value = undefined;
-    }
+        try {
+          const ttlData = await dynamoApi.describeTimeToLive(dynamoConnection.value!);
+          ttlEnabled.value = ttlData.ttlEnabled;
+          ttlAttribute.value = ttlData.attributeName;
+        } catch (err) {
+          console.warn('Failed to fetch TTL status:', err); // eslint-disable-line no-console
+          ttlEnabled.value = false;
+          ttlAttribute.value = undefined;
+        }
 
-    // Also fetch CloudWatch metrics
-    await fetchCloudWatchMetrics();
+        await fetchCloudWatchMetrics();
+      })(),
+    );
   } catch (err) {
     const error = err as CustomError;
     message.error(`${error.status}: ${error.details}`, {
@@ -687,24 +691,41 @@ defineExpose({
   display: none;
 }
 
-.refresh-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: hsl(var(--background) / 0.8);
-  z-index: 10;
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
-.refresh-text {
-  margin-top: 8px;
-  font-size: 14px;
-  color: hsl(var(--muted-foreground));
+.skeleton {
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted) / 0.6) 25%,
+    hsl(var(--muted) / 0.9) 50%,
+    hsl(var(--muted) / 0.6) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.skeleton-label {
+  height: 10px;
+  width: 60%;
+}
+
+.skeleton-value {
+  height: 24px;
+  width: 80%;
 }
 
 .metrics-section {
@@ -713,20 +734,8 @@ defineExpose({
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 16px;
-}
-
-@media (max-width: 1200px) {
-  .metrics-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .metrics-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
 }
 
 .metric-card {
@@ -769,17 +778,17 @@ defineExpose({
 }
 
 .status-indicator.status-active {
-  background-color: #36ad6a;
+  background-color: hsl(var(--primary));
   animation: pulse 2s infinite;
 }
 
 .status-indicator.status-creating,
 .status-indicator.status-updating {
-  background-color: #f0a020;
+  background-color: hsl(var(--method-put));
 }
 
 .status-indicator.status-deleting {
-  background-color: #d03050;
+  background-color: hsl(var(--destructive));
 }
 
 .status-text {
@@ -790,19 +799,19 @@ defineExpose({
 }
 
 .status-text.status-active {
-  color: #166534;
-  background-color: #dcfce7;
+  color: hsl(var(--primary));
+  background-color: hsl(var(--primary) / 0.1);
 }
 
 .status-text.status-creating,
 .status-text.status-updating {
-  color: #9a3412;
-  background-color: #ffedd5;
+  color: hsl(var(--method-put));
+  background-color: hsl(var(--method-put) / 0.1);
 }
 
 .status-text.status-deleting {
-  color: #991b1b;
-  background-color: #fee2e2;
+  color: hsl(var(--destructive));
+  background-color: hsl(var(--destructive) / 0.1);
 }
 
 .metric-value-status {
@@ -812,12 +821,12 @@ defineExpose({
 }
 
 .status-enabled {
-  color: #36ad6a;
+  color: hsl(var(--primary));
   font-weight: 500;
 }
 
 .status-disabled {
-  color: #d03050;
+  color: hsl(var(--destructive));
   font-weight: 500;
 }
 
@@ -870,7 +879,7 @@ defineExpose({
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #36ad6a;
+  color: hsl(var(--primary));
 }
 
 .performance-content {
@@ -919,11 +928,23 @@ defineExpose({
 }
 
 .legend-color.read {
-  background-color: #3b82f6;
+  background-color: hsl(var(--method-get));
 }
 
 .legend-color.write {
-  background-color: #fb923c;
+  background-color: hsl(var(--method-put));
+}
+
+.chart-grid {
+  stroke: hsl(var(--border));
+}
+
+.chart-line-read {
+  stroke: hsl(var(--method-get));
+}
+
+.chart-line-write {
+  stroke: hsl(var(--method-put));
 }
 
 .chart-placeholder {
@@ -961,6 +982,18 @@ defineExpose({
   width: 100%;
   height: 100%;
   transform: rotate(-90deg);
+}
+
+.gauge-bg {
+  stroke: hsl(var(--border));
+}
+
+.gauge-fill.rcu {
+  stroke: hsl(var(--method-get));
+}
+
+.gauge-fill.wcu {
+  stroke: hsl(var(--method-put));
 }
 
 .gauge-value {
@@ -1009,8 +1042,8 @@ defineExpose({
 .throttled-value {
   font-size: 12px;
   font-weight: 700;
-  color: #36ad6a;
-  background: #dcfce7;
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.1);
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -1027,6 +1060,12 @@ defineExpose({
 
 .table-container {
   overflow-x: auto;
+}
+
+.gsi-table-container {
+  min-height: 150px;
+  max-height: 250px;
+  overflow-y: auto;
 }
 
 .action-buttons {
@@ -1047,7 +1086,7 @@ defineExpose({
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  gap: 16px;
 }
 
 @media (max-width: 768px) {
@@ -1060,8 +1099,11 @@ defineExpose({
   background: hsl(var(--background));
   border: 1px solid hsl(var(--border));
   border-radius: 8px;
-  padding: 12px 16px;
+  padding: 16px;
   transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .setting-item.clickable {
@@ -1069,7 +1111,7 @@ defineExpose({
 }
 
 .setting-item.clickable:hover {
-  border-color: var(--primary-color);
+  border-color: hsl(var(--primary));
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -1077,7 +1119,6 @@ defineExpose({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
 }
 
 .setting-label {

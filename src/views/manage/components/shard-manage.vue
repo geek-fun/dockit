@@ -85,26 +85,22 @@
                 shard: {{ shard.prirep }}{{ shard.shard }} node: {{ shard.node }}
               </h3>
 
-              <Popover v-for="(shardsDetail, idx) in shard.details" :key="idx">
-                <PopoverTrigger as-child>
-                  <Badge
-                    :variant="
-                      shardsDetail.tagType === 'warning'
-                        ? 'warning'
-                        : shardsDetail.tagType === 'success'
-                          ? 'success'
-                          : 'default'
-                    "
-                    class="m-1 cursor-pointer"
-                  >
-                    <span :class="[shardsDetail.iconClass, 'h-3 w-3 mr-1']" />
-                    {{ shardsDetail.content }}
-                  </Badge>
-                </PopoverTrigger>
-                <PopoverContent class="w-auto">
-                  <span>{{ shardsDetail.desc }}</span>
-                </PopoverContent>
-              </Popover>
+              <div class="badge-row">
+                <Popover v-for="(shardsDetail, idx) in shard.details" :key="idx">
+                  <PopoverTrigger as-child>
+                    <Badge
+                      :variant="shardsDetail.tagType === 'warning' ? 'warning' : 'outline'"
+                      class="cursor-pointer"
+                    >
+                      <span :class="[shardsDetail.iconClass, 'h-3 w-3 mr-1']" />
+                      {{ shardsDetail.content }}
+                    </Badge>
+                  </PopoverTrigger>
+                  <PopoverContent class="w-auto">
+                    <span>{{ shardsDetail.desc }}</span>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </ScrollArea>
         </div>
@@ -346,25 +342,28 @@ onMounted(async () => {
   height: 100%;
   width: 100%;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: row;
+  gap: 16px;
+  overflow: hidden;
 }
 
 .shard-table-container {
-  margin-top: 10px;
+  margin-top: 16px;
   flex: 1;
-  height: 0;
-  display: flex;
-  justify-content: space-around;
-  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .shard-statistic-container {
-  height: 100%;
-  width: 100%;
+  margin-top: 16px;
+  width: 360px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .shard-title-container {
@@ -374,37 +373,45 @@ onMounted(async () => {
 }
 
 .shard-statistic-title {
-  margin: 10px 20px;
+  margin: 16px 24px;
   flex-grow: 1;
   display: flex;
   justify-content: space-between;
+  align-items: center;
 }
 
 .close-index-shard-icon {
   cursor: pointer;
   color: hsl(var(--foreground));
   transition: 0.3s;
-  margin-left: 10px;
-  margin-top: 10px;
-  margin-right: 30px;
+  margin: 16px 24px 16px 16px;
 }
 
 .shard-list-scrollbar-box {
   flex: 1;
   height: 0;
-  gap: 5px;
+}
+
+.shard-list-scrollbar-box :deep([data-radix-scroll-area-viewport] > div) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
 }
 
 .shard-item-box {
-  margin: 10px;
-  padding: 10px;
-  width: 450px;
-  height: 450px;
-  text-wrap: wrap;
+  padding: 10px 12px;
+  width: 100%;
   cursor: default;
-  overflow: hidden;
   border-radius: 6px;
   border: 1px solid hsl(var(--border));
+}
+
+.shard-item-box .badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
 }
 
 .shard-item-primary {
@@ -422,8 +429,8 @@ onMounted(async () => {
 }
 
 .shard-detail-title {
-  margin-left: 5px;
   margin-bottom: 8px;
+  font-weight: 600;
 }
 
 /* animation for shard-statistic-container */
@@ -432,6 +439,17 @@ onMounted(async () => {
   transition:
     transform 0.5s cubic-bezier(0.55, 0, 0.1, 1),
     opacity 0.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shard-slip-enter-active,
+  .shard-slip-leave-active {
+    transition: opacity 0.2s;
+  }
+  .shard-slip-enter-from,
+  .shard-slip-leave-to {
+    transform: none;
+  }
 }
 
 .shard-slip-enter-from {

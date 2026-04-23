@@ -26,7 +26,7 @@ const registerSearchLanguage = (monaco: typeof import('monaco-editor')): void =>
     search.languageConfiguration as languages.LanguageConfiguration,
   );
   monaco.languages.registerCompletionItemProvider(search.id, {
-    triggerCharacters: ['g', 'p', 'd', '"', "'", ' ', '/', '_', ':'],
+    triggerCharacters: ['g', 'p', 'd', '"', "'", ' ', '/', '_', ':', '?', '&', '='],
     // @ts-ignore
     provideCompletionItems: searchCompletionProvider,
   });
