@@ -159,6 +159,31 @@ export type BatchWriteResult = {
 };
 
 const dynamoApi = {
+  listTables: async (credentials: {
+    region: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    endpointUrl?: string;
+  }): Promise<string[]> => {
+    const apiCredentials = {
+      region: credentials.region,
+      access_key_id: credentials.accessKeyId,
+      secret_access_key: credentials.secretAccessKey,
+      endpoint_url: credentials.endpointUrl,
+    };
+    const options = {
+      table_name: '',
+      operation: 'LIST_TABLES',
+      payload: {},
+    };
+    const result = await tauriClient.invokeDynamoApi(apiCredentials, options);
+    const { status, message, data } = result;
+    if (status !== 200) {
+      throw new CustomError(status, message);
+    }
+    return ((data as { tableNames?: string[] })?.tableNames ?? []) as string[];
+  },
+
   describeTable: async ({
     region,
     accessKeyId,

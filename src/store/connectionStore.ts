@@ -39,15 +39,53 @@ type ElasticSearchIndex = {
   };
 };
 
+export type DynamoTableFilter =
+  | { kind: 'all' }
+  | { kind: 'explicit'; tableNames: string[] }
+  | { kind: 'prefix'; prefix: string }
+  | { kind: 'regex'; pattern: string };
+
+export type DynamoTableSummary = {
+  name: string;
+};
+
+export const applyTableFilter = (
+  allTables: string[],
+  filter: DynamoTableFilter | undefined,
+): string[] => {
+  if (!filter || filter.kind === 'all') return [...allTables];
+  if (filter.kind === 'explicit') {
+    const allowed = new Set(filter.tableNames);
+    return allTables.filter(name => allowed.has(name));
+  }
+  if (filter.kind === 'prefix') {
+    return allTables.filter(name => name.startsWith(filter.prefix));
+  }
+  if (filter.kind === 'regex') {
+    try {
+      const re = new RegExp(filter.pattern);
+      return allTables.filter(name => re.test(name));
+    } catch {
+      return [];
+    }
+  }
+  return [...allTables];
+};
+
 export type DynamoDBConnection = {
-  id?: number;
+  id?: number | string;
   name: string;
   type: DatabaseType.DYNAMODB;
-  indices?: Array<DynamoIndex>;
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
   endpointUrl?: string;
+
+  tableFilter?: DynamoTableFilter;
+  tables?: Array<DynamoTableSummary>;
+
+  // @deprecated v1 per-table fields; removed in Phase B
+  indices?: Array<DynamoIndex>;
   tableName: string;
   keySchema?: Array<KeySchema>;
   partitionKey: {
@@ -148,12 +186,57 @@ const getIndexInfo = (keySchema: KeySchema[]) => {
   };
 };
 
+export const SCHEMA_VERSION = 2;
+
+const credentialSignature = (con: DynamoDBConnection): string =>
+  `${con.region}|${con.accessKeyId}|${con.endpointUrl ?? ''}`;
+
+export const migrateDynamoConnectionsV1ToV2 = (
+  raw: Connection[],
+): { migrated: Connection[]; consolidatedCount: number; originalCount: number } => {
+  const dynamo = raw.filter((c): c is DynamoDBConnection => c.type === DatabaseType.DYNAMODB);
+  const others = raw.filter(c => c.type !== DatabaseType.DYNAMODB);
+
+  if (dynamo.length === 0) {
+    return { migrated: raw, consolidatedCount: 0, originalCount: 0 };
+  }
+
+  const groups = dynamo.reduce<Map<string, DynamoDBConnection[]>>((acc, con) => {
+    const sig = credentialSignature(con);
+    const list = acc.get(sig) ?? [];
+    list.push(con);
+    acc.set(sig, list);
+    return acc;
+  }, new Map());
+
+  const consolidated: DynamoDBConnection[] = Array.from(groups.values()).map(group => {
+    const head = group[0];
+    const tableNames = Array.from(
+      new Set(group.map(c => c.tableName).filter((n): n is string => Boolean(n))),
+    );
+    return {
+      ...head,
+      id: head.id,
+      tableFilter: tableNames.length > 0 ? { kind: 'explicit', tableNames } : { kind: 'all' },
+      tables: tableNames.map(name => ({ name })),
+    };
+  });
+
+  return {
+    migrated: [...others, ...consolidated],
+    consolidatedCount: consolidated.length,
+    originalCount: dynamo.length,
+  };
+};
+
 export const useConnectionStore = defineStore('connectionStore', {
   state: (): {
     connections: Connection[];
+    migrationNotice: { consolidatedCount: number; originalCount: number } | null;
   } => {
     return {
       connections: [],
+      migrationNotice: null,
     };
   },
   getters: {
@@ -194,13 +277,57 @@ export const useConnectionStore = defineStore('connectionStore', {
     async fetchConnections() {
       try {
         const fetchedConnections = (await storeApi.get('connections', [])) as Connection[];
-        this.connections = fetchedConnections.map(connection => ({
+        const normalized = fetchedConnections.map(connection => ({
           ...connection,
           type: connection.type?.toUpperCase() ?? DatabaseType.ELASTICSEARCH,
         })) as Connection[];
+
+        const storedVersion = (await storeApi.get<number>('schemaVersion', 1)) ?? 1;
+
+        if (storedVersion < SCHEMA_VERSION) {
+          await storeApi.set('connections_v1_backup', pureObject(normalized));
+          const { migrated, consolidatedCount, originalCount } =
+            migrateDynamoConnectionsV1ToV2(normalized);
+
+          this.connections = migrated;
+          await storeApi.set('connections', pureObject(migrated));
+          await storeApi.set('schemaVersion', SCHEMA_VERSION);
+
+          if (originalCount > 0 && consolidatedCount < originalCount) {
+            this.migrationNotice = { consolidatedCount, originalCount };
+          }
+        } else {
+          this.connections = normalized;
+        }
       } catch (_error) {
         this.connections = [];
       }
+    },
+    dismissMigrationNotice() {
+      this.migrationNotice = null;
+    },
+    async fetchTables(con: DynamoDBConnection) {
+      const connection = this.connections.find(({ id }) => id === con.id) as
+        | DynamoDBConnection
+        | undefined;
+      if (!connection) throw new Error('no connection established');
+
+      const allTables = await dynamoApi.listTables({
+        region: connection.region,
+        accessKeyId: connection.accessKeyId,
+        secretAccessKey: connection.secretAccessKey,
+        endpointUrl: connection.endpointUrl,
+      });
+
+      const visible = applyTableFilter(allTables, connection.tableFilter);
+      connection.tables = visible.map(name => ({ name }));
+
+      const tabStore = useTabStore();
+      if (tabStore.activePanel?.connection?.id === connection.id) {
+        tabStore.activePanel.connection = connection;
+      }
+
+      return connection.tables;
     },
     async freshConnection(con: Connection) {
       if (con.type === DatabaseType.DYNAMODB) {
