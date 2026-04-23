@@ -2,7 +2,10 @@
   <Dialog :open="showModal" @update:open="handleOpenChange">
     <DialogContent class="sm:max-w-[600px]" :show-close="false">
       <DialogHeader>
-        <DialogTitle>{{ modalTitle }}</DialogTitle>
+        <DialogTitle class="flex items-center gap-2">
+          <img :src="dynamoDBIcon" class="h-5 w-5" />
+          {{ modalTitle }}
+        </DialogTitle>
         <button
           class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
           @click="closeModal"
@@ -159,6 +162,7 @@ import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
+import dynamoDBIcon from '../../../assets/svg/dynamoDB.svg';
 import { useLang } from '../../../lang';
 import { useConnectionStore } from '../../../store';
 import { DatabaseType, DynamoDBConnection } from '../../../store';
