@@ -44,7 +44,7 @@ import {
   DatabaseType,
   ElasticsearchConnection,
   useAppStore,
-  useChatStore,
+  useCodeActionStore,
   useConnectionStore,
   useHistoryStore,
   useTabStore,
@@ -88,8 +88,8 @@ const { themeType, editorConfig } = storeToRefs(appStore);
 
 const historyStore = useHistoryStore();
 
-const chatStore = useChatStore();
-const { insertBoard } = storeToRefs(chatStore);
+const codeActionStore = useCodeActionStore();
+const { insertBuffer } = storeToRefs(codeActionStore);
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let queryEditor: Editor | null = null;
 // DOM
@@ -153,9 +153,8 @@ watch(
   { deep: true },
 );
 
-watch(insertBoard, () => {
+watch(insertBuffer, () => {
   if (queryEditor) {
-    // add event to handle chatbot-code-actions
     const position = queryEditor.getPosition();
     if (!position) {
       return;
@@ -170,11 +169,12 @@ watch(insertBoard, () => {
             position.lineNumber,
             position.column,
           ),
-          text: insertBoard.value,
+          text: insertBuffer.value,
         },
       ],
       () => null,
     );
+    codeActionStore.clearInsertBuffer();
   }
 });
 

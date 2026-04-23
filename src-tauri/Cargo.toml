@@ -34,6 +34,9 @@ aws-config = "1.8.12"
 aws-sdk-dynamodb = "1.101.0"
 aws-sdk-cloudwatch = "1.72.0"
 base64 = "0.22.1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+uuid = { version = "1", features = ["v4"] }
+async-trait = "0.1"
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]

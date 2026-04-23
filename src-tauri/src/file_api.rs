@@ -3,13 +3,6 @@ use std::io::{BufRead, BufReader};
 use std::path::Path;
 use tauri::Emitter;
 
-#[derive(Debug, serde::Deserialize)]
-pub struct StreamFileInput {
-    pub file_path: String,
-    pub batch_size: usize,
-    pub format: String,
-}
-
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct FileBatchResult {
     pub lines: Vec<String>,

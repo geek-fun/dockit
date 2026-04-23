@@ -5,40 +5,40 @@
       <div>
         <span
           class="i-carbon-trash-can chat-header-delete-icon cursor-pointer"
-          @click="removeChat"
+          @click="clearMessages"
         />
       </div>
     </div>
     <div class="message-list">
       <ScrollArea ref="scrollbarRef" class="h-full">
-        <div v-for="msg in activeChat?.messages" :key="msg.id">
-          <div :class="['message-row', msg.role === ChatMessageRole.USER ? 'user' : '']">
-            <div class="message-row-header">
-              <span v-if="msg.role === ChatMessageRole.BOT" class="i-carbon-bot mr-2 h-5 w-5" />
-              <span v-else class="i-carbon-face-cool mr-2 h-5 w-5" />
-              <span>{{ msg.role }}</span>
-            </div>
-            <div class="message-row-content">
-              <markdown-render :markdown="msg.content" />
-            </div>
-          </div>
+        <div v-for="msg in messages" :key="msg.id">
+          <AgentMessageBubble :message="msg" :iteration-index="iterationIndexMap[msg.id]" />
         </div>
-        <div v-if="chatBotNotification.enabled">
-          <Alert :variant="alertVariantMap[chatBotNotification.level || 'default']">
-            <AlertDescription>{{ chatBotNotification.message }}</AlertDescription>
-          </Alert>
-          <br />
-          <Button
-            v-if="chatBotNotification.code === ErrorCodes.MISSING_GPT_CONFIG"
-            variant="secondary"
-            @click="configGpt"
-          >
-            {{ $t('setting.ai.configGpt') }}
-          </Button>
+        <div v-if="isLoading" class="flex items-center gap-2 px-4 py-2">
+          <span class="i-carbon-renew h-4 w-4 animate-spin text-muted-foreground" />
+          <span class="text-xs text-muted-foreground">Thinking…</span>
+        </div>
+        <div v-if="error" class="error-banner mx-4 my-2">
+          <span class="i-carbon-warning h-4 w-4" />
+          <span class="text-xs">{{ error }}</span>
+        </div>
+        <div v-if="messages.length === 0 && !isLoading" class="empty-hint">
+          {{ $t('aside.chatBotEmptyHint') }}
         </div>
       </ScrollArea>
     </div>
     <div class="message-footer">
+      <div class="model-select-row">
+        <ModelPicker
+          :groups="enabledModelGroups"
+          :model-value="sidebarRoute.selectedModelId ?? undefined"
+          :recent-model-ids="recentSidebarModelIds"
+          trigger-class="model-select-trigger"
+          panel-class="w-[360px] p-0 bg-[#151515] text-white border-[#2b2b2b]"
+          @open="syncAllProviderModels"
+          @update:model-value="updateSidebarModel"
+        />
+      </div>
       <div class="chat-input">
         <textarea
           v-model="chatMsg"
@@ -49,8 +49,13 @@
         />
       </div>
       <div class="footer-operation">
-        <Button class="submit-button" :disabled="isChatMsgFinish" @click="submitMsg">
-          <Spinner v-if="isChatMsgFinish" size="sm" />
+        <Button
+          class="submit-button"
+          :class="{ 'submit-button--blocked': modelVerified === false }"
+          :disabled="(isLoading || !chatMsg.trim()) && modelVerified !== false"
+          @click="submitMsg"
+        >
+          <Spinner v-if="isLoading" size="sm" />
           <span v-else class="i-carbon-send-alt h-6 w-6" />
         </Button>
       </div>
@@ -59,119 +64,122 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, nextTick, onMounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useAppStore, useChatStore } from '../../store';
-import MarkdownRender from '../../components/markdown-render.vue';
-import { ErrorCodes } from '../../common';
 import { ChatMessageRole } from '../../datasources';
+import { useMessageService } from '@/composables';
+import { useLang } from '@/lang';
+import AgentMessageBubble from '../../components/agent-message-bubble.vue';
+import ModelPicker from '@/components/model-picker.vue';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 
 const appStore = useAppStore();
-const { aiConfigs } = storeToRefs(appStore);
-
+const { llmSettings } = storeToRefs(appStore);
 const chatStore = useChatStore();
 const { activeChat } = storeToRefs(chatStore);
-const { sendMessage, fetchChats, deleteChat } = chatStore;
+const { fetchChats, sendMessage, deleteChat } = chatStore;
+const message = useMessageService();
+const lang = useLang();
 
-const router = useRouter();
-
-const scrollbarRef = ref(null);
+const scrollbarRef = ref<{ $el: HTMLElement } | null>(null);
 const chatMsg = ref('');
-const isChatMsgFinish = ref(false);
-const chatBotNotification = ref<{
-  enabled: boolean;
-  level: 'default' | 'success' | 'error' | 'warning' | 'info' | undefined;
-  message: string;
-  code: number;
-}>({
-  enabled: false,
-  level: undefined,
-  message: '',
-  code: 0,
+const isLoading = ref(false);
+const error = ref<string | undefined>();
+const modelVerified = ref<boolean | null>(null);
+const messages = computed(() => activeChat.value?.messages ?? []);
+
+const iterationIndexMap = computed<Record<string, number>>(() => {
+  let count = 0;
+  return messages.value.reduce<Record<string, number>>((acc, msg) => {
+    if (msg.role === ChatMessageRole.BOT && msg.content) {
+      acc[msg.id] = count++;
+    }
+    return acc;
+  }, {});
 });
 
-// Map alert types to shadcn-vue alert variants
-const alertVariantMap: Record<string, 'default' | 'destructive' | 'success' | 'warning' | 'info'> =
-  {
-    default: 'default',
-    success: 'success',
-    error: 'destructive',
-    warning: 'warning',
-    info: 'info',
-  };
+const enabledModelGroups = computed(() =>
+  llmSettings.value.providers
+    .filter(provider => provider.enabled && provider.discoveredModels.length > 0)
+    .map(provider => ({
+      id: provider.id,
+      label: provider.label,
+      models: provider.discoveredModels,
+    })),
+);
 
-const loadChats = async () => {
+const sidebarRoute = computed(() => llmSettings.value.models.sidebarAssistant);
+const recentSidebarModelIds = computed(() =>
+  sidebarRoute.value.selectedModelId ? [sidebarRoute.value.selectedModelId] : [],
+);
+
+const scrollToBottom = () => {
+  nextTick(() => {
+    scrollbarRef.value?.$el?.scrollTo({ top: 999999, behavior: 'smooth' });
+  });
+};
+
+const submitMsg = async () => {
+  if (modelVerified.value === false) {
+    message.warning(lang.t('dataStudio.modelUnavailableSend'));
+    return;
+  }
+  const text = chatMsg.value.trim();
+  if (!text || isLoading.value) return;
+
+  chatMsg.value = '';
+  error.value = undefined;
+
+  isLoading.value = true;
+
   try {
-    await fetchChats();
-    // @ts-ignore
-    scrollbarRef?.value?.$el?.scrollTo({ top: 999999 });
+    await sendMessage(text);
   } catch (err) {
-    const { details, status } = err as { details: string; status: number };
-    chatBotNotification.value = {
-      enabled: true,
-      level: 'error',
-      message: details,
-      code: status,
-    };
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    isLoading.value = false;
+    scrollToBottom();
   }
 };
 
-// 提交消息
-const submitMsg = () => {
-  chatBotNotification.value = { enabled: false, level: undefined, message: '', code: 0 };
-  if (!chatMsg.value.trim().length) return;
-  isChatMsgFinish.value = true;
-  sendMessage(chatMsg.value)
-    .catch(err => {
-      chatBotNotification.value = {
-        enabled: true,
-        level: 'error',
-        message: err.message,
-        code: 0,
-      };
-    })
-    .finally(() => {
-      isChatMsgFinish.value = false;
-    });
-  chatMsg.value = '';
-};
-
-const configGpt = () => {
-  router.push({ path: '/setting', replace: true });
-};
-
-const removeChat = async () => {
-  chatBotNotification.value = { enabled: false, level: undefined, message: '', code: 0 };
+const clearMessages = async () => {
   await deleteChat();
-  await loadChats();
+  await fetchChats();
+  error.value = undefined;
+};
+
+const updateSidebarModel = async (value: string) => {
+  modelVerified.value = null;
+  await appStore.setFeatureModelRoute('sidebarAssistant', {
+    selectedModelId: value,
+    useRecommendedModel: false,
+  });
+  const ok = await appStore.verifyModelAvailability(value);
+  modelVerified.value = ok;
+  if (!ok) message.warning(lang.t('dataStudio.modelUnavailable'));
+};
+const syncAllProviderModels = () => {
+  llmSettings.value.providers
+    .filter(provider => provider.enabled)
+    .forEach(provider => appStore.syncProviderModels(provider.id));
 };
 
 watch(
-  () => aiConfigs.value,
+  messages,
   () => {
-    if (aiConfigs.value.find(({ enabled }) => enabled)) {
-      chatBotNotification.value = { enabled: false, level: undefined, message: '', code: 0 };
-    }
-  },
-);
-// auto scroll to bottom when new message comes
-watch(
-  () => activeChat.value?.messages,
-  () => {
-    nextTick(() => {
-      if (scrollbarRef.value) {
-        // @ts-ignore
-        scrollbarRef.value?.$el?.scrollTo({ top: 999999, behavior: 'smooth' });
-      }
-    });
+    scrollToBottom();
   },
   { deep: true },
 );
 
-loadChats();
+onMounted(async () => {
+  await appStore.fetchLlmSettings();
+  await fetchChats();
+  scrollToBottom();
+});
 </script>
 
 <style scoped>
@@ -204,46 +212,25 @@ loadChats();
 .message-list {
   flex: 1;
   height: 0;
-}
-
-.message-row {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  padding: 5px;
-}
-
-.message-row.user {
-  background-color: hsl(var(--background));
-  border-top: 1px solid hsl(var(--border));
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.message-row-header {
-  display: flex;
-  align-items: center;
-}
-
-.message-row-header span {
-  font-weight: bold;
-}
-
-.message-row-header :deep(.inline-flex) {
-  margin-right: 10px;
-}
-
-.message-row-content pre {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  white-space: pre-wrap;
-  text-wrap: wrap;
+  padding: 10px;
 }
 
 .message-footer {
   padding: 0 10px 10px 10px;
   position: relative;
   z-index: 1;
+}
+
+.model-select-row {
+  margin-bottom: 8px;
+}
+
+.model-select-trigger {
+  width: 100%;
+  justify-content: space-between;
+  height: 34px;
+  border-radius: 9999px;
+  background: hsl(var(--muted) / 0.5);
 }
 
 .chat-input {
@@ -281,5 +268,28 @@ loadChats();
   height: 100%;
   padding: 0;
   margin: 0;
+}
+
+.submit-button--blocked {
+  opacity: 0.5;
+  background: hsl(var(--destructive)) !important;
+  color: hsl(var(--destructive-foreground)) !important;
+  cursor: not-allowed !important;
+}
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
+}
+
+.empty-hint {
+  padding: 24px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: hsl(var(--muted-foreground));
 }
 </style>

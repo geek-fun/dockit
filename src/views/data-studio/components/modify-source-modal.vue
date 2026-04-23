@@ -16,50 +16,37 @@
       </DialogHeader>
       <div class="py-4">
         <div class="border border-border rounded-xl overflow-hidden">
-          <!-- Header row -->
-          <div
-            class="px-4 py-3 flex items-start justify-between gap-3 border-b border-border bg-muted/40"
-          >
-            <div class="flex items-center gap-2">
-              <span class="i-carbon-security h-4 w-4 shrink-0" />
-              <div>
-                <p class="font-semibold text-sm">
-                  {{ $t('dataStudio.modifySource.accessPermissions') }}
-                </p>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-xs font-medium text-muted-foreground">
-                {{ $t('dataStudio.modifySource.autoMode') }}
-              </span>
-              <Switch v-model:checked="localAutoMode" />
-            </div>
-          </div>
-
-          <!-- Auto mode: description text -->
-          <div v-if="localAutoMode" class="flex gap-2 px-4 py-3">
-            <span class="i-carbon-information h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
-            <p class="text-xs text-muted-foreground leading-relaxed">
-              {{ $t('dataStudio.modifySource.autoModeDesc') }}
+          <div class="px-4 py-3 flex items-center gap-2 border-b border-border bg-muted/40">
+            <span class="i-carbon-security h-4 w-4 shrink-0" />
+            <p class="font-semibold text-sm">
+              {{ $t('dataStudio.modifySource.accessPermissions') }}
             </p>
           </div>
-
-          <!-- Manual mode: checkboxes -->
-          <div v-else class="grid grid-cols-2 gap-1 p-3">
-            <label
-              v-for="perm in permissionList"
-              :key="perm.key"
-              class="flex items-center gap-3 cursor-pointer select-none px-3 py-2 rounded-lg hover:bg-muted transition-colors"
+          <div class="grid grid-cols-2 gap-2 p-3 border-b border-border">
+            <button
+              :class="['mode-btn', localPermissionsMode === 'default' && 'mode-btn--active']"
+              @click="localPermissionsMode = 'default'"
             >
-              <Checkbox
-                :checked="localPermissions[perm.key as keyof typeof localPermissions]"
-                @update:checked="
-                  (val: boolean) =>
-                    (localPermissions[perm.key as keyof typeof localPermissions] = val)
-                "
-              />
-              <span class="text-sm font-medium">{{ perm.label }}</span>
-            </label>
+              <span class="i-carbon-view h-4 w-4" />
+              <span>{{ $t('dataStudio.modifySource.modeDefault') }}</span>
+            </button>
+            <button
+              :class="['mode-btn', localPermissionsMode === 'full' && 'mode-btn--active']"
+              @click="localPermissionsMode = 'full'"
+            >
+              <span class="i-carbon-unlocked h-4 w-4" />
+              <span>{{ $t('dataStudio.modifySource.modeFull') }}</span>
+            </button>
+          </div>
+          <div class="flex gap-2 px-4 py-3">
+            <span class="i-carbon-information h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
+            <p class="text-xs text-muted-foreground leading-relaxed">
+              {{
+                localPermissionsMode === 'default'
+                  ? $t('dataStudio.modifySource.modeDefaultDesc')
+                  : $t('dataStudio.modifySource.modeFullDesc')
+              }}
+            </p>
           </div>
         </div>
       </div>
@@ -76,8 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import { ref, watch } from 'vue';
 import {
   Dialog,
   DialogContent,
@@ -86,12 +72,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   useDataStudioStore,
   type ConnectedSource,
-  type DataSourcePermissions,
+  type PermissionsMode,
 } from '@/store/dataStudioStore';
 
 const props = defineProps<{
@@ -104,34 +88,23 @@ const emit = defineEmits<{
   'update:open': [value: boolean];
 }>();
 
-const { t } = useI18n();
 const dataStudioStore = useDataStudioStore();
 
-const localPermissions = ref<DataSourcePermissions>({
-  read: true,
-  create: false,
-  update: false,
-  delete: false,
-});
-
-const localAutoMode = ref(true);
-
-const permissionList = computed(() => [
-  { key: 'read', label: t('dataStudio.modifySource.read') },
-  { key: 'create', label: t('dataStudio.modifySource.create') },
-  { key: 'update', label: t('dataStudio.modifySource.update') },
-  { key: 'delete', label: t('dataStudio.modifySource.delete') },
-]);
+const localPermissionsMode = ref<PermissionsMode>('default');
 
 watch(
   () => props.open,
   newVal => {
     if (newVal && props.source) {
-      localPermissions.value = { ...props.source.permissions };
-      localAutoMode.value = props.source.autoMode;
+      localPermissionsMode.value = props.source.permissionsMode ?? 'default';
     }
   },
 );
+
+const permissionsFromMode = (mode: PermissionsMode) =>
+  mode === 'full'
+    ? { read: true, create: true, update: true, delete: true }
+    : { read: true, create: false, update: false, delete: false };
 
 const handleSave = () => {
   if (props.connectionId === undefined) return;
@@ -139,9 +112,42 @@ const handleSave = () => {
   if (!source) return;
   const index = dataStudioStore.connectedSources.indexOf(source);
   dataStudioStore.updateSource(index, {
-    permissions: { ...localPermissions.value },
-    autoMode: localAutoMode.value,
+    permissions: permissionsFromMode(localPermissionsMode.value),
+    autoMode: localPermissionsMode.value === 'default',
+    permissionsMode: localPermissionsMode.value,
   });
   emit('update:open', false);
 };
 </script>
+
+<style scoped>
+.mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.mode-btn:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.mode-btn--active {
+  background: hsl(var(--primary) / 0.08);
+  border-color: hsl(var(--primary) / 0.4);
+  color: hsl(var(--primary));
+}
+</style>

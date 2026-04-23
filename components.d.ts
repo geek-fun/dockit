@@ -12,6 +12,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AboutDialog: typeof import('./src/components/AboutDialog.vue')['default']
+    AgentMessageBubble: typeof import('./src/components/agent-message-bubble.vue')['default']
     Alert: typeof import('./src/components/ui/alert/Alert.vue')['default']
     AlertDescription: typeof import('./src/components/ui/alert/AlertDescription.vue')['default']
     AlertDialog: typeof import('./src/components/ui/alert-dialog/AlertDialog.vue')['default']
@@ -70,6 +71,7 @@ declare module 'vue' {
     Label: typeof import('./src/components/ui/label/Label.vue')['default']
     LoadingBar: typeof import('./src/components/ui/loading-bar/LoadingBar.vue')['default']
     MarkdownRender: typeof import('./src/components/markdown-render.vue')['default']
+    ModelPicker: typeof import('./src/components/model-picker.vue')['default']
     PathBreadcrumb: typeof import('./src/components/path-breadcrumb.vue')['default']
     Popover: typeof import('./src/components/ui/popover/Popover.vue')['default']
     PopoverContent: typeof import('./src/components/ui/popover/PopoverContent.vue')['default']

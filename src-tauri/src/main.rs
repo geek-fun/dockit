@@ -1,18 +1,33 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod agent;
 mod common;
+mod db;
 mod fetch_client;
 mod file_api;
 mod menu;
-mod openai_client;
 mod dynamo_client;
 mod dynamo;
 
 use tauri::Emitter;
+use agent::{
+    get_available_tools, introspect_schema, list_llm_models, run_agent_step,
+    validate_llm_config,
+};
+use agent::executor::DocKitToolExecutor;
+use agent::loop_runner::{
+    cancel_agent_loop, confirm_tool_call, get_tool_full_result, run_agent_loop, CancelMap,
+    ConfirmMap,
+};
+use agent::tool_executor::ToolExecutor;
+use agent::session_store::{
+    clear_agent_session_messages, create_agent_session, delete_agent_session,
+    export_agent_session, import_agent_session, load_agent_sessions, load_session_messages,
+    recover_stuck_sessions, update_session_status,
+};
 use fetch_client::fetch_api;
 use file_api::{get_file_info, read_file_batch, stream_file_lines};
-use openai_client::{chat_stream, create_openai_client};
 use dynamo_client::dynamo_api;
 
 #[derive(Clone, serde::Serialize)]
@@ -61,16 +76,54 @@ fn main() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
-            create_openai_client,
             fetch_api,
-            chat_stream,
             dynamo_api,
             get_file_info,
             read_file_batch,
             stream_file_lines,
+            run_agent_step,
+            validate_llm_config,
+            list_llm_models,
+            introspect_schema,
+            get_available_tools,
+            run_agent_loop,
+            cancel_agent_loop,
+            confirm_tool_call,
+            get_tool_full_result,
+            load_agent_sessions,
+            create_agent_session,
+            update_session_status,
+            delete_agent_session,
+            clear_agent_session_messages,
+            load_session_messages,
+            export_agent_session,
+            import_agent_session,
         ])
         .setup(|app| {
             menu::create_menu(app)?;
+
+            use tauri::Manager;
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|e| format!("Failed to resolve app data dir: {}", e))?;
+            let db_path = app_data_dir.join("agent.sqlite");
+            let agent_db = db::open(&db_path)?;
+            db::migrate(&agent_db)?;
+            {
+                let conn = agent_db.0.lock().map_err(|e| e.to_string())?;
+                recover_stuck_sessions(&conn)?;
+            }
+            app.manage(agent_db);
+
+            use std::collections::HashMap;
+            use std::sync::{Arc, Mutex};
+            let confirm_map: ConfirmMap = Arc::new(Mutex::new(HashMap::new()));
+            let cancel_map: CancelMap = Arc::new(Mutex::new(HashMap::new()));
+            app.manage(confirm_map);
+            app.manage(cancel_map);
+            let executor: Arc<dyn ToolExecutor> = Arc::new(DocKitToolExecutor);
+            app.manage(executor);
 
             use tauri::{Emitter, Listener};
 

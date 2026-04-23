@@ -95,40 +95,36 @@
           <div class="permissions-header">
             <div class="flex items-center gap-2">
               <span class="i-carbon-security h-4 w-4" />
-              <div>
-                <p class="font-semibold text-sm">
-                  {{ $t('dataStudio.modifySource.accessPermissions') }}
-                </p>
-              </div>
-            </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <span class="text-xs font-medium text-muted-foreground">
-                {{ $t('dataStudio.modifySource.autoMode') }}
-              </span>
-              <Switch v-model:checked="localAutoMode" />
+              <p class="font-semibold text-sm">
+                {{ $t('dataStudio.modifySource.accessPermissions') }}
+              </p>
             </div>
           </div>
-
-          <!-- Auto mode description -->
-          <div v-if="localAutoMode" class="auto-mode-desc">
+          <div class="permissions-mode-row">
+            <button
+              :class="['mode-btn', localPermissionsMode === 'default' && 'mode-btn--active']"
+              @click="localPermissionsMode = 'default'"
+            >
+              <span class="i-carbon-view h-4 w-4" />
+              <span>{{ $t('dataStudio.modifySource.modeDefault') }}</span>
+            </button>
+            <button
+              :class="['mode-btn', localPermissionsMode === 'full' && 'mode-btn--active']"
+              @click="localPermissionsMode = 'full'"
+            >
+              <span class="i-carbon-unlocked h-4 w-4" />
+              <span>{{ $t('dataStudio.modifySource.modeFull') }}</span>
+            </button>
+          </div>
+          <div class="mode-desc">
             <span class="i-carbon-information h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
             <p class="text-xs text-muted-foreground leading-relaxed">
-              {{ $t('dataStudio.modifySource.autoModeDesc') }}
+              {{
+                localPermissionsMode === 'default'
+                  ? $t('dataStudio.modifySource.modeDefaultDesc')
+                  : $t('dataStudio.modifySource.modeFullDesc')
+              }}
             </p>
-          </div>
-
-          <!-- Manual checkboxes -->
-          <div v-else class="permissions-grid">
-            <label v-for="perm in permissionList" :key="perm.key" class="permission-item">
-              <Checkbox
-                :checked="localPermissions[perm.key as keyof typeof localPermissions]"
-                @update:checked="
-                  (val: boolean) =>
-                    (localPermissions[perm.key as keyof typeof localPermissions] = val)
-                "
-              />
-              <span class="text-sm font-medium">{{ perm.label }}</span>
-            </label>
           </div>
         </div>
       </div>
@@ -150,7 +146,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { storeToRefs } from 'pinia';
-import { useI18n } from 'vue-i18n';
 import { onClickOutside } from '@vueuse/core';
 import {
   Dialog,
@@ -160,13 +155,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useConnectionStore, DatabaseType, type Connection } from '@/store/connectionStore';
 import {
   useDataStudioStore,
   type ConnectedSource,
-  type DataSourcePermissions,
+  type PermissionsMode,
 } from '@/store/dataStudioStore';
 import dynamoDB from '@/assets/svg/dynamoDB.svg?url';
 import elasticsearch from '@/assets/svg/elasticsearch.svg?url';
@@ -174,7 +167,6 @@ import elasticsearch from '@/assets/svg/elasticsearch.svg?url';
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ 'update:open': [value: boolean] }>();
 
-const { t } = useI18n();
 const connectionStore = useConnectionStore();
 const dataStudioStore = useDataStudioStore();
 const { connections } = storeToRefs(connectionStore);
@@ -183,26 +175,13 @@ const selectedConnectionId = ref<string>('');
 const searchQuery = ref('');
 const showList = ref(false);
 const dropdownRef = ref<HTMLElement | null>(null);
-const localAutoMode = ref(true);
-const localPermissions = ref<DataSourcePermissions>({
-  read: true,
-  create: false,
-  update: false,
-  delete: false,
-});
+const localPermissionsMode = ref<PermissionsMode>('default');
 
 onClickOutside(dropdownRef, () => {
   if (showList.value) {
     showList.value = false;
   }
 });
-
-const permissionList = computed(() => [
-  { key: 'read', label: t('dataStudio.modifySource.read') },
-  { key: 'create', label: t('dataStudio.modifySource.create') },
-  { key: 'update', label: t('dataStudio.modifySource.update') },
-  { key: 'delete', label: t('dataStudio.modifySource.delete') },
-]);
 
 const availableConnections = computed(() => {
   const connectedIds = new Set(dataStudioStore.connectedSources.map(s => s.connectionId));
@@ -244,11 +223,15 @@ watch(
       selectedConnectionId.value = '';
       searchQuery.value = '';
       showList.value = false;
-      localAutoMode.value = true;
-      localPermissions.value = { read: true, create: false, update: false, delete: false };
+      localPermissionsMode.value = 'default';
     }
   },
 );
+
+const permissionsFromMode = (mode: PermissionsMode) =>
+  mode === 'full'
+    ? { read: true, create: true, update: true, delete: true }
+    : { read: true, create: false, update: false, delete: false };
 
 const handleAdd = () => {
   if (!selectedConnectionId.value) return;
@@ -258,8 +241,9 @@ const handleAdd = () => {
   const source: ConnectedSource = {
     connectionId: conn.id,
     name: conn.name,
-    permissions: { ...localPermissions.value },
-    autoMode: localAutoMode.value,
+    permissions: permissionsFromMode(localPermissionsMode.value),
+    autoMode: localPermissionsMode.value === 'default',
+    permissionsMode: localPermissionsMode.value,
   };
 
   dataStudioStore.addSource(source);
@@ -382,42 +366,57 @@ const handleAdd = () => {
 
 .permissions-header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
   padding: 14px 16px;
   background: hsl(var(--muted) / 0.4);
   border-bottom: 1px solid hsl(var(--border));
 }
 
-.auto-mode-desc {
+.permissions-mode-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px 16px;
+  background: hsl(var(--background));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.mode-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid hsl(var(--border));
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.mode-btn:hover {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.mode-btn--active {
+  background: hsl(var(--primary) / 0.08);
+  border-color: hsl(var(--primary) / 0.4);
+  color: hsl(var(--primary));
+}
+
+.mode-desc {
   display: flex;
   gap: 8px;
   padding: 12px 16px;
   background: hsl(var(--background));
-}
-
-.permissions-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  padding: 12px 16px;
-  background: hsl(var(--background));
-}
-
-.permission-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.15s;
-  user-select: none;
-}
-
-.permission-item:hover {
-  background: hsl(var(--muted));
 }
 
 /* Dropdown animation */
