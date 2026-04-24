@@ -3,7 +3,7 @@
     <DialogContent class="sm:max-w-[600px]" :show-close="false">
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
-          <img :src="elasticsearchIcon" class="h-5 w-5" />
+          <component :is="elasticsearchIcon" class="h-5 w-5" />
           {{ modalTitle }}
         </DialogTitle>
         <button

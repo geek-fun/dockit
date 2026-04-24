@@ -107,8 +107,7 @@ export const applyTableFilter = (
 
 export type DynamoDBAuth =
   | { kind: 'accessKey'; accessKeyId: string; secretAccessKey: string }
-  | { kind: 'profile'; profileName: string }
-  | { kind: 'env' };
+  | { kind: 'profile'; profileName: string };
 
 export type DynamoDBConnection = {
   id?: number | string;

@@ -175,8 +175,6 @@ const buildAuthPayload = (auth: DynamoDBAuth): AwsAuthPayload => {
       };
     case 'profile':
       return { kind: 'profile', profile_name: auth.profileName };
-    case 'env':
-      return { kind: 'env' };
   }
 };
 

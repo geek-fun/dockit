@@ -35,8 +35,6 @@ pub enum DynamoAuth {
     Profile {
         profile_name: String,
     },
-    #[serde(rename = "env")]
-    Env,
 }
 
 #[derive(Debug, Deserialize)]
@@ -86,9 +84,6 @@ pub async fn dynamo_api(
                 .profile_name(profile_name)
                 .build();
             config_builder = config_builder.credentials_provider(profile_provider);
-        }
-        DynamoAuth::Env => {
-            // Use AWS SDK default credential chain (env vars, profiles, etc.)
         }
     }
 
