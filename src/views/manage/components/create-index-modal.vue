@@ -488,7 +488,7 @@ const fetchBaseTableInfo = async () => {
   if (!connection.value || connection.value.type !== DatabaseType.DYNAMODB) return;
 
   try {
-    baseTableInfo.value = await clusterManageStore.describeTable();
+    baseTableInfo.value = await clusterManageStore.describeTable(props.tableName);
 
     // Set default throughput values from base table if PROVISIONED
     if (baseTableInfo.value?.billingMode === 'PROVISIONED') {
@@ -614,7 +614,7 @@ const handleSubmit = async () => {
         : undefined;
 
     // Call backend API to create GSI with enhanced configuration
-    await clusterManageStore.createGlobalSecondaryIndex({
+    await clusterManageStore.createGlobalSecondaryIndex(props.tableName, {
       indexName: formValue.value.indexName,
       keySchema,
       projectionType: formValue.value.projectionType,

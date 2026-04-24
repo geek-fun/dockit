@@ -209,6 +209,7 @@ import {
   useDbDataStore,
   useHistoryStore,
   useTabStore,
+  findTable,
 } from '../../../../store';
 import { CustomError } from '../../../../common';
 import { useLang } from '../../../../lang';
@@ -223,7 +224,7 @@ const { fetchIndices, updateItem } = connectionStore;
 const { getDynamoIndexOrTableOption } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
-const { activeConnection } = storeToRefs(tabStore);
+const { activeConnection, activePanel } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
 const {
@@ -384,12 +385,18 @@ const queryToDynamo = async (event?: MouseEvent) => {
   }
 
   const { partitionKey, sortKey, formFilterItems, index } = dynamoQueryForm.value;
+  const tableName = activePanel.value?.activeTable;
+  if (!tableName) {
+    message.error('No active table selected');
+    return;
+  }
 
   try {
     loadingRef.value.queryResult = true;
     loadingBar.start();
 
     await getDynamoData(activeConnection.value as DynamoDBConnection, {
+      tableName,
       partitionKey: partitionKey ?? undefined,
       sortKey: sortKey ?? undefined,
       filters: formFilterItems,
@@ -410,7 +417,7 @@ const queryToDynamo = async (event?: MouseEvent) => {
     historyStore.addEntry({
       databaseType: DatabaseType.DYNAMODB,
       method: 'Query',
-      path: conn.tableName,
+      path: tableName,
       index: index ?? undefined,
       qdsl: queryDesc || undefined,
       connectionName: conn.name,
@@ -443,19 +450,17 @@ const handleCloseResultPanel = () => {
   resetDynamoData();
 };
 
-// Get partition key and sort key info from active connection
-const partitionKeyName = computed(
-  () => (activeConnection.value as DynamoDBConnection)?.partitionKey?.name ?? '',
-);
-const partitionKeyType = computed(
-  () => (activeConnection.value as DynamoDBConnection)?.partitionKey?.valueType ?? 'S',
-);
-const sortKeyName = computed(
-  () => (activeConnection.value as DynamoDBConnection)?.sortKey?.name ?? undefined,
-);
-const sortKeyType = computed(
-  () => (activeConnection.value as DynamoDBConnection)?.sortKey?.valueType ?? undefined,
-);
+const activeTableSummary = computed(() => {
+  const con = activeConnection.value as DynamoDBConnection | null;
+  const tableName = activePanel.value?.activeTable;
+  if (!con || !tableName) return undefined;
+  return findTable(con, tableName);
+});
+
+const partitionKeyName = computed(() => activeTableSummary.value?.partitionKey?.name ?? '');
+const partitionKeyType = computed(() => activeTableSummary.value?.partitionKey?.valueType ?? 'S');
+const sortKeyName = computed(() => activeTableSummary.value?.sortKey?.name ?? undefined);
+const sortKeyType = computed(() => activeTableSummary.value?.sortKey?.valueType ?? undefined);
 
 const handleEdit = (row: Record<string, unknown>) => {
   editingItem.value = row;
@@ -470,11 +475,13 @@ type AttributeItem = {
 
 const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem[]) => {
   if (!activeConnection.value) return;
+  const tableName = activePanel.value?.activeTable;
+  if (!tableName) return;
 
   try {
     loadingRef.value.queryResult = true;
     loadingBar.start();
-    await updateItem(activeConnection.value as DynamoDBConnection, keys, attributes);
+    await updateItem(activeConnection.value as DynamoDBConnection, tableName, keys, attributes);
     message.success(lang.t('editor.dynamo.updateItemSuccess'));
     showEditModal.value = false;
     await refreshDynamoData();

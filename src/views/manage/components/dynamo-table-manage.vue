@@ -319,13 +319,13 @@
       <delete-index-modal
         v-model:show="showDeleteIndexModal"
         :index-name="selectedIndex?.name || ''"
-        :table-name="dynamoConnection?.tableName || ''"
+        :table-name="activeTableName"
         @deleted="handleIndexDeleted"
       />
 
       <create-index-modal
         v-model:show="showCreateIndexModal"
-        :table-name="dynamoConnection?.tableName || ''"
+        :table-name="activeTableName"
         @created="handleIndexCreated"
       />
     </div>
@@ -339,6 +339,7 @@ import prettyBytes from 'pretty-bytes';
 import {
   useClusterManageStore,
   useDynamoManageStore,
+  useTabStore,
   DatabaseType,
   DynamoDBConnection,
 } from '../../../store';
@@ -368,6 +369,10 @@ const lang = useLang();
 
 const clusterManageStore = useClusterManageStore();
 const { connection } = storeToRefs(clusterManageStore);
+
+const tabStore = useTabStore();
+const { activePanel } = storeToRefs(tabStore);
+const activeTableName = computed(() => activePanel.value?.activeTable ?? '');
 
 const dynamoManageStore = useDynamoManageStore();
 const { fetchTableInfo } = dynamoManageStore;
@@ -561,7 +566,7 @@ const fetchCloudWatchMetrics = async () => {
 
   try {
     metricsLoading.value = true;
-    const result = await dynamoApi.getTableMetrics(dynCon, 24);
+    const result = await dynamoApi.getTableMetrics(dynCon, activeTableName.value, 24);
 
     metricsAvailable.value = result.available;
     metricsMessage.value = result.message || '';
@@ -599,10 +604,13 @@ const handleRefresh = async () => {
   try {
     await withLoadingDelay(
       (async () => {
-        await fetchTableInfo(dynamoConnection.value!);
+        await fetchTableInfo(dynamoConnection.value!, activeTableName.value);
 
         try {
-          const pitrData = await dynamoApi.describeContinuousBackups(dynamoConnection.value!);
+          const pitrData = await dynamoApi.describeContinuousBackups(
+            dynamoConnection.value!,
+            activeTableName.value,
+          );
           pitrEnabled.value = pitrData.pitrEnabled || false;
         } catch (err) {
           console.warn('Failed to fetch PITR status:', err); // eslint-disable-line no-console
@@ -610,7 +618,10 @@ const handleRefresh = async () => {
         }
 
         try {
-          const ttlData = await dynamoApi.describeTimeToLive(dynamoConnection.value!);
+          const ttlData = await dynamoApi.describeTimeToLive(
+            dynamoConnection.value!,
+            activeTableName.value,
+          );
           ttlEnabled.value = ttlData.ttlEnabled;
           ttlAttribute.value = ttlData.attributeName;
         } catch (err) {

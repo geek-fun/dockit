@@ -9,6 +9,7 @@ type Panel = {
   id: number;
   name: string;
   connection?: Connection;
+  activeTable?: string;
   file?: string;
   content?: string;
   hideSystemIndices?: boolean;
@@ -146,13 +147,17 @@ export const useTabStore = defineStore('panel', {
     },
 
     async selectConnection(con: Connection): Promise<void> {
-      const { connections, freshConnection } = useConnectionStore();
+      const { connections, freshConnection, fetchTables } = useConnectionStore();
       const connection = connections.find(({ id }) => id === con.id);
       if (!connection) {
         throw new CustomError(404, lang.global.t('connection.notFound'));
       }
 
-      await freshConnection(connection);
+      if (connection.type === DatabaseType.DYNAMODB) {
+        await fetchTables(connection);
+      } else {
+        await freshConnection(connection);
+      }
 
       this.activePanel.connection = connection;
     },

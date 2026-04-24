@@ -190,7 +190,7 @@ import {
 } from '@/components/ui/select';
 import type { DataTableColumn, PaginationProps } from '@/types';
 import { useLang } from '../../../../lang';
-import { useTabStore, DynamoDBConnection } from '../../../../store';
+import { useTabStore, DynamoDBConnection, findTable } from '../../../../store';
 import DeleteConfirmModal from './delete-confirm-modal.vue';
 
 const lang = useLang();
@@ -311,14 +311,17 @@ const formatCellValue = (value: unknown): string => {
 };
 
 const handleDeleteClick = (row: Record<string, unknown>) => {
-  // Get connection and key info dynamically
   const connection = tabStore.activeConnection as DynamoDBConnection | null;
   if (!connection) return;
 
-  const partitionKeyName = connection.partitionKey?.name;
-  const partitionKeyType = connection.partitionKey?.valueType;
-  const sortKeyName = connection.sortKey?.name;
-  const sortKeyType = connection.sortKey?.valueType;
+  const tableName = tabStore.activePanel?.activeTable;
+  if (!tableName) return;
+
+  const tableSummary = findTable(connection, tableName);
+  const partitionKeyName = tableSummary?.partitionKey?.name;
+  const partitionKeyType = tableSummary?.partitionKey?.valueType;
+  const sortKeyName = tableSummary?.sortKey?.name;
+  const sortKeyType = tableSummary?.sortKey?.valueType;
 
   // Build keys from the row
   const keys: Array<{ key: string; value: string | number | boolean | null; type: string }> = [];

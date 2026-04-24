@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { cloneDeep, omit } from 'lodash';
-import { DynamoDBConnection, useConnectionStore } from './connectionStore.ts';
+import { DynamoDBConnection, findTable, useConnectionStore } from './connectionStore.ts';
 import { DynamoIndexOrTableOption } from './tabStore.ts';
 import { dynamoApi } from '../datasources';
 
@@ -13,6 +13,7 @@ const resetPagination = {
 };
 
 type DynamoInput = {
+  tableName: string;
   index?: string;
   partitionKey?: string;
   sortKey?: string;
@@ -103,9 +104,9 @@ export const useDbDataStore = defineStore('dbDataStore', {
 
       const { getDynamoIndexOrTableOption, queryTable } = useConnectionStore();
 
-      const { tableName } = connection;
+      const { tableName } = queryInput;
       const { partitionKey, sortKey } = queryInput;
-      const indices = getDynamoIndexOrTableOption(connection);
+      const indices = getDynamoIndexOrTableOption(connection, tableName);
       const { partitionKeyName, sortKeyName, label, value } = indices.find(
         item => item.label === queryInput.index,
       ) as DynamoIndexOrTableOption;
@@ -249,11 +250,12 @@ export const useDbDataStore = defineStore('dbDataStore', {
 
     async deleteItem(
       connection: DynamoDBConnection,
+      tableName: string,
       keys: Array<{ key: string; value: string | number | boolean | null; type: string }>,
     ) {
       const { deleteItem } = useConnectionStore();
 
-      await deleteItem(connection, keys);
+      await deleteItem(connection, tableName, keys);
 
       // Remove item from queryData cache (UI editor mode)
       if (this.dynamoData.queryData.data && this.dynamoData.queryData.data.length > 0) {
@@ -275,6 +277,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
     // Execute PartiQL statement and handle result/error states automatically
     async executePartiqlStatement(
       connection: DynamoDBConnection,
+      tableName: string,
       statement: string,
       options?: { nextToken?: string | null },
     ): Promise<void> {
@@ -292,7 +295,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
       }
 
       try {
-        const result = await dynamoApi.executeStatement(connection, {
+        const result = await dynamoApi.executeStatement(connection, tableName, {
           statement,
           nextToken: options?.nextToken,
         });
@@ -305,8 +308,9 @@ export const useDbDataStore = defineStore('dbDataStore', {
           });
         });
 
-        const partitionKeyName = connection.partitionKey?.name;
-        const sortKeyName = connection.sortKey?.name;
+        const tableSummary = findTable(connection, tableName);
+        const partitionKeyName = tableSummary?.partitionKey?.name;
+        const sortKeyName = tableSummary?.sortKey?.name;
 
         // Build primary key column if partition key exists
         const columns: Array<DynamoColumn> = [];

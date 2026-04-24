@@ -162,11 +162,15 @@ const handleSubmit = async () => {
     loading.value = true;
 
     // Call backend API to update GSI throughput
-    await dynamoApi.updateGlobalSecondaryIndex(connection.value as DynamoDBConnection, {
-      indexName: props.indexName,
-      readCapacityUnits: formValue.value.readCapacityUnits,
-      writeCapacityUnits: formValue.value.writeCapacityUnits,
-    });
+    await dynamoApi.updateGlobalSecondaryIndex(
+      connection.value as DynamoDBConnection,
+      props.tableName,
+      {
+        indexName: props.indexName,
+        readCapacityUnits: formValue.value.readCapacityUnits,
+        writeCapacityUnits: formValue.value.writeCapacityUnits,
+      },
+    );
 
     // Ensure minimum loading time
     const elapsed = Date.now() - startTime;

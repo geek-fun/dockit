@@ -90,6 +90,7 @@ import {
   useDbDataStore,
   useConnectionStore,
   useHistoryStore,
+  findTable,
 } from '../../../../store';
 import ResultPanel from './result-panel.vue';
 import EditItem from './edit-item.vue';
@@ -143,8 +144,8 @@ const insertSampleQuery = (key: string) => {
 
   let queryText = query;
   if (activeConnection.value) {
-    const con = activeConnection.value as DynamoDBConnection;
-    queryText = query.replace(/"tablename"/g, `"${con.tableName}"`);
+    const tableName = activePanel.value?.activeTable ?? 'tablename';
+    queryText = query.replace(/"tablename"/g, `"${tableName}"`);
   }
 
   const model = editor.getModel();
@@ -198,9 +199,18 @@ const executePartiqlStatement = async (statement: string, nextToken?: string | n
   loadingRef.value = true;
   loadingBar.start();
 
+  const tableName = activePanel.value?.activeTable;
+  if (!tableName) {
+    message.error('No active table selected');
+    loadingRef.value = false;
+    loadingBar.finish();
+    return;
+  }
+
   try {
     await dbDataStore.executePartiqlStatement(
       activeConnection.value as DynamoDBConnection,
+      tableName,
       statement,
       { nextToken },
     );
@@ -209,7 +219,7 @@ const executePartiqlStatement = async (statement: string, nextToken?: string | n
       historyStore.addEntry({
         databaseType: DatabaseType.DYNAMODB,
         method: 'PartiQL',
-        path: (activeConnection.value as DynamoDBConnection).tableName,
+        path: tableName,
         qdsl: statement,
         connectionName: activeConnection.value.name,
         connectionId: activeConnection.value.id,
@@ -451,19 +461,17 @@ const handleCloseResultPanel = () => {
   dbDataStore.resetPartiqlData();
 };
 
-// Get partition key and sort key info from active connection
-const partitionKeyName = computed(
-  () => (activeConnection.value as DynamoDBConnection)?.partitionKey?.name ?? '',
-);
-const partitionKeyType = computed(
-  () => (activeConnection.value as DynamoDBConnection)?.partitionKey?.valueType ?? 'S',
-);
-const sortKeyName = computed(
-  () => (activeConnection.value as DynamoDBConnection)?.sortKey?.name ?? undefined,
-);
-const sortKeyType = computed(
-  () => (activeConnection.value as DynamoDBConnection)?.sortKey?.valueType ?? undefined,
-);
+const activeTableSummary = computed(() => {
+  const con = activeConnection.value as DynamoDBConnection | null;
+  const tableName = activePanel.value?.activeTable;
+  if (!con || !tableName) return undefined;
+  return findTable(con, tableName);
+});
+
+const partitionKeyName = computed(() => activeTableSummary.value?.partitionKey?.name ?? '');
+const partitionKeyType = computed(() => activeTableSummary.value?.partitionKey?.valueType ?? 'S');
+const sortKeyName = computed(() => activeTableSummary.value?.sortKey?.name ?? undefined);
+const sortKeyType = computed(() => activeTableSummary.value?.sortKey?.valueType ?? undefined);
 
 // Edit/Delete state
 const showEditModal = ref(false);
@@ -482,12 +490,14 @@ type AttributeItem = {
 
 const handleEditSubmit = async (keys: AttributeItem[], attributes: AttributeItem[]) => {
   if (!activeConnection.value) return;
+  const tableName = activePanel.value?.activeTable;
+  if (!tableName) return;
 
   try {
     loadingRef.value = true;
     loadingBar.start();
     const { updateItem } = useConnectionStore();
-    await updateItem(activeConnection.value as DynamoDBConnection, keys, attributes);
+    await updateItem(activeConnection.value as DynamoDBConnection, tableName, keys, attributes);
     message.success(lang.t('editor.dynamo.updateItemSuccess'));
     showEditModal.value = false;
     // Refresh results by re-executing the last statement
@@ -681,10 +691,13 @@ const setupEditor = () => {
   // Update dynamic options for autocomplete
   if (activeConnection.value) {
     const con = activeConnection.value as DynamoDBConnection;
+    const tableNames = (con.tables ?? []).map(t => t.name);
+    const activeTable = activePanel.value?.activeTable;
+    const summary = activeTable ? findTable(con, activeTable) : undefined;
     setPartiqlDynamicOptions({
-      tableNames: [con.tableName],
-      activeTable: con.tableName,
-      attributeKeys: con.attributeDefinitions?.map(attr => attr.attributeName) || [],
+      tableNames,
+      activeTable: activeTable ?? '',
+      attributeKeys: summary?.attributeDefinitions?.map(attr => attr.attributeName) ?? [],
     });
   }
 };
@@ -712,10 +725,13 @@ watch(
 watch(activeConnection, newConnection => {
   if (newConnection) {
     const con = newConnection as DynamoDBConnection;
+    const tableNames = (con.tables ?? []).map(t => t.name);
+    const activeTable = activePanel.value?.activeTable;
+    const summary = activeTable ? findTable(con, activeTable) : undefined;
     setPartiqlDynamicOptions({
-      tableNames: [con.tableName],
-      activeTable: con.tableName,
-      attributeKeys: con.attributeDefinitions?.map(attr => attr.attributeName) || [],
+      tableNames,
+      activeTable: activeTable ?? '',
+      attributeKeys: summary?.attributeDefinitions?.map(attr => attr.attributeName) ?? [],
     });
   }
 });

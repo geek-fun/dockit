@@ -13,7 +13,7 @@ export type HistoryEntry = {
   index?: string;
   qdsl?: string;
   connectionName: string;
-  connectionId?: number;
+  connectionId?: number | string;
 };
 
 export const useHistoryStore = defineStore('historyStore', {

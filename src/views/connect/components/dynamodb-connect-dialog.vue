@@ -40,17 +40,6 @@
               @blur="handleBlur('name')"
             />
           </FormItem>
-          <FormItem
-            :label="$t('connection.tableName')"
-            required
-            :error="getError('tableName', errors.tableName)"
-          >
-            <Input
-              v-model="formData.tableName"
-              :placeholder="$t('connection.tableName')"
-              @blur="handleBlur('tableName')"
-            />
-          </FormItem>
           <FormItem :label="$t('connection.connectionTarget')">
             <Tabs
               :model-value="connectionTarget"
@@ -225,7 +214,6 @@ const regionOptions = [
 const formSchema = toTypedSchema(
   z.object({
     name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
-    tableName: z.string().min(1, lang.t('connection.formValidation.tableNameRequired')),
     region: z.string().min(1, lang.t('connection.formValidation.regionRequired')),
     accessKeyId: z.string().min(1, lang.t('connection.formValidation.accessKeyIdRequired')),
     secretAccessKey: z.string().min(1, lang.t('connection.formValidation.secretAccessKeyRequired')),
@@ -240,7 +228,6 @@ const defaultFormData = {
   region: '',
   accessKeyId: '',
   secretAccessKey: '',
-  tableName: '',
   endpointUrl: '',
 } as DynamoDBConnection;
 
@@ -316,11 +303,10 @@ const closeModal = () => {
 
 const isFormValid = computed(() => {
   if (isLocal.value) {
-    return formData.value.name && formData.value.tableName && formData.value.endpointUrl;
+    return formData.value.name && formData.value.endpointUrl;
   }
   return (
     formData.value.name &&
-    formData.value.tableName &&
     formData.value.region &&
     formData.value.accessKeyId &&
     formData.value.secretAccessKey

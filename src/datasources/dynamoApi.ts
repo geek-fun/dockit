@@ -184,13 +184,10 @@ const dynamoApi = {
     return ((data as { tableNames?: string[] })?.tableNames ?? []) as string[];
   },
 
-  describeTable: async ({
-    region,
-    accessKeyId,
-    secretAccessKey,
-    endpointUrl,
-    tableName,
-  }: DynamoDBConnection): Promise<DynamoDBTableInfo> => {
+  describeTable: async (
+    { region, accessKeyId, secretAccessKey, endpointUrl }: DynamoDBConnection,
+    tableName: string,
+  ): Promise<DynamoDBTableInfo> => {
     const credentials = {
       region,
       access_key_id: accessKeyId,
@@ -289,6 +286,7 @@ const dynamoApi = {
   },
   createItem: async (
     con: DynamoDBConnection,
+    tableName: string,
     attributes: DynamoAttributeItem[],
     options?: { skipExisting?: boolean; partitionKey?: string },
   ) => {
@@ -299,7 +297,7 @@ const dynamoApi = {
       endpoint_url: con.endpointUrl,
     };
     const apiOptions = {
-      table_name: con.tableName,
+      table_name: tableName,
       operation: 'CREATE_ITEM',
       payload: {
         attributes,
@@ -318,6 +316,7 @@ const dynamoApi = {
 
   batchWriteItems: async (
     con: DynamoDBConnection,
+    tableName: string,
     items: Array<{ attributes: DynamoAttributeItem[] }>,
     options?: { skipExisting?: boolean; partitionKey?: string },
   ): Promise<BatchWriteResult> => {
@@ -328,7 +327,7 @@ const dynamoApi = {
       endpoint_url: con.endpointUrl,
     };
     const apiOptions = {
-      table_name: con.tableName,
+      table_name: tableName,
       operation: 'BATCH_WRITE_ITEM',
       payload: {
         items,
@@ -348,6 +347,7 @@ const dynamoApi = {
 
   executeStatement: async (
     con: DynamoDBConnection,
+    tableName: string,
     params: PartiQLParams,
   ): Promise<PartiQLResult> => {
     const credentials = {
@@ -358,7 +358,7 @@ const dynamoApi = {
     };
 
     const options = {
-      table_name: con.tableName,
+      table_name: tableName,
       operation: 'EXECUTE_STATEMENT',
       payload: {
         statement: params.statement,
@@ -378,6 +378,7 @@ const dynamoApi = {
 
   updateItem: async (
     con: DynamoDBConnection,
+    tableName: string,
     keys: DynamoAttributeItem[],
     attributes: DynamoAttributeItem[],
   ) => {
@@ -388,7 +389,7 @@ const dynamoApi = {
       endpoint_url: con.endpointUrl,
     };
     const options = {
-      table_name: con.tableName,
+      table_name: tableName,
       operation: 'UPDATE_ITEM',
       payload: { keys, attributes },
     };
@@ -400,7 +401,7 @@ const dynamoApi = {
     }
     return data;
   },
-  deleteItem: async (con: DynamoDBConnection, keys: DynamoAttributeItem[]) => {
+  deleteItem: async (con: DynamoDBConnection, tableName: string, keys: DynamoAttributeItem[]) => {
     const credentials = {
       region: con.region,
       access_key_id: con.accessKeyId,
@@ -408,7 +409,7 @@ const dynamoApi = {
       endpoint_url: con.endpointUrl,
     };
     const options = {
-      table_name: con.tableName,
+      table_name: tableName,
       operation: 'DELETE_ITEM',
       payload: { keys },
     };
@@ -424,6 +425,7 @@ const dynamoApi = {
   // GSI Management Operations
   createGlobalSecondaryIndex: async (
     con: DynamoDBConnection,
+    tableName: string,
     indexConfig: {
       indexName: string;
       keySchema: Array<{
@@ -448,7 +450,7 @@ const dynamoApi = {
       endpoint_url: con.endpointUrl,
     };
     const options = {
-      table_name: con.tableName,
+      table_name: tableName,
       operation: 'CREATE_GLOBAL_SECONDARY_INDEX',
       payload: {
         index_name: indexConfig.indexName,
@@ -480,6 +482,7 @@ const dynamoApi = {
 
   updateGlobalSecondaryIndex: async (
     con: DynamoDBConnection,
+    tableName: string,
     indexConfig: {
       indexName: string;
       readCapacityUnits: number;
@@ -493,7 +496,7 @@ const dynamoApi = {
       endpoint_url: con.endpointUrl,
     };
     const options = {
-      table_name: con.tableName,
+      table_name: tableName,
       operation: 'UPDATE_GLOBAL_SECONDARY_INDEX',
       payload: {
         index_name: indexConfig.indexName,
@@ -510,7 +513,11 @@ const dynamoApi = {
     return data;
   },
 
-  deleteGlobalSecondaryIndex: async (con: DynamoDBConnection, indexName: string) => {
+  deleteGlobalSecondaryIndex: async (
+    con: DynamoDBConnection,
+    tableName: string,
+    indexName: string,
+  ) => {
     const credentials = {
       region: con.region,
       access_key_id: con.accessKeyId,
@@ -518,7 +525,7 @@ const dynamoApi = {
       endpoint_url: con.endpointUrl,
     };
     const options = {
-      table_name: con.tableName,
+      table_name: tableName,
       operation: 'DELETE_GLOBAL_SECONDARY_INDEX',
       payload: {
         index_name: indexName,
@@ -534,7 +541,7 @@ const dynamoApi = {
   },
 
   // Get Point-in-Time Recovery status
-  describeContinuousBackups: async (con: DynamoDBConnection) => {
+  describeContinuousBackups: async (con: DynamoDBConnection, tableName: string) => {
     const credentials = {
       region: con.region,
       access_key_id: con.accessKeyId,
@@ -542,7 +549,7 @@ const dynamoApi = {
       endpoint_url: con.endpointUrl,
     };
     const options = {
-      table_name: con.tableName,
+      table_name: tableName,
       operation: 'DESCRIBE_CONTINUOUS_BACKUPS',
       payload: {},
     };
@@ -556,7 +563,7 @@ const dynamoApi = {
   },
 
   // Get Time To Live status
-  describeTimeToLive: async (con: DynamoDBConnection) => {
+  describeTimeToLive: async (con: DynamoDBConnection, tableName: string) => {
     const credentials = {
       region: con.region,
       access_key_id: con.accessKeyId,
@@ -564,7 +571,7 @@ const dynamoApi = {
       endpoint_url: con.endpointUrl,
     };
     const options = {
-      table_name: con.tableName,
+      table_name: tableName,
       operation: 'DESCRIBE_TIME_TO_LIVE',
       payload: {},
     };
@@ -580,6 +587,7 @@ const dynamoApi = {
   // CloudWatch Metrics
   getTableMetrics: async (
     con: DynamoDBConnection,
+    tableName: string,
     periodHours: number = 24,
   ): Promise<{
     available: boolean;
@@ -604,7 +612,7 @@ const dynamoApi = {
       endpoint_url: con.endpointUrl,
     };
     const options = {
-      table_name: con.tableName,
+      table_name: tableName,
       operation: 'GET_TABLE_METRICS',
       payload: {
         period_hours: periodHours,

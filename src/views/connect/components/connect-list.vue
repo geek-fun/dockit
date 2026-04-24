@@ -230,7 +230,7 @@ const sortFns: Record<SortKey, (a: Connection, b: Connection) => number> = {
   type: (a, b) =>
     a.type.localeCompare(b.type) ||
     a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
-  dateCreated: (a, b) => (a.id ?? 0) - (b.id ?? 0),
+  dateCreated: (a, b) => String(a.id ?? '').localeCompare(String(b.id ?? '')),
 };
 
 const sortOptions = computed(() => [
@@ -281,7 +281,9 @@ const getConnectionDetail = (connection: Connection) => {
     return url.length > 30 ? url.substring(0, 30) + '...' : url;
   }
   const dynamo = connection as DynamoDBConnection;
-  return dynamo.region ? `${dynamo.region} / ${dynamo.tableName}` : dynamo.tableName;
+  const tableCount = dynamo.tables?.length ?? 0;
+  const tableSummary = `${tableCount} table${tableCount === 1 ? '' : 's'}`;
+  return dynamo.region ? `${dynamo.region} / ${tableSummary}` : tableSummary;
 };
 
 const getVersion = (connection: Connection) => {
@@ -445,8 +447,7 @@ const cloneConnect = (connection: Connection) => {
     esConnectDialog.value.showMedal(esClone);
   } else if (connection.type === DatabaseType.DYNAMODB) {
     const dynamoClone = clonedConnection as DynamoDBConnection;
-    dynamoClone.indices = undefined;
-    dynamoClone.keySchema = undefined;
+    dynamoClone.tables = undefined;
     dynamodbConnectDialog.value.showMedal(dynamoClone);
   }
 };
