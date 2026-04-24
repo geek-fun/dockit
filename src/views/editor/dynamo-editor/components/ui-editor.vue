@@ -10,10 +10,31 @@
                 <FormItem :label="$t('editor.dynamo.selectIndex')">
                   <Select
                     :model-value="dynamoQueryForm.index ?? undefined"
+                    :disabled="indexSelectDisabled"
                     @update:open="handleIndexOpen"
                     @update:model-value="handleSelectUpdate"
                   >
-                    <SelectTrigger>
+                    <TooltipProvider v-if="indexSelectDisabled">
+                      <Tooltip>
+                        <TooltipTrigger as-child>
+                          <span class="inline-flex w-full">
+                            <SelectTrigger>
+                              <span
+                                v-if="dynamoQueryForm.index && selectedIndexOrTable"
+                                class="select-value-text"
+                              >
+                                {{ selectedIndexOrTable.label }}
+                              </span>
+                              <SelectValue v-else :placeholder="$t('editor.dynamo.selectIndex')" />
+                            </SelectTrigger>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {{ $t('editor.dynamo.selectTableFirst') }}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <SelectTrigger v-else>
                       <span
                         v-if="dynamoQueryForm.index && selectedIndexOrTable"
                         class="select-value-text"
@@ -196,6 +217,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -286,6 +308,8 @@ watch(
 // Edit state
 const showEditModal = ref(false);
 const editingItem = ref<Record<string, unknown> | null>(null);
+
+const indexSelectDisabled = computed(() => !activePanel.value?.activeTable);
 
 const validationPassed = computed(() => {
   if (!dynamoQueryForm.value.index) return false;

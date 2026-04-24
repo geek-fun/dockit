@@ -443,6 +443,7 @@ export const zhCN = {
       tableOrIndex: '表/索引',
       selectTableOrIndex: '请选择一个 表/索引',
       selectIndex: '选择索引',
+      selectTableFirst: '请先选择一个表',
       enterPartitionKey: '请输入 Partition Key 的值',
       enterSortKey: '请输入 Sort Key 的值',
       filterTitle: '条件过滤 - 可选',

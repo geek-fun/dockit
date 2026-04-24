@@ -447,6 +447,7 @@ export const enUS = {
       tableOrIndex: 'Table/Index',
       selectTableOrIndex: 'Select a Table/Index',
       selectIndex: 'Select Index',
+      selectTableFirst: 'Please select a table first',
       enterPartitionKey: 'Enter partition key value',
       enterSortKey: 'Enter sort key value',
       filterTitle: 'Filters - Optional',
