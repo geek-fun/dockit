@@ -199,7 +199,14 @@ const executePartiqlStatement = async (statement: string, nextToken?: string | n
   loadingRef.value = true;
   loadingBar.start();
 
-  const tableName = activePanel.value?.activeTable;
+  const tableName = (() => {
+    const match =
+      statement.match(/FROM\s+"([^"]+)"/i) ??
+      statement.match(/INTO\s+"([^"]+)"/i) ??
+      statement.match(/UPDATE\s+"([^"]+)"/i) ??
+      statement.match(/DELETE\s+FROM\s+"([^"]+)"/i);
+    return match?.[1] ?? activePanel.value?.activeTable;
+  })();
   if (!tableName) {
     message.error('No active table selected');
     loadingRef.value = false;

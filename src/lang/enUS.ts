@@ -350,6 +350,7 @@ export const enUS = {
       descending: 'Descending',
     },
     selectIndex: 'No collection/index selected',
+    selectTable: 'Select table',
     selectConnection: 'No Connection selected',
     validationFailed: 'Form validation failed!',
     unAuthorized: 'Authorization failed, please check your authentication credentials',
@@ -366,6 +367,17 @@ export const enUS = {
     dynamodb: {
       queryComingSoon: 'DynamoDB query interface coming soon...',
       tablesComingSoon: 'DynamoDB tables management coming soon...',
+    },
+    tableFilter: {
+      label: 'Table Filter',
+      kindAll: 'All tables',
+      kindExplicit: 'Include',
+      kindExclude: 'Exclude',
+      kindRegex: 'Regex match',
+      tableNamesLabel: 'Table names',
+      searchPlaceholder: 'Search tables...',
+      regexPlaceholder: 'e.g. ^prod-.*',
+      matchPreview: '{count} tables matched: {sample}',
     },
   },
   toolBar: {
@@ -434,6 +446,7 @@ export const enUS = {
       sqlEditor: 'PartiQL Editor',
       tableOrIndex: 'Table/Index',
       selectTableOrIndex: 'Select a Table/Index',
+      selectIndex: 'Select Index',
       enterPartitionKey: 'Enter partition key value',
       enterSortKey: 'Enter sort key value',
       filterTitle: 'Filters - Optional',

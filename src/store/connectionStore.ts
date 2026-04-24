@@ -42,7 +42,7 @@ type ElasticSearchIndex = {
 export type DynamoTableFilter =
   | { kind: 'all' }
   | { kind: 'explicit'; tableNames: string[] }
-  | { kind: 'prefix'; prefix: string }
+  | { kind: 'exclude'; tableNames: string[] }
   | { kind: 'regex'; pattern: string };
 
 export type DynamoTableKey = {
@@ -90,8 +90,9 @@ export const applyTableFilter = (
     const allowed = new Set(filter.tableNames);
     return allTables.filter(name => allowed.has(name));
   }
-  if (filter.kind === 'prefix') {
-    return allTables.filter(name => name.startsWith(filter.prefix));
+  if (filter.kind === 'exclude') {
+    const blocked = new Set(filter.tableNames);
+    return allTables.filter(name => !blocked.has(name));
   }
   if (filter.kind === 'regex') {
     try {
@@ -115,6 +116,7 @@ export type DynamoDBConnection = {
 
   tableFilter?: DynamoTableFilter;
   tables?: Array<DynamoTableSummary>;
+  favoriteTables?: Array<string>;
 };
 
 export type ElasticsearchConnection = {
@@ -236,9 +238,6 @@ export const migrateDynamoConnectionsV1ToV2 = (
 
   const consolidated: DynamoDBConnection[] = Array.from(groups.values()).map(group => {
     const head = group[0];
-    const tableNames = Array.from(
-      new Set(group.map(c => c.tableName).filter((n): n is string => Boolean(n))),
-    );
     const tables: DynamoTableSummary[] = group
       .filter(c => c.tableName)
       .map(c => ({
@@ -257,7 +256,7 @@ export const migrateDynamoConnectionsV1ToV2 = (
       accessKeyId: head.accessKeyId,
       secretAccessKey: head.secretAccessKey,
       endpointUrl: head.endpointUrl,
-      tableFilter: tableNames.length > 0 ? { kind: 'explicit', tableNames } : { kind: 'all' },
+      tableFilter: { kind: 'all' },
       tables,
     };
   });
@@ -290,7 +289,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         if (!table?.keySchema) return [];
 
         const { partitionKeyName, sortKeyName } = getIndexInfo(table.keySchema);
-        const partitionKeyOption = partitionKeyName && {
+        const tableScanOption = partitionKeyName && {
           label: `Table - ${tableName}`,
           value: tableName,
           partitionKeyName,
@@ -299,17 +298,16 @@ export const useConnectionStore = defineStore('connectionStore', {
 
         const indexOptions =
           table.indices?.map(index => {
-            const { partitionKeyName, sortKeyName } = getIndexInfo(index.keySchema);
-
+            const { partitionKeyName: pkName, sortKeyName: skName } = getIndexInfo(index.keySchema);
             return {
               label: `${index.type} - ${index.name}`,
               value: index.name,
-              partitionKeyName,
-              sortKeyName,
+              partitionKeyName: pkName,
+              sortKeyName: skName,
             };
           }) || [];
 
-        return [partitionKeyOption, ...indexOptions].filter(
+        return [tableScanOption, ...indexOptions].filter(
           Boolean,
         ) as Array<DynamoIndexOrTableOption>;
       };
@@ -373,29 +371,39 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async freshConnection(con: Connection, tableName?: string) {
       if (con.type === DatabaseType.DYNAMODB) {
-        if (!tableName) {
-          throw new CustomError(
-            400,
-            lang.global.t('connection.tableNameRequired') ?? 'tableName is required',
-          );
+        const allTables = await dynamoApi.listTables({
+          region: con.region,
+          accessKeyId: con.accessKeyId,
+          secretAccessKey: con.secretAccessKey,
+          endpointUrl: con.endpointUrl,
+        });
+
+        const visible = applyTableFilter(allTables, con.tableFilter);
+
+        if (tableName) {
+          const tableInfo = await dynamoApi.describeTable(con, tableName);
+          const summary: DynamoTableSummary = {
+            name: tableName,
+            status: tableInfo.status,
+            itemCount: tableInfo.itemCount,
+            sizeBytes: tableInfo.sizeBytes,
+            billingMode: tableInfo.billingMode,
+            keySchema: tableInfo.keySchema,
+            attributeDefinitions: tableInfo.attributeDefinitions,
+            partitionKey: tableInfo.partitionKey,
+            sortKey: tableInfo.sortKey,
+            indices: tableInfo.indices,
+            creationDateTime: tableInfo.creationDateTime,
+          };
+          return {
+            ...con,
+            tables: upsertTable(con.tables ?? [], summary),
+          } as DynamoDBConnection;
         }
-        const tableInfo = await dynamoApi.describeTable(con, tableName);
-        const summary: DynamoTableSummary = {
-          name: tableName,
-          status: tableInfo.status,
-          itemCount: tableInfo.itemCount,
-          sizeBytes: tableInfo.sizeBytes,
-          billingMode: tableInfo.billingMode,
-          keySchema: tableInfo.keySchema,
-          attributeDefinitions: tableInfo.attributeDefinitions,
-          partitionKey: tableInfo.partitionKey,
-          sortKey: tableInfo.sortKey,
-          indices: tableInfo.indices,
-          creationDateTime: tableInfo.creationDateTime,
-        };
+
         return {
           ...con,
-          tables: upsertTable(con.tables ?? [], summary),
+          tables: visible.map(name => ({ name })),
         } as DynamoDBConnection;
       } else if (con.type === DatabaseType.ELASTICSEARCH) {
         const client = loadHttpClient(con);

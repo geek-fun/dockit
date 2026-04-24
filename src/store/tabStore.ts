@@ -1,4 +1,9 @@
-import { Connection, DatabaseType, useConnectionStore } from './connectionStore.ts';
+import {
+  Connection,
+  DatabaseType,
+  DynamoDBConnection,
+  useConnectionStore,
+} from './connectionStore.ts';
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
@@ -166,6 +171,19 @@ export const useTabStore = defineStore('panel', {
       if (!this.activePanel) return;
       this.defaultSnippet += 1;
       this.activePanel.content = defaultCodeSnippet;
+    },
+
+    setActiveTable(tableName: string): void {
+      this.activePanel.activeTable = tableName;
+    },
+
+    toggleFavoriteTable(tableName: string): void {
+      const conn = this.activePanel.connection as DynamoDBConnection | undefined;
+      if (!conn || conn.type !== DatabaseType.DYNAMODB) return;
+      const favorites = conn.favoriteTables ?? [];
+      conn.favoriteTables = favorites.includes(tableName)
+        ? favorites.filter(t => t !== tableName)
+        : [...favorites, tableName];
     },
   },
 });

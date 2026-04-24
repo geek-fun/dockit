@@ -7,7 +7,7 @@
             <!-- First row with partition and sort key -->
             <Grid :cols="24" :x-gap="12">
               <GridItem :span="8">
-                <FormItem :label="$t('editor.dynamo.tableOrIndex')">
+                <FormItem :label="$t('editor.dynamo.selectIndex')">
                   <Select
                     :model-value="dynamoQueryForm.index ?? undefined"
                     @update:open="handleIndexOpen"
@@ -20,7 +20,7 @@
                       >
                         {{ selectedIndexOrTable.label }}
                       </span>
-                      <SelectValue v-else :placeholder="$t('editor.dynamo.selectTableOrIndex')" />
+                      <SelectValue v-else :placeholder="$t('editor.dynamo.selectIndex')" />
                     </SelectTrigger>
                     <SelectContent>
                       <div v-if="loadingRef.index" class="flex items-center justify-center py-4">
@@ -326,7 +326,11 @@ const removeFilterItem = (index: number) => {
 const indicesOrTableOptions = ref<Array<DynamoIndexOrTableOption>>([]);
 
 const handleSelectUpdate = (value: string) => {
-  const indices = getDynamoIndexOrTableOption.value(activeConnection.value as DynamoDBConnection);
+  const tableName = activePanel.value?.activeTable;
+  const indices = getDynamoIndexOrTableOption.value(
+    activeConnection.value as DynamoDBConnection,
+    tableName,
+  );
   const option = indicesOrTableOptions.value.find(opt => opt.value === value);
   if (option) {
     selectedIndexOrTable.value = indices.find(({ label }) => label === option.label);
@@ -355,9 +359,10 @@ const handleIndexOpen = async (isOpen: boolean) => {
   }
   loadingRef.value.index = true;
   try {
-    await fetchIndices(activeConnection.value as Connection);
+    const tableName = activePanel.value?.activeTable;
+    await fetchIndices(activeConnection.value as Connection, tableName);
     indicesOrTableOptions.value = getDynamoIndexOrTableOption
-      .value(activeConnection.value as DynamoDBConnection)
+      .value(activeConnection.value as DynamoDBConnection, tableName)
       .map(item => ({ ...item, value: item.label }));
   } catch (err) {
     message.error(`status: ${(err as Error).name}, details: ${(err as Error).message}`, {
