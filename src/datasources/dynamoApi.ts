@@ -1,6 +1,7 @@
-import { DynamoDBConnection } from '../store';
-import { tauriClient } from './ApiClients.ts';
+import { DynamoDBConnection, type DynamoDBAuth } from '../store';
+import { tauriClient, type AwsAuthPayload, type AwsCredentials } from './ApiClients.ts';
 import { CustomError } from '../common';
+import { invoke } from '@tauri-apps/api/core';
 
 export type KeySchema = {
   attributeName: string;
@@ -158,19 +159,30 @@ export type BatchWriteResult = {
   unprocessedCount: number;
 };
 
+const buildDynamoCredentials = (con: DynamoDBConnection): AwsCredentials => ({
+  region: con.region,
+  endpoint_url: con.endpointUrl || null,
+  auth: buildAuthPayload(con.auth),
+});
+
+const buildAuthPayload = (auth: DynamoDBAuth): AwsAuthPayload => {
+  switch (auth.kind) {
+    case 'accessKey':
+      return {
+        kind: 'accessKey',
+        access_key_id: auth.accessKeyId,
+        secret_access_key: auth.secretAccessKey,
+      };
+    case 'profile':
+      return { kind: 'profile', profile_name: auth.profileName };
+    case 'env':
+      return { kind: 'env' };
+  }
+};
+
 const dynamoApi = {
-  listTables: async (credentials: {
-    region: string;
-    accessKeyId: string;
-    secretAccessKey: string;
-    endpointUrl?: string;
-  }): Promise<string[]> => {
-    const apiCredentials = {
-      region: credentials.region,
-      access_key_id: credentials.accessKeyId,
-      secret_access_key: credentials.secretAccessKey,
-      endpoint_url: credentials.endpointUrl,
-    };
+  listTables: async (con: DynamoDBConnection): Promise<string[]> => {
+    const apiCredentials = buildDynamoCredentials(con);
     const options = {
       table_name: '',
       operation: 'LIST_TABLES',
@@ -184,16 +196,8 @@ const dynamoApi = {
     return ((data as { tableNames?: string[] })?.tableNames ?? []) as string[];
   },
 
-  describeTable: async (
-    { region, accessKeyId, secretAccessKey, endpointUrl }: DynamoDBConnection,
-    tableName: string,
-  ): Promise<DynamoDBTableInfo> => {
-    const credentials = {
-      region,
-      access_key_id: accessKeyId,
-      secret_access_key: secretAccessKey,
-      endpoint_url: endpointUrl,
-    };
+  describeTable: async (con: DynamoDBConnection, tableName: string): Promise<DynamoDBTableInfo> => {
+    const credentials = buildDynamoCredentials(con);
     const options = {
       table_name: tableName,
       operation: 'DESCRIBE_TABLE',
@@ -226,12 +230,7 @@ const dynamoApi = {
   },
 
   queryTable: async (con: DynamoDBConnection, queryParams: QueryParams): Promise<QueryResult> => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
 
     const options = {
       table_name: queryParams.tableName,
@@ -257,12 +256,7 @@ const dynamoApi = {
     return data as QueryResult;
   },
   scanTable: async (con: DynamoDBConnection, queryParams: QueryParams) => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
 
     const options = {
       table_name: queryParams.tableName,
@@ -290,12 +284,7 @@ const dynamoApi = {
     attributes: DynamoAttributeItem[],
     options?: { skipExisting?: boolean; partitionKey?: string },
   ) => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
     const apiOptions = {
       table_name: tableName,
       operation: 'CREATE_ITEM',
@@ -320,12 +309,7 @@ const dynamoApi = {
     items: Array<{ attributes: DynamoAttributeItem[] }>,
     options?: { skipExisting?: boolean; partitionKey?: string },
   ): Promise<BatchWriteResult> => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
     const apiOptions = {
       table_name: tableName,
       operation: 'BATCH_WRITE_ITEM',
@@ -350,12 +334,7 @@ const dynamoApi = {
     tableName: string,
     params: PartiQLParams,
   ): Promise<PartiQLResult> => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
 
     const options = {
       table_name: tableName,
@@ -382,12 +361,7 @@ const dynamoApi = {
     keys: DynamoAttributeItem[],
     attributes: DynamoAttributeItem[],
   ) => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
     const options = {
       table_name: tableName,
       operation: 'UPDATE_ITEM',
@@ -402,12 +376,7 @@ const dynamoApi = {
     return data;
   },
   deleteItem: async (con: DynamoDBConnection, tableName: string, keys: DynamoAttributeItem[]) => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
     const options = {
       table_name: tableName,
       operation: 'DELETE_ITEM',
@@ -443,12 +412,7 @@ const dynamoApi = {
       };
     },
   ) => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
     const options = {
       table_name: tableName,
       operation: 'CREATE_GLOBAL_SECONDARY_INDEX',
@@ -489,12 +453,7 @@ const dynamoApi = {
       writeCapacityUnits: number;
     },
   ) => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
     const options = {
       table_name: tableName,
       operation: 'UPDATE_GLOBAL_SECONDARY_INDEX',
@@ -518,12 +477,7 @@ const dynamoApi = {
     tableName: string,
     indexName: string,
   ) => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
     const options = {
       table_name: tableName,
       operation: 'DELETE_GLOBAL_SECONDARY_INDEX',
@@ -542,12 +496,7 @@ const dynamoApi = {
 
   // Get Point-in-Time Recovery status
   describeContinuousBackups: async (con: DynamoDBConnection, tableName: string) => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
     const options = {
       table_name: tableName,
       operation: 'DESCRIBE_CONTINUOUS_BACKUPS',
@@ -564,12 +513,7 @@ const dynamoApi = {
 
   // Get Time To Live status
   describeTimeToLive: async (con: DynamoDBConnection, tableName: string) => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
     const options = {
       table_name: tableName,
       operation: 'DESCRIBE_TIME_TO_LIVE',
@@ -605,12 +549,7 @@ const dynamoApi = {
       totalThrottledEvents: number;
     };
   }> => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
     const options = {
       table_name: tableName,
       operation: 'GET_TABLE_METRICS',
@@ -653,12 +592,7 @@ const dynamoApi = {
       writeCapacity?: number;
     },
   ): Promise<void> => {
-    const credentials = {
-      region: con.region,
-      access_key_id: con.accessKeyId,
-      secret_access_key: con.secretAccessKey,
-      endpoint_url: con.endpointUrl,
-    };
+    const credentials = buildDynamoCredentials(con);
     const options = {
       table_name: config.tableName,
       operation: 'CREATE_TABLE',
@@ -675,6 +609,14 @@ const dynamoApi = {
     };
     const { status, message } = await tauriClient.invokeDynamoApi(credentials, options);
     if (status >= 400) throw new CustomError(status, message);
+  },
+
+  listProfiles: async (): Promise<string[]> => {
+    try {
+      return await invoke<string[]>('aws_list_profiles');
+    } catch {
+      return [];
+    }
   },
 };
 

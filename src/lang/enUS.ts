@@ -316,6 +316,16 @@ export const enUS = {
     connectionTarget: 'Connection Target',
     cloudTarget: 'AWS Cloud',
     localTarget: 'Local',
+    authMethod: 'Authentication Method',
+    authAccessKey: 'Access Keys',
+    authProfile: 'AWS Profile',
+    authEnv: 'Environment',
+    authEnvHint:
+      'Credentials will be resolved from environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) or the default AWS credential chain.',
+    profileName: 'Profile Name',
+    selectProfile: 'Select a profile',
+    noProfilesDetected:
+      'No AWS profiles detected. Configure ~/.aws/credentials or ~/.aws/config first.',
     localLimitations:
       'DynamoDB Local does not support CloudWatch metrics, continuous backups, global tables, IAM roles, or streams.',
     unsupportedType: 'Unsupported database type provided',
@@ -326,8 +336,7 @@ export const enUS = {
       portRequired: 'Port is required',
       sslCertOnlyHttps: 'SSL Certificate Verification can only be enabled under HTTPS connection',
       regionRequired: 'Please select region',
-      accessKeyIdRequired: 'Please enter Access Key ID',
-      secretAccessKeyRequired: 'Please enter Secret Access Key',
+      profileNameRequired: 'Please select a profile',
       endpointUrlRequired: 'Endpoint URL is required for local connections',
       apiKeyRequired: 'API Key is required',
     },

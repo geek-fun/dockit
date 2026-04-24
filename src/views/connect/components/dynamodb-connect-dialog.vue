@@ -72,6 +72,24 @@
             </FormItem>
           </template>
           <template v-else>
+            <FormItem :label="$t('connection.authMethod')">
+              <Tabs
+                :model-value="authMethod"
+                @update:model-value="value => onAuthMethodChange(value as string)"
+              >
+                <TabsList class="w-full">
+                  <TabsTrigger class="flex-1" value="accessKey">
+                    {{ $t('connection.authAccessKey') }}
+                  </TabsTrigger>
+                  <TabsTrigger class="flex-1" value="profile">
+                    {{ $t('connection.authProfile') }}
+                  </TabsTrigger>
+                  <TabsTrigger class="flex-1" value="env">
+                    {{ $t('connection.authEnv') }}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </FormItem>
             <FormItem
               :label="$t('connection.region')"
               required
@@ -95,29 +113,80 @@
                 </SelectContent>
               </Select>
             </FormItem>
-            <FormItem
-              :label="$t('connection.accessKeyId')"
-              required
-              :error="getError('accessKeyId', errors.accessKeyId)"
-            >
-              <Input
-                v-model="formData.accessKeyId"
-                :placeholder="$t('connection.accessKeyId')"
-                @blur="handleBlur('accessKeyId')"
-              />
-            </FormItem>
-            <FormItem
-              :label="$t('connection.secretAccessKey')"
-              required
-              :error="getError('secretAccessKey', errors.secretAccessKey)"
-            >
-              <Input
-                v-model="formData.secretAccessKey"
-                type="password"
-                :placeholder="$t('connection.secretAccessKey')"
-                @blur="handleBlur('secretAccessKey')"
-              />
-            </FormItem>
+
+            <!-- Access Key fields -->
+            <template v-if="authMethod === 'accessKey'">
+              <FormItem :label="$t('connection.accessKeyId')" required>
+                <Input
+                  :model-value="
+                    (formData.auth.kind === 'accessKey' && formData.auth.accessKeyId) || ''
+                  "
+                  :placeholder="$t('connection.accessKeyId')"
+                  @update:model-value="
+                    v => {
+                      if (formData.auth.kind === 'accessKey')
+                        formData.auth.accessKeyId = v as string;
+                    }
+                  "
+                  @blur="handleBlur('accessKeyId')"
+                />
+              </FormItem>
+              <FormItem :label="$t('connection.secretAccessKey')" required>
+                <Input
+                  :model-value="
+                    (formData.auth.kind === 'accessKey' && formData.auth.secretAccessKey) || ''
+                  "
+                  type="password"
+                  :placeholder="$t('connection.secretAccessKey')"
+                  @update:model-value="
+                    v => {
+                      if (formData.auth.kind === 'accessKey')
+                        formData.auth.secretAccessKey = v as string;
+                    }
+                  "
+                  @blur="handleBlur('secretAccessKey')"
+                />
+              </FormItem>
+            </template>
+
+            <!-- Profile field -->
+            <template v-if="authMethod === 'profile'">
+              <FormItem :label="$t('connection.profileName')" required>
+                <Select
+                  :model-value="
+                    (formData.auth.kind === 'profile' && formData.auth.profileName) || ''
+                  "
+                  @update:model-value="
+                    v => {
+                      if (formData.auth.kind === 'profile') formData.auth.profileName = v as string;
+                    }
+                  "
+                >
+                  <SelectTrigger>
+                    <SelectValue :placeholder="$t('connection.selectProfile')" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      v-for="profile in availableProfiles"
+                      :key="profile"
+                      :value="profile"
+                    >
+                      {{ profile }}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p v-if="availableProfiles.length === 0" class="text-xs text-muted-foreground mt-1">
+                  {{ $t('connection.noProfilesDetected') }}
+                </p>
+              </FormItem>
+            </template>
+
+            <!-- Environment: no additional fields needed -->
+            <template v-if="authMethod === 'env'">
+              <Alert variant="info" class="mb-4">
+                <AlertDescription>{{ $t('connection.authEnvHint') }}</AlertDescription>
+              </Alert>
+            </template>
           </template>
 
           <FormItem :label="$t('connection.tableFilter.label')">
@@ -236,6 +305,7 @@ import { useConnectionStore } from '../../../store';
 import {
   DatabaseType,
   DynamoDBConnection,
+  type DynamoDBAuth,
   type DynamoTableFilter,
   applyTableFilter,
 } from '../../../store';
@@ -276,6 +346,8 @@ const saveLoading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
 const connectionTarget = ref<'cloud' | 'local'>('cloud');
+const authMethod = ref<DynamoDBAuth['kind']>('accessKey');
+const availableProfiles = ref<string[]>([]);
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 const isLocal = computed(() => connectionTarget.value === 'local');
@@ -299,21 +371,18 @@ const formSchema = toTypedSchema(
   z.object({
     name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
     region: z.string().min(1, lang.t('connection.formValidation.regionRequired')),
-    accessKeyId: z.string().min(1, lang.t('connection.formValidation.accessKeyIdRequired')),
-    secretAccessKey: z.string().min(1, lang.t('connection.formValidation.secretAccessKeyRequired')),
     endpointUrl: z.string().optional(),
     type: z.nativeEnum(DatabaseType),
   }),
 );
 
-const defaultFormData = {
+const defaultFormData: DynamoDBConnection = {
   name: '',
   type: DatabaseType.DYNAMODB,
   region: '',
-  accessKeyId: '',
-  secretAccessKey: '',
   endpointUrl: '',
-} as DynamoDBConnection;
+  auth: { kind: 'accessKey', accessKeyId: '', secretAccessKey: '' },
+};
 
 const formData = ref<DynamoDBConnection>(cloneDeep(defaultFormData));
 
@@ -332,15 +401,28 @@ watch(formData, newVal => setValues(newVal), { deep: true });
 const onTargetChange = (value: string) => {
   connectionTarget.value = value as 'cloud' | 'local';
   if (value === 'local') {
-    formData.value.accessKeyId = 'dummy';
-    formData.value.secretAccessKey = 'dummy';
-    formData.value.region = 'us-east-1';
-    formData.value.endpointUrl = formData.value.endpointUrl || 'http://localhost:8000';
+    formData.value = {
+      ...formData.value,
+      region: 'us-east-1',
+      endpointUrl: formData.value.endpointUrl || 'http://localhost:8000',
+      auth: { kind: 'accessKey', accessKeyId: 'dummy', secretAccessKey: 'dummy' },
+    };
   } else {
-    formData.value.accessKeyId = '';
-    formData.value.secretAccessKey = '';
-    formData.value.region = '';
-    formData.value.endpointUrl = '';
+    const emptyAuth: DynamoDBAuth =
+      authMethod.value === 'profile'
+        ? { kind: 'profile', profileName: '' }
+        : authMethod.value === 'env'
+          ? { kind: 'env' }
+          : { kind: 'accessKey', accessKeyId: '', secretAccessKey: '' };
+    formData.value = {
+      ...formData.value,
+      region: '',
+      endpointUrl: '',
+      auth: emptyAuth,
+    };
+  }
+  if (value === 'local') {
+    authMethod.value = 'accessKey';
   }
 };
 
@@ -356,12 +438,16 @@ const showMedal = (con: DynamoDBConnection | null) => {
     formData.value = { ...con };
     veeResetForm({ values: { ...con } });
     connectionTarget.value = con.endpointUrl ? 'local' : 'cloud';
+    authMethod.value = con.auth?.kind ?? 'accessKey';
     modalTitle.value = lang.t('connection.edit');
   } else {
     formData.value = cloneDeep(defaultFormData);
     veeResetForm({ values: cloneDeep(defaultFormData) });
     connectionTarget.value = 'cloud';
+    authMethod.value = 'accessKey';
   }
+  availableProfiles.value = [];
+  fetchProfiles();
   resetValidation();
 };
 
@@ -373,6 +459,7 @@ const closeModal = () => {
   errorMessage.value = '';
   successMessage.value = '';
   connectionTarget.value = 'cloud';
+  authMethod.value = 'accessKey';
   availableTables.value = [];
   filterTableNameInput.value = '';
   showSuggestions.value = false;
@@ -380,15 +467,27 @@ const closeModal = () => {
 };
 
 const isFormValid = computed(() => {
+  if (!formData.value.name) return false;
+
   if (isLocal.value) {
-    return !!formData.value.name && !!formData.value.endpointUrl;
+    return !!formData.value.endpointUrl;
   }
-  return !!(
-    formData.value.name &&
-    formData.value.region &&
-    formData.value.accessKeyId &&
-    formData.value.secretAccessKey
-  );
+
+  if (!formData.value.region) return false;
+
+  const auth = formData.value.auth;
+  if (!auth) return false;
+
+  switch (auth.kind) {
+    case 'accessKey':
+      return !!(auth.accessKeyId && auth.secretAccessKey);
+    case 'profile':
+      return !!auth.profileName;
+    case 'env':
+      return true;
+    default:
+      return false;
+  }
 });
 
 const testConnect = async () => {
@@ -398,6 +497,11 @@ const testConnect = async () => {
 
   const { valid } = await validate();
   if (!valid) {
+    errorMessage.value = lang.t('connection.validationFailed');
+    return;
+  }
+
+  if (!validateAuth()) {
     errorMessage.value = lang.t('connection.validationFailed');
     return;
   }
@@ -429,6 +533,57 @@ const testConnect = async () => {
     }
   } finally {
     testLoading.value = false;
+  }
+};
+
+const validateAuth = (): boolean => {
+  const auth = formData.value.auth;
+  if (!auth) return false;
+  switch (auth.kind) {
+    case 'accessKey':
+      return !!auth.accessKeyId && !!auth.secretAccessKey;
+    case 'profile':
+      return !!auth.profileName;
+    case 'env':
+      return true;
+  }
+};
+
+const fetchProfiles = async () => {
+  try {
+    availableProfiles.value = await dynamoApi.listProfiles();
+  } catch {
+    availableProfiles.value = [];
+  }
+};
+
+const onAuthMethodChange = (kind: string) => {
+  const k = kind as DynamoDBAuth['kind'];
+  authMethod.value = k;
+  if (k === 'profile') {
+    formData.value = {
+      ...formData.value,
+      auth: {
+        kind: 'profile',
+        profileName:
+          formData.value.auth?.kind === 'profile' ? (formData.value.auth.profileName ?? '') : '',
+      },
+    };
+  } else if (k === 'env') {
+    formData.value = {
+      ...formData.value,
+      auth: { kind: 'env' },
+    };
+  } else {
+    const prevAccessKey = formData.value.auth?.kind === 'accessKey' ? formData.value.auth : null;
+    formData.value = {
+      ...formData.value,
+      auth: {
+        kind: 'accessKey',
+        accessKeyId: prevAccessKey?.accessKeyId ?? '',
+        secretAccessKey: prevAccessKey?.secretAccessKey ?? '',
+      },
+    };
   }
 };
 
@@ -483,12 +638,7 @@ let fetchAbortFlag = 0;
 const silentFetchTables = async () => {
   const tick = ++fetchAbortFlag;
   try {
-    const tables = await dynamoApi.listTables({
-      region: formData.value.region,
-      accessKeyId: formData.value.accessKeyId,
-      secretAccessKey: formData.value.secretAccessKey,
-      endpointUrl: formData.value.endpointUrl,
-    });
+    const tables = await dynamoApi.listTables(formData.value);
     if (tick === fetchAbortFlag) availableTables.value = tables;
   } catch {
     // silently ignore — no credentials yet or invalid

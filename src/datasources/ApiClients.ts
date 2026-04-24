@@ -17,11 +17,15 @@ type ApiClientResponse = {
   message: string;
   data: { [key: string]: unknown };
 };
+export type AwsAuthPayload =
+  | { kind: 'accessKey'; access_key_id: string; secret_access_key: string }
+  | { kind: 'profile'; profile_name: string }
+  | { kind: 'env' };
+
 export type AwsCredentials = {
-  access_key_id: string;
-  secret_access_key: string;
   region: string;
-  endpoint_url?: string;
+  endpoint_url?: string | null;
+  auth: AwsAuthPayload;
 };
 export type DynamoApiOptions = {
   table_name: string;

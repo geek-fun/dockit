@@ -16,18 +16,34 @@ use crate::dynamo::update_table::{
 use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};
 use crate::dynamo::continuous_backups::describe_continuous_backups;
 use crate::dynamo::time_to_live::describe_time_to_live;
+use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use aws_config::meta::region::RegionProviderChain;
+use aws_config::profile::ProfileFileCredentialsProvider;
 use aws_config::Region;
 use aws_sdk_dynamodb::{config::Credentials, Client};
-use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "kind")]
+pub enum DynamoAuth {
+    #[serde(rename = "accessKey")]
+    AccessKey {
+        access_key_id: String,
+        secret_access_key: String,
+    },
+    #[serde(rename = "profile")]
+    Profile {
+        profile_name: String,
+    },
+    #[serde(rename = "env")]
+    Env,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct DynamoCredentials {
     pub region: String,
-    pub access_key_id: String,     // AWS access key ID
-    pub secret_access_key: String, // AWS secret access key
-    pub endpoint_url: Option<String>, // Optional custom endpoint for DynamoDB Local
+    pub endpoint_url: Option<String>,
+    pub auth: DynamoAuth,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,20 +64,33 @@ pub async fn dynamo_api(
         .or_default_provider()
         .or_else("us-east-1");
 
-    // Create credentials provider
-    let creds = Credentials::new(
-        credentials.access_key_id,
-        credentials.secret_access_key,
-        None, // session token
-        None, // expiry
-        //         &options.table_name.clone()
-        "dockit-client",
-    );
-
-    // Configure AWS SDK
     let mut config_builder = aws_config::defaults(aws_config::BehaviorVersion::latest())
-        .region(region_provider)
-        .credentials_provider(creds);
+        .region(region_provider);
+
+    match &credentials.auth {
+        DynamoAuth::AccessKey {
+            access_key_id,
+            secret_access_key,
+        } => {
+            let creds = Credentials::new(
+                access_key_id,
+                secret_access_key,
+                None,
+                None,
+                "dockit-client",
+            );
+            config_builder = config_builder.credentials_provider(creds);
+        }
+        DynamoAuth::Profile { profile_name } => {
+            let profile_provider = ProfileFileCredentialsProvider::builder()
+                .profile_name(profile_name)
+                .build();
+            config_builder = config_builder.credentials_provider(profile_provider);
+        }
+        DynamoAuth::Env => {
+            // Use AWS SDK default credential chain (env vars, profiles, etc.)
+        }
+    }
 
     if let Some(ref endpoint) = credentials.endpoint_url {
         if !endpoint.is_empty() {
@@ -310,4 +339,50 @@ pub async fn dynamo_api(
             Ok(serde_json::to_string(&error_response).map_err(|e| e.to_string())?)
         }
     }
+}
+
+#[tauri::command]
+pub async fn aws_list_profiles() -> Result<Vec<String>, String> {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .map_err(|_| "Cannot determine home directory".to_string())?;
+
+    let aws_dir = std::path::Path::new(&home).join(".aws");
+    let credentials_path = aws_dir.join("credentials");
+    let config_path = aws_dir.join("config");
+
+    let mut profiles = std::collections::HashSet::new();
+
+    let parse_ini_sections = |path: &std::path::Path| -> Vec<String> {
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(_) => return Vec::new(),
+        };
+        content
+            .lines()
+            .filter_map(|line| {
+                let trimmed = line.trim();
+                if !trimmed.starts_with('[') || !trimmed.ends_with(']') {
+                    return None;
+                }
+                Some(trimmed[1..trimmed.len() - 1].trim().to_string())
+            })
+            .collect()
+    };
+
+    for section in parse_ini_sections(&credentials_path) {
+        profiles.insert(section);
+    }
+
+    for section in parse_ini_sections(&config_path) {
+        let name = section
+            .strip_prefix("profile ")
+            .unwrap_or(&section)
+            .to_string();
+        profiles.insert(name);
+    }
+
+    let mut sorted: Vec<String> = profiles.into_iter().collect();
+    sorted.sort();
+    Ok(sorted)
 }
