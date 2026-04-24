@@ -125,6 +125,7 @@ const handleConfirm = async () => {
     // Call backend API to delete GSI
     await dynamoApi.deleteGlobalSecondaryIndex(
       connection.value as DynamoDBConnection,
+      props.tableName,
       props.indexName,
     );
 

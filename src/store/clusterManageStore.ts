@@ -292,21 +292,23 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     },
 
     // DynamoDB Actions
-    async describeTable(): Promise<DynamoDBTableInfo | undefined> {
+    async describeTable(tableName: string): Promise<DynamoDBTableInfo | undefined> {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (this.connection.type === DatabaseType.DYNAMODB) {
-        return await dynamoApi.describeTable(this.connection as DynamoDBConnection);
+        return await dynamoApi.describeTable(this.connection as DynamoDBConnection, tableName);
       }
       return undefined;
     },
 
     async createGlobalSecondaryIndex(
-      indexConfig: Parameters<typeof dynamoApi.createGlobalSecondaryIndex>[1],
+      tableName: string,
+      indexConfig: Parameters<typeof dynamoApi.createGlobalSecondaryIndex>[2],
     ) {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (this.connection.type === DatabaseType.DYNAMODB) {
         return await dynamoApi.createGlobalSecondaryIndex(
           this.connection as DynamoDBConnection,
+          tableName,
           indexConfig,
         );
       }

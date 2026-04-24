@@ -123,7 +123,8 @@ const handleRetry = async () => {
 
 const handleConfirm = async () => {
   const connection = tabStore.activeConnection as DynamoDBConnection | null;
-  if (!props.keys || props.keys.length === 0 || !connection) return;
+  const tableName = tabStore.activePanel?.activeTable;
+  if (!props.keys || props.keys.length === 0 || !connection || !tableName) return;
 
   const startTime = Date.now();
 
@@ -131,7 +132,7 @@ const handleConfirm = async () => {
     loading.value = true;
 
     // Execute delete
-    await deleteItem(connection, props.keys);
+    await deleteItem(connection, tableName, props.keys);
 
     // Ensure minimum loading time before showing success
     const elapsed = Date.now() - startTime;

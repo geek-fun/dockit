@@ -10,6 +10,7 @@ import {
   DatabaseType,
   DynamoDBConnection,
   ElasticsearchConnection,
+  findTable,
 } from './connectionStore.ts';
 
 // Import (Restore) types
@@ -561,6 +562,8 @@ export const useImportExportStore = defineStore('importExportStore', {
 
     async restoreToDynamoDB(input: RestoreInput) {
       const dynamoConnection = input.connection as DynamoDBConnection;
+      const tableName = input.index;
+      const tableSummary = findTable(dynamoConnection, tableName);
       const fileType = input.restoreFile.split('.').pop();
 
       const parseCsvLine = (line: string): Array<string | null> => {
@@ -607,7 +610,7 @@ export const useImportExportStore = defineStore('importExportStore', {
 
         let attributeTypeMap: Map<string, string> | undefined;
         try {
-          const tableInfo = await dynamoApi.describeTable(dynamoConnection);
+          const tableInfo = await dynamoApi.describeTable(dynamoConnection, tableName);
           if (tableInfo?.attributeDefinitions) {
             attributeTypeMap = new Map<string, string>();
             for (const attr of tableInfo.attributeDefinitions) {
@@ -618,8 +621,12 @@ export const useImportExportStore = defineStore('importExportStore', {
 
         const batchSize = 25;
         const fileBatchSize = 1000;
-        const partitionKeyName = dynamoConnection.partitionKey.name;
-        const sortKeyName = dynamoConnection.sortKey?.name;
+        const partitionKeyName = tableSummary?.partitionKey?.name;
+        const sortKeyName = tableSummary?.sortKey?.name;
+
+        if (!partitionKeyName) {
+          throw new CustomError(400, `Table ${tableName} has no partition key metadata`);
+        }
 
         const writeItemBatch = async (
           writeBatch: Array<{
@@ -631,10 +638,15 @@ export const useImportExportStore = defineStore('importExportStore', {
           }>,
         ) => {
           try {
-            const result = await dynamoApi.batchWriteItems(dynamoConnection, writeBatch, {
-              skipExisting: this.importStrategy === 'append',
-              partitionKey: partitionKeyName,
-            });
+            const result = await dynamoApi.batchWriteItems(
+              dynamoConnection,
+              tableName,
+              writeBatch,
+              {
+                skipExisting: this.importStrategy === 'append',
+                partitionKey: partitionKeyName,
+              },
+            );
             if (this.restoreProgress) {
               this.restoreProgress.inserted += result.inserted;
               this.restoreProgress.skipped += result.skipped;
@@ -645,7 +657,7 @@ export const useImportExportStore = defineStore('importExportStore', {
               try {
                 const retryResult = await retryWithBackoff(
                   () =>
-                    dynamoApi.batchWriteItems(dynamoConnection, writeBatch, {
+                    dynamoApi.batchWriteItems(dynamoConnection, tableName, writeBatch, {
                       skipExisting: this.importStrategy === 'append',
                       partitionKey: partitionKeyName,
                     }),
@@ -979,7 +991,9 @@ export const useImportExportStore = defineStore('importExportStore', {
 
     async validateDataStructureForDynamoDB(data: string, fileType: string) {
       const dynamoConnection = this.importConnection as DynamoDBConnection;
-      const partitionKeyName = dynamoConnection.partitionKey.name;
+      const tableSummary = findTable(dynamoConnection, this.importTargetIndex);
+      const partitionKeyName = tableSummary?.partitionKey?.name;
+      if (!partitionKeyName) return;
       const invalidItems: Array<{ index: number; reason: string }> = [];
 
       try {
@@ -1221,12 +1235,8 @@ export const useImportExportStore = defineStore('importExportStore', {
         // If no properties found, return empty schema (valid for empty index)
         return {};
       } else if (this.importConnection.type === DatabaseType.DYNAMODB) {
-        // For DynamoDB, we need to describe the table
-        const dynamoConnection = {
-          ...(this.importConnection as DynamoDBConnection),
-          tableName: this.importTargetIndex,
-        };
-        const tableInfo = await dynamoApi.describeTable(dynamoConnection);
+        const dynamoConnection = this.importConnection as DynamoDBConnection;
+        const tableInfo = await dynamoApi.describeTable(dynamoConnection, this.importTargetIndex);
         if (tableInfo?.attributeDefinitions) {
           const schema: Record<string, string> = {};
           for (const attr of tableInfo.attributeDefinitions) {
@@ -1867,17 +1877,22 @@ export const useImportExportStore = defineStore('importExportStore', {
       if (!this.connection || !this.selectedIndex) return;
 
       const dynamoConnection = this.connection as DynamoDBConnection;
+      const tableName = this.selectedIndex;
+      const tableSummary = findTable(dynamoConnection, tableName);
+      const partitionKeyName = tableSummary?.partitionKey?.name;
+
+      if (!partitionKeyName) {
+        throw new CustomError(400, `Table ${tableName} has no partition key metadata`);
+      }
 
       try {
-        // Get table info to ensure we have attribute definitions
-        const tableInfo = await dynamoApi.describeTable(dynamoConnection);
+        const tableInfo = await dynamoApi.describeTable(dynamoConnection, tableName);
 
-        // Always scan the base table to get schema information (not GSI/LSI)
         const queryResult = await dynamoApi.scanTable(dynamoConnection, {
-          tableName: dynamoConnection.tableName,
+          tableName,
           indexName: null,
           partitionKey: {
-            name: dynamoConnection.partitionKey.name,
+            name: partitionKeyName,
             value: null,
           },
           limit: 1,
@@ -2230,8 +2245,14 @@ export const useImportExportStore = defineStore('importExportStore', {
 
     async exportDynamoDBToFile(input: ExportInput): Promise<string> {
       const dynamoConnection = input.connection as DynamoDBConnection;
+      const tableName = input.index;
+      const tableSummary = findTable(dynamoConnection, tableName);
+      const partitionKeyName = tableSummary?.partitionKey?.name;
 
-      // Use the configured fileName from input
+      if (!partitionKeyName) {
+        throw new CustomError(400, `Table ${tableName} has no partition key metadata`);
+      }
+
       const dataFileName = `${input.exportFileName}.${input.exportFileType}`;
       const dataFilePath = `${input.exportFolder}/${dataFileName}`;
       const metadataFileName = `${input.exportFileName}_metadata.json`;
@@ -2251,8 +2272,7 @@ export const useImportExportStore = defineStore('importExportStore', {
           }
         }
 
-        // Get table info for metadata
-        const tableInfo = await dynamoApi.describeTable(dynamoConnection);
+        const tableInfo = await dynamoApi.describeTable(dynamoConnection, tableName);
 
         // Initialize progress
         this.exportProgress = {
@@ -2307,16 +2327,12 @@ export const useImportExportStore = defineStore('importExportStore', {
 
         let isFirstBatch = true;
 
-        // Determine if we're scanning a GSI or the base table
-        const isGSI = input.index !== dynamoConnection.tableName;
-
-        // Scan table in batches
         while (hasMore) {
           const queryResult = await dynamoApi.scanTable(dynamoConnection, {
-            tableName: dynamoConnection.tableName,
-            indexName: isGSI ? input.index : null,
+            tableName,
+            indexName: null,
             partitionKey: {
-              name: dynamoConnection.partitionKey.name,
+              name: partitionKeyName,
               value: null,
             },
             limit: 1000,

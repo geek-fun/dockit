@@ -4,6 +4,7 @@ pub mod create_table;
 pub mod delete_item;
 pub mod describe_table;
 pub mod execute_statement;
+pub mod list_tables;
 pub mod query_table;
 pub mod scan_table;
 pub mod types;

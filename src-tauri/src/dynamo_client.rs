@@ -4,6 +4,7 @@ use crate::dynamo::create_table::{create_table, CreateTableInput};
 use crate::dynamo::delete_item::{delete_item, DeleteItemInput};
 use crate::dynamo::describe_table::describe_table;
 use crate::dynamo::execute_statement::{execute_statement, ExecuteStatementInput};
+use crate::dynamo::list_tables::list_tables;
 use crate::dynamo::query_table::{query_table, QueryTableInput};
 use crate::dynamo::scan_table::{scan_table, ScanTableInput};
 use crate::dynamo::types::ApiResponse;
@@ -31,6 +32,7 @@ pub struct DynamoCredentials {
 
 #[derive(Debug, Deserialize)]
 pub struct DynamoOptions {
+    #[serde(default)]
     pub table_name: String,
     pub operation: String,
     pub payload: Option<serde_json::Value>,
@@ -73,6 +75,7 @@ pub async fn dynamo_api(
 
     // Process operation
     let result = match options.operation.as_str() {
+        "LIST_TABLES" => list_tables(&client).await,
         "DESCRIBE_TABLE" => describe_table(&client, &options.table_name).await,
         "CREATE_ITEM" => {
             if let Some(payload) = &options.payload {

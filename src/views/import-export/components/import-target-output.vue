@@ -148,8 +148,7 @@ const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
-const { fetchConnections, fetchIndices, freshConnection, getDynamoIndexOrTableOption } =
-  connectionStore;
+const { fetchConnections, fetchIndices, freshConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 
 const importExportStore = useImportExportStore();
@@ -281,24 +280,10 @@ const updateIndexOptions = () => {
       value: index,
     }));
   } else if (importConnection.value.type === DatabaseType.DYNAMODB) {
-    // DynamoDB metadata is already populated by freshConnection — no extra fetch needed.
-    // importConnection.value holds the refreshed object; connectionStore.connections[] is NOT
-    // updated by freshConnection, so we must NOT use the connections.value lookup here.
-    const dynamoOptions = getDynamoIndexOrTableOption(importConnection.value as DynamoDBConnection);
-    const tableOption = dynamoOptions.find(opt => opt.label.startsWith('Table -'));
-    if (tableOption) {
-      const tableName = (importConnection.value as DynamoDBConnection).tableName;
-      currentExistingIndices.value = [tableOption.value];
-      indexOptions.value = [
-        {
-          label: tableName,
-          value: tableOption.value,
-        },
-      ];
-    } else {
-      currentExistingIndices.value = [];
-      indexOptions.value = [];
-    }
+    const dynamoConn = importConnection.value as DynamoDBConnection;
+    const tables = dynamoConn.tables ?? [];
+    currentExistingIndices.value = tables.map(t => t.name);
+    indexOptions.value = tables.map(t => ({ label: t.name, value: t.name }));
   }
 };
 

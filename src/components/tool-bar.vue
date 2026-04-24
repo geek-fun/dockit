@@ -37,6 +37,52 @@
     </Select>
 
     <Select
+      v-if="
+        props.type === 'DYNAMO_EDITOR' || (props.type === 'MANAGE' && !isElasticsearchConnection)
+      "
+      :model-value="tableSelectValue"
+      @update:model-value="value => handleUpdate(value as string, 'TABLE')"
+      @update:open="isOpen => handleOpen(isOpen, 'TABLE')"
+    >
+      <SelectTrigger class="index-select">
+        <input
+          v-if="selectionState.table"
+          ref="tableSearchInput"
+          v-model="filterRef.table"
+          class="select-trigger-input"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          :placeholder="tableSelectValue || $t('connection.selectTable')"
+          @click.stop
+        />
+        <span v-else-if="tableSelectValue" class="select-value-text">{{ tableSelectValue }}</span>
+        <span v-else class="select-placeholder-text">{{ $t('connection.selectTable') }}</span>
+        <SelectValue class="sr-only" :placeholder="$t('connection.selectTable')" />
+        <template #icon>
+          <span v-if="selectionState.table" class="i-carbon-search h-4 w-4 opacity-50" />
+          <span v-else class="i-carbon-chevron-down h-4 w-4 opacity-50" />
+        </template>
+      </SelectTrigger>
+      <SelectContent>
+        <div v-if="loadingRef.table" class="select-loading">Loading...</div>
+        <SelectItem v-for="opt in options.table" v-else :key="opt.value" :value="opt.value">
+          <span class="flex items-center gap-1 w-full">
+            <span
+              class="h-3.5 w-3.5 shrink-0 cursor-pointer"
+              :class="
+                opt.favorite ? 'i-carbon-star-filled text-yellow-400' : 'i-carbon-star opacity-40'
+              "
+              @click.stop="toggleFavoriteTable(opt.value)"
+            />
+            {{ opt.label }}
+          </span>
+        </SelectItem>
+      </SelectContent>
+    </Select>
+
+    <Select
       v-if="props.type === 'ES_EDITOR'"
       :model-value="indexSelectValue"
       @update:model-value="value => handleUpdate(value as string, 'INDEX')"
@@ -228,6 +274,7 @@ import {
   useTabStore,
   DatabaseType,
   ElasticsearchConnection,
+  DynamoDBConnection,
 } from '../store';
 import { useLang } from '../lang';
 import { CustomError } from '../common';
@@ -255,11 +302,11 @@ const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
-const { fetchConnections, fetchIndices, selectIndex } = connectionStore;
+const { fetchConnections, fetchIndices, fetchTables, selectIndex } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
-const { selectConnection } = tabStore;
+const { selectConnection, setActiveTable, toggleFavoriteTable } = tabStore;
 const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
@@ -276,15 +323,17 @@ const showRunButton = computed(() => {
   return props.type === 'DYNAMO_EDITOR' && activePanel.value.editorType === 'DYNAMO_EDITOR_SQL';
 });
 
-const loadingRef = ref({ connection: false, index: false });
+const loadingRef = ref({ connection: false, index: false, table: false });
 
-const filterRef = ref({ connection: '', index: '' });
+const filterRef = ref({ connection: '', index: '', table: '' });
 const connectionSearchInput = ref<HTMLInputElement>();
 const indexSearchInput = ref<HTMLInputElement>();
+const tableSearchInput = ref<HTMLInputElement>();
 
-const selectionState = ref<{ connection: boolean; index: boolean }>({
+const selectionState = ref<{ connection: boolean; index: boolean; table: boolean }>({
   connection: false,
   index: false,
+  table: false,
 });
 
 const hideSystemIndicesRef = ref(true);
@@ -319,6 +368,29 @@ const indexSelectValue = computed(() => {
     return (conn as ElasticsearchConnection).activeIndex?.index;
   }
   return undefined;
+});
+
+const tableSelectValue = computed(() => {
+  return activePanel?.value?.activeTable;
+});
+
+const dynamoTableOptions = computed(() => {
+  const conn = (
+    ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
+      ? activePanel.value.connection
+      : connection.value
+  ) as DynamoDBConnection | undefined;
+  if (!conn || conn.type !== DatabaseType.DYNAMODB) return [];
+  const favorites = conn.favoriteTables ?? [];
+  const tables = (conn.tables ?? []).map(t => t.name);
+  return [
+    ...tables.filter(n => favorites.includes(n)),
+    ...tables.filter(n => !favorites.includes(n)),
+  ]
+    .filter(
+      n => !filterRef.value.table || n.toLowerCase().includes(filterRef.value.table.toLowerCase()),
+    )
+    .map(n => ({ label: n, value: n, favorite: favorites.includes(n) }));
 });
 
 const esSampleQueryOptions = computed(() => [
@@ -417,10 +489,11 @@ const options = computed(
             !filterRef.value.index ||
             index.value.toLowerCase().includes(filterRef.value.index.toLowerCase()),
         ),
-    }) as Record<string, { label: string; value: string }[]>,
+      table: dynamoTableOptions.value,
+    }) as Record<string, { label: string; value: string; favorite?: boolean }[]>,
 );
 
-const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX') => {
+const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX' | 'TABLE') => {
   if (!isOpen) {
     // @ts-ignore
     selectionState.value[type.toLowerCase()] = false;
@@ -428,14 +501,15 @@ const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX') => {
   }
   // @ts-ignore
   selectionState.value[type.toLowerCase()] = true;
-  filterRef.value = { connection: '', index: '' }; // reset filters for each time it open
+  filterRef.value = { connection: '', index: '', table: '' };
 
-  // Focus search input after state update
   setTimeout(() => {
     if (type === 'CONNECTION' && connectionSearchInput.value) {
       connectionSearchInput.value.focus();
     } else if (type === 'INDEX' && indexSearchInput.value) {
       indexSearchInput.value.focus();
+    } else if (type === 'TABLE' && tableSearchInput.value) {
+      tableSearchInput.value.focus();
     }
   }, 0);
 
@@ -443,6 +517,28 @@ const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX') => {
     loadingRef.value.connection = true;
     await fetchConnections();
     loadingRef.value.connection = false;
+  } else if (type === 'TABLE') {
+    const selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
+      ? activePanel.value.connection
+      : connection.value;
+    if (!selectedConnection) {
+      message.error(lang.t('editor.establishedRequired'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
+      return;
+    }
+    loadingRef.value.table = true;
+    try {
+      await fetchTables(selectedConnection as DynamoDBConnection);
+    } catch (err) {
+      message.error(
+        `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
+        { closable: true, keepAliveOnHover: true, duration: 3000 },
+      );
+    }
+    loadingRef.value.table = false;
   } else {
     let selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
       ? activePanel.value.connection
@@ -469,7 +565,7 @@ const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX') => {
   }
 };
 
-const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
+const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX' | 'TABLE') => {
   if (type === 'CONNECTION') {
     const con = connections.value.find(({ name }) => name === value);
     if (!con) {
@@ -489,6 +585,8 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX') => {
         duration: 36000000,
       });
     }
+  } else if (type === 'TABLE') {
+    setActiveTable(value);
   } else {
     const selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
       ? activePanel.value.connection

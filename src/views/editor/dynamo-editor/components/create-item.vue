@@ -199,7 +199,13 @@
 import { storeToRefs } from 'pinia';
 import { Loader2 } from 'lucide-vue-next';
 import { useMessageService } from '@/composables';
-import { Connection, DynamoDBConnection, useConnectionStore, useTabStore } from '../../../../store';
+import {
+  Connection,
+  DynamoDBConnection,
+  useConnectionStore,
+  useTabStore,
+  findTable,
+} from '../../../../store';
 import { CustomError } from '../../../../common';
 import { useLang } from '../../../../lang';
 
@@ -391,7 +397,17 @@ const handleSubmit = async (event: MouseEvent) => {
 
   try {
     loadingRef.value.createItem = true;
-    const { partitionKey, sortKey } = activeConnection.value as DynamoDBConnection;
+    const tableName = tabStore.activePanel?.activeTable;
+    if (!tableName) {
+      message.error('No active table selected');
+      return;
+    }
+    const tableSummary = findTable(activeConnection.value as DynamoDBConnection, tableName);
+    if (!tableSummary?.partitionKey) {
+      message.error(`Table ${tableName} has no partition key metadata`);
+      return;
+    }
+    const { partitionKey, sortKey } = tableSummary;
     const pkRecord = {
       key: partitionKey.name,
       value: dynamoRecordForm.value.partitionKey,
@@ -414,7 +430,7 @@ const handleSubmit = async (event: MouseEvent) => {
       type: string;
     }>;
 
-    await createItem(activeConnection.value as DynamoDBConnection, attributes);
+    await createItem(activeConnection.value as DynamoDBConnection, tableName, attributes);
     message.success(lang.t('editor.dynamo.createItemSuccess'));
   } catch (error) {
     const { status, details } = error as CustomError;
@@ -433,11 +449,14 @@ const handleReset = () => {
   errors.value = { attributes: [] };
 };
 
-fetchIndices(activeConnection.value as Connection).then(() => {
-  const { partitionKey, sortKey, attributeDefinitions } =
-    activeConnection.value as DynamoDBConnection;
+fetchIndices(activeConnection.value as Connection, tabStore.activePanel?.activeTable).then(() => {
+  const tableName = tabStore.activePanel?.activeTable;
+  if (!tableName) return;
+  const tableSummary = findTable(activeConnection.value as DynamoDBConnection, tableName);
+  if (!tableSummary?.partitionKey) return;
+  const { partitionKey, sortKey, attributeDefinitions } = tableSummary;
 
-  dynamoRecordForm.value.keyAttributes = attributeDefinitions
+  dynamoRecordForm.value.keyAttributes = (attributeDefinitions ?? [])
     .map(({ attributeName, attributeType }) => ({
       key: attributeName,
       value: null,

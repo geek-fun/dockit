@@ -14,14 +14,14 @@ export const useDynamoManageStore = defineStore('dynamoManageStore', {
     lastUpdatedTime: undefined,
   }),
   actions: {
-    async fetchTableInfo(connection: DynamoDBConnection) {
+    async fetchTableInfo(connection: DynamoDBConnection, tableName: string) {
       if (connection.type !== DatabaseType.DYNAMODB) {
         throw new Error('Connection must be DynamoDB type');
       }
 
       this.loading = true;
       try {
-        const tableInfo = await dynamoApi.describeTable(connection);
+        const tableInfo = await dynamoApi.describeTable(connection, tableName);
         this.tableInfo = tableInfo;
         this.lastUpdatedTime = Date.now();
       } catch (err) {

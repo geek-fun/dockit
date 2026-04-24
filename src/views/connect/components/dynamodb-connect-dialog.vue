@@ -40,17 +40,6 @@
               @blur="handleBlur('name')"
             />
           </FormItem>
-          <FormItem
-            :label="$t('connection.tableName')"
-            required
-            :error="getError('tableName', errors.tableName)"
-          >
-            <Input
-              v-model="formData.tableName"
-              :placeholder="$t('connection.tableName')"
-              @blur="handleBlur('tableName')"
-            />
-          </FormItem>
           <FormItem :label="$t('connection.connectionTarget')">
             <Tabs
               :model-value="connectionTarget"
@@ -130,6 +119,85 @@
               />
             </FormItem>
           </template>
+
+          <FormItem :label="$t('connection.tableFilter.label')">
+            <RadioGroup
+              class="flex flex-row flex-wrap gap-x-5 gap-y-1.5"
+              :model-value="filterKind"
+              @update:model-value="onFilterKindChange"
+            >
+              <label
+                v-for="opt in filterKindOptions"
+                :key="opt.value"
+                class="flex items-center gap-1.5 cursor-pointer text-sm select-none"
+              >
+                <RadioGroupItem :value="opt.value" />
+                {{ opt.label }}
+              </label>
+            </RadioGroup>
+
+            <div class="mt-2.5 space-y-2">
+              <template v-if="filterKind === 'explicit' || filterKind === 'exclude'">
+                <div class="relative">
+                  <Input
+                    v-model="filterTableNameInput"
+                    :placeholder="$t('connection.tableFilter.searchPlaceholder')"
+                    autocomplete="off"
+                    @focus="showSuggestions = true"
+                    @blur="onInputBlur"
+                    @keydown.enter.prevent="addFromInputOrFirst"
+                    @keydown.escape="showSuggestions = false"
+                  />
+                  <div
+                    v-if="showSuggestions && filteredSuggestions.length"
+                    class="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto"
+                  >
+                    <button
+                      v-for="name in filteredSuggestions"
+                      :key="name"
+                      type="button"
+                      class="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-pointer"
+                      @mousedown.prevent="addFilterTableName(name)"
+                    >
+                      {{ name }}
+                    </button>
+                  </div>
+                </div>
+                <div v-if="filterTableNames.length" class="flex flex-wrap gap-1.5">
+                  <Badge
+                    v-for="name in filterTableNames"
+                    :key="name"
+                    variant="secondary"
+                    class="flex items-center gap-1 cursor-pointer hover:opacity-70"
+                    @click="removeFilterTableName(name)"
+                  >
+                    {{ name }}
+                    <X class="h-3 w-3" />
+                  </Badge>
+                </div>
+                <p v-if="matchPreview" class="text-xs text-muted-foreground">
+                  {{ matchPreview }}
+                </p>
+              </template>
+
+              <template v-else-if="filterKind === 'regex'">
+                <Input
+                  :model-value="filterRegex"
+                  :placeholder="$t('connection.tableFilter.regexPlaceholder')"
+                  @update:model-value="v => onFilterStringChange('regex', v as string)"
+                />
+                <p v-if="matchPreview" class="text-xs text-muted-foreground">
+                  {{ matchPreview }}
+                </p>
+              </template>
+
+              <template v-else>
+                <p v-if="matchPreview" class="text-xs text-muted-foreground">
+                  {{ matchPreview }}
+                </p>
+              </template>
+            </div>
+          </FormItem>
         </Form>
       </div>
 
@@ -157,7 +225,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { X, Loader2 } from 'lucide-vue-next';
-import { cloneDeep } from 'lodash';
+import { cloneDeep, debounce } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
@@ -165,8 +233,14 @@ import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import dynamoDBIcon from '../../../assets/svg/dynamoDB.svg';
 import { useLang } from '../../../lang';
 import { useConnectionStore } from '../../../store';
-import { DatabaseType, DynamoDBConnection } from '../../../store';
+import {
+  DatabaseType,
+  DynamoDBConnection,
+  type DynamoTableFilter,
+  applyTableFilter,
+} from '../../../store';
 import { ApiClientError } from '../../../datasources/ApiClients';
+import { dynamoApi } from '../../../datasources/dynamoApi';
 import { useFormValidation } from '@/composables';
 
 import {
@@ -188,11 +262,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Badge } from '@/components/ui/badge';
 
 const connectionStore = useConnectionStore();
-
 const { freshConnection } = connectionStore;
-
 const lang = useLang();
 
 const showModal = ref(false);
@@ -221,11 +295,9 @@ const regionOptions = [
   { label: 'Europe (Ireland)', value: 'eu-west-1' },
 ];
 
-// Zod validation schema
 const formSchema = toTypedSchema(
   z.object({
     name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
-    tableName: z.string().min(1, lang.t('connection.formValidation.tableNameRequired')),
     region: z.string().min(1, lang.t('connection.formValidation.regionRequired')),
     accessKeyId: z.string().min(1, lang.t('connection.formValidation.accessKeyIdRequired')),
     secretAccessKey: z.string().min(1, lang.t('connection.formValidation.secretAccessKeyRequired')),
@@ -240,7 +312,6 @@ const defaultFormData = {
   region: '',
   accessKeyId: '',
   secretAccessKey: '',
-  tableName: '',
   endpointUrl: '',
 } as DynamoDBConnection;
 
@@ -256,14 +327,7 @@ const {
   initialValues: cloneDeep(defaultFormData),
 });
 
-// Watch formData changes and sync with vee-validate
-watch(
-  formData,
-  newVal => {
-    setValues(newVal);
-  },
-  { deep: true },
-);
+watch(formData, newVal => setValues(newVal), { deep: true });
 
 const onTargetChange = (value: string) => {
   connectionTarget.value = value as 'cloud' | 'local';
@@ -281,9 +345,7 @@ const onTargetChange = (value: string) => {
 };
 
 const handleOpenChange = (open: boolean) => {
-  if (!open) {
-    closeModal();
-  }
+  if (!open) closeModal();
 };
 
 const showMedal = (con: DynamoDBConnection | null) => {
@@ -311,16 +373,18 @@ const closeModal = () => {
   errorMessage.value = '';
   successMessage.value = '';
   connectionTarget.value = 'cloud';
+  availableTables.value = [];
+  filterTableNameInput.value = '';
+  showSuggestions.value = false;
   resetValidation();
 };
 
 const isFormValid = computed(() => {
   if (isLocal.value) {
-    return formData.value.name && formData.value.tableName && formData.value.endpointUrl;
+    return !!formData.value.name && !!formData.value.endpointUrl;
   }
-  return (
+  return !!(
     formData.value.name &&
-    formData.value.tableName &&
     formData.value.region &&
     formData.value.accessKeyId &&
     formData.value.secretAccessKey
@@ -344,24 +408,16 @@ const testConnect = async () => {
   try {
     await freshConnection(formData.value);
 
-    // Ensure minimum loading time before showing success
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
-    if (remainingTime > 0) {
-      await new Promise(resolve => setTimeout(resolve, remainingTime));
-    }
+    if (remainingTime > 0) await new Promise(resolve => setTimeout(resolve, remainingTime));
 
-    // Test successful - show success message
     successMessage.value = lang.t('connection.testSuccess');
   } catch (error: unknown) {
-    // Ensure minimum loading time before showing error
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
-    if (remainingTime > 0) {
-      await new Promise(resolve => setTimeout(resolve, remainingTime));
-    }
+    if (remainingTime > 0) await new Promise(resolve => setTimeout(resolve, remainingTime));
 
-    // Handle both ApiClientError/CustomError (with status and details) and generic Error
     if (error instanceof CustomError) {
       errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
     } else if (error instanceof ApiClientError) {
@@ -390,13 +446,152 @@ const saveConnect = async () => {
   saveLoading.value = true;
   const result = await connectionStore.saveConnection(formData.value);
   if (result.success) {
-    // Success - just close the modal without showing a message
     closeModal();
   } else {
-    // Error - show in the popup and stay open
     errorMessage.value = result.message;
   }
   saveLoading.value = false;
+};
+
+// ── Table filter ─────────────────────────────────────────────────────────────
+
+const filterKindOptions = computed(() => [
+  { value: 'all', label: lang.t('connection.tableFilter.kindAll') },
+  { value: 'explicit', label: lang.t('connection.tableFilter.kindExplicit') },
+  { value: 'exclude', label: lang.t('connection.tableFilter.kindExclude') },
+  { value: 'regex', label: lang.t('connection.tableFilter.kindRegex') },
+]);
+
+const filterKind = computed<DynamoTableFilter['kind']>(
+  () => formData.value.tableFilter?.kind ?? 'all',
+);
+
+const filterTableNames = computed<string[]>(() => {
+  const f = formData.value.tableFilter;
+  return f && (f.kind === 'explicit' || f.kind === 'exclude') ? f.tableNames : [];
+});
+
+const filterRegex = computed<string>(() => {
+  const f = formData.value.tableFilter;
+  return f?.kind === 'regex' ? f.pattern : '';
+});
+
+// Raw table list fetched silently from the connection
+const availableTables = ref<string[]>([]);
+let fetchAbortFlag = 0;
+
+const silentFetchTables = async () => {
+  const tick = ++fetchAbortFlag;
+  try {
+    const tables = await dynamoApi.listTables({
+      region: formData.value.region,
+      accessKeyId: formData.value.accessKeyId,
+      secretAccessKey: formData.value.secretAccessKey,
+      endpointUrl: formData.value.endpointUrl,
+    });
+    if (tick === fetchAbortFlag) availableTables.value = tables;
+  } catch {
+    // silently ignore — no credentials yet or invalid
+  }
+};
+
+const debouncedFetchTables = debounce(silentFetchTables, 500);
+
+watch(
+  isFormValid,
+  valid => {
+    if (valid) debouncedFetchTables();
+    else availableTables.value = [];
+  },
+  { immediate: true },
+);
+
+// Match preview (count + sample names, max 3)
+const PREVIEW_SAMPLE = 3;
+const matchedTables = computed(() =>
+  applyTableFilter(availableTables.value, formData.value.tableFilter),
+);
+
+const matchPreview = computed(() => {
+  if (!availableTables.value.length) return '';
+  const matched = matchedTables.value;
+  const sample = matched.slice(0, PREVIEW_SAMPLE).join(', ');
+  const suffix =
+    matched.length > PREVIEW_SAMPLE ? `, +${matched.length - PREVIEW_SAMPLE} more` : '';
+  return lang.t('connection.tableFilter.matchPreview', {
+    count: matched.length,
+    sample: sample + suffix,
+  });
+});
+
+// Autocomplete for explicit / exclude
+const filterTableNameInput = ref('');
+const showSuggestions = ref(false);
+
+const filteredSuggestions = computed(() => {
+  const q = filterTableNameInput.value.trim().toLowerCase();
+  const selected = new Set(filterTableNames.value);
+  return availableTables.value.filter(
+    name => !selected.has(name) && (!q || name.toLowerCase().includes(q)),
+  );
+});
+
+const onInputBlur = () => {
+  setTimeout(() => {
+    showSuggestions.value = false;
+  }, 150);
+};
+
+const addFromInputOrFirst = () => {
+  const name = filterTableNameInput.value.trim();
+  if (name) {
+    addFilterTableName(name);
+  } else if (filteredSuggestions.value.length) {
+    addFilterTableName(filteredSuggestions.value[0]);
+  }
+};
+
+const onFilterKindChange = (kind: string) => {
+  filterTableNameInput.value = '';
+  showSuggestions.value = false;
+  const k = kind as DynamoTableFilter['kind'];
+  if (k === 'all') {
+    formData.value = { ...formData.value, tableFilter: { kind: 'all' } };
+  } else if (k === 'explicit' || k === 'exclude') {
+    formData.value = { ...formData.value, tableFilter: { kind: k, tableNames: [] } };
+  } else {
+    formData.value = { ...formData.value, tableFilter: { kind: 'regex', pattern: '' } };
+  }
+};
+
+const addFilterTableName = (name: string) => {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  const f = formData.value.tableFilter;
+  if (!f || (f.kind !== 'explicit' && f.kind !== 'exclude')) return;
+  if (f.tableNames.includes(trimmed)) {
+    filterTableNameInput.value = '';
+    return;
+  }
+  formData.value = {
+    ...formData.value,
+    tableFilter: { ...f, tableNames: [...f.tableNames, trimmed] },
+  };
+  filterTableNameInput.value = '';
+  showSuggestions.value = false;
+};
+
+const removeFilterTableName = (name: string) => {
+  const f = formData.value.tableFilter;
+  if (!f || (f.kind !== 'explicit' && f.kind !== 'exclude')) return;
+  formData.value = {
+    ...formData.value,
+    tableFilter: { ...f, tableNames: f.tableNames.filter(n => n !== name) },
+  };
+};
+
+const onFilterStringChange = (_field: 'regex', value: string) => {
+  formData.value = { ...formData.value, tableFilter: { kind: 'regex', pattern: value } };
 };
 
 defineExpose({ showMedal });

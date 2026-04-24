@@ -1,4 +1,9 @@
-import { Connection, DatabaseType, useConnectionStore } from './connectionStore.ts';
+import {
+  Connection,
+  DatabaseType,
+  DynamoDBConnection,
+  useConnectionStore,
+} from './connectionStore.ts';
 import { defineStore } from 'pinia';
 import { sourceFileApi } from '../datasources';
 import { CustomError } from '../common';
@@ -9,6 +14,7 @@ type Panel = {
   id: number;
   name: string;
   connection?: Connection;
+  activeTable?: string;
   file?: string;
   content?: string;
   hideSystemIndices?: boolean;
@@ -146,13 +152,22 @@ export const useTabStore = defineStore('panel', {
     },
 
     async selectConnection(con: Connection): Promise<void> {
-      const { connections, freshConnection } = useConnectionStore();
+      const { connections, freshConnection, fetchTables } = useConnectionStore();
       const connection = connections.find(({ id }) => id === con.id);
       if (!connection) {
         throw new CustomError(404, lang.global.t('connection.notFound'));
       }
 
-      await freshConnection(connection);
+      if (connection.type === DatabaseType.DYNAMODB) {
+        const tables = await fetchTables(connection);
+        if (tables?.length && !this.activePanel.activeTable) {
+          const favorites = (connection as DynamoDBConnection).favoriteTables ?? [];
+          const firstFavorite = favorites.find(f => tables.some(t => t.name === f));
+          this.activePanel.activeTable = firstFavorite ?? tables[0].name;
+        }
+      } else {
+        await freshConnection(connection);
+      }
 
       this.activePanel.connection = connection;
     },
@@ -161,6 +176,30 @@ export const useTabStore = defineStore('panel', {
       if (!this.activePanel) return;
       this.defaultSnippet += 1;
       this.activePanel.content = defaultCodeSnippet;
+    },
+
+    setActiveTable(tableName: string): void {
+      this.activePanel.activeTable = tableName;
+    },
+
+    async toggleFavoriteTable(tableName: string): Promise<void> {
+      const currentConn = this.activePanel.connection as DynamoDBConnection | undefined;
+      if (!currentConn || currentConn.type !== DatabaseType.DYNAMODB) return;
+
+      const { connections, saveConnection } = useConnectionStore();
+      const conn = connections.find(({ id }) => id === currentConn.id) as
+        | DynamoDBConnection
+        | undefined;
+      if (!conn) return;
+
+      const favorites = conn.favoriteTables ?? [];
+      const newFavorites = favorites.includes(tableName)
+        ? favorites.filter(t => t !== tableName)
+        : [...favorites, tableName];
+
+      conn.favoriteTables = newFavorites;
+      this.activePanel.connection = conn;
+      await saveConnection(conn);
     },
   },
 });

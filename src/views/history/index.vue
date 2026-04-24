@@ -314,6 +314,7 @@ const handleExecute = async () => {
     if (entry.databaseType === DatabaseType.DYNAMODB && entry.method === 'PartiQL' && entry.qdsl) {
       await dbDataStore.executePartiqlStatement(
         activeConnection.value as DynamoDBConnection,
+        entry.path,
         entry.qdsl,
       );
     } else {
