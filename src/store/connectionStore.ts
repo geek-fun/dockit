@@ -238,16 +238,19 @@ export const migrateDynamoConnectionsV1ToV2 = (
 
   const consolidated: DynamoDBConnection[] = Array.from(groups.values()).map(group => {
     const head = group[0];
-    const tables: DynamoTableSummary[] = group
-      .filter(c => c.tableName)
-      .map(c => ({
-        name: c.tableName as string,
-        keySchema: c.keySchema,
-        attributeDefinitions: c.attributeDefinitions,
-        partitionKey: c.partitionKey,
-        sortKey: c.sortKey,
-        indices: c.indices,
-      }));
+    const tableNames = group.filter(c => c.tableName).map(c => c.tableName as string);
+    const dedupedTableNames = [...new Set(tableNames)];
+    const tables: DynamoTableSummary[] = dedupedTableNames.map(name => {
+      const v1Con = group.find(c => c.tableName === name);
+      return {
+        name,
+        keySchema: v1Con?.keySchema,
+        attributeDefinitions: v1Con?.attributeDefinitions,
+        partitionKey: v1Con?.partitionKey,
+        sortKey: v1Con?.sortKey,
+        indices: v1Con?.indices,
+      };
+    });
     return {
       id: head.id,
       name: head.name,
@@ -256,7 +259,10 @@ export const migrateDynamoConnectionsV1ToV2 = (
       accessKeyId: head.accessKeyId,
       secretAccessKey: head.secretAccessKey,
       endpointUrl: head.endpointUrl,
-      tableFilter: { kind: 'all' },
+      tableFilter:
+        dedupedTableNames.length > 0
+          ? { kind: 'explicit', tableNames: dedupedTableNames }
+          : { kind: 'all' },
       tables,
     };
   });
@@ -360,7 +366,10 @@ export const useConnectionStore = defineStore('connectionStore', {
       });
 
       const visible = applyTableFilter(allTables, connection.tableFilter);
-      connection.tables = visible.map(name => ({ name }));
+      const existingTablesByName = new Map(
+        (connection.tables ?? []).map(table => [table.name, table]),
+      );
+      connection.tables = visible.map(name => existingTablesByName.get(name) ?? { name });
 
       const tabStore = useTabStore();
       if (tabStore.activePanel?.connection?.id === connection.id) {

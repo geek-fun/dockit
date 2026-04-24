@@ -225,7 +225,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { X, Loader2 } from 'lucide-vue-next';
-import { cloneDeep } from 'lodash';
+import { cloneDeep, debounce } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
@@ -381,9 +381,9 @@ const closeModal = () => {
 
 const isFormValid = computed(() => {
   if (isLocal.value) {
-    return formData.value.name && formData.value.endpointUrl;
+    return !!formData.value.name && !!formData.value.endpointUrl;
   }
-  return (
+  return !!(
     formData.value.name &&
     formData.value.region &&
     formData.value.accessKeyId &&
@@ -495,10 +495,12 @@ const silentFetchTables = async () => {
   }
 };
 
+const debouncedFetchTables = debounce(silentFetchTables, 500);
+
 watch(
   isFormValid,
   valid => {
-    if (valid) silentFetchTables();
+    if (valid) debouncedFetchTables();
     else availableTables.value = [];
   },
   { immediate: true },

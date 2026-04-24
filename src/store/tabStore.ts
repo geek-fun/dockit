@@ -159,7 +159,12 @@ export const useTabStore = defineStore('panel', {
       }
 
       if (connection.type === DatabaseType.DYNAMODB) {
-        await fetchTables(connection);
+        const tables = await fetchTables(connection);
+        if (tables?.length && !this.activePanel.activeTable) {
+          const favorites = (connection as DynamoDBConnection).favoriteTables ?? [];
+          const firstFavorite = favorites.find(f => tables.some(t => t.name === f));
+          this.activePanel.activeTable = firstFavorite ?? tables[0].name;
+        }
       } else {
         await freshConnection(connection);
       }
@@ -177,13 +182,24 @@ export const useTabStore = defineStore('panel', {
       this.activePanel.activeTable = tableName;
     },
 
-    toggleFavoriteTable(tableName: string): void {
-      const conn = this.activePanel.connection as DynamoDBConnection | undefined;
-      if (!conn || conn.type !== DatabaseType.DYNAMODB) return;
+    async toggleFavoriteTable(tableName: string): Promise<void> {
+      const currentConn = this.activePanel.connection as DynamoDBConnection | undefined;
+      if (!currentConn || currentConn.type !== DatabaseType.DYNAMODB) return;
+
+      const { connections, saveConnection } = useConnectionStore();
+      const conn = connections.find(({ id }) => id === currentConn.id) as
+        | DynamoDBConnection
+        | undefined;
+      if (!conn) return;
+
       const favorites = conn.favoriteTables ?? [];
-      conn.favoriteTables = favorites.includes(tableName)
+      const newFavorites = favorites.includes(tableName)
         ? favorites.filter(t => t !== tableName)
         : [...favorites, tableName];
+
+      conn.favoriteTables = newFavorites;
+      this.activePanel.connection = conn;
+      await saveConnection(conn);
     },
   },
 });
