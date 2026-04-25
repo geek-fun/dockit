@@ -62,7 +62,7 @@
           @model-change="onModelChange"
           @model-picker-open="syncAllProviderModels"
         >
-          <template #input-prepend>
+          <template #toolbar-left>
             <div class="toolbox-row-prepend">
               <button
                 class="icon-button-sm"
@@ -409,9 +409,7 @@ onBeforeUnmount(() => {
 .toolbox-row-prepend {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  margin-bottom: 8px;
+  gap: 6px;
 }
 
 /* Config Panel */

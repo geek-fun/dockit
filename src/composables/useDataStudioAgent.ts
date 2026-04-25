@@ -51,27 +51,85 @@ const buildConnectionConfig = (connection: Connection): Record<string, unknown> 
   return config;
 };
 
-const buildSystemPrompt = (schema?: string, noConnection?: boolean): string => {
-  const base = noConnection
-    ? [
-        'You are a helpful AI assistant embedded in DocKit, a desktop database client.',
-        'You help users with database-related questions, query writing, data analysis, and general programming topics.',
-        '',
-        'Rules:',
-        '- Be helpful and concise.',
-        '- If the user asks about specific data in a database, remind them to connect a data source first.',
-      ].join('\n')
-    : [
-        'You are a Data Studio agent embedded in DocKit, a desktop database client.',
-        'You help users query, analyze, and manage their database data through natural language.',
-        '',
-        'Rules:',
-        '- Always use the available tools to interact with the database.',
-        '- Never fabricate data — only return actual query results.',
-        '- Explain your reasoning before executing queries.',
-        '- For destructive operations, clearly explain what will be affected.',
-        '- If a query might return large results, add appropriate limits.',
-      ].join('\n');
+const buildDynamoDBKnowledge = (): string =>
+  [
+    '',
+    'DynamoDB knowledge:',
+    '- DynamoDB supports TWO query interfaces:',
+    '  1. SDK operations (GetItem, PutItem, UpdateItem, DeleteItem, Query, Scan, etc.)',
+    '  2. PartiQL — a SQL-compatible query language (SELECT, INSERT, UPDATE, DELETE)',
+    '- NEVER say DynamoDB does not support SQL — it supports PartiQL.',
+    '- UpdateItem uses UpdateExpression, e.g.: UpdateExpression="SET #attr = :val"',
+    '- Always use ExpressionAttributeNames for reserved words (status, order, name, date, etc.)',
+    '- PartiQL update example: UPDATE "TableName" SET attribute = :val WHERE pk = :pk',
+    '- PartiQL select example: SELECT * FROM "TableName" WHERE pk = :pk',
+  ].join('\n');
+
+const buildElasticsearchKnowledge = (): string =>
+  [
+    '',
+    'Elasticsearch/OpenSearch knowledge:',
+    '- Uses a REST API with JSON request bodies (Query DSL).',
+    '- Main operations: index, search (_search), update (_update), delete, bulk (_bulk).',
+    '- Queries use Query DSL: match, term, range, bool (must/should/filter/must_not).',
+    '- Aggregations (aggs) are used for analytics, not SQL GROUP BY.',
+    '- Use _source to select specific fields; use size/from for pagination.',
+  ].join('\n');
+
+const buildDynamoDBRules = (): string =>
+  [
+    '',
+    'DynamoDB-specific rules:',
+    '- DynamoDB supports TWO query interfaces you must choose between based on context:',
+    '  1. SDK operations (GetItem, PutItem, UpdateItem, DeleteItem, Query, Scan, etc.) — use these by default.',
+    '  2. PartiQL statements (SELECT, INSERT, UPDATE, DELETE) — use these when the user has previously used PartiQL,',
+    '     is working in a PartiQL editor/tab, or explicitly asks for a SQL-style statement.',
+    '- When the conversation history contains PartiQL statements or the user asks for SQL-style syntax,',
+    '  respond with PartiQL. Otherwise, default to SDK-style operations.',
+    '- When the context is ambiguous or this is the first query in a session, provide BOTH:',
+    '  (a) an SDK solution and (b) an equivalent PartiQL statement, so the user can choose.',
+    '- NEVER say DynamoDB does not support SQL — it supports PartiQL, a SQL-compatible query language.',
+    '- PartiQL for DynamoDB example — update: UPDATE "TableName" SET attribute = :val WHERE pk = :pk',
+    '- PartiQL for DynamoDB example — select: SELECT * FROM "TableName" WHERE pk = :pk',
+    '- SDK UpdateItem uses UpdateExpression syntax, e.g.: UpdateExpression="SET #attr = :val"',
+    '- Always use ExpressionAttributeNames for reserved words (status, order, name, date, etc.).',
+  ].join('\n');
+
+const buildSystemPrompt = (
+  schema?: string,
+  noConnection?: boolean,
+  databaseType?: string,
+): string => {
+  if (noConnection) {
+    return [
+      'You are a helpful AI assistant embedded in DocKit, a desktop database client.',
+      'You help users with database-related questions, query writing, data analysis, and general programming topics.',
+      'No specific database connection is active — answer questions about any supported database using your knowledge.',
+      '',
+      'Supported databases and their key concepts:',
+      buildElasticsearchKnowledge(),
+      buildDynamoDBKnowledge(),
+      '',
+      'Rules:',
+      '- Be helpful and concise.',
+      '- When writing queries or code, clearly state which database and interface you are targeting.',
+      '- If the user asks to query actual live data, remind them to connect a data source first.',
+      '- Never fabricate data or pretend to have live query results.',
+    ].join('\n');
+  }
+
+  const base = [
+    'You are a Data Studio agent embedded in DocKit, a desktop database client.',
+    'You help users query, analyze, and manage their database data through natural language.',
+    '',
+    'Rules:',
+    '- Always use the available tools to interact with the database.',
+    '- Never fabricate data — only return actual query results.',
+    '- Explain your reasoning before executing queries.',
+    '- For destructive operations, clearly explain what will be affected.',
+    '- If a query might return large results, add appropriate limits.',
+    ...(databaseType?.toUpperCase() === 'DYNAMODB' ? [buildDynamoDBRules()] : []),
+  ].join('\n');
 
   return schema ? `${base}\n\nDatabase Schema:\n${schema}` : base;
 };
@@ -305,11 +363,15 @@ export const useDataStudioAgent = () => {
     if (!session) return;
 
     const noConnection = session.connectionId === -1;
+    let connectionType: string | undefined;
 
-    if (!noConnection && !runtime.config) {
+    if (!noConnection) {
       const connection = connectionStore.connections.find(c => c.id === session.connectionId);
       if (connection) {
-        runtime.config = buildConnectionConfig(connection);
+        connectionType = connection.type;
+        if (!runtime.config) {
+          runtime.config = buildConnectionConfig(connection);
+        }
       }
     }
 
@@ -327,7 +389,7 @@ export const useDataStudioAgent = () => {
         apiKey: provider.apiKey ?? '',
         baseUrl: provider.baseUrl,
         httpProxy: provider.proxy || undefined,
-        systemPrompt: buildSystemPrompt(schema, noConnection),
+        systemPrompt: buildSystemPrompt(schema, noConnection, connectionType),
         tools: noConnection ? [] : (runtime.tools ?? []),
       };
 
@@ -509,7 +571,14 @@ export const useDataStudioAgent = () => {
 };
 
 const kindToProviderEnum = (
-  kind: 'openai' | 'deepseek' | 'openrouter' | 'ollama' | 'custom-openai' | 'custom-anthropic',
+  kind:
+    | 'openai'
+    | 'deepseek'
+    | 'openrouter'
+    | 'ollama'
+    | 'lm-studio'
+    | 'custom-openai'
+    | 'custom-anthropic',
 ): ProviderEnum => {
   switch (kind) {
     case 'deepseek':
@@ -518,6 +587,8 @@ const kindToProviderEnum = (
       return ProviderEnum.OPENROUTER;
     case 'ollama':
       return ProviderEnum.OLLAMA;
+    case 'lm-studio':
+      return ProviderEnum.LM_STUDIO;
     default:
       return ProviderEnum.OPENAI;
   }

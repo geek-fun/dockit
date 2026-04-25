@@ -7,6 +7,7 @@ import {
   type AgentSession,
   type AgentMessage,
 } from '@/store/dataStudioStore';
+import { useConnectionStore } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
 import type { ChatMessage, ChatSession, ChatSessionStatus, ChatMessageStatus } from '@/types/chat';
 
@@ -33,6 +34,7 @@ const adaptDataStudioSession = (session: AgentSession): ChatSession => ({
 
 export const useDataStudioChatAgent = () => {
   const dataStudioStore = useDataStudioStore();
+  const connectionStore = useConnectionStore();
   const {
     connectedSources,
     activeConnectionId,
@@ -126,9 +128,15 @@ export const useDataStudioChatAgent = () => {
   const messages = computed(() => agent.activeSession.value?.messages ?? []);
 
   const sendMessage = async (content: string) => {
+    const connId = activeConnectionId.value ?? undefined;
+    const connection =
+      connId !== undefined ? connectionStore.connections.find(c => c.id === connId) : undefined;
     await agent.sendMessage({
       content,
-      connectionId: activeConnectionId.value ?? undefined,
+      connectionId: connId,
+      context: connection
+        ? { databaseType: connection.type as 'ELASTICSEARCH' | 'DYNAMODB' }
+        : undefined,
     });
   };
 

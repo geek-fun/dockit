@@ -596,6 +596,22 @@ details[open] .activity-chevron {
 .activity-body.thinking-body {
   font-style: italic;
   opacity: 0.85;
+  line-height: 1.45;
+  padding: 4px 8px;
+}
+
+/* Collapse prose paragraph margins inside the compact thinking block */
+.activity-body.thinking-body :deep(p) {
+  margin-top: 0.15em;
+  margin-bottom: 0.15em;
+}
+
+.activity-body.thinking-body :deep(p:first-child) {
+  margin-top: 0;
+}
+
+.activity-body.thinking-body :deep(p:last-child) {
+  margin-bottom: 0;
 }
 
 .activity-body.tool-body {

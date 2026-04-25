@@ -223,7 +223,7 @@
                 v-if="showApiKeyField(draftProvider)"
                 :label="$t('setting.ai.apiKey')"
                 :error="draftProviderErrors.apiKey"
-                :required="draftProvider.kind !== 'ollama'"
+                :required="draftProvider.kind !== 'ollama' && draftProvider.kind !== 'lm-studio'"
               >
                 <div class="relative">
                   <Input
@@ -255,7 +255,9 @@
                 :label="$t('setting.ai.providers.baseUrl')"
                 :error="draftProviderErrors.baseUrl"
                 :required="
-                  draftProvider.kind === 'custom-openai' || draftProvider.kind === 'ollama'
+                  draftProvider.kind === 'custom-openai' ||
+                  draftProvider.kind === 'ollama' ||
+                  draftProvider.kind === 'lm-studio'
                 "
               >
                 <Input
@@ -374,11 +376,25 @@ const draftProviderErrors = reactive<ProviderErrorMap>({});
 
 const dialogTestState = ref<'idle' | 'testing' | 'success' | 'failed'>('idle');
 
+const normalizeBaseUrl = (url: string): string => {
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  const withoutSlashes = trimmed.replace(/\/+$/, '');
+
+  if (withoutSlashes.endsWith('/v1')) {
+    return withoutSlashes;
+  }
+
+  return `${withoutSlashes}/v1`;
+};
+
 const providerPresets: Record<ProviderKind, Partial<ProviderConfig>> = {
   openai: { label: 'OpenAI', authMode: 'api-key', baseUrl: 'https://api.openai.com/v1' },
   deepseek: { label: 'DeepSeek', authMode: 'api-key', baseUrl: 'https://api.deepseek.com/v1' },
   openrouter: { label: 'OpenRouter', authMode: 'oauth', baseUrl: 'https://openrouter.ai/api/v1' },
   ollama: { label: 'Ollama', authMode: 'none', baseUrl: 'http://127.0.0.1:11434' },
+  'lm-studio': { label: 'LM Studio', authMode: 'none', baseUrl: 'http://127.0.0.1:1234/v1' },
   'custom-openai': { label: 'Custom OpenAI-Compatible', authMode: 'api-key', baseUrl: '' },
   'custom-anthropic': { label: 'Custom Anthropic-Compatible', authMode: 'api-key', baseUrl: '' },
 };
@@ -508,10 +524,13 @@ const validateDraftProvider = () => {
 };
 
 const showApiKeyField = (provider: ProviderConfig) =>
-  provider.kind !== 'ollama' && provider.kind !== 'custom-anthropic';
+  provider.kind !== 'ollama' &&
+  provider.kind !== 'lm-studio' &&
+  provider.kind !== 'custom-anthropic';
 
 const showBaseUrlField = (provider: ProviderConfig) =>
   provider.kind === 'ollama' ||
+  provider.kind === 'lm-studio' ||
   provider.kind === 'custom-openai' ||
   provider.kind === 'custom-anthropic';
 
@@ -565,6 +584,8 @@ const draftKindToEnum = (kind: ProviderKind): ProviderEnum => {
       return ProviderEnum.OPENROUTER;
     case 'ollama':
       return ProviderEnum.OLLAMA;
+    case 'lm-studio':
+      return ProviderEnum.LM_STUDIO;
     default:
       return ProviderEnum.OPENAI;
   }
@@ -638,10 +659,13 @@ const saveDraftProvider = async () => {
           : 'api-key'
         : draftProvider.value.authMode,
     apiKey: resolvedApiKey,
-    baseUrl: draftProvider.value.baseUrl?.trim() ?? '',
+    baseUrl: normalizeBaseUrl(draftProvider.value.baseUrl ?? ''),
     proxy: draftProvider.value.proxy?.trim() ?? '',
     enabled: true,
-    connected: draftProvider.value.kind === 'ollama' ? draftProvider.value.connected : false,
+    connected:
+      draftProvider.value.kind === 'ollama' || draftProvider.value.kind === 'lm-studio'
+        ? draftProvider.value.connected
+        : false,
   });
 
   if (isWebsiteAuth) {
@@ -659,12 +683,7 @@ const removeProvider = (providerId: string) => {
     positiveText: lang.t('dialogOps.delete'),
     negativeText: lang.t('dialogOps.cancel'),
     onPositiveClick: async () => {
-      await appStore.updateProviderConfig(providerId, {
-        enabled: false,
-        connected: false,
-        apiKey: '',
-        discoveredModels: [],
-      });
+      await appStore.resetProviderConfig(providerId);
       message.success('Provider removed.');
     },
   });
@@ -716,6 +735,9 @@ const providerEndpointSummary = (provider: ProviderConfig) => {
   if (provider.kind === 'ollama') {
     return provider.baseUrl || 'http://127.0.0.1:11434';
   }
+  if (provider.kind === 'lm-studio') {
+    return provider.baseUrl || 'http://127.0.0.1:1234/v1';
+  }
   if (provider.kind === 'custom-openai' || provider.kind === 'custom-anthropic') {
     return provider.baseUrl || 'Custom endpoint';
   }
@@ -743,6 +765,8 @@ const providerBaseUrlPlaceholder = (kind: ProviderKind) => {
   switch (kind) {
     case 'ollama':
       return 'http://127.0.0.1:11434';
+    case 'lm-studio':
+      return 'http://127.0.0.1:1234/v1';
     case 'custom-openai':
       return 'https://your-endpoint.example/v1';
     case 'custom-anthropic':

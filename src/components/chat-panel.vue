@@ -32,7 +32,9 @@
 
         <div v-if="isLoading" class="loading-indicator">
           <span class="i-carbon-renew h-4 w-4 animate-spin text-muted-foreground" />
-          <span class="text-xs text-muted-foreground">{{ $t('dataStudio.agent.thinking') }}</span>
+          <span class="text-xs text-muted-foreground">
+            {{ $t('dataStudio.agent.message.thinkingInProgress') }}
+          </span>
         </div>
 
         <div v-if="error" class="error-banner">

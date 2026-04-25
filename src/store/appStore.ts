@@ -19,6 +19,7 @@ export type ProviderKind =
   | 'deepseek'
   | 'openrouter'
   | 'ollama'
+  | 'lm-studio'
   | 'custom-openai'
   | 'custom-anthropic';
 
@@ -87,6 +88,7 @@ const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
 const DEFAULT_DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
 const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434';
+const DEFAULT_LM_STUDIO_BASE_URL = 'http://127.0.0.1:1234/v1';
 
 const providerKindToEnum = (kind: ProviderKind): ProviderEnum => {
   switch (kind) {
@@ -96,6 +98,8 @@ const providerKindToEnum = (kind: ProviderKind): ProviderEnum => {
       return ProviderEnum.OPENROUTER;
     case 'ollama':
       return ProviderEnum.OLLAMA;
+    case 'lm-studio':
+      return ProviderEnum.LM_STUDIO;
     default:
       return ProviderEnum.OPENAI;
   }
@@ -113,6 +117,8 @@ const providerDefaults = (
       return { label: 'OpenRouter', authMode: 'oauth', baseUrl: DEFAULT_OPENROUTER_BASE_URL };
     case 'ollama':
       return { label: 'Ollama', authMode: 'none', baseUrl: DEFAULT_OLLAMA_BASE_URL };
+    case 'lm-studio':
+      return { label: 'LM Studio', authMode: 'none', baseUrl: DEFAULT_LM_STUDIO_BASE_URL };
     case 'custom-openai':
       return { label: 'OpenAI-Compatible', authMode: 'api-key', baseUrl: '' };
     case 'custom-anthropic':
@@ -125,6 +131,7 @@ const defaultModelsByKind: Record<Exclude<ProviderKind, 'custom-anthropic'>, str
   deepseek: ['deepseek-chat', 'deepseek-reasoner'],
   openrouter: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
+  'lm-studio': [],
   'custom-openai': [],
 };
 
@@ -194,6 +201,7 @@ const defaultProviderConfigs = (): Array<ProviderConfig> => [
   createProviderConfig('deepseek'),
   createProviderConfig('openrouter'),
   createProviderConfig('ollama'),
+  createProviderConfig('lm-studio', { enabled: false }),
   createProviderConfig('custom-openai', { enabled: false, label: 'Custom OpenAI-Compatible' }),
   createProviderConfig('custom-anthropic', {
     enabled: false,
@@ -289,6 +297,7 @@ const mergeProviderConfigs = (storedProviders: Array<ProviderConfig>): Array<Pro
     return {
       ...defaultProvider,
       ...stored,
+      label: defaultProvider.label,
       discoveredModels,
     };
   });
@@ -486,6 +495,20 @@ export const useAppStore = defineStore('app', {
 
       await this.persistLlmSettings();
     },
+    async resetProviderConfig(providerId: string) {
+      const provider = this.llmSettings.providers.find(item => item.id === providerId);
+      if (!provider) return;
+
+      const defaults = createProviderConfig(provider.kind, { enabled: false });
+      Object.assign(provider, {
+        ...defaults,
+        id: providerId,
+        createdAt: provider.createdAt,
+        updatedAt: Date.now(),
+      });
+
+      await this.persistLlmSettings();
+    },
     async syncProviderModels(providerId: string, modelLabels?: Array<string>) {
       const provider = this.llmSettings.providers.find(item => item.id === providerId);
       if (!provider) return [];
@@ -505,6 +528,12 @@ export const useAppStore = defineStore('app', {
             httpProxy: provider.proxy || undefined,
             baseUrl: provider.baseUrl,
           });
+          console.warn('[syncProviderModels]', {
+            kind: provider.kind,
+            providerEnum: providerKindToEnum(provider.kind),
+            baseUrl: provider.baseUrl,
+            result: discoveredModelLabels,
+          });
         } catch (err) {
           console.warn('[appStore] listModels failed, preserving existing models', err);
           provider.connected = false;
@@ -521,7 +550,10 @@ export const useAppStore = defineStore('app', {
       );
 
       provider.discoveredModels = discoveredModels;
-      provider.connected = discoveredModels.length > 0 || provider.kind === 'ollama';
+      provider.connected =
+        discoveredModels.length > 0 ||
+        provider.kind === 'ollama' ||
+        provider.kind === 'lm-studio';
       provider.updatedAt = Date.now();
       await this.persistLlmSettings();
       return discoveredModels;
