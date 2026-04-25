@@ -29,9 +29,9 @@ tokio = { version = "1", features = ["full"] }
 http = "1.4.0"
 log = "0.4.29"
 futures = "0.3.31"
-aws-config = "1.8.12"
-aws-sdk-dynamodb = "1.101.0"
-aws-sdk-cloudwatch = "1.72.0"
+aws-config = { version = "1.8.16", default-features = false, features = ["default-https-client", "rt-tokio", "credentials-process", "sso"] }
+aws-sdk-dynamodb = { version = "1.111.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-cloudwatch = { version = "1.110.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
 base64 = "0.22.1"
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
