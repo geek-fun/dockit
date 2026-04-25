@@ -551,9 +551,7 @@ export const useAppStore = defineStore('app', {
 
       provider.discoveredModels = discoveredModels;
       provider.connected =
-        discoveredModels.length > 0 ||
-        provider.kind === 'ollama' ||
-        provider.kind === 'lm-studio';
+        discoveredModels.length > 0 || provider.kind === 'ollama' || provider.kind === 'lm-studio';
       provider.updatedAt = Date.now();
       await this.persistLlmSettings();
       return discoveredModels;
