@@ -645,11 +645,17 @@ const dynamoApi = {
     clientSecret: string;
     interval: number;
   }> => {
-    const result = await invoke<string>('aws_sso_start_device_auth', {
+    return await invoke<{
+      verificationUri: string;
+      userCode: string;
+      deviceCode: string;
+      clientId: string;
+      clientSecret: string;
+      interval: number;
+    }>('aws_sso_start_device_auth', {
       startUrl,
       ssoRegion,
     });
-    return JSON.parse(result);
   },
 
   // SSO poll for token after user authenticates in browser
@@ -664,13 +670,21 @@ const dynamoApi = {
     status: 'pending' | 'success' | 'error';
     errorMessage: string | null;
   }> => {
-    const result = await invoke<string>('aws_sso_poll_token', {
+    const result = await invoke<{
+      accessToken: string | null;
+      expiresAt: number | null;
+      status: string;
+      errorMessage: string | null;
+    }>('aws_sso_poll_token', {
       ssoRegion,
       clientId,
       clientSecret,
       deviceCode,
     });
-    return JSON.parse(result);
+    return {
+      ...result,
+      status: result.status as 'pending' | 'success' | 'error',
+    };
   },
 
   // SSO get role credentials after token is obtained
@@ -685,13 +699,17 @@ const dynamoApi = {
     sessionToken: string;
     expirationTimestamp: number;
   }> => {
-    const result = await invoke<string>('aws_sso_get_role_credentials', {
+    return await invoke<{
+      accessKeyId: string;
+      secretAccessKey: string;
+      sessionToken: string;
+      expirationTimestamp: number;
+    }>('aws_sso_get_role_credentials', {
       ssoRegion,
       accessToken,
       accountId,
       roleName,
     });
-    return JSON.parse(result);
   },
 
   // STS AssumeRole
@@ -707,14 +725,18 @@ const dynamoApi = {
     sessionToken: string;
     expirationTimestamp: number;
   }> => {
-    const result = await invoke<string>('aws_assume_role', {
+    return await invoke<{
+      accessKeyId: string;
+      secretAccessKey: string;
+      sessionToken: string;
+      expirationTimestamp: number;
+    }>('aws_assume_role', {
       sourceProfileName,
       roleArn,
       externalId: externalId ?? null,
       mfaSerial: mfaSerial ?? null,
       mfaToken: mfaToken ?? null,
     });
-    return JSON.parse(result);
   },
 };
 

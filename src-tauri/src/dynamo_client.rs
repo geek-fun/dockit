@@ -379,11 +379,12 @@ pub async fn dynamo_api(
 // ── STS AssumeRole ─────────────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CredentialsResponse {
     pub access_key_id: String,
     pub secret_access_key: String,
     pub session_token: String,
-    pub expiration_timestamp: u64, // Unix timestamp in seconds
+    pub expiration_timestamp: u64,
 }
 
 #[tauri::command]
@@ -433,16 +434,7 @@ pub async fn aws_assume_role(
     let access_key_id = creds.access_key_id().to_string();
     let secret_access_key = creds.secret_access_key().to_string();
     let session_token = creds.session_token().to_string();
-    let exp_secs = creds.expiration().as_secs_f64();
-    let expiration_timestamp = if exp_secs > 0.0 {
-        exp_secs as u64
-    } else {
-        (SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or(Duration::from_secs(0))
-            .as_secs()
-            + 3600)
-    };
+    let expiration_timestamp = creds.expiration().secs() as u64;
 
     Ok(CredentialsResponse {
         access_key_id,
@@ -455,6 +447,7 @@ pub async fn aws_assume_role(
 // ── SSO Device Authorization ──────────────────────────────────────────────────
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SsoDeviceAuthResponse {
     pub verification_uri: String,
     pub user_code: String,
@@ -465,10 +458,11 @@ pub struct SsoDeviceAuthResponse {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SsoTokenPollResponse {
     pub access_token: Option<String>,
     pub expires_at: Option<u64>,
-    pub status: String, // "pending" | "success" | "error"
+    pub status: String,
     pub error_message: Option<String>,
 }
 

@@ -530,6 +530,7 @@ const ssoClientId = ref('');
 const ssoClientSecret = ref('');
 const ssoDeviceCode = ref('');
 const ssoPollInterval = ref(5);
+const ssoPollAbort = ref(false);
 const ssoAuthStatus = ref<'idle' | 'waiting' | 'success' | 'error'>('idle');
 const ssoErrorMessage = ref('');
 const ssoLoggingIn = ref(false);
@@ -611,6 +612,10 @@ const assumeRoleFieldsValid = computed(
 const onConnectionModeChange = (mode: string) => {
   const selectedMode = mode as 'accessKey' | 'profile' | 'sso' | 'assumeRole' | 'local';
   connectionMode.value = selectedMode;
+
+  // Abort any ongoing SSO polling when switching modes
+  ssoPollAbort.value = true;
+
   if (selectedMode === 'local') {
     formData.value = {
       ...formData.value,
@@ -626,7 +631,7 @@ const onConnectionModeChange = (mode: string) => {
         : undefined;
     formData.value = {
       ...formData.value,
-      region: ssoRegion.value || formData.value.region || '',
+      // Keep formData.region as DynamoDB region, NOT ssoRegion
       endpointUrl: '',
       auth:
         formData.value.auth?.kind === 'sso'
@@ -636,7 +641,8 @@ const onConnectionModeChange = (mode: string) => {
               accessKeyId: '',
               secretAccessKey: '',
               sessionToken: '',
-              region: ssoRegion.value || '',
+              // auth.region is for credential metadata, use formData.region
+              region: formData.value.region || '',
               ...(existingSsoExpiry ? { expirationTimestamp: existingSsoExpiry as number } : {}),
             },
     };
@@ -689,13 +695,14 @@ const onConnectionModeChange = (mode: string) => {
 // ── SSO Login flow ──
 const startSsoLogin = async () => {
   if (!ssoFieldsValid.value) return;
+  ssoPollAbort.value = false; // Reset abort flag for new login attempt
   ssoLoggingIn.value = true;
   ssoAuthStatus.value = 'idle';
   ssoErrorMessage.value = '';
 
   try {
-    // Use ssoRegion as both the SSO region AND connection region
-    const effectiveSsoRegion = ssoRegion.value || formData.value.region || 'us-east-1';
+    // Use ssoRegion only for IAM Identity Center (SSO OIDC/SSO API calls)
+    const effectiveSsoRegion = ssoRegion.value || 'us-east-1';
 
     const result = await dynamoApi.ssoStartDeviceAuth(ssoStartUrl.value, effectiveSsoRegion);
     ssoVerificationUri.value = result.verificationUri;
@@ -725,14 +732,14 @@ const startSsoLogin = async () => {
   }
 };
 
-const pollSsoToken = async (region: string) => {
+const pollSsoToken = async (ssoApiRegion: string) => {
   const maxAttempts = 120; // ~10 min at 5s interval
-  for (let i = 0; i < maxAttempts; i++) {
+  for (let i = 0; i < maxAttempts && !ssoPollAbort.value; i++) {
     await new Promise(resolve => setTimeout(resolve, ssoPollInterval.value * 1000));
 
     try {
       const result = await dynamoApi.ssoPollToken(
-        region,
+        ssoApiRegion,
         ssoClientId.value,
         ssoClientSecret.value,
         ssoDeviceCode.value,
@@ -741,7 +748,7 @@ const pollSsoToken = async (region: string) => {
       if (result.status === 'success' && result.accessToken) {
         // Get role credentials
         const creds = await dynamoApi.ssoGetRoleCredentials(
-          region,
+          ssoApiRegion,
           result.accessToken,
           ssoAccountId.value,
           ssoRoleName.value,
@@ -751,15 +758,15 @@ const pollSsoToken = async (region: string) => {
         ssoAuthStatus.value = 'success';
 
         // Update formData with SSO credentials
+        // Keep formData.region as DynamoDB connection region (do NOT overwrite with ssoApiRegion)
         formData.value = {
           ...formData.value,
-          region,
           auth: {
             kind: 'sso',
             accessKeyId: creds.accessKeyId,
             secretAccessKey: creds.secretAccessKey,
             sessionToken: creds.sessionToken,
-            region,
+            region: formData.value.region || 'us-east-1',
             expirationTimestamp: creds.expirationTimestamp,
           },
         };
@@ -801,7 +808,6 @@ const doAssumeRole = async () => {
 
     assumeRoleExpiresAt.value = result.expirationTimestamp;
     assumeRoleStatus.value = 'success';
-    ssoExpiresAt.value = result.expirationTimestamp;
 
     // Update formData with assumed credentials
     formData.value = {
@@ -872,6 +878,7 @@ const showMedal = (con: DynamoDBConnection | null) => {
 };
 
 const resetSsoState = () => {
+  ssoPollAbort.value = true;
   ssoStartUrl.value = '';
   ssoRegion.value = '';
   ssoAccountId.value = '';

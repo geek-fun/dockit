@@ -11,6 +11,7 @@ pub struct StreamFileInput {
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct FileBatchResult {
     pub lines: Vec<String>,
     pub batch_number: usize,
@@ -19,6 +20,7 @@ pub struct FileBatchResult {
 }
 
 #[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FileInfoResult {
     pub total_lines: usize,
     pub file_size_bytes: u64,
