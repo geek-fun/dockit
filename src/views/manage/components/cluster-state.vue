@@ -107,7 +107,7 @@
           <CardHeader>
             <div class="section-header">
               <div class="section-title">
-                <span class="i-carbon-datacenter h-4 w-4" />
+                <span class="i-carbon-data-center h-4 w-4" />
                 <span>{{ $t('manage.nodes') }}</span>
               </div>
               <span class="node-count">{{ nodes.length }} nodes</span>

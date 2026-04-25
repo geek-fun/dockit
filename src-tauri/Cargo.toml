@@ -29,12 +29,12 @@ tokio = { version = "1", features = ["full"] }
 http = "1.4.0"
 log = "0.4.29"
 futures = "0.3.31"
-aws-config = "1.8.12"
-aws-sdk-dynamodb = "1.101.0"
-aws-sdk-cloudwatch = "1.72.0"
-aws-sdk-sts = "1.72.0"
-aws-sdk-ssooidc = "1.72.0"
-aws-sdk-sso = "1.72.0"
+aws-config = { version = "1.8.16", default-features = false, features = ["default-https-client", "rt-tokio", "credentials-process", "sso"] }
+aws-sdk-dynamodb = { version = "1.111.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-cloudwatch = { version = "1.110.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-sts = { version = "1.103.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-ssooidc = { version = "1.100.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-sso = { version = "1.98.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
 base64 = "0.22.1"
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
@@ -44,4 +44,3 @@ custom-protocol = ["tauri/custom-protocol"]
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-updater = "2.10"
 tauri-plugin-process = "2"
-
