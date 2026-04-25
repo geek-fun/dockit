@@ -182,19 +182,13 @@
 
               <!-- SSO fields -->
               <template v-if="connectionMode === 'sso'">
-                <FormItem
-                  :label="$t('connection.ssoStartUrl')"
-                  required
-                >
+                <FormItem :label="$t('connection.ssoStartUrl')" required>
                   <Input
                     v-model="ssoStartUrl"
                     placeholder="https://my-sso-portal.awsapps.com/start"
                   />
                 </FormItem>
-                <FormItem
-                  :label="$t('connection.ssoRegion')"
-                  required
-                >
+                <FormItem :label="$t('connection.ssoRegion')" required>
                   <Select v-model="ssoRegion">
                     <SelectTrigger>
                       <SelectValue :placeholder="$t('connection.ssoRegion')" />
@@ -210,19 +204,10 @@
                     </SelectContent>
                   </Select>
                 </FormItem>
-                <FormItem
-                  :label="$t('connection.ssoAccountId')"
-                  required
-                >
-                  <Input
-                    v-model="ssoAccountId"
-                    placeholder="123456789012"
-                  />
+                <FormItem :label="$t('connection.ssoAccountId')" required>
+                  <Input v-model="ssoAccountId" placeholder="123456789012" />
                 </FormItem>
-                <FormItem
-                  :label="$t('connection.ssoRoleName')"
-                  required
-                >
+                <FormItem :label="$t('connection.ssoRoleName')" required>
                   <Input
                     v-model="ssoRoleName"
                     placeholder="AdministratorAccess"
