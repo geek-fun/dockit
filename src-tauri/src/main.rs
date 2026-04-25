@@ -12,7 +12,7 @@ mod dynamo;
 use fetch_client::fetch_api;
 use file_api::{get_file_info, read_file_batch, stream_file_lines};
 use openai_client::{chat_stream, create_openai_client};
-use dynamo_client::dynamo_api;
+use dynamo_client::{dynamo_api, aws_list_profiles};
 
 #[derive(Clone, serde::Serialize)]
 struct AuthPayload {
@@ -52,6 +52,7 @@ fn main() {
             fetch_api,
             chat_stream,
             dynamo_api,
+            aws_list_profiles,
             get_file_info,
             read_file_batch,
             stream_file_lines,

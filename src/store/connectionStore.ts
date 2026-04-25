@@ -105,14 +105,17 @@ export const applyTableFilter = (
   return [...allTables];
 };
 
+export type DynamoDBAuth =
+  | { kind: 'accessKey'; accessKeyId: string; secretAccessKey: string }
+  | { kind: 'profile'; profileName: string };
+
 export type DynamoDBConnection = {
   id?: number | string;
   name: string;
   type: DatabaseType.DYNAMODB;
   region: string;
-  accessKeyId: string;
-  secretAccessKey: string;
   endpointUrl?: string;
+  auth: DynamoDBAuth;
 
   tableFilter?: DynamoTableFilter;
   tables?: Array<DynamoTableSummary>;
@@ -204,9 +207,11 @@ const getIndexInfo = (keySchema: KeySchema[]) => {
   };
 };
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 type V1DynamoDBConnection = DynamoDBConnection & {
+  accessKeyId: string;
+  secretAccessKey: string;
   tableName?: string;
   keySchema?: Array<KeySchema>;
   partitionKey?: { name: string; type: string; valueType: string };
@@ -215,7 +220,7 @@ type V1DynamoDBConnection = DynamoDBConnection & {
   indices?: Array<DynamoIndex>;
 };
 
-const credentialSignature = (con: DynamoDBConnection): string =>
+const credentialSignature = (con: V1DynamoDBConnection): string =>
   `${con.region}|${con.accessKeyId}|${con.endpointUrl ?? ''}`;
 
 export const migrateDynamoConnectionsV1ToV2 = (
@@ -256,9 +261,12 @@ export const migrateDynamoConnectionsV1ToV2 = (
       name: head.name,
       type: DatabaseType.DYNAMODB,
       region: head.region,
-      accessKeyId: head.accessKeyId,
-      secretAccessKey: head.secretAccessKey,
       endpointUrl: head.endpointUrl,
+      auth: {
+        kind: 'accessKey' as const,
+        accessKeyId: head.accessKeyId ?? '',
+        secretAccessKey: head.secretAccessKey ?? '',
+      },
       tableFilter:
         dedupedTableNames.length > 0
           ? { kind: 'explicit', tableNames: dedupedTableNames }
@@ -273,6 +281,32 @@ export const migrateDynamoConnectionsV1ToV2 = (
     originalCount: dynamo.length,
   };
 };
+
+type V2DynamoDBConnection = DynamoDBConnection & {
+  accessKeyId?: string;
+  secretAccessKey?: string;
+};
+
+export const migrateDynamoConnectionsV2ToV3 = (raw: Connection[]): Connection[] =>
+  raw.map(con => {
+    if (con.type !== DatabaseType.DYNAMODB) return con;
+
+    const v2 = con as unknown as V2DynamoDBConnection;
+
+    const hasAuthField =
+      v2.auth != null && typeof (v2.auth as Record<string, unknown>).kind === 'string';
+    if (hasAuthField) return con;
+
+    const accessKeyId = v2.accessKeyId ?? '';
+    const secretAccessKey = v2.secretAccessKey ?? '';
+
+    const { accessKeyId: _, secretAccessKey: __, ...rest } = v2 as V2DynamoDBConnection;
+
+    return {
+      ...rest,
+      auth: { kind: 'accessKey' as const, accessKeyId, secretAccessKey },
+    } as DynamoDBConnection;
+  });
 
 export const useConnectionStore = defineStore('connectionStore', {
   state: (): {
@@ -332,8 +366,21 @@ export const useConnectionStore = defineStore('connectionStore', {
 
         if (storedVersion < SCHEMA_VERSION) {
           await storeApi.set('connections_v1_backup', pureObject(normalized));
-          const { migrated, consolidatedCount, originalCount } =
-            migrateDynamoConnectionsV1ToV2(normalized);
+
+          let migrated = normalized;
+          let consolidatedCount = 0;
+          let originalCount = 0;
+
+          if (storedVersion < 2) {
+            const result = migrateDynamoConnectionsV1ToV2(migrated);
+            migrated = result.migrated;
+            consolidatedCount = result.consolidatedCount;
+            originalCount = result.originalCount;
+          }
+
+          if (storedVersion < 3) {
+            migrated = migrateDynamoConnectionsV2ToV3(migrated);
+          }
 
           this.connections = migrated;
           await storeApi.set('connections', pureObject(migrated));
@@ -358,12 +405,7 @@ export const useConnectionStore = defineStore('connectionStore', {
         | undefined;
       if (!connection) throw new Error('no connection established');
 
-      const allTables = await dynamoApi.listTables({
-        region: connection.region,
-        accessKeyId: connection.accessKeyId,
-        secretAccessKey: connection.secretAccessKey,
-        endpointUrl: connection.endpointUrl,
-      });
+      const allTables = await dynamoApi.listTables(connection);
 
       const visible = applyTableFilter(allTables, connection.tableFilter);
       const existingTablesByName = new Map(
@@ -380,12 +422,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async freshConnection(con: Connection, tableName?: string) {
       if (con.type === DatabaseType.DYNAMODB) {
-        const allTables = await dynamoApi.listTables({
-          region: con.region,
-          accessKeyId: con.accessKeyId,
-          secretAccessKey: con.secretAccessKey,
-          endpointUrl: con.endpointUrl,
-        });
+        const allTables = await dynamoApi.listTables(con);
 
         const visible = applyTableFilter(allTables, con.tableFilter);
 
