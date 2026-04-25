@@ -19,7 +19,21 @@ type ApiClientResponse = {
 };
 export type AwsAuthPayload =
   | { kind: 'accessKey'; access_key_id: string; secret_access_key: string }
-  | { kind: 'profile'; profile_name: string };
+  | { kind: 'profile'; profile_name: string }
+  | {
+      kind: 'sso';
+      access_key_id: string;
+      secret_access_key: string;
+      session_token: string;
+      region: string;
+    }
+  | {
+      kind: 'assumeRole';
+      access_key_id: string;
+      secret_access_key: string;
+      session_token: string;
+      region: string;
+    };
 
 export type AwsCredentials = {
   region: string;

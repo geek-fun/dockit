@@ -52,6 +52,12 @@
                 <TabsTrigger class="flex-1" value="profile">
                   {{ $t('connection.authProfile') }}
                 </TabsTrigger>
+                <TabsTrigger class="flex-1" value="sso">
+                  {{ $t('connection.authSso') }}
+                </TabsTrigger>
+                <TabsTrigger class="flex-1" value="assumeRole">
+                  {{ $t('connection.authAssumeRole') }}
+                </TabsTrigger>
                 <TabsTrigger class="flex-1" value="local">
                   {{ $t('connection.localTarget') }}
                 </TabsTrigger>
@@ -59,6 +65,7 @@
             </Tabs>
           </FormItem>
           <div class="connection-mode-content space-y-4 pt-4">
+            <!-- ── Local ── -->
             <template v-if="connectionMode === 'local'">
               <Alert variant="info" class="mb-4">
                 <AlertDescription>{{ $t('connection.localLimitations') }}</AlertDescription>
@@ -75,6 +82,8 @@
                 />
               </FormItem>
             </template>
+
+            <!-- ── Non-local (region always shown) ── -->
             <template v-else>
               <FormItem
                 :label="$t('connection.region')"
@@ -170,7 +179,199 @@
                   </p>
                 </FormItem>
               </template>
+
+              <!-- SSO fields -->
+              <template v-if="connectionMode === 'sso'">
+                <FormItem
+                  :label="$t('connection.ssoStartUrl')"
+                  required
+                >
+                  <Input
+                    v-model="ssoStartUrl"
+                    placeholder="https://my-sso-portal.awsapps.com/start"
+                  />
+                </FormItem>
+                <FormItem
+                  :label="$t('connection.ssoRegion')"
+                  required
+                >
+                  <Select v-model="ssoRegion">
+                    <SelectTrigger>
+                      <SelectValue :placeholder="$t('connection.ssoRegion')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        v-for="option in regionOptions"
+                        :key="option.value"
+                        :value="option.value"
+                      >
+                        {{ option.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+                <FormItem
+                  :label="$t('connection.ssoAccountId')"
+                  required
+                >
+                  <Input
+                    v-model="ssoAccountId"
+                    placeholder="123456789012"
+                  />
+                </FormItem>
+                <FormItem
+                  :label="$t('connection.ssoRoleName')"
+                  required
+                >
+                  <Input
+                    v-model="ssoRoleName"
+                    placeholder="AdministratorAccess"
+                    @blur="handleBlur('ssoRoleName')"
+                  />
+                </FormItem>
+
+                <!-- SSO Login status -->
+                <template v-if="ssoAuthStatus === 'idle'">
+                  <p class="text-sm text-muted-foreground">
+                    {{ $t('connection.ssoLoginPrompt') }}
+                  </p>
+                </template>
+                <template v-if="ssoAuthStatus === 'waiting'">
+                  <Alert variant="info" class="mb-4">
+                    <AlertDescription class="flex items-center gap-2">
+                      <Loader2 class="h-4 w-4 animate-spin" />
+                      {{ $t('connection.ssoWaiting') }}
+                    </AlertDescription>
+                  </Alert>
+                  <div class="text-sm space-y-1 mb-3">
+                    <p>{{ $t('connection.ssoOpenBrowser') }}</p>
+                    <p class="font-mono text-xs bg-muted p-2 rounded break-all">
+                      {{ ssoVerificationUri }}
+                    </p>
+                    <p>
+                      {{ $t('connection.ssoEnterCode') }}
+                      <span class="font-mono font-bold text-base">{{ ssoUserCode }}</span>
+                    </p>
+                  </div>
+                </template>
+                <template v-if="ssoAuthStatus === 'success'">
+                  <Alert variant="success" class="mb-4">
+                    <AlertDescription>
+                      {{ $t('connection.ssoSuccess', { expires: ssoExpiresLabel }) }}
+                    </AlertDescription>
+                  </Alert>
+                </template>
+                <template v-if="ssoAuthStatus === 'error'">
+                  <Alert variant="destructive" class="mb-4">
+                    <AlertDescription>{{ ssoErrorMessage }}</AlertDescription>
+                  </Alert>
+                </template>
+
+                <div class="flex gap-2">
+                  <Button
+                    v-if="ssoAuthStatus === 'idle'"
+                    variant="secondary"
+                    :disabled="!ssoFieldsValid || ssoLoggingIn"
+                    @click="startSsoLogin"
+                  >
+                    <Loader2 v-if="ssoLoggingIn" class="mr-2 h-4 w-4 animate-spin" />
+                    {{ $t('connection.ssoLogin') }}
+                  </Button>
+                  <Button
+                    v-if="ssoAuthStatus === 'error'"
+                    variant="secondary"
+                    @click="ssoAuthStatus = 'idle'"
+                  >
+                    {{ $t('connection.ssoRetry') }}
+                  </Button>
+                </div>
+              </template>
+
+              <!-- AssumeRole fields -->
+              <template v-if="connectionMode === 'assumeRole'">
+                <FormItem :label="$t('connection.assumeRoleSourceProfile')" required>
+                  <Select
+                    :model-value="assumeRoleSourceProfile"
+                    @update:model-value="v => (assumeRoleSourceProfile = v as string)"
+                  >
+                    <SelectTrigger>
+                      <SelectValue :placeholder="$t('connection.selectProfile')" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem
+                        v-for="profile in availableProfiles"
+                        :key="profile"
+                        :value="profile"
+                      >
+                        {{ profile }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+                <FormItem :label="$t('connection.assumeRoleArn')" required>
+                  <Input
+                    v-model="assumeRoleArn"
+                    placeholder="arn:aws:iam::123456789012:role/MyRole"
+                  />
+                </FormItem>
+                <FormItem :label="$t('connection.assumeRoleExternalId')">
+                  <Input
+                    v-model="assumeRoleExternalId"
+                    :placeholder="$t('connection.assumeRoleExternalIdPlaceholder')"
+                  />
+                </FormItem>
+                <FormItem :label="$t('connection.assumeRoleMfaSerial')">
+                  <Input
+                    v-model="assumeRoleMfaSerial"
+                    placeholder="arn:aws:iam::123456789012:mfa/user"
+                  />
+                </FormItem>
+
+                <!-- MFA token input (shown when MFA serial is configured) -->
+                <FormItem v-if="assumeRoleMfaSerial" :label="$t('connection.assumeRoleMfaToken')">
+                  <Input
+                    v-model="assumeRoleMfaToken"
+                    :placeholder="$t('connection.assumeRoleMfaTokenPlaceholder')"
+                  />
+                </FormItem>
+
+                <template v-if="assumeRoleStatus === 'success'">
+                  <Alert variant="success" class="mb-4">
+                    <AlertDescription>
+                      {{ $t('connection.assumeRoleSuccess', { expires: assumeRoleExpiresLabel }) }}
+                    </AlertDescription>
+                  </Alert>
+                </template>
+                <template v-if="assumeRoleStatus === 'error'">
+                  <Alert variant="destructive" class="mb-4">
+                    <AlertDescription>{{ assumeRoleErrorMessage }}</AlertDescription>
+                  </Alert>
+                </template>
+
+                <Button
+                  variant="secondary"
+                  :disabled="!assumeRoleFieldsValid || assumeRoleLoading"
+                  @click="doAssumeRole"
+                >
+                  <Loader2 v-if="assumeRoleLoading" class="mr-2 h-4 w-4 animate-spin" />
+                  {{ $t('connection.assumeRoleButton') }}
+                </Button>
+              </template>
             </template>
+          </div>
+
+          <!-- Credential expiry summary (shown for SSO / AssumeRole) -->
+          <div
+            v-if="connectionMode === 'sso' && ssoAuthStatus === 'success'"
+            class="text-xs text-muted-foreground pt-2"
+          >
+            {{ $t('connection.credsExpireAt', { time: ssoExpiresLabel }) }}
+          </div>
+          <div
+            v-if="connectionMode === 'assumeRole' && assumeRoleStatus === 'success'"
+            class="text-xs text-muted-foreground pt-2"
+          >
+            {{ $t('connection.credsExpireAt', { time: assumeRoleExpiresLabel }) }}
           </div>
 
           <FormItem :label="$t('connection.tableFilter.label')">
@@ -329,9 +530,42 @@ const testLoading = ref(false);
 const saveLoading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
-const connectionMode = ref<'accessKey' | 'profile' | 'local'>('accessKey');
+const connectionMode = ref<'accessKey' | 'profile' | 'sso' | 'assumeRole' | 'local'>('accessKey');
 const availableProfiles = ref<string[]>([]);
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
+
+// ── SSO state ──
+const ssoStartUrl = ref('');
+const ssoRegion = ref('');
+const ssoAccountId = ref('');
+const ssoRoleName = ref('');
+const ssoVerificationUri = ref('');
+const ssoUserCode = ref('');
+const ssoClientId = ref('');
+const ssoClientSecret = ref('');
+const ssoDeviceCode = ref('');
+const ssoPollInterval = ref(5);
+const ssoAuthStatus = ref<'idle' | 'waiting' | 'success' | 'error'>('idle');
+const ssoErrorMessage = ref('');
+const ssoLoggingIn = ref(false);
+const ssoExpiresAt = ref(0);
+const ssoExpiresLabel = computed(() =>
+  ssoExpiresAt.value ? new Date(ssoExpiresAt.value * 1000).toLocaleString() : '',
+);
+
+// ── AssumeRole state ──
+const assumeRoleSourceProfile = ref('');
+const assumeRoleArn = ref('');
+const assumeRoleExternalId = ref('');
+const assumeRoleMfaSerial = ref('');
+const assumeRoleMfaToken = ref('');
+const assumeRoleLoading = ref(false);
+const assumeRoleStatus = ref<'idle' | 'success' | 'error'>('idle');
+const assumeRoleErrorMessage = ref('');
+const assumeRoleExpiresAt = ref(0);
+const assumeRoleExpiresLabel = computed(() =>
+  assumeRoleExpiresAt.value ? new Date(assumeRoleExpiresAt.value * 1000).toLocaleString() : '',
+);
 
 const regionOptions = [
   { label: 'US East (N. Virginia)', value: 'us-east-1' },
@@ -379,8 +613,18 @@ const {
 
 watch(formData, newVal => setValues(newVal), { deep: true });
 
+// ── SSO field validation ──
+const ssoFieldsValid = computed(
+  () => !!ssoStartUrl.value && !!ssoRegion.value && !!ssoAccountId.value && !!ssoRoleName.value,
+);
+
+// ── AssumeRole field validation ──
+const assumeRoleFieldsValid = computed(
+  () => !!assumeRoleSourceProfile.value && !!assumeRoleArn.value,
+);
+
 const onConnectionModeChange = (mode: string) => {
-  const selectedMode = mode as 'accessKey' | 'profile' | 'local';
+  const selectedMode = mode as 'accessKey' | 'profile' | 'sso' | 'assumeRole' | 'local';
   connectionMode.value = selectedMode;
   if (selectedMode === 'local') {
     formData.value = {
@@ -388,6 +632,44 @@ const onConnectionModeChange = (mode: string) => {
       region: 'us-east-1',
       endpointUrl: formData.value.endpointUrl || 'http://localhost:8000',
       auth: { kind: 'accessKey', accessKeyId: 'dummy', secretAccessKey: 'dummy' },
+    };
+  } else if (selectedMode === 'sso') {
+    // Keep existing SSO credentials if re-selecting
+    const existingSsoExpiry =
+      'expirationTimestamp' in (formData.value.auth as Record<string, unknown>)
+        ? (formData.value.auth as Record<string, unknown>).expirationTimestamp
+        : undefined;
+    formData.value = {
+      ...formData.value,
+      region: ssoRegion.value || formData.value.region || '',
+      endpointUrl: '',
+      auth:
+        formData.value.auth?.kind === 'sso'
+          ? formData.value.auth
+          : {
+              kind: 'sso',
+              accessKeyId: '',
+              secretAccessKey: '',
+              sessionToken: '',
+              region: ssoRegion.value || '',
+              ...(existingSsoExpiry ? { expirationTimestamp: existingSsoExpiry as number } : {}),
+            },
+    };
+  } else if (selectedMode === 'assumeRole') {
+    formData.value = {
+      ...formData.value,
+      region: formData.value.region || '',
+      endpointUrl: '',
+      auth:
+        formData.value.auth?.kind === 'assumeRole'
+          ? formData.value.auth
+          : {
+              kind: 'assumeRole',
+              accessKeyId: '',
+              secretAccessKey: '',
+              sessionToken: '',
+              region: formData.value.region || '',
+            },
     };
   } else {
     const emptyAuth: DynamoDBAuth =
@@ -419,6 +701,144 @@ const onConnectionModeChange = (mode: string) => {
   }
 };
 
+// ── SSO Login flow ──
+const startSsoLogin = async () => {
+  if (!ssoFieldsValid.value) return;
+  ssoLoggingIn.value = true;
+  ssoAuthStatus.value = 'idle';
+  ssoErrorMessage.value = '';
+
+  try {
+    // Use ssoRegion as both the SSO region AND connection region
+    const effectiveSsoRegion = ssoRegion.value || formData.value.region || 'us-east-1';
+
+    const result = await dynamoApi.ssoStartDeviceAuth(ssoStartUrl.value, effectiveSsoRegion);
+    ssoVerificationUri.value = result.verificationUri;
+    ssoUserCode.value = result.userCode;
+    ssoDeviceCode.value = result.deviceCode;
+    ssoClientId.value = result.clientId;
+    ssoClientSecret.value = result.clientSecret;
+    ssoPollInterval.value = result.interval;
+
+    ssoAuthStatus.value = 'waiting';
+
+    // Open the browser
+    try {
+      const { open } = await import('@tauri-apps/plugin-shell');
+      open(result.verificationUri);
+    } catch {
+      // Fallback: show URL in UI (already done via ssoVerificationUri)
+    }
+
+    // Start polling
+    await pollSsoToken(effectiveSsoRegion);
+  } catch (err: unknown) {
+    ssoAuthStatus.value = 'error';
+    ssoErrorMessage.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    ssoLoggingIn.value = false;
+  }
+};
+
+const pollSsoToken = async (region: string) => {
+  const maxAttempts = 120; // ~10 min at 5s interval
+  for (let i = 0; i < maxAttempts; i++) {
+    await new Promise(resolve => setTimeout(resolve, ssoPollInterval.value * 1000));
+
+    try {
+      const result = await dynamoApi.ssoPollToken(
+        region,
+        ssoClientId.value,
+        ssoClientSecret.value,
+        ssoDeviceCode.value,
+      );
+
+      if (result.status === 'success' && result.accessToken) {
+        // Get role credentials
+        const creds = await dynamoApi.ssoGetRoleCredentials(
+          region,
+          result.accessToken,
+          ssoAccountId.value,
+          ssoRoleName.value,
+        );
+
+        ssoExpiresAt.value = creds.expirationTimestamp;
+        ssoAuthStatus.value = 'success';
+
+        // Update formData with SSO credentials
+        formData.value = {
+          ...formData.value,
+          region,
+          auth: {
+            kind: 'sso',
+            accessKeyId: creds.accessKeyId,
+            secretAccessKey: creds.secretAccessKey,
+            sessionToken: creds.sessionToken,
+            region,
+            expirationTimestamp: creds.expirationTimestamp,
+          },
+        };
+        return;
+      }
+
+      if (result.status === 'error') {
+        ssoAuthStatus.value = 'error';
+        ssoErrorMessage.value = result.errorMessage || 'SSO authentication failed';
+        return;
+      }
+      // 'pending': continue polling
+    } catch (err: unknown) {
+      ssoAuthStatus.value = 'error';
+      ssoErrorMessage.value = err instanceof Error ? err.message : String(err);
+      return;
+    }
+  }
+
+  ssoAuthStatus.value = 'error';
+  ssoErrorMessage.value = 'SSO authentication timed out. Please try again.';
+};
+
+// ── AssumeRole flow ──
+const doAssumeRole = async () => {
+  if (!assumeRoleFieldsValid.value) return;
+  assumeRoleLoading.value = true;
+  assumeRoleStatus.value = 'idle';
+  assumeRoleErrorMessage.value = '';
+
+  try {
+    const result = await dynamoApi.assumeRole(
+      assumeRoleSourceProfile.value,
+      assumeRoleArn.value,
+      assumeRoleExternalId.value || undefined,
+      assumeRoleMfaSerial.value || undefined,
+      assumeRoleMfaToken.value || undefined,
+    );
+
+    assumeRoleExpiresAt.value = result.expirationTimestamp;
+    assumeRoleStatus.value = 'success';
+    ssoExpiresAt.value = result.expirationTimestamp;
+
+    // Update formData with assumed credentials
+    formData.value = {
+      ...formData.value,
+      region: formData.value.region || 'us-east-1',
+      auth: {
+        kind: 'assumeRole',
+        accessKeyId: result.accessKeyId,
+        secretAccessKey: result.secretAccessKey,
+        sessionToken: result.sessionToken,
+        region: formData.value.region || 'us-east-1',
+        expirationTimestamp: result.expirationTimestamp,
+      },
+    };
+  } catch (err: unknown) {
+    assumeRoleStatus.value = 'error';
+    assumeRoleErrorMessage.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    assumeRoleLoading.value = false;
+  }
+};
+
 const handleOpenChange = (open: boolean) => {
   if (!open) closeModal();
 };
@@ -434,16 +854,57 @@ const showMedal = (con: DynamoDBConnection | null) => {
       ? 'local'
       : con.auth?.kind === 'profile'
         ? 'profile'
-        : 'accessKey';
+        : con.auth?.kind === 'sso'
+          ? 'sso'
+          : con.auth?.kind === 'assumeRole'
+            ? 'assumeRole'
+            : 'accessKey';
+
+    // Restore SSO state if editing SSO connection
+    if (con.auth?.kind === 'sso') {
+      ssoAuthStatus.value = 'success';
+      ssoExpiresAt.value =
+        ((con.auth as Record<string, unknown>).expirationTimestamp as number) || 0;
+    }
+    // Restore AssumeRole state if editing
+    if (con.auth?.kind === 'assumeRole') {
+      assumeRoleStatus.value = 'success';
+      assumeRoleExpiresAt.value =
+        ((con.auth as Record<string, unknown>).expirationTimestamp as number) || 0;
+    }
+
     modalTitle.value = lang.t('connection.edit');
   } else {
     formData.value = cloneDeep(defaultFormData);
     veeResetForm({ values: cloneDeep(defaultFormData) });
     connectionMode.value = 'accessKey';
+    resetSsoState();
+    resetAssumeRoleState();
   }
   availableProfiles.value = [];
   fetchProfiles();
   resetValidation();
+};
+
+const resetSsoState = () => {
+  ssoStartUrl.value = '';
+  ssoRegion.value = '';
+  ssoAccountId.value = '';
+  ssoRoleName.value = '';
+  ssoAuthStatus.value = 'idle';
+  ssoErrorMessage.value = '';
+  ssoExpiresAt.value = 0;
+};
+
+const resetAssumeRoleState = () => {
+  assumeRoleSourceProfile.value = '';
+  assumeRoleArn.value = '';
+  assumeRoleExternalId.value = '';
+  assumeRoleMfaSerial.value = '';
+  assumeRoleMfaToken.value = '';
+  assumeRoleStatus.value = 'idle';
+  assumeRoleErrorMessage.value = '';
+  assumeRoleExpiresAt.value = 0;
 };
 
 const closeModal = () => {
@@ -457,6 +918,8 @@ const closeModal = () => {
   availableTables.value = [];
   filterTableNameInput.value = '';
   showSuggestions.value = false;
+  resetSsoState();
+  resetAssumeRoleState();
   resetValidation();
 };
 
@@ -477,6 +940,10 @@ const isFormValid = computed(() => {
       return !!(auth.accessKeyId && auth.secretAccessKey);
     case 'profile':
       return !!auth.profileName;
+    case 'sso':
+    case 'assumeRole':
+      // For SSO/AssumeRole, valid credentials = authenticated
+      return !!(auth.accessKeyId && auth.secretAccessKey && auth.sessionToken);
     default:
       return false;
   }
@@ -536,6 +1003,9 @@ const validateAuth = (): boolean => {
       return !!auth.accessKeyId && !!auth.secretAccessKey;
     case 'profile':
       return !!auth.profileName;
+    case 'sso':
+    case 'assumeRole':
+      return !!(auth.accessKeyId && auth.secretAccessKey && auth.sessionToken);
     default:
       return false;
   }
@@ -711,6 +1181,6 @@ defineExpose({ showMedal });
 
 <style scoped>
 .connection-mode-content {
-  min-height: 220px;
+  min-height: 260px;
 }
 </style>

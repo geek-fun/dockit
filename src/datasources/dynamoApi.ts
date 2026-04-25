@@ -175,6 +175,22 @@ const buildAuthPayload = (auth: DynamoDBAuth): AwsAuthPayload => {
       };
     case 'profile':
       return { kind: 'profile', profile_name: auth.profileName };
+    case 'sso':
+      return {
+        kind: 'sso',
+        access_key_id: auth.accessKeyId,
+        secret_access_key: auth.secretAccessKey,
+        session_token: auth.sessionToken,
+        region: auth.region,
+      };
+    case 'assumeRole':
+      return {
+        kind: 'assumeRole',
+        access_key_id: auth.accessKeyId,
+        secret_access_key: auth.secretAccessKey,
+        session_token: auth.sessionToken,
+        region: auth.region,
+      };
   }
 };
 
@@ -615,6 +631,90 @@ const dynamoApi = {
     } catch {
       return [];
     }
+  },
+
+  // SSO device authorization — start the flow, get device code + URL
+  ssoStartDeviceAuth: async (
+    startUrl: string,
+    ssoRegion: string,
+  ): Promise<{
+    verificationUri: string;
+    userCode: string;
+    deviceCode: string;
+    clientId: string;
+    clientSecret: string;
+    interval: number;
+  }> => {
+    const result = await invoke<string>('aws_sso_start_device_auth', {
+      startUrl,
+      ssoRegion,
+    });
+    return JSON.parse(result);
+  },
+
+  // SSO poll for token after user authenticates in browser
+  ssoPollToken: async (
+    ssoRegion: string,
+    clientId: string,
+    clientSecret: string,
+    deviceCode: string,
+  ): Promise<{
+    accessToken: string | null;
+    expiresAt: number | null;
+    status: 'pending' | 'success' | 'error';
+    errorMessage: string | null;
+  }> => {
+    const result = await invoke<string>('aws_sso_poll_token', {
+      ssoRegion,
+      clientId,
+      clientSecret,
+      deviceCode,
+    });
+    return JSON.parse(result);
+  },
+
+  // SSO get role credentials after token is obtained
+  ssoGetRoleCredentials: async (
+    ssoRegion: string,
+    accessToken: string,
+    accountId: string,
+    roleName: string,
+  ): Promise<{
+    accessKeyId: string;
+    secretAccessKey: string;
+    sessionToken: string;
+    expirationTimestamp: number;
+  }> => {
+    const result = await invoke<string>('aws_sso_get_role_credentials', {
+      ssoRegion,
+      accessToken,
+      accountId,
+      roleName,
+    });
+    return JSON.parse(result);
+  },
+
+  // STS AssumeRole
+  assumeRole: async (
+    sourceProfileName: string,
+    roleArn: string,
+    externalId?: string,
+    mfaSerial?: string,
+    mfaToken?: string,
+  ): Promise<{
+    accessKeyId: string;
+    secretAccessKey: string;
+    sessionToken: string;
+    expirationTimestamp: number;
+  }> => {
+    const result = await invoke<string>('aws_assume_role', {
+      sourceProfileName,
+      roleArn,
+      externalId: externalId ?? null,
+      mfaSerial: mfaSerial ?? null,
+      mfaToken: mfaToken ?? null,
+    });
+    return JSON.parse(result);
   },
 };
 
