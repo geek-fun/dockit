@@ -1089,7 +1089,7 @@ const isFormValid = computed(() => {
     return !!formData.value.endpointUrl;
   }
 
-  if (!formData.value.region) return false;
+  if (!formData.value.region && !['profile', 'assumeRole', 'sso'].includes(connectionMode.value)) return false;
 
   const auth = formData.value.auth;
   if (!auth) return false;
