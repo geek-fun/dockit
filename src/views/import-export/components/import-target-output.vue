@@ -11,88 +11,32 @@
       <Grid :cols="2" :x-gap="16" :y-gap="16">
         <GridItem>
           <div class="field-label">{{ $t('import.targetDatabase') }}</div>
-          <Select
-            v-model="inputData.selectedConnection"
+          <SearchableSelect
+            :model-value="inputData.selectedConnection"
+            :options="connectionOptions"
+            :loading="loadingStat.connection"
+            :search-threshold="0"
+            :placeholder="$t('connection.selectConnection')"
+            class="w-full"
             @update:model-value="handleConnectionChange"
-          >
-            <SelectTrigger>
-              <SelectValue :placeholder="$t('connection.selectConnection')" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem
-                v-for="option in filteredConnectionOptions"
-                :key="option.value"
-                :value="option.value"
-              >
-                {{ option.label }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+          />
         </GridItem>
         <GridItem>
           <div class="field-label">{{ $t('import.collectionName') }}</div>
-
-          <!-- Combobox: searchable dropdown + free-text entry -->
-          <Popover v-model:open="indexDropdownOpen">
-            <PopoverTrigger as-child>
-              <Button
-                variant="outline"
-                role="combobox"
-                :aria-expanded="indexDropdownOpen"
-                :disabled="!inputData.selectedConnection || loadingStat.connection"
-                class="combobox-trigger"
-              >
-                <span :class="inputData.selectedIndex ? 'combobox-value' : 'combobox-placeholder'">
-                  {{ inputData.selectedIndex || $t('import.selectOrCreateIndex') }}
-                </span>
-                <span class="i-carbon-chevron-down h-4 w-4 combobox-icon" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent class="combobox-content" :align="'start'">
-              <div class="combobox-search">
-                <Input
-                  v-model="inputData.indexSearchQuery"
-                  :placeholder="$t('import.selectOrCreateIndex')"
-                  class="combobox-input"
-                  @keydown.enter="handleIndexInputEnter"
-                />
-              </div>
-              <div class="combobox-list">
-                <!-- Existing options filtered by query -->
-                <div
-                  v-for="option in filteredIndexOptions"
-                  :key="option.value"
-                  :class="['combobox-item', { selected: option.value === inputData.selectedIndex }]"
-                  @click="selectIndexOption(option.value)"
-                >
-                  <span
-                    v-if="option.value === inputData.selectedIndex"
-                    class="i-carbon-checkmark h-4 w-4 combobox-check"
-                  />
-                  <span v-else class="combobox-check-placeholder" />
-                  {{ option.label }}
-                </div>
-
-                <!-- "Create new" option when query doesn't match any existing -->
-                <div
-                  v-if="inputData.indexSearchQuery && !exactMatchExists"
-                  class="combobox-item combobox-create"
-                  @click="selectIndexOption(inputData.indexSearchQuery)"
-                >
-                  <span class="i-carbon-add h-4 w-4 combobox-check" />
-                  {{ $t('import.createNew') }}: "{{ inputData.indexSearchQuery }}"
-                </div>
-
-                <div
-                  v-if="filteredIndexOptions.length === 0 && !inputData.indexSearchQuery"
-                  class="combobox-empty"
-                >
-                  {{ $t('import.noIndicesFound') }}
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-
+          <SearchableSelect
+            :model-value="inputData.selectedIndex"
+            :options="indexOptions"
+            :loading="loadingStat.index"
+            :placeholder="$t('import.selectOrCreateIndex')"
+            :disabled="!inputData.selectedConnection || loadingStat.connection"
+            :empty-text="$t('import.noIndicesFound')"
+            allow-create
+            :create-text="$t('import.createNew')"
+            :search-threshold="0"
+            class="w-full"
+            @update:model-value="handleIndexChange"
+            @open="isOpen => isOpen && handleIndexOpen()"
+          />
           <span class="field-hint">
             {{
               importIsNewCollection
@@ -122,17 +66,8 @@
 import { storeToRefs } from 'pinia';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Grid, GridItem } from '@/components/ui/grid';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { SearchableSelect } from '@/components/ui/combobox';
 import {
   useImportExportStore,
   useConnectionStore,
@@ -158,8 +93,6 @@ const { importConnection, importTargetIndex, importIsNewCollection } =
 const inputData = ref({
   selectedConnection: '',
   selectedIndex: '',
-  connectionSearchQuery: '',
-  indexSearchQuery: '',
 });
 
 const loadingStat = ref({
@@ -167,52 +100,14 @@ const loadingStat = ref({
   index: false,
 });
 
-const indexDropdownOpen = ref(false);
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
 const currentExistingIndices = ref<string[]>([]);
 
 const connectionOptions = computed(() =>
-  connections.value.map(({ name }) => ({ label: name, value: name })),
+  connections.value
+    .map(({ name }) => ({ label: name, value: name }))
+    .sort((a, b) => a.label.localeCompare(b.label)),
 );
-
-const filteredConnectionOptions = computed(() => {
-  if (!inputData.value.connectionSearchQuery) {
-    return connectionOptions.value;
-  }
-  const query = inputData.value.connectionSearchQuery.toLowerCase();
-  return connectionOptions.value
-    .filter(option => option.value.toLowerCase().includes(query))
-    .sort((a, b) => a.value.localeCompare(b.value));
-});
-
-const filteredIndexOptions = computed(() => {
-  if (!inputData.value.indexSearchQuery) {
-    return indexOptions.value;
-  }
-  const query = inputData.value.indexSearchQuery.toLowerCase();
-  return indexOptions.value
-    .filter(option => option.value.toLowerCase().includes(query))
-    .sort((a, b) => a.value.localeCompare(b.value));
-});
-
-const exactMatchExists = computed(() => {
-  const query = inputData.value.indexSearchQuery.toLowerCase();
-  return indexOptions.value.some(opt => opt.value.toLowerCase() === query);
-});
-
-const selectIndexOption = (value: string) => {
-  inputData.value.selectedIndex = value;
-  inputData.value.indexSearchQuery = '';
-  indexDropdownOpen.value = false;
-  handleIndexChange(value);
-};
-
-const handleIndexInputEnter = () => {
-  const query = inputData.value.indexSearchQuery.trim();
-  if (query) {
-    selectIndexOption(query);
-  }
-};
 
 const handleConnectionOpen = async () => {
   loadingStat.value.connection = true;
@@ -275,15 +170,16 @@ const updateIndexOptions = () => {
     const indices =
       (updatedCon as ElasticsearchConnection)?.indices?.map(index => index.index) ?? [];
     currentExistingIndices.value = indices;
-    indexOptions.value = indices.map(index => ({
-      label: index,
-      value: index,
-    }));
+    indexOptions.value = indices
+      .map(index => ({ label: index, value: index }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   } else if (importConnection.value.type === DatabaseType.DYNAMODB) {
     const dynamoConn = importConnection.value as DynamoDBConnection;
     const tables = dynamoConn.tables ?? [];
     currentExistingIndices.value = tables.map(t => t.name);
-    indexOptions.value = tables.map(t => ({ label: t.name, value: t.name }));
+    indexOptions.value = tables
+      .map(t => ({ label: t.name, value: t.name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }
 };
 
@@ -298,7 +194,6 @@ const handleConnectionChange = async (value: string) => {
     inputData.value.selectedConnection = value;
     inputData.value.selectedIndex = '';
     indexOptions.value = [];
-    inputData.value.indexSearchQuery = '';
     currentExistingIndices.value = [];
     // Fetch indices after connection change
     await handleIndexOpen();
@@ -396,91 +291,6 @@ watch(importTargetIndex, newIdx => {
 }
 
 .step-card .collection-indicator .indicator-text {
-  font-size: 12px;
-  color: hsl(var(--muted-foreground));
-}
-
-/* Combobox styles */
-.combobox-trigger {
-  width: 100%;
-  justify-content: space-between;
-  font-weight: 400;
-}
-
-.combobox-value {
-  color: hsl(var(--foreground));
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.combobox-placeholder {
-  color: hsl(var(--muted-foreground));
-}
-
-.combobox-icon {
-  margin-left: auto;
-  flex-shrink: 0;
-  opacity: 0.5;
-}
-
-.combobox-content {
-  padding: 4px;
-  min-width: 240px;
-}
-
-.combobox-search {
-  padding: 4px 4px 8px;
-}
-
-.combobox-input {
-  height: 32px;
-  font-size: 13px;
-}
-
-.combobox-list {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.combobox-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.combobox-item:hover {
-  background: hsl(var(--accent));
-}
-
-.combobox-item.selected {
-  background: hsl(var(--accent));
-  font-weight: 500;
-}
-
-.combobox-item.combobox-create {
-  color: #18a058;
-  font-style: italic;
-}
-
-.combobox-check {
-  flex-shrink: 0;
-}
-
-.combobox-check-placeholder {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
-.combobox-empty {
-  padding: 12px;
-  text-align: center;
   font-size: 12px;
   color: hsl(var(--muted-foreground));
 }

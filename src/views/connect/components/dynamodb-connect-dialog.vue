@@ -81,23 +81,12 @@
                 required
                 :error="getError('region', errors.region)"
               >
-                <Select
+                <SearchableSelect
                   v-model="formData.region"
-                  @update:open="(open: boolean) => !open && handleBlur('region')"
-                >
-                  <SelectTrigger>
-                    <SelectValue :placeholder="$t('connection.selectRegion')" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem
-                      v-for="option in regionOptions"
-                      :key="option.value"
-                      :value="option.value"
-                    >
-                      {{ option.label }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                  :options="regionOptions"
+                  :placeholder="$t('connection.selectRegion')"
+                  @update:model-value="handleBlur('region')"
+                />
               </FormItem>
 
               <!-- Access Key fields -->
@@ -316,6 +305,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/combobox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 
