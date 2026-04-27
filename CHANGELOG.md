@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.9] - 2026-04-28
+
+### Added
+
+- Add SSO and AssumeRole authentication for DynamoDB connections (#378)
+- Add unified searchable select component across the codebase (#388)
+- Add AWS profile and environment variable authentication for DynamoDB (#377)
+- Add credential-based connection model for DynamoDB multi-table workflows (#375)
+- Improve connection floating button UX with speed-dial pattern (#369)
+
+### Fixed
+
+- Improve search DSL auto-completion accuracy and coverage (#389)
+- Fix console queries not executing after navigating to Import/Export tab (#387)
+
+### Security
+
+- Resolve rustls-webpki security vulnerabilities (#379)
+
 ## [0.9.8] - 2026-04-22
 
 ### Added
