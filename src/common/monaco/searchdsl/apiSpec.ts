@@ -286,12 +286,79 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'PUT'],
     description: 'Get or update index mappings',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Specify timeout for connection to master',
+      },
+      { name: 'timeout', type: 'string', description: 'Explicit operation timeout' },
+      {
+        name: 'write_index_only',
+        type: 'boolean',
+        description: 'When true, applies mappings only to the write index of an alias',
+      },
+    ],
   },
   {
     path: '/{index}/_settings',
     methods: ['GET', 'PUT'],
     description: 'Get or update index settings',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      { name: 'flat_settings', type: 'boolean', description: 'Return settings in flat format' },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'include_defaults',
+        type: 'boolean',
+        description: 'Whether to return all default setting for each of the indices',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Specify timeout for connection to master',
+      },
+      {
+        name: 'preserve_existing',
+        type: 'boolean',
+        description:
+          'Whether to update existing settings. If set to true existing settings on an index remain unchanged',
+      },
+      { name: 'timeout', type: 'string', description: 'Explicit operation timeout' },
+    ],
   },
   {
     path: '/{index}/_open',
@@ -572,12 +639,88 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_msearch',
     methods: ['GET', 'POST'],
     description: 'Execute multiple searches in one request',
+    queryParams: [
+      {
+        name: 'max_concurrent_searches',
+        type: 'integer',
+        description:
+          'Controls the maximum number of concurrent searches the multi search api will execute',
+      },
+      {
+        name: 'max_concurrent_shard_requests',
+        type: 'integer',
+        description:
+          'The number of concurrent shard requests each sub search executes concurrently',
+        default: 5,
+      },
+      {
+        name: 'pre_filter_shard_size',
+        type: 'integer',
+        description: 'Threshold that enforces a pre-filter roundtrip to prefilter search shards',
+      },
+      {
+        name: 'rest_total_hits_as_int',
+        type: 'boolean',
+        description: 'Indicates whether hits.total should be rendered as an integer or an object',
+        default: false,
+      },
+      {
+        name: 'search_type',
+        type: 'string',
+        description: 'Search operation type',
+        enum: ['query_then_fetch', 'dfs_query_then_fetch'],
+      },
+      {
+        name: 'typed_keys',
+        type: 'boolean',
+        description:
+          'Specify whether aggregation and suggester names should be prefixed by their respective types in the response',
+      },
+    ],
   },
   {
     path: '/{index}/_msearch',
     methods: ['GET', 'POST'],
     description: 'Multi search on specific index',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'max_concurrent_searches',
+        type: 'integer',
+        description:
+          'Controls the maximum number of concurrent searches the multi search api will execute',
+      },
+      {
+        name: 'max_concurrent_shard_requests',
+        type: 'integer',
+        description:
+          'The number of concurrent shard requests each sub search executes concurrently',
+        default: 5,
+      },
+      {
+        name: 'pre_filter_shard_size',
+        type: 'integer',
+        description: 'Threshold that enforces a pre-filter roundtrip to prefilter search shards',
+      },
+      {
+        name: 'rest_total_hits_as_int',
+        type: 'boolean',
+        description: 'Indicates whether hits.total should be rendered as an integer or an object',
+        default: false,
+      },
+      {
+        name: 'search_type',
+        type: 'string',
+        description: 'Search operation type',
+        enum: ['query_then_fetch', 'dfs_query_then_fetch'],
+      },
+      {
+        name: 'typed_keys',
+        type: 'boolean',
+        description:
+          'Specify whether aggregation and suggester names should be prefixed by their respective types in the response',
+      },
+    ],
   },
 
   // Explain API

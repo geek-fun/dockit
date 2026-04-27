@@ -411,8 +411,10 @@ const providePathCompletions = (
   const indexWithSlashMatch = /^([^/]+)\/$/.exec(normalizedUserPath);
   const indexWithPartialEndpoint = /^([^/]+)\/(_[^/]*)$/.exec(normalizedUserPath);
 
-  // If user has typed an index name followed by slash, suggest endpoints
-  if (indexWithSlashMatch || indexWithPartialEndpoint) {
+  const firstSegment = indexWithSlashMatch?.[1] ?? indexWithPartialEndpoint?.[1];
+  const isRootVerb = firstSegment?.startsWith('_') ?? false;
+
+  if ((indexWithSlashMatch || indexWithPartialEndpoint) && !isRootVerb) {
     const indexName = indexWithSlashMatch ? indexWithSlashMatch[1] : indexWithPartialEndpoint?.[1];
     const partialEndpoint = indexWithPartialEndpoint ? indexWithPartialEndpoint[2] : '';
 
@@ -454,12 +456,14 @@ const providePathCompletions = (
   // Add index name completions from dynamic options
   // Only show when user is typing something that could be an index name (not starting with _)
   const isTypingIndexName =
-    normalizedUserPath && !normalizedUserPath.startsWith('_') && !normalizedUserPath.includes('/');
+    !normalizedUserPath.startsWith('_') && !normalizedUserPath.includes('/');
 
   if (isTypingIndexName && dynamicOptions.indices && dynamicOptions.indices.length > 0) {
     for (const indexName of dynamicOptions.indices) {
-      // Filter by what user typed
-      if (!indexName.toLowerCase().startsWith(normalizedUserPath.toLowerCase())) {
+      if (
+        normalizedUserPath &&
+        !indexName.toLowerCase().startsWith(normalizedUserPath.toLowerCase())
+      ) {
         continue;
       }
 
@@ -758,7 +762,8 @@ const provideBodyCompletions = (
       });
     }
   } else if (bodyPath[0] === 'mappings' || bodyPath[0] === 'properties') {
-    if (bodyPath[0] === 'properties' || bodyPath.includes('properties')) {
+    const lastSegment = bodyPath[bodyPath.length - 1];
+    if (lastSegment === 'properties') {
       const fieldTypes = getFieldTypeOptions();
       for (const fieldType of fieldTypes) {
         completions.push({
