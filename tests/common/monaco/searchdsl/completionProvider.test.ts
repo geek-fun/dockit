@@ -498,12 +498,29 @@ describe('grammarCompletionProvider', () => {
 
       const text = `GET test_`;
       const model = createMockModel(text);
-      const position = { lineNumber: 1, column: 10 }; // After 'test_'
+      const position = { lineNumber: 1, column: 10 };
 
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
       const labels = result.suggestions.map(s => s.label);
       expect(labels).toContain('test_index');
+    });
+
+    it('should provide index names immediately after HTTP method', () => {
+      setDynamicOptions({
+        indices: ['test_index', 'logs_index', 'metrics_index'],
+      });
+
+      const text = `GET `;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 5 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('test_index');
+      expect(labels).toContain('logs_index');
+      expect(labels).toContain('metrics_index');
     });
 
     it('should not provide index names when path starts with _', () => {
@@ -513,7 +530,7 @@ describe('grammarCompletionProvider', () => {
 
       const text = `GET _cat`;
       const model = createMockModel(text);
-      const position = { lineNumber: 1, column: 9 }; // After '_cat'
+      const position = { lineNumber: 1, column: 9 };
 
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
@@ -527,14 +544,40 @@ describe('grammarCompletionProvider', () => {
     it('should provide endpoints after index name with slash', () => {
       const text = `GET test_index/`;
       const model = createMockModel(text);
-      const position = { lineNumber: 1, column: 16 }; // After '/'
+      const position = { lineNumber: 1, column: 16 };
 
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
       const labels = result.suggestions.map(s => s.label);
-      // Should contain index-specific endpoints
       const searchPath = labels.find(l => typeof l === 'string' && l.includes('_search'));
       expect(searchPath).toBeDefined();
+    });
+
+    it('should NOT provide index sub-verbs after root verb like _cluster/', () => {
+      const text = `GET _cluster/`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 14 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('_search');
+      expect(labels).not.toContain('_mapping');
+      expect(labels).not.toContain('_settings');
+      expect(labels.some(l => typeof l === 'string' && l.includes('_cluster/'))).toBe(true);
+    });
+
+    it('should NOT provide index sub-verbs after root verb like _cat/', () => {
+      const text = `GET _cat/`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 10 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('_search');
+      expect(labels).not.toContain('_mapping');
+      expect(labels.some(l => typeof l === 'string' && l.includes('_cat/'))).toBe(true);
     });
 
     it('should prioritize _search endpoints in path completions', () => {
@@ -661,7 +704,26 @@ describe('grammarCompletionProvider', () => {
   });
 
   describe('nested properties in mappings', () => {
-    it('should provide field types inside properties block', () => {
+    it('should provide field types directly inside properties block', () => {
+      const text = `PUT test_index/_mapping
+{
+  properties: {
+    
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 5 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('text');
+      expect(labels).toContain('keyword');
+      expect(labels).toContain('object');
+      expect(labels).toContain('nested');
+    });
+
+    it('should NOT provide field type snippets inside field definition object', () => {
       const text = `PUT test_index/_mapping
 {
   properties: {
@@ -676,11 +738,11 @@ describe('grammarCompletionProvider', () => {
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
       const labels = result.suggestions.map(s => s.label);
-      expect(labels).toContain('text');
-      expect(labels).toContain('keyword');
+      expect(labels).not.toContain('text');
+      expect(labels).not.toContain('keyword');
     });
 
-    it('should provide field types inside deeply nested properties', () => {
+    it('should NOT provide field type snippets inside deeply nested field definition', () => {
       const text = `PUT test_index/_mapping
 {
   properties: {
@@ -700,7 +762,55 @@ describe('grammarCompletionProvider', () => {
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
       const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('text');
+      expect(labels).not.toContain('keyword');
+    });
+
+    it('should provide field types directly inside nested object properties', () => {
+      const text = `PUT test_index/_mapping
+{
+  properties: {
+    author: {
+      type: "object",
+      properties: {
+        
+      }
+    }
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 7, column: 7 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
       expect(labels).toContain('text');
+      expect(labels).toContain('keyword');
+    });
+
+    it('should provide field types directly inside fields subfield properties', () => {
+      const text = `PUT test_index/_mapping
+{
+  properties: {
+    title: {
+      type: "text",
+      fields: {
+        keyword: {
+          type: "keyword"
+        },
+        
+      }
+    }
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 10, column: 7 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('text');
+      expect(labels).toContain('keyword');
     });
   });
 
@@ -1125,6 +1235,68 @@ describe('grammarCompletionProvider', () => {
       expect(labels).toContain('red');
       expect(labels).not.toContain('v');
       expect(labels).not.toContain('health');
+    });
+  });
+
+  describe('_mapping query parameters', () => {
+    it('should provide query params for _mapping endpoint', () => {
+      const text = `GET my_index/_mapping?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('allow_no_indices');
+      expect(labels).toContain('expand_wildcards');
+      expect(labels).toContain('ignore_unavailable');
+      expect(labels).toContain('timeout');
+    });
+
+    it('should provide enum values for expand_wildcards on _mapping', () => {
+      const text = `GET my_index/_mapping?expand_wildcards=`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('open');
+      expect(labels).toContain('closed');
+      expect(labels).toContain('hidden');
+      expect(labels).toContain('none');
+      expect(labels).toContain('all');
+    });
+  });
+
+  describe('_settings query parameters', () => {
+    it('should provide query params for _settings endpoint', () => {
+      const text = `GET my_index/_settings?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('allow_no_indices');
+      expect(labels).toContain('expand_wildcards');
+      expect(labels).toContain('flat_settings');
+      expect(labels).toContain('include_defaults');
+      expect(labels).toContain('timeout');
+    });
+  });
+
+  describe('_msearch query parameters', () => {
+    it('should provide query params for _msearch with index', () => {
+      const text = `GET my_index/_msearch?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('max_concurrent_searches');
+      expect(labels).toContain('search_type');
     });
   });
 });
