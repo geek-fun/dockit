@@ -83,9 +83,10 @@
               </FormItem>
             </template>
 
-            <!-- ── Non-local (region always shown) ── -->
+            <!-- ── Non-local (region always shown except profile/assumeRole which override in Advanced) ── -->
             <template v-else>
               <FormItem
+                v-if="connectionMode !== 'profile' && connectionMode !== 'assumeRole'"
                 :label="$t('connection.region')"
                 required
                 :error="getError('region', errors.region)"
@@ -140,12 +141,7 @@
                     :model-value="
                       (formData.auth.kind === 'profile' && formData.auth.profileName) || ''
                     "
-                    @update:model-value="
-                      v => {
-                        if (formData.auth.kind === 'profile')
-                          formData.auth.profileName = v as string;
-                      }
-                    "
+                    @update:model-value="v => onProfileSelect(v as string)"
                   >
                     <SelectTrigger>
                       <SelectValue :placeholder="$t('connection.selectProfile')" />
@@ -167,6 +163,31 @@
                     {{ $t('connection.noProfilesDetected') }}
                   </p>
                 </FormItem>
+
+                <button
+                  type="button"
+                  class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground cursor-pointer select-none"
+                  @click="profileRegionOverride = !profileRegionOverride"
+                >
+                  <ChevronRight
+                    class="h-3.5 w-3.5 transition-transform"
+                    :class="{ 'rotate-90': profileRegionOverride }"
+                  />
+                  {{ $t('connection.assumeRoleAdvanced') }}
+                </button>
+                <div v-show="profileRegionOverride" class="space-y-4">
+                  <FormItem
+                    :label="$t('connection.region')"
+                    :error="getError('region', errors.region)"
+                  >
+                    <SearchableSelect
+                      v-model="formData.region"
+                      :options="regionOptions"
+                      :placeholder="$t('connection.selectRegion')"
+                      @update:model-value="handleBlur('region')"
+                    />
+                  </FormItem>
+                </div>
               </template>
 
               <!-- SSO fields -->
@@ -178,33 +199,13 @@
                   />
                 </FormItem>
                 <FormItem :label="$t('connection.ssoRegion')" required>
-                  <Select v-model="ssoRegion">
-                    <SelectTrigger>
-                      <SelectValue :placeholder="$t('connection.ssoRegion')" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem
-                        v-for="option in regionOptions"
-                        :key="option.value"
-                        :value="option.value"
-                      >
-                        {{ option.label }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-                <FormItem :label="$t('connection.ssoAccountId')" required>
-                  <Input v-model="ssoAccountId" placeholder="123456789012" />
-                </FormItem>
-                <FormItem :label="$t('connection.ssoRoleName')" required>
-                  <Input
-                    v-model="ssoRoleName"
-                    placeholder="AdministratorAccess"
-                    @blur="handleBlur('ssoRoleName')"
+                  <SearchableSelect
+                    v-model="ssoRegion"
+                    :options="regionOptions"
+                    :placeholder="$t('connection.ssoRegion')"
                   />
                 </FormItem>
 
-                <!-- SSO Login status -->
                 <template v-if="ssoAuthStatus === 'idle'">
                   <p class="text-sm text-muted-foreground">
                     {{ $t('connection.ssoLoginPrompt') }}
@@ -228,6 +229,39 @@
                     </p>
                   </div>
                 </template>
+                <template v-if="ssoAuthStatus === 'authenticated'">
+                  <FormItem :label="$t('connection.ssoSelectAccount')" required>
+                    <SearchableSelect
+                      v-model="ssoSelectedAccountId"
+                      :options="ssoAccountOptions"
+                      :placeholder="
+                        ssoLoadingAccounts
+                          ? $t('connection.ssoLoadingAccounts')
+                          : $t('connection.ssoAccountPlaceholder')
+                      "
+                      :disabled="ssoLoadingAccounts"
+                      @update:model-value="onSsoAccountSelect"
+                    />
+                  </FormItem>
+                  <FormItem :label="$t('connection.ssoSelectRole')" required>
+                    <SearchableSelect
+                      v-model="ssoSelectedRoleName"
+                      :options="ssoRoleOptions"
+                      :placeholder="
+                        ssoLoadingRoles
+                          ? $t('connection.ssoLoadingRoles')
+                          : $t('connection.ssoRolePlaceholder')
+                      "
+                      :disabled="ssoLoadingRoles || !ssoSelectedAccountId"
+                    />
+                  </FormItem>
+                  <p
+                    v-if="!ssoAccountOptions.length && !ssoLoadingAccounts"
+                    class="text-sm text-muted-foreground"
+                  >
+                    {{ $t('connection.ssoNoAccounts') }}
+                  </p>
+                </template>
                 <template v-if="ssoAuthStatus === 'success'">
                   <Alert variant="success" class="mb-4">
                     <AlertDescription>
@@ -240,25 +274,6 @@
                     <AlertDescription>{{ ssoErrorMessage }}</AlertDescription>
                   </Alert>
                 </template>
-
-                <div class="flex gap-2">
-                  <Button
-                    v-if="ssoAuthStatus === 'idle'"
-                    variant="secondary"
-                    :disabled="!ssoFieldsValid || ssoLoggingIn"
-                    @click="startSsoLogin"
-                  >
-                    <Loader2 v-if="ssoLoggingIn" class="mr-2 h-4 w-4 animate-spin" />
-                    {{ $t('connection.ssoLogin') }}
-                  </Button>
-                  <Button
-                    v-if="ssoAuthStatus === 'error'"
-                    variant="secondary"
-                    @click="ssoAuthStatus = 'idle'"
-                  >
-                    {{ $t('connection.ssoRetry') }}
-                  </Button>
-                </div>
               </template>
 
               <!-- AssumeRole fields -->
@@ -266,7 +281,7 @@
                 <FormItem :label="$t('connection.assumeRoleSourceProfile')" required>
                   <Select
                     :model-value="assumeRoleSourceProfile"
-                    @update:model-value="v => (assumeRoleSourceProfile = v as string)"
+                    @update:model-value="v => onAssumeRoleProfileChange(v as string)"
                   >
                     <SelectTrigger>
                       <SelectValue :placeholder="$t('connection.selectProfile')" />
@@ -282,32 +297,81 @@
                     </SelectContent>
                   </Select>
                 </FormItem>
-                <FormItem :label="$t('connection.assumeRoleArn')" required>
+
+                <template v-if="profileRoleOptions.length">
+                  <FormItem :label="$t('connection.assumeRoleSelectRole')">
+                    <Select
+                      :model-value="assumeRoleArn"
+                      @update:model-value="v => (assumeRoleArn = v as string)"
+                    >
+                      <SelectTrigger>
+                        <SelectValue :placeholder="$t('connection.assumeRoleSelectRole')" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          v-for="opt in profileRoleOptions"
+                          :key="opt.value"
+                          :value="opt.value"
+                        >
+                          {{ opt.label }}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                  <p class="text-xs text-muted-foreground -mt-2">
+                    {{ $t('connection.assumeRoleOrManual') }}
+                  </p>
+                </template>
+
+                <FormItem
+                  :label="$t('connection.assumeRoleArn')"
+                  :required="!profileRoleOptions.length"
+                >
                   <Input
                     v-model="assumeRoleArn"
-                    placeholder="arn:aws:iam::123456789012:role/MyRole"
-                  />
-                </FormItem>
-                <FormItem :label="$t('connection.assumeRoleExternalId')">
-                  <Input
-                    v-model="assumeRoleExternalId"
-                    :placeholder="$t('connection.assumeRoleExternalIdPlaceholder')"
-                  />
-                </FormItem>
-                <FormItem :label="$t('connection.assumeRoleMfaSerial')">
-                  <Input
-                    v-model="assumeRoleMfaSerial"
-                    placeholder="arn:aws:iam::123456789012:mfa/user"
+                    :placeholder="$t('connection.assumeRoleArnPlaceholder')"
                   />
                 </FormItem>
 
-                <!-- MFA token input (shown when MFA serial is configured) -->
-                <FormItem v-if="assumeRoleMfaSerial" :label="$t('connection.assumeRoleMfaToken')">
-                  <Input
-                    v-model="assumeRoleMfaToken"
-                    :placeholder="$t('connection.assumeRoleMfaTokenPlaceholder')"
+                <button
+                  type="button"
+                  class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground cursor-pointer select-none"
+                  @click="assumeRoleAdvancedOpen = !assumeRoleAdvancedOpen"
+                >
+                  <ChevronRight
+                    class="h-3.5 w-3.5 transition-transform"
+                    :class="{ 'rotate-90': assumeRoleAdvancedOpen }"
                   />
-                </FormItem>
+                  {{ $t('connection.assumeRoleAdvanced') }}
+                </button>
+                <div v-show="assumeRoleAdvancedOpen" class="space-y-4">
+                  <FormItem :label="$t('connection.region')">
+                    <SearchableSelect
+                      v-model="formData.region"
+                      :options="regionOptions"
+                      :placeholder="$t('connection.selectRegion')"
+                      @update:model-value="handleBlur('region')"
+                    />
+                  </FormItem>
+                  <FormItem :label="$t('connection.assumeRoleExternalId')">
+                    <Input
+                      v-model="assumeRoleExternalId"
+                      :placeholder="$t('connection.assumeRoleExternalIdPlaceholder')"
+                    />
+                  </FormItem>
+                  <FormItem :label="$t('connection.assumeRoleMfaSerial')">
+                    <Input
+                      v-model="assumeRoleMfaSerial"
+                      placeholder="arn:aws:iam::123456789012:mfa/user"
+                    />
+                  </FormItem>
+                  <FormItem v-if="assumeRoleMfaSerial" :label="$t('connection.assumeRoleMfaToken')">
+                    <Input
+                      v-model="assumeRoleMfaToken"
+                      :placeholder="$t('connection.assumeRoleMfaTokenPlaceholder')"
+                    />
+                  </FormItem>
+                </div>
 
                 <template v-if="assumeRoleStatus === 'success'">
                   <Alert variant="success" class="mb-4">
@@ -452,7 +516,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2, ChevronRight } from 'lucide-vue-next';
 import { cloneDeep, debounce } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -512,8 +576,6 @@ const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidati
 // ── SSO state ──
 const ssoStartUrl = ref('');
 const ssoRegion = ref('');
-const ssoAccountId = ref('');
-const ssoRoleName = ref('');
 const ssoVerificationUri = ref('');
 const ssoUserCode = ref('');
 const ssoClientId = ref('');
@@ -521,10 +583,28 @@ const ssoClientSecret = ref('');
 const ssoDeviceCode = ref('');
 const ssoPollInterval = ref(5);
 const ssoPollAbort = ref(false);
-const ssoAuthStatus = ref<'idle' | 'waiting' | 'success' | 'error'>('idle');
+const ssoAuthStatus = ref<'idle' | 'waiting' | 'authenticated' | 'success' | 'error'>('idle');
 const ssoErrorMessage = ref('');
 const ssoLoggingIn = ref(false);
 const ssoExpiresAt = ref(0);
+const ssoAccessToken = ref('');
+const ssoLoadingAccounts = ref(false);
+const ssoLoadingRoles = ref(false);
+const ssoAccounts = ref<{ accountId: string; accountName: string; emailAddress: string | null }[]>(
+  [],
+);
+const ssoRoles = ref<{ roleName: string; accountId: string }[]>([]);
+const ssoSelectedAccountId = ref('');
+const ssoSelectedRoleName = ref('');
+const ssoAccountOptions = computed(() =>
+  ssoAccounts.value.map(a => ({
+    label: `${a.accountName} (${a.accountId})`,
+    value: a.accountId,
+  })),
+);
+const ssoRoleOptions = computed(() =>
+  ssoRoles.value.map(r => ({ label: r.roleName, value: r.roleName })),
+);
 const ssoExpiresLabel = computed(() =>
   ssoExpiresAt.value ? new Date(ssoExpiresAt.value * 1000).toLocaleString() : '',
 );
@@ -539,6 +619,23 @@ const assumeRoleLoading = ref(false);
 const assumeRoleStatus = ref<'idle' | 'success' | 'error'>('idle');
 const assumeRoleErrorMessage = ref('');
 const assumeRoleExpiresAt = ref(0);
+const assumeRoleAdvancedOpen = ref(false);
+const profileRegionOverride = ref(false);
+const profilesWithRoles = ref<
+  {
+    profileName: string;
+    roleArn: string | null;
+    sourceProfile: string | null;
+    region: string | null;
+  }[]
+>([]);
+const profileRoleOptions = computed(() =>
+  profilesWithRoles.value
+    .filter(
+      p => p.roleArn && (p.sourceProfile === assumeRoleSourceProfile.value || !p.sourceProfile),
+    )
+    .map(p => ({ label: `${p.profileName} — ${p.roleArn}`, value: p.roleArn as string })),
+);
 const assumeRoleExpiresLabel = computed(() =>
   assumeRoleExpiresAt.value ? new Date(assumeRoleExpiresAt.value * 1000).toLocaleString() : '',
 );
@@ -558,13 +655,18 @@ const regionOptions = [
   { label: 'Europe (Ireland)', value: 'eu-west-1' },
 ];
 
-const formSchema = toTypedSchema(
-  z.object({
-    name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
-    region: z.string().min(1, lang.t('connection.formValidation.regionRequired')),
-    endpointUrl: z.string().optional(),
-    type: z.nativeEnum(DatabaseType),
-  }),
+const formSchema = computed(() =>
+  toTypedSchema(
+    z.object({
+      name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
+      region:
+        connectionMode.value === 'profile' || connectionMode.value === 'assumeRole'
+          ? z.string().optional()
+          : z.string().min(1, lang.t('connection.formValidation.regionRequired')),
+      endpointUrl: z.string().optional(),
+      type: z.nativeEnum(DatabaseType),
+    }),
+  ),
 );
 
 const defaultFormData: DynamoDBConnection = {
@@ -589,12 +691,8 @@ const {
 
 watch(formData, newVal => setValues(newVal), { deep: true });
 
-// ── SSO field validation ──
-const ssoFieldsValid = computed(
-  () => !!ssoStartUrl.value && !!ssoRegion.value && !!ssoAccountId.value && !!ssoRoleName.value,
-);
+const ssoBaseFieldsValid = computed(() => !!ssoStartUrl.value && !!ssoRegion.value);
 
-// ── AssumeRole field validation ──
 const assumeRoleFieldsValid = computed(
   () => !!assumeRoleSourceProfile.value && !!assumeRoleArn.value,
 );
@@ -684,16 +782,14 @@ const onConnectionModeChange = (mode: string) => {
 
 // ── SSO Login flow ──
 const startSsoLogin = async () => {
-  if (!ssoFieldsValid.value) return;
-  ssoPollAbort.value = false; // Reset abort flag for new login attempt
+  if (!ssoBaseFieldsValid.value) return;
+  ssoPollAbort.value = false;
   ssoLoggingIn.value = true;
   ssoAuthStatus.value = 'idle';
   ssoErrorMessage.value = '';
 
   try {
-    // Use ssoRegion only for IAM Identity Center (SSO OIDC/SSO API calls)
     const effectiveSsoRegion = ssoRegion.value || 'us-east-1';
-
     const result = await dynamoApi.ssoStartDeviceAuth(ssoStartUrl.value, effectiveSsoRegion);
     ssoVerificationUri.value = result.verificationUri;
     ssoUserCode.value = result.userCode;
@@ -701,18 +797,15 @@ const startSsoLogin = async () => {
     ssoClientId.value = result.clientId;
     ssoClientSecret.value = result.clientSecret;
     ssoPollInterval.value = result.interval;
-
     ssoAuthStatus.value = 'waiting';
 
-    // Open the browser
     try {
       const { open } = await import('@tauri-apps/plugin-shell');
       open(result.verificationUri);
     } catch {
-      // Fallback: show URL in UI (already done via ssoVerificationUri)
+      /* URL already shown in UI */
     }
 
-    // Start polling
     await pollSsoToken(effectiveSsoRegion);
   } catch (err: unknown) {
     ssoAuthStatus.value = 'error';
@@ -723,7 +816,7 @@ const startSsoLogin = async () => {
 };
 
 const pollSsoToken = async (ssoApiRegion: string) => {
-  const maxAttempts = 120; // ~10 min at 5s interval
+  const maxAttempts = 120;
   for (let i = 0; i < maxAttempts && !ssoPollAbort.value; i++) {
     await new Promise(resolve => setTimeout(resolve, ssoPollInterval.value * 1000));
 
@@ -736,30 +829,15 @@ const pollSsoToken = async (ssoApiRegion: string) => {
       );
 
       if (result.status === 'success' && result.accessToken) {
-        // Get role credentials
-        const creds = await dynamoApi.ssoGetRoleCredentials(
-          ssoApiRegion,
-          result.accessToken,
-          ssoAccountId.value,
-          ssoRoleName.value,
-        );
+        ssoAccessToken.value = result.accessToken;
+        ssoAuthStatus.value = 'authenticated';
 
-        ssoExpiresAt.value = creds.expirationTimestamp;
-        ssoAuthStatus.value = 'success';
-
-        // Update formData with SSO credentials
-        // Keep formData.region as DynamoDB connection region (do NOT overwrite with ssoApiRegion)
-        formData.value = {
-          ...formData.value,
-          auth: {
-            kind: 'sso',
-            accessKeyId: creds.accessKeyId,
-            secretAccessKey: creds.secretAccessKey,
-            sessionToken: creds.sessionToken,
-            region: formData.value.region || 'us-east-1',
-            expirationTimestamp: creds.expirationTimestamp,
-          },
-        };
+        ssoLoadingAccounts.value = true;
+        try {
+          ssoAccounts.value = await dynamoApi.ssoListAccounts(ssoApiRegion, result.accessToken);
+        } finally {
+          ssoLoadingAccounts.value = false;
+        }
         return;
       }
 
@@ -768,7 +846,6 @@ const pollSsoToken = async (ssoApiRegion: string) => {
         ssoErrorMessage.value = result.errorMessage || 'SSO authentication failed';
         return;
       }
-      // 'pending': continue polling
     } catch (err: unknown) {
       ssoAuthStatus.value = 'error';
       ssoErrorMessage.value = err instanceof Error ? err.message : String(err);
@@ -780,7 +857,83 @@ const pollSsoToken = async (ssoApiRegion: string) => {
   ssoErrorMessage.value = 'SSO authentication timed out. Please try again.';
 };
 
-// ── AssumeRole flow ──
+const onSsoAccountSelect = async (accountId: string) => {
+  ssoSelectedRoleName.value = '';
+  ssoRoles.value = [];
+  if (!accountId) return;
+  const effectiveSsoRegion = ssoRegion.value || 'us-east-1';
+  ssoLoadingRoles.value = true;
+  try {
+    ssoRoles.value = await dynamoApi.ssoListRoles(
+      effectiveSsoRegion,
+      ssoAccessToken.value,
+      accountId,
+    );
+  } finally {
+    ssoLoadingRoles.value = false;
+  }
+};
+
+const completeSsoLogin = async (): Promise<boolean> => {
+  if (!ssoSelectedAccountId.value || !ssoSelectedRoleName.value) return false;
+  ssoLoggingIn.value = true;
+  try {
+    const effectiveSsoRegion = ssoRegion.value || 'us-east-1';
+    const creds = await dynamoApi.ssoGetRoleCredentials(
+      effectiveSsoRegion,
+      ssoAccessToken.value,
+      ssoSelectedAccountId.value,
+      ssoSelectedRoleName.value,
+    );
+    ssoExpiresAt.value = creds.expirationTimestamp;
+    ssoAuthStatus.value = 'success';
+    formData.value = {
+      ...formData.value,
+      auth: {
+        kind: 'sso',
+        accessKeyId: creds.accessKeyId,
+        secretAccessKey: creds.secretAccessKey,
+        sessionToken: creds.sessionToken,
+        region: formData.value.region || 'us-east-1',
+        expirationTimestamp: creds.expirationTimestamp,
+      },
+    };
+    return true;
+  } catch (err: unknown) {
+    ssoAuthStatus.value = 'error';
+    ssoErrorMessage.value = err instanceof Error ? err.message : String(err);
+    return false;
+  } finally {
+    ssoLoggingIn.value = false;
+  }
+};
+
+watch([connectionMode, ssoBaseFieldsValid], ([mode, valid]) => {
+  if (mode === 'sso' && valid && ssoAuthStatus.value === 'idle') {
+    startSsoLogin();
+  }
+});
+
+const regionFromProfile = (profileName: string) =>
+  profilesWithRoles.value.find(p => p.profileName === profileName)?.region ?? null;
+
+const onProfileSelect = (profileName: string) => {
+  if (formData.value.auth.kind === 'profile') formData.value.auth.profileName = profileName;
+  if (!profileRegionOverride.value) {
+    const region = regionFromProfile(profileName);
+    if (region) formData.value = { ...formData.value, region };
+  }
+};
+
+const onAssumeRoleProfileChange = (profile: string) => {
+  assumeRoleSourceProfile.value = profile;
+  assumeRoleArn.value = '';
+  if (!profileRegionOverride.value) {
+    const region = regionFromProfile(profile);
+    if (region) formData.value = { ...formData.value, region };
+  }
+};
+
 const doAssumeRole = async () => {
   if (!assumeRoleFieldsValid.value) return;
   assumeRoleLoading.value = true;
@@ -864,6 +1017,7 @@ const showMedal = (con: DynamoDBConnection | null) => {
   }
   availableProfiles.value = [];
   fetchProfiles();
+  fetchProfilesWithRoles();
   resetValidation();
 };
 
@@ -871,11 +1025,14 @@ const resetSsoState = () => {
   ssoPollAbort.value = true;
   ssoStartUrl.value = '';
   ssoRegion.value = '';
-  ssoAccountId.value = '';
-  ssoRoleName.value = '';
   ssoAuthStatus.value = 'idle';
   ssoErrorMessage.value = '';
   ssoExpiresAt.value = 0;
+  ssoAccessToken.value = '';
+  ssoAccounts.value = [];
+  ssoRoles.value = [];
+  ssoSelectedAccountId.value = '';
+  ssoSelectedRoleName.value = '';
 };
 
 const resetAssumeRoleState = () => {
@@ -887,6 +1044,7 @@ const resetAssumeRoleState = () => {
   assumeRoleStatus.value = 'idle';
   assumeRoleErrorMessage.value = '';
   assumeRoleExpiresAt.value = 0;
+  assumeRoleAdvancedOpen.value = false;
 };
 
 const closeModal = () => {
@@ -924,8 +1082,12 @@ const isFormValid = computed(() => {
       return !!auth.profileName;
     case 'sso':
     case 'assumeRole':
-      // For SSO/AssumeRole, valid credentials = authenticated
-      return !!(auth.accessKeyId && auth.secretAccessKey && auth.sessionToken);
+      // Credentials written after completeSsoLogin; also valid if still in authenticated state with account+role chosen
+      if (auth.accessKeyId && auth.secretAccessKey && auth.sessionToken) return true;
+      if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'authenticated')
+        return !!(ssoSelectedAccountId.value && ssoSelectedRoleName.value);
+      if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'error') return true;
+      return false;
     default:
       return false;
   }
@@ -934,6 +1096,13 @@ const isFormValid = computed(() => {
 const testConnect = async () => {
   errorMessage.value = '';
   successMessage.value = '';
+  if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'error') {
+    ssoAuthStatus.value = 'idle';
+    return;
+  }
+  if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'authenticated') {
+    if (!await completeSsoLogin()) return;
+  }
   markSubmitted();
 
   const { valid } = await validate();
@@ -1001,9 +1170,24 @@ const fetchProfiles = async () => {
   }
 };
 
+const fetchProfilesWithRoles = async () => {
+  try {
+    profilesWithRoles.value = await dynamoApi.listProfilesWithRoles();
+  } catch {
+    profilesWithRoles.value = [];
+  }
+};
+
 const saveConnect = async () => {
   errorMessage.value = '';
   successMessage.value = '';
+  if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'error') {
+    ssoAuthStatus.value = 'idle';
+    return;
+  }
+  if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'authenticated') {
+    if (!await completeSsoLogin()) return;
+  }
   markSubmitted();
 
   const { valid } = await validate();

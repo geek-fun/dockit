@@ -13,8 +13,9 @@ use fetch_client::fetch_api;
 use file_api::{get_file_info, read_file_batch, stream_file_lines};
 use openai_client::{chat_stream, create_openai_client};
 use dynamo_client::{
-    aws_assume_role, aws_list_profiles, aws_sso_get_role_credentials, aws_sso_poll_token,
-    aws_sso_start_device_auth, dynamo_api,
+    aws_assume_role, aws_list_profiles, aws_list_profiles_with_roles, aws_sso_get_role_credentials,
+    aws_sso_list_accounts, aws_sso_list_roles, aws_sso_poll_token, aws_sso_start_device_auth,
+    dynamo_api,
 };
 
 #[derive(Clone, serde::Serialize)]
@@ -60,6 +61,9 @@ fn main() {
             aws_sso_start_device_auth,
             aws_sso_poll_token,
             aws_sso_get_role_credentials,
+            aws_sso_list_accounts,
+            aws_sso_list_roles,
+            aws_list_profiles_with_roles,
             get_file_info,
             read_file_batch,
             stream_file_lines,

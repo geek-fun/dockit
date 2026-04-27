@@ -8,12 +8,17 @@ export const useDynamoManageStore = defineStore('dynamoManageStore', {
     tableInfo: DynamoDBTableInfo | undefined;
     loading: boolean;
     lastUpdatedTime: number | undefined;
+    manageActiveTable: string;
   } => ({
     tableInfo: undefined,
     loading: false,
     lastUpdatedTime: undefined,
+    manageActiveTable: '',
   }),
   actions: {
+    setManageActiveTable(tableName: string) {
+      this.manageActiveTable = tableName;
+    },
     async fetchTableInfo(connection: DynamoDBConnection, tableName: string) {
       if (connection.type !== DatabaseType.DYNAMODB) {
         throw new Error('Connection must be DynamoDB type');
@@ -34,6 +39,7 @@ export const useDynamoManageStore = defineStore('dynamoManageStore', {
     clearTableInfo() {
       this.tableInfo = undefined;
       this.lastUpdatedTime = undefined;
+      this.manageActiveTable = '';
     },
   },
 });

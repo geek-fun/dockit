@@ -685,3 +685,138 @@ pub async fn aws_list_profiles() -> Result<Vec<String>, String> {
     sorted.sort();
     Ok(sorted)
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileWithRole {
+    pub profile_name: String,
+    pub role_arn: Option<String>,
+    pub source_profile: Option<String>,
+    pub region: Option<String>,
+}
+
+#[tauri::command]
+pub async fn aws_list_profiles_with_roles() -> Result<Vec<ProfileWithRole>, String> {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .map_err(|_| "Cannot determine home directory".to_string())?;
+
+    let config_path = std::path::Path::new(&home).join(".aws").join("config");
+    let content = std::fs::read_to_string(&config_path).unwrap_or_default();
+
+    let mut profiles: Vec<ProfileWithRole> = Vec::new();
+    let mut current_name: Option<String> = None;
+    let mut current_role_arn: Option<String> = None;
+    let mut current_source_profile: Option<String> = None;
+    let mut current_region: Option<String> = None;
+
+    let flush = |name: Option<String>, role_arn: Option<String>, source_profile: Option<String>, region: Option<String>, acc: &mut Vec<ProfileWithRole>| {
+        if let Some(n) = name {
+            acc.push(ProfileWithRole { profile_name: n, role_arn, source_profile, region });
+        }
+    };
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            flush(current_name.take(), current_role_arn.take(), current_source_profile.take(), current_region.take(), &mut profiles);
+            let section = &trimmed[1..trimmed.len() - 1];
+            current_name = Some(section.strip_prefix("profile ").unwrap_or(section).trim().to_string());
+        } else if let Some((k, v)) = trimmed.split_once('=') {
+            match k.trim() {
+                "role_arn" => current_role_arn = Some(v.trim().to_string()),
+                "source_profile" => current_source_profile = Some(v.trim().to_string()),
+                "region" => current_region = Some(v.trim().to_string()),
+                _ => {}
+            }
+        }
+    }
+    flush(current_name.take(), current_role_arn.take(), current_source_profile.take(), current_region.take(), &mut profiles);
+
+    profiles.sort_by(|a, b| a.profile_name.cmp(&b.profile_name));
+    Ok(profiles)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SsoAccount {
+    pub account_id: String,
+    pub account_name: String,
+    pub email_address: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SsoRole {
+    pub role_name: String,
+    pub account_id: String,
+}
+
+#[tauri::command]
+pub async fn aws_sso_list_accounts(
+    sso_region: String,
+    access_token: String,
+) -> Result<Vec<SsoAccount>, String> {
+    let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+        .region(Region::new(sso_region))
+        .load()
+        .await;
+
+    let sso_client = aws_sdk_sso::Client::new(&config);
+
+    let mut accounts: Vec<SsoAccount> = Vec::new();
+    let mut paginator = sso_client
+        .list_accounts()
+        .access_token(&access_token)
+        .into_paginator()
+        .send();
+
+    while let Some(page) = paginator.next().await {
+        let page = page.map_err(|e| format!("SSO list accounts failed: {}", e))?;
+        for acct in page.account_list() {
+            accounts.push(SsoAccount {
+                account_id: acct.account_id().unwrap_or_default().to_string(),
+                account_name: acct.account_name().unwrap_or_default().to_string(),
+                email_address: acct.email_address().map(|s| s.to_string()),
+            });
+        }
+    }
+
+    accounts.sort_by(|a, b| a.account_name.cmp(&b.account_name));
+    Ok(accounts)
+}
+
+#[tauri::command]
+pub async fn aws_sso_list_roles(
+    sso_region: String,
+    access_token: String,
+    account_id: String,
+) -> Result<Vec<SsoRole>, String> {
+    let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+        .region(Region::new(sso_region))
+        .load()
+        .await;
+
+    let sso_client = aws_sdk_sso::Client::new(&config);
+
+    let mut roles: Vec<SsoRole> = Vec::new();
+    let mut paginator = sso_client
+        .list_account_roles()
+        .access_token(&access_token)
+        .account_id(&account_id)
+        .into_paginator()
+        .send();
+
+    while let Some(page) = paginator.next().await {
+        let page = page.map_err(|e| format!("SSO list roles failed: {}", e))?;
+        for role in page.role_list() {
+            roles.push(SsoRole {
+                role_name: role.role_name().unwrap_or_default().to_string(),
+                account_id: role.account_id().unwrap_or_default().to_string(),
+            });
+        }
+    }
+
+    roles.sort_by(|a, b| a.role_name.cmp(&b.role_name));
+    Ok(roles)
+}

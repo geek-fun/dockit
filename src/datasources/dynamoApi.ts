@@ -712,7 +712,6 @@ const dynamoApi = {
     });
   },
 
-  // STS AssumeRole
   assumeRole: async (
     sourceProfileName: string,
     roleArn: string,
@@ -737,6 +736,27 @@ const dynamoApi = {
       mfaSerial: mfaSerial ?? null,
       mfaToken: mfaToken ?? null,
     });
+  },
+
+  ssoListAccounts: async (
+    ssoRegion: string,
+    accessToken: string,
+  ): Promise<{ accountId: string; accountName: string; emailAddress: string | null }[]> => {
+    return await invoke('aws_sso_list_accounts', { ssoRegion, accessToken });
+  },
+
+  ssoListRoles: async (
+    ssoRegion: string,
+    accessToken: string,
+    accountId: string,
+  ): Promise<{ roleName: string; accountId: string }[]> => {
+    return await invoke('aws_sso_list_roles', { ssoRegion, accessToken, accountId });
+  },
+
+  listProfilesWithRoles: async (): Promise<
+    { profileName: string; roleArn: string | null; sourceProfile: string | null; region: string | null }[]
+  > => {
+    return await invoke('aws_list_profiles_with_roles');
   },
 };
 

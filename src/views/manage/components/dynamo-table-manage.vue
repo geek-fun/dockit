@@ -1,6 +1,15 @@
 <template>
   <div class="dynamo-manage-container">
-    <div :class="{ 'pointer-events-none': refreshLoading }">
+    <div v-if="!dynamoConnection || !activeTableName" class="empty-state">
+      <Empty
+        :description="
+          !dynamoConnection
+            ? $t('manage.emptyNoConnection')
+            : $t('manage.dynamo.selectTableRequired')
+        "
+      />
+    </div>
+    <div v-else :class="{ 'pointer-events-none': refreshLoading }">
       <!-- Metrics Cards Section -->
       <section class="metrics-section">
         <div v-if="refreshLoading" class="metrics-grid">
@@ -339,7 +348,6 @@ import prettyBytes from 'pretty-bytes';
 import {
   useClusterManageStore,
   useDynamoManageStore,
-  useTabStore,
   DatabaseType,
   DynamoDBConnection,
 } from '../../../store';
@@ -370,13 +378,11 @@ const lang = useLang();
 const clusterManageStore = useClusterManageStore();
 const { connection } = storeToRefs(clusterManageStore);
 
-const tabStore = useTabStore();
-const { activePanel } = storeToRefs(tabStore);
-const activeTableName = computed(() => activePanel.value?.activeTable ?? '');
-
 const dynamoManageStore = useDynamoManageStore();
 const { fetchTableInfo } = dynamoManageStore;
-const { tableInfo } = storeToRefs(dynamoManageStore);
+const { tableInfo, manageActiveTable } = storeToRefs(dynamoManageStore);
+
+const activeTableName = computed(() => manageActiveTable.value);
 
 // Modal visibility states
 const showDeleteIndexModal = ref(false);
@@ -595,6 +601,11 @@ const handleRefresh = async () => {
     return;
   }
 
+  if (!activeTableName.value) {
+    message.warning(lang.t('manage.dynamo.selectTableRequired'));
+    return;
+  }
+
   refreshLoading.value = true;
   const timeoutId = setTimeout(() => {
     refreshLoading.value = false;
@@ -666,13 +677,23 @@ const handleIndexCreated = async () => {
 };
 
 onMounted(async () => {
-  if (connection.value && connection.value.type === DatabaseType.DYNAMODB) {
+  if (
+    connection.value &&
+    connection.value.type === DatabaseType.DYNAMODB &&
+    activeTableName.value
+  ) {
     await handleRefresh();
   }
 });
 
 watch(connection, async newConnection => {
-  if (newConnection && newConnection.type === DatabaseType.DYNAMODB) {
+  if (newConnection && newConnection.type === DatabaseType.DYNAMODB && activeTableName.value) {
+    await handleRefresh();
+  }
+});
+
+watch(manageActiveTable, async newTable => {
+  if (newTable && connection.value?.type === DatabaseType.DYNAMODB) {
     await handleRefresh();
   }
 });
@@ -700,6 +721,13 @@ defineExpose({
 
 .dynamo-manage-container::-webkit-scrollbar {
   display: none;
+}
+
+.empty-state {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @keyframes shimmer {

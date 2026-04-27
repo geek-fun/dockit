@@ -221,6 +221,7 @@ import {
   ElasticsearchConnection,
   DynamoDBConnection,
 } from '../store';
+import { useDynamoManageStore } from '../store/dynamoManageStore';
 import { useLang } from '../lang';
 import { CustomError } from '../common';
 import { esSampleQueries } from '../common/monaco';
@@ -251,6 +252,10 @@ const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 const clusterManageStore = useClusterManageStore();
 const { setConnection, refreshStates } = clusterManageStore;
 const { connection, hideSystemIndices, refreshLoading } = storeToRefs(clusterManageStore);
+
+const dynamoManageStore = useDynamoManageStore();
+const { setManageActiveTable } = dynamoManageStore;
+const { manageActiveTable } = storeToRefs(dynamoManageStore);
 
 // Check if connection is Elasticsearch type
 const isElasticsearchConnection = computed(() => {
@@ -322,6 +327,7 @@ const indexSelectValue = computed(() => {
 });
 
 const tableSelectValue = computed(() => {
+  if (props.type === 'MANAGE') return manageActiveTable.value;
   return activePanel?.value?.activeTable;
 });
 
@@ -515,7 +521,11 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX' | 'TABLE
       });
     }
   } else if (type === 'TABLE') {
-    setActiveTable(value);
+    if (props.type === 'MANAGE') {
+      setManageActiveTable(value);
+    } else {
+      setActiveTable(value);
+    }
   } else {
     const selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
       ? activePanel.value.connection
