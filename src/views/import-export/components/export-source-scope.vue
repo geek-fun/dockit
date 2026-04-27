@@ -34,6 +34,7 @@
             :model-value="inputData.selectedIndex"
             :options="indexOptions"
             :loading="loadingStat.index"
+            :search-threshold="0"
             :disabled="
               !inputData.selectedConnection || loadingStat.connection || loadingStat.connecting
             "

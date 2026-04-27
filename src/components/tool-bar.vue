@@ -618,10 +618,6 @@ const handleEditorSwitch = async (
   margin-right: 4px;
 }
 
-.select-search-container {
-  padding: 8px;
-  border-bottom: 1px solid hsl(var(--border));
-}
 .help-button-container {
   margin-right: 10px;
   display: flex;

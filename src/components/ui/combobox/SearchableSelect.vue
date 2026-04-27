@@ -65,6 +65,12 @@ const filteredOptions = computed(() => {
   );
 });
 
+const showCreateNew = computed(() => {
+  const trimmed = searchQuery.value.trim();
+  if (!props.allowCreate || !trimmed) return false;
+  return !props.options.some(opt => opt.value === trimmed || opt.label === trimmed);
+});
+
 const selectOption = (value: string) => {
   emits('update:modelValue', value);
   open.value = false;
@@ -130,7 +136,7 @@ watch(open, async isOpen => {
         </div>
 
         <div
-          v-if="filteredOptions.length === 0 && searchQuery && !allowCreate"
+          v-if="filteredOptions.length === 0 && searchQuery && !showCreateNew && !loading"
           class="flex flex-col items-center gap-2 px-2 py-8 text-center text-sm text-muted-foreground"
         >
           <span class="i-carbon-search h-5 w-5 opacity-40" />
@@ -138,12 +144,12 @@ watch(open, async isOpen => {
         </div>
 
         <div
-          v-if="allowCreate && searchQuery && !filteredOptions.length"
+          v-if="showCreateNew"
           class="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none text-[#18a058] italic hover:bg-accent"
-          @click="selectOption(searchQuery)"
+          @click="selectOption(searchQuery.trim())"
         >
           <span class="i-carbon-add h-4 w-4" />
-          {{ createText }}: "{{ searchQuery }}"
+          {{ createText }}: "{{ searchQuery.trim() }}"
         </div>
       </div>
 
