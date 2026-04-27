@@ -86,7 +86,7 @@
             <!-- ── Non-local (region always shown except profile/assumeRole which override in Advanced) ── -->
             <template v-else>
               <FormItem
-                v-if="connectionMode !== 'profile' && connectionMode !== 'assumeRole'"
+                v-if="connectionMode !== 'profile' && connectionMode !== 'assumeRole' && connectionMode !== 'sso'"
                 :label="$t('connection.region')"
                 required
                 :error="getError('region', errors.region)"
@@ -682,7 +682,7 @@ const formSchema = computed(() =>
     z.object({
       name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
       region:
-        connectionMode.value === 'profile' || connectionMode.value === 'assumeRole'
+        ['profile', 'assumeRole', 'sso'].includes(connectionMode.value)
           ? z.string().optional()
           : z.string().min(1, lang.t('connection.formValidation.regionRequired')),
       endpointUrl: z.string().optional(),
