@@ -86,7 +86,11 @@
             <!-- ── Non-local (region always shown except profile/assumeRole which override in Advanced) ── -->
             <template v-else>
               <FormItem
-                v-if="connectionMode !== 'profile' && connectionMode !== 'assumeRole' && connectionMode !== 'sso'"
+                v-if="
+                  connectionMode !== 'profile' &&
+                  connectionMode !== 'assumeRole' &&
+                  connectionMode !== 'sso'
+                "
                 :label="$t('connection.region')"
                 required
                 :error="getError('region', errors.region)"
@@ -681,10 +685,9 @@ const formSchema = computed(() =>
   toTypedSchema(
     z.object({
       name: z.string().min(1, lang.t('connection.formValidation.nameRequired')),
-      region:
-        ['profile', 'assumeRole', 'sso'].includes(connectionMode.value)
-          ? z.string().optional()
-          : z.string().min(1, lang.t('connection.formValidation.regionRequired')),
+      region: ['profile', 'assumeRole', 'sso'].includes(connectionMode.value)
+        ? z.string().optional()
+        : z.string().min(1, lang.t('connection.formValidation.regionRequired')),
       endpointUrl: z.string().optional(),
       type: z.nativeEnum(DatabaseType),
     }),
@@ -932,7 +935,6 @@ const completeSsoLogin = async (): Promise<boolean> => {
   }
 };
 
-
 const regionFromProfile = (profileName: string) =>
   profilesWithRoles.value.find(p => p.profileName === profileName)?.region ?? null;
 
@@ -1089,7 +1091,8 @@ const isFormValid = computed(() => {
     return !!formData.value.endpointUrl;
   }
 
-  if (!formData.value.region && !['profile', 'assumeRole', 'sso'].includes(connectionMode.value)) return false;
+  if (!formData.value.region && !['profile', 'assumeRole', 'sso'].includes(connectionMode.value))
+    return false;
 
   const auth = formData.value.auth;
   if (!auth) return false;
@@ -1102,7 +1105,8 @@ const isFormValid = computed(() => {
     case 'sso':
     case 'assumeRole':
       if (auth.accessKeyId && auth.secretAccessKey && auth.sessionToken) return true;
-      if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'idle') return ssoBaseFieldsValid.value;
+      if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'idle')
+        return ssoBaseFieldsValid.value;
       if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'authenticated')
         return !!(ssoSelectedAccountId.value && ssoSelectedRoleName.value);
       if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'error') return true;
