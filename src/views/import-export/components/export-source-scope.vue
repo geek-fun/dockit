@@ -183,7 +183,6 @@ const handleConnectionChange = async (value: string) => {
     inputData.value.selectedConnection = value;
     inputData.value.selectedIndex = '';
     indexOptions.value = [];
-    inputData.value.indexSearchQuery = '';
     // Fetch indices immediately after connection change
     await handleIndexOpen(true);
   } catch (err) {
