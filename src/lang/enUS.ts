@@ -331,7 +331,7 @@ export const enUS = {
     ssoRoleName: 'Role Name',
     ssoLogin: 'Login with SSO',
     ssoRetry: 'Retry',
-    ssoLoginPrompt: 'Enter your SSO portal URL and region, then click "Login with SSO".',
+    ssoLoginPrompt: 'Enter your SSO portal URL, then click Save to open the browser and authenticate.',
     ssoWaiting: 'Waiting for browser authentication...',
     ssoOpenBrowser: 'Open this URL in your browser:',
     ssoEnterCode: 'Enter this code:',

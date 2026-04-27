@@ -327,7 +327,7 @@ export const zhCN = {
     ssoRoleName: '角色名称',
     ssoLogin: '通过 SSO 登录',
     ssoRetry: '重试',
-    ssoLoginPrompt: '输入 SSO 门户 URL 和区域，然后点击"通过 SSO 登录"。',
+    ssoLoginPrompt: '输入 SSO 门户 URL，然后点击保存以打开浏览器进行身份验证。',
     ssoWaiting: '等待浏览器认证完成...',
     ssoOpenBrowser: '请在浏览器中打开此 URL：',
     ssoEnterCode: '输入此验证码：',
