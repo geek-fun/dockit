@@ -418,8 +418,14 @@ const providePathCompletions = (
     const indexName = indexWithSlashMatch ? indexWithSlashMatch[1] : indexWithPartialEndpoint?.[1];
     const partialEndpoint = indexWithPartialEndpoint ? indexWithPartialEndpoint[2] : '';
 
-    // Provide index-specific endpoints
-    const indexEndpoints = getIndexSpecificEndpoints();
+    const indexEndpoints = endpoints
+      .filter(e => /^\/{index}\//.test(e.path) || e.path === '/{index}')
+      .map(e => ({
+        path: e.path.replace(/^\/\{index\}\//, '').replace(/^\/\{index\}$/, ''),
+        methods: e.methods,
+        description: e.description,
+      }))
+      .filter(e => e.path.length > 0);
     for (const ep of indexEndpoints) {
       // Filter by partial endpoint if typed
       if (partialEndpoint && !ep.path.toLowerCase().startsWith(partialEndpoint.toLowerCase())) {
@@ -442,12 +448,13 @@ const providePathCompletions = (
       const sortPrefix = ep.path.includes('_search') ? '0' : '1';
 
       completions.push({
-        label: fullPath,
+        label: ep.path,
         kind: monaco.languages.CompletionItemKind.Function,
         insertText: fullPath,
+        filterText: fullPath,
         insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
         detail: ep.description,
-        sortText: sortPrefix + fullPath,
+        sortText: sortPrefix + ep.path,
         range,
       });
     }
@@ -494,6 +501,10 @@ const providePathCompletions = (
       if (!pathStartsWithPattern('/' + normalizedEndpointPath, '/' + normalizedUserPath)) {
         continue;
       }
+
+      if (isExactPathMatch('/' + normalizedEndpointPath, '/' + normalizedUserPath)) {
+        continue;
+      }
     }
 
     // Determine the label and insert text based on user's slash preference
@@ -538,61 +549,6 @@ const providePathCompletions = (
   return completions;
 };
 
-/**
- * Get index-specific endpoints for completion after an index name
- */
-const getIndexSpecificEndpoints = (): Array<{
-  path: string;
-  methods: HttpMethod[];
-  description: string;
-}> => {
-  return [
-    { path: '_search', methods: ['GET', 'POST'], description: 'Search documents' },
-    { path: '_count', methods: ['GET', 'POST'], description: 'Count documents' },
-    { path: '_doc', methods: ['POST'], description: 'Index a document' },
-    {
-      path: '_doc/{id}',
-      methods: ['GET', 'PUT', 'DELETE'],
-      description: 'Get/index/delete document by ID',
-    },
-    { path: '_update/{id}', methods: ['POST'], description: 'Update document' },
-    { path: '_bulk', methods: ['POST'], description: 'Bulk operations' },
-    { path: '_mapping', methods: ['GET', 'PUT'], description: 'Index mappings' },
-    { path: '_settings', methods: ['GET', 'PUT'], description: 'Index settings' },
-    { path: '_refresh', methods: ['POST'], description: 'Refresh index' },
-    { path: '_flush', methods: ['POST'], description: 'Flush index' },
-    { path: '_forcemerge', methods: ['POST'], description: 'Force merge' },
-    { path: '_open', methods: ['POST'], description: 'Open index' },
-    { path: '_close', methods: ['POST'], description: 'Close index' },
-    {
-      path: '_alias/{alias}',
-      methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
-      description: 'Index alias',
-    },
-    {
-      path: '_alias',
-      methods: ['GET'],
-      description: 'Get index aliases',
-    },
-    { path: '_analyze', methods: ['GET', 'POST'], description: 'Analyze text' },
-    { path: '_validate/query', methods: ['GET', 'POST'], description: 'Validate query' },
-    { path: '_msearch', methods: ['GET', 'POST'], description: 'Multi search' },
-    { path: '_explain/{id}', methods: ['GET', 'POST'], description: 'Explain scoring' },
-    { path: '_terms_enum', methods: ['GET', 'POST'], description: 'Terms enumeration' },
-    { path: '_update_by_query', methods: ['POST'], description: 'Update by query' },
-    { path: '_delete_by_query', methods: ['POST'], description: 'Delete by query' },
-    { path: '_cache/clear', methods: ['POST'], description: 'Clear cache' },
-    { path: '_recovery', methods: ['GET'], description: 'Recovery status' },
-    { path: '_segments', methods: ['GET'], description: 'Index segments' },
-    { path: '_stats', methods: ['GET'], description: 'Index stats' },
-    { path: '_search_shards', methods: ['GET', 'POST'], description: 'Search shards' },
-    { path: '_field_caps', methods: ['GET', 'POST'], description: 'Field capabilities' },
-  ];
-};
-
-/**
- * Check if a path pattern starts with a prefix (handling placeholders)
- */
 const pathStartsWithPattern = (pattern: string, prefix: string): boolean => {
   const patternParts = pattern.split('/').filter(Boolean);
   const prefixParts = prefix.split('/').filter(Boolean);
@@ -613,6 +569,18 @@ const pathStartsWithPattern = (pattern: string, prefix: string): boolean => {
     }
 
     return patternPart === prefixPart;
+  });
+};
+
+const isExactPathMatch = (pattern: string, path: string): boolean => {
+  const patternParts = pattern.split('/').filter(Boolean);
+  const pathParts = path.split('/').filter(Boolean);
+
+  if (patternParts.length !== pathParts.length) return false;
+
+  return patternParts.every((patternPart, i) => {
+    if (patternPart.startsWith('{') && patternPart.endsWith('}')) return true;
+    return patternPart.toLowerCase() === pathParts[i].toLowerCase();
   });
 };
 

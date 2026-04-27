@@ -954,7 +954,7 @@ describe('grammarCompletionProvider', () => {
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
       const labels = result.suggestions.map(s => s.label);
-      expect(labels).toContain('my_index/_alias');
+      expect(labels).toContain('_alias');
     });
 
     it('should suggest _alias/{alias} when typing GET my_index/_', () => {
@@ -965,8 +965,12 @@ describe('grammarCompletionProvider', () => {
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
       const labels = result.suggestions.map(s => s.label);
-      expect(labels).toContain('my_index/_alias');
-      expect(labels).toContain('my_index/_alias/{alias}');
+      expect(labels).toContain('_alias');
+      expect(labels).toContain('_alias/{alias}');
+
+      const aliasItem = result.suggestions.find(s => s.label === '_alias');
+      expect(aliasItem?.filterText).toBe('my_index/_alias');
+      expect(aliasItem?.insertText).toBe('my_index/_alias');
     });
   });
 
@@ -1026,7 +1030,10 @@ describe('grammarCompletionProvider', () => {
       const labels = result.suggestions.map(s => s.label);
       expect(labels).toContain('text');
       expect(labels).toContain('json');
-      expect(labels).toHaveLength(2);
+      expect(labels).toContain('yaml');
+      expect(labels).toContain('cbor');
+      expect(labels).toContain('smile');
+      expect(labels).toHaveLength(5);
     });
 
     it('should show boolean value completions when cursor is right after = on boolean param', () => {
@@ -1297,6 +1304,73 @@ describe('grammarCompletionProvider', () => {
       const labels = result.suggestions.map(s => s.label);
       expect(labels).toContain('max_concurrent_searches');
       expect(labels).toContain('search_type');
+    });
+  });
+
+  describe('_stats query parameters', () => {
+    it('should provide query params for GET /_stats?', () => {
+      const text = `GET /_stats?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('fields');
+      expect(labels).toContain('level');
+      expect(labels).toContain('include_unloaded_segments');
+    });
+
+    it('should provide query params for GET {index}/_stats?', () => {
+      const text = `GET my_index/_stats?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('fields');
+      expect(labels).toContain('level');
+    });
+  });
+
+  describe('_data_stream query parameters', () => {
+    it('should provide query params for GET /_data_stream?', () => {
+      const text = `GET /_data_stream?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('expand_wildcards');
+      expect(labels).toContain('master_timeout');
+    });
+  });
+
+  describe('_eql search path completions', () => {
+    it('should NOT show path completions when exact path already typed', () => {
+      const text = `POST my_index/_eql/search`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('_eql/search');
+      expect(labels).not.toContain('my_index/_eql/search');
+    });
+
+    it('should show query params after ? on _eql/search', () => {
+      const text = `POST my_index/_eql/search?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('keep_alive');
+      expect(labels).toContain('wait_for_completion_timeout');
     });
   });
 });
