@@ -2,6 +2,7 @@
 import { type HTMLAttributes, computed } from 'vue';
 import {
   AlertDialogContent,
+  AlertDialogDescription,
   type AlertDialogContentEmits,
   type AlertDialogContentProps,
   AlertDialogOverlay,
@@ -43,6 +44,9 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits);
       "
     >
       <slot />
+
+      <!-- Visually hidden description for accessibility (radix-vue requirement) -->
+      <AlertDialogDescription class="sr-only">Alert dialog content</AlertDialogDescription>
     </AlertDialogContent>
   </AlertDialogPortal>
 </template>

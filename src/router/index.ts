@@ -28,7 +28,7 @@ const router = createRouter({
           name: 'Connect',
           path: '/connect/:filePath?',
           meta: {
-            keepAlive: false,
+            keepAlive: true,
           },
           component: () => import('../views/connect/index.vue'),
         },

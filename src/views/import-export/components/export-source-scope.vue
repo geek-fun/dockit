@@ -18,62 +18,32 @@
       <Grid :cols="2" :x-gap="16" :y-gap="16">
         <GridItem>
           <div class="field-label">{{ $t('export.sourceDatabase') }}</div>
-          <Select
-            v-model="inputData.selectedConnection"
+          <SearchableSelect
+            :model-value="inputData.selectedConnection"
+            :options="connectionOptions"
+            :loading="loadingStat.connection"
+            :search-threshold="0"
+            :placeholder="$t('connection.selectConnection')"
+            class="w-full"
             @update:model-value="handleConnectionChange"
-            @update:open="handleConnectionOpen"
-          >
-            <SelectTrigger class="w-full">
-              <SelectValue :placeholder="$t('connection.selectConnection')" />
-            </SelectTrigger>
-            <SelectContent>
-              <div v-if="loadingStat.connection" class="flex items-center justify-center py-4">
-                <Spinner class="h-4 w-4" />
-              </div>
-              <template v-else>
-                <SelectItem
-                  v-for="option in filteredConnectionOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </SelectItem>
-              </template>
-            </SelectContent>
-          </Select>
+            @open="isOpen => isOpen && handleConnectionOpen(true)"
+          />
         </GridItem>
         <GridItem>
           <div class="field-label">{{ $t('export.collectionName') }}</div>
-          <Select
-            v-model="inputData.selectedIndex"
+          <SearchableSelect
+            :model-value="inputData.selectedIndex"
+            :options="indexOptions"
+            :loading="loadingStat.index"
+            :search-threshold="0"
             :disabled="
               !inputData.selectedConnection || loadingStat.connection || loadingStat.connecting
             "
+            :placeholder="$t('connection.selectIndex')"
+            class="w-full"
             @update:model-value="handleIndexChange"
-            @update:open="handleIndexOpen"
-          >
-            <SelectTrigger class="w-full">
-              <div v-if="loadingStat.index" class="flex items-center gap-2">
-                <Spinner class="h-3 w-3" />
-                <span class="text-muted-foreground text-sm">{{ $t('export.loadingIndices') }}</span>
-              </div>
-              <SelectValue v-else :placeholder="$t('connection.selectIndex')" />
-            </SelectTrigger>
-            <SelectContent>
-              <div v-if="loadingStat.index" class="flex items-center justify-center py-4">
-                <Spinner class="h-4 w-4" />
-              </div>
-              <template v-else>
-                <SelectItem
-                  v-for="option in filteredIndexOptions"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </SelectItem>
-              </template>
-            </SelectContent>
-          </Select>
+            @open="isOpen => isOpen && handleIndexOpen(true)"
+          />
         </GridItem>
       </Grid>
 
@@ -95,15 +65,9 @@
 <script setup lang="ts">
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Grid, GridItem } from '@/components/ui/grid';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
 import { Collapse, CollapseItem } from '@/components/ui/collapse';
 import { Spinner } from '@/components/ui/spinner';
+import { SearchableSelect } from '@/components/ui/combobox';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import {
@@ -130,8 +94,6 @@ const { connection, selectedIndex, filterQuery } = storeToRefs(exportStore);
 const inputData = ref({
   selectedConnection: '',
   selectedIndex: '',
-  connectionSearchQuery: '',
-  indexSearchQuery: '',
 });
 const loadingStat = ref({
   connection: false,
@@ -148,43 +110,12 @@ const selectionSummary = computed(() => {
 });
 
 const connectionOptions = computed(() =>
-  connections.value.map(({ name }) => ({ label: name, value: name })),
+  connections.value
+    .map(({ name }) => ({ label: name, value: name }))
+    .sort((a, b) => a.label.localeCompare(b.label)),
 );
 
-const filteredConnectionOptions = computed(() => {
-  if (!inputData.value.connectionSearchQuery) {
-    return connectionOptions.value;
-  }
-  const query = inputData.value.connectionSearchQuery.toLowerCase();
-  return connectionOptions.value
-    .filter(option => option.value.toLowerCase().includes(query))
-    .sort((a, b) => a.value.localeCompare(b.value));
-});
-
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
-
-const filteredIndexOptions = computed(() => {
-  if (!inputData.value.indexSearchQuery) {
-    return indexOptions.value;
-  }
-  const query = inputData.value.indexSearchQuery.toLowerCase();
-  return indexOptions.value
-    .filter(option => option.value.toLowerCase().includes(query))
-    .sort((a, b) => a.value.localeCompare(b.value));
-});
-
-const handleConnectionSearch = (query: string) => {
-  inputData.value.connectionSearchQuery = query;
-};
-
-const handleIndexSearch = (query: string) => {
-  inputData.value.indexSearchQuery = query;
-};
-
-// Note: handleConnectionSearch and handleIndexSearch are kept for future use
-// if search functionality is re-added to the Select component
-void handleConnectionSearch;
-void handleIndexSearch;
 
 const handleConnectionOpen = async (isOpen: boolean) => {
   if (!isOpen) return;
@@ -223,15 +154,17 @@ const handleIndexOpen = async (isOpen: boolean) => {
       await fetchIndices(connection.value);
       const updatedCon =
         connections.value.find(c => c.id === connection.value?.id) ?? connection.value;
-      indexOptions.value =
-        (updatedCon as ElasticsearchConnection)?.indices?.map(index => ({
-          label: index.index,
-          value: index.index,
-        })) ?? [];
+      const indices = (updatedCon as ElasticsearchConnection)?.indices ?? [];
+      indexOptions.value = indices
+        .map(index => ({ label: index.index, value: index.index }))
+        .sort((a, b) => a.label.localeCompare(b.label));
     } else if (connection.value.type === DatabaseType.DYNAMODB) {
       // DynamoDB metadata is already populated by freshConnection — no extra fetch needed.
       const dynamoConn = connection.value as DynamoDBConnection;
-      indexOptions.value = dynamoConn.tables?.map(t => ({ label: t.name, value: t.name })) ?? [];
+      indexOptions.value =
+        dynamoConn.tables
+          ?.map(t => ({ label: t.name, value: t.name }))
+          .sort((a, b) => a.label.localeCompare(b.label)) ?? [];
     }
   } catch (err) {
     const error = err as CustomError;
@@ -256,7 +189,6 @@ const handleConnectionChange = async (value: string) => {
     inputData.value.selectedConnection = value;
     inputData.value.selectedIndex = '';
     indexOptions.value = [];
-    inputData.value.indexSearchQuery = '';
     // Fetch indices immediately after connection change
     await handleIndexOpen(true);
   } catch (err) {

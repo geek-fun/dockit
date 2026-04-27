@@ -1,4 +1,5 @@
 import * as monaco from 'monaco-editor';
+import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution';
 import {
   BackendType,
   configureCompletions,
