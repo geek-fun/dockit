@@ -295,14 +295,16 @@ const tableSelectValue = computed(() => {
 });
 
 const connectionOptions = computed(() =>
-  connections.value.map(({ name }) => ({ label: name, value: name })),
+  connections.value
+    .map(({ name }) => ({ label: name, value: name }))
+    .sort((a, b) => a.label.localeCompare(b.label)),
 );
 
 const indexOptions = computed(
   () =>
-    activeElasticsearchIndexOption.value?.filter(index =>
-      hideSystemIndicesRef.value ? !index.value.startsWith('.') : true,
-    ) ?? [],
+    activeElasticsearchIndexOption.value
+      ?.filter(index => (hideSystemIndicesRef.value ? !index.value.startsWith('.') : true))
+      ?.sort((a, b) => a.label.localeCompare(b.label)) ?? [],
 );
 
 const tableOptions = computed(() => {
@@ -314,10 +316,17 @@ const tableOptions = computed(() => {
   if (!conn || conn.type !== DatabaseType.DYNAMODB) return [];
   const favorites = conn.favoriteTables ?? [];
   const tables = (conn.tables ?? []).map(t => t.name);
-  return [
-    ...tables.filter(n => favorites.includes(n)),
-    ...tables.filter(n => !favorites.includes(n)),
-  ].map(n => ({ label: n, value: n, favorite: favorites.includes(n) }));
+  const favoriteTables = tables
+    .filter(n => favorites.includes(n))
+    .sort((a, b) => a.localeCompare(b));
+  const nonFavoriteTables = tables
+    .filter(n => !favorites.includes(n))
+    .sort((a, b) => a.localeCompare(b));
+  return [...favoriteTables, ...nonFavoriteTables].map(n => ({
+    label: n,
+    value: n,
+    favorite: favorites.includes(n),
+  }));
 });
 
 const esSampleQueryOptions = computed(() => [

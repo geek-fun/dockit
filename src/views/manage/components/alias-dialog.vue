@@ -251,10 +251,12 @@ const submitCreate = async (event: MouseEvent) => {
 };
 
 const indices = computed(() =>
-  indexWithAliases.value.map(index => ({
-    label: index.index,
-    value: index.index,
-  })),
+  indexWithAliases.value
+    .map(index => ({
+      label: index.index,
+      value: index.index,
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label)),
 );
 
 defineExpose({ toggleModal });

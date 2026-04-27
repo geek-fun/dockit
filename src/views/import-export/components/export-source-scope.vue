@@ -22,6 +22,7 @@
             :model-value="inputData.selectedConnection"
             :options="connectionOptions"
             :loading="loadingStat.connection"
+            :search-threshold="0"
             :placeholder="$t('connection.selectConnection')"
             class="w-full"
             @update:model-value="handleConnectionChange"
@@ -109,7 +110,9 @@ const selectionSummary = computed(() => {
 });
 
 const connectionOptions = computed(() =>
-  connections.value.map(({ name }) => ({ label: name, value: name })),
+  connections.value
+    .map(({ name }) => ({ label: name, value: name }))
+    .sort((a, b) => a.label.localeCompare(b.label)),
 );
 
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
@@ -151,15 +154,17 @@ const handleIndexOpen = async (isOpen: boolean) => {
       await fetchIndices(connection.value);
       const updatedCon =
         connections.value.find(c => c.id === connection.value?.id) ?? connection.value;
-      indexOptions.value =
-        (updatedCon as ElasticsearchConnection)?.indices?.map(index => ({
-          label: index.index,
-          value: index.index,
-        })) ?? [];
+      const indices = (updatedCon as ElasticsearchConnection)?.indices ?? [];
+      indexOptions.value = indices
+        .map(index => ({ label: index.index, value: index.index }))
+        .sort((a, b) => a.label.localeCompare(b.label));
     } else if (connection.value.type === DatabaseType.DYNAMODB) {
       // DynamoDB metadata is already populated by freshConnection — no extra fetch needed.
       const dynamoConn = connection.value as DynamoDBConnection;
-      indexOptions.value = dynamoConn.tables?.map(t => ({ label: t.name, value: t.name })) ?? [];
+      indexOptions.value =
+        dynamoConn.tables
+          ?.map(t => ({ label: t.name, value: t.name }))
+          .sort((a, b) => a.label.localeCompare(b.label)) ?? [];
     }
   } catch (err) {
     const error = err as CustomError;

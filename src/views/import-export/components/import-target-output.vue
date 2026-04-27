@@ -15,6 +15,7 @@
             :model-value="inputData.selectedConnection"
             :options="connectionOptions"
             :loading="loadingStat.connection"
+            :search-threshold="0"
             :placeholder="$t('connection.selectConnection')"
             class="w-full"
             @update:model-value="handleConnectionChange"
@@ -103,7 +104,9 @@ const indexOptions = ref<Array<{ label: string; value: string }>>([]);
 const currentExistingIndices = ref<string[]>([]);
 
 const connectionOptions = computed(() =>
-  connections.value.map(({ name }) => ({ label: name, value: name })),
+  connections.value
+    .map(({ name }) => ({ label: name, value: name }))
+    .sort((a, b) => a.label.localeCompare(b.label)),
 );
 
 const handleConnectionOpen = async () => {
@@ -167,15 +170,16 @@ const updateIndexOptions = () => {
     const indices =
       (updatedCon as ElasticsearchConnection)?.indices?.map(index => index.index) ?? [];
     currentExistingIndices.value = indices;
-    indexOptions.value = indices.map(index => ({
-      label: index,
-      value: index,
-    }));
+    indexOptions.value = indices
+      .map(index => ({ label: index, value: index }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   } else if (importConnection.value.type === DatabaseType.DYNAMODB) {
     const dynamoConn = importConnection.value as DynamoDBConnection;
     const tables = dynamoConn.tables ?? [];
     currentExistingIndices.value = tables.map(t => t.name);
-    indexOptions.value = tables.map(t => ({ label: t.name, value: t.name }));
+    indexOptions.value = tables
+      .map(t => ({ label: t.name, value: t.name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }
 };
 
