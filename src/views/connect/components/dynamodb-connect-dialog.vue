@@ -198,13 +198,16 @@
                     placeholder="https://my-sso-portal.awsapps.com/start"
                   />
                 </FormItem>
-                <FormItem :label="$t('connection.ssoRegion')" required>
+                <FormItem v-if="ssoRegionRequired" :label="$t('connection.ssoRegion')" required>
                   <SearchableSelect
                     v-model="ssoRegion"
                     :options="regionOptions"
                     :placeholder="$t('connection.ssoRegion')"
                   />
                 </FormItem>
+                <p v-else class="text-xs text-muted-foreground -mt-1">
+                  {{ $t('connection.ssoRegionInferred', { region: ssoInferredRegion }) }}
+                </p>
 
                 <template v-if="ssoAuthStatus === 'idle'">
                   <p class="text-sm text-muted-foreground">
@@ -575,7 +578,26 @@ const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidati
 
 // ── SSO state ──
 const ssoStartUrl = ref('');
-const ssoRegion = ref('');
+const ssoRegion = ref(''); // only used when region cannot be inferred from start URL
+
+const inferSsoRegion = (url: string): string | null => {
+  try {
+    const host = new URL(url).hostname;
+    // https://ssoins-xxx.eu-west-1.portal.amazonaws.com
+    const portalMatch = host.match(/\.([a-z0-9-]+)\.portal\.amazonaws\.com$/);
+    if (portalMatch) return portalMatch[1];
+    // https://ssoins-xxx.portal.eu-west-1.app.aws
+    const appAwsMatch = host.match(/\.portal\.([a-z0-9-]+)\.app\.aws$/);
+    if (appAwsMatch) return appAwsMatch[1];
+  } catch {
+    // invalid URL
+  }
+  return null;
+};
+
+const ssoInferredRegion = computed(() => inferSsoRegion(ssoStartUrl.value));
+const ssoRegionRequired = computed(() => !ssoInferredRegion.value);
+const ssoEffectiveRegion = computed(() => ssoInferredRegion.value ?? ssoRegion.value);
 const ssoVerificationUri = ref('');
 const ssoUserCode = ref('');
 const ssoClientId = ref('');
@@ -691,7 +713,9 @@ const {
 
 watch(formData, newVal => setValues(newVal), { deep: true });
 
-const ssoBaseFieldsValid = computed(() => !!ssoStartUrl.value && !!ssoRegion.value);
+const ssoBaseFieldsValid = computed(
+  () => !!ssoStartUrl.value && (!!ssoInferredRegion.value || !!ssoRegion.value),
+);
 
 const assumeRoleFieldsValid = computed(
   () => !!assumeRoleSourceProfile.value && !!assumeRoleArn.value,
@@ -789,7 +813,7 @@ const startSsoLogin = async () => {
   ssoErrorMessage.value = '';
 
   try {
-    const effectiveSsoRegion = ssoRegion.value || 'us-east-1';
+    const effectiveSsoRegion = ssoEffectiveRegion.value || 'us-east-1';
     const result = await dynamoApi.ssoStartDeviceAuth(ssoStartUrl.value, effectiveSsoRegion);
     ssoVerificationUri.value = result.verificationUri;
     ssoUserCode.value = result.userCode;
@@ -861,7 +885,7 @@ const onSsoAccountSelect = async (accountId: string) => {
   ssoSelectedRoleName.value = '';
   ssoRoles.value = [];
   if (!accountId) return;
-  const effectiveSsoRegion = ssoRegion.value || 'us-east-1';
+  const effectiveSsoRegion = ssoEffectiveRegion.value || 'us-east-1';
   ssoLoadingRoles.value = true;
   try {
     ssoRoles.value = await dynamoApi.ssoListRoles(
@@ -878,7 +902,7 @@ const completeSsoLogin = async (): Promise<boolean> => {
   if (!ssoSelectedAccountId.value || !ssoSelectedRoleName.value) return false;
   ssoLoggingIn.value = true;
   try {
-    const effectiveSsoRegion = ssoRegion.value || 'us-east-1';
+    const effectiveSsoRegion = ssoEffectiveRegion.value || 'us-east-1';
     const creds = await dynamoApi.ssoGetRoleCredentials(
       effectiveSsoRegion,
       ssoAccessToken.value,

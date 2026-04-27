@@ -340,6 +340,7 @@ export const zhCN = {
     ssoLoadingRoles: '加载角色中...',
     ssoNoAccounts: '该 SSO 会话未找到任何账户。',
     ssoNoRoles: '该账户未找到任何角色。',
+    ssoRegionInferred: '已从 URL 自动识别区域：{region}',
     assumeRoleSourceProfile: '源配置文件',
     assumeRoleArn: '角色 ARN',
     assumeRoleArnPlaceholder: 'arn:aws:iam::123456789012:role/MyRole',

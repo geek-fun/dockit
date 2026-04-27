@@ -344,6 +344,7 @@ export const enUS = {
     ssoLoadingRoles: 'Loading roles...',
     ssoNoAccounts: 'No accounts found for this SSO session.',
     ssoNoRoles: 'No roles found for this account.',
+    ssoRegionInferred: 'Region auto-detected from URL: {region}',
     assumeRoleSourceProfile: 'Source Profile',
     assumeRoleArn: 'Role ARN',
     assumeRoleArnPlaceholder: 'arn:aws:iam::123456789012:role/MyRole',
