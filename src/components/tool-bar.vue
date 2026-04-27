@@ -268,6 +268,7 @@
 <script setup lang="ts">
 import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
+import { Loader2 } from 'lucide-vue-next';
 import {
   useClusterManageStore,
   useConnectionStore,

@@ -3,6 +3,7 @@ import { type HTMLAttributes, computed } from 'vue';
 import {
   DialogClose,
   DialogContent,
+  DialogDescription,
   type DialogContentEmits,
   type DialogContentProps,
   DialogOverlay,
@@ -47,6 +48,9 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits);
       "
     >
       <slot />
+
+      <!-- Visually hidden description for accessibility (radix-vue requirement) -->
+      <DialogDescription class="sr-only">Dialog content</DialogDescription>
 
       <DialogClose v-if="showClose" class="dialog-close-button">
         <X class="w-4 h-4" />
