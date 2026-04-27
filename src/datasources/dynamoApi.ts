@@ -754,7 +754,12 @@ const dynamoApi = {
   },
 
   listProfilesWithRoles: async (): Promise<
-    { profileName: string; roleArn: string | null; sourceProfile: string | null; region: string | null }[]
+    {
+      profileName: string;
+      roleArn: string | null;
+      sourceProfile: string | null;
+      region: string | null;
+    }[]
   > => {
     return await invoke('aws_list_profiles_with_roles');
   },

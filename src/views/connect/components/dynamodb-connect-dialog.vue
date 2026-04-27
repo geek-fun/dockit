@@ -1101,7 +1101,7 @@ const testConnect = async () => {
     return;
   }
   if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'authenticated') {
-    if (!await completeSsoLogin()) return;
+    if (!(await completeSsoLogin())) return;
   }
   markSubmitted();
 
@@ -1186,7 +1186,7 @@ const saveConnect = async () => {
     return;
   }
   if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'authenticated') {
-    if (!await completeSsoLogin()) return;
+    if (!(await completeSsoLogin())) return;
   }
   markSubmitted();
 
