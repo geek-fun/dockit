@@ -112,6 +112,7 @@ watch(open, async isOpen => {
           <span class="i-carbon-search h-4 w-4 ml-2 shrink-0 opacity-50" />
         </template>
         <template v-else>
+          <slot name="selected-prepend" />
           <span v-if="selectedLabel" class="truncate">{{ selectedLabel }}</span>
           <span v-else class="text-muted-foreground truncate">{{ placeholder }}</span>
           <span class="i-carbon-chevron-down h-4 w-4 ml-2 shrink-0 opacity-50" />

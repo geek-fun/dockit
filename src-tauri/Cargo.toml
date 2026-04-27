@@ -32,6 +32,9 @@ futures = "0.3.31"
 aws-config = { version = "1.8.16", default-features = false, features = ["default-https-client", "rt-tokio", "credentials-process", "sso"] }
 aws-sdk-dynamodb = { version = "1.111.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
 aws-sdk-cloudwatch = { version = "1.110.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-sts = { version = "1.103.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-ssooidc = { version = "1.100.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
+aws-sdk-sso = { version = "1.98.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
 base64 = "0.22.1"
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
@@ -41,4 +44,3 @@ custom-protocol = ["tauri/custom-protocol"]
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-updater = "2.10"
 tauri-plugin-process = "2"
-

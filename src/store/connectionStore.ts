@@ -107,7 +107,23 @@ export const applyTableFilter = (
 
 export type DynamoDBAuth =
   | { kind: 'accessKey'; accessKeyId: string; secretAccessKey: string }
-  | { kind: 'profile'; profileName: string };
+  | { kind: 'profile'; profileName: string }
+  | {
+      kind: 'sso';
+      accessKeyId: string;
+      secretAccessKey: string;
+      sessionToken: string;
+      region: string;
+      expirationTimestamp?: number;
+    }
+  | {
+      kind: 'assumeRole';
+      accessKeyId: string;
+      secretAccessKey: string;
+      sessionToken: string;
+      region: string;
+      expirationTimestamp?: number;
+    };
 
 export type DynamoDBConnection = {
   id?: number | string;
@@ -207,7 +223,7 @@ const getIndexInfo = (keySchema: KeySchema[]) => {
   };
 };
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 type V1DynamoDBConnection = DynamoDBConnection & {
   accessKeyId: string;
@@ -381,6 +397,9 @@ export const useConnectionStore = defineStore('connectionStore', {
           if (storedVersion < 3) {
             migrated = migrateDynamoConnectionsV2ToV3(migrated);
           }
+
+          // V3→V4: no structural changes — new auth variants (sso, assumeRole) added
+          // Existing connections with accessKey/profile auth remain valid as-is.
 
           this.connections = migrated;
           await storeApi.set('connections', pureObject(migrated));

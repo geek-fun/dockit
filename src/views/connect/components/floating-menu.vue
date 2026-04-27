@@ -8,28 +8,29 @@
     <Transition>
       <div v-if="isExpanded" class="secondary-buttons">
         <Transition v-for="(db, index) in databaseTypes" :key="db.value" name="stagger" appear>
-          <TooltipProvider :delay-duration="200">
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  v-show="isExpanded"
-                  variant="default"
-                  size="icon"
-                  class="secondary-button"
-                  :style="{
-                    '--enter-delay': `${(databaseTypes.length - 1 - index) * 80}ms`,
-                    '--leave-delay': `${index * 80}ms`,
-                  }"
-                  @click="handleSelect(db.value)"
-                >
-                  <component :is="db.icon" class="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                {{ db.label }}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div v-show="isExpanded" class="secondary-button-wrapper">
+            <TooltipProvider :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="default"
+                    size="icon"
+                    class="secondary-button"
+                    :style="{
+                      '--enter-delay': `${(databaseTypes.length - 1 - index) * 80}ms`,
+                      '--leave-delay': `${index * 80}ms`,
+                    }"
+                    @click="handleSelect(db.value)"
+                  >
+                    <component :is="db.icon" class="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  {{ db.label }}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </Transition>
       </div>
     </Transition>
@@ -112,6 +113,12 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.secondary-button-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .secondary-button {

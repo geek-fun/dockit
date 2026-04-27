@@ -20,8 +20,10 @@ use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use aws_config::meta::region::RegionProviderChain;
 use aws_config::profile::ProfileFileCredentialsProvider;
 use aws_config::Region;
-use aws_sdk_dynamodb::{config::Credentials, Client};
-use serde::Deserialize;
+use aws_sdk_dynamodb::config::Credentials;
+use aws_sdk_dynamodb::Client;
+use serde::{Deserialize, Serialize};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind")]
@@ -34,6 +36,20 @@ pub enum DynamoAuth {
     #[serde(rename = "profile")]
     Profile {
         profile_name: String,
+    },
+    #[serde(rename = "sso")]
+    Sso {
+        access_key_id: String,
+        secret_access_key: String,
+        session_token: Option<String>,
+        region: String,
+    },
+    #[serde(rename = "assumeRole")]
+    AssumeRole {
+        access_key_id: String,
+        secret_access_key: String,
+        session_token: Option<String>,
+        region: String,
     },
 }
 
@@ -52,15 +68,13 @@ pub struct DynamoOptions {
     pub payload: Option<serde_json::Value>,
 }
 
-#[tauri::command]
-pub async fn dynamo_api(
-    credentials: DynamoCredentials,
-    options: DynamoOptions,
-) -> Result<String, String> {
-    // Parse region
-    let region_provider = RegionProviderChain::first_try(Region::new(credentials.region.clone()))
-        .or_default_provider()
-        .or_else("us-east-1");
+fn build_config_builder(
+    credentials: &DynamoCredentials,
+) -> aws_config::ConfigLoader {
+    let region_provider =
+        RegionProviderChain::first_try(Region::new(credentials.region.clone()))
+            .or_default_provider()
+            .or_else("us-east-1");
 
     let mut config_builder = aws_config::defaults(aws_config::BehaviorVersion::latest())
         .region(region_provider);
@@ -85,6 +99,28 @@ pub async fn dynamo_api(
                 .build();
             config_builder = config_builder.credentials_provider(profile_provider);
         }
+        DynamoAuth::Sso {
+            access_key_id,
+            secret_access_key,
+            session_token,
+            ..
+        }
+        | DynamoAuth::AssumeRole {
+            access_key_id,
+            secret_access_key,
+            session_token,
+            ..
+        } => {
+            let creds =
+                Credentials::new(
+                    access_key_id,
+                    secret_access_key,
+                    session_token.clone(),
+                    None,
+                    "dockit-client",
+                );
+            config_builder = config_builder.credentials_provider(creds);
+        }
     }
 
     if let Some(ref endpoint) = credentials.endpoint_url {
@@ -93,11 +129,18 @@ pub async fn dynamo_api(
         }
     }
 
-    let config = config_builder.load().await;
+    config_builder
+}
+
+#[tauri::command]
+pub async fn dynamo_api(
+    credentials: DynamoCredentials,
+    options: DynamoOptions,
+) -> Result<String, String> {
+    let config = build_config_builder(&credentials).load().await;
 
     let client = Client::new(&config);
 
-    // Process operation
     let result = match options.operation.as_str() {
         "LIST_TABLES" => list_tables(&client).await,
         "DESCRIBE_TABLE" => describe_table(&client, &options.table_name).await,
@@ -152,7 +195,6 @@ pub async fn dynamo_api(
             }
         }
         "SCAN_TABLE" => {
-            // Extract scan parameters from payload
             if let Some(payload) = &options.payload {
                 let input = ScanTableInput {
                     table_name: &options.table_name,
@@ -173,9 +215,7 @@ pub async fn dynamo_api(
                     .get("statement")
                     .and_then(|s| s.as_str())
                     .unwrap_or("");
-                let next_token = payload
-                    .get("next_token")
-                    .and_then(|t| t.as_str());
+                let next_token = payload.get("next_token").and_then(|t| t.as_str());
                 let limit = payload
                     .get("limit")
                     .and_then(|l| l.as_i64())
@@ -279,15 +319,15 @@ pub async fn dynamo_api(
             }
         }
         "GET_TABLE_METRICS" => {
-            // Create CloudWatch client with same credentials
             let cloudwatch_client = CloudWatchClient::new(&config);
-            
-            let period_hours = options.payload
+
+            let period_hours = options
+                .payload
                 .as_ref()
                 .and_then(|p| p.get("period_hours"))
                 .and_then(|v| v.as_i64())
                 .unwrap_or(24);
-            
+
             let input = CloudWatchInput {
                 table_name: &options.table_name,
                 period_hours,
@@ -336,6 +376,270 @@ pub async fn dynamo_api(
     }
 }
 
+// ── STS AssumeRole ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CredentialsResponse {
+    pub access_key_id: String,
+    pub secret_access_key: String,
+    pub session_token: String,
+    pub expiration_timestamp: u64,
+}
+
+#[tauri::command]
+pub async fn aws_assume_role(
+    source_profile_name: String,
+    role_arn: String,
+    external_id: Option<String>,
+    mfa_serial: Option<String>,
+    mfa_token: Option<String>,
+) -> Result<CredentialsResponse, String> {
+    let profile_provider = ProfileFileCredentialsProvider::builder()
+        .profile_name(&source_profile_name)
+        .build();
+
+    let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+        .region(Region::new("us-east-1"))
+        .credentials_provider(profile_provider)
+        .load()
+        .await;
+
+    let sts_client = aws_sdk_sts::Client::new(&config);
+
+    let mut req = sts_client
+        .assume_role()
+        .role_arn(&role_arn)
+        .role_session_name("dockit-session");
+
+    if let Some(id) = &external_id {
+        req = req.external_id(id);
+    }
+    if let Some(serial) = &mfa_serial {
+        req = req.serial_number(serial);
+    }
+    if let Some(token) = &mfa_token {
+        req = req.token_code(token);
+    }
+
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("STS AssumeRole failed: {}", e))?;
+
+    let creds = resp
+        .credentials
+        .ok_or_else(|| "No credentials returned from STS".to_string())?;
+
+    let access_key_id = creds.access_key_id().to_string();
+    let secret_access_key = creds.secret_access_key().to_string();
+    let session_token = creds.session_token().to_string();
+    let expiration_timestamp = creds.expiration().secs() as u64;
+
+    Ok(CredentialsResponse {
+        access_key_id,
+        secret_access_key,
+        session_token,
+        expiration_timestamp,
+    })
+}
+
+// ── SSO Device Authorization ──────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SsoDeviceAuthResponse {
+    pub verification_uri: String,
+    pub user_code: String,
+    pub device_code: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub interval: i64,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SsoTokenPollResponse {
+    pub access_token: Option<String>,
+    pub expires_at: Option<u64>,
+    pub status: String,
+    pub error_message: Option<String>,
+}
+
+#[tauri::command]
+pub async fn aws_sso_start_device_auth(
+    start_url: String,
+    sso_region: String,
+) -> Result<SsoDeviceAuthResponse, String> {
+    let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+        .region(Region::new(sso_region))
+        .load()
+        .await;
+
+    let oidc_client = aws_sdk_ssooidc::Client::new(&config);
+
+    // Register client (in-memory caching would be ideal, but registering each time works)
+    let reg_resp = oidc_client
+        .register_client()
+        .client_name("dockit")
+        .client_type("public")
+        .send()
+        .await
+        .map_err(|e| format!("SSO register client failed: {}", e))?;
+
+    let client_id = reg_resp
+        .client_id()
+        .ok_or_else(|| "No client ID returned from SSO registration".to_string())?
+        .to_string();
+    let client_secret = reg_resp.client_secret().unwrap_or_default().to_string();
+
+    let auth_resp = oidc_client
+        .start_device_authorization()
+        .client_id(&client_id)
+        .client_secret(&client_secret)
+        .start_url(&start_url)
+        .send()
+        .await
+        .map_err(|e| format!("SSO start device auth failed: {}", e))?;
+
+    let interval = {
+        let val = auth_resp.interval();
+        if val > 0 { val } else { 5 }
+    };
+
+    Ok(SsoDeviceAuthResponse {
+        verification_uri: auth_resp
+            .verification_uri_complete()
+            .or_else(|| auth_resp.verification_uri())
+            .unwrap_or_default()
+            .to_string(),
+        user_code: auth_resp.user_code().unwrap_or_default().to_string(),
+        device_code: auth_resp.device_code().unwrap_or_default().to_string(),
+        client_id,
+        client_secret,
+        interval: interval as i64,
+    })
+}
+
+#[tauri::command]
+pub async fn aws_sso_poll_token(
+    sso_region: String,
+    client_id: String,
+    client_secret: String,
+    device_code: String,
+) -> Result<SsoTokenPollResponse, String> {
+    let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+        .region(Region::new(sso_region))
+        .load()
+        .await;
+
+    let oidc_client = aws_sdk_ssooidc::Client::new(&config);
+
+    match oidc_client
+        .create_token()
+        .client_id(&client_id)
+        .client_secret(&client_secret)
+        .grant_type("urn:ietf:params:oauth:grant-type:device_code")
+        .device_code(&device_code)
+        .send()
+        .await
+    {
+        Ok(resp) => {
+            let token = resp
+                .access_token()
+                .ok_or_else(|| "No access token returned".to_string())?
+                .to_string();
+            let expires_in = {
+                let val = resp.expires_in();
+                if val > 0 { val as u64 } else { 3600 }
+            };
+            let expires_at = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or(Duration::from_secs(0))
+                .as_secs()
+                + expires_in;
+
+            Ok(SsoTokenPollResponse {
+                access_token: Some(token),
+                expires_at: Some(expires_at),
+                status: "success".to_string(),
+                error_message: None,
+            })
+        }
+        Err(e) => {
+            let err_str = e.to_string();
+            // These are expected during polling — user hasn't authorized yet
+            if err_str.contains("AuthorizationPendingException")
+                || err_str.contains("SlowDownException")
+            {
+                Ok(SsoTokenPollResponse {
+                    access_token: None,
+                    expires_at: None,
+                    status: "pending".to_string(),
+                    error_message: None,
+                })
+            } else {
+                Ok(SsoTokenPollResponse {
+                    access_token: None,
+                    expires_at: None,
+                    status: "error".to_string(),
+                    error_message: Some(err_str),
+                })
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn aws_sso_get_role_credentials(
+    sso_region: String,
+    access_token: String,
+    account_id: String,
+    role_name: String,
+) -> Result<CredentialsResponse, String> {
+    let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+        .region(Region::new(sso_region))
+        .load()
+        .await;
+
+    let sso_client = aws_sdk_sso::Client::new(&config);
+
+    let resp = sso_client
+        .get_role_credentials()
+        .access_token(&access_token)
+        .account_id(&account_id)
+        .role_name(&role_name)
+        .send()
+        .await
+        .map_err(|e| format!("SSO get role credentials failed: {}", e))?;
+
+    let creds = resp
+        .role_credentials()
+        .ok_or_else(|| "No role credentials returned from SSO".to_string())?;
+
+    let access_key_id = creds.access_key_id().unwrap_or_default().to_string();
+    let secret_access_key = creds.secret_access_key().unwrap_or_default().to_string();
+    let session_token = creds.session_token().unwrap_or_default().to_string();
+    // expiration() returns seconds since epoch (i64 or Option<&i64> depending on SDK version)
+    let exp_secs = creds.expiration();
+    let expiration_timestamp = (if exp_secs > 0 { exp_secs as u64 } else { 0 }).max(
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or(Duration::from_secs(0))
+            .as_secs()
+            + 3600,
+    );
+
+    Ok(CredentialsResponse {
+        access_key_id,
+        secret_access_key,
+        session_token,
+        expiration_timestamp,
+    })
+}
+
+// ── AWS Profile Listing ────────────────────────────────────────────────────────
+
 #[tauri::command]
 pub async fn aws_list_profiles() -> Result<Vec<String>, String> {
     let home = std::env::var("HOME")
@@ -380,4 +684,139 @@ pub async fn aws_list_profiles() -> Result<Vec<String>, String> {
     let mut sorted: Vec<String> = profiles.into_iter().collect();
     sorted.sort();
     Ok(sorted)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileWithRole {
+    pub profile_name: String,
+    pub role_arn: Option<String>,
+    pub source_profile: Option<String>,
+    pub region: Option<String>,
+}
+
+#[tauri::command]
+pub async fn aws_list_profiles_with_roles() -> Result<Vec<ProfileWithRole>, String> {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .map_err(|_| "Cannot determine home directory".to_string())?;
+
+    let config_path = std::path::Path::new(&home).join(".aws").join("config");
+    let content = std::fs::read_to_string(&config_path).unwrap_or_default();
+
+    let mut profiles: Vec<ProfileWithRole> = Vec::new();
+    let mut current_name: Option<String> = None;
+    let mut current_role_arn: Option<String> = None;
+    let mut current_source_profile: Option<String> = None;
+    let mut current_region: Option<String> = None;
+
+    let flush = |name: Option<String>, role_arn: Option<String>, source_profile: Option<String>, region: Option<String>, acc: &mut Vec<ProfileWithRole>| {
+        if let Some(n) = name {
+            acc.push(ProfileWithRole { profile_name: n, role_arn, source_profile, region });
+        }
+    };
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with('[') && trimmed.ends_with(']') {
+            flush(current_name.take(), current_role_arn.take(), current_source_profile.take(), current_region.take(), &mut profiles);
+            let section = &trimmed[1..trimmed.len() - 1];
+            current_name = Some(section.strip_prefix("profile ").unwrap_or(section).trim().to_string());
+        } else if let Some((k, v)) = trimmed.split_once('=') {
+            match k.trim() {
+                "role_arn" => current_role_arn = Some(v.trim().to_string()),
+                "source_profile" => current_source_profile = Some(v.trim().to_string()),
+                "region" => current_region = Some(v.trim().to_string()),
+                _ => {}
+            }
+        }
+    }
+    flush(current_name.take(), current_role_arn.take(), current_source_profile.take(), current_region.take(), &mut profiles);
+
+    profiles.sort_by(|a, b| a.profile_name.cmp(&b.profile_name));
+    Ok(profiles)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SsoAccount {
+    pub account_id: String,
+    pub account_name: String,
+    pub email_address: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SsoRole {
+    pub role_name: String,
+    pub account_id: String,
+}
+
+#[tauri::command]
+pub async fn aws_sso_list_accounts(
+    sso_region: String,
+    access_token: String,
+) -> Result<Vec<SsoAccount>, String> {
+    let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+        .region(Region::new(sso_region))
+        .load()
+        .await;
+
+    let sso_client = aws_sdk_sso::Client::new(&config);
+
+    let mut accounts: Vec<SsoAccount> = Vec::new();
+    let mut paginator = sso_client
+        .list_accounts()
+        .access_token(&access_token)
+        .into_paginator()
+        .send();
+
+    while let Some(page) = paginator.next().await {
+        let page = page.map_err(|e| format!("SSO list accounts failed: {}", e))?;
+        for acct in page.account_list() {
+            accounts.push(SsoAccount {
+                account_id: acct.account_id().unwrap_or_default().to_string(),
+                account_name: acct.account_name().unwrap_or_default().to_string(),
+                email_address: acct.email_address().map(|s| s.to_string()),
+            });
+        }
+    }
+
+    accounts.sort_by(|a, b| a.account_name.cmp(&b.account_name));
+    Ok(accounts)
+}
+
+#[tauri::command]
+pub async fn aws_sso_list_roles(
+    sso_region: String,
+    access_token: String,
+    account_id: String,
+) -> Result<Vec<SsoRole>, String> {
+    let config = aws_config::defaults(aws_config::BehaviorVersion::latest())
+        .region(Region::new(sso_region))
+        .load()
+        .await;
+
+    let sso_client = aws_sdk_sso::Client::new(&config);
+
+    let mut roles: Vec<SsoRole> = Vec::new();
+    let mut paginator = sso_client
+        .list_account_roles()
+        .access_token(&access_token)
+        .account_id(&account_id)
+        .into_paginator()
+        .send();
+
+    while let Some(page) = paginator.next().await {
+        let page = page.map_err(|e| format!("SSO list roles failed: {}", e))?;
+        for role in page.role_list() {
+            roles.push(SsoRole {
+                role_name: role.role_name().unwrap_or_default().to_string(),
+                account_id: role.account_id().unwrap_or_default().to_string(),
+            });
+        }
+    }
+
+    roles.sort_by(|a, b| a.role_name.cmp(&b.role_name));
+    Ok(roles)
 }

@@ -10,7 +10,15 @@
       class="connection-select"
       @update:model-value="value => handleUpdate(value, 'CONNECTION')"
       @open="isOpen => handleOpen(isOpen, 'CONNECTION')"
-    />
+    >
+      <template #selected-prepend>
+        <span
+          v-if="credsExpiryIcon"
+          class="inline-block h-3.5 w-3.5 mr-1 shrink-0 align-text-bottom"
+          :class="credsExpiryIcon"
+        />
+      </template>
+    </SearchableSelect>
 
     <SearchableSelect
       v-if="
@@ -213,6 +221,7 @@ import {
   ElasticsearchConnection,
   DynamoDBConnection,
 } from '../store';
+import { useDynamoManageStore } from '../store/dynamoManageStore';
 import { useLang } from '../lang';
 import { CustomError } from '../common';
 import { esSampleQueries } from '../common/monaco';
@@ -243,6 +252,10 @@ const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 const clusterManageStore = useClusterManageStore();
 const { setConnection, refreshStates } = clusterManageStore;
 const { connection, hideSystemIndices, refreshLoading } = storeToRefs(clusterManageStore);
+
+const dynamoManageStore = useDynamoManageStore();
+const { setManageActiveTable } = dynamoManageStore;
+const { manageActiveTable } = storeToRefs(dynamoManageStore);
 
 // Check if connection is Elasticsearch type
 const isElasticsearchConnection = computed(() => {
@@ -282,6 +295,29 @@ const connectionSelectValue = computed(() => {
     : connection?.value?.name;
 });
 
+const currentDynamoConn = computed<DynamoDBConnection | undefined>(() => {
+  const conn = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
+    ? activePanel?.value?.connection
+    : connection?.value;
+  return conn?.type === DatabaseType.DYNAMODB ? (conn as DynamoDBConnection) : undefined;
+});
+
+const credsExpiryIcon = computed(() => {
+  const conn = currentDynamoConn.value;
+  if (!conn) return '';
+  const auth = conn.auth;
+  if (auth?.kind !== 'sso' && auth?.kind !== 'assumeRole') return '';
+  const expTimestamp: number | undefined = (auth as Record<string, unknown>).expirationTimestamp as
+    | number
+    | undefined;
+  if (!expTimestamp) return ''; // no expiry info
+  const nowSec = Math.floor(Date.now() / 1000);
+  const remaining = expTimestamp - nowSec;
+  if (remaining <= 0) return 'i-carbon-warning-filled text-destructive'; // expired
+  if (remaining < 300) return 'i-carbon-warning-alt text-yellow-500'; // < 5 min
+  return 'i-carbon-checkmark-filled text-green-500'; // valid
+});
+
 const indexSelectValue = computed(() => {
   const conn = activePanel?.value?.connection;
   if (conn && conn.type === DatabaseType.ELASTICSEARCH) {
@@ -291,6 +327,7 @@ const indexSelectValue = computed(() => {
 });
 
 const tableSelectValue = computed(() => {
+  if (props.type === 'MANAGE') return manageActiveTable.value;
   return activePanel?.value?.activeTable;
 });
 
@@ -484,7 +521,11 @@ const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX' | 'TABLE
       });
     }
   } else if (type === 'TABLE') {
-    setActiveTable(value);
+    if (props.type === 'MANAGE') {
+      setManageActiveTable(value);
+    } else {
+      setActiveTable(value);
+    }
   } else {
     const selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
       ? activePanel.value.connection

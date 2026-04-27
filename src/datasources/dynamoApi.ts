@@ -175,6 +175,22 @@ const buildAuthPayload = (auth: DynamoDBAuth): AwsAuthPayload => {
       };
     case 'profile':
       return { kind: 'profile', profile_name: auth.profileName };
+    case 'sso':
+      return {
+        kind: 'sso',
+        access_key_id: auth.accessKeyId,
+        secret_access_key: auth.secretAccessKey,
+        session_token: auth.sessionToken,
+        region: auth.region,
+      };
+    case 'assumeRole':
+      return {
+        kind: 'assumeRole',
+        access_key_id: auth.accessKeyId,
+        secret_access_key: auth.secretAccessKey,
+        session_token: auth.sessionToken,
+        region: auth.region,
+      };
   }
 };
 
@@ -615,6 +631,137 @@ const dynamoApi = {
     } catch {
       return [];
     }
+  },
+
+  // SSO device authorization — start the flow, get device code + URL
+  ssoStartDeviceAuth: async (
+    startUrl: string,
+    ssoRegion: string,
+  ): Promise<{
+    verificationUri: string;
+    userCode: string;
+    deviceCode: string;
+    clientId: string;
+    clientSecret: string;
+    interval: number;
+  }> => {
+    return await invoke<{
+      verificationUri: string;
+      userCode: string;
+      deviceCode: string;
+      clientId: string;
+      clientSecret: string;
+      interval: number;
+    }>('aws_sso_start_device_auth', {
+      startUrl,
+      ssoRegion,
+    });
+  },
+
+  // SSO poll for token after user authenticates in browser
+  ssoPollToken: async (
+    ssoRegion: string,
+    clientId: string,
+    clientSecret: string,
+    deviceCode: string,
+  ): Promise<{
+    accessToken: string | null;
+    expiresAt: number | null;
+    status: 'pending' | 'success' | 'error';
+    errorMessage: string | null;
+  }> => {
+    const result = await invoke<{
+      accessToken: string | null;
+      expiresAt: number | null;
+      status: string;
+      errorMessage: string | null;
+    }>('aws_sso_poll_token', {
+      ssoRegion,
+      clientId,
+      clientSecret,
+      deviceCode,
+    });
+    return {
+      ...result,
+      status: result.status as 'pending' | 'success' | 'error',
+    };
+  },
+
+  // SSO get role credentials after token is obtained
+  ssoGetRoleCredentials: async (
+    ssoRegion: string,
+    accessToken: string,
+    accountId: string,
+    roleName: string,
+  ): Promise<{
+    accessKeyId: string;
+    secretAccessKey: string;
+    sessionToken: string;
+    expirationTimestamp: number;
+  }> => {
+    return await invoke<{
+      accessKeyId: string;
+      secretAccessKey: string;
+      sessionToken: string;
+      expirationTimestamp: number;
+    }>('aws_sso_get_role_credentials', {
+      ssoRegion,
+      accessToken,
+      accountId,
+      roleName,
+    });
+  },
+
+  assumeRole: async (
+    sourceProfileName: string,
+    roleArn: string,
+    externalId?: string,
+    mfaSerial?: string,
+    mfaToken?: string,
+  ): Promise<{
+    accessKeyId: string;
+    secretAccessKey: string;
+    sessionToken: string;
+    expirationTimestamp: number;
+  }> => {
+    return await invoke<{
+      accessKeyId: string;
+      secretAccessKey: string;
+      sessionToken: string;
+      expirationTimestamp: number;
+    }>('aws_assume_role', {
+      sourceProfileName,
+      roleArn,
+      externalId: externalId ?? null,
+      mfaSerial: mfaSerial ?? null,
+      mfaToken: mfaToken ?? null,
+    });
+  },
+
+  ssoListAccounts: async (
+    ssoRegion: string,
+    accessToken: string,
+  ): Promise<{ accountId: string; accountName: string; emailAddress: string | null }[]> => {
+    return await invoke('aws_sso_list_accounts', { ssoRegion, accessToken });
+  },
+
+  ssoListRoles: async (
+    ssoRegion: string,
+    accessToken: string,
+    accountId: string,
+  ): Promise<{ roleName: string; accountId: string }[]> => {
+    return await invoke('aws_sso_list_roles', { ssoRegion, accessToken, accountId });
+  },
+
+  listProfilesWithRoles: async (): Promise<
+    {
+      profileName: string;
+      roleArn: string | null;
+      sourceProfile: string | null;
+      region: string | null;
+    }[]
+  > => {
+    return await invoke('aws_list_profiles_with_roles');
   },
 };
 
