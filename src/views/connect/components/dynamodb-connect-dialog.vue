@@ -932,11 +932,6 @@ const completeSsoLogin = async (): Promise<boolean> => {
   }
 };
 
-watch([connectionMode, ssoBaseFieldsValid], ([mode, valid]) => {
-  if (mode === 'sso' && valid && ssoAuthStatus.value === 'idle') {
-    startSsoLogin();
-  }
-});
 
 const regionFromProfile = (profileName: string) =>
   profilesWithRoles.value.find(p => p.profileName === profileName)?.region ?? null;
@@ -1106,8 +1101,8 @@ const isFormValid = computed(() => {
       return !!auth.profileName;
     case 'sso':
     case 'assumeRole':
-      // Credentials written after completeSsoLogin; also valid if still in authenticated state with account+role chosen
       if (auth.accessKeyId && auth.secretAccessKey && auth.sessionToken) return true;
+      if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'idle') return ssoBaseFieldsValid.value;
       if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'authenticated')
         return !!(ssoSelectedAccountId.value && ssoSelectedRoleName.value);
       if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'error') return true;
@@ -1120,6 +1115,10 @@ const isFormValid = computed(() => {
 const testConnect = async () => {
   errorMessage.value = '';
   successMessage.value = '';
+  if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'idle') {
+    await startSsoLogin();
+    return;
+  }
   if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'error') {
     ssoAuthStatus.value = 'idle';
     return;
@@ -1205,6 +1204,10 @@ const fetchProfilesWithRoles = async () => {
 const saveConnect = async () => {
   errorMessage.value = '';
   successMessage.value = '';
+  if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'idle') {
+    await startSsoLogin();
+    return;
+  }
   if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'error') {
     ssoAuthStatus.value = 'idle';
     return;
