@@ -8,56 +8,35 @@
             <Grid :cols="24" :x-gap="12">
               <GridItem :span="8">
                 <FormItem :label="$t('editor.dynamo.selectIndex')">
-                  <Select
-                    :model-value="dynamoQueryForm.index ?? undefined"
-                    :disabled="indexSelectDisabled"
-                    @update:open="handleIndexOpen"
+                  <TooltipProvider v-if="indexSelectDisabled">
+                    <Tooltip>
+                      <TooltipTrigger as-child>
+                        <span class="inline-flex w-full">
+                          <SearchableSelect
+                            :model-value="dynamoQueryForm.index ?? ''"
+                            :options="indicesOrTableOptions"
+                            :loading="loadingRef.index"
+                            :placeholder="$t('editor.dynamo.selectIndex')"
+                            disabled
+                            class="w-full"
+                          />
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {{ $t('editor.dynamo.selectTableFirst') }}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <SearchableSelect
+                    v-else
+                    :model-value="dynamoQueryForm.index ?? ''"
+                    :options="indicesOrTableOptions"
+                    :loading="loadingRef.index"
+                    :placeholder="$t('editor.dynamo.selectIndex')"
+                    class="w-full"
                     @update:model-value="handleSelectUpdate"
-                  >
-                    <TooltipProvider v-if="indexSelectDisabled">
-                      <Tooltip>
-                        <TooltipTrigger as-child>
-                          <span class="inline-flex w-full">
-                            <SelectTrigger>
-                              <span
-                                v-if="dynamoQueryForm.index && selectedIndexOrTable"
-                                class="select-value-text"
-                              >
-                                {{ selectedIndexOrTable.label }}
-                              </span>
-                              <SelectValue v-else :placeholder="$t('editor.dynamo.selectIndex')" />
-                            </SelectTrigger>
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {{ $t('editor.dynamo.selectTableFirst') }}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <SelectTrigger v-else>
-                      <span
-                        v-if="dynamoQueryForm.index && selectedIndexOrTable"
-                        class="select-value-text"
-                      >
-                        {{ selectedIndexOrTable.label }}
-                      </span>
-                      <SelectValue v-else :placeholder="$t('editor.dynamo.selectIndex')" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div v-if="loadingRef.index" class="flex items-center justify-center py-4">
-                        <Spinner class="h-4 w-4 mr-2" />
-                        <span class="text-sm text-muted-foreground">Loading...</span>
-                      </div>
-                      <SelectItem
-                        v-for="option in indicesOrTableOptions"
-                        v-else
-                        :key="option.value"
-                        :value="option.value"
-                      >
-                        {{ option.label }}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                    @open="isOpen => isOpen && handleIndexOpen(true)"
+                  />
                 </FormItem>
               </GridItem>
 
@@ -217,6 +196,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/combobox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';

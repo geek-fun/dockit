@@ -19,6 +19,7 @@ export default [
       'coverage',
       '*.d.ts',
       '.vite',
+      '.claude',
     ],
   },
 

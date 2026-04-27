@@ -35,19 +35,12 @@
                 required
                 :error="getError('targetIndex', fieldErrors.targetIndex)"
               >
-                <Select
+                <SearchableSelect
                   v-model="formData.targetIndex"
-                  @update:open="(open: boolean) => !open && handleBlur('targetIndex')"
-                >
-                  <SelectTrigger>
-                    <SelectValue :placeholder="$t('manage.index.switchAliasForm.targetIndex')" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem v-for="idx in indices" :key="idx.value" :value="idx.value">
-                      {{ idx.label }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                  :options="indices"
+                  :placeholder="$t('manage.index.switchAliasForm.targetIndex')"
+                  @update:model-value="handleBlur('targetIndex')"
+                />
               </FormItem>
             </GridItem>
           </Grid>
@@ -82,13 +75,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormItem } from '@/components/ui/form';
 import { Grid, GridItem } from '@/components/ui/grid';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/combobox';
 
 const clusterManageStore = useClusterManageStore();
 const { switchAlias, fetchAliases } = clusterManageStore;

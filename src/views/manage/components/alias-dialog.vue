@@ -30,19 +30,12 @@
                 required
                 :error="getError('indexName', fieldErrors.indexName)"
               >
-                <Select
+                <SearchableSelect
                   v-model="formData.indexName"
-                  @update:open="(open: boolean) => !open && handleBlur('indexName')"
-                >
-                  <SelectTrigger>
-                    <SelectValue :placeholder="$t('manage.index.newAliasForm.indexName')" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem v-for="idx in indices" :key="idx.value" :value="idx.value">
-                      {{ idx.label }}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                  :options="indices"
+                  :placeholder="$t('manage.index.newAliasForm.indexName')"
+                  @update:model-value="handleBlur('indexName')"
+                />
               </FormItem>
             </GridItem>
           </Grid>
@@ -153,13 +146,7 @@ import { InputNumber } from '@/components/ui/input-number';
 import { Form, FormItem } from '@/components/ui/form';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { Collapse, CollapseItem } from '@/components/ui/collapse';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/combobox';
 import { Switch } from '@/components/ui/switch';
 
 const clusterManageStore = useClusterManageStore();

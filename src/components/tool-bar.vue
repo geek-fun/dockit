@@ -1,121 +1,57 @@
 <template>
   <div class="tool-bar-container">
-    <Select
-      :model-value="connectionSelectValue"
-      @update:model-value="value => handleUpdate(value as string, 'CONNECTION')"
-      @update:open="isOpen => handleOpen(isOpen, 'CONNECTION')"
-    >
-      <SelectTrigger class="connection-select">
-        <input
-          v-if="selectionState.connection"
-          ref="connectionSearchInput"
-          v-model="filterRef.connection"
-          class="select-trigger-input"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="off"
-          spellcheck="false"
-          :placeholder="connectionSelectValue || $t('connection.selectConnection')"
-          @click.stop
-        />
-        <span v-else-if="connectionSelectValue" class="select-value-text">
-          {{ connectionSelectValue }}
-        </span>
-        <span v-else class="select-placeholder-text">{{ $t('connection.selectConnection') }}</span>
-        <SelectValue class="sr-only" :placeholder="$t('connection.selectConnection')" />
-        <template #icon>
-          <span v-if="selectionState.connection" class="i-carbon-search h-4 w-4 opacity-50" />
-          <span v-else class="i-carbon-chevron-down h-4 w-4 opacity-50" />
-        </template>
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem v-for="option in options.connection" :key="option.value" :value="option.value">
-          {{ option.label }}
-        </SelectItem>
-        <div v-if="loadingRef.connection" class="select-loading">Loading...</div>
-      </SelectContent>
-    </Select>
+    <SearchableSelect
+      :model-value="connectionSelectValue || ''"
+      :options="connectionOptions"
+      :loading="loadingRef.connection"
+      :placeholder="$t('connection.selectConnection')"
+      variant="ghost"
+      :search-threshold="0"
+      class="connection-select"
+      @update:model-value="value => handleUpdate(value, 'CONNECTION')"
+      @open="isOpen => handleOpen(isOpen, 'CONNECTION')"
+    />
 
-    <Select
+    <SearchableSelect
       v-if="
         props.type === 'DYNAMO_EDITOR' || (props.type === 'MANAGE' && !isElasticsearchConnection)
       "
-      :model-value="tableSelectValue"
-      @update:model-value="value => handleUpdate(value as string, 'TABLE')"
-      @update:open="isOpen => handleOpen(isOpen, 'TABLE')"
+      :model-value="tableSelectValue || ''"
+      :options="tableOptions"
+      :loading="loadingRef.table"
+      :placeholder="$t('connection.selectTable')"
+      variant="ghost"
+      :search-threshold="0"
+      class="index-select"
+      @update:model-value="value => handleUpdate(value, 'TABLE')"
+      @open="isOpen => handleOpen(isOpen, 'TABLE')"
     >
-      <SelectTrigger class="index-select">
-        <input
-          v-if="selectionState.table"
-          ref="tableSearchInput"
-          v-model="filterRef.table"
-          class="select-trigger-input"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="off"
-          spellcheck="false"
-          :placeholder="tableSelectValue || $t('connection.selectTable')"
-          @click.stop
-        />
-        <span v-else-if="tableSelectValue" class="select-value-text">{{ tableSelectValue }}</span>
-        <span v-else class="select-placeholder-text">{{ $t('connection.selectTable') }}</span>
-        <SelectValue class="sr-only" :placeholder="$t('connection.selectTable')" />
-        <template #icon>
-          <span v-if="selectionState.table" class="i-carbon-search h-4 w-4 opacity-50" />
-          <span v-else class="i-carbon-chevron-down h-4 w-4 opacity-50" />
-        </template>
-      </SelectTrigger>
-      <SelectContent>
-        <div v-if="loadingRef.table" class="select-loading">Loading...</div>
-        <SelectItem v-for="opt in options.table" v-else :key="opt.value" :value="opt.value">
-          <span class="flex items-center gap-1 w-full">
-            <span
-              class="h-3.5 w-3.5 shrink-0 cursor-pointer"
-              :class="
-                opt.favorite ? 'i-carbon-star-filled text-yellow-400' : 'i-carbon-star opacity-40'
-              "
-              @click.stop="toggleFavoriteTable(opt.value)"
-            />
-            {{ opt.label }}
-          </span>
-        </SelectItem>
-      </SelectContent>
-    </Select>
-
-    <Select
-      v-if="props.type === 'ES_EDITOR'"
-      :model-value="indexSelectValue"
-      @update:model-value="value => handleUpdate(value as string, 'INDEX')"
-      @update:open="isOpen => handleOpen(isOpen, 'INDEX')"
-    >
-      <SelectTrigger class="index-select">
-        <input
-          v-if="selectionState.index"
-          ref="indexSearchInput"
-          v-model="filterRef.index"
-          class="select-trigger-input"
-          autocomplete="off"
-          autocorrect="off"
-          autocapitalize="off"
-          spellcheck="false"
-          :placeholder="indexSelectValue || $t('connection.selectIndex')"
-          @click.stop
-        />
-        <span v-else-if="indexSelectValue" class="select-value-text">{{ indexSelectValue }}</span>
-        <span v-else class="select-placeholder-text">{{ $t('connection.selectIndex') }}</span>
-        <SelectValue class="sr-only" :placeholder="$t('connection.selectIndex')" />
-        <template #icon>
-          <span v-if="selectionState.index" class="i-carbon-search h-4 w-4 opacity-50" />
-          <span v-else class="i-carbon-chevron-down h-4 w-4 opacity-50" />
-        </template>
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem v-for="option in options.index" :key="option.value" :value="option.value">
+      <template #option="{ option }">
+        <span class="flex items-center gap-1 w-full">
+          <span
+            class="h-3.5 w-3.5 shrink-0 cursor-pointer"
+            :class="
+              option.favorite ? 'i-carbon-star-filled text-yellow-400' : 'i-carbon-star opacity-40'
+            "
+            @click.stop="toggleFavoriteTable(option.value)"
+          />
           {{ option.label }}
-        </SelectItem>
-        <div v-if="loadingRef.index" class="select-loading">Loading...</div>
-      </SelectContent>
-    </Select>
+        </span>
+      </template>
+    </SearchableSelect>
+
+    <SearchableSelect
+      v-if="props.type === 'ES_EDITOR'"
+      :model-value="indexSelectValue || ''"
+      :options="indexOptions"
+      :loading="loadingRef.index"
+      :placeholder="$t('connection.selectIndex')"
+      variant="ghost"
+      :search-threshold="0"
+      class="index-select"
+      @update:model-value="value => handleUpdate(value, 'INDEX')"
+      @open="isOpen => handleOpen(isOpen, 'INDEX')"
+    />
 
     <TooltipProvider
       v-if="props.type === 'ES_EDITOR' || (props.type === 'MANAGE' && isElasticsearchConnection)"
@@ -282,13 +218,7 @@ import { CustomError } from '../common';
 import { esSampleQueries } from '../common/monaco';
 import { useMessageService } from '@/composables';
 import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/combobox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const props = defineProps({ type: { type: String, default: undefined } });
@@ -325,17 +255,6 @@ const showRunButton = computed(() => {
 });
 
 const loadingRef = ref({ connection: false, index: false, table: false });
-
-const filterRef = ref({ connection: '', index: '', table: '' });
-const connectionSearchInput = ref<HTMLInputElement>();
-const indexSearchInput = ref<HTMLInputElement>();
-const tableSearchInput = ref<HTMLInputElement>();
-
-const selectionState = ref<{ connection: boolean; index: boolean; table: boolean }>({
-  connection: false,
-  index: false,
-  table: false,
-});
 
 const hideSystemIndicesRef = ref(true);
 const isExecuting = ref(false);
@@ -375,7 +294,18 @@ const tableSelectValue = computed(() => {
   return activePanel?.value?.activeTable;
 });
 
-const dynamoTableOptions = computed(() => {
+const connectionOptions = computed(() =>
+  connections.value.map(({ name }) => ({ label: name, value: name })),
+);
+
+const indexOptions = computed(
+  () =>
+    activeElasticsearchIndexOption.value?.filter(index =>
+      hideSystemIndicesRef.value ? !index.value.startsWith('.') : true,
+    ) ?? [],
+);
+
+const tableOptions = computed(() => {
   const conn = (
     ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
       ? activePanel.value.connection
@@ -387,11 +317,7 @@ const dynamoTableOptions = computed(() => {
   return [
     ...tables.filter(n => favorites.includes(n)),
     ...tables.filter(n => !favorites.includes(n)),
-  ]
-    .filter(
-      n => !filterRef.value.table || n.toLowerCase().includes(filterRef.value.table.toLowerCase()),
-    )
-    .map(n => ({ label: n, value: n, favorite: favorites.includes(n) }));
+  ].map(n => ({ label: n, value: n, favorite: favorites.includes(n) }));
 });
 
 const esSampleQueryOptions = computed(() => [
@@ -473,46 +399,8 @@ watch(
   { immediate: true },
 );
 
-const options = computed(
-  () =>
-    ({
-      connection: connections.value
-        .filter(
-          ({ name }) =>
-            !filterRef.value.connection ||
-            name.toLowerCase().includes(filterRef.value.connection.toLowerCase()),
-        )
-        .map(({ name }) => ({ label: name, value: name })),
-      index: activeElasticsearchIndexOption.value
-        ?.filter(index => (hideSystemIndicesRef.value ? !index.value.startsWith('.') : true))
-        .filter(
-          index =>
-            !filterRef.value.index ||
-            index.value.toLowerCase().includes(filterRef.value.index.toLowerCase()),
-        ),
-      table: dynamoTableOptions.value,
-    }) as Record<string, { label: string; value: string; favorite?: boolean }[]>,
-);
-
 const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX' | 'TABLE') => {
-  if (!isOpen) {
-    // @ts-ignore
-    selectionState.value[type.toLowerCase()] = false;
-    return;
-  }
-  // @ts-ignore
-  selectionState.value[type.toLowerCase()] = true;
-  filterRef.value = { connection: '', index: '', table: '' };
-
-  setTimeout(() => {
-    if (type === 'CONNECTION' && connectionSearchInput.value) {
-      connectionSearchInput.value.focus();
-    } else if (type === 'INDEX' && indexSearchInput.value) {
-      indexSearchInput.value.focus();
-    } else if (type === 'TABLE' && tableSearchInput.value) {
-      tableSearchInput.value.focus();
-    }
-  }, 0);
+  if (!isOpen) return;
 
   if (type === 'CONNECTION') {
     loadingRef.value.connection = true;
@@ -668,67 +556,42 @@ const handleEditorSwitch = async (
   margin-right: 10px;
 }
 
-.connection-select {
+:deep(.connection-select) {
   margin: 0;
   padding: 0 12px;
   height: 35px;
-  max-width: 300px;
-  min-width: 200px;
+  width: 220px;
+  flex-shrink: 0;
   border: none;
   border-right: 1px solid hsl(var(--border));
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  overflow: hidden;
 }
 
-.connection-select:focus {
+:deep(.connection-select:focus-visible) {
   outline: none;
   box-shadow: none;
 }
 
-.index-select {
+:deep(.index-select) {
   margin: 0;
   padding: 0 12px;
   height: 35px;
-  max-width: 300px;
-  min-width: 200px;
+  width: 220px;
+  flex-shrink: 0;
   border: none;
   border-right: 1px solid hsl(var(--border));
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  overflow: hidden;
 }
 
-.index-select:focus {
+:deep(.index-select:focus-visible) {
   outline: none;
   box-shadow: none;
-}
-
-.select-search-container {
-  padding: 8px;
-  border-bottom: 1px solid hsl(var(--border));
-}
-
-.select-search-input {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid hsl(var(--border));
-  border-radius: 4px;
-  font-size: 14px;
-  background: hsl(var(--background));
-  color: inherit;
-}
-
-.select-search-input:focus {
-  outline: none;
-  border-color: hsl(var(--primary));
-}
-
-.select-loading {
-  padding: 8px;
-  text-align: center;
-  color: hsl(var(--muted-foreground));
-  font-size: 12px;
 }
 
 .button-group {
@@ -755,47 +618,10 @@ const handleEditorSwitch = async (
   margin-right: 4px;
 }
 
-.select-value-text {
-  flex: 1;
-  text-align: left;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.select-search-container {
+  padding: 8px;
+  border-bottom: 1px solid hsl(var(--border));
 }
-
-.select-trigger-input {
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: inherit;
-  font-size: 14px;
-  padding: 0;
-  width: 100%;
-}
-
-.select-trigger-input::placeholder {
-  color: hsl(var(--muted-foreground));
-}
-
-.select-placeholder-text {
-  flex: 1;
-  text-align: left;
-  color: hsl(var(--muted-foreground));
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
-}
-
 .help-button-container {
   margin-right: 10px;
   display: flex;

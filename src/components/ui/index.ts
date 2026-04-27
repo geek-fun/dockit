@@ -22,6 +22,7 @@ export * from './input-number';
 export * from './select';
 export * from './switch';
 export * from './radio-group';
+export * from './combobox';
 
 // Layout Components
 export * from './grid';
