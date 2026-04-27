@@ -286,36 +286,216 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'PUT'],
     description: 'Get or update index mappings',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Specify timeout for connection to master',
+      },
+      { name: 'timeout', type: 'string', description: 'Explicit operation timeout' },
+      {
+        name: 'write_index_only',
+        type: 'boolean',
+        description: 'When true, applies mappings only to the write index of an alias',
+      },
+      {
+        name: 'include_defaults',
+        type: 'boolean',
+        description: 'Whether to return all default mapping settings',
+      },
+    ],
   },
   {
     path: '/{index}/_settings',
     methods: ['GET', 'PUT'],
     description: 'Get or update index settings',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      { name: 'flat_settings', type: 'boolean', description: 'Return settings in flat format' },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'include_defaults',
+        type: 'boolean',
+        description: 'Whether to return all default setting for each of the indices',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Specify timeout for connection to master',
+      },
+      {
+        name: 'preserve_existing',
+        type: 'boolean',
+        description:
+          'Whether to update existing settings. If set to true existing settings on an index remain unchanged',
+      },
+      { name: 'timeout', type: 'string', description: 'Explicit operation timeout' },
+    ],
   },
   {
     path: '/{index}/_open',
     methods: ['POST'],
     description: 'Open a closed index',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      { name: 'timeout', type: 'string', description: 'Explicit operation timeout' },
+      {
+        name: 'wait_for_active_shards',
+        type: 'string',
+        description: 'Number of shard copies that must be active before proceeding',
+      },
+    ],
   },
   {
     path: '/{index}/_close',
     methods: ['POST'],
     description: 'Close an index',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      { name: 'timeout', type: 'string', description: 'Explicit operation timeout' },
+      {
+        name: 'wait_for_active_shards',
+        type: 'string',
+        description: 'Number of shard copies that must be active before proceeding',
+      },
+    ],
   },
   {
     path: '/{index}/_refresh',
     methods: ['POST'],
     description: 'Refresh an index',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+    ],
   },
   {
     path: '/{index}/_flush',
     methods: ['POST'],
     description: 'Flush an index',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'force',
+        type: 'boolean',
+        description: 'Force flush even if there are no changes to commit',
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'wait_if_ongoing',
+        type: 'boolean',
+        description: 'Block until flush completes if another flush is running',
+      },
+    ],
   },
   {
     path: '/{index}/_forcemerge',
@@ -359,6 +539,55 @@ const commonEndpoints: ApiEndpoint[] = [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'alias', type: 'string', description: 'Alias name', required: true },
     ],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+    ],
+  },
+  {
+    path: '/{index}/_alias',
+    methods: ['GET'],
+    description: 'Get all aliases for an index',
+    pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+    ],
   },
 
   // Cat APIs
@@ -367,7 +596,12 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List indices',
     queryParams: [
-      { name: 'format', type: 'string', description: 'Output format', enum: ['text', 'json'] },
+      {
+        name: 'format',
+        type: 'string',
+        description: 'Output format',
+        enum: ['text', 'json', 'yaml', 'cbor', 'smile'],
+      },
       { name: 'h', type: 'string', description: 'Columns to display' },
       { name: 's', type: 'string', description: 'Sort by column' },
       { name: 'v', type: 'boolean', description: 'Verbose output' },
@@ -384,7 +618,12 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'Cluster health',
     queryParams: [
-      { name: 'format', type: 'string', description: 'Output format', enum: ['text', 'json'] },
+      {
+        name: 'format',
+        type: 'string',
+        description: 'Output format',
+        enum: ['text', 'json', 'yaml', 'cbor', 'smile'],
+      },
       { name: 'v', type: 'boolean', description: 'Verbose output' },
     ],
   },
@@ -393,7 +632,12 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List nodes',
     queryParams: [
-      { name: 'format', type: 'string', description: 'Output format', enum: ['text', 'json'] },
+      {
+        name: 'format',
+        type: 'string',
+        description: 'Output format',
+        enum: ['text', 'json', 'yaml', 'cbor', 'smile'],
+      },
       { name: 'h', type: 'string', description: 'Columns to display' },
       { name: 'v', type: 'boolean', description: 'Verbose output' },
     ],
@@ -403,7 +647,12 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List shards',
     queryParams: [
-      { name: 'format', type: 'string', description: 'Output format', enum: ['text', 'json'] },
+      {
+        name: 'format',
+        type: 'string',
+        description: 'Output format',
+        enum: ['text', 'json', 'yaml', 'cbor', 'smile'],
+      },
       { name: 'h', type: 'string', description: 'Columns to display' },
       { name: 'v', type: 'boolean', description: 'Verbose output' },
     ],
@@ -413,7 +662,12 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List aliases',
     queryParams: [
-      { name: 'format', type: 'string', description: 'Output format', enum: ['text', 'json'] },
+      {
+        name: 'format',
+        type: 'string',
+        description: 'Output format',
+        enum: ['text', 'json', 'yaml', 'cbor', 'smile'],
+      },
       { name: 'v', type: 'boolean', description: 'Verbose output' },
     ],
   },
@@ -422,7 +676,12 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List templates',
     queryParams: [
-      { name: 'format', type: 'string', description: 'Output format', enum: ['text', 'json'] },
+      {
+        name: 'format',
+        type: 'string',
+        description: 'Output format',
+        enum: ['text', 'json', 'yaml', 'cbor', 'smile'],
+      },
       { name: 'v', type: 'boolean', description: 'Verbose output' },
     ],
   },
@@ -431,7 +690,12 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'Shard allocation',
     queryParams: [
-      { name: 'format', type: 'string', description: 'Output format', enum: ['text', 'json'] },
+      {
+        name: 'format',
+        type: 'string',
+        description: 'Output format',
+        enum: ['text', 'json', 'yaml', 'cbor', 'smile'],
+      },
       { name: 'v', type: 'boolean', description: 'Verbose output' },
     ],
   },
@@ -461,16 +725,78 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cluster/state',
     methods: ['GET'],
     description: 'Cluster state',
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      { name: 'flat_settings', type: 'boolean', description: 'Return settings in flat format' },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'local',
+        type: 'boolean',
+        description: 'Return local information, do not retrieve from master node',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for waiting for new cluster state',
+      },
+      {
+        name: 'wait_for_metadata_version',
+        type: 'string',
+        description: 'Wait for metadata version to be equal or greater than specified',
+      },
+      {
+        name: 'wait_for_timeout',
+        type: 'string',
+        description: 'Maximum time to wait for wait_for_metadata_version before timing out',
+      },
+    ],
   },
   {
     path: '/_cluster/stats',
     methods: ['GET'],
     description: 'Cluster stats',
+    queryParams: [
+      {
+        name: 'include_remotes',
+        type: 'boolean',
+        description: 'Include remote cluster data in response',
+      },
+      { name: 'timeout', type: 'string', description: 'Period to wait for each node to respond' },
+    ],
   },
   {
     path: '/_cluster/settings',
     methods: ['GET', 'PUT'],
     description: 'Cluster settings',
+    queryParams: [
+      { name: 'flat_settings', type: 'boolean', description: 'Return settings in flat format' },
+      {
+        name: 'include_defaults',
+        type: 'boolean',
+        description: 'Return all default cluster setting values',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      { name: 'timeout', type: 'string', description: 'Explicit operation timeout' },
+    ],
     requestBody: {
       properties: {
         persistent: { type: 'object', description: 'Persistent settings' },
@@ -482,11 +808,56 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cluster/allocation/explain',
     methods: ['GET', 'POST'],
     description: 'Explain shard allocation',
+    queryParams: [
+      {
+        name: 'include_disk_info',
+        type: 'boolean',
+        description: 'If true, returns information about disk usage and shard sizes',
+      },
+      {
+        name: 'include_yes_decisions',
+        type: 'boolean',
+        description: 'If true, returns YES decisions in explanation',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+    ],
   },
   {
     path: '/_cluster/reroute',
     methods: ['POST'],
     description: 'Reroute shards',
+    queryParams: [
+      {
+        name: 'dry_run',
+        type: 'boolean',
+        description: 'Simulate the operation without actually performing it',
+      },
+      {
+        name: 'explain',
+        type: 'boolean',
+        description: 'Return explanation of why commands can or cannot run',
+      },
+      {
+        name: 'metric',
+        type: 'string',
+        description: 'Limit information returned to specified metrics',
+      },
+      {
+        name: 'retry_failed',
+        type: 'boolean',
+        description: 'Retry allocation of shards blocked due to too many failures',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      { name: 'timeout', type: 'string', description: 'Explicit operation timeout' },
+    ],
   },
 
   // Nodes APIs
@@ -494,16 +865,94 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_nodes',
     methods: ['GET'],
     description: 'Node information',
+    queryParams: [
+      { name: 'flat_settings', type: 'boolean', description: 'Return settings in flat format' },
+      { name: 'timeout', type: 'string', description: 'Period to wait for a response' },
+    ],
   },
   {
     path: '/_nodes/stats',
     methods: ['GET'],
     description: 'Node stats',
+    queryParams: [
+      {
+        name: 'completion_fields',
+        type: 'string',
+        description:
+          'Comma-separated list of fields to include in fielddata and suggest statistics',
+      },
+      {
+        name: 'fielddata_fields',
+        type: 'string',
+        description: 'Comma-separated list of fields to include in fielddata statistics',
+      },
+      {
+        name: 'fields',
+        type: 'string',
+        description: 'Comma-separated list of fields to include in statistics',
+      },
+      {
+        name: 'groups',
+        type: 'boolean',
+        description: 'Comma-separated list of search groups to include in search statistics',
+      },
+      {
+        name: 'include_segment_file_sizes',
+        type: 'boolean',
+        description: 'Report aggregated disk usage of each Lucene index file',
+      },
+      {
+        name: 'level',
+        type: 'string',
+        description:
+          'Indicates whether statistics are aggregated at the node, indices, or shards level',
+      },
+      { name: 'timeout', type: 'string', description: 'Period to wait for a response' },
+      {
+        name: 'types',
+        type: 'string',
+        description: 'Comma-separated list of document types for the indexing index metric',
+      },
+      {
+        name: 'include_unloaded_segments',
+        type: 'boolean',
+        description: 'If true, response includes information from segments not loaded into memory',
+      },
+    ],
   },
   {
     path: '/_nodes/hot_threads',
     methods: ['GET'],
     description: 'Hot threads',
+    queryParams: [
+      {
+        name: 'ignore_idle_threads',
+        type: 'boolean',
+        description: 'Filter out known idle threads',
+        default: true,
+      },
+      {
+        name: 'interval',
+        type: 'string',
+        description: 'Interval between thread stacktrace samples',
+        default: '500ms',
+      },
+      {
+        name: 'snapshots',
+        type: 'integer',
+        description: 'Number of samples of thread stacktrace',
+        default: 10,
+      },
+      {
+        name: 'threads',
+        type: 'integer',
+        description: 'Number of hot threads to provide information for',
+        default: 3,
+      },
+      { name: 'timeout', type: 'string', description: 'Period to wait for a response' },
+      { name: 'type', type: 'string', description: 'The type to sample' },
+      { name: 'sort', type: 'string', description: "Sort order for 'cpu' type" },
+    ],
   },
 
   // Template APIs
@@ -514,6 +963,15 @@ const commonEndpoints: ApiEndpoint[] = [
     pathParams: [
       { name: 'template', type: 'string', description: 'Template name', required: true },
     ],
+    queryParams: [
+      { name: 'flat_settings', type: 'boolean', description: 'Return settings in flat format' },
+      { name: 'local', type: 'boolean', description: 'Return information from local node only' },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+    ],
   },
   {
     path: '/_index_template/{template}',
@@ -522,6 +980,20 @@ const commonEndpoints: ApiEndpoint[] = [
     pathParams: [
       { name: 'template', type: 'string', description: 'Template name', required: true },
     ],
+    queryParams: [
+      { name: 'local', type: 'boolean', description: 'Return information from local node only' },
+      { name: 'flat_settings', type: 'boolean', description: 'Return settings in flat format' },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      {
+        name: 'include_defaults',
+        type: 'boolean',
+        description: 'Return all relevant default configurations for the index template',
+      },
+    ],
   },
   {
     path: '/_component_template/{template}',
@@ -529,6 +1001,20 @@ const commonEndpoints: ApiEndpoint[] = [
     description: 'Component templates',
     pathParams: [
       { name: 'template', type: 'string', description: 'Template name', required: true },
+    ],
+    queryParams: [
+      { name: 'flat_settings', type: 'boolean', description: 'Return settings in flat format' },
+      {
+        name: 'include_defaults',
+        type: 'boolean',
+        description: 'Return all default configurations for the component template',
+      },
+      { name: 'local', type: 'boolean', description: 'Return information from local node only' },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
     ],
   },
 
@@ -553,6 +1039,9 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'POST'],
     description: 'Analyze text using index analyzer',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      { name: 'index', type: 'string', description: 'Index used to derive the analyzer' },
+    ],
   },
 
   // Validate API
@@ -562,8 +1051,61 @@ const commonEndpoints: ApiEndpoint[] = [
     description: 'Validate a query',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
-      { name: 'explain', type: 'boolean', description: 'Explain query validation' },
-      { name: 'rewrite', type: 'boolean', description: 'Rewrite query' },
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'all_shards',
+        type: 'boolean',
+        description: 'Execute validation on all shards instead of one random shard',
+      },
+      { name: 'analyzer', type: 'string', description: 'Analyzer to use for the query string' },
+      {
+        name: 'analyze_wildcard',
+        type: 'boolean',
+        description: 'If true, wildcard and prefix queries are analyzed',
+      },
+      {
+        name: 'default_operator',
+        type: 'string',
+        description: 'Default operator for query string query',
+        enum: ['AND', 'OR'],
+      },
+      {
+        name: 'df',
+        type: 'string',
+        description: 'Field to use as default where no field prefix is given in query string',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'explain',
+        type: 'boolean',
+        description: 'Return detailed information if an error has occurred',
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'lenient',
+        type: 'boolean',
+        description: 'If true, format-based query failures in query string will be ignored',
+      },
+      {
+        name: 'rewrite',
+        type: 'boolean',
+        description: 'Return a more detailed explanation showing the actual Lucene query',
+      },
+      { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
     ],
   },
 
@@ -572,12 +1114,88 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_msearch',
     methods: ['GET', 'POST'],
     description: 'Execute multiple searches in one request',
+    queryParams: [
+      {
+        name: 'max_concurrent_searches',
+        type: 'integer',
+        description:
+          'Controls the maximum number of concurrent searches the multi search api will execute',
+      },
+      {
+        name: 'max_concurrent_shard_requests',
+        type: 'integer',
+        description:
+          'The number of concurrent shard requests each sub search executes concurrently',
+        default: 5,
+      },
+      {
+        name: 'pre_filter_shard_size',
+        type: 'integer',
+        description: 'Threshold that enforces a pre-filter roundtrip to prefilter search shards',
+      },
+      {
+        name: 'rest_total_hits_as_int',
+        type: 'boolean',
+        description: 'Indicates whether hits.total should be rendered as an integer or an object',
+        default: false,
+      },
+      {
+        name: 'search_type',
+        type: 'string',
+        description: 'Search operation type',
+        enum: ['query_then_fetch', 'dfs_query_then_fetch'],
+      },
+      {
+        name: 'typed_keys',
+        type: 'boolean',
+        description:
+          'Specify whether aggregation and suggester names should be prefixed by their respective types in the response',
+      },
+    ],
   },
   {
     path: '/{index}/_msearch',
     methods: ['GET', 'POST'],
     description: 'Multi search on specific index',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'max_concurrent_searches',
+        type: 'integer',
+        description:
+          'Controls the maximum number of concurrent searches the multi search api will execute',
+      },
+      {
+        name: 'max_concurrent_shard_requests',
+        type: 'integer',
+        description:
+          'The number of concurrent shard requests each sub search executes concurrently',
+        default: 5,
+      },
+      {
+        name: 'pre_filter_shard_size',
+        type: 'integer',
+        description: 'Threshold that enforces a pre-filter roundtrip to prefilter search shards',
+      },
+      {
+        name: 'rest_total_hits_as_int',
+        type: 'boolean',
+        description: 'Indicates whether hits.total should be rendered as an integer or an object',
+        default: false,
+      },
+      {
+        name: 'search_type',
+        type: 'string',
+        description: 'Search operation type',
+        enum: ['query_then_fetch', 'dfs_query_then_fetch'],
+      },
+      {
+        name: 'typed_keys',
+        type: 'boolean',
+        description:
+          'Specify whether aggregation and suggester names should be prefixed by their respective types in the response',
+      },
+    ],
   },
 
   // Explain API
@@ -588,6 +1206,45 @@ const commonEndpoints: ApiEndpoint[] = [
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'id', type: 'string', description: 'Document ID', required: true },
+    ],
+    queryParams: [
+      { name: 'analyzer', type: 'string', description: 'Analyzer to use for the query string' },
+      {
+        name: 'analyze_wildcard',
+        type: 'boolean',
+        description: 'If true, wildcard and prefix queries are analyzed',
+      },
+      {
+        name: 'default_operator',
+        type: 'string',
+        description: 'Default operator for query string query',
+        enum: ['AND', 'OR'],
+      },
+      { name: 'df', type: 'string', description: 'Default field for query string' },
+      {
+        name: 'lenient',
+        type: 'boolean',
+        description: 'If true, format-based query failures in query string will be ignored',
+      },
+      {
+        name: 'preference',
+        type: 'string',
+        description: 'Node or shard to perform the operation on',
+      },
+      { name: 'routing', type: 'string', description: 'Custom routing value' },
+      { name: '_source', type: 'string', description: 'Source fields to return' },
+      {
+        name: '_source_excludes',
+        type: 'string',
+        description: 'Source fields to exclude from response',
+      },
+      {
+        name: '_source_includes',
+        type: 'string',
+        description: 'Source fields to include in response',
+      },
+      { name: 'stored_fields', type: 'string', description: 'Stored fields to return in response' },
+      { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
     ],
   },
 
@@ -685,6 +1342,14 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_snapshot',
     methods: ['GET'],
     description: 'List snapshot repositories',
+    queryParams: [
+      { name: 'local', type: 'boolean', description: 'Return information from local node only' },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+    ],
   },
   {
     path: '/_snapshot/{repository}',
@@ -692,6 +1357,14 @@ const commonEndpoints: ApiEndpoint[] = [
     description: 'Manage snapshot repository',
     pathParams: [
       { name: 'repository', type: 'string', description: 'Repository name', required: true },
+    ],
+    queryParams: [
+      { name: 'local', type: 'boolean', description: 'Return information from local node only' },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
     ],
   },
   {
@@ -702,6 +1375,42 @@ const commonEndpoints: ApiEndpoint[] = [
       { name: 'repository', type: 'string', description: 'Repository name', required: true },
       { name: 'snapshot', type: 'string', description: 'Snapshot name', required: true },
     ],
+    queryParams: [
+      { name: 'after', type: 'string', description: 'Offset identifier to start pagination from' },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'If false, request returns error for unavailable snapshots',
+      },
+      {
+        name: 'index_details',
+        type: 'boolean',
+        description: 'If true, response includes additional index information',
+      },
+      {
+        name: 'index_names',
+        type: 'boolean',
+        description: 'If true, response includes name of each index in each snapshot',
+      },
+      {
+        name: 'include_repository',
+        type: 'boolean',
+        description: 'If true, response includes repository name in each snapshot',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      { name: 'order', type: 'string', description: 'Sort order', enum: ['asc', 'desc'] },
+      { name: 'size', type: 'integer', description: 'Maximum number of snapshots to return' },
+      { name: 'sort', type: 'string', description: 'Sort column for results' },
+      {
+        name: 'verbose',
+        type: 'boolean',
+        description: 'Return additional information about each snapshot',
+      },
+    ],
   },
   {
     path: '/_snapshot/{repository}/{snapshot}/_restore',
@@ -710,6 +1419,18 @@ const commonEndpoints: ApiEndpoint[] = [
     pathParams: [
       { name: 'repository', type: 'string', description: 'Repository name', required: true },
       { name: 'snapshot', type: 'string', description: 'Snapshot name', required: true },
+    ],
+    queryParams: [
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      {
+        name: 'wait_for_completion',
+        type: 'boolean',
+        description: 'If true, request returns response when restore operation completes',
+      },
     ],
   },
 
@@ -734,12 +1455,42 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'Get task status',
     pathParams: [{ name: 'task_id', type: 'string', description: 'Task ID', required: true }],
+    queryParams: [
+      { name: 'timeout', type: 'string', description: 'Period to wait for a response' },
+      {
+        name: 'wait_for_completion',
+        type: 'boolean',
+        description: 'If true, request blocks until the task has completed',
+      },
+    ],
   },
   {
     path: '/_tasks/{task_id}/_cancel',
     methods: ['POST'],
     description: 'Cancel task',
     pathParams: [{ name: 'task_id', type: 'string', description: 'Task ID', required: true }],
+    queryParams: [
+      {
+        name: 'actions',
+        type: 'string',
+        description: 'Comma-separated list of actions used to limit the request',
+      },
+      {
+        name: 'nodes',
+        type: 'string',
+        description: 'Comma-separated list of node IDs or names used to limit the request',
+      },
+      {
+        name: 'parent_task_id',
+        type: 'string',
+        description: 'Parent task ID used to limit the tasks',
+      },
+      {
+        name: 'wait_for_completion',
+        type: 'boolean',
+        description: 'If true, request blocks until all found tasks are complete',
+      },
+    ],
   },
 
   // Ingest APIs
@@ -747,17 +1498,54 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_ingest/pipeline',
     methods: ['GET'],
     description: 'List ingest pipelines',
+    queryParams: [
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      {
+        name: 'summary',
+        type: 'boolean',
+        description: 'Return pipelines without their definitions',
+      },
+    ],
   },
   {
     path: '/_ingest/pipeline/{pipeline}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage ingest pipeline',
     pathParams: [{ name: 'pipeline', type: 'string', description: 'Pipeline ID', required: true }],
+    queryParams: [
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      { name: 'timeout', type: 'string', description: 'Explicit operation timeout' },
+      {
+        name: 'if_version',
+        type: 'integer',
+        description: 'Required version for optimistic concurrency control',
+      },
+      {
+        name: 'summary',
+        type: 'boolean',
+        description: 'Return pipelines without their definitions',
+      },
+    ],
   },
   {
     path: '/_ingest/pipeline/_simulate',
     methods: ['GET', 'POST'],
     description: 'Simulate pipeline',
+    queryParams: [
+      {
+        name: 'verbose',
+        type: 'boolean',
+        description: 'If true, response includes output data for each processor',
+      },
+    ],
   },
 
   // Script APIs
@@ -766,6 +1554,13 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage stored script',
     pathParams: [{ name: 'id', type: 'string', description: 'Script ID', required: true }],
+    queryParams: [
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+    ],
   },
 
   // Field Caps API
@@ -782,6 +1577,50 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'POST'],
     description: 'Field capabilities for index',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'fields',
+        type: 'string',
+        description: 'Comma-separated list of fields to retrieve capabilities for',
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'include_unmapped',
+        type: 'boolean',
+        description: 'If true, unmapped fields are included in response',
+      },
+      {
+        name: 'filters',
+        type: 'string',
+        description: 'Comma-separated list of filters to apply to the response',
+      },
+      {
+        name: 'types',
+        type: 'string',
+        description: 'Comma-separated list of field types to include',
+      },
+      {
+        name: 'include_empty_fields',
+        type: 'boolean',
+        description: 'If false, empty fields are not included in response',
+      },
+    ],
   },
 
   // Scroll API
@@ -789,6 +1628,19 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_search/scroll',
     methods: ['GET', 'POST', 'DELETE'],
     description: 'Scroll search results',
+    queryParams: [
+      {
+        name: 'scroll',
+        type: 'string',
+        description: 'Period to retain the search context for scrolling',
+      },
+      { name: 'scroll_id', type: 'string', description: 'Scroll ID' },
+      {
+        name: 'rest_total_hits_as_int',
+        type: 'boolean',
+        description: 'If true, hits.total is returned as an integer',
+      },
+    ],
     requestBody: {
       properties: {
         scroll_id: { type: 'string', description: 'Scroll ID' },
@@ -802,12 +1654,66 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cache/clear',
     methods: ['POST'],
     description: 'Clear cluster cache',
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      { name: 'fielddata', type: 'boolean', description: 'If true, clears the fields cache' },
+      {
+        name: 'fields',
+        type: 'string',
+        description: 'Comma-separated list of field names to limit fielddata cache clearing',
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      { name: 'query', type: 'boolean', description: 'If true, clears the query cache' },
+      { name: 'request', type: 'boolean', description: 'If true, clears the request cache' },
+    ],
   },
   {
     path: '/{index}/_cache/clear',
     methods: ['POST'],
     description: 'Clear index cache',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      { name: 'fielddata', type: 'boolean', description: 'If true, clears the fields cache' },
+      {
+        name: 'fields',
+        type: 'string',
+        description: 'Comma-separated list of field names to limit fielddata cache clearing',
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      { name: 'query', type: 'boolean', description: 'If true, clears the query cache' },
+      { name: 'request', type: 'boolean', description: 'If true, clears the request cache' },
+    ],
   },
 
   // Recovery API
@@ -816,6 +1722,35 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'Index recovery status',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'active_only',
+        type: 'boolean',
+        description: 'If true, response only includes ongoing shard recoveries',
+      },
+      {
+        name: 'detailed',
+        type: 'boolean',
+        description: 'If true, response includes detailed information about shard recoveries',
+      },
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+    ],
   },
 
   // Segments API
@@ -824,6 +1759,25 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'Index segments',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+    ],
   },
 
   // Stats APIs
@@ -831,12 +1785,112 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_stats',
     methods: ['GET'],
     description: 'Cluster statistics',
+    queryParams: [
+      {
+        name: 'completion_fields',
+        type: 'string',
+        description:
+          'Comma-separated list of fields to include in fielddata and suggest statistics',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'fielddata_fields',
+        type: 'string',
+        description: 'Comma-separated list of fields to include in fielddata statistics',
+      },
+      {
+        name: 'fields',
+        type: 'string',
+        description: 'Comma-separated list of fields to include in statistics',
+      },
+      {
+        name: 'forbid_closed_indices',
+        type: 'boolean',
+        description: 'If true, statistics are not collected from closed indices',
+      },
+      {
+        name: 'groups',
+        type: 'string',
+        description: 'Comma-separated list of search groups to include in search statistics',
+      },
+      {
+        name: 'include_segment_file_sizes',
+        type: 'boolean',
+        description: 'Report aggregated disk usage of each Lucene index file',
+      },
+      {
+        name: 'include_unloaded_segments',
+        type: 'boolean',
+        description: 'If true, response includes information from segments not loaded into memory',
+      },
+      {
+        name: 'level',
+        type: 'string',
+        description:
+          'Indicates whether statistics are aggregated at cluster, indices, or shards level',
+      },
+    ],
   },
   {
     path: '/{index}/_stats',
     methods: ['GET'],
     description: 'Index statistics',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'completion_fields',
+        type: 'string',
+        description:
+          'Comma-separated list of fields to include in fielddata and suggest statistics',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'fielddata_fields',
+        type: 'string',
+        description: 'Comma-separated list of fields to include in fielddata statistics',
+      },
+      {
+        name: 'fields',
+        type: 'string',
+        description: 'Comma-separated list of fields to include in statistics',
+      },
+      {
+        name: 'forbid_closed_indices',
+        type: 'boolean',
+        description: 'If true, statistics are not collected from closed indices',
+      },
+      {
+        name: 'groups',
+        type: 'string',
+        description: 'Comma-separated list of search groups to include in search statistics',
+      },
+      {
+        name: 'include_segment_file_sizes',
+        type: 'boolean',
+        description: 'Report aggregated disk usage of each Lucene index file',
+      },
+      {
+        name: 'include_unloaded_segments',
+        type: 'boolean',
+        description: 'If true, response includes information from segments not loaded into memory',
+      },
+      {
+        name: 'level',
+        type: 'string',
+        description:
+          'Indicates whether statistics are aggregated at cluster, indices, or shards level',
+      },
+    ],
   },
 
   // Search Shards API
@@ -845,6 +1899,37 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'POST'],
     description: 'Search shards routing',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      { name: 'local', type: 'boolean', description: 'Return information from local node only' },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      {
+        name: 'preference',
+        type: 'string',
+        description: 'Node or shard to perform the operation on',
+      },
+      { name: 'routing', type: 'string', description: 'Custom routing value' },
+    ],
   },
 ];
 
@@ -859,6 +1944,55 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     description: 'EQL search',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.9.0' } },
+    queryParams: [
+      {
+        name: 'allow_no_indices',
+        type: 'boolean',
+        description:
+          'Whether to ignore if a wildcard indices expression resolves into no concrete indices',
+      },
+      {
+        name: 'allow_partial_search_results',
+        type: 'boolean',
+        description: 'If true, returns partial results if there are shard failures',
+      },
+      {
+        name: 'allow_partial_sequence_results',
+        type: 'boolean',
+        description: 'If true, sequence queries return partial results in case of shard failures',
+      },
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Whether to expand wildcard expression to concrete indices',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'ccs_minimize_roundtrips',
+        type: 'boolean',
+        description: 'Minimize network round-trips for cross-cluster search',
+      },
+      {
+        name: 'ignore_unavailable',
+        type: 'boolean',
+        description: 'Whether specified concrete indices should be ignored when unavailable',
+      },
+      {
+        name: 'keep_alive',
+        type: 'string',
+        description: 'Period for which search and results are stored on cluster',
+      },
+      {
+        name: 'keep_on_completion',
+        type: 'boolean',
+        description: 'If true, search and results are stored on cluster',
+      },
+      {
+        name: 'wait_for_completion_timeout',
+        type: 'string',
+        description: 'Timeout to wait for request to finish',
+      },
+    ],
   },
 
   // SQL
@@ -867,6 +2001,14 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'POST'],
     description: 'SQL query',
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.3.0' } },
+    queryParams: [
+      {
+        name: 'format',
+        type: 'string',
+        description: 'Response format',
+        enum: ['csv', 'json', 'tsv', 'txt', 'yaml'],
+      },
+    ],
     requestBody: {
       properties: {
         query: { type: 'string', description: 'SQL query' },
@@ -886,6 +2028,20 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List transforms',
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.2.0' } },
+    queryParams: [
+      {
+        name: 'allow_no_match',
+        type: 'boolean',
+        description: 'If false, request returns 404 when no transforms match',
+      },
+      { name: 'from', type: 'integer', description: 'Skips the specified number of transforms' },
+      { name: 'size', type: 'integer', description: 'Maximum number of transforms to obtain' },
+      {
+        name: 'exclude_generated',
+        type: 'boolean',
+        description: 'Exclude automatically added fields from configuration',
+      },
+    ],
   },
   {
     path: '/_transform/{transform_id}',
@@ -895,6 +2051,26 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
       { name: 'transform_id', type: 'string', description: 'Transform ID', required: true },
     ],
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.2.0' } },
+    queryParams: [
+      {
+        name: 'allow_no_match',
+        type: 'boolean',
+        description: 'If false, request returns 404 when no transforms match',
+      },
+      { name: 'from', type: 'integer', description: 'Skips the specified number of transforms' },
+      { name: 'size', type: 'integer', description: 'Maximum number of transforms to obtain' },
+      {
+        name: 'exclude_generated',
+        type: 'boolean',
+        description: 'Exclude automatically added fields from configuration',
+      },
+      {
+        name: 'defer_validation',
+        type: 'boolean',
+        description: 'Skip validations during transform creation',
+      },
+      { name: 'timeout', type: 'string', description: 'Period to wait for a response' },
+    ],
   },
 
   // Data Stream APIs
@@ -903,6 +2079,30 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List data streams',
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.9.0' } },
+    queryParams: [
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Type of data stream that wildcard patterns can match',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'include_defaults',
+        type: 'boolean',
+        description: 'If true, returns all relevant default configurations for the index template',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      {
+        name: 'verbose',
+        type: 'boolean',
+        description:
+          'Whether the maximum timestamp for each data stream should be calculated and returned',
+      },
+    ],
   },
   {
     path: '/_data_stream/{data_stream}',
@@ -912,6 +2112,30 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
       { name: 'data_stream', type: 'string', description: 'Data stream name', required: true },
     ],
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.9.0' } },
+    queryParams: [
+      {
+        name: 'expand_wildcards',
+        type: 'string',
+        description: 'Type of data stream that wildcard patterns can match',
+        enum: ['open', 'closed', 'hidden', 'none', 'all'],
+      },
+      {
+        name: 'include_defaults',
+        type: 'boolean',
+        description: 'If true, returns all relevant default configurations for the index template',
+      },
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      {
+        name: 'verbose',
+        type: 'boolean',
+        description:
+          'Whether the maximum timestamp for each data stream should be calculated and returned',
+      },
+    ],
   },
 
   // ILM (Index Lifecycle Management)
@@ -920,6 +2144,14 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List ILM policies',
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.6.0' } },
+    queryParams: [
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      { name: 'timeout', type: 'string', description: 'Explicit operation timeout' },
+    ],
   },
   {
     path: '/_ilm/policy/{policy}',
@@ -927,6 +2159,14 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     description: 'Manage ILM policy',
     pathParams: [{ name: 'policy', type: 'string', description: 'Policy name', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.6.0' } },
+    queryParams: [
+      {
+        name: 'master_timeout',
+        type: 'string',
+        description: 'Timeout for connection to master node',
+      },
+      { name: 'timeout', type: 'string', description: 'Explicit operation timeout' },
+    ],
   },
 
   // Rollup APIs
@@ -936,6 +2176,15 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     description: 'Manage rollup job',
     pathParams: [{ name: 'job_id', type: 'string', description: 'Job ID', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.3.0' } },
+    queryParams: [
+      {
+        name: 'allow_no_match',
+        type: 'boolean',
+        description: 'If false, request returns 404 when no rollup jobs match',
+      },
+      { name: 'from', type: 'integer', description: 'Skips the specified number of rollup jobs' },
+      { name: 'size', type: 'integer', description: 'Maximum number of rollup jobs to obtain' },
+    ],
   },
 
   // Watcher APIs
@@ -945,6 +2194,28 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     description: 'Manage watch',
     pathParams: [{ name: 'watch_id', type: 'string', description: 'Watch ID', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.0.0' } },
+    queryParams: [
+      {
+        name: 'active',
+        type: 'boolean',
+        description: 'Whether the watch is in an active or inactive state',
+      },
+      {
+        name: 'if_primary_term',
+        type: 'integer',
+        description: 'Primary term for optimistic concurrency control',
+      },
+      {
+        name: 'if_seq_no',
+        type: 'integer',
+        description: 'Sequence number for optimistic concurrency control',
+      },
+      {
+        name: 'version',
+        type: 'integer',
+        description: 'Expected version number for concurrency control',
+      },
+    ],
   },
 
   // Cross-Cluster Replication
@@ -969,6 +2240,20 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List anomaly detection jobs',
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.4.0' } },
+    queryParams: [
+      {
+        name: 'allow_no_match',
+        type: 'boolean',
+        description: 'If false, request returns 404 when no jobs match',
+      },
+      { name: 'from', type: 'integer', description: 'Skips the specified number of jobs' },
+      { name: 'size', type: 'integer', description: 'Maximum number of jobs to obtain' },
+      {
+        name: 'exclude_generated',
+        type: 'boolean',
+        description: 'Indicates if certain fields should be removed from the configuration',
+      },
+    ],
   },
   {
     path: '/_ml/anomaly_detectors/{job_id}',
@@ -976,12 +2261,68 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     description: 'Manage anomaly detection job',
     pathParams: [{ name: 'job_id', type: 'string', description: 'Job ID', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.4.0' } },
+    queryParams: [
+      {
+        name: 'allow_no_match',
+        type: 'boolean',
+        description: 'If false, request returns 404 when no jobs match',
+      },
+      {
+        name: 'exclude_generated',
+        type: 'boolean',
+        description: 'Indicates if certain fields should be removed from the configuration',
+      },
+      {
+        name: 'force',
+        type: 'boolean',
+        description: 'If true, the job is deleted even if it is not stopped',
+      },
+      {
+        name: 'wait_for_completion',
+        type: 'boolean',
+        description: 'If true, waits for job deletion to complete',
+      },
+    ],
   },
   {
     path: '/_ml/trained_models',
     methods: ['GET'],
     description: 'List trained models',
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.10.0' } },
+    queryParams: [
+      {
+        name: 'allow_no_match',
+        type: 'boolean',
+        description: 'If false, request returns 404 when no models match',
+      },
+      {
+        name: 'decompress_definition',
+        type: 'boolean',
+        description: 'If true, the fields are decompress before returning',
+      },
+      {
+        name: 'exclude_generated',
+        type: 'boolean',
+        description: 'Indicates if certain fields should be removed from the configuration',
+      },
+      { name: 'from', type: 'integer', description: 'Skips the specified number of models' },
+      {
+        name: 'include',
+        type: 'string',
+        description: 'Comma-separated list of fields to include in results',
+      },
+      {
+        name: 'include_model_definition',
+        type: 'boolean',
+        description: 'If true, the definition field of the response is not base64 encoded',
+      },
+      { name: 'size', type: 'integer', description: 'Maximum number of models to obtain' },
+      {
+        name: 'tags',
+        type: 'string',
+        description: 'Comma-separated list of tags that the model must have',
+      },
+    ],
   },
   {
     path: '/_ml/trained_models/{model_id}',
@@ -989,6 +2330,44 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     description: 'Get or delete trained model',
     pathParams: [{ name: 'model_id', type: 'string', description: 'Model ID', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.10.0' } },
+    queryParams: [
+      {
+        name: 'allow_no_match',
+        type: 'boolean',
+        description: 'If false, request returns 404 when no models match',
+      },
+      {
+        name: 'decompress_definition',
+        type: 'boolean',
+        description: 'If true, the fields are decompress before returning',
+      },
+      {
+        name: 'exclude_generated',
+        type: 'boolean',
+        description: 'Indicates if certain fields should be removed from the configuration',
+      },
+      {
+        name: 'include',
+        type: 'string',
+        description: 'Comma-separated list of fields to include in results',
+      },
+      {
+        name: 'include_model_definition',
+        type: 'boolean',
+        description: 'If true, the definition field of the response is not base64 encoded',
+      },
+      {
+        name: 'tags',
+        type: 'string',
+        description: 'Comma-separated list of tags that the model must have',
+      },
+      {
+        name: 'force',
+        type: 'boolean',
+        description: 'If true, forcefully deletes a model that is referenced by ingest pipelines',
+      },
+      { name: 'timeout', type: 'string', description: 'Period to wait for a response' },
+    ],
   },
   {
     path: '/_ml/trained_models/{model_id}/_infer',
@@ -996,6 +2375,13 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     description: 'Infer using trained model',
     pathParams: [{ name: 'model_id', type: 'string', description: 'Model ID', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.10.0' } },
+    queryParams: [
+      {
+        name: 'timeout',
+        type: 'string',
+        description: 'Controls the amount of time to wait for inference results',
+      },
+    ],
   },
 
   // Security APIs
@@ -1004,6 +2390,13 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List users',
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.0.0' } },
+    queryParams: [
+      {
+        name: 'with_profile_uid',
+        type: 'boolean',
+        description: 'If true, retrieves the User Profile UID for the users',
+      },
+    ],
   },
   {
     path: '/_security/user/{username}',
@@ -1011,6 +2404,19 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     description: 'Manage user',
     pathParams: [{ name: 'username', type: 'string', description: 'Username', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.0.0' } },
+    queryParams: [
+      {
+        name: 'refresh',
+        type: 'string',
+        description: 'If true, refresh the affected shards after performing the operation',
+        enum: ['true', 'false', 'wait_for'],
+      },
+      {
+        name: 'with_profile_uid',
+        type: 'boolean',
+        description: 'If true, retrieves the User Profile UID for the users',
+      },
+    ],
   },
   {
     path: '/_security/role',
@@ -1024,12 +2430,44 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     description: 'Manage role',
     pathParams: [{ name: 'role', type: 'string', description: 'Role name', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.0.0' } },
+    queryParams: [
+      {
+        name: 'refresh',
+        type: 'string',
+        description: 'If true, refresh the affected shards after performing the operation',
+        enum: ['true', 'false', 'wait_for'],
+      },
+    ],
   },
   {
     path: '/_security/api_key',
     methods: ['GET', 'POST'],
     description: 'Manage API keys',
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.7.0' } },
+    queryParams: [
+      { name: 'id', type: 'string', description: 'API key id of the API key to be retrieved' },
+      { name: 'name', type: 'string', description: 'API key name of the API key to be retrieved' },
+      {
+        name: 'owner',
+        type: 'boolean',
+        description: 'If true, only return API keys owned by the currently authenticated user',
+      },
+      {
+        name: 'realm_name',
+        type: 'string',
+        description: 'Realm name of the user who created the API key',
+      },
+      {
+        name: 'username',
+        type: 'string',
+        description: 'Username of the user who created the API key',
+      },
+      {
+        name: 'with_limited_by',
+        type: 'boolean',
+        description: "Return the snapshot of the owner user's role descriptors",
+      },
+    ],
   },
 ];
 
@@ -1070,6 +2508,10 @@ const opensearchEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List anomaly detectors',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
+    queryParams: [
+      { name: 'from', type: 'integer', description: 'The number of detectors to skip' },
+      { name: 'size', type: 'integer', description: 'The number of detectors to return' },
+    ],
   },
   {
     path: '/_plugins/_anomaly_detection/detectors/{detector_id}',
@@ -1079,6 +2521,13 @@ const opensearchEndpoints: ApiEndpoint[] = [
       { name: 'detector_id', type: 'string', description: 'Detector ID', required: true },
     ],
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
+    queryParams: [
+      {
+        name: 'refresh',
+        type: 'boolean',
+        description: 'Whether to refresh the index after the operation',
+      },
+    ],
   },
 
   // Alerting
@@ -1087,6 +2536,18 @@ const opensearchEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List alerting monitors',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
+    queryParams: [
+      { name: 'from', type: 'integer', description: 'The number of monitors to skip' },
+      { name: 'size', type: 'integer', description: 'The number of monitors to return' },
+      { name: 'sortField', type: 'string', description: 'The field to sort results on' },
+      {
+        name: 'sortOrder',
+        type: 'string',
+        description: 'The order to sort results in',
+        enum: ['asc', 'desc'],
+      },
+      { name: 'search', type: 'string', description: 'Search string to filter monitors' },
+    ],
   },
   {
     path: '/_plugins/_alerting/monitors/{monitor_id}',
@@ -1094,6 +2555,23 @@ const opensearchEndpoints: ApiEndpoint[] = [
     description: 'Manage alerting monitor',
     pathParams: [{ name: 'monitor_id', type: 'string', description: 'Monitor ID', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
+    queryParams: [
+      {
+        name: 'refresh',
+        type: 'boolean',
+        description: 'Whether to refresh the index after the operation',
+      },
+      {
+        name: 'if_seq_no',
+        type: 'integer',
+        description: 'Sequence number for optimistic concurrency control',
+      },
+      {
+        name: 'if_primary_term',
+        type: 'integer',
+        description: 'Primary term for optimistic concurrency control',
+      },
+    ],
   },
 
   // Index State Management
@@ -1102,6 +2580,10 @@ const opensearchEndpoints: ApiEndpoint[] = [
     methods: ['GET'],
     description: 'List ISM policies',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
+    queryParams: [
+      { name: 'from', type: 'integer', description: 'The number of policies to skip' },
+      { name: 'size', type: 'integer', description: 'The number of policies to return' },
+    ],
   },
   {
     path: '/_plugins/_ism/policies/{policy}',
@@ -1109,6 +2591,18 @@ const opensearchEndpoints: ApiEndpoint[] = [
     description: 'Manage ISM policy',
     pathParams: [{ name: 'policy', type: 'string', description: 'Policy name', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
+    queryParams: [
+      {
+        name: 'if_seq_no',
+        type: 'integer',
+        description: 'Sequence number for optimistic concurrency control',
+      },
+      {
+        name: 'if_primary_term',
+        type: 'integer',
+        description: 'Primary term for optimistic concurrency control',
+      },
+    ],
   },
 
   // Security
@@ -1166,6 +2660,20 @@ const opensearchEndpoints: ApiEndpoint[] = [
     methods: ['POST'],
     description: 'Create asynchronous search',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
+    queryParams: [
+      { name: 'index', type: 'string', description: 'Index pattern to search' },
+      { name: 'keep_alive', type: 'string', description: 'The interval to keep the results alive' },
+      {
+        name: 'keep_on_completion',
+        type: 'boolean',
+        description: 'If true, save results in the cluster after search completes',
+      },
+      {
+        name: 'wait_for_completion_timeout',
+        type: 'string',
+        description: 'Time to wait for request completion',
+      },
+    ],
   },
   {
     path: '/_plugins/_asynchronous_search/{id}',
@@ -1277,12 +2785,23 @@ export class ApiSpecProvider {
   ): ApiEndpoint | undefined {
     const endpoints = this.getEndpoints(backend, version);
 
-    return endpoints.find(endpoint => {
+    const matches = endpoints.filter(endpoint => {
       if (method && !endpoint.methods.includes(method)) {
         return false;
       }
       return this.matchPath(endpoint.path, path);
     });
+
+    return matches.sort((a, b) => this.pathSpecificity(b.path) - this.pathSpecificity(a.path))[0];
+  }
+
+  private pathSpecificity(pattern: string): number {
+    return pattern
+      .split('/')
+      .filter(Boolean)
+      .reduce((score, part) => {
+        return score + (part.startsWith('{') && part.endsWith('}') ? 0 : 1);
+      }, 0);
   }
 
   /**

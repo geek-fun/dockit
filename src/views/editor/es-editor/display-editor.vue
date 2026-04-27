@@ -49,18 +49,24 @@ watch(
   { deep: true },
 );
 
-const display = (content: unknown) => {
+const resolveLanguage = (content: unknown, format?: string): string => {
+  if (format === 'yaml') return 'yaml';
+  if (typeof content === 'object') return 'json';
+  return 'plaintext';
+};
+
+const display = (content: unknown, format?: string) => {
   const model = displayEditor?.getModel();
   if (!model) {
     return;
   }
-  const type = typeof content === 'object' ? 'json' : 'plain/text';
+  const language = resolveLanguage(content, format);
   const indent = editorConfig.value.insertSpaces ? ' '.repeat(editorConfig.value.tabSize) : '\t';
 
   const formattedContent =
-    type === 'json' ? jsonify.stringify(content, null, indent) : (content ?? '').toString();
+    language === 'json' ? jsonify.stringify(content, null, indent) : (content ?? '').toString();
 
-  monaco.editor.setModelLanguage(model, type);
+  monaco.editor.setModelLanguage(model, language);
 
   model.setValue(formattedContent);
 };

@@ -215,7 +215,8 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
       connectionId: activeConnection.value.id,
     });
 
-    showDisplayEditor(data);
+    const format = new URLSearchParams(action.queryParams ?? '').get('format') ?? undefined;
+    showDisplayEditor(data, format);
     loadingBar.finish();
   } catch (err) {
     loadingBar.error();
@@ -530,9 +531,9 @@ const setupQueryEditor = () => {
 
 const queryEditorSize = ref(1);
 
-const showDisplayEditor = (content: unknown) => {
+const showDisplayEditor = (content: unknown, format?: string) => {
   queryEditorSize.value = queryEditorSize.value === 1 ? 0.5 : queryEditorSize.value;
-  displayRef.value.display(content);
+  displayRef.value.display(content, format);
 };
 
 const saveFileListener = ref<Function>();
