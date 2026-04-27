@@ -762,8 +762,8 @@ const provideBodyCompletions = (
       });
     }
   } else if (bodyPath[0] === 'mappings' || bodyPath[0] === 'properties') {
-    const lastSegment = bodyPath[bodyPath.length - 1];
-    if (lastSegment === 'properties') {
+    if (bodyPath.includes('properties')) {
+      // Inside a properties block at any level — provide field type completions
       const fieldTypes = getFieldTypeOptions();
       for (const fieldType of fieldTypes) {
         completions.push({
