@@ -82,6 +82,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     ScrollArea: typeof import('./src/components/ui/scroll-area/ScrollArea.vue')['default']
     ScrollBar: typeof import('./src/components/ui/scroll-area/ScrollBar.vue')['default']
+    SearchableSelect: typeof import('./src/components/ui/combobox/SearchableSelect.vue')['default']
     Select: typeof import('./src/components/ui/select/Select.vue')['default']
     SelectContent: typeof import('./src/components/ui/select/SelectContent.vue')['default']
     SelectGroup: typeof import('./src/components/ui/select/SelectGroup.vue')['default']
