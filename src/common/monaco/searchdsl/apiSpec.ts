@@ -897,7 +897,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_nodes',
     methods: ['GET'],
     description: 'Node information',
-    docPath: 'operation-cluster-nodes-info',
+    docPath: 'operation-nodes-info',
     queryParams: [
       { name: 'flat_settings', type: 'boolean', description: 'Return settings in flat format' },
       { name: 'timeout', type: 'string', description: 'Period to wait for a response' },
@@ -907,7 +907,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_nodes/stats',
     methods: ['GET'],
     description: 'Node stats',
-    docPath: 'operation-cluster-nodes-stats',
+    docPath: 'operation-nodes-stats',
     queryParams: [
       {
         name: 'completion_fields',
@@ -958,7 +958,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_nodes/hot_threads',
     methods: ['GET'],
     description: 'Hot threads',
-    docPath: 'operation-cluster-nodes-hot-threads',
+    docPath: 'operation-nodes-hot-threads',
     queryParams: [
       {
         name: 'ignore_idle_threads',
@@ -1404,7 +1404,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_snapshot/{repository}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage snapshot repository',
-    docPath: 'operation-snapshot-put-repository',
+    docPath: 'operation-snapshot-create-repository',
     pathParams: [
       { name: 'repository', type: 'string', description: 'Repository name', required: true },
     ],
@@ -1421,7 +1421,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_snapshot/{repository}/{snapshot}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage snapshot',
-    docPath: 'operation-snapshots-take-snapshot',
+    docPath: 'operation-snapshot-create',
     pathParams: [
       { name: 'repository', type: 'string', description: 'Repository name', required: true },
       { name: 'snapshot', type: 'string', description: 'Snapshot name', required: true },
@@ -1467,7 +1467,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_snapshot/{repository}/{snapshot}/_restore',
     methods: ['POST'],
     description: 'Restore snapshot',
-    docPath: 'operation-snapshots-restore-snapshot',
+    docPath: 'operation-snapshot-restore',
     pathParams: [
       { name: 'repository', type: 'string', description: 'Repository name', required: true },
       { name: 'snapshot', type: 'string', description: 'Snapshot name', required: true },
@@ -1491,7 +1491,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_tasks',
     methods: ['GET'],
     description: 'List tasks',
-    docPath: 'operation-tasks',
+    docPath: 'operation-tasks-list',
     queryParams: [
       { name: 'actions', type: 'string', description: 'Action filter' },
       { name: 'detailed', type: 'boolean', description: 'Detailed output' },
@@ -1507,7 +1507,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_tasks/{task_id}',
     methods: ['GET'],
     description: 'Get task status',
-    docPath: 'operation-tasks',
+    docPath: 'operation-tasks-get',
     pathParams: [{ name: 'task_id', type: 'string', description: 'Task ID', required: true }],
     queryParams: [
       { name: 'timeout', type: 'string', description: 'Period to wait for a response' },
@@ -1596,7 +1596,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_ingest/pipeline/_simulate',
     methods: ['GET', 'POST'],
     description: 'Simulate pipeline',
-    docPath: 'operation-ingest-simulate-pipeline',
+    docPath: 'operation-ingest-simulate',
     queryParams: [
       {
         name: 'verbose',
@@ -1611,7 +1611,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_scripts/{id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage stored script',
-    docPath: 'operation-scripts-get-script',
+    docPath: 'operation-get-script',
     pathParams: [{ name: 'id', type: 'string', description: 'Script ID', required: true }],
     queryParams: [
       {
@@ -1627,7 +1627,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_field_caps',
     methods: ['GET', 'POST'],
     description: 'Field capabilities',
-    docPath: 'operation-search-field-caps',
+    docPath: 'operation-field-caps',
     queryParams: [
       { name: 'fields', type: 'string', description: 'Fields to retrieve', required: true },
     ],
@@ -1636,7 +1636,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_field_caps',
     methods: ['GET', 'POST'],
     description: 'Field capabilities for index',
-    docPath: 'operation-search-field-caps',
+    docPath: 'operation-field-caps',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -1689,7 +1689,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_search/scroll',
     methods: ['GET', 'POST', 'DELETE'],
     description: 'Scroll search results',
-    docPath: 'operation-search-scroll',
+    docPath: 'operation-scroll',
     queryParams: [
       {
         name: 'scroll',
@@ -1716,7 +1716,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cache/clear',
     methods: ['POST'],
     description: 'Clear cluster cache',
-    docPath: 'operation-indices-clearcache',
+    docPath: 'operation-indices-clear-cache',
     queryParams: [
       {
         name: 'allow_no_indices',
@@ -1749,7 +1749,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_cache/clear',
     methods: ['POST'],
     description: 'Clear index cache',
-    docPath: 'operation-indices-clearcache',
+    docPath: 'operation-indices-clear-cache',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {

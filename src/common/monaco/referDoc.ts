@@ -133,6 +133,9 @@ const normalizeVersionForNewDocs = (version: string): string => {
 const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-search': 'search-search',
   'operation-count': 'search-count',
+  'operation-field-caps': 'search-field-caps',
+  'operation-scroll': 'search-request-scroll',
+  'operation-search-shards': 'search-shards',
   'operation-search-validate': 'search-validate',
   'operation-search-multi-search': 'search-multi-search',
   'operation-search-explain': 'search-explain',
@@ -148,16 +151,28 @@ const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
 
   'operation-indices-create': 'indices-create-index',
   'operation-indices-put-mapping': 'indices-put-mapping',
-  'operation-indices-update-settings': 'indices-update-settings',
+  'operation-indices-get-settings': 'indices-update-settings',
+  'operation-indices-put-settings': 'indices-update-settings',
   'operation-indices-open': 'indices-open-index',
   'operation-indices-refresh': 'indices-refresh',
   'operation-indices-flush': 'indices-flush',
   'operation-indices-forcemerge': 'indices-forcemerge',
   'operation-indices-update-aliases': 'indices-aliases',
-  'operation-indices-templates-v1': 'indices-templates',
-  'operation-indices-put-template': 'indices-put-template',
-  'operation-indices-component-template': 'indices-component-template',
+  'operation-indices-get-template': 'indices-templates',
+  'operation-indices-put-template': 'indices-templates',
+  'operation-indices-delete-template': 'indices-templates',
+  'operation-indices-exists-template': 'indices-templates',
+  'operation-indices-put-index-template': 'indices-put-template',
+  'operation-indices-get-index-template': 'indices-put-template',
+  'operation-cluster-get-component-template': 'indices-component-template',
+  'operation-cluster-put-component-template': 'indices-component-template',
+  'operation-cluster-delete-component-template': 'indices-component-template',
+  'operation-cluster-exists-component-template': 'indices-component-template',
   'operation-indices-analyze': 'indices-analyze',
+  'operation-indices-clear-cache': 'indices-clearcache',
+  'operation-indices-recovery': 'indices-recovery',
+  'operation-indices-segments': 'indices-segments',
+  'operation-indices-stats': 'indices-stats',
 
   'operation-cat-indices': 'cat-indices',
   'operation-cat-health': 'cat-health',
@@ -170,14 +185,61 @@ const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-cluster-health': 'cluster-health',
   'operation-cluster-state': 'cluster-state',
   'operation-cluster-stats': 'cluster-stats',
-  'operation-cluster-update-settings': 'cluster-update-settings',
+  'operation-cluster-get-settings': 'cluster-update-settings',
+  'operation-cluster-put-settings': 'cluster-update-settings',
   'operation-cluster-allocation-explain': 'cluster-allocation-explain',
   'operation-cluster-reroute': 'cluster-reroute',
-  'operation-cluster-nodes-info': 'cluster-nodes-info',
-  'operation-cluster-nodes-stats': 'cluster-nodes-stats',
-  'operation-cluster-nodes-hot-threads': 'cluster-nodes-hot-threads',
+
+  'operation-nodes-info': 'cluster-nodes-info',
+  'operation-nodes-stats': 'cluster-nodes-stats',
+  'operation-nodes-hot-threads': 'cluster-nodes-hot-threads',
+
+  'operation-tasks-list': 'tasks',
+  'operation-tasks-get': 'tasks',
+  'operation-tasks-cancel': 'tasks',
+
+  'operation-ingest-get-pipeline': 'ingest-apis',
+  'operation-ingest-put-pipeline': 'ingest-apis',
+  'operation-ingest-simulate': 'ingest-apis',
+
+  'operation-get-script': 'modules-scripting',
 
   'operation-snapshot-get-repository': 'modules-snapshots',
+  'operation-snapshot-create-repository': 'snapshots-register-repository',
+  'operation-snapshot-create': 'modules-snapshots',
+  'operation-snapshot-restore': 'snapshot-restore',
+};
+
+// Transform docPath for new docs format based on method
+const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>> = {
+  'operation-indices-update-settings': {
+    GET: 'operation-indices-get-settings',
+    PUT: 'operation-indices-put-settings',
+  },
+  'operation-cluster-update-settings': {
+    GET: 'operation-cluster-get-settings',
+    PUT: 'operation-cluster-put-settings',
+  },
+  'operation-indices-templates-v1': {
+    GET: 'operation-indices-get-template',
+    PUT: 'operation-indices-put-template',
+    DELETE: 'operation-indices-delete-template',
+    HEAD: 'operation-indices-exists-template',
+  },
+  'operation-indices-component-template': {
+    GET: 'operation-cluster-get-component-template',
+    PUT: 'operation-cluster-put-component-template',
+    DELETE: 'operation-cluster-delete-component-template',
+    HEAD: 'operation-cluster-exists-component-template',
+  },
+};
+
+const transformDocPathForMethod = (docPath: string, method: string): string => {
+  const methodMap = METHOD_TO_NEW_DOCS_OPERATION[docPath];
+  if (methodMap && methodMap[method]) {
+    return methodMap[method];
+  }
+  return docPath;
 };
 
 const transformOperationToGuidePage = (docPath: string): string => {
@@ -219,7 +281,8 @@ export const getActionApiDoc = (
   if (shouldUseNewApiDocs(version)) {
     const normalizedVersion = normalizeVersionForNewDocs(version);
     const versionPath = normalizedVersion ? `/${normalizedVersion}` : '';
-    return `${ES_NEW_API_BASE}${versionPath}/operation/${endpoint.docPath}`;
+    const newDocsOperation = transformDocPathForMethod(endpoint.docPath, action.method);
+    return `${ES_NEW_API_BASE}${versionPath}/operation/${newDocsOperation}`;
   }
 
   const guideVersion = findClosestAvailableVersion(version);
