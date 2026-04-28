@@ -72,9 +72,10 @@ const DOC_BASE_URLS: Record<BackendType, Record<DocLanguage, string>> = {
 };
 
 const getDocLanguage = (): DocLanguage => {
+  if (typeof localStorage === 'undefined') return 'en';
   const storedLang = localStorage.getItem('lang') || 'auto';
   if (storedLang === 'auto') {
-    return navigator.language === 'zh-CN' ? 'cn' : 'en';
+    return typeof navigator !== 'undefined' && navigator.language === 'zh-CN' ? 'cn' : 'en';
   }
   return storedLang === 'zhCN' ? 'cn' : 'en';
 };
