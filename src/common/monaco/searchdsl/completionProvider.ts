@@ -153,6 +153,12 @@ const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>> = {
     GET: 'operation-indices-get-alias',
     PUT: 'operation-indices-put-alias',
     DELETE: 'operation-indices-delete-alias',
+    HEAD: 'operation-indices-exists-alias',
+  },
+  'operation-scroll': {
+    GET: 'operation-scroll',
+    POST: 'operation-scroll',
+    DELETE: 'operation-clear-scroll',
   },
   'operation-ingest-put-pipeline': {
     GET: 'operation-ingest-get-pipeline',
@@ -213,6 +219,8 @@ const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-indices-get-alias': 'indices-aliases',
   'operation-indices-put-alias': 'indices-aliases',
   'operation-indices-delete-alias': 'indices-aliases',
+  'operation-indices-exists-alias': 'indices-aliases',
+  'operation-clear-scroll': 'search-request-scroll',
   'operation-cluster-get-component-template': 'indices-component-template',
   'operation-cluster-put-component-template': 'indices-component-template',
   'operation-cluster-delete-component-template': 'indices-component-template',
