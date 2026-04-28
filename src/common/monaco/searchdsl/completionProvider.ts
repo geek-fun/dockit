@@ -138,10 +138,31 @@ const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>> = {
     DELETE: 'operation-indices-delete',
     HEAD: 'operation-indices-exists',
   },
-  'operation-get': {
-    GET: 'operation-get',
-    PUT: 'operation-index',
-    DELETE: 'operation-delete',
+  'operation-indices-put-template': {
+    GET: 'operation-indices-get-index-template',
+    PUT: 'operation-indices-put-index-template',
+    DELETE: 'operation-indices-delete-index-template',
+    HEAD: 'operation-indices-exists-index-template',
+  },
+  'operation-indices-update-aliases': {
+    GET: 'operation-indices-get-alias',
+    PUT: 'operation-indices-put-alias',
+    DELETE: 'operation-indices-delete-alias',
+  },
+  'operation-ingest-put-pipeline': {
+    GET: 'operation-ingest-get-pipeline',
+    PUT: 'operation-ingest-put-pipeline',
+    DELETE: 'operation-ingest-delete-pipeline',
+  },
+  'operation-snapshot-create-repository': {
+    GET: 'operation-snapshot-get-repository',
+    PUT: 'operation-snapshot-create-repository',
+    DELETE: 'operation-snapshot-delete-repository',
+  },
+  'operation-snapshot-create': {
+    GET: 'operation-snapshot-get',
+    PUT: 'operation-snapshot-create',
+    DELETE: 'operation-snapshot-delete',
   },
 };
 
@@ -182,6 +203,11 @@ const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-indices-exists-template': 'indices-templates',
   'operation-indices-put-index-template': 'indices-put-template',
   'operation-indices-get-index-template': 'indices-put-template',
+  'operation-indices-delete-index-template': 'indices-put-template',
+  'operation-indices-exists-index-template': 'indices-put-template',
+  'operation-indices-get-alias': 'indices-aliases',
+  'operation-indices-put-alias': 'indices-aliases',
+  'operation-indices-delete-alias': 'indices-aliases',
   'operation-cluster-get-component-template': 'indices-component-template',
   'operation-cluster-put-component-template': 'indices-component-template',
   'operation-cluster-delete-component-template': 'indices-component-template',
@@ -795,7 +821,7 @@ const providePathCompletions = (
       detail: endpoint.description,
       documentation: endpoint.docPath
         ? {
-            value: `[Documentation](${buildDocUrl(currentConfig.backend, endpoint.docPath, currentConfig.version, endpoint.methods[0])})`,
+            value: `[Documentation](${buildDocUrl(currentConfig.backend, endpoint.docPath, currentConfig.version, method)})`,
             isTrusted: true,
           }
         : undefined,
