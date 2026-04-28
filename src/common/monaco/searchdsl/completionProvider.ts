@@ -43,10 +43,11 @@ export const getDynamicOptions = (): DynamicCompletionOptions => {
 
 type DocLanguage = 'en' | 'cn';
 
+const ES_NEW_API_BASE = 'https://www.elastic.co/docs/api/doc/elasticsearch';
 const DOC_BASE_URLS: Record<BackendType, Record<DocLanguage, string>> = {
   [BackendType.ELASTICSEARCH]: {
-    en: 'https://www.elastic.co/guide/en/elasticsearch/reference',
-    cn: 'https://www.elastic.co/guide/en/elasticsearch/reference',
+    en: ES_NEW_API_BASE,
+    cn: ES_NEW_API_BASE,
   },
   [BackendType.OPENSEARCH]: {
     en: 'https://docs.opensearch.org/latest',
@@ -55,16 +56,15 @@ const DOC_BASE_URLS: Record<BackendType, Record<DocLanguage, string>> = {
 };
 
 const normalizeVersion = (version: string): string => {
-  if (!version || version === 'current') return '8.10';
+  if (!version || version === 'current') return '';
   const parts = version.split('.');
-  if (parts.length < 2) return '8.10';
+  if (parts.length < 1) return '';
   const major = parseInt(parts[0], 10);
-  const minor = parseInt(parts[1], 10);
-  if (major < 7) return '8.10';
-  if (major === 7) return `7.${Math.min(minor, 17)}`;
-  if (major === 8) return `8.${Math.min(minor, 15)}`;
-  if (major >= 9) return '8.15';
-  return '8.10';
+  if (major < 7) return 'v8';
+  if (major === 7) return 'v8';
+  if (major === 8) return 'v8';
+  if (major >= 9) return 'v9';
+  return 'v8';
 };
 
 const buildDocUrl = (backend: BackendType, docPath: string, version?: string): string => {
@@ -76,7 +76,8 @@ const buildDocUrl = (backend: BackendType, docPath: string, version?: string): s
     return `${baseUrl}/${docPath}`;
   }
 
-  return `${baseUrl}/${normalizedVersion}/${docPath}`;
+  const versionPath = normalizedVersion ? `/${normalizedVersion}` : '';
+  return `${baseUrl}${versionPath}/operation/${docPath}`;
 };
 
 const httpMethods: Array<{ label: string; insertText: string }> = [
