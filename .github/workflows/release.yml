@@ -43,6 +43,7 @@ jobs:
       contents: write
     outputs:
       release_body: ${{ steps.release_notes.outputs.release_body }}
+      release_id: ${{ steps.create-release.outputs.result }}
 
     steps:
       - name: Github checkout
@@ -60,26 +61,12 @@ jobs:
             echo EOF
           } >> $GITHUB_OUTPUT
 
-  create-release:
-    name: Create Draft Release
-    needs: [check-version, prepare]
-    if: needs.check-version.outputs.is_new_version == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      release_id: ${{ steps.create-release.outputs.result }}
-
-    steps:
-      - name: Github checkout
-        uses: actions/checkout@v5
-
       - name: Create draft release
         id: create-release
         uses: actions/github-script@v7
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
-          RELEASE_BODY: ${{ needs.prepare.outputs.release_body }}
+          RELEASE_BODY: ${{ steps.release_notes.outputs.release_body }}
         with:
           script: |
             const { data } = await github.rest.repos.createRelease({
@@ -95,7 +82,7 @@ jobs:
 
   release:
     name: ${{ matrix.name }}
-    needs: [check-version, create-release]
+    needs: [check-version, prepare]
     if: needs.check-version.outputs.is_new_version == 'true'
     permissions:
       contents: write
@@ -199,13 +186,13 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           NODE_OPTIONS: --max-old-space-size=4096
         with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
+          releaseId: ${{ needs.prepare.outputs.release_id }}
           includeUpdaterJson: true
           args: ${{ matrix.args }}
 
   publish:
     name: Publish Release
-    needs: [check-version, create-release, release]
+    needs: [check-version, prepare, release]
     if: needs.check-version.outputs.is_new_version == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -214,7 +201,7 @@ jobs:
       - name: Publish draft release
         uses: actions/github-script@v7
         env:
-          release_id: ${{ needs.create-release.outputs.release_id }}
+          release_id: ${{ needs.prepare.outputs.release_id }}
         with:
           script: |
             github.rest.repos.updateRelease({
