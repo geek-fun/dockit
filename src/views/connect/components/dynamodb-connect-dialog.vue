@@ -449,7 +449,7 @@
                   />
                   <div
                     v-if="showSuggestions && filteredSuggestions.length"
-                    class="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-auto"
+                    class="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-scroll suggestion-list"
                   >
                     <button
                       v-for="name in filteredSuggestions"
@@ -1379,5 +1379,26 @@ defineExpose({ showMedal });
 <style scoped>
 .connection-mode-content {
   min-height: 260px;
+}
+
+.suggestion-list {
+  -webkit-overflow-scrolling: touch;
+}
+
+.suggestion-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.suggestion-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.suggestion-list::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.suggestion-list::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.4);
 }
 </style>

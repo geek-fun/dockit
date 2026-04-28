@@ -1499,13 +1499,49 @@ onMounted(async () => {
 .indices-table-container {
   min-height: 300px;
   max-height: 400px;
-  overflow-y: auto;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+}
+
+.indices-table-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.indices-table-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.indices-table-container::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.indices-table-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.4);
 }
 
 .templates-table-container {
   min-height: 200px;
   max-height: 300px;
-  overflow-y: auto;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+}
+
+.templates-table-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.templates-table-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.templates-table-container::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.templates-table-container::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.4);
 }
 
 /* Health dot */
