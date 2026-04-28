@@ -3,6 +3,7 @@ import { apiSpecProvider } from './apiSpec';
 import { queryDslProvider, allQueries } from './queryDsl';
 import { tokenize } from './lexer';
 import { BackendType, CompletionContext, HttpMethod, TokenType, QueryParam } from './types';
+import { getDocLanguage } from '../../../lang';
 
 export type CompletionConfig = {
   backend: BackendType;
@@ -51,15 +52,6 @@ const DOC_BASE_URLS: Record<BackendType, Record<DocLanguage, string>> = {
     en: 'https://opensearch.org/docs/latest',
     cn: 'https://opensearch.org/docs/latest',
   },
-};
-
-const getDocLanguage = (): DocLanguage => {
-  if (typeof localStorage === 'undefined') return 'en';
-  const storedLang = localStorage.getItem('lang') || 'auto';
-  if (storedLang === 'auto') {
-    return typeof navigator !== 'undefined' && navigator.language === 'zh-CN' ? 'cn' : 'en';
-  }
-  return storedLang === 'zhCN' ? 'cn' : 'en';
 };
 
 const normalizeVersion = (version: string): string => {

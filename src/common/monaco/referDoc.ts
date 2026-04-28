@@ -1,6 +1,7 @@
 import { EngineType, SearchAction } from './type';
 import { apiSpecProvider } from './searchdsl/apiSpec';
 import { BackendType, HttpMethod } from './searchdsl/types';
+import { getDocLanguage } from '../../lang';
 
 export const defaultCodeSnippet = '';
 
@@ -69,15 +70,6 @@ const DOC_BASE_URLS: Record<BackendType, Record<DocLanguage, string>> = {
     en: 'https://opensearch.org/docs/latest',
     cn: 'https://opensearch.org/docs/latest',
   },
-};
-
-const getDocLanguage = (): DocLanguage => {
-  if (typeof localStorage === 'undefined') return 'en';
-  const storedLang = localStorage.getItem('lang') || 'auto';
-  if (storedLang === 'auto') {
-    return typeof navigator !== 'undefined' && navigator.language === 'zh-CN' ? 'cn' : 'en';
-  }
-  return storedLang === 'zhCN' ? 'cn' : 'en';
 };
 
 const normalizeVersion = (version: string): string => {
