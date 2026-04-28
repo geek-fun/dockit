@@ -92,4 +92,28 @@
   [role='button']:not(:disabled) {
     cursor: pointer;
   }
+
+  /* macOS scrollable container utility */
+  /* Safari/WebKit hides scrollbars for trackpad users since macOS Lion.
+     This forces scrollbar visibility and ensures scroll interaction works. */
+  .macos-scrollable {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .macos-scrollable::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .macos-scrollable::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .macos-scrollable::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+
+  .macos-scrollable::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.4);
+  }
 }

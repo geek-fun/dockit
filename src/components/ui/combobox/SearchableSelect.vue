@@ -120,7 +120,7 @@ watch(open, async isOpen => {
       </Button>
     </PopoverTrigger>
     <PopoverContent :align="'start'" class="w-[--radix-popover-trigger-width] p-1">
-      <div class="searchable-select-list max-h-[280px] overflow-y-scroll p-1">
+      <div class="macos-scrollable max-h-[280px] overflow-y-scroll p-1">
         <div
           v-for="option in filteredOptions"
           :key="option.value"
@@ -172,26 +172,3 @@ watch(open, async isOpen => {
     </PopoverContent>
   </Popover>
 </template>
-
-<style scoped>
-.searchable-select-list {
-  -webkit-overflow-scrolling: touch;
-}
-
-.searchable-select-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.searchable-select-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.searchable-select-list::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-}
-
-.searchable-select-list::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(0, 0, 0, 0.4);
-}
-</style>
