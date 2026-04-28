@@ -282,7 +282,7 @@
             </div>
           </CardHeader>
           <CardContent class="p-0">
-            <div class="table-container indices-table-container">
+            <div class="table-container indices-table-container macos-scrollable">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -482,7 +482,7 @@
             </div>
           </CardHeader>
           <CardContent class="p-0">
-            <div class="table-container templates-table-container">
+            <div class="table-container templates-table-container macos-scrollable">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1499,13 +1499,13 @@ onMounted(async () => {
 .indices-table-container {
   min-height: 300px;
   max-height: 400px;
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 
 .templates-table-container {
   min-height: 200px;
   max-height: 300px;
-  overflow-y: auto;
+  overflow-y: scroll;
 }
 
 /* Health dot */

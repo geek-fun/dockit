@@ -119,8 +119,8 @@ watch(open, async isOpen => {
         </template>
       </Button>
     </PopoverTrigger>
-    <PopoverContent :align="'start'" class="w-[--radix-popover-trigger-width] p-1">
-      <div class="max-h-[280px] overflow-y-auto p-1">
+    <PopoverContent :align="'start'" class="w-[--radix-popover-trigger-width] p-0">
+      <div class="macos-scrollable max-h-[280px] overflow-y-scroll">
         <div
           v-for="option in filteredOptions"
           :key="option.value"
