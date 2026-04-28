@@ -137,6 +137,7 @@ const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-scroll': 'search-request-scroll',
   'operation-search-shards': 'search-shards',
   'operation-validate': 'search-validate',
+  'operation-indices-validate-query': 'search-validate',
   'operation-msearch': 'search-multi-search',
   'operation-explain': 'search-explain',
   'operation-terms-enum': 'search-terms-enum',
