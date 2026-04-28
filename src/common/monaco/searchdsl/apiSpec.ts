@@ -25,7 +25,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'POST'],
     description: 'Execute a search query',
     descriptionKey: 'grammar.search',
-    docUrl: 'https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html',
+    docPath: 'search-search.html',
     queryParams: [
       { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
       { name: 'df', type: 'string', description: 'Default field for query string' },
@@ -96,6 +96,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'POST'],
     description: 'Execute a search query on a specific index',
     descriptionKey: 'grammar.searchIndex',
+    docPath: 'search-search.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name(s)', required: true }],
     queryParams: [
       { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
@@ -135,6 +136,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'POST'],
     description: 'Count documents matching a query',
     descriptionKey: 'grammar.count',
+    docPath: 'search-count.html',
     queryParams: [
       { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
       { name: 'df', type: 'string', description: 'Default field for query string' },
@@ -153,6 +155,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'POST'],
     description: 'Count documents in a specific index',
     descriptionKey: 'grammar.countIndex',
+    docPath: 'search-count.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name(s)', required: true }],
     queryParams: [
       { name: 'q', type: 'string', description: 'Query in the Lucene query string syntax' },
@@ -174,6 +177,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['POST'],
     description: 'Index a document',
     descriptionKey: 'grammar.indexDoc',
+    docPath: 'docs-index_.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       { name: 'routing', type: 'string', description: 'Routing value' },
@@ -192,6 +196,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Get, index, or delete a document by ID',
     descriptionKey: 'grammar.getDoc',
+    docPath: 'docs-get.html',
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'id', type: 'string', description: 'Document ID', required: true },
@@ -220,6 +225,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['POST'],
     description: 'Update a document',
     descriptionKey: 'grammar.updateDoc',
+    docPath: 'docs-update.html',
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'id', type: 'string', description: 'Document ID', required: true },
@@ -242,6 +248,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['POST'],
     description: 'Perform multiple index/delete/update operations in a single request',
     descriptionKey: 'grammar.bulk',
+    docPath: 'docs-bulk.html',
     queryParams: [
       {
         name: 'refresh',
@@ -258,6 +265,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_bulk',
     methods: ['POST'],
     description: 'Perform bulk operations on a specific index',
+    docPath: 'docs-bulk.html',
     pathParams: [
       { name: 'index', type: 'string', description: 'Default index name', required: true },
     ],
@@ -279,12 +287,14 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}',
     methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
     description: 'Manage an index',
+    docPath: 'indices-create-index.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
   },
   {
     path: '/{index}/_mapping',
     methods: ['GET', 'PUT'],
     description: 'Get or update index mappings',
+    docPath: 'indices-put-mapping.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -326,6 +336,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_settings',
     methods: ['GET', 'PUT'],
     description: 'Get or update index settings',
+    docPath: 'indices-update-settings.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -369,6 +380,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_open',
     methods: ['POST'],
     description: 'Open a closed index',
+    docPath: 'indices-open-close.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -405,6 +417,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_close',
     methods: ['POST'],
     description: 'Close an index',
+    docPath: 'indices-open-close.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -441,6 +454,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_refresh',
     methods: ['POST'],
     description: 'Refresh an index',
+    docPath: 'indices-refresh.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -466,6 +480,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_flush',
     methods: ['POST'],
     description: 'Flush an index',
+    docPath: 'indices-flush.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -501,6 +516,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_forcemerge',
     methods: ['POST'],
     description: 'Force merge an index',
+    docPath: 'indices-forcemerge.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       { name: 'max_num_segments', type: 'integer', description: 'Maximum number of segments' },
@@ -514,6 +530,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_aliases',
     methods: ['GET', 'POST'],
     description: 'Manage index aliases',
+    docPath: 'indices-aliases.html',
     requestBody: {
       properties: {
         actions: {
@@ -535,6 +552,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_alias/{alias}',
     methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
     description: 'Manage a specific alias',
+    docPath: 'indices-aliases.html',
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'alias', type: 'string', description: 'Alias name', required: true },
@@ -568,6 +586,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_alias',
     methods: ['GET'],
     description: 'Get all aliases for an index',
+    docPath: 'indices-aliases.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -595,6 +614,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cat/indices',
     methods: ['GET'],
     description: 'List indices',
+    docPath: 'cat-indices.html',
     queryParams: [
       {
         name: 'format',
@@ -617,6 +637,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cat/health',
     methods: ['GET'],
     description: 'Cluster health',
+    docPath: 'cat-health.html',
     queryParams: [
       {
         name: 'format',
@@ -631,6 +652,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cat/nodes',
     methods: ['GET'],
     description: 'List nodes',
+    docPath: 'cat-nodes.html',
     queryParams: [
       {
         name: 'format',
@@ -646,6 +668,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cat/shards',
     methods: ['GET'],
     description: 'List shards',
+    docPath: 'cat-shards.html',
     queryParams: [
       {
         name: 'format',
@@ -661,6 +684,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cat/aliases',
     methods: ['GET'],
     description: 'List aliases',
+    docPath: 'cat-aliases.html',
     queryParams: [
       {
         name: 'format',
@@ -675,6 +699,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cat/templates',
     methods: ['GET'],
     description: 'List templates',
+    docPath: 'cat-templates.html',
     queryParams: [
       {
         name: 'format',
@@ -689,6 +714,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cat/allocation',
     methods: ['GET'],
     description: 'Shard allocation',
+    docPath: 'cat-allocation.html',
     queryParams: [
       {
         name: 'format',
@@ -705,6 +731,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cluster/health',
     methods: ['GET'],
     description: 'Cluster health',
+    docPath: 'cluster-health.html',
     queryParams: [
       {
         name: 'wait_for_status',
@@ -725,6 +752,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cluster/state',
     methods: ['GET'],
     description: 'Cluster state',
+    docPath: 'cluster-state.html',
     queryParams: [
       {
         name: 'allow_no_indices',
@@ -770,6 +798,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cluster/stats',
     methods: ['GET'],
     description: 'Cluster stats',
+    docPath: 'cluster-stats.html',
     queryParams: [
       {
         name: 'include_remotes',
@@ -783,6 +812,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cluster/settings',
     methods: ['GET', 'PUT'],
     description: 'Cluster settings',
+    docPath: 'cluster-update-settings.html',
     queryParams: [
       { name: 'flat_settings', type: 'boolean', description: 'Return settings in flat format' },
       {
@@ -808,6 +838,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cluster/allocation/explain',
     methods: ['GET', 'POST'],
     description: 'Explain shard allocation',
+    docPath: 'cluster-allocation-explain.html',
     queryParams: [
       {
         name: 'include_disk_info',
@@ -830,6 +861,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cluster/reroute',
     methods: ['POST'],
     description: 'Reroute shards',
+    docPath: 'cluster-reroute.html',
     queryParams: [
       {
         name: 'dry_run',
@@ -865,6 +897,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_nodes',
     methods: ['GET'],
     description: 'Node information',
+    docPath: 'cluster-nodes-info.html',
     queryParams: [
       { name: 'flat_settings', type: 'boolean', description: 'Return settings in flat format' },
       { name: 'timeout', type: 'string', description: 'Period to wait for a response' },
@@ -874,6 +907,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_nodes/stats',
     methods: ['GET'],
     description: 'Node stats',
+    docPath: 'cluster-nodes-stats.html',
     queryParams: [
       {
         name: 'completion_fields',
@@ -924,6 +958,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_nodes/hot_threads',
     methods: ['GET'],
     description: 'Hot threads',
+    docPath: 'cluster-nodes-hot-threads.html',
     queryParams: [
       {
         name: 'ignore_idle_threads',
@@ -960,6 +995,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_template/{template}',
     methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
     description: 'Index templates (legacy)',
+    docPath: 'indices-templates-v1.html',
     pathParams: [
       { name: 'template', type: 'string', description: 'Template name', required: true },
     ],
@@ -977,6 +1013,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_index_template/{template}',
     methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
     description: 'Index templates (composable)',
+    docPath: 'indices-put-template.html',
     pathParams: [
       { name: 'template', type: 'string', description: 'Template name', required: true },
     ],
@@ -999,6 +1036,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_component_template/{template}',
     methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
     description: 'Component templates',
+    docPath: 'indices-component-template.html',
     pathParams: [
       { name: 'template', type: 'string', description: 'Template name', required: true },
     ],
@@ -1023,6 +1061,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_analyze',
     methods: ['GET', 'POST'],
     description: 'Analyze text',
+    docPath: 'indices-analyze.html',
     requestBody: {
       properties: {
         analyzer: { type: 'string', description: 'Analyzer name' },
@@ -1038,6 +1077,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_analyze',
     methods: ['GET', 'POST'],
     description: 'Analyze text using index analyzer',
+    docPath: 'indices-analyze.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       { name: 'index', type: 'string', description: 'Index used to derive the analyzer' },
@@ -1049,6 +1089,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_validate/query',
     methods: ['GET', 'POST'],
     description: 'Validate a query',
+    docPath: 'search-validate.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -1114,6 +1155,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_msearch',
     methods: ['GET', 'POST'],
     description: 'Execute multiple searches in one request',
+    docPath: 'search-multi-search.html',
     queryParams: [
       {
         name: 'max_concurrent_searches',
@@ -1157,6 +1199,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_msearch',
     methods: ['GET', 'POST'],
     description: 'Multi search on specific index',
+    docPath: 'search-multi-search.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -1203,6 +1246,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_explain/{id}',
     methods: ['GET', 'POST'],
     description: 'Explain document scoring',
+    docPath: 'search-explain.html',
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'id', type: 'string', description: 'Document ID', required: true },
@@ -1253,6 +1297,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_terms_enum',
     methods: ['GET', 'POST'],
     description: 'Get matching terms from an index',
+    docPath: 'search-terms-enum.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     requestBody: {
       properties: {
@@ -1272,6 +1317,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_reindex',
     methods: ['POST'],
     description: 'Reindex documents',
+    docPath: 'docs-reindex.html',
     queryParams: [
       { name: 'refresh', type: 'boolean', description: 'Refresh after reindex' },
       { name: 'timeout', type: 'string', description: 'Operation timeout' },
@@ -1295,6 +1341,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_update_by_query',
     methods: ['POST'],
     description: 'Update documents by query',
+    docPath: 'docs-update-by-query.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       { name: 'refresh', type: 'boolean', description: 'Refresh after update' },
@@ -1319,6 +1366,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_delete_by_query',
     methods: ['POST'],
     description: 'Delete documents by query',
+    docPath: 'docs-delete-by-query.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       { name: 'refresh', type: 'boolean', description: 'Refresh after delete' },
@@ -1342,6 +1390,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_snapshot',
     methods: ['GET'],
     description: 'List snapshot repositories',
+    docPath: 'snapshot-get-repository.html',
     queryParams: [
       { name: 'local', type: 'boolean', description: 'Return information from local node only' },
       {
@@ -1355,6 +1404,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_snapshot/{repository}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage snapshot repository',
+    docPath: 'snapshot-put-repository.html',
     pathParams: [
       { name: 'repository', type: 'string', description: 'Repository name', required: true },
     ],
@@ -1371,6 +1421,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_snapshot/{repository}/{snapshot}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage snapshot',
+    docPath: 'snapshots-take-snapshot.html',
     pathParams: [
       { name: 'repository', type: 'string', description: 'Repository name', required: true },
       { name: 'snapshot', type: 'string', description: 'Snapshot name', required: true },
@@ -1416,6 +1467,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_snapshot/{repository}/{snapshot}/_restore',
     methods: ['POST'],
     description: 'Restore snapshot',
+    docPath: 'snapshots-restore-snapshot.html',
     pathParams: [
       { name: 'repository', type: 'string', description: 'Repository name', required: true },
       { name: 'snapshot', type: 'string', description: 'Snapshot name', required: true },
@@ -1439,6 +1491,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_tasks',
     methods: ['GET'],
     description: 'List tasks',
+    docPath: 'tasks.html',
     queryParams: [
       { name: 'actions', type: 'string', description: 'Action filter' },
       { name: 'detailed', type: 'boolean', description: 'Detailed output' },
@@ -1454,6 +1507,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_tasks/{task_id}',
     methods: ['GET'],
     description: 'Get task status',
+    docPath: 'tasks.html',
     pathParams: [{ name: 'task_id', type: 'string', description: 'Task ID', required: true }],
     queryParams: [
       { name: 'timeout', type: 'string', description: 'Period to wait for a response' },
@@ -1468,6 +1522,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_tasks/{task_id}/_cancel',
     methods: ['POST'],
     description: 'Cancel task',
+    docPath: 'tasks-cancel.html',
     pathParams: [{ name: 'task_id', type: 'string', description: 'Task ID', required: true }],
     queryParams: [
       {
@@ -1498,6 +1553,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_ingest/pipeline',
     methods: ['GET'],
     description: 'List ingest pipelines',
+    docPath: 'ingest-get-pipeline.html',
     queryParams: [
       {
         name: 'master_timeout',
@@ -1515,6 +1571,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_ingest/pipeline/{pipeline}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage ingest pipeline',
+    docPath: 'ingest-put-pipeline.html',
     pathParams: [{ name: 'pipeline', type: 'string', description: 'Pipeline ID', required: true }],
     queryParams: [
       {
@@ -1539,6 +1596,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_ingest/pipeline/_simulate',
     methods: ['GET', 'POST'],
     description: 'Simulate pipeline',
+    docPath: 'ingest-simulate-pipeline.html',
     queryParams: [
       {
         name: 'verbose',
@@ -1553,6 +1611,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_scripts/{id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage stored script',
+    docPath: 'scripts-get-script.html',
     pathParams: [{ name: 'id', type: 'string', description: 'Script ID', required: true }],
     queryParams: [
       {
@@ -1568,6 +1627,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_field_caps',
     methods: ['GET', 'POST'],
     description: 'Field capabilities',
+    docPath: 'search-field-caps.html',
     queryParams: [
       { name: 'fields', type: 'string', description: 'Fields to retrieve', required: true },
     ],
@@ -1576,6 +1636,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_field_caps',
     methods: ['GET', 'POST'],
     description: 'Field capabilities for index',
+    docPath: 'search-field-caps.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -1628,6 +1689,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_search/scroll',
     methods: ['GET', 'POST', 'DELETE'],
     description: 'Scroll search results',
+    docPath: 'search-scroll.html',
     queryParams: [
       {
         name: 'scroll',
@@ -1654,6 +1716,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_cache/clear',
     methods: ['POST'],
     description: 'Clear cluster cache',
+    docPath: 'indices-clearcache.html',
     queryParams: [
       {
         name: 'allow_no_indices',
@@ -1686,6 +1749,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_cache/clear',
     methods: ['POST'],
     description: 'Clear index cache',
+    docPath: 'indices-clearcache.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -1721,6 +1785,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_recovery',
     methods: ['GET'],
     description: 'Index recovery status',
+    docPath: 'indices-recovery.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -1758,6 +1823,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_segments',
     methods: ['GET'],
     description: 'Index segments',
+    docPath: 'indices-segments.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -1785,6 +1851,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_stats',
     methods: ['GET'],
     description: 'Cluster statistics',
+    docPath: 'indices-stats.html',
     queryParams: [
       {
         name: 'completion_fields',
@@ -1840,6 +1907,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_stats',
     methods: ['GET'],
     description: 'Index statistics',
+    docPath: 'indices-stats.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -1898,6 +1966,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_search_shards',
     methods: ['GET', 'POST'],
     description: 'Search shards routing',
+    docPath: 'search-shards.html',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {

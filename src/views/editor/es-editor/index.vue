@@ -482,7 +482,8 @@ const setupQueryEditor = () => {
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
     const action = getAction(queryEditor!.getPosition());
     if (!action) return;
-    const docLink = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action as SearchAction);
+    const version = activeConnection.value?.version || 'current';
+    const docLink = getActionApiDoc(EngineType.ELASTICSEARCH, version, action as SearchAction);
     if (docLink) open(docLink);
   });
 
