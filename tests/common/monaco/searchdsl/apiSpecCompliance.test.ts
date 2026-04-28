@@ -60,7 +60,7 @@ const suggestionsFor = (text: string) => {
 
 const labelsFor = (text: string) => suggestionsFor(text).map(s => s.label);
 
-const concretePath = (pattern: string): string =>
+const _concretePath = (pattern: string): string =>
   pattern
     .replace(/\{index\}/g, 'my_index')
     .replace(/\{id\}/g, '1')

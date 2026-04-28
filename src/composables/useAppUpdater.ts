@@ -36,6 +36,7 @@ export function useAppUpdater() {
       }
       return null;
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Failed to check for updates:', error);
       if (showMessage) {
         message.error(lang.global.t('version.checkFailed'));
@@ -80,6 +81,7 @@ export function useAppUpdater() {
         }
       });
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Update download/install failed:', error);
       message.error(lang.global.t('version.updateFailed'));
       isDownloading.value = false;
