@@ -196,7 +196,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Get, index, or delete a document by ID',
     descriptionKey: 'grammar.getDoc',
-    docPath: 'operation-docs-get',
+    docPath: 'operation-get',
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'id', type: 'string', description: 'Document ID', required: true },
@@ -225,7 +225,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['POST'],
     description: 'Update a document',
     descriptionKey: 'grammar.updateDoc',
-    docPath: 'operation-docs-update',
+    docPath: 'operation-update',
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'id', type: 'string', description: 'Document ID', required: true },
@@ -248,7 +248,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['POST'],
     description: 'Perform multiple index/delete/update operations in a single request',
     descriptionKey: 'grammar.bulk',
-    docPath: 'operation-docs-bulk',
+    docPath: 'operation-bulk',
     queryParams: [
       {
         name: 'refresh',
@@ -265,7 +265,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_bulk',
     methods: ['POST'],
     description: 'Perform bulk operations on a specific index',
-    docPath: 'operation-docs-bulk',
+    docPath: 'operation-bulk',
     pathParams: [
       { name: 'index', type: 'string', description: 'Default index name', required: true },
     ],
@@ -530,7 +530,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_aliases',
     methods: ['GET', 'POST'],
     description: 'Manage index aliases',
-    docPath: 'operation-indices-aliases',
+    docPath: 'operation-indices-update-aliases',
     requestBody: {
       properties: {
         actions: {
@@ -552,7 +552,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_alias/{alias}',
     methods: ['GET', 'PUT', 'DELETE', 'HEAD'],
     description: 'Manage a specific alias',
-    docPath: 'operation-indices-aliases',
+    docPath: 'operation-indices-update-aliases',
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'alias', type: 'string', description: 'Alias name', required: true },
@@ -586,7 +586,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_alias',
     methods: ['GET'],
     description: 'Get all aliases for an index',
-    docPath: 'operation-indices-aliases',
+    docPath: 'operation-indices-update-aliases',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -1317,7 +1317,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_reindex',
     methods: ['POST'],
     description: 'Reindex documents',
-    docPath: 'operation-docs-reindex',
+    docPath: 'operation-reindex',
     queryParams: [
       { name: 'refresh', type: 'boolean', description: 'Refresh after reindex' },
       { name: 'timeout', type: 'string', description: 'Operation timeout' },
@@ -1341,7 +1341,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_update_by_query',
     methods: ['POST'],
     description: 'Update documents by query',
-    docPath: 'operation-docs-update-by-query',
+    docPath: 'operation-update-by-query',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       { name: 'refresh', type: 'boolean', description: 'Refresh after update' },
@@ -1366,7 +1366,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_delete_by_query',
     methods: ['POST'],
     description: 'Delete documents by query',
-    docPath: 'operation-docs-delete-by-query',
+    docPath: 'operation-delete-by-query',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       { name: 'refresh', type: 'boolean', description: 'Refresh after delete' },

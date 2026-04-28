@@ -76,7 +76,7 @@ describe('referDoc', () => {
         const action = createSearchAction('POST', '_reindex');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action);
         expect(result).toBe(
-          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-docs-reindex',
+          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-reindex',
         );
       });
 
@@ -151,7 +151,7 @@ describe('referDoc', () => {
         const action = createSearchAction('POST', '_bulk');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action);
         expect(result).toBe(
-          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-docs-bulk',
+          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-bulk',
         );
       });
 
@@ -159,7 +159,7 @@ describe('referDoc', () => {
         const action = createSearchAction('POST', '_aliases');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action);
         expect(result).toBe(
-          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-indices-aliases',
+          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-indices-update-aliases',
         );
       });
     });

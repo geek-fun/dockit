@@ -122,13 +122,15 @@ const OPENSEARCH_API_CATEGORIES: Record<string, string> = {
   explain: 'search-apis',
   validate: 'search-apis',
   indices: 'index-apis',
-  docs: 'index-apis',
-  bulk: 'index-apis',
-  reindex: 'index-apis',
-  cluster: 'cluster-apis',
-  nodes: 'cluster-apis',
+  docs: 'document-apis',
+  bulk: 'document-apis',
+  reindex: 'document-apis',
+  update: 'document-apis',
+  delete: 'document-apis',
+  cluster: 'cluster-api',
+  nodes: 'cluster-api',
   cat: 'cat',
-  aliases: 'index-apis',
+  aliases: 'alias',
   templates: 'index-apis',
   settings: 'index-apis',
   mapping: 'index-apis',
@@ -138,13 +140,10 @@ const OPENSEARCH_API_CATEGORIES: Record<string, string> = {
 const OPENSEARCH_API_NAME_FIXES: Record<string, string> = {
   'indices-put-mapping': 'put-mapping',
   'indices-update-settings': 'update-settings',
-  'indices-aliases': 'aliases-api',
-  'docs-get': 'get',
-  'docs-update': 'update',
-  'docs-bulk': 'bulk',
-  'docs-reindex': 'reindex',
-  'docs-update-by-query': 'update-by-query',
-  'docs-delete-by-query': 'delete-by-query',
+  'indices-update-aliases': 'aliases-api',
+  'indices-create': 'create-index',
+  get: 'get-documents',
+  update: 'update-document',
   'search-validate': 'validate',
   'search-multi-search': 'multi-search',
   'search-explain': 'explain',
@@ -158,13 +157,6 @@ const OPENSEARCH_API_NAME_FIXES: Record<string, string> = {
   'cluster-nodes-info': 'nodes-info',
   'cluster-nodes-stats': 'nodes-stats',
   'cluster-nodes-hot-threads': 'nodes-hot-threads',
-  'cat-indices': 'indices',
-  'cat-health': 'health',
-  'cat-nodes': 'nodes',
-  'cat-shards': 'shards',
-  'cat-aliases': 'aliases',
-  'cat-templates': 'templates',
-  'cat-allocation': 'allocation',
   'indices-templates-v1': 'templates',
   'indices-put-template': 'put-template',
   'indices-component-template': 'component-templates',
@@ -181,7 +173,7 @@ const transformDocPathForOpenSearch = (docPath: string): string => {
 
   const apiName = OPENSEARCH_API_NAME_FIXES[name] || name;
 
-  if (name === 'indices-aliases') {
+  if (name === 'indices-update-aliases') {
     category = 'alias';
   }
 
