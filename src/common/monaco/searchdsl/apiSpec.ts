@@ -1089,7 +1089,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_validate/query',
     methods: ['GET', 'POST'],
     description: 'Validate a query',
-    docPath: 'operation-search-validate',
+    docPath: 'operation-indices-validate-query',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -1155,7 +1155,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/_msearch',
     methods: ['GET', 'POST'],
     description: 'Execute multiple searches in one request',
-    docPath: 'operation-search-multi-search',
+    docPath: 'operation-msearch',
     queryParams: [
       {
         name: 'max_concurrent_searches',
@@ -1199,7 +1199,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_msearch',
     methods: ['GET', 'POST'],
     description: 'Multi search on specific index',
-    docPath: 'operation-search-multi-search',
+    docPath: 'operation-msearch',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {
@@ -1246,7 +1246,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_explain/{id}',
     methods: ['GET', 'POST'],
     description: 'Explain document scoring',
-    docPath: 'operation-search-explain',
+    docPath: 'operation-explain',
     pathParams: [
       { name: 'index', type: 'string', description: 'Index name', required: true },
       { name: 'id', type: 'string', description: 'Document ID', required: true },
@@ -1297,7 +1297,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_terms_enum',
     methods: ['GET', 'POST'],
     description: 'Get matching terms from an index',
-    docPath: 'operation-search-terms-enum',
+    docPath: 'operation-terms-enum',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     requestBody: {
       properties: {
