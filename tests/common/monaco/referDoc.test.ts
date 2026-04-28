@@ -1,6 +1,5 @@
 import { getActionApiDoc } from '../../../src/common/monaco/referDoc';
 import { EngineType } from '../../../src/common/monaco/type';
-import { BackendType } from '../../../src/common/monaco/searchdsl/types';
 
 jest.mock('monaco-editor', () => ({
   self: { MonacoEnvironment: {} },
@@ -60,31 +59,41 @@ describe('referDoc', () => {
       it('should return doc URL for _cat/indices', () => {
         const action = createSearchAction('GET', '_cat/indices');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action);
-        expect(result).toBe('https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-cat-indices');
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-cat-indices',
+        );
       });
 
       it('should return doc URL with version for _search', () => {
         const action = createSearchAction('GET', 'my-index/_search');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
-        expect(result).toBe('https://www.elastic.co/docs/api/doc/elasticsearch/v8/operation/operation-search');
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/v8/operation/operation-search',
+        );
       });
 
       it('should return doc URL for _reindex', () => {
         const action = createSearchAction('POST', '_reindex');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action);
-        expect(result).toBe('https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-docs-reindex');
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-docs-reindex',
+        );
       });
 
       it('should return doc URL for _settings', () => {
         const action = createSearchAction('GET', 'my-index/_settings');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, '7.17', action);
-        expect(result).toBe('https://www.elastic.co/docs/api/doc/elasticsearch/v8/operation/operation-indices-update-settings');
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/v8/operation/operation-indices-update-settings',
+        );
       });
 
       it('should return doc URL for _cluster/health', () => {
         const action = createSearchAction('GET', '_cluster/health');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action);
-        expect(result).toBe('https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-cluster-health');
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-cluster-health',
+        );
       });
 
       it('should return undefined for unknown path', () => {
@@ -102,13 +111,17 @@ describe('referDoc', () => {
       it('should handle empty version with no version path', () => {
         const action = createSearchAction('GET', '_search');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, '', action);
-        expect(result).toBe('https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-search');
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-search',
+        );
       });
 
       it('should use v9 for ES 9.x versions', () => {
         const action = createSearchAction('GET', '_search');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, '9.2.0', action);
-        expect(result).toBe('https://www.elastic.co/docs/api/doc/elasticsearch/v9/operation/operation-search');
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/v9/operation/operation-search',
+        );
       });
 
       it('should use v8 for ES 7.x versions', () => {
@@ -121,25 +134,33 @@ describe('referDoc', () => {
         mockLocalStorage('zhCN');
         const action = createSearchAction('GET', '_cat/indices');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action);
-        expect(result).toBe('https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-cat-indices');
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-cat-indices',
+        );
       });
 
       it('should return doc URL for PUT _mapping', () => {
         const action = createSearchAction('PUT', 'my-index/_mapping');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
-        expect(result).toBe('https://www.elastic.co/docs/api/doc/elasticsearch/v8/operation/operation-indices-put-mapping');
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/v8/operation/operation-indices-put-mapping',
+        );
       });
 
       it('should return doc URL for POST _bulk', () => {
         const action = createSearchAction('POST', '_bulk');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action);
-        expect(result).toBe('https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-docs-bulk');
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-docs-bulk',
+        );
       });
 
       it('should return doc URL for _aliases', () => {
         const action = createSearchAction('POST', '_aliases');
         const result = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action);
-        expect(result).toBe('https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-indices-aliases');
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-indices-aliases',
+        );
       });
     });
 
