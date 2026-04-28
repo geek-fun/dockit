@@ -138,6 +138,11 @@ const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>> = {
     DELETE: 'operation-indices-delete',
     HEAD: 'operation-indices-exists',
   },
+  'operation-get': {
+    GET: 'operation-get',
+    PUT: 'operation-index',
+    DELETE: 'operation-delete',
+  },
   'operation-indices-put-template': {
     GET: 'operation-indices-get-index-template',
     PUT: 'operation-indices-put-index-template',
