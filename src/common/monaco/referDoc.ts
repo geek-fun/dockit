@@ -107,9 +107,83 @@ export const getActionApiDoc = (
   const normalizedVersion = normalizeVersion(version);
 
   if (backend === BackendType.OPENSEARCH) {
-    return `${baseUrl}/${endpoint.docPath}`;
+    const osPath = transformDocPathForOpenSearch(endpoint.docPath);
+    return `${baseUrl}/${osPath}`;
   }
 
   const versionPath = normalizedVersion ? `/${normalizedVersion}` : '';
   return `${baseUrl}${versionPath}/operation/${endpoint.docPath}`;
+};
+
+const OPENSEARCH_API_CATEGORIES: Record<string, string> = {
+  search: 'search-apis',
+  count: 'search-apis',
+  msearch: 'search-apis',
+  explain: 'search-apis',
+  validate: 'search-apis',
+  indices: 'index-apis',
+  docs: 'index-apis',
+  bulk: 'index-apis',
+  reindex: 'index-apis',
+  cluster: 'cluster-apis',
+  nodes: 'cluster-apis',
+  cat: 'cat',
+  aliases: 'index-apis',
+  templates: 'index-apis',
+  settings: 'index-apis',
+  mapping: 'index-apis',
+  analyze: 'index-apis',
+};
+
+const OPENSEARCH_API_NAME_FIXES: Record<string, string> = {
+  'indices-put-mapping': 'put-mapping',
+  'indices-update-settings': 'update-settings',
+  'indices-aliases': 'aliases-api',
+  'docs-get': 'get',
+  'docs-update': 'update',
+  'docs-bulk': 'bulk',
+  'docs-reindex': 'reindex',
+  'docs-update-by-query': 'update-by-query',
+  'docs-delete-by-query': 'delete-by-query',
+  'search-validate': 'validate',
+  'search-multi-search': 'multi-search',
+  'search-explain': 'explain',
+  'search-terms-enum': 'terms-enum',
+  'cluster-health': 'cluster-health',
+  'cluster-state': 'cluster-state',
+  'cluster-stats': 'cluster-stats',
+  'cluster-update-settings': 'cluster-settings',
+  'cluster-allocation-explain': 'cluster-allocation',
+  'cluster-reroute': 'cluster-reroute',
+  'cluster-nodes-info': 'nodes-info',
+  'cluster-nodes-stats': 'nodes-stats',
+  'cluster-nodes-hot-threads': 'nodes-hot-threads',
+  'cat-indices': 'indices',
+  'cat-health': 'health',
+  'cat-nodes': 'nodes',
+  'cat-shards': 'shards',
+  'cat-aliases': 'aliases',
+  'cat-templates': 'templates',
+  'cat-allocation': 'allocation',
+  'indices-templates-v1': 'templates',
+  'indices-put-template': 'put-template',
+  'indices-component-template': 'component-templates',
+  'indices-analyze': 'analyze',
+  'snapshot-get-repository': 'snapshot-repository',
+};
+
+const transformDocPathForOpenSearch = (docPath: string): string => {
+  const name = docPath.replace(/^operation-/, '');
+  const parts = name.split('-');
+  const categoryKey = parts[0];
+
+  let category = OPENSEARCH_API_CATEGORIES[categoryKey] || `${categoryKey}-apis`;
+
+  const apiName = OPENSEARCH_API_NAME_FIXES[name] || name;
+
+  if (name === 'indices-aliases') {
+    category = 'alias';
+  }
+
+  return `api-reference/${category}/${apiName}/`;
 };
