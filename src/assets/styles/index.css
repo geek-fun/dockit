@@ -101,7 +101,7 @@
   }
 
   .macos-scrollable::-webkit-scrollbar {
-    width: 6px;
+    width: 3px;
   }
 
   .macos-scrollable::-webkit-scrollbar-track {
