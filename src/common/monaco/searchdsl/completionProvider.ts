@@ -46,19 +46,25 @@ type DocLanguage = 'en' | 'cn';
 const DOC_BASE_URLS: Record<BackendType, Record<DocLanguage, string>> = {
   [BackendType.ELASTICSEARCH]: {
     en: 'https://www.elastic.co/guide/en/elasticsearch/reference',
-    cn: 'https://www.elastic.co/guide/cn/elasticsearch/reference',
+    cn: 'https://www.elastic.co/guide/en/elasticsearch/reference',
   },
   [BackendType.OPENSEARCH]: {
-    en: 'https://opensearch.org/docs/latest',
-    cn: 'https://opensearch.org/docs/latest',
+    en: 'https://docs.opensearch.org/latest',
+    cn: 'https://docs.opensearch.org/latest',
   },
 };
 
 const normalizeVersion = (version: string): string => {
-  if (!version || version === 'current') return 'current';
+  if (!version || version === 'current') return '8.10';
   const parts = version.split('.');
-  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
-  return version;
+  if (parts.length < 2) return '8.10';
+  const major = parseInt(parts[0], 10);
+  const minor = parseInt(parts[1], 10);
+  if (major < 7) return '8.10';
+  if (major === 7) return `7.${Math.min(minor, 17)}`;
+  if (major === 8) return `8.${Math.min(minor, 15)}`;
+  if (major >= 9) return '8.15';
+  return '8.10';
 };
 
 const buildDocUrl = (backend: BackendType, docPath: string, version?: string): string => {
