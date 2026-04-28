@@ -417,7 +417,7 @@ const commonEndpoints: ApiEndpoint[] = [
     path: '/{index}/_close',
     methods: ['POST'],
     description: 'Close an index',
-    docPath: 'operation-indices-open',
+    docPath: 'operation-indices-close',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       {

@@ -143,6 +143,7 @@ const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
 
   'operation-index': 'docs-index_',
   'operation-get': 'docs-get',
+  'operation-delete': 'docs-delete',
   'operation-update': 'docs-update',
   'operation-bulk': 'docs-bulk',
   'operation-reindex': 'docs-reindex',
@@ -150,10 +151,14 @@ const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-delete-by-query': 'docs-delete-by-query',
 
   'operation-indices-create': 'indices-create-index',
+  'operation-indices-get': 'indices-get-index',
+  'operation-indices-delete': 'indices-delete-index',
+  'operation-indices-exists': 'indices-exists',
   'operation-indices-put-mapping': 'indices-put-mapping',
   'operation-indices-get-settings': 'indices-update-settings',
   'operation-indices-put-settings': 'indices-update-settings',
   'operation-indices-open': 'indices-open-index',
+  'operation-indices-close': 'indices-close',
   'operation-indices-refresh': 'indices-refresh',
   'operation-indices-flush': 'indices-flush',
   'operation-indices-forcemerge': 'indices-forcemerge',
@@ -225,6 +230,17 @@ const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>> = {
     PUT: 'operation-indices-put-template',
     DELETE: 'operation-indices-delete-template',
     HEAD: 'operation-indices-exists-template',
+  },
+  'operation-get': {
+    GET: 'operation-get',
+    PUT: 'operation-index',
+    DELETE: 'operation-delete',
+  },
+  'operation-indices-create': {
+    GET: 'operation-indices-get',
+    PUT: 'operation-indices-create',
+    DELETE: 'operation-indices-delete',
+    HEAD: 'operation-indices-exists',
   },
   'operation-indices-component-template': {
     GET: 'operation-cluster-get-component-template',
