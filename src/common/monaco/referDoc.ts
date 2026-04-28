@@ -62,6 +62,8 @@ export const esSampleQueries = {
 type DocLanguage = 'en' | 'cn';
 
 const ES_NEW_API_BASE = 'https://www.elastic.co/docs/api/doc/elasticsearch';
+const ES_OLD_GUIDE_BASE = 'https://www.elastic.co/guide/en/elasticsearch/reference';
+
 const DOC_BASE_URLS: Record<BackendType, Record<DocLanguage, string>> = {
   [BackendType.ELASTICSEARCH]: {
     en: ES_NEW_API_BASE,
@@ -73,16 +75,120 @@ const DOC_BASE_URLS: Record<BackendType, Record<DocLanguage, string>> = {
   },
 };
 
-const normalizeVersion = (version: string): string => {
+const AVAILABLE_ES_VERSIONS: Record<number, number[]> = {
+  0: [90],
+  1: [3, 4, 5, 6, 7],
+  2: [0, 1, 2, 3, 4],
+  5: [0, 1, 2, 3, 4, 5, 6],
+  6: [0, 1, 2, 3, 4, 5, 6, 7, 8],
+  7: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17],
+  8: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+};
+
+const findClosestAvailableVersion = (version: string): string => {
   if (!version || version === 'current') return '';
   const parts = version.split('.');
   if (parts.length < 1) return '';
   const major = parseInt(parts[0], 10);
-  if (major < 7) return 'v8';
-  if (major === 7) return 'v8';
-  if (major === 8) return 'v8';
-  if (major >= 9) return 'v9';
-  return 'v8';
+  const minor = parts.length >= 2 ? parseInt(parts[1], 10) : 0;
+
+  if (major >= 9) return '';
+
+  const availableMajor = AVAILABLE_ES_VERSIONS[major];
+  if (availableMajor) {
+    const closestMinor =
+      availableMajor.find(m => m >= minor) ?? availableMajor[availableMajor.length - 1];
+    return `${major}.${closestMinor}`;
+  }
+
+  const sortedMajors = Object.keys(AVAILABLE_ES_VERSIONS)
+    .map(Number)
+    .sort((a, b) => a - b);
+
+  const closestMajor = sortedMajors.find(m => m >= major);
+  if (closestMajor) {
+    return `${closestMajor}.${AVAILABLE_ES_VERSIONS[closestMajor][0]}`;
+  }
+
+  return '8.19';
+};
+
+const shouldUseNewApiDocs = (version: string): boolean => {
+  if (!version || version === 'current') return true;
+  const parts = version.split('.');
+  if (parts.length < 1) return false;
+  const major = parseInt(parts[0], 10);
+  return major >= 9;
+};
+
+const normalizeVersionForNewDocs = (version: string): string => {
+  if (!version || version === 'current') return '';
+  const parts = version.split('.');
+  if (parts.length < 1) return '';
+  const major = parseInt(parts[0], 10);
+  if (major >= 9) return `v${major}`;
+  return '';
+};
+
+const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
+  'operation-search': 'search-search',
+  'operation-count': 'search-count',
+  'operation-search-validate': 'search-validate',
+  'operation-search-multi-search': 'search-multi-search',
+  'operation-search-explain': 'search-explain',
+  'operation-search-terms-enum': 'search-terms-enum',
+
+  'operation-index': 'docs-index_',
+  'operation-get': 'docs-get',
+  'operation-update': 'docs-update',
+  'operation-bulk': 'docs-bulk',
+  'operation-reindex': 'docs-reindex',
+  'operation-update-by-query': 'docs-update-by-query',
+  'operation-delete-by-query': 'docs-delete-by-query',
+
+  'operation-indices-create': 'indices-create-index',
+  'operation-indices-put-mapping': 'indices-put-mapping',
+  'operation-indices-update-settings': 'indices-update-settings',
+  'operation-indices-open': 'indices-open-index',
+  'operation-indices-refresh': 'indices-refresh',
+  'operation-indices-flush': 'indices-flush',
+  'operation-indices-forcemerge': 'indices-forcemerge',
+  'operation-indices-update-aliases': 'indices-aliases',
+  'operation-indices-templates-v1': 'indices-templates',
+  'operation-indices-put-template': 'indices-put-template',
+  'operation-indices-component-template': 'indices-component-template',
+  'operation-indices-analyze': 'indices-analyze',
+
+  'operation-cat-indices': 'cat-indices',
+  'operation-cat-health': 'cat-health',
+  'operation-cat-nodes': 'cat-nodes',
+  'operation-cat-shards': 'cat-shards',
+  'operation-cat-aliases': 'cat-alias',
+  'operation-cat-templates': 'cat-templates',
+  'operation-cat-allocation': 'cat-allocation',
+
+  'operation-cluster-health': 'cluster-health',
+  'operation-cluster-state': 'cluster-state',
+  'operation-cluster-stats': 'cluster-stats',
+  'operation-cluster-update-settings': 'cluster-update-settings',
+  'operation-cluster-allocation-explain': 'cluster-allocation-explain',
+  'operation-cluster-reroute': 'cluster-reroute',
+  'operation-cluster-nodes-info': 'cluster-nodes-info',
+  'operation-cluster-nodes-stats': 'cluster-nodes-stats',
+  'operation-cluster-nodes-hot-threads': 'cluster-nodes-hot-threads',
+
+  'operation-snapshot-get-repository': 'modules-snapshots',
+};
+
+const transformOperationToGuidePage = (docPath: string): string => {
+  const guidePage = OPERATION_TO_GUIDE_PAGE[docPath];
+  if (guidePage) return guidePage;
+
+  const name = docPath.replace(/^operation-/, '');
+  if (!name.includes('-')) {
+    return `${name}-${name}`;
+  }
+  return name;
 };
 
 export const getActionApiDoc = (
@@ -103,16 +209,22 @@ export const getActionApiDoc = (
   if (!endpoint?.docPath) return undefined;
 
   const lang = getDocLanguage();
-  const baseUrl = DOC_BASE_URLS[backend][lang];
-  const normalizedVersion = normalizeVersion(version);
 
   if (backend === BackendType.OPENSEARCH) {
+    const baseUrl = DOC_BASE_URLS[backend][lang];
     const osPath = transformDocPathForOpenSearch(endpoint.docPath);
     return `${baseUrl}/${osPath}`;
   }
 
-  const versionPath = normalizedVersion ? `/${normalizedVersion}` : '';
-  return `${baseUrl}${versionPath}/operation/${endpoint.docPath}`;
+  if (shouldUseNewApiDocs(version)) {
+    const normalizedVersion = normalizeVersionForNewDocs(version);
+    const versionPath = normalizedVersion ? `/${normalizedVersion}` : '';
+    return `${ES_NEW_API_BASE}${versionPath}/operation/${endpoint.docPath}`;
+  }
+
+  const guideVersion = findClosestAvailableVersion(version);
+  const guidePage = transformOperationToGuidePage(endpoint.docPath);
+  return `${ES_OLD_GUIDE_BASE}/${guideVersion}/${guidePage}.html`;
 };
 
 const OPENSEARCH_API_CATEGORIES: Record<string, string> = {
