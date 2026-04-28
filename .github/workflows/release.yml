@@ -60,9 +60,42 @@ jobs:
             echo EOF
           } >> $GITHUB_OUTPUT
 
+  create-release:
+    name: Create Draft Release
+    needs: [check-version, prepare]
+    if: needs.check-version.outputs.is_new_version == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+
+    steps:
+      - name: Github checkout
+        uses: actions/checkout@v5
+
+      - name: Create draft release
+        id: create-release
+        uses: actions/github-script@v7
+        env:
+          VERSION: ${{ needs.check-version.outputs.version }}
+          RELEASE_BODY: ${{ needs.prepare.outputs.release_body }}
+        with:
+          script: |
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${process.env.VERSION}`,
+              name: `v${process.env.VERSION}`,
+              body: process.env.RELEASE_BODY || '',
+              draft: true,
+              prerelease: false
+            })
+            return data.id
+
   release:
     name: ${{ matrix.name }}
-    needs: [check-version, prepare]
+    needs: [check-version, create-release]
     if: needs.check-version.outputs.is_new_version == 'true'
     permissions:
       contents: write
@@ -152,7 +185,7 @@ jobs:
           echo "CERT_ID=$CERT_ID" >> $GITHUB_ENV
           echo "Certificate imported."
 
-      - name: Build and Release
+      - name: Build and Upload Artifacts
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -166,23 +199,28 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           NODE_OPTIONS: --max-old-space-size=4096
         with:
-          tagName: v__VERSION__
-          releaseName: v__VERSION__
-          releaseBody: ${{ needs.prepare.outputs.release_body }}
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           includeUpdaterJson: true
           args: ${{ matrix.args }}
 
   publish:
     name: Publish Release
-    needs: [check-version, release]
+    needs: [check-version, create-release, release]
     if: needs.check-version.outputs.is_new_version == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Publish draft release
+        uses: actions/github-script@v7
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release edit "v${{ needs.check-version.outputs.version }}" --draft=false --repo ${{ github.repository }}
+          release_id: ${{ needs.create-release.outputs.release_id }}
+        with:
+          script: |
+            github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: Number(process.env.release_id),
+              draft: false,
+              prerelease: false
+            })
