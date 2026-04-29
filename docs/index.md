@@ -1,6 +1,23 @@
-# Index page
-this docs folder contains the documentation for the project.
+# DocKit Documentation
 
+**[DocKit](https://www.geekfun.club/products/dockit/)** is a desktop GUI for Elasticsearch, OpenSearch and DynamoDB.
 
-## Useful links
-Monaco-editor actions: https://stackoverflow.com/questions/64430041/get-a-list-of-monaco-commands-actions-ids
+## User Guides
+
+| Document | Description |
+|---|---|
+| [DocKit Actions](dockit-actions.md) | All available commands, API actions and curl examples |
+
+## Development
+
+| Document | Description |
+|---|---|
+| [Theme System](theme-system.md) | CSS theming architecture and token system |
+| [Naive UI Migration Guide](naive-ui-migration-guide.md) | Migration from Naive UI to shadcn-vue |
+| [Naive UI & Sass Audit](naive-ui-sass-audit.md) | Audit report of legacy UI dependencies |
+
+## Legal
+
+| Document | Description |
+|---|---|
+| [Privacy Policy](privacy-policy.md) | Data collection and usage policy |
