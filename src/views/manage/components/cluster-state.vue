@@ -734,8 +734,15 @@ const dialog = useDialogService();
 const clusterManageStore = useClusterManageStore();
 const { fetchNodes, refreshStates, deleteIndex, closeIndex, openIndex, removeAlias } =
   clusterManageStore;
-const { nodes, indices, indexWithAliases, templates, templateApiMode, connection, includeSystemIndices } =
-  storeToRefs(clusterManageStore);
+const {
+  nodes,
+  indices,
+  indexWithAliases,
+  templates,
+  templateApiMode,
+  connection,
+  includeSystemIndices,
+} = storeToRefs(clusterManageStore);
 
 const shardReplicas = computed(() => {
   const total = props.cluster?.indices.shards.total ?? 0;
@@ -748,7 +755,9 @@ const shardUnassigned = computed(
 );
 
 const visibleIndicesCount = computed(() => {
-  return includeSystemIndices.value ? indices.value.length : indices.value.filter(i => !i.index.startsWith('.')).length;
+  return includeSystemIndices.value
+    ? indices.value.length
+    : indices.value.filter(i => !i.index.startsWith('.')).length;
 });
 
 const loading = ref(false);

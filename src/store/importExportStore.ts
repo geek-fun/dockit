@@ -421,7 +421,9 @@ export const useImportExportStore = defineStore('importExportStore', {
               if (Array.isArray(hits)) {
                 allHits.push(...hits);
               }
-            } catch (_e) {}
+            } catch (_e) {
+              // silently skip invalid JSON entries
+            }
           }
 
           if (this.restoreProgress) {
@@ -502,7 +504,9 @@ export const useImportExportStore = defineStore('importExportStore', {
                     if (typeof value === 'string') {
                       try {
                         value = jsonify.parse(value);
-                      } catch (_e) {}
+                      } catch (_e) {
+                        // silently skip invalid JSON entries
+                      }
                     }
 
                     acc[header] = value;
@@ -617,7 +621,9 @@ export const useImportExportStore = defineStore('importExportStore', {
               attributeTypeMap.set(attr.attributeName, attr.attributeType);
             }
           }
-        } catch (_e) {}
+        } catch (_e) {
+          // silently skip table info fetch errors
+        }
 
         const batchSize = 25;
         const fileBatchSize = 1000;
@@ -829,7 +835,9 @@ export const useImportExportStore = defineStore('importExportStore', {
                     if (typeof value === 'string') {
                       try {
                         value = jsonify.parse(value);
-                      } catch (_e) {}
+                      } catch (_e) {
+                        // silently skip invalid JSON entries
+                      }
                     }
                     acc[header] = value;
                     return acc;
