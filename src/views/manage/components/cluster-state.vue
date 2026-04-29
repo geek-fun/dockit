@@ -49,7 +49,7 @@
           <Card class="metric-card">
             <CardContent class="p-4 flex flex-col gap-2">
               <span class="metric-label">{{ $t('manage.indices') }}</span>
-              <span class="metric-value">{{ cluster?.indices.count || 0 }}</span>
+              <span class="metric-value">{{ visibleIndicesCount }}</span>
             </CardContent>
           </Card>
 
@@ -734,10 +734,8 @@ const dialog = useDialogService();
 const clusterManageStore = useClusterManageStore();
 const { fetchNodes, refreshStates, deleteIndex, closeIndex, openIndex, removeAlias } =
   clusterManageStore;
-const { nodes, indices, indexWithAliases, templates, templateApiMode, connection } =
+const { nodes, indices, indexWithAliases, templates, templateApiMode, connection, includeSystemIndices } =
   storeToRefs(clusterManageStore);
-
-// --- Cluster metrics ---
 
 const shardReplicas = computed(() => {
   const total = props.cluster?.indices.shards.total ?? 0;
@@ -748,6 +746,10 @@ const shardReplicas = computed(() => {
 const shardUnassigned = computed(
   () => indices.value.flatMap(idx => idx.shards ?? []).filter(s => !s.node).length,
 );
+
+const visibleIndicesCount = computed(() => {
+  return includeSystemIndices.value ? indices.value.length : indices.value.filter(i => !i.index.startsWith('.')).length;
+});
 
 const loading = ref(false);
 const nodesLoading = ref(false);
