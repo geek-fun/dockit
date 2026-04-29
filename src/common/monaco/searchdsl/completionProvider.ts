@@ -1,81 +1,84 @@
-/**
- * Grammar-driven Completion Provider
- * Provides intelligent completions for Elasticsearch/OpenSearch queries
- * based on API specifications and Query DSL definitions.
- */
-
 import * as monaco from 'monaco-editor';
 import { apiSpecProvider } from './apiSpec';
 import { queryDslProvider, allQueries } from './queryDsl';
 import { tokenize } from './lexer';
 import { BackendType, CompletionContext, HttpMethod, TokenType, QueryParam } from './types';
+import { getDocLanguage } from '../../../lang';
+import {
+  DOC_BASE_URLS,
+  ES_NEW_API_BASE,
+  ES_OLD_GUIDE_BASE,
+  findClosestAvailableVersion,
+  shouldUseNewApiDocs,
+  normalizeVersionForNewDocs,
+  transformDocPathForMethod,
+  transformOperationToGuidePage,
+  transformDocPathForOpenSearch,
+} from '../docUrl';
 
-/**
- * Configuration for the completion provider
- */
 export type CompletionConfig = {
   backend: BackendType;
   version?: string;
 };
 
-/**
- * Dynamic options for path parameter completions
- * These are fetched from the connected database
- */
 export type DynamicCompletionOptions = {
-  /** Selected/active index name from toolbar */
   activeIndex?: string;
-  /** All available indices in the connected cluster */
   indices?: string[];
-  /** Available snapshot repositories */
   repositories?: string[];
-  /** Available templates */
   templates?: string[];
-  /** Available pipelines */
   pipelines?: string[];
-  /** Available aliases */
   aliases?: string[];
 };
 
-// Default configuration
 let currentConfig: CompletionConfig = {
   backend: BackendType.ELASTICSEARCH,
 };
 
-// Dynamic options for path parameter completions
 let dynamicOptions: DynamicCompletionOptions = {};
 
-/**
- * Set the completion configuration (backend and version)
- */
 export const setCompletionConfig = (config: CompletionConfig): void => {
   currentConfig = config;
 };
 
-/**
- * Get the current completion configuration
- */
 export const getCompletionConfig = (): CompletionConfig => {
   return currentConfig;
 };
 
-/**
- * Set dynamic completion options (indices, repositories, templates from connected database)
- */
 export const setDynamicOptions = (options: DynamicCompletionOptions): void => {
   dynamicOptions = options;
 };
 
-/**
- * Get current dynamic completion options
- */
 export const getDynamicOptions = (): DynamicCompletionOptions => {
   return dynamicOptions;
 };
 
-/**
- * HTTP methods with their completions
- */
+const buildDocUrl = (
+  backend: BackendType,
+  docPath: string,
+  version?: string,
+  method?: string,
+): string => {
+  const lang = getDocLanguage();
+
+  if (backend === BackendType.OPENSEARCH) {
+    const baseUrl = DOC_BASE_URLS[backend][lang];
+    const osPath = transformDocPathForOpenSearch(docPath);
+    return `${baseUrl}/${osPath}`;
+  }
+
+  if (shouldUseNewApiDocs(version || 'current')) {
+    const normalizedVersion = normalizeVersionForNewDocs(version || 'current');
+    const versionPath = normalizedVersion ? `/${normalizedVersion}` : '';
+    const newDocsOperation = transformDocPathForMethod(docPath, method || 'GET');
+    return `${ES_NEW_API_BASE}${versionPath}/operation/${newDocsOperation}`;
+  }
+
+  const guideVersion = findClosestAvailableVersion(version || 'current');
+  const oldDocsOperation = transformDocPathForMethod(docPath, method || 'GET');
+  const guidePage = transformOperationToGuidePage(oldDocsOperation);
+  return `${ES_OLD_GUIDE_BASE}/${guideVersion}/${guidePage}.html`;
+};
+
 const httpMethods: Array<{ label: string; insertText: string }> = [
   { label: 'GET', insertText: 'GET ' },
   { label: 'POST', insertText: 'POST ' },
@@ -538,8 +541,11 @@ const providePathCompletions = (
       insertText: snippetText,
       insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
       detail: endpoint.description,
-      documentation: endpoint.docUrl
-        ? { value: `[Documentation](${endpoint.docUrl})`, isTrusted: true }
+      documentation: endpoint.docPath
+        ? {
+            value: `[Documentation](${buildDocUrl(currentConfig.backend, endpoint.docPath, currentConfig.version, method)})`,
+            isTrusted: true,
+          }
         : undefined,
       sortText: sortPrefix + label,
       range,
@@ -791,8 +797,11 @@ const provideBodyCompletions = (
         insertText: query.snippet,
         insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
         detail: query.description,
-        documentation: query.docUrl
-          ? { value: `[Documentation](${query.docUrl})`, isTrusted: true }
+        documentation: query.docPath
+          ? {
+              value: `[Documentation](${buildDocUrl(currentConfig.backend, query.docPath, currentConfig.version, 'GET')})`,
+              isTrusted: true,
+            }
           : undefined,
         sortText: String(deprecatedSort + popularitySort).padStart(3, '0'),
         range,

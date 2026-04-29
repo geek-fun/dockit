@@ -482,7 +482,10 @@ const setupQueryEditor = () => {
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
     const action = getAction(queryEditor!.getPosition());
     if (!action) return;
-    const docLink = getActionApiDoc(EngineType.ELASTICSEARCH, 'current', action as SearchAction);
+    const connection = activeConnection.value as ElasticsearchConnection | undefined;
+    const version = connection?.version || 'current';
+    const engineType = connection?.isOpenSearch ? EngineType.OPENSEARCH : EngineType.ELASTICSEARCH;
+    const docLink = getActionApiDoc(engineType, version, action as SearchAction);
     if (docLink) open(docLink);
   });
 

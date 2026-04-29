@@ -1,4 +1,18 @@
-import { ActionType, EngineType, SearchAction } from './type';
+import { EngineType, SearchAction } from './type';
+import { apiSpecProvider } from './searchdsl/apiSpec';
+import { BackendType, HttpMethod } from './searchdsl/types';
+import { getDocLanguage } from '../../lang';
+import {
+  DOC_BASE_URLS,
+  ES_NEW_API_BASE,
+  ES_OLD_GUIDE_BASE,
+  findClosestAvailableVersion,
+  shouldUseNewApiDocs,
+  normalizeVersionForNewDocs,
+  transformDocPathForMethod,
+  transformOperationToGuidePage,
+  transformDocPathForOpenSearch,
+} from './docUrl';
 
 export const defaultCodeSnippet = '';
 
@@ -9,15 +23,15 @@ export const esSampleQueries = {
   nodesInfo: `GET _nodes`,
   search: `GET {index}/_search
 {
-  query: {
-    match_all: {}
+  "query": {
+    "match_all": {}
   }
 }`,
   matchSearch: `POST {index}/_search
 {
-  query: {
-    match: {
-      field_name: "search_text"
+  "query": {
+    "match": {
+      "field_name": "search_text"
     }
   }
 }`,
@@ -26,126 +40,70 @@ export const esSampleQueries = {
   getMapping: `GET {index}/_mapping`,
   putMapping: `PUT {index}/_mapping
 {
-  properties: {
-    field_name: {
-      type: "text"
+  "properties": {
+    "field_name": {
+      "type": "text"
     }
   }
 }`,
   indexDocument: `POST {index}/_doc/1
 {
-  field_name: "value"
+  "field_name": "value"
 }`,
   getDocument: `GET {index}/_doc/1`,
   updateDocument: `POST {index}/_update/1
 {
-  doc: {
-    field_name: "new_value"
+  "doc": {
+    "field_name": "new_value"
   }
 }`,
   deleteDocument: `DELETE {index}/_doc/1`,
   bulkOperation: `POST _bulk
-{index:{_index:'dockit_sample_index',_id:'1'}}
-{name:'Document 1'}
-{delete:{_index:'dockit_sample_index',_id:'2'}}`,
+{ "index": { "_index": "dockit_sample_index", "_id": "1" } }
+{ "name": "Document 1" }
+{ "delete": { "_index": "dockit_sample_index", "_id": "2" } }`,
   count: `POST {index}/_count
 {
-  query: {
-    match_all: {}
+  "query": {
+    "match_all": {}
   }
 }`,
 };
 
-const actionRegexMap: { [key in ActionType]: RegExp } = {
-  POST_INDEX: /POST .*\/_doc\/\d+/,
-  POST_SEARCH: /POST .*\/_search/,
-  POST_COUNT: /POST .*\/_count/,
-  GET_SEARCH: /GET .*\/_search/,
-  POST_UPDATE: /POST .*\/_update\/\d+/,
-  DELETE_DOC: /DELETE .*\/_doc\/\d+/,
-  PUT_INDEX: /PUT .*\/_doc\/\d+/,
-  DELETE_INDEX: /DELETE /,
-  POST_BULK: /POST \/_bulk/,
-  PUT_PUT_INDEX: /PUT /,
-  PUT_MAPPING: /PUT .*\/_mapping/,
-  GET_MAPPING: /GET .*\/_mapping/,
-  POST_ALIAS: /POST \/_aliases/,
-  GET_HEALTH: /GET \/_cluster\/health/,
-  GET_STATE: /GET \/_cluster\/state/,
-  GET_INFO: /GET \/_nodes\/info/,
-  HEAD_INDEX: /HEAD /,
-  PUT_AUTO_FOLLOW: /PUT \/_ccr\/auto_follow\/\w+/,
-  PUT_CCR_FOLLOW: /PUT \/_ccr\/follow/,
-  PUT_SLM_POLICY: /PUT \/_slm\/policy\/\w+/,
-  PUT_SECURITY_ROLE_MAPPING: /PUT \/_security\/role_mapping\/\w+/,
-  PUT_ROLLUP_JOB: /PUT \/_rollup\/job\/\w+/,
-  PUT_SECURITY_API_KEY: /PUT \/_security\/api_key/,
-  PUT_INGEST_PIPELINE: /PUT \/_ingest\/pipeline\/\w+/,
-  PUT_TRANSFORM: /PUT \/_transform\/\w+/,
-  POST_ML_INFER: /POST \/_ml\/infer\/\w+/,
-  POST_MULTI_SEARCH: /POST \/_msearch/,
-  POST_OPEN_INDEX: /POST \/_open/,
-  PUT_COMPONENT_TEMPLATE: /PUT \/_component_template\/\w+/,
-  PUT_ENRICH_POLICY: /PUT \/_enrich\/policy\/\w+/,
-  PUT_TEMPLATE: /PUT \/_template\/\w+/,
-};
+export const getActionApiDoc = (
+  engine: EngineType,
+  version: string,
+  action: SearchAction,
+): string | undefined => {
+  const backend =
+    engine === EngineType.ELASTICSEARCH ? BackendType.ELASTICSEARCH : BackendType.OPENSEARCH;
 
-export const getActionApiDoc = (engine: EngineType, version: string, action: SearchAction) => {
-  const { APIS } = getDocLinks(engine, version);
-  const matchedAction = Object.entries(actionRegexMap).find(([, regex]) =>
-    `${action.method} /${action.path}`.match(regex),
+  const endpoint = apiSpecProvider.findEndpoint(
+    backend,
+    action.path,
+    action.method as HttpMethod,
+    version,
   );
 
-  return matchedAction ? APIS[matchedAction[0] as ActionType] : undefined;
-};
+  if (!endpoint?.docPath) return undefined;
 
-const getDocLinks = (engine: EngineType, version: string) => {
-  const DOCS_LINK = `https://www.elastic.co/guide/en/elasticsearch/reference/${version}`;
-  const linksMap: {
-    [key in EngineType]: {
-      APIS: {
-        [key in ActionType]: string;
-      };
-    };
-  } = {
-    [EngineType.ELASTICSEARCH]: {
-      APIS: {
-        POST_INDEX: `${DOCS_LINK}/indices-create-index.html`,
-        POST_SEARCH: `${DOCS_LINK}/search-search.html`,
-        POST_COUNT: `${DOCS_LINK}/search-count.html`,
-        GET_SEARCH: `${DOCS_LINK}/search-search.html`,
-        POST_UPDATE: `${DOCS_LINK}/docs-update.html`,
-        DELETE_DOC: `${DOCS_LINK}/docs-delete.html`,
-        PUT_INDEX: `${DOCS_LINK}/docs-index.html`,
-        DELETE_INDEX: `${DOCS_LINK}/indices-delete-index.html`,
-        POST_BULK: `${DOCS_LINK}/docs-bulk.html`,
-        PUT_PUT_INDEX: `${DOCS_LINK}/indices-create-index.html`,
-        PUT_MAPPING: `${DOCS_LINK}/indices-put-mapping.html`,
-        GET_MAPPING: `${DOCS_LINK}/indices-get-mapping.html`,
-        POST_ALIAS: `${DOCS_LINK}/indices-aliases.html`,
-        GET_HEALTH: `${DOCS_LINK}/cluster-health.html`,
-        GET_STATE: `${DOCS_LINK}/indices-stats.html`,
-        GET_INFO: '',
-        HEAD_INDEX: `${DOCS_LINK}/indices-exists.html`,
-        PUT_AUTO_FOLLOW: `${DOCS_LINK}/ccr-put-auto-follow-pattern.html`,
-        PUT_CCR_FOLLOW: `${DOCS_LINK}/ccr-put-follow.html`,
-        PUT_SLM_POLICY: `${DOCS_LINK}/slm-api-put-policy.html`,
-        PUT_SECURITY_ROLE_MAPPING: `${DOCS_LINK}/security-api-put-role-mapping.html`,
-        PUT_ROLLUP_JOB: `${DOCS_LINK}/rollup-put-job.html#rollup-put-job-api-request-body`,
-        PUT_SECURITY_API_KEY: `${DOCS_LINK}/security-api-create-api-key.html`,
-        PUT_INGEST_PIPELINE: `${DOCS_LINK}/put-pipeline-api.html`,
-        PUT_TRANSFORM: `${DOCS_LINK}/put-transform.html#put-transform-request-body`,
-        POST_ML_INFER: `${DOCS_LINK}/infer-trained-model.html`,
-        POST_MULTI_SEARCH: `${DOCS_LINK}/search-multi-search.html`,
-        POST_OPEN_INDEX: `${DOCS_LINK}/indices-open-close.html`,
-        PUT_COMPONENT_TEMPLATE: `${DOCS_LINK}/indices-component-template.html`,
-        PUT_ENRICH_POLICY: `${DOCS_LINK}/put-enrich-policy-api.html`,
-        PUT_TEMPLATE: `${DOCS_LINK}/indices-templates-v1.html`,
-      },
-    },
-    // @TODO docs link for OpenSearch
-    [EngineType.OPENSEARCH]: { APIS: {} } as { APIS: { [key in ActionType]: string } },
-  };
+  const lang = getDocLanguage();
 
-  return linksMap[engine];
+  if (backend === BackendType.OPENSEARCH) {
+    const baseUrl = DOC_BASE_URLS[backend][lang];
+    const osPath = transformDocPathForOpenSearch(endpoint.docPath);
+    return `${baseUrl}/${osPath}`;
+  }
+
+  if (shouldUseNewApiDocs(version)) {
+    const normalizedVersion = normalizeVersionForNewDocs(version);
+    const versionPath = normalizedVersion ? `/${normalizedVersion}` : '';
+    const newDocsOperation = transformDocPathForMethod(endpoint.docPath, action.method);
+    return `${ES_NEW_API_BASE}${versionPath}/operation/${newDocsOperation}`;
+  }
+
+  const guideVersion = findClosestAvailableVersion(version);
+  const oldGuideOperation = transformDocPathForMethod(endpoint.docPath, action.method);
+  const guidePage = transformOperationToGuidePage(oldGuideOperation);
+  return `${ES_OLD_GUIDE_BASE}/${guideVersion}/${guidePage}.html`;
 };
