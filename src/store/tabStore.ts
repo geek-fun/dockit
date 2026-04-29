@@ -17,7 +17,7 @@ type Panel = {
   activeTable?: string;
   file?: string;
   content?: string;
-  hideSystemIndices?: boolean;
+  includeSystemIndices?: boolean;
   editorType?: 'DYNAMO_EDITOR_UI' | 'DYNAMO_EDITOR_SQL' | 'DYNAMO_EDITOR_CREATE_ITEM';
 };
 

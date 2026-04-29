@@ -54,7 +54,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     aliases: Array<ClusterAlias>;
     templates: Array<ClusterTemplate>;
     templateApiMode: TemplateApiMode;
-    hideSystemIndices: boolean;
+    includeSystemIndices: boolean;
     refreshLoading: boolean;
   } => ({
     connection: undefined,
@@ -65,11 +65,11 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     aliases: [],
     templates: [],
     templateApiMode: TemplateApiMode.COMPOSABLE,
-    hideSystemIndices: true,
+    includeSystemIndices: false,
     refreshLoading: false,
   }),
   persist: {
-    pick: ['hideSystemIndices'],
+    pick: ['includeSystemIndices'],
     storage: localStorage,
   },
   getters: {
@@ -106,9 +106,9 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         this.templateApiMode = getTemplateApiMode(connection);
       }
     },
-    async refreshStates(hide?: boolean) {
-      if (hide !== undefined && hide !== null) {
-        this.hideSystemIndices = hide;
+    async refreshStates(include?: boolean) {
+      if (include !== undefined && include !== null) {
+        this.includeSystemIndices = include;
       }
 
       this.refreshLoading = true;
@@ -175,7 +175,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         const indices = await esApi.catIndices(this.connection);
 
         this.indices = indices.filter(index =>
-          this.hideSystemIndices ? !index.index.startsWith('.') : true,
+          this.includeSystemIndices ? true : !index.index.startsWith('.'),
         );
       } else {
         this.indices = [];
@@ -187,7 +187,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         const aliases = await esApi.catAliases(this.connection);
 
         this.aliases = aliases.filter(alias =>
-          this.hideSystemIndices ? !alias.index.startsWith('.') : true,
+          this.includeSystemIndices ? true : !alias.index.startsWith('.'),
         );
       } else {
         this.aliases = [];
@@ -200,7 +200,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         const templates = await esApi.listTemplates(this.connection);
 
         this.templates = templates.filter(template =>
-          this.hideSystemIndices ? !template.name.startsWith('.') : true,
+          this.includeSystemIndices ? true : !template.name.startsWith('.'),
         );
       } else {
         this.templates = [];

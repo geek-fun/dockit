@@ -425,9 +425,8 @@ export const enUS = {
     },
   },
   toolBar: {
-    hideSystemIndices: 'Hide/Display system indices',
-    hidden: 'Hidden',
-    display: 'Display',
+    includeSystemIndices: 'Include System indices',
+    systemIndices: 'Include System indices',
   },
   dialogOps: {
     warning: 'Warning',

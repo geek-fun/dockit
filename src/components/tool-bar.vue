@@ -68,16 +68,16 @@
         <TooltipTrigger as-child>
           <div class="switch-container">
             <Switch
-              :checked="hideSystemIndicesRef"
+              :checked="includeSystemIndicesRef"
               class="action-index-switch"
-              @update:checked="handleHiddenChange"
+              @update:checked="handleIncludeChange"
             />
             <Label class="switch-label">
-              {{ hideSystemIndicesRef ? $t('toolBar.hidden') : $t('toolBar.display') }}
+              {{ $t('toolBar.systemIndices') }}
             </Label>
           </div>
         </TooltipTrigger>
-        <TooltipContent>{{ $t('toolBar.hideSystemIndices') }}</TooltipContent>
+        <TooltipContent>{{ $t('toolBar.includeSystemIndices') }}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
 
@@ -224,7 +224,7 @@ import {
 import { useDynamoManageStore } from '../store/dynamoManageStore';
 import { useLang } from '../lang';
 import { CustomError } from '../common';
-import { esSampleQueries } from '../common/monaco';
+import { esSampleQueries, configureDynamicOptions } from '../common/monaco';
 import { useMessageService } from '@/composables';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/combobox';
@@ -251,7 +251,7 @@ const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
 const { setConnection, refreshStates } = clusterManageStore;
-const { connection, hideSystemIndices, refreshLoading } = storeToRefs(clusterManageStore);
+const { connection, includeSystemIndices, refreshLoading } = storeToRefs(clusterManageStore);
 
 const dynamoManageStore = useDynamoManageStore();
 const { setManageActiveTable } = dynamoManageStore;
@@ -269,7 +269,7 @@ const showRunButton = computed(() => {
 
 const loadingRef = ref({ connection: false, index: false, table: false });
 
-const hideSystemIndicesRef = ref(true);
+const includeSystemIndicesRef = ref(false);
 const isExecuting = ref(false);
 const showShortcutsDialog = ref(false);
 
@@ -340,8 +340,14 @@ const connectionOptions = computed(() =>
 const indexOptions = computed(
   () =>
     activeElasticsearchIndexOption.value
-      ?.filter(index => (hideSystemIndicesRef.value ? !index.value.startsWith('.') : true))
-      ?.sort((a, b) => a.label.localeCompare(b.label)) ?? [],
+      ?.filter(index => (includeSystemIndicesRef.value ? true : !index.value.startsWith('.')))
+      ?.sort((a, b) => {
+        const aIsSystem = a.value.startsWith('.');
+        const bIsSystem = b.value.startsWith('.');
+        if (aIsSystem && !bIsSystem) return 1;
+        if (!aIsSystem && bIsSystem) return -1;
+        return a.label.localeCompare(b.label);
+      }) ?? [],
 );
 
 const tableOptions = computed(() => {
@@ -434,12 +440,12 @@ watch(
   () => props.type,
   async newType => {
     if (newType === 'ES_EDITOR') {
-      hideSystemIndicesRef.value = activePanel?.value.hideSystemIndices ?? true;
+      includeSystemIndicesRef.value = activePanel?.value.includeSystemIndices ?? false;
     } else if (newType === 'MANAGE') {
       if (!connection.value && activePanel.value.connection) {
         setConnection(activePanel.value.connection);
       }
-      hideSystemIndicesRef.value = hideSystemIndices.value;
+      includeSystemIndicesRef.value = includeSystemIndices.value;
     }
   },
   { immediate: true },
@@ -546,10 +552,18 @@ const handleDynamoRefresh = () => {
   emits('refresh-dynamo-manage');
 };
 
-const handleHiddenChange = async (value: boolean) => {
-  hideSystemIndicesRef.value = value;
+const handleIncludeChange = async (value: boolean) => {
+  includeSystemIndicesRef.value = value;
   if (props.type === 'ES_EDITOR' && activePanel.value) {
-    activePanel.value.hideSystemIndices = value;
+    activePanel.value.includeSystemIndices = value;
+    const conn = activePanel.value.connection;
+    if (conn?.type === DatabaseType.ELASTICSEARCH) {
+      configureDynamicOptions({
+        activeIndex: (conn as ElasticsearchConnection).activeIndex?.index,
+        indices: (conn as ElasticsearchConnection).indices?.map(i => i.index) ?? [],
+        includeSystemIndices: value,
+      });
+    }
   }
   if (props.type === 'MANAGE' && connection.value) {
     await refreshStates(value);

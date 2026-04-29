@@ -419,9 +419,8 @@ export const zhCN = {
     },
   },
   toolBar: {
-    hideSystemIndices: '显示/隐藏系统索引',
-    hidden: '已隐藏',
-    display: '展示中',
+    includeSystemIndices: '包含系统索引',
+    systemIndices: '包含系统索引',
   },
   dialogOps: {
     warning: '提示',

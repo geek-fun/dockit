@@ -170,6 +170,7 @@ describe('grammarCompletionProvider', () => {
         indices: ['index-1', 'index-2', 'my-active-index'],
         repositories: ['backup-repo'],
         templates: ['logs-template'],
+        includeSystemIndices: true,
       });
 
       const options = getDynamicOptions();
@@ -177,6 +178,7 @@ describe('grammarCompletionProvider', () => {
       expect(options.indices).toEqual(['index-1', 'index-2', 'my-active-index']);
       expect(options.repositories).toEqual(['backup-repo']);
       expect(options.templates).toEqual(['logs-template']);
+      expect(options.includeSystemIndices).toBe(true);
     });
 
     it('should use activeIndex as default for {index} placeholder', () => {
@@ -583,21 +585,27 @@ describe('grammarCompletionProvider', () => {
     it('should prioritize _search endpoints in path completions', () => {
       const text = `GET _`;
       const model = createMockModel(text);
-      const position = { lineNumber: 1, column: 6 }; // After '_'
+      const position = { lineNumber: 1, column: 6 };
 
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
-      // Find _search related completions
       const searchCompletions = result.suggestions.filter(
         s => typeof s.label === 'string' && s.label.includes('_search'),
       );
 
       expect(searchCompletions.length).toBeGreaterThan(0);
 
-      // Check that _search completions have a lower sortText (higher priority)
-      for (const completion of searchCompletions) {
-        expect(completion.sortText?.startsWith('0')).toBeTruthy();
-      }
+      const rootSearch = searchCompletions.find(
+        s => s.label === '/_search' || s.label === '_search',
+      );
+      expect(rootSearch).toBeDefined();
+      expect(rootSearch?.sortText?.startsWith('1')).toBeTruthy();
+
+      const indexScopedSearch = searchCompletions.find(
+        s => typeof s.label === 'string' && s.label.includes('{index}/_search'),
+      );
+      expect(indexScopedSearch).toBeDefined();
+      expect(indexScopedSearch?.sortText?.startsWith('4')).toBeTruthy();
     });
   });
 
@@ -1373,8 +1381,163 @@ describe('grammarCompletionProvider', () => {
       expect(labels).toContain('wait_for_completion_timeout');
     });
   });
-});
 
+  describe('system indices filtering in autocomplete', () => {
+    const allIndices = ['products', 'logs', '.kibana', '.security'];
+
+    beforeEach(() => {
+      setDynamicOptions({
+        indices: allIndices,
+        includeSystemIndices: false,
+      });
+    });
+
+    it('should filter system indices when includeSystemIndices is false', () => {
+      const text = `GET `;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 5 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('products');
+      expect(labels).toContain('logs');
+      expect(labels).not.toContain('.kibana');
+      expect(labels).not.toContain('.security');
+    });
+
+    it('should filter system indices even when typing dot character', () => {
+      setDynamicOptions({
+        indices: allIndices,
+        includeSystemIndices: false,
+      });
+
+      const text = `GET .`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 6 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('.kibana');
+      expect(labels).not.toContain('.security');
+    });
+
+    it('should show system indices when includeSystemIndices is true', () => {
+      setDynamicOptions({
+        indices: allIndices,
+        includeSystemIndices: true,
+      });
+
+      const text = `GET `;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 5 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('products');
+      expect(labels).toContain('logs');
+      expect(labels).toContain('.kibana');
+      expect(labels).toContain('.security');
+    });
+
+    it('should show system indices when typing first letter with includeSystemIndices true', () => {
+      setDynamicOptions({
+        indices: allIndices,
+        includeSystemIndices: true,
+      });
+
+      setCompletionConfig({ backend: BackendType.ELASTICSEARCH, version: '8.0.0' });
+      const text = `GET p`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 6 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('products');
+      expect(labels).not.toContain('.kibana');
+      expect(labels).not.toContain('.security');
+    });
+
+    it('should sort system indices after normal indices in autocomplete', () => {
+      setDynamicOptions({
+        indices: allIndices,
+        includeSystemIndices: true,
+      });
+
+      const text = `GET `;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 5 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const items = result.suggestions.filter(
+        s => typeof s.label === 'string' && allIndices.includes(s.label),
+      );
+
+      const normalIdxs = items.filter(s => !s.label.startsWith('.'));
+      const systemIdxs = items.filter(s => s.label.startsWith('.'));
+
+      normalIdxs.forEach(normalItem => {
+        expect(normalItem.sortText).toMatch(/^0/);
+      });
+      systemIdxs.forEach(systemItem => {
+        expect(systemItem.sortText).toMatch(/^3/);
+      });
+
+      normalIdxs.forEach(normalItem => {
+        systemIdxs.forEach(systemItem => {
+          const n = parseInt(normalItem.sortText?.charAt(0) || '9', 10);
+          const s = parseInt(systemItem.sortText?.charAt(0) || '9', 10);
+          expect(n).toBeLessThan(s);
+        });
+      });
+    });
+  });
+
+  describe('completion sort order after HTTP method', () => {
+    it('should order: normal indices → root _search → other roots → system indices → {index}/*', () => {
+      setDynamicOptions({
+        indices: ['products', 'logs', '.kibana'],
+        includeSystemIndices: true,
+      });
+
+      const text = `GET `;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: 5 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const findById = (label: string) => result.suggestions.find(s => s.label === label);
+
+      const products = findById('products');
+      const logs = findById('logs');
+      const systemKibana = findById('.kibana');
+      const rootSearch = findById('_search') || findById('/_search');
+
+      const indexScopedEndpoint = result.suggestions.find(
+        s => typeof s.label === 'string' && s.label.includes('{index}'),
+      );
+      const otherRoot = result.suggestions.find(
+        s => typeof s.label === 'string' && s.label === '/_cat/indices',
+      );
+
+      expect(products?.sortText?.charAt(0)).toBe('0');
+      expect(logs?.sortText?.charAt(0)).toBe('0');
+      expect(systemKibana?.sortText?.charAt(0)).toBe('3');
+      expect(rootSearch).toBeDefined();
+      expect(rootSearch?.sortText?.charAt(0)).toBe('1');
+      expect(indexScopedEndpoint).toBeDefined();
+      expect(indexScopedEndpoint?.sortText?.charAt(0)).toBe('4');
+
+      if (otherRoot) {
+        expect(otherRoot.sortText?.charAt(0)).toBe('2');
+      }
+    });
+  });
+});
 /**
  * Create a mock Monaco text model
  */

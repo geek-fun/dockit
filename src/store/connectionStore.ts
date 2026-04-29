@@ -561,9 +561,11 @@ export const useConnectionStore = defineStore('connectionStore', {
         });
 
         // Update dynamic completion options with fetched indices
+        const tabStore = useTabStore();
         configureDynamicOptions({
           activeIndex: connection.activeIndex?.index,
           indices: connection.indices.map(i => i.index),
+          includeSystemIndices: tabStore.activePanel?.includeSystemIndices ?? false,
         });
       }
       if (connection.type === DatabaseType.DYNAMODB && tableName) {
@@ -604,9 +606,11 @@ export const useConnectionStore = defineStore('connectionStore', {
       connection.activeIndex = { ...activeIndex, mapping } as ElasticSearchIndex;
 
       // Update dynamic completion options with the selected index
+      const tabStore = useTabStore();
       configureDynamicOptions({
         activeIndex: indexName,
         indices: connection.indices?.map(i => i.index) ?? [],
+        includeSystemIndices: tabStore.activePanel?.includeSystemIndices ?? false,
       });
     },
     async searchQDSL(
