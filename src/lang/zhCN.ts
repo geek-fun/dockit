@@ -420,7 +420,7 @@ export const zhCN = {
   },
   toolBar: {
     includeSystemIndices: '包含系统索引',
-    systemIndices: '包含系统索引',
+    systemIndices: '系统索引',
   },
   dialogOps: {
     warning: '提示',

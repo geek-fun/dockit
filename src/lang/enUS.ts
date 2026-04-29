@@ -426,7 +426,7 @@ export const enUS = {
   },
   toolBar: {
     includeSystemIndices: 'Include System indices',
-    systemIndices: 'Include System indices',
+    systemIndices: 'System indices',
   },
   dialogOps: {
     warning: 'Warning',

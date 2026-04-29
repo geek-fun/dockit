@@ -174,9 +174,15 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       if (this.connection.type === DatabaseType.ELASTICSEARCH) {
         const indices = await esApi.catIndices(this.connection);
 
-        this.indices = indices.filter(index =>
-          this.includeSystemIndices ? true : !index.index.startsWith('.'),
-        );
+        this.indices = indices
+          .filter(index => (this.includeSystemIndices ? true : !index.index.startsWith('.')))
+          .sort((a, b) => {
+            const aIsSystem = a.index.startsWith('.');
+            const bIsSystem = b.index.startsWith('.');
+            if (aIsSystem && !bIsSystem) return 1;
+            if (!aIsSystem && bIsSystem) return -1;
+            return a.index.localeCompare(b.index);
+          });
       } else {
         this.indices = [];
       }
@@ -186,9 +192,15 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       if (this.connection.type === DatabaseType.ELASTICSEARCH) {
         const aliases = await esApi.catAliases(this.connection);
 
-        this.aliases = aliases.filter(alias =>
-          this.includeSystemIndices ? true : !alias.index.startsWith('.'),
-        );
+        this.aliases = aliases
+          .filter(alias => (this.includeSystemIndices ? true : !alias.index.startsWith('.')))
+          .sort((a, b) => {
+            const aIsSystem = a.index.startsWith('.');
+            const bIsSystem = b.index.startsWith('.');
+            if (aIsSystem && !bIsSystem) return 1;
+            if (!aIsSystem && bIsSystem) return -1;
+            return a.index.localeCompare(b.index) || a.alias.localeCompare(b.alias);
+          });
       } else {
         this.aliases = [];
       }
@@ -199,9 +211,15 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         this.templateApiMode = getTemplateApiMode(this.connection);
         const templates = await esApi.listTemplates(this.connection);
 
-        this.templates = templates.filter(template =>
-          this.includeSystemIndices ? true : !template.name.startsWith('.'),
-        );
+        this.templates = templates
+          .filter(template => (this.includeSystemIndices ? true : !template.name.startsWith('.')))
+          .sort((a, b) => {
+            const aIsSystem = a.name.startsWith('.');
+            const bIsSystem = b.name.startsWith('.');
+            if (aIsSystem && !bIsSystem) return 1;
+            if (!aIsSystem && bIsSystem) return -1;
+            return a.name.localeCompare(b.name);
+          });
       } else {
         this.templates = [];
       }
