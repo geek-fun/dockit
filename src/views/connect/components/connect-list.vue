@@ -213,7 +213,7 @@ const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
-const { fetchConnections, removeConnection, freshConnection, saveConnection } = connectionStore;
+const { fetchConnections, removeConnection, freshConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 fetchConnections();
 
@@ -372,8 +372,16 @@ const establishConnect = async (connection: Connection) => {
       return;
     }
 
-    if (newConnection.type === DatabaseType.ELASTICSEARCH) {
-      await saveConnection(newConnection);
+    if (newConnection.type === DatabaseType.ELASTICSEARCH && newConnection.version) {
+      try {
+        const existing = connectionStore.connections.find(c => c.id === newConnection.id);
+        if (existing) {
+          (existing as ElasticsearchConnection).version = newConnection.version;
+          connectionStore.saveConnection(existing);
+        }
+      } catch {
+        // silently skip — connection already succeeded, version persistence is best-effort
+      }
     }
 
     // Ensure minimum 1.5 seconds loading time
