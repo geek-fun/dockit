@@ -22,32 +22,16 @@
         <the-aside-icon
           v-for="item in samllNavList"
           :key="item.path"
-          :popover-content="
-            item.id === 'user' && userStore.isLoggedIn
-              ? userStore.username || $t(`aside.${item.name}`)
-              : $t(`aside.${item.name}`)
-          "
+          :popover-content="$t(`aside.${item.name}`)"
         >
           <div
             class="icon-item"
             :class="{
               active: isActive(item),
-              'logged-in': item.id === 'user' && userStore.isLoggedIn,
             }"
             @click="navClick(item)"
           >
-            <img
-              v-if="
-                item.id === 'user' &&
-                userStore.isLoggedIn &&
-                userStore.avatar &&
-                isSafeAvatarUrl(userStore.avatar)
-              "
-              :src="userStore.avatar"
-              :alt="userStore.username"
-              class="user-avatar"
-            />
-            <span v-else :class="[item.iconClass, 'h-6 w-6']" />
+            <span :class="[item.iconClass, 'h-6 w-6']" />
           </div>
         </the-aside-icon>
       </div>
@@ -59,15 +43,13 @@
 import { ref } from 'vue';
 import { open } from '@tauri-apps/plugin-shell';
 import { useRouter, useRoute } from 'vue-router';
-import { useAppStore, useUserStore } from '../../store';
-import { authService, isSafeAvatarUrl } from '../../datasources/authService';
+import { useAppStore } from '../../store';
 import TheAsideIcon from './the-aside-icon.vue';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 const router = useRouter();
 const route = useRoute();
 const appStore = useAppStore();
-const userStore = useUserStore();
 const { setConnectPanel } = appStore;
 
 const mainNavList = ref([
@@ -83,13 +65,6 @@ const mainNavList = ref([
     path: '/connect',
     name: 'connect',
     iconClass: 'i-carbon-data-base',
-    isLink: false,
-  },
-  {
-    id: 'data-studio',
-    path: '/data-studio',
-    name: 'dataStudio',
-    iconClass: 'i-carbon-ibm-watsonx-assistant',
     isLink: false,
   },
   {
@@ -153,11 +128,7 @@ const isActive = (item: RouteItem) => {
   return route.path === item.path || route.path.startsWith(item.path + '/');
 };
 // nav click handler method
-const navClick = async (item: RouteItem) => {
-  if (item.id === 'user' && !userStore.isLoggedIn) {
-    await authService.openLoginUrl();
-    return;
-  }
+const navClick = (item: RouteItem) => {
   if (item.isLink && item.id === 'github') {
     open('https://github.com/geek-fun/dockit');
   } else {
@@ -223,16 +194,5 @@ const navClick = async (item: RouteItem) => {
 
 .icon-item:hover :deep(span) {
   opacity: 0.9;
-}
-
-.icon-item.logged-in :deep(span) {
-  opacity: 1;
-}
-
-.user-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
 }
 </style>

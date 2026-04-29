@@ -72,14 +72,6 @@ const router = createRouter({
           },
           component: () => import('../views/import-export/index.vue'),
         },
-        {
-          name: 'DataStudio',
-          path: '/data-studio',
-          meta: {
-            keepAlive: false,
-          },
-          component: () => import('../views/data-studio/index.vue'),
-        },
       ],
     },
   ],

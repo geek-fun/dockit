@@ -1,32 +1,14 @@
 import { defineStore } from 'pinia';
-import type { AuthCallbackData } from '../datasources/authService';
-import { isSafeAvatarUrl } from '../datasources/authService';
-
-export type UserState = {
-  accessToken: string;
-  userId: string;
-  username: string;
-  email: string;
-  avatar: string;
-};
 
 export const useUserStore = defineStore('user', {
-  state: (): UserState => ({
+  state: () => ({
     accessToken: '',
-    userId: '',
     username: '',
     email: '',
-    avatar: '',
   }),
   getters: {
     getToken: state => state.accessToken,
-    isLoggedIn: state => !!state.accessToken,
-    getUser: state => ({
-      id: state.userId,
-      username: state.username,
-      email: state.email,
-      avatar: state.avatar,
-    }),
+    isLoggedIn: state => state.accessToken.length > 0,
   },
   actions: {
     setToken(accessToken: string): void {
@@ -34,24 +16,17 @@ export const useUserStore = defineStore('user', {
     },
     resetToken(): void {
       this.accessToken = '';
-      this.userId = '';
       this.username = '';
       this.email = '';
-      this.avatar = '';
     },
-    setAuthFromCallback(data: AuthCallbackData): void {
-      this.accessToken = data.token;
-      this.userId = data.userId || '';
-      this.username = data.username || '';
-      this.email = data.email || '';
-      this.avatar = data.avatar && isSafeAvatarUrl(data.avatar) ? data.avatar : '';
-    },
-    logout(): void {
-      this.resetToken();
+    setAuth(token: string, username: string, email: string): void {
+      this.accessToken = token;
+      this.username = username;
+      this.email = email;
     },
   },
   persist: {
-    pick: ['accessToken', 'userId', 'username', 'email', 'avatar'],
+    pick: ['accessToken', 'username', 'email'],
     storage: localStorage,
   },
 });
