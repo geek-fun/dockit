@@ -63,7 +63,7 @@ jobs:
 
       - name: Create draft release
         id: create-release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
           RELEASE_BODY: ${{ steps.release_notes.outputs.release_body }}
@@ -199,7 +199,7 @@ jobs:
       contents: write
     steps:
       - name: Publish draft release
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         env:
           release_id: ${{ needs.prepare.outputs.release_id }}
         with:
