@@ -6,6 +6,9 @@ import { jsonify } from '../common';
 export enum ProviderEnum {
   OPENAI = 'OPENAI',
   DEEP_SEEK = 'DEEP_SEEK',
+  OPENROUTER = 'OPENROUTER',
+  OLLAMA = 'OLLAMA',
+  LM_STUDIO = 'LM_STUDIO',
 }
 
 export enum ChatMessageStatus {
@@ -138,43 +141,21 @@ const chatBotApi = {
     apiKey: string;
     model: string;
     httpProxy?: string;
+    baseUrl?: string;
   }) => {
     try {
-      await invoke('create_openai_client', config);
-      return true;
+      return await invoke<boolean>('validate_llm_config', config);
     } catch (_err) {
       return false;
     }
   },
-  createClient: async (config: {
+  listModels: async (config: {
     provider: ProviderEnum;
     apiKey: string;
-    model: string;
     httpProxy?: string;
+    baseUrl?: string;
   }) => {
-    await invoke('create_openai_client', config);
-  },
-  chatStream: async (
-    config: {
-      provider: ProviderEnum;
-      model: string;
-      question: string;
-      history: Array<ChatMessage>;
-    },
-    callback: (event: {
-      role: ChatMessageRole;
-      content: Array<{ text: { value: string } }>;
-      state: string;
-    }) => void,
-  ) => {
-    if (!receiveRegistration) {
-      await listen<string>('chatbot-message', event => {
-        callback(jsonify.parse(event.payload));
-      });
-      receiveRegistration = true;
-    }
-
-    await invoke('chat_stream', config);
+    return await invoke<Array<string>>('list_llm_models', config);
   },
 };
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::option::Option;
 use std::str::FromStr;
+use std::sync::OnceLock;
 
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
@@ -8,8 +8,19 @@ use serde_json::json;
 
 use crate::common::http_client::create_http_client;
 
-static mut FETCH_SECURE_CLIENT: Option<reqwest::Client> = None;
-static mut FETCH_INSECURE_CLIENT: Option<reqwest::Client> = None;
+static SECURE_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+static INSECURE_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+
+fn get_client(ssl: bool, http_proxy: Option<String>) -> reqwest::Client {
+    let has_proxy = http_proxy.as_deref().is_some_and(|p| !p.is_empty());
+    if has_proxy {
+        create_http_client(http_proxy, Some(ssl))
+    } else if ssl {
+        SECURE_CLIENT.get_or_init(|| create_http_client(None, Some(true))).clone()
+    } else {
+        INSECURE_CLIENT.get_or_init(|| create_http_client(None, Some(false))).clone()
+    }
+}
 
 #[derive(Deserialize)]
 struct Agent {
@@ -37,20 +48,16 @@ where
                 HeaderValue::from_str(val.as_ref()),
             )
         })
-        // We ignore the errors here. If you want to get a list of failed conversions, you can use Iterator::partition
-        // to help you out here
         .filter(|(k, v)| k.is_ok() && v.is_ok())
         .map(|(k, v)| (k.unwrap(), v.unwrap()))
         .collect()
 }
 
-/// Categorize a reqwest error into a user-friendly type and message
 fn categorize_request_error(e: &reqwest::Error) -> (&'static str, String) {
     let url_hint = e.url().map(|u| u.host_str().unwrap_or("unknown")).unwrap_or("unknown");
     let raw = format!("{}", e);
 
     if e.is_connect() {
-        // Drill into source chain for more specific errors
         let source_chain = format!("{:?}", e);
 
         if source_chain.contains("dns error")
@@ -112,28 +119,7 @@ fn categorize_request_error(e: &reqwest::Error) -> (&'static str, String) {
 
 #[tauri::command]
 pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, String> {
-    let client = unsafe {
-        match options.agent.ssl {
-            true => {
-                if FETCH_SECURE_CLIENT.is_none() {
-                    FETCH_SECURE_CLIENT = Option::from(create_http_client(
-                        options.agent.http_proxy,
-                        Some(options.agent.ssl),
-                    ));
-                }
-                FETCH_SECURE_CLIENT.as_ref().unwrap()
-            }
-            false => {
-                if FETCH_INSECURE_CLIENT.is_none() {
-                    FETCH_INSECURE_CLIENT = Option::from(create_http_client(
-                        options.agent.http_proxy,
-                        Some(options.agent.ssl),
-                    ));
-                }
-                FETCH_INSECURE_CLIENT.as_ref().unwrap()
-            }
-        }
-    };
+    let client = get_client(options.agent.ssl, options.agent.http_proxy);
 
     let response = client
         .request(
