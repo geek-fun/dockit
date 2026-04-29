@@ -95,6 +95,8 @@ export type CompletionContext = {
   method?: HttpMethod;
   path?: string;
   bodyPath?: string[];
+  /** Whether the cursor is at a JSON value position (after a key:colon pair) */
+  isValuePosition?: boolean;
   currentParam?: string;
   typedParams?: string[];
 };
