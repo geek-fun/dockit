@@ -146,6 +146,78 @@ describe('referDoc', () => {
             'https://www.elastic.co/guide/en/elasticsearch/reference/8.10/docs-index_.html',
           );
         });
+
+        it('should return method-specific old guide URL for GET /{index} (indices-get-index)', () => {
+          const action = createSearchAction('GET', 'my-index');
+          const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
+          expect(result).toBe(
+            'https://www.elastic.co/guide/en/elasticsearch/reference/8.10/indices-get-index.html',
+          );
+        });
+
+        it('should return method-specific old guide URL for PUT /{index} (indices-create-index)', () => {
+          const action = createSearchAction('PUT', 'my-index');
+          const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
+          expect(result).toBe(
+            'https://www.elastic.co/guide/en/elasticsearch/reference/8.10/indices-create-index.html',
+          );
+        });
+
+        it('should return method-specific old guide URL for DELETE /{index} (indices-delete-index)', () => {
+          const action = createSearchAction('DELETE', 'my-index');
+          const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
+          expect(result).toBe(
+            'https://www.elastic.co/guide/en/elasticsearch/reference/8.10/indices-delete-index.html',
+          );
+        });
+
+        it('should return method-specific old guide URL for HEAD /{index} (indices-exists)', () => {
+          const action = createSearchAction('HEAD', 'my-index');
+          const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
+          expect(result).toBe(
+            'https://www.elastic.co/guide/en/elasticsearch/reference/8.10/indices-exists.html',
+          );
+        });
+
+        it('should return method-specific old guide URL for GET /{index}/_doc/{id} (docs-get)', () => {
+          const action = createSearchAction('GET', 'my-index/_doc/1');
+          const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
+          expect(result).toBe(
+            'https://www.elastic.co/guide/en/elasticsearch/reference/8.10/docs-get.html',
+          );
+        });
+
+        it('should return method-specific old guide URL for PUT /{index}/_doc/{id} (docs-index_)', () => {
+          const action = createSearchAction('PUT', 'my-index/_doc/1');
+          const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
+          expect(result).toBe(
+            'https://www.elastic.co/guide/en/elasticsearch/reference/8.10/docs-index_.html',
+          );
+        });
+
+        it('should return method-specific old guide URL for DELETE /{index}/_doc/{id} (docs-delete)', () => {
+          const action = createSearchAction('DELETE', 'my-index/_doc/1');
+          const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
+          expect(result).toBe(
+            'https://www.elastic.co/guide/en/elasticsearch/reference/8.10/docs-delete.html',
+          );
+        });
+
+        it('should return method-specific old guide URL for GET _cluster/settings (cluster-update-settings)', () => {
+          const action = createSearchAction('GET', '_cluster/settings');
+          const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
+          expect(result).toBe(
+            'https://www.elastic.co/guide/en/elasticsearch/reference/8.10/cluster-update-settings.html',
+          );
+        });
+
+        it('should return method-specific old guide URL for PUT _cluster/settings (cluster-update-settings)', () => {
+          const action = createSearchAction('PUT', '_cluster/settings');
+          const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
+          expect(result).toBe(
+            'https://www.elastic.co/guide/en/elasticsearch/reference/8.10/cluster-update-settings.html',
+          );
+        });
       });
 
       describe('v7.x - old guide format with specific version', () => {
