@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.10] - 2026-04-29
+
+### Fixed
+
+- Field type snippets now only suggested at value positions inside properties/fields blocks (#394)
+- Enhance indices sorting, filtering and toggle UX in autocomplete (#393)
+- Persist connection version after connecting (#392)
+- Fix Ctrl+D doc shortcut not working for all ES APIs (#391)
+- Fix scroll issue in fixed-height containers on macOS Monterey (#390)
+
 ## [0.9.9] - 2026-04-28
 
 ### Added
