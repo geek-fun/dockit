@@ -30,9 +30,9 @@ export type ApiEndpoint = {
   path: string;
   methods: HttpMethod[];
   description?: string;
-  descriptionKey?: string; // i18n key for description translation
+  descriptionKey?: string;
   deprecated?: boolean;
-  docUrl?: string;
+  docPath?: string;
   pathParams?: PathParam[];
   queryParams?: QueryParam[];
   requestBody?: RequestBody;

@@ -1,21 +1,10 @@
-/**
- * Query DSL Specification
- * Provides definitions for Elasticsearch/OpenSearch Query DSL
- *
- * This module defines the structure and available options for Query DSL,
- * enabling grammar-driven completions for the body of search requests.
- */
-
 import { BackendType, BodyProperty } from './types';
 import { isVersionInRange } from '../monacoUtils';
 
-/**
- * Query type definition
- */
 export type QueryDef = {
   name: string;
   description?: string;
-  docUrl?: string;
+  docPath?: string;
   snippet: string;
   properties?: { [key: string]: BodyProperty };
   deprecated?: boolean;

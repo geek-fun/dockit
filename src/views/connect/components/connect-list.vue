@@ -372,6 +372,18 @@ const establishConnect = async (connection: Connection) => {
       return;
     }
 
+    if (newConnection.type === DatabaseType.ELASTICSEARCH && newConnection.version) {
+      try {
+        const existing = connectionStore.connections.find(c => c.id === newConnection.id);
+        if (existing) {
+          (existing as ElasticsearchConnection).version = newConnection.version;
+          connectionStore.saveConnection(existing);
+        }
+      } catch {
+        // silently skip — connection already succeeded, version persistence is best-effort
+      }
+    }
+
     // Ensure minimum 1.5 seconds loading time
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
