@@ -36,6 +36,7 @@ jest.mock('monaco-editor', () => ({
       Property: 9,
       Class: 5,
       Value: 12,
+      TypeParameter: 25,
     },
     CompletionItemInsertTextRule: {
       None: 0,
@@ -712,7 +713,7 @@ describe('grammarCompletionProvider', () => {
   });
 
   describe('nested properties in mappings', () => {
-    it('should provide field types directly inside properties block', () => {
+    it('should NOT provide field types at KEY position inside properties block', () => {
       const text = `PUT test_index/_mapping
 {
   properties: {
@@ -721,6 +722,23 @@ describe('grammarCompletionProvider', () => {
 }`;
       const model = createMockModel(text);
       const position = { lineNumber: 4, column: 5 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('text');
+      expect(labels).not.toContain('keyword');
+    });
+
+    it('should provide field types at VALUE position inside properties block', () => {
+      const text = `PUT test_index/_mapping
+{
+  properties: {
+    "f1": 
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 10 };
 
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
@@ -774,7 +792,7 @@ describe('grammarCompletionProvider', () => {
       expect(labels).not.toContain('keyword');
     });
 
-    it('should provide field types directly inside nested object properties', () => {
+    it('should NOT provide field types at KEY position inside nested object properties', () => {
       const text = `PUT test_index/_mapping
 {
   properties: {
@@ -792,11 +810,33 @@ describe('grammarCompletionProvider', () => {
       const result = grammarCompletionProvider(model, position as monaco.Position);
 
       const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('text');
+      expect(labels).not.toContain('keyword');
+    });
+
+    it('should provide field types at VALUE position inside nested object properties', () => {
+      const text = `PUT test_index/_mapping
+{
+  properties: {
+    author: {
+      type: "object",
+      properties: {
+        "name": 
+      }
+    }
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 7, column: 16 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
       expect(labels).toContain('text');
       expect(labels).toContain('keyword');
     });
 
-    it('should provide field types directly inside fields subfield properties', () => {
+    it('should NOT provide field types at KEY position inside fields subfield', () => {
       const text = `PUT test_index/_mapping
 {
   properties: {
@@ -813,6 +853,28 @@ describe('grammarCompletionProvider', () => {
 }`;
       const model = createMockModel(text);
       const position = { lineNumber: 10, column: 7 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('text');
+      expect(labels).not.toContain('keyword');
+    });
+
+    it('should provide field types at VALUE position inside fields subfield', () => {
+      const text = `PUT test_index/_mapping
+{
+  properties: {
+    title: {
+      type: "text",
+      fields: {
+        "raw": 
+      }
+    }
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 7, column: 15 };
 
       const result = grammarCompletionProvider(model, position as monaco.Position);
 

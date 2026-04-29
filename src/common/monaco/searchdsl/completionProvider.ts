@@ -107,9 +107,9 @@ const getCompletionContext = (
     // Check if we're inside a body by looking at the full document
     const fullText = model.getValue();
     const offset = model.getOffsetAt(position);
-    const bodyPath = getBodyPath(fullText, offset);
+    const bodyInfo = getBodyPath(fullText, offset);
 
-    if (bodyPath) {
+    if (bodyInfo) {
       // We're inside a body, provide body completions
       const { method, path } = findMethodAndPath(model, position.lineNumber);
       return {
@@ -118,7 +118,8 @@ const getCompletionContext = (
         position: 'body',
         method,
         path,
-        bodyPath,
+        bodyPath: bodyInfo.path,
+        isValuePosition: bodyInfo.isValuePosition,
       };
     }
 
@@ -194,8 +195,8 @@ const getCompletionContext = (
   const fullText = model.getValue();
   const offset = model.getOffsetAt(position);
 
-  const bodyPath = getBodyPath(fullText, offset);
-  if (bodyPath) {
+  const bodyInfo = getBodyPath(fullText, offset);
+  if (bodyInfo) {
     // Find the method and path for this block
     const { method, path } = findMethodAndPath(model, position.lineNumber);
 
@@ -205,7 +206,8 @@ const getCompletionContext = (
       position: 'body',
       method,
       path,
-      bodyPath,
+      bodyPath: bodyInfo.path,
+      isValuePosition: bodyInfo.isValuePosition,
     };
   }
 
@@ -264,11 +266,16 @@ const findMethodAndPath = (
 
 /**
  * Get the JSON path at the current position in the body
+ * Also indicates whether the cursor is at a value position (after a key+colon pair)
+ * vs a key position (after an opening brace or comma).
  */
-const getBodyPath = (text: string, offset: number): string[] | null => {
+const getBodyPath = (
+  text: string,
+  offset: number,
+): { path: string[]; isValuePosition: boolean } | null => {
   const tokens = tokenize(text);
   const pathStack: string[] = [];
-  let bodyDepth = 0; // Track actual brace depth independently
+  let bodyDepth = 0;
   let lastKey: string | null = null;
 
   for (const token of tokens) {
@@ -297,8 +304,6 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
         break;
       case TokenType.KEY:
       case TokenType.STRING: {
-        // Check if this is a key (followed by colon)
-        // Use >= to include tokens that start right at the end of the current token
         const nextToken = tokens.find(
           t =>
             t.start >= token.end && t.type !== TokenType.WHITESPACE && t.type !== TokenType.NEWLINE,
@@ -309,7 +314,6 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
         break;
       }
       case TokenType.COLON:
-        // After a colon, we're expecting a value
         break;
       case TokenType.COMMA:
         lastKey = null;
@@ -318,7 +322,11 @@ const getBodyPath = (text: string, offset: number): string[] | null => {
   }
 
   // We're in a body if we have unclosed braces
-  return bodyDepth > 0 ? pathStack : null;
+  // isValuePosition: cursor is at a value slot (after key+colon) when lastKey is set
+  if (bodyDepth > 0) {
+    return { path: pathStack, isValuePosition: lastKey !== null };
+  }
+  return null;
 };
 
 /**
@@ -744,7 +752,7 @@ const provideBodyCompletions = (
     }
   } else if (bodyPath[0] === 'mappings' || bodyPath[0] === 'properties') {
     const lastSegment = bodyPath[bodyPath.length - 1];
-    if (lastSegment === 'properties' || lastSegment === 'fields') {
+    if ((lastSegment === 'properties' || lastSegment === 'fields') && context.isValuePosition) {
       const fieldTypes = getFieldTypeOptions();
       for (const fieldType of fieldTypes) {
         completions.push({
