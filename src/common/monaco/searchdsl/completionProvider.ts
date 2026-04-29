@@ -28,6 +28,8 @@ export type DynamicCompletionOptions = {
   templates?: string[];
   pipelines?: string[];
   aliases?: string[];
+  /** Whether to include hidden/system indices (starting with `.`) in completions */
+  includeSystemIndices?: boolean;
 };
 
 let currentConfig: CompletionConfig = {
@@ -447,8 +449,7 @@ const providePathCompletions = (
       if (seenPaths.has(fullPath)) continue;
       seenPaths.add(fullPath);
 
-      // Determine sort priority - _search endpoints first
-      const sortPrefix = ep.path.includes('_search') ? '0' : '1';
+      const sortPrefix = '2';
 
       completions.push({
         label: ep.path,
@@ -469,7 +470,11 @@ const providePathCompletions = (
     !normalizedUserPath.startsWith('_') && !normalizedUserPath.includes('/');
 
   if (isTypingIndexName && dynamicOptions.indices && dynamicOptions.indices.length > 0) {
+    const includeSystem = dynamicOptions.includeSystemIndices ?? false;
+
     for (const indexName of dynamicOptions.indices) {
+      if (!includeSystem && indexName.startsWith('.')) continue;
+
       if (
         normalizedUserPath &&
         !indexName.toLowerCase().startsWith(normalizedUserPath.toLowerCase())
@@ -482,13 +487,16 @@ const providePathCompletions = (
       if (seenPaths.has(fullPath)) continue;
       seenPaths.add(fullPath);
 
+      const systemIndex = indexName.startsWith('.');
+      const sortPrefix = systemIndex ? '3' : '0';
+
       completions.push({
         label: fullPath,
         kind: monaco.languages.CompletionItemKind.Variable,
         insertText: fullPath,
         insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
         detail: 'Index',
-        sortText: '0' + fullPath, // Prioritize index names
+        sortText: sortPrefix + fullPath,
         range,
       });
     }
@@ -527,12 +535,11 @@ const providePathCompletions = (
       return `\${${snippetIndex++}:${defaultValue}}`;
     });
 
-    // Determine sort priority - _search endpoints should be prioritized
-    let sortPrefix = '1';
-    if (endpoint.path.includes('_search')) {
-      sortPrefix = '0a'; // Higher priority for _search
-    } else if (endpoint.path.includes('{index}/_search')) {
-      sortPrefix = '0b'; // Second priority for {index}/_search
+    let sortPrefix = '2';
+    if (endpoint.path.includes('{index}')) {
+      sortPrefix = '4';
+    } else if (endpoint.path.includes('_search') || endpoint.path.includes('_msearch')) {
+      sortPrefix = '1';
     }
 
     completions.push({
