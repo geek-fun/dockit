@@ -63,8 +63,9 @@ jobs:
 
       - name: Create draft release
         id: create-release
-        uses: actions/github-script@v9
+        uses: actions/github-script@v7
         env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           VERSION: ${{ needs.check-version.outputs.version }}
           RELEASE_BODY: ${{ steps.release_notes.outputs.release_body }}
         with:
@@ -199,8 +200,9 @@ jobs:
       contents: write
     steps:
       - name: Publish draft release
-        uses: actions/github-script@v9
+        uses: actions/github-script@v7
         env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
           release_id: ${{ needs.prepare.outputs.release_id }}
         with:
           script: |
