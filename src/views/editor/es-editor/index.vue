@@ -484,7 +484,8 @@ const setupQueryEditor = () => {
     if (!action) return;
     const connection = activeConnection.value as ElasticsearchConnection | undefined;
     const version = connection?.version || 'current';
-    const docLink = getActionApiDoc(EngineType.ELASTICSEARCH, version, action as SearchAction);
+    const engineType = connection?.isOpenSearch ? EngineType.OPENSEARCH : EngineType.ELASTICSEARCH;
+    const docLink = getActionApiDoc(engineType, version, action as SearchAction);
     if (docLink) open(docLink);
   });
 
