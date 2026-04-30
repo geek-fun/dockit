@@ -147,6 +147,25 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     PUT: 'operation-ilm-put-lifecycle',
     DELETE: 'operation-ilm-delete-lifecycle',
   },
+  'operation-ml-get-jobs': {
+    PUT: 'operation-ml-put-job',
+    DELETE: 'operation-ml-delete-job',
+  },
+  'operation-security-get-user': {
+    PUT: 'operation-security-put-user',
+    DELETE: 'operation-security-delete-user',
+  },
+  'operation-security-get-role': {
+    PUT: 'operation-security-put-role',
+    DELETE: 'operation-security-delete-role',
+  },
+  'operation-security-get-api-key': {
+    POST: 'operation-security-create-api-key',
+  },
+  'operation-watcher-get-watch': {
+    PUT: 'operation-watcher-put-watch',
+    DELETE: 'operation-watcher-delete-watch',
+  },
 };
 
 export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
@@ -250,9 +269,6 @@ export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-ilm-delete-lifecycle': 'index-lifecycle-management',
   // Rollup
   'operation-rollup-get-jobs': 'rollup-apis',
-  // Watcher
-  'operation-watcher-get-watch': 'watcher-api',
-  'operation-watcher-put-watch': 'watcher-api',
   // CCR
   'operation-ccr-stats': 'ccr-apis',
   // ML
@@ -260,10 +276,21 @@ export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-ml-get-trained-models': 'ml-apis',
   'operation-ml-put-trained-model': 'ml-apis',
   'operation-ml-infer-trained-model': 'ml-apis',
+  'operation-ml-put-job': 'ml-put-job',
+  'operation-ml-delete-job': 'ml-delete-job',
+  // Watcher
+  'operation-watcher-get-watch': 'watcher-api',
+  'operation-watcher-put-watch': 'watcher-api-put-watch',
+  'operation-watcher-delete-watch': 'watcher-api-delete-watch',
   // Security
   'operation-security-get-user': 'security-api',
+  'operation-security-put-user': 'security-api-put-user',
+  'operation-security-delete-user': 'security-api-delete-user',
   'operation-security-get-role': 'security-api',
-  'operation-security-get-api-key': 'security-api',
+  'operation-security-put-role': 'security-api-put-role',
+  'operation-security-delete-role': 'security-api-delete-role',
+  'operation-security-get-api-key': 'security-api-get-api-key',
+  'operation-security-create-api-key': 'security-api-create-api-key',
 };
 
 export const transformDocPathForMethod = (docPath: string, method: string): string => {
