@@ -12,10 +12,18 @@ export const buildSearchToken = (model: monaco.editor.IModel) => {
     lineContent: model.getLineContent(i + 1),
   }));
 
-  const commands = lines.filter(({ lineContent }) => executeActions.regexp.test(lineContent));
+  const commands = lines
+    .filter(({ lineContent }) => {
+      const stripped = lineContent.replace(/\/\/.*$/, '').replace(/#.*$/, '');
+      return executeActions.regexp.test(stripped);
+    })
+    .map(line => ({
+      ...line,
+      lineContent: line.lineContent.replace(/\/\/.*$/, '').replace(/#.*$/, ''),
+    }));
 
   searchTokens = commands.map(({ lineContent, lineNumber }, index, commands) => {
-    const strippedLine = lineContent.replace(/\/\/.*$/, '').replace(/#.*$/, '');
+    const strippedLine = lineContent;
     const [rawPath, queryParams] = strippedLine.split('?');
     const rawCmd = rawPath.split(/[\/\s]+/);
     const method = rawCmd[0]?.toUpperCase();
