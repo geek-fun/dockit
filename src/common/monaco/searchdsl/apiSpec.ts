@@ -451,6 +451,25 @@ const commonEndpoints: ApiEndpoint[] = [
     ],
   },
   {
+    path: '/{index}/_clone/{target}',
+    methods: ['POST', 'PUT'],
+    description: 'Clone an index',
+    docPath: 'operation-indices-clone',
+    pathParams: [
+      { name: 'index', type: 'string', description: 'Source index', required: true },
+      { name: 'target', type: 'string', description: 'Target index', required: true },
+    ],
+    queryParams: [
+      { name: 'timeout', type: 'string', description: 'Operation timeout' },
+      {
+        name: 'wait_for_active_shards',
+        type: 'string',
+        description: 'Number of shard copies that must be active before proceeding',
+      },
+      { name: 'aliases', type: 'boolean', description: 'Clone aliases to target index' },
+    ],
+  },
+  {
     path: '/{index}/_refresh',
     methods: ['POST'],
     description: 'Refresh an index',
