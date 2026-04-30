@@ -2,7 +2,7 @@
 import { keywords } from './keywords.ts';
 
 export const executeActions = {
-  regexp: /^(GET|DELETE|POST|PUT)\s+[a-zA-Z0-9_\/-?\-&,.*]*/,
+  regexp: /^\s*(GET|DELETE|POST|PUT)\s+[a-zA-Z0-9_\/-?\-&,.*]*/,
   decorationClassName: 'action-execute-decoration',
 };
 

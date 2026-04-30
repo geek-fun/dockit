@@ -48,6 +48,15 @@ const createSearchAction = (method: string, path: string) => ({
   queryParams: null,
 });
 
+const createSearchActionWithIndex = (method: string, index: string, path: string) => ({
+  qdsl: '',
+  position: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 } as any,
+  method,
+  index,
+  path,
+  queryParams: null,
+});
+
 describe('referDoc', () => {
   beforeEach(() => {
     mockLocalStorage('enUS');
@@ -430,6 +439,62 @@ describe('referDoc', () => {
         const result = getActionApiDoc(EngineType.OPENSEARCH, 'current', action);
         expect(result).toBeUndefined();
       });
+    });
+  });
+
+  describe('fullPath reconstruction with action.index', () => {
+    it('should reconstruct full path from action.index + action.path for v9', () => {
+      const action = createSearchActionWithIndex('GET', 'my_index', '_mapping');
+      const result = getActionApiDoc(EngineType.ELASTICSEARCH, '9.0.0', action);
+      expect(result).toBe(
+        'https://www.elastic.co/docs/api/doc/elasticsearch/v9/operation/operation-indices-get-mapping',
+      );
+    });
+
+    it('should reconstruct full path from action.index + action.path for v8', () => {
+      const action = createSearchActionWithIndex('GET', 'my_index', '_mapping');
+      const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.10.0', action);
+      expect(result).toBe(
+        'https://www.elastic.co/guide/en/elasticsearch/reference/8.10/indices-get-mapping.html',
+      );
+    });
+
+    it('should match _clone endpoint with reconstructed path for v9', () => {
+      const action = createSearchActionWithIndex('POST', 'my_index', '_clone');
+      const result = getActionApiDoc(EngineType.ELASTICSEARCH, '9.0.0', action);
+      expect(result).toBe(
+        'https://www.elastic.co/docs/api/doc/elasticsearch/v9/operation/operation-indices-clone',
+      );
+    });
+
+    it('should match _terms_enum endpoint with reconstructed path for v9', () => {
+      const action = createSearchActionWithIndex('GET', 'my_index', '_terms_enum');
+      const result = getActionApiDoc(EngineType.ELASTICSEARCH, '9.0.0', action);
+      expect(result).toBe(
+        'https://www.elastic.co/docs/api/doc/elasticsearch/v9/operation/operation-terms-enum',
+      );
+    });
+
+    it('should match _settings endpoint with reconstructed path for v9', () => {
+      const action = createSearchActionWithIndex('GET', 'my_index', '_settings');
+      const result = getActionApiDoc(EngineType.ELASTICSEARCH, '9.0.0', action);
+      expect(result).toBe(
+        'https://www.elastic.co/docs/api/doc/elasticsearch/v9/operation/operation-indices-get-settings',
+      );
+    });
+
+    it('should match _alias endpoint with reconstructed path for v9', () => {
+      const action = createSearchActionWithIndex('GET', 'my_index', '_alias');
+      const result = getActionApiDoc(EngineType.ELASTICSEARCH, '9.0.0', action);
+      expect(result).toBe(
+        'https://www.elastic.co/docs/api/doc/elasticsearch/v9/operation/operation-indices-get-alias',
+      );
+    });
+
+    it('should return undefined when reconstructed full path does not match any endpoint', () => {
+      const action = createSearchActionWithIndex('GET', 'my_index', '_fake_endpoint');
+      const result = getActionApiDoc(EngineType.ELASTICSEARCH, '9.0.0', action);
+      expect(result).toBeUndefined();
     });
   });
 

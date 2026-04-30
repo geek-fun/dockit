@@ -78,9 +78,11 @@ export const getActionApiDoc = (
   const backend =
     engine === EngineType.ELASTICSEARCH ? BackendType.ELASTICSEARCH : BackendType.OPENSEARCH;
 
+  const fullPath = action.index ? `/${action.index}/${action.path}` : `/${action.path}`;
+
   const endpoint = apiSpecProvider.findEndpoint(
     backend,
-    action.path,
+    fullPath,
     action.method as HttpMethod,
     version,
   );

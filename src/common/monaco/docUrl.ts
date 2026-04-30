@@ -102,6 +102,10 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     DELETE: 'operation-indices-delete',
     HEAD: 'operation-indices-exists',
   },
+  'operation-create': {
+    PUT: 'operation-create',
+    POST: 'operation-create',
+  },
   'operation-get': {
     GET: 'operation-get',
     PUT: 'operation-index',
@@ -112,6 +116,9 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     PUT: 'operation-indices-put-index-template',
     DELETE: 'operation-indices-delete-index-template',
     HEAD: 'operation-indices-exists-index-template',
+  },
+  'operation-indices-put-mapping': {
+    GET: 'operation-indices-get-mapping',
   },
   'operation-indices-update-aliases': {
     GET: 'operation-indices-get-alias',
@@ -129,6 +136,14 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     PUT: 'operation-ingest-put-pipeline',
     DELETE: 'operation-ingest-delete-pipeline',
   },
+  'operation-get-script': {
+    PUT: 'operation-put-script',
+    DELETE: 'operation-delete-script',
+  },
+  'operation-transform-get-transform': {
+    PUT: 'operation-transform-put-transform',
+    DELETE: 'operation-transform-delete-transform',
+  },
   'operation-snapshot-create-repository': {
     GET: 'operation-snapshot-get-repository',
     PUT: 'operation-snapshot-create-repository',
@@ -138,6 +153,42 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     GET: 'operation-snapshot-get',
     PUT: 'operation-snapshot-create',
     DELETE: 'operation-snapshot-delete',
+  },
+  'operation-ilm-put-lifecycle': {
+    GET: 'operation-ilm-get-lifecycle',
+    PUT: 'operation-ilm-put-lifecycle',
+    DELETE: 'operation-ilm-delete-lifecycle',
+  },
+  'operation-ml-get-jobs': {
+    PUT: 'operation-ml-put-job',
+    DELETE: 'operation-ml-delete-job',
+  },
+  'operation-security-get-user': {
+    PUT: 'operation-security-put-user',
+    DELETE: 'operation-security-delete-user',
+  },
+  'operation-security-get-role': {
+    PUT: 'operation-security-put-role',
+    DELETE: 'operation-security-delete-role',
+  },
+  'operation-security-get-api-key': {
+    POST: 'operation-security-create-api-key',
+  },
+  'operation-watcher-get-watch': {
+    PUT: 'operation-watcher-put-watch',
+    DELETE: 'operation-watcher-delete-watch',
+  },
+  'operation-indices-get-data-stream': {
+    POST: 'operation-indices-modify-data-stream',
+    PUT: 'operation-indices-create-data-stream',
+    DELETE: 'operation-indices-delete-data-stream',
+  },
+  'operation-rollup-get-jobs': {
+    PUT: 'operation-rollup-put-job',
+    DELETE: 'operation-rollup-delete-job',
+  },
+  'operation-ml-get-trained-models': {
+    DELETE: 'operation-ml-delete-trained-model',
   },
 };
 
@@ -152,6 +203,7 @@ export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-msearch': 'search-multi-search',
   'operation-explain': 'search-explain',
   'operation-terms-enum': 'search-terms-enum',
+  'operation-create': 'docs-index_',
   'operation-index': 'docs-index_',
   'operation-get': 'docs-get',
   'operation-delete': 'docs-delete',
@@ -165,6 +217,7 @@ export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-indices-delete': 'indices-delete-index',
   'operation-indices-exists': 'indices-exists',
   'operation-indices-put-mapping': 'indices-put-mapping',
+  'operation-indices-get-mapping': 'indices-get-mapping',
   'operation-indices-get-settings': 'indices-update-settings',
   'operation-indices-put-settings': 'indices-update-settings',
   'operation-indices-open': 'indices-open-close',
@@ -218,11 +271,61 @@ export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-ingest-get-pipeline': 'ingest-apis',
   'operation-ingest-put-pipeline': 'ingest-apis',
   'operation-ingest-simulate': 'ingest-apis',
+  'operation-ingest-delete-pipeline': 'delete-pipeline-api',
   'operation-get-script': 'modules-scripting',
+  'operation-put-script': 'modules-scripting',
+  'operation-delete-script': 'modules-scripting',
   'operation-snapshot-get-repository': 'modules-snapshots',
   'operation-snapshot-create-repository': 'snapshots-register-repository',
+  'operation-snapshot-delete-repository': 'snapshots-repositories',
   'operation-snapshot-create': 'modules-snapshots',
+  'operation-snapshot-get': 'get-snapshot-api',
+  'operation-snapshot-delete': 'delete-snapshot-api',
   'operation-snapshot-restore': 'snapshot-restore',
+  // EQL
+  'operation-eql-search': 'eql-search-api',
+  // SQL
+  'operation-sql-query': 'sql-search-api',
+  // Transform
+  'operation-transform-get-transform': 'transform-apis',
+  'operation-transform-put-transform': 'transform-apis',
+  'operation-transform-delete-transform': 'transform-apis',
+  // Data Stream
+  'operation-indices-get-data-stream': 'data-stream-apis',
+  'operation-indices-create-data-stream': 'data-stream-apis',
+  'operation-indices-delete-data-stream': 'data-stream-apis',
+  // ILM
+  'operation-ilm-put-lifecycle': 'index-lifecycle-management',
+  'operation-ilm-get-lifecycle': 'index-lifecycle-management',
+  'operation-ilm-get-status': 'index-lifecycle-management',
+  'operation-ilm-delete-lifecycle': 'index-lifecycle-management',
+  // Rollup
+  'operation-rollup-get-jobs': 'rollup-apis',
+  'operation-rollup-put-job': 'rollup-apis',
+  'operation-rollup-delete-job': 'rollup-apis',
+  // CCR
+  'operation-ccr-stats': 'ccr-apis',
+  // ML
+  'operation-ml-get-jobs': 'ml-apis',
+  'operation-ml-get-trained-models': 'ml-apis',
+  'operation-ml-put-trained-model': 'ml-apis',
+  'operation-ml-delete-trained-model': 'ml-apis',
+  'operation-ml-infer-trained-model': 'ml-apis',
+  'operation-ml-put-job': 'ml-put-job',
+  'operation-ml-delete-job': 'ml-delete-job',
+  // Watcher
+  'operation-watcher-get-watch': 'watcher-api',
+  'operation-watcher-put-watch': 'watcher-api-put-watch',
+  'operation-watcher-delete-watch': 'watcher-api-delete-watch',
+  // Security
+  'operation-security-get-user': 'security-api',
+  'operation-security-put-user': 'security-api-put-user',
+  'operation-security-delete-user': 'security-api-delete-user',
+  'operation-security-get-role': 'security-api',
+  'operation-security-put-role': 'security-api-put-role',
+  'operation-security-delete-role': 'security-api-delete-role',
+  'operation-security-get-api-key': 'security-api-get-api-key',
+  'operation-security-create-api-key': 'security-api-create-api-key',
 };
 
 export const transformDocPathForMethod = (docPath: string, method: string): string => {
@@ -264,6 +367,16 @@ const OPENSEARCH_API_CATEGORIES: Record<string, string> = {
   settings: 'index-apis',
   mapping: 'index-apis',
   analyze: 'index-apis',
+  sql: 'search-apis',
+  ppl: 'search-apis',
+  ad: 'anomaly-detection',
+  alerting: 'alerting',
+  ism: 'index-management',
+  security: 'security',
+  knn: 'knn',
+  async: 'asynchronous-search',
+  notifications: 'notifications',
+  ml: 'ml-commons',
 };
 
 const OPENSEARCH_API_NAME_FIXES: Record<string, string> = {
@@ -292,6 +405,22 @@ const OPENSEARCH_API_NAME_FIXES: Record<string, string> = {
   'indices-analyze': 'analyze',
   'snapshot-get-repository': 'snapshot-repository',
   nodes: 'nodes-info',
+  'sql-query': 'sql',
+  'ppl-query': 'ppl',
+  'ad-get-detector': 'get-detector',
+  'alerting-get-monitor': 'get-monitor',
+  'ism-get-policy': 'get-policy',
+  'security-account': 'account',
+  'security-get-user': 'get-user',
+  'security-get-role': 'get-role',
+  'knn-stats': 'stats',
+  'knn-warmup': 'warmup',
+  'async-search': 'asynchronous-search',
+  'notifications-get-channel': 'get-channel',
+  'ml-get-model': 'get-model',
+  'ml-load-model': 'load-model',
+  'ml-unload-model': 'unload-model',
+  'ml-predict': 'predict',
 };
 
 export const transformDocPathForOpenSearch = (docPath: string): string => {
