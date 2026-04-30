@@ -48,11 +48,7 @@ const createSearchAction = (method: string, path: string) => ({
   queryParams: null,
 });
 
-const createSearchActionWithIndex = (
-  method: string,
-  index: string,
-  path: string,
-) => ({
+const createSearchActionWithIndex = (method: string, index: string, path: string) => ({
   qdsl: '',
   position: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 } as any,
   method,

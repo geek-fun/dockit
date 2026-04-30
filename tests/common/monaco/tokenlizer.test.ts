@@ -1,4 +1,13 @@
-import { buildSearchToken, getAction, getActionMarksDecorations, formatQDSL, transformQDSL, transformToCurl, searchTokens, executionGutterClass } from '../../../src/common/monaco';
+import {
+  buildSearchToken,
+  getAction,
+  getActionMarksDecorations,
+  formatQDSL,
+  transformQDSL,
+  transformToCurl,
+  searchTokens,
+  executionGutterClass,
+} from '../../../src/common/monaco';
 
 jest.mock('monaco-editor', () => ({
   self: { MonacoEnvironment: {} },
@@ -46,9 +55,9 @@ const createMockModel = (lines: string[]): jest.Mocked<any> => {
     getLineContent: (n: number) => lines[n - 1],
     getValueInRange: ({
       startLineNumber,
-      startColumn,
+      _startColumn,
       endLineNumber,
-      endColumn,
+      _endColumn,
     }: {
       startLineNumber: number;
       startColumn: number;
@@ -246,11 +255,7 @@ describe('buildSearchToken', () => {
   });
 
   it('should filter out comment-only lines', () => {
-    const model = createMockModel([
-      'GET _search',
-      '// this is a comment',
-      '# another comment',
-    ]);
+    const model = createMockModel(['GET _search', '// this is a comment', '# another comment']);
     const result = buildSearchToken(model);
     expect(result).toHaveLength(1);
     expect(result[0].method).toBe('GET');
@@ -379,10 +384,7 @@ describe('getAction', () => {
 
 describe('getActionMarksDecorations', () => {
   it('should return decoration for each action', () => {
-    const model = createMockModel([
-      'GET _search',
-      'POST _bulk',
-    ]);
+    const model = createMockModel(['GET _search', 'POST _bulk']);
     buildSearchToken(model);
     const decorations = getActionMarksDecorations(searchTokens);
     expect(decorations).toHaveLength(2);
@@ -392,20 +394,14 @@ describe('getActionMarksDecorations', () => {
   });
 
   it('should sort decorations by line number', () => {
-    const model = createMockModel([
-      'GET _cat/indices',
-      'GET _cluster/health',
-    ]);
+    const model = createMockModel(['GET _cat/indices', 'GET _cluster/health']);
     buildSearchToken(model);
     const decorations = getActionMarksDecorations(searchTokens);
     expect(decorations.map(d => d.id)).toEqual([1, 2]);
   });
 
   it('should return empty array for no actions', () => {
-    const model = createMockModel([
-      'invalid line',
-      '// comment',
-    ]);
+    const model = createMockModel(['invalid line', '// comment']);
     buildSearchToken(model);
     const decorations = getActionMarksDecorations(searchTokens);
     expect(decorations).toEqual([]);
@@ -414,10 +410,7 @@ describe('getActionMarksDecorations', () => {
 
 describe('formatQDSL', () => {
   it('should format single-line JSON body', () => {
-    const model = createMockModel([
-      'GET _search',
-      '{ "query": { "match_all": {} } }',
-    ]);
+    const model = createMockModel(['GET _search', '{ "query": { "match_all": {} } }']);
     const tokens = buildSearchToken(model);
     const result = formatQDSL(tokens, model, { startLineNumber: 1, endLineNumber: 2 });
     expect(result).toHaveProperty('length');
@@ -425,12 +418,7 @@ describe('formatQDSL', () => {
   });
 
   it('should format multi-line JSON body', () => {
-    const model = createMockModel([
-      'POST _search',
-      '{',
-      '  "query": {}',
-      '}',
-    ]);
+    const model = createMockModel(['POST _search', '{', '  "query": {}', '}']);
     const tokens = buildSearchToken(model);
     const result = formatQDSL(tokens, model, { startLineNumber: 1, endLineNumber: 4 });
     expect(result).toBeDefined();
@@ -467,7 +455,7 @@ describe('transformToCurl', () => {
       url: 'http://localhost:9200/_search',
       method: 'GET',
       qdsl: '',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic xyz' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Basic xyz' },
       ssl: true,
     });
     expect(result).toContain("-H 'Content-Type: application/json'");
