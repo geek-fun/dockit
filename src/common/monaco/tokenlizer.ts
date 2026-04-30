@@ -15,7 +15,8 @@ export const buildSearchToken = (model: monaco.editor.IModel) => {
   const commands = lines.filter(({ lineContent }) => executeActions.regexp.test(lineContent));
 
   searchTokens = commands.map(({ lineContent, lineNumber }, index, commands) => {
-    const [rawPath, queryParams] = lineContent.split('?');
+    const strippedLine = lineContent.replace(/\/\/.*$/, '').replace(/#.*$/, '');
+    const [rawPath, queryParams] = strippedLine.split('?');
     const rawCmd = rawPath.split(/[\/\s]+/);
     const method = rawCmd[0]?.toUpperCase();
     const indexName = rawCmd[1]?.startsWith('_') ? undefined : rawCmd[1];
