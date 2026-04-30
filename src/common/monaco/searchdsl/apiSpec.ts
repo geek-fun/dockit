@@ -1313,6 +1313,23 @@ const commonEndpoints: ApiEndpoint[] = [
 
   // Terms Enum API
   {
+    path: '/_terms_enum',
+    methods: ['GET', 'POST'],
+    description: 'Get matching terms',
+    docPath: 'operation-terms-enum',
+    requestBody: {
+      properties: {
+        field: { type: 'string', description: 'Field to get terms from', required: true },
+        string: { type: 'string', description: 'String to match' },
+        size: { type: 'integer', description: 'Maximum number of terms' },
+        timeout: { type: 'string', description: 'Operation timeout' },
+        case_insensitive: { type: 'boolean', description: 'Case insensitive matching' },
+        index_filter: { type: 'object', description: 'Filter query' },
+        search_after: { type: 'string', description: 'Search after' },
+      },
+    },
+  },
+  {
     path: '/{index}/_terms_enum',
     methods: ['GET', 'POST'],
     description: 'Get matching terms from an index',
@@ -2237,7 +2254,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_ilm/policy',
     methods: ['GET'],
     description: 'List ILM policies',
-    docPath: 'operation-ilm-get-status',
+    docPath: 'operation-ilm-get-lifecycle',
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.6.0' } },
     queryParams: [
       {

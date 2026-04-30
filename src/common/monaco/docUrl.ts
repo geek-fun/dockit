@@ -179,6 +179,7 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     DELETE: 'operation-watcher-delete-watch',
   },
   'operation-indices-get-data-stream': {
+    POST: 'operation-indices-modify-data-stream',
     PUT: 'operation-indices-create-data-stream',
     DELETE: 'operation-indices-delete-data-stream',
   },
