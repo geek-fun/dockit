@@ -177,7 +177,7 @@ const commonEndpoints: ApiEndpoint[] = [
     methods: ['POST'],
     description: 'Index a document',
     descriptionKey: 'grammar.indexDoc',
-    docPath: 'operation-index',
+    docPath: 'operation-create',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     queryParams: [
       { name: 'routing', type: 'string', description: 'Routing value' },

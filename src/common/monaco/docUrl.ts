@@ -102,6 +102,10 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     DELETE: 'operation-indices-delete',
     HEAD: 'operation-indices-exists',
   },
+  'operation-create': {
+    PUT: 'operation-create',
+    POST: 'operation-create',
+  },
   'operation-get': {
     GET: 'operation-get',
     PUT: 'operation-index',
@@ -132,6 +136,14 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     PUT: 'operation-ingest-put-pipeline',
     DELETE: 'operation-ingest-delete-pipeline',
   },
+  'operation-get-script': {
+    PUT: 'operation-put-script',
+    DELETE: 'operation-delete-script',
+  },
+  'operation-transform-get-transform': {
+    PUT: 'operation-transform-put-transform',
+    DELETE: 'operation-transform-delete-transform',
+  },
   'operation-snapshot-create-repository': {
     GET: 'operation-snapshot-get-repository',
     PUT: 'operation-snapshot-create-repository',
@@ -143,7 +155,7 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     DELETE: 'operation-snapshot-delete',
   },
   'operation-ilm-put-lifecycle': {
-    GET: 'operation-ilm-get-status',
+    GET: 'operation-ilm-get-lifecycle',
     PUT: 'operation-ilm-put-lifecycle',
     DELETE: 'operation-ilm-delete-lifecycle',
   },
@@ -166,6 +178,17 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     PUT: 'operation-watcher-put-watch',
     DELETE: 'operation-watcher-delete-watch',
   },
+  'operation-indices-get-data-stream': {
+    PUT: 'operation-indices-create-data-stream',
+    DELETE: 'operation-indices-delete-data-stream',
+  },
+  'operation-rollup-get-jobs': {
+    PUT: 'operation-rollup-put-job',
+    DELETE: 'operation-rollup-delete-job',
+  },
+  'operation-ml-get-trained-models': {
+    DELETE: 'operation-ml-delete-trained-model',
+  },
 };
 
 export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
@@ -179,6 +202,7 @@ export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-msearch': 'search-multi-search',
   'operation-explain': 'search-explain',
   'operation-terms-enum': 'search-terms-enum',
+  'operation-create': 'docs-index_',
   'operation-index': 'docs-index_',
   'operation-get': 'docs-get',
   'operation-delete': 'docs-delete',
@@ -248,6 +272,8 @@ export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-ingest-simulate': 'ingest-apis',
   'operation-ingest-delete-pipeline': 'delete-pipeline-api',
   'operation-get-script': 'modules-scripting',
+  'operation-put-script': 'modules-scripting',
+  'operation-delete-script': 'modules-scripting',
   'operation-snapshot-get-repository': 'modules-snapshots',
   'operation-snapshot-create-repository': 'snapshots-register-repository',
   'operation-snapshot-delete-repository': 'snapshots-repositories',
@@ -261,20 +287,28 @@ export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-sql-query': 'sql-search-api',
   // Transform
   'operation-transform-get-transform': 'transform-apis',
+  'operation-transform-put-transform': 'transform-apis',
+  'operation-transform-delete-transform': 'transform-apis',
   // Data Stream
   'operation-indices-get-data-stream': 'data-stream-apis',
+  'operation-indices-create-data-stream': 'data-stream-apis',
+  'operation-indices-delete-data-stream': 'data-stream-apis',
   // ILM
   'operation-ilm-put-lifecycle': 'index-lifecycle-management',
+  'operation-ilm-get-lifecycle': 'index-lifecycle-management',
   'operation-ilm-get-status': 'index-lifecycle-management',
   'operation-ilm-delete-lifecycle': 'index-lifecycle-management',
   // Rollup
   'operation-rollup-get-jobs': 'rollup-apis',
+  'operation-rollup-put-job': 'rollup-apis',
+  'operation-rollup-delete-job': 'rollup-apis',
   // CCR
   'operation-ccr-stats': 'ccr-apis',
   // ML
   'operation-ml-get-jobs': 'ml-apis',
   'operation-ml-get-trained-models': 'ml-apis',
   'operation-ml-put-trained-model': 'ml-apis',
+  'operation-ml-delete-trained-model': 'ml-apis',
   'operation-ml-infer-trained-model': 'ml-apis',
   'operation-ml-put-job': 'ml-put-job',
   'operation-ml-delete-job': 'ml-delete-job',
