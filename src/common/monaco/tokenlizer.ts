@@ -23,7 +23,7 @@ export const buildSearchToken = (model: monaco.editor.IModel) => {
     }));
 
   searchTokens = commands.map(({ lineContent, lineNumber }, index, commands) => {
-    const strippedLine = lineContent;
+    const strippedLine = lineContent.trim();
     const [rawPath, queryParams] = strippedLine.split('?');
     const rawCmd = rawPath.split(/[\/\s]+/);
     const method = rawCmd[0]?.toUpperCase();
