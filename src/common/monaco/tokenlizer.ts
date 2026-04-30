@@ -14,12 +14,12 @@ export const buildSearchToken = (model: monaco.editor.IModel) => {
 
   const commands = lines
     .filter(({ lineContent }) => {
-      const stripped = lineContent.replace(/\/\/.*$/, '').replace(/#.*$/, '');
+      const stripped = lineContent.replace(/\/\/.*$/, '').replace(/#.*$/, '').trim();
       return executeActions.regexp.test(stripped);
     })
     .map(line => ({
       ...line,
-      lineContent: line.lineContent.replace(/\/\/.*$/, '').replace(/#.*$/, ''),
+      lineContent: line.lineContent.replace(/\/\/.*$/, '').replace(/#.*$/, '').trim(),
     }));
 
   searchTokens = commands.map(({ lineContent, lineNumber }, index, commands) => {
