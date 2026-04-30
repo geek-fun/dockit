@@ -2199,7 +2199,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
   },
   {
     path: '/_data_stream/{data_stream}',
-    methods: ['GET', 'PUT', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
     description: 'Manage data stream',
     docPath: 'operation-indices-get-data-stream',
     pathParams: [
@@ -2925,7 +2925,15 @@ export class ApiSpecProvider {
       return this.matchPath(endpoint.path, path);
     });
 
-    return matches.sort((a, b) => this.pathSpecificity(b.path) - this.pathSpecificity(a.path))[0];
+    const userSegments = path.split('/').length;
+    return matches.sort((a, b) => {
+      const specDiff = this.pathSpecificity(b.path) - this.pathSpecificity(a.path);
+      if (specDiff !== 0) return specDiff;
+      return (
+        Math.abs(a.path.split('/').length - userSegments) -
+        Math.abs(b.path.split('/').length - userSegments)
+      );
+    })[0];
   }
 
   private pathSpecificity(pattern: string): number {
@@ -2942,10 +2950,21 @@ export class ApiSpecProvider {
    */
   private matchPath(pattern: string, path: string): boolean {
     const normalize = (p: string) => p.replace(/^\//, '');
-    const regexPattern = normalize(pattern)
-      .replace(/\{[^}]+\}/g, '[^/]+')
-      .replace(/\//g, '\\/');
-    return new RegExp(`^${regexPattern}$`).test(normalize(path));
+    const patternParts = normalize(pattern).split('/');
+    const pathParts = normalize(path).split('/');
+
+    if (pathParts.length > patternParts.length) return false;
+
+    const allTypedMatch = pathParts.every((part, i) => {
+      const patternPart = patternParts[i];
+      if (patternPart.startsWith('{') && patternPart.endsWith('}')) return part.length > 0;
+      return patternPart === part;
+    });
+
+    if (!allTypedMatch) return false;
+
+    const remaining = patternParts.slice(pathParts.length);
+    return remaining.every(p => p.startsWith('{') && p.endsWith('}'));
   }
 
   /**
