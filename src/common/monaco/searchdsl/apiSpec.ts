@@ -2011,6 +2011,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/{index}/_eql/search',
     methods: ['GET', 'POST'],
     description: 'EQL search',
+    docPath: 'operation-eql-search',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.9.0' } },
     queryParams: [
@@ -2069,6 +2070,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_sql',
     methods: ['GET', 'POST'],
     description: 'SQL query',
+    docPath: 'operation-sql-query',
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.3.0' } },
     queryParams: [
       {
@@ -2096,6 +2098,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_transform',
     methods: ['GET'],
     description: 'List transforms',
+    docPath: 'operation-transform-get-transform',
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.2.0' } },
     queryParams: [
       {
@@ -2116,6 +2119,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_transform/{transform_id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage transform',
+    docPath: 'operation-transform-get-transform',
     pathParams: [
       { name: 'transform_id', type: 'string', description: 'Transform ID', required: true },
     ],
@@ -2147,6 +2151,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_data_stream',
     methods: ['GET'],
     description: 'List data streams',
+    docPath: 'operation-indices-get-data-stream',
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.9.0' } },
     queryParams: [
       {
@@ -2177,6 +2182,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_data_stream/{data_stream}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage data stream',
+    docPath: 'operation-indices-get-data-stream',
     pathParams: [
       { name: 'data_stream', type: 'string', description: 'Data stream name', required: true },
     ],
@@ -2212,6 +2218,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_ilm/policy',
     methods: ['GET'],
     description: 'List ILM policies',
+    docPath: 'operation-ilm-get-status',
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.6.0' } },
     queryParams: [
       {
@@ -2226,6 +2233,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_ilm/policy/{policy}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage ILM policy',
+    docPath: 'operation-ilm-put-lifecycle',
     pathParams: [{ name: 'policy', type: 'string', description: 'Policy name', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.6.0' } },
     queryParams: [
@@ -2243,6 +2251,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_rollup/job/{job_id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage rollup job',
+    docPath: 'operation-rollup-get-jobs',
     pathParams: [{ name: 'job_id', type: 'string', description: 'Job ID', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.3.0' } },
     queryParams: [
@@ -2261,6 +2270,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_watcher/watch/{watch_id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage watch',
+    docPath: 'operation-watcher-get-watch',
     pathParams: [{ name: 'watch_id', type: 'string', description: 'Watch ID', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.0.0' } },
     queryParams: [
@@ -2292,6 +2302,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_ccr/stats',
     methods: ['GET'],
     description: 'CCR stats',
+    docPath: 'operation-ccr-stats',
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.5.0' } },
   },
 
@@ -2299,7 +2310,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
   {
     path: '/_autoscaling/capacity',
     methods: ['GET'],
-    description: 'Autoscaling capacity',
+    description: 'Autoscaling capacity (deprecated in ES v9)',
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.11.0' } },
   },
 
@@ -2308,6 +2319,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_ml/anomaly_detectors',
     methods: ['GET'],
     description: 'List anomaly detection jobs',
+    docPath: 'operation-ml-get-jobs',
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.4.0' } },
     queryParams: [
       {
@@ -2328,6 +2340,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_ml/anomaly_detectors/{job_id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage anomaly detection job',
+    docPath: 'operation-ml-get-jobs',
     pathParams: [{ name: 'job_id', type: 'string', description: 'Job ID', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.4.0' } },
     queryParams: [
@@ -2357,6 +2370,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_ml/trained_models',
     methods: ['GET'],
     description: 'List trained models',
+    docPath: 'operation-ml-get-trained-models',
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.10.0' } },
     queryParams: [
       {
@@ -2397,6 +2411,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_ml/trained_models/{model_id}',
     methods: ['GET', 'DELETE'],
     description: 'Get or delete trained model',
+    docPath: 'operation-ml-get-trained-models',
     pathParams: [{ name: 'model_id', type: 'string', description: 'Model ID', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.10.0' } },
     queryParams: [
@@ -2442,6 +2457,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_ml/trained_models/{model_id}/_infer',
     methods: ['POST'],
     description: 'Infer using trained model',
+    docPath: 'operation-ml-infer-trained-model',
     pathParams: [{ name: 'model_id', type: 'string', description: 'Model ID', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '7.10.0' } },
     queryParams: [
@@ -2458,6 +2474,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_security/user',
     methods: ['GET'],
     description: 'List users',
+    docPath: 'operation-security-get-user',
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.0.0' } },
     queryParams: [
       {
@@ -2471,6 +2488,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_security/user/{username}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage user',
+    docPath: 'operation-security-get-user',
     pathParams: [{ name: 'username', type: 'string', description: 'Username', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.0.0' } },
     queryParams: [
@@ -2491,12 +2509,14 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_security/role',
     methods: ['GET'],
     description: 'List roles',
+    docPath: 'operation-security-get-role',
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.0.0' } },
   },
   {
     path: '/_security/role/{role}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage role',
+    docPath: 'operation-security-get-role',
     pathParams: [{ name: 'role', type: 'string', description: 'Role name', required: true }],
     availability: { [BackendType.ELASTICSEARCH]: { min: '5.0.0' } },
     queryParams: [
@@ -2512,6 +2532,7 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     path: '/_security/api_key',
     methods: ['GET', 'POST'],
     description: 'Manage API keys',
+    docPath: 'operation-security-get-api-key',
     availability: { [BackendType.ELASTICSEARCH]: { min: '6.7.0' } },
     queryParams: [
       { name: 'id', type: 'string', description: 'API key id of the API key to be retrieved' },
@@ -2549,6 +2570,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_sql',
     methods: ['POST'],
     description: 'SQL query',
+    docPath: 'operation-sql-query',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
     requestBody: {
       properties: {
@@ -2563,6 +2585,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_ppl',
     methods: ['POST'],
     description: 'PPL query',
+    docPath: 'operation-ppl-query',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
     requestBody: {
       properties: {
@@ -2576,6 +2599,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_anomaly_detection/detectors',
     methods: ['GET'],
     description: 'List anomaly detectors',
+    docPath: 'operation-ad-get-detector',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
     queryParams: [
       { name: 'from', type: 'integer', description: 'The number of detectors to skip' },
@@ -2586,6 +2610,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_anomaly_detection/detectors/{detector_id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage anomaly detector',
+    docPath: 'operation-ad-get-detector',
     pathParams: [
       { name: 'detector_id', type: 'string', description: 'Detector ID', required: true },
     ],
@@ -2604,6 +2629,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_alerting/monitors',
     methods: ['GET'],
     description: 'List alerting monitors',
+    docPath: 'operation-alerting-get-monitor',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
     queryParams: [
       { name: 'from', type: 'integer', description: 'The number of monitors to skip' },
@@ -2622,6 +2648,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_alerting/monitors/{monitor_id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage alerting monitor',
+    docPath: 'operation-alerting-get-monitor',
     pathParams: [{ name: 'monitor_id', type: 'string', description: 'Monitor ID', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
     queryParams: [
@@ -2648,6 +2675,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_ism/policies',
     methods: ['GET'],
     description: 'List ISM policies',
+    docPath: 'operation-ism-get-policy',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
     queryParams: [
       { name: 'from', type: 'integer', description: 'The number of policies to skip' },
@@ -2658,6 +2686,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_ism/policies/{policy}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage ISM policy',
+    docPath: 'operation-ism-get-policy',
     pathParams: [{ name: 'policy', type: 'string', description: 'Policy name', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
     queryParams: [
@@ -2679,18 +2708,21 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_security/api/account',
     methods: ['GET', 'PUT'],
     description: 'Account information',
+    docPath: 'operation-security-account',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
   },
   {
     path: '/_plugins/_security/api/internalusers',
     methods: ['GET'],
     description: 'List internal users',
+    docPath: 'operation-security-get-user',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
   },
   {
     path: '/_plugins/_security/api/internalusers/{username}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage internal user',
+    docPath: 'operation-security-get-user',
     pathParams: [{ name: 'username', type: 'string', description: 'Username', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
   },
@@ -2698,12 +2730,14 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_security/api/roles',
     methods: ['GET'],
     description: 'List roles',
+    docPath: 'operation-security-get-role',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
   },
   {
     path: '/_plugins/_security/api/roles/{role}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage role',
+    docPath: 'operation-security-get-role',
     pathParams: [{ name: 'role', type: 'string', description: 'Role name', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
   },
@@ -2713,12 +2747,14 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_knn/stats',
     methods: ['GET'],
     description: 'k-NN plugin stats',
+    docPath: 'operation-knn-stats',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
   },
   {
     path: '/{index}/_plugins/_knn/warmup',
     methods: ['GET'],
     description: 'Warm up k-NN index',
+    docPath: 'operation-knn-warmup',
     pathParams: [{ name: 'index', type: 'string', description: 'Index name', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
   },
@@ -2728,6 +2764,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_asynchronous_search',
     methods: ['POST'],
     description: 'Create asynchronous search',
+    docPath: 'operation-async-search',
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
     queryParams: [
       { name: 'index', type: 'string', description: 'Index pattern to search' },
@@ -2748,6 +2785,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_asynchronous_search/{id}',
     methods: ['GET', 'DELETE'],
     description: 'Get or delete asynchronous search',
+    docPath: 'operation-async-search',
     pathParams: [{ name: 'id', type: 'string', description: 'Search ID', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '1.0.0' } },
   },
@@ -2757,12 +2795,14 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_notifications/channels',
     methods: ['GET'],
     description: 'List notification channels',
+    docPath: 'operation-notifications-get-channel',
     availability: { [BackendType.OPENSEARCH]: { min: '2.0.0' } },
   },
   {
     path: '/_plugins/_notifications/channels/{channel_id}',
     methods: ['GET', 'PUT', 'DELETE'],
     description: 'Manage notification channel',
+    docPath: 'operation-notifications-get-channel',
     pathParams: [{ name: 'channel_id', type: 'string', description: 'Channel ID', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '2.0.0' } },
   },
@@ -2772,12 +2812,14 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_ml/models',
     methods: ['GET'],
     description: 'List ML models',
+    docPath: 'operation-ml-get-model',
     availability: { [BackendType.OPENSEARCH]: { min: '2.4.0' } },
   },
   {
     path: '/_plugins/_ml/models/{model_id}',
     methods: ['GET', 'DELETE'],
     description: 'Get or delete ML model',
+    docPath: 'operation-ml-get-model',
     pathParams: [{ name: 'model_id', type: 'string', description: 'Model ID', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '2.4.0' } },
   },
@@ -2785,6 +2827,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_ml/models/{model_id}/_load',
     methods: ['POST'],
     description: 'Load ML model',
+    docPath: 'operation-ml-load-model',
     pathParams: [{ name: 'model_id', type: 'string', description: 'Model ID', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '2.4.0' } },
   },
@@ -2792,6 +2835,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_ml/models/{model_id}/_unload',
     methods: ['POST'],
     description: 'Unload ML model',
+    docPath: 'operation-ml-unload-model',
     pathParams: [{ name: 'model_id', type: 'string', description: 'Model ID', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '2.4.0' } },
   },
@@ -2799,6 +2843,7 @@ const opensearchEndpoints: ApiEndpoint[] = [
     path: '/_plugins/_ml/models/{model_id}/_predict',
     methods: ['POST'],
     description: 'Predict using ML model',
+    docPath: 'operation-ml-predict',
     pathParams: [{ name: 'model_id', type: 'string', description: 'Model ID', required: true }],
     availability: { [BackendType.OPENSEARCH]: { min: '2.4.0' } },
   },

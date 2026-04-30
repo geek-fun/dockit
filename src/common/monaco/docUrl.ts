@@ -139,6 +139,11 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     PUT: 'operation-snapshot-create',
     DELETE: 'operation-snapshot-delete',
   },
+  'operation-ilm-put-lifecycle': {
+    GET: 'operation-ilm-get-status',
+    PUT: 'operation-ilm-put-lifecycle',
+    DELETE: 'operation-ilm-delete-lifecycle',
+  },
 };
 
 export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
@@ -218,11 +223,43 @@ export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-ingest-get-pipeline': 'ingest-apis',
   'operation-ingest-put-pipeline': 'ingest-apis',
   'operation-ingest-simulate': 'ingest-apis',
+  'operation-ingest-delete-pipeline': 'delete-pipeline-api',
   'operation-get-script': 'modules-scripting',
   'operation-snapshot-get-repository': 'modules-snapshots',
   'operation-snapshot-create-repository': 'snapshots-register-repository',
+  'operation-snapshot-delete-repository': 'snapshots-repositories',
   'operation-snapshot-create': 'modules-snapshots',
+  'operation-snapshot-get': 'get-snapshot-api',
+  'operation-snapshot-delete': 'delete-snapshot-api',
   'operation-snapshot-restore': 'snapshot-restore',
+  // EQL
+  'operation-eql-search': 'eql-search-api',
+  // SQL
+  'operation-sql-query': 'sql-search-api',
+  // Transform
+  'operation-transform-get-transform': 'transform-apis',
+  // Data Stream
+  'operation-indices-get-data-stream': 'data-stream-apis',
+  // ILM
+  'operation-ilm-put-lifecycle': 'index-lifecycle-management',
+  'operation-ilm-get-status': 'index-lifecycle-management',
+  'operation-ilm-delete-lifecycle': 'index-lifecycle-management',
+  // Rollup
+  'operation-rollup-get-jobs': 'rollup-apis',
+  // Watcher
+  'operation-watcher-get-watch': 'watcher-api',
+  'operation-watcher-put-watch': 'watcher-api',
+  // CCR
+  'operation-ccr-stats': 'ccr-apis',
+  // ML
+  'operation-ml-get-jobs': 'ml-apis',
+  'operation-ml-get-trained-models': 'ml-apis',
+  'operation-ml-put-trained-model': 'ml-apis',
+  'operation-ml-infer-trained-model': 'ml-apis',
+  // Security
+  'operation-security-get-user': 'security-api',
+  'operation-security-get-role': 'security-api',
+  'operation-security-get-api-key': 'security-api',
 };
 
 export const transformDocPathForMethod = (docPath: string, method: string): string => {
@@ -264,6 +301,16 @@ const OPENSEARCH_API_CATEGORIES: Record<string, string> = {
   settings: 'index-apis',
   mapping: 'index-apis',
   analyze: 'index-apis',
+  sql: 'search-apis',
+  ppl: 'search-apis',
+  ad: 'anomaly-detection',
+  alerting: 'alerting',
+  ism: 'index-management',
+  security: 'security',
+  knn: 'knn',
+  async: 'asynchronous-search',
+  notifications: 'notifications',
+  ml: 'ml-commons',
 };
 
 const OPENSEARCH_API_NAME_FIXES: Record<string, string> = {
@@ -292,6 +339,22 @@ const OPENSEARCH_API_NAME_FIXES: Record<string, string> = {
   'indices-analyze': 'analyze',
   'snapshot-get-repository': 'snapshot-repository',
   nodes: 'nodes-info',
+  'sql-query': 'sql',
+  'ppl-query': 'ppl',
+  'ad-get-detector': 'get-detector',
+  'alerting-get-monitor': 'get-monitor',
+  'ism-get-policy': 'get-policy',
+  'security-account': 'account',
+  'security-get-user': 'get-user',
+  'security-get-role': 'get-role',
+  'knn-stats': 'stats',
+  'knn-warmup': 'warmup',
+  'async-search': 'asynchronous-search',
+  'notifications-get-channel': 'get-channel',
+  'ml-get-model': 'get-model',
+  'ml-load-model': 'load-model',
+  'ml-unload-model': 'unload-model',
+  'ml-predict': 'predict',
 };
 
 export const transformDocPathForOpenSearch = (docPath: string): string => {
