@@ -113,6 +113,9 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
     DELETE: 'operation-indices-delete-index-template',
     HEAD: 'operation-indices-exists-index-template',
   },
+  'operation-indices-put-mapping': {
+    GET: 'operation-indices-get-mapping',
+  },
   'operation-indices-update-aliases': {
     GET: 'operation-indices-get-alias',
     PUT: 'operation-indices-put-alias',
@@ -170,6 +173,7 @@ export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-indices-delete': 'indices-delete-index',
   'operation-indices-exists': 'indices-exists',
   'operation-indices-put-mapping': 'indices-put-mapping',
+  'operation-indices-get-mapping': 'indices-get-mapping',
   'operation-indices-get-settings': 'indices-update-settings',
   'operation-indices-put-settings': 'indices-update-settings',
   'operation-indices-open': 'indices-open-close',
