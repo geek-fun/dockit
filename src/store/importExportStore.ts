@@ -3,7 +3,13 @@ import { ulid } from 'ulidx';
 import { get } from 'lodash';
 import { defineStore } from 'pinia';
 import { CustomError, debug, jsonify, retryWithBackoff, isRetryableError } from '../common';
-import { dynamoApi, esApi, loadHttpClient, sourceFileApi } from '../datasources';
+import {
+  dynamoApi,
+  esApi,
+  loadHttpClient,
+  sourceFileApi,
+  type DynamoDBTableInfo,
+} from '../datasources';
 import { buildEsMappingBody } from '../views/import-export/utils/schemaMapping';
 import {
   Connection,
@@ -612,9 +618,10 @@ export const useImportExportStore = defineStore('importExportStore', {
         };
         this.syncImportProgressToTask();
 
+        let tableInfo: DynamoDBTableInfo | null = null;
         let attributeTypeMap: Map<string, string> | undefined;
         try {
-          const tableInfo = await dynamoApi.describeTable(dynamoConnection, tableName);
+          tableInfo = await dynamoApi.describeTable(dynamoConnection, tableName);
           if (tableInfo?.attributeDefinitions) {
             attributeTypeMap = new Map<string, string>();
             for (const attr of tableInfo.attributeDefinitions) {
@@ -627,8 +634,8 @@ export const useImportExportStore = defineStore('importExportStore', {
 
         const batchSize = 25;
         const fileBatchSize = 1000;
-        const partitionKeyName = tableSummary?.partitionKey?.name;
-        const sortKeyName = tableSummary?.sortKey?.name;
+        const partitionKeyName = tableSummary?.partitionKey?.name ?? tableInfo?.partitionKey?.name;
+        const sortKeyName = tableSummary?.sortKey?.name ?? tableInfo?.sortKey?.name;
 
         if (!partitionKeyName) {
           throw new CustomError(400, `Table ${tableName} has no partition key metadata`);
