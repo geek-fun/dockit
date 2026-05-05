@@ -115,9 +115,9 @@ const validatePartiqlStatement = (statement: string, startLine: number): Validat
 
   // UPDATE validation
   if (firstWord === 'UPDATE') {
-    if (!upperStatement.includes('SET')) {
+    if (!upperStatement.includes('SET') && !upperStatement.includes('REMOVE')) {
       errors.push({
-        message: 'UPDATE statement requires SET clause',
+        message: 'UPDATE statement requires SET or REMOVE clause',
         startLineNumber: startLine,
         endLineNumber: startLine + statement.split('\n').length - 1,
         startColumn: 1,
