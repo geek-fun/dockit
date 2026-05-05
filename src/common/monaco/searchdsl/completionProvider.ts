@@ -1001,6 +1001,48 @@ const getRootBodyFields = (
     ];
   }
 
+  // ES|QL query endpoint
+  if (pathEndsWith('_query')) {
+    return [
+      {
+        label: 'query',
+        snippet: 'query: "${1:FROM index | LIMIT 10}"',
+        description: 'ES|QL query string',
+        sortOrder: 1,
+      },
+      {
+        label: 'format',
+        snippet: 'format: "${1|json,yaml,csv,tsv,txt,cbor,smile|}"',
+        description: 'Response format',
+        sortOrder: 2,
+      },
+      {
+        label: 'params',
+        snippet: 'params: [\n\t{\n\t\t$0\n\t}\n]',
+        description: 'Query parameters',
+        sortOrder: 3,
+      },
+      {
+        label: 'locale',
+        snippet: 'locale: "${1}"',
+        description: 'Locale for the query',
+        sortOrder: 4,
+      },
+      {
+        label: 'filter',
+        snippet: 'filter: {\n\t$0\n}',
+        description: 'Query DSL filter',
+        sortOrder: 5,
+      },
+      {
+        label: 'timeout',
+        snippet: 'timeout: "${1:30s}"',
+        description: 'Query timeout',
+        sortOrder: 6,
+      },
+    ];
+  }
+
   // Check if this is an update endpoint
   if (pathMatchesEndpoint('_update')) {
     return [

@@ -2101,6 +2101,30 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     ],
   },
 
+  // ES|QL Query API
+  {
+    path: '/_query',
+    methods: ['POST'],
+    description: 'ES|QL query',
+    descriptionKey: 'grammar.esqlQuery',
+    docPath: 'operation-esql-query',
+    availability: { [BackendType.ELASTICSEARCH]: { min: '8.11.0' } },
+    requestBody: {
+      properties: {
+        query: { type: 'string', description: 'ES|QL query string', required: true },
+        format: {
+          type: 'string',
+          description: 'Response format',
+          enum: ['json', 'yaml', 'csv', 'tsv', 'txt', 'cbor', 'smile'],
+        },
+        params: { type: 'array', description: 'Query parameters' },
+        locale: { type: 'string', description: 'Locale for the query' },
+        filter: { type: 'object', description: 'Query DSL filter for security and pre-filtering' },
+        timeout: { type: 'string', description: 'Query timeout' },
+      },
+    },
+  },
+
   // SQL
   {
     path: '/_sql',

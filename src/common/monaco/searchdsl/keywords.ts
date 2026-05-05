@@ -4,6 +4,7 @@ import { BodyProperty } from './types';
 const methods = ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS', 'PATCH', 'TRACE'];
 const paths = [
   '_search',
+  '_query',
   '_cat',
   '_count',
   '_mapping',
