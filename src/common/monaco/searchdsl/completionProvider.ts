@@ -28,6 +28,8 @@ export type DynamicCompletionOptions = {
   templates?: string[];
   pipelines?: string[];
   aliases?: string[];
+  /** Field names available for index completions (used by ES|QL queries) */
+  fields?: string[];
   /** Whether to include hidden/system indices (starting with `.`) in completions */
   includeSystemIndices?: boolean;
 };
@@ -120,6 +122,8 @@ const getCompletionContext = (
         path,
         bodyPath: bodyInfo.path,
         isValuePosition: bodyInfo.isValuePosition,
+        currentKey: bodyInfo.currentKey,
+        currentKeyValue: bodyInfo.currentKeyValue,
       };
     }
 
@@ -208,6 +212,8 @@ const getCompletionContext = (
       path,
       bodyPath: bodyInfo.path,
       isValuePosition: bodyInfo.isValuePosition,
+      currentKey: bodyInfo.currentKey,
+      currentKeyValue: bodyInfo.currentKeyValue,
     };
   }
 
@@ -272,11 +278,18 @@ const findMethodAndPath = (
 const getBodyPath = (
   text: string,
   offset: number,
-): { path: string[]; isValuePosition: boolean } | null => {
+): {
+  path: string[];
+  isValuePosition: boolean;
+  currentKey?: string;
+  currentKeyValue?: string;
+} | null => {
   const tokens = tokenize(text);
   const pathStack: string[] = [];
   let bodyDepth = 0;
   let lastKey: string | null = null;
+  let lastKeyValue: string | undefined = undefined;
+  let pendingColon = false;
 
   for (const token of tokens) {
     if (token.start >= offset) break;
@@ -288,6 +301,7 @@ const getBodyPath = (
           if (lastKey) {
             pathStack.push(lastKey);
             lastKey = null;
+            lastKeyValue = undefined;
           }
         }
         break;
@@ -297,6 +311,7 @@ const getBodyPath = (
             pathStack.pop();
           }
           lastKey = null;
+          lastKeyValue = undefined;
           if (bodyDepth > 0) {
             bodyDepth--;
           }
@@ -310,6 +325,10 @@ const getBodyPath = (
         );
         if (nextToken?.type === TokenType.COLON) {
           lastKey = token.value.replace(/['"]/g, '');
+          pendingColon = true;
+        } else if (pendingColon) {
+          lastKeyValue = token.value.replace(/^['"]|['"]$/g, '').replace(/^"""|"""$/g, '');
+          pendingColon = false;
         }
         break;
       }
@@ -317,6 +336,8 @@ const getBodyPath = (
         break;
       case TokenType.COMMA:
         lastKey = null;
+        lastKeyValue = undefined;
+        pendingColon = false;
         break;
     }
   }
@@ -324,7 +345,12 @@ const getBodyPath = (
   // We're in a body if we have unclosed braces
   // isValuePosition: cursor is at a value slot (after key+colon) when lastKey is set
   if (bodyDepth > 0) {
-    return { path: pathStack, isValuePosition: lastKey !== null };
+    return {
+      path: pathStack,
+      isValuePosition: lastKey !== null,
+      currentKey: lastKey !== null ? lastKey : undefined,
+      currentKeyValue: lastKeyValue,
+    };
   }
   return null;
 };
@@ -722,9 +748,60 @@ const provideBodyCompletions = (
   const completions: monaco.languages.CompletionItem[] = [];
 
   // Determine what we're completing based on the body path
-  if (bodyPath.length === 0) {
-    // Root level of body - provide top-level fields
-    const rootFields = getRootBodyFields(path, method);
+  // Use the API spec to verify we're on the _query endpoint
+  // This is more robust than path heuristics — prevents false triggers on
+  // _delete_by_query, _update_by_query, and other endpoints ending in _query
+  const matchedEndpoint = path
+    ? apiSpecProvider.findEndpoint(backend, path, method, version)
+    : undefined;
+  const isEsqlQuery = !!matchedEndpoint && matchedEndpoint.path === '/_query';
+  if (bodyPath.length === 0 && context.currentKey === 'query' && isEsqlQuery) {
+    // ES|QL query completions (for _query endpoint where query value is a string)
+    const esqlCompletions = getEsqlCommandCompletions();
+    for (const cmd of esqlCompletions) {
+      completions.push({
+        label: cmd.label,
+        kind: monaco.languages.CompletionItemKind.Keyword,
+        insertText: cmd.insertText,
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
+        detail: cmd.description,
+        sortText: String(cmd.sortOrder).padStart(3, '0'),
+        range,
+      });
+    }
+    const esqlFunctions = getEsqlFunctionCompletions();
+    for (const fn of esqlFunctions) {
+      completions.push({
+        label: fn.label,
+        kind: monaco.languages.CompletionItemKind.Function,
+        insertText: fn.insertText,
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        detail: fn.description,
+        sortText: '1' + fn.label,
+        range,
+      });
+    }
+    // Provide field name completions only when a FROM clause is present in the query
+    const esqlFields = getEsqlFieldCompletions(context.currentKeyValue);
+    for (const field of esqlFields) {
+      completions.push({
+        label: field,
+        kind: monaco.languages.CompletionItemKind.Variable,
+        insertText: field,
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
+        detail: 'Field',
+        sortText: '2' + field,
+        range,
+      });
+    }
+  } else if (bodyPath.length === 0) {
+    // Root level of body - provide top-level fields.
+    // For paths that look like /_query but don't match the API spec (e.g. my-index/_query),
+    // skip ES|QL-specific root body fields to avoid suggesting fields for invalid endpoints.
+    const normalizedPathForQuery = (path || '').replace(/^\/+/, '');
+    const looksLikeQuery =
+      normalizedPathForQuery === '_query' || normalizedPathForQuery.endsWith('/_query');
+    const rootFields = looksLikeQuery && !isEsqlQuery ? [] : getRootBodyFields(path, method);
     for (const field of rootFields) {
       completions.push({
         label: field.label,
@@ -997,6 +1074,54 @@ const getRootBodyFields = (
         snippet: 'profile: ${1:true}',
         description: 'Profile query execution',
         sortOrder: 20,
+      },
+    ];
+  }
+
+  // ES|QL query endpoint
+  if (pathEndsWith('_query')) {
+    return [
+      {
+        label: 'query',
+        snippet: 'query: "${1:FROM index | LIMIT 10}"',
+        description: 'ES|QL query string (required)',
+        sortOrder: 1,
+      },
+      {
+        label: 'columnar',
+        snippet: 'columnar: ${1|true,false|}',
+        description: 'Return results in columnar format',
+        sortOrder: 2,
+      },
+      {
+        label: 'filter',
+        snippet: 'filter: {\n\t$0\n}',
+        description: 'Query DSL filter',
+        sortOrder: 3,
+      },
+      {
+        label: 'locale',
+        snippet: 'locale: "${1}"',
+        description: 'Locale for the query',
+        sortOrder: 4,
+      },
+      {
+        label: 'params',
+        snippet: 'params: [\n\t{\n\t\t$0\n\t}\n]',
+        description: 'Query parameters',
+        sortOrder: 5,
+      },
+      {
+        label: 'profile',
+        snippet: 'profile: ${1|true,false|}',
+        description: 'Profile query execution',
+        sortOrder: 6,
+      },
+      {
+        label: 'tables',
+        snippet: 'tables: {\n\t"${1:table_name}": {\n\t\t$0\n\t}\n}',
+        description: 'Tables for LOOKUP operations',
+        sortOrder: 7,
       },
     ];
   }
@@ -1659,6 +1784,212 @@ const getAggregationTypes = (): Array<{ name: string; snippet: string; descripti
       description: 'Bucket script aggregation',
     },
   ];
+};
+
+/**
+ * ES|QL command completions
+ */
+const getEsqlCommandCompletions = (): Array<{
+  label: string;
+  insertText: string;
+  description: string;
+  sortOrder: number;
+}> => {
+  return [
+    {
+      label: 'FROM',
+      insertText: 'FROM $0',
+      description: 'Source command: specify index or pattern',
+      sortOrder: 1,
+    },
+    {
+      label: 'ROW',
+      insertText: 'ROW $0',
+      description: 'Source command: inline row of data',
+      sortOrder: 2,
+    },
+    {
+      label: 'SHOW',
+      insertText: 'SHOW $0',
+      description: 'Source command: show metadata',
+      sortOrder: 3,
+    },
+    {
+      label: 'WHERE',
+      insertText: 'WHERE $0',
+      description: 'Filter results by condition',
+      sortOrder: 4,
+    },
+    {
+      label: 'STATS',
+      insertText: 'STATS $0',
+      description: 'Compute aggregation statistics',
+      sortOrder: 5,
+    },
+    {
+      label: 'EVAL',
+      insertText: 'EVAL $0',
+      description: 'Evaluate a computed column',
+      sortOrder: 6,
+    },
+    {
+      label: 'KEEP',
+      insertText: 'KEEP $0',
+      description: 'Keep only specified columns',
+      sortOrder: 7,
+    },
+    { label: 'DROP', insertText: 'DROP $0', description: 'Drop specified columns', sortOrder: 8 },
+    {
+      label: 'RENAME',
+      insertText: 'RENAME $1 TO $2',
+      description: 'Rename a column',
+      sortOrder: 9,
+    },
+    { label: 'SORT', insertText: 'SORT $0', description: 'Sort results', sortOrder: 10 },
+    {
+      label: 'LIMIT',
+      insertText: 'LIMIT $0',
+      description: 'Limit number of results',
+      sortOrder: 11,
+    },
+    {
+      label: 'DISSECT',
+      insertText: 'DISSECT $0',
+      description: 'Extract structured data from text',
+      sortOrder: 12,
+    },
+    {
+      label: 'GROK',
+      insertText: 'GROK $0',
+      description: 'Extract structured data with grok patterns',
+      sortOrder: 13,
+    },
+    {
+      label: 'ENRICH',
+      insertText: 'ENRICH $0',
+      description: 'Enrich with lookup data',
+      sortOrder: 14,
+    },
+    {
+      label: 'MV_EXPAND',
+      insertText: 'MV_EXPAND $0',
+      description: 'Expand multivalued column into rows',
+      sortOrder: 15,
+    },
+    { label: 'BY', insertText: 'BY $0', description: 'Group by clause for STATS', sortOrder: 16 },
+    { label: 'AND', insertText: 'AND $0', description: 'Logical AND operator', sortOrder: 17 },
+    { label: 'OR', insertText: 'OR $0', description: 'Logical OR operator', sortOrder: 18 },
+    { label: 'NOT', insertText: 'NOT $0', description: 'Logical NOT operator', sortOrder: 19 },
+    { label: 'IN', insertText: 'IN $0', description: 'Membership test operator', sortOrder: 20 },
+    {
+      label: 'LIKE',
+      insertText: 'LIKE $0',
+      description: 'Pattern matching operator',
+      sortOrder: 21,
+    },
+    {
+      label: 'RLIKE',
+      insertText: 'RLIKE $0',
+      description: 'Regex pattern matching operator',
+      sortOrder: 22,
+    },
+    { label: 'IS NULL', insertText: 'IS NULL', description: 'Null test operator', sortOrder: 23 },
+    {
+      label: 'IS NOT NULL',
+      insertText: 'IS NOT NULL',
+      description: 'Not-null test operator',
+      sortOrder: 24,
+    },
+    { label: 'ASC', insertText: 'ASC', description: 'Ascending sort order', sortOrder: 25 },
+    { label: 'DESC', insertText: 'DESC', description: 'Descending sort order', sortOrder: 26 },
+    {
+      label: 'METADATA',
+      insertText: 'METADATA $0',
+      description: 'Include metadata fields',
+      sortOrder: 27,
+    },
+  ];
+};
+
+/**
+ * ES|QL function completions
+ */
+const getEsqlFunctionCompletions = (): Array<{
+  label: string;
+  insertText: string;
+  description: string;
+}> => {
+  return [
+    // Aggregate functions
+    { label: 'AVG', insertText: 'AVG($0)', description: 'Average value' },
+    { label: 'SUM', insertText: 'SUM($0)', description: 'Sum of values' },
+    { label: 'COUNT', insertText: 'COUNT($0)', description: 'Count of values' },
+    { label: 'COUNT_DISTINCT', insertText: 'COUNT_DISTINCT($0)', description: 'Distinct count' },
+    { label: 'MIN', insertText: 'MIN($0)', description: 'Minimum value' },
+    { label: 'MAX', insertText: 'MAX($0)', description: 'Maximum value' },
+    { label: 'MEDIAN', insertText: 'MEDIAN($0)', description: 'Median value' },
+    { label: 'PERCENTILE', insertText: 'PERCENTILE($0)', description: 'Percentile value' },
+    { label: 'STD_DEV', insertText: 'STD_DEV($0)', description: 'Standard deviation' },
+    { label: 'VARIANCE', insertText: 'VARIANCE($0)', description: 'Variance' },
+    { label: 'VALUES', insertText: 'VALUES($0)', description: 'Collect distinct values' },
+    { label: 'WEIGHTED_AVG', insertText: 'WEIGHTED_AVG($0)', description: 'Weighted average' },
+    // Date/time functions
+    { label: 'DATE_TRUNC', insertText: 'DATE_TRUNC($0)', description: 'Truncate date to unit' },
+    { label: 'DATE_EXTRACT', insertText: 'DATE_EXTRACT($0)', description: 'Extract date part' },
+    { label: 'DATE_FORMAT', insertText: 'DATE_FORMAT($0)', description: 'Format date as string' },
+    { label: 'DATE_PARSE', insertText: 'DATE_PARSE($0)', description: 'Parse date from string' },
+    { label: 'DATE_DIFF', insertText: 'DATE_DIFF($0)', description: 'Difference between dates' },
+    { label: 'NOW', insertText: 'NOW()', description: 'Current timestamp' },
+    // String functions
+    { label: 'CONCAT', insertText: 'CONCAT($0)', description: 'Concatenate strings' },
+    // Type conversion functions
+    { label: 'TO_INTEGER', insertText: 'TO_INTEGER($0)', description: 'Convert to integer' },
+    { label: 'TO_LONG', insertText: 'TO_LONG($0)', description: 'Convert to long' },
+    { label: 'TO_DOUBLE', insertText: 'TO_DOUBLE($0)', description: 'Convert to double' },
+    { label: 'TO_STRING', insertText: 'TO_STRING($0)', description: 'Convert to string' },
+    { label: 'TO_DATETIME', insertText: 'TO_DATETIME($0)', description: 'Convert to datetime' },
+    { label: 'TO_BOOLEAN', insertText: 'TO_BOOLEAN($0)', description: 'Convert to boolean' },
+    { label: 'TO_IP', insertText: 'TO_IP($0)', description: 'Convert to IP' },
+    { label: 'TO_VERSION', insertText: 'TO_VERSION($0)', description: 'Convert to version' },
+    // Multivalue functions
+    { label: 'MV_AVG', insertText: 'MV_AVG($0)', description: 'Average of multivalued field' },
+    {
+      label: 'MV_CONCAT',
+      insertText: 'MV_CONCAT($0)',
+      description: 'Concatenate multivalued field',
+    },
+    { label: 'MV_MAX', insertText: 'MV_MAX($0)', description: 'Max of multivalued field' },
+    { label: 'MV_MIN', insertText: 'MV_MIN($0)', description: 'Min of multivalued field' },
+    { label: 'MV_SUM', insertText: 'MV_SUM($0)', description: 'Sum of multivalued field' },
+    { label: 'MV_COUNT', insertText: 'MV_COUNT($0)', description: 'Count of multivalued field' },
+  ];
+};
+
+/**
+ * ES|QL field name completions based on FROM <index> in the query string
+ */
+const getEsqlFieldCompletions = (queryValue?: string): string[] => {
+  if (!queryValue || !dynamicOptions.fields || dynamicOptions.fields.length === 0) {
+    return [];
+  }
+
+  // Parse FROM <index> from the query to verify it matches the active index.
+  // Fields are only suggested when a FROM clause is present and the index matches.
+  const fromMatch = queryValue.match(/\bFROM\s+(\S+)/i);
+  if (!fromMatch) {
+    return []; // No FROM clause — cannot determine which index's fields to suggest
+  }
+
+  const queriedIndex = fromMatch[1].replace(/["`]/g, '');
+  const activeIndex = dynamicOptions.activeIndex;
+  // Only return fields if the queried index matches the active index.
+  // Wildcards (e.g. `FROM logs-*`) cannot be matched reliably so fields are
+  // suppressed for non-exact matches to avoid suggesting fields from the wrong index.
+  if (activeIndex && queriedIndex !== activeIndex) {
+    return [];
+  }
+
+  return dynamicOptions.fields;
 };
 
 /**

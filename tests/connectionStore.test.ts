@@ -1,4 +1,9 @@
-import { applyTableFilter, findTable, upsertTable } from '../src/store/connectionStore';
+import {
+  applyTableFilter,
+  findTable,
+  upsertTable,
+  extractFieldsFromMapping,
+} from '../src/store/connectionStore';
 import type {
   DynamoTableFilter,
   DynamoDBConnection,
@@ -263,5 +268,50 @@ describe('upsertTable', () => {
   it('handles empty table list', () => {
     const result = upsertTable([], { name: 'first' });
     expect(result).toEqual([{ name: 'first' }]);
+  });
+});
+
+describe('extractFieldsFromMapping', () => {
+  it('extracts field names from a standard mapping', () => {
+    const mapping = {
+      'my-index': {
+        mappings: {
+          properties: {
+            category: { type: 'keyword' },
+            price: { type: 'float' },
+            description: { type: 'text' },
+          },
+        },
+      },
+    };
+    expect(extractFieldsFromMapping(mapping)).toEqual(['category', 'price', 'description']);
+  });
+
+  it('returns empty array for undefined mapping', () => {
+    expect(extractFieldsFromMapping(undefined)).toEqual([]);
+  });
+
+  it('returns empty array for mapping with no properties', () => {
+    const mapping = {
+      'my-index': {
+        mappings: {},
+      },
+    };
+    expect(extractFieldsFromMapping(mapping)).toEqual([]);
+  });
+
+  it('returns empty array for empty mapping object', () => {
+    expect(extractFieldsFromMapping({})).toEqual([]);
+  });
+
+  it('handles mapping with dynamic field but no properties', () => {
+    const mapping = {
+      'my-index': {
+        mappings: {
+          dynamic: true,
+        },
+      },
+    };
+    expect(extractFieldsFromMapping(mapping)).toEqual([]);
   });
 });

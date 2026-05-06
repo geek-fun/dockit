@@ -97,6 +97,10 @@ export type CompletionContext = {
   bodyPath?: string[];
   /** Whether the cursor is at a JSON value position (after a key:colon pair) */
   isValuePosition?: boolean;
+  /** The key name of the current value position (when isValuePosition is true) */
+  currentKey?: string;
+  /** The raw value of the current key (when isValuePosition is true) */
+  currentKeyValue?: string;
   currentParam?: string;
   typedParams?: string[];
 };

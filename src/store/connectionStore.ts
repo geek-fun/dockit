@@ -39,6 +39,21 @@ type ElasticSearchIndex = {
   };
 };
 
+/**
+ * Extract field names from an Elasticsearch index mapping response.
+ * The mapping response format is:
+ *   { "index_name": { "mappings": { "properties": { "field1": {...}, ... } } } }
+ */
+export const extractFieldsFromMapping = (
+  mapping: Record<string, unknown> | undefined,
+): string[] => {
+  if (!mapping) return [];
+  const firstIndex = Object.values(mapping)[0] as Record<string, unknown> | undefined;
+  const mappings = firstIndex?.mappings as Record<string, unknown> | undefined;
+  const properties = mappings?.properties as Record<string, unknown> | undefined;
+  return properties ? Object.keys(properties) : [];
+};
+
 export type DynamoTableFilter =
   | { kind: 'all' }
   | { kind: 'explicit'; tableNames: string[] }
@@ -605,12 +620,16 @@ export const useConnectionStore = defineStore('connectionStore', {
       );
       connection.activeIndex = { ...activeIndex, mapping } as ElasticSearchIndex;
 
-      // Update dynamic completion options with the selected index
+      // Extract field names from mapping for ES|QL completions
+      const fields = extractFieldsFromMapping(mapping as Record<string, unknown>);
+
+      // Update dynamic completion options with the selected index and its fields
       const tabStore = useTabStore();
       configureDynamicOptions({
         activeIndex: indexName,
         indices: connection.indices?.map(i => i.index) ?? [],
         includeSystemIndices: tabStore.activePanel?.includeSystemIndices ?? false,
+        fields,
       });
     },
     async searchQDSL(
