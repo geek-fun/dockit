@@ -136,6 +136,31 @@ describe('SearchLexer', () => {
       expect(queryToken).toBeDefined();
       expect(queryToken?.line).toBe(3);
     });
+
+    it('should tokenize triple-quoted strings as a single STRING token', () => {
+      const tokens = tokenize('{ "query": """\n    FROM index\n  """ }');
+
+      const stringTokens = tokens.filter(t => t.type === TokenType.STRING);
+      const tripleQuoteToken = stringTokens.find(t => t.value.includes('"""'));
+      expect(tripleQuoteToken).toBeDefined();
+      expect(tripleQuoteToken?.value).toContain('FROM index');
+    });
+
+    it('should tokenize triple-quoted string containing ES|QL keywords', () => {
+      const tokens = tokenize('{ "query": """FROM index | WHERE x > 1""" }');
+
+      const stringTokens = tokens.filter(t => t.type === TokenType.STRING);
+      const tripleQuoteToken = stringTokens.find(t => t.value.includes('"""'));
+      expect(tripleQuoteToken).toBeDefined();
+      expect(tripleQuoteToken?.value).toContain('FROM');
+      expect(tripleQuoteToken?.value).toContain('WHERE');
+    });
+
+    it('should tokenize unclosed triple quote as individual tokens', () => {
+      const tokens = tokenize('{ "query": """\n  FROM\n');
+      const stringTokens = tokens.filter(t => t.type === TokenType.STRING);
+      expect(stringTokens.length).toBeGreaterThan(0);
+    });
   });
 
   describe('getTokensAtLine', () => {

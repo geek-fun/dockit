@@ -1599,6 +1599,256 @@ describe('grammarCompletionProvider', () => {
       }
     });
   });
+
+  describe('ES|QL query body completions', () => {
+    beforeEach(() => {
+      setCompletionConfig({
+        backend: BackendType.ELASTICSEARCH,
+        version: '8.11.0', // ES|QL requires 8.11+
+      });
+    });
+
+    it('should provide ES|QL commands inside query field of _query endpoint', () => {
+      const text = `POST /_query
+{
+  "query": "F"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 14 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('FROM');
+      expect(labels).toContain('WHERE');
+      expect(labels).toContain('STATS');
+      expect(labels).toContain('EVAL');
+      expect(labels).toContain('KEEP');
+      expect(labels).toContain('SORT');
+      expect(labels).toContain('LIMIT');
+    });
+
+    it('should NOT provide Query DSL completions inside _query endpoint', () => {
+      const text = `POST /_query
+{
+  "query": "F"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 14 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('match');
+      expect(labels).not.toContain('term');
+      expect(labels).not.toContain('bool');
+      expect(labels).not.toContain('range');
+    });
+
+    it('should still provide Query DSL completions inside _search endpoint (regression)', () => {
+      const text = `GET my-index/_search
+{
+  "query": {
+    t
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 6 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('match');
+      expect(labels).toContain('term');
+      expect(labels).toContain('bool');
+    });
+
+    it('should provide ES|QL function completions inside _query endpoint', () => {
+      const text = `POST /_query
+{
+  "query": "AVG"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 15 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('AVG');
+      expect(labels).toContain('SUM');
+      expect(labels).toContain('COUNT');
+      expect(labels).toContain('DATE_TRUNC');
+    });
+
+    it('should provide ES|QL completions for triple-quoted query strings', () => {
+      const text = `POST /_query
+{
+  "query": """
+    FROM
+  """
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 8 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('FROM');
+      expect(labels).toContain('WHERE');
+      expect(labels).toContain('STATS');
+    });
+
+    it('should provide field completions when fields are configured and FROM clause matches', () => {
+      setDynamicOptions({
+        activeIndex: 'kibana_sample_data_ecommerce',
+        fields: ['category', 'customer_full_name', 'taxful_total_price', 'order_date'],
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM kibana_sample_data_ecommerce | WHERE c"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 52 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('category');
+      expect(labels).toContain('customer_full_name');
+      expect(labels).toContain('taxful_total_price');
+    });
+
+    it('should NOT provide field completions for ROW queries (no FROM clause)', () => {
+      setDynamicOptions({
+        activeIndex: 'kibana_sample_data_ecommerce',
+        fields: ['category', 'price'],
+      });
+
+      const text = `POST /_query
+{
+  "query": "ROW a = 1, b = 2"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 23 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const fieldLabels = result.suggestions.filter(
+        s => s.kind === monaco.languages.CompletionItemKind.Variable,
+      );
+      expect(fieldLabels.length).toBe(0);
+    });
+
+    it('should not provide field completions when no fields configured', () => {
+      setDynamicOptions({ fields: [] });
+
+      const text = `POST /_query
+{
+  "query": "FROM test | WHERE "
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 23 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const fieldLabels = result.suggestions.filter(
+        s => s.kind === monaco.languages.CompletionItemKind.Variable,
+      );
+      expect(fieldLabels.length).toBe(0);
+    });
+
+    it('should NOT provide field completions when FROM clause queries a different index', () => {
+      setDynamicOptions({
+        activeIndex: 'my-active-index',
+        fields: ['category', 'price', 'description'],
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM other-index | WHERE "
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 30 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const fieldLabels = result.suggestions.filter(
+        s => s.kind === monaco.languages.CompletionItemKind.Variable,
+      );
+      expect(fieldLabels.length).toBe(0);
+    });
+
+    it('should NOT provide ES|QL completions for _delete_by_query (regression)', () => {
+      const text = `POST my-index/_delete_by_query
+{
+  "query": {
+    t
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 6 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('term');
+      expect(labels).toContain('match');
+      expect(labels).toContain('bool');
+      expect(labels).not.toContain('FROM');
+      expect(labels).not.toContain('STATS');
+    });
+
+    it('should NOT provide ES|QL completions for _update_by_query (regression)', () => {
+      const text = `POST my-index/_update_by_query
+{
+  "query": {
+    t
+  }
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 6 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('term');
+      expect(labels).not.toContain('FROM');
+    });
+
+    it('should provide ES|QL completions for unclosed query string', () => {
+      const text = `POST /_query
+{
+  "query": "FROM
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 16 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('FROM');
+      expect(labels).toContain('WHERE');
+      expect(labels).toContain('STATS');
+    });
+
+    it('should provide ES|QL completions for unclosed triple-quoted query string', () => {
+      const text = `POST /_query
+{
+  "query": """
+    FROM
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 8 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('FROM');
+      expect(labels).toContain('WHERE');
+      expect(labels).toContain('STATS');
+    });
+  });
 });
 /**
  * Create a mock Monaco text model

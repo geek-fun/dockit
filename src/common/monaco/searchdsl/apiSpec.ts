@@ -2109,18 +2109,38 @@ const elasticsearchEndpoints: ApiEndpoint[] = [
     descriptionKey: 'grammar.esqlQuery',
     docPath: 'operation-esql-query',
     availability: { [BackendType.ELASTICSEARCH]: { min: '8.11.0' } },
+    queryParams: [
+      {
+        name: 'format',
+        type: 'string',
+        description: 'Response format',
+        enum: ['json', 'yaml', 'csv', 'tsv', 'txt', 'cbor', 'smile'],
+      },
+      {
+        name: 'delimiter',
+        type: 'string',
+        description: 'Delimiter for CSV format',
+      },
+      {
+        name: 'drop_null_columns',
+        type: 'boolean',
+        description: 'Remove columns that are entirely null',
+      },
+      {
+        name: 'allow_partial_results',
+        type: 'boolean',
+        description: 'Allow partial results on shard failures',
+      },
+    ],
     requestBody: {
       properties: {
         query: { type: 'string', description: 'ES|QL query string', required: true },
-        format: {
-          type: 'string',
-          description: 'Response format',
-          enum: ['json', 'yaml', 'csv', 'tsv', 'txt', 'cbor', 'smile'],
-        },
-        params: { type: 'array', description: 'Query parameters' },
-        locale: { type: 'string', description: 'Locale for the query' },
+        columnar: { type: 'boolean', description: 'Return results in columnar format' },
         filter: { type: 'object', description: 'Query DSL filter for security and pre-filtering' },
-        timeout: { type: 'string', description: 'Query timeout' },
+        locale: { type: 'string', description: 'Locale for the query' },
+        params: { type: 'array', description: 'Query parameters' },
+        profile: { type: 'boolean', description: 'Profile query execution' },
+        tables: { type: 'object', description: 'Tables for LOOKUP operations' },
       },
     },
   },
