@@ -1,0 +1,178 @@
+import { BackendType } from '../types';
+import { QueryLanguageDef } from './types';
+
+export const eqlLanguage: QueryLanguageDef = {
+  id: 'eql',
+  endpointPaths: ['/{index}/_eql/search'],
+  backends: [BackendType.ELASTICSEARCH],
+  queryFieldKey: 'query',
+
+  bodyFields: [
+    {
+      label: 'query',
+      snippet: 'query: "${1:any where process.name == \\"cmd.exe\\"}"',
+      description: 'EQL query string',
+      sortOrder: 1,
+    },
+    {
+      label: 'timestamp_field',
+      snippet: 'timestamp_field: "${1:@timestamp}"',
+      description: 'Timestamp field for event ordering',
+      sortOrder: 2,
+    },
+    {
+      label: 'event_category_field',
+      snippet: 'event_category_field: "${1:event.category}"',
+      description: 'Event category field',
+      sortOrder: 3,
+    },
+    {
+      label: 'size',
+      snippet: 'size: ${1:10}',
+      description: 'Maximum number of events to search',
+      sortOrder: 4,
+    },
+    {
+      label: 'filter',
+      snippet: 'filter: {\n\t$0\n}',
+      description: 'Query DSL filter',
+      sortOrder: 5,
+    },
+    {
+      label: 'fetch_size',
+      snippet: 'fetch_size: ${1:1000}',
+      description: 'Fetch size for pagination',
+      sortOrder: 6,
+    },
+    {
+      label: 'tiebreaker_field',
+      snippet: 'tiebreaker_field: "${1}"',
+      description: 'Tiebreaker field for event ordering',
+      sortOrder: 7,
+    },
+  ],
+
+  syntax: {
+    commands: [
+      { label: 'any', insertText: 'any $0', description: 'Match any event type', sortOrder: 1 },
+      { label: 'where', insertText: 'where $0', description: 'Filter condition', sortOrder: 2 },
+      {
+        label: 'sequence',
+        insertText: 'sequence$0',
+        description: 'Event sequencing',
+        sortOrder: 3,
+      },
+      { label: 'by', insertText: 'by $0', description: 'Group by field', sortOrder: 4 },
+      { label: 'with', insertText: 'with $0', description: 'With clause for joins', sortOrder: 5 },
+      {
+        label: 'maxspan',
+        insertText: 'maxspan $0',
+        description: 'Maximum time span',
+        sortOrder: 6,
+      },
+      { label: 'until', insertText: 'until $0', description: 'Until condition', sortOrder: 7 },
+      { label: 'true', insertText: 'true', description: 'Boolean true', sortOrder: 8 },
+      { label: 'false', insertText: 'false', description: 'Boolean false', sortOrder: 9 },
+      { label: 'and', insertText: 'and $0', description: 'Logical AND', sortOrder: 10 },
+      { label: 'or', insertText: 'or $0', description: 'Logical OR', sortOrder: 11 },
+      { label: 'not', insertText: 'not $0', description: 'Logical NOT', sortOrder: 12 },
+      { label: 'in', insertText: 'in ($0)', description: 'IN operator', sortOrder: 13 },
+      {
+        label: 'between',
+        insertText: 'between $0',
+        description: 'BETWEEN operator',
+        sortOrder: 14,
+      },
+      { label: 'like', insertText: 'like $0', description: 'LIKE operator', sortOrder: 15 },
+      { label: ':`', insertText: ':`$0`', description: 'Quoted identifier', sortOrder: 16 },
+    ],
+
+    functions: [
+      { label: 'process.name', insertText: 'process.name', description: 'Process name field' },
+      { label: 'process.pid', insertText: 'process.pid', description: 'Process ID field' },
+      {
+        label: 'process.parent.name',
+        insertText: 'process.parent.name',
+        description: 'Parent process name',
+      },
+      { label: 'file.name', insertText: 'file.name', description: 'File name field' },
+      { label: 'file.path', insertText: 'file.path', description: 'File path field' },
+      { label: 'user.name', insertText: 'user.name', description: 'User name field' },
+      { label: 'user.id', insertText: 'user.id', description: 'User ID field' },
+      { label: 'registry.path', insertText: 'registry.path', description: 'Registry path field' },
+      {
+        label: 'network.transport',
+        insertText: 'network.transport',
+        description: 'Network transport field',
+      },
+      {
+        label: 'network.protocol',
+        insertText: 'network.protocol',
+        description: 'Network protocol field',
+      },
+      {
+        label: 'destination.ip',
+        insertText: 'destination.ip',
+        description: 'Destination IP field',
+      },
+      { label: 'source.ip', insertText: 'source.ip', description: 'Source IP field' },
+      { label: 'url.full', insertText: 'url.full', description: 'Full URL field' },
+      {
+        label: 'event.category',
+        insertText: 'event.category',
+        description: 'Event category field',
+      },
+      { label: 'event.type', insertText: 'event.type', description: 'Event type field' },
+      { label: 'event.action', insertText: 'event.action', description: 'Event action field' },
+    ],
+
+    operators: [
+      '==',
+      '!=',
+      '<',
+      '<=',
+      '>',
+      '>=',
+      '+',
+      '-',
+      '*',
+      '/',
+      'and',
+      'or',
+      'not',
+      'in',
+      'like',
+      'between',
+      ':`',
+      ':',
+    ],
+
+    dataTypes: [
+      'keyword',
+      'text',
+      'integer',
+      'long',
+      'double',
+      'float',
+      'date',
+      'boolean',
+      'ip',
+      'geo_point',
+    ],
+  },
+
+  monarchTokens: [
+    [/\/\/.*$/, { token: 'comment' }],
+    [/\d+(?:\.\d+)?/, { token: 'number' }],
+    [/"(?:[^"\\]|\\.)*"/, { token: 'string' }],
+    [/'(?:[^'\\]|\\.)*'/, { token: 'string' }],
+    [/`[^`]+`/, { token: 'variable' }],
+    [/,/, { token: 'delimiter' }],
+    [/:`/, { token: 'keyword' }],
+    [
+      /\b(any|where|sequence|by|with|maxspan|until|true|false|and|or|not|in|between|like|join)\b/,
+      { token: 'keyword' },
+    ],
+    [/\b(process|file|user|registry|network|destination|source|url|event)\b/, { token: 'type' }],
+  ],
+};

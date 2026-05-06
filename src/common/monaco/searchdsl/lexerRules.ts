@@ -1,10 +1,21 @@
 /* eslint-disable no-useless-escape */
 import { keywords } from './keywords.ts';
+import { getAllMonarchTokens } from './queryLanguages';
 
 export const executeActions = {
   regexp: /^\s*(GET|DELETE|POST|PUT)\s+[a-zA-Z0-9_\/-?\-&,.*]*/,
   decorationClassName: 'action-execute-decoration',
 };
+
+// Build string_literal rules from all registered query language monarch tokens.
+// This ensures any triple-quoted string gets language-aware highlighting.
+const languageMonarchTokens = getAllMonarchTokens();
+
+const stringLiteralRules: Array<[RegExp, Record<string, unknown> | string]> = [
+  [/"""|'''/, { token: 'punctuation.end_triple_quote', next: '@pop' }],
+  ...languageMonarchTokens.map(t => [t[0] as RegExp, t[1] as Record<string, unknown> | string]),
+  [/./, { token: 'multi_string' }],
+] as Array<[RegExp, Record<string, unknown> | string]>;
 
 export const search = {
   id: 'search',
@@ -146,29 +157,7 @@ export const search = {
         [/["']/, { token: 'string.quote', bracket: '@close', next: '@pop' }],
       ],
 
-      string_literal: [
-        [/"""|'''/, { token: 'punctuation.end_triple_quote', next: '@pop' }],
-        [/\/\/.*$/, { token: 'comment' }],
-        [/\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, { token: 'number' }],
-        [/"(?:[^"\\]|\\.)*"/, { token: 'string' }],
-        [/'(?:[^'\\]|\\.)*'/, { token: 'string' }],
-        [/\|/, { token: 'keyword' }],
-        [/,/, { token: 'delimiter' }],
-        [
-          /\b(FROM|ROW|SHOW|WHERE|STATS|EVAL|KEEP|DROP|RENAME|SORT|LIMIT|DISSECT|GROK|ENRICH|LOOKUP|MV_EXPAND|BY|ASC|DESC|AND|OR|NOT|IN|LIKE|RLIKE|IS|NULL|ON|METADATA|JOIN)\b/,
-          { token: 'keyword' },
-        ],
-        [
-          /\b(AVG|SUM|COUNT|COUNT_DISTINCT|MIN|MAX|MEDIAN|PERCENTILE|STD_DEV|VARIANCE|VALUES|WEIGHTED_AVG|PRESENT|ABSENT|TOP|SAMPLE)\b/,
-          { token: 'type' },
-        ],
-        [
-          /\b(DATE_TRUNC|DATE_EXTRACT|DATE_FORMAT|DATE_PARSE|DATE_DIFF|NOW|CONCAT|TO_INTEGER|TO_LONG|TO_DOUBLE|TO_STRING|TO_DATETIME|TO_BOOLEAN|TO_IP|TO_VERSION|MV_AVG|MV_CONCAT|MV_MAX|MV_MIN|MV_SUM|MV_COUNT)\b/,
-          { token: 'type' },
-        ],
-        [/\b(true|false)\b/, { token: 'constant.boolean' }],
-        [/./, { token: 'multi_string' }],
-      ],
+      string_literal: stringLiteralRules,
 
       whitespace: [
         [/[ \t\r\n]+/, ''],
