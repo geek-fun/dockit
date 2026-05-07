@@ -1215,6 +1215,16 @@ const getRootBodyFields = (
     return getIndexBodyFields();
   }
 
+  // Index template endpoint (/_index_template/{name})
+  if (pathEndsWith('_index_template') || normalizedPath.includes('_index_template/')) {
+    return getIndexTemplateFields();
+  }
+
+  // Component template endpoint (/_component_template/{name})
+  if (pathEndsWith('_component_template') || normalizedPath.includes('_component_template/')) {
+    return getComponentTemplateFields();
+  }
+
   // Default fields for generic endpoints
   return [];
 };
@@ -1246,6 +1256,118 @@ const getIndexBodyFields = (): Array<{
       snippet: 'aliases: {\n\t"${1:alias_name}": {}\n}',
       description: 'Index aliases',
       sortOrder: 3,
+    },
+  ];
+};
+
+/**
+ * Get body fields for index template creation (PUT /_index_template/{name})
+ */
+const getIndexTemplateFields = (): Array<{
+  label: string;
+  snippet: string;
+  description: string;
+  sortOrder: number;
+}> => {
+  return [
+    {
+      label: 'index_patterns',
+      snippet: 'index_patterns: ["${1:logs-*}"]',
+      description: 'Wildcard expressions to match index/data stream names',
+      sortOrder: 1,
+    },
+    {
+      label: 'template',
+      snippet:
+        'template: {\n\tsettings: {\n\t\t$0\n\t},\n\tmappings: {\n\t\tproperties: {\n\t\t\t\n\t\t}\n\t}\n}',
+      description: 'Template body containing settings, mappings, and aliases',
+      sortOrder: 2,
+    },
+    {
+      label: 'composed_of',
+      snippet: 'composed_of: ["${1:component_name}"]',
+      description: 'Ordered list of component template names to merge',
+      sortOrder: 3,
+    },
+    {
+      label: 'priority',
+      snippet: 'priority: ${1:100}',
+      description: 'Template precedence priority (higher wins)',
+      sortOrder: 4,
+    },
+    {
+      label: 'data_stream',
+      snippet: 'data_stream: {\n\t$0\n}',
+      description: 'Data stream configuration (enables data stream creation)',
+      sortOrder: 5,
+    },
+    {
+      label: 'version',
+      snippet: 'version: ${1:1}',
+      description: 'Version number for external management',
+      sortOrder: 6,
+    },
+    {
+      label: '_meta',
+      snippet: '_meta: {\n\t$0\n}',
+      description: 'User metadata about the template',
+      sortOrder: 7,
+    },
+    {
+      label: 'allow_auto_create',
+      snippet: 'allow_auto_create: ${1:true}',
+      description: 'Override action.auto_create_index setting',
+      sortOrder: 8,
+    },
+    {
+      label: 'ignore_missing_component_templates',
+      snippet: 'ignore_missing_component_templates: ["${1:template_name}"]',
+      description: 'Component templates that may not exist',
+      sortOrder: 9,
+    },
+    {
+      label: 'deprecated',
+      snippet: 'deprecated: ${1:false}',
+      description: 'Mark this template as deprecated',
+      sortOrder: 10,
+    },
+  ];
+};
+
+/**
+ * Get body fields for component template creation (PUT /_component_template/{name})
+ */
+const getComponentTemplateFields = (): Array<{
+  label: string;
+  snippet: string;
+  description: string;
+  sortOrder: number;
+}> => {
+  return [
+    {
+      label: 'template',
+      snippet:
+        'template: {\n\tsettings: {\n\t\t$0\n\t},\n\tmappings: {\n\t\tproperties: {\n\t\t\t\n\t\t}\n\t}\n}',
+      description: 'Template body containing settings, mappings, and aliases',
+      sortOrder: 1,
+    },
+    {
+      label: 'version',
+      snippet: 'version: ${1:1}',
+      description: 'Version number for external management',
+      sortOrder: 2,
+    },
+    {
+      label: '_meta',
+      snippet: '_meta: {\n\t$0\n}',
+      description: 'User metadata about the template',
+      sortOrder: 3,
+    },
+    {
+      label: 'deprecated',
+      snippet: 'deprecated: ${1:false}',
+      description: 'Mark this template as deprecated',
+      sortOrder: 4,
     },
   ];
 };
