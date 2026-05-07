@@ -123,7 +123,7 @@ export const pplLanguage: QueryLanguageDef = {
     [/,/, { token: 'delimiter' }],
     [/=/, { token: 'delimiter' }],
     [
-      /\b(source|where|fields|stats|rename|eval|sort|head|dedup|parse|grok|top|rare|trendline|AD|ML|KMEANS|as|by|and|or|not|in|like|regexp)\b/i,
+      /\b(source|where|fields|stats|rename|eval|sort|head|dedup|parse|grok|top|rare|trendline|ad|ml|kmeans|as|by|and|or|not|in|like|regexp)\b/i,
       { token: 'keyword' },
     ],
     [
