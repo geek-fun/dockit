@@ -498,6 +498,80 @@ describe('referDoc', () => {
     });
   });
 
+  describe('issue #385 - index-level endpoint method-specific doc URLs', () => {
+    describe('GET {index}/_alias', () => {
+      it('should return indices-get-alias.html for v8', () => {
+        const action = createSearchActionWithIndex('GET', 'my_index', '_alias');
+        const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.19.0', action);
+        expect(result).toBe(
+          'https://www.elastic.co/guide/en/elasticsearch/reference/8.19/indices-get-alias.html',
+        );
+      });
+
+      it('should return operation-indices-get-alias for v9', () => {
+        const action = createSearchActionWithIndex('GET', 'my_index', '_alias');
+        const result = getActionApiDoc(EngineType.ELASTICSEARCH, '9.2.0', action);
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/v9/operation/operation-indices-get-alias',
+        );
+      });
+    });
+
+    describe('GET {index}/_settings', () => {
+      it('should return indices-get-settings.html for v8', () => {
+        const action = createSearchActionWithIndex('GET', 'my_index', '_settings');
+        const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.19.0', action);
+        expect(result).toBe(
+          'https://www.elastic.co/guide/en/elasticsearch/reference/8.19/indices-get-settings.html',
+        );
+      });
+
+      it('should return operation-indices-get-settings for v9', () => {
+        const action = createSearchActionWithIndex('GET', 'my_index', '_settings');
+        const result = getActionApiDoc(EngineType.ELASTICSEARCH, '9.2.0', action);
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/v9/operation/operation-indices-get-settings',
+        );
+      });
+    });
+
+    describe('POST {index}/_clone', () => {
+      it('should return indices-clone-index.html for v8', () => {
+        const action = createSearchActionWithIndex('POST', 'my_index', '_clone');
+        const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.19.0', action);
+        expect(result).toBe(
+          'https://www.elastic.co/guide/en/elasticsearch/reference/8.19/indices-clone-index.html',
+        );
+      });
+
+      it('should return operation-indices-clone for v9', () => {
+        const action = createSearchActionWithIndex('POST', 'my_index', '_clone');
+        const result = getActionApiDoc(EngineType.ELASTICSEARCH, '9.2.0', action);
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/v9/operation/operation-indices-clone',
+        );
+      });
+    });
+
+    describe('PUT {index}/_alias/{alias_name}', () => {
+      it('should return indices-add-alias.html for v8', () => {
+        const action = createSearchActionWithIndex('PUT', 'my_index', '_alias/my_alias');
+        const result = getActionApiDoc(EngineType.ELASTICSEARCH, '8.19.0', action);
+        expect(result).toBe(
+          'https://www.elastic.co/guide/en/elasticsearch/reference/8.19/indices-add-alias.html',
+        );
+      });
+
+      it('should return operation-indices-put-alias for v9', () => {
+        const action = createSearchActionWithIndex('PUT', 'my_index', '_alias/my_alias');
+        const result = getActionApiDoc(EngineType.ELASTICSEARCH, '9.2.0', action);
+        expect(result).toBe(
+          'https://www.elastic.co/docs/api/doc/elasticsearch/v9/operation/operation-indices-put-alias',
+        );
+      });
+    });
+  });
+
   describe('esSampleQueries', () => {
     it('should contain expected sample queries', () => {
       const { esSampleQueries } = require('../../../src/common/monaco/referDoc');
