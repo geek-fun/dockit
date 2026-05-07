@@ -474,6 +474,23 @@ describe('grammarCompletionProvider', () => {
       expect(labels).toContain('deprecated');
     });
 
+    it('should provide index template fields for PUT /_index_template without name', () => {
+      const text = `PUT /_index_template
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('index_patterns');
+      expect(labels).toContain('template');
+      expect(labels).toContain('composed_of');
+      expect(labels).toContain('priority');
+    });
+
     it('should provide index template fields for PUT _index_template/{name} without leading slash', () => {
       const text = `PUT _index_template/my-template
 {
@@ -558,6 +575,23 @@ describe('grammarCompletionProvider', () => {
   describe('PUT _component_template body completions', () => {
     it('should provide component template fields for PUT /_component_template/{name}', () => {
       const text = `PUT /_component_template/my-component
+{
+  
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 3 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('template');
+      expect(labels).toContain('version');
+      expect(labels).toContain('_meta');
+      expect(labels).toContain('deprecated');
+    });
+
+    it('should provide component template fields for PUT /_component_template without name', () => {
+      const text = `PUT /_component_template
 {
   
 }`;
