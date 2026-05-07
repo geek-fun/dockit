@@ -1050,6 +1050,50 @@ const commonEndpoints: ApiEndpoint[] = [
         description: 'Return all relevant default configurations for the index template',
       },
     ],
+    requestBody: {
+      properties: {
+        index_patterns: {
+          type: 'array',
+          description: 'Wildcard expressions to match index/data stream names',
+        },
+        composed_of: {
+          type: 'array',
+          description: 'Ordered list of component template names to merge',
+        },
+        template: {
+          type: 'object',
+          description: 'Template body containing settings, mappings, and aliases',
+        },
+        data_stream: {
+          type: 'object',
+          description: 'Data stream configuration (enables data stream creation)',
+        },
+        priority: {
+          type: 'number',
+          description: 'Template precedence priority (higher wins)',
+        },
+        version: {
+          type: 'number',
+          description: 'Version number for external management',
+        },
+        _meta: {
+          type: 'object',
+          description: 'User metadata about the template',
+        },
+        allow_auto_create: {
+          type: 'boolean',
+          description: 'Override action.auto_create_index setting',
+        },
+        ignore_missing_component_templates: {
+          type: 'array',
+          description: 'Component templates that may not exist',
+        },
+        deprecated: {
+          type: 'boolean',
+          description: 'Mark this template as deprecated',
+        },
+      },
+    },
   },
   {
     path: '/_component_template/{template}',
@@ -1073,6 +1117,26 @@ const commonEndpoints: ApiEndpoint[] = [
         description: 'Timeout for connection to master node',
       },
     ],
+    requestBody: {
+      properties: {
+        template: {
+          type: 'object',
+          description: 'Template body containing settings, mappings, and aliases',
+        },
+        version: {
+          type: 'number',
+          description: 'Version number for external management',
+        },
+        _meta: {
+          type: 'object',
+          description: 'User metadata about the template',
+        },
+        deprecated: {
+          type: 'boolean',
+          description: 'Mark this template as deprecated',
+        },
+      },
+    },
   },
 
   // Analyze API
