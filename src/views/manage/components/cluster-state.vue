@@ -267,7 +267,7 @@
               <div class="section-actions">
                 <Input
                   v-model="indexFilter"
-                  placeholder="Filter indices…"
+                  :placeholder="$t('manage.actions.filterIndices')"
                   class="h-7 text-xs filter-input"
                 />
                 <Button size="sm" @click="toggleModal('index')">
@@ -521,7 +521,7 @@
               <div class="section-actions">
                 <Input
                   v-model="templateFilter"
-                  placeholder="Filter templates…"
+                  :placeholder="$t('manage.actions.filterTemplates')"
                   class="h-7 text-xs filter-input"
                 />
                 <Button size="sm" @click="toggleModal('template')">

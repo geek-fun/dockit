@@ -40,10 +40,10 @@
             </GridItem>
           </Grid>
           <Collapse class="mt-4">
-            <CollapseItem title="Advanced" name="Advanced">
+            <CollapseItem :title="$t('manage.index.newAliasForm.advanced')" name="Advanced">
               <Grid :cols="8" :x-gap="10" :y-gap="10">
                 <GridItem :span="4">
-                  <FormItem label="master_timeout">
+                  <FormItem :label="$t('manage.index.newAliasForm.masterTimeout')">
                     <div class="flex items-center gap-2">
                       <InputNumber
                         v-model="formData.master_timeout"
@@ -58,7 +58,7 @@
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
-                  <FormItem label="timeout">
+                  <FormItem :label="$t('manage.index.newAliasForm.timeout')">
                     <div class="flex items-center gap-2">
                       <InputNumber v-model="formData.timeout" class="flex-1" placeholder="30" />
                       <span class="text-sm text-muted-foreground">s</span>
@@ -69,7 +69,7 @@
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
-                  <FormItem label="is_write_index">
+                  <FormItem :label="$t('manage.index.newAliasForm.isWriteIndex')">
                     <Switch v-model:checked="formData.is_write_index" />
                     <p class="text-xs text-muted-foreground mt-1">
                       {{ $t('manage.index.newAliasForm.isWriteIndexDesc') }}
@@ -77,7 +77,7 @@
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
-                  <FormItem label="routing">
+                  <FormItem :label="$t('manage.index.newAliasForm.routing')">
                     <InputNumber v-model="formData.routing" placeholder="" />
                     <p class="text-xs text-muted-foreground mt-1">
                       {{ $t('manage.index.newAliasForm.routingDesc') }}
@@ -85,7 +85,7 @@
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
-                  <FormItem label="search_routing">
+                  <FormItem :label="$t('manage.index.newAliasForm.searchRouting')">
                     <InputNumber v-model="formData.search_routing" placeholder="" />
                     <p class="text-xs text-muted-foreground mt-1">
                       {{ $t('manage.index.newAliasForm.searchRoutingDesc') }}
@@ -93,7 +93,7 @@
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
-                  <FormItem label="index_routing">
+                  <FormItem :label="$t('manage.index.newAliasForm.indexRouting')">
                     <InputNumber v-model="formData.index_routing" placeholder="" />
                     <p class="text-xs text-muted-foreground mt-1">
                       {{ $t('manage.index.newAliasForm.indexRoutingDesc') }}

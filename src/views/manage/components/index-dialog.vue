@@ -44,10 +44,10 @@
             </GridItem>
           </Grid>
           <Collapse class="mt-4">
-            <CollapseItem title="Advanced" name="Advanced">
+            <CollapseItem :title="$t('manage.index.newIndexForm.advanced')" name="Advanced">
               <Grid :cols="8" :x-gap="10" :y-gap="10">
                 <GridItem :span="4">
-                  <FormItem label="master_timeout">
+                  <FormItem :label="$t('manage.index.newIndexForm.masterTimeout')">
                     <div class="flex items-center gap-2">
                       <InputNumber
                         v-model="formData.master_timeout"
@@ -62,7 +62,7 @@
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
-                  <FormItem label="timeout">
+                  <FormItem :label="$t('manage.index.newIndexForm.timeout')">
                     <div class="flex items-center gap-2">
                       <InputNumber v-model="formData.timeout" class="flex-1" placeholder="30" />
                       <span class="text-sm text-muted-foreground">s</span>
@@ -73,7 +73,7 @@
                   </FormItem>
                 </GridItem>
                 <GridItem :span="4">
-                  <FormItem label="wait_for_active_shards">
+                  <FormItem :label="$t('manage.index.newIndexForm.waitForActiveShards')">
                     <InputNumber v-model="formData.wait_for_active_shards" placeholder="1" />
                     <p class="text-xs text-muted-foreground mt-1">
                       {{ $t('manage.index.newIndexForm.waitForActiveShardsDesc') }}
@@ -81,7 +81,7 @@
                   </FormItem>
                 </GridItem>
                 <GridItem :span="8">
-                  <FormItem label="body" :error="getError('body', errors.body)">
+                  <FormItem :label="$t('manage.index.newIndexForm.body')" :error="getError('body', errors.body)">
                     <textarea
                       v-model="formData.body"
                       class="textarea-input"
