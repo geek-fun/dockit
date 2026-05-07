@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-05-07
+
+### Added
+
+- Add ES|QL query completion support for Elasticsearch (#401)
+- Add query language registry with SQL/PPL/EQL support (#402)
+- Add body completion for index and component templates (#403)
+- Add column sorting for indices and templates tables in Manage panel (#406)
+
+### Fixed
+
+- Fix PartiQL validation and import for new DynamoDB tables (#400)
+- Fix missing docPath for API documentation shortcuts (#395)
+
 ## [0.9.10] - 2026-04-29
 
 ### Fixed
