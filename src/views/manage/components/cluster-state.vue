@@ -288,7 +288,7 @@
                   <TableRow>
                     <TableHead class="sortable-header" @click="handleIndexSort('index')">
                       <span class="sortable-header-content">
-                        Index
+                        {{ lang.t('manage.columns.index') }}
                         <span
                           :class="[
                             indexSort.column === 'index' ? 'sort-icon' : 'sort-icon-inactive',
@@ -299,7 +299,7 @@
                     </TableHead>
                     <TableHead class="sortable-header" @click="handleIndexSort('health')">
                       <span class="sortable-header-content">
-                        Health
+                        {{ lang.t('manage.columns.health') }}
                         <span
                           :class="[
                             indexSort.column === 'health' ? 'sort-icon' : 'sort-icon-inactive',
@@ -310,7 +310,7 @@
                     </TableHead>
                     <TableHead class="sortable-header" @click="handleIndexSort('status')">
                       <span class="sortable-header-content">
-                        Status
+                        {{ lang.t('manage.columns.status') }}
                         <span
                           :class="[
                             indexSort.column === 'status' ? 'sort-icon' : 'sort-icon-inactive',
@@ -321,7 +321,7 @@
                     </TableHead>
                     <TableHead class="sortable-header" @click="handleIndexSort('docs')">
                       <span class="sortable-header-content">
-                        Docs
+                        {{ lang.t('manage.columns.docs') }}
                         <span
                           :class="[
                             indexSort.column === 'docs' ? 'sort-icon' : 'sort-icon-inactive',
@@ -332,7 +332,7 @@
                     </TableHead>
                     <TableHead class="sortable-header" @click="handleIndexSort('storage')">
                       <span class="sortable-header-content">
-                        Storage
+                        {{ lang.t('manage.columns.storage') }}
                         <span
                           :class="[
                             indexSort.column === 'storage' ? 'sort-icon' : 'sort-icon-inactive',
@@ -341,8 +341,8 @@
                         />
                       </span>
                     </TableHead>
-                    <TableHead>Shards</TableHead>
-                    <TableHead>Aliases</TableHead>
+                    <TableHead>{{ lang.t('manage.columns.shards') }}</TableHead>
+                    <TableHead>{{ lang.t('manage.columns.aliases') }}</TableHead>
                     <TableHead class="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -538,7 +538,7 @@
                   <TableRow>
                     <TableHead class="sortable-header" @click="handleTemplateSort('name')">
                       <span class="sortable-header-content">
-                        Name
+                        {{ lang.t('manage.columns.name') }}
                         <span
                           :class="[
                             templateSort.column === 'name' ? 'sort-icon' : 'sort-icon-inactive',
@@ -549,7 +549,7 @@
                     </TableHead>
                     <TableHead class="sortable-header" @click="handleTemplateSort('type')">
                       <span class="sortable-header-content">
-                        Type
+                        {{ lang.t('manage.columns.type') }}
                         <span
                           :class="[
                             templateSort.column === 'type' ? 'sort-icon' : 'sort-icon-inactive',
@@ -575,7 +575,7 @@
                     </TableHead>
                     <TableHead class="sortable-header" @click="handleTemplateSort('version')">
                       <span class="sortable-header-content">
-                        Version
+                        {{ lang.t('manage.columns.version') }}
                         <span
                           :class="[
                             templateSort.column === 'version' ? 'sort-icon' : 'sort-icon-inactive',
@@ -588,7 +588,7 @@
                     </TableHead>
                     <TableHead class="sortable-header" @click="handleTemplateSort('mappings')">
                       <span class="sortable-header-content">
-                        Mappings
+                        {{ lang.t('manage.columns.mappings') }}
                         <span
                           :class="[
                             templateSort.column === 'mappings' ? 'sort-icon' : 'sort-icon-inactive',
@@ -601,7 +601,7 @@
                     </TableHead>
                     <TableHead class="sortable-header" @click="handleTemplateSort('settings')">
                       <span class="sortable-header-content">
-                        Settings
+                        {{ lang.t('manage.columns.settings') }}
                         <span
                           :class="[
                             templateSort.column === 'settings' ? 'sort-icon' : 'sort-icon-inactive',
@@ -612,8 +612,8 @@
                         />
                       </span>
                     </TableHead>
-                    <TableHead>Aliases</TableHead>
-                    <TableHead>Index Patterns</TableHead>
+                    <TableHead>{{ lang.t('manage.columns.aliases') }}</TableHead>
+                    <TableHead>{{ lang.t('manage.columns.indexPatterns') }}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

@@ -110,6 +110,10 @@ describe('parseStorageBytes', () => {
     expect(parseStorageBytes('5 kb')).toBe(5 * 1024);
   });
 
+  it('handles unknown unit with fallback multiplier of 1', () => {
+    expect(parseStorageBytes('5pb')).toBe(5);
+  });
+
   it('maintains correct ordering across units', () => {
     const values = ['1tb', '1gb', '1mb', '1kb', '1b'];
     const sorted = [...values].sort((a, b) => parseStorageBytes(a) - parseStorageBytes(b));
@@ -331,6 +335,18 @@ describe('templateComparators', () => {
       expect(templateComparators.precedence(a, b)).toBeGreaterThan(0);
     });
 
+    it('pushes null b precedence to front', () => {
+      const a = createTemplate('a', { precedence: 10 });
+      const b = createTemplate('b', { precedence: null });
+      expect(templateComparators.precedence(a, b)).toBeLessThan(0);
+    });
+
+    it('returns 0 when both precedences are null', () => {
+      const a = createTemplate('a', { precedence: null });
+      const b = createTemplate('b', { precedence: null });
+      expect(templateComparators.precedence(a, b)).toBe(0);
+    });
+
     it('returns 0 for equal precedence', () => {
       const a = createTemplate('a', { precedence: 10 });
       const b = createTemplate('b', { precedence: 10 });
@@ -350,6 +366,18 @@ describe('templateComparators', () => {
       const b = createTemplate('b', { version: 1 });
       expect(templateComparators.version(a, b)).toBeGreaterThan(0);
     });
+
+    it('pushes null b version to front', () => {
+      const a = createTemplate('a', { version: 1 });
+      const b = createTemplate('b', { version: null });
+      expect(templateComparators.version(a, b)).toBeLessThan(0);
+    });
+
+    it('returns 0 when both versions are null', () => {
+      const a = createTemplate('a', { version: null });
+      const b = createTemplate('b', { version: null });
+      expect(templateComparators.version(a, b)).toBe(0);
+    });
   });
 
   describe('mappings', () => {
@@ -364,6 +392,18 @@ describe('templateComparators', () => {
       const b = createTemplate('b', { mapping_count: 5 });
       expect(templateComparators.mappings(a, b)).toBeGreaterThan(0);
     });
+
+    it('pushes null b mapping count to front', () => {
+      const a = createTemplate('a', { mapping_count: 5 });
+      const b = createTemplate('b', { mapping_count: null });
+      expect(templateComparators.mappings(a, b)).toBeLessThan(0);
+    });
+
+    it('returns 0 when both mapping counts are null', () => {
+      const a = createTemplate('a', { mapping_count: null });
+      const b = createTemplate('b', { mapping_count: null });
+      expect(templateComparators.mappings(a, b)).toBe(0);
+    });
   });
 
   describe('settings', () => {
@@ -377,6 +417,18 @@ describe('templateComparators', () => {
       const a = createTemplate('a', { settings_count: null });
       const b = createTemplate('b', { settings_count: 3 });
       expect(templateComparators.settings(a, b)).toBeGreaterThan(0);
+    });
+
+    it('pushes null b settings count to front', () => {
+      const a = createTemplate('a', { settings_count: 3 });
+      const b = createTemplate('b', { settings_count: null });
+      expect(templateComparators.settings(a, b)).toBeLessThan(0);
+    });
+
+    it('returns 0 when both settings counts are null', () => {
+      const a = createTemplate('a', { settings_count: null });
+      const b = createTemplate('b', { settings_count: null });
+      expect(templateComparators.settings(a, b)).toBe(0);
     });
   });
 });
