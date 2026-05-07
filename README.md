@@ -1,101 +1,141 @@
 <div align="center">
-<a href="https://github.com/geek-fun/dockit"><img src="public/dockit.png" width="120"/></a>
-</div>
-<h1 align="center">DocKit</h1>
-<div align="center">
 
-[![Node.js CI](https://github.com/geek-fun/dockit/actions/workflows/node.yml/badge.svg)](https://github.com/geek-fun/dockit/actions/workflows/node.yml)
-[![package release](https://github.com/geek-fun/dockit/actions/workflows/release.yml/badge.svg)](https://github.com/geek-fun/dockit/actions/workflows/release.yml)
-[![Known Vulnerabilities](https://snyk.io/test/github/geek-fun/dockit/badge.svg)](https://snyk.io/test/github/geek-fun/dockit)
-[![codecov](https://codecov.io/gh/geek-fun/dockit/branch/master/graph/badge.svg?token=GqlkEVgMvR)](https://codecov.io/gh/geek-fun/dockit)
-[![GitHub version](https://badge.fury.io/gh/geek-fun%2Fdockit.svg)](https://badge.fury.io/gh/geek-fun%2Fdockit)
+<img src="public/dockit.png" width="120" alt="DocKit Logo"/>
+
+# DocKit
+
+**AI-native desktop client for NoSQL databases. Write queries in natural language. Manage DynamoDB, Elasticsearch, and OpenSearch from one interface.**
+**Fast. Local-first. No cloud dependencies.**
+
+[![Release](https://img.shields.io/github/v/release/geek-fun/dockit?color=orange&label=release)](https://github.com/geek-fun/dockit/releases)
+[![Downloads](https://img.shields.io/github/downloads/geek-fun/dockit/total?color=orange)](https://github.com/geek-fun/dockit/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Stars](https://img.shields.io/github/stars/geek-fun/dockit)](https://github.com/geek-fun/dockit/stargazers)
+[![CI](https://github.com/geek-fun/dockit/actions/workflows/node.yml/badge.svg)](https://github.com/geek-fun/dockit/actions/workflows/node.yml)
 
-<strong>DocKit is a desktop client designed for NoSQL database, support Elasticsearch, OpenSearch and DynamoDB across Mac, windows and Linux.</strong>
+[Website](https://www.geekfun.club/dockit/) · [Docs](https://www.geekfun.club/docs/dockit/) · [Download](https://www.geekfun.club/download) · [Releases](https://github.com/geek-fun/dockit/releases)
 
 </div>
 
-## Client
+## Features
 
-![client UI](public/client-ui.png)
+DocKit is an open-source desktop GUI client for NoSQL databases. It replaces browser-based consoles and proprietary tools with a native app built on [Tauri](https://tauri.app/) + Vue 3 + [shadcn-vue](https://www.shadcn-vue.com/) + [UnoCSS](https://unocss.dev/).
 
-## Feature
+- **AI-powered queries.** Describe what you need and get accurate DynamoDB PartiQL or Elasticsearch queries. Schema aware. Bring your own OpenAI or DeepSeek key.
+- **Unified interface.** DynamoDB, Elasticsearch, OpenSearch — one app, zero context switching.
+- **Local-first.** Connections, queries, and history live on your machine. Zero telemetry. Works offline.
 
-- Full-featured editor, Powered by monaco-editor the backbones of vscode, provide familiar editor environment for developers
-- Keep your connections, Keep your connections in desktop apps, move the dependencies of dashboard tools
-- File persistence, Save your code in your machine as file, never lost
-- Multi engines support, Support Elasticsearch, OpenSearch, DynamoDB, and more to come
+### AI Assistant
 
-## Roadmap
+Ask "find users who signed up last week" or "aggregate sales by region" and get the query. Not just autocomplete. DocKit reads your table schemas and generates queries that actually run. Built-in support for OpenAI and DeepSeek.
 
-| Database           | Status         | Progress        |
-| ------------------ | -------------- | --------------- |
-| 🔍 Elasticsearch   | ✅ Supported   | 🟢🟢🟢 Complete |
-| 🔎 OpenSearch      | ✅ Supported   | 🟢🟢🟢 Complete |
-| 🗄️ DynamoDB        | ✅ Supported   | 🟢🟢🟢 Complete |
-| 🍃 MongoDB         | 🚧 In Progress | 🟡🟡⚪ Planning |
-| ☁️ Azure Cosmos DB | 📋 Planned     | 🟡⚪⚪ Upcoming |
+### DynamoDB
+
+- **Visual Query Builder.** Scan and query tables without writing code. Primary key filtering, advanced conditions, all from the UI.
+- **PartiQL Editor.** SQL-like syntax with autocomplete, syntax highlighting, and document formatting.
+- **Inline editing.** Update and delete items directly from query results.
+- **Table management.** Browse tables, manage indexes, check capacity and item counts.
+- **DynamoDB Local.** Point it at a local instance and develop offline. No AWS credentials needed.
+
+### Elasticsearch & OpenSearch
+
+- **Monaco Editor.** Same engine as VS Code. Syntax highlighting, autocomplete, your keyboard shortcuts.
+- **Cluster management.** Node health, shard state, index tracking, alias control.
+- **API key authentication.** Native Elasticsearch API key support.
+
+### Query History
+
+DocKit records every query as you run it. No save button. 500 entries per connection, stored on your machine. Copy a past query, load it back into the editor, or re-execute it. Covers PartiQL statements and visual UI form queries.
+
+### Import & Export
+
+JSON, CSV, JSONL. Batch operations handle millions of records. Move data between clusters, back up tables, or seed development environments.
+
+### Privacy & Security
+
+- DocKit does not phone home. No query data, no credentials, no analytics leave your machine.
+- Connection profiles are encrypted by your OS keychain.
+- No internet connection required. Air gap compatible.
+
+## Screenshots
+
+| AI Assistant | Query History |
+|:---:|:---:|
+| ![AI](public/dockit-ai-assistant-question.png) | ![History](public/dockit-query-history.png) |
+
+| DynamoDB Visual Query | PartiQL Editor |
+|:---:|:---:|
+| ![Visual Query](public/dockit-dynamodb-query-ui.png) | ![PartiQL](public/dockit-dynamodb-partiql.png) |
+
+## Supported Databases
+
+| Database | Status |
+|---|---|
+| Elasticsearch | Supported |
+| OpenSearch | Supported |
+| DynamoDB | Supported |
+| MongoDB | In Progress |
+| Azure Cosmos DB | Planned |
 
 ## Installation
 
-Available to download for free from [here](https://github.com/geek-fun/dockit/releases).
+| Platform | Download |
+|---|---|
+| **macOS** (Universal) | [DocKit\_universal.dmg](https://github.com/geek-fun/dockit/releases/latest) |
+| **Windows** (x64) | [DocKit\_x64-setup.exe](https://github.com/geek-fun/dockit/releases/latest) |
+| **Linux** (AppImage / deb) | [DocKit\_amd64.AppImage](https://github.com/geek-fun/dockit/releases/latest) |
 
-## Build Guidelines
+All versions on the [releases page](https://github.com/geek-fun/dockit/releases).
+
+## Development
 
 ### Prerequisites
 
 - Node.js >= 20
 - NPM >= 10
+- Rust toolchain (for Tauri)
 
-### Clone the code
+### Setup
 
 ```bash
 git clone https://github.com/geek-fun/dockit.git --depth=1
-```
-
-### Install dependencies
-
-```bash
+cd dockit
 npm install
-```
-
-### Compile and run
-
-```bash
 npm run tauri dev
 ```
 
-## Styling Architecture
+### Build
 
-The project uses **shadcn-vue** (built on Radix Vue) for UI components and **UnoCSS** for utility-first styling.
+```bash
+npm run tauri build          # current platform
+npm run build:macos          # macOS Universal
+```
 
-### Current Setup
+### Tech Stack
 
-1. **UnoCSS** - Atomic CSS utilities loaded via `virtual:uno.css` in `src/main.ts`
-2. **shadcn-vue** - Headless UI components in `src/components/ui/` with CSS variable theming via `src/assets/styles/index.css`
+| Layer | Technology |
+|---|---|
+| Desktop Shell | [Tauri](https://tauri.app/) (Rust) |
+| Frontend | Vue 3 + TypeScript |
+| UI Components | [shadcn-vue](https://www.shadcn-vue.com/) (Radix Vue) |
+| Styling | [UnoCSS](https://unocss.dev/) |
+| Editor | [Monaco Editor](https://microsoft.github.io/monaco-editor/) |
+| State | Pinia |
 
-### Style Entry Points
+## Contributing
 
-- `src/main.ts` - Main entry point importing all style layers
-- `src/assets/styles/index.css` - Theme CSS variables and base styles (single source of truth)
-- `uno.config.ts` - Unified UnoCSS configuration with all presets and theme tokens
+Issues and PRs welcome. Check the [contribution guide](CONTRIBUTION.md).
 
-### Theme Configuration
+## Community
 
-Brand colors and design tokens are defined via CSS variables in `src/assets/styles/index.css` (with light/dark mode support) and referenced in `uno.config.ts` for UnoCSS utilities.
+<img src="docs/images/wechat_official.png" alt="WeChat Official Account" width="240"/>
 
-## About
+## Sponsor
 
-### Wechat Official Account
+[GitHub Sponsors](https://github.com/sponsors/geek-fun) if DocKit helps your work.
 
-<img src="docs/images/wechat_official.png" alt="wechat official account qr code" width="360" />
+<img src="docs/images/wechat_ponsor.jpg" alt="WeChat Sponsor QR" width="200"/>
 
-### Sponsor
+## License
 
-If this project helpful for you, feel free to buy me a cup of coffee ☕️.
-
-- Github Sponsor  
-  [![Sponsor](https://img.shields.io/badge/-Sponsor-fafbfc?logo=GitHub-Sponsors)](https://github.com/sponsors/[geek-fun])
-
-- Wechat Sponsor  
-  <img src="docs/images/wechat_ponsor.jpg" alt="wechat sponsor qr code" width="200" />
+[Apache 2.0](LICENSE) © GEEKFUN
