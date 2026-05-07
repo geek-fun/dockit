@@ -61,11 +61,11 @@ JSON, CSV, JSONL. Batch operations handle millions of records. Move data between
 
 | AI Assistant | Query History |
 |:---:|:---:|
-| ![AI](public/dockit-ai-assistant-question.png) | ![History](public/dockit-query-history.png) |
+| ![AI](docs/screenshots/dockit-ai-assistant-question.png) | ![History](docs/screenshots/dockit-query-history.png) |
 
 | DynamoDB Visual Query | PartiQL Editor |
 |:---:|:---:|
-| ![Visual Query](public/dockit-dynamodb-query-ui.png) | ![PartiQL](public/dockit-dynamodb-partiql.png) |
+| ![Visual Query](docs/screenshots/dockit-dynamodb-query-ui.png) | ![PartiQL](docs/screenshots/dockit-dynamodb-partiql.png) |
 
 ## Supported Databases
 
