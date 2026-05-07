@@ -267,7 +267,7 @@
               <div class="section-actions">
                 <Input
                   v-model="indexFilter"
-                  placeholder="Filter indices…"
+                  :placeholder="$t('manage.actions.filterIndices')"
                   class="h-7 text-xs filter-input"
                 />
                 <Button size="sm" @click="toggleModal('index')">
@@ -286,18 +286,68 @@
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Index</TableHead>
-                    <TableHead>Health</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Docs</TableHead>
-                    <TableHead>Storage</TableHead>
-                    <TableHead>Shards</TableHead>
-                    <TableHead>Aliases</TableHead>
+                    <TableHead class="sortable-header" @click="handleIndexSort('index')">
+                      <span class="sortable-header-content">
+                        {{ lang.t('manage.columns.index') }}
+                        <span
+                          :class="[
+                            indexSort.column === 'index' ? 'sort-icon' : 'sort-icon-inactive',
+                            indexSort.column === 'index' ? indexSortIcon : 'i-carbon-arrow-up',
+                          ]"
+                        />
+                      </span>
+                    </TableHead>
+                    <TableHead class="sortable-header" @click="handleIndexSort('health')">
+                      <span class="sortable-header-content">
+                        {{ lang.t('manage.columns.health') }}
+                        <span
+                          :class="[
+                            indexSort.column === 'health' ? 'sort-icon' : 'sort-icon-inactive',
+                            indexSort.column === 'health' ? indexSortIcon : 'i-carbon-arrow-up',
+                          ]"
+                        />
+                      </span>
+                    </TableHead>
+                    <TableHead class="sortable-header" @click="handleIndexSort('status')">
+                      <span class="sortable-header-content">
+                        {{ lang.t('manage.columns.status') }}
+                        <span
+                          :class="[
+                            indexSort.column === 'status' ? 'sort-icon' : 'sort-icon-inactive',
+                            indexSort.column === 'status' ? indexSortIcon : 'i-carbon-arrow-up',
+                          ]"
+                        />
+                      </span>
+                    </TableHead>
+                    <TableHead class="sortable-header" @click="handleIndexSort('docs')">
+                      <span class="sortable-header-content">
+                        {{ lang.t('manage.columns.docs') }}
+                        <span
+                          :class="[
+                            indexSort.column === 'docs' ? 'sort-icon' : 'sort-icon-inactive',
+                            indexSort.column === 'docs' ? indexSortIcon : 'i-carbon-arrow-up',
+                          ]"
+                        />
+                      </span>
+                    </TableHead>
+                    <TableHead class="sortable-header" @click="handleIndexSort('storage')">
+                      <span class="sortable-header-content">
+                        {{ lang.t('manage.columns.storage') }}
+                        <span
+                          :class="[
+                            indexSort.column === 'storage' ? 'sort-icon' : 'sort-icon-inactive',
+                            indexSort.column === 'storage' ? indexSortIcon : 'i-carbon-arrow-up',
+                          ]"
+                        />
+                      </span>
+                    </TableHead>
+                    <TableHead>{{ lang.t('manage.columns.shards') }}</TableHead>
+                    <TableHead>{{ lang.t('manage.columns.aliases') }}</TableHead>
                     <TableHead class="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow v-for="(row, i) in filteredIndices" :key="i">
+                  <TableRow v-for="(row, i) in sortedIndices" :key="i">
                     <TableCell class="font-medium font-mono text-xs">{{ row.index }}</TableCell>
                     <TableCell>
                       <span
@@ -471,7 +521,7 @@
               <div class="section-actions">
                 <Input
                   v-model="templateFilter"
-                  placeholder="Filter templates…"
+                  :placeholder="$t('manage.actions.filterTemplates')"
                   class="h-7 text-xs filter-input"
                 />
                 <Button size="sm" @click="toggleModal('template')">
@@ -486,18 +536,88 @@
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>{{ templatePrecedenceLabel }}</TableHead>
-                    <TableHead>Version</TableHead>
-                    <TableHead>Mappings</TableHead>
-                    <TableHead>Settings</TableHead>
-                    <TableHead>Aliases</TableHead>
-                    <TableHead>Index Patterns</TableHead>
+                    <TableHead class="sortable-header" @click="handleTemplateSort('name')">
+                      <span class="sortable-header-content">
+                        {{ lang.t('manage.columns.name') }}
+                        <span
+                          :class="[
+                            templateSort.column === 'name' ? 'sort-icon' : 'sort-icon-inactive',
+                            templateSort.column === 'name' ? templateSortIcon : 'i-carbon-arrow-up',
+                          ]"
+                        />
+                      </span>
+                    </TableHead>
+                    <TableHead class="sortable-header" @click="handleTemplateSort('type')">
+                      <span class="sortable-header-content">
+                        {{ lang.t('manage.columns.type') }}
+                        <span
+                          :class="[
+                            templateSort.column === 'type' ? 'sort-icon' : 'sort-icon-inactive',
+                            templateSort.column === 'type' ? templateSortIcon : 'i-carbon-arrow-up',
+                          ]"
+                        />
+                      </span>
+                    </TableHead>
+                    <TableHead class="sortable-header" @click="handleTemplateSort('precedence')">
+                      <span class="sortable-header-content">
+                        {{ templatePrecedenceLabel }}
+                        <span
+                          :class="[
+                            templateSort.column === 'precedence'
+                              ? 'sort-icon'
+                              : 'sort-icon-inactive',
+                            templateSort.column === 'precedence'
+                              ? templateSortIcon
+                              : 'i-carbon-arrow-up',
+                          ]"
+                        />
+                      </span>
+                    </TableHead>
+                    <TableHead class="sortable-header" @click="handleTemplateSort('version')">
+                      <span class="sortable-header-content">
+                        {{ lang.t('manage.columns.version') }}
+                        <span
+                          :class="[
+                            templateSort.column === 'version' ? 'sort-icon' : 'sort-icon-inactive',
+                            templateSort.column === 'version'
+                              ? templateSortIcon
+                              : 'i-carbon-arrow-up',
+                          ]"
+                        />
+                      </span>
+                    </TableHead>
+                    <TableHead class="sortable-header" @click="handleTemplateSort('mappings')">
+                      <span class="sortable-header-content">
+                        {{ lang.t('manage.columns.mappings') }}
+                        <span
+                          :class="[
+                            templateSort.column === 'mappings' ? 'sort-icon' : 'sort-icon-inactive',
+                            templateSort.column === 'mappings'
+                              ? templateSortIcon
+                              : 'i-carbon-arrow-up',
+                          ]"
+                        />
+                      </span>
+                    </TableHead>
+                    <TableHead class="sortable-header" @click="handleTemplateSort('settings')">
+                      <span class="sortable-header-content">
+                        {{ lang.t('manage.columns.settings') }}
+                        <span
+                          :class="[
+                            templateSort.column === 'settings' ? 'sort-icon' : 'sort-icon-inactive',
+                            templateSort.column === 'settings'
+                              ? templateSortIcon
+                              : 'i-carbon-arrow-up',
+                          ]"
+                        />
+                      </span>
+                    </TableHead>
+                    <TableHead>{{ lang.t('manage.columns.aliases') }}</TableHead>
+                    <TableHead>{{ lang.t('manage.columns.indexPatterns') }}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow v-for="(row, i) in filteredTemplates" :key="i">
+                  <TableRow v-for="(row, i) in sortedTemplates" :key="i">
                     <TableCell class="font-medium text-xs">{{ (row as any).name }}</TableCell>
                     <TableCell class="text-xs">{{ (row as any).type }}</TableCell>
                     <TableCell class="text-xs">{{ row.precedence }}</TableCell>
@@ -692,6 +812,13 @@ import {
   AllocationDecider,
   esApi,
 } from '../../../datasources';
+import {
+  type SortDirection,
+  type IndexSortColumn,
+  type TemplateSortColumn,
+  indexComparators,
+  templateComparators,
+} from './sorting-utils';
 import { useLang } from '../../../lang';
 import { CustomError, debug, withLoadingDelay } from '../../../common';
 import { ElasticsearchConnection, DatabaseType } from '../../../store';
@@ -812,6 +939,54 @@ const switchAliasDialogRef = ref();
 
 const indexFilter = ref('');
 const templateFilter = ref('');
+
+// --- Sorting ---
+
+const indexSort = ref<{ column: IndexSortColumn; direction: SortDirection }>({
+  column: 'index',
+  direction: 'asc',
+});
+
+const templateSort = ref<{ column: TemplateSortColumn; direction: SortDirection }>({
+  column: 'name',
+  direction: 'asc',
+});
+
+const indexSortIcon = computed(() =>
+  indexSort.value.direction === 'asc' ? 'i-carbon-arrow-up' : 'i-carbon-arrow-down',
+);
+
+const templateSortIcon = computed(() =>
+  templateSort.value.direction === 'asc' ? 'i-carbon-arrow-up' : 'i-carbon-arrow-down',
+);
+
+const handleIndexSort = (column: IndexSortColumn) => {
+  if (indexSort.value.column === column) {
+    indexSort.value.direction = indexSort.value.direction === 'asc' ? 'desc' : 'asc';
+  } else {
+    indexSort.value = { column, direction: 'asc' };
+  }
+};
+
+const handleTemplateSort = (column: TemplateSortColumn) => {
+  if (templateSort.value.column === column) {
+    templateSort.value.direction = templateSort.value.direction === 'asc' ? 'desc' : 'asc';
+  } else {
+    templateSort.value = { column, direction: 'asc' };
+  }
+};
+
+const sortedIndices = computed(() => {
+  const { column, direction } = indexSort.value;
+  const dir = direction === 'asc' ? 1 : -1;
+  return [...filteredIndices.value].sort((a, b) => indexComparators[column](a, b) * dir);
+});
+
+const sortedTemplates = computed(() => {
+  const { column, direction } = templateSort.value;
+  const dir = direction === 'asc' ? 1 : -1;
+  return [...filteredTemplates.value].sort((a, b) => templateComparators[column](a, b) * dir);
+});
 
 type ShardGroup = {
   node: string;
@@ -1882,5 +2057,36 @@ onMounted(async () => {
   50% {
     opacity: 0.5;
   }
+}
+
+/* Sortable headers */
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease;
+}
+
+.sortable-header:hover {
+  background-color: hsl(var(--muted) / 0.5);
+}
+
+.sortable-header-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sort-icon {
+  width: 12px;
+  height: 12px;
+  color: hsl(var(--primary));
+  flex-shrink: 0;
+}
+
+.sort-icon-inactive {
+  width: 12px;
+  height: 12px;
+  color: hsl(var(--muted-foreground) / 0.5);
+  flex-shrink: 0;
 }
 </style>

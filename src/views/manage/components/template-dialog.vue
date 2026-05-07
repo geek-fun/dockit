@@ -27,7 +27,7 @@
           <!-- Row 2: Type | master_timeout | Fail if exists (each 1/3) -->
           <div class="form-row-third">
             <div v-if="supportsComponentTemplates" class="form-col-third">
-              <FormItem label="Type">
+              <FormItem :label="$t('manage.index.newTemplateForm.type')">
                 <Select v-model="templateType">
                   <SelectTrigger>
                     <SelectValue :placeholder="$t('manage.index.newTemplateForm.selectType')" />
@@ -54,7 +54,7 @@
               </FormItem>
             </div>
             <div class="form-col-third">
-              <FormItem label="master_timeout">
+              <FormItem :label="$t('manage.index.newTemplateForm.masterTimeout')">
                 <div class="flex items-center gap-2">
                   <InputNumber v-model="formData.master_timeout" class="flex-1" />
                   <span class="text-sm text-muted-foreground">s</span>
@@ -73,11 +73,11 @@
 
           <!-- Row 3: Body -->
           <div class="form-row-full">
-            <FormItem label="body" required>
+            <FormItem :label="$t('manage.index.newTemplateForm.body')" required>
               <textarea
                 v-model="formData.body"
                 class="textarea-input"
-                placeholder="Enter JSON body"
+                :placeholder="$t('manage.index.newTemplateForm.bodyPlaceholder')"
               />
               <p v-if="errors.body" class="text-sm text-destructive mt-1">
                 {{ errors.body }}
