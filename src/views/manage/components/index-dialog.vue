@@ -81,7 +81,10 @@
                   </FormItem>
                 </GridItem>
                 <GridItem :span="8">
-                  <FormItem :label="$t('manage.index.newIndexForm.body')" :error="getError('body', errors.body)">
+                  <FormItem
+                    :label="$t('manage.index.newIndexForm.body')"
+                    :error="getError('body', errors.body)"
+                  >
                     <textarea
                       v-model="formData.body"
                       class="textarea-input"
