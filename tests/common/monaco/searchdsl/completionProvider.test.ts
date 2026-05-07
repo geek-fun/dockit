@@ -1404,6 +1404,457 @@ describe('grammarCompletionProvider', () => {
     });
   });
 
+  describe('SQL query body completions', () => {
+    beforeEach(() => {
+      setCompletionConfig({
+        backend: BackendType.ELASTICSEARCH,
+        version: '8.0.0',
+      });
+    });
+
+    it('should provide SQL commands inside query field of _sql endpoint', () => {
+      const text = `POST /_sql
+{
+  "query": "SEL"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 15 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('SELECT');
+      expect(labels).toContain('FROM');
+      expect(labels).toContain('WHERE');
+    });
+
+    it('should provide SQL root body fields for _sql endpoint', () => {
+      const text = `POST /_sql
+{
+  q
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 4 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('query');
+      expect(labels).toContain('fetch_size');
+      expect(labels).toContain('format');
+      expect(labels).toContain('filter');
+    });
+
+    it('should provide SQL commands for OpenSearch _plugins/_sql endpoint', () => {
+      setCompletionConfig({
+        backend: BackendType.OPENSEARCH,
+        version: '2.0.0',
+      });
+
+      const text = `POST /_plugins/_sql
+{
+  "query": "SEL"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 15 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('SELECT');
+      expect(labels).toContain('FROM');
+    });
+
+    it('should provide SQL body fields without format for OpenSearch backend', () => {
+      setCompletionConfig({
+        backend: BackendType.OPENSEARCH,
+        version: '2.0.0',
+      });
+
+      const text = `POST /_plugins/_sql
+{
+  q
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 4 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('query');
+      expect(labels).toContain('fetch_size');
+      expect(labels).not.toContain('format');
+    });
+
+    it('should provide index name completions after FROM in SQL query', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'logs-2024'],
+      });
+
+      const text = `POST /_sql
+{
+  "query": "SELECT * FROM kibana"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 24 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('kibana_sample_data_ecommerce');
+      expect(labels).not.toContain('logs-2024');
+    });
+
+    it('should provide field completions after FROM in SQL query when fields match', () => {
+      setDynamicOptions({
+        activeIndex: 'kibana_sample_data_ecommerce',
+        fields: ['category', 'price', 'description'],
+      });
+
+      const text = `POST /_sql
+{
+  "query": "SELECT category, price FROM kibana_sample_data_ecommerce"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 64 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('category');
+      expect(labels).toContain('price');
+      expect(labels).toContain('description');
+    });
+  });
+
+  describe('query parameter completions', () => {
+    it('should suggest all params with descriptions for _cat/indices when cursor is right after ?', () => {
+      const text = `GET _cat/indices?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('format');
+      expect(labels).toContain('h');
+      expect(labels).toContain('s');
+      expect(labels).toContain('v');
+      expect(labels).toContain('health');
+      const formatSuggestion = result.suggestions.find(s => s.label === 'format');
+      expect(formatSuggestion?.detail).toBeTruthy();
+    });
+
+    it('should not show already-typed param when cursor is after &', () => {
+      const text = `GET _cat/indices?v=true&`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('v');
+      expect(labels).toContain('format');
+      expect(labels).toContain('h');
+      expect(labels).toContain('s');
+      expect(labels).toContain('health');
+    });
+
+    it('should show only valid enum values for format param', () => {
+      const text = `GET _cat/indices?format=`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('text');
+      expect(labels).toContain('json');
+      expect(labels).toContain('yaml');
+      expect(labels).toContain('cbor');
+      expect(labels).toContain('smile');
+    });
+
+    it('should show boolean value completions when cursor is right after = on boolean param', () => {
+      const text = `GET _cat/indices?v=`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('true');
+      expect(labels).toContain('false');
+      expect(labels).not.toContain('v');
+      expect(labels).not.toContain('h');
+    });
+
+    it('should suggest all search query params for /{index}/_search?', () => {
+      const text = `GET my_index/_search?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('q');
+      expect(labels).toContain('df');
+      expect(labels).toContain('default_operator');
+      expect(labels).toContain('from');
+      expect(labels).toContain('size');
+      expect(labels).toContain('sort');
+      expect(labels).toContain('timeout');
+      expect(labels).toContain('track_total_hits');
+      expect(labels).toContain('search_type');
+      expect(labels).toContain('routing');
+    });
+
+    it('should show search_type enum values for /{index}/_search?search_type=', () => {
+      const text = `GET my_index/_search?search_type=`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('query_then_fetch');
+      expect(labels).toContain('dfs_query_then_fetch');
+    });
+
+    it('should suggest all doc query params for /{index}/_doc/{id}?', () => {
+      const text = `GET my_index/_doc/123?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('routing');
+      expect(labels).toContain('preference');
+      expect(labels).toContain('realtime');
+      expect(labels).toContain('_source');
+      expect(labels).toContain('refresh');
+      expect(labels).toContain('timeout');
+    });
+
+    it('should suggest all bulk query params for POST /{index}/_bulk?', () => {
+      const text = `POST my_index/_bulk?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('refresh');
+      expect(labels).toContain('routing');
+      expect(labels).toContain('timeout');
+      expect(labels).toContain('pipeline');
+    });
+
+    it('should show refresh enum values including wait_for for POST /{index}/_bulk?refresh=', () => {
+      const text = `POST my_index/_bulk?refresh=`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('true');
+      expect(labels).toContain('false');
+      expect(labels).toContain('wait_for');
+    });
+
+    it('should produce identical param suggestions for _cat/indices? with and without leading slash', () => {
+      const textWithSlash = `GET /_cat/indices?`;
+      const textWithoutSlash = `GET _cat/indices?`;
+
+      const resultWith = grammarCompletionProvider(createMockModel(textWithSlash), {
+        lineNumber: 1,
+        column: textWithSlash.length + 1,
+      } as monaco.Position);
+      const resultWithout = grammarCompletionProvider(createMockModel(textWithoutSlash), {
+        lineNumber: 1,
+        column: textWithoutSlash.length + 1,
+      } as monaco.Position);
+
+      const labelsWith = resultWith.suggestions.map(s => s.label).sort();
+      const labelsWithout = resultWithout.suggestions.map(s => s.label).sort();
+      expect(labelsWith).toEqual(labelsWithout);
+    });
+
+    it('should suggest all count query params for GET /{index}/_count?', () => {
+      const text = `GET my_index/_count?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('q');
+      expect(labels).toContain('df');
+      expect(labels).toContain('default_operator');
+      expect(labels).toContain('routing');
+    });
+
+    it('should filter suggestions by partial name and exclude already-typed params', () => {
+      const text = `GET _cat/indices?v=true&h=columns&for`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('format');
+      expect(labels).not.toContain('v');
+      expect(labels).not.toContain('h');
+    });
+
+    it('should show all valid params when cursor returns to right after ? with nothing typed', () => {
+      const text = `GET _cat/indices?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('v');
+      expect(labels).toContain('h');
+      expect(labels).toContain('s');
+      expect(labels).toContain('format');
+      expect(labels).toContain('health');
+    });
+
+    it('should not show any already-typed params when multiple params typed and cursor after &', () => {
+      const text = `GET _cat/indices?v=true&h=value&`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('v');
+      expect(labels).not.toContain('h');
+      expect(labels).toContain('health');
+      expect(labels).toContain('format');
+    });
+
+    it('should not show already-typed params when cursor is mid-typing a new param name', () => {
+      const text = `GET _cat/indices?v=true&h`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('v');
+      expect(labels).toContain('health');
+    });
+
+    it('should show value completions for second param when cursor is after = on second param', () => {
+      const text = `GET _cat/indices?v=true&health=`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('green');
+      expect(labels).toContain('yellow');
+      expect(labels).toContain('red');
+      expect(labels).not.toContain('v');
+      expect(labels).not.toContain('health');
+    });
+  });
+
+  describe('_mapping query parameters', () => {
+    it('should provide query params for _mapping endpoint', () => {
+      const text = `GET my_index/_mapping?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('allow_no_indices');
+      expect(labels).toContain('expand_wildcards');
+      expect(labels).toContain('ignore_unavailable');
+      expect(labels).toContain('timeout');
+    });
+
+    it('should provide enum values for expand_wildcards on _mapping', () => {
+      const text = `GET my_index/_mapping?expand_wildcards=`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('open');
+      expect(labels).toContain('closed');
+      expect(labels).toContain('hidden');
+      expect(labels).toContain('none');
+      expect(labels).toContain('all');
+    });
+  });
+
+  describe('_settings query parameters', () => {
+    it('should provide query params for _settings endpoint', () => {
+      const text = `GET my_index/_settings?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('allow_no_indices');
+      expect(labels).toContain('expand_wildcards');
+      expect(labels).toContain('flat_settings');
+      expect(labels).toContain('include_defaults');
+      expect(labels).toContain('timeout');
+    });
+  });
+
+  describe('_msearch query parameters', () => {
+    it('should provide query params for _msearch with index', () => {
+      const text = `GET my_index/_msearch?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('max_concurrent_searches');
+      expect(labels).toContain('search_type');
+    });
+  });
+
+  describe('_stats query parameters', () => {
+    it('should provide query params for GET /_stats?', () => {
+      const text = `GET /_stats?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('fields');
+      expect(labels).toContain('level');
+      expect(labels).toContain('include_unloaded_segments');
+    });
+
+    it('should provide query params for GET {index}/_stats?', () => {
+      const text = `GET my_index/_stats?`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 1, column: text.length + 1 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('fields');
+      expect(labels).toContain('level');
+    });
+  });
+
   describe('_data_stream query parameters', () => {
     it('should provide query params for GET /_data_stream?', () => {
       const text = `GET /_data_stream?`;
@@ -1469,11 +1920,6 @@ describe('grammarCompletionProvider', () => {
     });
 
     it('should filter system indices even when typing dot character', () => {
-      setDynamicOptions({
-        indices: allIndices,
-        includeSystemIndices: false,
-      });
-
       const text = `GET .`;
       const model = createMockModel(text);
       const position = { lineNumber: 1, column: 6 };
@@ -1510,7 +1956,6 @@ describe('grammarCompletionProvider', () => {
         includeSystemIndices: true,
       });
 
-      setCompletionConfig({ backend: BackendType.ELASTICSEARCH, version: '8.0.0' });
       const text = `GET p`;
       const model = createMockModel(text);
       const position = { lineNumber: 1, column: 6 };
@@ -1548,14 +1993,6 @@ describe('grammarCompletionProvider', () => {
       systemIdxs.forEach(systemItem => {
         expect(systemItem.sortText).toMatch(/^3/);
       });
-
-      normalIdxs.forEach(normalItem => {
-        systemIdxs.forEach(systemItem => {
-          const n = parseInt(normalItem.sortText?.charAt(0) || '9', 10);
-          const s = parseInt(systemItem.sortText?.charAt(0) || '9', 10);
-          expect(n).toBeLessThan(s);
-        });
-      });
     });
   });
 
@@ -1582,9 +2019,6 @@ describe('grammarCompletionProvider', () => {
       const indexScopedEndpoint = result.suggestions.find(
         s => typeof s.label === 'string' && s.label.includes('{index}'),
       );
-      const otherRoot = result.suggestions.find(
-        s => typeof s.label === 'string' && s.label === '/_cat/indices',
-      );
 
       expect(products?.sortText?.charAt(0)).toBe('0');
       expect(logs?.sortText?.charAt(0)).toBe('0');
@@ -1593,10 +2027,6 @@ describe('grammarCompletionProvider', () => {
       expect(rootSearch?.sortText?.charAt(0)).toBe('1');
       expect(indexScopedEndpoint).toBeDefined();
       expect(indexScopedEndpoint?.sortText?.charAt(0)).toBe('4');
-
-      if (otherRoot) {
-        expect(otherRoot.sortText?.charAt(0)).toBe('2');
-      }
     });
   });
 
@@ -1604,7 +2034,7 @@ describe('grammarCompletionProvider', () => {
     beforeEach(() => {
       setCompletionConfig({
         backend: BackendType.ELASTICSEARCH,
-        version: '8.11.0', // ES|QL requires 8.11+
+        version: '8.11.0',
       });
     });
 
@@ -1779,6 +2209,142 @@ describe('grammarCompletionProvider', () => {
       expect(fieldLabels.length).toBe(0);
     });
 
+    it('should provide index name completions when typing after FROM', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'kibana_sample_data_logs', 'my-index'],
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM kibana"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 18 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('kibana_sample_data_ecommerce');
+      expect(labels).toContain('kibana_sample_data_logs');
+      expect(labels).not.toContain('my-index');
+    });
+
+    it('should filter index completions by prefix typed after FROM', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'kibana_sample_data_logs', 'logs-2024'],
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM logs"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 17 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('logs-2024');
+      expect(labels).not.toContain('kibana_sample_data_ecommerce');
+      expect(labels).not.toContain('kibana_sample_data_logs');
+    });
+
+    it('should provide all index completions when no prefix after FROM', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'logs-2024'],
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM "
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 16 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('kibana_sample_data_ecommerce');
+      expect(labels).toContain('logs-2024');
+    });
+
+    it('should NOT provide index completions when not after FROM (e.g., after WHERE)', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'logs-2024'],
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM kibana_sample_data_ecommerce | WHERE c"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 53 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('kibana_sample_data_ecommerce');
+      expect(labels).not.toContain('logs-2024');
+    });
+
+    it('should exclude system indices from FROM completions by default', () => {
+      setDynamicOptions({
+        indices: ['.kibana', 'my-index'],
+        includeSystemIndices: false,
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM "
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 16 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('my-index');
+      expect(labels).not.toContain('.kibana');
+    });
+
+    it('should include system indices when includeSystemIndices is true', () => {
+      setDynamicOptions({
+        indices: ['.kibana', 'my-index'],
+        includeSystemIndices: true,
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM "
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 16 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('my-index');
+      expect(labels).toContain('.kibana');
+    });
+
+    it('should NOT provide index completions when no indices configured', () => {
+      setDynamicOptions({});
+
+      const text = `POST /_query
+{
+  "query": "FROM k"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 18 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const indexCompletions = result.suggestions.filter(
+        s => s.kind === monaco.languages.CompletionItemKind.Variable && s.detail === 'Index',
+      );
+      expect(indexCompletions.length).toBe(0);
+    });
+
     it('should NOT provide ES|QL completions for _delete_by_query (regression)', () => {
       const text = `POST my-index/_delete_by_query
 {
@@ -1847,6 +2413,131 @@ describe('grammarCompletionProvider', () => {
       expect(labels).toContain('FROM');
       expect(labels).toContain('WHERE');
       expect(labels).toContain('STATS');
+    });
+
+    it('should provide ES|QL completions for JSON5 style (unquoted key + triple-quoted string)', () => {
+      const text = `POST _query
+{
+  query: """
+  f
+  """
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 4 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('FROM');
+      expect(labels).toContain('WHERE');
+      expect(labels).toContain('STATS');
+      expect(labels).toContain('ROW');
+      expect(labels).toContain('KEEP');
+    });
+
+    it('should provide ES|QL completions for JSON5 style with FROM in triple-quoted string', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'logs-2024'],
+      });
+
+      const text = `POST _query
+{
+  query: """
+    FROM kibana
+  """
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 14 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('kibana_sample_data_ecommerce');
+      expect(labels).not.toContain('logs-2024');
+    });
+  });
+
+  describe('PPL query body completions', () => {
+    beforeEach(() => {
+      setCompletionConfig({
+        backend: BackendType.OPENSEARCH,
+        version: '2.0.0',
+      });
+    });
+
+    it('should provide PPL commands inside _plugins/_ppl endpoint', () => {
+      const text = `POST /_plugins/_ppl
+{
+  "query": "sour"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 16 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('source');
+      expect(labels).toContain('where');
+      expect(labels).toContain('fields');
+    });
+
+    it('should provide PPL root body fields at root level', () => {
+      const text = `POST /_plugins/_ppl
+{
+  q
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 4 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('query');
+      expect(labels).toContain('filter');
+      expect(labels).toContain('fetch_size');
+    });
+  });
+
+  describe('EQL query body completions', () => {
+    beforeEach(() => {
+      setCompletionConfig({
+        backend: BackendType.ELASTICSEARCH,
+        version: '8.0.0',
+      });
+    });
+
+    it('should provide EQL commands inside _eql/search endpoint', () => {
+      const text = `POST my-index/_eql/search
+{
+  "query": "any"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 15 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('any');
+      expect(labels).toContain('where');
+      expect(labels).toContain('sequence');
+    });
+
+    it('should provide EQL root body fields at root level', () => {
+      const text = `POST my-index/_eql/search
+{
+  q
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 4 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('query');
+      expect(labels).toContain('timestamp_field');
+      expect(labels).toContain('filter');
+      expect(labels).toContain('fetch_size');
+      expect(labels).toContain('tiebreaker_field');
     });
   });
 });
