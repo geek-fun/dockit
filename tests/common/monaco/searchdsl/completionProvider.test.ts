@@ -1485,6 +1485,46 @@ describe('grammarCompletionProvider', () => {
       expect(labels).toContain('fetch_size');
       expect(labels).not.toContain('format');
     });
+
+    it('should provide index name completions after FROM in SQL query', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'logs-2024'],
+      });
+
+      const text = `POST /_sql
+{
+  "query": "SELECT * FROM kibana"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 24 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('kibana_sample_data_ecommerce');
+      expect(labels).not.toContain('logs-2024');
+    });
+
+    it('should provide field completions after FROM in SQL query when fields match', () => {
+      setDynamicOptions({
+        activeIndex: 'kibana_sample_data_ecommerce',
+        fields: ['category', 'price', 'description'],
+      });
+
+      const text = `POST /_sql
+{
+  "query": "SELECT category, price FROM kibana_sample_data_ecommerce"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 64 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('category');
+      expect(labels).toContain('price');
+      expect(labels).toContain('description');
+    });
   });
 
   describe('query parameter completions', () => {
@@ -2169,6 +2209,142 @@ describe('grammarCompletionProvider', () => {
       expect(fieldLabels.length).toBe(0);
     });
 
+    it('should provide index name completions when typing after FROM', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'kibana_sample_data_logs', 'my-index'],
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM kibana"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 18 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('kibana_sample_data_ecommerce');
+      expect(labels).toContain('kibana_sample_data_logs');
+      expect(labels).not.toContain('my-index');
+    });
+
+    it('should filter index completions by prefix typed after FROM', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'kibana_sample_data_logs', 'logs-2024'],
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM logs"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 17 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('logs-2024');
+      expect(labels).not.toContain('kibana_sample_data_ecommerce');
+      expect(labels).not.toContain('kibana_sample_data_logs');
+    });
+
+    it('should provide all index completions when no prefix after FROM', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'logs-2024'],
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM "
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 16 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('kibana_sample_data_ecommerce');
+      expect(labels).toContain('logs-2024');
+    });
+
+    it('should NOT provide index completions when not after FROM (e.g., after WHERE)', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'logs-2024'],
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM kibana_sample_data_ecommerce | WHERE c"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 53 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).not.toContain('kibana_sample_data_ecommerce');
+      expect(labels).not.toContain('logs-2024');
+    });
+
+    it('should exclude system indices from FROM completions by default', () => {
+      setDynamicOptions({
+        indices: ['.kibana', 'my-index'],
+        includeSystemIndices: false,
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM "
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 16 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('my-index');
+      expect(labels).not.toContain('.kibana');
+    });
+
+    it('should include system indices when includeSystemIndices is true', () => {
+      setDynamicOptions({
+        indices: ['.kibana', 'my-index'],
+        includeSystemIndices: true,
+      });
+
+      const text = `POST /_query
+{
+  "query": "FROM "
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 16 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('my-index');
+      expect(labels).toContain('.kibana');
+    });
+
+    it('should NOT provide index completions when no indices configured', () => {
+      setDynamicOptions({});
+
+      const text = `POST /_query
+{
+  "query": "FROM k"
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 3, column: 18 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const indexCompletions = result.suggestions.filter(
+        s => s.kind === monaco.languages.CompletionItemKind.Variable && s.detail === 'Index',
+      );
+      expect(indexCompletions.length).toBe(0);
+    });
+
     it('should NOT provide ES|QL completions for _delete_by_query (regression)', () => {
       const text = `POST my-index/_delete_by_query
 {
@@ -2237,6 +2413,47 @@ describe('grammarCompletionProvider', () => {
       expect(labels).toContain('FROM');
       expect(labels).toContain('WHERE');
       expect(labels).toContain('STATS');
+    });
+
+    it('should provide ES|QL completions for JSON5 style (unquoted key + triple-quoted string)', () => {
+      const text = `POST _query
+{
+  query: """
+  f
+  """
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 4 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('FROM');
+      expect(labels).toContain('WHERE');
+      expect(labels).toContain('STATS');
+      expect(labels).toContain('ROW');
+      expect(labels).toContain('KEEP');
+    });
+
+    it('should provide ES|QL completions for JSON5 style with FROM in triple-quoted string', () => {
+      setDynamicOptions({
+        indices: ['kibana_sample_data_ecommerce', 'logs-2024'],
+      });
+
+      const text = `POST _query
+{
+  query: """
+    FROM kibana
+  """
+}`;
+      const model = createMockModel(text);
+      const position = { lineNumber: 4, column: 14 };
+
+      const result = grammarCompletionProvider(model, position as monaco.Position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('kibana_sample_data_ecommerce');
+      expect(labels).not.toContain('logs-2024');
     });
   });
 

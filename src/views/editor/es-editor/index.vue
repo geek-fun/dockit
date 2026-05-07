@@ -353,6 +353,37 @@ const setupQueryEditor = () => {
     if (model) {
       debouncedValidate(model);
     }
+
+    // Manually trigger suggestions for ES|QL commands, functions, and field names.
+    // Monaco's triggerCharacters don't fire inside string tokens, so we use
+    // requestAnimationFrame to trigger suggestions after the content change
+    // is fully committed and the cursor position is updated.
+    // We scan backwards from cursor to find the `query:` key — this handles
+    // multi-line triple-quoted strings where `query:` is on a different line.
+    if (_changes.changes.length > 0 && queryEditor) {
+      const lastChange = _changes.changes[_changes.changes.length - 1];
+      if (lastChange.text && /^[a-zA-Z]$/.test(lastChange.text)) {
+        const pos = queryEditor.getPosition();
+        if (pos) {
+          const model = queryEditor.getModel();
+          if (model) {
+            let foundQueryKey = false;
+            for (let lineNum = pos.lineNumber; lineNum >= 1; lineNum--) {
+              const line = model.getLineContent(lineNum);
+              if (line.includes('"query"') || line.includes('query:')) {
+                foundQueryKey = true;
+                break;
+              }
+            }
+            if (foundQueryKey) {
+              requestAnimationFrame(() => {
+                queryEditor?.trigger('keyboard', 'editor.action.triggerSuggest', {});
+              });
+            }
+          }
+        }
+      }
+    }
   });
 
   // Initial decoration refresh

@@ -134,8 +134,14 @@ const validateJsonBody = (jsonContent: string, startLineNumber: number): Validat
     return errors;
   }
 
+  // Strip triple quotes before JSON validation since JSON5 does not
+  // support triple-quoted strings natively.
+  const stripped = trimmed
+    .replace(/"""(.|\n)*?"""/gs, match => JSON.stringify(match.slice(3, -3)))
+    .replace(/'''(.|\n)*?'''/gs, match => JSON.stringify(match.slice(3, -3)));
+
   try {
-    jsonify.parse5(trimmed);
+    jsonify.parse5(stripped);
   } catch (parseError) {
     const error = parseError as Error;
     const errorPos = findJsonErrorPosition(trimmed, error.message, startLineNumber);

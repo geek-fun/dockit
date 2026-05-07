@@ -206,6 +206,9 @@ const globalPathActions = [
   '_tasks',
   '_analyze',
   '_aliases',
+  '_query',
+  '_sql',
+  '_plugins',
 ];
 
 const buildPath = (
@@ -581,6 +584,9 @@ export const useConnectionStore = defineStore('connectionStore', {
           activeIndex: connection.activeIndex?.index,
           indices: connection.indices.map(i => i.index),
           includeSystemIndices: tabStore.activePanel?.includeSystemIndices ?? false,
+          fields: connection.activeIndex?.mapping
+            ? extractFieldsFromMapping(connection.activeIndex.mapping as Record<string, unknown>)
+            : undefined,
         });
       }
       if (connection.type === DatabaseType.DYNAMODB && tableName) {

@@ -328,7 +328,7 @@ const getBodyPath = (
           lastKey = token.value.replace(/['"]/g, '');
           pendingColon = true;
         } else if (pendingColon) {
-          lastKeyValue = token.value.replace(/^['"]|['"]$/g, '').replace(/^"""|"""$/g, '');
+          lastKeyValue = token.value.replace(/^"""|"""$/g, '').replace(/^['"]|['"]$/g, '');
           pendingColon = false;
         }
         break;
@@ -778,8 +778,8 @@ const provideBodyCompletions = (
         range,
       });
     }
-    // Field completions: only for ES|QL which has FROM clause parsing
-    if (queryLang.id === 'esql') {
+    // Field and index completions for languages with FROM clause support (ES|QL, SQL)
+    if (queryLang.id === 'esql' || queryLang.id === 'sql') {
       const esqlFields = getEsqlFieldCompletions(context.currentKeyValue);
       for (const field of esqlFields) {
         completions.push({
@@ -792,6 +792,8 @@ const provideBodyCompletions = (
           range,
         });
       }
+      const esqlIndices = getEsqlIndexCompletions(context.currentKeyValue, range);
+      completions.push(...esqlIndices);
     }
   } else if (bodyPath.length === 0) {
     // Root level of body - provide top-level fields.
@@ -1079,6 +1081,37 @@ const getRootBodyFields = (
 
   // ES|QL query endpoint body fields moved to queryLanguages/esql.ts
   // and loaded via the registry in provideBodyCompletions.
+
+  // Delete/Update by query endpoints
+  if (pathEndsWith('_delete_by_query') || pathEndsWith('_update_by_query')) {
+    return [
+      { label: 'query', snippet: 'query: {\n\t$0\n}', description: 'Query DSL', sortOrder: 1 },
+      {
+        label: 'conflicts',
+        snippet: 'conflicts: "${1:proceed}"',
+        description: 'Conflict handling (proceed/abort)',
+        sortOrder: 2,
+      },
+      {
+        label: 'timeout',
+        snippet: 'timeout: "${1:1m}"',
+        description: 'Request timeout',
+        sortOrder: 3,
+      },
+      {
+        label: 'refresh',
+        snippet: 'refresh: ${1|true,false|}',
+        description: 'Refresh after operation',
+        sortOrder: 4,
+      },
+      {
+        label: 'max_docs',
+        snippet: 'max_docs: ${1:1000}',
+        description: 'Maximum documents to process',
+        sortOrder: 5,
+      },
+    ];
+  }
 
   // Check if this is an update endpoint
   if (pathMatchesEndpoint('_update')) {
@@ -1765,6 +1798,42 @@ const getEsqlFieldCompletions = (queryValue?: string): string[] => {
   }
 
   return dynamicOptions.fields;
+};
+
+const getEsqlIndexCompletions = (
+  queryValue: string | undefined,
+  range: monaco.Range,
+): monaco.languages.CompletionItem[] => {
+  if (!queryValue || !dynamicOptions.indices || dynamicOptions.indices.length === 0) {
+    return [];
+  }
+
+  const fromMatch = queryValue.match(/\bFROM\s+(\S*)\s*$/i);
+  if (!fromMatch) {
+    return [];
+  }
+
+  const partialIndex = fromMatch[1];
+  const includeSystem = dynamicOptions.includeSystemIndices ?? false;
+  const completions: monaco.languages.CompletionItem[] = [];
+
+  for (const indexName of dynamicOptions.indices) {
+    if (!includeSystem && indexName.startsWith('.')) continue;
+    if (partialIndex && !indexName.toLowerCase().startsWith(partialIndex.toLowerCase())) continue;
+
+    const systemIndex = indexName.startsWith('.');
+    completions.push({
+      label: indexName,
+      kind: monaco.languages.CompletionItemKind.Variable,
+      insertText: indexName,
+      insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
+      detail: systemIndex ? 'System Index' : 'Index',
+      sortText: '0' + indexName,
+      range,
+    });
+  }
+
+  return completions;
 };
 
 /**
