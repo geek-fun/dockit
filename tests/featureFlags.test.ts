@@ -18,5 +18,13 @@ describe('isFeatureEnabled', () => {
     it('mongodb defaults to false in test environment', () => {
       expect(isFeatureEnabled.mongodb).toBe(false);
     });
+
+    it('mongodb is false when __MONGODB_ENABLED__ is not set', () => {
+      expect(isFeatureEnabled.mongodb).toBe(false);
+    });
+
+    it('isFeatureEnabled object has correct shape', () => {
+      expect(Object.keys(isFeatureEnabled)).toEqual(['mongodb']);
+    });
   });
 });

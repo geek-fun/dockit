@@ -440,3 +440,128 @@ describe('Connection union type', () => {
     expect(conn.type).toBe(DatabaseType.DYNAMODB);
   });
 });
+
+describe('saveConnection type inference', () => {
+  it('uses provided type when present', () => {
+    const conn: Connection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+    expect(conn.type).toBe(DatabaseType.MONGODB);
+  });
+
+  it('distinguishes MongoDBConnection by type field', () => {
+    const mongo: Connection = {
+      name: 'mongo',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+    const es: Connection = {
+      name: 'es',
+      type: DatabaseType.ELASTICSEARCH,
+      host: 'http://localhost',
+      port: 9200,
+      indices: [],
+      activeIndex: undefined,
+      version: '8.0.0',
+      isOpenSearch: false,
+      clusterName: 'test',
+      clusterUuid: 'test-uuid',
+      sslCertVerification: false,
+    };
+    const dynamo: Connection = {
+      name: 'dynamo',
+      type: DatabaseType.DYNAMODB,
+      region: 'us-east-1',
+      auth: { kind: 'accessKey', accessKeyId: 'test', secretAccessKey: 'test' },
+    };
+    expect(mongo.type).toBe(DatabaseType.MONGODB);
+    expect(es.type).toBe(DatabaseType.ELASTICSEARCH);
+    expect(dynamo.type).toBe(DatabaseType.DYNAMODB);
+  });
+});
+
+describe('MongoDB connection edge cases', () => {
+  it('handles connection with uri auth and empty host', () => {
+    const conn: MongoDBConnection = {
+      name: 'atlas',
+      type: DatabaseType.MONGODB,
+      host: '',
+      port: 0,
+      auth: {
+        kind: 'uri',
+        uri: 'mongodb+srv://user:pass@cluster.mongodb.net/db',
+      },
+    };
+    expect(conn.host).toBe('');
+    expect(conn.port).toBe(0);
+    expect(conn.auth.kind).toBe('uri');
+  });
+
+  it('handles connection with scram auth and all optional fields', () => {
+    const conn: MongoDBConnection = {
+      name: 'full-scram',
+      type: DatabaseType.MONGODB,
+      host: 'mongo.example.com',
+      port: 27017,
+      auth: {
+        kind: 'scram',
+        username: 'admin',
+        password: 'secret',
+        authSource: 'admin',
+        authMechanism: 'SCRAM-SHA-256',
+      },
+      database: 'mydb',
+      tls: true,
+      collections: [{ name: 'users', type: 'collection', count: 100 }],
+    };
+    expect(conn.database).toBe('mydb');
+    expect(conn.tls).toBe(true);
+    expect(conn.collections).toHaveLength(1);
+    if (conn.auth.kind === 'scram') {
+      expect(conn.auth.authMechanism).toBe('SCRAM-SHA-256');
+    }
+  });
+
+  it('handles connection with no auth and no optional fields', () => {
+    const conn: MongoDBConnection = {
+      name: 'simple',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+    expect(conn.database).toBeUndefined();
+    expect(conn.tls).toBeUndefined();
+    expect(conn.collections).toBeUndefined();
+  });
+
+  it('handles connection with string id', () => {
+    const conn: MongoDBConnection = {
+      id: 'mongo-123',
+      name: 'string-id',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+    expect(conn.id).toBe('mongo-123');
+  });
+
+  it('handles connection with numeric id', () => {
+    const conn: MongoDBConnection = {
+      id: 42,
+      name: 'numeric-id',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+    expect(conn.id).toBe(42);
+  });
+});
