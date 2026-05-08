@@ -554,22 +554,8 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async saveConnection(connection: Connection): Promise<{ success: boolean; message: string }> {
       try {
-        const type =
-          connection.type ??
-          ('auth' in connection &&
-          connection.auth &&
-          typeof connection.auth === 'object' &&
-          'kind' in connection.auth &&
-          connection.auth.kind === 'uri'
-            ? DatabaseType.MONGODB
-            : 'host' in connection
-              ? DatabaseType.ELASTICSEARCH
-              : 'region' in connection
-                ? DatabaseType.DYNAMODB
-                : DatabaseType.MONGODB);
         const newConnection = {
           ...connection,
-          type,
           id: connection.id || this.connections.length + 1,
         } as Connection;
 
