@@ -498,7 +498,7 @@ describe('referDoc', () => {
     });
   });
 
-  describe('issue #385 - index-level endpoint method-specific doc URLs', () => {
+  describe('method-specific doc URLs for index-level endpoints', () => {
     describe('GET {index}/_alias', () => {
       it('should return indices-get-alias.html for v8', () => {
         const action = createSearchActionWithIndex('GET', 'my_index', '_alias');
