@@ -123,7 +123,7 @@ export const METHOD_TO_NEW_DOCS_OPERATION: Record<string, Record<string, string>
   'operation-indices-update-aliases': {
     GET: 'operation-indices-get-alias',
     PUT: 'operation-indices-put-alias',
-    DELETE: 'operation-indices-remove-alias',
+    DELETE: 'operation-indices-delete-alias',
     HEAD: 'operation-indices-exists-alias',
   },
   'operation-scroll': {
@@ -228,8 +228,8 @@ export const OPERATION_TO_GUIDE_PAGE: Record<string, string> = {
   'operation-indices-update-aliases': 'indices-aliases',
   'operation-indices-get-alias': 'indices-get-alias',
   'operation-indices-put-alias': 'indices-add-alias',
-  'operation-indices-remove-alias': 'indices-remove-alias',
-  'operation-indices-exists-alias': 'indices-exists-alias',
+  'operation-indices-remove-alias': 'indices-delete-alias',
+  'operation-indices-exists-alias': 'indices-alias-exists',
   'operation-indices-clone': 'indices-clone-index',
   'operation-indices-get-template': 'indices-templates',
   'operation-indices-put-template': 'indices-templates',
