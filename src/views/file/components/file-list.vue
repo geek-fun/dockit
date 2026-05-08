@@ -17,6 +17,7 @@
           @keydown.left.prevent="focusFileNode(index - 1)"
           @keydown.down.prevent="focusFileNode(index + getGridColumns())"
           @keydown.up.prevent="focusFileNode(index - getGridColumns())"
+          @keydown.shift.f10.prevent="openContextMenuForKeyboard($event, file)"
           @contextmenu.prevent="showContextMenu($event, file)"
         >
           <div class="file-icon">
@@ -118,17 +119,28 @@ const previousFocus = ref<HTMLElement | null>(null);
 const showContextMenu = (event: MouseEvent, file?: PathInfo) => {
   // Prevent the event from propagating further
   event.stopPropagation();
-  previousFocus.value = document.activeElement as HTMLElement;
+  previousFocus.value = event.currentTarget as HTMLElement;
   activeRef.value = file;
   selectedFile.value = file;
   contextMenuPosition.value = { x: event.layerX, y: event.layerY };
   contextMenuVisible.value = true;
 };
 
+const openContextMenuForKeyboard = (event: KeyboardEvent, file: PathInfo) => {
+  previousFocus.value = event.currentTarget as HTMLElement;
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  contextMenuPosition.value = { x: rect.left, y: rect.bottom };
+  selectedFile.value = file;
+  contextMenuVisible.value = true;
+};
+
 const closeContextMenu = () => {
   contextMenuVisible.value = false;
   if (previousFocus.value) {
-    previousFocus.value.focus();
+    const el = previousFocus.value;
+    nextTick(() => {
+      el.focus();
+    });
     previousFocus.value = null;
   }
 };

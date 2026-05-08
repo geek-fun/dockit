@@ -28,20 +28,20 @@
         <GridItem>
           <div class="field-label">{{ $t('export.destinationPath') }}</div>
           <div class="destination-path-row">
-            <div class="folder-selector" @click="handleSelectFolder">
-              <Button variant="outline" size="icon">
+            <button
+              class="folder-selector-btn"
+              type="button"
+              @click="handleSelectFolder"
+              @keydown.enter="handleSelectFolder"
+              @keydown.space.prevent="handleSelectFolder"
+            >
+              <div class="folder-icon-wrapper">
                 <span class="i-carbon-folder-open h-4 w-4" />
-              </Button>
-              <Input
-                :model-value="folderPath || $t('export.selectFolderPlaceholder')"
-                readonly
-                class="folder-path-input cursor-pointer"
-                autocomplete="off"
-                autocorrect="off"
-                autocapitalize="off"
-                spellcheck="false"
-              />
-            </div>
+              </div>
+              <div class="folder-path-content">
+                {{ folderPath || $t('export.selectFolderPlaceholder') }}
+              </div>
+            </button>
             <span class="path-separator">/</span>
             <Input
               v-model="extraPath"
@@ -220,23 +220,52 @@ watch(fileType, newType => {
   gap: 8px;
 }
 
-.step-card .destination-path-row .folder-selector {
+.step-card .destination-path-row .folder-selector-btn {
   flex: 1;
   display: flex;
+  align-items: center;
+  padding: 0;
+  border: 1px solid hsl(var(--input));
+  border-radius: calc(var(--radius) - 2px);
+  background-color: transparent;
   cursor: pointer;
-  gap: 0;
+  overflow: hidden;
+  transition: colors 0.2s;
+  height: 40px;
 }
 
-.step-card .destination-path-row .folder-selector .folder-path-input {
-  flex: 1;
-  cursor: pointer;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
+.step-card .destination-path-row .folder-selector-btn:hover {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
 }
 
-.step-card .destination-path-row .folder-selector button {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
+.step-card .destination-path-row .folder-selector-btn:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+.step-card .destination-path-row .folder-selector-btn .folder-icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 100%;
+  border-right: 1px solid hsl(var(--input));
+  flex-shrink: 0;
+}
+
+.step-card .destination-path-row .folder-selector-btn .folder-path-content {
+  padding: 0 12px;
+  font-size: 14px;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.step-card .destination-path-row .folder-selector-btn:hover .folder-icon-wrapper {
+  border-right-color: hsl(var(--input));
 }
 
 .step-card .destination-path-row .path-separator {

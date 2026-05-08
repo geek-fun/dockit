@@ -5,7 +5,7 @@
         <DialogTitle>{{ modalTitle }}</DialogTitle>
       </DialogHeader>
       <div class="modal-content">
-        <Form>
+        <Form @submit.prevent="submitNewFile">
           <FormItem :label="$t('file.name')" required>
             <Input
               v-model="formData.path"
@@ -20,7 +20,7 @@
       </div>
       <DialogFooter>
         <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
-        <Button :disabled="!validationPassed || saveLoading" @click="submitNewFile">
+        <Button type="submit" :disabled="!validationPassed || saveLoading">
           <Loader2 v-if="saveLoading" class="mr-2 h-4 w-4 animate-spin" />
           {{ $t('dialogOps.confirm') }}
         </Button>

@@ -15,7 +15,7 @@
 
         <!-- Streams Tab -->
         <TabsContent value="streams">
-          <Form class="space-y-4 pt-4">
+          <Form class="space-y-4 pt-4" @submit.prevent="handleSubmit">
             <FormItem :label="lang.t('manage.dynamo.enableStreams')">
               <Switch
                 :checked="formValue.streamsEnabled"
@@ -46,7 +46,7 @@
 
         <!-- TTL Tab -->
         <TabsContent value="ttl">
-          <Form class="space-y-4 pt-4">
+          <Form class="space-y-4 pt-4" @submit.prevent="handleSubmit">
             <FormItem :label="lang.t('manage.dynamo.enableTtl')">
               <Switch
                 :checked="formValue.ttlEnabled"
@@ -64,7 +64,7 @@
 
         <!-- PITR Tab -->
         <TabsContent value="pitr">
-          <Form class="space-y-4 pt-4">
+          <Form class="space-y-4 pt-4" @submit.prevent="handleSubmit">
             <FormItem :label="lang.t('manage.dynamo.enablePitr')">
               <Switch
                 :checked="formValue.pitrEnabled"
@@ -79,7 +79,7 @@
 
         <!-- Table Class Tab -->
         <TabsContent value="tableClass">
-          <Form class="space-y-4 pt-4">
+          <Form class="space-y-4 pt-4" @submit.prevent="handleSubmit">
             <FormItem :label="lang.t('manage.dynamo.tableClass')">
               <Select v-model="formValue.tableClass">
                 <SelectTrigger class="w-full">
@@ -106,7 +106,11 @@
       <Alert v-if="errorMessage" variant="destructive" class="mt-3">
         <AlertDescription class="flex items-center justify-between">
           <span>{{ errorMessage }}</span>
-          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
+          <button
+            class="ml-2 text-sm hover:opacity-70 cursor-pointer"
+            aria-label="Dismiss"
+            @click="errorMessage = ''"
+          >
             <X class="w-4 h-4" />
           </button>
         </AlertDescription>
@@ -116,7 +120,7 @@
         <Button variant="outline" :disabled="loading" @click="handleCancel">
           {{ lang.t('dialogOps.cancel') }}
         </Button>
-        <Button :disabled="loading" @click="handleSubmit">
+        <Button type="submit" :disabled="loading">
           <Spinner v-if="loading" class="mr-2 h-4 w-4" />
           {{ lang.t('dialogOps.save') }}
         </Button>

@@ -60,7 +60,7 @@
           class="connection-card focus:ring-2 focus:ring-primary focus:outline-none"
           role="button"
           tabindex="0"
-          @dblclick="handleSelect('connect', connection)"
+          @click="handleSelect('connect', connection)"
           @keydown.enter="handleSelect('connect', connection)"
           @keydown.space.prevent="handleSelect('connect', connection)"
           @keydown.right.prevent="focusConnectionNode(index + 1)"
