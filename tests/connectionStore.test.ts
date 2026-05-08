@@ -1,8 +1,11 @@
+import { setActivePinia, createPinia } from 'pinia';
 import {
   applyTableFilter,
   findTable,
   upsertTable,
   extractFieldsFromMapping,
+  migrateDynamoConnectionsV1ToV2,
+  migrateDynamoConnectionsV2ToV3,
   DatabaseType,
 } from '../src/store/connectionStore';
 import type {
@@ -11,17 +14,31 @@ import type {
   DynamoTableSummary,
   MongoDBConnection,
   Connection,
+  ElasticsearchConnection,
 } from '../src/store/connectionStore';
 
 jest.mock('../src/lang', () => ({ lang: { t: (k: string) => k } }));
-jest.mock('pinia', () => ({ defineStore: () => () => ({}) }));
-jest.mock('../src/datasources', () => ({}));
+jest.mock('../src/datasources', () => {
+  const store = new Map<string, unknown>();
+  return {
+    storeApi: {
+      get: async <T>(key: string, defaultValue: T): Promise<T> =>
+        (store.get(key) as T) ?? defaultValue,
+      set: async (key: string, value: unknown) => {
+        store.set(key, value);
+      },
+    },
+    dynamoApi: {} as Record<string, unknown>,
+    loadHttpClient: () => ({}) as Record<string, unknown>,
+    mongoApi: { testConnection: jest.fn() },
+  };
+});
 jest.mock('../src/store/tabStore.ts', () => ({}));
 jest.mock('../src/common', () => ({
   buildAuthHeader: jest.fn(),
   buildURL: jest.fn(),
   CustomError: class CustomError extends Error {},
-  pureObject: jest.fn(),
+  pureObject: (obj: unknown) => JSON.parse(JSON.stringify(obj)),
 }));
 jest.mock('../src/common/monaco', () => ({
   SearchAction: {},
@@ -140,6 +157,12 @@ describe('applyTableFilter', () => {
       const filter: DynamoTableFilter = { kind: 'regex', pattern: '(a|b)+' };
       expect(() => applyTableFilter(ALL_TABLES, filter)).not.toThrow();
     });
+  });
+
+  it('returns all tables for unknown filter kind (fall-through)', () => {
+    const result = applyTableFilter(ALL_TABLES, { kind: 'unknown' } as DynamoTableFilter);
+    expect(result).toEqual(ALL_TABLES);
+    expect(result).not.toBe(ALL_TABLES);
   });
 });
 
@@ -563,5 +586,391 @@ describe('MongoDB connection edge cases', () => {
       auth: { kind: 'none' },
     };
     expect(conn.id).toBe(42);
+  });
+});
+
+describe('migrateDynamoConnectionsV1ToV2', () => {
+  it('returns as-is when no dynamo connections exist', () => {
+    const raw: Connection[] = [
+      {
+        name: 'es-conn',
+        type: DatabaseType.ELASTICSEARCH,
+        host: 'http://localhost',
+        port: 9200,
+        indices: [],
+        activeIndex: undefined,
+        version: '8.0.0',
+        isOpenSearch: false,
+        clusterName: 'c',
+        clusterUuid: 'u',
+        sslCertVerification: false,
+      },
+    ];
+    const result = migrateDynamoConnectionsV1ToV2(raw);
+    expect(result.migrated).toEqual(raw);
+    expect(result.consolidatedCount).toBe(0);
+    expect(result.originalCount).toBe(0);
+  });
+
+  it('preserves non-dynamo connections alongside consolidated dynamo', () => {
+    const raw: Connection[] = [
+      {
+        name: 'es-conn',
+        type: DatabaseType.ELASTICSEARCH,
+        host: 'http://localhost',
+        port: 9200,
+        indices: [],
+        activeIndex: undefined,
+        version: '8.0.0',
+        isOpenSearch: false,
+        clusterName: 'c',
+        clusterUuid: 'u',
+        sslCertVerification: false,
+      },
+      {
+        name: 'dynamo-1',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        tableName: 'orders',
+      } as unknown as Connection,
+    ];
+    const result = migrateDynamoConnectionsV1ToV2(raw);
+    expect(result.migrated.length).toBe(2);
+    expect(result.migrated[0].type).toBe(DatabaseType.ELASTICSEARCH);
+  });
+
+  it('consolidates single dynamo connection without tableName', () => {
+    const raw: Connection[] = [
+      {
+        name: 'dynamo-1',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+      } as unknown as Connection,
+    ];
+    const result = migrateDynamoConnectionsV1ToV2(raw);
+    expect(result.originalCount).toBe(1);
+    expect(result.consolidatedCount).toBe(1);
+    const con = result.migrated[0] as DynamoDBConnection;
+    expect(con.tableFilter).toEqual({ kind: 'all' });
+    expect(con.tables).toEqual([]);
+    expect(con.auth).toEqual({ kind: 'accessKey', accessKeyId: 'ak1', secretAccessKey: 'sk1' });
+  });
+
+  it('consolidates single dynamo connection with tableName', () => {
+    const raw: Connection[] = [
+      {
+        name: 'dynamo-1',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        tableName: 'orders',
+      } as unknown as Connection,
+    ];
+    const result = migrateDynamoConnectionsV1ToV2(raw);
+    const con = result.migrated[0] as DynamoDBConnection;
+    expect(con.tableFilter).toEqual({ kind: 'explicit', tableNames: ['orders'] });
+    expect(con.tables).toHaveLength(1);
+    expect(con.tables?.[0].name).toBe('orders');
+  });
+
+  it('consolidates multiple V1 connections with same credentials', () => {
+    const raw: Connection[] = [
+      {
+        name: 'dynamo-1',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        tableName: 'orders',
+      } as unknown as Connection,
+      {
+        name: 'dynamo-2',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        tableName: 'users',
+      } as unknown as Connection,
+    ];
+    const result = migrateDynamoConnectionsV1ToV2(raw);
+    expect(result.originalCount).toBe(2);
+    expect(result.consolidatedCount).toBe(1);
+    expect(result.migrated.length).toBe(1);
+    const con = result.migrated[0] as DynamoDBConnection;
+    expect(con.tableFilter).toEqual({ kind: 'explicit', tableNames: ['orders', 'users'] });
+    expect(con.tables).toHaveLength(2);
+  });
+
+  it('separates connections with different credentials', () => {
+    const raw: Connection[] = [
+      {
+        name: 'prod',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        tableName: 'orders',
+      } as unknown as Connection,
+      {
+        name: 'staging',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-west-2',
+        accessKeyId: 'ak2',
+        secretAccessKey: 'sk2',
+        tableName: 'inventory',
+      } as unknown as Connection,
+    ];
+    const result = migrateDynamoConnectionsV1ToV2(raw);
+    expect(result.consolidatedCount).toBe(2);
+    expect(result.migrated.length).toBe(2);
+  });
+
+  it('deduplicates table names', () => {
+    const raw: Connection[] = [
+      {
+        name: 'dup',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        tableName: 'orders',
+      } as unknown as Connection,
+      {
+        name: 'dup2',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        tableName: 'orders',
+      } as unknown as Connection,
+    ];
+    const result = migrateDynamoConnectionsV1ToV2(raw);
+    const con = result.migrated[0] as DynamoDBConnection;
+    expect(con.tableFilter).toEqual({ kind: 'explicit', tableNames: ['orders'] });
+    expect(con.tables).toHaveLength(1);
+  });
+
+  it('preserves table key schema during migration', () => {
+    const keySchema = [{ attributeName: 'id', keyType: 'HASH' as const }];
+    const raw: Connection[] = [
+      {
+        name: 'dynamo-1',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        tableName: 'orders',
+        keySchema,
+      } as unknown as Connection,
+    ];
+    const result = migrateDynamoConnectionsV1ToV2(raw);
+    const con = result.migrated[0] as DynamoDBConnection;
+    expect(con.tables?.[0].keySchema).toEqual(keySchema);
+  });
+
+  it('uses endpointUrl in credential signature', () => {
+    const raw: Connection[] = [
+      {
+        name: 'local',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        endpointUrl: 'http://localhost:8000',
+        tableName: 'orders',
+      } as unknown as Connection,
+      {
+        name: 'remote',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        tableName: 'users',
+      } as unknown as Connection,
+    ];
+    const result = migrateDynamoConnectionsV1ToV2(raw);
+    expect(result.consolidatedCount).toBe(2);
+  });
+});
+
+describe('migrateDynamoConnectionsV2ToV3', () => {
+  it('passes through non-dynamo connections', () => {
+    const raw: Connection[] = [
+      {
+        name: 'es-conn',
+        type: DatabaseType.ELASTICSEARCH,
+        host: 'http://localhost',
+        port: 9200,
+        indices: [],
+        activeIndex: undefined,
+        version: '8.0.0',
+        isOpenSearch: false,
+        clusterName: 'c',
+        clusterUuid: 'u',
+        sslCertVerification: false,
+      },
+    ];
+    expect(migrateDynamoConnectionsV2ToV3(raw)).toEqual(raw);
+  });
+
+  it('passes through dynamo connection that already has auth field (V3+)', () => {
+    const raw: Connection[] = [
+      {
+        name: 'dynamo-v3',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        auth: { kind: 'accessKey', accessKeyId: 'ak1', secretAccessKey: 'sk1' },
+      },
+    ];
+    const result = migrateDynamoConnectionsV2ToV3(raw);
+    expect(result[0]).toBe(raw[0]);
+  });
+
+  it('migrates V2 connection with top-level accessKeyId/secretAccessKey to V3 auth', () => {
+    const raw: Connection[] = [
+      {
+        name: 'dynamo-v2',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+      } as unknown as Connection,
+    ];
+    const result = migrateDynamoConnectionsV2ToV3(raw);
+    const migrated = result[0] as DynamoDBConnection;
+    expect(migrated.auth).toEqual({
+      kind: 'accessKey',
+      accessKeyId: 'ak1',
+      secretAccessKey: 'sk1',
+    });
+    expect((migrated as Record<string, unknown>).accessKeyId).toBeUndefined();
+    expect((migrated as Record<string, unknown>).secretAccessKey).toBeUndefined();
+  });
+
+  it('defaults missing accessKeyId/secretAccessKey to empty string', () => {
+    const raw: Connection[] = [
+      {
+        name: 'dynamo-v2',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+      } as unknown as Connection,
+    ];
+    const result = migrateDynamoConnectionsV2ToV3(raw);
+    const migrated = result[0] as DynamoDBConnection;
+    expect(migrated.auth).toEqual({ kind: 'accessKey', accessKeyId: '', secretAccessKey: '' });
+  });
+
+  it('preserves other fields during migration', () => {
+    const raw: Connection[] = [
+      {
+        name: 'dynamo-v2',
+        type: DatabaseType.DYNAMODB,
+        region: 'eu-west-1',
+        endpointUrl: 'http://localhost:8000',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+      } as unknown as Connection,
+    ];
+    const result = migrateDynamoConnectionsV2ToV3(raw);
+    const migrated = result[0] as DynamoDBConnection;
+    expect(migrated.region).toBe('eu-west-1');
+    expect(migrated.endpointUrl).toBe('http://localhost:8000');
+    expect(migrated.name).toBe('dynamo-v2');
+  });
+});
+
+const esConnection: ElasticsearchConnection = {
+  name: 'test-es',
+  type: DatabaseType.ELASTICSEARCH,
+  host: 'http://localhost',
+  port: 9200,
+  indices: [],
+  activeIndex: undefined,
+  version: '8.0.0',
+  isOpenSearch: false,
+  clusterName: 'test-cluster',
+  clusterUuid: 'test-uuid',
+  sslCertVerification: false,
+};
+
+describe('connectionStore actions', () => {
+  let store: ReturnType<
+    ReturnType<typeof import('../src/store/connectionStore').useConnectionStore>
+  >;
+  let storeApi: { set: jest.Mock };
+
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    store = useConnectionStore();
+    storeApi = require('../src/datasources').storeApi;
+  });
+
+  describe('saveConnection', () => {
+    it('adds a new connection without id', async () => {
+      const result = await store.saveConnection(esConnection);
+      expect(result.success).toBe(true);
+      expect(store.connections).toHaveLength(1);
+      expect(store.connections[0].name).toBe('test-es');
+    });
+
+    it('assigns sequential id to new connections', async () => {
+      await store.saveConnection(esConnection);
+      await store.saveConnection({ ...esConnection, name: 'test-es-2' });
+      expect(store.connections).toHaveLength(2);
+      expect(store.connections[0].id).toBe(1);
+      expect(store.connections[1].id).toBe(2);
+    });
+
+    it('updates existing connection when id matches', async () => {
+      await store.saveConnection(esConnection);
+      const updated = { ...esConnection, id: 1, host: 'http://updated' };
+      const result = await store.saveConnection(updated);
+      expect(result.success).toBe(true);
+      expect(store.connections).toHaveLength(1);
+      expect((store.connections[0] as ElasticsearchConnection).host).toBe('http://updated');
+    });
+
+    it('returns success false when storeApi.set throws', async () => {
+      jest.spyOn(storeApi, 'set').mockRejectedValueOnce(new Error('Storage full'));
+      const result = await store.saveConnection(esConnection);
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Storage full');
+    });
+  });
+
+  describe('removeConnection', () => {
+    it('removes connection by id', async () => {
+      await store.saveConnection(esConnection);
+      await store.saveConnection({ ...esConnection, name: 'es-2' });
+      await store.removeConnection(store.connections[0]);
+      expect(store.connections).toHaveLength(1);
+      expect(store.connections[0].name).toBe('es-2');
+    });
+
+    it('removes the last connection', async () => {
+      await store.saveConnection(esConnection);
+      await store.removeConnection(store.connections[0]);
+      expect(store.connections).toHaveLength(0);
+    });
+  });
+
+  describe('dismissMigrationNotice', () => {
+    it('sets migrationNotice to null', () => {
+      store.migrationNotice = { consolidatedCount: 3, originalCount: 5 };
+      store.dismissMigrationNotice();
+      expect(store.migrationNotice).toBeNull();
+    });
+
+    it('is idempotent when already null', () => {
+      store.migrationNotice = null;
+      store.dismissMigrationNotice();
+      expect(store.migrationNotice).toBeNull();
+    });
   });
 });
