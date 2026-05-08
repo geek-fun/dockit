@@ -14,7 +14,7 @@
         </button>
       </DialogHeader>
 
-      <div class="modal-content">
+      <div class="modal-content min-h-[320px]">
         <Alert v-if="successMessage" variant="success" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ successMessage }}
@@ -58,11 +58,11 @@
                     <TabsTrigger class="flex-1" value="none">
                       {{ $t('connection.mongodb.authNone') }}
                     </TabsTrigger>
-                    <TabsTrigger class="flex-1" value="scram">
-                      {{ $t('connection.mongodb.authScram') }}
-                    </TabsTrigger>
                     <TabsTrigger class="flex-1" value="uri">
                       {{ $t('connection.mongodb.authUri') }}
+                    </TabsTrigger>
+                    <TabsTrigger class="flex-1" value="scram">
+                      {{ $t('connection.mongodb.authScram') }}
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
