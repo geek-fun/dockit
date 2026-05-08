@@ -17,6 +17,7 @@ import { DynamoIndexOrTableOption, useTabStore } from './tabStore.ts';
 export enum DatabaseType {
   ELASTICSEARCH = 'ELASTICSEARCH',
   DYNAMODB = 'DYNAMODB',
+  MONGODB = 'MONGODB',
 }
 
 type ElasticSearchIndex = {
@@ -192,7 +193,36 @@ type ElasticsearchClusterInfo = {
   };
 };
 
-export type Connection = ElasticsearchConnection | DynamoDBConnection;
+export type MongoDBAuth =
+  | { kind: 'none' }
+  | {
+      kind: 'scram';
+      username: string;
+      password: string;
+      authSource?: string;
+      authMechanism?: string;
+    }
+  | { kind: 'uri'; uri: string };
+
+export type MongoDBConnection = {
+  id?: number | string;
+  name: string;
+  type: DatabaseType.MONGODB;
+  host: string;
+  port: number;
+  auth: MongoDBAuth;
+  database?: string;
+  tls?: boolean;
+  collections?: Array<MongoDBCollection>;
+};
+
+export type MongoDBCollection = {
+  name: string;
+  type?: string;
+  count?: number;
+};
+
+export type Connection = ElasticsearchConnection | DynamoDBConnection | MongoDBConnection;
 
 const globalPathActions = [
   '_cluster',
@@ -505,6 +535,16 @@ export const useConnectionStore = defineStore('connectionStore', {
           clusterName: clusterInfo.cluster_name,
           clusterUuid: clusterInfo.cluster_uuid,
         } as ElasticsearchConnection;
+      } else if (con.type === DatabaseType.MONGODB) {
+        const { mongoApi } = await import('../datasources');
+        const result = await mongoApi.testConnection(con);
+        if (!result.success) {
+          throw new CustomError(400, result.message);
+        }
+        return {
+          ...con,
+          collections: result.collections?.map(name => ({ name })),
+        } as MongoDBConnection;
       } else {
         throw new CustomError(
           400,
@@ -514,9 +554,22 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async saveConnection(connection: Connection): Promise<{ success: boolean; message: string }> {
       try {
+        const type =
+          connection.type ??
+          ('auth' in connection &&
+          connection.auth &&
+          typeof connection.auth === 'object' &&
+          'kind' in connection.auth &&
+          connection.auth.kind === 'uri'
+            ? DatabaseType.MONGODB
+            : 'host' in connection
+              ? DatabaseType.ELASTICSEARCH
+              : 'region' in connection
+                ? DatabaseType.DYNAMODB
+                : DatabaseType.MONGODB);
         const newConnection = {
           ...connection,
-          type: 'host' in connection ? DatabaseType.ELASTICSEARCH : DatabaseType.DYNAMODB,
+          type,
           id: connection.id || this.connections.length + 1,
         } as Connection;
 

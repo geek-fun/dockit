@@ -3,11 +3,14 @@ import {
   findTable,
   upsertTable,
   extractFieldsFromMapping,
+  DatabaseType,
 } from '../src/store/connectionStore';
 import type {
   DynamoTableFilter,
   DynamoDBConnection,
   DynamoTableSummary,
+  MongoDBConnection,
+  Connection,
 } from '../src/store/connectionStore';
 
 jest.mock('../src/lang', () => ({ lang: { t: (k: string) => k } }));
@@ -313,5 +316,127 @@ describe('extractFieldsFromMapping', () => {
       },
     };
     expect(extractFieldsFromMapping(mapping)).toEqual([]);
+  });
+});
+
+describe('DatabaseType', () => {
+  it('includes MONGODB enum value', () => {
+    expect(DatabaseType.MONGODB).toBe('MONGODB');
+  });
+
+  it('includes ELASTICSEARCH enum value', () => {
+    expect(DatabaseType.ELASTICSEARCH).toBe('ELASTICSEARCH');
+  });
+
+  it('includes DYNAMODB enum value', () => {
+    expect(DatabaseType.DYNAMODB).toBe('DYNAMODB');
+  });
+});
+
+describe('MongoDBConnection type', () => {
+  it('can be created with no auth', () => {
+    const conn: MongoDBConnection = {
+      name: 'test-mongo',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+    expect(conn.type).toBe(DatabaseType.MONGODB);
+    expect(conn.auth.kind).toBe('none');
+  });
+
+  it('can be created with scram auth', () => {
+    const conn: MongoDBConnection = {
+      name: 'test-mongo',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: {
+        kind: 'scram',
+        username: 'admin',
+        password: 'secret',
+        authSource: 'admin',
+      },
+    };
+    expect(conn.auth.kind).toBe('scram');
+    if (conn.auth.kind === 'scram') {
+      expect(conn.auth.username).toBe('admin');
+      expect(conn.auth.password).toBe('secret');
+      expect(conn.auth.authSource).toBe('admin');
+    }
+  });
+
+  it('can be created with uri auth', () => {
+    const conn: MongoDBConnection = {
+      name: 'test-mongo',
+      type: DatabaseType.MONGODB,
+      host: '',
+      port: 0,
+      auth: {
+        kind: 'uri',
+        uri: 'mongodb+srv://user:pass@cluster.mongodb.net/db',
+      },
+    };
+    expect(conn.auth.kind).toBe('uri');
+    if (conn.auth.kind === 'uri') {
+      expect(conn.auth.uri).toContain('mongodb+srv://');
+    }
+  });
+
+  it('can include optional fields', () => {
+    const conn: MongoDBConnection = {
+      name: 'test-mongo',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+      database: 'mydb',
+      tls: true,
+      collections: [{ name: 'users' }, { name: 'orders', type: 'collection', count: 100 }],
+    };
+    expect(conn.database).toBe('mydb');
+    expect(conn.tls).toBe(true);
+    expect(conn.collections).toHaveLength(2);
+  });
+});
+
+describe('Connection union type', () => {
+  it('accepts MongoDBConnection as Connection', () => {
+    const conn: Connection = {
+      name: 'test-mongo',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+    expect(conn.type).toBe(DatabaseType.MONGODB);
+  });
+
+  it('accepts ElasticsearchConnection as Connection', () => {
+    const conn: Connection = {
+      name: 'test-es',
+      type: DatabaseType.ELASTICSEARCH,
+      host: 'http://localhost',
+      port: 9200,
+      indices: [],
+      activeIndex: undefined,
+      version: '8.0.0',
+      isOpenSearch: false,
+      clusterName: 'test',
+      clusterUuid: 'test-uuid',
+      sslCertVerification: false,
+    };
+    expect(conn.type).toBe(DatabaseType.ELASTICSEARCH);
+  });
+
+  it('accepts DynamoDBConnection as Connection', () => {
+    const conn: Connection = {
+      name: 'test-dynamo',
+      type: DatabaseType.DYNAMODB,
+      region: 'us-east-1',
+      auth: { kind: 'accessKey', accessKeyId: 'test', secretAccessKey: 'test' },
+    };
+    expect(conn.type).toBe(DatabaseType.DYNAMODB);
   });
 });

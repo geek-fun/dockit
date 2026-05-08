@@ -5,8 +5,7 @@ import Components from 'unplugin-vue-components/vite';
 import svgLoader from 'vite-svg-loader';
 import UnoCSS from 'unocss/vite';
 
-// https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
     svgLoader(),
@@ -25,6 +24,11 @@ export default defineConfig({
       dirs: ['src/components'],
     }),
   ],
+  define: {
+    __MONGODB_ENABLED__: JSON.stringify(
+      process.env.VITE_FEATURE_MONGODB === 'true' || mode === 'development',
+    ),
+  },
 
   envPrefix: [
     'VITE_',
@@ -61,4 +65,4 @@ export default defineConfig({
       '@': '/src',
     },
   },
-});
+}));

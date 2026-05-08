@@ -169,6 +169,7 @@
   <FloatingMenu @select="selectDatabaseType" />
   <EsConnectDialog ref="esConnectDialog" />
   <DynamodbConnectDialog ref="dynamodbConnectDialog" />
+  <MongodbConnectDialog ref="mongodbConnectDialog" />
   <ConnectingModal ref="connectingModal" />
 </template>
 
@@ -190,18 +191,21 @@ import { useDialogService, useMessageService } from '@/composables';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
-import { CustomError, MIN_LOADING_TIME } from '../../../common';
+import mongodb from '../../../assets/svg/mongodb.svg';
+import { CustomError, MIN_LOADING_TIME, isFeatureEnabled } from '../../../common';
 import { useLang } from '../../../lang';
 import {
   Connection,
   DatabaseType,
   DynamoDBConnection,
   ElasticsearchConnection,
+  MongoDBConnection,
   useConnectionStore,
 } from '../../../store';
 import FloatingMenu from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
+import MongodbConnectDialog from './mongodb-connect-dialog.vue';
 import ConnectingModal from './connecting-modal.vue';
 
 type SortKey = 'name' | 'type' | 'dateCreated';
@@ -256,9 +260,13 @@ const filteredConnections = computed(() => {
   const keyword = filterText.value.toLowerCase().trim();
   const dir = sortDir.value === 'asc' ? 1 : -1;
 
+  const baseConnections = isFeatureEnabled.mongodb
+    ? connections.value
+    : connections.value.filter(c => c.type !== DatabaseType.MONGODB);
+
   const filtered = keyword
-    ? connections.value.filter(c => c.name.toLowerCase().includes(keyword))
-    : connections.value;
+    ? baseConnections.filter(c => c.name.toLowerCase().includes(keyword))
+    : baseConnections;
 
   return [...filtered].sort((a, b) => sortFns[activeSortKey.value](a, b) * dir);
 });
@@ -267,11 +275,29 @@ const connectionCancelled = ref(false);
 const connectingModal = ref();
 
 const getDatabaseIcon = (type: DatabaseType) => {
-  return type === DatabaseType.ELASTICSEARCH ? elasticsearch : dynamoDB;
+  switch (type) {
+    case DatabaseType.ELASTICSEARCH:
+      return elasticsearch;
+    case DatabaseType.DYNAMODB:
+      return dynamoDB;
+    case DatabaseType.MONGODB:
+      return mongodb;
+    default:
+      return elasticsearch;
+  }
 };
 
 const getDatabaseLabel = (type: DatabaseType) => {
-  return type === DatabaseType.ELASTICSEARCH ? 'Elasticsearch' : 'DynamoDB';
+  switch (type) {
+    case DatabaseType.ELASTICSEARCH:
+      return 'Elasticsearch';
+    case DatabaseType.DYNAMODB:
+      return 'DynamoDB';
+    case DatabaseType.MONGODB:
+      return 'MongoDB';
+    default:
+      return 'Unknown';
+  }
 };
 
 const getConnectionDetail = (connection: Connection) => {
@@ -279,6 +305,15 @@ const getConnectionDetail = (connection: Connection) => {
     const es = connection as ElasticsearchConnection;
     const url = `${es.host}:${es.port}`;
     return url.length > 30 ? url.substring(0, 30) + '...' : url;
+  }
+  if (connection.type === DatabaseType.MONGODB) {
+    const mongo = connection as MongoDBConnection;
+    if (mongo.auth.kind === 'uri') {
+      const uri = mongo.auth.uri;
+      return uri.length > 30 ? uri.substring(0, 30) + '...' : uri;
+    }
+    const host = `${mongo.host}:${mongo.port}`;
+    return host.length > 30 ? host.substring(0, 30) + '...' : host;
   }
   const dynamo = connection as DynamoDBConnection;
   const tableCount = dynamo.tables?.length ?? 0;
@@ -435,6 +470,8 @@ const editConnect = (connection: Connection) => {
     esConnectDialog.value.showMedal(connection);
   } else if (connection.type === DatabaseType.DYNAMODB) {
     dynamodbConnectDialog.value.showMedal(connection);
+  } else if (connection.type === DatabaseType.MONGODB) {
+    mongodbConnectDialog.value.showMedal(connection);
   }
 };
 
@@ -461,6 +498,10 @@ const cloneConnect = (connection: Connection) => {
     const dynamoClone = clonedConnection as DynamoDBConnection;
     dynamoClone.tables = undefined;
     dynamodbConnectDialog.value.showMedal(dynamoClone);
+  } else if (connection.type === DatabaseType.MONGODB) {
+    const mongoClone = clonedConnection as MongoDBConnection;
+    mongoClone.collections = undefined;
+    mongodbConnectDialog.value.showMedal(mongoClone);
   }
 };
 
@@ -483,12 +524,15 @@ const removeConnect = (connection: Connection) => {
 
 const esConnectDialog = ref();
 const dynamodbConnectDialog = ref();
+const mongodbConnectDialog = ref();
 
 const selectDatabaseType = (type: DatabaseType) => {
   if (type === DatabaseType.ELASTICSEARCH) {
     esConnectDialog.value.showMedal(null);
   } else if (type === DatabaseType.DYNAMODB) {
     dynamodbConnectDialog.value.showMedal(null);
+  } else if (type === DatabaseType.MONGODB) {
+    mongodbConnectDialog.value.showMedal(null);
   }
 };
 </script>

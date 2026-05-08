@@ -36,6 +36,7 @@ aws-sdk-sts = { version = "1.103.0", default-features = false, features = ["defa
 aws-sdk-ssooidc = { version = "1.100.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
 aws-sdk-sso = { version = "1.98.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
 base64 = "0.22.1"
+mongodb = "3.1"
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]

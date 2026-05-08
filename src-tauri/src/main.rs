@@ -8,6 +8,7 @@ mod menu;
 mod openai_client;
 mod dynamo_client;
 mod dynamo;
+mod mongo_client;
 
 use fetch_client::fetch_api;
 use file_api::{get_file_info, read_file_batch, stream_file_lines};
@@ -17,6 +18,7 @@ use dynamo_client::{
     aws_sso_list_accounts, aws_sso_list_roles, aws_sso_poll_token, aws_sso_start_device_auth,
     dynamo_api,
 };
+use mongo_client::mongo_test_connection;
 
 #[derive(Clone, serde::Serialize)]
 struct AuthPayload {
@@ -67,6 +69,7 @@ fn main() {
             get_file_info,
             read_file_batch,
             stream_file_lines,
+            mongo_test_connection,
         ])
         .setup(|app| {
             menu::create_menu(app)?;
