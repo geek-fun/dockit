@@ -37,11 +37,18 @@
       <template #option="{ option }">
         <span class="flex items-center gap-1 w-full">
           <span
-            class="h-3.5 w-3.5 shrink-0 cursor-pointer"
+            class="h-3.5 w-3.5 shrink-0 cursor-pointer focus:ring-2 focus:ring-primary focus:outline-none"
             :class="
               option.favorite ? 'i-carbon-star-filled text-yellow-400' : 'i-carbon-star opacity-40'
             "
+            role="button"
+            tabindex="0"
+            :aria-label="
+              option.favorite ? $t('toolBar.unfavoriteTable') : $t('toolBar.favoriteTable')
+            "
             @click.stop="toggleFavoriteTable(option.value)"
+            @keydown.enter.stop="toggleFavoriteTable(option.value)"
+            @keydown.space.prevent.stop="toggleFavoriteTable(option.value)"
           />
           {{ option.label }}
         </span>
