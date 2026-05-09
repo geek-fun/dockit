@@ -55,10 +55,18 @@
     <div class="connection-scroll-container">
       <div v-if="filteredConnections.length > 0" class="connection-list-body">
         <div
-          v-for="connection in filteredConnections"
+          v-for="(connection, index) in filteredConnections"
           :key="connection.id"
-          class="connection-card"
-          @dblclick="handleSelect('connect', connection)"
+          class="connection-card focus:ring-2 focus:ring-primary focus:outline-none"
+          role="button"
+          tabindex="0"
+          @click="handleSelect('connect', connection)"
+          @keydown.enter="handleSelect('connect', connection)"
+          @keydown.space.prevent="handleSelect('connect', connection)"
+          @keydown.right.prevent="focusConnectionNode(index + 1)"
+          @keydown.left.prevent="focusConnectionNode(index - 1)"
+          @keydown.down.prevent="focusConnectionNode(index + getConnectionGridColumns())"
+          @keydown.up.prevent="focusConnectionNode(index - getConnectionGridColumns())"
         >
           <!-- Top section: icon -->
           <div class="card-top">
@@ -525,6 +533,20 @@ const removeConnect = (connection: Connection) => {
 const esConnectDialog = ref();
 const dynamodbConnectDialog = ref();
 const mongodbConnectDialog = ref();
+
+const getConnectionGridColumns = () => {
+  const container = document.querySelector('.connection-list-body');
+  if (!container) return 1;
+  const gridComputedStyle = window.getComputedStyle(container);
+  return gridComputedStyle.getPropertyValue('grid-template-columns').split(' ').length;
+};
+
+const focusConnectionNode = (index: number) => {
+  const items = document.querySelectorAll('.connection-card');
+  if (index >= 0 && index < items.length) {
+    (items[index] as HTMLElement)?.focus();
+  }
+};
 
 const selectDatabaseType = (type: DatabaseType) => {
   if (type === DatabaseType.ELASTICSEARCH) {

@@ -474,6 +474,8 @@ export const zhCN = {
   toolBar: {
     includeSystemIndices: '包含系统索引',
     systemIndices: '系统索引',
+    favoriteTable: '收藏数据表',
+    unfavoriteTable: '取消收藏数据表',
   },
   dialogOps: {
     warning: '提示',

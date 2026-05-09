@@ -3,10 +3,16 @@
     <ScrollArea class="node-scroll-area">
       <div class="node-list-container">
         <Card
-          v-for="node in nodes"
+          v-for="(node, index) in nodes"
           :key="node.name"
-          class="node-item hover:bg-accent cursor-pointer"
+          class="node-item hover:bg-accent cursor-pointer focus:ring-2 focus:ring-primary focus:outline-none"
+          role="button"
+          tabindex="0"
           @click="handleNodeClick(node.name)"
+          @keydown.enter="handleNodeClick(node.name)"
+          @keydown.space.prevent="handleNodeClick(node.name)"
+          @keydown.up.prevent="focusPrevNode(index)"
+          @keydown.down.prevent="focusNextNode(index, nodes.length)"
         >
           <CardHeader class="pb-2">
             <CardTitle class="text-base">{{ node.name }}</CardTitle>
@@ -151,6 +157,20 @@ const nodeStats = ref<Array<NodeStats>>([
 ]);
 
 const nodeStatistics = ref<Array<NodeStatistics>>([]);
+
+const focusPrevNode = (currentIndex: number) => {
+  if (currentIndex > 0) {
+    const prevItem = document.querySelectorAll('.node-item')[currentIndex - 1];
+    (prevItem as HTMLElement)?.focus();
+  }
+};
+
+const focusNextNode = (currentIndex: number, totalItems: number) => {
+  if (currentIndex < totalItems - 1) {
+    const nextItem = document.querySelectorAll('.node-item')[currentIndex + 1];
+    (nextItem as HTMLElement)?.focus();
+  }
+};
 
 const handleNodeClick = async (nodeName: string) => {
   const selectedNode = nodes.value.find(node => node.name === nodeName);

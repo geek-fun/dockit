@@ -5,7 +5,7 @@
         <DialogTitle>{{ lang.t('manage.dynamo.createGsiTitle') }}</DialogTitle>
       </DialogHeader>
       <ScrollArea class="max-h-[65vh] pr-4">
-        <Form>
+        <Form @submit.prevent="handleSubmit">
           <!-- Index Details Section -->
           <div class="section-divider">
             <Separator />
@@ -292,7 +292,7 @@
         <Button variant="outline" :disabled="loading" @click="handleCancel">
           {{ lang.t('dialogOps.cancel') }}
         </Button>
-        <Button :disabled="loading" @click="handleSubmit">
+        <Button type="submit" :disabled="loading">
           <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.create') }}
         </Button>

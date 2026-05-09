@@ -5,7 +5,7 @@
         <DialogTitle>{{ $t('manage.index.newIndexForm.title') }}</DialogTitle>
       </DialogHeader>
       <div class="modal-content">
-        <Form>
+        <Form @submit.prevent="submitCreate">
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
               <FormItem
@@ -100,7 +100,7 @@
       </div>
       <DialogFooter>
         <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
-        <Button :disabled="!validationPassed || createLoading" @click="submitCreate">
+        <Button type="submit" :disabled="!validationPassed || createLoading">
           <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
           {{ $t('dialogOps.create') }}
         </Button>

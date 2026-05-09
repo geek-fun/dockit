@@ -480,6 +480,8 @@ export const enUS = {
   toolBar: {
     includeSystemIndices: 'Include System indices',
     systemIndices: 'System indices',
+    favoriteTable: 'Favorite Table',
+    unfavoriteTable: 'Unfavorite Table',
   },
   dialogOps: {
     warning: 'Warning',

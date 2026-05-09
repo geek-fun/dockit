@@ -5,7 +5,7 @@
         <DialogTitle>{{ lang.t('manage.dynamo.modifyGsiTitle') }}</DialogTitle>
       </DialogHeader>
 
-      <Form>
+      <Form @submit.prevent="handleSubmit">
         <FormItem :label="lang.t('manage.dynamo.indexName')">
           <span class="text-sm">{{ props.indexName }}</span>
         </FormItem>
@@ -42,7 +42,11 @@
       <Alert v-if="errorMessage" variant="destructive" class="mt-3">
         <AlertDescription class="flex items-center justify-between">
           <span>{{ errorMessage }}</span>
-          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
+          <button
+            class="ml-2 text-sm hover:opacity-70 cursor-pointer"
+            aria-label="Dismiss"
+            @click="errorMessage = ''"
+          >
             <X class="w-4 h-4" />
           </button>
         </AlertDescription>
@@ -52,7 +56,7 @@
         <Button variant="outline" :disabled="loading" @click="handleCancel">
           {{ lang.t('dialogOps.cancel') }}
         </Button>
-        <Button :disabled="loading" @click="handleSubmit">
+        <Button type="submit" :disabled="loading">
           <Spinner v-if="loading" class="mr-2 h-4 w-4" />
           {{ lang.t('dialogOps.confirm') }}
         </Button>

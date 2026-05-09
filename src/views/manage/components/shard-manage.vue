@@ -45,6 +45,7 @@
                     size="xs"
                     class="shard-box m-1"
                     @click="handleShardClick(shard)"
+                    @keydown.enter="handleShardClick(shard)"
                   >
                     {{ shard.prirep }}{{ shard.shard }}
                   </Button>
@@ -66,7 +67,14 @@
               }}, unassigned: {{ indexShards.shards.filter(shard => !shard.node).length }}
             </span>
           </h3>
-          <span class="i-carbon-close h-6 w-6 close-index-shard-icon" @click="closeindexShards" />
+          <span
+            class="i-carbon-close h-6 w-6 close-index-shard-icon"
+            role="button"
+            tabindex="0"
+            @click="closeindexShards"
+            @keydown.enter="closeindexShards"
+            @keydown.space.prevent="closeindexShards"
+          />
         </div>
 
         <div class="shard-list-scrollbar-box">
