@@ -5,6 +5,7 @@
         <DialogTitle>{{ lang.t('dialogOps.warning') }}</DialogTitle>
         <button
           class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
+          aria-label="Close"
           @click="handleCancel"
         >
           <Icon :size="20" :component="X" />
@@ -20,7 +21,11 @@
         <Alert v-else-if="resultMessage" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ resultMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="resultMessage = ''">
+            <button
+              class="ml-2 hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="resultMessage = ''"
+            >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
@@ -37,6 +42,7 @@
           variant="destructive"
           :disabled="loading"
           @click="handleRetry"
+          @keydown.enter.prevent="handleRetry"
         >
           <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.retry') }}
@@ -46,6 +52,7 @@
           variant="destructive"
           :disabled="loading"
           @click="handleConfirm"
+          @keydown.enter.prevent="handleConfirm"
         >
           <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.delete') }}

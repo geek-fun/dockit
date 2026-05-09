@@ -286,7 +286,14 @@
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead class="sortable-header" @click="handleIndexSort('index')">
+                    <TableHead
+                      class="sortable-header"
+                      role="columnheader"
+                      tabindex="0"
+                      @click="handleIndexSort('index')"
+                      @keydown.enter="handleIndexSort('index')"
+                      @keydown.space.prevent="handleIndexSort('index')"
+                    >
                       <span class="sortable-header-content">
                         {{ lang.t('manage.columns.index') }}
                         <span
@@ -297,7 +304,14 @@
                         />
                       </span>
                     </TableHead>
-                    <TableHead class="sortable-header" @click="handleIndexSort('health')">
+                    <TableHead
+                      class="sortable-header"
+                      role="columnheader"
+                      tabindex="0"
+                      @click="handleIndexSort('health')"
+                      @keydown.enter="handleIndexSort('health')"
+                      @keydown.space.prevent="handleIndexSort('health')"
+                    >
                       <span class="sortable-header-content">
                         {{ lang.t('manage.columns.health') }}
                         <span
@@ -308,7 +322,14 @@
                         />
                       </span>
                     </TableHead>
-                    <TableHead class="sortable-header" @click="handleIndexSort('status')">
+                    <TableHead
+                      class="sortable-header"
+                      role="columnheader"
+                      tabindex="0"
+                      @click="handleIndexSort('status')"
+                      @keydown.enter="handleIndexSort('status')"
+                      @keydown.space.prevent="handleIndexSort('status')"
+                    >
                       <span class="sortable-header-content">
                         {{ lang.t('manage.columns.status') }}
                         <span
@@ -319,7 +340,14 @@
                         />
                       </span>
                     </TableHead>
-                    <TableHead class="sortable-header" @click="handleIndexSort('docs')">
+                    <TableHead
+                      class="sortable-header"
+                      role="columnheader"
+                      tabindex="0"
+                      @click="handleIndexSort('docs')"
+                      @keydown.enter="handleIndexSort('docs')"
+                      @keydown.space.prevent="handleIndexSort('docs')"
+                    >
                       <span class="sortable-header-content">
                         {{ lang.t('manage.columns.docs') }}
                         <span
@@ -330,7 +358,14 @@
                         />
                       </span>
                     </TableHead>
-                    <TableHead class="sortable-header" @click="handleIndexSort('storage')">
+                    <TableHead
+                      class="sortable-header"
+                      role="columnheader"
+                      tabindex="0"
+                      @click="handleIndexSort('storage')"
+                      @keydown.enter="handleIndexSort('storage')"
+                      @keydown.space.prevent="handleIndexSort('storage')"
+                    >
                       <span class="sortable-header-content">
                         {{ lang.t('manage.columns.storage') }}
                         <span
@@ -432,6 +467,7 @@
                                 ]"
                                 :title="`${shard.prirep === 'p' ? 'Primary' : 'Replica'} shard ${shard.shard} — ${shard.state}${!shard.node ? ' (unassigned)' : ''}`"
                                 @click="openShardDetail(row.index, shard)"
+                                @keydown.enter="openShardDetail(row.index, shard)"
                               >
                                 {{ shard.prirep }}{{ shard.shard }}
                               </Button>
@@ -536,7 +572,14 @@
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead class="sortable-header" @click="handleTemplateSort('name')">
+                    <TableHead
+                      class="sortable-header"
+                      role="columnheader"
+                      tabindex="0"
+                      @click="handleTemplateSort('name')"
+                      @keydown.enter="handleTemplateSort('name')"
+                      @keydown.space.prevent="handleTemplateSort('name')"
+                    >
                       <span class="sortable-header-content">
                         {{ lang.t('manage.columns.name') }}
                         <span
@@ -547,7 +590,14 @@
                         />
                       </span>
                     </TableHead>
-                    <TableHead class="sortable-header" @click="handleTemplateSort('type')">
+                    <TableHead
+                      class="sortable-header"
+                      role="columnheader"
+                      tabindex="0"
+                      @click="handleTemplateSort('type')"
+                      @keydown.enter="handleTemplateSort('type')"
+                      @keydown.space.prevent="handleTemplateSort('type')"
+                    >
                       <span class="sortable-header-content">
                         {{ lang.t('manage.columns.type') }}
                         <span
@@ -558,7 +608,14 @@
                         />
                       </span>
                     </TableHead>
-                    <TableHead class="sortable-header" @click="handleTemplateSort('precedence')">
+                    <TableHead
+                      class="sortable-header"
+                      role="columnheader"
+                      tabindex="0"
+                      @click="handleTemplateSort('precedence')"
+                      @keydown.enter="handleTemplateSort('precedence')"
+                      @keydown.space.prevent="handleTemplateSort('precedence')"
+                    >
                       <span class="sortable-header-content">
                         {{ templatePrecedenceLabel }}
                         <span
@@ -573,7 +630,14 @@
                         />
                       </span>
                     </TableHead>
-                    <TableHead class="sortable-header" @click="handleTemplateSort('version')">
+                    <TableHead
+                      class="sortable-header"
+                      role="columnheader"
+                      tabindex="0"
+                      @click="handleTemplateSort('version')"
+                      @keydown.enter="handleTemplateSort('version')"
+                      @keydown.space.prevent="handleTemplateSort('version')"
+                    >
                       <span class="sortable-header-content">
                         {{ lang.t('manage.columns.version') }}
                         <span
@@ -586,7 +650,14 @@
                         />
                       </span>
                     </TableHead>
-                    <TableHead class="sortable-header" @click="handleTemplateSort('mappings')">
+                    <TableHead
+                      class="sortable-header"
+                      role="columnheader"
+                      tabindex="0"
+                      @click="handleTemplateSort('mappings')"
+                      @keydown.enter="handleTemplateSort('mappings')"
+                      @keydown.space.prevent="handleTemplateSort('mappings')"
+                    >
                       <span class="sortable-header-content">
                         {{ lang.t('manage.columns.mappings') }}
                         <span
@@ -599,7 +670,14 @@
                         />
                       </span>
                     </TableHead>
-                    <TableHead class="sortable-header" @click="handleTemplateSort('settings')">
+                    <TableHead
+                      class="sortable-header"
+                      role="columnheader"
+                      tabindex="0"
+                      @click="handleTemplateSort('settings')"
+                      @keydown.enter="handleTemplateSort('settings')"
+                      @keydown.space.prevent="handleTemplateSort('settings')"
+                    >
                       <span class="sortable-header-content">
                         {{ lang.t('manage.columns.settings') }}
                         <span

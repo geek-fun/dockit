@@ -13,7 +13,11 @@
       <Alert v-else-if="resultMessage" variant="destructive" class="mb-3">
         <AlertDescription class="flex items-center justify-between">
           <span>{{ resultMessage }}</span>
-          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="resultMessage = ''">
+          <button
+            class="ml-2 text-sm hover:opacity-70 cursor-pointer"
+            aria-label="Dismiss"
+            @click="resultMessage = ''"
+          >
             <X class="w-4 h-4" />
           </button>
         </AlertDescription>
@@ -33,6 +37,7 @@
           variant="destructive"
           :disabled="loading"
           @click="handleRetry"
+          @keydown.enter.prevent="handleRetry"
         >
           <Spinner v-if="loading" class="mr-2 h-4 w-4" />
           {{ lang.t('dialogOps.retry') }}
@@ -42,6 +47,7 @@
           variant="destructive"
           :disabled="loading"
           @click="handleConfirm"
+          @keydown.enter.prevent="handleConfirm"
         >
           <Spinner v-if="loading" class="mr-2 h-4 w-4" />
           {{ lang.t('dialogOps.delete') }}

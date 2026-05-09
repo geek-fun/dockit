@@ -10,17 +10,19 @@
           :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
           @click.stop
         >
-          <ul>
-            <li @click="handleContextMenuAction('execute')">
-              <span>{{ lang.t('editor.es.contextMenu.execute') }}</span>
-              <span class="shortcut">{{ cmdKey }}↵</span>
-            </li>
-            <li @click="handleContextMenuAction('autoIndent')">
-              <span>{{ lang.t('editor.es.contextMenu.autoIndent') }}</span>
-              <span class="shortcut">{{ cmdKey }}I</span>
-            </li>
-            <li @click="handleContextMenuAction('copyAsCurl')">
-              <span>{{ lang.t('editor.es.contextMenu.copyAsCurl') }}</span>
+          <ul ref="contextMenuRef" role="menu" @keydown="handleMenuKeydown">
+            <li
+              v-for="(item, index) in menuItems"
+              :key="item.action"
+              role="menuitem"
+              tabindex="-1"
+              :class="['menu-item', index === highlightedIndex && 'bg-accent']"
+              @click="handleContextMenuAction(item.action as any)"
+              @keydown.enter.prevent="handleContextMenuAction(item.action as any)"
+              @keydown.space.prevent="handleContextMenuAction(item.action as any)"
+            >
+              <span>{{ item.label }}</span>
+              <span v-if="item.shortcut" class="shortcut">{{ item.shortcut }}</span>
             </li>
           </ul>
         </div>
@@ -36,7 +38,7 @@ import { open } from '@tauri-apps/plugin-shell';
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
 import { SplitPane } from '@/components/ui/split-pane';
 import { useMessageService, useLoadingBarService } from '@/composables';
 import { CustomError, jsonify } from '../../../common';
@@ -108,6 +110,57 @@ const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuActionLine = ref<number | null>(null);
 const cmdKey = computed(() => (platform() === 'macos' ? '⌘' : 'Ctrl+'));
+
+const contextMenuRef = ref<HTMLElement | null>(null);
+const highlightedIndex = ref(0);
+
+const menuItems = computed(() => [
+  {
+    action: 'execute',
+    label: lang.t('editor.es.contextMenu.execute'),
+    shortcut: `${cmdKey.value}↵`,
+  },
+  {
+    action: 'autoIndent',
+    label: lang.t('editor.es.contextMenu.autoIndent'),
+    shortcut: `${cmdKey.value}I`,
+  },
+  { action: 'copyAsCurl', label: lang.t('editor.es.contextMenu.copyAsCurl') },
+]);
+
+const handleMenuKeydown = (e: KeyboardEvent) => {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    highlightedIndex.value = (highlightedIndex.value + 1) % menuItems.value.length;
+    focusMenuItem(highlightedIndex.value);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    highlightedIndex.value =
+      (highlightedIndex.value - 1 + menuItems.value.length) % menuItems.value.length;
+    focusMenuItem(highlightedIndex.value);
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    hideContextMenu();
+  }
+};
+
+const focusMenuItem = (index: number) => {
+  nextTick(() => {
+    if (contextMenuRef.value) {
+      const items = contextMenuRef.value.querySelectorAll('li');
+      if (items[index]) {
+        (items[index] as HTMLElement).focus();
+      }
+    }
+  });
+};
+
+watch(contextMenuVisible, visible => {
+  if (visible) {
+    highlightedIndex.value = 0;
+    focusMenuItem(0);
+  }
+});
 
 // Debounced syntax validation (300ms delay for performance)
 const debouncedValidate = createDebouncedValidator((model: monaco.editor.ITextModel) => {
@@ -525,6 +578,29 @@ const setupQueryEditor = () => {
       saveModelContent(true, true, true);
     });
   }
+
+  // Keyboard shortcut for context menu (Shift+F10 or ContextMenu key)
+  queryEditor.addAction({
+    id: 'show-context-menu',
+    label: 'Show Context Menu',
+    keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.F10],
+    run: ed => {
+      const position = ed.getPosition();
+      if (!position) return;
+
+      const coords = ed.getScrolledVisiblePosition(position);
+      const domNode = ed.getDomNode();
+      if (coords && domNode) {
+        const rect = domNode.getBoundingClientRect();
+        contextMenuPosition.value = {
+          x: rect.left + coords.left,
+          y: rect.top + coords.top + 20, // offset slightly below cursor
+        };
+        contextMenuActionLine.value = position.lineNumber;
+        contextMenuVisible.value = true;
+      }
+    },
+  });
 
   // Layout-dependent shortcuts (/) are handled via DOM keydown events
   // instead of Monaco's addCommand, which assumes US keyboard layout.
