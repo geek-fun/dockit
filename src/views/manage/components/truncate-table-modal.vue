@@ -15,8 +15,8 @@
           <div>
             {{ lang.t('manage.dynamo.truncateDeletedItems') }}: {{ truncateResult?.deletedItems }}
           </div>
-          <div v-if="truncateResult?.errors?.length > 0" class="text-red-500">
-            {{ lang.t('manage.dynamo.truncateErrors') }}: {{ truncateResult?.errors?.length }}
+          <div v-if="(truncateResult?.errors?.length ?? 0) > 0" class="text-red-500">
+            {{ lang.t('manage.dynamo.truncateErrors') }}: {{ truncateResult?.errors?.length ?? 0 }}
           </div>
         </div>
       </div>

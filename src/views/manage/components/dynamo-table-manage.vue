@@ -732,7 +732,7 @@ const handleIndexCreated = async () => {
 
 const handleTableDeleted = async () => {
   message.success(lang.t('manage.dynamo.deleteTableSuccess'));
-  clusterManageStore.setActiveTable('');
+  dynamoManageStore.setManageActiveTable('');
   dynamoManageStore.clearTableInfo();
 };
 
@@ -744,7 +744,7 @@ const handleTableTruncated = async () => {
 const handleTableCreated = async (tableName: string) => {
   message.success(lang.t('manage.dynamo.createTableSuccess'));
   // Select the newly created table
-  clusterManageStore.setActiveTable(tableName);
+  dynamoManageStore.setManageActiveTable(tableName);
   // Refresh will be triggered by the watch on manageActiveTable
 };
 

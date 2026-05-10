@@ -112,12 +112,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../common';
 import { useLang } from '../../../lang';
-import {
-  useDynamoManageStore,
-  DynamoDBConnection,
-  DynamoDBTableInfo,
-  DatabaseType,
-} from '../../../store';
+import { useDynamoManageStore, DynamoDBConnection, DatabaseType } from '../../../store';
+import { DynamoDBTableInfo } from '../../../datasources';
 
 const lang = useLang();
 const dynamoManageStore = useDynamoManageStore();

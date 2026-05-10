@@ -514,9 +514,9 @@ const errors = reactive({
 
 const formValue = reactive({
   tableName: '',
-  partitionKey: { name: '', type: 'S' },
-  sortKey: { name: '', type: 'S' },
-  billingMode: 'PAY_PER_REQUEST',
+  partitionKey: { name: '', type: 'S' as 'S' | 'N' | 'B' },
+  sortKey: { name: '', type: 'S' as 'S' | 'N' | 'B' },
+  billingMode: 'PAY_PER_REQUEST' as 'PAY_PER_REQUEST' | 'PROVISIONED',
   readCapacity: 5,
   writeCapacity: 5,
   globalSecondaryIndexes: [] as Array<{
@@ -527,7 +527,7 @@ const formValue = reactive({
     readCapacity: number;
     writeCapacity: number;
   }>,
-  streamSpecification: {
+  stream_specification: {
     streamEnabled: false,
     streamViewType: 'NEW_AND_OLD_IMAGES' as
       | 'KEYS_ONLY'
@@ -565,9 +565,9 @@ watch(
       resultType.value = 'success';
       loading.value = false;
       formValue.tableName = '';
-      formValue.partitionKey = { name: '', type: 'S' };
-      formValue.sortKey = { name: '', type: 'S' };
-      formValue.billingMode = 'PAY_PER_REQUEST';
+      formValue.partitionKey = { name: '', type: 'S' as 'S' | 'N' | 'B' };
+      formValue.sortKey = { name: '', type: 'S' as 'S' | 'N' | 'B' };
+      formValue.billingMode = 'PAY_PER_REQUEST' as 'PAY_PER_REQUEST' | 'PROVISIONED';
       formValue.readCapacity = 5;
       formValue.writeCapacity = 5;
       formValue.globalSecondaryIndexes = [];
