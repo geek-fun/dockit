@@ -2,11 +2,13 @@ use crate::dynamo::batch_write_item::{batch_write_item, BatchWriteInput};
 use crate::dynamo::create_item::{create_item, CreateItemInput};
 use crate::dynamo::create_table::{create_table, CreateTableInput};
 use crate::dynamo::delete_item::{delete_item, DeleteItemInput};
+use crate::dynamo::delete_table::delete_table;
 use crate::dynamo::describe_table::describe_table;
 use crate::dynamo::execute_statement::{execute_statement, ExecuteStatementInput};
 use crate::dynamo::list_tables::list_tables;
 use crate::dynamo::query_table::{query_table, QueryTableInput};
 use crate::dynamo::scan_table::{scan_table, ScanTableInput};
+use crate::dynamo::truncate_table::truncate_table;
 use crate::dynamo::types::ApiResponse;
 use crate::dynamo::update_item::{update_item, UpdateItemInput};
 use crate::dynamo::update_table::{
@@ -354,6 +356,12 @@ pub async fn dynamo_api(
                     data: None,
                 })
             }
+        }
+        "DELETE_TABLE" => {
+            delete_table(&client, &options.table_name).await
+        }
+        "TRUNCATE_TABLE" => {
+            truncate_table(&client, &options.table_name).await
         }
         _ => Ok(ApiResponse {
             status: 400,

@@ -10,6 +10,20 @@
       />
     </div>
     <div v-else :class="{ 'pointer-events-none': refreshLoading }">
+      <!-- Action Buttons Header -->
+      <section class="actions-header">
+        <div class="actions-buttons">
+          <Button variant="outline" size="sm" @click="showDeleteTableModal = true">
+            <span class="i-carbon-trash-can h-4 w-4 mr-1" />
+            {{ lang.t('manage.dynamo.deleteTableTitle') }}
+          </Button>
+          <Button variant="outline" size="sm" @click="showTruncateTableModal = true">
+            <span class="i-carbon-clean h-4 w-4 mr-1" />
+            {{ lang.t('manage.dynamo.truncateTable') }}
+          </Button>
+        </div>
+      </section>
+
       <!-- Metrics Cards Section -->
       <section class="metrics-section">
         <div v-if="refreshLoading" class="metrics-grid">
@@ -331,6 +345,20 @@
         :table-name="activeTableName"
         @deleted="handleIndexDeleted"
       />
+      <delete-table-modal
+        v-model:show="showDeleteTableModal"
+        :table-name="activeTableName"
+        :table-info="tableInfo"
+        :connection="dynamoConnection"
+        @deleted="handleTableDeleted"
+      />
+      <truncate-table-modal
+        v-model:show="showTruncateTableModal"
+        :table-name="activeTableName"
+        :item-count="tableInfo?.itemCount || 0"
+        :connection="dynamoConnection"
+        @truncated="handleTableTruncated"
+      />
 
       <create-index-modal
         v-model:show="showCreateIndexModal"
@@ -356,6 +384,8 @@ import { CustomError, withLoadingDelay } from '../../../common';
 import { DynamoIndex, DynamoIndexType, dynamoApi } from '../../../datasources';
 import DeleteIndexModal from './delete-index-modal.vue';
 import CreateIndexModal from './create-index-modal.vue';
+import DeleteTableModal from './delete-table-modal.vue';
+import TruncateTableModal from './truncate-table-modal.vue';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -387,6 +417,8 @@ const activeTableName = computed(() => manageActiveTable.value);
 // Modal visibility states
 const showDeleteIndexModal = ref(false);
 const showCreateIndexModal = ref(false);
+const showDeleteTableModal = ref(false);
+const showTruncateTableModal = ref(false);
 const selectedIndex = ref<DynamoIndex | null>(null);
 
 // CloudWatch metrics state
@@ -676,6 +708,17 @@ const handleIndexCreated = async () => {
   await handleRefresh();
 };
 
+const handleTableDeleted = async () => {
+  message.success(lang.t('manage.dynamo.deleteTableSuccess'));
+  clusterManageStore.setActiveTable('');
+  dynamoManageStore.clearTableInfo();
+};
+
+const handleTableTruncated = async () => {
+  message.success(lang.t('manage.dynamo.truncateTableSuccess'));
+  await handleRefresh();
+};
+
 onMounted(async () => {
   if (
     connection.value &&
@@ -728,6 +771,17 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.actions-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.actions-buttons {
+  display: flex;
+  gap: 8px;
 }
 
 @keyframes shimmer {
