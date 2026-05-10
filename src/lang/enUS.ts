@@ -378,6 +378,11 @@ export const enUS = {
       back: 'Back',
       next: 'Next',
       createTable: 'Create Table',
+      updateTableConfigTitle: 'Update Table Configuration',
+      updateTableConfigSuccess: 'Table configuration updated successfully',
+      updateTtlSuccess: 'TTL updated successfully',
+      updatePitrSuccess: 'PITR updated successfully',
+      updateStreamsSuccess: 'Streams updated successfully',
     },
   },
   connection: {

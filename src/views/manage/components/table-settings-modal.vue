@@ -151,12 +151,15 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
+import { useDynamoManageStore, DynamoDBConnection, DatabaseType } from '../../../store';
 
 const lang = useLang();
+const dynamoManageStore = useDynamoManageStore();
 
 interface Props {
   show: boolean;
   tableName: string;
+  connection: DynamoDBConnection;
   currentSettings: {
     streamsEnabled: boolean;
     streamViewType: string;
@@ -176,6 +179,7 @@ const emit = defineEmits<{
 
 const loading = ref(false);
 const errorMessage = ref('');
+const successMessage = ref('');
 
 const formValue = ref({
   streamsEnabled: false,
@@ -198,7 +202,6 @@ const tableClassOptions = [
   { label: 'DynamoDB Standard-IA', value: 'STANDARD_INFREQUENT_ACCESS' },
 ];
 
-// Reset form when modal opens
 watch(
   () => props.show,
   newVal => {
@@ -212,6 +215,7 @@ watch(
         tableClass: props.currentSettings.tableClass || 'STANDARD',
       };
       errorMessage.value = '';
+      successMessage.value = '';
       loading.value = false;
     }
   },
@@ -222,16 +226,60 @@ const handleCancel = () => {
 };
 
 const handleSubmit = async () => {
+  if (props.connection.type !== DatabaseType.DYNAMODB) {
+    errorMessage.value = 'Invalid connection type';
+    return;
+  }
+
   const startTime = Date.now();
 
   try {
     loading.value = true;
 
-    // TODO: Call backend APIs to update table settings when implemented
-    // For now, simulate the operation
-    await new Promise(resolve => setTimeout(resolve, MIN_LOADING_TIME));
+    const hasChanges =
+      formValue.value.streamsEnabled !== props.currentSettings.streamsEnabled ||
+      formValue.value.streamViewType !== props.currentSettings.streamViewType ||
+      formValue.value.ttlEnabled !== props.currentSettings.ttlEnabled ||
+      formValue.value.ttlAttributeName !== props.currentSettings.ttlAttributeName ||
+      formValue.value.pitrEnabled !== props.currentSettings.pitrEnabled;
 
-    // Ensure minimum loading time
+    if (hasChanges) {
+      if (
+        formValue.value.streamsEnabled !== props.currentSettings.streamsEnabled ||
+        (formValue.value.streamsEnabled &&
+          formValue.value.streamViewType !== props.currentSettings.streamViewType)
+      ) {
+        await dynamoManageStore.updateStreams(props.connection, props.tableName, {
+          enabled: formValue.value.streamsEnabled,
+          streamViewType: formValue.value.streamsEnabled
+            ? (formValue.value.streamViewType as
+                | 'KEYS_ONLY'
+                | 'NEW_IMAGE'
+                | 'OLD_IMAGE'
+                | 'NEW_AND_OLD_IMAGES')
+            : undefined,
+        });
+      }
+
+      if (
+        formValue.value.ttlEnabled !== props.currentSettings.ttlEnabled ||
+        formValue.value.ttlAttributeName !== props.currentSettings.ttlAttributeName
+      ) {
+        await dynamoManageStore.updateTimeToLive(props.connection, props.tableName, {
+          enabled: formValue.value.ttlEnabled,
+          attributeName: formValue.value.ttlEnabled ? formValue.value.ttlAttributeName : undefined,
+        });
+      }
+
+      if (formValue.value.pitrEnabled !== props.currentSettings.pitrEnabled) {
+        await dynamoManageStore.updateContinuousBackups(
+          props.connection,
+          props.tableName,
+          formValue.value.pitrEnabled,
+        );
+      }
+    }
+
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
     if (remainingTime > 0) {

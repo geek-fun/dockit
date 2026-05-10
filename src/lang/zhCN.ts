@@ -372,6 +372,11 @@ export const zhCN = {
       back: '上一步',
       next: '下一步',
       createTable: '创建表',
+      updateTableConfigTitle: '更新表配置',
+      updateTableConfigSuccess: '表配置更新成功',
+      updateTtlSuccess: 'TTL更新成功',
+      updatePitrSuccess: 'PITR更新成功',
+      updateStreamsSuccess: '流更新成功',
     },
   },
   connection: {
