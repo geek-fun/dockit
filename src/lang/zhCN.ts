@@ -405,6 +405,9 @@ export const zhCN = {
       endpointUrlRequired: '本地连接需要输入端点 URL',
       apiKeyRequired: '请输入 API 密钥',
       invalidUri: 'URI 必须以 mongodb:// 或 mongodb+srv:// 开头',
+      uriRequired: '请输入 MongoDB URI',
+      usernameRequired: '请输入用户名',
+      passwordRequired: '请输入密码',
     },
     operations: {
       connect: '连接',
@@ -484,6 +487,7 @@ export const zhCN = {
     confirm: '确认',
     cancel: '取消',
     close: '关闭',
+    dismiss: '关闭',
     delete: '删除',
     retry: '重试',
     save: '保存',

@@ -411,6 +411,9 @@ export const enUS = {
       endpointUrlRequired: 'Endpoint URL is required for local connections',
       apiKeyRequired: 'API Key is required',
       invalidUri: 'URI must start with mongodb:// or mongodb+srv://',
+      uriRequired: 'MongoDB URI is required',
+      usernameRequired: 'Username is required',
+      passwordRequired: 'Password is required',
     },
     operations: {
       connect: 'Connect',
@@ -490,6 +493,7 @@ export const enUS = {
     confirm: 'Confirm',
     cancel: 'Cancel',
     close: 'Close',
+    dismiss: 'Dismiss',
     delete: 'Delete',
     retry: 'Retry',
     save: 'Save',

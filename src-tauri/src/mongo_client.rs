@@ -103,24 +103,49 @@ fn build_uri(config: &MongoConnectionConfig) -> String {
 pub async fn mongo_test_connection(config: MongoConnectionConfig) -> Result<MongoTestResult, String> {
     let uri = build_uri(&config);
 
-    let client_options = ClientOptions::parse(&uri)
-        .await
-        .map_err(|e| format!("Failed to parse connection options: {}", e))?;
+    let client_options = match ClientOptions::parse(&uri).await {
+        Ok(opts) => opts,
+        Err(e) => {
+            return Ok(MongoTestResult {
+                success: false,
+                message: format!("Failed to parse connection options: {}", e),
+                collections: None,
+            });
+        }
+    };
 
-    let client = Client::with_options(client_options)
-        .map_err(|e| format!("Failed to create client: {}", e))?;
+    let client = match Client::with_options(client_options) {
+        Ok(c) => c,
+        Err(e) => {
+            return Ok(MongoTestResult {
+                success: false,
+                message: format!("Failed to create client: {}", e),
+                collections: None,
+            });
+        }
+    };
 
     let db = client.database("admin");
-    db.run_command(mongodb::bson::doc! { "ping": 1 })
-        .await
-        .map_err(|e| format!("Connection failed: {}", e))?;
+    if let Err(e) = db.run_command(mongodb::bson::doc! { "ping": 1 }).await {
+        return Ok(MongoTestResult {
+            success: false,
+            message: format!("Connection failed: {}", e),
+            collections: None,
+        });
+    }
 
     let collections = if let Some(db_name) = &config.database {
         let target_db = client.database(db_name);
-        target_db
-            .list_collection_names()
-            .await
-            .map_err(|e| format!("Failed to list collections: {}", e))?
+        match target_db.list_collection_names().await {
+            Ok(names) => names,
+            Err(e) => {
+                return Ok(MongoTestResult {
+                    success: false,
+                    message: format!("Failed to list collections: {}", e),
+                    collections: None,
+                });
+            }
+        }
     } else {
         Vec::new()
     };

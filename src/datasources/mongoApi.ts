@@ -18,6 +18,13 @@ const buildConfig = (con: MongoDBConnection) => ({
 export const mongoApi = {
   testConnection: async (con: MongoDBConnection): Promise<MongoTestResult> => {
     const config = buildConfig(con);
-    return await invoke<MongoTestResult>('mongo_test_connection', { config });
+    try {
+      return await invoke<MongoTestResult>('mongo_test_connection', { config });
+    } catch (e) {
+      return {
+        success: false,
+        message: e instanceof Error ? e.message : String(e),
+      };
+    }
   },
 };

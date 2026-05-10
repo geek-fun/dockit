@@ -8,6 +8,7 @@
         </DialogTitle>
         <button
           class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
+          :aria-label="$t('dialogOps.close')"
           @click="closeModal"
         >
           <X class="h-4 w-4" />
@@ -18,7 +19,7 @@
         <Alert v-if="successMessage" variant="success" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ successMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="successMessage = ''">
+            <button class="ml-2 hover:opacity-70 cursor-pointer" :aria-label="$t('dialogOps.dismiss')" @click="successMessage = ''">
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
@@ -26,7 +27,7 @@
         <Alert v-if="errorMessage" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ errorMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
+            <button class="ml-2 hover:opacity-70 cursor-pointer" :aria-label="$t('dialogOps.dismiss')" @click="errorMessage = ''">
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
@@ -298,7 +299,7 @@ const formSchema = toTypedSchema(
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['uri'],
-            message: lang.t('connection.formValidation.hostRequired'),
+            message: lang.t('connection.formValidation.uriRequired'),
           });
         } else if (!data.uri.startsWith('mongodb://') && !data.uri.startsWith('mongodb+srv://')) {
           ctx.addIssue({
@@ -313,23 +314,32 @@ const formSchema = toTypedSchema(
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['username'],
-            message: lang.t('connection.formValidation.nameRequired'),
+            message: lang.t('connection.formValidation.usernameRequired'),
           });
         }
         if (!data.password?.trim()) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ['password'],
-            message: lang.t('connection.formValidation.nameRequired'),
+            message: lang.t('connection.formValidation.passwordRequired'),
           });
         }
       }
-      if (data.authMode !== 'uri' && !data.host?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ['host'],
-          message: lang.t('connection.formValidation.hostRequired'),
-        });
+      if (data.authMode !== 'uri') {
+        if (!data.host?.trim()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['host'],
+            message: lang.t('connection.formValidation.hostRequired'),
+          });
+        }
+        if (data.port == null || data.port < 1 || data.port > 65535) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['port'],
+            message: lang.t('connection.formValidation.portRequired'),
+          });
+        }
       }
     }),
 );
