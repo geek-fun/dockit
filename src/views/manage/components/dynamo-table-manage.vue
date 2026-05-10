@@ -20,6 +20,7 @@
       </div>
     </div>
     <div v-else :class="{ 'pointer-events-none': refreshLoading }">
+
       <!-- Metrics Cards Section -->
       <section class="metrics-section">
         <div v-if="refreshLoading" class="metrics-grid">
@@ -448,6 +449,12 @@
         @deleted="handleTableDeleted"
       />
 
+      <create-table-modal
+        v-model:show="showCreateTableModal"
+        :connection="dynamoConnection"
+        @created="handleTableCreated"
+      />
+
       <create-index-modal
         v-model:show="showCreateIndexModal"
         :table-name="activeTableName"
@@ -832,6 +839,7 @@ const handleTableCreated = async (tableName: string) => {
   dynamoManageStore.setManageActiveTable(tableName);
   // Refresh will be triggered by the watch on manageActiveTable
 };
+
 
 onMounted(async () => {
   if (
