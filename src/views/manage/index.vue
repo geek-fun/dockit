@@ -1,6 +1,10 @@
 <template>
   <div class="manage-container">
-    <tool-bar type="MANAGE" @refresh-dynamo-manage="handleDynamoRefresh" />
+    <tool-bar
+      type="MANAGE"
+      @refresh-dynamo-manage="handleDynamoRefresh"
+      @create-dynamo-table="handleCreateDynamoTable"
+    />
     <template v-if="connection?.type === DatabaseType.ELASTICSEARCH">
       <cluster-state class="state-container" :cluster="cluster" />
     </template>
@@ -27,7 +31,10 @@ import { Empty } from '@/components/ui/empty';
 const message = useMessageService();
 const lang = useLang();
 
-const dynamoTableManageRef = ref<{ handleRefresh: () => Promise<void> }>();
+const dynamoTableManageRef = ref<{
+  handleRefresh: () => Promise<void>;
+  showCreateTable: () => void;
+}>();
 
 const tabStore = useTabStore();
 const { activeConnection } = storeToRefs(tabStore);
@@ -55,6 +62,10 @@ watch(connection, async () => {
 
 const handleDynamoRefresh = () => {
   dynamoTableManageRef.value?.handleRefresh();
+};
+
+const handleCreateDynamoTable = () => {
+  dynamoTableManageRef.value?.showCreateTable();
 };
 
 onMounted(async () => {
