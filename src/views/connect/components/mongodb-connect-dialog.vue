@@ -19,7 +19,11 @@
         <Alert v-if="successMessage" variant="success" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ successMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" :aria-label="$t('dialogOps.dismiss')" @click="successMessage = ''">
+            <button
+              class="ml-2 hover:opacity-70 cursor-pointer"
+              :aria-label="$t('dialogOps.dismiss')"
+              @click="successMessage = ''"
+            >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
@@ -27,7 +31,11 @@
         <Alert v-if="errorMessage" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ errorMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" :aria-label="$t('dialogOps.dismiss')" @click="errorMessage = ''">
+            <button
+              class="ml-2 hover:opacity-70 cursor-pointer"
+              :aria-label="$t('dialogOps.dismiss')"
+              @click="errorMessage = ''"
+            >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
