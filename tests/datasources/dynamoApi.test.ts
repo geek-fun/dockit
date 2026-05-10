@@ -29,6 +29,45 @@ const mockConnection = {
   },
 };
 
+const mockProfileConnection = {
+  type: 'DYNAMODB',
+  name: 'test-profile-connection',
+  region: 'us-west-2',
+  endpointUrl: null,
+  auth: {
+    kind: 'profile',
+    profileName: 'default',
+  },
+};
+
+const mockSsoConnection = {
+  type: 'DYNAMODB',
+  name: 'test-sso-connection',
+  region: 'us-east-1',
+  endpointUrl: null,
+  auth: {
+    kind: 'sso',
+    accessKeyId: 'sso-key',
+    secretAccessKey: 'sso-secret',
+    sessionToken: 'sso-session',
+    region: 'us-east-1',
+  },
+};
+
+const mockAssumeRoleConnection = {
+  type: 'DYNAMODB',
+  name: 'test-assume-role-connection',
+  region: 'us-east-1',
+  endpointUrl: null,
+  auth: {
+    kind: 'assumeRole',
+    accessKeyId: 'assumed-key',
+    secretAccessKey: 'assumed-secret',
+    sessionToken: 'assumed-session',
+    region: 'us-east-1',
+  },
+};
+
 describe('dynamoApi - Table Lifecycle', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -205,6 +244,497 @@ describe('dynamoApi - Table Lifecycle', () => {
       });
 
       await expect(dynamoApi.truncateTable(mockConnection as any, 'test-table')).rejects.toThrow();
+    });
+  });
+});
+
+describe('dynamoApi - Auth Types', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should build credentials for profile auth', async () => {
+    (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+      status: 200,
+      message: 'Success',
+      data: { tableNames: ['table1'] },
+    });
+
+    await dynamoApi.listTables(mockProfileConnection as any);
+
+    expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auth: expect.objectContaining({
+          kind: 'profile',
+          profile_name: 'default',
+        }),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('should build credentials for sso auth', async () => {
+    (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+      status: 200,
+      message: 'Success',
+      data: { tableNames: ['table1'] },
+    });
+
+    await dynamoApi.listTables(mockSsoConnection as any);
+
+    expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auth: expect.objectContaining({
+          kind: 'sso',
+          access_key_id: 'sso-key',
+          secret_access_key: 'sso-secret',
+          session_token: 'sso-session',
+          region: 'us-east-1',
+        }),
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('should build credentials for assumeRole auth', async () => {
+    (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+      status: 200,
+      message: 'Success',
+      data: { tableNames: ['table1'] },
+    });
+
+    await dynamoApi.listTables(mockAssumeRoleConnection as any);
+
+    expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auth: expect.objectContaining({
+          kind: 'assumeRole',
+          access_key_id: 'assumed-key',
+          secret_access_key: 'assumed-secret',
+          session_token: 'assumed-session',
+          region: 'us-east-1',
+        }),
+      }),
+      expect.any(Object),
+    );
+  });
+});
+
+describe('dynamoApi - Basic Operations', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('listTables', () => {
+    it('should return list of table names', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'Success',
+        data: { tableNames: ['table1', 'table2', 'table3'] },
+      });
+
+      const result = await dynamoApi.listTables(mockConnection as any);
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          operation: 'LIST_TABLES',
+        }),
+      );
+
+      expect(result).toEqual(['table1', 'table2', 'table3']);
+    });
+
+    it('should return empty array when no tables', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'Success',
+        data: {},
+      });
+
+      const result = await dynamoApi.listTables(mockConnection as any);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should throw error on failed list', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 500,
+        message: 'Failed to list tables',
+        data: null,
+      });
+
+      await expect(dynamoApi.listTables(mockConnection as any)).rejects.toThrow();
+    });
+  });
+
+  describe('describeTable', () => {
+    it('should return table info', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'Success',
+        data: {
+          id: 'test-id',
+          name: 'test-table',
+          status: 'ACTIVE',
+          creationDateTime: '2024-01-01T00:00:00Z',
+          itemCount: 100,
+          sizeBytes: 1024,
+          billingMode: 'PAY_PER_REQUEST',
+          keySchema: [
+            { attributeName: 'id', keyType: 'HASH' },
+            { attributeName: 'timestamp', keyType: 'RANGE' },
+          ],
+          attributeDefinitions: [
+            { attributeName: 'id', attributeType: 'S' },
+            { attributeName: 'timestamp', attributeType: 'N' },
+          ],
+          indices: [],
+        },
+      });
+
+      const result = await dynamoApi.describeTable(mockConnection as any, 'test-table');
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          table_name: 'test-table',
+          operation: 'DESCRIBE_TABLE',
+        }),
+      );
+
+      expect(result.name).toBe('test-table');
+      expect(result.status).toBe('ACTIVE');
+    });
+
+    it('should throw error on failed describe', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 404,
+        message: 'Table not found',
+        data: null,
+      });
+
+      await expect(
+        dynamoApi.describeTable(mockConnection as any, 'non-existent'),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('getTableMetrics', () => {
+    it('should return metrics data', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'Success',
+        data: {
+          available: true,
+          metrics: {
+            consumedRead: [1, 2, 3],
+            consumedWrite: [1, 2, 3],
+            timestamps: ['t1', 't2', 't3'],
+            provisionedReadCapacity: 100,
+            provisionedWriteCapacity: 100,
+            rcuUtilization: 50,
+            wcuUtilization: 50,
+            throttledReadRequests: 0,
+            throttledWriteRequests: 0,
+            totalThrottledEvents: 0,
+          },
+        },
+      });
+
+      const result = await dynamoApi.getTableMetrics(mockConnection as any, 'test-table', 24);
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          table_name: 'test-table',
+          operation: 'GET_TABLE_METRICS',
+        }),
+      );
+
+      expect(result.available).toBe(true);
+      expect(result.metrics?.consumedRead).toEqual([1, 2, 3]);
+    });
+
+    it('should return not available when metrics unavailable', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'Success',
+        data: {
+          available: false,
+          message: 'CloudWatch not available',
+        },
+      });
+
+      const result = await dynamoApi.getTableMetrics(mockConnection as any, 'test-table', 24);
+
+      expect(result.available).toBe(false);
+    });
+  });
+
+  describe('describeContinuousBackups', () => {
+    it('should return PITR status', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'Success',
+        data: {
+          pitrEnabled: true,
+          pitrStatus: 'ENABLED',
+        },
+      });
+
+      const result = await dynamoApi.describeContinuousBackups(mockConnection as any, 'test-table');
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          table_name: 'test-table',
+          operation: 'DESCRIBE_CONTINUOUS_BACKUPS',
+        }),
+      );
+
+      expect(result.pitrEnabled).toBe(true);
+    });
+  });
+
+  describe('describeTimeToLive', () => {
+    it('should return TTL status', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'Success',
+        data: {
+          ttlEnabled: true,
+          attributeName: 'expiresAt',
+          ttlStatus: 'ENABLED',
+        },
+      });
+
+      const result = await dynamoApi.describeTimeToLive(mockConnection as any, 'test-table');
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          table_name: 'test-table',
+          operation: 'DESCRIBE_TIME_TO_LIVE',
+        }),
+      );
+
+      expect(result.ttlEnabled).toBe(true);
+      expect(result.attributeName).toBe('expiresAt');
+    });
+  });
+});
+
+describe('dynamoApi - Table Modification', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('updateTableConfig', () => {
+    it('should update billing mode to provisioned', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'Table updated successfully',
+        data: { tableName: 'test-table' },
+      });
+
+      await dynamoApi.updateTableConfig(mockConnection as any, 'test-table', {
+        billingMode: 'PROVISIONED',
+        readCapacity: 100,
+        writeCapacity: 50,
+      });
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          table_name: 'test-table',
+          operation: 'UPDATE_TABLE_CONFIG',
+          payload: expect.objectContaining({
+            billing_mode: 'PROVISIONED',
+            read_capacity_units: 100,
+            write_capacity_units: 50,
+          }),
+        }),
+      );
+    });
+
+    it('should update billing mode to on-demand', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'Table updated successfully',
+        data: { tableName: 'test-table' },
+      });
+
+      await dynamoApi.updateTableConfig(mockConnection as any, 'test-table', {
+        billingMode: 'PAY_PER_REQUEST',
+      });
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            billing_mode: 'PAY_PER_REQUEST',
+          }),
+        }),
+      );
+    });
+
+    it('should throw error on failed update', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 500,
+        message: 'Failed to update table',
+        data: null,
+      });
+
+      await expect(
+        dynamoApi.updateTableConfig(mockConnection as any, 'test-table', {
+          billingMode: 'PROVISIONED',
+          readCapacity: 100,
+          writeCapacity: 50,
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('updateTimeToLive', () => {
+    it('should enable TTL', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'TTL updated successfully',
+        data: { tableName: 'test-table', enabled: true, attributeName: 'expiresAt' },
+      });
+
+      await dynamoApi.updateTimeToLive(mockConnection as any, 'test-table', {
+        enabled: true,
+        attributeName: 'expiresAt',
+      });
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          table_name: 'test-table',
+          operation: 'UPDATE_TTL',
+          payload: expect.objectContaining({
+            enabled: true,
+            attribute_name: 'expiresAt',
+          }),
+        }),
+      );
+    });
+
+    it('should disable TTL', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'TTL updated successfully',
+        data: { tableName: 'test-table', enabled: false },
+      });
+
+      await dynamoApi.updateTimeToLive(mockConnection as any, 'test-table', {
+        enabled: false,
+      });
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            enabled: false,
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('updateContinuousBackups', () => {
+    it('should enable PITR', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'PITR updated successfully',
+        data: { tableName: 'test-table', enabled: true },
+      });
+
+      await dynamoApi.updateContinuousBackups(mockConnection as any, 'test-table', true);
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          table_name: 'test-table',
+          operation: 'UPDATE_PITR',
+          payload: expect.objectContaining({
+            enabled: true,
+          }),
+        }),
+      );
+    });
+
+    it('should disable PITR', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'PITR updated successfully',
+        data: { tableName: 'test-table', enabled: false },
+      });
+
+      await dynamoApi.updateContinuousBackups(mockConnection as any, 'test-table', false);
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            enabled: false,
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('updateStreams', () => {
+    it('should enable streams', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'Streams updated successfully',
+        data: {
+          tableName: 'test-table',
+          streamEnabled: true,
+          streamViewType: 'NEW_AND_OLD_IMAGES',
+        },
+      });
+
+      await dynamoApi.updateStreams(mockConnection as any, 'test-table', {
+        enabled: true,
+        streamViewType: 'NEW_AND_OLD_IMAGES',
+      });
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          table_name: 'test-table',
+          operation: 'UPDATE_STREAMS',
+          payload: expect.objectContaining({
+            enabled: true,
+            stream_view_type: 'NEW_AND_OLD_IMAGES',
+          }),
+        }),
+      );
+    });
+
+    it('should disable streams', async () => {
+      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
+        status: 200,
+        message: 'Streams updated successfully',
+        data: { tableName: 'test-table', streamEnabled: false },
+      });
+
+      await dynamoApi.updateStreams(mockConnection as any, 'test-table', {
+        enabled: false,
+      });
+
+      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          payload: expect.objectContaining({
+            enabled: false,
+          }),
+        }),
+      );
     });
   });
 });
