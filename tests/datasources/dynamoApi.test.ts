@@ -1,5 +1,5 @@
 import { dynamoApi } from '../../src/datasources/dynamoApi.ts';
-import { tauriClient, ApiClientError } from '../../src/datasources/ApiClients.ts';
+import { tauriClient } from '../../src/datasources/ApiClients.ts';
 
 jest.mock('../../src/lang/index.ts', () => ({
   lang: {
@@ -14,15 +14,6 @@ jest.mock('../../src/lang/index.ts', () => ({
 jest.mock('../../src/datasources/ApiClients.ts', () => ({
   tauriClient: {
     invokeDynamoApi: jest.fn(),
-  },
-  ApiClientError: class ApiClientError extends Error {
-    status: number;
-    details?: string;
-    constructor(status: number, message: string, details?: string) {
-      super(message);
-      this.status = status;
-      this.details = details;
-    }
   },
 }));
 
@@ -69,7 +60,7 @@ describe('dynamoApi - Table Lifecycle', () => {
             partition_key: 'id',
             billing_mode: 'PAY_PER_REQUEST',
           }),
-        })
+        }),
       );
 
       expect(result).toEqual({ tableName: 'test-table' });
@@ -101,7 +92,7 @@ describe('dynamoApi - Table Lifecycle', () => {
             sort_key: 'timestamp',
             sort_key_type: 'N',
           }),
-        })
+        }),
       );
     });
 
@@ -117,7 +108,7 @@ describe('dynamoApi - Table Lifecycle', () => {
           tableName: 'existing-table',
           partitionKey: { name: 'id', type: 'S' },
           billingMode: 'PAY_PER_REQUEST',
-        })
+        }),
       ).rejects.toThrow();
     });
   });
@@ -137,7 +128,7 @@ describe('dynamoApi - Table Lifecycle', () => {
         expect.objectContaining({
           table_name: 'test-table',
           operation: 'DELETE_TABLE',
-        })
+        }),
       );
 
       expect(result).toEqual({ tableName: 'test-table' });
@@ -175,7 +166,7 @@ describe('dynamoApi - Table Lifecycle', () => {
         expect.objectContaining({
           table_name: 'test-table',
           operation: 'TRUNCATE_TABLE',
-        })
+        }),
       );
 
       expect(result).toEqual({
