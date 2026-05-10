@@ -178,6 +178,16 @@
       v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.DYNAMODB"
       variant="ghost"
       size="sm"
+      @click="emits('create-dynamo-table')"
+    >
+      <span class="i-carbon-add mr-1 h-4 w-4" />
+      {{ $t('manage.dynamo.createTableTitle') }}
+    </Button>
+
+    <Button
+      v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.DYNAMODB"
+      variant="ghost"
+      size="sm"
       @click="handleDynamoRefresh"
     >
       <span class="i-carbon-renew mr-1 h-4 w-4" />
@@ -236,6 +246,7 @@ const emits = defineEmits([
   'insert-partiql-sample',
   'execute-partiql-query',
   'refresh-dynamo-manage',
+  'create-dynamo-table',
 ]);
 
 const message = useMessageService();

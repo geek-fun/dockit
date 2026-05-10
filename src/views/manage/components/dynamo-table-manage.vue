@@ -1,18 +1,32 @@
 <template>
   <div class="dynamo-manage-container">
-    <div v-if="!dynamoConnection || !activeTableName" class="empty-state">
-      <Empty
-        :description="
-          !dynamoConnection
-            ? $t('manage.emptyNoConnection')
-            : $t('manage.dynamo.selectTableRequired')
-        "
-      />
+    <!-- Empty state: No connection -->
+    <div v-if="!dynamoConnection" class="empty-state">
+      <Empty :description="$t('manage.emptyNoConnection')" />
+    </div>
+    <!-- Empty state: Connection exists but no table selected - Show Create Table CTA -->
+    <div v-else-if="!activeTableName" class="empty-state-with-cta">
+      <div class="empty-content">
+        <Empty :description="$t('manage.dynamo.selectTableRequired')" />
+        <Button
+          variant="default"
+          size="sm"
+          class="create-table-cta"
+          @click="showCreateTableModal = true"
+        >
+          <span class="i-carbon-add h-4 w-4 mr-1" />
+          {{ $t('manage.dynamo.createTableTitle') }}
+        </Button>
+      </div>
     </div>
     <div v-else :class="{ 'pointer-events-none': refreshLoading }">
       <!-- Action Buttons Header -->
       <section class="actions-header">
         <div class="actions-buttons">
+          <Button variant="default" size="sm" @click="showCreateTableModal = true">
+            <span class="i-carbon-add h-4 w-4 mr-1" />
+            {{ lang.t('manage.dynamo.createTableTitle') }}
+          </Button>
           <Button variant="outline" size="sm" @click="showDeleteTableModal = true">
             <span class="i-carbon-trash-can h-4 w-4 mr-1" />
             {{ lang.t('manage.dynamo.deleteTableTitle') }}
@@ -360,6 +374,12 @@
         @truncated="handleTableTruncated"
       />
 
+      <create-table-modal
+        v-model:show="showCreateTableModal"
+        :connection="dynamoConnection"
+        @created="handleTableCreated"
+      />
+
       <create-index-modal
         v-model:show="showCreateIndexModal"
         :table-name="activeTableName"
@@ -384,6 +404,7 @@ import { CustomError, withLoadingDelay } from '../../../common';
 import { DynamoIndex, DynamoIndexType, dynamoApi } from '../../../datasources';
 import DeleteIndexModal from './delete-index-modal.vue';
 import CreateIndexModal from './create-index-modal.vue';
+import CreateTableModal from './create-table-modal.vue';
 import DeleteTableModal from './delete-table-modal.vue';
 import TruncateTableModal from './truncate-table-modal.vue';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -417,6 +438,7 @@ const activeTableName = computed(() => manageActiveTable.value);
 // Modal visibility states
 const showDeleteIndexModal = ref(false);
 const showCreateIndexModal = ref(false);
+const showCreateTableModal = ref(false);
 const showDeleteTableModal = ref(false);
 const showTruncateTableModal = ref(false);
 const selectedIndex = ref<DynamoIndex | null>(null);
@@ -719,6 +741,13 @@ const handleTableTruncated = async () => {
   await handleRefresh();
 };
 
+const handleTableCreated = async (tableName: string) => {
+  message.success(lang.t('manage.dynamo.createTableSuccess'));
+  // Select the newly created table
+  clusterManageStore.setActiveTable(tableName);
+  // Refresh will be triggered by the watch on manageActiveTable
+};
+
 onMounted(async () => {
   if (
     connection.value &&
@@ -741,9 +770,14 @@ watch(manageActiveTable, async newTable => {
   }
 });
 
-// Expose handleRefresh so parent can trigger it
+// Expose handleRefresh and showCreateTable so parent can trigger them
+const showCreateTable = () => {
+  showCreateTableModal.value = true;
+};
+
 defineExpose({
   handleRefresh,
+  showCreateTable,
 });
 </script>
 
@@ -771,6 +805,24 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.empty-state-with-cta {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.create-table-cta {
+  margin-top: 8px;
 }
 
 .actions-header {
