@@ -451,6 +451,7 @@ watch(
         tableClass: props.currentSettings.tableClass || 'STANDARD',
       };
       errorMessage.value = '';
+      successMessage.value = '';
       loading.value = false;
       resetTruncate();
       resetDelete();
@@ -488,6 +489,11 @@ const handleCancel = () => {
 };
 
 const handleSubmit = async () => {
+  if (props.connection.type !== DatabaseType.DYNAMODB) {
+    errorMessage.value = 'Invalid connection type';
+    return;
+  }
+
   const startTime = Date.now();
   try {
     loading.value = true;
