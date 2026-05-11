@@ -190,11 +190,14 @@ describe('mongoApi', () => {
       expect(result.collections).toEqual(['users', 'orders']);
     });
 
-    it('throws when invoke fails', async () => {
+    it('returns failure result when invoke throws', async () => {
       const error = new Error('Connection failed');
       invoke.mockRejectedValue(error);
 
-      await expect(mongoApi.testConnection(baseConnection)).rejects.toThrow('Connection failed');
+      const result = await mongoApi.testConnection(baseConnection);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Connection failed');
     });
 
     it('returns failure result when success is false', async () => {
