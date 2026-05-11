@@ -30,6 +30,27 @@
           <dynamo-editor :ref="el => setDynamoEditorRef(el, panel.id)" />
         </div>
       </template>
+      <template v-else-if="panel.connection && panel.connection.type === DatabaseType.MONGODB">
+        <div class="mongo-placeholder">
+          <div class="mongo-placeholder-content">
+            <span class="i-carbon-database h-12 w-12 text-muted-foreground" />
+            <p class="text-lg font-medium text-foreground mt-4">{{ panel.connection.name }}</p>
+            <p class="text-sm text-muted-foreground mt-2">
+              {{ $t('connection.mongodb.editorComingSoon') }}
+            </p>
+            <p
+              v-if="panel.connection.collections?.length"
+              class="text-sm text-muted-foreground mt-1"
+            >
+              {{
+                $t('connection.mongodb.collectionCount', {
+                  count: panel.connection.collections.length,
+                })
+              }}
+            </p>
+          </div>
+        </div>
+      </template>
       <template v-else>
         <div class="es-editor">
           <tool-bar
@@ -268,5 +289,20 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.mongo-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mongo-placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2rem;
 }
 </style>
