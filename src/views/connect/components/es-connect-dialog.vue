@@ -8,6 +8,7 @@
         </DialogTitle>
         <button
           class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
+          aria-label="Close"
           @click="closeModal"
         >
           <X class="h-4 w-4" />
@@ -18,7 +19,11 @@
         <Alert v-if="successMessage" variant="success" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ successMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="successMessage = ''">
+            <button
+              class="ml-2 hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="successMessage = ''"
+            >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
@@ -26,7 +31,11 @@
         <Alert v-if="errorMessage" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ errorMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
+            <button
+              class="ml-2 hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="errorMessage = ''"
+            >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>

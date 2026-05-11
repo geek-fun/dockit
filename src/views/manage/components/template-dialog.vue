@@ -5,7 +5,7 @@
         <DialogTitle>{{ $t('manage.index.newTemplateForm.title') }}</DialogTitle>
       </DialogHeader>
 
-      <Form class="mt-4">
+      <Form class="mt-4" @submit.prevent="submitCreate">
         <div class="form-grid">
           <!-- Row 1: Template Name -->
           <div class="form-row-full">
@@ -89,7 +89,7 @@
 
       <DialogFooter>
         <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
-        <Button :disabled="createLoading" @click="submitCreate">
+        <Button type="submit" :disabled="createLoading">
           <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
           {{ $t('dialogOps.create') }}
         </Button>

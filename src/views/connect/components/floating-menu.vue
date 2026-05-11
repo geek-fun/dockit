@@ -43,22 +43,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DatabaseType } from '@/store';
+import { isFeatureEnabled } from '@/common';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
+import mongodb from '../../../assets/svg/mongodb.svg';
 
 const emit = defineEmits(['select']);
 
 const isExpanded = ref(false);
 let collapseTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const databaseTypes = [
+const allDatabaseTypes = [
   { value: DatabaseType.ELASTICSEARCH, icon: elasticsearch, label: 'Elasticsearch' },
   { value: DatabaseType.DYNAMODB, icon: dynamoDB, label: 'DynamoDB' },
+  { value: DatabaseType.MONGODB, icon: mongodb, label: 'MongoDB' },
 ];
+
+const databaseTypes = computed(() =>
+  isFeatureEnabled.mongodb
+    ? allDatabaseTypes
+    : allDatabaseTypes.filter(db => db.value !== DatabaseType.MONGODB),
+);
 
 const handleMouseEnter = () => {
   if (collapseTimeout) {

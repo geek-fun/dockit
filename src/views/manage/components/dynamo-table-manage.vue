@@ -320,7 +320,11 @@
               <!-- Streams Setting -->
               <div
                 class="setting-item clickable"
+                role="button"
+                tabindex="0"
                 @click="message.info($t('manage.dynamo.comingSoon'))"
+                @keydown.enter="message.info($t('manage.dynamo.comingSoon'))"
+                @keydown.space.prevent="message.info($t('manage.dynamo.comingSoon'))"
               >
                 <div class="setting-header">
                   <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
@@ -339,7 +343,11 @@
               <!-- Table Class Setting -->
               <div
                 class="setting-item clickable"
+                role="button"
+                tabindex="0"
                 @click="message.info($t('manage.dynamo.comingSoon'))"
+                @keydown.enter="message.info($t('manage.dynamo.comingSoon'))"
+                @keydown.space.prevent="message.info($t('manage.dynamo.comingSoon'))"
               >
                 <div class="setting-header">
                   <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-05-11
+
+### Added
+
+- Add comprehensive keyboard navigation support for accessibility (#417)
+
+### Fixed
+
+- Fix snippet insertion for query language commands (#416)
+- Fix incorrect documentation URLs (#413)
+
 ## [1.0.0] - 2026-05-07
 
 ### Added
