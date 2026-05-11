@@ -527,7 +527,7 @@ const formValue = reactive({
     readCapacity: number;
     writeCapacity: number;
   }>,
-  stream_specification: {
+  streamSpecification: {
     streamEnabled: false,
     streamViewType: 'NEW_AND_OLD_IMAGES' as
       | 'KEYS_ONLY'
