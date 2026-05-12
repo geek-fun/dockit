@@ -290,7 +290,11 @@ const handleAddToEditor = () => {
       const current = activePanel.value.content || '';
       activePanel.value.content = current ? current + '\n\n' + entry.qdsl : entry.qdsl;
     }
-  } else if (!entry.databaseType || entry.databaseType === DatabaseType.ELASTICSEARCH) {
+  } else if (
+    !entry.databaseType ||
+    entry.databaseType === DatabaseType.ELASTICSEARCH ||
+    entry.databaseType === DatabaseType.OPENSEARCH
+  ) {
     const queryText = buildQueryText(entry);
     if (activePanel.value?.content != null) {
       const current = activePanel.value.content || '';

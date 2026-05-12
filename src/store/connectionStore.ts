@@ -16,6 +16,7 @@ import { DynamoIndexOrTableOption, useTabStore } from './tabStore.ts';
 
 export enum DatabaseType {
   ELASTICSEARCH = 'ELASTICSEARCH',
+  OPENSEARCH = 'OPENSEARCH',
   DYNAMODB = 'DYNAMODB',
   MONGODB = 'MONGODB',
 }
@@ -154,10 +155,10 @@ export type DynamoDBConnection = {
   favoriteTables?: Array<string>;
 };
 
-export type ElasticsearchConnection = {
+// Shared base for HTTP-API-compatible search engines
+export type SearchConnectionBase = {
   id?: number;
   name: string;
-  type: DatabaseType.ELASTICSEARCH;
   indices: Array<ElasticSearchIndex>;
   host: string;
   port: number;
@@ -169,10 +170,19 @@ export type ElasticsearchConnection = {
   queryParameters?: string;
   activeIndex: ElasticSearchIndex | undefined;
   version: string;
-  isOpenSearch: boolean;
   clusterName: string;
   clusterUuid: string;
 };
+
+export type ElasticsearchConnection = SearchConnectionBase & {
+  type: DatabaseType.ELASTICSEARCH;
+};
+
+export type OpenSearchConnection = SearchConnectionBase & {
+  type: DatabaseType.OPENSEARCH;
+};
+
+export type SearchConnection = ElasticsearchConnection | OpenSearchConnection;
 
 type ElasticsearchClusterInfo = {
   cluster_name: string;
@@ -222,7 +232,18 @@ export type MongoDBCollection = {
   count?: number;
 };
 
-export type Connection = ElasticsearchConnection | DynamoDBConnection | MongoDBConnection;
+export type Connection =
+  | ElasticsearchConnection
+  | OpenSearchConnection
+  | DynamoDBConnection
+  | MongoDBConnection;
+
+export const isSearchConnection = (connection: Connection): connection is SearchConnection =>
+  connection.type === DatabaseType.ELASTICSEARCH || connection.type === DatabaseType.OPENSEARCH;
+
+export const isOpenSearchConnection = (
+  connection: Connection,
+): connection is OpenSearchConnection => connection.type === DatabaseType.OPENSEARCH;
 
 const globalPathActions = [
   '_cluster',
@@ -244,7 +265,7 @@ const globalPathActions = [
 const buildPath = (
   index: string | undefined,
   path: string | undefined,
-  connection: ElasticsearchConnection,
+  connection: SearchConnection,
 ) => {
   // return user specified path if exists
   if (index) return `/${index}/${path}`;
@@ -271,7 +292,7 @@ const getIndexInfo = (keySchema: KeySchema[]) => {
   };
 };
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 type V1DynamoDBConnection = DynamoDBConnection & {
   accessKeyId: string;
@@ -372,6 +393,27 @@ export const migrateDynamoConnectionsV2ToV3 = (raw: Connection[]): Connection[] 
     } as DynamoDBConnection;
   });
 
+type V4ElasticsearchConnection = ElasticsearchConnection & {
+  isOpenSearch?: boolean;
+};
+
+export const migrateSearchConnectionsV4ToV5 = (raw: Connection[]): Connection[] =>
+  raw.map(con => {
+    if (con.type !== DatabaseType.ELASTICSEARCH) return con;
+
+    const v4 = con as unknown as V4ElasticsearchConnection;
+    const { isOpenSearch, ...rest } = v4;
+
+    if (isOpenSearch) {
+      return {
+        ...rest,
+        type: DatabaseType.OPENSEARCH,
+      } as OpenSearchConnection;
+    }
+
+    return rest as ElasticsearchConnection;
+  });
+
 export const useConnectionStore = defineStore('connectionStore', {
   state: (): {
     connections: Connection[];
@@ -449,6 +491,11 @@ export const useConnectionStore = defineStore('connectionStore', {
           // V3→V4: no structural changes — new auth variants (sso, assumeRole) added
           // Existing connections with accessKey/profile auth remain valid as-is.
 
+          if (storedVersion < 5) {
+            await storeApi.set('connections_v4_backup', pureObject(migrated));
+            migrated = migrateSearchConnectionsV4ToV5(migrated);
+          }
+
           this.connections = migrated;
           await storeApi.set('connections', pureObject(migrated));
           await storeApi.set('schemaVersion', SCHEMA_VERSION);
@@ -518,23 +565,24 @@ export const useConnectionStore = defineStore('connectionStore', {
           ...con,
           tables: visible.map(name => ({ name })),
         } as DynamoDBConnection;
-      } else if (con.type === DatabaseType.ELASTICSEARCH) {
+      } else if (con.type === DatabaseType.ELASTICSEARCH || con.type === DatabaseType.OPENSEARCH) {
         const client = loadHttpClient(con);
         const clusterInfo = await client.get<ElasticsearchClusterInfo>(
           con.activeIndex?.index,
           'format=json',
         );
 
-        const isOpenSearch =
+        const detectedAsOpenSearch =
           clusterInfo.version.distribution === 'opensearch' ||
           (clusterInfo.tagline ?? '').toLowerCase().includes('opensearch');
+        const connectionType = detectedAsOpenSearch ? DatabaseType.OPENSEARCH : con.type;
         return {
           ...con,
+          type: connectionType,
           version: clusterInfo.version.number,
-          isOpenSearch,
           clusterName: clusterInfo.cluster_name,
           clusterUuid: clusterInfo.cluster_uuid,
-        } as ElasticsearchConnection;
+        } as SearchConnection;
       } else if (con.type === DatabaseType.MONGODB) {
         const { mongoApi } = await import('../datasources');
         const result = await mongoApi.testConnection(con);
@@ -586,14 +634,18 @@ export const useConnectionStore = defineStore('connectionStore', {
     async fetchIndices(con: Connection, tableName?: string) {
       const connection = this.connections.find(({ id }) => id === con.id);
       if (!connection) throw new Error('no connection established');
-      if (connection.type === DatabaseType.ELASTICSEARCH) {
+      if (
+        connection.type === DatabaseType.ELASTICSEARCH ||
+        connection.type === DatabaseType.OPENSEARCH
+      ) {
         const client = loadHttpClient(connection);
-        const esCon = connection as ElasticsearchConnection;
+        const esCon = connection as SearchConnection;
         const majorVersionStr = esCon.version?.split('.')[0];
         const majorVersion =
           majorVersionStr !== undefined ? parseInt(majorVersionStr, 10) : undefined;
         const expandWildcards =
-          esCon.isOpenSearch || (majorVersion !== undefined && majorVersion >= 6)
+          connection.type === DatabaseType.OPENSEARCH ||
+          (majorVersion !== undefined && majorVersion >= 6)
             ? '&expand_wildcards=all'
             : '';
         const data = (await client.get('/_cat/indices', `format=json${expandWildcards}`)) as Array<{
@@ -693,12 +745,10 @@ export const useConnectionStore = defineStore('connectionStore', {
         qdsl?: string;
       },
     ) {
-      const connection = this.connections.find(
-        ({ id }) => id === con.id,
-      ) as ElasticsearchConnection;
+      const connection = this.connections.find(({ id }) => id === con.id) as SearchConnection;
       if (!connection) throw new Error('no connection established');
-      if (connection.type !== DatabaseType.ELASTICSEARCH) {
-        throw new Error('Operation only supported for Elasticsearch connections');
+      if (!isSearchConnection(connection)) {
+        throw new Error('Operation only supported for Elasticsearch/OpenSearch connections');
       }
       const client = loadHttpClient(connection);
       // refresh the index mapping
@@ -731,8 +781,8 @@ export const useConnectionStore = defineStore('connectionStore', {
       return dispatch[method]();
     },
     queryToCurl(connection: Connection, { method, path, index, qdsl, queryParams }: SearchAction) {
-      if (connection?.type !== DatabaseType.ELASTICSEARCH) {
-        throw new Error('Operation only supported for Elasticsearch connections');
+      if (!isSearchConnection(connection)) {
+        throw new Error('Operation only supported for Elasticsearch/OpenSearch connections');
       }
       const { username, password, host, port, sslCertVerification, authType, apiKey } =
         connection ?? {

@@ -59,6 +59,7 @@ let collapseTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const allDatabaseTypes = [
   { value: DatabaseType.ELASTICSEARCH, icon: elasticsearch, label: 'Elasticsearch' },
+  { value: DatabaseType.OPENSEARCH, icon: elasticsearch, label: 'OpenSearch' },
   { value: DatabaseType.DYNAMODB, icon: dynamoDB, label: 'DynamoDB' },
   { value: DatabaseType.MONGODB, icon: mongodb, label: 'MongoDB' },
 ];

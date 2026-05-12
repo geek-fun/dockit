@@ -104,10 +104,13 @@
           </Alert>
         </div>
 
-        <!-- Schema Configuration (Elasticsearch) -->
+        <!-- Schema Configuration (Elasticsearch/OpenSearch) -->
         <div
           v-if="
-            isNewCollection && allComplete && importConnection?.type === DatabaseType.ELASTICSEARCH
+            isNewCollection &&
+            allComplete &&
+            importConnection &&
+            isSearchConnection(importConnection)
           "
           class="config-panel"
         >
@@ -238,7 +241,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useImportExportStore, DatabaseType } from '../../../store';
+import { useImportExportStore, isSearchConnection } from '../../../store';
 import { CustomError } from '../../../common';
 import { useMessageService } from '@/composables';
 

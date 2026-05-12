@@ -170,7 +170,7 @@
     </div>
 
     <Button
-      v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.ELASTICSEARCH"
+      v-if="props.type === 'MANAGE' && connection && isSearchConnection(connection)"
       variant="ghost"
       size="sm"
       :disabled="refreshLoading"
@@ -225,8 +225,9 @@ import {
   useConnectionStore,
   useTabStore,
   DatabaseType,
-  ElasticsearchConnection,
   DynamoDBConnection,
+  isSearchConnection,
+  SearchConnection,
 } from '../store';
 import { useDynamoManageStore } from '../store/dynamoManageStore';
 import { useLang } from '../lang';
@@ -264,9 +265,9 @@ const dynamoManageStore = useDynamoManageStore();
 const { setManageActiveTable } = dynamoManageStore;
 const { manageActiveTable } = storeToRefs(dynamoManageStore);
 
-// Check if connection is Elasticsearch type
+// Check if connection is Elasticsearch/OpenSearch type
 const isElasticsearchConnection = computed(() => {
-  return connection.value?.type === DatabaseType.ELASTICSEARCH;
+  return connection.value ? isSearchConnection(connection.value) : false;
 });
 
 // Check if run button is visible (DynamoDB SQL editor) — used to avoid margin conflict
@@ -327,8 +328,8 @@ const credsExpiryIcon = computed(() => {
 
 const indexSelectValue = computed(() => {
   const conn = activePanel?.value?.connection;
-  if (conn && conn.type === DatabaseType.ELASTICSEARCH) {
-    return (conn as ElasticsearchConnection).activeIndex?.index;
+  if (conn && isSearchConnection(conn)) {
+    return (conn as SearchConnection).activeIndex?.index;
   }
   return undefined;
 });
@@ -564,10 +565,10 @@ const handleIncludeChange = async (value: boolean) => {
   if (props.type === 'ES_EDITOR' && activePanel.value) {
     activePanel.value.includeSystemIndices = value;
     const conn = activePanel.value.connection;
-    if (conn?.type === DatabaseType.ELASTICSEARCH) {
+    if (conn && isSearchConnection(conn)) {
       configureDynamicOptions({
-        activeIndex: (conn as ElasticsearchConnection).activeIndex?.index,
-        indices: (conn as ElasticsearchConnection).indices?.map(i => i.index) ?? [],
+        activeIndex: (conn as SearchConnection).activeIndex?.index,
+        indices: (conn as SearchConnection).indices?.map(i => i.index) ?? [],
         includeSystemIndices: value,
       });
     }
