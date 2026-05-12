@@ -2,9 +2,10 @@ import { MarkerSeverity, editor } from 'monaco-editor';
 import { ValidationError } from '../type';
 import { setValidationMarkers, clearValidationMarkers } from '../monacoUtils';
 
+export const MONGO_VALIDATION_OWNER_CONST = 'mongodb-validation';
 const MONGO_VALIDATION_OWNER = 'mongodb-validation';
 
-const validateBalancedBrackets = (content: string, startLine: number): ValidationError[] => {
+export const validateBalancedBrackets = (content: string, startLine: number): ValidationError[] => {
   const errors: ValidationError[] = [];
   const stack: Array<{ char: string; line: number; col: number }> = [];
   const lines = content.split('\n');
@@ -75,7 +76,7 @@ const validateBalancedBrackets = (content: string, startLine: number): Validatio
   return errors;
 };
 
-const validateMethodChains = (content: string, startLine: number): ValidationError[] => {
+export const validateMethodChains = (content: string, startLine: number): ValidationError[] => {
   const errors: ValidationError[] = [];
   const lines = content.split('\n');
 
@@ -130,7 +131,7 @@ const validateMethodChains = (content: string, startLine: number): ValidationErr
   return errors;
 };
 
-const validateMongoSyntax = (content: string, startLine: number): ValidationError[] => {
+export const validateMongoSyntax = (content: string, startLine: number): ValidationError[] => {
   const errors: ValidationError[] = [];
   const lines = content.split('\n');
 
