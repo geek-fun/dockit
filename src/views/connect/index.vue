@@ -144,8 +144,6 @@ const handleToggleShortcutsDialog = () => {
     esToolBar.toggleShortcutsDialog();
   } else if (dynamoEditorRefs.has(panelId)) {
     dynamoEditorRefs.get(panelId)?.toggleShortcutsDialog();
-  } else if (mongoEditorRefs.has(panelId)) {
-    mongoEditorRefs.get(panelId)?.toggleShortcutsDialog();
   }
 };
 

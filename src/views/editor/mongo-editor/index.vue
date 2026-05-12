@@ -21,6 +21,7 @@ import {
   DatabaseType,
   MongoDBConnection,
   useAppStore,
+  useChatStore,
   useConnectionStore,
   useHistoryStore,
   useTabStore,
@@ -36,13 +37,16 @@ import {
   clearMongoValidation,
   createDebouncedValidator,
 } from '../../../common/monaco';
+import { mongoApi } from '../../../datasources';
 
 const appStore = useAppStore();
+const chatStore = useChatStore();
 const message = useMessageService();
 const loadingBar = useLoadingBarService();
 const lang = useLang();
 const { getEditorTheme, getEditorOptions } = appStore;
-const { themeType, editorConfig, insertBoard } = storeToRefs(appStore);
+const { themeType, editorConfig } = storeToRefs(appStore);
+const { insertBoard } = storeToRefs(chatStore);
 
 const tabStore = useTabStore();
 const { activePanel } = storeToRefs(tabStore);
@@ -141,7 +145,11 @@ const executeCurrentStatement = async () => {
     showDisplayEditor('');
     loadingBar.start();
 
-    const result = await connectionStore.executeMongoQuery(activeConnection.value, code);
+    const result = await mongoApi.executeQuery(activeConnection.value, code);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Query execution failed');
+    }
 
     historyStore.addEntry({
       databaseType: DatabaseType.MONGODB,
@@ -152,12 +160,12 @@ const executeCurrentStatement = async () => {
       connectionId: activeConnection.value.id,
     });
 
-    showDisplayEditor(result);
+    showDisplayEditor(result.data);
     loadingBar.finish();
   } catch (err) {
     loadingBar.error();
-    const { status, details } = err as { status?: number; details?: string };
-    message.error(`status: ${status}, details: ${details}`, {
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    message.error(`Query error: ${errorMessage}`, {
       closable: true,
       keepAliveOnHover: true,
     });
