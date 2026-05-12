@@ -34,7 +34,7 @@ const createCompletionItem = (
   range: range as IRange,
 });
 
-const analyzeMongoContext = (
+export const analyzeMongoContext = (
   textBefore: string,
 ): {
   afterDot: boolean;
@@ -54,7 +54,7 @@ const analyzeMongoContext = (
 
   return {
     afterDot: lastDotIndex >= 0 && textAfterLastDot.length === 0,
-    afterDb: /\.?\s*$/.test(trimmed) && trimmed.includes('db'),
+    afterDb: /^db\s*\.?\s*$/.test(trimmed),
     afterCollection: /db\.\w+\.\s*$/.test(trimmed),
     inAggregation:
       trimmed.includes('$group') || trimmed.includes('$match') || trimmed.includes('$project'),
@@ -172,22 +172,6 @@ export const mongodbCompletionProvider = (
     return { suggestions };
   }
 
-  if (context.inQuery || context.needsOperator) {
-    queryOperators.forEach(op => {
-      suggestions.push(
-        createCompletionItem(
-          op,
-          languages.CompletionItemKind.Operator,
-          'Query Operator',
-          `"${op}"`,
-          undefined,
-          range,
-        ),
-      );
-    });
-    return { suggestions };
-  }
-
   if (context.inUpdate) {
     updateOperators.forEach(op => {
       suggestions.push(
@@ -196,6 +180,22 @@ export const mongodbCompletionProvider = (
           languages.CompletionItemKind.Operator,
           'Update Operator',
           `"${op}": $1`,
+          undefined,
+          range,
+        ),
+      );
+    });
+    return { suggestions };
+  }
+
+  if (context.inQuery || context.needsOperator) {
+    queryOperators.forEach(op => {
+      suggestions.push(
+        createCompletionItem(
+          op,
+          languages.CompletionItemKind.Operator,
+          'Query Operator',
+          `"${op}"`,
           undefined,
           range,
         ),

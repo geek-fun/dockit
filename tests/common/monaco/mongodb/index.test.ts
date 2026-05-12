@@ -3,8 +3,6 @@ import {
   mongoSampleQueries,
   setMongoDynamicOptions,
   getMongoDynamicOptions,
-  validateMongoModel,
-  clearMongoValidation,
   createMongoDebouncedValidator,
   mongodb,
 } from '../../../../src/common/monaco/mongodb/index';
@@ -247,7 +245,7 @@ describe('MongoDB Language Registration', () => {
     });
 
     it('should have valid MongoDB shell syntax in all samples', () => {
-      Object.entries(mongoSampleQueries).forEach(([key, query]) => {
+      Object.entries(mongoSampleQueries).forEach(([_key, query]) => {
         expect(query).toBeDefined();
         expect(typeof query).toBe('string');
         expect(query.length).toBeGreaterThan(0);

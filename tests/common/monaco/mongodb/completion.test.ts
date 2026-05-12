@@ -1,17 +1,14 @@
+import { editor, Position } from 'monaco-editor';
 import {
-  setMongoDynamicOptions,
-  getMongoDynamicOptions,
-  mongoSampleQueries,
-} from '../../../../src/common/monaco/mongodb/index';
+  analyzeMongoContext,
+  mongodbCompletionProvider,
+} from '../../../../src/common/monaco/mongodb/completion';
+import { setMongoDynamicOptions } from '../../../../src/common/monaco/mongodb/index';
 
 jest.mock('monaco-editor', () => ({
   self: { MonacoEnvironment: {} },
   editor: {},
   languages: {
-    register: jest.fn(),
-    setMonarchTokensProvider: jest.fn(),
-    setLanguageConfiguration: jest.fn(),
-    registerCompletionItemProvider: jest.fn(),
     CompletionItemKind: {
       Method: 1,
       Function: 2,
@@ -44,161 +41,257 @@ jest.mock('monaco-editor', () => ({
       InsertAsSnippet: 4,
     },
   },
-  Range: {},
-  Position: {},
-  MarkerSeverity: {},
+  Range: class MockRange {
+    constructor(
+      public _startLineNumber: number,
+      public _startColumn: number,
+      public _endLineNumber: number,
+      public _endColumn: number,
+    ) {}
+  },
+  Position: class MockPosition {
+    constructor(
+      public _lineNumber: number,
+      public _column: number,
+    ) {}
+  },
+  MarkerSeverity: {
+    Error: 8,
+    Warning: 4,
+    Info: 2,
+    Hint: 1,
+  },
 }));
 
-describe('MongoDB Completion', () => {
-  describe('Dynamic Options', () => {
-    beforeEach(() => {
-      setMongoDynamicOptions({});
+const createMockModel = (textBefore: string, wordAtPosition?: string): editor.ITextModel =>
+  ({
+    getValueInRange: jest.fn().mockReturnValue(textBefore),
+    getWordUntilPosition: jest.fn().mockReturnValue({
+      word: wordAtPosition || '',
+      startColumn: 1,
+      endColumn: (wordAtPosition || '').length + 1,
+    }),
+    getValue: jest.fn().mockReturnValue(textBefore),
+    getLineContent: jest.fn().mockReturnValue(''),
+    getLineCount: jest.fn().mockReturnValue(1),
+    getLineMaxColumn: jest.fn().mockReturnValue(100),
+  }) as unknown as editor.ITextModel;
+
+const createMockPosition = (line: number, column: number): Position =>
+  ({
+    lineNumber: line,
+    column,
+  }) as Position;
+
+describe('MongoDB Completion Provider', () => {
+  beforeEach(() => {
+    setMongoDynamicOptions({});
+  });
+
+  describe('analyzeMongoContext', () => {
+    it('should detect afterDot context', () => {
+      const context = analyzeMongoContext('db.');
+      expect(context.afterDot).toBe(true);
     });
 
-    it('should set and get dynamic options', () => {
-      const options = {
-        collectionNames: ['users', 'orders', 'products'],
-        databaseNames: ['mydb', 'testdb'],
-        activeCollection: 'users',
-      };
-
-      setMongoDynamicOptions(options);
-      const result = getMongoDynamicOptions();
-
-      expect(result.collectionNames).toEqual(['users', 'orders', 'products']);
-      expect(result.databaseNames).toEqual(['mydb', 'testdb']);
-      expect(result.activeCollection).toBe('users');
+    it('should detect afterDb context', () => {
+      const context = analyzeMongoContext('db');
+      expect(context.afterDb).toBe(true);
     });
 
-    it('should handle empty options', () => {
-      setMongoDynamicOptions({});
-      const result = getMongoDynamicOptions();
-
-      expect(result.collectionNames).toBeUndefined();
-      expect(result.databaseNames).toBeUndefined();
-      expect(result.activeCollection).toBeUndefined();
+    it('should detect afterCollection context', () => {
+      const context = analyzeMongoContext('db.users.');
+      expect(context.afterCollection).toBe(true);
     });
 
-    it('should overwrite previous options', () => {
-      setMongoDynamicOptions({
-        collectionNames: ['col1'],
-        activeCollection: 'col1',
-      });
-
-      setMongoDynamicOptions({
-        collectionNames: ['col2', 'col3'],
-        activeCollection: 'col2',
-      });
-
-      const result = getMongoDynamicOptions();
-      expect(result.collectionNames).toEqual(['col2', 'col3']);
-      expect(result.activeCollection).toBe('col2');
+    it('should detect afterShow context', () => {
+      const context = analyzeMongoContext('show ');
+      expect(context.afterShow).toBe(true);
     });
 
-    it('should handle partial options', () => {
-      setMongoDynamicOptions({
-        collectionNames: ['users'],
-      });
+    it('should detect afterUse context', () => {
+      const context = analyzeMongoContext('use ');
+      expect(context.afterUse).toBe(true);
+    });
 
-      const result = getMongoDynamicOptions();
-      expect(result.collectionNames).toEqual(['users']);
-      expect(result.databaseNames).toBeUndefined();
-      expect(result.activeCollection).toBeUndefined();
+    it('should detect inQuery context for find', () => {
+      const context = analyzeMongoContext('db.users.find(');
+      expect(context.inQuery).toBe(true);
+    });
+
+    it('should detect inQuery context for findOne', () => {
+      const context = analyzeMongoContext('db.users.findOne(');
+      expect(context.inQuery).toBe(true);
+    });
+
+    it('should detect inUpdate context', () => {
+      const context = analyzeMongoContext('db.users.updateOne({_id: 1}, ');
+      expect(context.inUpdate).toBe(true);
+    });
+
+    it('should detect inPipeline context', () => {
+      const context = analyzeMongoContext('db.users.aggregate([');
+      expect(context.inPipeline).toBe(true);
+    });
+
+    it('should detect inAggregation context', () => {
+      const context = analyzeMongoContext('{$group: {_id: "$category"}}');
+      expect(context.inAggregation).toBe(true);
+    });
+
+    it('should return false for all contexts when empty', () => {
+      const context = analyzeMongoContext('');
+      expect(context.afterDot).toBe(false);
+      expect(context.afterDb).toBe(false);
+      expect(context.afterCollection).toBe(false);
+      expect(context.afterShow).toBe(false);
+      expect(context.afterUse).toBe(false);
+      expect(context.inQuery).toBe(false);
+      expect(context.inUpdate).toBe(false);
+      expect(context.inPipeline).toBe(false);
+      expect(context.inAggregation).toBe(false);
     });
   });
 
-  describe('Sample Queries', () => {
-    it('should have findAll sample', () => {
-      expect(mongoSampleQueries.findAll).toBeDefined();
-      expect(mongoSampleQueries.findAll).toContain('db.collection.find');
-      expect(mongoSampleQueries.findAll).toContain('.limit');
+  describe('mongodbCompletionProvider', () => {
+    it('should return show subcommands after show keyword', () => {
+      const model = createMockModel('show ');
+      const position = createMockPosition(1, 6);
+      const result = mongodbCompletionProvider(model, position);
+
+      expect(result.suggestions.length).toBeGreaterThan(0);
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('dbs');
+      expect(labels).toContain('collections');
     });
 
-    it('should have findOne sample', () => {
-      expect(mongoSampleQueries.findOne).toBeDefined();
-      expect(mongoSampleQueries.findOne).toContain('db.collection.findOne');
-      expect(mongoSampleQueries.findOne).toContain('ObjectId');
+    it('should return database names after use keyword', () => {
+      setMongoDynamicOptions({ databaseNames: ['mydb', 'testdb'] });
+      const model = createMockModel('use ');
+      const position = createMockPosition(1, 5);
+      const result = mongodbCompletionProvider(model, position);
+
+      expect(result.suggestions.length).toBeGreaterThan(0);
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('mydb');
+      expect(labels).toContain('testdb');
     });
 
-    it('should have findWithFilter sample', () => {
-      expect(mongoSampleQueries.findWithFilter).toBeDefined();
-      expect(mongoSampleQueries.findWithFilter).toContain('db.collection.find');
-      expect(mongoSampleQueries.findWithFilter).toContain('$gt');
-      expect(mongoSampleQueries.findWithFilter).toContain('.sort');
+    it('should return collection names after db.', () => {
+      setMongoDynamicOptions({ collectionNames: ['users', 'orders'] });
+      const model = createMockModel('db.');
+      const position = createMockPosition(1, 4);
+      const result = mongodbCompletionProvider(model, position);
+
+      expect(result.suggestions.length).toBeGreaterThan(0);
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('users');
+      expect(labels).toContain('orders');
     });
 
-    it('should have aggregate sample', () => {
-      expect(mongoSampleQueries.aggregate).toBeDefined();
-      expect(mongoSampleQueries.aggregate).toContain('db.collection.aggregate');
-      expect(mongoSampleQueries.aggregate).toContain('$match');
-      expect(mongoSampleQueries.aggregate).toContain('$group');
-      expect(mongoSampleQueries.aggregate).toContain('$sort');
-      expect(mongoSampleQueries.aggregate).toContain('$limit');
+    it('should return collection methods after db.collection.', () => {
+      const model = createMockModel('db.users.');
+      const position = createMockPosition(1, 10);
+      const result = mongodbCompletionProvider(model, position);
+
+      expect(result.suggestions.length).toBeGreaterThan(0);
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('find');
+      expect(labels).toContain('findOne');
+      expect(labels).toContain('insertOne');
+      expect(labels).toContain('aggregate');
     });
 
-    it('should have countDocuments sample', () => {
-      expect(mongoSampleQueries.countDocuments).toBeDefined();
-      expect(mongoSampleQueries.countDocuments).toContain('db.collection.countDocuments');
+    it('should return aggregation stages in pipeline', () => {
+      const model = createMockModel('db.users.aggregate([{');
+      const position = createMockPosition(1, 22);
+      const result = mongodbCompletionProvider(model, position);
+
+      expect(result.suggestions.length).toBeGreaterThan(0);
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('$match');
+      expect(labels).toContain('$group');
+      expect(labels).toContain('$sort');
     });
 
-    it('should have insertOne sample', () => {
-      expect(mongoSampleQueries.insertOne).toBeDefined();
-      expect(mongoSampleQueries.insertOne).toContain('db.collection.insertOne');
-      expect(mongoSampleQueries.insertOne).toContain('new Date()');
+    it('should return query operators in find query', () => {
+      const model = createMockModel('db.users.find({');
+      const position = createMockPosition(1, 16);
+      const result = mongodbCompletionProvider(model, position);
+
+      expect(result.suggestions.length).toBeGreaterThan(0);
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('$eq');
+      expect(labels).toContain('$gt');
+      expect(labels).toContain('$in');
     });
 
-    it('should have insertMany sample', () => {
-      expect(mongoSampleQueries.insertMany).toBeDefined();
-      expect(mongoSampleQueries.insertMany).toContain('db.collection.insertMany');
+    it('should return update operators in update operation', () => {
+      const model = createMockModel('db.users.updateOne({_id: 1}, {');
+      const position = createMockPosition(1, 30);
+      const result = mongodbCompletionProvider(model, position);
+
+      expect(result.suggestions.length).toBeGreaterThan(0);
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('$set');
+      expect(labels).toContain('$inc');
+      expect(labels).toContain('$push');
     });
 
-    it('should have updateOne sample', () => {
-      expect(mongoSampleQueries.updateOne).toBeDefined();
-      expect(mongoSampleQueries.updateOne).toContain('db.collection.updateOne');
-      expect(mongoSampleQueries.updateOne).toContain('$set');
+    it('should return global objects and shell commands by default', () => {
+      const model = createMockModel('');
+      const position = createMockPosition(1, 1);
+      const result = mongodbCompletionProvider(model, position);
+
+      expect(result.suggestions.length).toBeGreaterThan(0);
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('db');
+      expect(labels).toContain('show');
+      expect(labels).toContain('use');
     });
 
-    it('should have updateMany sample', () => {
-      expect(mongoSampleQueries.updateMany).toBeDefined();
-      expect(mongoSampleQueries.updateMany).toContain('db.collection.updateMany');
-      expect(mongoSampleQueries.updateMany).toContain('$inc');
+    it('should return sort values by default', () => {
+      const model = createMockModel('');
+      const position = createMockPosition(1, 1);
+      const result = mongodbCompletionProvider(model, position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('ascending');
+      expect(labels).toContain('descending');
+      expect(labels).toContain('asc');
+      expect(labels).toContain('desc');
     });
 
-    it('should have deleteOne sample', () => {
-      expect(mongoSampleQueries.deleteOne).toBeDefined();
-      expect(mongoSampleQueries.deleteOne).toContain('db.collection.deleteOne');
+    it('should return BSON types by default', () => {
+      const model = createMockModel('');
+      const position = createMockPosition(1, 1);
+      const result = mongodbCompletionProvider(model, position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('string');
+      expect(labels).toContain('int');
+      expect(labels).toContain('objectId');
+      expect(labels).toContain('date');
     });
 
-    it('should have deleteMany sample', () => {
-      expect(mongoSampleQueries.deleteMany).toBeDefined();
-      expect(mongoSampleQueries.deleteMany).toContain('db.collection.deleteMany');
+    it('should handle dynamic options for collections', () => {
+      setMongoDynamicOptions({ collectionNames: ['products', 'categories'] });
+      const model = createMockModel('db.');
+      const position = createMockPosition(1, 4);
+      const result = mongodbCompletionProvider(model, position);
+
+      const labels = result.suggestions.map(s => s.label);
+      expect(labels).toContain('products');
+      expect(labels).toContain('categories');
     });
 
-    it('should have createIndex sample', () => {
-      expect(mongoSampleQueries.createIndex).toBeDefined();
-      expect(mongoSampleQueries.createIndex).toContain('db.collection.createIndex');
-      expect(mongoSampleQueries.createIndex).toContain('unique');
-    });
+    it('should handle empty dynamic options', () => {
+      setMongoDynamicOptions({});
+      const model = createMockModel('db.');
+      const position = createMockPosition(1, 4);
+      const result = mongodbCompletionProvider(model, position);
 
-    it('should have distinct sample', () => {
-      expect(mongoSampleQueries.distinct).toBeDefined();
-      expect(mongoSampleQueries.distinct).toContain('db.collection.distinct');
-    });
-
-    it('should have bulkWrite sample', () => {
-      expect(mongoSampleQueries.bulkWrite).toBeDefined();
-      expect(mongoSampleQueries.bulkWrite).toContain('db.collection.bulkWrite');
-      expect(mongoSampleQueries.bulkWrite).toContain('insertOne');
-      expect(mongoSampleQueries.bulkWrite).toContain('updateOne');
-      expect(mongoSampleQueries.bulkWrite).toContain('deleteOne');
-    });
-
-    it('should have valid JavaScript-like syntax in all samples', () => {
-      Object.entries(mongoSampleQueries).forEach(([key, query]) => {
-        expect(query).toBeDefined();
-        expect(query.length).toBeGreaterThan(0);
-        expect(query).toContain('db.');
-      });
+      expect(result.suggestions).toEqual([]);
     });
   });
 });
