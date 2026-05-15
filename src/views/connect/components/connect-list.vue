@@ -423,7 +423,12 @@ const establishConnect = async (connection: Connection) => {
       try {
         const existing = connectionStore.connections.find(c => c.id === newConnection.id);
         if (existing && isSearchConnection(existing)) {
-          (existing as SearchConnection).version = newConnection.version;
+          Object.assign(existing, {
+            version: newConnection.version,
+            type: newConnection.type,
+            clusterName: newConnection.clusterName,
+            clusterUuid: newConnection.clusterUuid,
+          });
           connectionStore.saveConnection(existing);
         }
       } catch {
