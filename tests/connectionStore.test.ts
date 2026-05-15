@@ -7,6 +7,9 @@ import {
   migrateDynamoConnectionsV1ToV2,
   migrateDynamoConnectionsV2ToV3,
   migrateSearchConnectionsV4ToV5,
+  migrateConnections,
+  isSearchConnection,
+  isOpenSearchConnection,
   DatabaseType,
 } from '../src/store/connectionStore';
 import type {
@@ -1114,5 +1117,239 @@ describe('migrateSearchConnectionsV4ToV5', () => {
     const result = migrateSearchConnectionsV4ToV5(raw);
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe(DatabaseType.ELASTICSEARCH);
+  });
+});
+
+describe('migrateConnections', () => {
+  it('runs all migrations from V1 to V5', () => {
+    const raw: Connection[] = [
+      {
+        name: 'dynamo-1',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        tableName: 'orders',
+      } as unknown as Connection,
+      {
+        name: 'dynamo-1',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        accessKeyId: 'ak1',
+        secretAccessKey: 'sk1',
+        tableName: 'users',
+      } as unknown as Connection,
+      {
+        name: 'es-old',
+        type: DatabaseType.ELASTICSEARCH,
+        host: 'http://localhost',
+        port: 9200,
+        sslCertVerification: false,
+        isOpenSearch: true,
+        version: '2.11.0',
+        clusterName: 'cluster',
+        clusterUuid: 'uuid',
+        indices: [],
+        activeIndex: undefined,
+      } as unknown as Connection,
+    ];
+
+    const { migrated, consolidatedCount, originalCount } = migrateConnections(raw, 1);
+
+    expect(consolidatedCount).toBe(1);
+    expect(originalCount).toBe(2);
+    expect(migrated).toHaveLength(2);
+    expect(migrated[0].type).toBe(DatabaseType.DYNAMODB);
+    expect(migrated[1].type).toBe(DatabaseType.OPENSEARCH);
+  });
+
+  it('skips V1→V2 when fromVersion is 2', () => {
+    const raw: Connection[] = [
+      {
+        name: 'dynamo',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        auth: { kind: 'accessKey', accessKeyId: 'ak', secretAccessKey: 'sk' },
+      } as unknown as Connection,
+      {
+        name: 'os',
+        type: DatabaseType.ELASTICSEARCH,
+        host: 'http://localhost',
+        port: 9200,
+        sslCertVerification: false,
+        isOpenSearch: true,
+        version: '2.11.0',
+        clusterName: 'cluster',
+        clusterUuid: 'uuid',
+        indices: [],
+        activeIndex: undefined,
+      } as unknown as Connection,
+    ];
+
+    const { migrated, consolidatedCount, originalCount } = migrateConnections(raw, 2);
+
+    expect(consolidatedCount).toBe(0);
+    expect(originalCount).toBe(0);
+    expect(migrated).toHaveLength(2);
+    expect(migrated[1].type).toBe(DatabaseType.OPENSEARCH);
+  });
+
+  it('skips Dynamo migrations when fromVersion is 4', () => {
+    const raw: Connection[] = [
+      {
+        name: 'os',
+        type: DatabaseType.ELASTICSEARCH,
+        host: 'http://localhost',
+        port: 9200,
+        sslCertVerification: false,
+        isOpenSearch: true,
+        version: '2.11.0',
+        clusterName: 'cluster',
+        clusterUuid: 'uuid',
+        indices: [],
+        activeIndex: undefined,
+      } as unknown as Connection,
+    ];
+
+    const { migrated, consolidatedCount, originalCount } = migrateConnections(raw, 4);
+
+    expect(consolidatedCount).toBe(0);
+    expect(originalCount).toBe(0);
+    expect(migrated).toHaveLength(1);
+    expect(migrated[0].type).toBe(DatabaseType.OPENSEARCH);
+  });
+
+  it('returns unchanged when fromVersion is 5', () => {
+    const raw: Connection[] = [
+      {
+        name: 'es',
+        type: DatabaseType.ELASTICSEARCH,
+        host: 'http://localhost',
+        port: 9200,
+        sslCertVerification: false,
+        version: '8.10.0',
+        clusterName: 'cluster',
+        clusterUuid: 'uuid',
+        indices: [],
+        activeIndex: undefined,
+      } as unknown as Connection,
+      {
+        name: 'os',
+        type: DatabaseType.OPENSEARCH,
+        host: 'http://localhost',
+        port: 9201,
+        sslCertVerification: false,
+        version: '2.11.0',
+        clusterName: 'cluster',
+        clusterUuid: 'uuid',
+        indices: [],
+        activeIndex: undefined,
+      } as unknown as Connection,
+    ];
+
+    const { migrated, consolidatedCount, originalCount } = migrateConnections(raw, 5);
+
+    expect(consolidatedCount).toBe(0);
+    expect(originalCount).toBe(0);
+    expect(migrated).toEqual(raw);
+  });
+
+  it('handles empty connection list', () => {
+    const { migrated, consolidatedCount, originalCount } = migrateConnections([], 1);
+
+    expect(consolidatedCount).toBe(0);
+    expect(originalCount).toBe(0);
+    expect(migrated).toEqual([]);
+  });
+});
+
+describe('isSearchConnection', () => {
+  it('returns true for ElasticsearchConnection', () => {
+    const conn = {
+      type: DatabaseType.ELASTICSEARCH,
+      name: 'es',
+      host: 'http://localhost',
+      port: 9200,
+    } as unknown as Connection;
+    expect(isSearchConnection(conn)).toBe(true);
+  });
+
+  it('returns true for OpenSearchConnection', () => {
+    const conn = {
+      type: DatabaseType.OPENSEARCH,
+      name: 'os',
+      host: 'http://localhost',
+      port: 9200,
+    } as unknown as Connection;
+    expect(isSearchConnection(conn)).toBe(true);
+  });
+
+  it('returns false for DynamoDBConnection', () => {
+    const conn = {
+      type: DatabaseType.DYNAMODB,
+      name: 'dynamo',
+      region: 'us-east-1',
+      auth: { kind: 'accessKey', accessKeyId: 'ak', secretAccessKey: 'sk' },
+    } as unknown as Connection;
+    expect(isSearchConnection(conn)).toBe(false);
+  });
+
+  it('returns false for MongoDBConnection', () => {
+    const conn = {
+      type: DatabaseType.MONGODB,
+      name: 'mongo',
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    } as unknown as Connection;
+    expect(isSearchConnection(conn)).toBe(false);
+  });
+
+  it('returns false for null', () => {
+    expect(isSearchConnection(null)).toBe(false);
+  });
+
+  it('returns false for undefined', () => {
+    expect(isSearchConnection(undefined)).toBe(false);
+  });
+});
+
+describe('isOpenSearchConnection', () => {
+  it('returns true for OpenSearchConnection', () => {
+    const conn = {
+      type: DatabaseType.OPENSEARCH,
+      name: 'os',
+      host: 'http://localhost',
+      port: 9200,
+    } as unknown as Connection;
+    expect(isOpenSearchConnection(conn)).toBe(true);
+  });
+
+  it('returns false for ElasticsearchConnection', () => {
+    const conn = {
+      type: DatabaseType.ELASTICSEARCH,
+      name: 'es',
+      host: 'http://localhost',
+      port: 9200,
+    } as unknown as Connection;
+    expect(isOpenSearchConnection(conn)).toBe(false);
+  });
+
+  it('returns false for DynamoDBConnection', () => {
+    const conn = {
+      type: DatabaseType.DYNAMODB,
+      name: 'dynamo',
+      region: 'us-east-1',
+      auth: { kind: 'accessKey', accessKeyId: 'ak', secretAccessKey: 'sk' },
+    } as unknown as Connection;
+    expect(isOpenSearchConnection(conn)).toBe(false);
+  });
+
+  it('returns false for null', () => {
+    expect(isOpenSearchConnection(null)).toBe(false);
+  });
+
+  it('returns false for undefined', () => {
+    expect(isOpenSearchConnection(undefined)).toBe(false);
   });
 });
