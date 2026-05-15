@@ -386,7 +386,10 @@ const handleOpenChange = (open: boolean) => {
   }
 };
 
-const showMedal = (con: SearchConnection | null) => {
+const showMedal = (
+  con: SearchConnection | null,
+  initialType?: DatabaseType.ELASTICSEARCH | DatabaseType.OPENSEARCH,
+) => {
   showModal.value = true;
   errorMessage.value = '';
   successMessage.value = '';
@@ -399,9 +402,10 @@ const showMedal = (con: SearchConnection | null) => {
     veeResetForm({ values: { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType } });
     modalTitle.value = lang.t('connection.edit');
   } else {
-    formData.value = cloneDeep(defaultFormData);
+    const type = initialType ?? DatabaseType.ELASTICSEARCH;
+    formData.value = { ...cloneDeep(defaultFormData), type };
     authType.value = 'basic';
-    veeResetForm({ values: cloneDeep(defaultFormData) });
+    veeResetForm({ values: { ...cloneDeep(defaultFormData), type } });
   }
   resetValidation();
 };

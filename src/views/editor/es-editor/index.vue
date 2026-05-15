@@ -81,7 +81,7 @@ const lang = useLang();
 
 const tabStore = useTabStore();
 const { saveContent } = tabStore;
-const { activePanel, defaultSnippet, activeConnection, activeElasticsearchIndexOption } =
+const { activePanel, defaultSnippet, activeConnection, activeSearchIndexOption } =
   storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
@@ -702,7 +702,7 @@ const insertSampleQuery = (queryTemplate: string) => {
   if (!model) return;
 
   let query = queryTemplate;
-  const selectedIndex = activeElasticsearchIndexOption.value?.[0]?.value;
+  const selectedIndex = activeSearchIndexOption.value?.[0]?.value;
   if (selectedIndex) {
     query = queryTemplate.replace(/\{index\}/g, selectedIndex);
   }

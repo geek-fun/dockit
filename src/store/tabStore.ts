@@ -38,7 +38,7 @@ export const useTabStore = defineStore('panel', {
   }),
   getters: {
     activeConnection: state => state.activePanel.connection,
-    activeElasticsearchIndexOption: state => {
+    activeSearchIndexOption: state => {
       const connection = state.activePanel?.connection;
       if (!connection || !isSearchConnection(connection)) return [];
       return (

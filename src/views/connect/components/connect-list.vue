@@ -559,7 +559,7 @@ const focusConnectionNode = (index: number) => {
 
 const selectDatabaseType = (type: DatabaseType) => {
   if (type === DatabaseType.ELASTICSEARCH || type === DatabaseType.OPENSEARCH) {
-    esConnectDialog.value.showMedal(null);
+    esConnectDialog.value.showMedal(null, type);
   } else if (type === DatabaseType.DYNAMODB) {
     dynamodbConnectDialog.value.showMedal(null);
   } else if (type === DatabaseType.MONGODB) {

@@ -954,7 +954,7 @@ describe('connectionStore actions', () => {
   let store: ReturnType<
     ReturnType<typeof import('../src/store/connectionStore').useConnectionStore>
   >;
-  let storeApi: { set: jest.Mock };
+  let storeApi: { set: jest.Mock; get: jest.Mock; delete: jest.Mock };
 
   beforeEach(() => {
     setActivePinia(createPinia());

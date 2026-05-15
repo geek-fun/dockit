@@ -22,7 +22,7 @@
 
     <SearchableSelect
       v-if="
-        props.type === 'DYNAMO_EDITOR' || (props.type === 'MANAGE' && !isElasticsearchConnection)
+        props.type === 'DYNAMO_EDITOR' || (props.type === 'MANAGE' && !isSearchConnectionComputed)
       "
       :model-value="tableSelectValue || ''"
       :options="tableOptions"
@@ -69,7 +69,7 @@
     />
 
     <TooltipProvider
-      v-if="props.type === 'ES_EDITOR' || (props.type === 'MANAGE' && isElasticsearchConnection)"
+      v-if="props.type === 'ES_EDITOR' || (props.type === 'MANAGE' && isSearchConnectionComputed)"
     >
       <Tooltip>
         <TooltipTrigger as-child>
@@ -255,7 +255,7 @@ const { connections } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
 const { selectConnection, setActiveTable, toggleFavoriteTable } = tabStore;
-const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
+const { activePanel, activeSearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
 const { setConnection, refreshStates } = clusterManageStore;
@@ -266,7 +266,7 @@ const { setManageActiveTable } = dynamoManageStore;
 const { manageActiveTable } = storeToRefs(dynamoManageStore);
 
 // Check if connection is Elasticsearch/OpenSearch type
-const isElasticsearchConnection = computed(() => {
+const isSearchConnectionComputed = computed(() => {
   return connection.value ? isSearchConnection(connection.value) : false;
 });
 
@@ -347,7 +347,7 @@ const connectionOptions = computed(() =>
 
 const indexOptions = computed(
   () =>
-    activeElasticsearchIndexOption.value
+    activeSearchIndexOption.value
       ?.filter(index => (includeSystemIndicesRef.value ? true : !index.value.startsWith('.')))
       ?.sort((a, b) => {
         const aIsSystem = a.value.startsWith('.');
