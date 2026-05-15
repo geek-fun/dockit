@@ -899,7 +899,7 @@ import {
 } from './sorting-utils';
 import { useLang } from '../../../lang';
 import { CustomError, debug, withLoadingDelay } from '../../../common';
-import { ElasticsearchConnection, DatabaseType } from '../../../store';
+import { SearchConnection, isSearchConnection } from '../../../store';
 import { useMessageService, useDialogService } from '@/composables';
 import IndexDialog from './index-dialog.vue';
 import AliasDialog from './alias-dialog.vue';
@@ -1224,11 +1224,11 @@ const openShardDetail = async (indexName: string, shard: ClusterShard) => {
   shardDetailState.value = { indexName, shard };
   allocationExplain.value = undefined;
 
-  if (!shard.node && connection.value && connection.value.type === DatabaseType.ELASTICSEARCH) {
+  if (!shard.node && connection.value && isSearchConnection(connection.value)) {
     allocationExplainLoading.value = true;
     try {
       allocationExplain.value = await esApi.allocationExplain(
-        connection.value as ElasticsearchConnection,
+        connection.value as SearchConnection,
         {
           index: indexName,
           shard: parseInt(shard.shard, 10),

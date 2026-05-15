@@ -12,7 +12,12 @@ import {
   loadHttpClient,
 } from '../datasources';
 import { lang } from '../lang';
-import { Connection, DatabaseType, DynamoDBConnection } from './connectionStore.ts';
+import {
+  Connection,
+  DatabaseType,
+  DynamoDBConnection,
+  isSearchConnection,
+} from './connectionStore.ts';
 import { CustomError, debug } from '../common';
 import type { DynamoDBTableInfo } from '../datasources/dynamoApi';
 
@@ -102,7 +107,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
   actions: {
     setConnection(connection: Connection) {
       this.connection = connection;
-      if (connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(connection)) {
         this.templateApiMode = getTemplateApiMode(connection);
       }
     },
@@ -133,14 +138,14 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     },
     async fetchCluster() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         const client = loadHttpClient(this.connection);
         this.cluster = (await client.get('/_cluster/stats', 'format=json')) as RawClusterStats;
       }
     },
     async fetchNodes() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         this.nodes = await esApi.catNodes(this.connection);
       } else {
         this.nodes = [];
@@ -148,7 +153,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     },
     async fetchShards() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         try {
           const indicesShards = await esApi.catShards(this.connection);
 
@@ -171,7 +176,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     },
     async fetchIndices() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         const indices = await esApi.catIndices(this.connection);
 
         this.indices = indices
@@ -189,7 +194,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     },
     async fetchAliases() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         const aliases = await esApi.catAliases(this.connection);
 
         this.aliases = aliases
@@ -207,7 +212,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     },
     async fetchTemplates() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         this.templateApiMode = getTemplateApiMode(this.connection);
         const templates = await esApi.listTemplates(this.connection);
 
@@ -234,7 +239,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       body?: string | null;
     }) {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         await esApi.createIndex(this.connection, options);
       }
       return undefined;
@@ -251,7 +256,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       index_routing: number | null;
     }) {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         await esApi.createAlias(this.connection, options);
         // refresh data
         Promise.all([this.fetchIndices(), this.fetchAliases()]).catch();
@@ -266,7 +271,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       body: string | null;
     }) {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         await esApi.createTemplate(this.connection, options);
       }
       return undefined;
@@ -275,35 +280,35 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
     async deleteIndex(indexName: string) {
       // delete index
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         await esApi.deleteIndex(this.connection, indexName);
       }
       return undefined;
     },
     async closeIndex(indexName: string) {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         await esApi.closeIndex(this.connection, indexName);
       }
       return undefined;
     },
     async openIndex(indexName: string) {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         await esApi.openIndex(this.connection, indexName);
       }
       return undefined;
     },
     async removeAlias(indexName: string, aliasName: string) {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         await esApi.removeAlias(this.connection, indexName, aliasName);
       }
       return undefined;
     },
     async switchAlias(aliasName: string, sourceIndexName: string, targetIndexName: string) {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         await esApi.switchAlias(this.connection, { aliasName, sourceIndexName, targetIndexName });
       }
       return undefined;

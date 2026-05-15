@@ -1,4 +1,4 @@
-import { ElasticsearchConnection } from '../store';
+import { SearchConnection, DatabaseType } from '../store';
 import { loadHttpClient } from './fetchApi.ts';
 import { CustomError, debug, jsonify, optionalToNullableInt } from '../common';
 import { get } from 'lodash';
@@ -260,8 +260,8 @@ const parseVersionParts = (version: string | undefined) => {
   };
 };
 
-const getTemplateApiMode = (connection: ElasticsearchConnection): TemplateApiMode => {
-  if (connection.isOpenSearch) {
+const getTemplateApiMode = (connection: SearchConnection): TemplateApiMode => {
+  if (connection.type === DatabaseType.OPENSEARCH) {
     return TemplateApiMode.COMPOSABLE;
   }
 
@@ -415,7 +415,7 @@ const normalizeComponentTemplate = (item: Record<string, unknown>): ClusterTempl
 
 interface ESApi {
   createIndex(
-    connection: ElasticsearchConnection,
+    connection: SearchConnection,
     options: {
       indexName: string;
       shards?: number | null;
@@ -428,7 +428,7 @@ interface ESApi {
   ): Promise<void>;
 
   createAlias(
-    connection: ElasticsearchConnection,
+    connection: SearchConnection,
     options: {
       aliasName: string;
       indexName: string;
@@ -443,7 +443,7 @@ interface ESApi {
   ): Promise<void>;
 
   createTemplate(
-    connection: ElasticsearchConnection,
+    connection: SearchConnection,
     options: {
       name: string;
       type: string;
@@ -453,20 +453,16 @@ interface ESApi {
     },
   ): Promise<void>;
 
-  deleteIndex(connection: ElasticsearchConnection, indexName: string): Promise<void>;
+  deleteIndex(connection: SearchConnection, indexName: string): Promise<void>;
 
-  closeIndex(connection: ElasticsearchConnection, indexName: string): Promise<void>;
+  closeIndex(connection: SearchConnection, indexName: string): Promise<void>;
 
-  openIndex(connection: ElasticsearchConnection, indexName: string): Promise<void>;
+  openIndex(connection: SearchConnection, indexName: string): Promise<void>;
 
-  removeAlias(
-    connection: ElasticsearchConnection,
-    indexName: string,
-    aliasName: string,
-  ): Promise<void>;
+  removeAlias(connection: SearchConnection, indexName: string, aliasName: string): Promise<void>;
 
   switchAlias(
-    connection: ElasticsearchConnection,
+    connection: SearchConnection,
     options: {
       aliasName: string;
       sourceIndexName: string;
@@ -474,20 +470,20 @@ interface ESApi {
     },
   ): Promise<void>;
 
-  catIndices(connection: ElasticsearchConnection): Promise<Array<ClusterIndex>>;
+  catIndices(connection: SearchConnection): Promise<Array<ClusterIndex>>;
 
-  catAliases(connection: ElasticsearchConnection): Promise<Array<ClusterAlias>>;
+  catAliases(connection: SearchConnection): Promise<Array<ClusterAlias>>;
 
-  catNodes(connection: ElasticsearchConnection): Promise<Array<ClusterNode>>;
+  catNodes(connection: SearchConnection): Promise<Array<ClusterNode>>;
 
   catShards(
-    connection: ElasticsearchConnection,
+    connection: SearchConnection,
   ): Promise<Array<{ index: string; shards: Array<ClusterShard> }>>;
 
-  listTemplates(connection: ElasticsearchConnection): Promise<Array<ClusterTemplate>>;
+  listTemplates(connection: SearchConnection): Promise<Array<ClusterTemplate>>;
 
   allocationExplain(
-    connection: ElasticsearchConnection,
+    connection: SearchConnection,
     options: {
       index: string;
       shard: number;
@@ -762,7 +758,9 @@ const esApi: ESApi = {
     const client = loadHttpClient(connection);
     const majorVersion = parseInt(connection.version?.split('.')[0] ?? '7', 10);
     const expandWildcards =
-      connection.isOpenSearch || majorVersion >= 6 ? '&expand_wildcards=all' : '';
+      connection.type === DatabaseType.OPENSEARCH || majorVersion >= 6
+        ? '&expand_wildcards=all'
+        : '';
     const data = (await client.get(
       '/_cat/indices',
       `format=json&s=index${expandWildcards}`,

@@ -5,7 +5,7 @@
       @refresh-dynamo-manage="handleDynamoRefresh"
       @create-dynamo-table="handleCreateDynamoTable"
     />
-    <template v-if="connection?.type === DatabaseType.ELASTICSEARCH">
+    <template v-if="connection && isSearchConnection(connection)">
       <cluster-state class="state-container" :cluster="cluster" />
     </template>
     <template v-else-if="connection?.type === DatabaseType.DYNAMODB">
@@ -21,7 +21,7 @@
 import ToolBar from '../../components/tool-bar.vue';
 import ClusterState from './components/cluster-state.vue';
 import DynamoTableManage from './components/dynamo-table-manage.vue';
-import { useClusterManageStore, DatabaseType, useTabStore } from '../../store';
+import { useClusterManageStore, DatabaseType, useTabStore, isSearchConnection } from '../../store';
 import { storeToRefs } from 'pinia';
 import { useLang } from '../../lang';
 import { CustomError } from '../../common';
@@ -80,7 +80,7 @@ onMounted(async () => {
   }
 
   setConnection(selectedConnection);
-  if (activeConnection.value?.type === DatabaseType.ELASTICSEARCH) {
+  if (activeConnection.value && isSearchConnection(activeConnection.value)) {
     await refreshData();
   }
 });

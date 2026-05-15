@@ -45,6 +45,7 @@ import { CustomError, jsonify } from '../../../common';
 import {
   DatabaseType,
   ElasticsearchConnection,
+  SearchConnection,
   useAppStore,
   useChatStore,
   useConnectionStore,
@@ -80,7 +81,7 @@ const lang = useLang();
 
 const tabStore = useTabStore();
 const { saveContent } = tabStore;
-const { activePanel, defaultSnippet, activeConnection, activeElasticsearchIndexOption } =
+const { activePanel, defaultSnippet, activeConnection, activeSearchIndexOption } =
   storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
@@ -259,7 +260,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
     });
 
     historyStore.addEntry({
-      databaseType: DatabaseType.ELASTICSEARCH,
+      databaseType: activeConnection.value.type,
       method: action.method,
       path: action.path,
       index: action.index,
@@ -566,9 +567,12 @@ const setupQueryEditor = () => {
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
     const action = getAction(queryEditor!.getPosition());
     if (!action) return;
-    const connection = activeConnection.value as ElasticsearchConnection | undefined;
+    const connection = activeConnection.value as SearchConnection | undefined;
     const version = connection?.version || 'current';
-    const engineType = connection?.isOpenSearch ? EngineType.OPENSEARCH : EngineType.ELASTICSEARCH;
+    const engineType =
+      connection?.type === DatabaseType.OPENSEARCH
+        ? EngineType.OPENSEARCH
+        : EngineType.ELASTICSEARCH;
     const docLink = getActionApiDoc(engineType, version, action as SearchAction);
     if (docLink) open(docLink);
   });
@@ -698,7 +702,7 @@ const insertSampleQuery = (queryTemplate: string) => {
   if (!model) return;
 
   let query = queryTemplate;
-  const selectedIndex = activeElasticsearchIndexOption.value?.[0]?.value;
+  const selectedIndex = activeSearchIndexOption.value?.[0]?.value;
   if (selectedIndex) {
     query = queryTemplate.replace(/\{index\}/g, selectedIndex);
   }

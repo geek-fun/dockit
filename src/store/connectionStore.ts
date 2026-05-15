@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia';
-import { buildAuthHeader, buildURL, CustomError, pureObject } from '../common';
+import {
+  buildAuthHeader,
+  buildURL,
+  CustomError,
+  pureObject,
+  CONNECTION_SCHEMA_VERSION,
+} from '../common';
 import { lang } from '../lang';
 import { SearchAction, transformToCurl, configureDynamicOptions } from '../common/monaco';
 import {
@@ -16,6 +22,7 @@ import { DynamoIndexOrTableOption, useTabStore } from './tabStore.ts';
 
 export enum DatabaseType {
   ELASTICSEARCH = 'ELASTICSEARCH',
+  OPENSEARCH = 'OPENSEARCH',
   DYNAMODB = 'DYNAMODB',
   MONGODB = 'MONGODB',
 }
@@ -154,10 +161,10 @@ export type DynamoDBConnection = {
   favoriteTables?: Array<string>;
 };
 
-export type ElasticsearchConnection = {
+// Shared base for HTTP-API-compatible search engines
+export type SearchConnectionBase = {
   id?: number;
   name: string;
-  type: DatabaseType.ELASTICSEARCH;
   indices: Array<ElasticSearchIndex>;
   host: string;
   port: number;
@@ -169,10 +176,19 @@ export type ElasticsearchConnection = {
   queryParameters?: string;
   activeIndex: ElasticSearchIndex | undefined;
   version: string;
-  isOpenSearch: boolean;
   clusterName: string;
   clusterUuid: string;
 };
+
+export type ElasticsearchConnection = SearchConnectionBase & {
+  type: DatabaseType.ELASTICSEARCH;
+};
+
+export type OpenSearchConnection = SearchConnectionBase & {
+  type: DatabaseType.OPENSEARCH;
+};
+
+export type SearchConnection = ElasticsearchConnection | OpenSearchConnection;
 
 type ElasticsearchClusterInfo = {
   cluster_name: string;
@@ -222,7 +238,22 @@ export type MongoDBCollection = {
   count?: number;
 };
 
-export type Connection = ElasticsearchConnection | DynamoDBConnection | MongoDBConnection;
+export type Connection =
+  | ElasticsearchConnection
+  | OpenSearchConnection
+  | DynamoDBConnection
+  | MongoDBConnection;
+
+export const isSearchConnection = (
+  connection: Connection | undefined | null,
+): connection is SearchConnection =>
+  connection != null &&
+  (connection.type === DatabaseType.ELASTICSEARCH || connection.type === DatabaseType.OPENSEARCH);
+
+export const isOpenSearchConnection = (
+  connection: Connection | undefined | null,
+): connection is OpenSearchConnection =>
+  connection != null && connection.type === DatabaseType.OPENSEARCH;
 
 const globalPathActions = [
   '_cluster',
@@ -244,7 +275,7 @@ const globalPathActions = [
 const buildPath = (
   index: string | undefined,
   path: string | undefined,
-  connection: ElasticsearchConnection,
+  connection: SearchConnection,
 ) => {
   // return user specified path if exists
   if (index) return `/${index}/${path}`;
@@ -271,8 +302,6 @@ const getIndexInfo = (keySchema: KeySchema[]) => {
   };
 };
 
-export const SCHEMA_VERSION = 4;
-
 type V1DynamoDBConnection = DynamoDBConnection & {
   accessKeyId: string;
   secretAccessKey: string;
@@ -297,7 +326,18 @@ export const migrateDynamoConnectionsV1ToV2 = (
     return { migrated: raw, consolidatedCount: 0, originalCount: 0 };
   }
 
-  const groups = dynamo.reduce<Map<string, V1DynamoDBConnection[]>>((acc, con) => {
+  const v1Connections = dynamo.filter(
+    c => !('auth' in c && c.auth != null && typeof c.auth === 'object' && 'kind' in c.auth),
+  );
+  const v2Connections = dynamo.filter(
+    c => 'auth' in c && c.auth != null && typeof c.auth === 'object' && 'kind' in c.auth,
+  );
+
+  if (v1Connections.length === 0) {
+    return { migrated: raw, consolidatedCount: 0, originalCount: 0 };
+  }
+
+  const groups = v1Connections.reduce<Map<string, V1DynamoDBConnection[]>>((acc, con) => {
     const sig = credentialSignature(con);
     const list = acc.get(sig) ?? [];
     list.push(con);
@@ -340,9 +380,9 @@ export const migrateDynamoConnectionsV1ToV2 = (
   });
 
   return {
-    migrated: [...others, ...consolidated],
+    migrated: [...others, ...v2Connections, ...consolidated],
     consolidatedCount: consolidated.length,
-    originalCount: dynamo.length,
+    originalCount: v1Connections.length,
   };
 };
 
@@ -371,6 +411,59 @@ export const migrateDynamoConnectionsV2ToV3 = (raw: Connection[]): Connection[] 
       auth: { kind: 'accessKey' as const, accessKeyId, secretAccessKey },
     } as DynamoDBConnection;
   });
+
+type V4ElasticsearchConnection = ElasticsearchConnection & {
+  isOpenSearch?: boolean;
+};
+
+const migrateSearchConnectionsV4ToV5 = (raw: Connection[]): Connection[] =>
+  raw.map(con => {
+    if (con.type !== DatabaseType.ELASTICSEARCH) return con;
+
+    const v4 = con as unknown as V4ElasticsearchConnection;
+    const { isOpenSearch, ...rest } = v4;
+
+    if (isOpenSearch) {
+      return {
+        ...rest,
+        type: DatabaseType.OPENSEARCH,
+      } as OpenSearchConnection;
+    }
+
+    return rest as ElasticsearchConnection;
+  });
+
+export const migrateConnections = (
+  connections: Connection[],
+  fromVersion: number,
+): {
+  migrated: Connection[];
+  consolidatedCount: number;
+  originalCount: number;
+} => {
+  let migrated = connections;
+  let consolidatedCount = 0;
+  let originalCount = 0;
+
+  if (fromVersion < 2) {
+    const result = migrateDynamoConnectionsV1ToV2(migrated);
+    migrated = result.migrated;
+    consolidatedCount = result.consolidatedCount;
+    originalCount = result.originalCount;
+  }
+
+  if (fromVersion < 3) {
+    migrated = migrateDynamoConnectionsV2ToV3(migrated);
+  }
+
+  // V3→V4: no migration needed - new auth variants added, existing connections remain valid
+
+  if (fromVersion < 5) {
+    migrated = migrateSearchConnectionsV4ToV5(migrated);
+  }
+
+  return { migrated, consolidatedCount, originalCount };
+};
 
 export const useConnectionStore = defineStore('connectionStore', {
   state: (): {
@@ -428,38 +521,49 @@ export const useConnectionStore = defineStore('connectionStore', {
 
         const storedVersion = (await storeApi.get<number>('schemaVersion', 1)) ?? 1;
 
-        if (storedVersion < SCHEMA_VERSION) {
-          await storeApi.set('connections_v1_backup', pureObject(normalized));
-
+        if (storedVersion < CONNECTION_SCHEMA_VERSION) {
           let migrated = normalized;
           let consolidatedCount = 0;
           let originalCount = 0;
 
-          if (storedVersion < 2) {
-            const result = migrateDynamoConnectionsV1ToV2(migrated);
+          try {
+            await storeApi.set('connections_v1_backup', pureObject(normalized));
+            if (storedVersion < 5) {
+              await storeApi.set('connections_v4_backup', pureObject(normalized));
+            }
+          } catch {
+            // Backup creation failed - continue without backup
+          }
+
+          try {
+            const result = migrateConnections(normalized, storedVersion);
             migrated = result.migrated;
             consolidatedCount = result.consolidatedCount;
             originalCount = result.originalCount;
-          }
 
-          if (storedVersion < 3) {
-            migrated = migrateDynamoConnectionsV2ToV3(migrated);
-          }
+            await storeApi.set('connections', pureObject(migrated));
+            await storeApi.set('schemaVersion', CONNECTION_SCHEMA_VERSION);
 
-          // V3→V4: no structural changes — new auth variants (sso, assumeRole) added
-          // Existing connections with accessKey/profile auth remain valid as-is.
+            if (originalCount > 0 && consolidatedCount < originalCount) {
+              this.migrationNotice = { consolidatedCount, originalCount };
+            }
+          } catch {
+            // Migration failed - use normalized connections, schemaVersion not updated
+            migrated = normalized;
+          }
 
           this.connections = migrated;
-          await storeApi.set('connections', pureObject(migrated));
-          await storeApi.set('schemaVersion', SCHEMA_VERSION);
 
-          if (originalCount > 0 && consolidatedCount < originalCount) {
-            this.migrationNotice = { consolidatedCount, originalCount };
+          try {
+            await storeApi.delete('connections_v1_backup');
+            await storeApi.delete('connections_v4_backup');
+          } catch {
+            // Cleanup failed - backups remain but app works
           }
         } else {
           this.connections = normalized;
         }
-      } catch (_error) {
+      } catch {
         this.connections = [];
       }
     },
@@ -518,23 +622,24 @@ export const useConnectionStore = defineStore('connectionStore', {
           ...con,
           tables: visible.map(name => ({ name })),
         } as DynamoDBConnection;
-      } else if (con.type === DatabaseType.ELASTICSEARCH) {
+      } else if (con.type === DatabaseType.ELASTICSEARCH || con.type === DatabaseType.OPENSEARCH) {
         const client = loadHttpClient(con);
         const clusterInfo = await client.get<ElasticsearchClusterInfo>(
           con.activeIndex?.index,
           'format=json',
         );
 
-        const isOpenSearch =
+        const detectedAsOpenSearch =
           clusterInfo.version.distribution === 'opensearch' ||
           (clusterInfo.tagline ?? '').toLowerCase().includes('opensearch');
+        const connectionType = detectedAsOpenSearch ? DatabaseType.OPENSEARCH : con.type;
         return {
           ...con,
+          type: connectionType,
           version: clusterInfo.version.number,
-          isOpenSearch,
           clusterName: clusterInfo.cluster_name,
           clusterUuid: clusterInfo.cluster_uuid,
-        } as ElasticsearchConnection;
+        } as SearchConnection;
       } else if (con.type === DatabaseType.MONGODB) {
         const { mongoApi } = await import('../datasources');
         const result = await mongoApi.testConnection(con);
@@ -586,14 +691,18 @@ export const useConnectionStore = defineStore('connectionStore', {
     async fetchIndices(con: Connection, tableName?: string) {
       const connection = this.connections.find(({ id }) => id === con.id);
       if (!connection) throw new Error('no connection established');
-      if (connection.type === DatabaseType.ELASTICSEARCH) {
+      if (
+        connection.type === DatabaseType.ELASTICSEARCH ||
+        connection.type === DatabaseType.OPENSEARCH
+      ) {
         const client = loadHttpClient(connection);
-        const esCon = connection as ElasticsearchConnection;
+        const esCon = connection as SearchConnection;
         const majorVersionStr = esCon.version?.split('.')[0];
         const majorVersion =
           majorVersionStr !== undefined ? parseInt(majorVersionStr, 10) : undefined;
         const expandWildcards =
-          esCon.isOpenSearch || (majorVersion !== undefined && majorVersion >= 6)
+          connection.type === DatabaseType.OPENSEARCH ||
+          (majorVersion !== undefined && majorVersion >= 6)
             ? '&expand_wildcards=all'
             : '';
         const data = (await client.get('/_cat/indices', `format=json${expandWildcards}`)) as Array<{
@@ -693,12 +802,10 @@ export const useConnectionStore = defineStore('connectionStore', {
         qdsl?: string;
       },
     ) {
-      const connection = this.connections.find(
-        ({ id }) => id === con.id,
-      ) as ElasticsearchConnection;
+      const connection = this.connections.find(({ id }) => id === con.id) as SearchConnection;
       if (!connection) throw new Error('no connection established');
-      if (connection.type !== DatabaseType.ELASTICSEARCH) {
-        throw new Error('Operation only supported for Elasticsearch connections');
+      if (!isSearchConnection(connection)) {
+        throw new Error('Operation only supported for Elasticsearch/OpenSearch connections');
       }
       const client = loadHttpClient(connection);
       // refresh the index mapping
@@ -731,8 +838,8 @@ export const useConnectionStore = defineStore('connectionStore', {
       return dispatch[method]();
     },
     queryToCurl(connection: Connection, { method, path, index, qdsl, queryParams }: SearchAction) {
-      if (connection?.type !== DatabaseType.ELASTICSEARCH) {
-        throw new Error('Operation only supported for Elasticsearch connections');
+      if (!isSearchConnection(connection)) {
+        throw new Error('Operation only supported for Elasticsearch/OpenSearch connections');
       }
       const { username, password, host, port, sslCertVerification, authType, apiKey } =
         connection ?? {

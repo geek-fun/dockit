@@ -5,12 +5,24 @@ import {
 } from '../../src/datasources/esApi.ts';
 import { jsonify, CustomError } from '../../src/common';
 
-jest.mock('../../src/lang/index.ts', () => ({
+jest.mock('../../src/store', () => ({
+  DatabaseType: {
+    ELASTICSEARCH: 'ELASTICSEARCH',
+    OPENSEARCH: 'OPENSEARCH',
+    DYNAMODB: 'DYNAMODB',
+    MONGODB: 'MONGODB',
+  },
+}));
+
+jest.mock('../../src/datasources', () => ({}));
+
+jest.mock('../../src/lang', () => ({
   lang: {
     globalInjection: true,
     locale: 'enUS',
     legacy: false,
     messages: {},
+    t: (k: string) => k,
   },
   useLang: jest.fn(),
 }));
