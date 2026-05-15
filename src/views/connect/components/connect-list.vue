@@ -199,6 +199,7 @@ import { useDialogService, useMessageService } from '@/composables';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
+import opensearch from '../../../assets/svg/db-opensearch.svg';
 import mongodb from '../../../assets/svg/mongodb.svg';
 import { CustomError, MIN_LOADING_TIME, isFeatureEnabled } from '../../../common';
 import { useLang } from '../../../lang';
@@ -206,8 +207,9 @@ import {
   Connection,
   DatabaseType,
   DynamoDBConnection,
-  ElasticsearchConnection,
   MongoDBConnection,
+  SearchConnection,
+  isSearchConnection,
   useConnectionStore,
 } from '../../../store';
 import FloatingMenu from './floating-menu.vue';
@@ -286,6 +288,8 @@ const getDatabaseIcon = (type: DatabaseType) => {
   switch (type) {
     case DatabaseType.ELASTICSEARCH:
       return elasticsearch;
+    case DatabaseType.OPENSEARCH:
+      return opensearch;
     case DatabaseType.DYNAMODB:
       return dynamoDB;
     case DatabaseType.MONGODB:
@@ -299,6 +303,8 @@ const getDatabaseLabel = (type: DatabaseType) => {
   switch (type) {
     case DatabaseType.ELASTICSEARCH:
       return 'Elasticsearch';
+    case DatabaseType.OPENSEARCH:
+      return 'OpenSearch';
     case DatabaseType.DYNAMODB:
       return 'DynamoDB';
     case DatabaseType.MONGODB:
@@ -309,8 +315,8 @@ const getDatabaseLabel = (type: DatabaseType) => {
 };
 
 const getConnectionDetail = (connection: Connection) => {
-  if (connection.type === DatabaseType.ELASTICSEARCH) {
-    const es = connection as ElasticsearchConnection;
+  if (isSearchConnection(connection)) {
+    const es = connection as SearchConnection;
     const url = `${es.host}:${es.port}`;
     return url.length > 30 ? url.substring(0, 30) + '...' : url;
   }
@@ -330,8 +336,8 @@ const getConnectionDetail = (connection: Connection) => {
 };
 
 const getVersion = (connection: Connection) => {
-  if (connection.type === DatabaseType.ELASTICSEARCH) {
-    const es = connection as ElasticsearchConnection;
+  if (isSearchConnection(connection)) {
+    const es = connection as SearchConnection;
     return es.version ? `v${es.version}` : '';
   }
   return '';
@@ -345,8 +351,8 @@ const getConnectionTarget = (connection: Connection) => {
 const getEsProtocol = (
   connection: Connection,
 ): { label: string; icon: string; color: string } | null => {
-  if (connection.type !== DatabaseType.ELASTICSEARCH) return null;
-  const es = connection as ElasticsearchConnection;
+  if (!isSearchConnection(connection)) return null;
+  const es = connection as SearchConnection;
   const isHttps = es.host?.toLowerCase().startsWith('https://');
   return isHttps
     ? { label: 'HTTPS', icon: 'i-carbon-locked', color: 'text-green-500' }
@@ -356,8 +362,8 @@ const getEsProtocol = (
 const getEsAuthType = (
   connection: Connection,
 ): { label: string; icon: string; color: string } | null => {
-  if (connection.type !== DatabaseType.ELASTICSEARCH) return null;
-  const es = connection as ElasticsearchConnection;
+  if (!isSearchConnection(connection)) return null;
+  const es = connection as SearchConnection;
   if (es.authType === 'basic')
     return {
       label: lang.t('connection.authTypeBasic'),
@@ -415,11 +421,16 @@ const establishConnect = async (connection: Connection) => {
       return;
     }
 
-    if (newConnection.type === DatabaseType.ELASTICSEARCH && newConnection.version) {
+    if (isSearchConnection(newConnection) && newConnection.version) {
       try {
         const existing = connectionStore.connections.find(c => c.id === newConnection.id);
-        if (existing) {
-          (existing as ElasticsearchConnection).version = newConnection.version;
+        if (existing && isSearchConnection(existing)) {
+          Object.assign(existing, {
+            version: newConnection.version,
+            type: newConnection.type,
+            clusterName: newConnection.clusterName,
+            clusterUuid: newConnection.clusterUuid,
+          });
           connectionStore.saveConnection(existing);
         }
       } catch {
@@ -474,7 +485,7 @@ const editConnect = (connection: Connection) => {
     console.error('Connection type is missing'); // eslint-disable-line no-console
     return;
   }
-  if (connection.type === DatabaseType.ELASTICSEARCH) {
+  if (isSearchConnection(connection)) {
     esConnectDialog.value.showMedal(connection);
   } else if (connection.type === DatabaseType.DYNAMODB) {
     dynamodbConnectDialog.value.showMedal(connection);
@@ -494,8 +505,8 @@ const cloneConnect = (connection: Connection) => {
   clonedConnection.id = undefined;
   clonedConnection.name = `${connection.name} (copy)`;
 
-  if (connection.type === DatabaseType.ELASTICSEARCH) {
-    const esClone = clonedConnection as ElasticsearchConnection;
+  if (isSearchConnection(connection)) {
+    const esClone = clonedConnection as SearchConnection;
     esClone.indices = [];
     esClone.activeIndex = undefined;
     esClone.version = '';
@@ -549,8 +560,8 @@ const focusConnectionNode = (index: number) => {
 };
 
 const selectDatabaseType = (type: DatabaseType) => {
-  if (type === DatabaseType.ELASTICSEARCH) {
-    esConnectDialog.value.showMedal(null);
+  if (type === DatabaseType.ELASTICSEARCH || type === DatabaseType.OPENSEARCH) {
+    esConnectDialog.value.showMedal(null, type);
   } else if (type === DatabaseType.DYNAMODB) {
     dynamodbConnectDialog.value.showMedal(null);
   } else if (type === DatabaseType.MONGODB) {

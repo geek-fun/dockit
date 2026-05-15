@@ -3,7 +3,7 @@
     <DialogContent class="sm:max-w-[600px]" :show-close="false">
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
-          <component :is="elasticsearchIcon" class="h-5 w-5" />
+          <component :is="dialogIcon" class="h-5 w-5" />
           {{ modalTitle }}
         </DialogTitle>
         <button
@@ -57,7 +57,12 @@
               </FormItem>
             </GridItem>
 
-            <template v-if="formData.type === DatabaseType.ELASTICSEARCH">
+            <template
+              v-if="
+                formData.type === DatabaseType.ELASTICSEARCH ||
+                formData.type === DatabaseType.OPENSEARCH
+              "
+            >
               <GridItem :span="5">
                 <FormItem
                   :label="$t('connection.host')"
@@ -218,12 +223,8 @@ import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import elasticsearchIcon from '../../../assets/svg/elasticsearch.svg';
-import {
-  Connection,
-  DatabaseType,
-  ElasticsearchConnection,
-  useConnectionStore,
-} from '../../../store';
+import opensearchIcon from '../../../assets/svg/db-opensearch.svg';
+import { Connection, DatabaseType, SearchConnection, useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
 import { useFormValidation } from '@/composables';
 
@@ -268,10 +269,12 @@ const defaultFormData = {
   queryParameters: '',
   sslCertVerification: true,
   type: DatabaseType.ELASTICSEARCH,
-} as ElasticsearchConnection & { selectedIndex: string };
+} as SearchConnection & { selectedIndex: string };
 
-const formData = ref<ElasticsearchConnection & { selectedIndex: string }>(
-  cloneDeep(defaultFormData),
+const formData = ref<SearchConnection & { selectedIndex: string }>(cloneDeep(defaultFormData));
+
+const dialogIcon = computed(() =>
+  formData.value.type === DatabaseType.OPENSEARCH ? opensearchIcon : elasticsearchIcon,
 );
 
 const hostValidate = ref<{
@@ -330,14 +333,20 @@ const isFormValid = computed(() => {
   const hasHost = formData.value.host && formData.value.host.trim() !== '';
   const hasPort = formData.value.port !== null && formData.value.port !== undefined;
 
-  if (formData.value.type === DatabaseType.ELASTICSEARCH) {
+  if (
+    formData.value.type === DatabaseType.ELASTICSEARCH ||
+    formData.value.type === DatabaseType.OPENSEARCH
+  ) {
     return hasName && hasHost && hasPort;
   }
   return hasName;
 });
 
 const handleHostInput = () => {
-  if (formData.value.type === DatabaseType.ELASTICSEARCH) {
+  if (
+    formData.value.type === DatabaseType.ELASTICSEARCH ||
+    formData.value.type === DatabaseType.OPENSEARCH
+  ) {
     const value = formData.value.host;
     if (value.length >= 'http://'.length) {
       if (value.startsWith('http://') && formData.value.sslCertVerification) {
@@ -349,7 +358,10 @@ const handleHostInput = () => {
 };
 
 const switchSSL = (target: boolean) => {
-  if (formData.value.type === DatabaseType.ELASTICSEARCH) {
+  if (
+    formData.value.type === DatabaseType.ELASTICSEARCH ||
+    formData.value.type === DatabaseType.OPENSEARCH
+  ) {
     if (formData.value.host.startsWith('https') || !target) {
       formData.value.sslCertVerification = target;
       hostValidate.value.status = undefined;
@@ -379,7 +391,10 @@ const handleOpenChange = (open: boolean) => {
   }
 };
 
-const showMedal = (con: ElasticsearchConnection | null) => {
+const showMedal = (
+  con: SearchConnection | null,
+  initialType?: DatabaseType.ELASTICSEARCH | DatabaseType.OPENSEARCH,
+) => {
   showModal.value = true;
   errorMessage.value = '';
   successMessage.value = '';
@@ -392,9 +407,10 @@ const showMedal = (con: ElasticsearchConnection | null) => {
     veeResetForm({ values: { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType } });
     modalTitle.value = lang.t('connection.edit');
   } else {
-    formData.value = cloneDeep(defaultFormData);
+    const type = initialType ?? DatabaseType.ELASTICSEARCH;
+    formData.value = { ...cloneDeep(defaultFormData), type };
     authType.value = 'basic';
-    veeResetForm({ values: cloneDeep(defaultFormData) });
+    veeResetForm({ values: { ...cloneDeep(defaultFormData), type } });
   }
   resetValidation();
 };

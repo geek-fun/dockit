@@ -3,10 +3,6 @@ import { LazyStore } from '@tauri-apps/plugin-store';
 const store = new LazyStore('.store.dat');
 const storeApi = {
   get: async <T>(key: string, defaultValue: T): Promise<T> => {
-    // if (key === 'chats') {
-    //   await store.set(key, null);
-    //   await store.save();
-    // }
     const val = (await store.get(key)) ?? defaultValue;
     return val as T;
   },
@@ -15,10 +11,17 @@ const storeApi = {
     await store.set(key, value);
     await store.save();
   },
+
+  delete: async (key: string) => {
+    await store.delete(key);
+    await store.save();
+  },
+
   getSecret: async <T>(key: string, defaultValue: T) => {
     const encryptedValue = (await store.get(key)) || defaultValue;
     return encryptedValue as T;
   },
+
   setSecret: async (key: string, value: unknown) => {
     await store.set(key, value);
     await store.save();

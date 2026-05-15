@@ -2,6 +2,7 @@ import {
   Connection,
   DatabaseType,
   DynamoDBConnection,
+  isSearchConnection,
   useConnectionStore,
 } from './connectionStore.ts';
 import { defineStore } from 'pinia';
@@ -37,13 +38,16 @@ export const useTabStore = defineStore('panel', {
   }),
   getters: {
     activeConnection: state => state.activePanel.connection,
-    activeElasticsearchIndexOption: state =>
-      state.activePanel?.connection?.type === DatabaseType.ELASTICSEARCH
-        ? state.activePanel.connection.indices?.map(index => ({
-            label: index.index,
-            value: index.index,
-          }))
-        : [],
+    activeSearchIndexOption: state => {
+      const connection = state.activePanel?.connection;
+      if (!connection || !isSearchConnection(connection)) return [];
+      return (
+        connection.indices?.map(index => ({
+          label: index.index,
+          value: index.index,
+        })) ?? []
+      );
+    },
   },
   actions: {
     async establishPanel(connectionOrFile: Connection | string): Promise<void> {
