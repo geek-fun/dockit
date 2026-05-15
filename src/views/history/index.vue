@@ -162,6 +162,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import dynamoDBIcon from '../../assets/svg/dynamoDB.svg';
 import elasticsearchIcon from '../../assets/svg/elasticsearch.svg';
+import opensearchIcon from '../../assets/svg/db-opensearch.svg';
 import HistoryEmpty from './components/history-empty.vue';
 
 const lang = useLang();
@@ -181,7 +182,11 @@ const tabStore = useTabStore();
 const searchQuery = ref('');
 
 const getDbIcon = (dbType?: string) =>
-  dbType === DatabaseType.DYNAMODB ? dynamoDBIcon : elasticsearchIcon;
+  dbType === DatabaseType.DYNAMODB
+    ? dynamoDBIcon
+    : dbType === DatabaseType.OPENSEARCH
+      ? opensearchIcon
+      : elasticsearchIcon;
 
 const filteredEntries = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();

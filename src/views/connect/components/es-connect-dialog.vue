@@ -3,7 +3,7 @@
     <DialogContent class="sm:max-w-[600px]" :show-close="false">
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
-          <component :is="elasticsearchIcon" class="h-5 w-5" />
+          <component :is="dialogIcon" class="h-5 w-5" />
           {{ modalTitle }}
         </DialogTitle>
         <button
@@ -223,6 +223,7 @@ import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import elasticsearchIcon from '../../../assets/svg/elasticsearch.svg';
+import opensearchIcon from '../../../assets/svg/db-opensearch.svg';
 import { Connection, DatabaseType, SearchConnection, useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
 import { useFormValidation } from '@/composables';
@@ -271,6 +272,10 @@ const defaultFormData = {
 } as SearchConnection & { selectedIndex: string };
 
 const formData = ref<SearchConnection & { selectedIndex: string }>(cloneDeep(defaultFormData));
+
+const dialogIcon = computed(() =>
+  formData.value.type === DatabaseType.OPENSEARCH ? opensearchIcon : elasticsearchIcon,
+);
 
 const hostValidate = ref<{
   status: 'error' | undefined;

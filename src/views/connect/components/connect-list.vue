@@ -199,6 +199,7 @@ import { useDialogService, useMessageService } from '@/composables';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
+import opensearch from '../../../assets/svg/db-opensearch.svg';
 import mongodb from '../../../assets/svg/mongodb.svg';
 import { CustomError, MIN_LOADING_TIME, isFeatureEnabled } from '../../../common';
 import { useLang } from '../../../lang';
@@ -286,8 +287,9 @@ const connectingModal = ref();
 const getDatabaseIcon = (type: DatabaseType) => {
   switch (type) {
     case DatabaseType.ELASTICSEARCH:
-    case DatabaseType.OPENSEARCH:
       return elasticsearch;
+    case DatabaseType.OPENSEARCH:
+      return opensearch;
     case DatabaseType.DYNAMODB:
       return dynamoDB;
     case DatabaseType.MONGODB:

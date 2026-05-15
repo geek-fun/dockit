@@ -49,6 +49,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { DatabaseType } from '@/store';
 import { isFeatureEnabled } from '@/common';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
+import opensearch from '../../../assets/svg/db-opensearch.svg';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import mongodb from '../../../assets/svg/mongodb.svg';
 
@@ -59,7 +60,7 @@ let collapseTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const allDatabaseTypes = [
   { value: DatabaseType.ELASTICSEARCH, icon: elasticsearch, label: 'Elasticsearch' },
-  { value: DatabaseType.OPENSEARCH, icon: elasticsearch, label: 'OpenSearch' },
+  { value: DatabaseType.OPENSEARCH, icon: opensearch, label: 'OpenSearch' },
   { value: DatabaseType.DYNAMODB, icon: dynamoDB, label: 'DynamoDB' },
   { value: DatabaseType.MONGODB, icon: mongodb, label: 'MongoDB' },
 ];
