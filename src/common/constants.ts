@@ -8,3 +8,6 @@ export const SUCCESS_MESSAGE_DELAY = 1000;
 export const HISTORY_CAP_MIN = 0;
 export const HISTORY_CAP_MAX = 1000;
 export const HISTORY_CAP_DEFAULT = 100;
+
+// Connection schema version for migrations
+export const SCHEMA_VERSION = 5;

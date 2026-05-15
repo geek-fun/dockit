@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { buildAuthHeader, buildURL, CustomError, pureObject } from '../common';
+import { buildAuthHeader, buildURL, CustomError, pureObject, SCHEMA_VERSION } from '../common';
 import { lang } from '../lang';
 import { SearchAction, transformToCurl, configureDynamicOptions } from '../common/monaco';
 import {
@@ -238,12 +238,16 @@ export type Connection =
   | DynamoDBConnection
   | MongoDBConnection;
 
-export const isSearchConnection = (connection: Connection): connection is SearchConnection =>
-  connection.type === DatabaseType.ELASTICSEARCH || connection.type === DatabaseType.OPENSEARCH;
+export const isSearchConnection = (
+  connection: Connection | undefined | null,
+): connection is SearchConnection =>
+  connection != null &&
+  (connection.type === DatabaseType.ELASTICSEARCH || connection.type === DatabaseType.OPENSEARCH);
 
 export const isOpenSearchConnection = (
-  connection: Connection,
-): connection is OpenSearchConnection => connection.type === DatabaseType.OPENSEARCH;
+  connection: Connection | undefined | null,
+): connection is OpenSearchConnection =>
+  connection != null && connection.type === DatabaseType.OPENSEARCH;
 
 const globalPathActions = [
   '_cluster',
@@ -291,8 +295,6 @@ const getIndexInfo = (keySchema: KeySchema[]) => {
     sortKeyName: sortKey?.attributeName || undefined,
   };
 };
-
-export const SCHEMA_VERSION = 5;
 
 type V1DynamoDBConnection = DynamoDBConnection & {
   accessKeyId: string;
@@ -414,6 +416,38 @@ export const migrateSearchConnectionsV4ToV5 = (raw: Connection[]): Connection[] 
     return rest as ElasticsearchConnection;
   });
 
+export const migrateConnections = (
+  connections: Connection[],
+  fromVersion: number,
+): {
+  migrated: Connection[];
+  consolidatedCount: number;
+  originalCount: number;
+} => {
+  let migrated = connections;
+  let consolidatedCount = 0;
+  let originalCount = 0;
+
+  if (fromVersion < 2) {
+    const result = migrateDynamoConnectionsV1ToV2(migrated);
+    migrated = result.migrated;
+    consolidatedCount = result.consolidatedCount;
+    originalCount = result.originalCount;
+  }
+
+  if (fromVersion < 3) {
+    migrated = migrateDynamoConnectionsV2ToV3(migrated);
+  }
+
+  // V3→V4: no migration needed - new auth variants added, existing connections remain valid
+
+  if (fromVersion < 5) {
+    migrated = migrateSearchConnectionsV4ToV5(migrated);
+  }
+
+  return { migrated, consolidatedCount, originalCount };
+};
+
 export const useConnectionStore = defineStore('connectionStore', {
   state: (): {
     connections: Connection[];
@@ -473,28 +507,14 @@ export const useConnectionStore = defineStore('connectionStore', {
         if (storedVersion < SCHEMA_VERSION) {
           await storeApi.set('connections_v1_backup', pureObject(normalized));
 
-          let migrated = normalized;
-          let consolidatedCount = 0;
-          let originalCount = 0;
-
-          if (storedVersion < 2) {
-            const result = migrateDynamoConnectionsV1ToV2(migrated);
-            migrated = result.migrated;
-            consolidatedCount = result.consolidatedCount;
-            originalCount = result.originalCount;
-          }
-
-          if (storedVersion < 3) {
-            migrated = migrateDynamoConnectionsV2ToV3(migrated);
-          }
-
-          // V3→V4: no structural changes — new auth variants (sso, assumeRole) added
-          // Existing connections with accessKey/profile auth remain valid as-is.
-
           if (storedVersion < 5) {
-            await storeApi.set('connections_v4_backup', pureObject(migrated));
-            migrated = migrateSearchConnectionsV4ToV5(migrated);
+            await storeApi.set('connections_v4_backup', pureObject(normalized));
           }
+
+          const { migrated, consolidatedCount, originalCount } = migrateConnections(
+            normalized,
+            storedVersion,
+          );
 
           this.connections = migrated;
           await storeApi.set('connections', pureObject(migrated));

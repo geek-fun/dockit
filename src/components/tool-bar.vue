@@ -170,7 +170,7 @@
     </div>
 
     <Button
-      v-if="props.type === 'MANAGE' && connection && isSearchConnection(connection)"
+      v-if="props.type === 'MANAGE' && isSearchConnection(connection)"
       variant="ghost"
       size="sm"
       :disabled="refreshLoading"
