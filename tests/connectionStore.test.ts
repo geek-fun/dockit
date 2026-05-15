@@ -45,6 +45,7 @@ jest.mock('../src/common', () => ({
   buildURL: jest.fn(),
   CustomError: class CustomError extends Error {},
   pureObject: (obj: unknown) => JSON.parse(JSON.stringify(obj)),
+  CONNECTION_SCHEMA_VERSION: 5,
 }));
 jest.mock('../src/common/monaco', () => ({
   SearchAction: {},
@@ -977,6 +978,116 @@ describe('connectionStore actions', () => {
       store.migrationNotice = null;
       store.dismissMigrationNotice();
       expect(store.migrationNotice).toBeNull();
+    });
+  });
+
+  describe('fetchConnections', () => {
+    it('loads connections without migration when schemaVersion is current', async () => {
+      jest
+        .spyOn(storeApi, 'get')
+        .mockImplementation(async (key: string, defaultValue?: unknown) => {
+          if (key === 'connections') return [{ name: 'test', type: 'ELASTICSEARCH' }];
+          if (key === 'schemaVersion') return 5;
+          return defaultValue;
+        });
+
+      await store.fetchConnections();
+
+      expect(store.connections).toHaveLength(1);
+      expect(store.connections[0].name).toBe('test');
+    });
+
+    it('migrates connections when schemaVersion is outdated', async () => {
+      jest
+        .spyOn(storeApi, 'get')
+        .mockImplementation(async (key: string, defaultValue?: unknown) => {
+          if (key === 'connections') {
+            return [{ name: 'os', type: 'ELASTICSEARCH', isOpenSearch: true }];
+          }
+          if (key === 'schemaVersion') return 4;
+          return defaultValue;
+        });
+
+      await store.fetchConnections();
+
+      expect(store.connections).toHaveLength(1);
+      expect(store.connections[0].type).toBe(DatabaseType.OPENSEARCH);
+    });
+
+    it('continues when backup creation fails', async () => {
+      const mockStore = new Map<string, unknown>();
+      jest
+        .spyOn(storeApi, 'get')
+        .mockImplementation(async (key: string, defaultValue?: unknown) => {
+          if (key === 'connections') {
+            return [{ name: 'test', type: 'ELASTICSEARCH', isOpenSearch: true }];
+          }
+          if (key === 'schemaVersion') return 4;
+          return mockStore.get(key) ?? defaultValue;
+        });
+      jest.spyOn(storeApi, 'set').mockImplementation(async (key: string, value: unknown) => {
+        if (key.includes('backup')) {
+          throw new Error('Backup failed');
+        }
+        mockStore.set(key, value);
+      });
+
+      await store.fetchConnections();
+
+      expect(store.connections).toHaveLength(1);
+      expect(store.connections[0].type).toBe(DatabaseType.OPENSEARCH);
+    });
+
+    it('falls back to normalized connections when migration persistence fails', async () => {
+      jest
+        .spyOn(storeApi, 'get')
+        .mockImplementation(async (key: string, defaultValue?: unknown) => {
+          if (key === 'connections') {
+            return [{ name: 'test', type: 'ELASTICSEARCH', isOpenSearch: true }];
+          }
+          if (key === 'schemaVersion') return 4;
+          return defaultValue;
+        });
+      jest.spyOn(storeApi, 'set').mockImplementation(async (key: string) => {
+        if (key === 'connections') {
+          throw new Error('Persistence failed');
+        }
+      });
+
+      await store.fetchConnections();
+
+      expect(store.connections).toHaveLength(1);
+      expect(store.connections[0].type).toBe(DatabaseType.ELASTICSEARCH);
+    });
+
+    it('continues when cleanup fails', async () => {
+      const mockStore = new Map<string, unknown>();
+      jest
+        .spyOn(storeApi, 'get')
+        .mockImplementation(async (key: string, defaultValue?: unknown) => {
+          if (key === 'connections') {
+            return [{ name: 'test', type: 'ELASTICSEARCH', isOpenSearch: true }];
+          }
+          if (key === 'schemaVersion') return 4;
+          return mockStore.get(key) ?? defaultValue;
+        });
+      jest.spyOn(storeApi, 'set').mockImplementation(async (key: string, value: unknown) => {
+        mockStore.set(key, value);
+      });
+      jest.spyOn(storeApi, 'delete').mockRejectedValue(new Error('Delete failed'));
+
+      await store.fetchConnections();
+
+      expect(store.connections).toHaveLength(1);
+      expect(store.connections[0].type).toBe(DatabaseType.OPENSEARCH);
+    });
+
+    it('sets empty connections when storeApi.get fails', async () => {
+      jest.spyOn(storeApi, 'get').mockRejectedValue(new Error('Read failed'));
+
+      await store.fetchConnections();
+
+      expect(store.connections).toEqual([]);
     });
   });
 });

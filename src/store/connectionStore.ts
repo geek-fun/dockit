@@ -511,31 +511,48 @@ export const useConnectionStore = defineStore('connectionStore', {
         const storedVersion = (await storeApi.get<number>('schemaVersion', 1)) ?? 1;
 
         if (storedVersion < CONNECTION_SCHEMA_VERSION) {
-          await storeApi.set('connections_v1_backup', pureObject(normalized));
+          let migrated = normalized;
+          let consolidatedCount = 0;
+          let originalCount = 0;
 
-          if (storedVersion < 5) {
-            await storeApi.set('connections_v4_backup', pureObject(normalized));
+          try {
+            await storeApi.set('connections_v1_backup', pureObject(normalized));
+            if (storedVersion < 5) {
+              await storeApi.set('connections_v4_backup', pureObject(normalized));
+            }
+          } catch {
+            // Backup creation failed - continue without backup
           }
 
-          const { migrated, consolidatedCount, originalCount } = migrateConnections(
-            normalized,
-            storedVersion,
-          );
+          try {
+            const result = migrateConnections(normalized, storedVersion);
+            migrated = result.migrated;
+            consolidatedCount = result.consolidatedCount;
+            originalCount = result.originalCount;
+
+            await storeApi.set('connections', pureObject(migrated));
+            await storeApi.set('schemaVersion', CONNECTION_SCHEMA_VERSION);
+
+            if (originalCount > 0 && consolidatedCount < originalCount) {
+              this.migrationNotice = { consolidatedCount, originalCount };
+            }
+          } catch {
+            // Migration failed - use normalized connections, schemaVersion not updated
+            migrated = normalized;
+          }
 
           this.connections = migrated;
-          await storeApi.set('connections', pureObject(migrated));
-          await storeApi.set('schemaVersion', CONNECTION_SCHEMA_VERSION);
 
-          await storeApi.delete('connections_v1_backup');
-          await storeApi.delete('connections_v4_backup');
-
-          if (originalCount > 0 && consolidatedCount < originalCount) {
-            this.migrationNotice = { consolidatedCount, originalCount };
+          try {
+            await storeApi.delete('connections_v1_backup');
+            await storeApi.delete('connections_v4_backup');
+          } catch {
+            // Cleanup failed - backups remain but app works
           }
         } else {
           this.connections = normalized;
         }
-      } catch (_error) {
+      } catch {
         this.connections = [];
       }
     },
