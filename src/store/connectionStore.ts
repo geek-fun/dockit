@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia';
-import { buildAuthHeader, buildURL, CustomError, pureObject, SCHEMA_VERSION } from '../common';
+import {
+  buildAuthHeader,
+  buildURL,
+  CustomError,
+  pureObject,
+  CONNECTION_SCHEMA_VERSION,
+} from '../common';
 import { lang } from '../lang';
 import { SearchAction, transformToCurl, configureDynamicOptions } from '../common/monaco';
 import {
@@ -399,7 +405,7 @@ type V4ElasticsearchConnection = ElasticsearchConnection & {
   isOpenSearch?: boolean;
 };
 
-export const migrateSearchConnectionsV4ToV5 = (raw: Connection[]): Connection[] =>
+const migrateSearchConnectionsV4ToV5 = (raw: Connection[]): Connection[] =>
   raw.map(con => {
     if (con.type !== DatabaseType.ELASTICSEARCH) return con;
 
@@ -504,7 +510,7 @@ export const useConnectionStore = defineStore('connectionStore', {
 
         const storedVersion = (await storeApi.get<number>('schemaVersion', 1)) ?? 1;
 
-        if (storedVersion < SCHEMA_VERSION) {
+        if (storedVersion < CONNECTION_SCHEMA_VERSION) {
           await storeApi.set('connections_v1_backup', pureObject(normalized));
 
           if (storedVersion < 5) {
@@ -518,7 +524,10 @@ export const useConnectionStore = defineStore('connectionStore', {
 
           this.connections = migrated;
           await storeApi.set('connections', pureObject(migrated));
-          await storeApi.set('schemaVersion', SCHEMA_VERSION);
+          await storeApi.set('schemaVersion', CONNECTION_SCHEMA_VERSION);
+
+          await storeApi.delete('connections_v1_backup');
+          await storeApi.delete('connections_v4_backup');
 
           if (originalCount > 0 && consolidatedCount < originalCount) {
             this.migrationNotice = { consolidatedCount, originalCount };
