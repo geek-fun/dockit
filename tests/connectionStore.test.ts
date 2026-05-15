@@ -803,6 +803,51 @@ describe('migrateDynamoConnectionsV1ToV2', () => {
     const result = migrateDynamoConnectionsV1ToV2(raw);
     expect(result.consolidatedCount).toBe(2);
   });
+
+  it('is idempotent: passes through V2 connections with auth field unchanged', () => {
+    const v2Con: DynamoDBConnection = {
+      name: 'dynamo-v2',
+      type: DatabaseType.DYNAMODB,
+      region: 'us-east-1',
+      auth: { kind: 'accessKey', accessKeyId: 'ak1', secretAccessKey: 'sk1' },
+      tables: [{ name: 'orders' }],
+      tableFilter: { kind: 'explicit', tableNames: ['orders'] },
+    };
+    const raw: Connection[] = [v2Con];
+    const result = migrateDynamoConnectionsV1ToV2(raw);
+    expect(result.migrated).toHaveLength(1);
+    expect(result.migrated[0]).toBe(v2Con);
+    expect(result.consolidatedCount).toBe(0);
+    expect(result.originalCount).toBe(0);
+  });
+
+  it('is idempotent: processes V1 connections while preserving V2 connections', () => {
+    const v1Con = {
+      name: 'dynamo-v1',
+      type: DatabaseType.DYNAMODB,
+      region: 'us-east-1',
+      accessKeyId: 'ak2',
+      secretAccessKey: 'sk2',
+      tableName: 'users',
+    } as unknown as Connection;
+    const v2Con: DynamoDBConnection = {
+      name: 'dynamo-v2',
+      type: DatabaseType.DYNAMODB,
+      region: 'us-west-1',
+      auth: { kind: 'accessKey', accessKeyId: 'ak1', secretAccessKey: 'sk1' },
+      tables: [{ name: 'orders' }],
+      tableFilter: { kind: 'all' },
+    };
+    const raw: Connection[] = [v1Con, v2Con];
+    const result = migrateDynamoConnectionsV1ToV2(raw);
+    expect(result.migrated).toHaveLength(2);
+    expect(result.originalCount).toBe(1);
+    expect(result.consolidatedCount).toBe(1);
+    const migratedV2 = result.migrated.find(c => c.name === 'dynamo-v2');
+    expect(migratedV2).toBe(v2Con);
+    const migratedV1 = result.migrated.find(c => c.name === 'dynamo-v1') as DynamoDBConnection;
+    expect(migratedV1.auth.kind).toBe('accessKey');
+  });
 });
 
 describe('migrateDynamoConnectionsV2ToV3', () => {
@@ -1348,6 +1393,52 @@ describe('migrateConnections', () => {
     expect(migrated[1].type).toBe(DatabaseType.ELASTICSEARCH);
     expect(migrated[1].name).toBe('es-cluster');
     expect(migrated[2].type).toBe(DatabaseType.DYNAMODB);
+  });
+
+  it('is idempotent: re-running migrations on V5 connections returns unchanged', () => {
+    const raw: Connection[] = [
+      {
+        name: 'os',
+        type: DatabaseType.OPENSEARCH,
+        host: 'http://localhost',
+        port: 9200,
+        sslCertVerification: false,
+        version: '2.11.0',
+        clusterName: 'cluster',
+        clusterUuid: 'uuid',
+        indices: [],
+        activeIndex: undefined,
+      } as unknown as Connection,
+      {
+        name: 'es',
+        type: DatabaseType.ELASTICSEARCH,
+        host: 'http://localhost',
+        port: 9201,
+        sslCertVerification: false,
+        version: '8.10.0',
+        clusterName: 'cluster',
+        clusterUuid: 'uuid',
+        indices: [],
+        activeIndex: undefined,
+      } as unknown as Connection,
+      {
+        name: 'dynamo',
+        type: DatabaseType.DYNAMODB,
+        region: 'us-east-1',
+        auth: { kind: 'accessKey', accessKeyId: 'ak', secretAccessKey: 'sk' },
+        tables: [{ name: 'orders' }],
+        tableFilter: { kind: 'all' },
+      } as unknown as Connection,
+    ];
+
+    const { migrated, consolidatedCount, originalCount } = migrateConnections(raw, 4);
+
+    expect(consolidatedCount).toBe(0);
+    expect(originalCount).toBe(0);
+    expect(migrated).toEqual(raw);
+    expect(migrated[0].type).toBe(DatabaseType.OPENSEARCH);
+    expect(migrated[1].type).toBe(DatabaseType.ELASTICSEARCH);
+    expect((migrated[2] as DynamoDBConnection).auth.kind).toBe('accessKey');
   });
 });
 

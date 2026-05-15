@@ -326,7 +326,18 @@ export const migrateDynamoConnectionsV1ToV2 = (
     return { migrated: raw, consolidatedCount: 0, originalCount: 0 };
   }
 
-  const groups = dynamo.reduce<Map<string, V1DynamoDBConnection[]>>((acc, con) => {
+  const v1Connections = dynamo.filter(
+    c => !('auth' in c && c.auth != null && typeof c.auth === 'object' && 'kind' in c.auth),
+  );
+  const v2Connections = dynamo.filter(
+    c => 'auth' in c && c.auth != null && typeof c.auth === 'object' && 'kind' in c.auth,
+  );
+
+  if (v1Connections.length === 0) {
+    return { migrated: raw, consolidatedCount: 0, originalCount: 0 };
+  }
+
+  const groups = v1Connections.reduce<Map<string, V1DynamoDBConnection[]>>((acc, con) => {
     const sig = credentialSignature(con);
     const list = acc.get(sig) ?? [];
     list.push(con);
@@ -369,9 +380,9 @@ export const migrateDynamoConnectionsV1ToV2 = (
   });
 
   return {
-    migrated: [...others, ...consolidated],
+    migrated: [...others, ...v2Connections, ...consolidated],
     consolidatedCount: consolidated.length,
-    originalCount: dynamo.length,
+    originalCount: v1Connections.length,
   };
 };
 
