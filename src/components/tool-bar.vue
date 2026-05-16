@@ -275,6 +275,7 @@ import { useDynamoManageStore } from '../store/dynamoManageStore';
 import { useLang } from '../lang';
 import { CustomError } from '../common';
 import { esSampleQueries, configureDynamicOptions } from '../common/monaco';
+import { mongoSampleQueries } from '../common/monaco/mongodb';
 import { useMessageService } from '@/composables';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/combobox';
@@ -540,6 +541,10 @@ const mongoSampleQueryOptions = computed(() => [
     key: 'createIndex',
   },
   {
+    label: lang.t('editor.mongo.sampleDropIndex'),
+    key: 'dropIndex',
+  },
+  {
     label: lang.t('editor.mongo.sampleDistinct'),
     key: 'distinct',
   },
@@ -561,7 +566,10 @@ const handlePartiqlSampleSelect = (key: string) => {
 };
 
 const handleMongoSampleSelect = (key: string) => {
-  emits('insert-sample-query', key);
+  const query = mongoSampleQueries[key as keyof typeof mongoSampleQueries];
+  if (query) {
+    emits('insert-sample-query', query);
+  }
 };
 
 const handleExecuteMongoQuery = () => {

@@ -35,6 +35,7 @@ import {
   setMongoDynamicOptions,
   validateMongoModel,
   clearMongoValidation,
+  clearMongoDynamicOptions,
   createDebouncedValidator,
 } from '../../../common/monaco';
 import { mongoApi } from '../../../datasources';
@@ -162,10 +163,10 @@ const executeCurrentStatement = async () => {
 
     showDisplayEditor(result.data);
     loadingBar.finish();
-  } catch (err) {
+  } catch (_err) {
     loadingBar.error();
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    message.error(`Query error: ${errorMessage}`, {
+    const errorMessage = _err instanceof Error ? _err.message : String(_err);
+    message.error(`${lang.t('editor.mongo.error')}: ${errorMessage}`, {
       closable: true,
       keepAliveOnHover: true,
     });
@@ -176,10 +177,10 @@ const insertSampleQuery = (queryTemplate: string) => {
   const model = queryEditor?.getModel();
   if (!model) return;
 
-  const selectedIndex = activePanel.value.activeTable;
+  const selectedCollection = activePanel.value.activeTable;
   let query = queryTemplate;
-  if (selectedIndex) {
-    query = queryTemplate.replace(/collection/g, selectedIndex);
+  if (selectedCollection) {
+    query = queryTemplate.replace(/\bcollection\b/g, selectedCollection);
   }
 
   const position = queryEditor?.getPosition();
@@ -213,7 +214,7 @@ const setupQueryEditor = () => {
   const editorOptions = getEditorOptions();
   queryEditor = monaco.editor.create(queryEditorRef.value, {
     theme: getEditorTheme(),
-    value: activePanel.value.content ?? mongoSampleQueries.findAll,
+    value: activePanel.value.content || mongoSampleQueries.findAll,
     language: 'mongodb',
     automaticLayout: true,
     scrollBeyondLastLine: false,
@@ -255,8 +256,9 @@ const setupFileListener = async () => {
 
 const updateDynamicOptions = () => {
   const conn = activeConnection.value;
-  if (conn && conn.type === DatabaseType.MONGODB) {
-    setMongoDynamicOptions({
+  const model = queryEditor?.getModel();
+  if (conn && conn.type === DatabaseType.MONGODB && model) {
+    setMongoDynamicOptions(model.uri.toString(), {
       collectionNames: conn.collections?.map(c => c.name) ?? [],
       activeCollection: activePanel.value.activeTable,
     });
@@ -273,16 +275,17 @@ onMounted(async () => {
       await fetchCollections(activeConnection.value);
       updateDynamicOptions();
     } catch (_err) {
-      // Silently fail
+      message.error(lang.t('connection.errorFetchCollections'));
     }
   }
 });
 
-onUnmounted(async () => {
+onUnmounted(() => {
   cleanupFileListener?.();
   const model = queryEditor?.getModel();
   if (model) {
     clearMongoValidation(model);
+    clearMongoDynamicOptions(model.uri.toString());
   }
   queryEditor?.dispose();
   displayRef?.value?.dispose();
