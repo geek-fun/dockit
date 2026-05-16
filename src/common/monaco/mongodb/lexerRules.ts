@@ -20,7 +20,9 @@ export const mongodb = {
     mongoGlobals: mongoGlobalObjects,
     mongoMethods: allCollectionMethods,
     aggregationStages: aggregationStages,
-    aggregationOperators: [...aggregationOperators, ...queryOperators, ...updateOperators],
+    aggregationOperators: Array.from(
+      new Set([...aggregationOperators, ...queryOperators, ...updateOperators]),
+    ),
     shellCommands: shellCommands,
     showSubcommands: showSubcommands,
 
