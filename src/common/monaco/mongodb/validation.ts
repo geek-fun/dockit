@@ -1,8 +1,8 @@
 import { MarkerSeverity, editor } from 'monaco-editor';
 import { ValidationError } from '../type';
 import { setValidationMarkers, clearValidationMarkers } from '../monacoUtils';
+import { allCollectionMethods } from './keywords';
 
-export const MONGO_VALIDATION_OWNER_CONST = 'mongodb-validation';
 const MONGO_VALIDATION_OWNER = 'mongodb-validation';
 
 export const validateBalancedBrackets = (content: string, startLine: number): ValidationError[] => {
@@ -88,31 +88,7 @@ export const validateMethodChains = (content: string, startLine: number): Valida
     if (methodChainMatch) {
       methodChainMatch.forEach(match => {
         const method = match.slice(1, -1).trim();
-        const isKnown = [
-          'find',
-          'findOne',
-          'insertOne',
-          'insertMany',
-          'updateOne',
-          'updateMany',
-          'deleteOne',
-          'deleteMany',
-          'count',
-          'countDocuments',
-          'distinct',
-          'aggregate',
-          'sort',
-          'limit',
-          'skip',
-          'toArray',
-          'forEach',
-          'createIndex',
-          'drop',
-          'stats',
-          'explain',
-          'hint',
-          'batchSize',
-        ].includes(method);
+        const isKnown = allCollectionMethods.includes(method);
 
         if (!isKnown && !method.startsWith('_')) {
           errors.push({
@@ -172,7 +148,6 @@ export const validateMongoModel = (model: editor.ITextModel): void => {
   const content = model.getValue();
   const errors: ValidationError[] = [
     ...validateBalancedBrackets(content, 1),
-    ...validateMongoSyntax(content, 1),
     ...validateMethodChains(content, 1),
   ];
 
