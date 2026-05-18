@@ -35,11 +35,13 @@ jest.mock('../src/datasources', () => {
       },
     },
     dynamoApi: {} as Record<string, unknown>,
-    loadHttpClient: () => ({}) as Record<string, unknown>,
+    loadHttpClient: jest.fn(() => ({}) as Record<string, unknown>),
     mongoApi: { testConnection: jest.fn() },
   };
 });
-jest.mock('../src/store/tabStore.ts', () => ({}));
+jest.mock('../src/store/tabStore.ts', () => ({
+  useTabStore: () => ({ activePanel: null }),
+}));
 jest.mock('../src/common', () => ({
   buildAuthHeader: jest.fn(),
   buildURL: jest.fn(),
@@ -1540,5 +1542,74 @@ describe('isOpenSearchConnection', () => {
 
   it('returns false for undefined', () => {
     expect(isOpenSearchConnection(undefined)).toBe(false);
+  });
+});
+
+describe('freshConnection - EasySearch', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('returns EasySearch connection with cluster info, preserving EASYSEARCH type', async () => {
+    const { loadHttpClient } = require('../src/datasources');
+    const mockGet = jest.fn().mockResolvedValue({
+      version: { number: '7.10.2', distribution: undefined },
+      cluster_name: 'easy-cluster',
+      cluster_uuid: 'easy-uuid-123',
+      tagline: 'You Know, for Search',
+    });
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: DatabaseType.EASYSEARCH,
+      name: 'easy-test',
+      host: 'http://localhost',
+      port: 9200,
+    } as unknown as Connection;
+
+    store.connections = [conn];
+    const result = await store.freshConnection(conn);
+
+    expect(result.type).toBe(DatabaseType.EASYSEARCH);
+    expect((result as { version: string }).version).toBe('7.10.2');
+    expect((result as { clusterName: string }).clusterName).toBe('easy-cluster');
+  });
+});
+
+describe('fetchIndices - EasySearch', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('uses expand_wildcards=all for EasySearch connections', async () => {
+    const { loadHttpClient } = require('../src/datasources');
+    const mockGet = jest.fn().mockResolvedValue([
+      { index: 'my-index', uuid: 'u1', health: 'green', status: 'open', 'store.size': '1kb', 'docs.count': '5', 'docs.deleted': '0', pri: '1', rep: '0' },
+    ]);
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: DatabaseType.EASYSEARCH,
+      name: 'easy-test',
+      host: 'http://localhost',
+      port: 9200,
+      version: '7.10.2',
+    } as unknown as Connection;
+
+    store.connections = [conn];
+    await store.fetchIndices(conn);
+
+    expect(mockGet).toHaveBeenCalledWith(
+      '/_cat/indices',
+      expect.stringContaining('expand_wildcards=all'),
+    );
   });
 });
