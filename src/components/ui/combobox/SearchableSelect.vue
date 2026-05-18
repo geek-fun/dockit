@@ -160,7 +160,12 @@ watch(searchQuery, () => {
         :aria-controls="listboxId"
         :aria-activedescendant="activeDescendantId"
         :disabled="disabled"
-        :class="cn('justify-between font-normal focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2', props.class)"
+        :class="
+          cn(
+            'justify-between font-normal focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+            props.class,
+          )
+        "
         @keydown="handleKeydown"
       >
         <slot name="selected-prepend" />
@@ -188,12 +193,7 @@ watch(searchQuery, () => {
     </PopoverTrigger>
 
     <PopoverContent :align="'start'" class="w-[--radix-popover-trigger-width] p-1">
-      <div
-        ref="listRef"
-        :id="listboxId"
-        role="listbox"
-        class="max-h-[280px] overflow-y-auto p-1"
-      >
+      <div :id="listboxId" ref="listRef" role="listbox" class="max-h-[280px] overflow-y-auto p-1">
         <div
           v-if="loading"
           class="flex items-center justify-center py-4 gap-2 text-sm text-muted-foreground"
@@ -205,8 +205,8 @@ watch(searchQuery, () => {
         <template v-else>
           <div
             v-for="option in filteredOptions"
-            :key="option.value"
             :id="`${listboxId}-opt-${option.value}`"
+            :key="option.value"
             role="option"
             :aria-selected="option.value === modelValue"
             :aria-disabled="option.disabled || undefined"
@@ -256,9 +256,7 @@ watch(searchQuery, () => {
             v-if="showCreateNew"
             :id="`${listboxId}-create`"
             role="option"
-            :data-highlighted="
-              navigableItems[highlightedIndex]?.type === 'create' ? '' : undefined
-            "
+            :data-highlighted="navigableItems[highlightedIndex]?.type === 'create' ? '' : undefined"
             :class="[
               'relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none text-[#18a058] italic hover:bg-accent transition-colors',
               navigableItems[highlightedIndex]?.type === 'create' && 'bg-accent',

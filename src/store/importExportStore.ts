@@ -1486,7 +1486,8 @@ export const useImportExportStore = defineStore('importExportStore', {
       // For new collections with metadata
       if (this.importMetadata) {
         const searchFamily = new Set(['elasticsearch', 'opensearch', 'easysearch']);
-        const normalise = (t: string) => (searchFamily.has(t.toLowerCase()) ? 'search' : t.toLowerCase());
+        const normalise = (t: string) =>
+          searchFamily.has(t.toLowerCase()) ? 'search' : t.toLowerCase();
 
         const sourceDbType = normalise(this.importMetadata.source.dbType);
         const targetDbType = normalise(this.importConnection.type);
