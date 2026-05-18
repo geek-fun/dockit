@@ -599,30 +599,134 @@ const dynamoApi = {
     con: DynamoDBConnection,
     config: {
       tableName: string;
+      tableClass?: 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS';
       partitionKey: { name: string; type: 'S' | 'N' | 'B' };
       sortKey?: { name: string; type: 'S' | 'N' | 'B' };
       billingMode: 'PAY_PER_REQUEST' | 'PROVISIONED';
+      deletionProtection?: boolean;
       readCapacity?: number;
       writeCapacity?: number;
+      globalSecondaryIndexes?: Array<{
+        indexName: string;
+        keySchema: Array<{
+          attributeName: string;
+          keyType: 'HASH' | 'RANGE';
+          attributeType: 'S' | 'N' | 'B';
+        }>;
+        projectionType: 'ALL' | 'KEYS_ONLY' | 'INCLUDE';
+        nonKeyAttributes?: string[];
+        readCapacityUnits?: number;
+        writeCapacityUnits?: number;
+      }>;
+      localSecondaryIndexes?: Array<{
+        indexName: string;
+        keySchema: Array<{
+          attributeName: string;
+          keyType: 'HASH' | 'RANGE';
+          attributeType: 'S' | 'N' | 'B';
+        }>;
+        projectionType: 'ALL' | 'KEYS_ONLY' | 'INCLUDE';
+        nonKeyAttributes?: string[];
+      }>;
+      streamSpecification?: {
+        streamEnabled: boolean;
+        streamViewType?: 'KEYS_ONLY' | 'NEW_IMAGE' | 'OLD_IMAGE' | 'NEW_AND_OLD_IMAGES';
+      };
+      sseSpecification?: {
+        enabled: boolean;
+        sseType?: 'AES256' | 'KMS';
+        kmsMasterKeyId?: string;
+      };
+      tags?: Array<{ key: string; value: string }>;
     },
-  ): Promise<void> => {
+  ): Promise<{ tableName: string }> => {
     const credentials = buildDynamoCredentials(con);
     const options = {
       table_name: config.tableName,
       operation: 'CREATE_TABLE',
       payload: {
         table_name: config.tableName,
+        table_class: config.tableClass,
         partition_key: config.partitionKey.name,
         partition_key_type: config.partitionKey.type,
         sort_key: config.sortKey?.name,
         sort_key_type: config.sortKey?.type,
         billing_mode: config.billingMode,
+        deletion_protection_enabled: config.deletionProtection,
         read_capacity_units: config.readCapacity,
         write_capacity_units: config.writeCapacity,
+        global_secondary_indexes: config.globalSecondaryIndexes?.map(gsi => ({
+          index_name: gsi.indexName,
+          key_schema: gsi.keySchema.map(k => ({
+            attribute_name: k.attributeName,
+            key_type: k.keyType,
+            attribute_type: k.attributeType,
+          })),
+          projection_type: gsi.projectionType,
+          non_key_attributes: gsi.nonKeyAttributes,
+          read_capacity_units: gsi.readCapacityUnits,
+          write_capacity_units: gsi.writeCapacityUnits,
+        })),
+        local_secondary_indexes: config.localSecondaryIndexes?.map(lsi => ({
+          index_name: lsi.indexName,
+          key_schema: lsi.keySchema.map(k => ({
+            attribute_name: k.attributeName,
+            key_type: k.keyType,
+            attribute_type: k.attributeType,
+          })),
+          projection_type: lsi.projectionType,
+          non_key_attributes: lsi.nonKeyAttributes,
+        })),
+        stream_specification: config.streamSpecification,
+        sse_specification: config.sseSpecification,
+        tags: config.tags,
       },
     };
-    const { status, message } = await tauriClient.invokeDynamoApi(credentials, options);
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
     if (status >= 400) throw new CustomError(status, message);
+    return data as { tableName: string };
+  },
+
+  deleteTable: async (
+    con: DynamoDBConnection,
+    tableName: string,
+  ): Promise<{ tableName: string }> => {
+    const credentials = buildDynamoCredentials(con);
+    const options = {
+      table_name: tableName,
+      operation: 'DELETE_TABLE',
+      payload: {},
+    };
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+    if (status >= 400) throw new CustomError(status, message);
+    return data as { tableName: string };
+  },
+
+  truncateTable: async (
+    con: DynamoDBConnection,
+    tableName: string,
+  ): Promise<{
+    totalItems: number;
+    totalScanned: number;
+    deletedItems: number;
+    unprocessedCount: number;
+    errors: Array<{ error: string; message: string }>;
+  }> => {
+    const credentials = buildDynamoCredentials(con);
+    const options = {
+      table_name: tableName,
+      operation: 'TRUNCATE_TABLE',
+      payload: {},
+    };
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+    if (status >= 400) throw new CustomError(status, message);
+    return data as {
+      totalItems: number;
+      totalScanned: number;
+      deletedItems: number;
+      unprocessedCount: number;
+      errors: Array<{ error: string; message: string }>;
+    };
   },
 
   listProfiles: async (): Promise<string[]> => {

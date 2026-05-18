@@ -1,13 +1,23 @@
 <template>
   <div class="dynamo-manage-container">
-    <div v-if="!dynamoConnection || !activeTableName" class="empty-state">
-      <Empty
-        :description="
-          !dynamoConnection
-            ? $t('manage.emptyNoConnection')
-            : $t('manage.dynamo.selectTableRequired')
-        "
-      />
+    <!-- Empty state: No connection -->
+    <div v-if="!dynamoConnection" class="empty-state">
+      <Empty :description="$t('manage.emptyNoConnection')" />
+    </div>
+    <!-- Empty state: Connection exists but no table selected - Show Create Table CTA -->
+    <div v-else-if="!activeTableName" class="empty-state-with-cta">
+      <div class="empty-content">
+        <Empty :description="$t('manage.dynamo.selectTableRequired')" />
+        <Button
+          variant="default"
+          size="sm"
+          class="create-table-cta"
+          @click="showCreateTableModal = true"
+        >
+          <span class="i-carbon-add h-4 w-4 mr-1" />
+          {{ $t('manage.dynamo.createTableTitle') }}
+        </Button>
+      </div>
     </div>
     <div v-else :class="{ 'pointer-events-none': refreshLoading }">
       <!-- Metrics Cards Section -->
@@ -56,17 +66,11 @@
             </CardContent>
           </Card>
 
-          <!-- PITR Card -->
+          <!-- Encryption Card -->
           <Card class="metric-card">
             <CardContent class="p-4 flex flex-col gap-2">
-              <span class="metric-label">{{ $t('manage.dynamo.pitr') }}</span>
-              <div class="metric-value-status">
-                <span v-if="pitrEnabled" class="i-carbon-checkmark-filled h-4 w-4 text-green-500" />
-                <span v-else class="i-carbon-close-filled h-4 w-4 text-red-500" />
-                <span :class="pitrEnabled ? 'status-enabled' : 'status-disabled'">
-                  {{ pitrEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
-                </span>
-              </div>
+              <span class="metric-label">{{ $t('manage.dynamo.encryption') }}</span>
+              <span class="metric-value-small">{{ encryptionType }}</span>
             </CardContent>
           </Card>
 
@@ -213,14 +217,14 @@
         </Card>
       </section>
 
-      <!-- Global Secondary Indexes Section -->
+      <!-- Secondary Indexes Section -->
       <section class="indexes-section">
         <Card class="indexes-card">
           <CardHeader>
             <div class="section-header">
               <div class="section-title">
                 <span class="i-carbon-table-split h-4 w-4" />
-                <span>{{ $t('manage.dynamo.gsiTitle') }}</span>
+                <span>{{ $t('manage.dynamo.secondaryIndexes') }}</span>
               </div>
               <Button size="sm" @click="handleCreateIndex">
                 {{ $t('manage.dynamo.createIndex') }}
@@ -228,10 +232,7 @@
             </div>
           </CardHeader>
           <CardContent>
-            <div
-              v-if="globalSecondaryIndexes.length > 0"
-              class="table-container gsi-table-container"
-            >
+            <div v-if="allIndexes.length > 0" class="table-container gsi-table-container">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -246,8 +247,18 @@
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow v-for="row in globalSecondaryIndexes" :key="row.name">
-                    <TableCell class="font-medium">{{ row.name }}</TableCell>
+                  <TableRow v-for="row in allIndexes" :key="row.name">
+                    <TableCell class="font-medium">
+                      <div class="flex items-center gap-2">
+                        <Badge
+                          :variant="row.type === DynamoIndexType.GSI ? 'default' : 'secondary'"
+                          class="text-xs shrink-0"
+                        >
+                          {{ row.type }}
+                        </Badge>
+                        {{ row.name }}
+                      </div>
+                    </TableCell>
                     <TableCell>{{ getPartitionKey(row) }}</TableCell>
                     <TableCell>{{ getSortKey(row) }}</TableCell>
                     <TableCell>{{ getProjection(row) }}</TableCell>
@@ -262,16 +273,22 @@
                     </TableCell>
                     <TableCell>
                       <div class="action-buttons">
-                        <Button variant="ghost" size="icon" @click="handleDeleteIndex(row)">
+                        <Button
+                          v-if="row.type === DynamoIndexType.GSI"
+                          variant="ghost"
+                          size="icon"
+                          @click="handleDeleteIndex(row)"
+                        >
                           <span class="i-carbon-trash-can h-4 w-4 text-destructive" />
                         </Button>
+                        <span v-else class="text-xs text-muted-foreground px-2">—</span>
                       </div>
                     </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
             </div>
-            <Empty v-else :description="$t('manage.dynamo.noGsi')" />
+            <Empty v-else :description="$t('manage.dynamo.noIndexes')" />
           </CardContent>
         </Card>
       </section>
@@ -289,43 +306,114 @@
           </CardHeader>
           <CardContent>
             <div class="settings-grid">
-              <!-- Streams Setting -->
+              <!-- Streams -->
               <div
-                class="setting-item clickable"
+                class="setting-item"
                 role="button"
                 tabindex="0"
-                @click="message.info($t('manage.dynamo.comingSoon'))"
-                @keydown.enter="message.info($t('manage.dynamo.comingSoon'))"
-                @keydown.space.prevent="message.info($t('manage.dynamo.comingSoon'))"
+                @click="openSettings('streams')"
+                @keydown.enter="openSettings('streams')"
+                @keydown.space.prevent="openSettings('streams')"
               >
-                <div class="setting-header">
-                  <span class="setting-label">{{ $t('manage.dynamo.streams') }}</span>
-                  <Switch :checked="streamsEnabled" @click.stop />
+                <div class="setting-item-header">
+                  <span class="i-carbon-flow-stream setting-item-icon" />
+                  <span class="setting-item-label">{{ $t('manage.dynamo.streams') }}</span>
+                  <span class="i-carbon-edit setting-item-edit-icon" />
                 </div>
-                <span class="setting-value">{{ streamsViewType || '-' }}</span>
-              </div>
-              <!-- Encryption Setting -->
-              <div class="setting-item">
-                <div class="setting-header">
-                  <span class="setting-label">{{ $t('manage.dynamo.encryption') }}</span>
-                  <span class="i-carbon-locked h-4 w-4" />
+                <div class="setting-item-body">
+                  <span :class="['setting-item-badge', streamsEnabled ? 'badge-on' : 'badge-off']">
+                    {{
+                      streamsEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled')
+                    }}
+                  </span>
+                  <span v-if="streamsEnabled && streamsViewType !== '-'" class="setting-item-sub">
+                    {{ streamsViewType }}
+                  </span>
                 </div>
-                <span class="setting-value">{{ encryptionType }}</span>
               </div>
-              <!-- Table Class Setting -->
+              <!-- Table Class -->
               <div
-                class="setting-item clickable"
+                class="setting-item"
                 role="button"
                 tabindex="0"
-                @click="message.info($t('manage.dynamo.comingSoon'))"
-                @keydown.enter="message.info($t('manage.dynamo.comingSoon'))"
-                @keydown.space.prevent="message.info($t('manage.dynamo.comingSoon'))"
+                @click="openSettings('tableClass')"
+                @keydown.enter="openSettings('tableClass')"
+                @keydown.space.prevent="openSettings('tableClass')"
               >
-                <div class="setting-header">
-                  <span class="setting-label">{{ $t('manage.dynamo.tableClass') }}</span>
-                  <span class="i-carbon-data-table h-4 w-4" />
+                <div class="setting-item-header">
+                  <span class="i-carbon-data-table setting-item-icon" />
+                  <span class="setting-item-label">{{ $t('manage.dynamo.tableClass') }}</span>
+                  <span class="i-carbon-edit setting-item-edit-icon" />
                 </div>
-                <span class="setting-value">{{ tableClass }}</span>
+                <div class="setting-item-body">
+                  <span class="setting-item-value">{{ tableClass }}</span>
+                </div>
+              </div>
+              <!-- PITR -->
+              <div
+                class="setting-item"
+                role="button"
+                tabindex="0"
+                @click="openSettings('pitr')"
+                @keydown.enter="openSettings('pitr')"
+                @keydown.space.prevent="openSettings('pitr')"
+              >
+                <div class="setting-item-header">
+                  <span class="i-carbon-data-backup setting-item-icon" />
+                  <span class="setting-item-label">{{ $t('manage.dynamo.pitr') }}</span>
+                  <span class="i-carbon-edit setting-item-edit-icon" />
+                </div>
+                <div class="setting-item-body">
+                  <span :class="['setting-item-badge', pitrEnabled ? 'badge-on' : 'badge-off']">
+                    {{ pitrEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
+                  </span>
+                </div>
+              </div>
+              <!-- TTL -->
+              <div
+                class="setting-item"
+                role="button"
+                tabindex="0"
+                @click="openSettings('ttl')"
+                @keydown.enter="openSettings('ttl')"
+                @keydown.space.prevent="openSettings('ttl')"
+              >
+                <div class="setting-item-header">
+                  <span class="i-carbon-timer setting-item-icon" />
+                  <span class="setting-item-label">{{ $t('manage.dynamo.ttl') }}</span>
+                  <span class="i-carbon-edit setting-item-edit-icon" />
+                </div>
+                <div class="setting-item-body">
+                  <span :class="['setting-item-badge', ttlEnabled ? 'badge-on' : 'badge-off']">
+                    {{ ttlEnabled ? $t('manage.dynamo.enabled') : $t('manage.dynamo.disabled') }}
+                  </span>
+                  <span v-if="ttlEnabled && ttlAttribute" class="setting-item-sub font-mono">
+                    {{ ttlAttribute }}
+                  </span>
+                </div>
+              </div>
+              <!-- Danger Zone -->
+              <div
+                class="setting-item setting-item-danger"
+                role="button"
+                tabindex="0"
+                @click="openSettings('danger')"
+                @keydown.enter="openSettings('danger')"
+                @keydown.space.prevent="openSettings('danger')"
+              >
+                <div class="setting-item-header">
+                  <span class="i-carbon-warning setting-item-icon setting-item-icon--danger" />
+                  <span class="setting-item-label setting-item-label--danger">
+                    {{ $t('manage.dynamo.dangerZone') }}
+                  </span>
+                  <span class="i-carbon-chevron-right setting-item-edit-icon" />
+                </div>
+                <div class="setting-item-body">
+                  <span class="setting-item-sub">
+                    {{ $t('manage.dynamo.deleteTableTitle') }},
+                    {{ $t('manage.dynamo.truncateTable') }}
+                  </span>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -339,6 +427,26 @@
         :table-name="activeTableName"
         @deleted="handleIndexDeleted"
       />
+      <table-settings-modal
+        v-if="dynamoConnection && showTableSettingsModal"
+        v-model:show="showTableSettingsModal"
+        :table-name="activeTableName"
+        :connection="dynamoConnection"
+        :table-info="tableInfo"
+        :pitr-enabled="pitrEnabled"
+        :default-tab="settingsTab"
+        :current-settings="{
+          streamsEnabled: streamsEnabled,
+          streamViewType: streamsViewType,
+          ttlEnabled: ttlEnabled,
+          ttlAttributeName: ttlAttribute || '',
+          pitrEnabled: pitrEnabled,
+          tableClass: tableInfo?.tableClassSummary || 'STANDARD',
+        }"
+        @saved="handleRefresh"
+        @truncated="handleTableTruncated"
+        @deleted="handleTableDeleted"
+      />
 
       <create-index-modal
         v-model:show="showCreateIndexModal"
@@ -346,6 +454,14 @@
         @created="handleIndexCreated"
       />
     </div>
+
+    <!-- Always-available modals -->
+    <create-table-modal
+      v-if="dynamoConnection && showCreateTableModal"
+      v-model:show="showCreateTableModal"
+      :connection="dynamoConnection"
+      @created="handleTableCreated"
+    />
   </div>
 </template>
 
@@ -356,6 +472,7 @@ import prettyBytes from 'pretty-bytes';
 import {
   useClusterManageStore,
   useDynamoManageStore,
+  useConnectionStore,
   DatabaseType,
   DynamoDBConnection,
 } from '../../../store';
@@ -364,10 +481,11 @@ import { CustomError, withLoadingDelay } from '../../../common';
 import { DynamoIndex, DynamoIndexType, dynamoApi } from '../../../datasources';
 import DeleteIndexModal from './delete-index-modal.vue';
 import CreateIndexModal from './create-index-modal.vue';
+import CreateTableModal from './create-table-modal.vue';
+import TableSettingsModal from './table-settings-modal.vue';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Empty } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
@@ -390,12 +508,22 @@ const dynamoManageStore = useDynamoManageStore();
 const { fetchTableInfo } = dynamoManageStore;
 const { tableInfo, manageActiveTable } = storeToRefs(dynamoManageStore);
 
+const connectionStore = useConnectionStore();
+
 const activeTableName = computed(() => manageActiveTable.value);
 
 // Modal visibility states
 const showDeleteIndexModal = ref(false);
 const showCreateIndexModal = ref(false);
+const showCreateTableModal = ref(false);
+const showTableSettingsModal = ref(false);
+const settingsTab = ref('streams');
 const selectedIndex = ref<DynamoIndex | null>(null);
+
+const openSettings = (tab: string) => {
+  settingsTab.value = tab;
+  showTableSettingsModal.value = true;
+};
 
 // CloudWatch metrics state
 const metricsAvailable = ref(false);
@@ -492,12 +620,10 @@ const statusClass = computed(() => {
   };
 });
 
-const globalSecondaryIndexes = computed(() => {
-  return (
-    tableInfo.value?.indices?.filter((index: DynamoIndex) => index.type === DynamoIndexType.GSI) ||
-    []
-  );
-});
+const allIndexes = computed(() => [
+  ...(tableInfo.value?.indices?.filter((i: DynamoIndex) => i.type === DynamoIndexType.GSI) || []),
+  ...(tableInfo.value?.indices?.filter((i: DynamoIndex) => i.type === DynamoIndexType.LSI) || []),
+]);
 
 // Helper functions for table rendering
 const getPartitionKey = (row: DynamoIndex): string => {
@@ -684,6 +810,29 @@ const handleIndexCreated = async () => {
   await handleRefresh();
 };
 
+const handleTableDeleted = async () => {
+  message.success(lang.t('manage.dynamo.deleteTableSuccess'));
+  dynamoManageStore.setManageActiveTable('');
+  dynamoManageStore.clearTableInfo();
+  if (connection.value && connection.value.type === DatabaseType.DYNAMODB) {
+    await connectionStore.fetchTables(connection.value as DynamoDBConnection);
+  }
+};
+
+const handleTableTruncated = async () => {
+  message.success(lang.t('manage.dynamo.truncateTableSuccess'));
+  await handleRefresh();
+};
+
+const handleTableCreated = async (tableName: string) => {
+  message.success(lang.t('manage.dynamo.createTableSuccess'));
+  if (connection.value && connection.value.type === DatabaseType.DYNAMODB) {
+    await connectionStore.fetchTables(connection.value as DynamoDBConnection);
+  }
+  dynamoManageStore.setManageActiveTable(tableName);
+  // Refresh will be triggered by the watch on manageActiveTable
+};
+
 onMounted(async () => {
   if (
     connection.value &&
@@ -706,9 +855,14 @@ watch(manageActiveTable, async newTable => {
   }
 });
 
-// Expose handleRefresh so parent can trigger it
+// Expose handleRefresh and showCreateTable so parent can trigger them
+const showCreateTable = () => {
+  showCreateTableModal.value = true;
+};
+
 defineExpose({
   handleRefresh,
+  showCreateTable,
 });
 </script>
 
@@ -736,6 +890,35 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.empty-state-with-cta {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.create-table-cta {
+  margin-top: 8px;
+}
+
+.actions-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.actions-buttons {
+  display: flex;
+  gap: 8px;
 }
 
 @keyframes shimmer {
@@ -1131,53 +1314,143 @@ defineExpose({
 }
 
 .settings-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-@media (max-width: 768px) {
-  .settings-grid {
-    grid-template-columns: 1fr;
-  }
+.setting-item {
+  flex: 1 1 160px;
 }
 
 .setting-item {
   background: hsl(var(--background));
   border: 1px solid hsl(var(--border));
   border-radius: 8px;
-  padding: 16px;
-  transition: all 0.2s ease;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  min-width: 0;
 }
 
-.setting-item.clickable {
+.setting-item[role='button'] {
   cursor: pointer;
 }
 
-.setting-item.clickable:hover {
+.setting-item[role='button']:hover {
+  border-color: hsl(var(--primary) / 0.5);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.06);
+}
+
+.setting-item[role='button']:focus-visible {
+  outline: none;
   border-color: hsl(var(--primary));
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
 }
 
-.setting-header {
+.setting-item-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
-.setting-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
+.setting-item-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
   color: hsl(var(--muted-foreground));
 }
 
-.setting-value {
+.setting-item-icon--danger {
+  color: hsl(var(--destructive));
+}
+
+.setting-item-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.setting-item-label--danger {
+  color: hsl(var(--destructive));
+}
+
+.setting-item-edit-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  color: hsl(var(--muted-foreground) / 0.5);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.setting-item[role='button']:hover .setting-item-edit-icon {
+  opacity: 1;
+}
+
+.setting-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setting-item-badge {
+  display: inline-block;
   font-size: 12px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.badge-on {
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.1);
+}
+
+.badge-off {
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+}
+
+.setting-item-value {
+  font-size: 13px;
   font-weight: 500;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.setting-item-danger {
+  border-color: hsl(var(--destructive) / 0.3);
+}
+
+.setting-item-danger:hover {
+  border-color: hsl(var(--destructive) / 0.6) !important;
+  box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.06) !important;
+}
+
+.setting-item-danger:focus-visible {
+  border-color: hsl(var(--destructive)) !important;
+  box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.15) !important;
+}
+
+.setting-item-sub {
+  font-size: 11px;
   color: hsl(var(--muted-foreground));
 }
 
