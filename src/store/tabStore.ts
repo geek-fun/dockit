@@ -19,7 +19,11 @@ type Panel = {
   file?: string;
   content?: string;
   includeSystemIndices?: boolean;
-  editorType?: 'DYNAMO_EDITOR_UI' | 'DYNAMO_EDITOR_SQL' | 'DYNAMO_EDITOR_CREATE_ITEM';
+  editorType?:
+    | 'DYNAMO_EDITOR_UI'
+    | 'DYNAMO_EDITOR_SQL'
+    | 'DYNAMO_EDITOR_CREATE_ITEM'
+    | 'MONGO_EDITOR';
 };
 
 const homePanel: Panel = { id: 0, name: 'home', file: '' };

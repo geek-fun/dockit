@@ -926,6 +926,9 @@ export const enUS = {
     openDocs: 'Open API Documentation',
     prevRequest: 'Previous Request',
     nextRequest: 'Next Request',
+    mongoSpecific: 'MongoDB Shortcuts',
+    sampleQuery: 'Insert Sample Query',
+    clearEditor: 'Clear Editor',
   },
   import: {
     dataImport: 'Data Import',
