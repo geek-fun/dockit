@@ -18,7 +18,7 @@ use dynamo_client::{
     aws_sso_list_accounts, aws_sso_list_roles, aws_sso_poll_token, aws_sso_start_device_auth,
     dynamo_api,
 };
-use mongo_client::mongo_test_connection;
+use mongo_client::{mongo_execute_query, mongo_test_connection};
 
 #[derive(Clone, serde::Serialize)]
 struct AuthPayload {
@@ -70,6 +70,7 @@ fn main() {
             read_file_batch,
             stream_file_lines,
             mongo_test_connection,
+            mongo_execute_query,
         ])
         .setup(|app| {
             menu::create_menu(app)?;

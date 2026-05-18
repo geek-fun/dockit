@@ -921,6 +921,9 @@ export const zhCN = {
     openDocs: '打开 API 文档',
     prevRequest: '上一个请求',
     nextRequest: '下一个请求',
+    mongoSpecific: 'MongoDB 快捷键',
+    sampleQuery: '插入示例查询',
+    clearEditor: '清空编辑器',
   },
   import: {
     dataImport: '数据导入',
