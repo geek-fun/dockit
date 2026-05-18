@@ -415,9 +415,14 @@ const showMedal = (
     modalTitle.value = lang.t('connection.edit');
   } else {
     const type = initialType ?? DatabaseType.ELASTICSEARCH;
-    formData.value = { ...cloneDeep(defaultFormData), type };
+    const typeDefaults =
+      type === DatabaseType.EASYSEARCH
+        ? { host: 'https://localhost', username: 'admin', sslCertVerification: false }
+        : {};
+    const initialFormData = { ...cloneDeep(defaultFormData), type, ...typeDefaults };
+    formData.value = initialFormData;
     authType.value = 'basic';
-    veeResetForm({ values: { ...cloneDeep(defaultFormData), type } });
+    veeResetForm({ values: initialFormData });
   }
   resetValidation();
 };
