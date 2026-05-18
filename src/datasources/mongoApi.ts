@@ -7,6 +7,12 @@ type MongoTestResult = {
   collections?: string[];
 };
 
+type MongoQueryResult = {
+  success: boolean;
+  data?: unknown;
+  error?: string;
+};
+
 const buildConfig = (con: MongoDBConnection) => ({
   host: con.host,
   port: con.port,
@@ -24,6 +30,18 @@ export const mongoApi = {
       return {
         success: false,
         message: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  executeQuery: async (con: MongoDBConnection, code: string): Promise<MongoQueryResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoQueryResult>('mongo_execute_query', { config, code });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
       };
     }
   },
