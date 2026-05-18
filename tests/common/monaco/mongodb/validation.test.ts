@@ -3,7 +3,6 @@ import {
   validateBalancedBrackets,
   validateMongoSyntax,
   validateMethodChains,
-  MONGO_VALIDATION_OWNER_CONST,
 } from '../../../../src/common/monaco/mongodb/validation';
 
 jest.mock('monaco-editor', () => ({
@@ -183,12 +182,6 @@ db.collection.sort({})
 db.collection.limit(10)`;
       const errors = validateMethodChains(content, 1);
       expect(errors).toHaveLength(0);
-    });
-  });
-
-  describe('MONGO_VALIDATION_OWNER_CONST', () => {
-    it('should be mongodb-validation', () => {
-      expect(MONGO_VALIDATION_OWNER_CONST).toBe('mongodb-validation');
     });
   });
 });

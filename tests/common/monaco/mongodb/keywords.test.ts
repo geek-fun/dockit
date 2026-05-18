@@ -24,12 +24,17 @@ describe('MongoDB Keywords', () => {
       expect(mongoGlobalObjects).toContain('db');
     });
 
-    it('should contain use command', () => {
-      expect(mongoGlobalObjects).toContain('use');
+    it('should contain rs object', () => {
+      expect(mongoGlobalObjects).toContain('rs');
     });
 
-    it('should contain show command', () => {
-      expect(mongoGlobalObjects).toContain('show');
+    it('should contain sh object', () => {
+      expect(mongoGlobalObjects).toContain('sh');
+    });
+
+    it('should not contain shell commands use/show (moved to shellCommands)', () => {
+      expect(mongoGlobalObjects).not.toContain('use');
+      expect(mongoGlobalObjects).not.toContain('show');
     });
   });
 

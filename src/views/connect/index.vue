@@ -314,19 +314,4 @@ onUnmounted(() => {
   overflow: hidden;
   position: relative;
 }
-
-.mongo-placeholder {
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mongo-placeholder-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 2rem;
-}
 </style>

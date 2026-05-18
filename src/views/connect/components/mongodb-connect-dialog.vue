@@ -385,6 +385,19 @@ watch(
   { deep: true },
 );
 
+// Sync separate input refs with vee-validate to clear validation errors on input
+watch([usernameValue, passwordValue, uriValue, authSourceValue], () => {
+  setValues({
+    ...formData.value,
+    authMode: authMode.value,
+    uri: uriValue.value,
+    username: usernameValue.value,
+    password: passwordValue.value,
+    authSource: authSourceValue.value,
+    tls: tlsChecked.value,
+  });
+});
+
 const isFormValid = computed(() => {
   const hasName = formData.value.name && formData.value.name.trim() !== '';
 

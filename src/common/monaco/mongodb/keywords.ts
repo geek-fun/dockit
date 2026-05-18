@@ -1,4 +1,4 @@
-export const mongoGlobalObjects = ['db', 'use', 'show', 'rs', 'sh', 'dbadmin'];
+export const mongoGlobalObjects = ['db', 'rs', 'sh'];
 
 export const crudMethods = [
   'find',
