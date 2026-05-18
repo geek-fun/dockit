@@ -2,6 +2,9 @@ import {
   parseVersionParts,
   normalizeComposableTemplateBody,
   normalizeLegacyTemplateBody,
+  getTemplateApiMode,
+  TemplateApiMode,
+  esApi,
 } from '../../src/datasources/esApi.ts';
 import { jsonify, CustomError } from '../../src/common';
 
@@ -9,12 +12,18 @@ jest.mock('../../src/store', () => ({
   DatabaseType: {
     ELASTICSEARCH: 'ELASTICSEARCH',
     OPENSEARCH: 'OPENSEARCH',
+    EASYSEARCH: 'EASYSEARCH',
     DYNAMODB: 'DYNAMODB',
     MONGODB: 'MONGODB',
   },
 }));
 
 jest.mock('../../src/datasources', () => ({}));
+jest.mock('../../src/datasources/fetchApi.ts', () => ({
+  loadHttpClient: jest.fn(() => ({
+    get: jest.fn(),
+  })),
+}));
 
 jest.mock('../../src/lang', () => ({
   lang: {
@@ -227,5 +236,78 @@ describe('normalizeLegacyTemplateBody', () => {
     expect(parsed.settings).toEqual({ number_of_shards: 1 });
     expect(parsed.mappings).toEqual({});
     expect(parsed.template).toBeUndefined();
+  });
+});
+
+describe('getTemplateApiMode', () => {
+  it('returns COMPOSABLE for OpenSearch connection', () => {
+    const conn = { type: 'OPENSEARCH', version: '2.11.0' } as never;
+    expect(getTemplateApiMode(conn)).toBe(TemplateApiMode.COMPOSABLE);
+  });
+
+  it('returns COMPOSABLE for EasySearch connection', () => {
+    const conn = { type: 'EASYSEARCH', version: '7.10.2' } as never;
+    expect(getTemplateApiMode(conn)).toBe(TemplateApiMode.COMPOSABLE);
+  });
+
+  it('returns LEGACY for Elasticsearch version below 7.8', () => {
+    const conn = { type: 'ELASTICSEARCH', version: '7.7.0' } as never;
+    expect(getTemplateApiMode(conn)).toBe(TemplateApiMode.LEGACY);
+  });
+
+  it('returns COMPOSABLE for Elasticsearch 7.8+', () => {
+    const conn = { type: 'ELASTICSEARCH', version: '7.8.0' } as never;
+    expect(getTemplateApiMode(conn)).toBe(TemplateApiMode.COMPOSABLE);
+  });
+
+  it('returns COMPOSABLE for Elasticsearch 8.x', () => {
+    const conn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+    expect(getTemplateApiMode(conn)).toBe(TemplateApiMode.COMPOSABLE);
+  });
+});
+
+describe('esApi.catIndices', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+
+  const mockIndices = [
+    {
+      index: 'my-index',
+      uuid: 'abc123',
+      health: 'green',
+      status: 'open',
+      'store.size': '1kb',
+      'docs.count': '10',
+      'docs.deleted': '0',
+    },
+  ];
+
+  beforeEach(() => {
+    loadHttpClient.mockReturnValue({ get: jest.fn().mockResolvedValue(mockIndices) });
+  });
+
+  it('uses expand_wildcards=all for EasySearch connections', async () => {
+    const conn = { type: 'EASYSEARCH', version: '7.10.2' } as never;
+    const mockGet = jest.fn().mockResolvedValue(mockIndices);
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    await esApi.catIndices(conn);
+
+    expect(mockGet).toHaveBeenCalledWith(
+      '/_cat/indices',
+      expect.stringContaining('expand_wildcards=all'),
+    );
+  });
+
+  it('uses expand_wildcards=all for OpenSearch connections', async () => {
+    const conn = { type: 'OPENSEARCH', version: '2.11.0' } as never;
+    const mockGet = jest.fn().mockResolvedValue(mockIndices);
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    await esApi.catIndices(conn);
+
+    expect(mockGet).toHaveBeenCalledWith(
+      '/_cat/indices',
+      expect.stringContaining('expand_wildcards=all'),
+    );
   });
 });

@@ -1463,6 +1463,16 @@ describe('isSearchConnection', () => {
     expect(isSearchConnection(conn)).toBe(true);
   });
 
+  it('returns true for EasySearchConnection', () => {
+    const conn = {
+      type: DatabaseType.EASYSEARCH,
+      name: 'easy',
+      host: 'http://localhost',
+      port: 9200,
+    } as unknown as Connection;
+    expect(isSearchConnection(conn)).toBe(true);
+  });
+
   it('returns false for DynamoDBConnection', () => {
     const conn = {
       type: DatabaseType.DYNAMODB,
