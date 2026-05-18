@@ -271,9 +271,10 @@ fn js_to_json(s: &str) -> String {
                 match word.as_str() {
                     "true" | "false" | "null" => out.push_str(&word),
                     "undefined" => out.push_str("null"),
+                    // Skip the `new` keyword and let the next word (e.g. `Date`) be processed normally
+                    "new" => {}
                     _ => {
                         if j < len && chars[j] == '(' {
-                            // Function call like ObjectId("...") or new Date("...") — extract inner arg as string value
                             let mut depth = 0i32;
                             let mut k = j;
                             while k < len {
@@ -292,12 +293,37 @@ fn js_to_json(s: &str) -> String {
                             }
                             let inner: String = chars[j + 1..k.saturating_sub(1)].iter().collect();
                             let inner = inner.trim().trim_matches('"').trim_matches('\'');
-                            if inner.is_empty() {
-                                out.push_str("null");
-                            } else {
-                                out.push('"');
-                                out.push_str(inner);
-                                out.push('"');
+                            // Emit Extended JSON for known BSON types so the driver decodes them correctly
+                            match word.as_str() {
+                                "ObjectId" => {
+                                    out.push_str("{\"$oid\":\"");
+                                    out.push_str(inner);
+                                    out.push_str("\"}");
+                                }
+                                "ISODate" | "Date" => {
+                                    out.push_str("{\"$date\":\"");
+                                    out.push_str(inner);
+                                    out.push_str("\"}");
+                                }
+                                "NumberLong" | "Long" => {
+                                    out.push_str("{\"$numberLong\":\"");
+                                    out.push_str(inner);
+                                    out.push_str("\"}");
+                                }
+                                "NumberDecimal" | "Decimal128" => {
+                                    out.push_str("{\"$numberDecimal\":\"");
+                                    out.push_str(inner);
+                                    out.push_str("\"}");
+                                }
+                                _ => {
+                                    if inner.is_empty() {
+                                        out.push_str("null");
+                                    } else {
+                                        out.push('"');
+                                        out.push_str(inner);
+                                        out.push('"');
+                                    }
+                                }
                             }
                             i = k;
                         } else {
@@ -513,16 +539,7 @@ fn split_statements(code: &str) -> Vec<String> {
                 if stmt_start.is_none() { stmt_start = Some(i); }
             }
             '}' | ']' | ')' => {
-                depth -= 1;
-                if depth <= 0 {
-                    depth = 0;
-                    if let Some(start) = stmt_start {
-                        let stmt: String = chars[start..=i].iter().collect();
-                        let stmt = stmt.trim().to_string();
-                        if stmt.starts_with("db") { statements.push(stmt); }
-                        stmt_start = None;
-                    }
-                }
+                if depth > 0 { depth -= 1; }
             }
             '\n' | ';' if depth == 0 => {
                 if let Some(start) = stmt_start {

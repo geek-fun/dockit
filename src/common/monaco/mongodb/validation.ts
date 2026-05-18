@@ -83,17 +83,19 @@ export const validateMethodChains = (content: string, startLine: number): Valida
   const lines = content.split('\n');
 
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-    const line = lines[lineIdx].trim();
-    if (!line || line.startsWith('//') || line.startsWith('/*')) continue;
+    const rawLine = lines[lineIdx];
+    const trimmed = rawLine.trim();
+    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('/*')) continue;
+    const trimOffset = rawLine.length - rawLine.trimStart().length;
 
     const methodPattern = /\.(\w+)\s*\(/g;
     let match: RegExpExecArray | null;
-    while ((match = methodPattern.exec(line)) !== null) {
+    while ((match = methodPattern.exec(trimmed)) !== null) {
       const method = match[1];
       const isKnown = allCollectionMethods.includes(method);
 
       if (!isKnown && !method.startsWith('_')) {
-        const col = match.index + 1 + 1; // +1 for dot, +1 for 1-based column
+        const col = trimOffset + match.index + 1 + 1; // trimOffset for indentation, +1 for dot, +1 for 1-based column
         errors.push({
           message: `Unknown method '${method}'`,
           startLineNumber: startLine + lineIdx,
