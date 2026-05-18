@@ -51,7 +51,7 @@ const { insertBoard } = storeToRefs(chatStore);
 
 const tabStore = useTabStore();
 const { activePanel } = storeToRefs(tabStore);
-const { saveContent } = tabStore;
+const { saveContent, saveQueryResult } = tabStore;
 
 const connectionStore = useConnectionStore();
 const { fetchCollections } = connectionStore;
@@ -87,6 +87,16 @@ watch(
     });
   },
   { deep: true },
+);
+
+watch(
+  () => activePanel.value.id,
+  () => {
+    const saved = activePanel.value.queryResult;
+    if (saved !== undefined) {
+      showDisplayEditor(saved);
+    }
+  },
 );
 
 watch(insertBoard, () => {
@@ -162,6 +172,7 @@ const executeCurrentStatement = async () => {
     });
 
     showDisplayEditor(result.data);
+    saveQueryResult(result.data);
     loadingBar.finish();
   } catch (_err) {
     loadingBar.error();

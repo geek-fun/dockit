@@ -701,8 +701,82 @@ async fn execute_statement(client: &Client, db_name: &str, stmt: ParsedStatement
             coll.drop().await.map_err(|e| e.to_string())?;
             Ok(serde_json::json!({ "ok": 1 }))
         }
+        "bulkWrite" => {
+            use mongodb::options::{
+                DeleteManyModel, DeleteOneModel, InsertOneModel, ReplaceOneModel,
+                UpdateManyModel, UpdateOneModel, WriteModel,
+            };
+            use mongodb::Namespace;
+
+            let ops_raw = stmt.args.first().ok_or("bulkWrite requires an operations array")?;
+            let ops_val = parse_json_arg(ops_raw)?;
+            let ops_arr = ops_val.as_array().ok_or("bulkWrite argument must be an array")?;
+            let ns = Namespace::new(db_name, &stmt.collection);
+
+            let mut models: Vec<WriteModel> = Vec::with_capacity(ops_arr.len());
+            for op in ops_arr {
+                let obj = op.as_object().ok_or("each bulkWrite operation must be an object")?;
+                if let Some(args) = obj.get("insertOne") {
+                    let doc = json_to_bson_doc(args.get("document").ok_or("insertOne requires 'document'")?.clone())?;
+                    models.push(WriteModel::InsertOne(
+                        InsertOneModel::builder().namespace(ns.clone()).document(doc).build(),
+                    ));
+                } else if let Some(args) = obj.get("updateOne") {
+                    let filter = json_to_bson_doc(args.get("filter").ok_or("updateOne requires 'filter'")?.clone())?;
+                    let update_doc = json_to_bson_doc(args.get("update").ok_or("updateOne requires 'update'")?.clone())?;
+                    let update = mongodb::options::UpdateModifications::Document(update_doc);
+                    let upsert = args.get("upsert").and_then(|v| v.as_bool());
+                    let model = match upsert {
+                        Some(u) => UpdateOneModel::builder().namespace(ns.clone()).filter(filter).update(update).upsert(u).build(),
+                        None => UpdateOneModel::builder().namespace(ns.clone()).filter(filter).update(update).build(),
+                    };
+                    models.push(WriteModel::UpdateOne(model));
+                } else if let Some(args) = obj.get("updateMany") {
+                    let filter = json_to_bson_doc(args.get("filter").ok_or("updateMany requires 'filter'")?.clone())?;
+                    let update_doc = json_to_bson_doc(args.get("update").ok_or("updateMany requires 'update'")?.clone())?;
+                    let update = mongodb::options::UpdateModifications::Document(update_doc);
+                    let upsert = args.get("upsert").and_then(|v| v.as_bool());
+                    let model = match upsert {
+                        Some(u) => UpdateManyModel::builder().namespace(ns.clone()).filter(filter).update(update).upsert(u).build(),
+                        None => UpdateManyModel::builder().namespace(ns.clone()).filter(filter).update(update).build(),
+                    };
+                    models.push(WriteModel::UpdateMany(model));
+                } else if let Some(args) = obj.get("replaceOne") {
+                    let filter = json_to_bson_doc(args.get("filter").ok_or("replaceOne requires 'filter'")?.clone())?;
+                    let replacement = json_to_bson_doc(args.get("replacement").ok_or("replaceOne requires 'replacement'")?.clone())?;
+                    let upsert = args.get("upsert").and_then(|v| v.as_bool());
+                    let model = match upsert {
+                        Some(u) => ReplaceOneModel::builder().namespace(ns.clone()).filter(filter).replacement(replacement).upsert(u).build(),
+                        None => ReplaceOneModel::builder().namespace(ns.clone()).filter(filter).replacement(replacement).build(),
+                    };
+                    models.push(WriteModel::ReplaceOne(model));
+                } else if let Some(args) = obj.get("deleteOne") {
+                    let filter = json_to_bson_doc(args.get("filter").ok_or("deleteOne requires 'filter'")?.clone())?;
+                    models.push(WriteModel::DeleteOne(
+                        DeleteOneModel::builder().namespace(ns.clone()).filter(filter).build(),
+                    ));
+                } else if let Some(args) = obj.get("deleteMany") {
+                    let filter = json_to_bson_doc(args.get("filter").ok_or("deleteMany requires 'filter'")?.clone())?;
+                    models.push(WriteModel::DeleteMany(
+                        DeleteManyModel::builder().namespace(ns.clone()).filter(filter).build(),
+                    ));
+                } else {
+                    return Err(format!("Unknown bulkWrite operation: {:?}", obj.keys().collect::<Vec<_>>()));
+                }
+            }
+
+            let result = client.bulk_write(models).await.map_err(|e| e.to_string())?;
+            Ok(serde_json::json!({
+                "acknowledged": true,
+                "insertedCount": result.inserted_count,
+                "matchedCount": result.matched_count,
+                "modifiedCount": result.modified_count,
+                "deletedCount": result.deleted_count,
+                "upsertedCount": result.upserted_count,
+            }))
+        }
         other => Err(format!(
-            "Unsupported method '{}'. Supported: find, findOne, countDocuments, estimatedDocumentCount, insertOne, insertMany, updateOne, updateMany, replaceOne, deleteOne, deleteMany, aggregate, distinct, createIndex, dropIndex, drop",
+            "Unsupported method '{}'. Supported: find, findOne, countDocuments, estimatedDocumentCount, insertOne, insertMany, updateOne, updateMany, replaceOne, deleteOne, deleteMany, aggregate, distinct, createIndex, dropIndex, drop, bulkWrite",
             other
         )),
     }
