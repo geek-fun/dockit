@@ -3,7 +3,6 @@ import {
   mongoSampleQueries,
   setMongoDynamicOptions,
   getMongoDynamicOptions,
-  createMongoDebouncedValidator,
   mongodb,
 } from '../../../../src/common/monaco/mongodb/index';
 
@@ -165,31 +164,31 @@ describe('MongoDB Language Registration', () => {
   });
 
   describe('setMongoDynamicOptions', () => {
-    beforeEach(() => {
-      setMongoDynamicOptions({});
-    });
-
     it('should set collection names', () => {
-      setMongoDynamicOptions({ collectionNames: ['users', 'orders'] });
-      const options = getMongoDynamicOptions();
+      const testUri = 'test-uri-1';
+      setMongoDynamicOptions(testUri, { collectionNames: ['users', 'orders'] });
+      const options = getMongoDynamicOptions(testUri);
       expect(options.collectionNames).toEqual(['users', 'orders']);
     });
 
     it('should set database names', () => {
-      setMongoDynamicOptions({ databaseNames: ['mydb', 'testdb'] });
-      const options = getMongoDynamicOptions();
+      const testUri = 'test-uri-2';
+      setMongoDynamicOptions(testUri, { databaseNames: ['mydb', 'testdb'] });
+      const options = getMongoDynamicOptions(testUri);
       expect(options.databaseNames).toEqual(['mydb', 'testdb']);
     });
 
     it('should set active collection', () => {
-      setMongoDynamicOptions({ activeCollection: 'users' });
-      const options = getMongoDynamicOptions();
+      const testUri = 'test-uri-3';
+      setMongoDynamicOptions(testUri, { activeCollection: 'users' });
+      const options = getMongoDynamicOptions(testUri);
       expect(options.activeCollection).toBe('users');
     });
 
     it('should handle empty options', () => {
-      setMongoDynamicOptions({});
-      const options = getMongoDynamicOptions();
+      const testUri = 'test-uri-4';
+      setMongoDynamicOptions(testUri, {});
+      const options = getMongoDynamicOptions(testUri);
       expect(options.collectionNames).toBeUndefined();
       expect(options.databaseNames).toBeUndefined();
       expect(options.activeCollection).toBeUndefined();
@@ -197,23 +196,21 @@ describe('MongoDB Language Registration', () => {
   });
 
   describe('getMongoDynamicOptions', () => {
-    beforeEach(() => {
-      setMongoDynamicOptions({});
-    });
-
     it('should return empty options by default', () => {
-      const options = getMongoDynamicOptions();
+      const testUri = 'test-uri-get-1';
+      const options = getMongoDynamicOptions(testUri);
       expect(options).toEqual({});
     });
 
     it('should return previously set options', () => {
-      setMongoDynamicOptions({
+      const testUri = 'test-uri-get-2';
+      setMongoDynamicOptions(testUri, {
         collectionNames: ['col1'],
         databaseNames: ['db1'],
         activeCollection: 'col1',
       });
 
-      const options = getMongoDynamicOptions();
+      const options = getMongoDynamicOptions(testUri);
       expect(options.collectionNames).toEqual(['col1']);
       expect(options.databaseNames).toEqual(['db1']);
       expect(options.activeCollection).toBe('col1');
@@ -251,13 +248,6 @@ describe('MongoDB Language Registration', () => {
         expect(query.length).toBeGreaterThan(0);
         expect(query).toContain('db.');
       });
-    });
-  });
-
-  describe('createMongoDebouncedValidator', () => {
-    it('should return a function', () => {
-      const validator = createMongoDebouncedValidator();
-      expect(typeof validator).toBe('function');
     });
   });
 });
