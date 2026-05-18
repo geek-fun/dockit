@@ -18,6 +18,7 @@ type Panel = {
   activeTable?: string;
   file?: string;
   content?: string;
+  queryResult?: unknown;
   includeSystemIndices?: boolean;
   editorType?:
     | 'DYNAMO_EDITOR_UI'
@@ -42,6 +43,7 @@ export const useTabStore = defineStore('panel', {
   }),
   getters: {
     activeConnection: state => state.activePanel.connection,
+    activeQueryResult: state => state.activePanel.queryResult,
     activeSearchIndexOption: state => {
       const connection = state.activePanel?.connection;
       if (!connection || !isSearchConnection(connection)) return [];
@@ -189,6 +191,10 @@ export const useTabStore = defineStore('panel', {
 
     setActiveTable(tableName: string): void {
       this.activePanel.activeTable = tableName;
+    },
+
+    saveQueryResult(result: unknown): void {
+      this.activePanel.queryResult = result;
     },
 
     async toggleFavoriteTable(tableName: string): Promise<void> {
