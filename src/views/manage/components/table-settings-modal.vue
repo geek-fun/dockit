@@ -280,6 +280,10 @@
         </AlertDescription>
       </Alert>
 
+      <Alert v-if="successMessage" class="mt-3">
+        <AlertDescription>{{ successMessage }}</AlertDescription>
+      </Alert>
+
       <DialogFooter v-if="activeTab !== 'danger'" class="mt-4">
         <Button variant="outline" :disabled="loading" @click="handleCancel">
           {{ lang.t('dialogOps.cancel') }}
@@ -424,6 +428,7 @@ const emit = defineEmits<{
 
 const loading = ref(false);
 const errorMessage = ref('');
+const successMessage = ref('');
 const activeTab = computed(() => props.defaultTab || 'streams');
 
 const modalTitle = computed(() => {
@@ -495,14 +500,51 @@ const handleSubmit = async () => {
   }
 
   const startTime = Date.now();
+  errorMessage.value = '';
+  successMessage.value = '';
+
   try {
     loading.value = true;
-    await new Promise(resolve => setTimeout(resolve, MIN_LOADING_TIME));
+
+    const tab = activeTab.value;
+    if (tab === 'streams') {
+      await dynamoManageStore.updateStreams(props.connection, props.tableName, {
+        enabled: formValue.value.streamsEnabled,
+        streamViewType: formValue.value.streamViewType as
+          | 'KEYS_ONLY'
+          | 'NEW_IMAGE'
+          | 'OLD_IMAGE'
+          | 'NEW_AND_OLD_IMAGES',
+      });
+      successMessage.value = lang.t('manage.dynamo.updateStreamsSuccess');
+    } else if (tab === 'ttl') {
+      await dynamoManageStore.updateTimeToLive(props.connection, props.tableName, {
+        enabled: formValue.value.ttlEnabled,
+        attributeName: formValue.value.ttlAttributeName || undefined,
+      });
+      successMessage.value = lang.t('manage.dynamo.updateTtlSuccess');
+    } else if (tab === 'pitr') {
+      await dynamoManageStore.updateContinuousBackups(
+        props.connection,
+        props.tableName,
+        formValue.value.pitrEnabled,
+      );
+      successMessage.value = lang.t('manage.dynamo.updatePitrSuccess');
+    } else if (tab === 'tableClass') {
+      await dynamoManageStore.updateTableConfig(props.connection, props.tableName, {
+        tableClass: formValue.value.tableClass as 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS',
+      });
+      successMessage.value = lang.t('manage.dynamo.updateTableConfigSuccess');
+    }
+
     const elapsed = Date.now() - startTime;
     const remaining = Math.max(0, MIN_LOADING_TIME - elapsed);
     if (remaining > 0) await new Promise(resolve => setTimeout(resolve, remaining));
-    emit('update:show', false);
-    emit('saved');
+
+    setTimeout(() => {
+      emit('update:show', false);
+      emit('saved');
+    }, SUCCESS_MESSAGE_DELAY);
   } catch (error: unknown) {
     const err = error as { details?: string; status?: number; message?: string };
     errorMessage.value = err?.details

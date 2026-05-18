@@ -151,6 +151,7 @@ export const useDynamoManageStore = defineStore('dynamoManageStore', {
         billingMode?: 'PAY_PER_REQUEST' | 'PROVISIONED';
         readCapacity?: number;
         writeCapacity?: number;
+        tableClass?: 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS';
       },
     ) {
       if (connection.type !== DatabaseType.DYNAMODB) {
