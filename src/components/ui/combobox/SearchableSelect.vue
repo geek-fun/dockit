@@ -180,7 +180,6 @@ watch(searchQuery, () => {
             autocapitalize="off"
             spellcheck="false"
             @click.stop
-            @keydown="handleKeydown"
           />
           <span class="i-carbon-search h-4 w-4 ml-2 shrink-0 opacity-50" />
         </template>
