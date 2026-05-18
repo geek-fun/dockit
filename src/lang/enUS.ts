@@ -68,6 +68,7 @@ export const enUS = {
       familiar with the following databases:
         - Elasticsearch
         - OpenSearch
+        - EasySearch
       Current application scenario: Users will ask questions like listing all indices in the database, and provide related index names and mappings.
       Your tasks are:
         - Write Query DSL queries to answer the questions.
@@ -986,6 +987,9 @@ export const enUS = {
     openDocs: 'Open API Documentation',
     prevRequest: 'Previous Request',
     nextRequest: 'Next Request',
+    mongoSpecific: 'MongoDB Shortcuts',
+    sampleQuery: 'Insert Sample Query',
+    clearEditor: 'Clear Editor',
   },
   import: {
     dataImport: 'Data Import',

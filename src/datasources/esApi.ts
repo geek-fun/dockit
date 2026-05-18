@@ -261,7 +261,7 @@ const parseVersionParts = (version: string | undefined) => {
 };
 
 const getTemplateApiMode = (connection: SearchConnection): TemplateApiMode => {
-  if (connection.type === DatabaseType.OPENSEARCH) {
+  if (connection.type === DatabaseType.OPENSEARCH || connection.type === DatabaseType.EASYSEARCH) {
     return TemplateApiMode.COMPOSABLE;
   }
 
@@ -758,7 +758,9 @@ const esApi: ESApi = {
     const client = loadHttpClient(connection);
     const majorVersion = parseInt(connection.version?.split('.')[0] ?? '7', 10);
     const expandWildcards =
-      connection.type === DatabaseType.OPENSEARCH || majorVersion >= 6
+      connection.type === DatabaseType.OPENSEARCH ||
+      connection.type === DatabaseType.EASYSEARCH ||
+      majorVersion >= 6
         ? '&expand_wildcards=all'
         : '';
     const data = (await client.get(

@@ -10,11 +10,13 @@ export const validateBalancedBrackets = (content: string, startLine: number): Va
   const stack: Array<{ char: string; line: number; col: number }> = [];
   const lines = content.split('\n');
 
+  // String state persists across lines to handle multi-line strings/template literals
+  let inString = false;
+  let stringChar = '';
+  let escaped = false;
+
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
     const line = lines[lineIdx];
-    let inString = false;
-    let stringChar = '';
-    let escaped = false;
 
     for (let colIdx = 0; colIdx < line.length; colIdx++) {
       const char = line[colIdx];
@@ -81,26 +83,28 @@ export const validateMethodChains = (content: string, startLine: number): Valida
   const lines = content.split('\n');
 
   for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-    const line = lines[lineIdx].trim();
-    if (!line || line.startsWith('//') || line.startsWith('/*')) continue;
+    const rawLine = lines[lineIdx];
+    const trimmed = rawLine.trim();
+    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('/*')) continue;
+    const trimOffset = rawLine.length - rawLine.trimStart().length;
 
-    const methodChainMatch = line.match(/\.(\w+)\s*\(/g);
-    if (methodChainMatch) {
-      methodChainMatch.forEach(match => {
-        const method = match.slice(1, -1).trim();
-        const isKnown = allCollectionMethods.includes(method);
+    const methodPattern = /\.(\w+)\s*\(/g;
+    let match: RegExpExecArray | null;
+    while ((match = methodPattern.exec(trimmed)) !== null) {
+      const method = match[1];
+      const isKnown = allCollectionMethods.includes(method);
 
-        if (!isKnown && !method.startsWith('_')) {
-          errors.push({
-            message: `Unknown method '${method}'`,
-            startLineNumber: startLine + lineIdx,
-            endLineNumber: startLine + lineIdx,
-            startColumn: line.indexOf(method) + 1,
-            endColumn: line.indexOf(method) + method.length + 1,
-            severity: MarkerSeverity.Warning,
-          });
-        }
-      });
+      if (!isKnown && !method.startsWith('_')) {
+        const col = trimOffset + match.index + 1 + 1; // trimOffset for indentation, +1 for dot, +1 for 1-based column
+        errors.push({
+          message: `Unknown method '${method}'`,
+          startLineNumber: startLine + lineIdx,
+          endLineNumber: startLine + lineIdx,
+          startColumn: col,
+          endColumn: col + method.length,
+          severity: MarkerSeverity.Warning,
+        });
+      }
     }
   }
 
@@ -149,6 +153,7 @@ export const validateMongoModel = (model: editor.ITextModel): void => {
   const errors: ValidationError[] = [
     ...validateBalancedBrackets(content, 1),
     ...validateMethodChains(content, 1),
+    ...validateMongoSyntax(content, 1),
   ];
 
   setValidationMarkers(model, errors, MONGO_VALIDATION_OWNER);

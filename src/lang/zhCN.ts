@@ -68,6 +68,7 @@ export const zhCN = {
       熟悉如下数据库：
         - Elasticsearch
         - OpenSearch
+        - EasySearch
       当前应用的使用场景：用户会问一些问题，例如：列出数据库中的所有索引，用户会提供相关的索引名称、索引映射，
       您的任务是：
         - 编写查询 DSL 查询来回答问题。
@@ -977,6 +978,9 @@ export const zhCN = {
     openDocs: '打开 API 文档',
     prevRequest: '上一个请求',
     nextRequest: '下一个请求',
+    mongoSpecific: 'MongoDB 快捷键',
+    sampleQuery: '插入示例查询',
+    clearEditor: '清空编辑器',
   },
   import: {
     dataImport: '数据导入',

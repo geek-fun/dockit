@@ -135,6 +135,51 @@
             </tbody>
           </table>
         </div>
+
+        <!-- MongoDB Editor specific shortcuts -->
+        <div v-if="editorType === 'MONGO_EDITOR'" class="shortcuts-section">
+          <h4 class="section-title">{{ lang.t('shortcuts.mongoSpecific') }}</h4>
+          <table class="shortcuts-table">
+            <tbody>
+              <tr>
+                <td class="shortcut-action">{{ lang.t('shortcuts.execute') }}</td>
+                <td class="shortcut-keys">
+                  <kbd>{{ cmdKey }}</kbd>
+                  <span class="key-separator">+</span>
+                  <kbd>Enter</kbd>
+                </td>
+              </tr>
+              <tr>
+                <td class="shortcut-action">{{ lang.t('shortcuts.sampleQuery') }}</td>
+                <td class="shortcut-keys">
+                  <kbd>{{ cmdKey }}</kbd>
+                  <span class="key-separator">+</span>
+                  <kbd>Shift</kbd>
+                  <span class="key-separator">+</span>
+                  <kbd>S</kbd>
+                </td>
+              </tr>
+              <tr>
+                <td class="shortcut-action">{{ lang.t('shortcuts.autocomplete') }}</td>
+                <td class="shortcut-keys">
+                  <kbd>{{ cmdKey }}</kbd>
+                  <span class="key-separator">+</span>
+                  <kbd>Space</kbd>
+                </td>
+              </tr>
+              <tr>
+                <td class="shortcut-action">{{ lang.t('shortcuts.clearEditor') }}</td>
+                <td class="shortcut-keys">
+                  <kbd>{{ cmdKey }}</kbd>
+                  <span class="key-separator">+</span>
+                  <kbd>Shift</kbd>
+                  <span class="key-separator">+</span>
+                  <kbd>Delete</kbd>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <DialogFooter>

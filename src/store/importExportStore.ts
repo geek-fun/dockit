@@ -1322,18 +1322,19 @@ export const useImportExportStore = defineStore('importExportStore', {
           errors.push({ key: 'import.missingRowCount' });
         }
 
-        if (
-          metadata.source?.dbType &&
-          this.importConnection &&
-          metadata.source.dbType.toLowerCase() !== this.importConnection.type.toLowerCase()
-        ) {
-          errors.push({
-            key: 'import.dbTypeMismatch',
-            params: {
-              sourceType: metadata.source.dbType,
-              targetType: this.importConnection.type,
-            },
-          });
+        if (metadata.source?.dbType && this.importConnection) {
+          const searchFamily = new Set(['elasticsearch', 'opensearch', 'easysearch']);
+          const normalise = (t: string) =>
+            searchFamily.has(t.toLowerCase()) ? 'search' : t.toLowerCase();
+          if (normalise(metadata.source.dbType) !== normalise(this.importConnection.type)) {
+            errors.push({
+              key: 'import.dbTypeMismatch',
+              params: {
+                sourceType: metadata.source.dbType,
+                targetType: this.importConnection.type,
+              },
+            });
+          }
         }
 
         this.importValidationErrors = errors;
@@ -1484,13 +1485,16 @@ export const useImportExportStore = defineStore('importExportStore', {
 
       // For new collections with metadata
       if (this.importMetadata) {
-        // Check database type compatibility
-        const sourceDbType = this.importMetadata.source.dbType.toLowerCase();
-        const targetDbType = this.importConnection.type.toLowerCase();
+        const searchFamily = new Set(['elasticsearch', 'opensearch', 'easysearch']);
+        const normalise = (t: string) =>
+          searchFamily.has(t.toLowerCase()) ? 'search' : t.toLowerCase();
+
+        const sourceDbType = normalise(this.importMetadata.source.dbType);
+        const targetDbType = normalise(this.importConnection.type);
 
         if (sourceDbType !== targetDbType) {
           errors.push(
-            `Database type mismatch: source is ${sourceDbType}, target is ${targetDbType}`,
+            `Database type mismatch: source is ${this.importMetadata.source.dbType.toLowerCase()}, target is ${this.importConnection.type.toLowerCase()}`,
           );
         }
 
