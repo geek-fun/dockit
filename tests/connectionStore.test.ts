@@ -1588,7 +1588,17 @@ describe('fetchIndices - EasySearch', () => {
   it('uses expand_wildcards=all for EasySearch connections', async () => {
     const { loadHttpClient } = require('../src/datasources');
     const mockGet = jest.fn().mockResolvedValue([
-      { index: 'my-index', uuid: 'u1', health: 'green', status: 'open', 'store.size': '1kb', 'docs.count': '5', 'docs.deleted': '0', pri: '1', rep: '0' },
+      {
+        index: 'my-index',
+        uuid: 'u1',
+        health: 'green',
+        status: 'open',
+        'store.size': '1kb',
+        'docs.count': '5',
+        'docs.deleted': '0',
+        pri: '1',
+        rep: '0',
+      },
     ]);
     loadHttpClient.mockReturnValue({ get: mockGet });
 
