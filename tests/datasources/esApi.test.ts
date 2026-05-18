@@ -311,3 +311,522 @@ describe('esApi.catIndices', () => {
     );
   });
 });
+
+describe('esApi.createIndex', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('creates index successfully with minimal params', async () => {
+    const mockPut = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    await esApi.createIndex(baseConn, { indexName: 'my-index' });
+    expect(mockPut).toHaveBeenCalledWith('/my-index', expect.any(String), undefined);
+  });
+
+  it('includes shards/replicas in payload', async () => {
+    const mockPut = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    await esApi.createIndex(baseConn, { indexName: 'idx', shards: 3, replicas: 1 });
+    const payload = JSON.parse(mockPut.mock.calls[0][2]);
+    expect(payload.settings.number_of_shards).toBe(3);
+    expect(payload.settings.number_of_replicas).toBe(1);
+  });
+
+  it('throws CustomError when response status >= 300', async () => {
+    const mockPut = jest.fn().mockResolvedValue({
+      status: 400,
+      error: { type: 'index_already_exists_exception', reason: 'already exists' },
+    });
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    await expect(esApi.createIndex(baseConn, { indexName: 'dup' })).rejects.toBeInstanceOf(
+      CustomError,
+    );
+  });
+
+  it('wraps unexpected thrown error as CustomError', async () => {
+    const mockPut = jest.fn().mockRejectedValue(new Error('network error'));
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    await expect(esApi.createIndex(baseConn, { indexName: 'idx' })).rejects.toBeInstanceOf(
+      CustomError,
+    );
+  });
+});
+
+describe('esApi.createAlias', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('creates alias successfully', async () => {
+    const mockPost = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await esApi.createAlias(baseConn, {
+      aliasName: 'my-alias',
+      indexName: 'my-index',
+      master_timeout: null,
+      timeout: null,
+      filter: {},
+      routing: null,
+      search_routing: null,
+      index_routing: null,
+    });
+
+    expect(mockPost).toHaveBeenCalledWith('/_aliases', expect.any(String), expect.any(String));
+  });
+
+  it('throws on error response', async () => {
+    const mockPost = jest.fn().mockResolvedValue({
+      status: 404,
+      error: { type: 'index_not_found_exception', reason: 'no such index' },
+    });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await expect(
+      esApi.createAlias(baseConn, {
+        aliasName: 'a',
+        indexName: 'i',
+        master_timeout: null,
+        timeout: null,
+        filter: {},
+        routing: null,
+        search_routing: null,
+        index_routing: null,
+      }),
+    ).rejects.toBeInstanceOf(CustomError);
+  });
+});
+
+describe('esApi.deleteIndex', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('deletes index successfully', async () => {
+    const mockDelete = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ delete: mockDelete });
+
+    await esApi.deleteIndex(baseConn, 'my-index');
+    expect(mockDelete).toHaveBeenCalledWith('/my-index');
+  });
+
+  it('throws on error response', async () => {
+    const mockDelete = jest.fn().mockResolvedValue({
+      status: 404,
+      error: { type: 'index_not_found', reason: 'not found' },
+    });
+    loadHttpClient.mockReturnValue({ delete: mockDelete });
+
+    await expect(esApi.deleteIndex(baseConn, 'missing')).rejects.toBeInstanceOf(CustomError);
+  });
+});
+
+describe('esApi.closeIndex', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('closes index successfully', async () => {
+    const mockPost = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await esApi.closeIndex(baseConn, 'my-index');
+    expect(mockPost).toHaveBeenCalledWith('/my-index/_close');
+  });
+
+  it('throws on error response', async () => {
+    const mockPost = jest.fn().mockResolvedValue({
+      status: 500,
+      error: { type: 'error', reason: 'server error' },
+    });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await expect(esApi.closeIndex(baseConn, 'my-index')).rejects.toBeInstanceOf(CustomError);
+  });
+});
+
+describe('esApi.openIndex', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('opens index successfully', async () => {
+    const mockPost = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await esApi.openIndex(baseConn, 'my-index');
+    expect(mockPost).toHaveBeenCalledWith('/my-index/_open');
+  });
+
+  it('throws when network error occurs', async () => {
+    const mockPost = jest.fn().mockRejectedValue(new Error('timeout'));
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await expect(esApi.openIndex(baseConn, 'my-index')).rejects.toBeInstanceOf(CustomError);
+  });
+});
+
+describe('esApi.removeAlias', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('removes alias successfully', async () => {
+    const mockDelete = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ delete: mockDelete });
+
+    await esApi.removeAlias(baseConn, 'my-index', 'my-alias');
+    expect(mockDelete).toHaveBeenCalledWith('/my-index/_alias/my-alias');
+  });
+
+  it('throws on error response', async () => {
+    const mockDelete = jest.fn().mockResolvedValue({
+      status: 404,
+      error: { type: 'alias_not_found', reason: 'not found' },
+    });
+    loadHttpClient.mockReturnValue({ delete: mockDelete });
+
+    await expect(esApi.removeAlias(baseConn, 'idx', 'alias')).rejects.toBeInstanceOf(CustomError);
+  });
+});
+
+describe('esApi.switchAlias', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('switches alias successfully', async () => {
+    const mockPost = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await esApi.switchAlias(baseConn, {
+      aliasName: 'my-alias',
+      sourceIndexName: 'old-index',
+      targetIndexName: 'new-index',
+    });
+
+    expect(mockPost).toHaveBeenCalledWith('/_aliases', undefined, expect.any(String));
+    const body = JSON.parse(mockPost.mock.calls[0][2]);
+    expect(body.actions).toHaveLength(2);
+  });
+
+  it('throws on error response', async () => {
+    const mockPost = jest.fn().mockResolvedValue({
+      status: 500,
+      error: { type: 'error', reason: 'server error' },
+    });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await expect(
+      esApi.switchAlias(baseConn, {
+        aliasName: 'a',
+        sourceIndexName: 's',
+        targetIndexName: 't',
+      }),
+    ).rejects.toBeInstanceOf(CustomError);
+  });
+});
+
+describe('esApi.catAliases', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('returns normalized aliases', async () => {
+    const mockGet = jest.fn().mockResolvedValue([
+      {
+        alias: 'my-alias',
+        index: 'my-index',
+        filter: '-',
+        'routing.index': '1',
+        'routing.search': '1',
+        is_write_index: 'true',
+      },
+    ]);
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    const result = await esApi.catAliases(baseConn);
+    expect(result).toHaveLength(1);
+    expect(result[0].alias).toBe('my-alias');
+    expect(result[0].isWriteIndex).toBe(true);
+    expect(result[0].routing.index).toBe('1');
+  });
+});
+
+describe('esApi.catNodes', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('returns sorted nodes with roles', async () => {
+    const nodesResponse = {
+      node1: {
+        ip: '10.0.0.1',
+        id: 'n1',
+        name: 'bravo',
+        version: '8.0.0',
+        cpu: '5',
+        'heap.percent': '50',
+        'heap.current': '512',
+        'heap.max': '1024',
+        'ram.percent': '60',
+        'ram.current': '2048',
+        'ram.max': '4096',
+        'disk.used_percent': '30',
+        'disk.used': '100',
+        'disk.total': '1000',
+        'shard_stats.total_count': '5',
+        'mappings.total_count': '10',
+        'node.role': 'dm',
+        master: '*',
+      },
+      node2: {
+        ip: '10.0.0.2',
+        id: 'n2',
+        name: 'alpha',
+        version: '8.0.0',
+        cpu: '3',
+        'heap.percent': '40',
+        'heap.current': '400',
+        'heap.max': '1024',
+        'ram.percent': '50',
+        'ram.current': '1600',
+        'ram.max': '4096',
+        'disk.used_percent': '20',
+        'disk.used': '80',
+        'disk.total': '1000',
+        'shard_stats.total_count': '3',
+        'mappings.total_count': '8',
+        'node.role': 'i',
+        master: '-',
+      },
+    };
+    const mockGet = jest.fn().mockResolvedValue(nodesResponse);
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    const result = await esApi.catNodes(baseConn);
+    expect(result[0].name).toBe('alpha');
+    expect(result[1].name).toBe('bravo');
+    expect(result[1].master).toBe(true);
+    expect(result[0].master).toBe(false);
+  });
+
+  it('throws CustomError on failure', async () => {
+    const mockGet = jest.fn().mockRejectedValue(new Error('network error'));
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    await expect(esApi.catNodes(baseConn)).rejects.toBeInstanceOf(CustomError);
+  });
+});
+
+describe('esApi.createTemplate', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+
+  it('creates composable index template for ES 8.x', async () => {
+    const mockPut = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    const conn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+    await esApi.createTemplate(conn, {
+      name: 'my-template',
+      type: 'INDEX_TEMPLATE',
+      master_timeout: null,
+      body: '{"index_patterns":["log-*"]}',
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      '/_index_template/my-template',
+      expect.any(String),
+      expect.any(String),
+    );
+  });
+
+  it('creates legacy template for ES 7.7', async () => {
+    const mockPut = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    const conn = { type: 'ELASTICSEARCH', version: '7.7.0' } as never;
+    await esApi.createTemplate(conn, {
+      name: 'legacy-tmpl',
+      type: 'INDEX_TEMPLATE',
+      master_timeout: null,
+      body: '{"index_patterns":["old-*"]}',
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      '/_template/legacy-tmpl',
+      expect.any(String),
+      expect.any(String),
+    );
+  });
+
+  it('throws when creating component template in legacy mode', async () => {
+    const mockPut = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    const conn = { type: 'ELASTICSEARCH', version: '7.7.0' } as never;
+    await expect(
+      esApi.createTemplate(conn, {
+        name: 'comp-tmpl',
+        type: 'COMPONENT_TEMPLATE',
+        master_timeout: null,
+        body: null,
+      }),
+    ).rejects.toBeInstanceOf(CustomError);
+  });
+
+  it('creates component template for ES 8.x', async () => {
+    const mockPut = jest.fn().mockResolvedValue({ status: 200 });
+    loadHttpClient.mockReturnValue({ put: mockPut });
+
+    const conn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+    await esApi.createTemplate(conn, {
+      name: 'comp-tmpl',
+      type: 'COMPONENT_TEMPLATE',
+      master_timeout: null,
+      body: '{"template":{"settings":{}}}',
+    });
+
+    expect(mockPut).toHaveBeenCalledWith(
+      '/_component_template/comp-tmpl',
+      expect.any(String),
+      expect.any(String),
+    );
+  });
+});
+
+describe('esApi.listTemplates', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+
+  it('returns legacy templates for ES 7.7', async () => {
+    const mockGet = jest.fn().mockResolvedValue({
+      'my-template': {
+        order: 5,
+        index_patterns: ['log-*'],
+        version: 1,
+        aliases: { 'log-alias': {} },
+        mappings: { properties: {} },
+        settings: { number_of_shards: 1 },
+        _meta: { description: 'test' },
+      },
+    });
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    const conn = { type: 'ELASTICSEARCH', version: '7.7.0' } as never;
+    const result = await esApi.listTemplates(conn);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe('my-template');
+    expect(result[0].api_mode).toBe(TemplateApiMode.LEGACY);
+  });
+
+  it('returns composable templates for ES 8.x', async () => {
+    const mockGet = jest
+      .fn()
+      .mockResolvedValueOnce({
+        index_templates: [
+          {
+            name: 'idx-tmpl',
+            index_template: {
+              index_patterns: ['data-*'],
+              priority: 100,
+              composed_of: ['comp1'],
+              version: 2,
+              template: {
+                aliases: { 'data-alias': {} },
+                mappings: {},
+                settings: {},
+              },
+              _meta: {},
+            },
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        component_templates: [
+          {
+            name: 'comp1',
+            component_template: {
+              template: {
+                mappings: { properties: {} },
+                settings: {},
+              },
+              version: 1,
+              _meta: {},
+            },
+          },
+        ],
+      });
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    const conn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+    const result = await esApi.listTemplates(conn);
+
+    expect(result.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('esApi.allocationExplain', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('returns allocation explain response', async () => {
+    const explainData = {
+      index: 'my-index',
+      shard: 0,
+      primary: true,
+      current_state: 'unassigned',
+      can_allocate: 'yes',
+      node_allocation_decisions: [],
+    };
+    const mockPost = jest.fn().mockResolvedValue(explainData);
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    const result = await esApi.allocationExplain(baseConn, {
+      index: 'my-index',
+      shard: 0,
+      primary: true,
+    });
+
+    expect(result.index).toBe('my-index');
+    expect(result.can_allocate).toBe('yes');
+    expect(mockPost).toHaveBeenCalledWith(
+      expect.stringContaining('/_cluster/allocation/explain'),
+      undefined,
+      expect.any(String),
+    );
+  });
+
+  it('throws CustomError on failure', async () => {
+    const mockPost = jest.fn().mockRejectedValue(new Error('cluster error'));
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await expect(
+      esApi.allocationExplain(baseConn, { index: 'idx', shard: 0, primary: true }),
+    ).rejects.toBeInstanceOf(CustomError);
+  });
+});
+
+describe('esApi.catShards', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('groups shards by index', async () => {
+    const shardsData = [
+      { index: 'idx-a', shard: '0', prirep: 'p', state: 'STARTED', docs: '10', store: '1024' },
+      { index: 'idx-a', shard: '1', prirep: 'r', state: 'STARTED', docs: '10', store: '1024' },
+      { index: 'idx-b', shard: '0', prirep: 'p', state: 'STARTED', docs: '5', store: '512' },
+    ];
+    const mockGet = jest.fn().mockResolvedValue(shardsData);
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    const result = await esApi.catShards(baseConn);
+    expect(result).toHaveLength(2);
+    const idxA = result.find(r => r.index === 'idx-a');
+    expect(idxA?.shards).toHaveLength(2);
+  });
+
+  it('throws CustomError on failure', async () => {
+    const mockGet = jest.fn().mockRejectedValue(new Error('network error'));
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    await expect(esApi.catShards(baseConn)).rejects.toBeInstanceOf(CustomError);
+  });
+});
