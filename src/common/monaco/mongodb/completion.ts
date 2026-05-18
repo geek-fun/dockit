@@ -15,7 +15,7 @@ import {
   sortValues,
   mongoGlobalObjects,
 } from './keywords';
-import { getMongoDynamicOptions } from './index';
+import { getMongoDynamicOptions } from './state';
 
 const createCompletionItem = (
   label: string,
@@ -88,7 +88,7 @@ export const mongodbCompletionProvider = (
   });
 
   const context = analyzeMongoContext(textBefore);
-  const dynamicOptions = getMongoDynamicOptions();
+  const dynamicOptions = getMongoDynamicOptions(model.uri.toString());
 
   if (context.afterShow) {
     showSubcommands.forEach(cmd => {

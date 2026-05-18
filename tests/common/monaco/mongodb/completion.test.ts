@@ -75,6 +75,7 @@ const createMockModel = (textBefore: string, wordAtPosition?: string): editor.IT
     getLineContent: jest.fn().mockReturnValue(''),
     getLineCount: jest.fn().mockReturnValue(1),
     getLineMaxColumn: jest.fn().mockReturnValue(100),
+    uri: { toString: () => 'test-model-uri' },
   }) as unknown as editor.ITextModel;
 
 const createMockPosition = (line: number, column: number): Position =>
@@ -85,7 +86,7 @@ const createMockPosition = (line: number, column: number): Position =>
 
 describe('MongoDB Completion Provider', () => {
   beforeEach(() => {
-    setMongoDynamicOptions({});
+    setMongoDynamicOptions('test-model-uri', {});
   });
 
   describe('analyzeMongoContext', () => {
@@ -166,7 +167,7 @@ describe('MongoDB Completion Provider', () => {
     });
 
     it('should return database names after use keyword', () => {
-      setMongoDynamicOptions({ databaseNames: ['mydb', 'testdb'] });
+      setMongoDynamicOptions('test-model-uri', { databaseNames: ['mydb', 'testdb'] });
       const model = createMockModel('use ');
       const position = createMockPosition(1, 5);
       const result = mongodbCompletionProvider(model, position);
@@ -178,7 +179,7 @@ describe('MongoDB Completion Provider', () => {
     });
 
     it('should return collection names after db.', () => {
-      setMongoDynamicOptions({ collectionNames: ['users', 'orders'] });
+      setMongoDynamicOptions('test-model-uri', { collectionNames: ['users', 'orders'] });
       const model = createMockModel('db.');
       const position = createMockPosition(1, 4);
       const result = mongodbCompletionProvider(model, position);
@@ -275,7 +276,7 @@ describe('MongoDB Completion Provider', () => {
     });
 
     it('should handle dynamic options for collections', () => {
-      setMongoDynamicOptions({ collectionNames: ['products', 'categories'] });
+      setMongoDynamicOptions('test-model-uri', { collectionNames: ['products', 'categories'] });
       const model = createMockModel('db.');
       const position = createMockPosition(1, 4);
       const result = mongodbCompletionProvider(model, position);
@@ -286,10 +287,15 @@ describe('MongoDB Completion Provider', () => {
     });
 
     it('should handle empty dynamic options', () => {
-      setMongoDynamicOptions({});
-      const model = createMockModel('db.');
+      setMongoDynamicOptions('empty-test-uri', {});
       const position = createMockPosition(1, 4);
-      const result = mongodbCompletionProvider(model, position);
+      const result = mongodbCompletionProvider(
+        {
+          ...createMockModel('db.'),
+          uri: { toString: () => 'empty-test-uri' },
+        } as editor.ITextModel,
+        position,
+      );
 
       expect(result.suggestions).toEqual([]);
     });
