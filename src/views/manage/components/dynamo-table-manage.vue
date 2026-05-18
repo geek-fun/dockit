@@ -20,7 +20,6 @@
       </div>
     </div>
     <div v-else :class="{ 'pointer-events-none': refreshLoading }">
-
       <!-- Metrics Cards Section -->
       <section class="metrics-section">
         <div v-if="refreshLoading" class="metrics-grid">
@@ -839,7 +838,6 @@ const handleTableCreated = async (tableName: string) => {
   dynamoManageStore.setManageActiveTable(tableName);
   // Refresh will be triggered by the watch on manageActiveTable
 };
-
 
 onMounted(async () => {
   if (
