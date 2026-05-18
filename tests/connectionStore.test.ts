@@ -35,11 +35,13 @@ jest.mock('../src/datasources', () => {
       },
     },
     dynamoApi: {} as Record<string, unknown>,
-    loadHttpClient: () => ({}) as Record<string, unknown>,
+    loadHttpClient: jest.fn(() => ({}) as Record<string, unknown>),
     mongoApi: { testConnection: jest.fn() },
   };
 });
-jest.mock('../src/store/tabStore.ts', () => ({}));
+jest.mock('../src/store/tabStore.ts', () => ({
+  useTabStore: () => ({ activePanel: null }),
+}));
 jest.mock('../src/common', () => ({
   buildAuthHeader: jest.fn(),
   buildURL: jest.fn(),
@@ -1463,6 +1465,16 @@ describe('isSearchConnection', () => {
     expect(isSearchConnection(conn)).toBe(true);
   });
 
+  it('returns true for EasySearchConnection', () => {
+    const conn = {
+      type: DatabaseType.EASYSEARCH,
+      name: 'easy',
+      host: 'http://localhost',
+      port: 9200,
+    } as unknown as Connection;
+    expect(isSearchConnection(conn)).toBe(true);
+  });
+
   it('returns false for DynamoDBConnection', () => {
     const conn = {
       type: DatabaseType.DYNAMODB,
@@ -1530,5 +1542,427 @@ describe('isOpenSearchConnection', () => {
 
   it('returns false for undefined', () => {
     expect(isOpenSearchConnection(undefined)).toBe(false);
+  });
+});
+
+describe('freshConnection - EasySearch', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('returns EasySearch connection with cluster info, preserving EASYSEARCH type', async () => {
+    const { loadHttpClient } = require('../src/datasources');
+    const mockGet = jest.fn().mockResolvedValue({
+      version: { number: '7.10.2', distribution: undefined },
+      cluster_name: 'easy-cluster',
+      cluster_uuid: 'easy-uuid-123',
+      tagline: 'You Know, for Search',
+    });
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: DatabaseType.EASYSEARCH,
+      name: 'easy-test',
+      host: 'http://localhost',
+      port: 9200,
+    } as unknown as Connection;
+
+    store.connections = [conn];
+    const result = await store.freshConnection(conn);
+
+    expect(result.type).toBe(DatabaseType.EASYSEARCH);
+    expect((result as { version: string }).version).toBe('7.10.2');
+    expect((result as { clusterName: string }).clusterName).toBe('easy-cluster');
+  });
+});
+
+describe('fetchIndices - EasySearch', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('uses expand_wildcards=all for EasySearch connections', async () => {
+    const { loadHttpClient } = require('../src/datasources');
+    const mockGet = jest.fn().mockResolvedValue([
+      {
+        index: 'my-index',
+        uuid: 'u1',
+        health: 'green',
+        status: 'open',
+        'store.size': '1kb',
+        'docs.count': '5',
+        'docs.deleted': '0',
+        pri: '1',
+        rep: '0',
+      },
+    ]);
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: DatabaseType.EASYSEARCH,
+      name: 'easy-test',
+      host: 'http://localhost',
+      port: 9200,
+      version: '7.10.2',
+    } as unknown as Connection;
+
+    store.connections = [conn];
+    await store.fetchIndices(conn);
+
+    expect(mockGet).toHaveBeenCalledWith(
+      '/_cat/indices',
+      expect.stringContaining('expand_wildcards=all'),
+    );
+  });
+});
+
+describe('connectionStore - selectIndex', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('sets activeIndex with mapping', async () => {
+    const { loadHttpClient } = require('../src/datasources');
+    const mapping = { 'my-index': { mappings: { properties: { title: { type: 'text' } } } } };
+    const mockGet = jest.fn().mockResolvedValue(mapping);
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: 'ELASTICSEARCH',
+      name: 'es-test',
+      host: 'http://localhost',
+      port: 9200,
+      indices: [{ index: 'my-index', uuid: 'u1', health: 'green', status: 'open' }],
+    } as unknown as Connection;
+
+    store.connections = [conn];
+    await store.selectIndex(conn, 'my-index');
+
+    const updatedConn = store.connections[0] as ElasticsearchConnection;
+    expect(updatedConn.activeIndex?.index).toBe('my-index');
+    expect(updatedConn.activeIndex?.mapping).toEqual(mapping);
+  });
+});
+
+describe('connectionStore - searchQDSL', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('dispatches GET request without qdsl', async () => {
+    const { loadHttpClient } = require('../src/datasources');
+    const mockGet = jest.fn().mockResolvedValue({ hits: { total: 0 } });
+    loadHttpClient.mockReturnValue({ get: mockGet, post: jest.fn() });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: 'ELASTICSEARCH',
+      name: 'es-test',
+      host: 'http://localhost',
+      port: 9200,
+      indices: [],
+    } as unknown as Connection;
+    store.connections = [conn];
+
+    await store.searchQDSL(conn, { method: 'GET', path: '_search' });
+    expect(mockGet).toHaveBeenCalled();
+  });
+
+  it('dispatches POST request', async () => {
+    const { loadHttpClient } = require('../src/datasources');
+    const mockPost = jest.fn().mockResolvedValue({ acknowledged: true });
+    loadHttpClient.mockReturnValue({ post: mockPost, get: jest.fn() });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 2,
+      type: 'ELASTICSEARCH',
+      name: 'es-test',
+      host: 'http://localhost',
+      port: 9200,
+      indices: [],
+    } as unknown as Connection;
+    store.connections = [conn];
+
+    await store.searchQDSL(conn, { method: 'POST', path: '_search', qdsl: '{"query":{}}' });
+    expect(mockPost).toHaveBeenCalled();
+  });
+
+  it('dispatches PUT request', async () => {
+    const { loadHttpClient } = require('../src/datasources');
+    const mockPut = jest.fn().mockResolvedValue({ acknowledged: true });
+    loadHttpClient.mockReturnValue({ put: mockPut, get: jest.fn() });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 3,
+      type: 'ELASTICSEARCH',
+      name: 'es-test',
+      host: 'http://localhost',
+      port: 9200,
+      indices: [],
+    } as unknown as Connection;
+    store.connections = [conn];
+
+    await store.searchQDSL(conn, {
+      method: 'PUT',
+      path: '_settings',
+      qdsl: '{"settings":{}}',
+    });
+    expect(mockPut).toHaveBeenCalled();
+  });
+
+  it('dispatches DELETE request', async () => {
+    const { loadHttpClient } = require('../src/datasources');
+    const mockDelete = jest.fn().mockResolvedValue({ acknowledged: true });
+    loadHttpClient.mockReturnValue({ delete: mockDelete, get: jest.fn() });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 4,
+      type: 'ELASTICSEARCH',
+      name: 'es-test',
+      host: 'http://localhost',
+      port: 9200,
+      indices: [],
+    } as unknown as Connection;
+    store.connections = [conn];
+
+    await store.searchQDSL(conn, { method: 'DELETE', path: 'my-index' });
+    expect(mockDelete).toHaveBeenCalled();
+  });
+
+  it('throws when connection not found', async () => {
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = { id: 999, type: 'ELASTICSEARCH' } as unknown as Connection;
+    store.connections = [];
+
+    await expect(store.searchQDSL(conn, { method: 'GET', path: '_search' })).rejects.toThrow(
+      'no connection established',
+    );
+  });
+
+  it('dispatches GET with qdsl as POST', async () => {
+    const { loadHttpClient } = require('../src/datasources');
+    const mockPost = jest.fn().mockResolvedValue({ hits: {} });
+    loadHttpClient.mockReturnValue({ post: mockPost, get: jest.fn() });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 5,
+      type: 'ELASTICSEARCH',
+      name: 'es-test',
+      host: 'http://localhost',
+      port: 9200,
+      indices: [],
+    } as unknown as Connection;
+    store.connections = [conn];
+
+    await store.searchQDSL(conn, { method: 'GET', path: '_search', qdsl: '{"query":{}}' });
+    expect(mockPost).toHaveBeenCalled();
+  });
+});
+
+describe('connectionStore - queryToCurl', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('calls transformToCurl for ES connection', () => {
+    const { transformToCurl } = require('../src/common/monaco');
+    const { buildURL, buildAuthHeader } = require('../src/common');
+    buildURL.mockReturnValue('http://localhost:9200/_search');
+    buildAuthHeader.mockReturnValue({});
+    transformToCurl.mockReturnValue('curl -X GET ...');
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: 'ELASTICSEARCH',
+      name: 'es',
+      host: 'http://localhost',
+      port: 9200,
+      username: 'admin',
+      password: 'pass',
+      sslCertVerification: false,
+      authType: 'basic',
+      apiKey: undefined,
+      indices: [],
+    } as unknown as Connection;
+
+    const result = store.queryToCurl(conn, { method: 'GET', path: '_search' });
+    expect(result).toBe('curl -X GET ...');
+    expect(transformToCurl).toHaveBeenCalled();
+  });
+
+  it('throws for non-search connection', () => {
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: 'DYNAMODB',
+      name: 'dynamo',
+    } as unknown as Connection;
+
+    expect(() => store.queryToCurl(conn, { method: 'GET', path: '_search' })).toThrow(
+      'Operation only supported for Elasticsearch/OpenSearch connections',
+    );
+  });
+});
+
+describe('connectionStore - freshConnection (DYNAMODB)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('returns DynamoDB connection with filtered tables', async () => {
+    const { dynamoApi } = require('../src/datasources');
+    dynamoApi.listTables = jest.fn().mockResolvedValue(['table-a', 'table-b', 'table-c']);
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: DatabaseType.DYNAMODB,
+      name: 'dynamo-test',
+      region: 'us-east-1',
+    } as unknown as Connection;
+
+    store.connections = [conn];
+    const result = await store.freshConnection(conn);
+
+    expect((result as DynamoDBConnection).tables).toHaveLength(3);
+  });
+
+  it('returns DynamoDB connection with table detail when tableName given', async () => {
+    const { dynamoApi } = require('../src/datasources');
+    dynamoApi.listTables = jest.fn().mockResolvedValue(['table-a']);
+    dynamoApi.describeTable = jest.fn().mockResolvedValue({
+      status: 'ACTIVE',
+      itemCount: 100,
+      sizeBytes: 1024,
+      billingMode: 'PAY_PER_REQUEST',
+      keySchema: [{ attributeName: 'id', keyType: 'HASH' }],
+      attributeDefinitions: [],
+      partitionKey: 'id',
+      sortKey: undefined,
+      indices: [],
+      creationDateTime: '2023-01-01',
+    });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: DatabaseType.DYNAMODB,
+      name: 'dynamo-test',
+      region: 'us-east-1',
+      tables: [],
+    } as unknown as Connection;
+
+    store.connections = [conn];
+    const result = await store.freshConnection(conn, 'table-a');
+
+    const tables = (result as DynamoDBConnection).tables ?? [];
+    expect(tables.find(t => t.name === 'table-a')).toBeDefined();
+  });
+});
+
+describe('connectionStore - freshConnection (MONGODB)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('returns MongoDB connection with collections', async () => {
+    const datasources = require('../src/datasources');
+    datasources.mongoApi.testConnection = jest
+      .fn()
+      .mockResolvedValue({ success: true, collections: ['col1', 'col2'] });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: DatabaseType.MONGODB,
+      name: 'mongo-test',
+      host: 'mongodb://localhost',
+      port: 27017,
+    } as unknown as Connection;
+
+    store.connections = [conn];
+    const result = await store.freshConnection(conn);
+
+    const mongoCon = result as MongoDBConnection;
+    expect(mongoCon.collections).toHaveLength(2);
+  });
+
+  it('throws CustomError when MongoDB connection fails', async () => {
+    const datasources = require('../src/datasources');
+    datasources.mongoApi.testConnection = jest
+      .fn()
+      .mockResolvedValue({ success: false, message: 'Auth failed' });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: DatabaseType.MONGODB,
+      name: 'mongo-test',
+    } as unknown as Connection;
+
+    store.connections = [conn];
+    await expect(store.freshConnection(conn)).rejects.toBeTruthy();
+  });
+});
+
+describe('connectionStore - freshConnection (unsupported type)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('throws for unsupported connection type', async () => {
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: 'UNKNOWN_DB',
+      name: 'unknown',
+    } as unknown as Connection;
+
+    store.connections = [conn];
+    await expect(store.freshConnection(conn)).rejects.toBeTruthy();
   });
 });
