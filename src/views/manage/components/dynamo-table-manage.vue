@@ -23,10 +23,6 @@
       <!-- Action Buttons Header -->
       <section class="actions-header">
         <div class="actions-buttons">
-          <Button variant="default" size="sm" @click="showCreateTableModal = true">
-            <span class="i-carbon-add h-4 w-4 mr-1" />
-            {{ lang.t('manage.dynamo.createTableTitle') }}
-          </Button>
           <Button variant="outline" size="sm" @click="showDeleteTableModal = true">
             <span class="i-carbon-trash-can h-4 w-4 mr-1" />
             {{ lang.t('manage.dynamo.deleteTableTitle') }}
@@ -372,6 +368,7 @@
         :table-name="activeTableName"
         :table-info="tableInfo"
         :connection="dynamoConnection"
+        :pitr-enabled="pitrEnabled"
         @deleted="handleTableDeleted"
       />
       <truncate-table-modal
@@ -404,6 +401,7 @@ import prettyBytes from 'pretty-bytes';
 import {
   useClusterManageStore,
   useDynamoManageStore,
+  useConnectionStore,
   DatabaseType,
   DynamoDBConnection,
 } from '../../../store';
@@ -440,6 +438,8 @@ const { connection } = storeToRefs(clusterManageStore);
 const dynamoManageStore = useDynamoManageStore();
 const { fetchTableInfo } = dynamoManageStore;
 const { tableInfo, manageActiveTable } = storeToRefs(dynamoManageStore);
+
+const connectionStore = useConnectionStore();
 
 const activeTableName = computed(() => manageActiveTable.value);
 
@@ -742,6 +742,9 @@ const handleTableDeleted = async () => {
   message.success(lang.t('manage.dynamo.deleteTableSuccess'));
   dynamoManageStore.setManageActiveTable('');
   dynamoManageStore.clearTableInfo();
+  if (connection.value && connection.value.type === DatabaseType.DYNAMODB) {
+    await connectionStore.fetchTables(connection.value as DynamoDBConnection);
+  }
 };
 
 const handleTableTruncated = async () => {

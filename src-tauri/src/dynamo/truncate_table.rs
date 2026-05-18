@@ -129,7 +129,9 @@ pub async fn truncate_table(client: &Client, table_name: &str) -> Result<ApiResp
             message: format!("Table '{}' is already empty", table_name),
             data: Some(json!({
                 "totalItems": 0,
+                "totalScanned": total_scanned,
                 "deletedItems": 0,
+                "unprocessedCount": 0,
                 "errors": [],
             })),
         });
@@ -137,9 +139,10 @@ pub async fn truncate_table(client: &Client, table_name: &str) -> Result<ApiResp
 
     let mut total_deleted: u64 = 0;
     let mut errors: Vec<Value> = Vec::new();
-    let mut unprocessed_count: u64 = 0;
+    let mut final_unprocessed_count: u64 = 0;
 
     for chunk in all_keys.chunks(MAX_BATCH_SIZE) {
+        let chunk_size = chunk.len();
         let mut request_items: HashMap<String, Vec<WriteRequest>> = HashMap::new();
         let mut write_requests: Vec<WriteRequest> = Vec::new();
 
@@ -166,6 +169,7 @@ pub async fn truncate_table(client: &Client, table_name: &str) -> Result<ApiResp
 
         let mut retry_count = 0;
         let mut current_request_items = request_items.clone();
+        let mut items_remaining = chunk_size;
 
         while retry_count <= MAX_RETRIES {
             let batch_result = client
@@ -176,24 +180,21 @@ pub async fn truncate_table(client: &Client, table_name: &str) -> Result<ApiResp
 
             match batch_result {
                 Ok(resp) => {
-                    let processed_count = request_items.get(table_name)
-                        .map(|r| r.len())
-                        .unwrap_or(0);
-                    
                     match resp.unprocessed_items() {
                         Some(unprocessed) if unprocessed.is_empty() => {
-                            total_deleted += processed_count as u64;
+                            total_deleted += chunk_size as u64;
+                            items_remaining = 0;
                             break;
                         }
                         Some(unprocessed) => {
                             let unprocessed_table_items = unprocessed.get(table_name);
                             if let Some(items) = unprocessed_table_items {
                                 if items.is_empty() {
-                                    total_deleted += processed_count as u64;
+                                    total_deleted += chunk_size as u64;
+                                    items_remaining = 0;
                                     break;
                                 }
-                                let unprocessed_len = items.len();
-                                unprocessed_count += unprocessed_len as u64;
+                                items_remaining = items.len();
                                 
                                 current_request_items = HashMap::new();
                                 current_request_items.insert(table_name.to_string(), items.clone());
@@ -204,12 +205,14 @@ pub async fn truncate_table(client: &Client, table_name: &str) -> Result<ApiResp
                                     tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
                                 }
                             } else {
-                                total_deleted += processed_count as u64;
+                                total_deleted += chunk_size as u64;
+                                items_remaining = 0;
                                 break;
                             }
                         }
                         None => {
-                            total_deleted += processed_count as u64;
+                            total_deleted += chunk_size as u64;
+                            items_remaining = 0;
                             break;
                         }
                     }
@@ -235,10 +238,15 @@ pub async fn truncate_table(client: &Client, table_name: &str) -> Result<ApiResp
                         errors.push(json!({
                             "error": "MaxRetriesExceeded",
                             "message": format!("Failed after {} retries", MAX_RETRIES),
+                            "unprocessedItems": items_remaining,
                         }));
                     }
                 }
             }
+        }
+        
+        if items_remaining > 0 {
+            final_unprocessed_count += items_remaining as u64;
         }
     }
 
@@ -253,7 +261,7 @@ pub async fn truncate_table(client: &Client, table_name: &str) -> Result<ApiResp
             "totalItems": all_keys.len(),
             "totalScanned": total_scanned,
             "deletedItems": total_deleted,
-            "unprocessedCount": unprocessed_count,
+            "unprocessedCount": final_unprocessed_count,
             "errors": errors,
         })),
     })

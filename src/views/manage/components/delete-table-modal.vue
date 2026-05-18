@@ -45,6 +45,12 @@
           </div>
         </div>
 
+        <Alert v-if="props.pitrEnabled" variant="default" class="bg-blue-50 border-blue-200">
+          <AlertDescription class="text-blue-700">
+            {{ lang.t('manage.dynamo.deleteTablePitrWarning') }}
+          </AlertDescription>
+        </Alert>
+
         <div>
           <label class="text-sm font-medium mb-2 block">
             {{ lang.t('manage.dynamo.deleteTableConfirmLabel') }}
@@ -125,6 +131,7 @@ interface Props {
   tableName: string;
   tableInfo: DynamoDBTableInfo | undefined;
   connection: DynamoDBConnection;
+  pitrEnabled: boolean;
 }
 
 const props = defineProps<Props>();

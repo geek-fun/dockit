@@ -30,33 +30,9 @@
         </AlertDescription>
       </Alert>
 
-      <div v-else-if="isTruncating" class="space-y-4">
-        <div class="progress-phase text-sm font-medium">
-          {{
-            currentPhase === 'scanning'
-              ? lang.t('manage.dynamo.truncateProgressScanning')
-              : lang.t('manage.dynamo.truncateProgressDeleting')
-          }}
-        </div>
-
-        <div class="progress-bar-container">
-          <div class="progress-bar-bg h-2 rounded-full bg-gray-200">
-            <div
-              class="progress-bar h-2 rounded-full bg-blue-500 transition-all duration-300"
-              :style="{ width: `${progressPercent}%` }"
-            />
-          </div>
-          <div class="progress-text text-xs text-gray-500 mt-1 text-right">
-            {{ progressPercent }}%
-          </div>
-        </div>
-
-        <div class="progress-stats text-xs text-gray-500 space-y-1">
-          <div v-if="currentPhase === 'scanning'">
-            {{ lang.t('manage.dynamo.truncateItemsScanned') }}: {{ itemsProcessed }}
-          </div>
-          <div v-else>{{ lang.t('manage.dynamo.truncateItemsDeleted') }}: {{ itemsProcessed }}</div>
-        </div>
+      <div v-else-if="isTruncating" class="text-center py-4">
+        <Spinner class="h-8 w-8 mx-auto mb-3" />
+        <p class="text-sm font-medium">{{ lang.t('manage.dynamo.truncateTableInProgress') }}</p>
       </div>
 
       <div v-else class="space-y-4">
@@ -89,8 +65,8 @@
       </div>
 
       <DialogFooter class="mt-4">
-        <Button variant="outline" :disabled="loading && !isTruncating" @click="handleCancel">
-          {{ isTruncating ? lang.t('dialogOps.cancel') : lang.t('dialogOps.cancel') }}
+        <Button variant="outline" :disabled="isTruncating" @click="handleCancel">
+          {{ lang.t('dialogOps.cancel') }}
         </Button>
         <Button
           v-if="resultType === 'error'"
@@ -160,11 +136,7 @@ const resultMessage = ref('');
 const resultType = ref<'success' | 'error'>('success');
 const confirmInput = ref('');
 const isTruncating = ref(false);
-const currentPhase = ref<'scanning' | 'deleting'>('scanning');
-const progressPercent = ref(0);
-const itemsProcessed = ref(0);
 const truncateResult = ref<TruncateResult | null>(null);
-const cancelled = ref(false);
 
 const formatNumber = (num: number | undefined) => {
   if (num === undefined) return '-';
@@ -180,19 +152,12 @@ watch(
       loading.value = false;
       confirmInput.value = '';
       isTruncating.value = false;
-      currentPhase.value = 'scanning';
-      progressPercent.value = 0;
-      itemsProcessed.value = 0;
       truncateResult.value = null;
-      cancelled.value = false;
     }
   },
 );
 
 const handleCancel = () => {
-  if (isTruncating.value) {
-    cancelled.value = true;
-  }
   emit('update:show', false);
 };
 
@@ -204,27 +169,16 @@ const handleRetry = async () => {
 const handleConfirm = async () => {
   if (props.connection.type !== DatabaseType.DYNAMODB) return;
   if (confirmInput.value.toLowerCase() !== 'truncate') return;
-  if (cancelled.value) return;
 
   const startTime = Date.now();
 
   try {
     loading.value = true;
     isTruncating.value = true;
-    currentPhase.value = 'scanning';
-
-    progressPercent.value = 10;
 
     const result = await dynamoManageStore.truncateTable(props.connection, props.tableName);
 
-    if (cancelled.value) {
-      return;
-    }
-
     truncateResult.value = result;
-    progressPercent.value = 100;
-    currentPhase.value = 'deleting';
-    itemsProcessed.value = result.deletedItems;
 
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
@@ -241,10 +195,6 @@ const handleConfirm = async () => {
       emit('truncated', result);
     }, SUCCESS_MESSAGE_DELAY);
   } catch (error: unknown) {
-    if (cancelled.value) {
-      return;
-    }
-
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
     if (remainingTime > 0) {
@@ -269,10 +219,6 @@ const handleConfirm = async () => {
   padding: 0.75rem;
   background: var(--gray-50);
   border-radius: 0.5rem;
-}
-
-.progress-bar-bg {
-  overflow: hidden;
 }
 
 .truncate-summary {

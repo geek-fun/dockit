@@ -73,11 +73,12 @@ export const useTabStore = defineStore('panel', {
         );
 
         const isDynamoDB = connectionOrFile.type === DatabaseType.DYNAMODB;
-        const fileExt = isDynamoDB ? '.partiql' : '.search';
+        const isMongoDB = connectionOrFile.type === DatabaseType.MONGODB;
+        const fileExt = isDynamoDB ? '.partiql' : isMongoDB ? '.mongo' : '.search';
         let fileName = !exists.length
           ? `${connectionOrFile.name}${fileExt}`
           : `${connectionOrFile.name}-${exists.length}${fileExt}`;
-        let content = isDynamoDB ? '' : defaultCodeSnippet;
+        let content = isDynamoDB || isMongoDB ? '' : defaultCodeSnippet;
 
         const fileInfo = await sourceFileApi.getPathInfo(fileName);
         if (fileInfo) {

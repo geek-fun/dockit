@@ -253,7 +253,7 @@ pub async fn create_table(client: &Client, input: CreateTableInput) -> Result<Ap
         }
     }
 
-    if sort_key.is_some() && payload.get("local_secondary_indexes").and_then(|v| v.as_array()).is_some() {
+    if sort_key.is_some() {
         if let Some(lsis) = payload.get("local_secondary_indexes").and_then(|v| v.as_array()) {
             let mut lsi_list: Vec<LocalSecondaryIndex> = Vec::new();
             
