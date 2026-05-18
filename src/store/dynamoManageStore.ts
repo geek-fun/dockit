@@ -5,9 +5,11 @@ import { debug } from '../common';
 
 export type CreateTableConfig = {
   tableName: string;
+  tableClass?: 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS';
   partitionKey: { name: string; type: 'S' | 'N' | 'B' };
   sortKey?: { name: string; type: 'S' | 'N' | 'B' };
   billingMode: 'PAY_PER_REQUEST' | 'PROVISIONED';
+  deletionProtection?: boolean;
   readCapacity?: number;
   writeCapacity?: number;
   globalSecondaryIndexes?: Array<{

@@ -599,9 +599,11 @@ const dynamoApi = {
     con: DynamoDBConnection,
     config: {
       tableName: string;
+      tableClass?: 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS';
       partitionKey: { name: string; type: 'S' | 'N' | 'B' };
       sortKey?: { name: string; type: 'S' | 'N' | 'B' };
       billingMode: 'PAY_PER_REQUEST' | 'PROVISIONED';
+      deletionProtection?: boolean;
       readCapacity?: number;
       writeCapacity?: number;
       globalSecondaryIndexes?: Array<{
@@ -644,11 +646,13 @@ const dynamoApi = {
       operation: 'CREATE_TABLE',
       payload: {
         table_name: config.tableName,
+        table_class: config.tableClass,
         partition_key: config.partitionKey.name,
         partition_key_type: config.partitionKey.type,
         sort_key: config.sortKey?.name,
         sort_key_type: config.sortKey?.type,
         billing_mode: config.billingMode,
+        deletion_protection_enabled: config.deletionProtection,
         read_capacity_units: config.readCapacity,
         write_capacity_units: config.writeCapacity,
         global_secondary_indexes: config.globalSecondaryIndexes?.map(gsi => ({
