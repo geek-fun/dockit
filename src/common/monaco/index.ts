@@ -22,7 +22,7 @@ import {
   registerValidationHoverProvider as registerSearchValidationHoverProvider,
 } from './searchdsl';
 import { registerValidationHoverProvider as registerPartiqlValidationHoverProvider } from './partiql';
-import { registerMongodbLanguage, mongoSampleQueries, setMongoDynamicOptions } from './mongodb';
+import { registerMongodbLanguage } from './mongodb';
 
 if (typeof self !== 'undefined') {
   self.MonacoEnvironment = monacoEnvironment;
@@ -48,6 +48,12 @@ export { createDebouncedValidator } from './monacoUtils';
 export { validateEsModel, clearEsValidation } from './searchdsl';
 export { validatePartiqlModel, clearPartiqlValidation } from './partiql';
 export { validateMongoModel, clearMongoValidation } from './mongodb';
+export {
+  mongoSampleQueries,
+  setMongoDynamicOptions,
+  getMongoDynamicOptions,
+  clearMongoDynamicOptions,
+} from './mongodb';
 
 export {
   monaco,
@@ -62,6 +68,4 @@ export {
   getStatementAtLine,
   getPartiqlStatementDecorations,
   partiqlExecutionGutterClass,
-  mongoSampleQueries,
-  setMongoDynamicOptions,
 };
