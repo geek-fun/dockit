@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick } from 'vue';
+import { nextTick, useId } from 'vue';
 import type { ComboboxOption } from './types';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -45,6 +45,14 @@ const searchQuery = ref('');
 const searchInputRef = ref<HTMLInputElement>();
 const highlightedIndex = ref(-1);
 const listRef = ref<HTMLDivElement>();
+const listboxId = useId();
+
+const activeDescendantId = computed(() => {
+  if (!open.value || highlightedIndex.value < 0) return undefined;
+  const item = navigableItems.value[highlightedIndex.value];
+  if (!item) return undefined;
+  return item.type === 'create' ? `${listboxId}-create` : `${listboxId}-opt-${item.value}`;
+});
 
 const showSearch = computed(
   () => props.options.length > props.searchThreshold || props.allowCreate,
@@ -149,8 +157,10 @@ watch(searchQuery, () => {
         role="combobox"
         :aria-expanded="open"
         :aria-haspopup="'listbox'"
+        :aria-controls="listboxId"
+        :aria-activedescendant="activeDescendantId"
         :disabled="disabled"
-        :class="cn('justify-between font-normal', props.class)"
+        :class="cn('justify-between font-normal focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2', props.class)"
         @keydown="handleKeydown"
       >
         <slot name="selected-prepend" />
@@ -180,6 +190,7 @@ watch(searchQuery, () => {
     <PopoverContent :align="'start'" class="w-[--radix-popover-trigger-width] p-1">
       <div
         ref="listRef"
+        :id="listboxId"
         role="listbox"
         class="max-h-[280px] overflow-y-auto p-1"
       >
@@ -195,8 +206,10 @@ watch(searchQuery, () => {
           <div
             v-for="option in filteredOptions"
             :key="option.value"
+            :id="`${listboxId}-opt-${option.value}`"
             role="option"
             :aria-selected="option.value === modelValue"
+            :aria-disabled="option.disabled || undefined"
             :data-highlighted="
               navigableItems[highlightedIndex]?.type === 'option' &&
               navigableItems[highlightedIndex]?.value === option.value
@@ -241,6 +254,7 @@ watch(searchQuery, () => {
 
           <div
             v-if="showCreateNew"
+            :id="`${listboxId}-create`"
             role="option"
             :data-highlighted="
               navigableItems[highlightedIndex]?.type === 'create' ? '' : undefined
