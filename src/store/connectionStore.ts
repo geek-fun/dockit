@@ -23,6 +23,7 @@ import { DynamoIndexOrTableOption, useTabStore } from './tabStore.ts';
 export enum DatabaseType {
   ELASTICSEARCH = 'ELASTICSEARCH',
   OPENSEARCH = 'OPENSEARCH',
+  EASYSEARCH = 'EASYSEARCH',
   DYNAMODB = 'DYNAMODB',
   MONGODB = 'MONGODB',
 }
@@ -188,7 +189,14 @@ export type OpenSearchConnection = SearchConnectionBase & {
   type: DatabaseType.OPENSEARCH;
 };
 
-export type SearchConnection = ElasticsearchConnection | OpenSearchConnection;
+export type EasySearchConnection = SearchConnectionBase & {
+  type: DatabaseType.EASYSEARCH;
+};
+
+export type SearchConnection =
+  | ElasticsearchConnection
+  | OpenSearchConnection
+  | EasySearchConnection;
 
 type ElasticsearchClusterInfo = {
   cluster_name: string;
@@ -241,6 +249,7 @@ export type MongoDBCollection = {
 export type Connection =
   | ElasticsearchConnection
   | OpenSearchConnection
+  | EasySearchConnection
   | DynamoDBConnection
   | MongoDBConnection;
 
@@ -248,7 +257,9 @@ export const isSearchConnection = (
   connection: Connection | undefined | null,
 ): connection is SearchConnection =>
   connection != null &&
-  (connection.type === DatabaseType.ELASTICSEARCH || connection.type === DatabaseType.OPENSEARCH);
+  (connection.type === DatabaseType.ELASTICSEARCH ||
+    connection.type === DatabaseType.OPENSEARCH ||
+    connection.type === DatabaseType.EASYSEARCH);
 
 export const isOpenSearchConnection = (
   connection: Connection | undefined | null,
@@ -622,7 +633,11 @@ export const useConnectionStore = defineStore('connectionStore', {
           ...con,
           tables: visible.map(name => ({ name })),
         } as DynamoDBConnection;
-      } else if (con.type === DatabaseType.ELASTICSEARCH || con.type === DatabaseType.OPENSEARCH) {
+      } else if (
+        con.type === DatabaseType.ELASTICSEARCH ||
+        con.type === DatabaseType.OPENSEARCH ||
+        con.type === DatabaseType.EASYSEARCH
+      ) {
         const client = loadHttpClient(con);
         const clusterInfo = await client.get<ElasticsearchClusterInfo>(
           con.activeIndex?.index,
@@ -632,7 +647,10 @@ export const useConnectionStore = defineStore('connectionStore', {
         const detectedAsOpenSearch =
           clusterInfo.version.distribution === 'opensearch' ||
           (clusterInfo.tagline ?? '').toLowerCase().includes('opensearch');
-        const connectionType = detectedAsOpenSearch ? DatabaseType.OPENSEARCH : con.type;
+        const connectionType =
+          con.type === DatabaseType.ELASTICSEARCH && detectedAsOpenSearch
+            ? DatabaseType.OPENSEARCH
+            : con.type;
         return {
           ...con,
           type: connectionType,
@@ -693,7 +711,8 @@ export const useConnectionStore = defineStore('connectionStore', {
       if (!connection) throw new Error('no connection established');
       if (
         connection.type === DatabaseType.ELASTICSEARCH ||
-        connection.type === DatabaseType.OPENSEARCH
+        connection.type === DatabaseType.OPENSEARCH ||
+        connection.type === DatabaseType.EASYSEARCH
       ) {
         const client = loadHttpClient(connection);
         const esCon = connection as SearchConnection;
@@ -702,6 +721,7 @@ export const useConnectionStore = defineStore('connectionStore', {
           majorVersionStr !== undefined ? parseInt(majorVersionStr, 10) : undefined;
         const expandWildcards =
           connection.type === DatabaseType.OPENSEARCH ||
+          connection.type === DatabaseType.EASYSEARCH ||
           (majorVersion !== undefined && majorVersion >= 6)
             ? '&expand_wildcards=all'
             : '';
