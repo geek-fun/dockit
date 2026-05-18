@@ -200,6 +200,7 @@ import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
 import opensearch from '../../../assets/svg/db-opensearch.svg';
+import easysearch from '../../../assets/svg/easysearch.svg';
 import mongodb from '../../../assets/svg/mongodb.svg';
 import { CustomError, MIN_LOADING_TIME, isFeatureEnabled } from '../../../common';
 import { useLang } from '../../../lang';
@@ -290,6 +291,8 @@ const getDatabaseIcon = (type: DatabaseType) => {
       return elasticsearch;
     case DatabaseType.OPENSEARCH:
       return opensearch;
+    case DatabaseType.EASYSEARCH:
+      return easysearch;
     case DatabaseType.DYNAMODB:
       return dynamoDB;
     case DatabaseType.MONGODB:
@@ -305,6 +308,8 @@ const getDatabaseLabel = (type: DatabaseType) => {
       return 'Elasticsearch';
     case DatabaseType.OPENSEARCH:
       return 'OpenSearch';
+    case DatabaseType.EASYSEARCH:
+      return 'EasySearch';
     case DatabaseType.DYNAMODB:
       return 'DynamoDB';
     case DatabaseType.MONGODB:
@@ -560,7 +565,11 @@ const focusConnectionNode = (index: number) => {
 };
 
 const selectDatabaseType = (type: DatabaseType) => {
-  if (type === DatabaseType.ELASTICSEARCH || type === DatabaseType.OPENSEARCH) {
+  if (
+    type === DatabaseType.ELASTICSEARCH ||
+    type === DatabaseType.OPENSEARCH ||
+    type === DatabaseType.EASYSEARCH
+  ) {
     esConnectDialog.value.showMedal(null, type);
   } else if (type === DatabaseType.DYNAMODB) {
     dynamodbConnectDialog.value.showMedal(null);

@@ -163,6 +163,7 @@ import { Input } from '@/components/ui/input';
 import dynamoDBIcon from '../../assets/svg/dynamoDB.svg';
 import elasticsearchIcon from '../../assets/svg/elasticsearch.svg';
 import opensearchIcon from '../../assets/svg/db-opensearch.svg';
+import easysearchIcon from '../../assets/svg/easysearch.svg';
 import HistoryEmpty from './components/history-empty.vue';
 
 const lang = useLang();
@@ -186,7 +187,9 @@ const getDbIcon = (dbType?: string) =>
     ? dynamoDBIcon
     : dbType === DatabaseType.OPENSEARCH
       ? opensearchIcon
-      : elasticsearchIcon;
+      : dbType === DatabaseType.EASYSEARCH
+        ? easysearchIcon
+        : elasticsearchIcon;
 
 const filteredEntries = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
@@ -298,7 +301,8 @@ const handleAddToEditor = () => {
   } else if (
     !entry.databaseType ||
     entry.databaseType === DatabaseType.ELASTICSEARCH ||
-    entry.databaseType === DatabaseType.OPENSEARCH
+    entry.databaseType === DatabaseType.OPENSEARCH ||
+    entry.databaseType === DatabaseType.EASYSEARCH
   ) {
     const queryText = buildQueryText(entry);
     if (activePanel.value?.content != null) {

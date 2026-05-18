@@ -60,7 +60,8 @@
             <template
               v-if="
                 formData.type === DatabaseType.ELASTICSEARCH ||
-                formData.type === DatabaseType.OPENSEARCH
+                formData.type === DatabaseType.OPENSEARCH ||
+                formData.type === DatabaseType.EASYSEARCH
               "
             >
               <GridItem :span="5">
@@ -224,6 +225,7 @@ import * as z from 'zod';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import elasticsearchIcon from '../../../assets/svg/elasticsearch.svg';
 import opensearchIcon from '../../../assets/svg/db-opensearch.svg';
+import easysearchIcon from '../../../assets/svg/easysearch.svg';
 import { Connection, DatabaseType, SearchConnection, useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
 import { useFormValidation } from '@/composables';
@@ -273,9 +275,11 @@ const defaultFormData = {
 
 const formData = ref<SearchConnection & { selectedIndex: string }>(cloneDeep(defaultFormData));
 
-const dialogIcon = computed(() =>
-  formData.value.type === DatabaseType.OPENSEARCH ? opensearchIcon : elasticsearchIcon,
-);
+const dialogIcon = computed(() => {
+  if (formData.value.type === DatabaseType.OPENSEARCH) return opensearchIcon;
+  if (formData.value.type === DatabaseType.EASYSEARCH) return easysearchIcon;
+  return elasticsearchIcon;
+});
 
 const hostValidate = ref<{
   status: 'error' | undefined;
@@ -335,7 +339,8 @@ const isFormValid = computed(() => {
 
   if (
     formData.value.type === DatabaseType.ELASTICSEARCH ||
-    formData.value.type === DatabaseType.OPENSEARCH
+    formData.value.type === DatabaseType.OPENSEARCH ||
+    formData.value.type === DatabaseType.EASYSEARCH
   ) {
     return hasName && hasHost && hasPort;
   }
@@ -345,7 +350,8 @@ const isFormValid = computed(() => {
 const handleHostInput = () => {
   if (
     formData.value.type === DatabaseType.ELASTICSEARCH ||
-    formData.value.type === DatabaseType.OPENSEARCH
+    formData.value.type === DatabaseType.OPENSEARCH ||
+    formData.value.type === DatabaseType.EASYSEARCH
   ) {
     const value = formData.value.host;
     if (value.length >= 'http://'.length) {
@@ -360,7 +366,8 @@ const handleHostInput = () => {
 const switchSSL = (target: boolean) => {
   if (
     formData.value.type === DatabaseType.ELASTICSEARCH ||
-    formData.value.type === DatabaseType.OPENSEARCH
+    formData.value.type === DatabaseType.OPENSEARCH ||
+    formData.value.type === DatabaseType.EASYSEARCH
   ) {
     if (formData.value.host.startsWith('https') || !target) {
       formData.value.sslCertVerification = target;
@@ -393,7 +400,7 @@ const handleOpenChange = (open: boolean) => {
 
 const showMedal = (
   con: SearchConnection | null,
-  initialType?: DatabaseType.ELASTICSEARCH | DatabaseType.OPENSEARCH,
+  initialType?: DatabaseType.ELASTICSEARCH | DatabaseType.OPENSEARCH | DatabaseType.EASYSEARCH,
 ) => {
   showModal.value = true;
   errorMessage.value = '';
