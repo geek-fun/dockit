@@ -62,6 +62,24 @@ pub async fn update_streams(
                 .message()
                 .map(|m| m.to_string())
                 .unwrap_or_else(|| format!("{:#}", e));
+
+            if error_code == "ValidationException"
+                && error_message.contains("already has an enabled stream")
+            {
+                return Ok(ApiResponse {
+                    status: 200,
+                    message: format!(
+                        "Streams already configured as requested for table '{}'",
+                        table_name
+                    ),
+                    data: Some(json!({
+                        "tableName": table_name,
+                        "streamEnabled": stream_enabled,
+                        "streamViewType": stream_view_type,
+                    })),
+                });
+            }
+
             Ok(ApiResponse {
                 status: 500,
                 message: format!(
