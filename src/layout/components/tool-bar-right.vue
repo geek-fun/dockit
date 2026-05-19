@@ -11,11 +11,7 @@
         <div
           class="icon-item"
           :class="{ active: item.id === selectedItemId }"
-          role="button"
-          tabindex="0"
           @click="navClick(item)"
-          @keydown.enter="navClick(item)"
-          @keydown.space.prevent="navClick(item)"
         >
           <span :class="[item.iconClass, 'h-6 w-6']" />
           <span v-if="item.id === 'task-manager' && runningTaskCount > 0" class="task-badge">

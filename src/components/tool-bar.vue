@@ -22,7 +22,7 @@
 
     <SearchableSelect
       v-if="
-        props.type === 'DYNAMO_EDITOR' || (props.type === 'MANAGE' && !isSearchConnectionComputed)
+        props.type === 'DYNAMO_EDITOR' || (props.type === 'MANAGE' && !isElasticsearchConnection)
       "
       :model-value="tableSelectValue || ''"
       :options="tableOptions"
@@ -37,18 +37,11 @@
       <template #option="{ option }">
         <span class="flex items-center gap-1 w-full">
           <span
-            class="h-3.5 w-3.5 shrink-0 cursor-pointer focus:ring-2 focus:ring-primary focus:outline-none"
+            class="h-3.5 w-3.5 shrink-0 cursor-pointer"
             :class="
               option.favorite ? 'i-carbon-star-filled text-yellow-400' : 'i-carbon-star opacity-40'
             "
-            role="button"
-            tabindex="0"
-            :aria-label="
-              option.favorite ? $t('toolBar.unfavoriteTable') : $t('toolBar.favoriteTable')
-            "
             @click.stop="toggleFavoriteTable(option.value)"
-            @keydown.enter.stop="toggleFavoriteTable(option.value)"
-            @keydown.space.prevent.stop="toggleFavoriteTable(option.value)"
           />
           {{ option.label }}
         </span>
@@ -68,21 +61,8 @@
       @open="isOpen => handleOpen(isOpen, 'INDEX')"
     />
 
-    <SearchableSelect
-      v-if="props.type === 'MONGO_EDITOR'"
-      :model-value="collectionSelectValue || ''"
-      :options="collectionOptions"
-      :loading="loadingRef.collection"
-      :placeholder="$t('editor.mongo.selectCollection')"
-      variant="ghost"
-      :search-threshold="0"
-      class="index-select"
-      @update:model-value="value => handleUpdate(value, 'COLLECTION')"
-      @open="isOpen => handleOpen(isOpen, 'COLLECTION')"
-    />
-
     <TooltipProvider
-      v-if="props.type === 'ES_EDITOR' || (props.type === 'MANAGE' && isSearchConnectionComputed)"
+      v-if="props.type === 'ES_EDITOR' || (props.type === 'MANAGE' && isElasticsearchConnection)"
     >
       <Tooltip>
         <TooltipTrigger as-child>
@@ -182,32 +162,8 @@
       </Button>
     </div>
 
-    <DropdownMenu v-if="props.type === 'MONGO_EDITOR'">
-      <DropdownMenuTrigger as-child>
-        <Button variant="ghost" size="sm" class="sample-btn">
-          <span class="i-carbon-code mr-1 h-4 w-4" />
-          {{ $t('editor.mongo.samples') }}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <template v-for="option in mongoSampleQueryOptions" :key="option.key">
-          <DropdownMenuSeparator v-if="option.type === 'divider'" />
-          <DropdownMenuItem v-else @click="handleMongoSampleSelect(option.key)">
-            {{ option.label }}
-          </DropdownMenuItem>
-        </template>
-      </DropdownMenuContent>
-    </DropdownMenu>
-
-    <div v-if="props.type === 'MONGO_EDITOR'" class="run-button-container">
-      <Button size="sm" :disabled="!activePanel.connection" @click="handleExecuteMongoQuery">
-        <span class="i-carbon-play-filled-alt mr-1 h-4 w-4" />
-        {{ $t('dialogOps.execute') }}
-      </Button>
-    </div>
-
     <Button
-      v-if="props.type === 'MANAGE' && isSearchConnection(connection)"
+      v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.ELASTICSEARCH"
       variant="ghost"
       size="sm"
       :disabled="refreshLoading"
@@ -222,16 +178,6 @@
       v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.DYNAMODB"
       variant="ghost"
       size="sm"
-      @click="emits('create-dynamo-table')"
-    >
-      <span class="i-carbon-add mr-1 h-4 w-4" />
-      {{ $t('manage.dynamo.createTableTitle') }}
-    </Button>
-
-    <Button
-      v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.DYNAMODB"
-      variant="ghost"
-      size="sm"
       @click="handleDynamoRefresh"
     >
       <span class="i-carbon-renew mr-1 h-4 w-4" />
@@ -240,11 +186,7 @@
 
     <!-- Shortcuts Help Button for Editor contexts -->
     <div
-      v-if="
-        props.type === 'ES_EDITOR' ||
-        props.type === 'DYNAMO_EDITOR' ||
-        props.type === 'MONGO_EDITOR'
-      "
+      v-if="props.type === 'ES_EDITOR' || props.type === 'DYNAMO_EDITOR'"
       class="help-button-container"
       :class="{ 'push-right': !showRunButton }"
     >
@@ -276,16 +218,13 @@ import {
   useConnectionStore,
   useTabStore,
   DatabaseType,
+  ElasticsearchConnection,
   DynamoDBConnection,
-  isSearchConnection,
-  SearchConnection,
-  MongoDBConnection,
 } from '../store';
 import { useDynamoManageStore } from '../store/dynamoManageStore';
 import { useLang } from '../lang';
 import { CustomError } from '../common';
 import { esSampleQueries, configureDynamicOptions } from '../common/monaco';
-import { mongoSampleQueries } from '../common/monaco/mongodb';
 import { useMessageService } from '@/composables';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/combobox';
@@ -297,21 +236,18 @@ const emits = defineEmits([
   'insert-partiql-sample',
   'execute-partiql-query',
   'refresh-dynamo-manage',
-  'create-dynamo-table',
-  'execute-mongo-query',
 ]);
 
 const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
-const { fetchConnections, fetchIndices, fetchTables, fetchCollections, selectIndex } =
-  connectionStore;
+const { fetchConnections, fetchIndices, fetchTables, selectIndex } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
 const { selectConnection, setActiveTable, toggleFavoriteTable } = tabStore;
-const { activePanel, activeSearchIndexOption } = storeToRefs(tabStore);
+const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
 const { setConnection, refreshStates } = clusterManageStore;
@@ -321,9 +257,9 @@ const dynamoManageStore = useDynamoManageStore();
 const { setManageActiveTable } = dynamoManageStore;
 const { manageActiveTable } = storeToRefs(dynamoManageStore);
 
-// Check if connection is Elasticsearch/OpenSearch type
-const isSearchConnectionComputed = computed(() => {
-  return connection.value ? isSearchConnection(connection.value) : false;
+// Check if connection is Elasticsearch type
+const isElasticsearchConnection = computed(() => {
+  return connection.value?.type === DatabaseType.ELASTICSEARCH;
 });
 
 // Check if run button is visible (DynamoDB SQL editor) — used to avoid margin conflict
@@ -331,7 +267,7 @@ const showRunButton = computed(() => {
   return props.type === 'DYNAMO_EDITOR' && activePanel.value.editorType === 'DYNAMO_EDITOR_SQL';
 });
 
-const loadingRef = ref({ connection: false, index: false, table: false, collection: false });
+const loadingRef = ref({ connection: false, index: false, table: false });
 
 const includeSystemIndicesRef = ref(false);
 const isExecuting = ref(false);
@@ -354,7 +290,7 @@ const cmdKey = computed(() => {
 });
 
 const connectionSelectValue = computed(() => {
-  return ['ES_EDITOR', 'DYNAMO_EDITOR', 'MONGO_EDITOR'].includes(props.type ?? '')
+  return ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
     ? activePanel?.value?.connection?.name
     : connection?.value?.name;
 });
@@ -384,8 +320,8 @@ const credsExpiryIcon = computed(() => {
 
 const indexSelectValue = computed(() => {
   const conn = activePanel?.value?.connection;
-  if (conn && isSearchConnection(conn)) {
-    return (conn as SearchConnection).activeIndex?.index;
+  if (conn && conn.type === DatabaseType.ELASTICSEARCH) {
+    return (conn as ElasticsearchConnection).activeIndex?.index;
   }
   return undefined;
 });
@@ -403,7 +339,7 @@ const connectionOptions = computed(() =>
 
 const indexOptions = computed(
   () =>
-    activeSearchIndexOption.value
+    activeElasticsearchIndexOption.value
       ?.filter(index => (includeSystemIndicesRef.value ? true : !index.value.startsWith('.')))
       ?.sort((a, b) => {
         const aIsSystem = a.value.startsWith('.');
@@ -433,20 +369,6 @@ const tableOptions = computed(() => {
     label: n,
     value: n,
     favorite: favorites.includes(n),
-  }));
-});
-
-const collectionSelectValue = computed(() => {
-  return activePanel?.value?.activeTable;
-});
-
-const collectionOptions = computed(() => {
-  const conn = activePanel?.value?.connection;
-  if (!conn || conn.type !== DatabaseType.MONGODB) return [];
-  const collections = (conn as MongoDBConnection).collections ?? [];
-  return collections.map(c => ({
-    label: c.name,
-    value: c.name,
   }));
 });
 
@@ -499,72 +421,6 @@ const partiqlSampleQueryOptions = computed(() => [
   },
 ]);
 
-const mongoSampleQueryOptions = computed(() => [
-  {
-    label: lang.t('editor.mongo.sampleFindAll'),
-    key: 'findAll',
-  },
-  {
-    label: lang.t('editor.mongo.sampleFindOne'),
-    key: 'findOne',
-  },
-  {
-    label: lang.t('editor.mongo.sampleFindWithFilter'),
-    key: 'findWithFilter',
-  },
-  { type: 'divider', key: 'd1' },
-  {
-    label: lang.t('editor.mongo.sampleAggregate'),
-    key: 'aggregate',
-  },
-  {
-    label: lang.t('editor.mongo.sampleCount'),
-    key: 'countDocuments',
-  },
-  { type: 'divider', key: 'd2' },
-  {
-    label: lang.t('editor.mongo.sampleInsertOne'),
-    key: 'insertOne',
-  },
-  {
-    label: lang.t('editor.mongo.sampleInsertMany'),
-    key: 'insertMany',
-  },
-  {
-    label: lang.t('editor.mongo.sampleUpdateOne'),
-    key: 'updateOne',
-  },
-  {
-    label: lang.t('editor.mongo.sampleUpdateMany'),
-    key: 'updateMany',
-  },
-  {
-    label: lang.t('editor.mongo.sampleDeleteOne'),
-    key: 'deleteOne',
-  },
-  {
-    label: lang.t('editor.mongo.sampleDeleteMany'),
-    key: 'deleteMany',
-  },
-  { type: 'divider', key: 'd3' },
-  {
-    label: lang.t('editor.mongo.sampleCreateIndex'),
-    key: 'createIndex',
-  },
-  {
-    label: lang.t('editor.mongo.sampleDropIndex'),
-    key: 'dropIndex',
-  },
-  {
-    label: lang.t('editor.mongo.sampleDistinct'),
-    key: 'distinct',
-  },
-  {
-    label: lang.t('editor.mongo.sampleBulkWrite'),
-    key: 'bulkWrite',
-  },
-]);
-
 const handleEsSampleSelect = (key: string) => {
   const query = esSampleQueries[key as keyof typeof esSampleQueries];
   if (query) {
@@ -574,17 +430,6 @@ const handleEsSampleSelect = (key: string) => {
 
 const handlePartiqlSampleSelect = (key: string) => {
   emits('insert-partiql-sample', key);
-};
-
-const handleMongoSampleSelect = (key: string) => {
-  const query = mongoSampleQueries[key as keyof typeof mongoSampleQueries];
-  if (query) {
-    emits('insert-sample-query', query);
-  }
-};
-
-const handleExecuteMongoQuery = () => {
-  emits('execute-mongo-query');
 };
 
 const handleExecuteQuery = () => {
@@ -606,10 +451,7 @@ watch(
   { immediate: true },
 );
 
-const handleOpen = async (
-  isOpen: boolean,
-  type: 'CONNECTION' | 'INDEX' | 'TABLE' | 'COLLECTION',
-) => {
+const handleOpen = async (isOpen: boolean, type: 'CONNECTION' | 'INDEX' | 'TABLE') => {
   if (!isOpen) return;
 
   if (type === 'CONNECTION') {
@@ -638,26 +480,6 @@ const handleOpen = async (
       );
     }
     loadingRef.value.table = false;
-  } else if (type === 'COLLECTION') {
-    const selectedConnection = activePanel.value.connection;
-    if (!selectedConnection || selectedConnection.type !== DatabaseType.MONGODB) {
-      message.error(lang.t('editor.establishedRequired'), {
-        closable: true,
-        keepAliveOnHover: true,
-        duration: 3000,
-      });
-      return;
-    }
-    loadingRef.value.collection = true;
-    try {
-      await fetchCollections(selectedConnection as MongoDBConnection);
-    } catch (err) {
-      message.error(
-        `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
-        { closable: true, keepAliveOnHover: true, duration: 3000 },
-      );
-    }
-    loadingRef.value.collection = false;
   } else {
     let selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
       ? activePanel.value.connection
@@ -684,17 +506,14 @@ const handleOpen = async (
   }
 };
 
-const handleUpdate = async (
-  value: string,
-  type: 'CONNECTION' | 'INDEX' | 'TABLE' | 'COLLECTION',
-) => {
+const handleUpdate = async (value: string, type: 'CONNECTION' | 'INDEX' | 'TABLE') => {
   if (type === 'CONNECTION') {
     const con = connections.value.find(({ name }) => name === value);
     if (!con) {
       return;
     }
     try {
-      if (['ES_EDITOR', 'DYNAMO_EDITOR', 'MONGO_EDITOR'].includes(props.type ?? '')) {
+      if (['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')) {
         await selectConnection(con);
       } else {
         setConnection(con);
@@ -713,8 +532,6 @@ const handleUpdate = async (
     } else {
       setActiveTable(value);
     }
-  } else if (type === 'COLLECTION') {
-    setActiveTable(value);
   } else {
     const selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
       ? activePanel.value.connection
@@ -740,10 +557,10 @@ const handleIncludeChange = async (value: boolean) => {
   if (props.type === 'ES_EDITOR' && activePanel.value) {
     activePanel.value.includeSystemIndices = value;
     const conn = activePanel.value.connection;
-    if (conn && isSearchConnection(conn)) {
+    if (conn?.type === DatabaseType.ELASTICSEARCH) {
       configureDynamicOptions({
-        activeIndex: (conn as SearchConnection).activeIndex?.index,
-        indices: (conn as SearchConnection).indices?.map(i => i.index) ?? [],
+        activeIndex: (conn as ElasticsearchConnection).activeIndex?.index,
+        indices: (conn as ElasticsearchConnection).indices?.map(i => i.index) ?? [],
         includeSystemIndices: value,
       });
     }

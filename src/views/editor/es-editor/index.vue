@@ -10,19 +10,17 @@
           :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
           @click.stop
         >
-          <ul ref="contextMenuRef" role="menu" @keydown="handleMenuKeydown">
-            <li
-              v-for="(item, index) in menuItems"
-              :key="item.action"
-              role="menuitem"
-              tabindex="-1"
-              :class="['menu-item', index === highlightedIndex && 'bg-accent']"
-              @click="handleContextMenuAction(item.action as any)"
-              @keydown.enter.prevent="handleContextMenuAction(item.action as any)"
-              @keydown.space.prevent="handleContextMenuAction(item.action as any)"
-            >
-              <span>{{ item.label }}</span>
-              <span v-if="item.shortcut" class="shortcut">{{ item.shortcut }}</span>
+          <ul>
+            <li @click="handleContextMenuAction('execute')">
+              <span>{{ lang.t('editor.es.contextMenu.execute') }}</span>
+              <span class="shortcut">{{ cmdKey }}↵</span>
+            </li>
+            <li @click="handleContextMenuAction('autoIndent')">
+              <span>{{ lang.t('editor.es.contextMenu.autoIndent') }}</span>
+              <span class="shortcut">{{ cmdKey }}I</span>
+            </li>
+            <li @click="handleContextMenuAction('copyAsCurl')">
+              <span>{{ lang.t('editor.es.contextMenu.copyAsCurl') }}</span>
             </li>
           </ul>
         </div>
@@ -38,16 +36,15 @@ import { open } from '@tauri-apps/plugin-shell';
 import { listen } from '@tauri-apps/api/event';
 import { platform } from '@tauri-apps/plugin-os';
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { SplitPane } from '@/components/ui/split-pane';
 import { useMessageService, useLoadingBarService } from '@/composables';
 import { CustomError, jsonify } from '../../../common';
 import {
   DatabaseType,
   ElasticsearchConnection,
-  SearchConnection,
   useAppStore,
-  useChatStore,
+  useCodeActionStore,
   useConnectionStore,
   useHistoryStore,
   useTabStore,
@@ -81,7 +78,7 @@ const lang = useLang();
 
 const tabStore = useTabStore();
 const { saveContent } = tabStore;
-const { activePanel, defaultSnippet, activeConnection, activeSearchIndexOption } =
+const { activePanel, defaultSnippet, activeConnection, activeElasticsearchIndexOption } =
   storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
@@ -91,8 +88,8 @@ const { themeType, editorConfig } = storeToRefs(appStore);
 
 const historyStore = useHistoryStore();
 
-const chatStore = useChatStore();
-const { insertBoard } = storeToRefs(chatStore);
+const codeActionStore = useCodeActionStore();
+const { insertBuffer } = storeToRefs(codeActionStore);
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let queryEditor: Editor | null = null;
 // DOM
@@ -111,57 +108,6 @@ const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuActionLine = ref<number | null>(null);
 const cmdKey = computed(() => (platform() === 'macos' ? '⌘' : 'Ctrl+'));
-
-const contextMenuRef = ref<HTMLElement | null>(null);
-const highlightedIndex = ref(0);
-
-const menuItems = computed(() => [
-  {
-    action: 'execute',
-    label: lang.t('editor.es.contextMenu.execute'),
-    shortcut: `${cmdKey.value}↵`,
-  },
-  {
-    action: 'autoIndent',
-    label: lang.t('editor.es.contextMenu.autoIndent'),
-    shortcut: `${cmdKey.value}I`,
-  },
-  { action: 'copyAsCurl', label: lang.t('editor.es.contextMenu.copyAsCurl') },
-]);
-
-const handleMenuKeydown = (e: KeyboardEvent) => {
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    highlightedIndex.value = (highlightedIndex.value + 1) % menuItems.value.length;
-    focusMenuItem(highlightedIndex.value);
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    highlightedIndex.value =
-      (highlightedIndex.value - 1 + menuItems.value.length) % menuItems.value.length;
-    focusMenuItem(highlightedIndex.value);
-  } else if (e.key === 'Escape') {
-    e.preventDefault();
-    hideContextMenu();
-  }
-};
-
-const focusMenuItem = (index: number) => {
-  nextTick(() => {
-    if (contextMenuRef.value) {
-      const items = contextMenuRef.value.querySelectorAll('li');
-      if (items[index]) {
-        (items[index] as HTMLElement).focus();
-      }
-    }
-  });
-};
-
-watch(contextMenuVisible, visible => {
-  if (visible) {
-    highlightedIndex.value = 0;
-    focusMenuItem(0);
-  }
-});
 
 // Debounced syntax validation (300ms delay for performance)
 const debouncedValidate = createDebouncedValidator((model: monaco.editor.ITextModel) => {
@@ -207,9 +153,8 @@ watch(
   { deep: true },
 );
 
-watch(insertBoard, () => {
+watch(insertBuffer, () => {
   if (queryEditor) {
-    // add event to handle chatbot-code-actions
     const position = queryEditor.getPosition();
     if (!position) {
       return;
@@ -224,11 +169,12 @@ watch(insertBoard, () => {
             position.lineNumber,
             position.column,
           ),
-          text: insertBoard.value,
+          text: insertBuffer.value,
         },
       ],
       () => null,
     );
+    codeActionStore.clearInsertBuffer();
   }
 });
 
@@ -260,7 +206,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
     });
 
     historyStore.addEntry({
-      databaseType: activeConnection.value.type,
+      databaseType: DatabaseType.ELASTICSEARCH,
       method: action.method,
       path: action.path,
       index: action.index,
@@ -567,12 +513,9 @@ const setupQueryEditor = () => {
   queryEditor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, () => {
     const action = getAction(queryEditor!.getPosition());
     if (!action) return;
-    const connection = activeConnection.value as SearchConnection | undefined;
+    const connection = activeConnection.value as ElasticsearchConnection | undefined;
     const version = connection?.version || 'current';
-    const engineType =
-      connection?.type === DatabaseType.OPENSEARCH
-        ? EngineType.OPENSEARCH
-        : EngineType.ELASTICSEARCH;
+    const engineType = connection?.isOpenSearch ? EngineType.OPENSEARCH : EngineType.ELASTICSEARCH;
     const docLink = getActionApiDoc(engineType, version, action as SearchAction);
     if (docLink) open(docLink);
   });
@@ -582,29 +525,6 @@ const setupQueryEditor = () => {
       saveModelContent(true, true, true);
     });
   }
-
-  // Keyboard shortcut for context menu (Shift+F10 or ContextMenu key)
-  queryEditor.addAction({
-    id: 'show-context-menu',
-    label: 'Show Context Menu',
-    keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.F10],
-    run: ed => {
-      const position = ed.getPosition();
-      if (!position) return;
-
-      const coords = ed.getScrolledVisiblePosition(position);
-      const domNode = ed.getDomNode();
-      if (coords && domNode) {
-        const rect = domNode.getBoundingClientRect();
-        contextMenuPosition.value = {
-          x: rect.left + coords.left,
-          y: rect.top + coords.top + 20, // offset slightly below cursor
-        };
-        contextMenuActionLine.value = position.lineNumber;
-        contextMenuVisible.value = true;
-      }
-    },
-  });
 
   // Layout-dependent shortcuts (/) are handled via DOM keydown events
   // instead of Monaco's addCommand, which assumes US keyboard layout.
@@ -702,7 +622,7 @@ const insertSampleQuery = (queryTemplate: string) => {
   if (!model) return;
 
   let query = queryTemplate;
-  const selectedIndex = activeSearchIndexOption.value?.[0]?.value;
+  const selectedIndex = activeElasticsearchIndexOption.value?.[0]?.value;
   if (selectedIndex) {
     query = queryTemplate.replace(/\{index\}/g, selectedIndex);
   }

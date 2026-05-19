@@ -55,18 +55,10 @@
     <div class="connection-scroll-container">
       <div v-if="filteredConnections.length > 0" class="connection-list-body">
         <div
-          v-for="(connection, index) in filteredConnections"
+          v-for="connection in filteredConnections"
           :key="connection.id"
-          class="connection-card focus:ring-2 focus:ring-primary focus:outline-none"
-          role="button"
-          tabindex="0"
-          @click="handleSelect('connect', connection)"
-          @keydown.enter="handleSelect('connect', connection)"
-          @keydown.space.prevent="handleSelect('connect', connection)"
-          @keydown.right.prevent="focusConnectionNode(index + 1)"
-          @keydown.left.prevent="focusConnectionNode(index - 1)"
-          @keydown.down.prevent="focusConnectionNode(index + getConnectionGridColumns())"
-          @keydown.up.prevent="focusConnectionNode(index - getConnectionGridColumns())"
+          class="connection-card"
+          @dblclick="handleSelect('connect', connection)"
         >
           <!-- Top section: icon -->
           <div class="card-top">
@@ -177,7 +169,6 @@
   <FloatingMenu @select="selectDatabaseType" />
   <EsConnectDialog ref="esConnectDialog" />
   <DynamodbConnectDialog ref="dynamodbConnectDialog" />
-  <MongodbConnectDialog ref="mongodbConnectDialog" />
   <ConnectingModal ref="connectingModal" />
 </template>
 
@@ -199,24 +190,18 @@ import { useDialogService, useMessageService } from '@/composables';
 import { storeToRefs } from 'pinia';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
-import opensearch from '../../../assets/svg/db-opensearch.svg';
-import easysearch from '../../../assets/svg/easysearch.svg';
-import mongodb from '../../../assets/svg/mongodb.svg';
-import { CustomError, MIN_LOADING_TIME, isFeatureEnabled } from '../../../common';
+import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import {
   Connection,
   DatabaseType,
   DynamoDBConnection,
-  MongoDBConnection,
-  SearchConnection,
-  isSearchConnection,
+  ElasticsearchConnection,
   useConnectionStore,
 } from '../../../store';
 import FloatingMenu from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
-import MongodbConnectDialog from './mongodb-connect-dialog.vue';
 import ConnectingModal from './connecting-modal.vue';
 
 type SortKey = 'name' | 'type' | 'dateCreated';
@@ -271,13 +256,9 @@ const filteredConnections = computed(() => {
   const keyword = filterText.value.toLowerCase().trim();
   const dir = sortDir.value === 'asc' ? 1 : -1;
 
-  const baseConnections = isFeatureEnabled.mongodb
-    ? connections.value
-    : connections.value.filter(c => c.type !== DatabaseType.MONGODB);
-
   const filtered = keyword
-    ? baseConnections.filter(c => c.name.toLowerCase().includes(keyword))
-    : baseConnections;
+    ? connections.value.filter(c => c.name.toLowerCase().includes(keyword))
+    : connections.value;
 
   return [...filtered].sort((a, b) => sortFns[activeSortKey.value](a, b) * dir);
 });
@@ -286,53 +267,18 @@ const connectionCancelled = ref(false);
 const connectingModal = ref();
 
 const getDatabaseIcon = (type: DatabaseType) => {
-  switch (type) {
-    case DatabaseType.ELASTICSEARCH:
-      return elasticsearch;
-    case DatabaseType.OPENSEARCH:
-      return opensearch;
-    case DatabaseType.EASYSEARCH:
-      return easysearch;
-    case DatabaseType.DYNAMODB:
-      return dynamoDB;
-    case DatabaseType.MONGODB:
-      return mongodb;
-    default:
-      return elasticsearch;
-  }
+  return type === DatabaseType.ELASTICSEARCH ? elasticsearch : dynamoDB;
 };
 
 const getDatabaseLabel = (type: DatabaseType) => {
-  switch (type) {
-    case DatabaseType.ELASTICSEARCH:
-      return 'Elasticsearch';
-    case DatabaseType.OPENSEARCH:
-      return 'OpenSearch';
-    case DatabaseType.EASYSEARCH:
-      return 'EasySearch';
-    case DatabaseType.DYNAMODB:
-      return 'DynamoDB';
-    case DatabaseType.MONGODB:
-      return 'MongoDB';
-    default:
-      return 'Unknown';
-  }
+  return type === DatabaseType.ELASTICSEARCH ? 'Elasticsearch' : 'DynamoDB';
 };
 
 const getConnectionDetail = (connection: Connection) => {
-  if (isSearchConnection(connection)) {
-    const es = connection as SearchConnection;
+  if (connection.type === DatabaseType.ELASTICSEARCH) {
+    const es = connection as ElasticsearchConnection;
     const url = `${es.host}:${es.port}`;
     return url.length > 30 ? url.substring(0, 30) + '...' : url;
-  }
-  if (connection.type === DatabaseType.MONGODB) {
-    const mongo = connection as MongoDBConnection;
-    if (mongo.auth.kind === 'uri') {
-      const uri = mongo.auth.uri;
-      return uri.length > 30 ? uri.substring(0, 30) + '...' : uri;
-    }
-    const host = `${mongo.host}:${mongo.port}`;
-    return host.length > 30 ? host.substring(0, 30) + '...' : host;
   }
   const dynamo = connection as DynamoDBConnection;
   const tableCount = dynamo.tables?.length ?? 0;
@@ -341,8 +287,8 @@ const getConnectionDetail = (connection: Connection) => {
 };
 
 const getVersion = (connection: Connection) => {
-  if (isSearchConnection(connection)) {
-    const es = connection as SearchConnection;
+  if (connection.type === DatabaseType.ELASTICSEARCH) {
+    const es = connection as ElasticsearchConnection;
     return es.version ? `v${es.version}` : '';
   }
   return '';
@@ -356,8 +302,8 @@ const getConnectionTarget = (connection: Connection) => {
 const getEsProtocol = (
   connection: Connection,
 ): { label: string; icon: string; color: string } | null => {
-  if (!isSearchConnection(connection)) return null;
-  const es = connection as SearchConnection;
+  if (connection.type !== DatabaseType.ELASTICSEARCH) return null;
+  const es = connection as ElasticsearchConnection;
   const isHttps = es.host?.toLowerCase().startsWith('https://');
   return isHttps
     ? { label: 'HTTPS', icon: 'i-carbon-locked', color: 'text-green-500' }
@@ -367,8 +313,8 @@ const getEsProtocol = (
 const getEsAuthType = (
   connection: Connection,
 ): { label: string; icon: string; color: string } | null => {
-  if (!isSearchConnection(connection)) return null;
-  const es = connection as SearchConnection;
+  if (connection.type !== DatabaseType.ELASTICSEARCH) return null;
+  const es = connection as ElasticsearchConnection;
   if (es.authType === 'basic')
     return {
       label: lang.t('connection.authTypeBasic'),
@@ -426,16 +372,11 @@ const establishConnect = async (connection: Connection) => {
       return;
     }
 
-    if (isSearchConnection(newConnection) && newConnection.version) {
+    if (newConnection.type === DatabaseType.ELASTICSEARCH && newConnection.version) {
       try {
         const existing = connectionStore.connections.find(c => c.id === newConnection.id);
-        if (existing && isSearchConnection(existing)) {
-          Object.assign(existing, {
-            version: newConnection.version,
-            type: newConnection.type,
-            clusterName: newConnection.clusterName,
-            clusterUuid: newConnection.clusterUuid,
-          });
+        if (existing) {
+          (existing as ElasticsearchConnection).version = newConnection.version;
           connectionStore.saveConnection(existing);
         }
       } catch {
@@ -490,12 +431,10 @@ const editConnect = (connection: Connection) => {
     console.error('Connection type is missing'); // eslint-disable-line no-console
     return;
   }
-  if (isSearchConnection(connection)) {
+  if (connection.type === DatabaseType.ELASTICSEARCH) {
     esConnectDialog.value.showMedal(connection);
   } else if (connection.type === DatabaseType.DYNAMODB) {
     dynamodbConnectDialog.value.showMedal(connection);
-  } else if (connection.type === DatabaseType.MONGODB) {
-    mongodbConnectDialog.value.showMedal(connection);
   }
 };
 
@@ -510,8 +449,8 @@ const cloneConnect = (connection: Connection) => {
   clonedConnection.id = undefined;
   clonedConnection.name = `${connection.name} (copy)`;
 
-  if (isSearchConnection(connection)) {
-    const esClone = clonedConnection as SearchConnection;
+  if (connection.type === DatabaseType.ELASTICSEARCH) {
+    const esClone = clonedConnection as ElasticsearchConnection;
     esClone.indices = [];
     esClone.activeIndex = undefined;
     esClone.version = '';
@@ -522,10 +461,6 @@ const cloneConnect = (connection: Connection) => {
     const dynamoClone = clonedConnection as DynamoDBConnection;
     dynamoClone.tables = undefined;
     dynamodbConnectDialog.value.showMedal(dynamoClone);
-  } else if (connection.type === DatabaseType.MONGODB) {
-    const mongoClone = clonedConnection as MongoDBConnection;
-    mongoClone.collections = undefined;
-    mongodbConnectDialog.value.showMedal(mongoClone);
   }
 };
 
@@ -548,33 +483,12 @@ const removeConnect = (connection: Connection) => {
 
 const esConnectDialog = ref();
 const dynamodbConnectDialog = ref();
-const mongodbConnectDialog = ref();
-
-const getConnectionGridColumns = () => {
-  const container = document.querySelector('.connection-list-body');
-  if (!container) return 1;
-  const gridComputedStyle = window.getComputedStyle(container);
-  return gridComputedStyle.getPropertyValue('grid-template-columns').split(' ').length;
-};
-
-const focusConnectionNode = (index: number) => {
-  const items = document.querySelectorAll('.connection-card');
-  if (index >= 0 && index < items.length) {
-    (items[index] as HTMLElement)?.focus();
-  }
-};
 
 const selectDatabaseType = (type: DatabaseType) => {
-  if (
-    type === DatabaseType.ELASTICSEARCH ||
-    type === DatabaseType.OPENSEARCH ||
-    type === DatabaseType.EASYSEARCH
-  ) {
-    esConnectDialog.value.showMedal(null, type);
+  if (type === DatabaseType.ELASTICSEARCH) {
+    esConnectDialog.value.showMedal(null);
   } else if (type === DatabaseType.DYNAMODB) {
     dynamodbConnectDialog.value.showMedal(null);
-  } else if (type === DatabaseType.MONGODB) {
-    mongodbConnectDialog.value.showMedal(null);
   }
 };
 </script>

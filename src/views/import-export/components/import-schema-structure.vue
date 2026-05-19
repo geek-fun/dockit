@@ -96,7 +96,7 @@
               <div class="panel-card plan-card">
                 <!-- ES Plan -->
                 <div
-                  v-if="importConnection && isSearchConnection(importConnection)"
+                  v-if="importConnection?.type === DatabaseType.ELASTICSEARCH"
                   class="panel-grid"
                 >
                   <div class="panel-item">
@@ -313,7 +313,7 @@ import { Empty } from '@/components/ui/empty';
 import { Badge, type BadgeVariants } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useImportExportStore, DatabaseType, isSearchConnection } from '../../../store';
+import { useImportExportStore, DatabaseType } from '../../../store';
 import { inferredTypeToEsType } from '../utils/schemaMapping';
 
 const importExportStore = useImportExportStore();
@@ -355,7 +355,7 @@ const getDynamoSortKey = () => {
 };
 
 const getWillCreateType = (field: any) => {
-  if (importConnection.value && isSearchConnection(importConnection.value)) {
+  if (importConnection.value?.type === DatabaseType.ELASTICSEARCH) {
     return inferredTypeToEsType(field.sourceType, importSchemaOverrides.value[field.name]);
   }
   return field.sourceType;

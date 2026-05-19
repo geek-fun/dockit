@@ -3,14 +3,7 @@
     <template v-if="props.clickable && breadCrumbPath">
       <template v-for="(path, index) in breadCrumbPath?.split('/')" :key="index">
         <span v-if="index !== 0" class="breadcrumb-separator">/</span>
-        <span
-          class="breadcrumb-item clickable"
-          role="link"
-          tabindex="0"
-          @click="handleBreadcrumb(index)"
-          @keydown.enter="handleBreadcrumb(index)"
-          @keydown.space.prevent="handleBreadcrumb(index)"
-        >
+        <span class="breadcrumb-item clickable" @click="handleBreadcrumb(index)">
           <span v-if="index !== 0" class="i-carbon-folder breadcrumb-icon" />
           {{ path }}
         </span>

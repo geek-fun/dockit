@@ -75,14 +75,7 @@
             <Card class="additional-filter-container mt-4">
               <CardHeader class="p-3 flex flex-row items-center justify-between">
                 <CardTitle class="text-base">{{ $t('editor.dynamo.filterTitle') }}</CardTitle>
-                <span
-                  class="i-carbon-add h-6 w-6 cursor-pointer"
-                  role="button"
-                  tabindex="0"
-                  @click="addFilterItem"
-                  @keydown.enter="addFilterItem"
-                  @keydown.space.prevent="addFilterItem"
-                />
+                <span class="i-carbon-add h-6 w-6 cursor-pointer" @click="addFilterItem" />
               </CardHeader>
               <CardContent class="filter-card-content p-3">
                 <ScrollArea class="filter-scroll-area">

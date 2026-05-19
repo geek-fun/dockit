@@ -761,7 +761,7 @@ const provideBodyCompletions = (
         label: cmd.label,
         kind: monaco.languages.CompletionItemKind.Keyword,
         insertText: cmd.insertText,
-        insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+        insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
         detail: cmd.description,
         sortText: String(cmd.sortOrder).padStart(3, '0'),
         range,

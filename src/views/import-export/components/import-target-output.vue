@@ -71,10 +71,9 @@ import { SearchableSelect } from '@/components/ui/combobox';
 import {
   useImportExportStore,
   useConnectionStore,
-  SearchConnection,
+  ElasticsearchConnection,
   DynamoDBConnection,
   DatabaseType,
-  isSearchConnection,
 } from '../../../store';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
@@ -138,8 +137,8 @@ const handleIndexOpen = async () => {
 
   loadingStat.value.index = true;
   try {
-    // Only fetch indices for Elasticsearch/OpenSearch — DynamoDB metadata is already populated by freshConnection.
-    if (importConnection.value && isSearchConnection(importConnection.value)) {
+    // Only fetch indices for Elasticsearch — DynamoDB metadata is already populated by freshConnection.
+    if (importConnection.value.type === DatabaseType.ELASTICSEARCH) {
       await fetchIndices(importConnection.value);
     }
     updateIndexOptions();
@@ -162,13 +161,14 @@ const updateIndexOptions = () => {
     return;
   }
 
-  if (isSearchConnection(importConnection.value)) {
+  if (importConnection.value.type === DatabaseType.ELASTICSEARCH) {
     // fetchIndices hits the server and updates connectionStore.connections[] in-place by id.
     // importConnection.value (importExportStore copy) is a separate object and is not mutated,
     // so look up the freshly updated entry from the connectionStore.
     const updatedCon =
       connections.value.find(c => c.id === importConnection.value?.id) ?? importConnection.value;
-    const indices = (updatedCon as SearchConnection)?.indices?.map(index => index.index) ?? [];
+    const indices =
+      (updatedCon as ElasticsearchConnection)?.indices?.map(index => index.index) ?? [];
     currentExistingIndices.value = indices;
     indexOptions.value = indices
       .map(index => ({ label: index, value: index }))
