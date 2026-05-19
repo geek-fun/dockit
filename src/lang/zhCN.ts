@@ -58,17 +58,17 @@ export const zhCN = {
       historyCapDesc: '最多保留的查询历史条数（10–5百）',
     },
     ai: {
-      title: 'GPTs配置',
-      configGpt: '前往配置GPT',
-      others: '其他GPTs',
+      title: 'LLM 配置',
+      configGpt: '前往配置 LLM',
+      others: '其他 LLMs',
       model: '模型',
-      modelPlaceholder: '请输入GPT模型名称',
+      modelPlaceholder: '请输入模型名称',
       apiKey: 'API密钥',
       apiKeyPlaceholder: '请输入API密钥',
       prompt: '提示词',
       proxy: '网络代理',
-      invalid: 'GPT 配置无效！',
-      missing: 'GPT 未配置或未启用',
+      invalid: 'LLM 配置无效！',
+      missing: 'LLM 未配置或未启用',
       firstMsg: '你好，我是你的AI助手，有什么可以帮助你的吗？',
       defaultPrompt: `您是一名专业数据库工程师，
       熟悉如下数据库：
