@@ -116,3 +116,5 @@ dist-ssr
 docs/data-studio.md
 reddit-post-dockit.md
 .sisyphus/
+.claude/
+.impeccable.md
