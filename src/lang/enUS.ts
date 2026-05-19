@@ -421,7 +421,11 @@ export const enUS = {
       enableTtl: 'Enable TTL',
       ttlAttribute: 'TTL Attribute',
       ttlAttributePlaceholder: 'Enter attribute name (e.g. expiresAt)',
+      ttlCurrentAttribute: 'Current TTL Attribute',
+      ttlChangeAttributeWarning:
+        'To change the TTL attribute, first disable TTL and save, then re-enable with the new attribute name. Each change can take up to one hour to process.',
       enablePitr: 'Enable Point-in-Time Recovery',
+      pitrLocalNotSupported: 'Point-in-Time Recovery is not supported by DynamoDB Local.',
       pitrWarning:
         'PITR allows recovery to any second within the last 35 days. Additional AWS charges apply.',
       tableClassInfo:
@@ -434,6 +438,12 @@ export const enUS = {
       back: 'Back',
       next: 'Next',
       createTable: 'Create Table',
+      updateTableConfigTitle: 'Update Table Configuration',
+      updateTableConfigSuccess: 'Table configuration updated successfully',
+      updateTtlSuccess: 'TTL updated successfully',
+      updatePitrSuccess: 'PITR updated successfully',
+      updateStreamsSuccess: 'Streams updated successfully',
+      invalidConnectionType: 'Invalid connection type',
     },
   },
   connection: {

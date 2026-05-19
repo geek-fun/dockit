@@ -34,31 +34,58 @@
 
         <!-- TTL -->
         <template v-else-if="activeTab === 'ttl'">
-          <FormItem :label="lang.t('manage.dynamo.enableTtl')">
-            <Switch
-              :checked="formValue.ttlEnabled"
-              @update:checked="val => (formValue.ttlEnabled = val)"
-            />
-          </FormItem>
-          <FormItem v-if="formValue.ttlEnabled" :label="lang.t('manage.dynamo.ttlAttribute')">
-            <Input
-              v-model="formValue.ttlAttributeName"
-              :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')"
-            />
-          </FormItem>
+          <template v-if="props.currentSettings.ttlEnabled">
+            <div class="flex items-center justify-between">
+              <FormItem :label="lang.t('manage.dynamo.enableTtl')" class="flex-1">
+                <Switch
+                  :checked="formValue.ttlEnabled"
+                  @update:checked="val => (formValue.ttlEnabled = val)"
+                />
+              </FormItem>
+              <FormItem :label="lang.t('manage.dynamo.ttlCurrentAttribute')" class="flex-1">
+                <span class="text-sm text-muted-foreground font-mono">
+                  {{ props.currentSettings.ttlAttributeName }}
+                </span>
+              </FormItem>
+            </div>
+            <Alert v-if="formValue.ttlEnabled" variant="info">
+              <AlertDescription>
+                {{ lang.t('manage.dynamo.ttlChangeAttributeWarning') }}
+              </AlertDescription>
+            </Alert>
+          </template>
+          <template v-else>
+            <FormItem :label="lang.t('manage.dynamo.enableTtl')">
+              <Switch
+                :checked="formValue.ttlEnabled"
+                @update:checked="val => (formValue.ttlEnabled = val)"
+              />
+            </FormItem>
+            <FormItem v-if="formValue.ttlEnabled" :label="lang.t('manage.dynamo.ttlAttribute')">
+              <Input
+                v-model="formValue.ttlAttributeName"
+                :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')"
+              />
+            </FormItem>
+          </template>
         </template>
 
         <!-- PITR -->
         <template v-else-if="activeTab === 'pitr'">
-          <FormItem :label="lang.t('manage.dynamo.enablePitr')">
-            <Switch
-              :checked="formValue.pitrEnabled"
-              @update:checked="val => (formValue.pitrEnabled = val)"
-            />
-          </FormItem>
-          <Alert v-if="formValue.pitrEnabled" variant="info">
-            <AlertDescription>{{ lang.t('manage.dynamo.pitrWarning') }}</AlertDescription>
+          <Alert v-if="isLocalConnection" variant="info">
+            <AlertDescription>{{ lang.t('manage.dynamo.pitrLocalNotSupported') }}</AlertDescription>
           </Alert>
+          <template v-else>
+            <FormItem :label="lang.t('manage.dynamo.enablePitr')">
+              <Switch
+                :checked="formValue.pitrEnabled"
+                @update:checked="val => (formValue.pitrEnabled = val)"
+              />
+            </FormItem>
+            <Alert v-if="formValue.pitrEnabled" variant="info">
+              <AlertDescription>{{ lang.t('manage.dynamo.pitrWarning') }}</AlertDescription>
+            </Alert>
+          </template>
         </template>
 
         <!-- Table Class -->
@@ -284,8 +311,12 @@
         <Button variant="outline" :disabled="loading" @click="handleCancel">
           {{ lang.t('dialogOps.cancel') }}
         </Button>
-        <Button type="submit" :disabled="loading" @click="handleSubmit">
-          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+        <Button
+          type="submit"
+          :disabled="loading || (isLocalConnection && activeTab === 'pitr')"
+          @click="handleSubmit"
+        >
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.save') }}
         </Button>
       </DialogFooter>
@@ -300,7 +331,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import {
   Dialog,
   DialogContent,
@@ -323,6 +354,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../common';
 import { useLang } from '../../../lang';
+import { useMessageService } from '@/composables';
 import {
   useDynamoManageStore,
   DynamoDBConnection,
@@ -333,6 +365,7 @@ import { DynamoDBTableInfo } from '../../../datasources';
 
 const lang = useLang();
 const dynamoManageStore = useDynamoManageStore();
+const message = useMessageService();
 
 const DELETE_MIN_DELAY = 1000;
 
@@ -424,7 +457,10 @@ const emit = defineEmits<{
 
 const loading = ref(false);
 const errorMessage = ref('');
+const saveTimerRef = ref<ReturnType<typeof setTimeout> | null>(null);
 const activeTab = computed(() => props.defaultTab || 'streams');
+
+const isLocalConnection = computed(() => !!(props.connection as DynamoDBConnection).endpointUrl);
 
 const modalTitle = computed(() => {
   const t = lang.t.bind(lang);
@@ -452,10 +488,15 @@ watch(
       };
       errorMessage.value = '';
       loading.value = false;
+      if (saveTimerRef.value) {
+        clearTimeout(saveTimerRef.value);
+        saveTimerRef.value = null;
+      }
       resetTruncate();
       resetDelete();
     }
   },
+  { immediate: true },
 );
 
 // Start delete timer when confirm panel opens
@@ -481,27 +522,76 @@ onUnmounted(() => {
   if (deleteTimerRef.value) {
     clearInterval(deleteTimerRef.value);
   }
+  if (saveTimerRef.value) {
+    clearTimeout(saveTimerRef.value);
+  }
 });
 
 const handleCancel = () => {
+  if (saveTimerRef.value) {
+    clearTimeout(saveTimerRef.value);
+    saveTimerRef.value = null;
+  }
   emit('update:show', false);
 };
 
 const handleSubmit = async () => {
+  if (props.connection.type !== DatabaseType.DYNAMODB) {
+    errorMessage.value = lang.t('manage.dynamo.invalidConnectionType');
+    return;
+  }
+
   const startTime = Date.now();
+  errorMessage.value = '';
+
   try {
     loading.value = true;
-    await new Promise(resolve => setTimeout(resolve, MIN_LOADING_TIME));
+
+    const tab = activeTab.value;
+    let successKey = '';
+    if (tab === 'streams') {
+      await dynamoManageStore.updateStreams(props.connection, props.tableName, {
+        enabled: formValue.value.streamsEnabled,
+        streamViewType: formValue.value.streamViewType as
+          | 'KEYS_ONLY'
+          | 'NEW_IMAGE'
+          | 'OLD_IMAGE'
+          | 'NEW_AND_OLD_IMAGES',
+      });
+      successKey = lang.t('manage.dynamo.updateStreamsSuccess');
+    } else if (tab === 'ttl') {
+      await dynamoManageStore.updateTimeToLive(props.connection, props.tableName, {
+        enabled: formValue.value.ttlEnabled,
+        attributeName: formValue.value.ttlAttributeName || undefined,
+      });
+      successKey = lang.t('manage.dynamo.updateTtlSuccess');
+    } else if (tab === 'pitr') {
+      await dynamoManageStore.updateContinuousBackups(
+        props.connection,
+        props.tableName,
+        formValue.value.pitrEnabled,
+      );
+      successKey = lang.t('manage.dynamo.updatePitrSuccess');
+    } else if (tab === 'tableClass') {
+      await dynamoManageStore.updateTableConfig(props.connection, props.tableName, {
+        tableClass: formValue.value.tableClass as 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS',
+      });
+      successKey = lang.t('manage.dynamo.updateTableConfigSuccess');
+    }
+
     const elapsed = Date.now() - startTime;
     const remaining = Math.max(0, MIN_LOADING_TIME - elapsed);
     if (remaining > 0) await new Promise(resolve => setTimeout(resolve, remaining));
+
+    if (successKey) message.success(successKey);
     emit('update:show', false);
     emit('saved');
   } catch (error: unknown) {
     const err = error as { details?: string; status?: number; message?: string };
-    errorMessage.value = err?.details
+    const errMsg = err?.details
       ? `status: ${err?.status ?? 'unknown'}, details: ${err.details}`
       : err?.message || String(error);
+    message.error(errMsg, { closable: true, keepAliveOnHover: true, duration: 5000 });
   } finally {
     loading.value = false;
   }

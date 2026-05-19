@@ -729,6 +729,94 @@ const dynamoApi = {
     };
   },
 
+  updateTableConfig: async (
+    con: DynamoDBConnection,
+    tableName: string,
+    config: {
+      billingMode?: 'PAY_PER_REQUEST' | 'PROVISIONED';
+      readCapacity?: number;
+      writeCapacity?: number;
+      tableClass?: 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS';
+    },
+  ): Promise<{ tableName: string }> => {
+    const credentials = buildDynamoCredentials(con);
+    const options = {
+      table_name: tableName,
+      operation: 'UPDATE_TABLE_CONFIG',
+      payload: {
+        billing_mode: config.billingMode,
+        read_capacity_units: config.readCapacity,
+        write_capacity_units: config.writeCapacity,
+        table_class: config.tableClass,
+      },
+    };
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+    if (status >= 400) throw new CustomError(status, message);
+    return data as { tableName: string };
+  },
+
+  updateTimeToLive: async (
+    con: DynamoDBConnection,
+    tableName: string,
+    config: {
+      enabled: boolean;
+      attributeName?: string;
+    },
+  ): Promise<{ tableName: string; enabled: boolean; attributeName?: string }> => {
+    const credentials = buildDynamoCredentials(con);
+    const options = {
+      table_name: tableName,
+      operation: 'UPDATE_TTL',
+      payload: {
+        enabled: config.enabled,
+        attribute_name: config.attributeName,
+      },
+    };
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+    if (status >= 400) throw new CustomError(status, message);
+    return data as { tableName: string; enabled: boolean; attributeName?: string };
+  },
+
+  updateContinuousBackups: async (
+    con: DynamoDBConnection,
+    tableName: string,
+    enabled: boolean,
+  ): Promise<{ tableName: string; enabled: boolean }> => {
+    const credentials = buildDynamoCredentials(con);
+    const options = {
+      table_name: tableName,
+      operation: 'UPDATE_PITR',
+      payload: {
+        enabled,
+      },
+    };
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+    if (status >= 400) throw new CustomError(status, message);
+    return data as { tableName: string; enabled: boolean };
+  },
+
+  updateStreams: async (
+    con: DynamoDBConnection,
+    tableName: string,
+    config: {
+      enabled: boolean;
+      streamViewType?: 'KEYS_ONLY' | 'NEW_IMAGE' | 'OLD_IMAGE' | 'NEW_AND_OLD_IMAGES';
+    },
+  ): Promise<{ tableName: string; streamEnabled: boolean; streamViewType?: string }> => {
+    const credentials = buildDynamoCredentials(con);
+    const options = {
+      table_name: tableName,
+      operation: 'UPDATE_STREAMS',
+      payload: {
+        enabled: config.enabled,
+        stream_view_type: config.streamViewType,
+      },
+    };
+    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
+    if (status >= 400) throw new CustomError(status, message);
+    return data as { tableName: string; streamEnabled: boolean; streamViewType?: string };
+  },
+
   listProfiles: async (): Promise<string[]> => {
     try {
       return await invoke<string[]>('aws_list_profiles');

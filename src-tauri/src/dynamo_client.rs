@@ -11,10 +11,14 @@ use crate::dynamo::scan_table::{scan_table, ScanTableInput};
 use crate::dynamo::truncate_table::truncate_table;
 use crate::dynamo::types::ApiResponse;
 use crate::dynamo::update_item::{update_item, UpdateItemInput};
+use crate::dynamo::update_pitr::update_continuous_backups;
+use crate::dynamo::update_streams::update_streams;
 use crate::dynamo::update_table::{
     create_global_secondary_index, delete_global_secondary_index, update_global_secondary_index,
     CreateGsiInput, DeleteGsiInput, UpdateGsiInput,
 };
+use crate::dynamo::update_table_config::update_table_config;
+use crate::dynamo::update_ttl::update_time_to_live;
 use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};
 use crate::dynamo::continuous_backups::describe_continuous_backups;
 use crate::dynamo::time_to_live::describe_time_to_live;
@@ -362,6 +366,80 @@ pub async fn dynamo_api(
         }
         "TRUNCATE_TABLE" => {
             truncate_table(&client, &options.table_name).await
+        }
+        "UPDATE_TABLE_CONFIG" => {
+            if let Some(payload) = &options.payload {
+                let billing_mode = payload
+                    .get("billing_mode")
+                    .and_then(|v| v.as_str());
+                let read_capacity = payload
+                    .get("read_capacity_units")
+                    .and_then(|v| v.as_i64());
+                let write_capacity = payload
+                    .get("write_capacity_units")
+                    .and_then(|v| v.as_i64());
+                let table_class = payload
+                    .get("table_class")
+                    .and_then(|v| v.as_str());
+                update_table_config(&client, &options.table_name, billing_mode, read_capacity, write_capacity, table_class).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "Update table config payload is required".to_string(),
+                    data: None,
+                })
+            }
+        }
+        "UPDATE_TTL" => {
+            if let Some(payload) = &options.payload {
+                let enabled = payload
+                    .get("enabled")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let attribute_name = payload
+                    .get("attribute_name")
+                    .and_then(|v| v.as_str());
+                update_time_to_live(&client, &options.table_name, enabled, attribute_name).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "Update TTL payload is required".to_string(),
+                    data: None,
+                })
+            }
+        }
+        "UPDATE_PITR" => {
+            if let Some(payload) = &options.payload {
+                let enabled = payload
+                    .get("enabled")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                update_continuous_backups(&client, &options.table_name, enabled).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "Update PITR payload is required".to_string(),
+                    data: None,
+                })
+            }
+        }
+        "UPDATE_STREAMS" => {
+            if let Some(payload) = &options.payload {
+                let enabled = payload
+                    .get("enabled")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                let stream_view_type = payload
+                    .get("stream_view_type")
+                    .and_then(|v| v.as_str());
+                update_streams(&client, &options.table_name, enabled, stream_view_type).await
+            } else {
+                Ok(ApiResponse {
+                    status: 400,
+                    message: "Update streams payload is required".to_string(),
+                    data: None,
+                })
+            }
         }
         _ => Ok(ApiResponse {
             status: 400,
