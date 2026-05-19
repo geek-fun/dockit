@@ -448,12 +448,6 @@
         @deleted="handleTableDeleted"
       />
 
-      <create-table-modal
-        v-model:show="showCreateTableModal"
-        :connection="dynamoConnection"
-        @created="handleTableCreated"
-      />
-
       <create-index-modal
         v-model:show="showCreateIndexModal"
         :table-name="activeTableName"

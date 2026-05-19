@@ -429,6 +429,7 @@ const emit = defineEmits<{
 const loading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
+const saveTimerRef = ref<ReturnType<typeof setTimeout> | null>(null);
 const activeTab = computed(() => props.defaultTab || 'streams');
 
 const modalTitle = computed(() => {
@@ -458,6 +459,10 @@ watch(
       errorMessage.value = '';
       successMessage.value = '';
       loading.value = false;
+      if (saveTimerRef.value) {
+        clearTimeout(saveTimerRef.value);
+        saveTimerRef.value = null;
+      }
       resetTruncate();
       resetDelete();
     }
@@ -487,15 +492,22 @@ onUnmounted(() => {
   if (deleteTimerRef.value) {
     clearInterval(deleteTimerRef.value);
   }
+  if (saveTimerRef.value) {
+    clearTimeout(saveTimerRef.value);
+  }
 });
 
 const handleCancel = () => {
+  if (saveTimerRef.value) {
+    clearTimeout(saveTimerRef.value);
+    saveTimerRef.value = null;
+  }
   emit('update:show', false);
 };
 
 const handleSubmit = async () => {
   if (props.connection.type !== DatabaseType.DYNAMODB) {
-    errorMessage.value = 'Invalid connection type';
+    errorMessage.value = lang.t('manage.dynamo.invalidConnectionType');
     return;
   }
 
@@ -541,7 +553,8 @@ const handleSubmit = async () => {
     const remaining = Math.max(0, MIN_LOADING_TIME - elapsed);
     if (remaining > 0) await new Promise(resolve => setTimeout(resolve, remaining));
 
-    setTimeout(() => {
+    saveTimerRef.value = setTimeout(() => {
+      saveTimerRef.value = null;
       emit('update:show', false);
       emit('saved');
     }, SUCCESS_MESSAGE_DELAY);
