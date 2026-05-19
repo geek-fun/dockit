@@ -2,6 +2,7 @@ import {
   Connection,
   DatabaseType,
   DynamoDBConnection,
+  isSearchConnection,
   useConnectionStore,
 } from './connectionStore.ts';
 import { defineStore } from 'pinia';
@@ -17,8 +18,13 @@ type Panel = {
   activeTable?: string;
   file?: string;
   content?: string;
+  queryResult?: unknown;
   includeSystemIndices?: boolean;
-  editorType?: 'DYNAMO_EDITOR_UI' | 'DYNAMO_EDITOR_SQL' | 'DYNAMO_EDITOR_CREATE_ITEM';
+  editorType?:
+    | 'DYNAMO_EDITOR_UI'
+    | 'DYNAMO_EDITOR_SQL'
+    | 'DYNAMO_EDITOR_CREATE_ITEM'
+    | 'MONGO_EDITOR';
 };
 
 const homePanel: Panel = { id: 0, name: 'home', file: '' };
@@ -37,13 +43,17 @@ export const useTabStore = defineStore('panel', {
   }),
   getters: {
     activeConnection: state => state.activePanel.connection,
-    activeElasticsearchIndexOption: state =>
-      state.activePanel?.connection?.type === DatabaseType.ELASTICSEARCH
-        ? state.activePanel.connection.indices?.map(index => ({
-            label: index.index,
-            value: index.index,
-          }))
-        : [],
+    activeQueryResult: state => state.activePanel.queryResult,
+    activeSearchIndexOption: state => {
+      const connection = state.activePanel?.connection;
+      if (!connection || !isSearchConnection(connection)) return [];
+      return (
+        connection.indices?.map(index => ({
+          label: index.index,
+          value: index.index,
+        })) ?? []
+      );
+    },
   },
   actions: {
     async establishPanel(connectionOrFile: Connection | string): Promise<void> {
@@ -69,11 +79,12 @@ export const useTabStore = defineStore('panel', {
         );
 
         const isDynamoDB = connectionOrFile.type === DatabaseType.DYNAMODB;
-        const fileExt = isDynamoDB ? '.partiql' : '.search';
+        const isMongoDB = connectionOrFile.type === DatabaseType.MONGODB;
+        const fileExt = isDynamoDB ? '.partiql' : isMongoDB ? '.mongo' : '.search';
         let fileName = !exists.length
           ? `${connectionOrFile.name}${fileExt}`
           : `${connectionOrFile.name}-${exists.length}${fileExt}`;
-        let content = isDynamoDB ? '' : defaultCodeSnippet;
+        let content = isDynamoDB || isMongoDB ? '' : defaultCodeSnippet;
 
         const fileInfo = await sourceFileApi.getPathInfo(fileName);
         if (fileInfo) {
@@ -180,6 +191,10 @@ export const useTabStore = defineStore('panel', {
 
     setActiveTable(tableName: string): void {
       this.activePanel.activeTable = tableName;
+    },
+
+    saveQueryResult(result: unknown): void {
+      this.activePanel.queryResult = result;
     },
 
     async toggleFavoriteTable(tableName: string): Promise<void> {

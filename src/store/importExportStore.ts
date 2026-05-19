@@ -16,7 +16,9 @@ import {
   DatabaseType,
   DynamoDBConnection,
   ElasticsearchConnection,
+  SearchConnection,
   findTable,
+  isSearchConnection,
 } from './connectionStore.ts';
 
 // Import (Restore) types
@@ -334,7 +336,7 @@ export const useImportExportStore = defineStore('importExportStore', {
     },
 
     async restoreFromFile(input: RestoreInput) {
-      if (input.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(input.connection)) {
         return await this.restoreToElasticsearch(input);
       } else if (input.connection.type === DatabaseType.DYNAMODB) {
         return await this.restoreToDynamoDB(input);
@@ -1198,7 +1200,8 @@ export const useImportExportStore = defineStore('importExportStore', {
             if (
               !this.importSchemaFields.find(f => f.name === dataField.name) &&
               !(
-                this.importConnection?.type === DatabaseType.ELASTICSEARCH &&
+                this.importConnection &&
+                isSearchConnection(this.importConnection) &&
                 dataField.name === '_id'
               )
             ) {
@@ -1231,8 +1234,8 @@ export const useImportExportStore = defineStore('importExportStore', {
     async fetchExistingCollectionSchema(): Promise<Record<string, string> | null> {
       if (!this.importConnection || !this.importTargetIndex) return null;
 
-      if (this.importConnection.type === DatabaseType.ELASTICSEARCH) {
-        const client = loadHttpClient(this.importConnection as ElasticsearchConnection);
+      if (isSearchConnection(this.importConnection)) {
+        const client = loadHttpClient(this.importConnection as SearchConnection);
 
         const response = await client.get<{
           [index: string]: { mappings: { properties?: Record<string, { type?: string }> } };
@@ -1319,18 +1322,19 @@ export const useImportExportStore = defineStore('importExportStore', {
           errors.push({ key: 'import.missingRowCount' });
         }
 
-        if (
-          metadata.source?.dbType &&
-          this.importConnection &&
-          metadata.source.dbType.toLowerCase() !== this.importConnection.type.toLowerCase()
-        ) {
-          errors.push({
-            key: 'import.dbTypeMismatch',
-            params: {
-              sourceType: metadata.source.dbType,
-              targetType: this.importConnection.type,
-            },
-          });
+        if (metadata.source?.dbType && this.importConnection) {
+          const searchFamily = new Set(['elasticsearch', 'opensearch', 'easysearch']);
+          const normalise = (t: string) =>
+            searchFamily.has(t.toLowerCase()) ? 'search' : t.toLowerCase();
+          if (normalise(metadata.source.dbType) !== normalise(this.importConnection.type)) {
+            errors.push({
+              key: 'import.dbTypeMismatch',
+              params: {
+                sourceType: metadata.source.dbType,
+                targetType: this.importConnection.type,
+              },
+            });
+          }
         }
 
         this.importValidationErrors = errors;
@@ -1481,13 +1485,16 @@ export const useImportExportStore = defineStore('importExportStore', {
 
       // For new collections with metadata
       if (this.importMetadata) {
-        // Check database type compatibility
-        const sourceDbType = this.importMetadata.source.dbType.toLowerCase();
-        const targetDbType = this.importConnection.type.toLowerCase();
+        const searchFamily = new Set(['elasticsearch', 'opensearch', 'easysearch']);
+        const normalise = (t: string) =>
+          searchFamily.has(t.toLowerCase()) ? 'search' : t.toLowerCase();
+
+        const sourceDbType = normalise(this.importMetadata.source.dbType);
+        const targetDbType = normalise(this.importConnection.type);
 
         if (sourceDbType !== targetDbType) {
           errors.push(
-            `Database type mismatch: source is ${sourceDbType}, target is ${targetDbType}`,
+            `Database type mismatch: source is ${this.importMetadata.source.dbType.toLowerCase()}, target is ${this.importConnection.type.toLowerCase()}`,
           );
         }
 
@@ -1557,9 +1564,9 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.importCreationError = null;
 
       try {
-        if (this.importConnection.type === DatabaseType.ELASTICSEARCH) {
+        if (isSearchConnection(this.importConnection)) {
           const mappingBody = buildEsMappingBody(this.importMetadata, this.importSchemaOverrides);
-          await esApi.createIndex(this.importConnection as ElasticsearchConnection, {
+          await esApi.createIndex(this.importConnection as SearchConnection, {
             indexName: this.importTargetIndex,
             shards: this.importCreationOptions.shards,
             replicas: this.importCreationOptions.replicas,
@@ -1780,7 +1787,7 @@ export const useImportExportStore = defineStore('importExportStore', {
         throw new CustomError(400, 'Connection and index are required');
       }
 
-      if (this.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(this.connection)) {
         await this.fetchElasticsearchSchema();
       } else if (this.connection.type === DatabaseType.DYNAMODB) {
         await this.fetchDynamoDBSchema();
@@ -1791,9 +1798,9 @@ export const useImportExportStore = defineStore('importExportStore', {
 
     async fetchElasticsearchSchema() {
       if (!this.connection || !this.selectedIndex) return;
-      if (this.connection.type !== DatabaseType.ELASTICSEARCH) return;
+      if (!isSearchConnection(this.connection)) return;
 
-      const client = loadHttpClient(this.connection as ElasticsearchConnection);
+      const client = loadHttpClient(this.connection as SearchConnection);
 
       try {
         // Get mapping
@@ -1984,7 +1991,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       // Reset progress at the start of each export
       this.exportProgress = null;
 
-      if (input.connection.type === DatabaseType.ELASTICSEARCH) {
+      if (isSearchConnection(input.connection)) {
         return await this.exportElasticsearchToFile(input);
       } else if (input.connection.type === DatabaseType.DYNAMODB) {
         return await this.exportDynamoDBToFile(input);
@@ -2015,10 +2022,10 @@ export const useImportExportStore = defineStore('importExportStore', {
     },
 
     async exportElasticsearchToFile(input: ExportInput): Promise<string> {
-      if (input.connection.type !== DatabaseType.ELASTICSEARCH) {
-        throw new CustomError(400, 'Connection must be Elasticsearch');
+      if (!isSearchConnection(input.connection)) {
+        throw new CustomError(400, 'Connection must be Elasticsearch or OpenSearch');
       }
-      const esConnection = input.connection as ElasticsearchConnection;
+      const esConnection = input.connection as SearchConnection;
       const client = loadHttpClient(esConnection);
       const dbVersion = esConnection.version || '';
 

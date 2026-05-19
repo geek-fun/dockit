@@ -515,7 +515,10 @@ const setupQueryEditor = () => {
     if (!action) return;
     const connection = activeConnection.value as ElasticsearchConnection | undefined;
     const version = connection?.version || 'current';
-    const engineType = connection?.isOpenSearch ? EngineType.OPENSEARCH : EngineType.ELASTICSEARCH;
+    const engineType =
+      connection?.type === DatabaseType.OPENSEARCH || connection?.type === DatabaseType.EASYSEARCH
+        ? EngineType.OPENSEARCH
+        : EngineType.ELASTICSEARCH;
     const docLink = getActionApiDoc(engineType, version, action as SearchAction);
     if (docLink) open(docLink);
   });

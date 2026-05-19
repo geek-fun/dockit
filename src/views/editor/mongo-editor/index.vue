@@ -21,7 +21,7 @@ import {
   DatabaseType,
   MongoDBConnection,
   useAppStore,
-  useChatStore,
+  useCodeActionStore,
   useConnectionStore,
   useHistoryStore,
   useTabStore,
@@ -41,13 +41,13 @@ import {
 import { mongoApi } from '../../../datasources';
 
 const appStore = useAppStore();
-const chatStore = useChatStore();
+const codeActionStore = useCodeActionStore();
 const message = useMessageService();
 const loadingBar = useLoadingBarService();
 const lang = useLang();
 const { getEditorTheme, getEditorOptions } = appStore;
 const { themeType, editorConfig } = storeToRefs(appStore);
-const { insertBoard } = storeToRefs(chatStore);
+const { insertBuffer } = storeToRefs(codeActionStore);
 
 const tabStore = useTabStore();
 const { activePanel } = storeToRefs(tabStore);
@@ -99,7 +99,7 @@ watch(
   },
 );
 
-watch(insertBoard, () => {
+watch(insertBuffer, () => {
   if (queryEditor) {
     const position = queryEditor.getPosition();
     if (!position) return;
@@ -113,7 +113,7 @@ watch(insertBoard, () => {
             position.lineNumber,
             position.column,
           ),
-          text: insertBoard.value,
+          text: insertBuffer.value,
         },
       ],
       () => null,

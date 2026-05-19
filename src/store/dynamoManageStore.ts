@@ -3,6 +3,57 @@ import { dynamoApi, DynamoDBTableInfo } from '../datasources';
 import { DynamoDBConnection, DatabaseType } from './connectionStore.ts';
 import { debug } from '../common';
 
+export type CreateTableConfig = {
+  tableName: string;
+  tableClass?: 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS';
+  partitionKey: { name: string; type: 'S' | 'N' | 'B' };
+  sortKey?: { name: string; type: 'S' | 'N' | 'B' };
+  billingMode: 'PAY_PER_REQUEST' | 'PROVISIONED';
+  deletionProtection?: boolean;
+  readCapacity?: number;
+  writeCapacity?: number;
+  globalSecondaryIndexes?: Array<{
+    indexName: string;
+    keySchema: Array<{
+      attributeName: string;
+      keyType: 'HASH' | 'RANGE';
+      attributeType: 'S' | 'N' | 'B';
+    }>;
+    projectionType: 'ALL' | 'KEYS_ONLY' | 'INCLUDE';
+    nonKeyAttributes?: string[];
+    readCapacityUnits?: number;
+    writeCapacityUnits?: number;
+  }>;
+  localSecondaryIndexes?: Array<{
+    indexName: string;
+    keySchema: Array<{
+      attributeName: string;
+      keyType: 'HASH' | 'RANGE';
+      attributeType: 'S' | 'N' | 'B';
+    }>;
+    projectionType: 'ALL' | 'KEYS_ONLY' | 'INCLUDE';
+    nonKeyAttributes?: string[];
+  }>;
+  streamSpecification?: {
+    streamEnabled: boolean;
+    streamViewType?: 'KEYS_ONLY' | 'NEW_IMAGE' | 'OLD_IMAGE' | 'NEW_AND_OLD_IMAGES';
+  };
+  sseSpecification?: {
+    enabled: boolean;
+    sseType?: 'AES256' | 'KMS';
+    kmsMasterKeyId?: string;
+  };
+  tags?: Array<{ key: string; value: string }>;
+};
+
+export type TruncateResult = {
+  totalItems: number;
+  totalScanned: number;
+  deletedItems: number;
+  unprocessedCount: number;
+  errors: Array<{ error: string; message: string }>;
+};
+
 export const useDynamoManageStore = defineStore('dynamoManageStore', {
   state: (): {
     tableInfo: DynamoDBTableInfo | undefined;
@@ -40,6 +91,148 @@ export const useDynamoManageStore = defineStore('dynamoManageStore', {
       this.tableInfo = undefined;
       this.lastUpdatedTime = undefined;
       this.manageActiveTable = '';
+    },
+    async createTable(connection: DynamoDBConnection, config: CreateTableConfig) {
+      if (connection.type !== DatabaseType.DYNAMODB) {
+        throw new Error('Connection must be DynamoDB type');
+      }
+
+      this.loading = true;
+      try {
+        const result = await dynamoApi.createTable(connection, config);
+        return result;
+      } catch (err) {
+        debug(`Error creating DynamoDB table: ${err}`);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+    async deleteTable(connection: DynamoDBConnection, tableName: string) {
+      if (connection.type !== DatabaseType.DYNAMODB) {
+        throw new Error('Connection must be DynamoDB type');
+      }
+
+      this.loading = true;
+      try {
+        const result = await dynamoApi.deleteTable(connection, tableName);
+        this.clearTableInfo();
+        return result;
+      } catch (err) {
+        debug(`Error deleting DynamoDB table: ${err}`);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+    async truncateTable(
+      connection: DynamoDBConnection,
+      tableName: string,
+    ): Promise<TruncateResult> {
+      if (connection.type !== DatabaseType.DYNAMODB) {
+        throw new Error('Connection must be DynamoDB type');
+      }
+
+      this.loading = true;
+      try {
+        const result = await dynamoApi.truncateTable(connection, tableName);
+        return result;
+      } catch (err) {
+        debug(`Error truncating DynamoDB table: ${err}`);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+    async updateTableConfig(
+      connection: DynamoDBConnection,
+      tableName: string,
+      config: {
+        billingMode?: 'PAY_PER_REQUEST' | 'PROVISIONED';
+        readCapacity?: number;
+        writeCapacity?: number;
+        tableClass?: 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS';
+      },
+    ) {
+      if (connection.type !== DatabaseType.DYNAMODB) {
+        throw new Error('Connection must be DynamoDB type');
+      }
+
+      this.loading = true;
+      try {
+        const result = await dynamoApi.updateTableConfig(connection, tableName, config);
+        await this.fetchTableInfo(connection, tableName);
+        return result;
+      } catch (err) {
+        debug(`Error updating DynamoDB table config: ${err}`);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+    async updateTimeToLive(
+      connection: DynamoDBConnection,
+      tableName: string,
+      config: { enabled: boolean; attributeName?: string },
+    ) {
+      if (connection.type !== DatabaseType.DYNAMODB) {
+        throw new Error('Connection must be DynamoDB type');
+      }
+
+      this.loading = true;
+      try {
+        const result = await dynamoApi.updateTimeToLive(connection, tableName, config);
+        return result;
+      } catch (err) {
+        debug(`Error updating DynamoDB TTL: ${err}`);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+    async updateContinuousBackups(
+      connection: DynamoDBConnection,
+      tableName: string,
+      enabled: boolean,
+    ) {
+      if (connection.type !== DatabaseType.DYNAMODB) {
+        throw new Error('Connection must be DynamoDB type');
+      }
+
+      this.loading = true;
+      try {
+        const result = await dynamoApi.updateContinuousBackups(connection, tableName, enabled);
+        return result;
+      } catch (err) {
+        debug(`Error updating DynamoDB PITR: ${err}`);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
+    },
+    async updateStreams(
+      connection: DynamoDBConnection,
+      tableName: string,
+      config: {
+        enabled: boolean;
+        streamViewType?: 'KEYS_ONLY' | 'NEW_IMAGE' | 'OLD_IMAGE' | 'NEW_AND_OLD_IMAGES';
+      },
+    ) {
+      if (connection.type !== DatabaseType.DYNAMODB) {
+        throw new Error('Connection must be DynamoDB type');
+      }
+
+      this.loading = true;
+      try {
+        const result = await dynamoApi.updateStreams(connection, tableName, config);
+        await this.fetchTableInfo(connection, tableName);
+        return result;
+      } catch (err) {
+        debug(`Error updating DynamoDB streams: ${err}`);
+        throw err;
+      } finally {
+        this.loading = false;
+      }
     },
   },
 });
