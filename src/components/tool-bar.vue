@@ -247,7 +247,7 @@ const { connections } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
 const { selectConnection, setActiveTable, toggleFavoriteTable } = tabStore;
-const { activePanel, activeElasticsearchIndexOption } = storeToRefs(tabStore);
+const { activePanel, activeSearchIndexOption } = storeToRefs(tabStore);
 
 const clusterManageStore = useClusterManageStore();
 const { setConnection, refreshStates } = clusterManageStore;
@@ -339,7 +339,7 @@ const connectionOptions = computed(() =>
 
 const indexOptions = computed(
   () =>
-    activeElasticsearchIndexOption.value
+    activeSearchIndexOption.value
       ?.filter(index => (includeSystemIndicesRef.value ? true : !index.value.startsWith('.')))
       ?.sort((a, b) => {
         const aIsSystem = a.value.startsWith('.');
