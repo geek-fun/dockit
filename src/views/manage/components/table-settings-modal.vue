@@ -316,7 +316,7 @@
           :disabled="loading || (isLocalConnection && activeTab === 'pitr')"
           @click="handleSubmit"
         >
-          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.save') }}
         </Button>
       </DialogFooter>
@@ -331,7 +331,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import {
   Dialog,
   DialogContent,
