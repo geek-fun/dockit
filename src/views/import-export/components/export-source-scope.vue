@@ -73,7 +73,8 @@ import { useLang } from '../../../lang';
 import {
   DatabaseType,
   DynamoDBConnection,
-  ElasticsearchConnection,
+  SearchConnection,
+  isSearchConnection,
   useConnectionStore,
   useImportExportStore,
 } from '../../../store';
@@ -147,18 +148,18 @@ const handleIndexOpen = async (isOpen: boolean) => {
 
   loadingStat.value.index = true;
   try {
-    if (connection.value.type === DatabaseType.ELASTICSEARCH) {
+    if (connection.value && isSearchConnection(connection.value)) {
       // fetchIndices hits the server and updates connectionStore.connections[] in-place by id.
       // connection.value (exportStore copy) is a separate object and is not mutated,
       // so look up the freshly updated entry from the connectionStore afterwards.
       await fetchIndices(connection.value);
       const updatedCon =
         connections.value.find(c => c.id === connection.value?.id) ?? connection.value;
-      const indices = (updatedCon as ElasticsearchConnection)?.indices ?? [];
+      const indices = (updatedCon as SearchConnection)?.indices ?? [];
       indexOptions.value = indices
         .map(index => ({ label: index.index, value: index.index }))
         .sort((a, b) => a.label.localeCompare(b.label));
-    } else if (connection.value.type === DatabaseType.DYNAMODB) {
+    } else if (connection.value?.type === DatabaseType.DYNAMODB) {
       // DynamoDB metadata is already populated by freshConnection — no extra fetch needed.
       const dynamoConn = connection.value as DynamoDBConnection;
       indexOptions.value =

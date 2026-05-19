@@ -8,6 +8,7 @@
         </DialogTitle>
         <button
           class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
+          aria-label="Close"
           @click="closeModal"
         >
           <X class="h-4 w-4" />
@@ -18,7 +19,11 @@
         <Alert v-if="successMessage" variant="success" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ successMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="successMessage = ''">
+            <button
+              class="ml-2 hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="successMessage = ''"
+            >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
@@ -26,7 +31,11 @@
         <Alert v-if="errorMessage" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ errorMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
+            <button
+              class="ml-2 hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="errorMessage = ''"
+            >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
@@ -444,7 +453,9 @@
                     autocomplete="off"
                     @focus="showSuggestions = true"
                     @blur="onInputBlur"
-                    @keydown.enter.prevent="addFromInputOrFirst"
+                    @keydown.up.prevent="handleSuggestionKeyDown"
+                    @keydown.down.prevent="handleSuggestionKeyDown"
+                    @keydown.enter.prevent="handleSuggestionKeyDown"
                     @keydown.escape="showSuggestions = false"
                   />
                   <div
@@ -452,10 +463,13 @@
                     class="absolute z-50 w-full mt-1 bg-popover border border-border rounded-md shadow-md max-h-48 overflow-y-scroll suggestion-list macos-scrollable"
                   >
                     <button
-                      v-for="name in filteredSuggestions"
+                      v-for="(name, index) in filteredSuggestions"
                       :key="name"
                       type="button"
-                      class="w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-pointer"
+                      :class="[
+                        'w-full text-left px-3 py-1.5 text-sm hover:bg-accent cursor-pointer',
+                        index === highlightedSuggestionIndex && 'bg-accent',
+                      ]"
                       @mousedown.prevent="addFilterTableName(name)"
                     >
                       {{ name }}
@@ -1327,6 +1341,43 @@ const addFromInputOrFirst = () => {
     addFilterTableName(name);
   } else if (filteredSuggestions.value.length) {
     addFilterTableName(filteredSuggestions.value[0]);
+  }
+};
+
+const highlightedSuggestionIndex = ref(-1);
+
+watch(filterTableNameInput, () => {
+  highlightedSuggestionIndex.value = -1;
+});
+
+const handleSuggestionKeyDown = (e: KeyboardEvent) => {
+  const suggestions = filteredSuggestions.value;
+
+  switch (e.key) {
+    case 'ArrowDown':
+      if (!suggestions.length) return;
+      e.preventDefault();
+      highlightedSuggestionIndex.value =
+        highlightedSuggestionIndex.value < suggestions.length - 1
+          ? highlightedSuggestionIndex.value + 1
+          : 0;
+      break;
+    case 'ArrowUp':
+      if (!suggestions.length) return;
+      e.preventDefault();
+      highlightedSuggestionIndex.value =
+        highlightedSuggestionIndex.value > 0
+          ? highlightedSuggestionIndex.value - 1
+          : suggestions.length - 1;
+      break;
+    case 'Enter':
+      e.preventDefault();
+      if (highlightedSuggestionIndex.value >= 0 && suggestions[highlightedSuggestionIndex.value]) {
+        addFilterTableName(suggestions[highlightedSuggestionIndex.value]);
+      } else {
+        addFromInputOrFirst();
+      }
+      break;
   }
 };
 
