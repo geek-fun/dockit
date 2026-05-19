@@ -12,11 +12,7 @@
             :class="{
               active: isActive(item),
             }"
-            role="button"
-            tabindex="0"
             @click="navClick(item)"
-            @keydown.enter="navClick(item)"
-            @keydown.space.prevent="navClick(item)"
           >
             <span :class="[item.iconClass, 'h-6 w-6']" />
           </div>
@@ -33,11 +29,7 @@
             :class="{
               active: isActive(item),
             }"
-            role="button"
-            tabindex="0"
             @click="navClick(item)"
-            @keydown.enter="navClick(item)"
-            @keydown.space.prevent="navClick(item)"
           >
             <span :class="[item.iconClass, 'h-6 w-6']" />
           </div>
@@ -73,6 +65,13 @@ const mainNavList = ref([
     path: '/connect',
     name: 'connect',
     iconClass: 'i-carbon-data-base',
+    isLink: false,
+  },
+  {
+    id: 'data-studio',
+    path: '/data-studio',
+    name: 'dataStudio',
+    iconClass: 'i-carbon-ibm-watsonx-assistant',
     isLink: false,
   },
   {
