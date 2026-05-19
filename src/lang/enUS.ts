@@ -421,7 +421,9 @@ export const enUS = {
       enableTtl: 'Enable TTL',
       ttlAttribute: 'TTL Attribute',
       ttlAttributePlaceholder: 'Enter attribute name (e.g. expiresAt)',
+      ttlLocalNotSupported: 'TTL is not supported by DynamoDB Local.',
       enablePitr: 'Enable Point-in-Time Recovery',
+      pitrLocalNotSupported: 'Point-in-Time Recovery is not supported by DynamoDB Local.',
       pitrWarning:
         'PITR allows recovery to any second within the last 35 days. Additional AWS charges apply.',
       tableClassInfo:

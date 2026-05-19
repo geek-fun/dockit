@@ -34,31 +34,41 @@
 
         <!-- TTL -->
         <template v-else-if="activeTab === 'ttl'">
-          <FormItem :label="lang.t('manage.dynamo.enableTtl')">
-            <Switch
-              :checked="formValue.ttlEnabled"
-              @update:checked="val => (formValue.ttlEnabled = val)"
-            />
-          </FormItem>
-          <FormItem v-if="formValue.ttlEnabled" :label="lang.t('manage.dynamo.ttlAttribute')">
-            <Input
-              v-model="formValue.ttlAttributeName"
-              :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')"
-            />
-          </FormItem>
+          <Alert v-if="isLocalConnection" variant="info">
+            <AlertDescription>{{ lang.t('manage.dynamo.ttlLocalNotSupported') }}</AlertDescription>
+          </Alert>
+          <template v-else>
+            <FormItem :label="lang.t('manage.dynamo.enableTtl')">
+              <Switch
+                :checked="formValue.ttlEnabled"
+                @update:checked="val => (formValue.ttlEnabled = val)"
+              />
+            </FormItem>
+            <FormItem v-if="formValue.ttlEnabled" :label="lang.t('manage.dynamo.ttlAttribute')">
+              <Input
+                v-model="formValue.ttlAttributeName"
+                :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')"
+              />
+            </FormItem>
+          </template>
         </template>
 
         <!-- PITR -->
         <template v-else-if="activeTab === 'pitr'">
-          <FormItem :label="lang.t('manage.dynamo.enablePitr')">
-            <Switch
-              :checked="formValue.pitrEnabled"
-              @update:checked="val => (formValue.pitrEnabled = val)"
-            />
-          </FormItem>
-          <Alert v-if="formValue.pitrEnabled" variant="info">
-            <AlertDescription>{{ lang.t('manage.dynamo.pitrWarning') }}</AlertDescription>
+          <Alert v-if="isLocalConnection" variant="info">
+            <AlertDescription>{{ lang.t('manage.dynamo.pitrLocalNotSupported') }}</AlertDescription>
           </Alert>
+          <template v-else>
+            <FormItem :label="lang.t('manage.dynamo.enablePitr')">
+              <Switch
+                :checked="formValue.pitrEnabled"
+                @update:checked="val => (formValue.pitrEnabled = val)"
+              />
+            </FormItem>
+            <Alert v-if="formValue.pitrEnabled" variant="info">
+              <AlertDescription>{{ lang.t('manage.dynamo.pitrWarning') }}</AlertDescription>
+            </Alert>
+          </template>
         </template>
 
         <!-- Table Class -->
@@ -280,15 +290,17 @@
         </AlertDescription>
       </Alert>
 
-      <Alert v-if="successMessage" class="mt-3">
-        <AlertDescription>{{ successMessage }}</AlertDescription>
-      </Alert>
-
       <DialogFooter v-if="activeTab !== 'danger'" class="mt-4">
         <Button variant="outline" :disabled="loading" @click="handleCancel">
           {{ lang.t('dialogOps.cancel') }}
         </Button>
-        <Button type="submit" :disabled="loading" @click="handleSubmit">
+        <Button
+          type="submit"
+          :disabled="
+            loading || (isLocalConnection && (activeTab === 'pitr' || activeTab === 'ttl'))
+          "
+          @click="handleSubmit"
+        >
           <Spinner v-if="loading" class="mr-2 h-4 w-4" />
           {{ lang.t('dialogOps.save') }}
         </Button>
@@ -327,6 +339,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../common';
 import { useLang } from '../../../lang';
+import { useMessageService } from '@/composables';
 import {
   useDynamoManageStore,
   DynamoDBConnection,
@@ -337,6 +350,7 @@ import { DynamoDBTableInfo } from '../../../datasources';
 
 const lang = useLang();
 const dynamoManageStore = useDynamoManageStore();
+const message = useMessageService();
 
 const DELETE_MIN_DELAY = 1000;
 
@@ -428,9 +442,10 @@ const emit = defineEmits<{
 
 const loading = ref(false);
 const errorMessage = ref('');
-const successMessage = ref('');
 const saveTimerRef = ref<ReturnType<typeof setTimeout> | null>(null);
 const activeTab = computed(() => props.defaultTab || 'streams');
+
+const isLocalConnection = computed(() => !!(props.connection as DynamoDBConnection).endpointUrl);
 
 const modalTitle = computed(() => {
   const t = lang.t.bind(lang);
@@ -457,7 +472,6 @@ watch(
         tableClass: props.currentSettings.tableClass || 'STANDARD',
       };
       errorMessage.value = '';
-      successMessage.value = '';
       loading.value = false;
       if (saveTimerRef.value) {
         clearTimeout(saveTimerRef.value);
@@ -467,6 +481,7 @@ watch(
       resetDelete();
     }
   },
+  { immediate: true },
 );
 
 // Start delete timer when confirm panel opens
@@ -513,12 +528,12 @@ const handleSubmit = async () => {
 
   const startTime = Date.now();
   errorMessage.value = '';
-  successMessage.value = '';
 
   try {
     loading.value = true;
 
     const tab = activeTab.value;
+    let successKey = '';
     if (tab === 'streams') {
       await dynamoManageStore.updateStreams(props.connection, props.tableName, {
         enabled: formValue.value.streamsEnabled,
@@ -528,41 +543,40 @@ const handleSubmit = async () => {
           | 'OLD_IMAGE'
           | 'NEW_AND_OLD_IMAGES',
       });
-      successMessage.value = lang.t('manage.dynamo.updateStreamsSuccess');
+      successKey = lang.t('manage.dynamo.updateStreamsSuccess');
     } else if (tab === 'ttl') {
       await dynamoManageStore.updateTimeToLive(props.connection, props.tableName, {
         enabled: formValue.value.ttlEnabled,
         attributeName: formValue.value.ttlAttributeName || undefined,
       });
-      successMessage.value = lang.t('manage.dynamo.updateTtlSuccess');
+      successKey = lang.t('manage.dynamo.updateTtlSuccess');
     } else if (tab === 'pitr') {
       await dynamoManageStore.updateContinuousBackups(
         props.connection,
         props.tableName,
         formValue.value.pitrEnabled,
       );
-      successMessage.value = lang.t('manage.dynamo.updatePitrSuccess');
+      successKey = lang.t('manage.dynamo.updatePitrSuccess');
     } else if (tab === 'tableClass') {
       await dynamoManageStore.updateTableConfig(props.connection, props.tableName, {
         tableClass: formValue.value.tableClass as 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS',
       });
-      successMessage.value = lang.t('manage.dynamo.updateTableConfigSuccess');
+      successKey = lang.t('manage.dynamo.updateTableConfigSuccess');
     }
 
     const elapsed = Date.now() - startTime;
     const remaining = Math.max(0, MIN_LOADING_TIME - elapsed);
     if (remaining > 0) await new Promise(resolve => setTimeout(resolve, remaining));
 
-    saveTimerRef.value = setTimeout(() => {
-      saveTimerRef.value = null;
-      emit('update:show', false);
-      emit('saved');
-    }, SUCCESS_MESSAGE_DELAY);
+    if (successKey) message.success(successKey);
+    emit('update:show', false);
+    emit('saved');
   } catch (error: unknown) {
     const err = error as { details?: string; status?: number; message?: string };
-    errorMessage.value = err?.details
+    const errMsg = err?.details
       ? `status: ${err?.status ?? 'unknown'}, details: ${err.details}`
       : err?.message || String(error);
+    message.error(errMsg, { closable: true, keepAliveOnHover: true, duration: 5000 });
   } finally {
     loading.value = false;
   }
