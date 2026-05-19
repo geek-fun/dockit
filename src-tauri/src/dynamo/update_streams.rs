@@ -14,80 +14,104 @@ fn parse_stream_view_type(type_str: &str) -> StreamViewType {
     }
 }
 
-pub async fn update_streams(
+async fn set_stream(
     client: &Client,
     table_name: &str,
     stream_enabled: bool,
     stream_view_type: Option<&str>,
-) -> Result<ApiResponse, String> {
+) -> Result<(), String> {
     let mut spec_builder = StreamSpecification::builder().stream_enabled(stream_enabled);
 
     if stream_enabled {
-        if let Some(view_type) = stream_view_type {
-            spec_builder = spec_builder.stream_view_type(parse_stream_view_type(view_type));
-        } else {
-            spec_builder = spec_builder.stream_view_type(StreamViewType::NewAndOldImages);
-        }
+        let view_type = stream_view_type.unwrap_or("NEW_AND_OLD_IMAGES");
+        spec_builder = spec_builder.stream_view_type(parse_stream_view_type(view_type));
     }
 
     let spec = spec_builder
         .build()
         .map_err(|e| format!("Failed to build stream specification: {}", e))?;
 
-    match client
+    client
         .update_table()
         .table_name(table_name)
         .stream_specification(spec)
         .send()
         .await
-    {
-        Ok(response) => {
-            let spec = response.table_description().and_then(|t| t.stream_specification());
-            Ok(ApiResponse {
-                status: 200,
-                message: format!(
-                    "Streams updated successfully for table '{}'",
-                    table_name
-                ),
-                data: Some(json!({
-                    "tableName": table_name,
-                    "streamEnabled": spec.map(|s| s.stream_enabled()).unwrap_or(false),
-                    "streamViewType": spec.and_then(|s| s.stream_view_type().map(|v| v.as_str())),
-                })),
-            })
-        }
-        Err(e) => {
-            let error_code = e.code().unwrap_or("UnknownError").to_string();
-            let error_message = e
-                .message()
-                .map(|m| m.to_string())
-                .unwrap_or_else(|| format!("{:#}", e));
+        .map_err(|e| {
+            let code = e.code().unwrap_or("UnknownError");
+            let msg = e.message().map(|m| m.to_string()).unwrap_or_else(|| format!("{:#}", e));
+            format!("[{}] {}", code, msg)
+        })?;
 
-            if error_code == "ValidationException"
-                && error_message.contains("already has an enabled stream")
-            {
-                return Ok(ApiResponse {
-                    status: 200,
+    Ok(())
+}
+
+pub async fn update_streams(
+    client: &Client,
+    table_name: &str,
+    stream_enabled: bool,
+    stream_view_type: Option<&str>,
+) -> Result<ApiResponse, String> {
+    let result = set_stream(client, table_name, stream_enabled, stream_view_type).await;
+
+    match result {
+        Ok(()) => Ok(ApiResponse {
+            status: 200,
+            message: format!("Streams updated successfully for table '{}'", table_name),
+            data: Some(json!({
+                "tableName": table_name,
+                "streamEnabled": stream_enabled,
+                "streamViewType": stream_view_type,
+            })),
+        }),
+        Err(err) => {
+            // DynamoDB (including Local) rejects enabling streams on a table that already has them.
+            // To change the view type: disable first, then re-enable with the new type.
+            if stream_enabled && err.contains("already has an enabled stream") {
+                let disable_result = set_stream(client, table_name, false, None).await;
+                if let Err(disable_err) = disable_result {
+                    return Ok(ApiResponse {
+                        status: 500,
+                        message: format!(
+                            "Failed to disable streams before re-enabling for table '{}': {}",
+                            table_name, disable_err
+                        ),
+                        data: None,
+                    });
+                }
+
+                match set_stream(client, table_name, true, stream_view_type).await {
+                    Ok(()) => Ok(ApiResponse {
+                        status: 200,
+                        message: format!(
+                            "Streams updated successfully for table '{}'",
+                            table_name
+                        ),
+                        data: Some(json!({
+                            "tableName": table_name,
+                            "streamEnabled": stream_enabled,
+                            "streamViewType": stream_view_type,
+                        })),
+                    }),
+                    Err(enable_err) => Ok(ApiResponse {
+                        status: 500,
+                        message: format!(
+                            "Failed to re-enable streams for table '{}': {}",
+                            table_name, enable_err
+                        ),
+                        data: None,
+                    }),
+                }
+            } else {
+                Ok(ApiResponse {
+                    status: 500,
                     message: format!(
-                        "Streams already configured as requested for table '{}'",
-                        table_name
+                        "Failed to update streams for table '{}': {}",
+                        table_name, err
                     ),
-                    data: Some(json!({
-                        "tableName": table_name,
-                        "streamEnabled": stream_enabled,
-                        "streamViewType": stream_view_type,
-                    })),
-                });
+                    data: None,
+                })
             }
-
-            Ok(ApiResponse {
-                status: 500,
-                message: format!(
-                    "Failed to update streams for table '{}': [{}] {}",
-                    table_name, error_code, error_message
-                ),
-                data: None,
-            })
         }
     }
 }
