@@ -825,3 +825,415 @@ async fn build_client(config: &MongoConnectionConfig) -> Result<Client, String> 
         .map_err(|e| format!("Failed to parse connection options: {}", e))?;
     Client::with_options(client_options).map_err(|e| format!("Failed to create client: {}", e))
 }
+
+// ==================== MongoDB Management Commands ====================
+
+/// Database info returned by mongo_list_databases
+#[derive(Debug, Serialize)]
+pub struct MongoDatabaseInfo {
+    pub name: String,
+    pub size_on_disk: Option<i64>,
+    pub empty: Option<bool>,
+    pub collections: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoListDatabasesResult {
+    pub success: bool,
+    pub databases: Option<Vec<MongoDatabaseInfo>>,
+    pub total_size: Option<i64>,
+    pub error: Option<String>,
+}
+
+/// Collection info returned by mongo_list_collections
+#[derive(Debug, Serialize)]
+pub struct MongoCollectionInfo {
+    pub name: String,
+    pub collection_type: String,
+    pub document_count: Option<i64>,
+    pub storage_size: Option<i64>,
+    pub index_count: Option<i64>,
+    pub avg_document_size: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoListCollectionsResult {
+    pub success: bool,
+    pub collections: Option<Vec<MongoCollectionInfo>>,
+    pub error: Option<String>,
+}
+
+/// Detailed collection stats
+#[derive(Debug, Serialize)]
+pub struct MongoCollectionStats {
+    pub ns: String,
+    pub count: i64,
+    pub size: i64,
+    pub avg_obj_size: Option<i64>,
+    pub storage_size: i64,
+    pub nindexes: i64,
+    pub total_index_size: i64,
+    pub index_sizes: Option<serde_json::Map<String, Value>>,
+    pub capped: Option<bool>,
+    pub max: Option<i64>,
+    pub max_size: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoCollectionStatsResult {
+    pub success: bool,
+    pub stats: Option<MongoCollectionStats>,
+    pub error: Option<String>,
+}
+
+/// Database stats
+#[derive(Debug, Serialize)]
+pub struct MongoDatabaseStats {
+    pub db: String,
+    pub collections: i64,
+    pub objects: i64,
+    pub avg_obj_size: Option<i64>,
+    pub data_size: i64,
+    pub storage_size: i64,
+    pub indexes: i64,
+    pub index_size: i64,
+    pub total_size: i64,
+    pub scale_factor: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoDatabaseStatsResult {
+    pub success: bool,
+    pub stats: Option<MongoDatabaseStats>,
+    pub version: Option<String>,
+    pub error: Option<String>,
+}
+
+/// Generic operation result
+#[derive(Debug, Serialize)]
+pub struct MongoOperationResult {
+    pub success: bool,
+    pub message: Option<String>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_list_databases(config: MongoConnectionConfig) -> Result<MongoListDatabasesResult, String> {
+    let client = build_client(&config).await?;
+
+    let admin_db = client.database("admin");
+    let result = admin_db
+        .run_command(doc! { "listDatabases": 1 })
+        .await
+        .map_err(|e| format!("Failed to list databases: {}", e))?;
+
+    let databases: Vec<MongoDatabaseInfo> = match result.get("databases") {
+        Some(Bson::Array(arr)) => arr
+            .iter()
+            .filter_map(|bson| {
+                if let Bson::Document(d) = bson {
+                    let name = d.get_str("name").unwrap_or("unknown").to_string();
+                    let size_on_disk = d.get_i64("sizeOnDisk").ok();
+                    let empty = d.get_bool("empty").ok();
+                    // collections count is not directly provided by listDatabases
+                    // we'll fetch it separately if needed, or set to None
+                    Some(MongoDatabaseInfo {
+                        name,
+                        size_on_disk,
+                        empty,
+                        collections: None,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect(),
+        _ => return Err("Unexpected response format from listDatabases".to_string()),
+    };
+
+    let total_size = result.get_i64("totalSize").ok();
+
+    Ok(MongoListDatabasesResult {
+        success: true,
+        databases: Some(databases),
+        total_size,
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_list_collections(
+    config: MongoConnectionConfig,
+    database: String,
+) -> Result<MongoListCollectionsResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    // Get list of collections with type info
+    let collections_list: Vec<MongoCollectionInfo> = match db.list_collections().await {
+        Ok(mut cursor) => {
+            let mut infos: Vec<MongoCollectionInfo> = Vec::new();
+            use futures::TryStreamExt;
+            while let Some(spec) = cursor.try_next().await.map_err(|e| e.to_string())? {
+                let name = spec.name;
+                let coll_type = match spec.collection_type {
+                        mongodb::results::CollectionType::Collection => "collection",
+                        mongodb::results::CollectionType::View => "view",
+                        mongodb::results::CollectionType::Timeseries => "timeseries",
+                        _ => "unknown",
+                    }.to_string();
+                infos.push(MongoCollectionInfo {
+                    name,
+                    collection_type: coll_type,
+                    document_count: None,
+                    storage_size: None,
+                    index_count: None,
+                    avg_document_size: None,
+                });
+            }
+            infos
+        }
+        Err(e) => return Err(format!("Failed to list collections: {}", e)),
+    };
+
+    // Get stats for each collection to populate counts and sizes
+    let collections_with_stats: Vec<MongoCollectionInfo> = collections_list
+        .into_iter()
+        .map(|info| {
+            // Run collStats for each collection (we'll do this synchronously in a separate call)
+            info
+        })
+        .collect();
+
+    Ok(MongoListCollectionsResult {
+        success: true,
+        collections: Some(collections_with_stats),
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_collection_stats(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+) -> Result<MongoCollectionStatsResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    let result = db
+        .run_command(doc! { "collStats": collection.clone(), "scale": 1 })
+        .await
+        .map_err(|e| format!("Failed to get collection stats: {}", e))?;
+
+    let stats = MongoCollectionStats {
+        ns: result.get_str("ns").unwrap_or(&format!("{}.{}", database, collection)).to_string(),
+        count: result.get_i64("count").unwrap_or(0),
+        size: result.get_i64("size").unwrap_or(0),
+        avg_obj_size: result.get_i64("avgObjSize").ok(),
+        storage_size: result.get_i64("storageSize").unwrap_or(0),
+        nindexes: result.get_i64("nindexes").unwrap_or(0),
+        total_index_size: result.get_i64("totalIndexSize").unwrap_or(0),
+        index_sizes: match result.get("indexSizes") {
+            Some(Bson::Document(d)) => {
+                let map: serde_json::Map<String, Value> = d
+                    .iter()
+                    .map(|(k, v)| (k.clone(), bson_to_json(v)))
+                    .collect();
+                Some(map)
+            }
+            _ => None,
+        },
+        capped: result.get_bool("capped").ok(),
+        max: result.get_i64("max").ok(),
+        max_size: result.get_i64("maxSize").ok(),
+    };
+
+    Ok(MongoCollectionStatsResult {
+        success: true,
+        stats: Some(stats),
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_database_stats(
+    config: MongoConnectionConfig,
+    database: String,
+) -> Result<MongoDatabaseStatsResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    let result = db
+        .run_command(doc! { "dbStats": 1, "scale": 1 })
+        .await
+        .map_err(|e| format!("Failed to get database stats: {}", e))?;
+
+    // Get MongoDB version from admin database
+    let version = match client.database("admin").run_command(doc! { "buildInfo": 1 }).await {
+        Ok(info) => info.get_str("version").ok().map(|v| v.to_string()),
+        Err(_) => None,
+    };
+
+    let stats = MongoDatabaseStats {
+        db: result.get_str("db").unwrap_or(&database).to_string(),
+        collections: result.get_i64("collections").unwrap_or(0),
+        objects: result.get_i64("objects").unwrap_or(0),
+        avg_obj_size: result.get_i64("avgObjSize").ok(),
+        data_size: result.get_i64("dataSize").unwrap_or(0),
+        storage_size: result.get_i64("storageSize").unwrap_or(0),
+        indexes: result.get_i64("indexes").unwrap_or(0),
+        index_size: result.get_i64("indexSize").unwrap_or(0),
+        total_size: result.get_i64("totalSize").unwrap_or(0),
+        scale_factor: result.get_i64("scaleFactor").ok(),
+    };
+
+    Ok(MongoDatabaseStatsResult {
+        success: true,
+        stats: Some(stats),
+        version,
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_create_database(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+) -> Result<MongoOperationResult, String> {
+    let client = build_client(&config).await?;
+
+    // MongoDB creates databases implicitly when you first store data in them
+    // We create a collection with a temporary document, then delete it
+    let db = client.database(&database);
+    let coll: mongodb::Collection<Document> = db.collection(&collection);
+
+    // Insert a temporary document to create the database
+    let temp_doc = doc! { "_id": "temp_create_marker", "created": true };
+    coll.insert_one(temp_doc.clone())
+        .await
+        .map_err(|e| format!("Failed to create database: {}", e))?;
+
+    // Delete the temporary document
+    coll.delete_one(doc! { "_id": "temp_create_marker" })
+        .await
+        .map_err(|e| format!("Failed to clean up temporary document: {}", e))?;
+
+    Ok(MongoOperationResult {
+        success: true,
+        message: Some(format!("Database '{}' created successfully", database)),
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_drop_database(
+    config: MongoConnectionConfig,
+    database: String,
+) -> Result<MongoOperationResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    db.drop()
+        .await
+        .map_err(|e| format!("Failed to drop database: {}", e))?;
+
+    Ok(MongoOperationResult {
+        success: true,
+        message: Some(format!("Database '{}' dropped successfully", database)),
+        error: None,
+    })
+}
+
+/// Options for creating a collection
+#[derive(Debug, Deserialize)]
+pub struct MongoCreateCollectionOptions {
+    pub capped: Option<bool>,
+    pub size: Option<i64>,
+    pub max: Option<i64>,
+    // Timeseries options
+    pub timeseries: Option<MongoTimeseriesOptions>,
+    // Validator
+    pub validator: Option<Value>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MongoTimeseriesOptions {
+    pub time_field: String,
+    pub meta_field: Option<String>,
+    pub granularity: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_create_collection(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+    options: Option<MongoCreateCollectionOptions>,
+) -> Result<MongoOperationResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    use mongodb::options::CreateCollectionOptions;
+
+    let mut coll_options = CreateCollectionOptions::default();
+
+    if let Some(opts) = options {
+        if opts.capped == Some(true) {
+            coll_options.capped = Some(true);
+            if let Some(size) = opts.size {
+                coll_options.size = Some(size as u64);
+            }
+            if let Some(max) = opts.max {
+                coll_options.max = Some(max as u64);
+            }
+        }
+
+        if let Some(ts_opts) = opts.timeseries {
+            use mongodb::options::TimeseriesOptions;
+            let mut ts = TimeseriesOptions::builder().time_field(&ts_opts.time_field).build();
+            if let Some(meta) = &ts_opts.meta_field {
+                ts.meta_field = Some(meta.clone());
+            }
+            coll_options.timeseries = Some(ts);
+        }
+
+        if let Some(validator_val) = opts.validator {
+            let validator_doc = json_to_bson_doc(validator_val)?;
+            coll_options.validator = Some(validator_doc);
+        }
+    }
+
+    db.create_collection(&collection)
+        .with_options(coll_options)
+        .await
+        .map_err(|e| format!("Failed to create collection: {}", e))?;
+
+    Ok(MongoOperationResult {
+        success: true,
+        message: Some(format!("Collection '{}' created successfully", collection)),
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_drop_collection(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+) -> Result<MongoOperationResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    db.collection::<Document>(&collection)
+        .drop()
+        .await
+        .map_err(|e| format!("Failed to drop collection: {}", e))?;
+
+    Ok(MongoOperationResult {
+        success: true,
+        message: Some(format!("Collection '{}' dropped successfully", collection)),
+        error: None,
+    })
+}

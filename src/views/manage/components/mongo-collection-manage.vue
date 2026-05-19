@@ -1,0 +1,845 @@
+<template>
+  <div class="mongo-manage-container">
+    <div v-if="!mongoConnection" class="empty-state">
+      <Empty :description="$t('manage.emptyNoConnection')" />
+    </div>
+    <div v-else :class="{ 'pointer-events-none': loading }">
+      <section class="metrics-section">
+        <div v-if="loading" class="metrics-grid">
+          <Card v-for="i in 4" :key="i" class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <div class="skeleton skeleton-label" />
+              <div class="skeleton skeleton-value" />
+            </CardContent>
+          </Card>
+        </div>
+        <div v-else class="metrics-grid">
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.mongo.totalDocuments') }}</span>
+              <span class="metric-value">{{ formatNumber(totalDocuments) }}</span>
+            </CardContent>
+          </Card>
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.mongo.totalStorage') }}</span>
+              <span class="metric-value">{{ formatBytes(totalStorage) }}</span>
+            </CardContent>
+          </Card>
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.mongo.databaseSize') }}</span>
+              <span class="metric-value">{{ formatBytes(dbStats?.total_size) }}</span>
+            </CardContent>
+          </Card>
+          <Card class="metric-card">
+            <CardContent class="p-4 flex flex-col gap-2">
+              <span class="metric-label">{{ $t('manage.mongo.version') }}</span>
+              <span class="metric-value-small">{{ mongoVersion || '-' }}</span>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      <section class="collections-section">
+        <Card class="collections-card">
+          <CardHeader>
+            <div class="section-header">
+              <div class="section-title">
+                <span class="i-carbon-data-collection h-4 w-4" />
+                <span>{{ $t('manage.mongo.collections') }}</span>
+              </div>
+              <div class="toolbar-actions">
+                <Button size="sm" variant="outline" @click="handleRefresh">
+                  <span class="i-carbon-renew h-4 w-4 mr-1" />
+                  {{ $t('manage.mongo.refresh') }}
+                </Button>
+                <Button size="sm" variant="outline" @click="showCreateDatabaseDialog = true">
+                  <span class="i-carbon-add-alt h-4 w-4 mr-1" />
+                  {{ $t('manage.mongo.createDatabase') }}
+                </Button>
+                <Button size="sm" @click="showCreateCollectionDialog = true">
+                  <span class="i-carbon-add h-4 w-4 mr-1" />
+                  {{ $t('manage.mongo.createCollection') }}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div class="database-selector-row mb-4">
+              <SearchableSelect
+                :model-value="selectedDatabase || ''"
+                :options="databaseOptions"
+                :loading="loadingDatabases"
+                :placeholder="$t('manage.mongo.selectDatabase')"
+                variant="outline"
+                class="database-select"
+                @update:model-value="handleDatabaseChange"
+              />
+            </div>
+
+            <div class="filter-row mb-4">
+              <Input
+                v-model="searchFilter"
+                :placeholder="$t('manage.mongo.searchCollections')"
+                class="search-input"
+              >
+                <template #prefix>
+                  <span class="i-carbon-search h-4 w-4" />
+                </template>
+              </Input>
+            </div>
+
+            <div v-if="loadingCollections" class="flex justify-center py-8">
+              <Spinner size="lg" />
+            </div>
+            <div v-else-if="filteredCollections.length === 0" class="empty-collections">
+              <Empty :description="$t('manage.mongo.noCollections')" />
+            </div>
+            <div v-else class="table-container">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead class="cursor-pointer" @click="sortBy('name')">
+                      {{ $t('manage.mongo.name') }}
+                      <span v-if="sortKey === 'name'" class="sort-indicator">
+                        {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                      </span>
+                    </TableHead>
+                    <TableHead class="cursor-pointer" @click="sortBy('collection_type')">
+                      {{ $t('manage.mongo.type') }}
+                      <span v-if="sortKey === 'collection_type'" class="sort-indicator">
+                        {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                      </span>
+                    </TableHead>
+                    <TableHead class="cursor-pointer" @click="sortBy('document_count')">
+                      {{ $t('manage.mongo.documents') }}
+                      <span v-if="sortKey === 'document_count'" class="sort-indicator">
+                        {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                      </span>
+                    </TableHead>
+                    <TableHead class="cursor-pointer" @click="sortBy('storage_size')">
+                      {{ $t('manage.mongo.storageSize') }}
+                      <span v-if="sortKey === 'storage_size'" class="sort-indicator">
+                        {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                      </span>
+                    </TableHead>
+                    <TableHead class="cursor-pointer" @click="sortBy('index_count')">
+                      {{ $t('manage.mongo.indexes') }}
+                      <span v-if="sortKey === 'index_count'" class="sort-indicator">
+                        {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                      </span>
+                    </TableHead>
+                    <TableHead class="cursor-pointer" @click="sortBy('avg_document_size')">
+                      {{ $t('manage.mongo.avgDocSize') }}
+                      <span v-if="sortKey === 'avg_document_size'" class="sort-indicator">
+                        {{ sortOrder === 'asc' ? '↑' : '↓' }}
+                      </span>
+                    </TableHead>
+                    <TableHead class="w-24">{{ $t('manage.mongo.actions') }}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow
+                    v-for="coll in sortedCollections"
+                    :key="coll.name"
+                    class="cursor-pointer collection-row"
+                    @click="openInEditor(coll.name)"
+                    @contextmenu.prevent="showContextMenu($event, coll)"
+                  >
+                    <TableCell class="font-medium">
+                      <div class="flex items-center gap-2">
+                        <span
+                          v-if="isFavorite(coll.name)"
+                          class="i-carbon-star-filled text-yellow-400 h-4 w-4"
+                        />
+                        {{ coll.name }}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge :variant="getCollectionTypeVariant(coll.collection_type)">
+                        {{ coll.collection_type }}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{{ formatNumber(coll.document_count) }}</TableCell>
+                    <TableCell>{{ formatBytes(coll.storage_size) }}</TableCell>
+                    <TableCell>{{ coll.index_count ?? '-' }}</TableCell>
+                    <TableCell>{{ formatBytes(coll.avg_document_size) }}</TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                          <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
+                            <span class="i-carbon-overflow-menu-horizontal h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem @click.stop="openInEditor(coll.name)">
+                            <span class="i-carbon-launch h-4 w-4 mr-2" />
+                            {{ $t('manage.mongo.openInEditor') }}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem @click.stop="copyName(coll.name)">
+                            <span class="i-carbon-copy h-4 w-4 mr-2" />
+                            {{ $t('manage.mongo.copyName') }}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem @click.stop="toggleFavorite(coll.name)">
+                            <span
+                              :class="
+                                isFavorite(coll.name) ? 'i-carbon-star-filled' : 'i-carbon-star'
+                              "
+                              class="h-4 w-4 mr-2"
+                            />
+                            {{
+                              isFavorite(coll.name)
+                                ? $t('manage.mongo.unfavorite')
+                                : $t('manage.mongo.favorite')
+                            }}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            class="text-destructive"
+                            @click.stop="confirmDropCollection(coll.name)"
+                          >
+                            <span class="i-carbon-trash-can h-4 w-4 mr-2" />
+                            {{ $t('manage.mongo.dropCollection') }}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+    </div>
+
+    <Dialog v-model:open="showCreateDatabaseDialog">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{{ $t('manage.mongo.createDatabaseTitle') }}</DialogTitle>
+          <DialogDescription>{{ $t('manage.mongo.createDatabaseDesc') }}</DialogDescription>
+        </DialogHeader>
+        <div class="grid gap-4 py-4">
+          <div class="grid gap-2">
+            <Label for="db-name">{{ $t('manage.mongo.databaseName') }}</Label>
+            <Input id="db-name" v-model="newDatabaseName" />
+          </div>
+          <div class="grid gap-2">
+            <Label for="coll-name">{{ $t('manage.mongo.initialCollection') }}</Label>
+            <Input id="coll-name" v-model="newCollectionName" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="showCreateDatabaseDialog = false">
+            {{ $t('common.cancel') }}
+          </Button>
+          <Button @click="handleCreateDatabase">{{ $t('common.create') }}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="showCreateCollectionDialog">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{{ $t('manage.mongo.createCollectionTitle') }}</DialogTitle>
+          <DialogDescription>{{ $t('manage.mongo.createCollectionDesc') }}</DialogDescription>
+        </DialogHeader>
+        <div class="grid gap-4 py-4">
+          <div class="grid gap-2">
+            <Label for="new-coll-name">{{ $t('manage.mongo.collectionName') }}</Label>
+            <Input id="new-coll-name" v-model="newCollectionNameOnly" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="showCreateCollectionDialog = false">
+            {{ $t('common.cancel') }}
+          </Button>
+          <Button @click="handleCreateCollection">{{ $t('common.create') }}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="showDropCollectionDialog">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{{ $t('manage.mongo.dropCollectionTitle') }}</DialogTitle>
+          <DialogDescription>
+            {{ $t('manage.mongo.dropCollectionConfirm', { name: collectionToDrop }) }}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="showDropCollectionDialog = false">
+            {{ $t('common.cancel') }}
+          </Button>
+          <Button variant="destructive" @click="handleDropCollection">
+            {{ $t('common.drop') }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="showDropDatabaseDialog">
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{{ $t('manage.mongo.dropDatabaseTitle') }}</DialogTitle>
+          <DialogDescription>
+            {{ $t('manage.mongo.dropDatabaseConfirm', { name: selectedDatabase }) }}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="showDropDatabaseDialog = false">
+            {{ $t('common.cancel') }}
+          </Button>
+          <Button variant="destructive" @click="handleDropDatabase">
+            {{ $t('common.drop') }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { storeToRefs } from 'pinia';
+import { useMessageService } from '@/composables';
+import prettyBytes from 'pretty-bytes';
+import { useClusterManageStore, useConnectionStore, MongoDBConnection } from '../../../store';
+import { useTabStore } from '../../../store/tabStore';
+import { useLang } from '../../../lang';
+import {
+  mongoApi,
+  type MongoDatabaseInfo,
+  type MongoCollectionInfo,
+  type MongoDatabaseStats,
+} from '../../../datasources';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Empty } from '@/components/ui/empty';
+import { Spinner } from '@/components/ui/spinner';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { SearchableSelect } from '@/components/ui/combobox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+const message = useMessageService();
+const lang = useLang();
+
+const clusterManageStore = useClusterManageStore();
+const { connection } = storeToRefs(clusterManageStore);
+
+const connectionStore = useConnectionStore();
+
+const tabStore = useTabStore();
+
+const mongoConnection = computed(() => connection.value as MongoDBConnection | undefined);
+
+const loading = ref(false);
+const loadingDatabases = ref(false);
+const loadingCollections = ref(false);
+
+const databases = ref<MongoDatabaseInfo[]>([]);
+const selectedDatabase = ref<string>('');
+const collections = ref<MongoCollectionInfo[]>([]);
+const dbStats = ref<MongoDatabaseStats | null>(null);
+const mongoVersion = ref<string>('');
+
+const searchFilter = ref('');
+const sortKey = ref<string>('name');
+const sortOrder = ref<'asc' | 'desc'>('asc');
+
+const showCreateDatabaseDialog = ref(false);
+const showCreateCollectionDialog = ref(false);
+const showDropCollectionDialog = ref(false);
+const showDropDatabaseDialog = ref(false);
+
+const newDatabaseName = ref('');
+const newCollectionName = ref('');
+const newCollectionNameOnly = ref('');
+const collectionToDrop = ref('');
+
+const databaseOptions = computed(() =>
+  databases.value.map(db => ({
+    label: `${db.name} (${formatBytes(db.size_on_disk)})`,
+    value: db.name,
+  })),
+);
+
+const totalDocuments = computed(() =>
+  collections.value.reduce((sum, c) => sum + (c.document_count ?? 0), 0),
+);
+
+const totalStorage = computed(() =>
+  collections.value.reduce((sum, c) => sum + (c.storage_size ?? 0), 0),
+);
+
+const filteredCollections = computed(() => {
+  const filter = searchFilter.value.toLowerCase();
+  if (!filter) return collections.value;
+  return collections.value.filter(c => c.name.toLowerCase().includes(filter));
+});
+
+const sortedCollections = computed(() => {
+  const sorted = [...filteredCollections.value];
+  const favorites = mongoConnection.value?.favoriteCollections ?? [];
+
+  sorted.sort((a, b) => {
+    const aFav = favorites.includes(a.name);
+    const bFav = favorites.includes(b.name);
+    if (aFav && !bFav) return -1;
+    if (!aFav && bFav) return 1;
+
+    let cmp = 0;
+    const aVal = a[sortKey.value as keyof MongoCollectionInfo];
+    const bVal = b[sortKey.value as keyof MongoCollectionInfo];
+
+    if (aVal === undefined || aVal === null) cmp = 1;
+    else if (bVal === undefined || bVal === null) cmp = -1;
+    else if (typeof aVal === 'number' && typeof bVal === 'number') cmp = aVal - bVal;
+    else if (typeof aVal === 'string' && typeof bVal === 'string') cmp = aVal.localeCompare(bVal);
+
+    return sortOrder.value === 'asc' ? cmp : -cmp;
+  });
+
+  return sorted;
+});
+
+const formatNumber = (n: number | undefined | null): string => {
+  if (n === undefined || n === null) return '-';
+  return n.toLocaleString();
+};
+
+const formatBytes = (n: number | undefined | null): string => {
+  if (n === undefined || n === null) return '-';
+  return prettyBytes(n);
+};
+
+const isFavorite = (name: string): boolean =>
+  mongoConnection.value?.favoriteCollections?.includes(name) ?? false;
+
+const toggleFavorite = async (name: string) => {
+  if (!mongoConnection.value) return;
+  const favorites = mongoConnection.value.favoriteCollections ?? [];
+  const newFavorites = isFavorite(name) ? favorites.filter(f => f !== name) : [...favorites, name];
+  mongoConnection.value.favoriteCollections = newFavorites;
+  await connectionStore.saveConnection(mongoConnection.value);
+};
+
+const getCollectionTypeVariant = (type: string): 'default' | 'secondary' | 'outline' => {
+  if (type === 'timeseries') return 'secondary';
+  if (type === 'view') return 'outline';
+  return 'default';
+};
+
+const sortBy = (key: string) => {
+  if (sortKey.value === key) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortKey.value = key;
+    sortOrder.value = 'asc';
+  }
+};
+
+const openInEditor = (collectionName: string) => {
+  if (!mongoConnection.value || !selectedDatabase.value) return;
+
+  const con: MongoDBConnection = {
+    ...mongoConnection.value,
+    database: selectedDatabase.value,
+  };
+
+  const query = `db.${collectionName}.find({}).limit(50)`;
+  tabStore.establishPanel(con);
+  tabStore.activePanel.content = query;
+  tabStore.activePanel.editorType = 'MONGO_EDITOR';
+};
+
+const copyName = (name: string) => {
+  navigator.clipboard.writeText(name);
+  message.success(lang.t('manage.mongo.nameCopied'));
+};
+
+const confirmDropCollection = (name: string) => {
+  collectionToDrop.value = name;
+  showDropCollectionDialog.value = true;
+};
+
+const showContextMenu = (_event: MouseEvent, _coll: MongoCollectionInfo) => {};
+
+const fetchDatabases = async () => {
+  if (!mongoConnection.value) return;
+  loadingDatabases.value = true;
+
+  try {
+    const result = await mongoApi.listDatabases(mongoConnection.value);
+    if (result.success && result.databases) {
+      databases.value = result.databases.filter(
+        db => db.name !== 'admin' && db.name !== 'local' && db.name !== 'config',
+      );
+      if (!selectedDatabase.value && databases.value.length > 0) {
+        selectedDatabase.value = databases.value[0].name;
+      }
+    } else {
+      message.error(result.error ?? 'Failed to list databases');
+    }
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : String(e));
+  } finally {
+    loadingDatabases.value = false;
+  }
+};
+
+const fetchCollectionsWithStats = async () => {
+  if (!mongoConnection.value || !selectedDatabase.value) return;
+  loadingCollections.value = true;
+
+  try {
+    const listResult = await mongoApi.listCollections(
+      mongoConnection.value,
+      selectedDatabase.value,
+    );
+    if (!listResult.success || !listResult.collections) {
+      message.error(listResult.error ?? 'Failed to list collections');
+      collections.value = [];
+      return;
+    }
+
+    const collsWithStats: MongoCollectionInfo[] = [];
+    for (const coll of listResult.collections) {
+      const statsResult = await mongoApi.collectionStats(
+        mongoConnection.value!,
+        selectedDatabase.value,
+        coll.name,
+      );
+      if (statsResult.success && statsResult.stats) {
+        collsWithStats.push({
+          name: coll.name,
+          collection_type: coll.collection_type,
+          document_count: statsResult.stats.count,
+          storage_size: statsResult.stats.size,
+          index_count: statsResult.stats.nindexes,
+          avg_document_size: statsResult.stats.avg_obj_size,
+        });
+      } else {
+        collsWithStats.push(coll);
+      }
+    }
+    collections.value = collsWithStats;
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : String(e));
+    collections.value = [];
+  } finally {
+    loadingCollections.value = false;
+  }
+};
+
+const fetchDatabaseStats = async () => {
+  if (!mongoConnection.value || !selectedDatabase.value) return;
+
+  try {
+    const result = await mongoApi.databaseStats(mongoConnection.value, selectedDatabase.value);
+    if (result.success && result.stats) {
+      dbStats.value = result.stats;
+      mongoVersion.value = result.version ?? '';
+    }
+  } catch {
+    // Silently ignore database stats fetch errors
+  }
+};
+
+const handleDatabaseChange = async (dbName: string) => {
+  selectedDatabase.value = dbName;
+  if (mongoConnection.value) {
+    mongoConnection.value.activeDatabase = dbName;
+  }
+  await fetchCollectionsWithStats();
+  await fetchDatabaseStats();
+};
+
+const handleRefresh = async () => {
+  loading.value = true;
+  try {
+    await fetchDatabases();
+    if (selectedDatabase.value) {
+      await fetchCollectionsWithStats();
+      await fetchDatabaseStats();
+    }
+  } finally {
+    loading.value = false;
+  }
+};
+
+const handleCreateDatabase = async () => {
+  if (!mongoConnection.value || !newDatabaseName.value || !newCollectionName.value) {
+    message.error(lang.t('manage.mongo.nameRequired'));
+    return;
+  }
+
+  try {
+    const result = await mongoApi.createDatabase(
+      mongoConnection.value,
+      newDatabaseName.value,
+      newCollectionName.value,
+    );
+    if (result.success) {
+      message.success(result.message ?? lang.t('manage.mongo.databaseCreated'));
+      showCreateDatabaseDialog.value = false;
+      newDatabaseName.value = '';
+      newCollectionName.value = '';
+      await handleRefresh();
+      selectedDatabase.value = newDatabaseName.value;
+    } else {
+      message.error(result.error ?? 'Failed to create database');
+    }
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : String(e));
+  }
+};
+
+const handleCreateCollection = async () => {
+  if (!mongoConnection.value || !selectedDatabase.value || !newCollectionNameOnly.value) {
+    message.error(lang.t('manage.mongo.nameRequired'));
+    return;
+  }
+
+  try {
+    const result = await mongoApi.createCollection(
+      mongoConnection.value,
+      selectedDatabase.value,
+      newCollectionNameOnly.value,
+    );
+    if (result.success) {
+      message.success(result.message ?? lang.t('manage.mongo.collectionCreated'));
+      showCreateCollectionDialog.value = false;
+      newCollectionNameOnly.value = '';
+      await fetchCollectionsWithStats();
+    } else {
+      message.error(result.error ?? 'Failed to create collection');
+    }
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : String(e));
+  }
+};
+
+const handleDropCollection = async () => {
+  if (!mongoConnection.value || !selectedDatabase.value || !collectionToDrop.value) return;
+
+  try {
+    const result = await mongoApi.dropCollection(
+      mongoConnection.value,
+      selectedDatabase.value,
+      collectionToDrop.value,
+    );
+    if (result.success) {
+      message.success(result.message ?? lang.t('manage.mongo.collectionDropped'));
+      showDropCollectionDialog.value = false;
+      collectionToDrop.value = '';
+      await fetchCollectionsWithStats();
+    } else {
+      message.error(result.error ?? 'Failed to drop collection');
+    }
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : String(e));
+  }
+};
+
+const handleDropDatabase = async () => {
+  if (!mongoConnection.value || !selectedDatabase.value) return;
+
+  try {
+    const result = await mongoApi.dropDatabase(mongoConnection.value, selectedDatabase.value);
+    if (result.success) {
+      message.success(result.message ?? lang.t('manage.mongo.databaseDropped'));
+      showDropDatabaseDialog.value = false;
+      selectedDatabase.value = '';
+      await handleRefresh();
+    } else {
+      message.error(result.error ?? 'Failed to drop database');
+    }
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : String(e));
+  }
+};
+
+watch(mongoConnection, async () => {
+  if (mongoConnection.value) {
+    await handleRefresh();
+  }
+});
+
+onMounted(async () => {
+  if (mongoConnection.value) {
+    if (mongoConnection.value.activeDatabase) {
+      selectedDatabase.value = mongoConnection.value.activeDatabase;
+    }
+    await handleRefresh();
+  }
+});
+
+defineExpose({
+  handleRefresh,
+});
+</script>
+
+<style scoped>
+.mongo-manage-container {
+  padding: 1rem;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.metrics-section {
+  margin-bottom: 1.5rem;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.metric-card {
+  background: var(--bg-color);
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.metric-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.metric-value-small {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.collections-section {
+  margin-bottom: 1rem;
+}
+
+.collections-card {
+  background: var(--bg-color);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.database-selector-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.database-select {
+  width: 300px;
+}
+
+.filter-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.search-input {
+  width: 300px;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-color) 50%,
+    var(--bg-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+.skeleton-label {
+  height: 0.75rem;
+  width: 60%;
+}
+
+.skeleton-value {
+  height: 1.5rem;
+  width: 80%;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.sort-indicator {
+  margin-left: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.collection-row:hover {
+  background: var(--bg-hover);
+}
+
+.empty-collections {
+  padding: 2rem;
+  text-align: center;
+}
+</style>

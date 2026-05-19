@@ -299,6 +299,7 @@ const emits = defineEmits([
   'refresh-dynamo-manage',
   'create-dynamo-table',
   'execute-mongo-query',
+  'refresh-mongo-manage',
 ]);
 
 const message = useMessageService();

@@ -238,6 +238,8 @@ export type MongoDBConnection = {
   database?: string;
   tls?: boolean;
   collections?: Array<MongoDBCollection>;
+  activeDatabase?: string;
+  favoriteCollections?: Array<string>;
 };
 
 export type MongoDBCollection = {

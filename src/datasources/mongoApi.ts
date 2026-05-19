@@ -13,6 +13,93 @@ type MongoQueryResult = {
   error?: string;
 };
 
+export type MongoDatabaseInfo = {
+  name: string;
+  size_on_disk?: number;
+  empty?: boolean;
+  collections?: number;
+};
+
+export type MongoListDatabasesResult = {
+  success: boolean;
+  databases?: MongoDatabaseInfo[];
+  totalSize?: number;
+  error?: string;
+};
+
+export type MongoCollectionInfo = {
+  name: string;
+  collection_type: string;
+  document_count?: number;
+  storage_size?: number;
+  index_count?: number;
+  avg_document_size?: number;
+};
+
+export type MongoListCollectionsResult = {
+  success: boolean;
+  collections?: MongoCollectionInfo[];
+  error?: string;
+};
+
+export type MongoCollectionStats = {
+  ns: string;
+  count: number;
+  size: number;
+  avg_obj_size?: number;
+  storage_size: number;
+  nindexes: number;
+  total_index_size: number;
+  index_sizes?: Record<string, number>;
+  capped?: boolean;
+  max?: number;
+  max_size?: number;
+};
+
+export type MongoCollectionStatsResult = {
+  success: boolean;
+  stats?: MongoCollectionStats;
+  error?: string;
+};
+
+export type MongoDatabaseStats = {
+  db: string;
+  collections: number;
+  objects: number;
+  avg_obj_size?: number;
+  data_size: number;
+  storage_size: number;
+  indexes: number;
+  index_size: number;
+  total_size: number;
+  scale_factor?: number;
+};
+
+export type MongoDatabaseStatsResult = {
+  success: boolean;
+  stats?: MongoDatabaseStats;
+  version?: string;
+  error?: string;
+};
+
+export type MongoOperationResult = {
+  success: boolean;
+  message?: string;
+  error?: string;
+};
+
+export type MongoCreateCollectionOptions = {
+  capped?: boolean;
+  size?: number;
+  max?: number;
+  timeseries?: {
+    time_field: string;
+    meta_field?: string;
+    granularity?: string;
+  };
+  validator?: Record<string, unknown>;
+};
+
 const buildConfig = (con: MongoDBConnection) => ({
   host: con.host,
   port: con.port,
@@ -38,6 +125,145 @@ export const mongoApi = {
     const config = buildConfig(con);
     try {
       return await invoke<MongoQueryResult>('mongo_execute_query', { config, code });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  listDatabases: async (con: MongoDBConnection): Promise<MongoListDatabasesResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoListDatabasesResult>('mongo_list_databases', { config });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  listCollections: async (
+    con: MongoDBConnection,
+    database: string,
+  ): Promise<MongoListCollectionsResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoListCollectionsResult>('mongo_list_collections', {
+        config,
+        database,
+      });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  collectionStats: async (
+    con: MongoDBConnection,
+    database: string,
+    collection: string,
+  ): Promise<MongoCollectionStatsResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoCollectionStatsResult>('mongo_collection_stats', {
+        config,
+        database,
+        collection,
+      });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  databaseStats: async (
+    con: MongoDBConnection,
+    database: string,
+  ): Promise<MongoDatabaseStatsResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoDatabaseStatsResult>('mongo_database_stats', { config, database });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  createDatabase: async (
+    con: MongoDBConnection,
+    database: string,
+    collection: string,
+  ): Promise<MongoOperationResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoOperationResult>('mongo_create_database', {
+        config,
+        database,
+        collection,
+      });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  dropDatabase: async (con: MongoDBConnection, database: string): Promise<MongoOperationResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoOperationResult>('mongo_drop_database', { config, database });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  createCollection: async (
+    con: MongoDBConnection,
+    database: string,
+    collection: string,
+    options?: MongoCreateCollectionOptions,
+  ): Promise<MongoOperationResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoOperationResult>('mongo_create_collection', {
+        config,
+        database,
+        collection,
+        options,
+      });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  dropCollection: async (
+    con: MongoDBConnection,
+    database: string,
+    collection: string,
+  ): Promise<MongoOperationResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoOperationResult>('mongo_drop_collection', {
+        config,
+        database,
+        collection,
+      });
     } catch (e) {
       return {
         success: false,

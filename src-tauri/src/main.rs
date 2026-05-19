@@ -34,7 +34,11 @@ use dynamo_client::{
     aws_sso_list_accounts, aws_sso_list_roles, aws_sso_poll_token, aws_sso_start_device_auth,
     dynamo_api,
 };
-use mongo_client::{mongo_execute_query, mongo_test_connection};
+use mongo_client::{
+    mongo_collection_stats, mongo_create_collection, mongo_create_database, mongo_database_stats,
+    mongo_drop_collection, mongo_drop_database, mongo_execute_query, mongo_list_collections,
+    mongo_list_databases, mongo_test_connection,
+};
 
 #[derive(Clone, serde::Serialize)]
 struct AuthPayload {
@@ -97,6 +101,14 @@ fn main() {
             stream_file_lines,
             mongo_test_connection,
             mongo_execute_query,
+            mongo_list_databases,
+            mongo_list_collections,
+            mongo_collection_stats,
+            mongo_database_stats,
+            mongo_create_database,
+            mongo_drop_database,
+            mongo_create_collection,
+            mongo_drop_collection,
             run_agent_step,
             validate_llm_config,
             list_llm_models,
