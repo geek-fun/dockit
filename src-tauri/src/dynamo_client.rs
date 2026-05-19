@@ -378,7 +378,10 @@ pub async fn dynamo_api(
                 let write_capacity = payload
                     .get("write_capacity_units")
                     .and_then(|v| v.as_i64());
-                update_table_config(&client, &options.table_name, billing_mode, read_capacity, write_capacity).await
+                let table_class = payload
+                    .get("table_class")
+                    .and_then(|v| v.as_str());
+                update_table_config(&client, &options.table_name, billing_mode, read_capacity, write_capacity, table_class).await
             } else {
                 Ok(ApiResponse {
                     status: 400,

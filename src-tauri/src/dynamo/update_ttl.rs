@@ -35,7 +35,7 @@ pub async fn update_time_to_live(
                 data: Some(json!({
                     "tableName": table_name,
                     "enabled": spec.map(|s| s.enabled()).unwrap_or(false),
-                    "attributeName": spec.and_then(|s| Some(s.attribute_name())),
+                    "attributeName": spec.map(|s| s.attribute_name()),
                 })),
             })
         }

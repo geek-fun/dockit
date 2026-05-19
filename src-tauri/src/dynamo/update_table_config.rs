@@ -1,6 +1,6 @@
 use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::error::ProvideErrorMetadata;
-use aws_sdk_dynamodb::types::{BillingMode, ProvisionedThroughput};
+use aws_sdk_dynamodb::types::{BillingMode, ProvisionedThroughput, TableClass};
 use aws_sdk_dynamodb::Client;
 use serde_json::json;
 
@@ -10,6 +10,7 @@ pub async fn update_table_config(
     billing_mode: Option<&str>,
     read_capacity: Option<i64>,
     write_capacity: Option<i64>,
+    table_class: Option<&str>,
 ) -> Result<ApiResponse, String> {
     let mut request = client.update_table().table_name(table_name);
 
@@ -37,6 +38,14 @@ pub async fn update_table_config(
             .build()
             .map_err(|e| format!("Failed to build provisioned throughput: {}", e))?;
         request = request.provisioned_throughput(throughput);
+    }
+
+    if let Some(class) = table_class {
+        let tc = match class.to_uppercase().as_str() {
+            "STANDARD_INFREQUENT_ACCESS" => TableClass::StandardInfrequentAccess,
+            _ => TableClass::Standard,
+        };
+        request = request.table_class(tc);
     }
 
     match request.send().await {
