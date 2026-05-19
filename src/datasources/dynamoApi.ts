@@ -736,6 +736,7 @@ const dynamoApi = {
       billingMode?: 'PAY_PER_REQUEST' | 'PROVISIONED';
       readCapacity?: number;
       writeCapacity?: number;
+      tableClass?: 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS';
     },
   ): Promise<{ tableName: string }> => {
     const credentials = buildDynamoCredentials(con);
@@ -746,6 +747,7 @@ const dynamoApi = {
         billing_mode: config.billingMode,
         read_capacity_units: config.readCapacity,
         write_capacity_units: config.writeCapacity,
+        table_class: config.tableClass,
       },
     };
     const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);

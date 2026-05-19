@@ -426,6 +426,7 @@ export const zhCN = {
       updateTtlSuccess: 'TTL更新成功',
       updatePitrSuccess: 'PITR更新成功',
       updateStreamsSuccess: '流更新成功',
+      invalidConnectionType: '无效的连接类型',
     },
   },
   connection: {

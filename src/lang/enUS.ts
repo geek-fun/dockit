@@ -439,6 +439,7 @@ export const enUS = {
       updateTtlSuccess: 'TTL updated successfully',
       updatePitrSuccess: 'PITR updated successfully',
       updateStreamsSuccess: 'Streams updated successfully',
+      invalidConnectionType: 'Invalid connection type',
     },
   },
   connection: {
