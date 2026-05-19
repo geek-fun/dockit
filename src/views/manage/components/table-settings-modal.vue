@@ -34,23 +34,18 @@
 
         <!-- TTL -->
         <template v-else-if="activeTab === 'ttl'">
-          <Alert v-if="isLocalConnection" variant="info">
-            <AlertDescription>{{ lang.t('manage.dynamo.ttlLocalNotSupported') }}</AlertDescription>
-          </Alert>
-          <template v-else>
-            <FormItem :label="lang.t('manage.dynamo.enableTtl')">
-              <Switch
-                :checked="formValue.ttlEnabled"
-                @update:checked="val => (formValue.ttlEnabled = val)"
-              />
-            </FormItem>
-            <FormItem v-if="formValue.ttlEnabled" :label="lang.t('manage.dynamo.ttlAttribute')">
-              <Input
-                v-model="formValue.ttlAttributeName"
-                :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')"
-              />
-            </FormItem>
-          </template>
+          <FormItem :label="lang.t('manage.dynamo.enableTtl')">
+            <Switch
+              :checked="formValue.ttlEnabled"
+              @update:checked="val => (formValue.ttlEnabled = val)"
+            />
+          </FormItem>
+          <FormItem v-if="formValue.ttlEnabled" :label="lang.t('manage.dynamo.ttlAttribute')">
+            <Input
+              v-model="formValue.ttlAttributeName"
+              :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')"
+            />
+          </FormItem>
         </template>
 
         <!-- PITR -->
@@ -296,9 +291,7 @@
         </Button>
         <Button
           type="submit"
-          :disabled="
-            loading || (isLocalConnection && (activeTab === 'pitr' || activeTab === 'ttl'))
-          "
+          :disabled="loading || (isLocalConnection && activeTab === 'pitr')"
           @click="handleSubmit"
         >
           <Spinner v-if="loading" class="mr-2 h-4 w-4" />
