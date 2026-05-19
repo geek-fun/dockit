@@ -48,7 +48,10 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DatabaseType } from '@/store';
 import elasticsearch from '../../../assets/svg/elasticsearch.svg';
+import opensearch from '../../../assets/svg/db-opensearch.svg';
+import easysearch from '../../../assets/svg/easysearch.svg';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
+import mongodb from '../../../assets/svg/mongodb.svg';
 
 const emit = defineEmits(['select']);
 
@@ -57,7 +60,10 @@ let collapseTimeout: ReturnType<typeof setTimeout> | null = null;
 
 const databaseTypes = [
   { value: DatabaseType.ELASTICSEARCH, icon: elasticsearch, label: 'Elasticsearch' },
+  { value: DatabaseType.OPENSEARCH, icon: opensearch, label: 'OpenSearch' },
+  { value: DatabaseType.EASYSEARCH, icon: easysearch, label: 'EasySearch' },
   { value: DatabaseType.DYNAMODB, icon: dynamoDB, label: 'DynamoDB' },
+  { value: DatabaseType.MONGODB, icon: mongodb, label: 'MongoDB' },
 ];
 
 const handleMouseEnter = () => {
