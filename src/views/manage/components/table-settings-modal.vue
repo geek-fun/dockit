@@ -34,26 +34,37 @@
 
         <!-- TTL -->
         <template v-else-if="activeTab === 'ttl'">
-          <FormItem :label="lang.t('manage.dynamo.enableTtl')">
-            <Switch
-              :checked="formValue.ttlEnabled"
-              @update:checked="val => (formValue.ttlEnabled = val)"
-            />
-          </FormItem>
           <template v-if="props.currentSettings.ttlEnabled">
-            <FormItem :label="lang.t('manage.dynamo.ttlCurrentAttribute')">
-              <span class="text-sm text-muted-foreground font-mono">
-                {{ props.currentSettings.ttlAttributeName }}
-              </span>
-            </FormItem>
+            <div class="flex items-center justify-between">
+              <FormItem :label="lang.t('manage.dynamo.enableTtl')" class="flex-1">
+                <Switch
+                  :checked="formValue.ttlEnabled"
+                  @update:checked="val => (formValue.ttlEnabled = val)"
+                />
+              </FormItem>
+              <FormItem
+                :label="lang.t('manage.dynamo.ttlCurrentAttribute')"
+                class="flex-1 text-right"
+              >
+                <span class="text-sm text-muted-foreground font-mono">
+                  {{ props.currentSettings.ttlAttributeName }}
+                </span>
+              </FormItem>
+            </div>
             <Alert v-if="formValue.ttlEnabled" variant="info">
               <AlertDescription>
                 {{ lang.t('manage.dynamo.ttlChangeAttributeWarning') }}
               </AlertDescription>
             </Alert>
           </template>
-          <template v-else-if="formValue.ttlEnabled">
-            <FormItem :label="lang.t('manage.dynamo.ttlAttribute')">
+          <template v-else>
+            <FormItem :label="lang.t('manage.dynamo.enableTtl')">
+              <Switch
+                :checked="formValue.ttlEnabled"
+                @update:checked="val => (formValue.ttlEnabled = val)"
+              />
+            </FormItem>
+            <FormItem v-if="formValue.ttlEnabled" :label="lang.t('manage.dynamo.ttlAttribute')">
               <Input
                 v-model="formValue.ttlAttributeName"
                 :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')"
