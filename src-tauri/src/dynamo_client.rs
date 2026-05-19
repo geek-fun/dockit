@@ -77,10 +77,20 @@ pub struct DynamoOptions {
 fn build_config_builder(
     credentials: &DynamoCredentials,
 ) -> aws_config::ConfigLoader {
-    let region_provider =
-        RegionProviderChain::first_try(Region::new(credentials.region.clone()))
-            .or_default_provider()
-            .or_else("us-east-1");
+    let effective_region = if credentials.region.is_empty() {
+        match &credentials.auth {
+            DynamoAuth::Sso { region, .. } | DynamoAuth::AssumeRole { region, .. } => {
+                region.clone()
+            }
+            _ => credentials.region.clone(),
+        }
+    } else {
+        credentials.region.clone()
+    };
+
+    let region_provider = RegionProviderChain::first_try(Region::new(effective_region))
+        .or_default_provider()
+        .or_else("us-east-1");
 
     let mut config_builder = aws_config::defaults(aws_config::BehaviorVersion::latest())
         .region(region_provider);

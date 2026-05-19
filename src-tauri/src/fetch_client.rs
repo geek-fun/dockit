@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::option::Option;
 use std::str::FromStr;
+use std::sync::OnceLock;
 
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
@@ -8,8 +8,8 @@ use serde_json::json;
 
 use crate::common::http_client::create_http_client;
 
-static mut FETCH_SECURE_CLIENT: Option<reqwest::Client> = None;
-static mut FETCH_INSECURE_CLIENT: Option<reqwest::Client> = None;
+static SECURE_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+static INSECURE_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 
 #[derive(Deserialize)]
 struct Agent {
@@ -112,27 +112,13 @@ fn categorize_request_error(e: &reqwest::Error) -> (&'static str, String) {
 
 #[tauri::command]
 pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, String> {
-    let client = unsafe {
-        match options.agent.ssl {
-            true => {
-                if FETCH_SECURE_CLIENT.is_none() {
-                    FETCH_SECURE_CLIENT = Option::from(create_http_client(
-                        options.agent.http_proxy,
-                        Some(options.agent.ssl),
-                    ));
-                }
-                FETCH_SECURE_CLIENT.as_ref().unwrap()
-            }
-            false => {
-                if FETCH_INSECURE_CLIENT.is_none() {
-                    FETCH_INSECURE_CLIENT = Option::from(create_http_client(
-                        options.agent.http_proxy,
-                        Some(options.agent.ssl),
-                    ));
-                }
-                FETCH_INSECURE_CLIENT.as_ref().unwrap()
-            }
-        }
+    let has_proxy = options.agent.http_proxy.as_deref().is_some_and(|p| !p.is_empty());
+    let client = if has_proxy {
+        create_http_client(options.agent.http_proxy, Some(options.agent.ssl))
+    } else if options.agent.ssl {
+        SECURE_CLIENT.get_or_init(|| create_http_client(None, Some(true))).clone()
+    } else {
+        INSECURE_CLIENT.get_or_init(|| create_http_client(None, Some(false))).clone()
     };
 
     let response = client
