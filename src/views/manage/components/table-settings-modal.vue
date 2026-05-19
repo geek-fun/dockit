@@ -42,10 +42,7 @@
                   @update:checked="val => (formValue.ttlEnabled = val)"
                 />
               </FormItem>
-              <FormItem
-                :label="lang.t('manage.dynamo.ttlCurrentAttribute')"
-                class="flex-1 text-right"
-              >
+              <FormItem :label="lang.t('manage.dynamo.ttlCurrentAttribute')" class="flex-1">
                 <span class="text-sm text-muted-foreground font-mono">
                   {{ props.currentSettings.ttlAttributeName }}
                 </span>
