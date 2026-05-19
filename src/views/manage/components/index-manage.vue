@@ -132,7 +132,7 @@
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           v-if="row.status === 'open'"
-                          @click="handleAction('closIndex', row.index)"
+                          @click="handleAction('closeIndex', row.index)"
                         >
                           <span class="i-carbon-locked h-4 w-4 mr-2" style="color: yellow" />
                           {{ lang.t('manage.index.actions.closeIndex') }}
@@ -407,7 +407,7 @@ const handleAction = async (action: string, indexName: string, aliasName?: strin
         }
       },
     });
-  } else if (action === 'closIndex') {
+  } else if (action === 'closeIndex') {
     dialog.warning({
       title: lang.t('dialogOps.warning'),
       content: lang.t('manage.index.actions.closeIndexWarning') + `:${indexName} ?`,

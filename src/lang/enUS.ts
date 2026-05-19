@@ -944,10 +944,6 @@ export const enUS = {
     register: 'No account? Register Now',
     enterName: 'Please enter one user name',
     enterPwd: 'Please enter password',
-
-    orContinueWith: 'or continue with',
-
-    loginWithGeekfun: 'Login with Geekfun',
   },
   grammar: {
     // Search APIs
@@ -1341,6 +1337,9 @@ export const enUS = {
       title: 'Session History',
       empty: 'No sessions yet',
       delete: 'Delete session',
+      newSession: 'New Session',
+      yesterday: 'Yesterday',
+      sessionFallback: 'Session',
     },
   },
 };

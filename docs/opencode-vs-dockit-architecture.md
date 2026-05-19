@@ -2,7 +2,7 @@
 
 > **Scope**: Agent loop & execution model · Tool system · Session & state · Provider abstraction · Robustness features  
 > **Sources**: opencode (`anomalyco/opencode` mirror of sst/opencode) and DocKit (this repo, post-robustness-refactor)  
-> **TL;DR**: OpenCode is a **general-purpose, server-grade agent framework** (TypeScript/Bun, SQLite-backed, multi-provider, plugin-based tools). DocKit is a **domain-specific embedded agent** (Vue + Rust/Tauri, in-memory + Pinia-persisted, OpenAI-only, static tool registry for ES/DynamoDB). The two systems converge on the same robustness primitives but diverge sharply on architecture, extensibility, and runtime model.
+> **TL;DR**: OpenCode is a **general-purpose, server-grade agent framework** (TypeScript/Bun, SQLite-backed, multi-provider, plugin-based tools). DocKit is a **domain-specific embedded agent** (Vue + Rust/Tauri, SQLite-backed session store, multi-provider via OpenAI-compatible protocol, static tool registry for ES/OpenSearch/DynamoDB). The two systems converge on the same robustness primitives but diverge sharply on architecture, extensibility, and runtime model.
 
 ---
 
@@ -14,8 +14,8 @@
 | **Where the loop lives** | Backend (`session/prompt.ts`) — server-driven | Frontend (`composables/useDataStudioAgent.ts`) — Vue-driven |
 | **Where LLM calls happen** | Backend (`session/llm.ts`, AI SDK) | Backend (`src-tauri/src/agent/harness.rs`, async-openai crate) |
 | **Where tools execute** | Backend (`tool/registry.ts`, in-process) | Backend (`src-tauri/src/agent/executor.rs`, Tauri command) |
-| **Persistence** | SQLite via Drizzle (`session.sql.ts`) | Pinia + `persistedstate` → localStorage |
-| **Provider model** | Multi-provider via `BundledSDK` registry | OpenAI protocol only (4 endpoints: OpenAI, DeepSeek, OpenRouter, Ollama) |
+| **Persistence** | SQLite via Drizzle (`session.sql.ts`) | SQLite via rusqlite (`src-tauri/src/db/`, `agent/session_store.rs`) + Pinia for UI state |
+| **Provider model** | Multi-provider via `BundledSDK` registry | Multi-provider via OpenAI-compatible protocol (OpenAI, DeepSeek, OpenRouter, Ollama, LM Studio) |
 | **Tool model** | Plugin-extensible (built-in + plugin + config-discovered) | Static, hard-coded for ES + DynamoDB |
 | **Streaming transport** | AI SDK `streamText` → in-process iterator | Tauri events (`agent-delta`, `agent-tool-call`, `agent-step-done`) → frontend listener |
 
@@ -39,6 +39,7 @@
 - **Shape**: `for (let i = 0; i < maxIterations; i++)` — bounded loop with hard iteration cap (default 10, configurable per session).
 - **Driver**: **Frontend-driven**. The Vue composable owns the loop; Rust is a stateless executor of single steps and tool calls.
 - **LLM invocation**: Frontend calls `agentApi.runAgentStep` (Tauri command) → Rust `run_agent_step` in `harness.rs`. Rust streams deltas back to the frontend via Tauri events (`agent-delta`, `agent-tool-call`, `agent-step-done`).
+- **Persistence**: Sessions stored in SQLite via rusqlite (`session_store.rs`). UI state (active session, tool confirmation) in Pinia.
 - **Tool dispatch**: After each step, the frontend manually inspects `toolCalls`, applies confirmation rules, and either auto-executes (`executeToolCall`) or pauses the loop (`status: 'waiting_confirmation'`) until user approval.
 - **Termination**: `finishReason` (`stop`/`length`/`content_filter`), `maxIterations`, doom-loop detection, errors.
 - **Concept of turns**: Implicit — each user message starts a fresh loop invocation. No explicit `resume_existing` semantics; resumption is "best-effort" via Pinia hydration that resets in-flight statuses.
@@ -113,7 +114,7 @@
 
 ### DocKit
 
-- **Storage**: Pinia store (`src/store/dataStudioStore.ts`) → `localStorage` via `pinia-plugin-persistedstate`.
+- **Storage**: SQLite via rusqlite (`src-tauri/src/db/`, `agent/session_store.rs`) — durable, survives app restarts.
 - **Models**:
   ```ts
   type AgentSession = {
@@ -126,7 +127,7 @@
   };
   type AgentMessage = { role: 'user' | 'assistant' | 'tool'; content: string; toolCalls?: ...; status?: ... };
   ```
-- **Persistence model**: Frontend state — entire session list serialized to localStorage on every mutation. `afterHydrate` callback resets in-flight statuses (`running`/`waiting_confirmation` → `idle`, `streaming` → `error`) to recover from page reloads.
+- **Persistence model**: Rust SQLite backend owns session/message CRUD. Pinia caches sessions in-memory for Vue reactivity; `afterHydrate` resets in-flight statuses on restart.
 - **Resumption**: **Soft** — a session reopens but the in-flight LLM/tool call is lost. The user must re-send the last message.
 - **Multi-session**: Multiple sessions per connection, `activeSessionId` tracks current.
 - **Branching**: None.
@@ -135,15 +136,13 @@
 
 | | OpenCode | DocKit |
 |---|---|---|
-| Backend | SQLite (durable, queryable) | localStorage (KV blob) |
+| Backend | SQLite (durable, queryable) | SQLite via rusqlite (durable) |
 | Resumption | True mid-stream resume | Status reset; user re-prompts |
 | Branching | `fork()` for alternate timelines | None |
-| Scale ceiling | Bounded by disk | Bounded by localStorage quota (~5–10 MB) |
-| Schema migration | Drizzle migrations | Manual `?? defaultValue` in `afterHydrate` |
+| Scale ceiling | Bounded by disk | Bounded by disk |
+| Schema migration | Drizzle migrations | SQL migrations in `src-tauri/src/db/` |
 
-**Why**: OpenCode runs as a daemon for long sessions across days; persistence is mission-critical. DocKit sessions are transient analyst workflows — losing an in-flight query and re-running it is acceptable. The localStorage choice is a deliberate simplicity trade-off but **will hit a ceiling** if users accumulate dozens of sessions with large query results.
-
-**Risk for DocKit**: The localStorage quota will eventually bite. A migration path to Tauri's filesystem store or SQLite (rusqlite) is the natural next step.
+**Why**: OpenCode runs as a daemon for long sessions across days; persistence is mission-critical. DocKit uses rusqlite for durable session storage. In-flight tool calls are still lost on crash (the loop lives in the frontend composable), but message history is preserved and the user can resume from context.
 
 ---
 
@@ -171,7 +170,7 @@
     Provider::Ollama => "http://localhost:11434/v1",
   }
   ```
-- **Supported providers**: Anything OpenAI-compatible. **Single protocol, multiple endpoints** — Anthropic/Bedrock/Vertex would require new code paths.
+- **Supported providers**: Anything OpenAI-compatible. **Single protocol, multiple endpoints** — OpenAI, DeepSeek, OpenRouter, Ollama, LM Studio. Anthropic/Bedrock/Vertex would require new code paths.
 - **Provider quirks**: None handled — relies on OpenAI compatibility of all endpoints.
 - **Foundation**: `async-openai` Rust crate.
 - **Configuration**: Per-feature model config (`getFeatureModelConfig` in `chatStore`) — `{ apiKey, baseUrl, httpProxy }` passed per-call.
@@ -249,11 +248,10 @@ DocKit now has **functional parity** with opencode on robustness, but the implem
 
 If you want to close gaps:
 
-1. **Persistence**: Migrate session storage to Tauri's filesystem (or rusqlite) before localStorage quota becomes a problem.
-2. **Context overflow**: Add a summarization step (a small LLM call to summarize pruned messages) to avoid silent information loss.
-3. **Provider error metadata**: Parse OpenAI error responses for the `error.type` field (e.g., `insufficient_quota`, `rate_limit_exceeded`) instead of regex on error strings.
-4. **Tool result envelope**: Consider extending tool results to `{ summary, fullResult, metadata }` so the UI can show "result truncated, click to view full" rather than dropping bytes silently.
-5. **Session export/import**: A path toward shareable sessions (and a workaround for the localStorage ceiling).
+1. **Context overflow**: Add a summarization step (a small LLM call to summarize pruned messages) to avoid silent information loss.
+2. **Provider error metadata**: Parse OpenAI error responses for the `error.type` field (e.g., `insufficient_quota`, `rate_limit_exceeded`) instead of regex on error strings.
+3. **Tool result envelope**: Consider extending tool results to `{ summary, fullResult, metadata }` so the UI can show "result truncated, click to view full" rather than dropping bytes silently.
+4. **Session export/import**: A path toward shareable sessions.
 
 ---
 
@@ -263,7 +261,6 @@ DocKit is not trying to be opencode, and shouldn't. It's a focused embedded agen
 
 The main forward-looking concerns are:
 
-- **Persistence durability** — localStorage will hit quota limits
 - **Context preservation under long conversations** — pruning silently drops info
 
 Both addressable without a rewrite.

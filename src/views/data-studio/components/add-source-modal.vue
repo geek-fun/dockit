@@ -159,6 +159,15 @@ import { useConnectionStore, DatabaseType, type Connection } from '@/store/conne
 import { useDataStudioStore, type ConnectedSource } from '@/store/dataStudioStore';
 import dynamoDB from '@/assets/svg/dynamoDB.svg?url';
 import elasticsearch from '@/assets/svg/elasticsearch.svg?url';
+import opensearch from '@/assets/svg/db-opensearch.svg?url';
+import easysearch from '@/assets/svg/easysearch.svg?url';
+
+const AGENT_SUPPORTED_TYPES = new Set([
+  DatabaseType.ELASTICSEARCH,
+  DatabaseType.OPENSEARCH,
+  DatabaseType.EASYSEARCH,
+  DatabaseType.DYNAMODB,
+]);
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ 'update:open': [value: boolean] }>();
@@ -182,7 +191,9 @@ onClickOutside(dropdownRef, () => {
 const availableConnections = computed(() => {
   const connectedIds = new Set(dataStudioStore.connectedSources.map(s => s.connectionId));
   return connections.value.filter(
-    conn => !connectedIds.has(typeof conn.id === 'number' ? conn.id : undefined),
+    conn =>
+      !connectedIds.has(typeof conn.id === 'number' ? conn.id : undefined) &&
+      AGENT_SUPPORTED_TYPES.has(conn.type as DatabaseType),
   );
 });
 
@@ -195,16 +206,17 @@ const filteredConnections = computed(() => {
 });
 
 const getConnectionIcon = (type: string) => {
-  return type === DatabaseType.DYNAMODB ? dynamoDB : elasticsearch;
+  if (type === DatabaseType.DYNAMODB) return dynamoDB;
+  if (type === DatabaseType.OPENSEARCH) return opensearch;
+  if (type === DatabaseType.EASYSEARCH) return easysearch;
+  return elasticsearch;
 };
 
 const getConnectionMeta = (conn: Connection) => {
-  if (conn.type === DatabaseType.ELASTICSEARCH) {
-    return `Elasticsearch • ${conn.host}`;
-  }
-  if (conn.type === DatabaseType.DYNAMODB) {
-    return `DynamoDB • ${conn.region}`;
-  }
+  if (conn.type === DatabaseType.ELASTICSEARCH) return `Elasticsearch • ${conn.host}`;
+  if (conn.type === DatabaseType.OPENSEARCH) return `OpenSearch • ${conn.host}`;
+  if (conn.type === DatabaseType.EASYSEARCH) return `EasySearch • ${conn.host}`;
+  if (conn.type === DatabaseType.DYNAMODB) return `DynamoDB • ${conn.region}`;
   return (conn as Connection).type;
 };
 

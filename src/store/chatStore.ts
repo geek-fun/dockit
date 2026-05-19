@@ -59,7 +59,8 @@ export const useChatStore = defineStore('chat', {
       const storedActiveMatches =
         activeChat && activeChat.provider === provider ? activeChat : undefined;
       this.activeChat =
-        storedActiveMatches ?? this.chats.reverse().find(chat => chat.provider === provider);
+        storedActiveMatches ??
+        [...this.chats].reverse().find((chat: Chat) => chat.provider === provider);
 
       if (!this.activeChat) {
         this.activeChat = {

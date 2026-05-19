@@ -6126,7 +6126,7 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-system-info"
 version = "2.0.9"
-source = "git+https://github.com/HuakunShen/tauri-plugin-system-info?branch=v2#afb2b7fe50f337500937eb946c1204a728353b63"
+source = "git+https://github.com/HuakunShen/tauri-plugin-system-info?rev=afb2b7fe50f337500937eb946c1204a728353b63#afb2b7fe50f337500937eb946c1204a728353b63"
 dependencies = [
  "serde",
  "starship-battery",

@@ -35,6 +35,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useDataStudioStore, type AgentSession } from '@/store/dataStudioStore';
 import { useConnectionStore } from '@/store/connectionStore';
 import { storeToRefs } from 'pinia';
@@ -45,6 +46,7 @@ defineEmits<{
   'new-session': [];
 }>();
 
+const { t } = useI18n();
 const dataStudioStore = useDataStudioStore();
 const connectionStore = useConnectionStore();
 const { sessions, activeSessionId, sessionMeta } = storeToRefs(dataStudioStore);
@@ -59,14 +61,14 @@ const sortedSessions = computed(() =>
 
 const sessionLabel = (session: AgentSession): string => {
   const meta = sessionMeta.value[session.id];
-  if (meta?.title && meta.title !== 'New Session') return meta.title;
+  if (meta?.title && meta.title !== t('dataStudio.history.newSession')) return meta.title;
   const conn = connectionStore.connections.find(c => c.id === session.connectionId);
   if (conn) return conn.name;
   const firstUser = session.messages.find(m => m.role === 'user');
   if (firstUser?.content) {
     return firstUser.content.length > 40 ? firstUser.content.slice(0, 40) + '…' : firstUser.content;
   }
-  return meta?.title ?? 'Session';
+  return meta?.title ?? t('dataStudio.history.sessionFallback');
 };
 
 const formatTime = (session: AgentSession): string => {
@@ -77,7 +79,7 @@ const formatTime = (session: AgentSession): string => {
   const diffMs = now.getTime() - d.getTime();
   const diffDays = Math.floor(diffMs / 86400000);
   if (diffDays === 0) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  if (diffDays === 1) return 'Yesterday';
+  if (diffDays === 1) return t('dataStudio.history.yesterday');
   if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };

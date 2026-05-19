@@ -204,6 +204,14 @@ fn all_tools() -> Vec<ToolDefinition> {
     ]
 }
 
+fn normalize_database_type(database_type: &str) -> &'static str {
+    match database_type {
+        "OPENSEARCH" | "EASYSEARCH" => "ELASTICSEARCH",
+        "DYNAMODB" => "DYNAMODB",
+        _ => "ELASTICSEARCH",
+    }
+}
+
 fn has_permission(permissions: &Permissions, required: &str) -> bool {
     match required {
         "read" => permissions.read,
@@ -248,12 +256,10 @@ pub fn get_available_tools(
         delete,
     };
 
+    let effective_type = normalize_database_type(database_type.as_str());
     let filtered: Vec<ToolDefinition> = all_tools()
         .into_iter()
-        .filter(|t| {
-            t.database_type == database_type.as_str()
-                && has_permission(&permissions, t.required_permission)
-        })
+        .filter(|t| t.database_type == effective_type && has_permission(&permissions, t.required_permission))
         .collect();
 
     let openai_tools: Vec<Value> = filtered.iter().map(|t| to_openai_tool(t)).collect();

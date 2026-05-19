@@ -32,10 +32,15 @@ fn validate_index_name(name: &str, allow_wildcard: bool) -> Result<(), String> {
 
 fn url_encode_segment(segment: &str) -> String {
     segment
-        .chars()
-        .map(|c| match c {
-            'A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '.' | '~' => c.to_string(),
-            _ => format!("%{:02X}", c as u8),
+        .bytes()
+        .flat_map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                vec![b as char]
+                    .into_iter()
+                    .map(|c| c.to_string())
+                    .collect::<Vec<_>>()
+            }
+            _ => vec![format!("%{:02X}", b)],
         })
         .collect()
 }
@@ -44,11 +49,15 @@ fn truncate_tool_output(output: String) -> String {
     if output.len() <= TOOL_OUTPUT_MAX_BYTES {
         return output;
     }
-    let truncated = &output[..TOOL_OUTPUT_MAX_BYTES];
-    let omitted = output.len() - TOOL_OUTPUT_MAX_BYTES;
+    // Find the nearest char boundary at or before the byte limit to avoid splitting a UTF-8 codepoint.
+    let boundary = (0..=TOOL_OUTPUT_MAX_BYTES)
+        .rev()
+        .find(|&i| output.is_char_boundary(i))
+        .unwrap_or(0);
+    let omitted = output.len() - boundary;
     format!(
         "{}\n\n[Output truncated: {} bytes omitted. Consider refining your query to return fewer results.]",
-        truncated, omitted
+        &output[..boundary], omitted
     )
 }
 use crate::dynamo::describe_table::describe_table;

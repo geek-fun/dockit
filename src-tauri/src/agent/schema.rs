@@ -91,7 +91,7 @@ pub async fn introspect_schema(
     database_type: String,
 ) -> Result<String, String> {
     match database_type.as_str() {
-        "ELASTICSEARCH" => introspect_es(&connection_config).await,
+        "ELASTICSEARCH" | "OPENSEARCH" | "EASYSEARCH" => introspect_es(&connection_config).await,
         "DYNAMODB" => introspect_dynamo(&connection_config).await,
         _ => Err(format!("Unknown database type: {}", database_type)),
     }
