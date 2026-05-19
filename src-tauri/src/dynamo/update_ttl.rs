@@ -45,6 +45,19 @@ pub async fn update_time_to_live(
                 .message()
                 .map(|m| m.to_string())
                 .unwrap_or_else(|| format!("{:#}", e));
+
+            if error_code == "ValidationException"
+                && error_message.contains("TimeToLive is active on a different AttributeName")
+            {
+                return Ok(ApiResponse {
+                    status: 400,
+                    message: format!(
+                        "TTL is already enabled on a different attribute. To change the TTL attribute, first disable TTL, then re-enable it with the new attribute name. Note: each change can take up to one hour to process."
+                    ),
+                    data: None,
+                });
+            }
+
             Ok(ApiResponse {
                 status: 500,
                 message: format!(
