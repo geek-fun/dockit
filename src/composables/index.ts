@@ -12,3 +12,8 @@ export { useFormValidation } from './useFormValidation';
 export { useAppUpdater } from './useAppUpdater';
 export { setupEditorKeyboardShortcuts } from './useKeyboardShortcuts';
 export { setupGlobalShortcuts } from './useGlobalShortcuts';
+export { useDataStudioAgent } from './useDataStudioAgent';
+export { useChatAgent } from './useChatAgent';
+export { useAgentContext } from './useAgentContext';
+export { useSidebarChatAgent } from './useSidebarChatAgent';
+export { useDataStudioChatAgent } from './useDataStudioChatAgent';
