@@ -66,7 +66,9 @@ const selectedLabel = computed(() => {
 });
 
 const filteredOptions = computed(() => {
-  if (!searchQuery.value.trim()) return props.options;
+  if (!searchQuery.value.trim()) {
+    return props.options;
+  }
   const query = searchQuery.value.toLowerCase();
   return props.options.filter(
     opt => opt.label.toLowerCase().includes(query) || opt.value.toLowerCase().includes(query),

@@ -202,7 +202,7 @@ import elasticsearch from '../../../assets/svg/elasticsearch.svg';
 import opensearch from '../../../assets/svg/db-opensearch.svg';
 import easysearch from '../../../assets/svg/easysearch.svg';
 import mongodb from '../../../assets/svg/mongodb.svg';
-import { CustomError, MIN_LOADING_TIME, isFeatureEnabled } from '../../../common';
+import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import {
   Connection,
@@ -271,13 +271,9 @@ const filteredConnections = computed(() => {
   const keyword = filterText.value.toLowerCase().trim();
   const dir = sortDir.value === 'asc' ? 1 : -1;
 
-  const baseConnections = isFeatureEnabled.mongodb
-    ? connections.value
-    : connections.value.filter(c => c.type !== DatabaseType.MONGODB);
-
   const filtered = keyword
-    ? baseConnections.filter(c => c.name.toLowerCase().includes(keyword))
-    : baseConnections;
+    ? connections.value.filter(c => c.name.toLowerCase().includes(keyword))
+    : connections.value;
 
   return [...filtered].sort((a, b) => sortFns[activeSortKey.value](a, b) * dir);
 });

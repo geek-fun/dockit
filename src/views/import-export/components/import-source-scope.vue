@@ -104,7 +104,7 @@
           </Alert>
         </div>
 
-        <!-- Schema Configuration (Elasticsearch/OpenSearch) -->
+        <!-- Schema Configuration (Elasticsearch) -->
         <div
           v-if="
             isNewCollection &&

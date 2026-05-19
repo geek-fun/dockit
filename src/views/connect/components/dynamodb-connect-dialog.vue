@@ -1335,6 +1335,15 @@ const onInputBlur = () => {
   }, 150);
 };
 
+const addFromInputOrFirst = () => {
+  const name = filterTableNameInput.value.trim();
+  if (name) {
+    addFilterTableName(name);
+  } else if (filteredSuggestions.value.length) {
+    addFilterTableName(filteredSuggestions.value[0]);
+  }
+};
+
 const highlightedSuggestionIndex = ref(-1);
 
 watch(filterTableNameInput, () => {
@@ -1366,12 +1375,7 @@ const handleSuggestionKeyDown = (e: KeyboardEvent) => {
       if (highlightedSuggestionIndex.value >= 0 && suggestions[highlightedSuggestionIndex.value]) {
         addFilterTableName(suggestions[highlightedSuggestionIndex.value]);
       } else {
-        const name = filterTableNameInput.value.trim();
-        if (name) {
-          addFilterTableName(name);
-        } else if (suggestions.length) {
-          addFilterTableName(suggestions[0]);
-        }
+        addFromInputOrFirst();
       }
       break;
   }

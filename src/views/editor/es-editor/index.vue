@@ -47,7 +47,7 @@ import {
   ElasticsearchConnection,
   SearchConnection,
   useAppStore,
-  useChatStore,
+  useCodeActionStore,
   useConnectionStore,
   useHistoryStore,
   useTabStore,
@@ -91,8 +91,8 @@ const { themeType, editorConfig } = storeToRefs(appStore);
 
 const historyStore = useHistoryStore();
 
-const chatStore = useChatStore();
-const { insertBoard } = storeToRefs(chatStore);
+const codeActionStore = useCodeActionStore();
+const { insertBuffer } = storeToRefs(codeActionStore);
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let queryEditor: Editor | null = null;
 // DOM
@@ -207,9 +207,8 @@ watch(
   { deep: true },
 );
 
-watch(insertBoard, () => {
+watch(insertBuffer, () => {
   if (queryEditor) {
-    // add event to handle chatbot-code-actions
     const position = queryEditor.getPosition();
     if (!position) {
       return;
@@ -224,11 +223,12 @@ watch(insertBoard, () => {
             position.lineNumber,
             position.column,
           ),
-          text: insertBoard.value,
+          text: insertBuffer.value,
         },
       ],
       () => null,
     );
+    codeActionStore.clearInsertBuffer();
   }
 });
 
@@ -570,7 +570,7 @@ const setupQueryEditor = () => {
     const connection = activeConnection.value as SearchConnection | undefined;
     const version = connection?.version || 'current';
     const engineType =
-      connection?.type === DatabaseType.OPENSEARCH
+      connection?.type === DatabaseType.OPENSEARCH || connection?.type === DatabaseType.EASYSEARCH
         ? EngineType.OPENSEARCH
         : EngineType.ELASTICSEARCH;
     const docLink = getActionApiDoc(engineType, version, action as SearchAction);
@@ -582,6 +582,12 @@ const setupQueryEditor = () => {
       saveModelContent(true, true, true);
     });
   }
+
+  // Layout-dependent shortcuts (/) are handled via DOM keydown events
+  // instead of Monaco's addCommand, which assumes US keyboard layout.
+  // Chord shortcuts (Ctrl+K,Ctrl+0 / Ctrl+K,Ctrl+J) also use DOM events to share chord state.
+  // See: src/composables/useKeyboardShortcuts.ts
+  // Note: Ctrl/Cmd+Shift+/ (show shortcuts dialog) is handled globally at connect/index.vue
 
   // Keyboard shortcut for context menu (Shift+F10 or ContextMenu key)
   queryEditor.addAction({
@@ -606,11 +612,6 @@ const setupQueryEditor = () => {
     },
   });
 
-  // Layout-dependent shortcuts (/) are handled via DOM keydown events
-  // instead of Monaco's addCommand, which assumes US keyboard layout.
-  // Chord shortcuts (Ctrl+K,Ctrl+0 / Ctrl+K,Ctrl+J) also use DOM events to share chord state.
-  // See: src/composables/useKeyboardShortcuts.ts
-  // Note: Ctrl/Cmd+Shift+/ (show shortcuts dialog) is handled globally at connect/index.vue
   cleanupKeyboardShortcuts = setupEditorKeyboardShortcuts(queryEditor, {
     shortcuts: [
       {
