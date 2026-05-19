@@ -40,6 +40,9 @@
         <div v-if="error" class="error-banner">
           <span class="i-carbon-warning h-4 w-4" />
           <span class="text-xs">{{ error }}</span>
+          <button class="error-settings-btn" @click="router.push('/setting')">
+            {{ $t('setting.ai.configGpt') }}
+          </button>
         </div>
       </ScrollArea>
     </div>
@@ -94,6 +97,7 @@
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import { useAppStore } from '@/store';
 import type { ChatMessage } from '@/types/chat';
 import AgentMessageBubble from './agent-message-bubble.vue';
@@ -104,6 +108,7 @@ import { Spinner } from './ui/spinner';
 import { useMessageService } from '@/composables';
 
 const { t } = useI18n();
+const router = useRouter();
 const appStore = useAppStore();
 const { llmSettings } = storeToRefs(appStore);
 const message = useMessageService();
@@ -279,6 +284,22 @@ onMounted(async () => {
   background: hsl(var(--destructive) / 0.1);
   color: hsl(var(--destructive));
   margin: 8px 0;
+}
+
+.error-settings-btn {
+  margin-left: auto;
+  font-size: 0.75rem;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: hsl(var(--destructive));
+  padding: 0;
+  white-space: nowrap;
+}
+
+.error-settings-btn:hover {
+  opacity: 0.75;
 }
 
 .loading-indicator {
