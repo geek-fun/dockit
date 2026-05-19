@@ -30,6 +30,19 @@
           <dynamo-editor :ref="el => setDynamoEditorRef(el, panel.id)" />
         </div>
       </template>
+      <template v-else-if="panel.connection && panel.connection.type === DatabaseType.MONGODB">
+        <div class="mongo-editor">
+          <tool-bar
+            :ref="el => setToolBarRef(el, panel.id)"
+            type="MONGO_EDITOR"
+            @insert-sample-query="handleInsertMongoSampleQuery"
+            @execute-mongo-query="handleExecuteMongoQuery"
+          />
+          <div class="mongo-editor-container">
+            <mongo-editor :ref="el => setMongoEditorRef(el, panel.id)" />
+          </div>
+        </div>
+      </template>
       <template v-else>
         <div class="es-editor">
           <tool-bar
@@ -54,6 +67,7 @@ import { Connection, DatabaseType, useTabStore, useDbDataStore } from '../../sto
 import ConnectList from './components/connect-list.vue';
 import EsEditor from '../editor/es-editor/index.vue';
 import DynamoEditor from '../editor/dynamo-editor/index.vue';
+import MongoEditor from '../editor/mongo-editor/index.vue';
 import ToolBar from '../../components/tool-bar.vue';
 import { useLang } from '../../lang';
 import { CustomError } from '../../common';
@@ -73,6 +87,7 @@ const dbDataStore = useDbDataStore();
 const esEditorRefs = new Map<number, InstanceType<typeof EsEditor>>();
 const toolBarRefs = new Map<number, InstanceType<typeof ToolBar>>();
 const dynamoEditorRefs = new Map<number, InstanceType<typeof DynamoEditor>>();
+const mongoEditorRefs = new Map<number, InstanceType<typeof MongoEditor>>();
 let cleanupGlobalShortcuts: (() => void) | null = null;
 
 const setEditorRef = (el: any, panelId: number) => {
@@ -99,9 +114,27 @@ const setDynamoEditorRef = (el: any, panelId: number) => {
   }
 };
 
+const setMongoEditorRef = (el: any, panelId: number) => {
+  if (el) {
+    mongoEditorRefs.set(panelId, el);
+  } else {
+    mongoEditorRefs.delete(panelId);
+  }
+};
+
 const handleInsertSampleQuery = (query: string) => {
   const editor = esEditorRefs.get(activePanel.value.id);
   editor?.insertSampleQuery(query);
+};
+
+const handleInsertMongoSampleQuery = (query: string) => {
+  const editor = mongoEditorRefs.get(activePanel.value.id);
+  editor?.insertSampleQuery(query);
+};
+
+const handleExecuteMongoQuery = () => {
+  const editor = mongoEditorRefs.get(activePanel.value.id);
+  editor?.executeCurrentStatement();
 };
 
 const handleToggleShortcutsDialog = () => {
@@ -109,7 +142,7 @@ const handleToggleShortcutsDialog = () => {
   const esToolBar = toolBarRefs.get(panelId);
   if (esToolBar) {
     esToolBar.toggleShortcutsDialog();
-  } else {
+  } else if (dynamoEditorRefs.has(panelId)) {
     dynamoEditorRefs.get(panelId)?.toggleShortcutsDialog();
   }
 };
@@ -268,5 +301,17 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.mongo-editor {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.mongo-editor-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
 }
 </style>

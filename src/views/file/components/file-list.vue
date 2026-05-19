@@ -6,8 +6,18 @@
           v-for="(file, index) in sortedFileList"
           :key="file.path"
           :class="getClass(file, index)"
+          class="focus:ring-2 focus:ring-primary focus:outline-none"
+          role="button"
+          tabindex="0"
           @click="handleClick(ClickType.SINGLE, file)"
           @dblclick="handleClick(ClickType.DOUBLE, file)"
+          @keydown.enter="handleClick(ClickType.DOUBLE, file)"
+          @keydown.space.prevent="handleClick(ClickType.SINGLE, file)"
+          @keydown.right.prevent="focusFileNode(index + 1)"
+          @keydown.left.prevent="focusFileNode(index - 1)"
+          @keydown.down.prevent="focusFileNode(index + getGridColumns())"
+          @keydown.up.prevent="focusFileNode(index - getGridColumns())"
+          @keydown.shift.f10.prevent="openContextMenuForKeyboard($event, file)"
           @contextmenu.prevent="showContextMenu($event, file)"
         >
           <div class="file-icon">
@@ -29,13 +39,14 @@
               {{ formatSize(file.size) }}
             </span>
           </div>
-          <context-menu
-            v-if="contextMenuVisible"
-            :position="contextMenuPosition"
-            :file="selectedFile"
-            @context-menu-action-emit="handleContextMenu"
-          />
         </div>
+        <context-menu
+          v-if="contextMenuVisible"
+          :position="contextMenuPosition"
+          :file="selectedFile"
+          @context-menu-action-emit="handleContextMenu"
+          @close="closeContextMenu"
+        />
         <new-file-dialog ref="newFileDialogRef" />
       </div>
     </ScrollArea>
@@ -103,24 +114,45 @@ const selectedFile = ref<PathInfo>();
 const newFileDialogRef = ref();
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
+const previousFocus = ref<HTMLElement | null>(null);
 
 const showContextMenu = (event: MouseEvent, file?: PathInfo) => {
   // Prevent the event from propagating further
   event.stopPropagation();
+  previousFocus.value = event.currentTarget as HTMLElement;
   activeRef.value = file;
   selectedFile.value = file;
   contextMenuPosition.value = { x: event.layerX, y: event.layerY };
   contextMenuVisible.value = true;
 };
 
+const openContextMenuForKeyboard = (event: KeyboardEvent, file: PathInfo) => {
+  previousFocus.value = event.currentTarget as HTMLElement;
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  contextMenuPosition.value = { x: rect.left, y: rect.bottom };
+  selectedFile.value = file;
+  contextMenuVisible.value = true;
+};
+
+const closeContextMenu = () => {
+  contextMenuVisible.value = false;
+  if (previousFocus.value) {
+    const el = previousFocus.value;
+    nextTick(() => {
+      el.focus();
+    });
+    previousFocus.value = null;
+  }
+};
+
 const handleClickOutside = (event: MouseEvent) => {
   if (!(event.target as HTMLElement).closest('.context-menu')) {
-    contextMenuVisible.value = false;
+    closeContextMenu();
   }
 };
 
 const handleContextMenu = async (action: ContextMenuAction) => {
-  contextMenuVisible.value = false;
+  closeContextMenu();
   if (action === ContextMenuAction.CONTEXT_MENU_ACTION_OPEN) {
     if (selectedFile.value?.type === PathTypeEnum.FOLDER) {
       await changeDirectory(selectedFile.value?.path);
@@ -139,6 +171,20 @@ const handleContextMenu = async (action: ContextMenuAction) => {
     deleteFileOrFolder(selectedFile.value?.path ?? '');
   } else {
     newFileDialogRef.value.showModal(action, selectedFile.value);
+  }
+};
+
+const getGridColumns = () => {
+  const container = document.querySelector('.grid-container');
+  if (!container) return 1;
+  const gridComputedStyle = window.getComputedStyle(container);
+  return gridComputedStyle.getPropertyValue('grid-template-columns').split(' ').length;
+};
+
+const focusFileNode = (index: number) => {
+  const items = document.querySelectorAll('.file-item');
+  if (index >= 0 && index < items.length) {
+    (items[index] as HTMLElement)?.focus();
   }
 };
 

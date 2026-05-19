@@ -12,7 +12,11 @@
             :class="{
               active: isActive(item),
             }"
+            role="button"
+            tabindex="0"
             @click="navClick(item)"
+            @keydown.enter="navClick(item)"
+            @keydown.space.prevent="navClick(item)"
           >
             <span :class="[item.iconClass, 'h-6 w-6']" />
           </div>
@@ -29,7 +33,11 @@
             :class="{
               active: isActive(item),
             }"
+            role="button"
+            tabindex="0"
             @click="navClick(item)"
+            @keydown.enter="navClick(item)"
+            @keydown.space.prevent="navClick(item)"
           >
             <span :class="[item.iconClass, 'h-6 w-6']" />
           </div>

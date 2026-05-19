@@ -3,11 +3,12 @@
     <DialogContent class="sm:max-w-[600px]" :show-close="false">
       <DialogHeader>
         <DialogTitle class="flex items-center gap-2">
-          <component :is="elasticsearchIcon" class="h-5 w-5" />
+          <component :is="dialogIcon" class="h-5 w-5" />
           {{ modalTitle }}
         </DialogTitle>
         <button
           class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
+          aria-label="Close"
           @click="closeModal"
         >
           <X class="h-4 w-4" />
@@ -18,7 +19,11 @@
         <Alert v-if="successMessage" variant="success" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ successMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="successMessage = ''">
+            <button
+              class="ml-2 hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="successMessage = ''"
+            >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
@@ -26,7 +31,11 @@
         <Alert v-if="errorMessage" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
             {{ errorMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="errorMessage = ''">
+            <button
+              class="ml-2 hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="errorMessage = ''"
+            >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
@@ -48,7 +57,13 @@
               </FormItem>
             </GridItem>
 
-            <template v-if="formData.type === DatabaseType.ELASTICSEARCH">
+            <template
+              v-if="
+                formData.type === DatabaseType.ELASTICSEARCH ||
+                formData.type === DatabaseType.OPENSEARCH ||
+                formData.type === DatabaseType.EASYSEARCH
+              "
+            >
               <GridItem :span="5">
                 <FormItem
                   :label="$t('connection.host')"
@@ -141,39 +156,37 @@
                 </FormItem>
               </GridItem>
 
-              <template v-if="authType === 'basic'">
-                <GridItem :span="8">
-                  <FormItem :label="$t('connection.username')">
-                    <Input v-model="formData.username" :placeholder="$t('connection.username')" />
-                  </FormItem>
-                </GridItem>
+              <GridItem :span="8">
+                <div class="auth-fields-container">
+                  <template v-if="authType === 'basic'">
+                    <FormItem :label="$t('connection.username')">
+                      <Input v-model="formData.username" :placeholder="$t('connection.username')" />
+                    </FormItem>
+                    <FormItem :label="$t('connection.password')" class="mt-[10px]">
+                      <Input
+                        v-model="formData.password"
+                        :type="showPassword ? 'text' : 'password'"
+                        :placeholder="$t('connection.password')"
+                      />
+                    </FormItem>
+                  </template>
 
-                <GridItem :span="8">
-                  <FormItem :label="$t('connection.password')">
-                    <Input
-                      v-model="formData.password"
-                      :type="showPassword ? 'text' : 'password'"
-                      :placeholder="$t('connection.password')"
-                    />
-                  </FormItem>
-                </GridItem>
-              </template>
-
-              <template v-else>
-                <GridItem :span="8">
-                  <FormItem
-                    :label="$t('connection.apiKey')"
-                    :error="getError('apiKey', errors.apiKey)"
-                  >
-                    <Input
-                      v-model="formData.apiKey"
-                      type="password"
-                      :placeholder="$t('connection.apiKeyPlaceholder')"
-                      @blur="handleBlur('apiKey')"
-                    />
-                  </FormItem>
-                </GridItem>
-              </template>
+                  <template v-else>
+                    <FormItem
+                      :label="$t('connection.apiKey')"
+                      :error="getError('apiKey', errors.apiKey)"
+                    >
+                      <Input
+                        v-model="formData.apiKey"
+                        type="password"
+                        :placeholder="$t('connection.apiKeyPlaceholder')"
+                        @blur="handleBlur('apiKey')"
+                      />
+                    </FormItem>
+                    <div class="auth-fields-placeholder" />
+                  </template>
+                </div>
+              </GridItem>
             </template>
           </Grid>
         </Form>
@@ -209,12 +222,9 @@ import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import elasticsearchIcon from '../../../assets/svg/elasticsearch.svg';
-import {
-  Connection,
-  DatabaseType,
-  ElasticsearchConnection,
-  useConnectionStore,
-} from '../../../store';
+import opensearchIcon from '../../../assets/svg/db-opensearch.svg';
+import easysearchIcon from '../../../assets/svg/easysearch.svg';
+import { Connection, DatabaseType, SearchConnection, useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
 import { useFormValidation } from '@/composables';
 
@@ -259,11 +269,15 @@ const defaultFormData = {
   queryParameters: '',
   sslCertVerification: true,
   type: DatabaseType.ELASTICSEARCH,
-} as ElasticsearchConnection & { selectedIndex: string };
+} as SearchConnection & { selectedIndex: string };
 
-const formData = ref<ElasticsearchConnection & { selectedIndex: string }>(
-  cloneDeep(defaultFormData),
-);
+const formData = ref<SearchConnection & { selectedIndex: string }>(cloneDeep(defaultFormData));
+
+const dialogIcon = computed(() => {
+  if (formData.value.type === DatabaseType.OPENSEARCH) return opensearchIcon;
+  if (formData.value.type === DatabaseType.EASYSEARCH) return easysearchIcon;
+  return elasticsearchIcon;
+});
 
 const hostValidate = ref<{
   status: 'error' | undefined;
@@ -321,14 +335,22 @@ const isFormValid = computed(() => {
   const hasHost = formData.value.host && formData.value.host.trim() !== '';
   const hasPort = formData.value.port !== null && formData.value.port !== undefined;
 
-  if (formData.value.type === DatabaseType.ELASTICSEARCH) {
+  if (
+    formData.value.type === DatabaseType.ELASTICSEARCH ||
+    formData.value.type === DatabaseType.OPENSEARCH ||
+    formData.value.type === DatabaseType.EASYSEARCH
+  ) {
     return hasName && hasHost && hasPort;
   }
   return hasName;
 });
 
 const handleHostInput = () => {
-  if (formData.value.type === DatabaseType.ELASTICSEARCH) {
+  if (
+    formData.value.type === DatabaseType.ELASTICSEARCH ||
+    formData.value.type === DatabaseType.OPENSEARCH ||
+    formData.value.type === DatabaseType.EASYSEARCH
+  ) {
     const value = formData.value.host;
     if (value.length >= 'http://'.length) {
       if (value.startsWith('http://') && formData.value.sslCertVerification) {
@@ -340,7 +362,11 @@ const handleHostInput = () => {
 };
 
 const switchSSL = (target: boolean) => {
-  if (formData.value.type === DatabaseType.ELASTICSEARCH) {
+  if (
+    formData.value.type === DatabaseType.ELASTICSEARCH ||
+    formData.value.type === DatabaseType.OPENSEARCH ||
+    formData.value.type === DatabaseType.EASYSEARCH
+  ) {
     if (formData.value.host.startsWith('https') || !target) {
       formData.value.sslCertVerification = target;
       hostValidate.value.status = undefined;
@@ -370,7 +396,10 @@ const handleOpenChange = (open: boolean) => {
   }
 };
 
-const showMedal = (con: ElasticsearchConnection | null) => {
+const showMedal = (
+  con: SearchConnection | null,
+  initialType?: DatabaseType.ELASTICSEARCH | DatabaseType.OPENSEARCH | DatabaseType.EASYSEARCH,
+) => {
   showModal.value = true;
   errorMessage.value = '';
   successMessage.value = '';
@@ -383,9 +412,15 @@ const showMedal = (con: ElasticsearchConnection | null) => {
     veeResetForm({ values: { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType } });
     modalTitle.value = lang.t('connection.edit');
   } else {
-    formData.value = cloneDeep(defaultFormData);
+    const type = initialType ?? DatabaseType.ELASTICSEARCH;
+    const typeDefaults =
+      type === DatabaseType.EASYSEARCH
+        ? { host: 'https://localhost', username: 'admin', sslCertVerification: false }
+        : {};
+    const initialFormData = { ...cloneDeep(defaultFormData), type, ...typeDefaults };
+    formData.value = initialFormData;
     authType.value = 'basic';
-    veeResetForm({ values: cloneDeep(defaultFormData) });
+    veeResetForm({ values: initialFormData });
   }
   resetValidation();
 };
@@ -489,6 +524,10 @@ defineExpose({ showMedal });
 </script>
 
 <style scoped>
+.modal-content .auth-fields-placeholder {
+  height: 70px;
+}
+
 .modal-content .ssl-unchecked-icon {
   transition: 0.3s;
   overflow: hidden;
