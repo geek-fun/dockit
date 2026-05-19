@@ -21,6 +21,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"
 
 tauri-plugin-deep-link = "2"
+tauri-plugin-system-info = { git = "https://github.com/HuakunShen/tauri-plugin-system-info", branch = "v2" }
 url = "2"
 
 async-openai = { version = "0.32.2", features = ["chat-completion"] }
@@ -37,6 +38,10 @@ aws-sdk-ssooidc = { version = "1.100.0", default-features = false, features = ["
 aws-sdk-sso = { version = "1.98.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
 base64 = "0.22.1"
 mongodb = "3.1"
+rusqlite = { version = "0.31", features = ["bundled"] }
+uuid = { version = "1", features = ["v4"] }
+async-trait = "0.1"
+rand = "0.8"
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
 custom-protocol = ["tauri/custom-protocol"]
@@ -44,4 +49,5 @@ custom-protocol = ["tauri/custom-protocol"]
 [target."cfg(not(any(target_os = \"android\", target_os = \"ios\")))".dependencies]
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-updater = "2.10"
+tauri-plugin-single-instance = "2"
 tauri-plugin-process = "2"
