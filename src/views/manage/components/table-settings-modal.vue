@@ -40,12 +40,26 @@
               @update:checked="val => (formValue.ttlEnabled = val)"
             />
           </FormItem>
-          <FormItem v-if="formValue.ttlEnabled" :label="lang.t('manage.dynamo.ttlAttribute')">
-            <Input
-              v-model="formValue.ttlAttributeName"
-              :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')"
-            />
-          </FormItem>
+          <template v-if="props.currentSettings.ttlEnabled">
+            <FormItem :label="lang.t('manage.dynamo.ttlCurrentAttribute')">
+              <span class="text-sm text-muted-foreground font-mono">
+                {{ props.currentSettings.ttlAttributeName }}
+              </span>
+            </FormItem>
+            <Alert v-if="formValue.ttlEnabled" variant="info">
+              <AlertDescription>
+                {{ lang.t('manage.dynamo.ttlChangeAttributeWarning') }}
+              </AlertDescription>
+            </Alert>
+          </template>
+          <template v-else-if="formValue.ttlEnabled">
+            <FormItem :label="lang.t('manage.dynamo.ttlAttribute')">
+              <Input
+                v-model="formValue.ttlAttributeName"
+                :placeholder="lang.t('manage.dynamo.ttlAttributePlaceholder')"
+              />
+            </FormItem>
+          </template>
         </template>
 
         <!-- PITR -->

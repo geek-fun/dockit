@@ -421,6 +421,9 @@ export const enUS = {
       enableTtl: 'Enable TTL',
       ttlAttribute: 'TTL Attribute',
       ttlAttributePlaceholder: 'Enter attribute name (e.g. expiresAt)',
+      ttlCurrentAttribute: 'Current TTL Attribute',
+      ttlChangeAttributeWarning:
+        'To change the TTL attribute, first disable TTL and save, then re-enable with the new attribute name. Each change can take up to one hour to process.',
       enablePitr: 'Enable Point-in-Time Recovery',
       pitrLocalNotSupported: 'Point-in-Time Recovery is not supported by DynamoDB Local.',
       pitrWarning:

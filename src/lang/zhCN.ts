@@ -410,6 +410,9 @@ export const zhCN = {
       enableTtl: '启用TTL',
       ttlAttribute: 'TTL属性',
       ttlAttributePlaceholder: '输入属性名称（例如 expiresAt）',
+      ttlCurrentAttribute: '当前TTL属性',
+      ttlChangeAttributeWarning:
+        '如需更改TTL属性，请先禁用TTL并保存，再重新启用并指定新属性名称。每次更改最多需要一小时才能生效。',
       enablePitr: '启用时间点恢复',
       pitrLocalNotSupported: 'DynamoDB Local 不支持时间点恢复。',
       pitrWarning: 'PITR允许恢复到过去35天内的任意秒。将产生额外的AWS费用。',
