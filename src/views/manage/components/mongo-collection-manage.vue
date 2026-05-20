@@ -405,10 +405,11 @@ const filteredCollections = computed(() => {
 const sortedCollections = computed(() => {
   const sorted = [...filteredCollections.value];
   const favorites = mongoConnection.value?.favoriteCollections ?? [];
+  const selectedDb = selectedDatabase.value;
 
   sorted.sort((a, b) => {
-    const aFav = favorites.includes(a.name);
-    const bFav = favorites.includes(b.name);
+    const aFav = favorites.some(f => f.database === selectedDb && f.collection === a.name);
+    const bFav = favorites.some(f => f.database === selectedDb && f.collection === b.name);
     if (aFav && !bFav) return -1;
     if (!aFav && bFav) return 1;
 
@@ -437,13 +438,20 @@ const formatBytes = (n: number | undefined | null): string => {
   return prettyBytes(n);
 };
 
-const isFavorite = (name: string): boolean =>
-  mongoConnection.value?.favoriteCollections?.includes(name) ?? false;
+const isFavorite = (name: string): boolean => {
+  const selectedDb = selectedDatabase.value;
+  return mongoConnection.value?.favoriteCollections?.some(
+    f => f.database === selectedDb && f.collection === name,
+  ) ?? false;
+};
 
 const toggleFavorite = async (name: string) => {
   if (!mongoConnection.value) return;
+  const selectedDb = selectedDatabase.value;
   const favorites = mongoConnection.value.favoriteCollections ?? [];
-  const newFavorites = isFavorite(name) ? favorites.filter(f => f !== name) : [...favorites, name];
+  const newFavorites = isFavorite(name)
+    ? favorites.filter(f => f.database !== selectedDb || f.collection !== name)
+    : [...favorites, { database: selectedDb, collection: name }];
   mongoConnection.value.favoriteCollections = newFavorites;
   await connectionStore.saveConnection(mongoConnection.value);
 };
