@@ -70,15 +70,28 @@
 
     <SearchableSelect
       v-if="props.type === 'MONGO_EDITOR'"
-      :model-value="collectionSelectValue || ''"
-      :options="collectionOptions"
-      :loading="loadingRef.collection"
-      :placeholder="$t('editor.mongo.selectCollection')"
+      :model-value="databaseSelectValue || ''"
+      :options="databaseOptions"
+      :loading="loadingRef.database"
+      :placeholder="$t('editor.mongo.selectDatabase')"
       variant="ghost"
       :search-threshold="0"
       class="index-select"
-      @update:model-value="value => handleUpdate(value, 'COLLECTION')"
-      @open="isOpen => handleOpen(isOpen, 'COLLECTION')"
+      @update:model-value="value => handleUpdate(value, 'DATABASE')"
+      @open="isOpen => handleOpen(isOpen, 'DATABASE')"
+    />
+
+    <SearchableSelect
+      v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.MONGODB"
+      :model-value="databaseSelectValue || ''"
+      :options="databaseOptions"
+      :loading="loadingRef.database"
+      :placeholder="$t('editor.mongo.selectDatabase')"
+      variant="ghost"
+      :search-threshold="0"
+      class="index-select"
+      @update:model-value="value => handleUpdate(value, 'DATABASE')"
+      @open="isOpen => handleOpen(isOpen, 'DATABASE')"
     />
 
     <TooltipProvider
@@ -332,7 +345,13 @@ const showRunButton = computed(() => {
   return props.type === 'DYNAMO_EDITOR' && activePanel.value.editorType === 'DYNAMO_EDITOR_SQL';
 });
 
-const loadingRef = ref({ connection: false, index: false, table: false, collection: false });
+const loadingRef = ref({
+  connection: false,
+  index: false,
+  table: false,
+  collection: false,
+  database: false,
+});
 
 const includeSystemIndicesRef = ref(false);
 const isExecuting = ref(false);
@@ -444,10 +463,23 @@ const collectionSelectValue = computed(() => {
 const collectionOptions = computed(() => {
   const conn = activePanel?.value?.connection;
   if (!conn || conn.type !== DatabaseType.MONGODB) return [];
-  const collections = (conn as MongoDBConnection).collections ?? [];
-  return collections.map(c => ({
-    label: c.name,
-    value: c.name,
+  return [];
+});
+
+const databaseSelectValue = computed(() => {
+  const conn = props.type === 'MANAGE' ? connection.value : activePanel?.value?.connection;
+  if (!conn || conn.type !== DatabaseType.MONGODB) return '';
+  const mongoConn = conn as MongoDBConnection;
+  return mongoConn.activeDatabase || mongoConn.database || '';
+});
+
+const databaseOptions = computed(() => {
+  const conn = props.type === 'MANAGE' ? connection.value : activePanel?.value?.connection;
+  if (!conn || conn.type !== DatabaseType.MONGODB) return [];
+  const mongoConn = conn as MongoDBConnection;
+  return (mongoConn.databases ?? []).map(d => ({
+    label: d.name,
+    value: d.name,
   }));
 });
 
@@ -609,7 +641,7 @@ watch(
 
 const handleOpen = async (
   isOpen: boolean,
-  type: 'CONNECTION' | 'INDEX' | 'TABLE' | 'COLLECTION',
+  type: 'CONNECTION' | 'INDEX' | 'TABLE' | 'COLLECTION' | 'DATABASE',
 ) => {
   if (!isOpen) return;
 
@@ -659,6 +691,27 @@ const handleOpen = async (
       );
     }
     loadingRef.value.collection = false;
+  } else if (type === 'DATABASE') {
+    const selectedConnection =
+      props.type === 'MANAGE' ? connection.value : activePanel.value.connection;
+    if (!selectedConnection || selectedConnection.type !== DatabaseType.MONGODB) {
+      message.error(lang.t('editor.establishedRequired'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
+      return;
+    }
+    loadingRef.value.database = true;
+    try {
+      await connectionStore.fetchDatabases(selectedConnection as MongoDBConnection);
+    } catch (err) {
+      message.error(
+        `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
+        { closable: true, keepAliveOnHover: true, duration: 3000 },
+      );
+    }
+    loadingRef.value.database = false;
   } else {
     let selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
       ? activePanel.value.connection
@@ -687,7 +740,7 @@ const handleOpen = async (
 
 const handleUpdate = async (
   value: string,
-  type: 'CONNECTION' | 'INDEX' | 'TABLE' | 'COLLECTION',
+  type: 'CONNECTION' | 'INDEX' | 'TABLE' | 'COLLECTION' | 'DATABASE',
 ) => {
   if (type === 'CONNECTION') {
     const con = connections.value.find(({ name }) => name === value);
@@ -716,6 +769,23 @@ const handleUpdate = async (
     }
   } else if (type === 'COLLECTION') {
     setActiveTable(value);
+  } else if (type === 'DATABASE') {
+    const selectedConnection =
+      props.type === 'MANAGE' ? connection.value : activePanel.value.connection;
+    if (!selectedConnection || selectedConnection.type !== DatabaseType.MONGODB) {
+      message.error(lang.t('editor.establishedRequired'), {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
+      return;
+    }
+    const mongoConn = selectedConnection as MongoDBConnection;
+    mongoConn.activeDatabase = value;
+    const tabStore = useTabStore();
+    if (tabStore.activePanel?.connection?.id === mongoConn.id) {
+      tabStore.activePanel.connection = mongoConn;
+    }
   } else {
     const selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
       ? activePanel.value.connection

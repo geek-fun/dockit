@@ -1250,3 +1250,355 @@ pub async fn mongo_drop_collection(
         error: None,
     })
 }
+
+// ==================== MongoDB Cluster Monitoring Commands ====================
+
+/// Server status info
+#[derive(Debug, Serialize)]
+pub struct MongoServerStatus {
+    pub host: String,
+    pub version: String,
+    pub uptime: i64,
+    pub connections: MongoConnectionInfo,
+    pub network: MongoNetworkInfo,
+    pub memory: MongoMemoryInfo,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoConnectionInfo {
+    pub current: i64,
+    pub available: i64,
+    pub total_created: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoNetworkInfo {
+    pub bytes_in: i64,
+    pub bytes_out: i64,
+    pub num_requests: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoMemoryInfo {
+    pub resident: i64,
+    pub virtual_mem: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoServerStatusResult {
+    pub success: bool,
+    pub status: Option<MongoServerStatus>,
+    pub error: Option<String>,
+}
+
+/// Replica set member info
+#[derive(Debug, Serialize)]
+pub struct MongoReplicaMember {
+    pub name: String,
+    pub state: i64,
+    pub state_str: String,
+    pub health: Option<i64>,
+    pub uptime: i64,
+    pub optime: Option<String>,
+    pub optime_date: Option<String>,
+    pub lag_time: Option<i64>,
+    pub ping_ms: Option<i64>,
+    pub election_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoReplicaSetStatus {
+    pub set: String,
+    pub date: Option<String>,
+    pub my_state: i64,
+    pub members: Vec<MongoReplicaMember>,
+    pub election_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoReplSetStatusResult {
+    pub success: bool,
+    pub status: Option<MongoReplicaSetStatus>,
+    pub error: Option<String>,
+}
+
+/// Shard info
+#[derive(Debug, Serialize)]
+pub struct MongoShardInfo {
+    pub id: String,
+    pub host: String,
+    pub state: i64,
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoMongosInfo {
+    pub id: String,
+    pub host: String,
+    pub ping: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoShardCluster {
+    pub is_sharding_enabled: bool,
+    pub mongos: Vec<MongoMongosInfo>,
+    pub config_servers: Option<MongoConfigServerInfo>,
+    pub shards: Vec<MongoShardInfo>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoConfigServerInfo {
+    pub type_: String,
+    pub name: Option<String>,
+    pub members: Option<Vec<MongoReplicaMember>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoShardStatusResult {
+    pub success: bool,
+    pub cluster: Option<MongoShardCluster>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_server_status(config: MongoConnectionConfig) -> Result<MongoServerStatusResult, String> {
+    let client = build_client(&config).await?;
+    let admin_db = client.database("admin");
+
+    let result = admin_db
+        .run_command(doc! { "serverStatus": 1 })
+        .await
+        .map_err(|e| format!("Failed to get server status: {}", e))?;
+
+    // Get version from buildInfo
+    let version = match admin_db.run_command(doc! { "buildInfo": 1 }).await {
+        Ok(info) => info.get_str("version").unwrap_or("unknown").to_string(),
+        Err(_) => "unknown".to_string(),
+    };
+
+    let status = MongoServerStatus {
+        host: result.get_str("host").unwrap_or("unknown").to_string(),
+        version,
+        uptime: result.get_i64("uptime").unwrap_or(0),
+        connections: MongoConnectionInfo {
+            current: result.get_document("connections")
+                .and_then(|d| d.get_i64("current"))
+                .unwrap_or(0),
+            available: result.get_document("connections")
+                .and_then(|d| d.get_i64("available"))
+                .unwrap_or(0),
+            total_created: result.get_document("connections")
+                .and_then(|d| d.get_i64("totalCreated"))
+                .ok(),
+        },
+        network: MongoNetworkInfo {
+            bytes_in: result.get_document("network")
+                .and_then(|d| d.get_i64("bytesIn"))
+                .unwrap_or(0),
+            bytes_out: result.get_document("network")
+                .and_then(|d| d.get_i64("bytesOut"))
+                .unwrap_or(0),
+            num_requests: result.get_document("network")
+                .and_then(|d| d.get_i64("numRequests"))
+                .unwrap_or(0),
+        },
+        memory: MongoMemoryInfo {
+            resident: result.get_document("mem")
+                .and_then(|d| d.get_i64("resident"))
+                .unwrap_or(0),
+            virtual_mem: result.get_document("mem")
+                .and_then(|d| d.get_i64("virtual"))
+                .unwrap_or(0),
+        },
+    };
+
+    Ok(MongoServerStatusResult {
+        success: true,
+        status: Some(status),
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_repl_set_status(config: MongoConnectionConfig) -> Result<MongoReplSetStatusResult, String> {
+    let client = build_client(&config).await?;
+    let admin_db = client.database("admin");
+
+    // Try to get replica set status
+    let result = admin_db
+        .run_command(doc! { "replSetGetStatus": 1 })
+        .await;
+
+    match result {
+        Ok(rs_result) => {
+            let members: Vec<MongoReplicaMember> = match rs_result.get("members") {
+                Some(Bson::Array(arr)) => arr
+                    .iter()
+                    .filter_map(|bson| {
+                        if let Bson::Document(d) = bson {
+                            Some(MongoReplicaMember {
+                                name: d.get_str("name").unwrap_or("unknown").to_string(),
+                                state: d.get_i64("state").unwrap_or(0),
+                                state_str: d.get_str("stateStr").unwrap_or("UNKNOWN").to_string(),
+                                health: d.get_i64("health").ok(),
+                                uptime: d.get_i64("uptime").unwrap_or(0),
+                                optime: d.get_document("optime")
+                                    .ok()
+                                    .and_then(|o| o.get_str("ts").ok())
+                                    .map(|s| s.to_string()),
+                                optime_date: d.get("optimeDate")
+                                    .and_then(|b| {
+                                        if let Bson::DateTime(dt) = b {
+                                            Some(dt.to_string())
+                                        } else {
+                                            None
+                                        }
+                                    }),
+                                lag_time: d.get_i64("lagTime").ok(),
+                                ping_ms: d.get_i64("pingMs").ok(),
+                                election_time: d.get("electionTime")
+                                    .and_then(|b| {
+                                        if let Bson::DateTime(dt) = b {
+                                            Some(dt.to_string())
+                                        } else {
+                                            None
+                                        }
+                                    }),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect(),
+                _ => vec![],
+            };
+
+            let status = MongoReplicaSetStatus {
+                set: rs_result.get_str("set").unwrap_or("unknown").to_string(),
+                date: rs_result.get("date")
+                    .and_then(|b| {
+                        if let Bson::DateTime(dt) = b {
+                            Some(dt.to_string())
+                        } else {
+                            None
+                        }
+                    }),
+                my_state: rs_result.get_i64("myState").unwrap_or(0),
+                members,
+                election_time: rs_result.get("electionTime")
+                    .and_then(|b| {
+                        if let Bson::DateTime(dt) = b {
+                            Some(dt.to_string())
+                        } else {
+                            None
+                        }
+                    }),
+            };
+
+            Ok(MongoReplSetStatusResult {
+                success: true,
+                status: Some(status),
+                error: None,
+            })
+        }
+        Err(e) => {
+            // Not a replica set or error
+            Ok(MongoReplSetStatusResult {
+                success: false,
+                status: None,
+                error: Some(format!("Not a replica set or error: {}", e)),
+            })
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn mongo_shard_status(config: MongoConnectionConfig) -> Result<MongoShardStatusResult, String> {
+    let client = build_client(&config).await?;
+    let admin_db = client.database("admin");
+
+    // Check if sharding is enabled
+    let sharding_state = admin_db
+        .run_command(doc! { "shardingState": 1 })
+        .await;
+
+    let is_sharding_enabled = sharding_state.is_ok();
+
+    if !is_sharding_enabled {
+        return Ok(MongoShardStatusResult {
+            success: true,
+            cluster: Some(MongoShardCluster {
+                is_sharding_enabled: false,
+                mongos: vec![],
+                config_servers: None,
+                shards: vec![],
+            }),
+            error: None,
+        });
+    }
+
+    // Get list of shards
+    let list_shards_result = admin_db
+        .run_command(doc! { "listShards": 1 })
+        .await;
+
+    let shards: Vec<MongoShardInfo> = match list_shards_result {
+        Ok(result) => match result.get("shards") {
+            Some(Bson::Array(arr)) => arr
+                .iter()
+                .filter_map(|bson| {
+                    if let Bson::Document(d) = bson {
+                        let tags = d.get_array("tags").ok().map(|arr| {
+                            arr.iter()
+                                .filter_map(|b| {
+                                    if let Bson::String(s) = b {
+                                        Some(s.clone())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect()
+                        });
+                        Some(MongoShardInfo {
+                            id: d.get_str("_id").unwrap_or("unknown").to_string(),
+                            host: d.get_str("host").unwrap_or("unknown").to_string(),
+                            state: d.get_i64("state").unwrap_or(0),
+                            tags,
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+            _ => vec![],
+        },
+        Err(_) => vec![],
+    };
+
+    // Get mongos info from config.mongos collection
+    let mongos: Vec<MongoMongosInfo> = match client.database("config").collection::<Document>("mongos").find(doc! {}).await {
+        Ok(mut cursor) => {
+            let mut infos = vec![];
+            while let Ok(Some(doc)) = cursor.try_next().await {
+                infos.push(MongoMongosInfo {
+                    id: doc.get_str("_id").unwrap_or("unknown").to_string(),
+                    host: doc.get_str("host").unwrap_or("unknown").to_string(),
+                    ping: doc.get_i64("ping").ok(),
+                });
+            }
+            infos
+        }
+        Err(_) => vec![],
+    };
+
+    Ok(MongoShardStatusResult {
+        success: true,
+        cluster: Some(MongoShardCluster {
+            is_sharding_enabled: true,
+            mongos,
+            config_servers: None, // Would need additional queries to get config server details
+            shards,
+        }),
+        error: None,
+    })
+}

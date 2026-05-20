@@ -100,6 +100,91 @@ export type MongoCreateCollectionOptions = {
   validator?: Record<string, unknown>;
 };
 
+export type MongoServerStatus = {
+  host: string;
+  version: string;
+  uptime: number;
+  connections: {
+    current: number;
+    available: number;
+    total_created?: number;
+  };
+  network: {
+    bytes_in: number;
+    bytes_out: number;
+    num_requests: number;
+  };
+  memory: {
+    resident: number;
+    virtual_mem: number;
+  };
+};
+
+export type MongoServerStatusResult = {
+  success: boolean;
+  status?: MongoServerStatus;
+  error?: string;
+};
+
+export type MongoReplicaMember = {
+  name: string;
+  state: number;
+  state_str: string;
+  health?: number;
+  uptime: number;
+  optime?: string;
+  optime_date?: string;
+  lag_time?: number;
+  ping_ms?: number;
+  election_time?: string;
+};
+
+export type MongoReplicaSetStatus = {
+  set: string;
+  date?: string;
+  my_state: number;
+  members: MongoReplicaMember[];
+  election_time?: string;
+};
+
+export type MongoReplSetStatusResult = {
+  success: boolean;
+  status?: MongoReplicaSetStatus;
+  error?: string;
+};
+
+export type MongoShardInfo = {
+  id: string;
+  host: string;
+  state: number;
+  tags?: string[];
+};
+
+export type MongoMongosInfo = {
+  id: string;
+  host: string;
+  ping?: number;
+};
+
+export type MongoConfigServerInfo = {
+  type_: string;
+  name?: string;
+  members?: MongoReplicaMember[];
+};
+
+export type MongoShardCluster = {
+  is_sharding_enabled: boolean;
+  mongos: MongoMongosInfo[];
+  config_servers?: MongoConfigServerInfo;
+  shards: MongoShardInfo[];
+};
+
+export type MongoShardStatusResult = {
+  success: boolean;
+  cluster?: MongoShardCluster;
+  error?: string;
+};
+
 const buildConfig = (con: MongoDBConnection) => ({
   host: con.host,
   port: con.port,
@@ -264,6 +349,42 @@ export const mongoApi = {
         database,
         collection,
       });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  serverStatus: async (con: MongoDBConnection): Promise<MongoServerStatusResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoServerStatusResult>('mongo_server_status', { config });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  replSetStatus: async (con: MongoDBConnection): Promise<MongoReplSetStatusResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoReplSetStatusResult>('mongo_repl_set_status', { config });
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  shardStatus: async (con: MongoDBConnection): Promise<MongoShardStatusResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoShardStatusResult>('mongo_shard_status', { config });
     } catch (e) {
       return {
         success: false,

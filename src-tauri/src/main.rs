@@ -37,7 +37,8 @@ use dynamo_client::{
 use mongo_client::{
     mongo_collection_stats, mongo_create_collection, mongo_create_database, mongo_database_stats,
     mongo_drop_collection, mongo_drop_database, mongo_execute_query, mongo_list_collections,
-    mongo_list_databases, mongo_test_connection,
+    mongo_list_databases, mongo_test_connection, mongo_server_status, mongo_repl_set_status,
+    mongo_shard_status,
 };
 
 #[derive(Clone, serde::Serialize)]
@@ -109,6 +110,9 @@ fn main() {
             mongo_drop_database,
             mongo_create_collection,
             mongo_drop_collection,
+            mongo_server_status,
+            mongo_repl_set_status,
+            mongo_shard_status,
             run_agent_step,
             validate_llm_config,
             list_llm_models,
