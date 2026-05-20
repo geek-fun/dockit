@@ -86,20 +86,33 @@
                 v-else-if="tc.status === 'denied'"
                 class="i-carbon-subtract activity-status-icon denied"
               />
-              <span v-if="tc.durationMs !== undefined && tc.status === 'done'" class="duration-badge">
+              <span
+                v-if="tc.durationMs !== undefined && tc.status === 'done'"
+                class="duration-badge"
+              >
                 {{ formatDuration(tc.durationMs) }}
               </span>
               <span
                 v-if="tc.result && tc.status === 'done'"
                 class="result-preview"
                 :class="`result-preview-${resultStatus(tc)}`"
-              >{{ resultPreview(tc.result) }}</span>
+              >
+                {{ resultPreview(tc.result) }}
+              </span>
               <span class="activity-chevron i-carbon-chevron-down" />
             </summary>
             <div class="activity-body tool-body-wrapper">
               <pre class="tool-args-pre">{{ formatToolArgs(tc) }}</pre>
-              <pre v-if="tc.result" class="tool-result-pre" :class="`result-body-${resultStatus(tc)}`">{{ tc.result }}</pre>
-              <div v-else-if="tc.status === 'error' || tc.status === 'denied'" class="tool-result-pre muted-body">
+              <pre
+                v-if="tc.result"
+                class="tool-result-pre"
+                :class="`result-body-${resultStatus(tc)}`"
+                >{{ tc.result }}</pre
+              >
+              <div
+                v-else-if="tc.status === 'error' || tc.status === 'denied'"
+                class="tool-result-pre muted-body"
+              >
                 {{
                   tc.status === 'denied'
                     ? t('dataStudio.agent.message.toolDenied')
@@ -378,8 +391,6 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
   flex-shrink: 0;
   color: hsl(var(--muted-foreground));
 }
-
-
 
 /* ── Activity label ── */
 .activity-label {

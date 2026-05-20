@@ -96,7 +96,15 @@ export const useDataStudioChatAgent = () => {
         status: AgentToolCallStatus,
         result?: string,
         durationMs?: number,
-      ) => dataStudioStore.updateToolCallStatus(sessionId, messageId, toolCallId, status, result, durationMs),
+      ) =>
+        dataStudioStore.updateToolCallStatus(
+          sessionId,
+          messageId,
+          toolCallId,
+          status,
+          result,
+          durationMs,
+        ),
       setSessionStatus: (sessionId: string, status: ChatSessionStatus) =>
         dataStudioStore.setSessionStatus(
           sessionId,
@@ -129,8 +137,7 @@ export const useDataStudioChatAgent = () => {
   const messages = computed(() => agent.activeSession.value?.messages ?? []);
 
   const sendMessage = async (content: string) => {
-    const connId =
-      activeConnectionId.value ?? connectedSources.value[0]?.connectionId ?? undefined;
+    const connId = activeConnectionId.value ?? connectedSources.value[0]?.connectionId ?? undefined;
     const connection =
       connId !== undefined ? connectionStore.connections.find(c => c.id === connId) : undefined;
     await agent.sendMessage({

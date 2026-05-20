@@ -191,7 +191,9 @@
                   :disabled="connectedSources.length === 0"
                   :aria-expanded="permissionMenuOpen"
                   :title="$t('dataStudio.modifySource.accessPermissions')"
-                  @click.stop="connectedSources.length > 0 && (permissionMenuOpen = !permissionMenuOpen)"
+                  @click.stop="
+                    connectedSources.length > 0 && (permissionMenuOpen = !permissionMenuOpen)
+                  "
                 >
                   <span
                     class="h-4 w-4 permission-trigger-icon"
