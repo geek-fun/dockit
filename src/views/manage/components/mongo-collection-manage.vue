@@ -440,9 +440,11 @@ const formatBytes = (n: number | undefined | null): string => {
 
 const isFavorite = (name: string): boolean => {
   const selectedDb = selectedDatabase.value;
-  return mongoConnection.value?.favoriteCollections?.some(
-    f => f.database === selectedDb && f.collection === name,
-  ) ?? false;
+  return (
+    mongoConnection.value?.favoriteCollections?.some(
+      f => f.database === selectedDb && f.collection === name,
+    ) ?? false
+  );
 };
 
 const toggleFavorite = async (name: string) => {
