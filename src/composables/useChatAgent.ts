@@ -63,6 +63,7 @@ export type UseChatAgentConfig = {
       toolCallId: string,
       status: AgentToolCall['status'],
       result?: string,
+      durationMs?: number,
     ) => void;
     setSessionStatus: (sessionId: string, status: ChatSessionStatus) => void;
     setSessionSchema: (sessionId: string, schema: string) => void;
@@ -395,6 +396,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
           tool_call_id,
           'done',
           envelope.summary,
+          envelope.metadata?.duration_ms,
         );
       }
     }).then(unlisten => unlisteners.push(unlisten));
@@ -520,7 +522,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       return;
     }
 
-    const connection = connectionStore.connections.find(c => c.id === connectionId);
+    const connection = connectionStore.connections.find(c => Number(c.id) === Number(connectionId));
     if (!connection) {
       error.value = 'Connection not found';
       isLoading.value = false;

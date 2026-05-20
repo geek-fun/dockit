@@ -116,7 +116,8 @@ export const useSidebarChatAgent = () => {
         toolCallId: string,
         status: AgentToolCallStatus,
         result?: string,
-      ) => store.updateToolCallStatus(sessionId, messageId, toolCallId, status, result),
+        durationMs?: number,
+      ) => store.updateToolCallStatus(sessionId, messageId, toolCallId, status, result, durationMs),
       setSessionStatus: (sessionId, status) =>
         store.setSessionStatus(
           sessionId,

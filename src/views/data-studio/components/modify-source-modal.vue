@@ -50,13 +50,35 @@
           </div>
         </div>
       </div>
-      <DialogFooter>
-        <Button variant="outline" @click="$emit('update:open', false)">
-          {{ $t('dialogOps.cancel') }}
-        </Button>
-        <Button @click="handleSave">
-          {{ $t('dataStudio.modifySource.saveChanges') }}
-        </Button>
+      <DialogFooter class="flex items-center justify-between sm:justify-between">
+        <div class="flex flex-col gap-1">
+          <div v-if="detachConfirming" class="detach-confirm-row">
+            <span class="text-xs text-muted-foreground">
+              {{ $t('dataStudio.detachSource.message') }}
+            </span>
+            <div class="flex gap-1.5 mt-1.5">
+              <Button variant="destructive" size="sm" @click="handleDetach">
+                <span class="i-carbon-unlink h-3.5 w-3.5 mr-1" />
+                {{ $t('dataStudio.detachSource.confirm') }}
+              </Button>
+              <Button variant="outline" size="sm" @click="detachConfirming = false">
+                {{ $t('dialogOps.cancel') }}
+              </Button>
+            </div>
+          </div>
+          <Button v-else variant="ghost" class="text-destructive" @click="detachConfirming = true">
+            <span class="i-carbon-unlink h-4 w-4 mr-1.5" />
+            {{ $t('dataStudio.detachSource.title') }}
+          </Button>
+        </div>
+        <div class="flex gap-2">
+          <Button variant="outline" @click="$emit('update:open', false)">
+            {{ $t('dialogOps.cancel') }}
+          </Button>
+          <Button @click="handleSave">
+            {{ $t('dataStudio.modifySource.saveChanges') }}
+          </Button>
+        </div>
       </DialogFooter>
     </DialogContent>
   </Dialog>
@@ -87,12 +109,14 @@ const emit = defineEmits<{
 const dataStudioStore = useDataStudioStore();
 
 const localPermissionsMode = ref<'Ask' | 'Auto'>('Ask');
+const detachConfirming = ref(false);
 
 watch(
   () => props.open,
   newVal => {
     if (newVal && props.source) {
       localPermissionsMode.value = props.source.permissionsMode ?? 'Ask';
+      detachConfirming.value = false;
     }
   },
 );
@@ -111,6 +135,12 @@ const handleSave = () => {
     permissions: permissionsFromMode(localPermissionsMode.value),
     permissionsMode: localPermissionsMode.value,
   });
+  emit('update:open', false);
+};
+
+const handleDetach = () => {
+  if (props.connectionId === undefined) return;
+  dataStudioStore.removeSourceById(props.connectionId);
   emit('update:open', false);
 };
 </script>
