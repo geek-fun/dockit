@@ -184,13 +184,14 @@
                 </Transition>
               </div>
 
-              <!-- Permission mode picker (shown when there are connected sources) -->
-              <div v-if="connectedSources.length > 0" class="permission-picker">
+              <!-- Permission mode picker -->
+              <div class="permission-picker">
                 <button
                   class="permission-trigger"
+                  :disabled="connectedSources.length === 0"
                   :aria-expanded="permissionMenuOpen"
                   :title="$t('dataStudio.modifySource.accessPermissions')"
-                  @click.stop="permissionMenuOpen = !permissionMenuOpen"
+                  @click.stop="connectedSources.length > 0 && (permissionMenuOpen = !permissionMenuOpen)"
                 >
                   <span
                     class="h-4 w-4 permission-trigger-icon"
@@ -513,7 +514,7 @@ onBeforeUnmount(() => {
 
 .data-studio-conversation {
   flex: 1;
-  padding: 20px;
+  padding: 20px 0 20px 20px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -601,6 +602,15 @@ onBeforeUnmount(() => {
 
 .permission-trigger:hover {
   background: hsl(var(--muted));
+}
+
+.permission-trigger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.permission-trigger:disabled:hover {
+  background: transparent;
 }
 
 .permission-trigger-icon {
