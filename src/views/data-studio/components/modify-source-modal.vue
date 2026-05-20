@@ -50,13 +50,19 @@
           </div>
         </div>
       </div>
-      <DialogFooter>
-        <Button variant="outline" @click="$emit('update:open', false)">
-          {{ $t('dialogOps.cancel') }}
+      <DialogFooter class="flex items-center justify-between sm:justify-between">
+        <Button variant="destructive" @click="handleDetach">
+          <span class="i-carbon-unlink h-4 w-4 mr-1.5" />
+          {{ $t('dataStudio.detachSource.confirm') }}
         </Button>
-        <Button @click="handleSave">
-          {{ $t('dataStudio.modifySource.saveChanges') }}
-        </Button>
+        <div class="flex gap-2">
+          <Button variant="outline" @click="$emit('update:open', false)">
+            {{ $t('dialogOps.cancel') }}
+          </Button>
+          <Button @click="handleSave">
+            {{ $t('dataStudio.modifySource.saveChanges') }}
+          </Button>
+        </div>
       </DialogFooter>
     </DialogContent>
   </Dialog>
@@ -111,6 +117,12 @@ const handleSave = () => {
     permissions: permissionsFromMode(localPermissionsMode.value),
     permissionsMode: localPermissionsMode.value,
   });
+  emit('update:open', false);
+};
+
+const handleDetach = () => {
+  if (props.connectionId === undefined) return;
+  dataStudioStore.removeSourceById(props.connectionId);
   emit('update:open', false);
 };
 </script>
