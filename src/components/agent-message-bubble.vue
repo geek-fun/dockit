@@ -25,10 +25,6 @@
           :open="isStreaming && !message.content"
         >
           <summary class="activity-item">
-            <span
-              class="activity-bullet"
-              :class="{ 'is-streaming': isStreaming && !message.toolCalls?.length }"
-            />
             <span class="activity-icon i-carbon-idea" />
             <span class="activity-label">
               <span
@@ -69,16 +65,9 @@
         </div>
 
         <template v-for="tc in message.toolCalls" :key="tc.id">
-          <!-- Tool call node (planned action) -->
+          <!-- Tool call row: icon | name | status icon | duration | result preview | chevron -->
           <details class="activity-item-details">
             <summary class="activity-item">
-              <span
-                class="activity-bullet"
-                :class="{
-                  'is-executing': tc.status === 'executing',
-                  'is-pending': tc.status === 'pending',
-                }"
-              />
               <span class="activity-icon" :class="toolIcon(tc.toolName)" />
               <span class="activity-label">{{ toolLabel(tc.toolName, tc) }}</span>
               <span
@@ -97,48 +86,26 @@
                 v-else-if="tc.status === 'denied'"
                 class="i-carbon-subtract activity-status-icon denied"
               />
-              <span class="activity-chevron i-carbon-chevron-down" />
-            </summary>
-            <pre class="activity-body tool-body">{{ formatToolArgs(tc) }}</pre>
-          </details>
-
-          <!-- Result node (execute result) — sibling in timeline -->
-          <details
-            v-if="tc.result || tc.status === 'error' || tc.status === 'denied'"
-            class="activity-item-details result-item-details"
-          >
-            <summary class="activity-item result-item" :class="`result-${resultStatus(tc)}`">
-              <span
-                class="activity-bullet result-bullet"
-                :class="`result-bullet-${resultStatus(tc)}`"
-              />
-              <span
-                class="activity-icon"
-                :class="{
-                  'i-carbon-checkmark-outline': resultStatus(tc) === 'success',
-                  'i-carbon-warning': resultStatus(tc) === 'error',
-                  'i-carbon-subtract': resultStatus(tc) === 'denied',
-                }"
-              />
-              <span class="activity-label result-label" :class="`result-text-${resultStatus(tc)}`">
-                <span v-if="resultStatus(tc) === 'success'">
-                  {{ t('dataStudio.agent.message.toolResultSuccess') }}
-                </span>
-                <span v-else-if="resultStatus(tc) === 'error'">
-                  {{ t('dataStudio.agent.message.toolResultError') }}
-                </span>
-                <span v-else>{{ t('dataStudio.agent.message.toolDenied') }}</span>
-                <span v-if="tc.result" class="result-preview">{{ resultPreview(tc.result) }}</span>
+              <span v-if="tc.durationMs !== undefined && tc.status === 'done'" class="duration-badge">
+                {{ formatDuration(tc.durationMs) }}
               </span>
+              <span
+                v-if="tc.result && tc.status === 'done'"
+                class="result-preview"
+                :class="`result-preview-${resultStatus(tc)}`"
+              >{{ resultPreview(tc.result) }}</span>
               <span class="activity-chevron i-carbon-chevron-down" />
             </summary>
-            <pre v-if="tc.result" class="activity-body tool-body result-body">{{ tc.result }}</pre>
-            <div v-else class="activity-body tool-body result-body muted-body">
-              {{
-                tc.status === 'denied'
-                  ? t('dataStudio.agent.message.toolDenied')
-                  : t('dataStudio.agent.message.toolError')
-              }}
+            <div class="activity-body tool-body-wrapper">
+              <pre class="tool-args-pre">{{ formatToolArgs(tc) }}</pre>
+              <pre v-if="tc.result" class="tool-result-pre" :class="`result-body-${resultStatus(tc)}`">{{ tc.result }}</pre>
+              <div v-else-if="tc.status === 'error' || tc.status === 'denied'" class="tool-result-pre muted-body">
+                {{
+                  tc.status === 'denied'
+                    ? t('dataStudio.agent.message.toolDenied')
+                    : t('dataStudio.agent.message.toolError')
+                }}
+              </div>
             </div>
           </details>
         </template>
@@ -201,6 +168,11 @@ const resultStatus = (tc: AgentToolCall): 'success' | 'error' | 'denied' => {
 const resultPreview = (result: string): string => {
   const first = result.split('\n')[0].trim();
   return first.length > 60 ? first.slice(0, 60) + '…' : first;
+};
+
+const formatDuration = (ms: number): string => {
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
 };
 
 const formatToolArgs = (tc: AgentToolCall): string => {
@@ -342,9 +314,9 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
 .activity-list::before {
   content: '';
   position: absolute;
-  left: 7px;
-  top: 12px;
-  bottom: 12px;
+  left: 6px;
+  top: 8px;
+  bottom: 8px;
   width: 1px;
   background: hsl(var(--border));
 }
@@ -354,7 +326,7 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 0 4px 0;
+  padding: 2px 0 4px 20px;
   margin-bottom: 1px;
 }
 
@@ -388,7 +360,7 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 0;
+  padding: 4px 0 4px 20px;
   cursor: pointer;
   user-select: none;
   list-style: none;
@@ -399,78 +371,6 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
   display: none;
 }
 
-.activity-bullet {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  border: 1.5px solid hsl(var(--muted-foreground) / 0.35);
-  background: hsl(var(--background));
-  flex-shrink: 0;
-  position: relative;
-  z-index: 1;
-  transition:
-    border-color 0.2s,
-    background 0.2s;
-}
-
-.activity-bullet.is-streaming,
-.activity-bullet.is-executing {
-  border-color: hsl(var(--primary) / 0.7);
-  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.12);
-}
-
-.activity-bullet.is-pending {
-  border-color: hsl(var(--muted-foreground) / 0.5);
-  border-style: dashed;
-}
-
-/* ── Result bullet variants ── */
-.result-bullet {
-  border-style: solid;
-}
-
-.result-bullet-success {
-  background: hsl(var(--primary) / 0.15);
-  border-color: hsl(var(--primary) / 0.5);
-}
-
-.result-bullet-error {
-  background: hsl(var(--destructive) / 0.15);
-  border-color: hsl(var(--destructive) / 0.5);
-}
-
-.result-bullet-denied {
-  background: hsl(var(--muted-foreground) / 0.1);
-  border-color: hsl(var(--muted-foreground) / 0.35);
-}
-
-/* ── Result item label colors ── */
-.result-text-success {
-  color: hsl(var(--primary) / 0.85) !important;
-}
-
-.result-text-error {
-  color: hsl(var(--destructive) / 0.85) !important;
-}
-
-.result-text-denied {
-  color: hsl(var(--muted-foreground) / 0.7) !important;
-}
-
-/* ── Result preview (inline snippet after label) ── */
-.result-preview {
-  margin-left: 6px;
-  font-size: 11.5px;
-  color: hsl(var(--muted-foreground) / 0.6);
-  font-style: italic;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 180px;
-  display: inline-block;
-  vertical-align: middle;
-}
-
 /* ── Activity icons ── */
 .activity-icon {
   width: 14px;
@@ -479,20 +379,7 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
   color: hsl(var(--muted-foreground));
 }
 
-.result-item .activity-icon {
-  width: 13px;
-  height: 13px;
-}
 
-.result-text-success ~ .activity-icon,
-.result-item.result-success .activity-icon {
-  color: hsl(var(--primary) / 0.7);
-}
-
-.result-text-error ~ .activity-icon,
-.result-item.result-error .activity-icon {
-  color: hsl(var(--destructive) / 0.7);
-}
 
 /* ── Activity label ── */
 .activity-label {
@@ -562,6 +449,51 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
   color: hsl(var(--muted-foreground) / 0.5);
 }
 
+/* ── Inline result preview ── */
+.result-preview {
+  font-size: 11.5px;
+  color: hsl(var(--muted-foreground) / 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.result-preview-error {
+  color: hsl(var(--destructive) / 0.7);
+}
+
+/* ── Tool body (expanded) ── */
+.tool-body-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-args-pre,
+.tool-result-pre {
+  margin: 0;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+.tool-result-pre {
+  color: hsl(var(--foreground) / 0.8);
+  background: hsl(var(--muted) / 0.35);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.result-body-error {
+  color: hsl(var(--destructive) / 0.8);
+}
+
 /* ── Chevrons ── */
 .activity-chevron {
   width: 11px;
@@ -577,7 +509,7 @@ details[open] .activity-chevron {
 
 /* ── Activity bodies ── */
 .activity-body {
-  margin: 0 0 4px 34px;
+  margin: 0 0 4px 42px;
   padding: 6px 10px;
   font-size: 11.5px;
   line-height: 1.6;
@@ -617,11 +549,6 @@ details[open] .activity-chevron {
 .activity-body.tool-body {
   font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
   font-size: 11px;
-}
-
-.activity-body.result-body {
-  color: hsl(var(--foreground) / 0.8);
-  background: hsl(var(--muted) / 0.35);
 }
 
 .muted-body {
@@ -665,7 +592,7 @@ details[open] .activity-chevron {
 }
 
 .activity-inline-content {
-  padding: 4px 0 4px 24px;
+  padding: 4px 0 4px 20px;
   font-size: 13.5px;
   line-height: 1.55;
   color: hsl(var(--foreground));
