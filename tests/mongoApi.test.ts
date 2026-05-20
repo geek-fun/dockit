@@ -762,3 +762,178 @@ describe('MongoDB connection types', () => {
     expect(conn.favoriteCollections).toHaveLength(2);
   });
 });
+
+describe('mongoApi cluster monitoring', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const baseConnection: MongoDBConnection = {
+    name: 'test',
+    type: DatabaseType.MONGODB,
+    host: 'localhost',
+    port: 27017,
+    auth: { kind: 'none' },
+  };
+
+  describe('serverStatus', () => {
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        status: {
+          host: 'localhost:27017',
+          version: '7.0.0',
+          uptime: 3600,
+          connections: { current: 10, available: 100, total_created: 50 },
+          network: { bytes_in: 102400, bytes_out: 51200, num_requests: 1000 },
+          memory: { resident: 128, virtual_mem: 256 },
+        },
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.serverStatus(baseConnection);
+
+      expect(invoke).toHaveBeenCalledWith('mongo_server_status', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+      });
+      expect(result.success).toBe(true);
+      expect(result.status?.host).toBe('localhost:27017');
+      expect(result.status?.version).toBe('7.0.0');
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to get server status'));
+
+      const result = await mongoApi.serverStatus(baseConnection);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to get server status');
+    });
+  });
+
+  describe('replSetStatus', () => {
+    it('calls invoke with correct command for replica set', async () => {
+      const mockResult = {
+        success: true,
+        status: {
+          set: 'rs0',
+          my_state: 1,
+          members: [
+            { name: 'host1:27017', state: 1, state_str: 'PRIMARY', health: 1, uptime: 3600 },
+            {
+              name: 'host2:27017',
+              state: 2,
+              state_str: 'SECONDARY',
+              health: 1,
+              uptime: 3500,
+              lag_time: 5,
+            },
+          ],
+        },
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.replSetStatus(baseConnection);
+
+      expect(invoke).toHaveBeenCalledWith('mongo_repl_set_status', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+      });
+      expect(result.success).toBe(true);
+      expect(result.status?.set).toBe('rs0');
+      expect(result.status?.members).toHaveLength(2);
+    });
+
+    it('returns error for standalone instance', async () => {
+      const mockResult = {
+        success: false,
+        error: 'Not a replica set or error: ...',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.replSetStatus(baseConnection);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Not a replica set');
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Connection failed'));
+
+      const result = await mongoApi.replSetStatus(baseConnection);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Connection failed');
+    });
+  });
+
+  describe('shardStatus', () => {
+    it('calls invoke with correct command for sharded cluster', async () => {
+      const mockResult = {
+        success: true,
+        cluster: {
+          is_sharding_enabled: true,
+          shards: [
+            { id: 'shard01', host: 'shard01/host1:27017,host2:27017', state: 1 },
+            { id: 'shard02', host: 'shard02/host3:27017,host4:27017', state: 1 },
+          ],
+          mongos: [{ id: 'mongos1', host: 'localhost:27017' }],
+        },
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.shardStatus(baseConnection);
+
+      expect(invoke).toHaveBeenCalledWith('mongo_shard_status', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+      });
+      expect(result.success).toBe(true);
+      expect(result.cluster?.is_sharding_enabled).toBe(true);
+      expect(result.cluster?.shards).toHaveLength(2);
+    });
+
+    it('returns cluster with sharding disabled for standalone', async () => {
+      const mockResult = {
+        success: true,
+        cluster: {
+          is_sharding_enabled: false,
+          shards: [],
+          mongos: [],
+        },
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.shardStatus(baseConnection);
+
+      expect(result.success).toBe(true);
+      expect(result.cluster?.is_sharding_enabled).toBe(false);
+      expect(result.cluster?.shards).toHaveLength(0);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to get shard status'));
+
+      const result = await mongoApi.shardStatus(baseConnection);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to get shard status');
+    });
+  });
+});
