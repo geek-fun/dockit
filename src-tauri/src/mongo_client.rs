@@ -1192,10 +1192,23 @@ pub async fn mongo_create_collection(
 
         if let Some(ts_opts) = opts.timeseries {
             use mongodb::options::TimeseriesOptions;
-            let mut ts = TimeseriesOptions::builder().time_field(&ts_opts.time_field).build();
-            if let Some(meta) = &ts_opts.meta_field {
-                ts.meta_field = Some(meta.clone());
-            }
+            use mongodb::options::TimeseriesGranularity;
+
+            let granularity = ts_opts.granularity.as_ref().and_then(|gran| {
+                Some(match gran.as_str() {
+                    "seconds" => TimeseriesGranularity::Seconds,
+                    "minutes" => TimeseriesGranularity::Minutes,
+                    "hours" => TimeseriesGranularity::Hours,
+                    _ => TimeseriesGranularity::Minutes,
+                })
+            });
+
+            let ts = TimeseriesOptions::builder()
+                .time_field(&ts_opts.time_field)
+                .meta_field(ts_opts.meta_field.clone())
+                .granularity(granularity)
+                .build();
+
             coll_options.timeseries = Some(ts);
         }
 
