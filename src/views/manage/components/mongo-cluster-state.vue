@@ -225,8 +225,8 @@ const fetchClusterStatus = async () => {
     if (shardResult.success && shardResult.cluster) {
       shardCluster.value = shardResult.cluster;
     }
-  } catch (err) {
-    console.error('Failed to fetch MongoDB cluster status:', err);
+  } catch (_err) {
+    // Silently handle errors - cluster status may not be available for all MongoDB instances
   }
 
   loading.value = false;

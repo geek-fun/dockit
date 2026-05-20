@@ -456,16 +456,6 @@ const tableOptions = computed(() => {
   }));
 });
 
-const collectionSelectValue = computed(() => {
-  return activePanel?.value?.activeTable;
-});
-
-const collectionOptions = computed(() => {
-  const conn = activePanel?.value?.connection;
-  if (!conn || conn.type !== DatabaseType.MONGODB) return [];
-  return [];
-});
-
 const databaseSelectValue = computed(() => {
   const conn = props.type === 'MANAGE' ? connection.value : activePanel?.value?.connection;
   if (!conn || conn.type !== DatabaseType.MONGODB) return '';
