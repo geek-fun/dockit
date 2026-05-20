@@ -42,6 +42,7 @@ export type AgentToolCall = {
   args: Record<string, unknown>;
   status: AgentToolCallStatus;
   result?: string;
+  durationMs?: number;
   riskLevel: RiskLevel;
   requiresConfirmation: boolean;
 };
@@ -295,6 +296,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
       toolCallId: string,
       status: AgentToolCallStatus,
       result?: string,
+      durationMs?: number,
     ) {
       const session = this.sessions.find(s => s.id === sessionId);
       const message = session?.messages.find(m => m.id === messageId);
@@ -303,6 +305,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
         toolCall.status = status;
         if (result !== undefined) {
           toolCall.result = result;
+        }
+        if (durationMs !== undefined) {
+          toolCall.durationMs = durationMs;
         }
       }
     },
