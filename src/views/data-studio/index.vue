@@ -103,6 +103,7 @@
                         v-model="addSourceQuery"
                         class="add-source-search"
                         :placeholder="$t('dataStudio.addSource.searchPlaceholder')"
+                        :aria-label="$t('dataStudio.addSource.searchPlaceholder')"
                         autocomplete="off"
                         @keydown.esc.stop="resetAddSourceState()"
                       />
@@ -483,6 +484,9 @@ const openModifyModal = (index: number) => {
   const source = connectedSources.value[index];
   selectedSource.value = source;
   selectedConnectionId.value = source?.connectionId;
+  if (source?.connectionId !== undefined) {
+    dataStudioStore.setActiveConnection(source.connectionId);
+  }
   showModifyModal.value = true;
 };
 
