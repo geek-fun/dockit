@@ -867,6 +867,7 @@ export const zhCN = {
     },
     mongo: {
       samples: '示例查询',
+      selectDatabase: '选择数据库',
       selectCollection: '选择集合',
       sampleFindAll: '查询所有文档',
       sampleFindOne: '查询单个文档',

@@ -897,6 +897,7 @@ export const enUS = {
     },
     mongo: {
       samples: 'Sample Queries',
+      selectDatabase: 'Select Database',
       selectCollection: 'Select Collection',
       sampleFindAll: 'Find All Documents',
       sampleFindOne: 'Find One Document',

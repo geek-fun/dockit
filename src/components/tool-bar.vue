@@ -22,7 +22,10 @@
 
     <SearchableSelect
       v-if="
-        props.type === 'DYNAMO_EDITOR' || (props.type === 'MANAGE' && !isSearchConnectionComputed)
+        props.type === 'DYNAMO_EDITOR' ||
+        (props.type === 'MANAGE' &&
+          !isSearchConnectionComputed &&
+          connection?.type !== DatabaseType.MONGODB)
       "
       :model-value="tableSelectValue || ''"
       :options="tableOptions"
