@@ -67,11 +67,11 @@
             <div class="toolbox-row-prepend">
               <!-- Connected source chips -->
               <button
-                v-for="source in connectedSources"
+                v-for="(source, idx) in connectedSources"
                 :key="source.connectionId"
                 class="source-chip"
                 :title="$t('dataStudio.modifySource.title')"
-                @click="openModifyModal(connectedSources.indexOf(source))"
+                @click="openModifyModal(idx)"
               >
                 <span class="i-carbon-data-base h-3.5 w-3.5 shrink-0" />
                 <span class="source-chip-name">{{ source.name }}</span>
@@ -104,7 +104,7 @@
                         class="add-source-search"
                         :placeholder="$t('dataStudio.addSource.searchPlaceholder')"
                         autocomplete="off"
-                        @keydown.esc.stop="addSourceOpen = false"
+                        @keydown.esc.stop="resetAddSourceState()"
                       />
                     </div>
 
@@ -120,7 +120,11 @@
                         @click="selectAddConnection(conn)"
                       >
                         <div class="add-source-item-icon">
-                          <img :src="getConnectionIcon(conn.type)" class="h-4 w-4 object-contain" />
+                          <img
+                            :src="getConnectionIcon(conn.type)"
+                            class="h-4 w-4 object-contain"
+                            :alt="conn.type"
+                          />
                         </div>
                         <div class="add-source-item-info">
                           <span class="add-source-item-name">{{ conn.name }}</span>
@@ -337,15 +341,20 @@ const addSourceSelectedId = ref('');
 const addSourceMode = ref<'Ask' | 'Auto'>('Ask');
 const addSourcePickerRef = ref<HTMLElement | null>(null);
 
-onClickOutside(addSourcePickerRef, () => {
+const resetAddSourceState = () => {
   addSourceOpen.value = false;
-});
+  addSourceQuery.value = '';
+  addSourceSelectedId.value = '';
+  addSourceMode.value = 'Ask';
+};
+
+onClickOutside(addSourcePickerRef, resetAddSourceState);
 
 const availableAddConnections = computed(() => {
   const connectedIds = new Set(connectedSources.value.map(s => s.connectionId));
   return connections.value.filter(
     conn =>
-      !connectedIds.has(typeof conn.id === 'number' ? conn.id : undefined) &&
+      !connectedIds.has(conn.id !== undefined ? Number(conn.id) : undefined) &&
       AGENT_SUPPORTED_TYPES.has(conn.type as DatabaseType),
   );
 });
@@ -387,15 +396,12 @@ const confirmAddSource = () => {
       ? { read: true, create: true, update: true, delete: true }
       : { read: true, create: false, update: false, delete: false };
   dataStudioStore.addSource({
-    connectionId: typeof conn.id === 'number' ? conn.id : undefined,
+    connectionId: Number(conn.id),
     name: conn.name,
     permissions,
     permissionsMode: addSourceMode.value,
   });
-  addSourceOpen.value = false;
-  addSourceSelectedId.value = '';
-  addSourceQuery.value = '';
-  addSourceMode.value = 'Ask';
+  resetAddSourceState();
 };
 
 const hasMessages = computed(() => messages.value.length > 0);

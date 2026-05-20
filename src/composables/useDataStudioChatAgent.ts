@@ -137,9 +137,14 @@ export const useDataStudioChatAgent = () => {
   const messages = computed(() => agent.activeSession.value?.messages ?? []);
 
   const sendMessage = async (content: string) => {
-    const connId = activeConnectionId.value ?? connectedSources.value[0]?.connectionId ?? undefined;
+    if (activeConnectionId.value === undefined && connectedSources.value.length > 0) {
+      dataStudioStore.setActiveConnection(connectedSources.value[0].connectionId!);
+    }
+    const connId = activeConnectionId.value;
     const connection =
-      connId !== undefined ? connectionStore.connections.find(c => c.id === connId) : undefined;
+      connId !== undefined
+        ? connectionStore.connections.find(c => Number(c.id) === Number(connId))
+        : undefined;
     await agent.sendMessage({
       content,
       connectionId: connId,
