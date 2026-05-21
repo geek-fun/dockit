@@ -376,9 +376,12 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         requiresConfirmation: needsConfirmation,
       };
 
-      const lastAssistant = [...session.messages]
+      const streamingAssistant = [...session.messages]
         .reverse()
-        .find(message => message.role === 'assistant');
+        .find(message => message.role === 'assistant' && message.status === 'streaming');
+      const lastAssistant =
+        streamingAssistant ??
+        [...session.messages].reverse().find(message => message.role === 'assistant');
 
       if (lastAssistant) {
         config.sessionStore.setMessageToolCalls(session_id, lastAssistant.id, [
@@ -390,7 +393,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
           id: ulid(),
           role: 'assistant',
           content: '',
-          status: 'done',
+          status: 'streaming',
           timestamp: Date.now(),
           toolCalls: [toolCall],
         });

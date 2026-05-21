@@ -93,7 +93,7 @@
                 {{ formatDuration(tc.durationMs) }}
               </span>
               <span
-                v-if="tc.result && tc.status === 'done'"
+                v-if="tc.result && (tc.status === 'done' || tc.status === 'error')"
                 class="result-preview"
                 :class="`result-preview-${resultStatus(tc)}`"
               >
