@@ -48,16 +48,17 @@
               <div class="section-title">
                 <span class="i-carbon-data-collection h-4 w-4" />
                 <span>{{ $t('manage.mongo.collections') }}</span>
+                <Input
+                  v-model="searchFilter"
+                  :placeholder="$t('manage.mongo.searchCollections')"
+                  class="search-input-inline ml-4"
+                >
+                  <template #prefix>
+                    <span class="i-carbon-search h-4 w-4" />
+                  </template>
+                </Input>
               </div>
               <div class="toolbar-actions">
-                <Button size="sm" variant="outline" @click="handleRefresh">
-                  <span class="i-carbon-renew h-4 w-4 mr-1" />
-                  {{ $t('manage.mongo.refresh') }}
-                </Button>
-                <Button size="sm" variant="outline" @click="showCreateDatabaseDialog = true">
-                  <span class="i-carbon-add-alt h-4 w-4 mr-1" />
-                  {{ $t('manage.mongo.createDatabase') }}
-                </Button>
                 <Button size="sm" @click="showCreateCollectionDialog = true">
                   <span class="i-carbon-add h-4 w-4 mr-1" />
                   {{ $t('manage.mongo.createCollection') }}
@@ -66,30 +67,6 @@
             </div>
           </CardHeader>
           <CardContent>
-            <div class="database-selector-row mb-4">
-              <SearchableSelect
-                :model-value="selectedDatabase || ''"
-                :options="databaseOptions"
-                :loading="loadingDatabases"
-                :placeholder="$t('manage.mongo.selectDatabase')"
-                variant="outline"
-                class="database-select"
-                @update:model-value="handleDatabaseChange"
-              />
-            </div>
-
-            <div class="filter-row mb-4">
-              <Input
-                v-model="searchFilter"
-                :placeholder="$t('manage.mongo.searchCollections')"
-                class="search-input"
-              >
-                <template #prefix>
-                  <span class="i-carbon-search h-4 w-4" />
-                </template>
-              </Input>
-            </div>
-
             <div v-if="loadingCollections" class="flex justify-center py-8">
               <Spinner size="lg" />
             </div>
@@ -327,7 +304,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { SearchableSelect } from '@/components/ui/combobox';
 import {
   Dialog,
   DialogContent,
@@ -379,13 +355,6 @@ const newDatabaseName = ref('');
 const newCollectionName = ref('');
 const newCollectionNameOnly = ref('');
 const collectionToDrop = ref('');
-
-const databaseOptions = computed(() =>
-  databases.value.map(db => ({
-    label: `${db.name} (${formatBytes(db.size_on_disk)})`,
-    value: db.name,
-  })),
-);
 
 const totalDocuments = computed(() =>
   collections.value.reduce((sum, c) => sum + (c.document_count ?? 0), 0),
@@ -577,16 +546,6 @@ const fetchDatabaseStats = async () => {
   }
 };
 
-const handleDatabaseChange = async (dbName: string) => {
-  selectedDatabase.value = dbName;
-  if (mongoConnection.value) {
-    mongoConnection.value.activeDatabase = dbName;
-    await connectionStore.saveConnection(mongoConnection.value);
-  }
-  await fetchCollectionsWithStats();
-  await fetchDatabaseStats();
-};
-
 const handleRefresh = async () => {
   loading.value = true;
   try {
@@ -699,6 +658,17 @@ watch(mongoConnection, async () => {
   }
 });
 
+watch(
+  () => mongoConnection.value?.activeDatabase,
+  async newDb => {
+    if (newDb && newDb !== selectedDatabase.value) {
+      selectedDatabase.value = newDb;
+      await fetchCollectionsWithStats();
+      await fetchDatabaseStats();
+    }
+  },
+);
+
 onMounted(async () => {
   if (mongoConnection.value) {
     if (mongoConnection.value.activeDatabase) {
@@ -708,8 +678,13 @@ onMounted(async () => {
   }
 });
 
+const showCreateDatabase = () => {
+  showCreateDatabaseDialog.value = true;
+};
+
 defineExpose({
   handleRefresh,
+  showCreateDatabase,
 });
 </script>
 
@@ -786,22 +761,8 @@ defineExpose({
   gap: 0.5rem;
 }
 
-.database-selector-row {
-  display: flex;
-  gap: 1rem;
-}
-
-.database-select {
-  width: 300px;
-}
-
-.filter-row {
-  display: flex;
-  gap: 1rem;
-}
-
-.search-input {
-  width: 300px;
+.search-input-inline {
+  width: 200px;
 }
 
 .table-container {

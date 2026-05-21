@@ -4,6 +4,8 @@
       type="MANAGE"
       @refresh-dynamo-manage="handleDynamoRefresh"
       @create-dynamo-table="handleCreateDynamoTable"
+      @refresh-mongo-manage="handleMongoRefresh"
+      @create-mongo-database="handleCreateMongoDatabase"
     />
     <template v-if="connection && isSearchConnection(connection)">
       <cluster-state class="state-container" :cluster="cluster" />
@@ -13,7 +15,7 @@
     </template>
     <template v-else-if="connection?.type === DatabaseType.MONGODB">
       <mongo-cluster-state class="cluster-container" />
-      <mongo-collection-manage class="state-container" />
+      <mongo-collection-manage ref="mongoCollectionManageRef" class="state-container" />
     </template>
     <div v-else class="empty-state">
       <Empty :description="$t('manage.emptyNoConnection')" />
@@ -40,6 +42,11 @@ const lang = useLang();
 const dynamoTableManageRef = ref<{
   handleRefresh: () => Promise<void>;
   showCreateTable: () => void;
+}>();
+
+const mongoCollectionManageRef = ref<{
+  handleRefresh: () => Promise<void>;
+  showCreateDatabase: () => void;
 }>();
 
 const tabStore = useTabStore();
@@ -72,6 +79,14 @@ const handleDynamoRefresh = () => {
 
 const handleCreateDynamoTable = () => {
   dynamoTableManageRef.value?.showCreateTable();
+};
+
+const handleMongoRefresh = () => {
+  mongoCollectionManageRef.value?.handleRefresh();
+};
+
+const handleCreateMongoDatabase = () => {
+  mongoCollectionManageRef.value?.showCreateDatabase();
 };
 
 onMounted(async () => {

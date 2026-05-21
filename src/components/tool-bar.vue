@@ -240,7 +240,7 @@
       size="sm"
       @click="emits('create-dynamo-table')"
     >
-      <span class="i-carbon-add mr-1 h-4 w-4" />
+      <span class="i-carbon-add-alt h-4 w-4" />
       {{ $t('manage.dynamo.createTableTitle') }}
     </Button>
 
@@ -250,8 +250,28 @@
       size="sm"
       @click="handleDynamoRefresh"
     >
-      <span class="i-carbon-renew mr-1 h-4 w-4" />
+      <span class="i-carbon-renew h-4 w-4" />
       {{ $t('manage.dynamo.refresh') }}
+    </Button>
+
+    <Button
+      v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.MONGODB"
+      variant="ghost"
+      size="sm"
+      @click="emits('create-mongo-database')"
+    >
+      <span class="i-carbon-add-alt h-4 w-4" />
+      {{ $t('manage.mongo.createDatabase') }}
+    </Button>
+
+    <Button
+      v-if="props.type === 'MANAGE' && connection?.type === DatabaseType.MONGODB"
+      variant="ghost"
+      size="sm"
+      @click="handleMongoRefresh"
+    >
+      <span class="i-carbon-renew h-4 w-4" />
+      {{ $t('manage.mongo.refresh') }}
     </Button>
 
     <!-- Shortcuts Help Button for Editor contexts -->
@@ -314,6 +334,8 @@ const emits = defineEmits([
   'execute-partiql-query',
   'refresh-dynamo-manage',
   'create-dynamo-table',
+  'refresh-mongo-manage',
+  'create-mongo-database',
   'execute-mongo-query',
 ]);
 
@@ -797,6 +819,10 @@ const handleUpdate = async (
 
 const handleDynamoRefresh = () => {
   emits('refresh-dynamo-manage');
+};
+
+const handleMongoRefresh = () => {
+  emits('refresh-mongo-manage');
 };
 
 const handleIncludeChange = async (value: boolean) => {
