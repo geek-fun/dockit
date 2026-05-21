@@ -20,6 +20,8 @@ export type DataSourcePermissions = {
 
 export type PermissionsMode = 'Ask' | 'Auto';
 
+export type SourcePermissionsMode = 'inherit' | 'custom';
+
 export type DatabaseSource = {
   kind: 'database';
   sourceId: string;
@@ -49,6 +51,7 @@ export type SessionSource = {
   kind: 'database' | 'file';
   databaseType: string; // frozen (e.g. 'ELASTICSEARCH')
   permissions: DataSourcePermissions;
+  permissionsMode: SourcePermissionsMode;
   detached?: boolean; // true = was in session, now removed from workspace
   detachedAt?: number; // timestamp
 };
@@ -156,6 +159,7 @@ export const attachSourceToSession = (
     kind: source.kind,
     databaseType,
     permissions,
+    permissionsMode: 'inherit',
   };
 
   return { ...session, sources: [...session.sources, snapshot] };
@@ -341,7 +345,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     setSessionPermissionsMode(sessionId: string, mode: PermissionsMode) {
       const writePerms = mode === 'Auto';
       const updatedSources = (this.sessions.find(s => s.id === sessionId)?.sources ?? []).map(s =>
-        s.detached
+        s.detached || s.permissionsMode === 'custom'
           ? s
           : {
               ...s,
@@ -368,7 +372,33 @@ export const useDataStudioStore = defineStore('dataStudio', {
       permissions: DataSourcePermissions,
     ) {
       const updatedSources = (this.sessions.find(s => s.id === sessionId)?.sources ?? []).map(s =>
-        s.sourceId === sourceId ? { ...s, permissions } : s,
+        s.sourceId === sourceId ? { ...s, permissions, permissionsMode: 'custom' as const } : s,
+      );
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, sources: updatedSources } : s,
+      );
+      if (this.sessionMeta[sessionId]) {
+        this.sessionMeta[sessionId].sources = updatedSources;
+      }
+    },
+
+    updateSessionSourceMode(sessionId: string, sourceId: string, mode: SourcePermissionsMode) {
+      const session = this.sessions.find(s => s.id === sessionId);
+      const writePerms = session?.permissionsMode === 'Auto';
+      const inheritedPermissions: DataSourcePermissions = {
+        read: true,
+        create: writePerms,
+        update: writePerms,
+        delete: writePerms,
+      };
+      const updatedSources = (session?.sources ?? []).map(s =>
+        s.sourceId === sourceId
+          ? {
+              ...s,
+              permissionsMode: mode,
+              permissions: mode === 'inherit' ? inheritedPermissions : s.permissions,
+            }
+          : s,
       );
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, sources: updatedSources } : s,
