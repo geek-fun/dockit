@@ -13,7 +13,7 @@
     </template>
     <template v-else-if="connection?.type === DatabaseType.MONGODB">
       <mongo-cluster-state class="cluster-container" />
-      <mongo-collection-manage ref="mongoCollectionManageRef" class="state-container" />
+      <mongo-collection-manage class="state-container" />
     </template>
     <div v-else class="empty-state">
       <Empty :description="$t('manage.emptyNoConnection')" />
@@ -40,10 +40,6 @@ const lang = useLang();
 const dynamoTableManageRef = ref<{
   handleRefresh: () => Promise<void>;
   showCreateTable: () => void;
-}>();
-
-const mongoCollectionManageRef = ref<{
-  handleRefresh: () => Promise<void>;
 }>();
 
 const tabStore = useTabStore();
