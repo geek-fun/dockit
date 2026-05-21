@@ -332,14 +332,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         const hasUnresolvedTools = lastAssistant?.toolCalls?.some(
           tc => tc.status === 'executing' || tc.status === 'pending',
         );
-        const isMergeable =
-          lastAssistant &&
-          lastAssistant.status === 'done' &&
-          (!lastAssistant.toolCalls || lastAssistant.toolCalls.length === 0);
-        if (isMergeable) {
-          config.sessionStore.setMessageStatus(session_id, lastAssistant.id, 'streaming');
-          config.sessionStore.updateStreamingContent(session_id, lastAssistant.id, content);
-        } else if (!hasUnresolvedTools) {
+        if (!hasUnresolvedTools) {
           config.sessionStore.addMessage(session_id, {
             id: ulid(),
             role: 'assistant',
@@ -360,24 +353,14 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       if (streamingMsg) {
         config.sessionStore.updateStreamingThinking(session_id, streamingMsg.id, content);
       } else {
-        const lastAssistant = [...session.messages].reverse().find(m => m.role === 'assistant');
-        const isMergeable =
-          lastAssistant &&
-          lastAssistant.status === 'done' &&
-          (!lastAssistant.toolCalls || lastAssistant.toolCalls.length === 0);
-        if (isMergeable) {
-          config.sessionStore.setMessageStatus(session_id, lastAssistant.id, 'streaming');
-          config.sessionStore.updateStreamingThinking(session_id, lastAssistant.id, content);
-        } else {
-          config.sessionStore.addMessage(session_id, {
-            id: ulid(),
-            role: 'assistant',
-            content: '',
-            thinking: content,
-            status: 'streaming',
-            timestamp: Date.now(),
-          });
-        }
+        config.sessionStore.addMessage(session_id, {
+          id: ulid(),
+          role: 'assistant',
+          content: '',
+          thinking: content,
+          status: 'streaming',
+          timestamp: Date.now(),
+        });
       }
     }).then(unlisten => unlisteners.push(unlisten));
 

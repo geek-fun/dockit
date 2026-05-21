@@ -125,9 +125,12 @@
         </template>
       </div>
 
-      <!-- Main response content -->
+      <!-- Main response content (only when not part of an activity timeline) -->
       <div
-        v-if="message.content || (!message.thinking && !message.toolCalls?.length && isStreaming)"
+        v-if="
+          (message.content && !message.toolCalls?.length) ||
+          (!message.thinking && !message.toolCalls?.length && isStreaming)
+        "
         class="message-content assistant-content"
       >
         <MarkdownRender
