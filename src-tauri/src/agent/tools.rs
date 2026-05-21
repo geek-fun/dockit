@@ -215,11 +215,11 @@ fn all_tools() -> Vec<ToolDefinition> {
     ]
 }
 
-fn normalize_database_type(database_type: &str) -> &'static str {
+fn normalize_database_type(database_type: &str) -> Option<&'static str> {
     match database_type {
-        "OPENSEARCH" | "EASYSEARCH" => "ELASTICSEARCH",
-        "DYNAMODB" => "DYNAMODB",
-        _ => "ELASTICSEARCH",
+        "ELASTICSEARCH" | "OPENSEARCH" | "EASYSEARCH" => Some("ELASTICSEARCH"),
+        "DYNAMODB" => Some("DYNAMODB"),
+        _ => None,
     }
 }
 
@@ -243,15 +243,17 @@ pub fn openai_name_to_internal(name: &str) -> String {
 }
 
 pub fn alias_from_prefixed_name(name: &str) -> Option<String> {
-    let sep = name.find("__es__").or_else(|| name.find("__dynamo__"))?;
+    let sep = name.find("__")?;
+    if sep == 0 {
+        return None;
+    }
     Some(name[..sep].to_string())
 }
 
 fn alias_suffix(name: &str) -> &str {
-    if let Some(pos) = name.find("__es__").or_else(|| name.find("__dynamo__")) {
-        &name[pos + 2..]
-    } else {
-        name
+    match name.find("__") {
+        Some(pos) if pos > 0 => &name[pos + 2..],
+        _ => name,
     }
 }
 
@@ -278,7 +280,9 @@ fn prefixed_openai_name(alias: &str, tool_name: &str) -> String {
 }
 
 fn tools_for_database_type(database_type: &str, permissions: &Permissions) -> Vec<ToolDefinition> {
-    let effective_type = normalize_database_type(database_type);
+    let Some(effective_type) = normalize_database_type(database_type) else {
+        return vec![];
+    };
 
     all_tools()
         .into_iter()
