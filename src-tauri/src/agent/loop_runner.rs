@@ -10,6 +10,7 @@ use tokio::sync::oneshot;
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::executor::ToolEnvelope;
 use crate::agent::tool_executor::ToolExecutor;
+use crate::agent::tools::all_tools;
 use crate::common::http_client::create_http_client;
 use crate::db::AgentDb;
 
@@ -838,6 +839,33 @@ async fn run_agent_loop_inner(
                 },
                 None => fallback_connection_config.clone(),
             };
+
+            let required_perm = all_tools()
+                .into_iter()
+                .find(|t| t.name == tool_name)
+                .map(|t| t.required_permission);
+            if let Some(perm) = required_perm {
+                let allowed_by_perms = resolved_config
+                    .get("permissions")
+                    .and_then(|p| p.get(perm))
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                if !allowed_by_perms {
+                    update_tool_call_status(db, &tool_call_id, "failed")?;
+                    let perm_err = json!({
+                        "tool_call_id": tool_call_id,
+                        "name": tool_name,
+                        "content": format!(
+                            "Permission denied: tool '{}' requires '{}' permission on connection '{}'.",
+                            tool_name,
+                            perm,
+                            arguments_value.get("connection_id").and_then(|v| v.as_str()).unwrap_or("unknown")
+                        ),
+                    });
+                    insert_message(db, &new_id(), session_id, "tool", &perm_err.to_string())?;
+                    continue;
+                }
+            }
 
             let envelope: ToolEnvelope = tokio::select! {
                 biased;

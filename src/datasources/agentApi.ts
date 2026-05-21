@@ -80,15 +80,6 @@ export type MultiSourceToolPermissions = {
   delete: boolean;
 };
 
-export type ConnectionSource = {
-  connectionId: string;
-  databaseType: string;
-  read: boolean;
-  create: boolean;
-  update: boolean;
-  delete: boolean;
-};
-
 const agentApi = {
   runAgentStep: async (params: {
     requestId: string;
@@ -119,21 +110,8 @@ const agentApi = {
     return await invoke<string>('introspect_schema', params);
   },
 
-  getAvailableTools: async (params: {
-    databaseType: string;
-    read: boolean;
-    create: boolean;
-    update: boolean;
-    delete: boolean;
-  }): Promise<ToolsResponse> => {
-    const result = await invoke<string>('get_available_tools', params);
-    return jsonify.parse(result) as ToolsResponse;
-  },
-
-  getAvailableToolsForSources: async (params: {
-    sources: Array<ConnectionSource>;
-  }): Promise<ToolsResponse> => {
-    const result = await invoke<string>('get_available_tools_for_sources', params);
+  getAllTools: async (): Promise<ToolsResponse> => {
+    const result = await invoke<string>('get_all_tools');
     return jsonify.parse(result) as ToolsResponse;
   },
 

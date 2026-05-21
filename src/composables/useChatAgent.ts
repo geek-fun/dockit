@@ -38,16 +38,10 @@ type SessionRuntime = {
   unlistenDelta?: () => void;
 };
 
-type ToolPermissionSet = {
-  read: boolean;
-  create: boolean;
-  update: boolean;
-  delete: boolean;
-};
-
 type PromptSource = {
   connectionId: string;
   databaseType: string;
+  permissions?: { read: boolean; create: boolean; update: boolean; delete: boolean };
 };
 
 type UseChatAgentConfirmationRule = Pick<ConfirmationRule, 'action'>;
@@ -88,7 +82,6 @@ export type UseChatAgentConfig = {
     toolName: string,
   ) => UseChatAgentConfirmationRule | undefined;
   autoMode?: Ref<boolean>;
-  permissions?: Ref<ToolPermissionSet>;
 };
 
 const buildDynamoDBKnowledge = (): string =>
@@ -140,7 +133,16 @@ const buildSourceSummary = (sources: Array<PromptSource>): string =>
     ? 'No attached data sources are available in this session.'
     : [
         'Attached data sources:',
-        ...sources.map(source => `- ${source.connectionId}: ${source.databaseType}`),
+        ...sources.map(source => {
+          const perms = source.permissions;
+          const permStr = perms
+            ? Object.entries(perms)
+                .filter(([, v]) => v)
+                .map(([k]) => k)
+                .join(', ') || 'none'
+            : 'read';
+          return `- ${source.connectionId}: ${source.databaseType} (permissions: ${permStr})`;
+        }),
       ].join('\n');
 
 const buildSystemPrompt = ({
@@ -249,6 +251,7 @@ const toPromptSources = (
   const sessionSources = getActiveSources(session).map(source => ({
     connectionId: source.alias,
     databaseType: source.databaseType,
+    permissions: source.permissions,
   }));
 
   if (sessionSources.length > 0) {
@@ -551,28 +554,10 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
 
     try {
       const runtime = getRuntime(sessionId);
-      const session = getSessionById(sessions.value, sessionId);
-      const activeSources = getActiveSources(session);
-      const fallbackPermissions = config.permissions?.value ?? {
-        read: true,
-        create: false,
-        update: false,
-        delete: false,
-      };
+      const hasConnections = Object.keys(context.connections ?? {}).length > 0;
 
-      const toolSources = toPromptSources(session, context)
-        .filter(source => Boolean(context.connections?.[source.connectionId]))
-        .map(source => ({
-          connectionId: source.connectionId,
-          databaseType: source.databaseType,
-          ...(activeSources.find(sessionSource => sessionSource.alias === source.connectionId)
-            ?.permissions ?? fallbackPermissions),
-        }));
-
-      if (toolSources.length > 0) {
-        const toolsResponse = await agentApi.getAvailableToolsForSources({
-          sources: toolSources,
-        });
+      if (hasConnections) {
+        const toolsResponse = await agentApi.getAllTools();
         runtime.tools = toolsResponse.tools;
         runtime.metadata = normalizeToolMetadata(toolsResponse.metadata);
       } else {

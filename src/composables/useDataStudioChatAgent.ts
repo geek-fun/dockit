@@ -38,30 +38,6 @@ const adaptDataStudioSession = (session: AgentSession): ChatSession => ({
 const getNonDetachedSources = (sources: SessionSource[]): SessionSource[] =>
   sources.filter(source => !source.detached);
 
-const getSourcePermissions = (sources: SessionSource[]) => {
-  const activeSources = getNonDetachedSources(sources);
-  const [firstSource, ...rest] = activeSources;
-
-  if (!firstSource) {
-    return {
-      read: true,
-      create: false,
-      update: false,
-      delete: false,
-    };
-  }
-
-  return rest.reduce(
-    (acc, source) => ({
-      read: acc.read && source.permissions.read,
-      create: acc.create && source.permissions.create,
-      update: acc.update && source.permissions.update,
-      delete: acc.delete && source.permissions.delete,
-    }),
-    { ...firstSource.permissions },
-  );
-};
-
 const resolveDatabaseSource = (
   attachedSources: AttachedSource[],
   sessionSource: SessionSource,
@@ -108,21 +84,17 @@ export const useDataStudioChatAgent = () => {
           return acc;
         }
 
-        acc[sessionSource.alias] = buildConnectionConfig(connection);
+        acc[sessionSource.alias] = {
+          ...buildConnectionConfig(connection),
+          dbType: attachedSource.databaseType,
+          permissions: sessionSource.permissions,
+        };
         return acc;
       },
       {},
     );
 
-    const databaseTypes = activeSources.reduce<Record<string, string>>((acc, sessionSource) => {
-      const attachedSource = resolveDatabaseSource(attachedSources.value, sessionSource);
-      if (attachedSource?.kind === 'database') {
-        acc[sessionSource.alias] = attachedSource.databaseType;
-      }
-      return acc;
-    }, {});
-
-    return { connections, databaseTypes };
+    return { connections };
   };
 
   const config: UseChatAgentConfig = {
@@ -193,12 +165,6 @@ export const useDataStudioChatAgent = () => {
       const session = rawSessions.value.find(entry => entry.id === dataStudioStore.activeSessionId);
       return session?.permissionsMode === 'Auto';
     }) as Ref<boolean>,
-    permissions: computed(() => getSourcePermissions(activeSessionSources.value)) as Ref<{
-      read: boolean;
-      create: boolean;
-      update: boolean;
-      delete: boolean;
-    }>,
   };
 
   const agent = useChatAgent(config);

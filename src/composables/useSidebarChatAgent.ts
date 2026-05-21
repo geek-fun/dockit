@@ -48,8 +48,13 @@ const getSidebarContext = (): ChatContextConfig => {
 
   if (activeConnection) {
     context.databaseType = activeConnection.type;
-    context.connections = { default: buildConnectionConfig(activeConnection) };
-    context.databaseTypes = { default: activeConnection.type };
+    context.connections = {
+      default: {
+        ...buildConnectionConfig(activeConnection),
+        dbType: activeConnection.type,
+        permissions: { read: true, create: false, update: false, delete: false },
+      },
+    };
 
     if (activeConnection.type === DatabaseType.ELASTICSEARCH) {
       const es = activeConnection as ElasticsearchConnection;
@@ -136,7 +141,6 @@ export const useSidebarChatAgent = () => {
     addConfirmationRule: rule => store.addConfirmationRule(rule),
     findConfirmationRule: (sessionId, toolName) => store.findConfirmationRule(sessionId, toolName),
     autoMode: ref(false),
-    permissions: ref({ read: true, create: false, update: false, delete: false }),
   };
 
   const agent = useChatAgent(config);
