@@ -118,12 +118,14 @@ export type SessionMeta = {
 
 // ── Alias derivation ─────────────────────────────────────────────────────────
 
-export const toAlias = (name: string): string =>
-  name
+export const toAlias = (name: string): string => {
+  const slug = name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_|_$/g, '')
     .slice(0, 24);
+  return slug || 'source';
+};
 
 export const attachSourceToSession = (
   session: AgentSession,

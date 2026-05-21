@@ -132,11 +132,10 @@ const handleSave = () => {
   const session = dataStudioStore.activeSession;
   const source = currentSource.value;
   if (!session || !source) return;
-  dataStudioStore.updateSessionSourcePermissions(
-    session.id,
-    source.sourceId,
-    localPermissions.value,
-  );
+  dataStudioStore.updateSessionSourcePermissions(session.id, source.sourceId, {
+    ...localPermissions.value,
+    read: true,
+  });
   emit('update:open', false);
 };
 

@@ -495,8 +495,9 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     if (!session) return;
 
     const promptSources = toPromptSources(session, context);
-    const hasConnections = Object.keys(context?.connections ?? {}).length > 0;
-    const noConnection = promptSources.length === 0 && !hasConnections;
+    const resolvedAliases = promptSources.filter(s => Boolean(context?.connections?.[s.alias]));
+    const noConnection =
+      resolvedAliases.length === 0 && Object.keys(context?.connections ?? {}).length === 0;
 
     config.sessionStore.setSessionStatus(sessionId, 'running');
     isLoading.value = true;
