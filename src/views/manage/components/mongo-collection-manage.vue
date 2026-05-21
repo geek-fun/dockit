@@ -6,7 +6,7 @@
     <div v-else :class="{ 'pointer-events-none': loading }">
       <section class="metrics-section">
         <div v-if="loading" class="metrics-grid">
-          <Card v-for="i in 4" :key="i" class="metric-card">
+          <Card v-for="i in 3" :key="i" class="metric-card">
             <CardContent class="p-4 flex flex-col gap-2">
               <div class="skeleton skeleton-label" />
               <div class="skeleton skeleton-value" />
@@ -30,12 +30,6 @@
             <CardContent class="p-4 flex flex-col gap-2">
               <span class="metric-label">{{ $t('manage.mongo.databaseSize') }}</span>
               <span class="metric-value">{{ formatBytes(dbStats?.total_size) }}</span>
-            </CardContent>
-          </Card>
-          <Card class="metric-card">
-            <CardContent class="p-4 flex flex-col gap-2">
-              <span class="metric-label">{{ $t('manage.mongo.version') }}</span>
-              <span class="metric-value-small">{{ mongoVersion || '-' }}</span>
             </CardContent>
           </Card>
         </div>
@@ -340,7 +334,6 @@ const databases = ref<MongoDatabaseInfo[]>([]);
 const selectedDatabase = ref<string>('');
 const collections = ref<MongoCollectionInfo[]>([]);
 const dbStats = ref<MongoDatabaseStats | null>(null);
-const mongoVersion = ref<string>('');
 
 const searchFilter = ref('');
 const sortKey = ref<string>('name');
@@ -539,7 +532,6 @@ const fetchDatabaseStats = async () => {
     const result = await mongoApi.databaseStats(mongoConnection.value, selectedDatabase.value);
     if (result.success && result.stats) {
       dbStats.value = result.stats;
-      mongoVersion.value = result.version ?? '';
     }
   } catch {
     // Silently ignore database stats fetch errors
@@ -708,7 +700,7 @@ defineExpose({
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 1rem;
 }
 
