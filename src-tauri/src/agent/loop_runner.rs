@@ -302,6 +302,11 @@ fn db_messages_to_chat(
                     if let Some(tc) = v.get("tool_calls") {
                         msg["tool_calls"] = tc.clone();
                     }
+                    if let Some(thinking) = v.get("thinking").and_then(|t| t.as_str()) {
+                        if !thinking.is_empty() {
+                            msg["reasoning_content"] = Value::String(thinking.to_string());
+                        }
+                    }
                     out.push(msg);
                     continue;
                 }
