@@ -93,32 +93,28 @@
                 {{ formatDuration(tc.durationMs) }}
               </span>
               <span
-                v-if="tc.result && (tc.status === 'done' || tc.status === 'error')"
+                v-if="
+                  toolResultText(tc) &&
+                  (tc.status === 'done' || tc.status === 'error' || tc.status === 'denied')
+                "
                 class="result-preview"
                 :class="`result-preview-${resultStatus(tc)}`"
               >
-                {{ resultPreview(tc.result) }}
+                {{ resultPreview(toolResultText(tc)!) }}
               </span>
               <span class="activity-chevron i-carbon-chevron-down" />
             </summary>
             <div class="activity-body tool-body-wrapper">
               <pre class="tool-args-pre">{{ formatToolArgs(tc) }}</pre>
               <pre
-                v-if="tc.result"
+                v-if="toolResultText(tc)"
                 class="tool-result-pre"
-                :class="`result-body-${resultStatus(tc)}`"
-                >{{ tc.result }}</pre
+                :class="[
+                  `result-body-${resultStatus(tc)}`,
+                  tc.status !== 'done' ? 'muted-body' : '',
+                ]"
+                >{{ toolResultText(tc) }}</pre
               >
-              <div
-                v-else-if="tc.status === 'error' || tc.status === 'denied'"
-                class="tool-result-pre muted-body"
-              >
-                {{
-                  tc.status === 'denied'
-                    ? t('dataStudio.agent.message.toolDenied')
-                    : t('dataStudio.agent.message.toolError')
-                }}
-              </div>
             </div>
           </details>
         </template>
@@ -178,8 +174,15 @@ const resultStatus = (tc: AgentToolCall): 'success' | 'error' | 'denied' => {
   return 'success';
 };
 
-const resultPreview = (result: string): string => {
-  const first = result.split('\n')[0].trim();
+const toolResultText = (tc: AgentToolCall): string | undefined => {
+  if (tc.result) return tc.result;
+  if (tc.status === 'denied') return t('dataStudio.agent.message.toolDenied');
+  if (tc.status === 'error') return t('dataStudio.agent.message.toolError');
+  return undefined;
+};
+
+const resultPreview = (text: string): string => {
+  const first = text.split('\n')[0].trim();
   return first.length > 60 ? first.slice(0, 60) + '…' : first;
 };
 
@@ -199,13 +202,33 @@ const formatToolArgs = (tc: AgentToolCall): string => {
 
 const toolIcon = (toolName: string): string => {
   const name = toolName.toLowerCase();
-  if (name.includes('write') || name.includes('create') || name.includes('save'))
-    return 'i-carbon-edit';
+  if (name.includes('delete') || name.includes('remove')) return 'i-carbon-trash-can';
+  if (
+    name.includes('index_document') ||
+    name.includes('insert') ||
+    name.includes('put') ||
+    name.includes('create') ||
+    (name.includes('write') && !name.includes('overwrite'))
+  )
+    return 'i-carbon-add-alt';
+  if (
+    name.includes('update') ||
+    name.includes('edit') ||
+    name.includes('modify') ||
+    name.includes('write')
+  )
+    return 'i-carbon-pen';
+  if (name.includes('search') || name.includes('query') || name.includes('find'))
+    return 'i-carbon-search';
   if (name.includes('read') || name.includes('open') || name.includes('view'))
     return 'i-carbon-document-view';
-  if (name.includes('search') || name.includes('find') || name.includes('query'))
-    return 'i-carbon-search';
-  if (name.includes('delete') || name.includes('remove')) return 'i-carbon-trash-can';
+  if (
+    name.includes('list') ||
+    name.includes('indices') ||
+    name.includes('index') ||
+    name.includes('describe')
+  )
+    return 'i-carbon-list';
   if (
     name.includes('execute') ||
     name.includes('run') ||
@@ -214,10 +237,6 @@ const toolIcon = (toolName: string): string => {
     name.includes('shell')
   )
     return 'i-carbon-terminal';
-  if (name.includes('list') || name.includes('index') || name.includes('indices'))
-    return 'i-carbon-list';
-  if (name.includes('update') || name.includes('edit') || name.includes('modify'))
-    return 'i-carbon-pen';
   if (
     name.includes('fetch') ||
     name.includes('http') ||
@@ -225,22 +244,50 @@ const toolIcon = (toolName: string): string => {
     name.includes('web')
   )
     return 'i-carbon-cloud';
-  if (name.includes('think') || name.includes('reason') || name.includes('analyze'))
-    return 'i-carbon-idea';
-  return 'i-carbon-settings';
+  if (name.includes('get')) return 'i-carbon-document-view';
+  return 'i-carbon-data-base';
 };
 
 const toolLabel = (toolName: string, tc: AgentToolCall): string => {
   const name = toolName.toLowerCase();
   const args = tc.args ?? {};
-  const firstArg = Object.values(args)[0];
-  const argStr = typeof firstArg === 'string' ? firstArg : '';
-  const truncated = argStr.length > 48 ? argStr.slice(0, 48) + '...' : argStr;
+  // Skip connection_id — it's infra, not the meaningful arg to show
+  const displayArg =
+    Object.entries(args)
+      .filter(([k]) => k !== 'connection_id')
+      .map(([, v]) => (typeof v === 'string' ? v : undefined))
+      .find(v => v !== undefined) ?? '';
+  const truncated = displayArg.length > 48 ? displayArg.slice(0, 48) + '...' : displayArg;
 
   const prefix = (() => {
-    if (name.includes('write') || name.includes('create'))
+    if (
+      name.includes('index_document') ||
+      name.includes('create') ||
+      name.includes('write') ||
+      name.includes('insert') ||
+      name.includes('put')
+    )
       return t('dataStudio.agent.message.toolWrote');
-    if (name.includes('read') || name.includes('open'))
+    if (name.includes('delete') || name.includes('remove'))
+      return t('dataStudio.agent.message.toolDeleted');
+    if (name.includes('update') || name.includes('edit') || name.includes('modify'))
+      return t('dataStudio.agent.message.toolUpdated');
+    if (
+      name.includes('search') ||
+      name.includes('query') ||
+      name.includes('find') ||
+      name.includes('get')
+    )
+      return t('dataStudio.agent.message.toolSearched');
+    if (
+      name.includes('read') ||
+      name.includes('open') ||
+      name.includes('view') ||
+      name.includes('list') ||
+      name.includes('indices') ||
+      name.includes('index') ||
+      name.includes('describe')
+    )
       return t('dataStudio.agent.message.toolRead');
     if (
       name.includes('execute') ||
@@ -249,22 +296,11 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
       name.includes('command')
     )
       return t('dataStudio.agent.message.toolExecuted');
-    if (name.includes('search') || name.includes('find'))
-      return t('dataStudio.agent.message.toolSearched');
-    if (name.includes('delete') || name.includes('remove'))
-      return t('dataStudio.agent.message.toolDeleted');
-    if (name.includes('update') || name.includes('edit'))
-      return t('dataStudio.agent.message.toolUpdated');
     return null;
   })();
 
-  if (prefix)
-    return truncated
-      ? `${prefix} ${truncated}`
-      : prefix === t('dataStudio.agent.message.toolExecuted')
-        ? `${prefix} ${toolName}`
-        : toolName;
-  return truncated ? `${toolName} ${truncated}` : toolName;
+  const label = prefix ?? toolName;
+  return truncated ? `${label} ${truncated}` : label;
 };
 </script>
 

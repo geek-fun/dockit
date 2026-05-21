@@ -440,20 +440,15 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       }
     }).then(unlisten => unlisteners.push(unlisten));
 
-    onAgentLoopStepDone(({ session_id, message_id }) => {
+    onAgentLoopStepDone(({ session_id }) => {
       const session = getSessionById(sessions.value, session_id);
       if (!session) return;
-      const message = session.messages.find(entry => entry.id === message_id);
-      if (message) {
-        config.sessionStore.setMessageStatus(session_id, message_id, 'done');
-        config.sessionStore.removeOrphanedStreamingMessages(session_id, message_id);
-      } else {
-        const streamingMsg = [...session.messages]
-          .reverse()
-          .find(entry => entry.role === 'assistant' && entry.status === 'streaming');
-        if (streamingMsg) {
-          config.sessionStore.setMessageStatus(session_id, streamingMsg.id, 'done');
-        }
+      const streamingMsg = [...session.messages]
+        .reverse()
+        .find(entry => entry.role === 'assistant' && entry.status === 'streaming');
+      if (streamingMsg) {
+        config.sessionStore.setMessageStatus(session_id, streamingMsg.id, 'done');
+        config.sessionStore.removeOrphanedStreamingMessages(session_id, streamingMsg.id);
       }
     }).then(unlisten => unlisteners.push(unlisten));
 
