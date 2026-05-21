@@ -472,7 +472,7 @@ const fetchDatabases = async () => {
         selectedDatabase.value = databases.value[0].name;
       }
     } else {
-      message.error(result.error ?? 'Failed to list databases');
+      message.error(result.error ?? lang.t('manage.mongo.failedToListDatabases'));
     }
   } catch (e) {
     message.error(e instanceof Error ? e.message : String(e));
@@ -491,7 +491,7 @@ const fetchCollectionsWithStats = async () => {
       selectedDatabase.value,
     );
     if (!listResult.success || !listResult.collections) {
-      message.error(listResult.error ?? 'Failed to list collections');
+      message.error(listResult.error ?? lang.t('manage.mongo.failedToListCollections'));
       collections.value = [];
       return;
     }
@@ -572,7 +572,7 @@ const handleCreateDatabase = async () => {
       await handleRefresh();
       selectedDatabase.value = dbName;
     } else {
-      message.error(result.error ?? 'Failed to create database');
+      message.error(result.error ?? lang.t('manage.mongo.failedToCreateDatabase'));
     }
   } catch (e) {
     message.error(e instanceof Error ? e.message : String(e));
@@ -597,7 +597,7 @@ const handleCreateCollection = async () => {
       newCollectionNameOnly.value = '';
       await fetchCollectionsWithStats();
     } else {
-      message.error(result.error ?? 'Failed to create collection');
+      message.error(result.error ?? lang.t('manage.mongo.failedToCreateCollection'));
     }
   } catch (e) {
     message.error(e instanceof Error ? e.message : String(e));
@@ -619,7 +619,7 @@ const handleDropCollection = async () => {
       collectionToDrop.value = '';
       await fetchCollectionsWithStats();
     } else {
-      message.error(result.error ?? 'Failed to drop collection');
+      message.error(result.error ?? lang.t('manage.mongo.failedToDropCollection'));
     }
   } catch (e) {
     message.error(e instanceof Error ? e.message : String(e));
@@ -637,7 +637,7 @@ const handleDropDatabase = async () => {
       selectedDatabase.value = '';
       await handleRefresh();
     } else {
-      message.error(result.error ?? 'Failed to drop database');
+      message.error(result.error ?? lang.t('manage.mongo.failedToDropDatabase'));
     }
   } catch (e) {
     message.error(e instanceof Error ? e.message : String(e));
