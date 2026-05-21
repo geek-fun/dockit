@@ -26,33 +26,29 @@ pub fn convert_attr_value_to_json(av: &AttributeValue) -> Value {
                 .collect();
             Value::Object(obj)
         }
-        AttributeValue::L(l) => {
-            Value::Array(l.iter().map(convert_attr_value_to_json).collect())
-        }
-        AttributeValue::Ss(ss) => {
-            Value::Array(ss.iter().map(|s| json!(s)).collect())
-        }
-        AttributeValue::Ns(ns) => {
-            Value::Array(ns.iter().map(|n| {
-                if let Ok(i) = n.parse::<i64>() {
-                    json!(i)
-                } else if let Ok(f) = n.parse::<f64>() {
-                    json!(f)
-                } else {
-                    json!(n)
-                }
-            }).collect())
-        }
+        AttributeValue::L(l) => Value::Array(l.iter().map(convert_attr_value_to_json).collect()),
+        AttributeValue::Ss(ss) => Value::Array(ss.iter().map(|s| json!(s)).collect()),
+        AttributeValue::Ns(ns) => Value::Array(
+            ns.iter()
+                .map(|n| {
+                    if let Ok(i) = n.parse::<i64>() {
+                        json!(i)
+                    } else if let Ok(f) = n.parse::<f64>() {
+                        json!(f)
+                    } else {
+                        json!(n)
+                    }
+                })
+                .collect(),
+        ),
         AttributeValue::B(b) => {
             json!(general_purpose::STANDARD.encode(b.as_ref()))
         }
-        AttributeValue::Bs(bs) => {
-            Value::Array(
-                bs.iter()
-                    .map(|b| json!(general_purpose::STANDARD.encode(b.as_ref())))
-                    .collect(),
-            )
-        }
+        AttributeValue::Bs(bs) => Value::Array(
+            bs.iter()
+                .map(|b| json!(general_purpose::STANDARD.encode(b.as_ref())))
+                .collect(),
+        ),
         _ => Value::Null,
     }
 }
@@ -60,7 +56,10 @@ pub fn convert_attr_value_to_json(av: &AttributeValue) -> Value {
 /// Converts a JSON value to a DynamoDB AttributeValue based on the specified type.
 /// Supports all DynamoDB attribute types: S, N, B, BOOL, NULL, SS, NS, BS, L, M.
 /// For L (List) and M (Map) types, nested values are inferred from their JSON types.
-pub fn convert_json_to_attr_value(value: &serde_json::Value, attr_type: &str) -> Option<AttributeValue> {
+pub fn convert_json_to_attr_value(
+    value: &serde_json::Value,
+    attr_type: &str,
+) -> Option<AttributeValue> {
     match attr_type {
         "S" => value.as_str().map(|s| AttributeValue::S(s.to_string())),
         "N" => {
@@ -152,9 +151,11 @@ fn infer_attr_value_from_json(value: &serde_json::Value) -> Option<AttributeValu
 
 /// Convert JSON object (from exclusive_start_key) to HashMap of AttributeValues
 /// Handles basic types: String, Number, Boolean
-pub fn json_to_dynamodb_key_map(key_map: &serde_json::Map<String, Value>) -> HashMap<String, AttributeValue> {
+pub fn json_to_dynamodb_key_map(
+    key_map: &serde_json::Map<String, Value>,
+) -> HashMap<String, AttributeValue> {
     let mut result = HashMap::new();
-    
+
     for (k, v) in key_map {
         if let Some(s) = v.as_str() {
             result.insert(k.clone(), AttributeValue::S(s.to_string()));
@@ -166,7 +167,7 @@ pub fn json_to_dynamodb_key_map(key_map: &serde_json::Map<String, Value>) -> Has
             result.insert(k.clone(), AttributeValue::Bool(b));
         }
     }
-    
+
     result
 }
 
@@ -186,7 +187,9 @@ pub fn build_filter_expression(
         "<=" => format!("{} <= {}", name_placeholder, value_placeholder),
         "CONTAINS" | "contains" => format!("contains({}, {})", name_placeholder, value_placeholder),
         "not contains" => format!("not contains({}, {})", name_placeholder, value_placeholder),
-        "BEGINS_WITH" | "begins_with" => format!("begins_with({}, {})", name_placeholder, value_placeholder),
+        "BEGINS_WITH" | "begins_with" => {
+            format!("begins_with({}, {})", name_placeholder, value_placeholder)
+        }
         "attribute_exists" => format!("attribute_exists({})", name_placeholder),
         "attribute_not_exists" => format!("attribute_not_exists({})", name_placeholder),
         _ => format!("{} = {}", name_placeholder, value_placeholder), // Default to equals

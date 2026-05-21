@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { ulid } from 'ulidx';
 import {
   clearAgentSessionMessages,
   createAgentSession,
@@ -19,11 +20,37 @@ export type DataSourcePermissions = {
 
 export type PermissionsMode = 'Ask' | 'Auto';
 
-export type ConnectedSource = {
-  connectionId: number | undefined;
+export type DatabaseSource = {
+  kind: 'database';
+  sourceId: string;
+  connectionId: number;
   name: string;
+  databaseType: 'ELASTICSEARCH' | 'OPENSEARCH' | 'EASYSEARCH' | 'DYNAMODB' | 'MONGODB';
   permissions: DataSourcePermissions;
-  permissionsMode: PermissionsMode;
+};
+
+export type FileSource = {
+  kind: 'file';
+  sourceId: string;
+  name: string;
+  fileType: 'csv' | 'excel' | 'json' | 'parquet';
+  filePath: string;
+  permissions: Pick<DataSourcePermissions, 'read'>;
+};
+
+export type AttachedSource = DatabaseSource | FileSource;
+
+// ── Session Source Snapshot (frozen at attach time) ──────────────────────────
+// Persisted with the session. Alias and kind never change after creation.
+
+export type SessionSource = {
+  sourceId: string; // links back to AttachedSource in store
+  alias: string; // derived from connection name at attach time; frozen forever
+  kind: 'database' | 'file';
+  databaseType: string; // frozen (e.g. 'ELASTICSEARCH')
+  permissions: DataSourcePermissions;
+  detached?: boolean; // true = was in session, now removed from workspace
+  detachedAt?: number; // timestamp
 };
 
 export type RiskLevel = 'safe' | 'elevated' | 'destructive';
@@ -67,27 +94,72 @@ export type AgentSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | '
 
 export type AgentSession = {
   id: string;
-  connectionId: number;
+  sources: SessionSource[]; // ordered snapshots; records are permanent once added
+  permissionsMode: PermissionsMode; // session-level — applies uniformly to all sources
   messages: Array<AgentMessage>;
   status: AgentSessionStatus;
-  schema?: string;
   maxIterations: number;
 };
 
 export type ConfirmationRule = {
-  connectionId: number;
-  toolName: string;
+  sessionId: string; // scoped to a session, not a source
+  toolName: string; // bare tool name without alias prefix
   action: 'allow_always' | 'deny_always';
 };
 
 export type SessionMeta = {
-  connectionId: number;
-  schema?: string;
+  sources: SessionSource[];
+  permissionsMode: PermissionsMode;
   maxIterations: number;
   title: string;
   updatedAt: number;
   modelId?: string | null;
 };
+
+// ── Alias derivation ─────────────────────────────────────────────────────────
+
+export const toAlias = (name: string): string =>
+  name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 24);
+
+export const attachSourceToSession = (
+  session: AgentSession,
+  source: AttachedSource,
+): AgentSession => {
+  const existingAliases = session.sources.map(s => s.alias);
+  const base = toAlias(source.name);
+  let alias = base;
+  let n = 2;
+  while (existingAliases.includes(alias)) alias = `${base}_${n++}`;
+
+  const databaseType =
+    source.kind === 'database' ? source.databaseType : (source as FileSource).fileType;
+
+  const permissions: DataSourcePermissions =
+    source.kind === 'database'
+      ? { ...(source as DatabaseSource).permissions }
+      : {
+          read: true,
+          create: false,
+          update: false,
+          delete: false,
+        };
+
+  const snapshot: SessionSource = {
+    sourceId: source.sourceId,
+    alias,
+    kind: source.kind,
+    databaseType,
+    permissions,
+  };
+
+  return { ...session, sources: [...session.sources, snapshot] };
+};
+
+// ── Hydration ────────────────────────────────────────────────────────────────
 
 const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
   const base = {
@@ -148,33 +220,24 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
   return { ...base, content: m.content };
 };
 
+// ── Store ────────────────────────────────────────────────────────────────────
+
 export const useDataStudioStore = defineStore('dataStudio', {
   state: (): {
-    connectedSources: Array<ConnectedSource>;
-    activeConnectionId: number | undefined;
-    configPanelOpen: boolean;
+    attachedSources: Array<AttachedSource>;
     sessions: Array<AgentSession>;
     activeSessionId: string | undefined;
     confirmationRules: Array<ConfirmationRule>;
     sessionMeta: Record<string, SessionMeta>;
   } => ({
-    connectedSources: [],
-    activeConnectionId: undefined,
-    configPanelOpen: true,
+    attachedSources: [],
     sessions: [],
     activeSessionId: undefined,
     confirmationRules: [],
     sessionMeta: {},
   }),
   persist: {
-    pick: [
-      'connectedSources',
-      'activeConnectionId',
-      'configPanelOpen',
-      'confirmationRules',
-      'sessionMeta',
-      'activeSessionId',
-    ],
+    pick: ['attachedSources', 'confirmationRules', 'sessionMeta', 'activeSessionId'],
   },
   getters: {
     activeSession(state): AgentSession | undefined {
@@ -182,60 +245,130 @@ export const useDataStudioStore = defineStore('dataStudio', {
     },
   },
   actions: {
-    toggleConfigPanel() {
-      this.configPanelOpen = !this.configPanelOpen;
-    },
-    addSource(source: ConnectedSource): boolean {
-      if (source.connectionId === undefined) return false;
-      const exists = this.connectedSources.some(s => s.connectionId === source.connectionId);
+    // ── Attached source management ──────────────────────────────────────────
+
+    addAttachedSource(source: AttachedSource): boolean {
+      const exists = this.attachedSources.some(s => s.sourceId === source.sourceId);
       if (exists) return false;
-      this.connectedSources.push(source);
-      if (this.activeConnectionId === undefined) {
-        this.activeConnectionId = source.connectionId;
+      this.attachedSources = [...this.attachedSources, source];
+      return true;
+    },
+
+    updateAttachedSource(
+      sourceId: string,
+      patch: Partial<Omit<AttachedSource, 'sourceId' | 'kind'>>,
+    ) {
+      this.attachedSources = this.attachedSources.map(s =>
+        s.sourceId === sourceId ? ({ ...s, ...patch } as AttachedSource) : s,
+      );
+    },
+
+    removeAttachedSource(sourceId: string) {
+      this.attachedSources = this.attachedSources.filter(s => s.sourceId !== sourceId);
+    },
+
+    getAttachedSourceById(sourceId: string): AttachedSource | undefined {
+      return this.attachedSources.find(s => s.sourceId === sourceId);
+    },
+
+    // ── Backward compat: create a DatabaseSource from a connectionId + Connection ──
+    addDatabaseSourceFromConnection(params: {
+      connectionId: number;
+      name: string;
+      databaseType: 'ELASTICSEARCH' | 'OPENSEARCH' | 'EASYSEARCH' | 'DYNAMODB' | 'MONGODB';
+      permissions: DataSourcePermissions;
+    }): DatabaseSource {
+      const existing = this.attachedSources.find(
+        s => s.kind === 'database' && (s as DatabaseSource).connectionId === params.connectionId,
+      ) as DatabaseSource | undefined;
+      if (existing) return existing;
+
+      const source: DatabaseSource = {
+        kind: 'database',
+        sourceId: ulid(),
+        connectionId: params.connectionId,
+        name: params.name,
+        databaseType: params.databaseType,
+        permissions: params.permissions,
+      };
+      this.attachedSources = [...this.attachedSources, source];
+      return source;
+    },
+
+    // ── Session source management ────────────────────────────────────────────
+
+    attachSourceToActiveSession(source: AttachedSource): boolean {
+      const session = this.activeSession;
+      if (!session) return false;
+      const updated = attachSourceToSession(session, source);
+      this.sessions = this.sessions.map(s => (s.id === session.id ? updated : s));
+      if (this.sessionMeta[session.id]) {
+        this.sessionMeta[session.id].sources = updated.sources;
       }
       return true;
     },
-    updateSource(index: number, source: Partial<ConnectedSource>) {
-      if (index >= 0 && index < this.connectedSources.length) {
-        Object.assign(this.connectedSources[index], source);
+
+    detachSourceFromSession(sessionId: string, sourceId: string) {
+      const session = this.sessions.find(s => s.id === sessionId);
+      if (!session) return;
+      const updatedSources = session.sources.map(s =>
+        s.sourceId === sourceId ? { ...s, detached: true, detachedAt: Date.now() } : s,
+      );
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, sources: updatedSources } : s,
+      );
+      if (this.sessionMeta[sessionId]) {
+        this.sessionMeta[sessionId].sources = updatedSources;
       }
     },
-    removeSource(index: number) {
-      if (index >= 0 && index < this.connectedSources.length) {
-        const removed = this.connectedSources.splice(index, 1)[0];
-        if (removed.connectionId === this.activeConnectionId) {
-          this.activeConnectionId = this.connectedSources[0]?.connectionId;
-        }
+
+    setSessionPermissionsMode(sessionId: string, mode: PermissionsMode) {
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, permissionsMode: mode } : s,
+      );
+      if (this.sessionMeta[sessionId]) {
+        this.sessionMeta[sessionId].permissionsMode = mode;
       }
     },
-    removeSourceById(connectionId: number) {
-      const index = this.connectedSources.findIndex(s => s.connectionId === connectionId);
-      if (index !== -1) {
-        this.connectedSources.splice(index, 1);
-        if (connectionId === this.activeConnectionId) {
-          this.activeConnectionId = this.connectedSources[0]?.connectionId;
-        }
+
+    updateSessionSourcePermissions(
+      sessionId: string,
+      sourceId: string,
+      permissions: DataSourcePermissions,
+    ) {
+      const updatedSources = (this.sessions.find(s => s.id === sessionId)?.sources ?? []).map(s =>
+        s.sourceId === sourceId ? { ...s, permissions } : s,
+      );
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, sources: updatedSources } : s,
+      );
+      if (this.sessionMeta[sessionId]) {
+        this.sessionMeta[sessionId].sources = updatedSources;
       }
     },
-    getSourceById(connectionId: number): ConnectedSource | undefined {
-      return this.connectedSources.find(s => s.connectionId === connectionId);
-    },
-    setActiveConnection(connectionId: number) {
-      this.activeConnectionId = connectionId;
-    },
-    async createSession(connectionId: number, maxIterations = 10): Promise<string> {
-      const source = this.connectedSources.find(s => s.connectionId === connectionId);
-      const title = source?.name ?? 'New Session';
+
+    // ── Session lifecycle ────────────────────────────────────────────────────
+
+    async createSession(
+      initialSources: SessionSource[] = [],
+      permissionsMode: PermissionsMode = 'Ask',
+      maxIterations = 10,
+    ): Promise<string> {
+      const title =
+        initialSources.length > 0 ? initialSources.map(s => s.alias).join(', ') : 'New Session';
       const backend = await createAgentSession(title);
-      this.sessions.push({
+      const newSession: AgentSession = {
         id: backend.id,
-        connectionId,
+        sources: initialSources,
+        permissionsMode,
         messages: [],
         status: 'idle',
         maxIterations,
-      });
+      };
+      this.sessions = [...this.sessions, newSession];
       this.sessionMeta[backend.id] = {
-        connectionId,
+        sources: initialSources,
+        permissionsMode,
         maxIterations,
         title,
         updatedAt: backend.updated_at,
@@ -243,53 +376,94 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.activeSessionId = backend.id;
       return backend.id;
     },
+
     setActiveSession(sessionId: string) {
       this.activeSessionId = sessionId;
     },
-    async getOrCreateSession(connectionId: number): Promise<string> {
-      const existing = this.sessions.find(
-        s => s.connectionId === connectionId && s.id === this.activeSessionId,
-      );
-      if (existing) return existing.id;
-      return this.createSession(connectionId);
+
+    async getOrCreateSession(sourcesToAttach: AttachedSource[] = []): Promise<string> {
+      // Reuse the active session if it exists
+      if (this.activeSessionId && this.sessions.some(s => s.id === this.activeSessionId)) {
+        return this.activeSessionId;
+      }
+
+      // Compute initial session sources from provided attachedSources
+      const sessionSources: SessionSource[] = [];
+      for (const source of sourcesToAttach) {
+        const tmpSession: AgentSession = {
+          id: '',
+          sources: sessionSources,
+          permissionsMode: 'Ask',
+          messages: [],
+          status: 'idle',
+          maxIterations: 10,
+        };
+        const updated = attachSourceToSession(tmpSession, source);
+        sessionSources.push(...updated.sources.slice(sessionSources.length));
+      }
+
+      return this.createSession(sessionSources);
     },
+
+    // ── Message management ───────────────────────────────────────────────────
+
     addMessage(sessionId: string, message: AgentMessage) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      if (session) {
-        session.messages.push(message);
-      }
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, messages: [...s.messages, message] } : s,
+      );
     },
+
     updateStreamingContent(sessionId: string, messageId: string, chunk: string) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      const message = session?.messages.find(m => m.id === messageId);
-      if (message) {
-        message.content += chunk;
-      }
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        return {
+          ...s,
+          messages: s.messages.map(m =>
+            m.id === messageId ? { ...m, content: m.content + chunk } : m,
+          ),
+        };
+      });
     },
+
     updateStreamingThinking(sessionId: string, messageId: string, chunk: string) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      const message = session?.messages.find(m => m.id === messageId);
-      if (message) {
-        message.thinking = (message.thinking ?? '') + chunk;
-      }
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        return {
+          ...s,
+          messages: s.messages.map(m =>
+            m.id === messageId ? { ...m, thinking: (m.thinking ?? '') + chunk } : m,
+          ),
+        };
+      });
     },
+
     setMessageStatus(sessionId: string, messageId: string, status: AgentMessageStatus) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      const message = session?.messages.find(m => m.id === messageId);
-      if (message) {
-        if (status === 'done' && message.thinking && message.status === 'streaming') {
-          message.thinkingDuration = Math.round((Date.now() - message.timestamp) / 1000);
-        }
-        message.status = status;
-      }
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        return {
+          ...s,
+          messages: s.messages.map(m => {
+            if (m.id !== messageId) return m;
+            const thinkingDuration =
+              status === 'done' && m.thinking && m.status === 'streaming'
+                ? Math.round((Date.now() - m.timestamp) / 1000)
+                : m.thinkingDuration;
+            return { ...m, status, thinkingDuration };
+          }),
+        };
+      });
     },
+
     setMessageToolCalls(sessionId: string, messageId: string, toolCalls: Array<AgentToolCall>) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      const message = session?.messages.find(m => m.id === messageId);
-      if (message) {
-        message.toolCalls = toolCalls;
-      }
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        return {
+          ...s,
+          messages: s.messages.map(m => (m.id === messageId ? { ...m, toolCalls } : m)),
+        };
+      });
     },
+
     updateToolCallStatus(
       sessionId: string,
       messageId: string,
@@ -298,98 +472,74 @@ export const useDataStudioStore = defineStore('dataStudio', {
       result?: string,
       durationMs?: number,
     ) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      const message = session?.messages.find(m => m.id === messageId);
-      const toolCall = message?.toolCalls?.find(tc => tc.id === toolCallId);
-      if (toolCall) {
-        toolCall.status = status;
-        if (result !== undefined) {
-          toolCall.result = result;
-        }
-        if (durationMs !== undefined) {
-          toolCall.durationMs = durationMs;
-        }
-      }
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        return {
+          ...s,
+          messages: s.messages.map(m => {
+            if (m.id !== messageId || !m.toolCalls) return m;
+            return {
+              ...m,
+              toolCalls: m.toolCalls.map(tc => {
+                if (tc.id !== toolCallId) return tc;
+                return {
+                  ...tc,
+                  status,
+                  ...(result !== undefined ? { result } : {}),
+                  ...(durationMs !== undefined ? { durationMs } : {}),
+                };
+              }),
+            };
+          }),
+        };
+      });
     },
+
     setSessionStatus(sessionId: string, status: AgentSessionStatus) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      if (session) {
-        session.status = status;
-        updateSessionStatus(sessionId, status).catch(() => undefined);
-      }
+      this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, status } : s));
+      updateSessionStatus(sessionId, status).catch(() => undefined);
     },
-    setSessionSchema(sessionId: string, schema: string) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      if (session) {
-        session.schema = schema;
-        if (this.sessionMeta[sessionId]) {
-          this.sessionMeta[sessionId].schema = schema;
-        }
-      }
-    },
+
     setSessionMaxIterations(sessionId: string, maxIterations: number) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      if (session) {
-        session.maxIterations = maxIterations;
-        if (this.sessionMeta[sessionId]) {
-          this.sessionMeta[sessionId].maxIterations = maxIterations;
-        }
+      this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, maxIterations } : s));
+      if (this.sessionMeta[sessionId]) {
+        this.sessionMeta[sessionId].maxIterations = maxIterations;
       }
     },
+
     setSessionModelId(sessionId: string, modelId: string | null) {
       if (this.sessionMeta[sessionId]) {
         this.sessionMeta[sessionId].modelId = modelId;
       }
     },
-    findConfirmationRule(connectionId: number, toolName: string): ConfirmationRule | undefined {
-      return this.confirmationRules.find(
-        r => r.connectionId === connectionId && r.toolName === toolName,
-      );
+
+    // ── Confirmation rules ───────────────────────────────────────────────────
+
+    findConfirmationRule(sessionId: string, toolName: string): ConfirmationRule | undefined {
+      return this.confirmationRules.find(r => r.sessionId === sessionId && r.toolName === toolName);
     },
+
     addConfirmationRule(rule: ConfirmationRule) {
       const index = this.confirmationRules.findIndex(
-        r => r.connectionId === rule.connectionId && r.toolName === rule.toolName,
+        r => r.sessionId === rule.sessionId && r.toolName === rule.toolName,
       );
       if (index !== -1) {
-        this.confirmationRules.splice(index, 1, rule);
+        this.confirmationRules = this.confirmationRules.map((r, i) => (i === index ? rule : r));
       } else {
-        this.confirmationRules.push(rule);
+        this.confirmationRules = [...this.confirmationRules, rule];
       }
     },
+
+    // ── Session CRUD ─────────────────────────────────────────────────────────
+
     async clearSession(sessionId: string) {
-      const session = this.sessions.find(s => s.id === sessionId);
-      if (!session) return;
       await clearAgentSessionMessages(sessionId);
-      session.messages.splice(0, session.messages.length);
-      session.status = 'idle';
-      session.schema = undefined;
-      if (this.sessionMeta[sessionId]) {
-        this.sessionMeta[sessionId].schema = undefined;
-      }
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, messages: [], status: 'idle' } : s,
+      );
     },
-    normalizeLegacySources() {
-      const legacyMap: Record<string, 'Ask' | 'Auto'> = {
-        default: 'Ask',
-        full: 'Auto',
-        Ask: 'Ask',
-        Auto: 'Auto',
-      };
-      this.connectedSources = this.connectedSources.map(s => {
-        const raw =
-          (s as Record<string, unknown>).permissionsMode ?? (s as Record<string, unknown>).autoMode;
-        const normalized = typeof raw === 'string' ? legacyMap[raw] : undefined;
-        const cleaned = { ...s } as Record<string, unknown>;
-        delete cleaned.autoMode;
-        if (normalized) {
-          cleaned.permissionsMode = normalized;
-        } else if (!cleaned.permissionsMode) {
-          cleaned.permissionsMode = 'Ask';
-        }
-        return cleaned as ConnectedSource;
-      });
-    },
+
     async loadSessions() {
-      this.normalizeLegacySources();
       const backendSessions = await loadAgentSessions();
       const loaded = await Promise.all(
         backendSessions.map(async (s: BackendAgentSession) => {
@@ -400,28 +550,29 @@ export const useDataStudioStore = defineStore('dataStudio', {
           const messages: Array<AgentMessage> = backendMessages.map(hydrateMessage);
           return {
             id: s.id,
-            connectionId: meta?.connectionId ?? -1,
+            sources: meta?.sources ?? [],
+            permissionsMode: meta?.permissionsMode ?? ('Ask' as PermissionsMode),
             messages,
             status: 'idle' as AgentSessionStatus,
-            schema: meta?.schema,
             maxIterations: meta?.maxIterations ?? 10,
           };
         }),
       );
       this.sessions = loaded;
       if (backendSessions.length > 0) {
-        const latestId = backendSessions[0].id;
         const stillValid =
           this.activeSessionId && this.sessions.some(s => s.id === this.activeSessionId);
         if (!stillValid) {
-          this.activeSessionId = latestId;
+          this.activeSessionId = backendSessions[0].id;
         }
       }
     },
+
     async removeSession(sessionId: string) {
       await deleteAgentSession(sessionId).catch(() => undefined);
       this.sessions = this.sessions.filter(s => s.id !== sessionId);
-      delete this.sessionMeta[sessionId];
+      const { [sessionId]: _, ...rest } = this.sessionMeta;
+      this.sessionMeta = rest;
       if (this.activeSessionId === sessionId) {
         this.activeSessionId = this.sessions[0]?.id;
       }

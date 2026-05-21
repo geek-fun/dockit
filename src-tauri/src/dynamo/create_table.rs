@@ -3,7 +3,7 @@ use aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use aws_sdk_dynamodb::types::{
     AttributeDefinition, BillingMode, GlobalSecondaryIndex, KeySchemaElement, KeyType,
     LocalSecondaryIndex, Projection, ProjectionType, ProvisionedThroughput, ScalarAttributeType,
-    StreamSpecification, StreamViewType, SseSpecification, SseType, Tag,
+    SseSpecification, SseType, StreamSpecification, StreamViewType, Tag,
 };
 use aws_sdk_dynamodb::Client;
 use serde::Deserialize;
@@ -135,9 +135,12 @@ pub async fn create_table(client: &Client, input: CreateTableInput) -> Result<Ap
         request = request.provisioned_throughput(throughput);
     }
 
-    if let Some(gsis) = payload.get("global_secondary_indexes").and_then(|v| v.as_array()) {
+    if let Some(gsis) = payload
+        .get("global_secondary_indexes")
+        .and_then(|v| v.as_array())
+    {
         let mut gsi_list: Vec<GlobalSecondaryIndex> = Vec::new();
-        
+
         for gsi in gsis {
             if let Some(gsi_obj) = gsi.as_object() {
                 let index_name = gsi_obj
@@ -183,14 +186,18 @@ pub async fn create_table(client: &Client, input: CreateTableInput) -> Result<Ap
                         );
 
                         // Add to attribute definitions if not already present
-                        let attr_def_exists = attribute_definitions.iter().any(|a| a.attribute_name() == attr_name);
+                        let attr_def_exists = attribute_definitions
+                            .iter()
+                            .any(|a| a.attribute_name() == attr_name);
                         if !attr_def_exists {
                             attribute_definitions.push(
                                 AttributeDefinition::builder()
                                     .attribute_name(attr_name)
                                     .attribute_type(parse_scalar_type(attr_type_str))
                                     .build()
-                                    .map_err(|e| format!("Failed to build GSI attribute definition: {}", e))?,
+                                    .map_err(|e| {
+                                        format!("Failed to build GSI attribute definition: {}", e)
+                                    })?,
                             );
                         }
                     }
@@ -205,10 +212,13 @@ pub async fn create_table(client: &Client, input: CreateTableInput) -> Result<Ap
                     .projection_type(parse_projection_type(projection_type_str));
 
                 if projection_type_str.to_uppercase() == "INCLUDE" {
-                    if let Some(non_key_attrs) = gsi_obj.get("non_key_attributes").and_then(|v| v.as_array()) {
+                    if let Some(non_key_attrs) =
+                        gsi_obj.get("non_key_attributes").and_then(|v| v.as_array())
+                    {
                         for attr in non_key_attrs {
                             if let Some(attr_str) = attr.as_str() {
-                                projection_builder = projection_builder.non_key_attributes(attr_str);
+                                projection_builder =
+                                    projection_builder.non_key_attributes(attr_str);
                             }
                         }
                     }
@@ -254,9 +264,12 @@ pub async fn create_table(client: &Client, input: CreateTableInput) -> Result<Ap
     }
 
     if sort_key.is_some() {
-        if let Some(lsis) = payload.get("local_secondary_indexes").and_then(|v| v.as_array()) {
+        if let Some(lsis) = payload
+            .get("local_secondary_indexes")
+            .and_then(|v| v.as_array())
+        {
             let mut lsi_list: Vec<LocalSecondaryIndex> = Vec::new();
-            
+
             for lsi in lsis {
                 if let Some(lsi_obj) = lsi.as_object() {
                     let index_name = lsi_obj
@@ -298,17 +311,26 @@ pub async fn create_table(client: &Client, input: CreateTableInput) -> Result<Ap
                                     .attribute_name(attr_name)
                                     .key_type(key_type)
                                     .build()
-                                    .map_err(|e| format!("Failed to build LSI key schema: {}", e))?,
+                                    .map_err(|e| {
+                                        format!("Failed to build LSI key schema: {}", e)
+                                    })?,
                             );
 
-                            let attr_def_exists = attribute_definitions.iter().any(|a| a.attribute_name() == attr_name);
+                            let attr_def_exists = attribute_definitions
+                                .iter()
+                                .any(|a| a.attribute_name() == attr_name);
                             if !attr_def_exists {
                                 attribute_definitions.push(
                                     AttributeDefinition::builder()
                                         .attribute_name(attr_name)
                                         .attribute_type(parse_scalar_type(attr_type_str))
                                         .build()
-                                        .map_err(|e| format!("Failed to build LSI attribute definition: {}", e))?,
+                                        .map_err(|e| {
+                                            format!(
+                                                "Failed to build LSI attribute definition: {}",
+                                                e
+                                            )
+                                        })?,
                                 );
                             }
                         }
@@ -323,10 +345,13 @@ pub async fn create_table(client: &Client, input: CreateTableInput) -> Result<Ap
                         .projection_type(parse_projection_type(projection_type_str));
 
                     if projection_type_str.to_uppercase() == "INCLUDE" {
-                        if let Some(non_key_attrs) = lsi_obj.get("non_key_attributes").and_then(|v| v.as_array()) {
+                        if let Some(non_key_attrs) =
+                            lsi_obj.get("non_key_attributes").and_then(|v| v.as_array())
+                        {
                             for attr in non_key_attrs {
                                 if let Some(attr_str) = attr.as_str() {
-                                    projection_builder = projection_builder.non_key_attributes(attr_str);
+                                    projection_builder =
+                                        projection_builder.non_key_attributes(attr_str);
                                 }
                             }
                         }
@@ -354,7 +379,10 @@ pub async fn create_table(client: &Client, input: CreateTableInput) -> Result<Ap
     // Update attribute definitions on request
     request = request.set_attribute_definitions(Some(attribute_definitions));
 
-    if let Some(stream_spec) = payload.get("stream_specification").and_then(|v| v.as_object()) {
+    if let Some(stream_spec) = payload
+        .get("stream_specification")
+        .and_then(|v| v.as_object())
+    {
         let stream_enabled = stream_spec
             .get("stream_enabled")
             .and_then(|v| v.as_bool())
@@ -394,9 +422,7 @@ pub async fn create_table(client: &Client, input: CreateTableInput) -> Result<Ap
                 _ => SseType::Aes256,
             };
 
-            let mut sse_builder = SseSpecification::builder()
-                .enabled(true)
-                .sse_type(sse_type);
+            let mut sse_builder = SseSpecification::builder().enabled(true).sse_type(sse_type);
 
             if let Some(kms_key_id) = sse_spec.get("kms_master_key_id").and_then(|v| v.as_str()) {
                 sse_builder = sse_builder.kms_master_key_id(kms_key_id);
@@ -410,16 +436,12 @@ pub async fn create_table(client: &Client, input: CreateTableInput) -> Result<Ap
 
     if let Some(tags) = payload.get("tags").and_then(|v| v.as_array()) {
         let mut tag_list: Vec<Tag> = Vec::new();
-        
+
         for tag in tags {
             if let Some(tag_obj) = tag.as_object() {
-                let key = tag_obj
-                    .get("key")
-                    .and_then(|v| v.as_str());
-                
-                let value = tag_obj
-                    .get("value")
-                    .and_then(|v| v.as_str());
+                let key = tag_obj.get("key").and_then(|v| v.as_str());
+
+                let value = tag_obj.get("value").and_then(|v| v.as_str());
 
                 if let (Some(k), Some(v)) = (key, value) {
                     tag_list.push(
@@ -460,7 +482,10 @@ pub async fn create_table(client: &Client, input: CreateTableInput) -> Result<Ap
                 .unwrap_or_else(|| format!("{:#}", e));
             Ok(ApiResponse {
                 status: 500,
-                message: format!("Failed to create table '{}': [{}] {}", table_name, error_code, error_message),
+                message: format!(
+                    "Failed to create table '{}': [{}] {}",
+                    table_name, error_code, error_message
+                ),
                 data: None,
             })
         }

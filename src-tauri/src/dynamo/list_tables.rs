@@ -33,10 +33,7 @@ pub async fn list_tables(client: &Client) -> Result<ApiResponse, String> {
                     .unwrap_or_else(|| format!("{:#}", e));
                 return Ok(ApiResponse {
                     status: 500,
-                    message: format!(
-                        "Failed to list tables: [{}] {}",
-                        error_code, error_message,
-                    ),
+                    message: format!("Failed to list tables: [{}] {}", error_code, error_message,),
                     data: None,
                 });
             }

@@ -56,7 +56,10 @@ pub async fn update_table_config(
                 .unwrap_or(table_name);
             Ok(ApiResponse {
                 status: 200,
-                message: format!("Table '{}' configuration updated successfully", table_name_result),
+                message: format!(
+                    "Table '{}' configuration updated successfully",
+                    table_name_result
+                ),
                 data: Some(json!({
                     "tableName": table_name_result,
                 })),

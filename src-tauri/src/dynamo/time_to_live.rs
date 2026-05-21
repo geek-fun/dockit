@@ -14,12 +14,12 @@ pub async fn describe_time_to_live(
     {
         Ok(output) => {
             let ttl_description = output.time_to_live_description();
-            
+
             let ttl_enabled = ttl_description
                 .and_then(|desc| desc.time_to_live_status())
                 .map(|status| status.as_str() == "ENABLED")
                 .unwrap_or(false);
-            
+
             let attribute_name = ttl_description
                 .and_then(|desc| desc.attribute_name())
                 .map(|s| s.to_string());

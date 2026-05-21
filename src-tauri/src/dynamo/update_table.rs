@@ -2,8 +2,7 @@ use crate::dynamo::types::ApiResponse;
 use aws_sdk_dynamodb::types::{
     AttributeDefinition, CreateGlobalSecondaryIndexAction, DeleteGlobalSecondaryIndexAction,
     GlobalSecondaryIndexUpdate, KeySchemaElement, KeyType, Projection, ProjectionType,
-    ProvisionedThroughput, ScalarAttributeType, UpdateGlobalSecondaryIndexAction,
-    WarmThroughput,
+    ProvisionedThroughput, ScalarAttributeType, UpdateGlobalSecondaryIndexAction, WarmThroughput,
 };
 use aws_sdk_dynamodb::Client;
 use serde::Deserialize;
@@ -58,44 +57,45 @@ pub async fn create_global_secondary_index(
         .ok_or("index_name is required")?;
 
     // Check if we have the new key_schema format or old partition_key/sort_key format
-    let key_schema_items = if let Some(key_schema) = payload.get("key_schema").and_then(|v| v.as_array()) {
-        // New format: key_schema array
-        key_schema.to_vec()
-    } else {
-        // Old format: partition_key and sort_key (for backward compatibility)
-        let partition_key_name = payload
-            .get("partition_key")
-            .and_then(|v| v.as_str())
-            .ok_or("partition_key or key_schema is required")?;
+    let key_schema_items =
+        if let Some(key_schema) = payload.get("key_schema").and_then(|v| v.as_array()) {
+            // New format: key_schema array
+            key_schema.to_vec()
+        } else {
+            // Old format: partition_key and sort_key (for backward compatibility)
+            let partition_key_name = payload
+                .get("partition_key")
+                .and_then(|v| v.as_str())
+                .ok_or("partition_key or key_schema is required")?;
 
-        let partition_key_type = payload
-            .get("partition_key_type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("S");
+            let partition_key_type = payload
+                .get("partition_key_type")
+                .and_then(|v| v.as_str())
+                .unwrap_or("S");
 
-        let mut schema = vec![json!({
-            "attribute_name": partition_key_name,
-            "key_type": "HASH",
-            "attribute_type": partition_key_type
-        })];
+            let mut schema = vec![json!({
+                "attribute_name": partition_key_name,
+                "key_type": "HASH",
+                "attribute_type": partition_key_type
+            })];
 
-        if let Some(sort_key_name) = payload.get("sort_key").and_then(|v| v.as_str()) {
-            if !sort_key_name.is_empty() {
-                let sort_key_type = payload
-                    .get("sort_key_type")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("S");
-                
-                schema.push(json!({
-                    "attribute_name": sort_key_name,
-                    "key_type": "RANGE",
-                    "attribute_type": sort_key_type
-                }));
+            if let Some(sort_key_name) = payload.get("sort_key").and_then(|v| v.as_str()) {
+                if !sort_key_name.is_empty() {
+                    let sort_key_type = payload
+                        .get("sort_key_type")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("S");
+
+                    schema.push(json!({
+                        "attribute_name": sort_key_name,
+                        "key_type": "RANGE",
+                        "attribute_type": sort_key_type
+                    }));
+                }
             }
-        }
-        
-        schema
-    };
+
+            schema
+        };
 
     // Build key schema from the items
     let mut key_schema = Vec::new();
@@ -128,7 +128,7 @@ pub async fn create_global_secondary_index(
                 .attribute_name(attr_name)
                 .key_type(key_type)
                 .build()
-                .map_err(|e| format!("Failed to build key schema: {}", e))?
+                .map_err(|e| format!("Failed to build key schema: {}", e))?,
         );
 
         attribute_definitions.push(
@@ -136,7 +136,7 @@ pub async fn create_global_secondary_index(
                 .attribute_name(attr_name)
                 .attribute_type(parse_scalar_type(attr_type_str))
                 .build()
-                .map_err(|e| format!("Failed to build attribute definition: {}", e))?
+                .map_err(|e| format!("Failed to build attribute definition: {}", e))?,
         );
     }
 
@@ -145,19 +145,19 @@ pub async fn create_global_secondary_index(
         .and_then(|v| v.as_str())
         .unwrap_or("ALL");
 
-    let read_capacity = payload
-        .get("read_capacity_units")
-        .and_then(|v| v.as_i64());
+    let read_capacity = payload.get("read_capacity_units").and_then(|v| v.as_i64());
 
-    let write_capacity = payload
-        .get("write_capacity_units")
-        .and_then(|v| v.as_i64());
+    let write_capacity = payload.get("write_capacity_units").and_then(|v| v.as_i64());
 
     // Build projection
-    let mut projection_builder = Projection::builder().projection_type(parse_projection_type(projection_type));
+    let mut projection_builder =
+        Projection::builder().projection_type(parse_projection_type(projection_type));
 
     if projection_type.to_uppercase() == "INCLUDE" {
-        if let Some(attrs) = payload.get("projected_attributes").and_then(|v| v.as_array()) {
+        if let Some(attrs) = payload
+            .get("projected_attributes")
+            .and_then(|v| v.as_array())
+        {
             for attr in attrs {
                 if let Some(attr_str) = attr.as_str() {
                     projection_builder = projection_builder.non_key_attributes(attr_str);
@@ -181,21 +181,25 @@ pub async fn create_global_secondary_index(
             .write_capacity_units(write_cap)
             .build()
             .map_err(|e| format!("Failed to build provisioned throughput: {}", e))?;
-        
+
         create_gsi_builder = create_gsi_builder.provisioned_throughput(provisioned_throughput);
     }
 
     // Add warm throughput if provided
     if let Some(warm_throughput) = payload.get("warm_throughput") {
         if let (Some(read_units), Some(write_units)) = (
-            warm_throughput.get("read_units_per_second").and_then(|v| v.as_i64()),
-            warm_throughput.get("write_units_per_second").and_then(|v| v.as_i64())
+            warm_throughput
+                .get("read_units_per_second")
+                .and_then(|v| v.as_i64()),
+            warm_throughput
+                .get("write_units_per_second")
+                .and_then(|v| v.as_i64()),
         ) {
             let warm_throughput_config = WarmThroughput::builder()
                 .read_units_per_second(read_units)
                 .write_units_per_second(write_units)
                 .build();
-            
+
             create_gsi_builder = create_gsi_builder.warm_throughput(warm_throughput_config);
         }
     }

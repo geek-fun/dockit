@@ -72,7 +72,8 @@ pub async fn update_item(
 
             if let Some(av) = convert_json_to_attr_value(value, attr_type) {
                 expression_attribute_values.insert(value_placeholder.clone(), av);
-                update_expression_parts.push(format!("{} = {}", name_placeholder, value_placeholder));
+                update_expression_parts
+                    .push(format!("{} = {}", name_placeholder, value_placeholder));
             }
         }
     }
@@ -108,7 +109,7 @@ pub async fn update_item(
         Err(e) => {
             let error_code = e.code().unwrap_or("UnknownError");
             let error_message = e.message().unwrap_or("Unknown error occurred");
-            
+
             Ok(ApiResponse {
                 status: 500,
                 message: format!(

@@ -17,6 +17,17 @@ pub struct Permissions {
     pub delete: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SourcePermissions {
+    pub alias: String,
+    pub database_type: String,
+    pub read: bool,
+    pub create: bool,
+    pub update: bool,
+    pub delete: bool,
+}
+
 struct ToolDefinition {
     name: &'static str,
     description: &'static str,
@@ -227,7 +238,21 @@ fn internal_to_openai_name(name: &str) -> String {
 }
 
 pub fn openai_name_to_internal(name: &str) -> String {
-    name.replace("__", ".")
+    let without_alias = alias_suffix(name);
+    without_alias.replace("__", ".")
+}
+
+pub fn alias_from_prefixed_name(name: &str) -> Option<String> {
+    let sep = name.find("__es__").or_else(|| name.find("__dynamo__"))?;
+    Some(name[..sep].to_string())
+}
+
+fn alias_suffix(name: &str) -> &str {
+    if let Some(pos) = name.find("__es__").or_else(|| name.find("__dynamo__")) {
+        &name[pos + 2..]
+    } else {
+        name
+    }
 }
 
 fn to_openai_tool(tool: &ToolDefinition) -> Value {
@@ -235,6 +260,40 @@ fn to_openai_tool(tool: &ToolDefinition) -> Value {
         "type": "function",
         "function": {
             "name": internal_to_openai_name(tool.name),
+            "description": tool.description,
+            "parameters": tool.parameters
+        }
+    })
+}
+
+fn to_metadata(tool: &ToolDefinition) -> Value {
+    json!({
+        "riskLevel": tool.risk_level,
+        "requiredPermission": tool.required_permission
+    })
+}
+
+fn prefixed_openai_name(alias: &str, tool_name: &str) -> String {
+    format!("{alias}__{}", internal_to_openai_name(tool_name))
+}
+
+fn tools_for_database_type(database_type: &str, permissions: &Permissions) -> Vec<ToolDefinition> {
+    let effective_type = normalize_database_type(database_type);
+
+    all_tools()
+        .into_iter()
+        .filter(|tool| {
+            tool.database_type == effective_type
+                && has_permission(permissions, tool.required_permission)
+        })
+        .collect()
+}
+
+fn to_openai_tool_multi(tool: &ToolDefinition, alias: &str) -> Value {
+    json!({
+        "type": "function",
+        "function": {
+            "name": prefixed_openai_name(alias, tool.name),
             "description": tool.description,
             "parameters": tool.parameters
         }
@@ -256,25 +315,49 @@ pub fn get_available_tools(
         delete,
     };
 
-    let effective_type = normalize_database_type(database_type.as_str());
-    let filtered: Vec<ToolDefinition> = all_tools()
-        .into_iter()
-        .filter(|t| t.database_type == effective_type && has_permission(&permissions, t.required_permission))
-        .collect();
+    let filtered = tools_for_database_type(database_type.as_str(), &permissions);
 
     let openai_tools: Vec<Value> = filtered.iter().map(|t| to_openai_tool(t)).collect();
 
     let metadata: serde_json::Map<String, Value> = filtered
         .iter()
-        .map(|t| {
-            (
-                t.name.to_string(),
-                json!({
-                    "riskLevel": t.risk_level,
-                    "requiredPermission": t.required_permission
-                }),
-            )
+        .map(|t| (t.name.to_string(), to_metadata(t)))
+        .collect();
+
+    let result = json!({
+        "tools": openai_tools,
+        "metadata": metadata
+    });
+
+    serde_json::to_string(&result).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_available_tools_multi(sources: Vec<SourcePermissions>) -> Result<String, String> {
+    let filtered_tools: Vec<(String, ToolDefinition)> = sources
+        .iter()
+        .flat_map(|source| {
+            let permissions = Permissions {
+                read: source.read,
+                create: source.create,
+                update: source.update,
+                delete: source.delete,
+            };
+
+            tools_for_database_type(source.database_type.as_str(), &permissions)
+                .into_iter()
+                .map(move |tool| (source.alias.clone(), tool))
         })
+        .collect();
+
+    let openai_tools: Vec<Value> = filtered_tools
+        .iter()
+        .map(|(alias, tool)| to_openai_tool_multi(tool, alias))
+        .collect();
+
+    let metadata: serde_json::Map<String, Value> = filtered_tools
+        .iter()
+        .map(|(alias, tool)| (prefixed_openai_name(alias, tool.name), to_metadata(tool)))
         .collect();
 
     let result = json!({

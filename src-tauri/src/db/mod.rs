@@ -7,18 +7,17 @@ pub fn open(path: &Path) -> Result<AgentDb, String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create db dir: {}", e))?;
     }
-    let conn = rusqlite::Connection::open(path)
-        .map_err(|e| format!("Failed to open database: {}", e))?;
+    let conn =
+        rusqlite::Connection::open(path).map_err(|e| format!("Failed to open database: {}", e))?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")
         .map_err(|e| format!("Failed to set pragma: {}", e))?;
     Ok(AgentDb(Arc::new(Mutex::new(conn))))
 }
 
 pub fn migrate(db: &AgentDb) -> Result<(), String> {
-    let conn = db
-        .0
-        .lock()
-        .map_err(|e| format!("Failed to lock db: {}", e))?;
+    let conn =
+        db.0.lock()
+            .map_err(|e| format!("Failed to lock db: {}", e))?;
     conn.execute_batch(
         r#"
         CREATE TABLE IF NOT EXISTS agent_sessions (

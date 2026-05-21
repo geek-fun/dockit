@@ -8,14 +8,12 @@ import type {
   SendMessageOptions,
   ChatMessageStatus,
 } from '@/types/chat';
-import type { AgentToolCall, RiskLevel } from '@/store/dataStudioStore';
-import {
-  useConnectionStore,
-  type Connection,
-  type ElasticsearchConnection,
-  type DynamoDBConnection,
-  DatabaseType,
-} from '@/store/connectionStore';
+import type {
+  AgentToolCall,
+  ConfirmationRule,
+  RiskLevel,
+  SessionSource,
+} from '@/store/dataStudioStore';
 import { getFeatureModelConfig } from '@/store/chatStore';
 import { ProviderEnum } from '@/datasources';
 import {
@@ -38,9 +36,22 @@ import {
 type SessionRuntime = {
   tools?: Array<ToolDefinition>;
   metadata?: Record<string, ToolMetadata>;
-  config?: Record<string, unknown>;
   unlistenDelta?: () => void;
 };
+
+type ToolPermissionSet = {
+  read: boolean;
+  create: boolean;
+  update: boolean;
+  delete: boolean;
+};
+
+type PromptSource = {
+  alias: string;
+  databaseType: string;
+};
+
+type UseChatAgentConfirmationRule = Pick<ConfirmationRule, 'action'>;
 
 export type UseChatAgentConfig = {
   feature: 'sidebarAssistant' | 'dataStudio';
@@ -66,57 +77,19 @@ export type UseChatAgentConfig = {
       durationMs?: number,
     ) => void;
     setSessionStatus: (sessionId: string, status: ChatSessionStatus) => void;
-    setSessionSchema: (sessionId: string, schema: string) => void;
+    setSessionSchema?: (sessionId: string, schema: string) => void;
     clearSession: (sessionId: string) => Promise<void>;
-    getOrCreateSession: (connectionId: number) => Promise<string>;
+    getOrCreateSession: () => Promise<string>;
   };
   contextProvider?: () => ChatContextConfig;
-  confirmationRules?: Ref<
-    Array<{ connectionId: number; toolName: string; action: 'allow_always' | 'deny_always' }>
-  >;
-  addConfirmationRule?: (rule: {
-    connectionId: number;
-    toolName: string;
-    action: 'allow_always' | 'deny_always';
-  }) => void;
+  confirmationRules?: Ref<Array<ConfirmationRule>>;
+  addConfirmationRule?: (rule: ConfirmationRule) => void;
   findConfirmationRule?: (
-    connectionId: number,
+    sessionId: string,
     toolName: string,
-  ) => { action: 'allow_always' | 'deny_always' } | undefined;
+  ) => UseChatAgentConfirmationRule | undefined;
   autoMode?: Ref<boolean>;
-  permissions?: Ref<{ read: boolean; create: boolean; update: boolean; delete: boolean }>;
-};
-
-const buildConnectionConfig = (connection: Connection): Record<string, unknown> => {
-  if (connection.type === DatabaseType.ELASTICSEARCH) {
-    const es = connection as ElasticsearchConnection;
-    return {
-      host: es.host,
-      port: es.port,
-      sslCertVerification: es.sslCertVerification ?? false,
-      authType: es.authType ?? 'basic',
-      username: es.username ?? '',
-      password: es.password ?? '',
-      apiKey: es.apiKey ?? '',
-    };
-  }
-  const dynamo = connection as DynamoDBConnection;
-  const config: Record<string, unknown> = {
-    region: dynamo.region,
-    authKind: dynamo.auth.kind,
-  };
-  if (dynamo.auth.kind === 'accessKey') {
-    config.accessKeyId = dynamo.auth.accessKeyId;
-    config.secretAccessKey = dynamo.auth.secretAccessKey;
-  } else if (dynamo.auth.kind === 'sso' || dynamo.auth.kind === 'assumeRole') {
-    config.accessKeyId = dynamo.auth.accessKeyId;
-    config.secretAccessKey = dynamo.auth.secretAccessKey;
-    config.sessionToken = dynamo.auth.sessionToken;
-  } else if (dynamo.auth.kind === 'profile') {
-    config.profileName = dynamo.auth.profileName;
-  }
-  if (dynamo.endpointUrl) config.endpointUrl = dynamo.endpointUrl;
-  return config;
+  permissions?: Ref<ToolPermissionSet>;
 };
 
 const buildDynamoDBKnowledge = (): string =>
@@ -163,11 +136,25 @@ const buildDynamoDBRules = (): string =>
     '- Always use ExpressionAttributeNames for reserved words (status, order, name, date, etc.).',
   ].join('\n');
 
-const buildSystemPrompt = (
-  schema?: string,
-  noConnection?: boolean,
-  databaseType?: string,
-): string => {
+const buildSourceSummary = (sources: Array<PromptSource>): string =>
+  sources.length === 0
+    ? 'No attached data sources are available in this session.'
+    : [
+        'Attached data sources:',
+        ...sources.map(source => `- ${source.alias}: ${source.databaseType}`),
+      ].join('\n');
+
+const buildSystemPrompt = ({
+  schema,
+  noConnection,
+  sources,
+  databaseType,
+}: {
+  schema?: string;
+  noConnection?: boolean;
+  sources: Array<PromptSource>;
+  databaseType?: string;
+}): string => {
   if (noConnection) {
     return [
       'You are a helpful AI assistant embedded in DocKit, a desktop database client.',
@@ -186,9 +173,15 @@ const buildSystemPrompt = (
     ].join('\n');
   }
 
+  const includesDynamo =
+    sources.some(source => source.databaseType.toUpperCase() === 'DYNAMODB') ||
+    databaseType?.toUpperCase() === 'DYNAMODB';
+
   const base = [
     'You are a Data Studio agent embedded in DocKit, a desktop database client.',
     'You help users query, analyze, and manage their database data through natural language.',
+    '',
+    buildSourceSummary(sources),
     '',
     'Rules:',
     '- Always use the available tools to interact with the database.',
@@ -196,7 +189,7 @@ const buildSystemPrompt = (
     '- Explain your reasoning before executing queries.',
     '- For destructive operations, clearly explain what will be affected.',
     '- If a query might return large results, add appropriate limits.',
-    ...(databaseType?.toUpperCase() === 'DYNAMODB' ? [buildDynamoDBRules()] : []),
+    ...(includesDynamo ? [buildDynamoDBRules()] : []),
   ].join('\n');
 
   return schema ? `${base}\n\nDatabase Schema:\n${schema}` : base;
@@ -247,8 +240,53 @@ const kindToProviderEnum = (
   }
 };
 
+const getActiveSources = (session?: ChatSession): SessionSource[] =>
+  (session?.sources ?? []).filter(source => !source.detached);
+
+const toPromptSources = (
+  session?: ChatSession,
+  context?: ChatContextConfig,
+): Array<PromptSource> => {
+  const sessionSources = getActiveSources(session).map(source => ({
+    alias: source.alias,
+    databaseType: source.databaseType,
+  }));
+
+  if (sessionSources.length > 0) {
+    return sessionSources;
+  }
+
+  if (context?.databaseTypes) {
+    return Object.entries(context.databaseTypes).map(([alias, databaseType]) => ({
+      alias,
+      databaseType,
+    }));
+  }
+
+  return context?.databaseType ? [{ alias: 'default', databaseType: context.databaseType }] : [];
+};
+
+const normalizeMetadataToolName = (toolName: string): string => {
+  if (!toolName.includes('__')) {
+    return toolName;
+  }
+
+  const withoutAlias = toolName.slice(toolName.indexOf('__') + 2);
+  return withoutAlias.replaceAll('__', '.');
+};
+
+const normalizeToolMetadata = (
+  metadata: Record<string, ToolMetadata>,
+): Record<string, ToolMetadata> =>
+  Object.entries(metadata).reduce<Record<string, ToolMetadata>>((acc, [toolName, value]) => {
+    acc[normalizeMetadataToolName(toolName)] = value;
+    return acc;
+  }, {});
+
+const getSessionById = (sessions: Array<ChatSession>, sessionId: string): ChatSession | undefined =>
+  sessions.find(session => session.id === sessionId);
+
 export const useChatAgent = (config: UseChatAgentConfig) => {
-  const connectionStore = useConnectionStore();
   const sessionRuntime = new Map<string, SessionRuntime>();
   const unlisteners: Array<() => void> = [];
 
@@ -261,23 +299,22 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
   const shouldRequireConfirmation = (
     toolName: string,
     riskLevel: RiskLevel,
-    connectionId: number,
+    sessionId: string,
   ): boolean => {
     if (config.findConfirmationRule) {
-      const rule = config.findConfirmationRule(connectionId, toolName);
+      const rule = config.findConfirmationRule(sessionId, toolName);
       if (rule?.action === 'allow_always') return false;
       if (rule?.action === 'deny_always') return false;
     }
 
     if (riskLevel === 'safe') return false;
     if (!config.autoMode?.value) return true;
-    // auto-mode enabled: auto-execute non-safe tools
     return false;
   };
 
-  const isDeniedByRule = (toolName: string, connectionId: number): boolean => {
+  const isDeniedByRule = (toolName: string, sessionId: string): boolean => {
     if (!config.findConfirmationRule) return false;
-    const rule = config.findConfirmationRule(connectionId, toolName);
+    const rule = config.findConfirmationRule(sessionId, toolName);
     return rule?.action === 'deny_always';
   };
 
@@ -290,17 +327,16 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
 
   const setupEventListeners = () => {
     onAgentLoopDelta(({ session_id, content }) => {
-      const session = sessions.value.find(s => s.id === session_id);
+      const session = getSessionById(sessions.value, session_id);
       if (!session) return;
       const streamingMsg = [...session.messages]
         .reverse()
-        .find(m => m.role === 'assistant' && m.status === 'streaming');
+        .find(message => message.role === 'assistant' && message.status === 'streaming');
       if (streamingMsg) {
         config.sessionStore.updateStreamingContent(session_id, streamingMsg.id, content);
       } else {
-        const newId = ulid();
         config.sessionStore.addMessage(session_id, {
-          id: newId,
+          id: ulid(),
           role: 'assistant',
           content,
           status: 'streaming',
@@ -310,17 +346,16 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     }).then(unlisten => unlisteners.push(unlisten));
 
     onAgentLoopThinkingDelta(({ session_id, content }) => {
-      const session = sessions.value.find(s => s.id === session_id);
+      const session = getSessionById(sessions.value, session_id);
       if (!session) return;
       const streamingMsg = [...session.messages]
         .reverse()
-        .find(m => m.role === 'assistant' && m.status === 'streaming');
+        .find(message => message.role === 'assistant' && message.status === 'streaming');
       if (streamingMsg) {
         config.sessionStore.updateStreamingThinking(session_id, streamingMsg.id, content);
       } else {
-        const newId = ulid();
         config.sessionStore.addMessage(session_id, {
-          id: newId,
+          id: ulid(),
           role: 'assistant',
           content: '',
           thinking: content,
@@ -331,15 +366,14 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     }).then(unlisten => unlisteners.push(unlisten));
 
     onAgentLoopToolCall(({ session_id, tool_call_id, tool_name, arguments: args }) => {
-      const session = sessions.value.find(s => s.id === session_id);
+      const session = getSessionById(sessions.value, session_id);
       if (!session) return;
       const runtime = getRuntime(session_id);
 
-      const connectionId = session.connectionId ?? -1;
       const riskLevel =
         (runtime.metadata?.[tool_name]?.riskLevel as RiskLevel | undefined) ?? 'elevated';
-      const needsConfirmation = shouldRequireConfirmation(tool_name, riskLevel, connectionId);
-      const denied = isDeniedByRule(tool_name, connectionId);
+      const needsConfirmation = shouldRequireConfirmation(tool_name, riskLevel, session.id);
+      const denied = isDeniedByRule(tool_name, session.id);
 
       const toolCall: AgentToolCall = {
         id: tool_call_id,
@@ -350,19 +384,18 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         requiresConfirmation: needsConfirmation,
       };
 
-      let assistantMsgId: string;
-      const lastAssistant = [...session.messages].reverse().find(m => m.role === 'assistant');
+      const lastAssistant = [...session.messages]
+        .reverse()
+        .find(message => message.role === 'assistant');
+
       if (lastAssistant) {
-        assistantMsgId = lastAssistant.id;
-        const existing = lastAssistant.toolCalls ?? [];
-        config.sessionStore.setMessageToolCalls(session_id, assistantMsgId, [
-          ...existing,
+        config.sessionStore.setMessageToolCalls(session_id, lastAssistant.id, [
+          ...(lastAssistant.toolCalls ?? []),
           toolCall,
         ]);
       } else {
-        assistantMsgId = ulid();
         config.sessionStore.addMessage(session_id, {
-          id: assistantMsgId,
+          id: ulid(),
           role: 'assistant',
           content: '',
           status: 'done',
@@ -384,11 +417,15 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     }).then(unlisten => unlisteners.push(unlisten));
 
     onAgentLoopToolResult(({ session_id, tool_call_id, envelope }) => {
-      const session = sessions.value.find(s => s.id === session_id);
+      const session = getSessionById(sessions.value, session_id);
       if (!session) return;
       const assistantMsg = [...session.messages]
         .reverse()
-        .find(m => m.role === 'assistant' && m.toolCalls?.some(tc => tc.id === tool_call_id));
+        .find(
+          message =>
+            message.role === 'assistant' &&
+            message.toolCalls?.some(toolCall => toolCall.id === tool_call_id),
+        );
       if (assistantMsg) {
         config.sessionStore.updateToolCallStatus(
           session_id,
@@ -402,15 +439,15 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     }).then(unlisten => unlisteners.push(unlisten));
 
     onAgentLoopStepDone(({ session_id, message_id }) => {
-      const session = sessions.value.find(s => s.id === session_id);
+      const session = getSessionById(sessions.value, session_id);
       if (!session) return;
-      const msg = session.messages.find(m => m.id === message_id);
-      if (msg) {
+      const message = session.messages.find(entry => entry.id === message_id);
+      if (message) {
         config.sessionStore.setMessageStatus(session_id, message_id, 'done');
       } else {
         const streamingMsg = [...session.messages]
           .reverse()
-          .find(m => m.role === 'assistant' && m.status === 'streaming');
+          .find(entry => entry.role === 'assistant' && entry.status === 'streaming');
         if (streamingMsg) {
           config.sessionStore.setMessageStatus(session_id, streamingMsg.id, 'done');
         }
@@ -418,11 +455,11 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     }).then(unlisten => unlisteners.push(unlisten));
 
     onAgentLoopDone(({ session_id }) => {
-      const session = sessions.value.find(s => s.id === session_id);
+      const session = getSessionById(sessions.value, session_id);
       if (session) {
         session.messages
-          .filter(m => m.role === 'assistant' && m.status === 'streaming')
-          .forEach(m => config.sessionStore.setMessageStatus(session_id, m.id, 'done'));
+          .filter(message => message.role === 'assistant' && message.status === 'streaming')
+          .forEach(message => config.sessionStore.setMessageStatus(session_id, message.id, 'done'));
       }
       config.sessionStore.setSessionStatus(session_id, 'idle');
       isLoading.value = false;
@@ -432,11 +469,11 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       error.value = errMsg;
       config.sessionStore.setSessionStatus(session_id, 'error');
       isLoading.value = false;
-      const session = sessions.value.find(s => s.id === session_id);
+      const session = getSessionById(sessions.value, session_id);
       if (session) {
         const streamingMsg = [...session.messages]
           .reverse()
-          .find(m => m.role === 'assistant' && m.status === 'streaming');
+          .find(message => message.role === 'assistant' && message.status === 'streaming');
         if (streamingMsg) {
           config.sessionStore.setMessageStatus(session_id, streamingMsg.id, 'error');
         }
@@ -453,15 +490,13 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     userMessage: string,
     context?: ChatContextConfig,
   ) => {
-    const session = sessions.value.find(s => s.id === sessionId);
+    const session = getSessionById(sessions.value, sessionId);
     const runtime = getRuntime(sessionId);
     if (!session) return;
 
-    const noConnection = !context?.connectionId || context.connectionId === -1;
-
-    if (!noConnection && !runtime.config && context?.connectionConfig) {
-      runtime.config = context.connectionConfig;
-    }
+    const promptSources = toPromptSources(session, context);
+    const hasConnections = Object.keys(context?.connections ?? {}).length > 0;
+    const noConnection = promptSources.length === 0 && !hasConnections;
 
     config.sessionStore.setSessionStatus(sessionId, 'running');
     isLoading.value = true;
@@ -471,7 +506,12 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       const { provider, model } = await getFeatureModelConfig(config.feature);
       const schema = session.schema ?? context?.schema;
 
-      let systemPrompt = buildSystemPrompt(schema, noConnection, context?.databaseType);
+      let systemPrompt = buildSystemPrompt({
+        schema,
+        noConnection,
+        sources: promptSources,
+        databaseType: context?.databaseType,
+      });
 
       if (config.feature === 'sidebarAssistant' && context) {
         systemPrompt = buildSidebarContextPrompt(context) + systemPrompt;
@@ -487,8 +527,8 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         tools: noConnection ? [] : (runtime.tools ?? []),
       };
 
-      if (!noConnection && runtime.config) {
-        settings.connectionConfig = runtime.config;
+      if (context?.connections) {
+        settings.connections = context.connections;
       }
 
       await invokeAgentLoop(sessionId, userMessage, settings);
@@ -506,30 +546,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     error.value = undefined;
     isLoading.value = true;
 
-    const context = options.context ?? config.contextProvider?.() ?? {};
-    const connectionId = options.connectionId ?? context.connectionId ?? -1;
-
-    if (connectionId === -1) {
-      const sessionId = await config.sessionStore.getOrCreateSession(-1);
-      config.sessionStore.addMessage(sessionId, {
-        id: ulid(),
-        role: 'user',
-        content: options.content,
-        status: 'done',
-        timestamp: Date.now(),
-      });
-      await runAgentLoop(sessionId, options.content, context);
-      return;
-    }
-
-    const connection = connectionStore.connections.find(c => Number(c.id) === Number(connectionId));
-    if (!connection) {
-      error.value = 'Connection not found';
-      isLoading.value = false;
-      return;
-    }
-
-    const sessionId = await config.sessionStore.getOrCreateSession(connectionId);
+    const sessionId = await config.sessionStore.getOrCreateSession();
 
     config.sessionStore.addMessage(sessionId, {
       id: ulid(),
@@ -539,41 +556,38 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       timestamp: Date.now(),
     });
 
-    const runtime = getRuntime(sessionId);
-    runtime.config = buildConnectionConfig(connection);
-    context.connectionConfig = runtime.config;
-    context.databaseType = connection.type;
-
-    const session = sessions.value.find(s => s.id === sessionId);
-    if (session && !session.schema) {
-      const schema = await agentApi
-        .introspectSchema({
-          connectionConfig: runtime.config,
-          databaseType: connection.type,
-        })
-        .catch(() => undefined);
-      if (schema) {
-        config.sessionStore.setSessionSchema(sessionId, schema);
-        context.schema = schema;
-      }
-    }
+    const context = options.context ?? config.contextProvider?.() ?? {};
 
     try {
-      const permissions = config.permissions?.value ?? {
+      const runtime = getRuntime(sessionId);
+      const session = getSessionById(sessions.value, sessionId);
+      const activeSources = getActiveSources(session);
+      const fallbackPermissions = config.permissions?.value ?? {
         read: true,
         create: false,
         update: false,
         delete: false,
       };
-      const toolsResponse = await agentApi.getAvailableTools({
-        databaseType: connection.type,
-        read: permissions.read,
-        create: permissions.create,
-        update: permissions.update,
-        delete: permissions.delete,
-      });
-      runtime.tools = toolsResponse.tools;
-      runtime.metadata = toolsResponse.metadata;
+
+      const toolSources = toPromptSources(session, context)
+        .filter(source => Boolean(context.connections?.[source.alias]))
+        .map(source => ({
+          alias: source.alias,
+          databaseType: source.databaseType,
+          ...(activeSources.find(sessionSource => sessionSource.alias === source.alias)
+            ?.permissions ?? fallbackPermissions),
+        }));
+
+      if (toolSources.length > 0) {
+        const toolsResponse = await agentApi.getAvailableToolsMulti({
+          sources: toolSources,
+        });
+        runtime.tools = toolsResponse.tools;
+        runtime.metadata = normalizeToolMetadata(toolsResponse.metadata);
+      } else {
+        runtime.tools = [];
+        runtime.metadata = {};
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : String(err);
       isLoading.value = false;
@@ -591,22 +605,20 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     const session = activeSession.value;
     if (!session) return;
 
-    const assistantMsg = session.messages.find(m => m.id === assistantMsgId);
-    const toolCall = assistantMsg?.toolCalls?.find(tc => tc.id === toolCallId);
+    const assistantMsg = session.messages.find(message => message.id === assistantMsgId);
+    const toolCall = assistantMsg?.toolCalls?.find(entry => entry.id === toolCallId);
     if (!toolCall) return;
-
-    const connectionId = session.connectionId ?? -1;
 
     if (action === 'allow_always' && config.addConfirmationRule) {
       config.addConfirmationRule({
-        connectionId,
+        sessionId: session.id,
         toolName: toolCall.toolName,
         action: 'allow_always',
       });
     }
     if (action === 'deny_always' && config.addConfirmationRule) {
       config.addConfirmationRule({
-        connectionId,
+        sessionId: session.id,
         toolName: toolCall.toolName,
         action: 'deny_always',
       });
@@ -615,16 +627,23 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     const allowed = action === 'allow_once' || action === 'allow_always';
     await invokeConfirmToolCall(toolCallId, allowed);
 
-    if (allowed) {
-      config.sessionStore.updateToolCallStatus(session.id, assistantMsgId, toolCallId, 'executing');
-    } else {
-      config.sessionStore.updateToolCallStatus(session.id, assistantMsgId, toolCallId, 'denied');
-    }
+    config.sessionStore.updateToolCallStatus(
+      session.id,
+      assistantMsgId,
+      toolCallId,
+      allowed ? 'executing' : 'denied',
+    );
 
-    const allResolved = assistantMsg?.toolCalls?.every(tc => tc.status !== 'pending') ?? true;
+    const updatedSession = getSessionById(sessions.value, session.id);
+    const updatedAssistantMsg = updatedSession?.messages.find(
+      message => message.id === assistantMsgId,
+    );
+    const allResolved =
+      updatedAssistantMsg?.toolCalls?.every(entry => entry.status !== 'pending') ?? true;
     const anyAllowed =
-      assistantMsg?.toolCalls?.some(tc => tc.status === 'executing' || tc.status === 'done') ??
-      false;
+      updatedAssistantMsg?.toolCalls?.some(
+        entry => entry.status === 'executing' || entry.status === 'done',
+      ) ?? false;
 
     if (allResolved && anyAllowed) {
       config.sessionStore.setSessionStatus(session.id, 'running');

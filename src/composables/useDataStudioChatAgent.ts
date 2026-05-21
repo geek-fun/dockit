@@ -6,8 +6,18 @@ import {
   type AgentToolCallStatus,
   type AgentSession,
   type AgentMessage,
+  type AttachedSource,
+  type ConfirmationRule,
+  type SessionSource,
 } from '@/store/dataStudioStore';
-import { useConnectionStore } from '@/store/connectionStore';
+import {
+  useConnectionStore,
+  type ElasticsearchConnection,
+  type DynamoDBConnection,
+  type MongoDBConnection,
+  DatabaseType,
+} from '@/store/connectionStore';
+import type { Connection } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
 import type { ChatMessage, ChatSession, ChatSessionStatus, ChatMessageStatus } from '@/types/chat';
 
@@ -25,19 +35,125 @@ const adaptDataStudioMessage = (msg: AgentMessage): ChatMessage => ({
 
 const adaptDataStudioSession = (session: AgentSession): ChatSession => ({
   id: session.id,
-  connectionId: session.connectionId,
   messages: session.messages.map(adaptDataStudioMessage),
   status: session.status as ChatSessionStatus,
-  schema: session.schema,
+  sources: session.sources,
   maxIterations: session.maxIterations,
 });
+
+const buildSearchConnectionConfig = (
+  connection: ElasticsearchConnection,
+): Record<string, unknown> => ({
+  host: connection.host,
+  port: connection.port,
+  sslCertVerification: connection.sslCertVerification ?? false,
+  authType: connection.authType ?? 'basic',
+  username: connection.username ?? '',
+  password: connection.password ?? '',
+  apiKey: connection.apiKey ?? '',
+});
+
+const buildDynamoConnectionConfig = (connection: DynamoDBConnection): Record<string, unknown> => {
+  const config: Record<string, unknown> = {
+    region: connection.region,
+    authKind: connection.auth.kind,
+  };
+
+  if (connection.auth.kind === 'accessKey') {
+    config.accessKeyId = connection.auth.accessKeyId;
+    config.secretAccessKey = connection.auth.secretAccessKey;
+  } else if (connection.auth.kind === 'sso' || connection.auth.kind === 'assumeRole') {
+    config.accessKeyId = connection.auth.accessKeyId;
+    config.secretAccessKey = connection.auth.secretAccessKey;
+    config.sessionToken = connection.auth.sessionToken;
+  } else if (connection.auth.kind === 'profile') {
+    config.profileName = connection.auth.profileName;
+  }
+
+  if (connection.endpointUrl) {
+    config.endpointUrl = connection.endpointUrl;
+  }
+
+  return config;
+};
+
+const buildMongoConnectionConfig = (connection: MongoDBConnection): Record<string, unknown> => {
+  const config: Record<string, unknown> = {
+    host: connection.host,
+    port: connection.port,
+    tls: connection.tls ?? false,
+    database: connection.database ?? '',
+    authKind: connection.auth.kind,
+  };
+
+  if (connection.auth.kind === 'scram') {
+    config.username = connection.auth.username;
+    config.password = connection.auth.password;
+    config.authSource = connection.auth.authSource ?? 'admin';
+    config.authMechanism = connection.auth.authMechanism ?? '';
+  }
+
+  if (connection.auth.kind === 'uri') {
+    config.uri = connection.auth.uri;
+  }
+
+  return config;
+};
+
+const buildConnectionConfig = (connection: Connection): Record<string, unknown> => {
+  if (
+    connection.type === DatabaseType.ELASTICSEARCH ||
+    connection.type === DatabaseType.OPENSEARCH ||
+    connection.type === DatabaseType.EASYSEARCH
+  ) {
+    return buildSearchConnectionConfig(connection as ElasticsearchConnection);
+  }
+
+  if (connection.type === DatabaseType.DYNAMODB) {
+    return buildDynamoConnectionConfig(connection);
+  }
+
+  return buildMongoConnectionConfig(connection);
+};
+
+const getNonDetachedSources = (sources: SessionSource[]): SessionSource[] =>
+  sources.filter(source => !source.detached);
+
+const getSourcePermissions = (sources: SessionSource[]) => {
+  const activeSources = getNonDetachedSources(sources);
+  const [firstSource, ...rest] = activeSources;
+
+  if (!firstSource) {
+    return {
+      read: true,
+      create: false,
+      update: false,
+      delete: false,
+    };
+  }
+
+  return rest.reduce(
+    (acc, source) => ({
+      read: acc.read && source.permissions.read,
+      create: acc.create && source.permissions.create,
+      update: acc.update && source.permissions.update,
+      delete: acc.delete && source.permissions.delete,
+    }),
+    { ...firstSource.permissions },
+  );
+};
+
+const resolveDatabaseSource = (
+  attachedSources: AttachedSource[],
+  sessionSource: SessionSource,
+): AttachedSource | undefined =>
+  attachedSources.find(source => source.sourceId === sessionSource.sourceId);
 
 export const useDataStudioChatAgent = () => {
   const dataStudioStore = useDataStudioStore();
   const connectionStore = useConnectionStore();
   const {
-    connectedSources,
-    activeConnectionId,
+    attachedSources,
     confirmationRules,
     sessions: rawSessions,
     activeSessionId: rawActiveSessionId,
@@ -45,15 +161,50 @@ export const useDataStudioChatAgent = () => {
 
   const sessions = computed(() => rawSessions.value.map(adaptDataStudioSession));
   const activeSession = computed(() => {
-    const found = rawSessions.value.find(s => s.id === dataStudioStore.activeSessionId);
+    const found = rawSessions.value.find(session => session.id === dataStudioStore.activeSessionId);
     return found ? adaptDataStudioSession(found) : undefined;
   });
 
-  const activeSource = computed(() =>
-    activeConnectionId.value !== undefined
-      ? (connectedSources.value.find(s => s.connectionId === activeConnectionId.value) ?? null)
-      : null,
-  );
+  const activeSessionSources = computed(() => {
+    const session = rawSessions.value.find(entry => entry.id === dataStudioStore.activeSessionId);
+    return session ? getNonDetachedSources(session.sources) : [];
+  });
+
+  const contextProvider = () => {
+    const session = rawSessions.value.find(entry => entry.id === dataStudioStore.activeSessionId);
+    const activeSources = session ? getNonDetachedSources(session.sources) : [];
+
+    const connections = activeSources.reduce<Record<string, Record<string, unknown>>>(
+      (acc, sessionSource) => {
+        const attachedSource = resolveDatabaseSource(attachedSources.value, sessionSource);
+        if (!attachedSource || attachedSource.kind !== 'database') {
+          return acc;
+        }
+
+        const connection = connectionStore.connections.find(
+          candidate => Number(candidate.id) === Number(attachedSource.connectionId),
+        );
+
+        if (!connection) {
+          return acc;
+        }
+
+        acc[sessionSource.alias] = buildConnectionConfig(connection);
+        return acc;
+      },
+      {},
+    );
+
+    const databaseTypes = activeSources.reduce<Record<string, string>>((acc, sessionSource) => {
+      const attachedSource = resolveDatabaseSource(attachedSources.value, sessionSource);
+      if (attachedSource?.kind === 'database') {
+        acc[sessionSource.alias] = attachedSource.databaseType;
+      }
+      return acc;
+    }, {});
+
+    return { connections, databaseTypes };
+  };
 
   const config: UseChatAgentConfig = {
     feature: 'dataStudio',
@@ -110,26 +261,25 @@ export const useDataStudioChatAgent = () => {
           sessionId,
           status as 'idle' | 'running' | 'waiting_confirmation' | 'error',
         ),
-      setSessionSchema: (sessionId: string, schema: string) =>
-        dataStudioStore.setSessionSchema(sessionId, schema),
+      setSessionSchema: (_sessionId: string, _schema: string) => undefined,
       clearSession: (sessionId: string) => dataStudioStore.clearSession(sessionId),
-      getOrCreateSession: (connectionId: number) =>
-        dataStudioStore.getOrCreateSession(connectionId),
+      getOrCreateSession: () => dataStudioStore.getOrCreateSession(),
     },
-    confirmationRules,
+    contextProvider,
+    confirmationRules: confirmationRules as Ref<ConfirmationRule[]>,
     addConfirmationRule: rule => dataStudioStore.addConfirmationRule(rule),
-    findConfirmationRule: (connectionId: number, toolName: string) =>
-      dataStudioStore.findConfirmationRule(connectionId, toolName),
-    autoMode: computed(() => activeSource.value?.permissionsMode === 'Auto') as Ref<boolean>,
-    permissions: computed(
-      () =>
-        activeSource.value?.permissions ?? {
-          read: true,
-          create: false,
-          update: false,
-          delete: false,
-        },
-    ) as Ref<{ read: boolean; create: boolean; update: boolean; delete: boolean }>,
+    findConfirmationRule: (sessionId: string, toolName: string) =>
+      dataStudioStore.findConfirmationRule(sessionId, toolName),
+    autoMode: computed(() => {
+      const session = rawSessions.value.find(entry => entry.id === dataStudioStore.activeSessionId);
+      return session?.permissionsMode === 'Auto';
+    }) as Ref<boolean>,
+    permissions: computed(() => getSourcePermissions(activeSessionSources.value)) as Ref<{
+      read: boolean;
+      create: boolean;
+      update: boolean;
+      delete: boolean;
+    }>,
   };
 
   const agent = useChatAgent(config);
@@ -137,27 +287,9 @@ export const useDataStudioChatAgent = () => {
   const messages = computed(() => agent.activeSession.value?.messages ?? []);
 
   const sendMessage = async (content: string) => {
-    if (activeConnectionId.value === undefined && connectedSources.value.length > 0) {
-      dataStudioStore.setActiveConnection(connectedSources.value[0].connectionId!);
-    }
-    const connId = activeConnectionId.value;
-    const connection =
-      connId !== undefined
-        ? connectionStore.connections.find(c => Number(c.id) === Number(connId))
-        : undefined;
     await agent.sendMessage({
       content,
-      connectionId: connId,
-      context: connection
-        ? {
-            databaseType: connection.type as
-              | 'ELASTICSEARCH'
-              | 'OPENSEARCH'
-              | 'EASYSEARCH'
-              | 'DYNAMODB'
-              | 'MONGODB',
-          }
-        : undefined,
+      context: contextProvider(),
     });
   };
 
@@ -165,14 +297,13 @@ export const useDataStudioChatAgent = () => {
     isLoading: agent.isLoading,
     error: agent.error,
     activeSession: agent.activeSession,
+    activeSessionSources,
     messages,
     sendMessage,
     handleConfirmation: agent.handleConfirmation,
     cancelSession: agent.cancelSession,
     clearChat: agent.clearChat,
-    connectedSources,
-    activeConnectionId,
-    activeSource,
+    attachedSources,
     confirmationRules,
   };
 };

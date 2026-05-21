@@ -73,6 +73,19 @@ export type ToolsResponse = {
   metadata: Record<string, ToolMetadata>;
 };
 
+export type MultiSourceToolPermissions = {
+  read: boolean;
+  create: boolean;
+  update: boolean;
+  delete: boolean;
+};
+
+export type MultiSourceToolConfig = {
+  alias: string;
+  databaseType: string;
+  permissions: MultiSourceToolPermissions;
+};
+
 const agentApi = {
   runAgentStep: async (params: {
     requestId: string;
@@ -111,6 +124,20 @@ const agentApi = {
     delete: boolean;
   }): Promise<ToolsResponse> => {
     const result = await invoke<string>('get_available_tools', params);
+    return jsonify.parse(result) as ToolsResponse;
+  },
+
+  getAvailableToolsMulti: async (params: {
+    sources: Array<{
+      alias: string;
+      databaseType: string;
+      read: boolean;
+      create: boolean;
+      update: boolean;
+      delete: boolean;
+    }>;
+  }): Promise<ToolsResponse> => {
+    const result = await invoke<string>('get_available_tools_multi', params);
     return jsonify.parse(result) as ToolsResponse;
   },
 

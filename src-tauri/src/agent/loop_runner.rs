@@ -10,7 +10,7 @@ use tokio::sync::oneshot;
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::executor::ToolEnvelope;
 use crate::agent::tool_executor::ToolExecutor;
-use crate::agent::tools::openai_name_to_internal;
+use crate::agent::tools::{alias_from_prefixed_name, openai_name_to_internal};
 use crate::common::http_client::create_http_client;
 use crate::db::AgentDb;
 
@@ -55,7 +55,10 @@ struct ConfirmGuard {
 
 impl ConfirmGuard {
     fn new(confirm_map: ConfirmMap, tool_call_id: String) -> Self {
-        Self { confirm_map, tool_call_id }
+        Self {
+            confirm_map,
+            tool_call_id,
+        }
     }
 }
 
@@ -92,7 +95,11 @@ fn insert_message(
     Ok(())
 }
 
-fn update_session_status_inline(db: &AgentDb, session_id: &str, status: &str) -> Result<(), String> {
+fn update_session_status_inline(
+    db: &AgentDb,
+    session_id: &str,
+    status: &str,
+) -> Result<(), String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
         "UPDATE agent_sessions SET status = ?1, updated_at = ?2 WHERE id = ?3",
@@ -153,7 +160,11 @@ fn update_tool_call_status(db: &AgentDb, id: &str, status: &str) -> Result<(), S
     Ok(())
 }
 
-fn insert_tool_result(db: &AgentDb, tool_call_id: &str, full_result: &str) -> Result<String, String> {
+fn insert_tool_result(
+    db: &AgentDb,
+    tool_call_id: &str,
+    full_result: &str,
+) -> Result<String, String> {
     let id = new_id();
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     conn.execute(
@@ -224,9 +235,8 @@ async fn post_chat_completions(
                 let status = r.status();
                 let text = r.text().await.unwrap_or_default();
                 let err_type = classify_error(&text).unwrap_or_default();
-                let retryable = status.as_u16() == 429
-                    || status.as_u16() == 503
-                    || is_retryable(&err_type);
+                let retryable =
+                    status.as_u16() == 429 || status.as_u16() == 503 || is_retryable(&err_type);
                 last_err = format!("LLM HTTP {}: {}", status, text);
                 if !retryable || attempt >= RETRY_DELAYS_MS.len() {
                     return Err(last_err);
@@ -244,11 +254,7 @@ async fn post_chat_completions(
     Err(last_err)
 }
 
-fn build_request_body(
-    settings: &Value,
-    history_msgs: &[Value],
-    stream: bool,
-) -> Value {
+fn build_request_body(settings: &Value, history_msgs: &[Value], stream: bool) -> Value {
     let model = settings_get_str(settings, "model").unwrap_or("gpt-4o-mini");
     let mut body = json!({
         "model": model,
@@ -263,7 +269,10 @@ fn build_request_body(
     body
 }
 
-fn db_messages_to_chat(messages: &[(String, String, String)], system_prompt: Option<&str>) -> Vec<Value> {
+fn db_messages_to_chat(
+    messages: &[(String, String, String)],
+    system_prompt: Option<&str>,
+) -> Vec<Value> {
     let mut out: Vec<Value> = Vec::new();
     if let Some(sys) = system_prompt {
         if !sys.trim().is_empty() {
@@ -363,7 +372,10 @@ async fn maybe_summarize_context(
     }
 
     replace_messages_with_summary(db, session_id, &ids_to_remove, &summary)?;
-    let _ = app.emit("agent-loop-summary-injected", json!({"session_id": session_id}));
+    let _ = app.emit(
+        "agent-loop-summary-injected",
+        json!({"session_id": session_id}),
+    );
     Ok(())
 }
 
@@ -416,9 +428,8 @@ async fn stream_chat(
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
             let err_type = classify_error(&text).unwrap_or_default();
-            let retryable = status.as_u16() == 429
-                || status.as_u16() == 503
-                || is_retryable(&err_type);
+            let retryable =
+                status.as_u16() == 429 || status.as_u16() == 503 || is_retryable(&err_type);
             last_err = format!("LLM HTTP {}: {}", status, text);
             if !retryable || attempt >= RETRY_DELAYS_MS.len() {
                 return Err(last_err);
@@ -486,8 +497,8 @@ async fn stream_chat(
                         }
                         if let Some(tcs) = delta.get("tool_calls").and_then(|t| t.as_array()) {
                             for tc in tcs {
-                                let idx = tc.get("index").and_then(|i| i.as_u64()).unwrap_or(0)
-                                    as usize;
+                                let idx =
+                                    tc.get("index").and_then(|i| i.as_u64()).unwrap_or(0) as usize;
                                 while acc.tool_calls.len() <= idx {
                                     acc.tool_calls.push(AccTool::default());
                                 }
@@ -496,9 +507,7 @@ async fn stream_chat(
                                     entry.id = id.to_string();
                                 }
                                 if let Some(func) = tc.get("function") {
-                                    if let Some(name) =
-                                        func.get("name").and_then(|x| x.as_str())
-                                    {
+                                    if let Some(name) = func.get("name").and_then(|x| x.as_str()) {
                                         if !name.is_empty() {
                                             entry.name = name.to_string();
                                         }
@@ -593,7 +602,11 @@ async fn run_agent_loop_inner(
     let user_id = new_id();
     insert_message(db, &user_id, session_id, "user", user_message)?;
 
-    let connection_config = settings
+    let connections: HashMap<String, Value> = settings
+        .get("connections")
+        .and_then(|v| serde_json::from_value(v.clone()).ok())
+        .unwrap_or_default();
+    let fallback_connection_config = settings
         .get("connectionConfig")
         .cloned()
         .unwrap_or(Value::Null);
@@ -614,7 +627,7 @@ async fn run_agent_loop_inner(
                         .and_then(|f| f.get("name"))
                         .and_then(|n| n.as_str())
                 })
-                .map(|s| openai_name_to_internal(s))
+                .map(str::to_string)
                 .collect()
         })
         .unwrap_or_default();
@@ -670,7 +683,13 @@ async fn run_agent_loop_inner(
         let resolved_tool_ids: Vec<String> = acc
             .tool_calls
             .iter()
-            .map(|t| if t.id.is_empty() { new_id() } else { t.id.clone() })
+            .map(|t| {
+                if t.id.is_empty() {
+                    new_id()
+                } else {
+                    t.id.clone()
+                }
+            })
             .collect();
 
         let tool_calls_json: Vec<Value> = acc
@@ -737,7 +756,7 @@ async fn run_agent_loop_inner(
                 "pending",
             )?;
 
-            if allowed_tools.is_empty() || !allowed_tools.contains(&tool_name) {
+            if allowed_tools.is_empty() || !allowed_tools.contains(&tc.name) {
                 update_tool_call_status(db, &tool_call_id, "failed")?;
                 let deny_msg = json!({
                     "tool_call_id": tool_call_id,
@@ -765,10 +784,8 @@ async fn run_agent_loop_inner(
             }
             let _guard = ConfirmGuard::new(confirm_map.clone(), tool_call_id.clone());
 
-            let confirm_future = tokio::time::timeout(
-                Duration::from_secs(CONFIRM_TIMEOUT_SECS),
-                confirm_rx,
-            );
+            let confirm_future =
+                tokio::time::timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), confirm_rx);
 
             let allowed = tokio::select! {
                 biased;
@@ -791,11 +808,34 @@ async fn run_agent_loop_inner(
                     "name": tool_name,
                     "content": format!("Tool call '{}' was denied by the user. Try an alternative approach.", tool_name),
                 });
-                insert_message(db, &new_id(), session_id, "tool", &tool_deny_msg.to_string())?;
+                insert_message(
+                    db,
+                    &new_id(),
+                    session_id,
+                    "tool",
+                    &tool_deny_msg.to_string(),
+                )?;
                 continue;
             }
 
             update_tool_call_status(db, &tool_call_id, "approved")?;
+
+            let resolved_config = match alias_from_prefixed_name(&tc.name) {
+                Some(alias) => match connections.get(&alias) {
+                    Some(cfg) => cfg.clone(),
+                    None => {
+                        update_tool_call_status(db, &tool_call_id, "failed")?;
+                        let err_msg = json!({
+                            "tool_call_id": tool_call_id,
+                            "name": tool_name,
+                            "content": format!("Unknown source alias '{}' for tool '{}'.", alias, tool_name),
+                        });
+                        insert_message(db, &new_id(), session_id, "tool", &err_msg.to_string())?;
+                        continue;
+                    }
+                },
+                None => fallback_connection_config.clone(),
+            };
 
             let envelope: ToolEnvelope = tokio::select! {
                 biased;
@@ -809,7 +849,7 @@ async fn run_agent_loop_inner(
                     insert_message(db, &new_id(), session_id, "tool", &cancel_msg.to_string())?;
                     return Err("cancelled".to_string());
                 }
-                res = tool_executor.execute(&tool_name, &arguments_value, &connection_config) => match res {
+                res = tool_executor.execute(&tool_name, &arguments_value, &resolved_config) => match res {
                     Ok(env) => env,
                     Err(e) => {
                         update_tool_call_status(db, &tool_call_id, "failed")?;

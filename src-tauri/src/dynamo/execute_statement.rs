@@ -1,7 +1,7 @@
 use crate::common::dynamodb_utils::convert_attr_value_to_json;
 use crate::dynamo::types::ApiResponse;
-use aws_sdk_dynamodb::Client;
 use aws_sdk_dynamodb::error::ProvideErrorMetadata;
+use aws_sdk_dynamodb::Client;
 use serde_json::{json, Value};
 
 /// Input for PartiQL statement execution
@@ -12,7 +12,9 @@ pub struct ExecuteStatementInput<'a> {
 }
 
 /// Convert DynamoDB item to JSON object
-fn item_to_json(item: &std::collections::HashMap<String, aws_sdk_dynamodb::types::AttributeValue>) -> Value {
+fn item_to_json(
+    item: &std::collections::HashMap<String, aws_sdk_dynamodb::types::AttributeValue>,
+) -> Value {
     let obj: serde_json::Map<String, Value> = item
         .iter()
         .map(|(k, v)| (k.clone(), convert_attr_value_to_json(v)))
@@ -25,9 +27,7 @@ pub async fn execute_statement(
     client: &Client,
     input: ExecuteStatementInput<'_>,
 ) -> Result<ApiResponse, String> {
-    let mut request = client
-        .execute_statement()
-        .statement(input.statement);
+    let mut request = client.execute_statement().statement(input.statement);
 
     // Add pagination token if provided
     if let Some(token) = input.next_token {

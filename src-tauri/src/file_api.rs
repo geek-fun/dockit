@@ -106,12 +106,16 @@ pub async fn stream_file_lines(
                     batch.push(line);
 
                     if batch.len() >= batch_size {
-                        app.emit(&event_name, FileBatchResult {
-                            lines: batch.clone(),
-                            batch_number,
-                            total_lines_estimate: 0,
-                            is_last_batch: false,
-                        }).map_err(|e: tauri::Error| e.to_string())?;
+                        app.emit(
+                            &event_name,
+                            FileBatchResult {
+                                lines: batch.clone(),
+                                batch_number,
+                                total_lines_estimate: 0,
+                                is_last_batch: false,
+                            },
+                        )
+                        .map_err(|e: tauri::Error| e.to_string())?;
 
                         batch.clear();
                         batch_number += 1;
@@ -125,12 +129,16 @@ pub async fn stream_file_lines(
     }
 
     if !batch.is_empty() {
-        app.emit(&event_name, FileBatchResult {
-            lines: batch,
-            batch_number,
-            total_lines_estimate: 0,
-            is_last_batch: true,
-        }).map_err(|e: tauri::Error| e.to_string())?;
+        app.emit(
+            &event_name,
+            FileBatchResult {
+                lines: batch,
+                batch_number,
+                total_lines_estimate: 0,
+                is_last_batch: true,
+            },
+        )
+        .map_err(|e: tauri::Error| e.to_string())?;
     }
 
     Ok(())

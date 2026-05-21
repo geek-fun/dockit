@@ -10,11 +10,11 @@
           </div>
           <div>
             <DialogTitle>{{ $t('dataStudio.modifySource.title') }}</DialogTitle>
-            <p class="text-sm text-muted-foreground mt-0.5">{{ source?.name }}</p>
+            <p class="text-sm text-muted-foreground mt-0.5">{{ currentSource?.alias }}</p>
           </div>
         </div>
       </DialogHeader>
-      <div class="py-4">
+      <div class="py-4 flex flex-col gap-4">
         <div class="border border-border rounded-xl overflow-hidden">
           <div class="px-4 py-3 flex items-center gap-2 border-b border-border bg-muted/40">
             <span class="i-carbon-security h-4 w-4 shrink-0" />
@@ -22,31 +22,21 @@
               {{ $t('dataStudio.modifySource.accessPermissions') }}
             </p>
           </div>
-          <div class="grid grid-cols-2 gap-2 p-3 border-b border-border">
-            <button
-              :class="['mode-btn', localPermissionsMode === 'Ask' && 'mode-btn--active']"
-              @click="localPermissionsMode = 'Ask'"
+          <div class="flex flex-col gap-1 p-3">
+            <label
+              v-for="perm in permissionKeys"
+              :key="perm"
+              class="flex items-center gap-3 px-1 py-1.5 rounded-lg cursor-pointer hover:bg-muted/50 select-none"
             >
-              <span class="i-carbon-view h-4 w-4" />
-              <span>{{ $t('dataStudio.modifySource.modeDefault') }}</span>
-            </button>
-            <button
-              :class="['mode-btn', localPermissionsMode === 'Auto' && 'mode-btn--active']"
-              @click="localPermissionsMode = 'Auto'"
-            >
-              <span class="i-carbon-unlocked h-4 w-4" />
-              <span>{{ $t('dataStudio.modifySource.modeFull') }}</span>
-            </button>
-          </div>
-          <div class="flex gap-2 px-4 py-3">
-            <span class="i-carbon-information h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
-            <p class="text-xs text-muted-foreground leading-relaxed">
-              {{
-                localPermissionsMode === 'Ask'
-                  ? $t('dataStudio.modifySource.modeDefaultDesc')
-                  : $t('dataStudio.modifySource.modeFullDesc')
-              }}
-            </p>
+              <input
+                type="checkbox"
+                :checked="localPermissions[perm]"
+                :disabled="perm === 'read'"
+                class="w-4 h-4 accent-primary"
+                @change="togglePermission(perm)"
+              />
+              <span class="text-sm capitalize">{{ perm }}</span>
+            </label>
           </div>
         </div>
       </div>
@@ -85,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import {
   Dialog,
   DialogContent,
@@ -94,12 +84,11 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { useDataStudioStore, type ConnectedSource } from '@/store/dataStudioStore';
+import { useDataStudioStore, type DataSourcePermissions } from '@/store/dataStudioStore';
 
 const props = defineProps<{
   open: boolean;
-  source: ConnectedSource | null;
-  connectionId: number | undefined;
+  sourceIdx: number;
 }>();
 
 const emit = defineEmits<{
@@ -108,71 +97,54 @@ const emit = defineEmits<{
 
 const dataStudioStore = useDataStudioStore();
 
-const localPermissionsMode = ref<'Ask' | 'Auto'>('Ask');
+const currentSource = computed(() => {
+  const session = dataStudioStore.activeSession;
+  const activeSources = session?.sources.filter(s => !s.detached) ?? [];
+  return activeSources[props.sourceIdx] ?? null;
+});
+
+const permissionKeys: (keyof DataSourcePermissions)[] = ['read', 'create', 'update', 'delete'];
+
+const localPermissions = ref<DataSourcePermissions>({
+  read: true,
+  create: false,
+  update: false,
+  delete: false,
+});
 const detachConfirming = ref(false);
 
 watch(
   () => props.open,
   newVal => {
-    if (newVal && props.source) {
-      localPermissionsMode.value = props.source.permissionsMode ?? 'Ask';
+    if (newVal && currentSource.value) {
+      localPermissions.value = { ...currentSource.value.permissions };
       detachConfirming.value = false;
     }
   },
 );
 
-const permissionsFromMode = (mode: 'Ask' | 'Auto') =>
-  mode === 'Auto'
-    ? { read: true, create: true, update: true, delete: true }
-    : { read: true, create: false, update: false, delete: false };
+const togglePermission = (perm: keyof DataSourcePermissions) => {
+  if (perm === 'read') return;
+  localPermissions.value = { ...localPermissions.value, [perm]: !localPermissions.value[perm] };
+};
 
 const handleSave = () => {
-  if (props.connectionId === undefined) return;
-  const source = dataStudioStore.getSourceById(props.connectionId);
-  if (!source) return;
-  const index = dataStudioStore.connectedSources.indexOf(source);
-  dataStudioStore.updateSource(index, {
-    permissions: permissionsFromMode(localPermissionsMode.value),
-    permissionsMode: localPermissionsMode.value,
-  });
+  const session = dataStudioStore.activeSession;
+  const source = currentSource.value;
+  if (!session || !source) return;
+  dataStudioStore.updateSessionSourcePermissions(
+    session.id,
+    source.sourceId,
+    localPermissions.value,
+  );
   emit('update:open', false);
 };
 
 const handleDetach = () => {
-  if (props.connectionId === undefined) return;
-  dataStudioStore.removeSourceById(props.connectionId);
+  const session = dataStudioStore.activeSession;
+  const source = currentSource.value;
+  if (!session || !source) return;
+  dataStudioStore.detachSourceFromSession(session.id, source.sourceId);
   emit('update:open', false);
 };
 </script>
-
-<style scoped>
-.mode-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid hsl(var(--border));
-  background: transparent;
-  color: hsl(var(--muted-foreground));
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
-}
-
-.mode-btn:hover {
-  background: hsl(var(--muted));
-  color: hsl(var(--foreground));
-}
-
-.mode-btn--active {
-  background: hsl(var(--primary) / 0.08);
-  border-color: hsl(var(--primary) / 0.4);
-  color: hsl(var(--primary));
-}
-</style>

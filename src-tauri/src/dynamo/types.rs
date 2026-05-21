@@ -6,4 +6,3 @@ pub struct ApiResponse {
     pub message: String,
     pub data: Option<serde_json::Value>,
 }
-
