@@ -36,7 +36,7 @@ jest.mock('../src/datasources', () => {
     },
     dynamoApi: {} as Record<string, unknown>,
     loadHttpClient: jest.fn(() => ({}) as Record<string, unknown>),
-    mongoApi: { testConnection: jest.fn() },
+    mongoApi: { testConnection: jest.fn(), listDatabases: jest.fn() },
   };
 });
 jest.mock('../src/store/tabStore.ts', () => ({
@@ -45,7 +45,14 @@ jest.mock('../src/store/tabStore.ts', () => ({
 jest.mock('../src/common', () => ({
   buildAuthHeader: jest.fn(),
   buildURL: jest.fn(),
-  CustomError: class CustomError extends Error {},
+  CustomError: class CustomError extends Error {
+    constructor(
+      public readonly status: number,
+      public readonly details: string,
+    ) {
+      super(details);
+    }
+  },
   pureObject: (obj: unknown) => JSON.parse(JSON.stringify(obj)),
   CONNECTION_SCHEMA_VERSION: 5,
 }));
@@ -1964,5 +1971,88 @@ describe('connectionStore - freshConnection (unsupported type)', () => {
 
     store.connections = [conn];
     await expect(store.freshConnection(conn)).rejects.toBeTruthy();
+  });
+});
+
+describe('connectionStore - fetchDatabases', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+  });
+
+  it('fetches databases for MongoDB connection', async () => {
+    const datasources = require('../src/datasources');
+    datasources.mongoApi.listDatabases = jest.fn().mockResolvedValue({
+      success: true,
+      databases: [
+        { name: 'admin', size_on_disk: 1024, empty: false },
+        { name: 'test', size_on_disk: 512, empty: false },
+      ],
+    });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: DatabaseType.MONGODB,
+      name: 'mongo-test',
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    } as MongoDBConnection;
+
+    store.connections = [conn];
+    const result = await store.fetchDatabases(conn);
+
+    expect(datasources.mongoApi.listDatabases).toHaveBeenCalled();
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe('admin');
+    expect(result[1].name).toBe('test');
+  });
+
+  it('throws error when connection not found', async () => {
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 999,
+      type: DatabaseType.MONGODB,
+      name: 'not-in-store',
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    } as MongoDBConnection;
+
+    store.connections = [];
+    await expect(store.fetchDatabases(conn)).rejects.toThrow('no connection established');
+  });
+
+  it('throws CustomError on API failure', async () => {
+    const datasources = require('../src/datasources');
+    datasources.mongoApi.listDatabases = jest.fn().mockResolvedValue({
+      success: false,
+      error: 'Connection refused',
+    });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 1,
+      type: DatabaseType.MONGODB,
+      name: 'mongo-test',
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    } as MongoDBConnection;
+
+    store.connections = [conn];
+    try {
+      await store.fetchDatabases(conn);
+      expect(true).toBe(false); // Should not reach here
+    } catch (err) {
+      expect(err.status).toBe(400);
+      expect(err.details).toBe('Connection refused');
+    }
   });
 });
