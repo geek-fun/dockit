@@ -1,5 +1,8 @@
 use async_trait::async_trait;
 use base64::Engine;
+use futures::TryStreamExt;
+use mongodb::bson::{doc, Bson, Document};
+use mongodb::{options::ClientOptions, Client as MongoClient};
 use serde_json::{json, Value};
 
 use crate::common::http_client::create_http_client;
@@ -459,6 +462,291 @@ async fn execute_dynamo_tool(
     }
 }
 
+fn build_mongo_uri(config: &Value) -> Result<String, String> {
+    let auth_kind = config
+        .get("authKind")
+        .and_then(|v| v.as_str())
+        .unwrap_or("none");
+
+    if auth_kind == "uri" {
+        return config
+            .get("uri")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .ok_or_else(|| "Missing uri in connection config".to_string());
+    }
+
+    let host = config
+        .get("host")
+        .and_then(|v| v.as_str())
+        .unwrap_or("localhost");
+    let port = config
+        .get("port")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(27017);
+    let tls = config
+        .get("tls")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let database = config
+        .get("database")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+
+    let db_path = if database.is_empty() {
+        String::new()
+    } else {
+        format!("/{}", database)
+    };
+
+    let mut params: Vec<String> = Vec::new();
+    if tls {
+        params.push("tls=true".to_string());
+    }
+
+    if auth_kind == "scram" {
+        let username = config
+            .get("username")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let password = config
+            .get("password")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let auth_source = config
+            .get("authSource")
+            .and_then(|v| v.as_str())
+            .unwrap_or("admin");
+        params.push(format!("authSource={}", auth_source));
+        if let Some(mechanism) = config.get("authMechanism").and_then(|v| v.as_str()) {
+            if !mechanism.is_empty() {
+                params.push(format!("authMechanism={}", mechanism));
+            }
+        }
+        let query = if params.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", params.join("&"))
+        };
+        Ok(format!(
+            "mongodb://{}:{}@{}:{}{}{}",
+            username, password, host, port, db_path, query
+        ))
+    } else {
+        let query = if params.is_empty() {
+            String::new()
+        } else {
+            format!("?{}", params.join("&"))
+        };
+        Ok(format!("mongodb://{}:{}{}{}", host, port, db_path, query))
+    }
+}
+
+pub(crate) async fn create_mongo_client_from_config(
+    config: &Value,
+) -> Result<(MongoClient, String), String> {
+    let uri = build_mongo_uri(config)?;
+    let database = config
+        .get("database")
+        .and_then(|v| v.as_str())
+        .unwrap_or("test")
+        .to_string();
+    let client_options = ClientOptions::parse(&uri)
+        .await
+        .map_err(|e| format!("Failed to parse MongoDB connection options: {}", e))?;
+    let client = MongoClient::with_options(client_options)
+        .map_err(|e| format!("Failed to create MongoDB client: {}", e))?;
+    Ok((client, database))
+}
+
+fn bson_to_value(bson: &Bson) -> Value {
+    match bson {
+        Bson::Double(v) => json!(*v),
+        Bson::String(v) => json!(v),
+        Bson::Array(arr) => Value::Array(arr.iter().map(bson_to_value).collect()),
+        Bson::Document(d) => {
+            let map: serde_json::Map<String, Value> =
+                d.iter().map(|(k, v)| (k.clone(), bson_to_value(v))).collect();
+            Value::Object(map)
+        }
+        Bson::Boolean(v) => json!(*v),
+        Bson::Null => Value::Null,
+        Bson::Int32(v) => json!(*v),
+        Bson::Int64(v) => json!(*v),
+        Bson::ObjectId(oid) => json!(oid.to_string()),
+        Bson::DateTime(dt) => json!(dt.timestamp_millis()),
+        other => json!(other.to_string()),
+    }
+}
+
+fn json_to_bson_doc_agent(val: &Value) -> Result<Document, String> {
+    mongodb::bson::to_document(val)
+        .map_err(|e| format!("Failed to convert to BSON document: {}", e))
+}
+
+async fn execute_mongo_tool(
+    tool_name: &str,
+    args: &Value,
+    config: &Value,
+) -> Result<String, String> {
+    let (client, db_name) = create_mongo_client_from_config(config).await?;
+
+    match tool_name {
+        "mongo__list_collections" => {
+            let db = client.database(&db_name);
+            let names = db
+                .list_collection_names()
+                .await
+                .map_err(|e| format!("Failed to list collections: {}", e))?;
+            let result = json!({ "collections": names });
+            Ok(truncate_tool_output(result.to_string()))
+        }
+        "mongo__find" => {
+            let collection_name = args
+                .get("collection")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing collection")?;
+            let filter_val = args.get("filter").cloned().unwrap_or(json!({}));
+            let filter = json_to_bson_doc_agent(&filter_val)?;
+            let limit = args
+                .get("limit")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(20)
+                .max(1)
+                .min(100) as i64;
+
+            let db = client.database(&db_name);
+            let coll = db.collection::<Document>(collection_name);
+
+            let mut find_options = mongodb::options::FindOptions::default();
+            find_options.limit = Some(limit);
+            if let Some(sort_val) = args.get("sort") {
+                find_options.sort = Some(json_to_bson_doc_agent(sort_val)?);
+            }
+            if let Some(proj_val) = args.get("projection") {
+                find_options.projection = Some(json_to_bson_doc_agent(proj_val)?);
+            }
+
+            let mut cursor = coll
+                .find(filter)
+                .with_options(find_options)
+                .await
+                .map_err(|e| format!("find failed: {}", e))?;
+            let mut docs: Vec<Value> = Vec::new();
+            while let Some(doc) = cursor
+                .try_next()
+                .await
+                .map_err(|e| format!("cursor error: {}", e))?
+            {
+                docs.push(bson_to_value(&Bson::Document(doc)));
+            }
+            let result = json!({ "count": docs.len(), "documents": docs });
+            Ok(truncate_tool_output(result.to_string()))
+        }
+        "mongo__aggregate" => {
+            let collection_name = args
+                .get("collection")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing collection")?;
+            let pipeline_val = args
+                .get("pipeline")
+                .and_then(|v| v.as_array())
+                .ok_or("Missing or invalid pipeline")?;
+            let pipeline: Vec<Document> = pipeline_val
+                .iter()
+                .map(json_to_bson_doc_agent)
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let db = client.database(&db_name);
+            let coll = db.collection::<Document>(collection_name);
+            let mut cursor = coll
+                .aggregate(pipeline)
+                .await
+                .map_err(|e| format!("aggregate failed: {}", e))?;
+            let mut docs: Vec<Value> = Vec::new();
+            while let Some(doc) = cursor
+                .try_next()
+                .await
+                .map_err(|e| format!("cursor error: {}", e))?
+            {
+                docs.push(bson_to_value(&Bson::Document(doc)));
+                if docs.len() >= 100 {
+                    break;
+                }
+            }
+            let result = json!({ "count": docs.len(), "documents": docs });
+            Ok(truncate_tool_output(result.to_string()))
+        }
+        "mongo__insert_one" => {
+            let collection_name = args
+                .get("collection")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing collection")?;
+            let document_val = args.get("document").ok_or("Missing document")?;
+            let document = json_to_bson_doc_agent(document_val)?;
+
+            let db = client.database(&db_name);
+            let coll = db.collection::<Document>(collection_name);
+            let insert_result = coll
+                .insert_one(document)
+                .await
+                .map_err(|e| format!("insert_one failed: {}", e))?;
+            let inserted_id = bson_to_value(&insert_result.inserted_id);
+            let result = json!({ "inserted_id": inserted_id });
+            Ok(truncate_tool_output(result.to_string()))
+        }
+        "mongo__update_many" => {
+            let collection_name = args
+                .get("collection")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing collection")?;
+            let filter_val = args.get("filter").ok_or("Missing filter")?;
+            let update_val = args.get("update").ok_or("Missing update")?;
+            let filter = json_to_bson_doc_agent(filter_val)?;
+            let update = json_to_bson_doc_agent(update_val)?;
+            let upsert = args
+                .get("upsert")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
+            let db = client.database(&db_name);
+            let coll = db.collection::<Document>(collection_name);
+            let update_options = mongodb::options::UpdateOptions::builder()
+                .upsert(upsert)
+                .build();
+            let update_result = coll
+                .update_many(filter, update)
+                .with_options(update_options)
+                .await
+                .map_err(|e| format!("update_many failed: {}", e))?;
+            let result = json!({
+                "matched_count": update_result.matched_count,
+                "modified_count": update_result.modified_count,
+                "upserted_id": update_result.upserted_id.map(|id| bson_to_value(&id))
+            });
+            Ok(truncate_tool_output(result.to_string()))
+        }
+        "mongo__delete_many" => {
+            let collection_name = args
+                .get("collection")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing collection")?;
+            let filter_val = args.get("filter").ok_or("Missing filter")?;
+            let filter = json_to_bson_doc_agent(filter_val)?;
+
+            let db = client.database(&db_name);
+            let coll = db.collection::<Document>(collection_name);
+            let delete_result = coll
+                .delete_many(filter)
+                .await
+                .map_err(|e| format!("delete_many failed: {}", e))?;
+            let result = json!({ "deleted_count": delete_result.deleted_count });
+            Ok(truncate_tool_output(result.to_string()))
+        }
+        _ => Err(format!("Unknown MongoDB tool: {}", tool_name)),
+    }
+}
+
 #[tauri::command]
 #[allow(dead_code)]
 pub async fn execute_tool(
@@ -477,6 +765,8 @@ pub async fn execute_tool(
         execute_es_tool(&tool_name, &args, &connection_config).await
     } else if tool_name.starts_with("dynamo__") {
         execute_dynamo_tool(&tool_name, &args, &connection_config).await
+    } else if tool_name.starts_with("mongo__") {
+        execute_mongo_tool(&tool_name, &args, &connection_config).await
     } else {
         Err(format!("Unknown tool: {}", tool_name))
     }
@@ -523,6 +813,8 @@ impl crate::agent::tool_executor::ToolExecutor for DocKitToolExecutor {
             execute_es_tool(tool_name, arguments, connection_config).await?
         } else if tool_name.starts_with("dynamo__") {
             execute_dynamo_tool(tool_name, arguments, connection_config).await?
+        } else if tool_name.starts_with("mongo__") {
+            execute_mongo_tool(tool_name, arguments, connection_config).await?
         } else {
             return Err(format!("Unknown tool: {}", tool_name));
         };
