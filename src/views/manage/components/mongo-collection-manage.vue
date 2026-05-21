@@ -145,7 +145,6 @@
                     :key="coll.name"
                     class="cursor-pointer collection-row"
                     @click="openInEditor(coll.name)"
-                    @contextmenu.prevent="showContextMenu($event, coll)"
                   >
                     <TableCell class="font-medium">
                       <div class="flex items-center gap-2">
@@ -481,7 +480,7 @@ const openInEditor = (collectionName: string) => {
     database: selectedDatabase.value,
   };
 
-  const query = `db.${collectionName}.find({}).limit(50)`;
+  const query = `db.getCollection('${collectionName}').find({}).limit(50)`;
   tabStore.establishPanel(con);
   tabStore.activePanel.content = query;
   tabStore.activePanel.editorType = 'MONGO_EDITOR';
@@ -496,8 +495,6 @@ const confirmDropCollection = (name: string) => {
   collectionToDrop.value = name;
   showDropCollectionDialog.value = true;
 };
-
-const showContextMenu = (_event: MouseEvent, _coll: MongoCollectionInfo) => {};
 
 const fetchDatabases = async () => {
   if (!mongoConnection.value) return;
@@ -538,25 +535,25 @@ const fetchCollectionsWithStats = async () => {
     }
 
     const collsWithStats: MongoCollectionInfo[] = [];
-    for (const coll of listResult.collections) {
-      const statsResult = await mongoApi.collectionStats(
-        mongoConnection.value!,
-        selectedDatabase.value,
-        coll.name,
-      );
-      if (statsResult.success && statsResult.stats) {
-        collsWithStats.push({
-          name: coll.name,
-          collection_type: coll.collection_type,
-          document_count: statsResult.stats.count,
-          storage_size: statsResult.stats.size,
-          index_count: statsResult.stats.nindexes,
-          avg_document_size: statsResult.stats.avg_obj_size,
-        });
-      } else {
-        collsWithStats.push(coll);
-      }
-    }
+    const statsPromises = listResult.collections.map(coll =>
+      mongoApi
+        .collectionStats(mongoConnection.value!, selectedDatabase.value, coll.name)
+        .then(statsResult => {
+          if (statsResult.success && statsResult.stats) {
+            return {
+              name: coll.name,
+              collection_type: coll.collection_type,
+              document_count: statsResult.stats.count,
+              storage_size: statsResult.stats.storage_size,
+              index_count: statsResult.stats.nindexes,
+              avg_document_size: statsResult.stats.avg_obj_size,
+            };
+          }
+          return coll;
+        })
+        .catch(() => coll),
+    );
+    collsWithStats.push(...(await Promise.all(statsPromises)));
     collections.value = collsWithStats;
   } catch (e) {
     message.error(e instanceof Error ? e.message : String(e));
@@ -615,12 +612,13 @@ const handleCreateDatabase = async () => {
       newCollectionName.value,
     );
     if (result.success) {
+      const dbName = newDatabaseName.value;
       message.success(result.message ?? lang.t('manage.mongo.databaseCreated'));
       showCreateDatabaseDialog.value = false;
       newDatabaseName.value = '';
       newCollectionName.value = '';
       await handleRefresh();
-      selectedDatabase.value = newDatabaseName.value;
+      selectedDatabase.value = dbName;
     } else {
       message.error(result.error ?? 'Failed to create database');
     }

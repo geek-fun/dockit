@@ -1,5 +1,5 @@
 use futures::TryStreamExt;
-use mongodb::bson::{doc, Bson, Document};
+use mongodb::bson::{doc, oid::ObjectId, Bson, Document};
 use mongodb::{options::ClientOptions, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -1109,14 +1109,15 @@ pub async fn mongo_create_database(
     let db = client.database(&database);
     let coll: mongodb::Collection<Document> = db.collection(&collection);
 
-    // Insert a temporary document to create the database
-    let temp_doc = doc! { "_id": "temp_create_marker", "created": true };
+    // Generate a unique ObjectId for the temporary document to avoid collisions
+    let temp_id = ObjectId::new();
+    let temp_doc = doc! { "_id": temp_id, "created": true };
     coll.insert_one(temp_doc.clone())
         .await
         .map_err(|e| format!("Failed to create database: {}", e))?;
 
     // Delete the temporary document
-    coll.delete_one(doc! { "_id": "temp_create_marker" })
+    coll.delete_one(doc! { "_id": temp_id })
         .await
         .map_err(|e| format!("Failed to clean up temporary document: {}", e))?;
 
@@ -1583,7 +1584,7 @@ pub async fn mongo_shard_status(config: MongoConnectionConfig) -> Result<MongoSh
                 infos.push(MongoMongosInfo {
                     id: doc.get_str("_id").unwrap_or("unknown").to_string(),
                     host: doc.get_str("host").unwrap_or("unknown").to_string(),
-                    ping: doc.get_i64("ping").ok(),
+                    ping: doc.get_datetime("ping").ok().map(|dt| dt.timestamp_millis()),
                 });
             }
             infos

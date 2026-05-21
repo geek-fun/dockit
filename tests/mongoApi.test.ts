@@ -736,12 +736,16 @@ describe('MongoDB connection types', () => {
       host: 'localhost',
       port: 27017,
       auth: { kind: 'none' },
-      favoriteCollections: ['users', 'orders', 'products'],
+      favoriteCollections: [
+        { database: 'mydb', collection: 'users' },
+        { database: 'mydb', collection: 'orders' },
+        { database: 'mydb', collection: 'products' },
+      ],
     };
     expect(conn.favoriteCollections).toHaveLength(3);
-    expect(conn.favoriteCollections).toContain('users');
-    expect(conn.favoriteCollections).toContain('orders');
-    expect(conn.favoriteCollections).toContain('products');
+    expect(conn.favoriteCollections[0].collection).toBe('users');
+    expect(conn.favoriteCollections[1].collection).toBe('orders');
+    expect(conn.favoriteCollections[2].collection).toBe('products');
   });
 
   it('can include both activeDatabase and favoriteCollections', () => {
@@ -754,12 +758,16 @@ describe('MongoDB connection types', () => {
       database: 'mydb',
       tls: true,
       activeDatabase: 'production',
-      favoriteCollections: ['users', 'orders'],
+      favoriteCollections: [
+        { database: 'production', collection: 'users' },
+        { database: 'production', collection: 'orders' },
+      ],
     };
     expect(conn.database).toBe('mydb');
     expect(conn.tls).toBe(true);
     expect(conn.activeDatabase).toBe('production');
     expect(conn.favoriteCollections).toHaveLength(2);
+    expect(conn.favoriteCollections[0].database).toBe('production');
   });
 });
 

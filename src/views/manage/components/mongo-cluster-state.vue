@@ -119,11 +119,11 @@
                   <span class="stat-label">{{ $t('manage.mongo.uptime') }}</span>
                   <span class="stat-value">{{ formatUptime(member.uptime) }}</span>
                 </div>
-                <div v-if="member.lag_time" class="member-stat">
+                <div v-if="member.lag_time != null" class="member-stat">
                   <span class="stat-label">{{ $t('manage.mongo.lag') }}</span>
                   <span class="stat-value">{{ member.lag_time }}s</span>
                 </div>
-                <div v-if="member.ping_ms" class="member-stat">
+                <div v-if="member.ping_ms != null" class="member-stat">
                   <span class="stat-label">{{ $t('manage.mongo.ping') }}</span>
                   <span class="stat-value">{{ member.ping_ms }}ms</span>
                 </div>

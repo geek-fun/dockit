@@ -630,10 +630,12 @@ export const useConnectionStore = defineStore('connectionStore', {
       return connection.collections;
     },
     async fetchDatabases(con: MongoDBConnection) {
-      const connection = this.connections.find(({ id }) => id === con.id) as
+      const connection = this.connections.find(({ id }) => String(id) === String(con.id)) as
         | MongoDBConnection
         | undefined;
-      if (!connection) throw new Error('no connection established');
+      if (!connection) {
+        throw new CustomError(400, 'no connection established');
+      }
 
       const { mongoApi } = await import('../datasources');
       const result = await mongoApi.listDatabases(connection);

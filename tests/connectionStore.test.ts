@@ -50,7 +50,7 @@ jest.mock('../src/common', () => ({
       public readonly status: number,
       public readonly details: string,
     ) {
-      super();
+      super(details);
     }
   },
   pureObject: (obj: unknown) => JSON.parse(JSON.stringify(obj)),

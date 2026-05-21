@@ -4,7 +4,6 @@
       type="MANAGE"
       @refresh-dynamo-manage="handleDynamoRefresh"
       @create-dynamo-table="handleCreateDynamoTable"
-      @refresh-mongo-manage="handleMongoRefresh"
     />
     <template v-if="connection && isSearchConnection(connection)">
       <cluster-state class="state-container" :cluster="cluster" />
@@ -77,10 +76,6 @@ const handleDynamoRefresh = () => {
 
 const handleCreateDynamoTable = () => {
   dynamoTableManageRef.value?.showCreateTable();
-};
-
-const handleMongoRefresh = () => {
-  mongoCollectionManageRef.value?.handleRefresh();
 };
 
 onMounted(async () => {

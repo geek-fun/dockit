@@ -23,7 +23,7 @@ export type MongoDatabaseInfo = {
 export type MongoListDatabasesResult = {
   success: boolean;
   databases?: MongoDatabaseInfo[];
-  totalSize?: number;
+  total_size?: number;
   error?: string;
 };
 
