@@ -229,17 +229,25 @@ export const useDataStudioStore = defineStore('dataStudio', {
     attachedSources: Array<AttachedSource>;
     sessions: Array<AgentSession>;
     activeSessionId: string | undefined;
+    sidebarSessionId: string | undefined;
     confirmationRules: Array<ConfirmationRule>;
     sessionMeta: Record<string, SessionMeta>;
   } => ({
     attachedSources: [],
     sessions: [],
     activeSessionId: undefined,
+    sidebarSessionId: undefined,
     confirmationRules: [],
     sessionMeta: {},
   }),
   persist: {
-    pick: ['attachedSources', 'confirmationRules', 'sessionMeta', 'activeSessionId'],
+    pick: [
+      'attachedSources',
+      'confirmationRules',
+      'sessionMeta',
+      'activeSessionId',
+      'sidebarSessionId',
+    ],
   },
   getters: {
     activeSession(state): AgentSession | undefined {
@@ -283,7 +291,13 @@ export const useDataStudioStore = defineStore('dataStudio', {
       const existing = this.attachedSources.find(
         s => s.kind === 'database' && (s as DatabaseSource).connectionId === params.connectionId,
       ) as DatabaseSource | undefined;
-      if (existing) return existing;
+      if (existing) {
+        const updated = { ...existing, permissions: params.permissions };
+        this.attachedSources = this.attachedSources.map(s =>
+          s.sourceId === existing.sourceId ? updated : s,
+        );
+        return updated;
+      }
 
       const source: DatabaseSource = {
         kind: 'database',
@@ -325,11 +339,26 @@ export const useDataStudioStore = defineStore('dataStudio', {
     },
 
     setSessionPermissionsMode(sessionId: string, mode: PermissionsMode) {
+      const writePerms = mode === 'Auto';
+      const updatedSources = (this.sessions.find(s => s.id === sessionId)?.sources ?? []).map(s =>
+        s.detached
+          ? s
+          : {
+              ...s,
+              permissions: {
+                read: true,
+                create: writePerms,
+                update: writePerms,
+                delete: writePerms,
+              },
+            },
+      );
       this.sessions = this.sessions.map(s =>
-        s.id === sessionId ? { ...s, permissionsMode: mode } : s,
+        s.id === sessionId ? { ...s, permissionsMode: mode, sources: updatedSources } : s,
       );
       if (this.sessionMeta[sessionId]) {
         this.sessionMeta[sessionId].permissionsMode = mode;
+        this.sessionMeta[sessionId].sources = updatedSources;
       }
     },
 
@@ -355,6 +384,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
       initialSources: SessionSource[] = [],
       permissionsMode: PermissionsMode = 'Ask',
       maxIterations = 10,
+      setActive = true,
     ): Promise<string> {
       const title =
         initialSources.length > 0 ? initialSources.map(s => s.alias).join(', ') : 'New Session';
@@ -375,7 +405,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
         title,
         updatedAt: backend.updated_at,
       };
-      this.activeSessionId = backend.id;
+      if (setActive) this.activeSessionId = backend.id;
       return backend.id;
     },
 
@@ -405,6 +435,15 @@ export const useDataStudioStore = defineStore('dataStudio', {
       }
 
       return this.createSession(sessionSources);
+    },
+
+    async getOrCreateSidebarSession(): Promise<string> {
+      if (this.sidebarSessionId && this.sessions.some(s => s.id === this.sidebarSessionId)) {
+        return this.sidebarSessionId;
+      }
+      const id = await this.createSession([], 'Ask', 10, false);
+      this.sidebarSessionId = id;
+      return id;
     },
 
     // ── Message management ───────────────────────────────────────────────────
@@ -545,18 +584,21 @@ export const useDataStudioStore = defineStore('dataStudio', {
       const backendSessions = await loadAgentSessions();
       const loaded = await Promise.all(
         backendSessions.map(async (s: BackendAgentSession) => {
-          const meta = this.sessionMeta[s.id];
+          const raw = this.sessionMeta[s.id] as
+            | (SessionMeta & { connectionId?: number })
+            | undefined;
           const backendMessages = await loadSessionMessages(s.id).catch(
             () => [] as BackendAgentMessage[],
           );
           const messages: Array<AgentMessage> = backendMessages.map(hydrateMessage);
+          const sources: SessionSource[] = raw?.sources ?? [];
           return {
             id: s.id,
-            sources: meta?.sources ?? [],
-            permissionsMode: meta?.permissionsMode ?? ('Ask' as PermissionsMode),
+            sources,
+            permissionsMode: raw?.permissionsMode ?? ('Ask' as PermissionsMode),
             messages,
             status: 'idle' as AgentSessionStatus,
-            maxIterations: meta?.maxIterations ?? 10,
+            maxIterations: raw?.maxIterations ?? 10,
           };
         }),
       );

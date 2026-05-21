@@ -134,7 +134,7 @@ export const useSidebarChatAgent = () => {
         ),
       setSessionSchema: (_sessionId, _schema) => undefined,
       clearSession: sessionId => store.clearSession(sessionId),
-      getOrCreateSession: () => store.getOrCreateSession(),
+      getOrCreateSession: () => store.getOrCreateSidebarSession(),
     },
     contextProvider: getSidebarContext,
     confirmationRules: confirmationRules as Ref<ConfirmationRule[]>,
