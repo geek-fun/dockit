@@ -10,15 +10,9 @@ import {
   type ConfirmationRule,
   type SessionSource,
 } from '@/store/dataStudioStore';
-import {
-  useConnectionStore,
-  type ElasticsearchConnection,
-  type DynamoDBConnection,
-  type MongoDBConnection,
-  DatabaseType,
-} from '@/store/connectionStore';
-import type { Connection } from '@/store/connectionStore';
+import { useConnectionStore } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
+import { buildConnectionConfig } from './connectionConfig';
 import type { ChatMessage, ChatSession, ChatSessionStatus, ChatMessageStatus } from '@/types/chat';
 
 const adaptDataStudioMessage = (msg: AgentMessage): ChatMessage => ({
@@ -40,81 +34,6 @@ const adaptDataStudioSession = (session: AgentSession): ChatSession => ({
   sources: session.sources,
   maxIterations: session.maxIterations,
 });
-
-const buildSearchConnectionConfig = (
-  connection: ElasticsearchConnection,
-): Record<string, unknown> => ({
-  host: connection.host,
-  port: connection.port,
-  sslCertVerification: connection.sslCertVerification ?? false,
-  authType: connection.authType ?? 'basic',
-  username: connection.username ?? '',
-  password: connection.password ?? '',
-  apiKey: connection.apiKey ?? '',
-});
-
-const buildDynamoConnectionConfig = (connection: DynamoDBConnection): Record<string, unknown> => {
-  const config: Record<string, unknown> = {
-    region: connection.region,
-    authKind: connection.auth.kind,
-  };
-
-  if (connection.auth.kind === 'accessKey') {
-    config.accessKeyId = connection.auth.accessKeyId;
-    config.secretAccessKey = connection.auth.secretAccessKey;
-  } else if (connection.auth.kind === 'sso' || connection.auth.kind === 'assumeRole') {
-    config.accessKeyId = connection.auth.accessKeyId;
-    config.secretAccessKey = connection.auth.secretAccessKey;
-    config.sessionToken = connection.auth.sessionToken;
-  } else if (connection.auth.kind === 'profile') {
-    config.profileName = connection.auth.profileName;
-  }
-
-  if (connection.endpointUrl) {
-    config.endpointUrl = connection.endpointUrl;
-  }
-
-  return config;
-};
-
-const buildMongoConnectionConfig = (connection: MongoDBConnection): Record<string, unknown> => {
-  const config: Record<string, unknown> = {
-    host: connection.host,
-    port: connection.port,
-    tls: connection.tls ?? false,
-    database: connection.database ?? '',
-    authKind: connection.auth.kind,
-  };
-
-  if (connection.auth.kind === 'scram') {
-    config.username = connection.auth.username;
-    config.password = connection.auth.password;
-    config.authSource = connection.auth.authSource ?? 'admin';
-    config.authMechanism = connection.auth.authMechanism ?? '';
-  }
-
-  if (connection.auth.kind === 'uri') {
-    config.uri = connection.auth.uri;
-  }
-
-  return config;
-};
-
-const buildConnectionConfig = (connection: Connection): Record<string, unknown> => {
-  if (
-    connection.type === DatabaseType.ELASTICSEARCH ||
-    connection.type === DatabaseType.OPENSEARCH ||
-    connection.type === DatabaseType.EASYSEARCH
-  ) {
-    return buildSearchConnectionConfig(connection as ElasticsearchConnection);
-  }
-
-  if (connection.type === DatabaseType.DYNAMODB) {
-    return buildDynamoConnectionConfig(connection);
-  }
-
-  return buildMongoConnectionConfig(connection);
-};
 
 const getNonDetachedSources = (sources: SessionSource[]): SessionSource[] =>
   sources.filter(source => !source.detached);
