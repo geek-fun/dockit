@@ -119,6 +119,8 @@ export const useSidebarChatAgent = () => {
         messageId: string,
         toolCalls: Array<AgentToolCall>,
       ) => store.setMessageToolCalls(sessionId, messageId, toolCalls),
+      removeOrphanedStreamingMessages: (sessionId: string, finalizedMessageId: string) =>
+        store.removeOrphanedStreamingMessages(sessionId, finalizedMessageId),
       updateToolCallStatus: (
         sessionId: string,
         messageId: string,

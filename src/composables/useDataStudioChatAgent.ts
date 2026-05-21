@@ -131,6 +131,8 @@ export const useDataStudioChatAgent = () => {
         messageId: string,
         toolCalls: Array<AgentToolCall>,
       ) => dataStudioStore.setMessageToolCalls(sessionId, messageId, toolCalls),
+      removeOrphanedStreamingMessages: (sessionId: string, finalizedMessageId: string) =>
+        dataStudioStore.removeOrphanedStreamingMessages(sessionId, finalizedMessageId),
       updateToolCallStatus: (
         sessionId: string,
         messageId: string,

@@ -505,6 +505,19 @@ export const useDataStudioStore = defineStore('dataStudio', {
       });
     },
 
+    removeOrphanedStreamingMessages(sessionId: string, finalizedMessageId: string) {
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        return {
+          ...s,
+          messages: s.messages.filter(
+            m =>
+              !(m.role === 'assistant' && m.status === 'streaming' && m.id !== finalizedMessageId),
+          ),
+        };
+      });
+    },
+
     updateToolCallStatus(
       sessionId: string,
       messageId: string,

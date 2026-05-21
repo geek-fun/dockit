@@ -61,6 +61,7 @@ export type UseChatAgentConfig = {
       messageId: string,
       toolCalls: Array<AgentToolCall>,
     ) => void;
+    removeOrphanedStreamingMessages: (sessionId: string, finalizedMessageId: string) => void;
     updateToolCallStatus: (
       sessionId: string,
       messageId: string,
@@ -327,13 +328,19 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       if (streamingMsg) {
         config.sessionStore.updateStreamingContent(session_id, streamingMsg.id, content);
       } else {
-        config.sessionStore.addMessage(session_id, {
-          id: ulid(),
-          role: 'assistant',
-          content,
-          status: 'streaming',
-          timestamp: Date.now(),
-        });
+        const lastAssistant = [...session.messages].reverse().find(m => m.role === 'assistant');
+        const hasUnresolvedTools = lastAssistant?.toolCalls?.some(
+          tc => tc.status === 'executing' || tc.status === 'pending',
+        );
+        if (!hasUnresolvedTools) {
+          config.sessionStore.addMessage(session_id, {
+            id: ulid(),
+            role: 'assistant',
+            content,
+            status: 'streaming',
+            timestamp: Date.now(),
+          });
+        }
       }
     }).then(unlisten => unlisteners.push(unlisten));
 
@@ -439,6 +446,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       const message = session.messages.find(entry => entry.id === message_id);
       if (message) {
         config.sessionStore.setMessageStatus(session_id, message_id, 'done');
+        config.sessionStore.removeOrphanedStreamingMessages(session_id, message_id);
       } else {
         const streamingMsg = [...session.messages]
           .reverse()
