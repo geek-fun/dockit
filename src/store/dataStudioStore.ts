@@ -313,11 +313,23 @@ export const useDataStudioStore = defineStore('dataStudio', {
     detachSourceFromSession(sessionId: string, sourceId: string) {
       const session = this.sessions.find(s => s.id === sessionId);
       if (!session) return;
+      const source = session.sources.find(s => s.sourceId === sourceId);
       const updatedSources = session.sources.map(s =>
         s.sourceId === sourceId ? { ...s, detached: true, detachedAt: Date.now() } : s,
       );
+      const systemMessage: AgentMessage = {
+        id: ulid(),
+        role: 'assistant',
+        content: source
+          ? `Source '${source.alias}' has been detached from this session and is no longer available for tool calls.`
+          : 'A source has been detached from this session.',
+        status: 'done',
+        timestamp: Date.now(),
+      };
       this.sessions = this.sessions.map(s =>
-        s.id === sessionId ? { ...s, sources: updatedSources } : s,
+        s.id === sessionId
+          ? { ...s, sources: updatedSources, messages: [...s.messages, systemMessage] }
+          : s,
       );
       if (this.sessionMeta[sessionId]) {
         this.sessionMeta[sessionId].sources = updatedSources;

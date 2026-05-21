@@ -857,7 +857,33 @@ async fn run_agent_loop_inner(
                         continue;
                     }
                 },
-                None => fallback_connection_config.clone(),
+                None => {
+                    if !connections.is_empty() {
+                        update_tool_call_status(db, &tool_call_id, "failed")?;
+                        let err_content = format!(
+                            "Tool '{}' requires a connection_id argument. Available connections: {}.",
+                            tool_name,
+                            connections.keys().cloned().collect::<Vec<_>>().join(", ")
+                        );
+                        let err_msg = json!({
+                            "tool_call_id": tool_call_id,
+                            "name": tool_name,
+                            "content": err_content,
+                        });
+                        insert_message(db, &new_id(), session_id, "tool", &err_msg.to_string())?;
+                        let _ = app.emit(
+                            "agent-loop-tool-result",
+                            json!({
+                                "session_id": session_id,
+                                "tool_call_id": tool_call_id,
+                                "error": true,
+                                "envelope": { "summary": err_content },
+                            }),
+                        );
+                        continue;
+                    }
+                    fallback_connection_config.clone()
+                }
             };
 
             let required_perm = all_tools()
