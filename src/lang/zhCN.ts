@@ -539,6 +539,7 @@ export const zhCN = {
       collectionName: '集合名称',
       dropCollectionTitle: '删除集合',
       dropCollectionConfirm: '确定要删除集合 "{name}" 吗？此操作无法撤销。',
+      dropDatabase: '删除数据库',
       dropDatabaseTitle: '删除数据库',
       dropDatabaseConfirm:
         '确定要删除数据库 "{name}" 吗？此操作无法撤销，将删除该数据库中的所有集合。',
@@ -554,6 +555,7 @@ export const zhCN = {
       failedToCreateCollection: '创建集合失败',
       failedToDropCollection: '删除集合失败',
       failedToDropDatabase: '删除数据库失败',
+      typeNameToConfirm: '输入 "{name}" 以确认',
       server: '服务器',
       uptime: '运行时间',
       connections: '连接数',

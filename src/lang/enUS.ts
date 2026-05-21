@@ -564,6 +564,7 @@ export const enUS = {
       dropCollectionTitle: 'Drop Collection',
       dropCollectionConfirm:
         'Are you sure you want to drop collection "{name}"? This action cannot be undone.',
+      dropDatabase: 'Drop Database',
       dropDatabaseTitle: 'Drop Database',
       dropDatabaseConfirm:
         'Are you sure you want to drop database "{name}"? This action cannot be undone and will delete all collections in this database.',
@@ -579,6 +580,7 @@ export const enUS = {
       failedToCreateCollection: 'Failed to create collection',
       failedToDropCollection: 'Failed to drop collection',
       failedToDropDatabase: 'Failed to drop database',
+      typeNameToConfirm: 'Type "{name}" to confirm',
       server: 'Server',
       uptime: 'Uptime',
       connections: 'Connections',

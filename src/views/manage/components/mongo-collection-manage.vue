@@ -57,6 +57,18 @@
                   <span class="i-carbon-add h-4 w-4 mr-1" />
                   {{ $t('manage.mongo.createCollection') }}
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  class="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  @click="
+                    resetDropDatabaseDialog();
+                    showDropDatabaseDialog = true;
+                  "
+                >
+                  <span class="i-carbon-trash-can h-4 w-4 mr-1" />
+                  {{ $t('manage.mongo.dropDatabase') }}
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -184,84 +196,284 @@
       </section>
     </div>
 
-    <Dialog v-model:open="showCreateDatabaseDialog">
+    <Dialog
+      :open="showCreateDatabaseDialog"
+      @update:open="
+        val => {
+          showCreateDatabaseDialog = val;
+          if (!val) resetCreateDatabaseDialog();
+        }
+      "
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{{ $t('manage.mongo.createDatabaseTitle') }}</DialogTitle>
           <DialogDescription>{{ $t('manage.mongo.createDatabaseDesc') }}</DialogDescription>
         </DialogHeader>
-        <div class="grid gap-4 py-4">
-          <div class="grid gap-2">
-            <Label for="db-name">{{ $t('manage.mongo.databaseName') }}</Label>
-            <Input id="db-name" v-model="newDatabaseName" />
-          </div>
-          <div class="grid gap-2">
-            <Label for="coll-name">{{ $t('manage.mongo.initialCollection') }}</Label>
-            <Input id="coll-name" v-model="newCollectionName" />
-          </div>
-        </div>
+        <Form class="grid gap-4 py-4">
+          <FormItem
+            :label="$t('manage.mongo.databaseName')"
+            required
+            :error="createDatabaseErrors.databaseName"
+          >
+            <Input
+              v-model="newDatabaseName"
+              autocapitalize="off"
+              autocomplete="off"
+              :spellcheck="false"
+              autocorrect="off"
+              @blur="validateCreateDatabase"
+            />
+          </FormItem>
+          <FormItem
+            :label="$t('manage.mongo.initialCollection')"
+            required
+            :error="createDatabaseErrors.collectionName"
+          >
+            <Input
+              v-model="newCollectionName"
+              autocapitalize="off"
+              autocomplete="off"
+              :spellcheck="false"
+              autocorrect="off"
+              @blur="validateCreateDatabase"
+            />
+          </FormItem>
+        </Form>
         <DialogFooter>
-          <Button variant="outline" @click="showCreateDatabaseDialog = false">
+          <Button
+            variant="outline"
+            :disabled="submittingCreateDatabase"
+            @click="
+              showCreateDatabaseDialog = false;
+              resetCreateDatabaseDialog();
+            "
+          >
             {{ $t('common.cancel') }}
           </Button>
-          <Button @click="handleCreateDatabase">{{ $t('common.create') }}</Button>
+          <Button
+            :disabled="!canCreateDatabase || submittingCreateDatabase"
+            @click="handleCreateDatabase"
+          >
+            <Spinner v-if="submittingCreateDatabase" class="mr-2 h-4 w-4" />
+            {{ $t('common.create') }}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
 
-    <Dialog v-model:open="showCreateCollectionDialog">
+    <Dialog
+      :open="showCreateCollectionDialog"
+      @update:open="
+        val => {
+          showCreateCollectionDialog = val;
+          if (!val) resetCreateCollectionDialog();
+        }
+      "
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{{ $t('manage.mongo.createCollectionTitle') }}</DialogTitle>
           <DialogDescription>{{ $t('manage.mongo.createCollectionDesc') }}</DialogDescription>
         </DialogHeader>
-        <div class="grid gap-4 py-4">
-          <div class="grid gap-2">
-            <Label for="new-coll-name">{{ $t('manage.mongo.collectionName') }}</Label>
-            <Input id="new-coll-name" v-model="newCollectionNameOnly" />
-          </div>
-        </div>
+        <Form class="grid gap-4 py-4">
+          <FormItem
+            :label="$t('manage.mongo.collectionName')"
+            required
+            :error="createCollectionErrors.collectionName"
+          >
+            <Input
+              v-model="newCollectionNameOnly"
+              autocapitalize="off"
+              autocomplete="off"
+              :spellcheck="false"
+              autocorrect="off"
+              @blur="validateCreateCollection"
+            />
+          </FormItem>
+        </Form>
         <DialogFooter>
-          <Button variant="outline" @click="showCreateCollectionDialog = false">
+          <Button
+            variant="outline"
+            :disabled="submittingCreateCollection"
+            @click="
+              showCreateCollectionDialog = false;
+              resetCreateCollectionDialog();
+            "
+          >
             {{ $t('common.cancel') }}
           </Button>
-          <Button @click="handleCreateCollection">{{ $t('common.create') }}</Button>
+          <Button
+            :disabled="!canCreateCollection || submittingCreateCollection"
+            @click="handleCreateCollection"
+          >
+            <Spinner v-if="submittingCreateCollection" class="mr-2 h-4 w-4" />
+            {{ $t('common.create') }}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
 
-    <Dialog v-model:open="showDropCollectionDialog">
-      <DialogContent>
+    <Dialog
+      :open="showDropCollectionDialog"
+      @update:open="
+        val => {
+          if (!val) resetDropCollectionDialog();
+          showDropCollectionDialog = val;
+        }
+      "
+    >
+      <DialogContent class="max-w-[400px]">
         <DialogHeader>
           <DialogTitle>{{ $t('manage.mongo.dropCollectionTitle') }}</DialogTitle>
-          <DialogDescription>
-            {{ $t('manage.mongo.dropCollectionConfirm', { name: collectionToDrop }) }}
-          </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" @click="showDropCollectionDialog = false">
+
+        <div v-if="dropCollectionResult === 'success'" class="text-center py-4">
+          <div class="text-green-500 text-4xl mb-2">✓</div>
+          <p class="text-sm font-medium">{{ $t('manage.mongo.collectionDropped') }}</p>
+        </div>
+
+        <Alert v-else-if="dropCollectionError" variant="destructive" class="mb-3">
+          <AlertDescription class="flex items-center justify-between">
+            <span>{{ dropCollectionError }}</span>
+            <button
+              class="ml-2 text-sm hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="dropCollectionError = ''"
+            >
+              <X class="w-4 h-4" />
+            </button>
+          </AlertDescription>
+        </Alert>
+
+        <div v-else class="space-y-4">
+          <p class="text-sm text-muted-foreground">
+            {{ $t('manage.mongo.dropCollectionConfirm', { name: collectionToDrop }) }}
+          </p>
+          <FormItem
+            :label="$t('manage.mongo.typeNameToConfirm', { name: collectionToDrop })"
+            required
+          >
+            <Input
+              v-model="dropCollectionConfirmName"
+              autocapitalize="off"
+              autocomplete="off"
+              :spellcheck="false"
+              autocorrect="off"
+            />
+          </FormItem>
+        </div>
+
+        <DialogFooter class="mt-4">
+          <Button
+            variant="outline"
+            :disabled="droppingCollection"
+            @click="
+              resetDropCollectionDialog();
+              showDropCollectionDialog = false;
+            "
+          >
             {{ $t('common.cancel') }}
           </Button>
-          <Button variant="destructive" @click="handleDropCollection">
+          <Button
+            v-if="dropCollectionResult === 'error'"
+            variant="destructive"
+            :disabled="droppingCollection"
+            @click="handleDropCollection"
+          >
+            <Spinner v-if="droppingCollection" class="mr-2 h-4 w-4" />
+            {{ $t('dialogOps.retry') }}
+          </Button>
+          <Button
+            v-else-if="dropCollectionResult !== 'success'"
+            variant="destructive"
+            :disabled="droppingCollection || dropCollectionConfirmName !== collectionToDrop"
+            @click="handleDropCollection"
+          >
+            <Spinner v-if="droppingCollection" class="mr-2 h-4 w-4" />
             {{ $t('common.drop') }}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
 
-    <Dialog v-model:open="showDropDatabaseDialog">
-      <DialogContent>
+    <Dialog
+      :open="showDropDatabaseDialog"
+      @update:open="
+        val => {
+          if (!val) resetDropDatabaseDialog();
+          showDropDatabaseDialog = val;
+        }
+      "
+    >
+      <DialogContent class="max-w-[400px]">
         <DialogHeader>
           <DialogTitle>{{ $t('manage.mongo.dropDatabaseTitle') }}</DialogTitle>
-          <DialogDescription>
-            {{ $t('manage.mongo.dropDatabaseConfirm', { name: selectedDatabase }) }}
-          </DialogDescription>
         </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" @click="showDropDatabaseDialog = false">
+
+        <div v-if="dropDatabaseResult === 'success'" class="text-center py-4">
+          <div class="text-green-500 text-4xl mb-2">✓</div>
+          <p class="text-sm font-medium">{{ $t('manage.mongo.databaseDropped') }}</p>
+        </div>
+
+        <Alert v-else-if="dropDatabaseError" variant="destructive" class="mb-3">
+          <AlertDescription class="flex items-center justify-between">
+            <span>{{ dropDatabaseError }}</span>
+            <button
+              class="ml-2 text-sm hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="dropDatabaseError = ''"
+            >
+              <X class="w-4 h-4" />
+            </button>
+          </AlertDescription>
+        </Alert>
+
+        <div v-else class="space-y-4">
+          <p class="text-sm text-muted-foreground">
+            {{ $t('manage.mongo.dropDatabaseConfirm', { name: selectedDatabase }) }}
+          </p>
+          <FormItem
+            :label="$t('manage.mongo.typeNameToConfirm', { name: selectedDatabase })"
+            required
+          >
+            <Input
+              v-model="dropDatabaseConfirmName"
+              autocapitalize="off"
+              autocomplete="off"
+              :spellcheck="false"
+              autocorrect="off"
+            />
+          </FormItem>
+        </div>
+
+        <DialogFooter class="mt-4">
+          <Button
+            variant="outline"
+            :disabled="droppingDatabase"
+            @click="
+              resetDropDatabaseDialog();
+              showDropDatabaseDialog = false;
+            "
+          >
             {{ $t('common.cancel') }}
           </Button>
-          <Button variant="destructive" @click="handleDropDatabase">
+          <Button
+            v-if="dropDatabaseResult === 'error'"
+            variant="destructive"
+            :disabled="droppingDatabase"
+            @click="handleDropDatabase"
+          >
+            <Spinner v-if="droppingDatabase" class="mr-2 h-4 w-4" />
+            {{ $t('dialogOps.retry') }}
+          </Button>
+          <Button
+            v-else-if="dropDatabaseResult !== 'success'"
+            variant="destructive"
+            :disabled="droppingDatabase || dropDatabaseConfirmName !== selectedDatabase"
+            @click="handleDropDatabase"
+          >
+            <Spinner v-if="droppingDatabase" class="mr-2 h-4 w-4" />
             {{ $t('common.drop') }}
           </Button>
         </DialogFooter>
@@ -271,12 +483,15 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, reactive, watch, onMounted } from 'vue';
+import { X } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useMessageService } from '@/composables';
 import prettyBytes from 'pretty-bytes';
 import { useClusterManageStore, useConnectionStore, MongoDBConnection } from '../../../store';
 import { useTabStore } from '../../../store/tabStore';
 import { useLang } from '../../../lang';
+import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY, withLoadingDelay } from '../../../common';
 import {
   mongoApi,
   type MongoDatabaseInfo,
@@ -286,10 +501,11 @@ import {
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Empty } from '@/components/ui/empty';
 import { Spinner } from '@/components/ui/spinner';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Form, FormItem } from '@/components/ui/form';
 import {
   Table,
   TableBody,
@@ -301,7 +517,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -348,6 +563,75 @@ const newDatabaseName = ref('');
 const newCollectionName = ref('');
 const newCollectionNameOnly = ref('');
 const collectionToDrop = ref('');
+
+// Drop collection dialog state
+const droppingCollection = ref(false);
+const dropCollectionConfirmName = ref('');
+const dropCollectionError = ref('');
+const dropCollectionResult = ref<'success' | 'error' | null>(null);
+
+// Drop database dialog state
+const droppingDatabase = ref(false);
+const dropDatabaseConfirmName = ref('');
+const dropDatabaseError = ref('');
+const dropDatabaseResult = ref<'success' | 'error' | null>(null);
+
+const resetDropCollectionDialog = () => {
+  dropCollectionConfirmName.value = '';
+  dropCollectionError.value = '';
+  dropCollectionResult.value = null;
+};
+
+const resetDropDatabaseDialog = () => {
+  dropDatabaseConfirmName.value = '';
+  dropDatabaseError.value = '';
+  dropDatabaseResult.value = null;
+};
+
+const submittingCreateDatabase = ref(false);
+const submittingCreateCollection = ref(false);
+
+const createDatabaseErrors = reactive({ databaseName: '', collectionName: '' });
+const createCollectionErrors = reactive({ collectionName: '' });
+
+const validateCreateDatabase = () => {
+  createDatabaseErrors.databaseName = newDatabaseName.value.trim()
+    ? ''
+    : lang.t('manage.mongo.nameRequired');
+  createDatabaseErrors.collectionName = newCollectionName.value.trim()
+    ? ''
+    : lang.t('manage.mongo.nameRequired');
+};
+
+const validateCreateCollection = () => {
+  createCollectionErrors.collectionName = newCollectionNameOnly.value.trim()
+    ? ''
+    : lang.t('manage.mongo.nameRequired');
+};
+
+const canCreateDatabase = computed(
+  () =>
+    newDatabaseName.value.trim().length > 0 &&
+    newCollectionName.value.trim().length > 0 &&
+    !createDatabaseErrors.databaseName &&
+    !createDatabaseErrors.collectionName,
+);
+
+const canCreateCollection = computed(
+  () => newCollectionNameOnly.value.trim().length > 0 && !createCollectionErrors.collectionName,
+);
+
+const resetCreateDatabaseDialog = () => {
+  newDatabaseName.value = '';
+  newCollectionName.value = '';
+  createDatabaseErrors.databaseName = '';
+  createDatabaseErrors.collectionName = '';
+};
+
+const resetCreateCollectionDialog = () => {
+  newCollectionNameOnly.value = '';
+  createCollectionErrors.collectionName = '';
+};
 
 const totalDocuments = computed(() =>
   collections.value.reduce((sum, c) => sum + (c.document_count ?? 0), 0),
@@ -455,6 +739,7 @@ const copyName = (name: string) => {
 
 const confirmDropCollection = (name: string) => {
   collectionToDrop.value = name;
+  resetDropCollectionDialog();
   showDropCollectionDialog.value = true;
 };
 
@@ -552,23 +837,25 @@ const handleRefresh = async () => {
 };
 
 const handleCreateDatabase = async () => {
-  if (!mongoConnection.value || !newDatabaseName.value || !newCollectionName.value) {
-    message.error(lang.t('manage.mongo.nameRequired'));
-    return;
-  }
+  validateCreateDatabase();
+  if (!canCreateDatabase.value) return;
+  if (!mongoConnection.value) return;
 
+  submittingCreateDatabase.value = true;
   try {
-    const result = await mongoApi.createDatabase(
-      mongoConnection.value,
-      newDatabaseName.value,
-      newCollectionName.value,
+    const result = await withLoadingDelay(
+      mongoApi.createDatabase(
+        mongoConnection.value,
+        newDatabaseName.value.trim(),
+        newCollectionName.value.trim(),
+      ),
+      MIN_LOADING_TIME,
     );
     if (result.success) {
-      const dbName = newDatabaseName.value;
+      const dbName = newDatabaseName.value.trim();
       message.success(result.message ?? lang.t('manage.mongo.databaseCreated'));
       showCreateDatabaseDialog.value = false;
-      newDatabaseName.value = '';
-      newCollectionName.value = '';
+      resetCreateDatabaseDialog();
       await handleRefresh();
       selectedDatabase.value = dbName;
     } else {
@@ -576,71 +863,101 @@ const handleCreateDatabase = async () => {
     }
   } catch (e) {
     message.error(e instanceof Error ? e.message : String(e));
+  } finally {
+    submittingCreateDatabase.value = false;
   }
 };
 
 const handleCreateCollection = async () => {
-  if (!mongoConnection.value || !selectedDatabase.value || !newCollectionNameOnly.value) {
-    message.error(lang.t('manage.mongo.nameRequired'));
-    return;
-  }
+  validateCreateCollection();
+  if (!canCreateCollection.value) return;
+  if (!mongoConnection.value || !selectedDatabase.value) return;
 
+  submittingCreateCollection.value = true;
   try {
-    const result = await mongoApi.createCollection(
-      mongoConnection.value,
-      selectedDatabase.value,
-      newCollectionNameOnly.value,
+    const result = await withLoadingDelay(
+      mongoApi.createCollection(
+        mongoConnection.value,
+        selectedDatabase.value,
+        newCollectionNameOnly.value.trim(),
+      ),
+      MIN_LOADING_TIME,
     );
     if (result.success) {
       message.success(result.message ?? lang.t('manage.mongo.collectionCreated'));
       showCreateCollectionDialog.value = false;
-      newCollectionNameOnly.value = '';
+      resetCreateCollectionDialog();
       await fetchCollectionsWithStats();
     } else {
       message.error(result.error ?? lang.t('manage.mongo.failedToCreateCollection'));
     }
   } catch (e) {
     message.error(e instanceof Error ? e.message : String(e));
+  } finally {
+    submittingCreateCollection.value = false;
   }
 };
 
 const handleDropCollection = async () => {
   if (!mongoConnection.value || !selectedDatabase.value || !collectionToDrop.value) return;
 
+  droppingCollection.value = true;
+  dropCollectionError.value = '';
   try {
-    const result = await mongoApi.dropCollection(
-      mongoConnection.value,
-      selectedDatabase.value,
-      collectionToDrop.value,
+    const result = await withLoadingDelay(
+      mongoApi.dropCollection(
+        mongoConnection.value,
+        selectedDatabase.value,
+        collectionToDrop.value,
+      ),
+      MIN_LOADING_TIME,
     );
     if (result.success) {
-      message.success(result.message ?? lang.t('manage.mongo.collectionDropped'));
-      showDropCollectionDialog.value = false;
-      collectionToDrop.value = '';
-      await fetchCollectionsWithStats();
+      dropCollectionResult.value = 'success';
+      setTimeout(() => {
+        showDropCollectionDialog.value = false;
+        resetDropCollectionDialog();
+        fetchCollectionsWithStats();
+      }, SUCCESS_MESSAGE_DELAY);
     } else {
-      message.error(result.error ?? lang.t('manage.mongo.failedToDropCollection'));
+      dropCollectionResult.value = 'error';
+      dropCollectionError.value = result.error ?? lang.t('manage.mongo.failedToDropCollection');
     }
   } catch (e) {
-    message.error(e instanceof Error ? e.message : String(e));
+    dropCollectionResult.value = 'error';
+    dropCollectionError.value = e instanceof Error ? e.message : String(e);
+  } finally {
+    droppingCollection.value = false;
   }
 };
 
 const handleDropDatabase = async () => {
   if (!mongoConnection.value || !selectedDatabase.value) return;
 
+  droppingDatabase.value = true;
+  dropDatabaseError.value = '';
   try {
-    const result = await mongoApi.dropDatabase(mongoConnection.value, selectedDatabase.value);
+    const result = await withLoadingDelay(
+      mongoApi.dropDatabase(mongoConnection.value, selectedDatabase.value),
+      MIN_LOADING_TIME,
+    );
     if (result.success) {
-      message.success(result.message ?? lang.t('manage.mongo.databaseDropped'));
-      showDropDatabaseDialog.value = false;
-      selectedDatabase.value = '';
-      await handleRefresh();
+      dropDatabaseResult.value = 'success';
+      setTimeout(() => {
+        showDropDatabaseDialog.value = false;
+        resetDropDatabaseDialog();
+        selectedDatabase.value = '';
+        handleRefresh();
+      }, SUCCESS_MESSAGE_DELAY);
     } else {
-      message.error(result.error ?? lang.t('manage.mongo.failedToDropDatabase'));
+      dropDatabaseResult.value = 'error';
+      dropDatabaseError.value = result.error ?? lang.t('manage.mongo.failedToDropDatabase');
     }
   } catch (e) {
-    message.error(e instanceof Error ? e.message : String(e));
+    dropDatabaseResult.value = 'error';
+    dropDatabaseError.value = e instanceof Error ? e.message : String(e);
+  } finally {
+    droppingDatabase.value = false;
   }
 };
 
