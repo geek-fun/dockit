@@ -615,11 +615,7 @@ const validateCreateCollection = () => {
 };
 
 const canCreateDatabase = computed(
-  () =>
-    newDatabaseName.value.trim().length > 0 &&
-    newCollectionName.value.trim().length > 0 &&
-    !createDatabaseErrors.databaseName &&
-    !createDatabaseErrors.collectionName,
+  () => newDatabaseName.value.trim().length > 0 && newCollectionName.value.trim().length > 0,
 );
 
 const canCreateCollection = computed(
