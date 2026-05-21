@@ -1,4 +1,11 @@
 export const enUS = {
+  common: {
+    cancel: 'Cancel',
+    create: 'Create',
+    drop: 'Drop',
+    confirm: 'Confirm',
+    delete: 'Delete',
+  },
   aside: {
     manage: 'Manage',
     connect: 'Connect',

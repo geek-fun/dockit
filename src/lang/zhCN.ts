@@ -1,4 +1,11 @@
 export const zhCN = {
+  common: {
+    cancel: '取消',
+    create: '创建',
+    drop: '删除',
+    confirm: '确认',
+    delete: '删除',
+  },
   aside: {
     manage: '管理',
     connect: '连接',
