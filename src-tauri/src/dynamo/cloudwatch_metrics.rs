@@ -117,10 +117,7 @@ pub async fn get_table_metrics(
                         // ConsumedReadCapacityUnits
                         consumed_read = values.to_vec();
                         if timestamps.is_empty() {
-                            timestamps = result_timestamps
-                                .iter()
-                                .map(|t| t.to_string())
-                                .collect();
+                            timestamps = result_timestamps.iter().map(|t| t.to_string()).collect();
                         }
                     }
                     "m1" => {

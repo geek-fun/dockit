@@ -103,7 +103,9 @@ fn build_uri(config: &MongoConnectionConfig) -> String {
 }
 
 #[tauri::command]
-pub async fn mongo_test_connection(config: MongoConnectionConfig) -> Result<MongoTestResult, String> {
+pub async fn mongo_test_connection(
+    config: MongoConnectionConfig,
+) -> Result<MongoTestResult, String> {
     let uri = build_uri(&config);
 
     let client_options = match ClientOptions::parse(&uri).await {
@@ -173,8 +175,10 @@ fn bson_to_json(bson: &Bson) -> Value {
         Bson::String(v) => Value::from(v.as_str()),
         Bson::Array(arr) => Value::Array(arr.iter().map(bson_to_json).collect()),
         Bson::Document(d) => {
-            let map: serde_json::Map<String, Value> =
-                d.iter().map(|(k, v)| (k.clone(), bson_to_json(v))).collect();
+            let map: serde_json::Map<String, Value> = d
+                .iter()
+                .map(|(k, v)| (k.clone(), bson_to_json(v)))
+                .collect();
             Value::Object(map)
         }
         Bson::Boolean(v) => Value::from(*v),
@@ -349,7 +353,13 @@ fn parse_json_arg(s: &str) -> Result<Value, String> {
     }
     serde_json::from_str(s)
         .or_else(|_| serde_json::from_str(&js_to_json(s)))
-        .map_err(|e| format!("Failed to parse argument '{}': {}", &s[..s.len().min(80)], e))
+        .map_err(|e| {
+            format!(
+                "Failed to parse argument '{}': {}",
+                &s[..s.len().min(80)],
+                e
+            )
+        })
 }
 
 fn split_top_level_args(s: &str) -> Vec<String> {
@@ -367,13 +377,21 @@ fn split_top_level_args(s: &str) -> Vec<String> {
     while i < chars.len() {
         let ch = chars[i];
         if in_string {
-            if ch == '\\' { i += 2; continue; }
-            if ch == string_char { in_string = false; }
+            if ch == '\\' {
+                i += 2;
+                continue;
+            }
+            if ch == string_char {
+                in_string = false;
+            }
             i += 1;
             continue;
         }
         match ch {
-            '"' | '\'' => { in_string = true; string_char = ch; }
+            '"' | '\'' => {
+                in_string = true;
+                string_char = ch;
+            }
             '{' | '[' | '(' => depth += 1,
             '}' | ']' | ')' => depth -= 1,
             ',' if depth == 0 => {
@@ -387,7 +405,9 @@ fn split_top_level_args(s: &str) -> Vec<String> {
     }
     let last: String = chars[start..].iter().collect();
     let last = last.trim().to_string();
-    if !last.is_empty() { args.push(last); }
+    if !last.is_empty() {
+        args.push(last);
+    }
     args
 }
 
@@ -405,14 +425,23 @@ fn extract_balanced(s: &str) -> Result<(String, &str), String> {
 
     for ch in &chars {
         if in_string {
-            if *ch == '\\' { i += 1; byte_pos += ch.len_utf8(); continue; }
-            if *ch == string_char { in_string = false; }
+            if *ch == '\\' {
+                i += 1;
+                byte_pos += ch.len_utf8();
+                continue;
+            }
+            if *ch == string_char {
+                in_string = false;
+            }
             i += 1;
             byte_pos += ch.len_utf8();
             continue;
         }
         match ch {
-            '"' | '\'' => { in_string = true; string_char = *ch; }
+            '"' | '\'' => {
+                in_string = true;
+                string_char = *ch;
+            }
             '(' => depth += 1,
             ')' => {
                 depth -= 1;
@@ -445,8 +474,12 @@ fn parse_chain(s: &str) -> Result<(Option<i64>, Option<u64>, Option<Document>), 
         let method = s[..paren_pos].trim();
         let (arg_str, rest) = extract_balanced(&s[paren_pos..])?;
         match method {
-            "limit" => { limit = arg_str.trim().parse::<i64>().ok(); }
-            "skip" => { skip = arg_str.trim().parse::<u64>().ok(); }
+            "limit" => {
+                limit = arg_str.trim().parse::<i64>().ok();
+            }
+            "skip" => {
+                skip = arg_str.trim().parse::<u64>().ok();
+            }
             "sort" => {
                 if let Ok(val) = parse_json_arg(&arg_str) {
                     sort_doc = json_to_bson_doc(val).ok();
@@ -473,42 +506,75 @@ fn parse_statement(code: &str) -> Result<ParsedStatement, String> {
     let code = code.trim().trim_end_matches(';').trim();
 
     if !code.starts_with("db") {
-        return Err(format!("Statement must start with 'db': {}", &code[..code.len().min(60)]));
+        return Err(format!(
+            "Statement must start with 'db': {}",
+            &code[..code.len().min(60)]
+        ));
     }
 
     let after_db = &code[2..];
 
     let (collection, rest) = if after_db.starts_with('[') {
-        let end = after_db.find(']').ok_or("Unmatched '[' in collection accessor")?;
-        let name = after_db[1..end].trim().trim_matches('"').trim_matches('\'').to_string();
+        let end = after_db
+            .find(']')
+            .ok_or("Unmatched '[' in collection accessor")?;
+        let name = after_db[1..end]
+            .trim()
+            .trim_matches('"')
+            .trim_matches('\'')
+            .to_string();
         (name, &after_db[end + 1..])
     } else if after_db.starts_with(".getCollection(") {
         let start = ".getCollection(".len();
-        let end = after_db[start..].find(')').map(|i| i + start)
+        let end = after_db[start..]
+            .find(')')
+            .map(|i| i + start)
             .ok_or("Unmatched '(' in getCollection")?;
-        let name = after_db[start..end].trim().trim_matches('"').trim_matches('\'').to_string();
+        let name = after_db[start..end]
+            .trim()
+            .trim_matches('"')
+            .trim_matches('\'')
+            .to_string();
         (name, &after_db[end + 1..])
     } else if after_db.starts_with('.') {
         let rest = &after_db[1..];
-        let dot_pos = rest.find('.').ok_or(format!("Missing method on collection: {}", code))?;
+        let dot_pos = rest
+            .find('.')
+            .ok_or(format!("Missing method on collection: {}", code))?;
         (rest[..dot_pos].to_string(), &rest[dot_pos..])
     } else {
-        return Err(format!("Cannot parse collection from: {}", &code[..code.len().min(60)]));
+        return Err(format!(
+            "Cannot parse collection from: {}",
+            &code[..code.len().min(60)]
+        ));
     };
 
     if !rest.starts_with('.') {
-        return Err(format!("Expected '.' before method name, got: {}", &rest[..rest.len().min(20)]));
+        return Err(format!(
+            "Expected '.' before method name, got: {}",
+            &rest[..rest.len().min(20)]
+        ));
     }
     let rest = &rest[1..];
 
-    let paren_pos = rest.find('(').ok_or(format!("Missing '(' for method call: {}", &rest[..rest.len().min(30)]))?;
+    let paren_pos = rest.find('(').ok_or(format!(
+        "Missing '(' for method call: {}",
+        &rest[..rest.len().min(30)]
+    ))?;
     let method = rest[..paren_pos].trim().to_string();
 
     let (main_args_str, chain_str) = extract_balanced(&rest[paren_pos..])?;
     let args = split_top_level_args(&main_args_str);
     let (chain_limit, chain_skip, chain_sort) = parse_chain(chain_str)?;
 
-    Ok(ParsedStatement { collection, method, args, chain_limit, chain_skip, chain_sort })
+    Ok(ParsedStatement {
+        collection,
+        method,
+        args,
+        chain_limit,
+        chain_skip,
+        chain_sort,
+    })
 }
 
 fn split_statements(code: &str) -> Vec<String> {
@@ -523,8 +589,13 @@ fn split_statements(code: &str) -> Vec<String> {
     while i < chars.len() {
         let ch = chars[i];
         if in_string {
-            if ch == '\\' { i += 2; continue; }
-            if ch == string_char { in_string = false; }
+            if ch == '\\' {
+                i += 2;
+                continue;
+            }
+            if ch == string_char {
+                in_string = false;
+            }
             i += 1;
             continue;
         }
@@ -532,25 +603,37 @@ fn split_statements(code: &str) -> Vec<String> {
             '"' | '\'' | '`' => {
                 in_string = true;
                 string_char = ch;
-                if stmt_start.is_none() { stmt_start = Some(i); }
+                if stmt_start.is_none() {
+                    stmt_start = Some(i);
+                }
             }
             '{' | '[' | '(' => {
                 depth += 1;
-                if stmt_start.is_none() { stmt_start = Some(i); }
+                if stmt_start.is_none() {
+                    stmt_start = Some(i);
+                }
             }
             '}' | ']' | ')' => {
-                if depth > 0 { depth -= 1; }
+                if depth > 0 {
+                    depth -= 1;
+                }
             }
             '\n' | ';' if depth == 0 => {
                 if let Some(start) = stmt_start {
                     let stmt: String = chars[start..i].iter().collect();
                     let stmt = stmt.trim().to_string();
-                    if stmt.starts_with("db") { statements.push(stmt); }
+                    if stmt.starts_with("db") {
+                        statements.push(stmt);
+                    }
                     stmt_start = None;
                 }
             }
             ' ' | '\t' | '\r' if stmt_start.is_none() => {}
-            _ => { if stmt_start.is_none() { stmt_start = Some(i); } }
+            _ => {
+                if stmt_start.is_none() {
+                    stmt_start = Some(i);
+                }
+            }
         }
         i += 1;
     }
@@ -558,18 +641,26 @@ fn split_statements(code: &str) -> Vec<String> {
     if let Some(start) = stmt_start {
         let stmt: String = chars[start..].iter().collect();
         let stmt = stmt.trim().trim_end_matches(';').trim().to_string();
-        if stmt.starts_with("db") { statements.push(stmt); }
+        if stmt.starts_with("db") {
+            statements.push(stmt);
+        }
     }
 
     if statements.is_empty() {
         let single = code.trim().trim_end_matches(';').trim().to_string();
-        if !single.is_empty() { statements.push(single); }
+        if !single.is_empty() {
+            statements.push(single);
+        }
     }
 
     statements
 }
 
-async fn execute_statement(client: &Client, db_name: &str, stmt: ParsedStatement) -> Result<Value, String> {
+async fn execute_statement(
+    client: &Client,
+    db_name: &str,
+    stmt: ParsedStatement,
+) -> Result<Value, String> {
     let db = client.database(db_name);
     let coll = db.collection::<Document>(&stmt.collection);
 
@@ -787,11 +878,20 @@ pub async fn mongo_execute_query(
     config: MongoConnectionConfig,
     code: String,
 ) -> Result<MongoQueryResult, String> {
-    let db_name = config.database.clone().unwrap_or_else(|| "test".to_string());
+    let db_name = config
+        .database
+        .clone()
+        .unwrap_or_else(|| "test".to_string());
 
     let client = match build_client(&config).await {
         Ok(c) => c,
-        Err(e) => return Ok(MongoQueryResult { success: false, data: None, error: Some(e) }),
+        Err(e) => {
+            return Ok(MongoQueryResult {
+                success: false,
+                data: None,
+                error: Some(e),
+            })
+        }
     };
 
     let statements = split_statements(&code);
@@ -807,15 +907,31 @@ pub async fn mongo_execute_query(
     for stmt_str in statements {
         let stmt = match parse_statement(&stmt_str) {
             Ok(p) => p,
-            Err(e) => return Ok(MongoQueryResult { success: false, data: None, error: Some(e) }),
+            Err(e) => {
+                return Ok(MongoQueryResult {
+                    success: false,
+                    data: None,
+                    error: Some(e),
+                })
+            }
         };
         match execute_statement(&client, &db_name, stmt).await {
             Ok(result) => last_result = result,
-            Err(e) => return Ok(MongoQueryResult { success: false, data: None, error: Some(e) }),
+            Err(e) => {
+                return Ok(MongoQueryResult {
+                    success: false,
+                    data: None,
+                    error: Some(e),
+                })
+            }
         }
     }
 
-    Ok(MongoQueryResult { success: true, data: Some(last_result), error: None })
+    Ok(MongoQueryResult {
+        success: true,
+        data: Some(last_result),
+        error: None,
+    })
 }
 
 async fn build_client(config: &MongoConnectionConfig) -> Result<Client, String> {

@@ -25,9 +25,7 @@ pub fn get_base_url(settings: &Value) -> String {
         .get("provider")
         .and_then(|v| v.as_str())
         .unwrap_or("");
-    let explicit = settings
-        .get("baseUrl")
-        .and_then(|v| v.as_str());
+    let explicit = settings.get("baseUrl").and_then(|v| v.as_str());
 
     if let Some(url) = explicit {
         if !url.trim().is_empty() {

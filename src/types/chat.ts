@@ -1,11 +1,4 @@
-/**
- * Unified Chat Types
- *
- * Common types for both sidebar assistant chat and data studio chat.
- * Supports agent-powered conversations with tool calling, streaming, and markdown.
- */
-
-import type { AgentToolCall } from '@/store/dataStudioStore';
+import type { AgentToolCall, ConfirmationRule } from '@/store/dataStudioStore';
 
 export type ChatMessageStatus = 'pending' | 'streaming' | 'sending' | 'done' | 'error';
 
@@ -18,7 +11,6 @@ export type ChatMessage = {
   status: ChatMessageStatus;
   timestamp: number;
 
-  // Agent features (optional for simpler use cases)
   thinking?: string;
   thinkingDuration?: number;
   toolCalls?: Array<AgentToolCall>;
@@ -29,23 +21,21 @@ export type ChatSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'e
 
 export type ChatSession = {
   id: string;
-  connectionId?: number;
   messages: Array<ChatMessage>;
   status: ChatSessionStatus;
   schema?: string;
+  sources?: import('@/store/dataStudioStore').SessionSource[];
   maxIterations: number;
 };
 
 export type ChatContextConfig = {
-  // Connection info (for database operations)
-  connectionId?: number;
-  connectionConfig?: Record<string, unknown>;
-  databaseType?: 'ELASTICSEARCH' | 'OPENSEARCH' | 'EASYSEARCH' | 'DYNAMODB' | 'MONGODB';
+  connections?: Record<string, Record<string, unknown>>;
+  databaseTypes?: Record<string, string>;
 
-  // Schema info
+  databaseType?: string;
+
   schema?: string;
 
-  // Active panel context (for sidebar)
   activePanel?: {
     connectionType?: string;
     indexName?: string;
@@ -62,18 +52,14 @@ export type ChatPermissions = {
 };
 
 export type ChatConfig = {
-  // Feature flags
   enableToolCalls: boolean;
   enableConfirmations: boolean;
   autoApproveSafe: boolean;
 
-  // Permissions
   permissions: ChatPermissions;
 
-  // Context
   context: ChatContextConfig;
 
-  // Model settings
   maxIterations: number;
 };
 
@@ -81,6 +67,7 @@ export type ChatMessageType = 'sidebar' | 'dataStudio';
 
 export type SendMessageOptions = {
   content: string;
-  connectionId?: number;
   context?: ChatContextConfig;
 };
+
+export type { ConfirmationRule };

@@ -34,12 +34,10 @@ fn url_encode_segment(segment: &str) -> String {
     segment
         .bytes()
         .flat_map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                vec![b as char]
-                    .into_iter()
-                    .map(|c| c.to_string())
-                    .collect::<Vec<_>>()
-            }
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => vec![b as char]
+                .into_iter()
+                .map(|c| c.to_string())
+                .collect::<Vec<_>>(),
             _ => vec![format!("%{:02X}", b)],
         })
         .collect()
@@ -138,8 +136,8 @@ pub(crate) async fn create_dynamo_client(config: &Value) -> Result<DynamoClient,
         .or_default_provider()
         .or_else("us-east-1");
 
-    let mut config_builder = aws_config::defaults(aws_config::BehaviorVersion::latest())
-        .region(region_provider);
+    let mut config_builder =
+        aws_config::defaults(aws_config::BehaviorVersion::latest()).region(region_provider);
 
     // Handle different auth types
     if let Some(auth_kind) = config.get("authKind").and_then(|v| v.as_str()) {
@@ -153,7 +151,10 @@ pub(crate) async fn create_dynamo_client(config: &Value) -> Result<DynamoClient,
                     .get("secretAccessKey")
                     .and_then(|v| v.as_str())
                     .ok_or("Missing secretAccessKey")?;
-                let session_token = config.get("sessionToken").and_then(|v| v.as_str()).map(|s| s.to_string());
+                let session_token = config
+                    .get("sessionToken")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
 
                 let creds = Credentials::new(
                     access_key_id,
@@ -189,13 +190,7 @@ pub(crate) async fn create_dynamo_client(config: &Value) -> Result<DynamoClient,
             .and_then(|v| v.as_str())
             .ok_or("Missing secretAccessKey")?;
 
-        let creds = Credentials::new(
-            access_key_id,
-            secret_access_key,
-            None,
-            None,
-            "dockit-agent",
-        );
+        let creds = Credentials::new(access_key_id, secret_access_key, None, None, "dockit-agent");
         config_builder = config_builder.credentials_provider(creds);
     }
 
@@ -209,27 +204,27 @@ pub(crate) async fn create_dynamo_client(config: &Value) -> Result<DynamoClient,
     Ok(DynamoClient::new(&aws_config))
 }
 
-async fn execute_es_tool(
-    tool_name: &str,
-    args: &Value,
-    config: &Value,
-) -> Result<String, String> {
+async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Result<String, String> {
     let base_url = build_es_base_url(config)?;
     let headers = build_es_headers(config);
     let ssl = get_es_ssl_flag(config);
     let client = create_http_client(None, Some(ssl));
 
     let (method, path, body) = match tool_name {
-        "es.search" => {
+        "es__search" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing index")?;
             validate_index_name(index, true)?;
             let body = args.get("body").ok_or("Missing body")?;
-            ("POST", format!("/{}/_search", url_encode_segment(index)), Some(body.to_string()))
+            (
+                "POST",
+                format!("/{}/_search", url_encode_segment(index)),
+                Some(body.to_string()),
+            )
         }
-        "es.get_document" => {
+        "es__get_document" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -239,9 +234,17 @@ async fn execute_es_tool(
                 .get("id")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing id")?;
-            ("GET", format!("/{}/_doc/{}", url_encode_segment(index), url_encode_segment(id)), None)
+            (
+                "GET",
+                format!(
+                    "/{}/_doc/{}",
+                    url_encode_segment(index),
+                    url_encode_segment(id)
+                ),
+                None,
+            )
         }
-        "es.index_document" => {
+        "es__index_document" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -249,12 +252,16 @@ async fn execute_es_tool(
             validate_index_name(index, false)?;
             let body = args.get("body").ok_or("Missing body")?;
             let path = match args.get("id").and_then(|v| v.as_str()) {
-                Some(id) => format!("/{}/_doc/{}", url_encode_segment(index), url_encode_segment(id)),
+                Some(id) => format!(
+                    "/{}/_doc/{}",
+                    url_encode_segment(index),
+                    url_encode_segment(id)
+                ),
                 None => format!("/{}/_doc", url_encode_segment(index)),
             };
             ("POST", path, Some(body.to_string()))
         }
-        "es.update_document" => {
+        "es__update_document" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -267,11 +274,15 @@ async fn execute_es_tool(
             let body = args.get("body").ok_or("Missing body")?;
             (
                 "POST",
-                format!("/{}/_update/{}", url_encode_segment(index), url_encode_segment(id)),
+                format!(
+                    "/{}/_update/{}",
+                    url_encode_segment(index),
+                    url_encode_segment(id)
+                ),
                 Some(body.to_string()),
             )
         }
-        "es.delete_document" => {
+        "es__delete_document" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -281,9 +292,17 @@ async fn execute_es_tool(
                 .get("id")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing id")?;
-            ("DELETE", format!("/{}/_doc/{}", url_encode_segment(index), url_encode_segment(id)), None)
+            (
+                "DELETE",
+                format!(
+                    "/{}/_doc/{}",
+                    url_encode_segment(index),
+                    url_encode_segment(id)
+                ),
+                None,
+            )
         }
-        "es.delete_by_query" => {
+        "es__delete_by_query" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -296,14 +315,18 @@ async fn execute_es_tool(
                 Some(body.to_string()),
             )
         }
-        "es.cat_indices" => ("GET", "/_cat/indices?format=json".to_string(), None),
-        "es.get_mapping" => {
+        "es__cat_indices" => ("GET", "/_cat/indices?format=json".to_string(), None),
+        "es__get_mapping" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
                 .ok_or("Missing index")?;
             validate_index_name(index, true)?;
-            ("GET", format!("/{}/_mapping", url_encode_segment(index)), None)
+            (
+                "GET",
+                format!("/{}/_mapping", url_encode_segment(index)),
+                None,
+            )
         }
         _ => return Err(format!("Unknown ES tool: {}", tool_name)),
     };
@@ -366,26 +389,29 @@ fn validate_dynamo_statement(tool_name: &str, statement: &str) -> Result<(), Str
     let first_word = upper.split_whitespace().next().unwrap_or("");
 
     match tool_name {
-        "dynamo.execute_query" => {
-            if matches!(first_word, "INSERT" | "UPDATE" | "DELETE" | "DROP" | "CREATE" | "ALTER" | "TRUNCATE") {
+        "dynamo__execute_query" => {
+            if matches!(
+                first_word,
+                "INSERT" | "UPDATE" | "DELETE" | "DROP" | "CREATE" | "ALTER" | "TRUNCATE"
+            ) {
                 return Err(format!(
-                    "dynamo.execute_query is read-only; rejected statement starting with '{}'",
+                    "dynamo__execute_query is read-only; rejected statement starting with '{}'",
                     first_word
                 ));
             }
         }
-        "dynamo.execute_write" => {
+        "dynamo__execute_write" => {
             if matches!(first_word, "DELETE" | "DROP" | "TRUNCATE") {
                 return Err(format!(
-                    "dynamo.execute_write does not allow destructive statements starting with '{}'",
+                    "dynamo__execute_write does not allow destructive statements starting with '{}'",
                     first_word
                 ));
             }
         }
-        "dynamo.execute_delete" => {
+        "dynamo__execute_delete" => {
             if first_word != "DELETE" {
                 return Err(format!(
-                    "dynamo.execute_delete only allows DELETE statements, got '{}'",
+                    "dynamo__execute_delete only allows DELETE statements, got '{}'",
                     first_word
                 ));
             }
@@ -403,7 +429,7 @@ async fn execute_dynamo_tool(
     let client = create_dynamo_client(config).await?;
 
     match tool_name {
-        "dynamo.execute_query" | "dynamo.execute_write" | "dynamo.execute_delete" => {
+        "dynamo__execute_query" | "dynamo__execute_write" | "dynamo__execute_delete" => {
             let statement = args
                 .get("statement")
                 .and_then(|v| v.as_str())
@@ -419,7 +445,7 @@ async fn execute_dynamo_tool(
                 .map(truncate_tool_output)
                 .map_err(|e| e.to_string())
         }
-        "dynamo.describe_table" => {
+        "dynamo__describe_table" => {
             let table_name = args
                 .get("table_name")
                 .and_then(|v| v.as_str())
@@ -444,12 +470,12 @@ pub async fn execute_tool(
     // Tool execution is gated by the agent loop, which enforces per-session
     // tool allow-lists and user confirmation. This helper remains only for
     // potential internal callers; it is not reachable from the webview.
-    let args: Value =
-        serde_json::from_str(&arguments).map_err(|e| format!("Failed to parse arguments: {}", e))?;
+    let args: Value = serde_json::from_str(&arguments)
+        .map_err(|e| format!("Failed to parse arguments: {}", e))?;
 
-    if tool_name.starts_with("es.") {
+    if tool_name.starts_with("es__") {
         execute_es_tool(&tool_name, &args, &connection_config).await
-    } else if tool_name.starts_with("dynamo.") {
+    } else if tool_name.starts_with("dynamo__") {
         execute_dynamo_tool(&tool_name, &args, &connection_config).await
     } else {
         Err(format!("Unknown tool: {}", tool_name))
@@ -493,9 +519,9 @@ impl crate::agent::tool_executor::ToolExecutor for DocKitToolExecutor {
     ) -> Result<ToolEnvelope, String> {
         let start = std::time::Instant::now();
 
-        let raw = if tool_name.starts_with("es.") {
+        let raw = if tool_name.starts_with("es__") {
             execute_es_tool(tool_name, arguments, connection_config).await?
-        } else if tool_name.starts_with("dynamo.") {
+        } else if tool_name.starts_with("dynamo__") {
             execute_dynamo_tool(tool_name, arguments, connection_config).await?
         } else {
             return Err(format!("Unknown tool: {}", tool_name));

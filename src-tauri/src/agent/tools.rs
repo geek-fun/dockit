@@ -9,272 +9,221 @@ pub enum RiskLevel {
     Destructive,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Permissions {
-    pub read: bool,
-    pub create: bool,
-    pub update: bool,
-    pub delete: bool,
-}
-
-struct ToolDefinition {
-    name: &'static str,
+pub struct ToolDefinition {
+    pub name: &'static str,
     description: &'static str,
     parameters: Value,
-    risk_level: RiskLevel,
-    required_permission: &'static str,
-    database_type: &'static str,
+    pub risk_level: RiskLevel,
+    pub required_permission: &'static str,
 }
 
-fn all_tools() -> Vec<ToolDefinition> {
+pub fn all_tools() -> Vec<ToolDefinition> {
     vec![
         ToolDefinition {
-            name: "es.search",
+            name: "es__search",
             description: "Execute an Elasticsearch search query using Query DSL. Returns matching documents with scores. Use for finding, filtering, and aggregating data.",
             parameters: json!({
                 "type": "object",
                 "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
                     "index": { "type": "string", "description": "Target index name" },
                     "body": { "type": "object", "description": "Elasticsearch Query DSL body (e.g. {\"query\":{\"match_all\":{}}})" }
                 },
-                "required": ["index", "body"]
+                "required": ["connection_id", "index", "body"]
             }),
             risk_level: RiskLevel::Safe,
             required_permission: "read",
-            database_type: "ELASTICSEARCH",
         },
         ToolDefinition {
-            name: "es.get_document",
+            name: "es__get_document",
             description: "Get a single document by its ID from an Elasticsearch index.",
             parameters: json!({
                 "type": "object",
                 "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
                     "index": { "type": "string", "description": "Target index name" },
                     "id": { "type": "string", "description": "Document ID" }
                 },
-                "required": ["index", "id"]
+                "required": ["connection_id", "index", "id"]
             }),
             risk_level: RiskLevel::Safe,
             required_permission: "read",
-            database_type: "ELASTICSEARCH",
         },
         ToolDefinition {
-            name: "es.index_document",
+            name: "es__index_document",
             description: "Create or replace a document in an Elasticsearch index. Omit id to auto-generate one.",
             parameters: json!({
                 "type": "object",
                 "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
                     "index": { "type": "string", "description": "Target index name" },
                     "id": { "type": "string", "description": "Optional document ID; omit to auto-generate" },
                     "body": { "type": "object", "description": "Document body to index" }
                 },
-                "required": ["index", "body"]
+                "required": ["connection_id", "index", "body"]
             }),
             risk_level: RiskLevel::Elevated,
             required_permission: "create",
-            database_type: "ELASTICSEARCH",
         },
         ToolDefinition {
-            name: "es.update_document",
+            name: "es__update_document",
             description: "Partially update an existing document in an Elasticsearch index using the Update API.",
             parameters: json!({
                 "type": "object",
                 "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
                     "index": { "type": "string", "description": "Target index name" },
                     "id": { "type": "string", "description": "Document ID to update" },
                     "body": { "type": "object", "description": "Update body, e.g. {\"doc\":{\"field\":\"value\"}}" }
                 },
-                "required": ["index", "id", "body"]
+                "required": ["connection_id", "index", "id", "body"]
             }),
             risk_level: RiskLevel::Elevated,
             required_permission: "update",
-            database_type: "ELASTICSEARCH",
         },
         ToolDefinition {
-            name: "es.delete_document",
+            name: "es__delete_document",
             description: "Delete a single document by ID from an Elasticsearch index.",
             parameters: json!({
                 "type": "object",
                 "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
                     "index": { "type": "string", "description": "Target index name" },
                     "id": { "type": "string", "description": "Document ID to delete" }
                 },
-                "required": ["index", "id"]
+                "required": ["connection_id", "index", "id"]
             }),
             risk_level: RiskLevel::Destructive,
             required_permission: "delete",
-            database_type: "ELASTICSEARCH",
         },
         ToolDefinition {
-            name: "es.delete_by_query",
+            name: "es__delete_by_query",
             description: "Delete ALL documents matching a query. WARNING: bulk destructive operation that can affect many documents.",
             parameters: json!({
                 "type": "object",
                 "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
                     "index": { "type": "string", "description": "Target index name" },
                     "body": { "type": "object", "description": "Query DSL to match documents for deletion" }
                 },
-                "required": ["index", "body"]
+                "required": ["connection_id", "index", "body"]
             }),
             risk_level: RiskLevel::Destructive,
             required_permission: "delete",
-            database_type: "ELASTICSEARCH",
         },
         ToolDefinition {
-            name: "es.cat_indices",
+            name: "es__cat_indices",
             description: "List all indices with health status, document count, and storage size.",
             parameters: json!({
                 "type": "object",
-                "properties": {}
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" }
+                },
+                "required": ["connection_id"]
             }),
             risk_level: RiskLevel::Safe,
             required_permission: "read",
-            database_type: "ELASTICSEARCH",
         },
         ToolDefinition {
-            name: "es.get_mapping",
+            name: "es__get_mapping",
             description: "Get the field mapping (schema) for an Elasticsearch index, showing field names and data types.",
             parameters: json!({
                 "type": "object",
                 "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
                     "index": { "type": "string", "description": "Target index name" }
                 },
-                "required": ["index"]
+                "required": ["connection_id", "index"]
             }),
             risk_level: RiskLevel::Safe,
             required_permission: "read",
-            database_type: "ELASTICSEARCH",
         },
         ToolDefinition {
-            name: "dynamo.execute_query",
+            name: "dynamo__execute_query",
             description: "Execute a PartiQL SELECT query against DynamoDB. Use for reading and querying table data.",
             parameters: json!({
                 "type": "object",
                 "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
                     "statement": { "type": "string", "description": "PartiQL SELECT statement, e.g. SELECT * FROM \"MyTable\" WHERE pk = 'value'" }
                 },
-                "required": ["statement"]
+                "required": ["connection_id", "statement"]
             }),
             risk_level: RiskLevel::Safe,
             required_permission: "read",
-            database_type: "DYNAMODB",
         },
         ToolDefinition {
-            name: "dynamo.execute_write",
+            name: "dynamo__execute_write",
             description: "Execute a PartiQL INSERT or UPDATE statement against DynamoDB.",
             parameters: json!({
                 "type": "object",
                 "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
                     "statement": { "type": "string", "description": "PartiQL INSERT or UPDATE statement" }
                 },
-                "required": ["statement"]
+                "required": ["connection_id", "statement"]
             }),
             risk_level: RiskLevel::Elevated,
             required_permission: "create",
-            database_type: "DYNAMODB",
         },
         ToolDefinition {
-            name: "dynamo.execute_delete",
+            name: "dynamo__execute_delete",
             description: "Execute a PartiQL DELETE statement against DynamoDB. DESTRUCTIVE: permanently removes data.",
             parameters: json!({
                 "type": "object",
                 "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
                     "statement": { "type": "string", "description": "PartiQL DELETE statement" }
                 },
-                "required": ["statement"]
+                "required": ["connection_id", "statement"]
             }),
             risk_level: RiskLevel::Destructive,
             required_permission: "delete",
-            database_type: "DYNAMODB",
         },
         ToolDefinition {
-            name: "dynamo.describe_table",
+            name: "dynamo__describe_table",
             description: "Describe a DynamoDB table schema: key schema, attribute definitions, indexes, and throughput.",
             parameters: json!({
                 "type": "object",
                 "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
                     "table_name": { "type": "string", "description": "DynamoDB table name" }
                 },
-                "required": ["table_name"]
+                "required": ["connection_id", "table_name"]
             }),
             risk_level: RiskLevel::Safe,
             required_permission: "read",
-            database_type: "DYNAMODB",
         },
     ]
-}
-
-fn normalize_database_type(database_type: &str) -> &'static str {
-    match database_type {
-        "OPENSEARCH" | "EASYSEARCH" => "ELASTICSEARCH",
-        "DYNAMODB" => "DYNAMODB",
-        _ => "ELASTICSEARCH",
-    }
-}
-
-fn has_permission(permissions: &Permissions, required: &str) -> bool {
-    match required {
-        "read" => permissions.read,
-        "create" => permissions.create,
-        "update" => permissions.update,
-        "delete" => permissions.delete,
-        _ => false,
-    }
-}
-
-fn internal_to_openai_name(name: &str) -> String {
-    name.replace('.', "__")
-}
-
-pub fn openai_name_to_internal(name: &str) -> String {
-    name.replace("__", ".")
 }
 
 fn to_openai_tool(tool: &ToolDefinition) -> Value {
     json!({
         "type": "function",
         "function": {
-            "name": internal_to_openai_name(tool.name),
+            "name": tool.name,
             "description": tool.description,
-            "parameters": tool.parameters
+            "parameters": tool.parameters.clone()
         }
     })
 }
 
+fn to_metadata(tool: &ToolDefinition) -> Value {
+    json!({
+        "riskLevel": tool.risk_level,
+        "requiredPermission": tool.required_permission
+    })
+}
+
 #[tauri::command]
-pub fn get_available_tools(
-    database_type: String,
-    read: bool,
-    create: bool,
-    update: bool,
-    delete: bool,
-) -> Result<String, String> {
-    let permissions = Permissions {
-        read,
-        create,
-        update,
-        delete,
-    };
+pub fn get_all_tools() -> Result<String, String> {
+    let tools = all_tools();
 
-    let effective_type = normalize_database_type(database_type.as_str());
-    let filtered: Vec<ToolDefinition> = all_tools()
-        .into_iter()
-        .filter(|t| t.database_type == effective_type && has_permission(&permissions, t.required_permission))
-        .collect();
+    let openai_tools: Vec<Value> = tools.iter().map(to_openai_tool).collect();
 
-    let openai_tools: Vec<Value> = filtered.iter().map(|t| to_openai_tool(t)).collect();
-
-    let metadata: serde_json::Map<String, Value> = filtered
+    let metadata: serde_json::Map<String, Value> = tools
         .iter()
-        .map(|t| {
-            (
-                t.name.to_string(),
-                json!({
-                    "riskLevel": t.risk_level,
-                    "requiredPermission": t.required_permission
-                }),
-            )
-        })
+        .map(|t| (t.name.to_string(), to_metadata(t)))
         .collect();
 
     let result = json!({

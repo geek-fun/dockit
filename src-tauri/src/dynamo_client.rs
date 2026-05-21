@@ -1,4 +1,6 @@
 use crate::dynamo::batch_write_item::{batch_write_item, BatchWriteInput};
+use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};
+use crate::dynamo::continuous_backups::describe_continuous_backups;
 use crate::dynamo::create_item::{create_item, CreateItemInput};
 use crate::dynamo::create_table::{create_table, CreateTableInput};
 use crate::dynamo::delete_item::{delete_item, DeleteItemInput};
@@ -8,6 +10,7 @@ use crate::dynamo::execute_statement::{execute_statement, ExecuteStatementInput}
 use crate::dynamo::list_tables::list_tables;
 use crate::dynamo::query_table::{query_table, QueryTableInput};
 use crate::dynamo::scan_table::{scan_table, ScanTableInput};
+use crate::dynamo::time_to_live::describe_time_to_live;
 use crate::dynamo::truncate_table::truncate_table;
 use crate::dynamo::types::ApiResponse;
 use crate::dynamo::update_item::{update_item, UpdateItemInput};
@@ -19,13 +22,10 @@ use crate::dynamo::update_table::{
 };
 use crate::dynamo::update_table_config::update_table_config;
 use crate::dynamo::update_ttl::update_time_to_live;
-use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};
-use crate::dynamo::continuous_backups::describe_continuous_backups;
-use crate::dynamo::time_to_live::describe_time_to_live;
-use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use aws_config::meta::region::RegionProviderChain;
 use aws_config::profile::ProfileFileCredentialsProvider;
 use aws_config::Region;
+use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use aws_sdk_dynamodb::config::Credentials;
 use aws_sdk_dynamodb::Client;
 use serde::{Deserialize, Serialize};
@@ -40,9 +40,7 @@ pub enum DynamoAuth {
         secret_access_key: String,
     },
     #[serde(rename = "profile")]
-    Profile {
-        profile_name: String,
-    },
+    Profile { profile_name: String },
     #[serde(rename = "sso")]
     Sso {
         access_key_id: String,
@@ -74,9 +72,7 @@ pub struct DynamoOptions {
     pub payload: Option<serde_json::Value>,
 }
 
-fn build_config_builder(
-    credentials: &DynamoCredentials,
-) -> aws_config::ConfigLoader {
+fn build_config_builder(credentials: &DynamoCredentials) -> aws_config::ConfigLoader {
     let effective_region = if credentials.region.is_empty() {
         match &credentials.auth {
             DynamoAuth::Sso { region, .. } | DynamoAuth::AssumeRole { region, .. } => {
@@ -92,8 +88,8 @@ fn build_config_builder(
         .or_default_provider()
         .or_else("us-east-1");
 
-    let mut config_builder = aws_config::defaults(aws_config::BehaviorVersion::latest())
-        .region(region_provider);
+    let mut config_builder =
+        aws_config::defaults(aws_config::BehaviorVersion::latest()).region(region_provider);
 
     match &credentials.auth {
         DynamoAuth::AccessKey {
@@ -127,14 +123,13 @@ fn build_config_builder(
             session_token,
             ..
         } => {
-            let creds =
-                Credentials::new(
-                    access_key_id,
-                    secret_access_key,
-                    session_token.clone(),
-                    None,
-                    "dockit-client",
-                );
+            let creds = Credentials::new(
+                access_key_id,
+                secret_access_key,
+                session_token.clone(),
+                None,
+                "dockit-client",
+            );
             config_builder = config_builder.credentials_provider(creds);
         }
     }
@@ -353,9 +348,7 @@ pub async fn dynamo_api(
         "DESCRIBE_CONTINUOUS_BACKUPS" => {
             describe_continuous_backups(&client, &options.table_name).await
         }
-        "DESCRIBE_TIME_TO_LIVE" => {
-            describe_time_to_live(&client, &options.table_name).await
-        }
+        "DESCRIBE_TIME_TO_LIVE" => describe_time_to_live(&client, &options.table_name).await,
         "CREATE_TABLE" => {
             if let Some(payload) = &options.payload {
                 let input = CreateTableInput {
@@ -371,27 +364,23 @@ pub async fn dynamo_api(
                 })
             }
         }
-        "DELETE_TABLE" => {
-            delete_table(&client, &options.table_name).await
-        }
-        "TRUNCATE_TABLE" => {
-            truncate_table(&client, &options.table_name).await
-        }
+        "DELETE_TABLE" => delete_table(&client, &options.table_name).await,
+        "TRUNCATE_TABLE" => truncate_table(&client, &options.table_name).await,
         "UPDATE_TABLE_CONFIG" => {
             if let Some(payload) = &options.payload {
-                let billing_mode = payload
-                    .get("billing_mode")
-                    .and_then(|v| v.as_str());
-                let read_capacity = payload
-                    .get("read_capacity_units")
-                    .and_then(|v| v.as_i64());
-                let write_capacity = payload
-                    .get("write_capacity_units")
-                    .and_then(|v| v.as_i64());
-                let table_class = payload
-                    .get("table_class")
-                    .and_then(|v| v.as_str());
-                update_table_config(&client, &options.table_name, billing_mode, read_capacity, write_capacity, table_class).await
+                let billing_mode = payload.get("billing_mode").and_then(|v| v.as_str());
+                let read_capacity = payload.get("read_capacity_units").and_then(|v| v.as_i64());
+                let write_capacity = payload.get("write_capacity_units").and_then(|v| v.as_i64());
+                let table_class = payload.get("table_class").and_then(|v| v.as_str());
+                update_table_config(
+                    &client,
+                    &options.table_name,
+                    billing_mode,
+                    read_capacity,
+                    write_capacity,
+                    table_class,
+                )
+                .await
             } else {
                 Ok(ApiResponse {
                     status: 400,
@@ -406,9 +395,7 @@ pub async fn dynamo_api(
                     .get("enabled")
                     .and_then(|v| v.as_bool())
                     .unwrap_or(false);
-                let attribute_name = payload
-                    .get("attribute_name")
-                    .and_then(|v| v.as_str());
+                let attribute_name = payload.get("attribute_name").and_then(|v| v.as_str());
                 update_time_to_live(&client, &options.table_name, enabled, attribute_name).await
             } else {
                 Ok(ApiResponse {
@@ -439,9 +426,7 @@ pub async fn dynamo_api(
                     .get("enabled")
                     .and_then(|v| v.as_bool())
                     .unwrap_or(false);
-                let stream_view_type = payload
-                    .get("stream_view_type")
-                    .and_then(|v| v.as_str());
+                let stream_view_type = payload.get("stream_view_type").and_then(|v| v.as_str());
                 update_streams(&client, &options.table_name, enabled, stream_view_type).await
             } else {
                 Ok(ApiResponse {
@@ -600,7 +585,11 @@ pub async fn aws_sso_start_device_auth(
 
     let interval = {
         let val = auth_resp.interval();
-        if val > 0 { val } else { 5 }
+        if val > 0 {
+            val
+        } else {
+            5
+        }
     };
 
     Ok(SsoDeviceAuthResponse {
@@ -647,7 +636,11 @@ pub async fn aws_sso_poll_token(
                 .to_string();
             let expires_in = {
                 let val = resp.expires_in();
-                if val > 0 { val as u64 } else { 3600 }
+                if val > 0 {
+                    val as u64
+                } else {
+                    3600
+                }
             };
             let expires_at = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -806,18 +799,39 @@ pub async fn aws_list_profiles_with_roles() -> Result<Vec<ProfileWithRole>, Stri
     let mut current_source_profile: Option<String> = None;
     let mut current_region: Option<String> = None;
 
-    let flush = |name: Option<String>, role_arn: Option<String>, source_profile: Option<String>, region: Option<String>, acc: &mut Vec<ProfileWithRole>| {
+    let flush = |name: Option<String>,
+                 role_arn: Option<String>,
+                 source_profile: Option<String>,
+                 region: Option<String>,
+                 acc: &mut Vec<ProfileWithRole>| {
         if let Some(n) = name {
-            acc.push(ProfileWithRole { profile_name: n, role_arn, source_profile, region });
+            acc.push(ProfileWithRole {
+                profile_name: n,
+                role_arn,
+                source_profile,
+                region,
+            });
         }
     };
 
     for line in content.lines() {
         let trimmed = line.trim();
         if trimmed.starts_with('[') && trimmed.ends_with(']') {
-            flush(current_name.take(), current_role_arn.take(), current_source_profile.take(), current_region.take(), &mut profiles);
+            flush(
+                current_name.take(),
+                current_role_arn.take(),
+                current_source_profile.take(),
+                current_region.take(),
+                &mut profiles,
+            );
             let section = &trimmed[1..trimmed.len() - 1];
-            current_name = Some(section.strip_prefix("profile ").unwrap_or(section).trim().to_string());
+            current_name = Some(
+                section
+                    .strip_prefix("profile ")
+                    .unwrap_or(section)
+                    .trim()
+                    .to_string(),
+            );
         } else if let Some((k, v)) = trimmed.split_once('=') {
             match k.trim() {
                 "role_arn" => current_role_arn = Some(v.trim().to_string()),
@@ -827,7 +841,13 @@ pub async fn aws_list_profiles_with_roles() -> Result<Vec<ProfileWithRole>, Stri
             }
         }
     }
-    flush(current_name.take(), current_role_arn.take(), current_source_profile.take(), current_region.take(), &mut profiles);
+    flush(
+        current_name.take(),
+        current_role_arn.take(),
+        current_source_profile.take(),
+        current_region.take(),
+        &mut profiles,
+    );
 
     profiles.sort_by(|a, b| a.profile_name.cmp(&b.profile_name));
     Ok(profiles)

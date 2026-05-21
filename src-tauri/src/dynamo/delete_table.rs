@@ -4,12 +4,7 @@ use aws_sdk_dynamodb::Client;
 use serde_json::json;
 
 pub async fn delete_table(client: &Client, table_name: &str) -> Result<ApiResponse, String> {
-    match client
-        .delete_table()
-        .table_name(table_name)
-        .send()
-        .await
-    {
+    match client.delete_table().table_name(table_name).send().await {
         Ok(response) => {
             let deleted_table_name = response
                 .table_description()
@@ -31,7 +26,10 @@ pub async fn delete_table(client: &Client, table_name: &str) -> Result<ApiRespon
                 .unwrap_or_else(|| format!("{:#}", e));
             Ok(ApiResponse {
                 status: 500,
-                message: format!("Failed to delete table '{}': [{}] {}", table_name, error_code, error_message),
+                message: format!(
+                    "Failed to delete table '{}': [{}] {}",
+                    table_name, error_code, error_message
+                ),
                 data: None,
             })
         }

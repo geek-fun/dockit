@@ -26,8 +26,8 @@ export type ToolResultMetadata = {
 
 export type ToolEnvelope = {
   summary: string;
-  full_result: string;
-  metadata: ToolResultMetadata;
+  full_result?: string;
+  metadata?: ToolResultMetadata;
 };
 
 export type AgentDeltaEvent = {
@@ -73,6 +73,13 @@ export type ToolsResponse = {
   metadata: Record<string, ToolMetadata>;
 };
 
+export type MultiSourceToolPermissions = {
+  read: boolean;
+  create: boolean;
+  update: boolean;
+  delete: boolean;
+};
+
 const agentApi = {
   runAgentStep: async (params: {
     requestId: string;
@@ -103,14 +110,8 @@ const agentApi = {
     return await invoke<string>('introspect_schema', params);
   },
 
-  getAvailableTools: async (params: {
-    databaseType: string;
-    read: boolean;
-    create: boolean;
-    update: boolean;
-    delete: boolean;
-  }): Promise<ToolsResponse> => {
-    const result = await invoke<string>('get_available_tools', params);
+  getAllTools: async (): Promise<ToolsResponse> => {
+    const result = await invoke<string>('get_all_tools');
     return jsonify.parse(result) as ToolsResponse;
   },
 
@@ -185,7 +186,12 @@ const onAgentLoopToolCall = (
 ) => listen('agent-loop-tool-call', e => handler(e.payload as any));
 
 const onAgentLoopToolResult = (
-  handler: (payload: { session_id: string; tool_call_id: string; envelope: ToolEnvelope }) => void,
+  handler: (payload: {
+    session_id: string;
+    tool_call_id: string;
+    envelope: ToolEnvelope;
+    error?: boolean;
+  }) => void,
 ) => listen('agent-loop-tool-result', e => handler(e.payload as any));
 
 const onAgentLoopStepDone = (

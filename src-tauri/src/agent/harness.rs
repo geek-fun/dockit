@@ -148,9 +148,8 @@ pub async fn run_agent_step(
     let http_client = create_http_client(http_proxy, None);
     let client = Client::with_config(config).with_http_client(http_client);
 
-    let msgs: Vec<ChatCompletionRequestMessage> =
-        serde_json::from_value(Value::Array(messages))
-            .map_err(|e| format!("Failed to parse messages: {}", e))?;
+    let msgs: Vec<ChatCompletionRequestMessage> = serde_json::from_value(Value::Array(messages))
+        .map_err(|e| format!("Failed to parse messages: {}", e))?;
 
     let tool_defs: Vec<ChatCompletionTools> = serde_json::from_value(Value::Array(tools))
         .map_err(|e| format!("Failed to parse tools: {}", e))?;
@@ -355,12 +354,18 @@ pub async fn list_llm_models(
     let normalized_base_url = get_base_url(&provider, base_url);
 
     let (url, requires_auth) = match provider.as_str() {
-        "OLLAMA" => (get_native_api_url(&provider, &normalized_base_url, "api/tags"), false),
+        "OLLAMA" => (
+            get_native_api_url(&provider, &normalized_base_url, "api/tags"),
+            false,
+        ),
         "LM_STUDIO" => (
             get_native_api_url(&provider, &normalized_base_url, "api/v1/models"),
             false,
         ),
-        _ => (format!("{}/models", normalized_base_url), !api_key.is_empty()),
+        _ => (
+            format!("{}/models", normalized_base_url),
+            !api_key.is_empty(),
+        ),
     };
 
     let request = if requires_auth {

@@ -6,9 +6,13 @@ import {
   type AgentToolCallStatus,
   type AgentSession,
   type AgentMessage,
+  type AttachedSource,
+  type ConfirmationRule,
+  type SessionSource,
 } from '@/store/dataStudioStore';
 import { useConnectionStore } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
+import { buildConnectionConfig } from './connectionConfig';
 import type { ChatMessage, ChatSession, ChatSessionStatus, ChatMessageStatus } from '@/types/chat';
 
 const adaptDataStudioMessage = (msg: AgentMessage): ChatMessage => ({
@@ -25,19 +29,26 @@ const adaptDataStudioMessage = (msg: AgentMessage): ChatMessage => ({
 
 const adaptDataStudioSession = (session: AgentSession): ChatSession => ({
   id: session.id,
-  connectionId: session.connectionId,
   messages: session.messages.map(adaptDataStudioMessage),
   status: session.status as ChatSessionStatus,
-  schema: session.schema,
+  sources: session.sources,
   maxIterations: session.maxIterations,
 });
+
+const getNonDetachedSources = (sources: SessionSource[]): SessionSource[] =>
+  sources.filter(source => !source.detached);
+
+const resolveDatabaseSource = (
+  attachedSources: AttachedSource[],
+  sessionSource: SessionSource,
+): AttachedSource | undefined =>
+  attachedSources.find(source => source.sourceId === sessionSource.sourceId);
 
 export const useDataStudioChatAgent = () => {
   const dataStudioStore = useDataStudioStore();
   const connectionStore = useConnectionStore();
   const {
-    connectedSources,
-    activeConnectionId,
+    attachedSources,
     confirmationRules,
     sessions: rawSessions,
     activeSessionId: rawActiveSessionId,
@@ -45,15 +56,46 @@ export const useDataStudioChatAgent = () => {
 
   const sessions = computed(() => rawSessions.value.map(adaptDataStudioSession));
   const activeSession = computed(() => {
-    const found = rawSessions.value.find(s => s.id === dataStudioStore.activeSessionId);
+    const found = rawSessions.value.find(session => session.id === dataStudioStore.activeSessionId);
     return found ? adaptDataStudioSession(found) : undefined;
   });
 
-  const activeSource = computed(() =>
-    activeConnectionId.value !== undefined
-      ? (connectedSources.value.find(s => s.connectionId === activeConnectionId.value) ?? null)
-      : null,
-  );
+  const activeSessionSources = computed(() => {
+    const session = rawSessions.value.find(entry => entry.id === dataStudioStore.activeSessionId);
+    return session ? getNonDetachedSources(session.sources) : [];
+  });
+
+  const contextProvider = () => {
+    const session = rawSessions.value.find(entry => entry.id === dataStudioStore.activeSessionId);
+    const activeSources = session ? getNonDetachedSources(session.sources) : [];
+
+    const connections = activeSources.reduce<Record<string, Record<string, unknown>>>(
+      (acc, sessionSource) => {
+        const attachedSource = resolveDatabaseSource(attachedSources.value, sessionSource);
+        if (!attachedSource || attachedSource.kind !== 'database') {
+          return acc;
+        }
+
+        const connection = connectionStore.connections.find(
+          candidate => Number(candidate.id) === Number(attachedSource.connectionId),
+        );
+
+        if (!connection) {
+          return acc;
+        }
+
+        acc[sessionSource.alias] = {
+          ...buildConnectionConfig(connection),
+          dbType: attachedSource.databaseType,
+          permissions: sessionSource.permissions,
+        };
+        return acc;
+      },
+      {},
+    );
+
+    return { connections };
+  };
 
   const config: UseChatAgentConfig = {
     feature: 'dataStudio',
@@ -89,6 +131,8 @@ export const useDataStudioChatAgent = () => {
         messageId: string,
         toolCalls: Array<AgentToolCall>,
       ) => dataStudioStore.setMessageToolCalls(sessionId, messageId, toolCalls),
+      removeOrphanedStreamingMessages: (sessionId: string, finalizedMessageId: string) =>
+        dataStudioStore.removeOrphanedStreamingMessages(sessionId, finalizedMessageId),
       updateToolCallStatus: (
         sessionId: string,
         messageId: string,
@@ -110,26 +154,19 @@ export const useDataStudioChatAgent = () => {
           sessionId,
           status as 'idle' | 'running' | 'waiting_confirmation' | 'error',
         ),
-      setSessionSchema: (sessionId: string, schema: string) =>
-        dataStudioStore.setSessionSchema(sessionId, schema),
+      setSessionSchema: (_sessionId: string, _schema: string) => undefined,
       clearSession: (sessionId: string) => dataStudioStore.clearSession(sessionId),
-      getOrCreateSession: (connectionId: number) =>
-        dataStudioStore.getOrCreateSession(connectionId),
+      getOrCreateSession: () => dataStudioStore.getOrCreateSession(),
     },
-    confirmationRules,
+    contextProvider,
+    confirmationRules: confirmationRules as Ref<ConfirmationRule[]>,
     addConfirmationRule: rule => dataStudioStore.addConfirmationRule(rule),
-    findConfirmationRule: (connectionId: number, toolName: string) =>
-      dataStudioStore.findConfirmationRule(connectionId, toolName),
-    autoMode: computed(() => activeSource.value?.permissionsMode === 'Auto') as Ref<boolean>,
-    permissions: computed(
-      () =>
-        activeSource.value?.permissions ?? {
-          read: true,
-          create: false,
-          update: false,
-          delete: false,
-        },
-    ) as Ref<{ read: boolean; create: boolean; update: boolean; delete: boolean }>,
+    findConfirmationRule: (sessionId: string, toolName: string) =>
+      dataStudioStore.findConfirmationRule(sessionId, toolName),
+    autoMode: computed(() => {
+      const session = rawSessions.value.find(entry => entry.id === dataStudioStore.activeSessionId);
+      return session?.permissionsMode === 'Auto';
+    }) as Ref<boolean>,
   };
 
   const agent = useChatAgent(config);
@@ -137,27 +174,9 @@ export const useDataStudioChatAgent = () => {
   const messages = computed(() => agent.activeSession.value?.messages ?? []);
 
   const sendMessage = async (content: string) => {
-    if (activeConnectionId.value === undefined && connectedSources.value.length > 0) {
-      dataStudioStore.setActiveConnection(connectedSources.value[0].connectionId!);
-    }
-    const connId = activeConnectionId.value;
-    const connection =
-      connId !== undefined
-        ? connectionStore.connections.find(c => Number(c.id) === Number(connId))
-        : undefined;
     await agent.sendMessage({
       content,
-      connectionId: connId,
-      context: connection
-        ? {
-            databaseType: connection.type as
-              | 'ELASTICSEARCH'
-              | 'OPENSEARCH'
-              | 'EASYSEARCH'
-              | 'DYNAMODB'
-              | 'MONGODB',
-          }
-        : undefined,
+      context: contextProvider(),
     });
   };
 
@@ -165,14 +184,13 @@ export const useDataStudioChatAgent = () => {
     isLoading: agent.isLoading,
     error: agent.error,
     activeSession: agent.activeSession,
+    activeSessionSources,
     messages,
     sendMessage,
     handleConfirmation: agent.handleConfirmation,
     cancelSession: agent.cancelSession,
     clearChat: agent.clearChat,
-    connectedSources,
-    activeConnectionId,
-    activeSource,
+    attachedSources,
     confirmationRules,
   };
 };

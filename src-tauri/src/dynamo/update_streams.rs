@@ -39,7 +39,10 @@ async fn set_stream(
         .await
         .map_err(|e| {
             let code = e.code().unwrap_or("UnknownError");
-            let msg = e.message().map(|m| m.to_string()).unwrap_or_else(|| format!("{:#}", e));
+            let msg = e
+                .message()
+                .map(|m| m.to_string())
+                .unwrap_or_else(|| format!("{:#}", e));
             format!("[{}] {}", code, msg)
         })?;
 
@@ -83,10 +86,7 @@ pub async fn update_streams(
                 match set_stream(client, table_name, true, stream_view_type).await {
                     Ok(()) => Ok(ApiResponse {
                         status: 200,
-                        message: format!(
-                            "Streams updated successfully for table '{}'",
-                            table_name
-                        ),
+                        message: format!("Streams updated successfully for table '{}'", table_name),
                         data: Some(json!({
                             "tableName": table_name,
                             "streamEnabled": stream_enabled,

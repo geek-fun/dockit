@@ -1,8 +1,6 @@
 use serde_json::{json, Value};
 
-use super::executor::{
-    build_es_base_url, build_es_headers, create_dynamo_client, get_es_ssl_flag,
-};
+use super::executor::{build_es_base_url, build_es_headers, create_dynamo_client, get_es_ssl_flag};
 use crate::common::http_client::create_http_client;
 use crate::dynamo::describe_table::describe_table;
 
@@ -22,7 +20,10 @@ async fn introspect_es(config: &Value) -> Result<String, String> {
     if !indices_resp.status().is_success() {
         let status = indices_resp.status();
         let body = indices_resp.text().await.unwrap_or_default();
-        return Err(format!("Failed to fetch indices: HTTP {} - {}", status, body));
+        return Err(format!(
+            "Failed to fetch indices: HTTP {} - {}",
+            status, body
+        ));
     }
     let indices_body = indices_resp.text().await.map_err(|e| e.to_string())?;
     let indices: Vec<Value> = serde_json::from_str(&indices_body)

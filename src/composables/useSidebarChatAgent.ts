@@ -6,10 +6,12 @@ import {
   type AgentToolCallStatus,
   type AgentSession,
   type AgentMessage,
+  type ConfirmationRule,
 } from '@/store/dataStudioStore';
 import { useTabStore } from '@/store/tabStore';
 import { DatabaseType, type ElasticsearchConnection } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
+import { buildConnectionConfig } from './connectionConfig';
 import type {
   ChatMessage,
   ChatSession,
@@ -32,10 +34,9 @@ const adaptMessage = (msg: AgentMessage): ChatMessage => ({
 
 const adaptSession = (session: AgentSession): ChatSession => ({
   id: session.id,
-  connectionId: session.connectionId,
   messages: session.messages.map(adaptMessage),
   status: session.status as ChatSessionStatus,
-  schema: session.schema,
+  sources: session.sources,
   maxIterations: session.maxIterations,
 });
 
@@ -44,10 +45,17 @@ const getSidebarContext = (): ChatContextConfig => {
   const activePanel = tabStore.activePanel;
   const activeConnection = activePanel?.connection;
   const context: ChatContextConfig = {};
+
   if (activeConnection) {
-    context.connectionId =
-      typeof activeConnection.id === 'number' ? activeConnection.id : undefined;
     context.databaseType = activeConnection.type;
+    context.connections = {
+      default: {
+        ...buildConnectionConfig(activeConnection),
+        dbType: activeConnection.type,
+        permissions: { read: true, create: false, update: false, delete: false },
+      },
+    };
+
     if (activeConnection.type === DatabaseType.ELASTICSEARCH) {
       const es = activeConnection as ElasticsearchConnection;
       context.activePanel = {
@@ -64,6 +72,7 @@ const getSidebarContext = (): ChatContextConfig => {
   } else if (activePanel?.content) {
     context.activePanel = { editorContent: activePanel.content };
   }
+
   return context;
 };
 
@@ -73,7 +82,7 @@ export const useSidebarChatAgent = () => {
 
   const sessions = computed(() => rawSessions.value.map(adaptSession));
   const activeSession = computed(() => {
-    const found = rawSessions.value.find(s => s.id === store.activeSessionId);
+    const found = rawSessions.value.find(session => session.id === store.activeSessionId);
     return found ? adaptSession(found) : undefined;
   });
 
@@ -110,6 +119,8 @@ export const useSidebarChatAgent = () => {
         messageId: string,
         toolCalls: Array<AgentToolCall>,
       ) => store.setMessageToolCalls(sessionId, messageId, toolCalls),
+      removeOrphanedStreamingMessages: (sessionId: string, finalizedMessageId: string) =>
+        store.removeOrphanedStreamingMessages(sessionId, finalizedMessageId),
       updateToolCallStatus: (
         sessionId: string,
         messageId: string,
@@ -123,17 +134,15 @@ export const useSidebarChatAgent = () => {
           sessionId,
           status as 'idle' | 'running' | 'waiting_confirmation' | 'error',
         ),
-      setSessionSchema: (sessionId, schema) => store.setSessionSchema(sessionId, schema),
+      setSessionSchema: (_sessionId, _schema) => undefined,
       clearSession: sessionId => store.clearSession(sessionId),
-      getOrCreateSession: (connectionId?: number) => store.getOrCreateSession(connectionId ?? -1),
+      getOrCreateSession: () => store.getOrCreateSidebarSession(),
     },
     contextProvider: getSidebarContext,
-    confirmationRules,
+    confirmationRules: confirmationRules as Ref<ConfirmationRule[]>,
     addConfirmationRule: rule => store.addConfirmationRule(rule),
-    findConfirmationRule: (connectionId, toolName) =>
-      store.findConfirmationRule(connectionId, toolName),
+    findConfirmationRule: (sessionId, toolName) => store.findConfirmationRule(sessionId, toolName),
     autoMode: ref(false),
-    permissions: ref({ read: true, create: false, update: false, delete: false }),
   };
 
   const agent = useChatAgent(config);
@@ -141,7 +150,7 @@ export const useSidebarChatAgent = () => {
 
   const sendMessage = async (content: string) => {
     const context = getSidebarContext();
-    await agent.sendMessage({ content, connectionId: context.connectionId, context });
+    await agent.sendMessage({ content, context });
   };
 
   return {

@@ -1,6 +1,6 @@
 <template>
   <Dialog :open="open" @update:open="$emit('update:open', $event)">
-    <DialogContent class="sm:max-w-[500px]">
+    <DialogContent class="sm:max-w-[480px]">
       <DialogHeader>
         <div class="flex items-center gap-3">
           <div
@@ -10,46 +10,122 @@
           </div>
           <div>
             <DialogTitle>{{ $t('dataStudio.modifySource.title') }}</DialogTitle>
-            <p class="text-sm text-muted-foreground mt-0.5">{{ source?.name }}</p>
+            <p class="text-sm text-muted-foreground mt-0.5">{{ currentSource?.alias }}</p>
           </div>
         </div>
       </DialogHeader>
-      <div class="py-4">
-        <div class="border border-border rounded-xl overflow-hidden">
-          <div class="px-4 py-3 flex items-center gap-2 border-b border-border bg-muted/40">
-            <span class="i-carbon-security h-4 w-4 shrink-0" />
-            <p class="font-semibold text-sm">
-              {{ $t('dataStudio.modifySource.accessPermissions') }}
-            </p>
-          </div>
-          <div class="grid grid-cols-2 gap-2 p-3 border-b border-border">
-            <button
-              :class="['mode-btn', localPermissionsMode === 'Ask' && 'mode-btn--active']"
-              @click="localPermissionsMode = 'Ask'"
+
+      <div class="py-2 flex flex-col gap-3">
+        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide px-0.5">
+          {{ $t('dataStudio.modifySource.accessPermissions') }}
+        </p>
+
+        <!-- Inherit card -->
+        <button
+          type="button"
+          class="w-full text-left rounded-xl border-2 p-4 transition-colors focus:outline-none"
+          :class="
+            localMode === 'inherit'
+              ? 'border-primary bg-primary/5'
+              : 'border-border hover:border-border/80 hover:bg-muted/30'
+          "
+          @click="localMode = 'inherit'"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors"
+              :class="localMode === 'inherit' ? 'border-primary' : 'border-muted-foreground/40'"
             >
-              <span class="i-carbon-view h-4 w-4" />
-              <span>{{ $t('dataStudio.modifySource.modeDefault') }}</span>
-            </button>
-            <button
-              :class="['mode-btn', localPermissionsMode === 'Auto' && 'mode-btn--active']"
-              @click="localPermissionsMode = 'Auto'"
+              <div v-if="localMode === 'inherit'" class="w-2 h-2 rounded-full bg-primary" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium">
+                  {{ $t('dataStudio.modifySource.inheritTitle') }}
+                </span>
+                <span
+                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xs font-medium bg-muted text-muted-foreground"
+                >
+                  <span
+                    class="h-3 w-3"
+                    :class="
+                      sessionPermissionsMode === 'Auto'
+                        ? 'i-carbon-flash text-amber-500'
+                        : 'i-carbon-user-activity text-blue-500'
+                    "
+                  />
+                  {{ sessionPermissionsMode }}
+                </span>
+              </div>
+              <p class="text-xs text-muted-foreground mt-0.5">
+                {{ $t('dataStudio.modifySource.inheritDesc') }}
+              </p>
+              <div v-if="localMode === 'inherit'" class="flex flex-wrap gap-1.5 mt-2.5">
+                <span
+                  v-for="perm in activeInheritedPerms"
+                  :key="perm"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-primary/10 text-primary font-medium"
+                >
+                  <span class="i-carbon-checkmark h-2.5 w-2.5" />
+                  {{ $t(`dataStudio.modifySource.${perm}`) }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </button>
+
+        <!-- Custom card -->
+        <button
+          type="button"
+          class="w-full text-left rounded-xl border-2 p-4 transition-colors focus:outline-none"
+          :class="
+            localMode === 'custom'
+              ? 'border-primary bg-primary/5'
+              : 'border-border hover:border-border/80 hover:bg-muted/30'
+          "
+          @click="localMode = 'custom'"
+        >
+          <div class="flex items-start gap-3">
+            <div
+              class="mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors"
+              :class="localMode === 'custom' ? 'border-primary' : 'border-muted-foreground/40'"
             >
-              <span class="i-carbon-unlocked h-4 w-4" />
-              <span>{{ $t('dataStudio.modifySource.modeFull') }}</span>
-            </button>
+              <div v-if="localMode === 'custom'" class="w-2 h-2 rounded-full bg-primary" />
+            </div>
+            <div class="flex-1 min-w-0">
+              <span class="text-sm font-medium">
+                {{ $t('dataStudio.modifySource.customTitle') }}
+              </span>
+              <p class="text-xs text-muted-foreground mt-0.5">
+                {{ $t('dataStudio.modifySource.customDesc') }}
+              </p>
+
+              <div v-if="localMode === 'custom'" class="mt-3 flex flex-col gap-1" @click.stop>
+                <label
+                  v-for="perm in permissionKeys"
+                  :key="perm"
+                  class="flex items-center gap-3 px-1 py-1.5 rounded-lg select-none"
+                  :class="
+                    perm === 'read'
+                      ? 'opacity-60 cursor-not-allowed'
+                      : 'cursor-pointer hover:bg-muted/50'
+                  "
+                >
+                  <input
+                    type="checkbox"
+                    :checked="localPermissions[perm]"
+                    :disabled="perm === 'read'"
+                    class="w-4 h-4 accent-primary"
+                    @change="togglePermission(perm)"
+                  />
+                  <span class="text-sm">{{ $t(`dataStudio.modifySource.${perm}`) }}</span>
+                </label>
+              </div>
+            </div>
           </div>
-          <div class="flex gap-2 px-4 py-3">
-            <span class="i-carbon-information h-4 w-4 shrink-0 mt-0.5 text-muted-foreground" />
-            <p class="text-xs text-muted-foreground leading-relaxed">
-              {{
-                localPermissionsMode === 'Ask'
-                  ? $t('dataStudio.modifySource.modeDefaultDesc')
-                  : $t('dataStudio.modifySource.modeFullDesc')
-              }}
-            </p>
-          </div>
-        </div>
+        </button>
       </div>
+
       <DialogFooter class="flex items-center justify-between sm:justify-between">
         <div class="flex flex-col gap-1">
           <div v-if="detachConfirming" class="detach-confirm-row">
@@ -85,7 +161,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import {
   Dialog,
   DialogContent,
@@ -94,12 +170,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { useDataStudioStore, type ConnectedSource } from '@/store/dataStudioStore';
+import {
+  useDataStudioStore,
+  type DataSourcePermissions,
+  type SourcePermissionsMode,
+} from '@/store/dataStudioStore';
 
 const props = defineProps<{
   open: boolean;
-  source: ConnectedSource | null;
-  connectionId: number | undefined;
+  sourceIdx: number;
 }>();
 
 const emit = defineEmits<{
@@ -108,71 +187,69 @@ const emit = defineEmits<{
 
 const dataStudioStore = useDataStudioStore();
 
-const localPermissionsMode = ref<'Ask' | 'Auto'>('Ask');
+const currentSource = computed(() => {
+  const session = dataStudioStore.activeSession;
+  const activeSources = session?.sources.filter(s => !s.detached) ?? [];
+  return activeSources[props.sourceIdx] ?? null;
+});
+
+const sessionPermissionsMode = computed(
+  () => dataStudioStore.activeSession?.permissionsMode ?? 'Ask',
+);
+
+const permissionKeys: (keyof DataSourcePermissions)[] = ['read', 'create', 'update', 'delete'];
+
+const localMode = ref<SourcePermissionsMode>('inherit');
+const localPermissions = ref<DataSourcePermissions>({
+  read: true,
+  create: false,
+  update: false,
+  delete: false,
+});
 const detachConfirming = ref(false);
+
+const activeInheritedPerms = computed<(keyof DataSourcePermissions)[]>(() => {
+  const write = sessionPermissionsMode.value === 'Auto';
+  return permissionKeys.filter(p => p === 'read' || write);
+});
 
 watch(
   () => props.open,
   newVal => {
-    if (newVal && props.source) {
-      localPermissionsMode.value = props.source.permissionsMode ?? 'Ask';
+    if (newVal && currentSource.value) {
+      localMode.value = currentSource.value.permissionsMode ?? 'inherit';
+      localPermissions.value = { ...currentSource.value.permissions };
       detachConfirming.value = false;
     }
   },
 );
 
-const permissionsFromMode = (mode: 'Ask' | 'Auto') =>
-  mode === 'Auto'
-    ? { read: true, create: true, update: true, delete: true }
-    : { read: true, create: false, update: false, delete: false };
+const togglePermission = (perm: keyof DataSourcePermissions) => {
+  if (perm === 'read') return;
+  localPermissions.value = { ...localPermissions.value, [perm]: !localPermissions.value[perm] };
+};
 
 const handleSave = () => {
-  if (props.connectionId === undefined) return;
-  const source = dataStudioStore.getSourceById(props.connectionId);
-  if (!source) return;
-  const index = dataStudioStore.connectedSources.indexOf(source);
-  dataStudioStore.updateSource(index, {
-    permissions: permissionsFromMode(localPermissionsMode.value),
-    permissionsMode: localPermissionsMode.value,
-  });
+  const session = dataStudioStore.activeSession;
+  const source = currentSource.value;
+  if (!session || !source) return;
+
+  if (localMode.value === 'inherit') {
+    dataStudioStore.updateSessionSourceMode(session.id, source.sourceId, 'inherit');
+  } else {
+    dataStudioStore.updateSessionSourcePermissions(session.id, source.sourceId, {
+      ...localPermissions.value,
+      read: true,
+    });
+  }
   emit('update:open', false);
 };
 
 const handleDetach = () => {
-  if (props.connectionId === undefined) return;
-  dataStudioStore.removeSourceById(props.connectionId);
+  const session = dataStudioStore.activeSession;
+  const source = currentSource.value;
+  if (!session || !source) return;
+  dataStudioStore.detachSourceFromSession(session.id, source.sourceId);
   emit('update:open', false);
 };
 </script>
-
-<style scoped>
-.mode-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid hsl(var(--border));
-  background: transparent;
-  color: hsl(var(--muted-foreground));
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition:
-    background 0.15s,
-    border-color 0.15s,
-    color 0.15s;
-}
-
-.mode-btn:hover {
-  background: hsl(var(--muted));
-  color: hsl(var(--foreground));
-}
-
-.mode-btn--active {
-  background: hsl(var(--primary) / 0.08);
-  border-color: hsl(var(--primary) / 0.4);
-  color: hsl(var(--primary));
-}
-</style>

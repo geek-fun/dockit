@@ -37,7 +37,6 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useDataStudioStore, type AgentSession } from '@/store/dataStudioStore';
-import { useConnectionStore } from '@/store/connectionStore';
 import { storeToRefs } from 'pinia';
 
 defineEmits<{
@@ -48,7 +47,6 @@ defineEmits<{
 
 const { t } = useI18n();
 const dataStudioStore = useDataStudioStore();
-const connectionStore = useConnectionStore();
 const { sessions, activeSessionId, sessionMeta } = storeToRefs(dataStudioStore);
 
 const sortedSessions = computed(() =>
@@ -62,8 +60,11 @@ const sortedSessions = computed(() =>
 const sessionLabel = (session: AgentSession): string => {
   const meta = sessionMeta.value[session.id];
   if (meta?.title && meta.title !== t('dataStudio.history.newSession')) return meta.title;
-  const conn = connectionStore.connections.find(c => c.id === session.connectionId);
-  if (conn) return conn.name;
+  const sourceLabel = session.sources
+    .filter(source => !source.detached)
+    .map(source => source.alias)
+    .join(', ');
+  if (sourceLabel) return sourceLabel;
   const firstUser = session.messages.find(m => m.role === 'user');
   if (firstUser?.content) {
     return firstUser.content.length > 40 ? firstUser.content.slice(0, 40) + '…' : firstUser.content;

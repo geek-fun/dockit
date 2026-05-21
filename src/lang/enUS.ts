@@ -1349,9 +1349,10 @@ export const enUS = {
     modifySource: {
       title: 'Modify Datasource',
       accessPermissions: 'Access Permissions',
-      autoMode: 'Auto-Execute',
-      autoModeDesc:
-        'When enabled, elevated and destructive tools run automatically. Safe tools always run without confirmation.',
+      inheritTitle: 'Inherit from session',
+      inheritDesc: 'Permissions follow the session-level setting and update automatically.',
+      customTitle: 'Custom',
+      customDesc: 'Manually define which operations are allowed for this source.',
       read: 'Read',
       create: 'Create',
       update: 'Update',

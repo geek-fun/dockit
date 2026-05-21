@@ -65,11 +65,12 @@
         </div>
 
         <template v-for="tc in message.toolCalls" :key="tc.id">
-          <!-- Tool call row: icon | name | status icon | duration | result preview | chevron -->
+          <!-- Tool call row: icon | tool-name | verb+target | status | duration? | preview | chevron -->
           <details class="activity-item-details">
             <summary class="activity-item">
               <span class="activity-icon" :class="toolIcon(tc.toolName)" />
-              <span class="activity-label">{{ toolLabel(tc.toolName, tc) }}</span>
+              <span class="tool-name-badge">{{ tc.toolName }}</span>
+              <span class="activity-label tool-verb-label">{{ toolVerb(tc.toolName, tc) }}</span>
               <span
                 v-if="tc.status === 'executing'"
                 class="i-carbon-renew animate-spin activity-status-icon executing"
@@ -77,6 +78,10 @@
               <span
                 v-else-if="tc.status === 'pending'"
                 class="i-carbon-time activity-status-icon pending"
+              />
+              <span
+                v-else-if="tc.status === 'done'"
+                class="i-carbon-checkmark activity-status-icon done"
               />
               <span
                 v-else-if="tc.status === 'error'"
@@ -93,40 +98,39 @@
                 {{ formatDuration(tc.durationMs) }}
               </span>
               <span
-                v-if="tc.result && tc.status === 'done'"
+                v-if="
+                  toolResultText(tc) &&
+                  (tc.status === 'done' || tc.status === 'error' || tc.status === 'denied')
+                "
                 class="result-preview"
                 :class="`result-preview-${resultStatus(tc)}`"
               >
-                {{ resultPreview(tc.result) }}
+                {{ resultPreview(toolResultText(tc)!) }}
               </span>
               <span class="activity-chevron i-carbon-chevron-down" />
             </summary>
             <div class="activity-body tool-body-wrapper">
               <pre class="tool-args-pre">{{ formatToolArgs(tc) }}</pre>
               <pre
-                v-if="tc.result"
+                v-if="toolResultText(tc)"
                 class="tool-result-pre"
-                :class="`result-body-${resultStatus(tc)}`"
-                >{{ tc.result }}</pre
+                :class="[
+                  `result-body-${resultStatus(tc)}`,
+                  tc.status !== 'done' ? 'muted-body' : '',
+                ]"
+                >{{ toolResultText(tc) }}</pre
               >
-              <div
-                v-else-if="tc.status === 'error' || tc.status === 'denied'"
-                class="tool-result-pre muted-body"
-              >
-                {{
-                  tc.status === 'denied'
-                    ? t('dataStudio.agent.message.toolDenied')
-                    : t('dataStudio.agent.message.toolError')
-                }}
-              </div>
             </div>
           </details>
         </template>
       </div>
 
-      <!-- Main response content -->
+      <!-- Main response content (only when not part of an activity timeline) -->
       <div
-        v-if="message.content || (!message.thinking && !message.toolCalls?.length && isStreaming)"
+        v-if="
+          (message.content && !message.toolCalls?.length) ||
+          (!message.thinking && !message.toolCalls?.length && isStreaming)
+        "
         class="message-content assistant-content"
       >
         <MarkdownRender
@@ -178,8 +182,15 @@ const resultStatus = (tc: AgentToolCall): 'success' | 'error' | 'denied' => {
   return 'success';
 };
 
-const resultPreview = (result: string): string => {
-  const first = result.split('\n')[0].trim();
+const toolResultText = (tc: AgentToolCall): string | undefined => {
+  if (tc.result) return tc.result;
+  if (tc.status === 'denied') return t('dataStudio.agent.message.toolDenied');
+  if (tc.status === 'error') return t('dataStudio.agent.message.toolError');
+  return undefined;
+};
+
+const resultPreview = (text: string): string => {
+  const first = text.split('\n')[0].trim();
   return first.length > 60 ? first.slice(0, 60) + '…' : first;
 };
 
@@ -199,13 +210,29 @@ const formatToolArgs = (tc: AgentToolCall): string => {
 
 const toolIcon = (toolName: string): string => {
   const name = toolName.toLowerCase();
-  if (name.includes('write') || name.includes('create') || name.includes('save'))
+  if (name.includes('delete') || name.includes('remove')) return 'i-carbon-trash-can';
+  if (
+    name.includes('index_document') ||
+    name.includes('insert') ||
+    name.includes('put') ||
+    name.includes('create') ||
+    name.includes('write') ||
+    name.includes('save')
+  )
     return 'i-carbon-edit';
+  if (name.includes('update') || name.includes('edit') || name.includes('modify'))
+    return 'i-carbon-pen';
+  if (name.includes('search') || name.includes('query') || name.includes('find'))
+    return 'i-carbon-search';
   if (name.includes('read') || name.includes('open') || name.includes('view'))
     return 'i-carbon-document-view';
-  if (name.includes('search') || name.includes('find') || name.includes('query'))
-    return 'i-carbon-search';
-  if (name.includes('delete') || name.includes('remove')) return 'i-carbon-trash-can';
+  if (
+    name.includes('list') ||
+    name.includes('indices') ||
+    name.includes('index') ||
+    name.includes('describe')
+  )
+    return 'i-carbon-list';
   if (
     name.includes('execute') ||
     name.includes('run') ||
@@ -214,10 +241,6 @@ const toolIcon = (toolName: string): string => {
     name.includes('shell')
   )
     return 'i-carbon-terminal';
-  if (name.includes('list') || name.includes('index') || name.includes('indices'))
-    return 'i-carbon-list';
-  if (name.includes('update') || name.includes('edit') || name.includes('modify'))
-    return 'i-carbon-pen';
   if (
     name.includes('fetch') ||
     name.includes('http') ||
@@ -225,22 +248,49 @@ const toolIcon = (toolName: string): string => {
     name.includes('web')
   )
     return 'i-carbon-cloud';
-  if (name.includes('think') || name.includes('reason') || name.includes('analyze'))
-    return 'i-carbon-idea';
-  return 'i-carbon-settings';
+  if (name.includes('get')) return 'i-carbon-document-view';
+  return 'i-carbon-data-base';
 };
 
-const toolLabel = (toolName: string, tc: AgentToolCall): string => {
+const toolVerb = (toolName: string, tc: AgentToolCall): string => {
   const name = toolName.toLowerCase();
   const args = tc.args ?? {};
-  const firstArg = Object.values(args)[0];
-  const argStr = typeof firstArg === 'string' ? firstArg : '';
-  const truncated = argStr.length > 48 ? argStr.slice(0, 48) + '...' : argStr;
+  const displayArg =
+    Object.entries(args)
+      .filter(([k]) => k !== 'connection_id')
+      .map(([, v]) => (typeof v === 'string' ? v : undefined))
+      .find(v => v !== undefined) ?? '';
+  const truncated = displayArg.length > 40 ? displayArg.slice(0, 40) + '...' : displayArg;
 
-  const prefix = (() => {
-    if (name.includes('write') || name.includes('create'))
+  const verb = (() => {
+    if (
+      name.includes('index_document') ||
+      name.includes('create') ||
+      name.includes('write') ||
+      name.includes('insert') ||
+      name.includes('put')
+    )
       return t('dataStudio.agent.message.toolWrote');
-    if (name.includes('read') || name.includes('open'))
+    if (name.includes('delete') || name.includes('remove'))
+      return t('dataStudio.agent.message.toolDeleted');
+    if (name.includes('update') || name.includes('edit') || name.includes('modify'))
+      return t('dataStudio.agent.message.toolUpdated');
+    if (
+      name.includes('search') ||
+      name.includes('query') ||
+      name.includes('find') ||
+      name.includes('get')
+    )
+      return t('dataStudio.agent.message.toolSearched');
+    if (
+      name.includes('read') ||
+      name.includes('open') ||
+      name.includes('view') ||
+      name.includes('list') ||
+      name.includes('indices') ||
+      name.includes('index') ||
+      name.includes('describe')
+    )
       return t('dataStudio.agent.message.toolRead');
     if (
       name.includes('execute') ||
@@ -249,22 +299,12 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
       name.includes('command')
     )
       return t('dataStudio.agent.message.toolExecuted');
-    if (name.includes('search') || name.includes('find'))
-      return t('dataStudio.agent.message.toolSearched');
-    if (name.includes('delete') || name.includes('remove'))
-      return t('dataStudio.agent.message.toolDeleted');
-    if (name.includes('update') || name.includes('edit'))
-      return t('dataStudio.agent.message.toolUpdated');
     return null;
   })();
 
-  if (prefix)
-    return truncated
-      ? `${prefix} ${truncated}`
-      : prefix === t('dataStudio.agent.message.toolExecuted')
-        ? `${prefix} ${toolName}`
-        : toolName;
-  return truncated ? `${toolName} ${truncated}` : toolName;
+  if (!verb && !truncated) return '';
+  if (!verb) return truncated;
+  return truncated ? `${verb} ${truncated}` : verb;
 };
 </script>
 
@@ -437,6 +477,28 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
   align-items: center;
 }
 
+/* ── Tool name badge ── */
+.tool-name-badge {
+  font-size: 11.5px;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
+  color: hsl(var(--foreground) / 0.75);
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border) / 0.6);
+  padding: 1px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Tool verb label (secondary) ── */
+.tool-verb-label {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground) / 0.7);
+}
+
 /* ── Status icons ── */
 .activity-status-icon {
   width: 12px;
@@ -446,6 +508,10 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
 
 .activity-status-icon.executing {
   color: hsl(var(--primary));
+}
+
+.activity-status-icon.done {
+  color: hsl(142 72% 45%);
 }
 
 .activity-status-icon.pending {

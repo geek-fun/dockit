@@ -150,18 +150,17 @@ pub async fn batch_write_item(
     })
 }
 
-fn convert_item_to_json(
-    _table_name: &str,
-    put_request: &PutRequest,
-) -> serde_json::Value {
+fn convert_item_to_json(_table_name: &str, put_request: &PutRequest) -> serde_json::Value {
     use crate::common::dynamodb_utils::convert_attr_value_to_json;
 
     let item = put_request.item();
     let json_item: serde_json::Map<String, Value> = item
         .iter()
-        .map(|(k, v): (&String, &aws_sdk_dynamodb::types::AttributeValue)| {
-            (k.clone(), convert_attr_value_to_json(v))
-        })
+        .map(
+            |(k, v): (&String, &aws_sdk_dynamodb::types::AttributeValue)| {
+                (k.clone(), convert_attr_value_to_json(v))
+            },
+        )
         .collect();
 
     serde_json::json!({

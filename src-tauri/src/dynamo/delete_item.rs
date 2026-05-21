@@ -53,7 +53,7 @@ pub async fn delete_item(
         Err(e) => {
             let error_code = e.code().unwrap_or("UnknownError");
             let error_message = e.message().unwrap_or("Unknown error occurred");
-            
+
             Ok(ApiResponse {
                 status: 500,
                 message: format!(

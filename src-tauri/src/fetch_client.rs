@@ -46,7 +46,10 @@ where
 
 /// Categorize a reqwest error into a user-friendly type and message
 fn categorize_request_error(e: &reqwest::Error) -> (&'static str, String) {
-    let url_hint = e.url().map(|u| u.host_str().unwrap_or("unknown")).unwrap_or("unknown");
+    let url_hint = e
+        .url()
+        .map(|u| u.host_str().unwrap_or("unknown"))
+        .unwrap_or("unknown");
     let raw = format!("{}", e);
 
     if e.is_connect() {
@@ -103,22 +106,36 @@ fn categorize_request_error(e: &reqwest::Error) -> (&'static str, String) {
     if e.is_request() {
         return (
             "REQUEST_ERROR",
-            format!("Invalid request to '{}'. Please check the connection settings. Detail: {}", url_hint, raw),
+            format!(
+                "Invalid request to '{}'. Please check the connection settings. Detail: {}",
+                url_hint, raw
+            ),
         );
     }
 
-    ("UNKNOWN_ERROR", format!("Unexpected error connecting to '{}': {}", url_hint, raw))
+    (
+        "UNKNOWN_ERROR",
+        format!("Unexpected error connecting to '{}': {}", url_hint, raw),
+    )
 }
 
 #[tauri::command]
 pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, String> {
-    let has_proxy = options.agent.http_proxy.as_deref().is_some_and(|p| !p.is_empty());
+    let has_proxy = options
+        .agent
+        .http_proxy
+        .as_deref()
+        .is_some_and(|p| !p.is_empty());
     let client = if has_proxy {
         create_http_client(options.agent.http_proxy, Some(options.agent.ssl))
     } else if options.agent.ssl {
-        SECURE_CLIENT.get_or_init(|| create_http_client(None, Some(true))).clone()
+        SECURE_CLIENT
+            .get_or_init(|| create_http_client(None, Some(true)))
+            .clone()
     } else {
-        INSECURE_CLIENT.get_or_init(|| create_http_client(None, Some(false))).clone()
+        INSECURE_CLIENT
+            .get_or_init(|| create_http_client(None, Some(false)))
+            .clone()
     };
 
     let response = client

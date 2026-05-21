@@ -67,14 +67,14 @@
             <div class="toolbox-row-prepend">
               <!-- Connected source chips -->
               <button
-                v-for="(source, idx) in connectedSources"
-                :key="source.connectionId"
+                v-for="(source, idx) in activeSessionSources"
+                :key="source.sourceId"
                 class="source-chip"
                 :title="$t('dataStudio.modifySource.title')"
                 @click="openModifyModal(idx)"
               >
                 <span class="i-carbon-data-base h-3.5 w-3.5 shrink-0" />
-                <span class="source-chip-name">{{ source.name }}</span>
+                <span class="source-chip-name">{{ source.alias }}</span>
                 <span class="source-chip-edit i-carbon-settings h-3 w-3" />
               </button>
 
@@ -193,24 +193,22 @@
               <div class="permission-picker">
                 <button
                   class="permission-trigger"
-                  :disabled="connectedSources.length === 0"
+                  :disabled="activeSessionSources.length === 0"
                   :aria-expanded="permissionMenuOpen"
                   :title="$t('dataStudio.modifySource.accessPermissions')"
                   @click.stop="
-                    connectedSources.length > 0 && (permissionMenuOpen = !permissionMenuOpen)
+                    activeSessionSources.length > 0 && (permissionMenuOpen = !permissionMenuOpen)
                   "
                 >
                   <span
                     class="h-4 w-4 permission-trigger-icon"
                     :class="
-                      activeSource?.permissionsMode === 'Auto'
-                        ? 'i-carbon-unlocked'
-                        : 'i-carbon-locked'
+                      sessionPermissionsMode === 'Auto' ? 'i-carbon-unlocked' : 'i-carbon-locked'
                     "
                   />
                   <span class="permission-trigger-label">
                     {{
-                      activeSource?.permissionsMode === 'Auto'
+                      sessionPermissionsMode === 'Auto'
                         ? $t('dataStudio.modifySource.modeFull')
                         : $t('dataStudio.modifySource.modeDefault')
                     }}
@@ -224,7 +222,7 @@
                   <button
                     class="permission-menu-item"
                     :class="{
-                      'permission-menu-item--active': activeSource?.permissionsMode === 'Ask',
+                      'permission-menu-item--active': sessionPermissionsMode === 'Ask',
                     }"
                     @click="setAutoMode(false)"
                   >
@@ -233,14 +231,14 @@
                       {{ $t('dataStudio.modifySource.modeDefault') }}
                     </span>
                     <span
-                      v-if="activeSource?.permissionsMode === 'Ask'"
+                      v-if="sessionPermissionsMode === 'Ask'"
                       class="i-carbon-checkmark h-3.5 w-3.5 permission-check"
                     />
                   </button>
                   <button
                     class="permission-menu-item"
                     :class="{
-                      'permission-menu-item--active': activeSource?.permissionsMode === 'Auto',
+                      'permission-menu-item--active': sessionPermissionsMode === 'Auto',
                     }"
                     @click="setAutoMode(true)"
                   >
@@ -249,7 +247,7 @@
                       {{ $t('dataStudio.modifySource.modeFull') }}
                     </span>
                     <span
-                      v-if="activeSource?.permissionsMode === 'Auto'"
+                      v-if="sessionPermissionsMode === 'Auto'"
                       class="i-carbon-checkmark h-3.5 w-3.5 permission-check"
                     />
                   </button>
@@ -268,11 +266,7 @@
     </div>
 
     <!-- Modals -->
-    <ModifySourceModal
-      v-model:open="showModifyModal"
-      :source="selectedSource"
-      :connection-id="selectedConnectionId"
-    />
+    <ModifySourceModal v-model:open="showModifyModal" :source-idx="selectedSourceIdx" />
   </div>
 </template>
 
@@ -282,7 +276,7 @@ import { storeToRefs } from 'pinia';
 import { onClickOutside } from '@vueuse/core';
 import { useAppStore } from '@/store';
 import { useConnectionStore, DatabaseType, type Connection } from '@/store/connectionStore';
-import { useDataStudioStore, type ConnectedSource } from '@/store/dataStudioStore';
+import { useDataStudioStore } from '@/store/dataStudioStore';
 import { useDataStudioChatAgent } from '@/composables';
 import { useMessageService } from '@/composables';
 import { useLang } from '@/lang';
@@ -306,7 +300,7 @@ const { llmSettings } = storeToRefs(appStore);
 const connectionStore = useConnectionStore();
 const { connections } = storeToRefs(connectionStore);
 const dataStudioStore = useDataStudioStore();
-const { connectedSources } = storeToRefs(dataStudioStore);
+const { attachedSources, activeSession } = storeToRefs(dataStudioStore);
 const message = useMessageService();
 const lang = useLang();
 
@@ -318,7 +312,7 @@ const {
   handleConfirmation: rawHandleConfirmation,
   cancelSession,
   clearChat,
-  activeSource,
+  activeSessionSources,
 } = useDataStudioChatAgent();
 
 const handleConfirmation = (
@@ -329,13 +323,11 @@ const handleConfirmation = (
 };
 
 const showModifyModal = ref(false);
-const selectedSource = ref<ConnectedSource | null>(null);
-const selectedConnectionId = ref<number | undefined>(undefined);
+const selectedSourceIdx = ref<number>(-1);
 const historyPanelOpen = ref(false);
 const permissionMenuOpen = ref(false);
 const modelVerified = ref<boolean | null>(null);
 
-// Add-source dropdown state
 const addSourceOpen = ref(false);
 const addSourceQuery = ref('');
 const addSourceSelectedId = ref('');
@@ -352,10 +344,17 @@ const resetAddSourceState = () => {
 onClickOutside(addSourcePickerRef, resetAddSourceState);
 
 const availableAddConnections = computed(() => {
-  const connectedIds = new Set(connectedSources.value.map(s => s.connectionId));
+  const sessionConnIds = new Set(
+    activeSessionSources.value.flatMap(s => {
+      const attached = attachedSources.value.find(a => a.sourceId === s.sourceId);
+      return attached?.kind === 'database'
+        ? [(attached as { connectionId: number }).connectionId]
+        : [];
+    }),
+  );
   return connections.value.filter(
     conn =>
-      !connectedIds.has(conn.id !== undefined ? Number(conn.id) : undefined) &&
+      !sessionConnIds.has(conn.id !== undefined ? Number(conn.id) : -1) &&
       AGENT_SUPPORTED_TYPES.has(conn.type as DatabaseType),
   );
 });
@@ -388,7 +387,7 @@ const selectAddConnection = (conn: Connection) => {
   addSourceSelectedId.value = String(conn.id);
 };
 
-const confirmAddSource = () => {
+const confirmAddSource = async () => {
   if (!addSourceSelectedId.value) return;
   const conn = connections.value.find(c => String(c.id) === addSourceSelectedId.value);
   if (!conn || conn.id === undefined) return;
@@ -396,34 +395,38 @@ const confirmAddSource = () => {
     addSourceMode.value === 'Auto'
       ? { read: true, create: true, update: true, delete: true }
       : { read: true, create: false, update: false, delete: false };
-  dataStudioStore.addSource({
+  const newSource = dataStudioStore.addDatabaseSourceFromConnection({
     connectionId: Number(conn.id),
     name: conn.name,
+    databaseType: conn.type as
+      | 'ELASTICSEARCH'
+      | 'OPENSEARCH'
+      | 'EASYSEARCH'
+      | 'DYNAMODB'
+      | 'MONGODB',
     permissions,
-    permissionsMode: addSourceMode.value,
   });
+  if (!dataStudioStore.activeSession) {
+    await dataStudioStore.getOrCreateSession([]);
+  }
+  dataStudioStore.attachSourceToActiveSession(newSource);
   resetAddSourceState();
 };
 
 const hasMessages = computed(() => messages.value.length > 0);
 const emptyHint = computed(() =>
-  connectedSources.value.length > 0
+  activeSessionSources.value.length > 0
     ? lang.t('dataStudio.agent.emptyState')
     : lang.t('dataStudio.agent.noSource'),
 );
 
+const sessionPermissionsMode = computed(() => activeSession.value?.permissionsMode ?? 'Ask');
+
 const setAutoMode = (auto: boolean) => {
   permissionMenuOpen.value = false;
-  if (!activeSource.value) return;
-  const idx = connectedSources.value.findIndex(
-    s => s.connectionId === activeSource.value!.connectionId,
-  );
-  if (idx === -1) return;
-  const mode = auto ? 'Auto' : 'Ask';
-  const permissions = auto
-    ? { read: true, create: true, update: true, delete: true }
-    : { read: true, create: false, update: false, delete: false };
-  dataStudioStore.updateSource(idx, { permissionsMode: mode, permissions });
+  const sessionId = activeSession.value?.id;
+  if (!sessionId) return;
+  dataStudioStore.setSessionPermissionsMode(sessionId, auto ? 'Auto' : 'Ask');
 };
 
 const closeOpenMenus = (e: MouseEvent) => {
@@ -443,9 +446,9 @@ const onModelChange = async (modelId: string) => {
     selectedModelId: modelId,
     useRecommendedModel: false,
   });
-  const activeSession = dataStudioStore.activeSession;
-  if (activeSession?.id) {
-    dataStudioStore.setSessionModelId(activeSession.id, modelId);
+  const sess = dataStudioStore.activeSession;
+  if (sess?.id) {
+    dataStudioStore.setSessionModelId(sess.id, modelId);
   }
   const ok = await appStore.verifyModelAvailability(modelId);
   modelVerified.value = ok;
@@ -454,10 +457,6 @@ const onModelChange = async (modelId: string) => {
 
 const switchSession = async (sessionId: string) => {
   dataStudioStore.setActiveSession(sessionId);
-  const session = dataStudioStore.sessions.find(s => s.id === sessionId);
-  if (session && session.connectionId !== -1) {
-    dataStudioStore.setActiveConnection(session.connectionId);
-  }
   const savedModelId = dataStudioStore.sessionMeta[sessionId]?.modelId;
   if (savedModelId) {
     modelVerified.value = null;
@@ -481,17 +480,12 @@ const startNewSession = () => {
 };
 
 const openModifyModal = (index: number) => {
-  const source = connectedSources.value[index];
-  selectedSource.value = source;
-  selectedConnectionId.value = source?.connectionId;
-  if (source?.connectionId !== undefined) {
-    dataStudioStore.setActiveConnection(source.connectionId);
-  }
+  selectedSourceIdx.value = index;
   showModifyModal.value = true;
 };
 
 onMounted(async () => {
-  await dataStudioStore.loadSessions();
+  await Promise.all([dataStudioStore.loadSessions(), connectionStore.fetchConnections()]);
   document.addEventListener('click', closeOpenMenus);
 });
 

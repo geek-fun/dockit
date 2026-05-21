@@ -4,12 +4,7 @@ use aws_sdk_dynamodb::Client;
 use serde_json::json;
 
 pub async fn describe_table(client: &Client, table_name: &str) -> Result<ApiResponse, String> {
-    match client
-        .describe_table()
-        .table_name(table_name)
-        .send()
-        .await
-    {
+    match client.describe_table().table_name(table_name).send().await {
         Ok(response) => {
             // Create a custom serializable structure with the data we need
             let table_info = json!({
