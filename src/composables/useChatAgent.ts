@@ -407,7 +407,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       }
     }).then(unlisten => unlisteners.push(unlisten));
 
-    onAgentLoopToolResult(({ session_id, tool_call_id, envelope }) => {
+    onAgentLoopToolResult(({ session_id, tool_call_id, envelope, error }) => {
       const session = getSessionById(sessions.value, session_id);
       if (!session) return;
       const assistantMsg = [...session.messages]
@@ -422,7 +422,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
           session_id,
           assistantMsg.id,
           tool_call_id,
-          'done',
+          error ? 'error' : 'done',
           envelope.summary,
           envelope.metadata?.duration_ms,
         );

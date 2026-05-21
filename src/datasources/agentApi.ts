@@ -26,8 +26,8 @@ export type ToolResultMetadata = {
 
 export type ToolEnvelope = {
   summary: string;
-  full_result: string;
-  metadata: ToolResultMetadata;
+  full_result?: string;
+  metadata?: ToolResultMetadata;
 };
 
 export type AgentDeltaEvent = {
@@ -186,7 +186,12 @@ const onAgentLoopToolCall = (
 ) => listen('agent-loop-tool-call', e => handler(e.payload as any));
 
 const onAgentLoopToolResult = (
-  handler: (payload: { session_id: string; tool_call_id: string; envelope: ToolEnvelope }) => void,
+  handler: (payload: {
+    session_id: string;
+    tool_call_id: string;
+    envelope: ToolEnvelope;
+    error?: boolean;
+  }) => void,
 ) => listen('agent-loop-tool-result', e => handler(e.payload as any));
 
 const onAgentLoopStepDone = (

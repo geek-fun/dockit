@@ -758,12 +758,22 @@ async fn run_agent_loop_inner(
 
             if allowed_tools.is_empty() || !allowed_tools.contains(&tc.name) {
                 update_tool_call_status(db, &tool_call_id, "failed")?;
+                let err_content = format!("Tool '{}' is not allowed in this session.", tool_name);
                 let deny_msg = json!({
                     "tool_call_id": tool_call_id,
                     "name": tool_name,
-                    "content": format!("Tool '{}' is not allowed in this session.", tool_name),
+                    "content": err_content,
                 });
                 insert_message(db, &new_id(), session_id, "tool", &deny_msg.to_string())?;
+                let _ = app.emit(
+                    "agent-loop-tool-result",
+                    json!({
+                        "session_id": session_id,
+                        "tool_call_id": tool_call_id,
+                        "error": true,
+                        "envelope": { "summary": err_content },
+                    }),
+                );
                 continue;
             }
 
@@ -828,12 +838,22 @@ async fn run_agent_loop_inner(
                     Some(cfg) => cfg.clone(),
                     None => {
                         update_tool_call_status(db, &tool_call_id, "failed")?;
+                        let err_content = format!("Unknown connection_id '{}' for tool '{}'.", conn_id, tool_name);
                         let err_msg = json!({
                             "tool_call_id": tool_call_id,
                             "name": tool_name,
-                            "content": format!("Unknown connection_id '{}' for tool '{}'.", conn_id, tool_name),
+                            "content": err_content,
                         });
                         insert_message(db, &new_id(), session_id, "tool", &err_msg.to_string())?;
+                        let _ = app.emit(
+                            "agent-loop-tool-result",
+                            json!({
+                                "session_id": session_id,
+                                "tool_call_id": tool_call_id,
+                                "error": true,
+                                "envelope": { "summary": err_content },
+                            }),
+                        );
                         continue;
                     }
                 },
@@ -852,17 +872,27 @@ async fn run_agent_loop_inner(
                     .unwrap_or(false);
                 if !allowed_by_perms {
                     update_tool_call_status(db, &tool_call_id, "failed")?;
+                    let err_content = format!(
+                        "Permission denied: tool '{}' requires '{}' permission on connection '{}'.",
+                        tool_name,
+                        perm,
+                        arguments_value.get("connection_id").and_then(|v| v.as_str()).unwrap_or("unknown")
+                    );
                     let perm_err = json!({
                         "tool_call_id": tool_call_id,
                         "name": tool_name,
-                        "content": format!(
-                            "Permission denied: tool '{}' requires '{}' permission on connection '{}'.",
-                            tool_name,
-                            perm,
-                            arguments_value.get("connection_id").and_then(|v| v.as_str()).unwrap_or("unknown")
-                        ),
+                        "content": err_content,
                     });
                     insert_message(db, &new_id(), session_id, "tool", &perm_err.to_string())?;
+                    let _ = app.emit(
+                        "agent-loop-tool-result",
+                        json!({
+                            "session_id": session_id,
+                            "tool_call_id": tool_call_id,
+                            "error": true,
+                            "envelope": { "summary": err_content },
+                        }),
+                    );
                     continue;
                 }
             }
@@ -883,12 +913,22 @@ async fn run_agent_loop_inner(
                     Ok(env) => env,
                     Err(e) => {
                         update_tool_call_status(db, &tool_call_id, "failed")?;
+                        let err_content = format!("Tool execution error: {}", e);
                         let error_msg = json!({
                             "tool_call_id": tool_call_id,
                             "name": tool_name,
-                            "content": format!("Tool execution error: {}", e),
+                            "content": err_content,
                         });
                         insert_message(db, &new_id(), session_id, "tool", &error_msg.to_string())?;
+                        let _ = app.emit(
+                            "agent-loop-tool-result",
+                            json!({
+                                "session_id": session_id,
+                                "tool_call_id": tool_call_id,
+                                "error": true,
+                                "envelope": { "summary": err_content },
+                            }),
+                        );
                         continue;
                     }
                 },
