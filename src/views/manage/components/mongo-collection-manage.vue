@@ -255,7 +255,7 @@
             :disabled="!canCreateDatabase || submittingCreateDatabase"
             @click="handleCreateDatabase"
           >
-            <Spinner v-if="submittingCreateDatabase" class="mr-2 h-4 w-4" />
+            <Spinner v-if="submittingCreateDatabase" size="sm" class="mr-2" />
             {{ $t('common.create') }}
           </Button>
         </DialogFooter>
@@ -307,7 +307,7 @@
             :disabled="!canCreateCollection || submittingCreateCollection"
             @click="handleCreateCollection"
           >
-            <Spinner v-if="submittingCreateCollection" class="mr-2 h-4 w-4" />
+            <Spinner v-if="submittingCreateCollection" size="sm" class="mr-2" />
             {{ $t('common.create') }}
           </Button>
         </DialogFooter>
@@ -381,7 +381,7 @@
             :disabled="droppingCollection"
             @click="handleDropCollection"
           >
-            <Spinner v-if="droppingCollection" class="mr-2 h-4 w-4" />
+            <Spinner v-if="droppingCollection" size="sm" class="mr-2" />
             {{ $t('dialogOps.retry') }}
           </Button>
           <Button
@@ -390,7 +390,7 @@
             :disabled="droppingCollection || dropCollectionConfirmName !== collectionToDrop"
             @click="handleDropCollection"
           >
-            <Spinner v-if="droppingCollection" class="mr-2 h-4 w-4" />
+            <Spinner v-if="droppingCollection" size="sm" class="mr-2" />
             {{ $t('common.drop') }}
           </Button>
         </DialogFooter>
@@ -464,7 +464,7 @@
             :disabled="droppingDatabase"
             @click="handleDropDatabase"
           >
-            <Spinner v-if="droppingDatabase" class="mr-2 h-4 w-4" />
+            <Spinner v-if="droppingDatabase" size="sm" class="mr-2" />
             {{ $t('dialogOps.retry') }}
           </Button>
           <Button
@@ -473,7 +473,7 @@
             :disabled="droppingDatabase || dropDatabaseConfirmName !== selectedDatabase"
             @click="handleDropDatabase"
           >
-            <Spinner v-if="droppingDatabase" class="mr-2 h-4 w-4" />
+            <Spinner v-if="droppingDatabase" size="sm" class="mr-2" />
             {{ $t('common.drop') }}
           </Button>
         </DialogFooter>
