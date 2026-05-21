@@ -80,10 +80,13 @@ export type MultiSourceToolPermissions = {
   delete: boolean;
 };
 
-export type MultiSourceToolConfig = {
-  alias: string;
+export type ConnectionSource = {
+  connectionId: string;
   databaseType: string;
-  permissions: MultiSourceToolPermissions;
+  read: boolean;
+  create: boolean;
+  update: boolean;
+  delete: boolean;
 };
 
 const agentApi = {
@@ -127,17 +130,10 @@ const agentApi = {
     return jsonify.parse(result) as ToolsResponse;
   },
 
-  getAvailableToolsMulti: async (params: {
-    sources: Array<{
-      alias: string;
-      databaseType: string;
-      read: boolean;
-      create: boolean;
-      update: boolean;
-      delete: boolean;
-    }>;
+  getAvailableToolsForSources: async (params: {
+    sources: Array<ConnectionSource>;
   }): Promise<ToolsResponse> => {
-    const result = await invoke<string>('get_available_tools_multi', params);
+    const result = await invoke<string>('get_available_tools_for_sources', params);
     return jsonify.parse(result) as ToolsResponse;
   },
 

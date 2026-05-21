@@ -211,7 +211,7 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
     let client = create_http_client(None, Some(ssl));
 
     let (method, path, body) = match tool_name {
-        "es.search" => {
+        "es__search" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -224,7 +224,7 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
                 Some(body.to_string()),
             )
         }
-        "es.get_document" => {
+        "es__get_document" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -244,7 +244,7 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
                 None,
             )
         }
-        "es.index_document" => {
+        "es__index_document" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -261,7 +261,7 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
             };
             ("POST", path, Some(body.to_string()))
         }
-        "es.update_document" => {
+        "es__update_document" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -282,7 +282,7 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
                 Some(body.to_string()),
             )
         }
-        "es.delete_document" => {
+        "es__delete_document" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -302,7 +302,7 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
                 None,
             )
         }
-        "es.delete_by_query" => {
+        "es__delete_by_query" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -315,8 +315,8 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
                 Some(body.to_string()),
             )
         }
-        "es.cat_indices" => ("GET", "/_cat/indices?format=json".to_string(), None),
-        "es.get_mapping" => {
+        "es__cat_indices" => ("GET", "/_cat/indices?format=json".to_string(), None),
+        "es__get_mapping" => {
             let index = args
                 .get("index")
                 .and_then(|v| v.as_str())
@@ -389,29 +389,29 @@ fn validate_dynamo_statement(tool_name: &str, statement: &str) -> Result<(), Str
     let first_word = upper.split_whitespace().next().unwrap_or("");
 
     match tool_name {
-        "dynamo.execute_query" => {
+        "dynamo__execute_query" => {
             if matches!(
                 first_word,
                 "INSERT" | "UPDATE" | "DELETE" | "DROP" | "CREATE" | "ALTER" | "TRUNCATE"
             ) {
                 return Err(format!(
-                    "dynamo.execute_query is read-only; rejected statement starting with '{}'",
+                    "dynamo__execute_query is read-only; rejected statement starting with '{}'",
                     first_word
                 ));
             }
         }
-        "dynamo.execute_write" => {
+        "dynamo__execute_write" => {
             if matches!(first_word, "DELETE" | "DROP" | "TRUNCATE") {
                 return Err(format!(
-                    "dynamo.execute_write does not allow destructive statements starting with '{}'",
+                    "dynamo__execute_write does not allow destructive statements starting with '{}'",
                     first_word
                 ));
             }
         }
-        "dynamo.execute_delete" => {
+        "dynamo__execute_delete" => {
             if first_word != "DELETE" {
                 return Err(format!(
-                    "dynamo.execute_delete only allows DELETE statements, got '{}'",
+                    "dynamo__execute_delete only allows DELETE statements, got '{}'",
                     first_word
                 ));
             }
@@ -429,7 +429,7 @@ async fn execute_dynamo_tool(
     let client = create_dynamo_client(config).await?;
 
     match tool_name {
-        "dynamo.execute_query" | "dynamo.execute_write" | "dynamo.execute_delete" => {
+        "dynamo__execute_query" | "dynamo__execute_write" | "dynamo__execute_delete" => {
             let statement = args
                 .get("statement")
                 .and_then(|v| v.as_str())
@@ -445,7 +445,7 @@ async fn execute_dynamo_tool(
                 .map(truncate_tool_output)
                 .map_err(|e| e.to_string())
         }
-        "dynamo.describe_table" => {
+        "dynamo__describe_table" => {
             let table_name = args
                 .get("table_name")
                 .and_then(|v| v.as_str())
@@ -473,9 +473,9 @@ pub async fn execute_tool(
     let args: Value = serde_json::from_str(&arguments)
         .map_err(|e| format!("Failed to parse arguments: {}", e))?;
 
-    if tool_name.starts_with("es.") {
+    if tool_name.starts_with("es__") {
         execute_es_tool(&tool_name, &args, &connection_config).await
-    } else if tool_name.starts_with("dynamo.") {
+    } else if tool_name.starts_with("dynamo__") {
         execute_dynamo_tool(&tool_name, &args, &connection_config).await
     } else {
         Err(format!("Unknown tool: {}", tool_name))
@@ -519,9 +519,9 @@ impl crate::agent::tool_executor::ToolExecutor for DocKitToolExecutor {
     ) -> Result<ToolEnvelope, String> {
         let start = std::time::Instant::now();
 
-        let raw = if tool_name.starts_with("es.") {
+        let raw = if tool_name.starts_with("es__") {
             execute_es_tool(tool_name, arguments, connection_config).await?
-        } else if tool_name.starts_with("dynamo.") {
+        } else if tool_name.starts_with("dynamo__") {
             execute_dynamo_tool(tool_name, arguments, connection_config).await?
         } else {
             return Err(format!("Unknown tool: {}", tool_name));

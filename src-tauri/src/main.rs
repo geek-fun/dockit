@@ -22,7 +22,7 @@ use agent::session_store::{
     update_session_status,
 };
 use agent::tool_executor::ToolExecutor;
-use agent::tools::get_available_tools_multi;
+use agent::tools::get_available_tools_for_sources;
 use agent::{
     get_available_tools, introspect_schema, list_llm_models, run_agent_step, validate_llm_config,
 };
@@ -108,7 +108,7 @@ fn main() {
             list_llm_models,
             introspect_schema,
             get_available_tools,
-            get_available_tools_multi,
+            get_available_tools_for_sources,
             run_agent_loop,
             cancel_agent_loop,
             confirm_tool_call,

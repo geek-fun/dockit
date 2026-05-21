@@ -32,7 +32,6 @@ import {
   onAgentLoopError,
   onAgentLoopSummaryInjected,
 } from '@/datasources/agentApi';
-
 type SessionRuntime = {
   tools?: Array<ToolDefinition>;
   metadata?: Record<string, ToolMetadata>;
@@ -47,7 +46,7 @@ type ToolPermissionSet = {
 };
 
 type PromptSource = {
-  alias: string;
+  connectionId: string;
   databaseType: string;
 };
 
@@ -141,7 +140,7 @@ const buildSourceSummary = (sources: Array<PromptSource>): string =>
     ? 'No attached data sources are available in this session.'
     : [
         'Attached data sources:',
-        ...sources.map(source => `- ${source.alias}: ${source.databaseType}`),
+        ...sources.map(source => `- ${source.connectionId}: ${source.databaseType}`),
       ].join('\n');
 
 const buildSystemPrompt = ({
@@ -248,7 +247,7 @@ const toPromptSources = (
   context?: ChatContextConfig,
 ): Array<PromptSource> => {
   const sessionSources = getActiveSources(session).map(source => ({
-    alias: source.alias,
+    connectionId: source.alias,
     databaseType: source.databaseType,
   }));
 
@@ -257,31 +256,20 @@ const toPromptSources = (
   }
 
   if (context?.databaseTypes) {
-    return Object.entries(context.databaseTypes).map(([alias, databaseType]) => ({
-      alias,
+    return Object.entries(context.databaseTypes).map(([connectionId, databaseType]) => ({
+      connectionId,
       databaseType,
     }));
   }
 
-  return context?.databaseType ? [{ alias: 'default', databaseType: context.databaseType }] : [];
-};
-
-const normalizeMetadataToolName = (toolName: string): string => {
-  if (!toolName.includes('__')) {
-    return toolName;
-  }
-
-  const withoutAlias = toolName.slice(toolName.indexOf('__') + 2);
-  return withoutAlias.replaceAll('__', '.');
+  return context?.databaseType
+    ? [{ connectionId: 'default', databaseType: context.databaseType }]
+    : [];
 };
 
 const normalizeToolMetadata = (
   metadata: Record<string, ToolMetadata>,
-): Record<string, ToolMetadata> =>
-  Object.entries(metadata).reduce<Record<string, ToolMetadata>>((acc, [toolName, value]) => {
-    acc[normalizeMetadataToolName(toolName)] = value;
-    return acc;
-  }, {});
+): Record<string, ToolMetadata> => metadata;
 
 const getSessionById = (sessions: Array<ChatSession>, sessionId: string): ChatSession | undefined =>
   sessions.find(session => session.id === sessionId);
@@ -495,9 +483,11 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     if (!session) return;
 
     const promptSources = toPromptSources(session, context);
-    const resolvedAliases = promptSources.filter(s => Boolean(context?.connections?.[s.alias]));
+    const resolvedSources = promptSources.filter(s =>
+      Boolean(context?.connections?.[s.connectionId]),
+    );
     const noConnection =
-      resolvedAliases.length === 0 && Object.keys(context?.connections ?? {}).length === 0;
+      resolvedSources.length === 0 && Object.keys(context?.connections ?? {}).length === 0;
 
     config.sessionStore.setSessionStatus(sessionId, 'running');
     isLoading.value = true;
@@ -571,16 +561,16 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       };
 
       const toolSources = toPromptSources(session, context)
-        .filter(source => Boolean(context.connections?.[source.alias]))
+        .filter(source => Boolean(context.connections?.[source.connectionId]))
         .map(source => ({
-          alias: source.alias,
+          connectionId: source.connectionId,
           databaseType: source.databaseType,
-          ...(activeSources.find(sessionSource => sessionSource.alias === source.alias)
+          ...(activeSources.find(sessionSource => sessionSource.alias === source.connectionId)
             ?.permissions ?? fallbackPermissions),
         }));
 
       if (toolSources.length > 0) {
-        const toolsResponse = await agentApi.getAvailableToolsMulti({
+        const toolsResponse = await agentApi.getAvailableToolsForSources({
           sources: toolSources,
         });
         runtime.tools = toolsResponse.tools;

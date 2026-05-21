@@ -10,7 +10,6 @@ use tokio::sync::oneshot;
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::executor::ToolEnvelope;
 use crate::agent::tool_executor::ToolExecutor;
-use crate::agent::tools::{alias_from_prefixed_name, openai_name_to_internal};
 use crate::common::http_client::create_http_client;
 use crate::db::AgentDb;
 
@@ -723,7 +722,7 @@ async fn run_agent_loop_inner(
 
         for (tc, tool_call_id) in acc.tool_calls.iter().zip(resolved_tool_ids.iter()) {
             let tool_call_id = tool_call_id.clone();
-            let tool_name = openai_name_to_internal(&tc.name);
+            let tool_name = tc.name.clone();
             let arguments_value: Value = match serde_json::from_str(&tc.arguments) {
                 Ok(v) => v,
                 Err(e) => {
@@ -820,15 +819,18 @@ async fn run_agent_loop_inner(
 
             update_tool_call_status(db, &tool_call_id, "approved")?;
 
-            let resolved_config = match alias_from_prefixed_name(&tc.name) {
-                Some(alias) => match connections.get(&alias) {
+            let resolved_config = match arguments_value
+                .get("connection_id")
+                .and_then(|v| v.as_str())
+            {
+                Some(conn_id) => match connections.get(conn_id) {
                     Some(cfg) => cfg.clone(),
                     None => {
                         update_tool_call_status(db, &tool_call_id, "failed")?;
                         let err_msg = json!({
                             "tool_call_id": tool_call_id,
                             "name": tool_name,
-                            "content": format!("Unknown source alias '{}' for tool '{}'.", alias, tool_name),
+                            "content": format!("Unknown connection_id '{}' for tool '{}'.", conn_id, tool_name),
                         });
                         insert_message(db, &new_id(), session_id, "tool", &err_msg.to_string())?;
                         continue;
