@@ -581,6 +581,7 @@ const handleDatabaseChange = async (dbName: string) => {
   selectedDatabase.value = dbName;
   if (mongoConnection.value) {
     mongoConnection.value.activeDatabase = dbName;
+    await connectionStore.saveConnection(mongoConnection.value);
   }
   await fetchCollectionsWithStats();
   await fetchDatabaseStats();

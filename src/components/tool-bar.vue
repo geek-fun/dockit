@@ -778,6 +778,7 @@ const handleUpdate = async (
     if (tabStore.activePanel?.connection?.id === mongoConn.id) {
       tabStore.activePanel.connection = mongoConn;
     }
+    await connectionStore.saveConnection(mongoConn);
   } else {
     const selectedConnection = ['ES_EDITOR', 'DYNAMO_EDITOR'].includes(props.type ?? '')
       ? activePanel.value.connection
