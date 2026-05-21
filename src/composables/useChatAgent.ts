@@ -186,6 +186,7 @@ const buildSystemPrompt = ({
     '',
     'Rules:',
     '- Always use the available tools to interact with the database.',
+    '- Only use connection IDs listed above — the list reflects current session state and may change between turns if sources are attached or detached.',
     '- Never fabricate data — only return actual query results.',
     '- Explain your reasoning before executing queries.',
     '- For destructive operations, clearly explain what will be affected.',
