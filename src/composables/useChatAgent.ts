@@ -301,6 +301,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     }
 
     if (riskLevel === 'safe') return false;
+    if (riskLevel === 'destructive') return true;
     if (!config.autoMode?.value) return true;
     return false;
   };

@@ -1382,6 +1382,7 @@ export const enUS = {
       emptyState: 'Ask a question about your data',
       toolConfirmation: {
         title: 'Tool Confirmation Required',
+        targetSource: 'Target source',
         allowOnce: 'Allow Once',
         allowAlways: 'Allow Always',
         deny: 'Deny',
