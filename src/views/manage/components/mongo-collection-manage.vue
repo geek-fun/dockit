@@ -255,7 +255,10 @@
             :disabled="!canCreateDatabase || submittingCreateDatabase"
             @click="handleCreateDatabase"
           >
-            <Spinner v-if="submittingCreateDatabase" size="sm" class="mr-2" />
+            <Loader2
+              v-if="submittingCreateDatabase"
+              class="mr-2 h-4 w-4 animate-spin text-foreground"
+            />
             {{ $t('common.create') }}
           </Button>
         </DialogFooter>
@@ -307,7 +310,10 @@
             :disabled="!canCreateCollection || submittingCreateCollection"
             @click="handleCreateCollection"
           >
-            <Spinner v-if="submittingCreateCollection" size="sm" class="mr-2" />
+            <Loader2
+              v-if="submittingCreateCollection"
+              class="mr-2 h-4 w-4 animate-spin text-foreground"
+            />
             {{ $t('common.create') }}
           </Button>
         </DialogFooter>
@@ -381,7 +387,7 @@
             :disabled="droppingCollection"
             @click="handleDropCollection"
           >
-            <Spinner v-if="droppingCollection" size="sm" class="mr-2" />
+            <Loader2 v-if="droppingCollection" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('dialogOps.retry') }}
           </Button>
           <Button
@@ -390,7 +396,7 @@
             :disabled="droppingCollection || dropCollectionConfirmName !== collectionToDrop"
             @click="handleDropCollection"
           >
-            <Spinner v-if="droppingCollection" size="sm" class="mr-2" />
+            <Loader2 v-if="droppingCollection" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('common.drop') }}
           </Button>
         </DialogFooter>
@@ -464,7 +470,7 @@
             :disabled="droppingDatabase"
             @click="handleDropDatabase"
           >
-            <Spinner v-if="droppingDatabase" size="sm" class="mr-2" />
+            <Loader2 v-if="droppingDatabase" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('dialogOps.retry') }}
           </Button>
           <Button
@@ -473,7 +479,7 @@
             :disabled="droppingDatabase || dropDatabaseConfirmName !== selectedDatabase"
             @click="handleDropDatabase"
           >
-            <Spinner v-if="droppingDatabase" size="sm" class="mr-2" />
+            <Loader2 v-if="droppingDatabase" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('common.drop') }}
           </Button>
         </DialogFooter>
@@ -484,7 +490,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, onMounted } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useMessageService } from '@/composables';
 import prettyBytes from 'pretty-bytes';
@@ -503,7 +509,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Empty } from '@/components/ui/empty';
-import { Spinner } from '@/components/ui/spinner';
 import { Input } from '@/components/ui/input';
 import { Form, FormItem } from '@/components/ui/form';
 import {
