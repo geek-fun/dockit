@@ -65,11 +65,12 @@
         </div>
 
         <template v-for="tc in message.toolCalls" :key="tc.id">
-          <!-- Tool call row: icon | name | status icon | duration | result preview | chevron -->
+          <!-- Tool call row: icon | tool-name | verb+target | status | duration? | preview | chevron -->
           <details class="activity-item-details">
             <summary class="activity-item">
               <span class="activity-icon" :class="toolIcon(tc.toolName)" />
-              <span class="activity-label">{{ toolLabel(tc.toolName, tc) }}</span>
+              <span class="tool-name-badge">{{ tc.toolName }}</span>
+              <span class="activity-label tool-verb-label">{{ toolVerb(tc.toolName, tc) }}</span>
               <span
                 v-if="tc.status === 'executing'"
                 class="i-carbon-renew animate-spin activity-status-icon executing"
@@ -77,6 +78,10 @@
               <span
                 v-else-if="tc.status === 'pending'"
                 class="i-carbon-time activity-status-icon pending"
+              />
+              <span
+                v-else-if="tc.status === 'done'"
+                class="i-carbon-checkmark activity-status-icon done"
               />
               <span
                 v-else-if="tc.status === 'error'"
@@ -208,15 +213,11 @@ const toolIcon = (toolName: string): string => {
     name.includes('insert') ||
     name.includes('put') ||
     name.includes('create') ||
-    (name.includes('write') && !name.includes('overwrite'))
+    name.includes('write') ||
+    name.includes('save')
   )
-    return 'i-carbon-add-alt';
-  if (
-    name.includes('update') ||
-    name.includes('edit') ||
-    name.includes('modify') ||
-    name.includes('write')
-  )
+    return 'i-carbon-edit';
+  if (name.includes('update') || name.includes('edit') || name.includes('modify'))
     return 'i-carbon-pen';
   if (name.includes('search') || name.includes('query') || name.includes('find'))
     return 'i-carbon-search';
@@ -248,18 +249,17 @@ const toolIcon = (toolName: string): string => {
   return 'i-carbon-data-base';
 };
 
-const toolLabel = (toolName: string, tc: AgentToolCall): string => {
+const toolVerb = (toolName: string, tc: AgentToolCall): string => {
   const name = toolName.toLowerCase();
   const args = tc.args ?? {};
-  // Skip connection_id — it's infra, not the meaningful arg to show
   const displayArg =
     Object.entries(args)
       .filter(([k]) => k !== 'connection_id')
       .map(([, v]) => (typeof v === 'string' ? v : undefined))
       .find(v => v !== undefined) ?? '';
-  const truncated = displayArg.length > 48 ? displayArg.slice(0, 48) + '...' : displayArg;
+  const truncated = displayArg.length > 40 ? displayArg.slice(0, 40) + '...' : displayArg;
 
-  const prefix = (() => {
+  const verb = (() => {
     if (
       name.includes('index_document') ||
       name.includes('create') ||
@@ -299,8 +299,9 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
     return null;
   })();
 
-  const label = prefix ?? toolName;
-  return truncated ? `${label} ${truncated}` : label;
+  if (!verb && !truncated) return '';
+  if (!verb) return truncated;
+  return truncated ? `${verb} ${truncated}` : verb;
 };
 </script>
 
@@ -473,6 +474,28 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
   align-items: center;
 }
 
+/* ── Tool name badge ── */
+.tool-name-badge {
+  font-size: 11.5px;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
+  color: hsl(var(--foreground) / 0.75);
+  background: hsl(var(--muted));
+  border: 1px solid hsl(var(--border) / 0.6);
+  padding: 1px 5px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Tool verb label (secondary) ── */
+.tool-verb-label {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground) / 0.7);
+}
+
 /* ── Status icons ── */
 .activity-status-icon {
   width: 12px;
@@ -482,6 +505,10 @@ const toolLabel = (toolName: string, tc: AgentToolCall): string => {
 
 .activity-status-icon.executing {
   color: hsl(var(--primary));
+}
+
+.activity-status-icon.done {
+  color: hsl(142 72% 45%);
 }
 
 .activity-status-icon.pending {
