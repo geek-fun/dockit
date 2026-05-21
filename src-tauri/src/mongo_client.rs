@@ -1,5 +1,5 @@
 use futures::TryStreamExt;
-use mongodb::bson::{doc, Bson, Document};
+use mongodb::bson::{doc, oid::ObjectId, Bson, Document};
 use mongodb::{options::ClientOptions, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -824,4 +824,782 @@ async fn build_client(config: &MongoConnectionConfig) -> Result<Client, String> 
         .await
         .map_err(|e| format!("Failed to parse connection options: {}", e))?;
     Client::with_options(client_options).map_err(|e| format!("Failed to create client: {}", e))
+}
+
+// ==================== MongoDB Management Commands ====================
+
+/// Database info returned by mongo_list_databases
+#[derive(Debug, Serialize)]
+pub struct MongoDatabaseInfo {
+    pub name: String,
+    pub size_on_disk: Option<i64>,
+    pub empty: Option<bool>,
+    pub collections: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoListDatabasesResult {
+    pub success: bool,
+    pub databases: Option<Vec<MongoDatabaseInfo>>,
+    pub total_size: Option<i64>,
+    pub error: Option<String>,
+}
+
+/// Collection info returned by mongo_list_collections
+#[derive(Debug, Serialize)]
+pub struct MongoCollectionInfo {
+    pub name: String,
+    pub collection_type: String,
+    pub document_count: Option<i64>,
+    pub storage_size: Option<i64>,
+    pub index_count: Option<i64>,
+    pub avg_document_size: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoListCollectionsResult {
+    pub success: bool,
+    pub collections: Option<Vec<MongoCollectionInfo>>,
+    pub error: Option<String>,
+}
+
+/// Detailed collection stats
+#[derive(Debug, Serialize)]
+pub struct MongoCollectionStats {
+    pub ns: String,
+    pub count: i64,
+    pub size: i64,
+    pub avg_obj_size: Option<i64>,
+    pub storage_size: i64,
+    pub nindexes: i64,
+    pub total_index_size: i64,
+    pub index_sizes: Option<serde_json::Map<String, Value>>,
+    pub capped: Option<bool>,
+    pub max: Option<i64>,
+    pub max_size: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoCollectionStatsResult {
+    pub success: bool,
+    pub stats: Option<MongoCollectionStats>,
+    pub error: Option<String>,
+}
+
+/// Database stats
+#[derive(Debug, Serialize)]
+pub struct MongoDatabaseStats {
+    pub db: String,
+    pub collections: i64,
+    pub objects: i64,
+    pub avg_obj_size: Option<i64>,
+    pub data_size: i64,
+    pub storage_size: i64,
+    pub indexes: i64,
+    pub index_size: i64,
+    pub total_size: i64,
+    pub scale_factor: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoDatabaseStatsResult {
+    pub success: bool,
+    pub stats: Option<MongoDatabaseStats>,
+    pub version: Option<String>,
+    pub error: Option<String>,
+}
+
+/// Generic operation result
+#[derive(Debug, Serialize)]
+pub struct MongoOperationResult {
+    pub success: bool,
+    pub message: Option<String>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_list_databases(config: MongoConnectionConfig) -> Result<MongoListDatabasesResult, String> {
+    let client = build_client(&config).await?;
+
+    let admin_db = client.database("admin");
+    let result = admin_db
+        .run_command(doc! { "listDatabases": 1 })
+        .await
+        .map_err(|e| format!("Failed to list databases: {}", e))?;
+
+    let databases: Vec<MongoDatabaseInfo> = match result.get("databases") {
+        Some(Bson::Array(arr)) => arr
+            .iter()
+            .filter_map(|bson| {
+                if let Bson::Document(d) = bson {
+                    let name = d.get_str("name").unwrap_or("unknown").to_string();
+                    let size_on_disk = d.get_i64("sizeOnDisk").ok();
+                    let empty = d.get_bool("empty").ok();
+                    // collections count is not directly provided by listDatabases
+                    // we'll fetch it separately if needed, or set to None
+                    Some(MongoDatabaseInfo {
+                        name,
+                        size_on_disk,
+                        empty,
+                        collections: None,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect(),
+        _ => return Err("Unexpected response format from listDatabases".to_string()),
+    };
+
+    let total_size = result.get_i64("totalSize").ok();
+
+    Ok(MongoListDatabasesResult {
+        success: true,
+        databases: Some(databases),
+        total_size,
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_list_collections(
+    config: MongoConnectionConfig,
+    database: String,
+) -> Result<MongoListCollectionsResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    // Get list of collections with type info
+    let collections_list: Vec<MongoCollectionInfo> = match db.list_collections().await {
+        Ok(mut cursor) => {
+            let mut infos: Vec<MongoCollectionInfo> = Vec::new();
+            use futures::TryStreamExt;
+            while let Some(spec) = cursor.try_next().await.map_err(|e| e.to_string())? {
+                let name = spec.name;
+                let coll_type = match spec.collection_type {
+                        mongodb::results::CollectionType::Collection => "collection",
+                        mongodb::results::CollectionType::View => "view",
+                        mongodb::results::CollectionType::Timeseries => "timeseries",
+                        _ => "unknown",
+                    }.to_string();
+                infos.push(MongoCollectionInfo {
+                    name,
+                    collection_type: coll_type,
+                    document_count: None,
+                    storage_size: None,
+                    index_count: None,
+                    avg_document_size: None,
+                });
+            }
+            infos
+        }
+        Err(e) => return Err(format!("Failed to list collections: {}", e)),
+    };
+
+    // Get stats for each collection to populate counts and sizes
+    let collections_with_stats: Vec<MongoCollectionInfo> = collections_list
+        .into_iter()
+        .map(|info| {
+            // Run collStats for each collection (we'll do this synchronously in a separate call)
+            info
+        })
+        .collect();
+
+    Ok(MongoListCollectionsResult {
+        success: true,
+        collections: Some(collections_with_stats),
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_collection_stats(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+) -> Result<MongoCollectionStatsResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    let result = db
+        .run_command(doc! { "collStats": collection.clone(), "scale": 1 })
+        .await
+        .map_err(|e| format!("Failed to get collection stats: {}", e))?;
+
+    let stats = MongoCollectionStats {
+        ns: result.get_str("ns").unwrap_or(&format!("{}.{}", database, collection)).to_string(),
+        count: result.get_i64("count").unwrap_or(0),
+        size: result.get_i64("size").unwrap_or(0),
+        avg_obj_size: result.get_i64("avgObjSize").ok(),
+        storage_size: result.get_i64("storageSize").unwrap_or(0),
+        nindexes: result.get_i64("nindexes").unwrap_or(0),
+        total_index_size: result.get_i64("totalIndexSize").unwrap_or(0),
+        index_sizes: match result.get("indexSizes") {
+            Some(Bson::Document(d)) => {
+                let map: serde_json::Map<String, Value> = d
+                    .iter()
+                    .map(|(k, v)| (k.clone(), bson_to_json(v)))
+                    .collect();
+                Some(map)
+            }
+            _ => None,
+        },
+        capped: result.get_bool("capped").ok(),
+        max: result.get_i64("max").ok(),
+        max_size: result.get_i64("maxSize").ok(),
+    };
+
+    Ok(MongoCollectionStatsResult {
+        success: true,
+        stats: Some(stats),
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_database_stats(
+    config: MongoConnectionConfig,
+    database: String,
+) -> Result<MongoDatabaseStatsResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    let result = db
+        .run_command(doc! { "dbStats": 1, "scale": 1 })
+        .await
+        .map_err(|e| format!("Failed to get database stats: {}", e))?;
+
+    // Get MongoDB version from admin database
+    let version = match client.database("admin").run_command(doc! { "buildInfo": 1 }).await {
+        Ok(info) => info.get_str("version").ok().map(|v| v.to_string()),
+        Err(_) => None,
+    };
+
+    let stats = MongoDatabaseStats {
+        db: result.get_str("db").unwrap_or(&database).to_string(),
+        collections: result.get_i64("collections").unwrap_or(0),
+        objects: result.get_i64("objects").unwrap_or(0),
+        avg_obj_size: result.get_i64("avgObjSize").ok(),
+        data_size: result.get_i64("dataSize").unwrap_or(0),
+        storage_size: result.get_i64("storageSize").unwrap_or(0),
+        indexes: result.get_i64("indexes").unwrap_or(0),
+        index_size: result.get_i64("indexSize").unwrap_or(0),
+        total_size: result.get_i64("totalSize").unwrap_or(0),
+        scale_factor: result.get_i64("scaleFactor").ok(),
+    };
+
+    Ok(MongoDatabaseStatsResult {
+        success: true,
+        stats: Some(stats),
+        version,
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_create_database(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+) -> Result<MongoOperationResult, String> {
+    let client = build_client(&config).await?;
+
+    // MongoDB creates databases implicitly when you first store data in them
+    // We create a collection with a temporary document, then delete it
+    let db = client.database(&database);
+    let coll: mongodb::Collection<Document> = db.collection(&collection);
+
+    // Generate a unique ObjectId for the temporary document to avoid collisions
+    let temp_id = ObjectId::new();
+    let temp_doc = doc! { "_id": temp_id, "created": true };
+    coll.insert_one(temp_doc.clone())
+        .await
+        .map_err(|e| format!("Failed to create database: {}", e))?;
+
+    // Delete the temporary document
+    coll.delete_one(doc! { "_id": temp_id })
+        .await
+        .map_err(|e| format!("Failed to clean up temporary document: {}", e))?;
+
+    Ok(MongoOperationResult {
+        success: true,
+        message: Some(format!("Database '{}' created successfully", database)),
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_drop_database(
+    config: MongoConnectionConfig,
+    database: String,
+) -> Result<MongoOperationResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    db.drop()
+        .await
+        .map_err(|e| format!("Failed to drop database: {}", e))?;
+
+    Ok(MongoOperationResult {
+        success: true,
+        message: Some(format!("Database '{}' dropped successfully", database)),
+        error: None,
+    })
+}
+
+/// Options for creating a collection
+#[derive(Debug, Deserialize)]
+pub struct MongoCreateCollectionOptions {
+    pub capped: Option<bool>,
+    pub size: Option<i64>,
+    pub max: Option<i64>,
+    // Timeseries options
+    pub timeseries: Option<MongoTimeseriesOptions>,
+    // Validator
+    pub validator: Option<Value>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MongoTimeseriesOptions {
+    pub time_field: String,
+    pub meta_field: Option<String>,
+    pub granularity: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_create_collection(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+    options: Option<MongoCreateCollectionOptions>,
+) -> Result<MongoOperationResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    use mongodb::options::CreateCollectionOptions;
+
+    let mut coll_options = CreateCollectionOptions::default();
+
+    if let Some(opts) = options {
+        if opts.capped == Some(true) {
+            coll_options.capped = Some(true);
+            if let Some(size) = opts.size {
+                coll_options.size = Some(size as u64);
+            }
+            if let Some(max) = opts.max {
+                coll_options.max = Some(max as u64);
+            }
+        }
+
+        if let Some(ts_opts) = opts.timeseries {
+            use mongodb::options::TimeseriesOptions;
+            use mongodb::options::TimeseriesGranularity;
+
+            let granularity = ts_opts.granularity.as_ref().and_then(|gran| {
+                Some(match gran.as_str() {
+                    "seconds" => TimeseriesGranularity::Seconds,
+                    "minutes" => TimeseriesGranularity::Minutes,
+                    "hours" => TimeseriesGranularity::Hours,
+                    _ => TimeseriesGranularity::Minutes,
+                })
+            });
+
+            let ts = TimeseriesOptions::builder()
+                .time_field(&ts_opts.time_field)
+                .meta_field(ts_opts.meta_field.clone())
+                .granularity(granularity)
+                .build();
+
+            coll_options.timeseries = Some(ts);
+        }
+
+        if let Some(validator_val) = opts.validator {
+            let validator_doc = json_to_bson_doc(validator_val)?;
+            coll_options.validator = Some(validator_doc);
+        }
+    }
+
+    db.create_collection(&collection)
+        .with_options(coll_options)
+        .await
+        .map_err(|e| format!("Failed to create collection: {}", e))?;
+
+    Ok(MongoOperationResult {
+        success: true,
+        message: Some(format!("Collection '{}' created successfully", collection)),
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_drop_collection(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+) -> Result<MongoOperationResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    db.collection::<Document>(&collection)
+        .drop()
+        .await
+        .map_err(|e| format!("Failed to drop collection: {}", e))?;
+
+    Ok(MongoOperationResult {
+        success: true,
+        message: Some(format!("Collection '{}' dropped successfully", collection)),
+        error: None,
+    })
+}
+
+// ==================== MongoDB Cluster Monitoring Commands ====================
+
+/// Server status info
+#[derive(Debug, Serialize)]
+pub struct MongoServerStatus {
+    pub host: String,
+    pub version: String,
+    pub uptime: i64,
+    pub connections: MongoConnectionInfo,
+    pub network: MongoNetworkInfo,
+    pub memory: MongoMemoryInfo,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoConnectionInfo {
+    pub current: i64,
+    pub available: i64,
+    pub total_created: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoNetworkInfo {
+    pub bytes_in: i64,
+    pub bytes_out: i64,
+    pub num_requests: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoMemoryInfo {
+    pub resident: i64,
+    pub virtual_mem: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoServerStatusResult {
+    pub success: bool,
+    pub status: Option<MongoServerStatus>,
+    pub error: Option<String>,
+}
+
+/// Replica set member info
+#[derive(Debug, Serialize)]
+pub struct MongoReplicaMember {
+    pub name: String,
+    pub state: i64,
+    pub state_str: String,
+    pub health: Option<i64>,
+    pub uptime: i64,
+    pub optime: Option<String>,
+    pub optime_date: Option<String>,
+    pub lag_time: Option<i64>,
+    pub ping_ms: Option<i64>,
+    pub election_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoReplicaSetStatus {
+    pub set: String,
+    pub date: Option<String>,
+    pub my_state: i64,
+    pub members: Vec<MongoReplicaMember>,
+    pub election_time: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoReplSetStatusResult {
+    pub success: bool,
+    pub status: Option<MongoReplicaSetStatus>,
+    pub error: Option<String>,
+}
+
+/// Shard info
+#[derive(Debug, Serialize)]
+pub struct MongoShardInfo {
+    pub id: String,
+    pub host: String,
+    pub state: i64,
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoMongosInfo {
+    pub id: String,
+    pub host: String,
+    pub ping: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoShardCluster {
+    pub is_sharding_enabled: bool,
+    pub mongos: Vec<MongoMongosInfo>,
+    pub config_servers: Option<MongoConfigServerInfo>,
+    pub shards: Vec<MongoShardInfo>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoConfigServerInfo {
+    pub type_: String,
+    pub name: Option<String>,
+    pub members: Option<Vec<MongoReplicaMember>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoShardStatusResult {
+    pub success: bool,
+    pub cluster: Option<MongoShardCluster>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_server_status(config: MongoConnectionConfig) -> Result<MongoServerStatusResult, String> {
+    let client = build_client(&config).await?;
+    let admin_db = client.database("admin");
+
+    let result = admin_db
+        .run_command(doc! { "serverStatus": 1 })
+        .await
+        .map_err(|e| format!("Failed to get server status: {}", e))?;
+
+    // Get version from buildInfo
+    let version = match admin_db.run_command(doc! { "buildInfo": 1 }).await {
+        Ok(info) => info.get_str("version").unwrap_or("unknown").to_string(),
+        Err(_) => "unknown".to_string(),
+    };
+
+    let status = MongoServerStatus {
+        host: result.get_str("host").unwrap_or("unknown").to_string(),
+        version,
+        uptime: result.get_i64("uptime").unwrap_or(0),
+        connections: MongoConnectionInfo {
+            current: result.get_document("connections")
+                .and_then(|d| d.get_i64("current"))
+                .unwrap_or(0),
+            available: result.get_document("connections")
+                .and_then(|d| d.get_i64("available"))
+                .unwrap_or(0),
+            total_created: result.get_document("connections")
+                .and_then(|d| d.get_i64("totalCreated"))
+                .ok(),
+        },
+        network: MongoNetworkInfo {
+            bytes_in: result.get_document("network")
+                .and_then(|d| d.get_i64("bytesIn"))
+                .unwrap_or(0),
+            bytes_out: result.get_document("network")
+                .and_then(|d| d.get_i64("bytesOut"))
+                .unwrap_or(0),
+            num_requests: result.get_document("network")
+                .and_then(|d| d.get_i64("numRequests"))
+                .unwrap_or(0),
+        },
+        memory: MongoMemoryInfo {
+            resident: result.get_document("mem")
+                .and_then(|d| d.get_i64("resident"))
+                .unwrap_or(0),
+            virtual_mem: result.get_document("mem")
+                .and_then(|d| d.get_i64("virtual"))
+                .unwrap_or(0),
+        },
+    };
+
+    Ok(MongoServerStatusResult {
+        success: true,
+        status: Some(status),
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_repl_set_status(config: MongoConnectionConfig) -> Result<MongoReplSetStatusResult, String> {
+    let client = build_client(&config).await?;
+    let admin_db = client.database("admin");
+
+    // Try to get replica set status
+    let result = admin_db
+        .run_command(doc! { "replSetGetStatus": 1 })
+        .await;
+
+    match result {
+        Ok(rs_result) => {
+            let members: Vec<MongoReplicaMember> = match rs_result.get("members") {
+                Some(Bson::Array(arr)) => arr
+                    .iter()
+                    .filter_map(|bson| {
+                        if let Bson::Document(d) = bson {
+                            Some(MongoReplicaMember {
+                                name: d.get_str("name").unwrap_or("unknown").to_string(),
+                                state: d.get_i64("state").unwrap_or(0),
+                                state_str: d.get_str("stateStr").unwrap_or("UNKNOWN").to_string(),
+                                health: d.get_i64("health").ok(),
+                                uptime: d.get_i64("uptime").unwrap_or(0),
+                                optime: d.get_document("optime")
+                                    .ok()
+                                    .and_then(|o| o.get_str("ts").ok())
+                                    .map(|s| s.to_string()),
+                                optime_date: d.get("optimeDate")
+                                    .and_then(|b| {
+                                        if let Bson::DateTime(dt) = b {
+                                            Some(dt.to_string())
+                                        } else {
+                                            None
+                                        }
+                                    }),
+                                lag_time: d.get_i64("lagTime").ok(),
+                                ping_ms: d.get_i64("pingMs").ok(),
+                                election_time: d.get("electionTime")
+                                    .and_then(|b| {
+                                        if let Bson::DateTime(dt) = b {
+                                            Some(dt.to_string())
+                                        } else {
+                                            None
+                                        }
+                                    }),
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect(),
+                _ => vec![],
+            };
+
+            let status = MongoReplicaSetStatus {
+                set: rs_result.get_str("set").unwrap_or("unknown").to_string(),
+                date: rs_result.get("date")
+                    .and_then(|b| {
+                        if let Bson::DateTime(dt) = b {
+                            Some(dt.to_string())
+                        } else {
+                            None
+                        }
+                    }),
+                my_state: rs_result.get_i64("myState").unwrap_or(0),
+                members,
+                election_time: rs_result.get("electionTime")
+                    .and_then(|b| {
+                        if let Bson::DateTime(dt) = b {
+                            Some(dt.to_string())
+                        } else {
+                            None
+                        }
+                    }),
+            };
+
+            Ok(MongoReplSetStatusResult {
+                success: true,
+                status: Some(status),
+                error: None,
+            })
+        }
+        Err(e) => {
+            // Not a replica set or error
+            Ok(MongoReplSetStatusResult {
+                success: false,
+                status: None,
+                error: Some(format!("Not a replica set or error: {}", e)),
+            })
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn mongo_shard_status(config: MongoConnectionConfig) -> Result<MongoShardStatusResult, String> {
+    let client = build_client(&config).await?;
+    let admin_db = client.database("admin");
+
+    // Check if sharding is enabled
+    let sharding_state = admin_db
+        .run_command(doc! { "shardingState": 1 })
+        .await;
+
+    let is_sharding_enabled = sharding_state.is_ok();
+
+    if !is_sharding_enabled {
+        return Ok(MongoShardStatusResult {
+            success: true,
+            cluster: Some(MongoShardCluster {
+                is_sharding_enabled: false,
+                mongos: vec![],
+                config_servers: None,
+                shards: vec![],
+            }),
+            error: None,
+        });
+    }
+
+    // Get list of shards
+    let list_shards_result = admin_db
+        .run_command(doc! { "listShards": 1 })
+        .await;
+
+    let shards: Vec<MongoShardInfo> = match list_shards_result {
+        Ok(result) => match result.get("shards") {
+            Some(Bson::Array(arr)) => arr
+                .iter()
+                .filter_map(|bson| {
+                    if let Bson::Document(d) = bson {
+                        let tags = d.get_array("tags").ok().map(|arr| {
+                            arr.iter()
+                                .filter_map(|b| {
+                                    if let Bson::String(s) = b {
+                                        Some(s.clone())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect()
+                        });
+                        Some(MongoShardInfo {
+                            id: d.get_str("_id").unwrap_or("unknown").to_string(),
+                            host: d.get_str("host").unwrap_or("unknown").to_string(),
+                            state: d.get_i64("state").unwrap_or(0),
+                            tags,
+                        })
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+            _ => vec![],
+        },
+        Err(_) => vec![],
+    };
+
+    // Get mongos info from config.mongos collection
+    let mongos: Vec<MongoMongosInfo> = match client.database("config").collection::<Document>("mongos").find(doc! {}).await {
+        Ok(mut cursor) => {
+            let mut infos = vec![];
+            while let Ok(Some(doc)) = cursor.try_next().await {
+                infos.push(MongoMongosInfo {
+                    id: doc.get_str("_id").unwrap_or("unknown").to_string(),
+                    host: doc.get_str("host").unwrap_or("unknown").to_string(),
+                    ping: doc.get_datetime("ping").ok().map(|dt| dt.timestamp_millis()),
+                });
+            }
+            infos
+        }
+        Err(_) => vec![],
+    };
+
+    Ok(MongoShardStatusResult {
+        success: true,
+        cluster: Some(MongoShardCluster {
+            is_sharding_enabled: true,
+            mongos,
+            config_servers: None, // Would need additional queries to get config server details
+            shards,
+        }),
+        error: None,
+    })
 }

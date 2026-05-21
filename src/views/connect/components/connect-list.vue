@@ -94,6 +94,37 @@
             >
               {{ getConnectionTarget(connection) }}
             </Badge>
+            <Badge
+              v-if="connection.type === DatabaseType.MONGODB"
+              variant="secondary"
+              class="card-badge"
+            >
+              {{ getMongoAuthLabel(connection) }}
+            </Badge>
+            <TooltipProvider v-if="getMongoAuthType(connection)" :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span
+                    :class="[
+                      getMongoAuthType(connection)!.icon,
+                      getMongoAuthType(connection)!.color,
+                    ]"
+                    class="h-3.5 w-3.5 cursor-default"
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {{ getMongoAuthType(connection)!.label }}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider v-if="getMongoTls(connection)" :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <span class="i-carbon-locked text-green-500 h-3.5 w-3.5 cursor-default" />
+                </TooltipTrigger>
+                <TooltipContent side="top">TLS Enabled</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <TooltipProvider v-if="getEsProtocol(connection)" :delay-duration="200">
               <Tooltip>
                 <TooltipTrigger as-child>
@@ -382,6 +413,44 @@ const getEsAuthType = (
     icon: 'i-carbon-subtract',
     color: 'text-muted-foreground',
   };
+};
+
+const getMongoAuthLabel = (connection: Connection): string => {
+  if (connection.type !== DatabaseType.MONGODB) return '';
+  const mongo = connection as MongoDBConnection;
+  if (mongo.auth.kind === 'scram') return 'SCRAM';
+  if (mongo.auth.kind === 'uri') return 'URI';
+  return 'No Auth';
+};
+
+const getMongoAuthType = (
+  connection: Connection,
+): { label: string; icon: string; color: string } | null => {
+  if (connection.type !== DatabaseType.MONGODB) return null;
+  const mongo = connection as MongoDBConnection;
+  if (mongo.auth.kind === 'scram')
+    return {
+      label: 'SCRAM Authentication',
+      icon: 'i-carbon-password',
+      color: 'text-blue-500',
+    };
+  if (mongo.auth.kind === 'uri')
+    return {
+      label: 'URI Connection String',
+      icon: 'i-carbon-link',
+      color: 'text-purple-500',
+    };
+  return {
+    label: 'No Authentication',
+    icon: 'i-carbon-subtract',
+    color: 'text-muted-foreground',
+  };
+};
+
+const getMongoTls = (connection: Connection): boolean => {
+  if (connection.type !== DatabaseType.MONGODB) return false;
+  const mongo = connection as MongoDBConnection;
+  return mongo.tls === true;
 };
 
 const handleSelect = (key: string, connection: Connection) => {

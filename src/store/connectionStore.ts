@@ -237,13 +237,19 @@ export type MongoDBConnection = {
   auth: MongoDBAuth;
   database?: string;
   tls?: boolean;
-  collections?: Array<MongoDBCollection>;
+  activeDatabase?: string;
+  databases?: Array<{ name: string; size_on_disk?: number; empty?: boolean }>;
+  collections?: MongoDBCollection[];
+  favoriteCollections?: Array<{ database: string; collection: string }>;
 };
 
 export type MongoDBCollection = {
   name: string;
-  type?: string;
-  count?: number;
+  collection_type?: string;
+  document_count?: number;
+  storage_size?: number;
+  index_count?: number;
+  avg_document_size?: number;
 };
 
 export type Connection =
@@ -622,6 +628,29 @@ export const useConnectionStore = defineStore('connectionStore', {
       }
 
       return connection.collections;
+    },
+    async fetchDatabases(con: MongoDBConnection) {
+      const connection = this.connections.find(({ id }) => String(id) === String(con.id)) as
+        | MongoDBConnection
+        | undefined;
+      if (!connection) {
+        throw new CustomError(400, 'no connection established');
+      }
+
+      const { mongoApi } = await import('../datasources');
+      const result = await mongoApi.listDatabases(connection);
+      if (!result.success) {
+        throw new CustomError(400, result.error || 'Failed to list databases');
+      }
+
+      connection.databases = result.databases ?? [];
+
+      const tabStore = useTabStore();
+      if (tabStore.activePanel?.connection?.id === connection.id) {
+        tabStore.activePanel.connection = connection;
+      }
+
+      return connection.databases;
     },
     async freshConnection(con: Connection, tableName?: string) {
       if (con.type === DatabaseType.DYNAMODB) {

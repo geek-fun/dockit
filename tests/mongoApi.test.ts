@@ -213,6 +213,424 @@ describe('mongoApi', () => {
       expect(result.message).toBe('Authentication failed');
     });
   });
+
+  describe('listDatabases', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        databases: [
+          { name: 'test', size_on_disk: 1024, empty: false },
+          { name: 'admin', size_on_disk: 512, empty: false },
+        ],
+        totalSize: 1536,
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.listDatabases(baseConnection);
+
+      expect(invoke).toHaveBeenCalledWith('mongo_list_databases', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to list databases'));
+
+      const result = await mongoApi.listDatabases(baseConnection);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to list databases');
+    });
+  });
+
+  describe('listCollections', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command and database', async () => {
+      const mockResult = {
+        success: true,
+        collections: [
+          { name: 'users', collection_type: 'collection', document_count: 100 },
+          { name: 'orders', collection_type: 'collection', document_count: 50 },
+        ],
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.listCollections(baseConnection, 'testdb');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_list_collections', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to list collections'));
+
+      const result = await mongoApi.listCollections(baseConnection, 'testdb');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to list collections');
+    });
+  });
+
+  describe('collectionStats', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        stats: {
+          ns: 'testdb.users',
+          count: 1000,
+          size: 102400,
+          storage_size: 51200,
+          nindexes: 3,
+          total_index_size: 8192,
+        },
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.collectionStats(baseConnection, 'testdb', 'users');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_collection_stats', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        collection: 'users',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Collection not found'));
+
+      const result = await mongoApi.collectionStats(baseConnection, 'testdb', 'users');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Collection not found');
+    });
+  });
+
+  describe('databaseStats', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        stats: {
+          db: 'testdb',
+          collections: 5,
+          objects: 1000,
+          data_size: 102400,
+          storage_size: 51200,
+          indexes: 10,
+          index_size: 8192,
+          total_size: 60352,
+        },
+        version: '7.0.0',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.databaseStats(baseConnection, 'testdb');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_database_stats', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Database not found'));
+
+      const result = await mongoApi.databaseStats(baseConnection, 'testdb');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Database not found');
+    });
+  });
+
+  describe('createDatabase', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        message: 'Database created successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.createDatabase(baseConnection, 'newdb', 'initcollection');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_create_database', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'newdb',
+        collection: 'initcollection',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to create database'));
+
+      const result = await mongoApi.createDatabase(baseConnection, 'newdb', 'initcollection');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to create database');
+    });
+  });
+
+  describe('dropDatabase', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        message: 'Database dropped successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.dropDatabase(baseConnection, 'olddb');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_drop_database', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'olddb',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to drop database'));
+
+      const result = await mongoApi.dropDatabase(baseConnection, 'olddb');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to drop database');
+    });
+  });
+
+  describe('createCollection', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command without options', async () => {
+      const mockResult = {
+        success: true,
+        message: 'Collection created successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.createCollection(baseConnection, 'testdb', 'newcollection');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_create_collection', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        collection: 'newcollection',
+        options: undefined,
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('calls invoke with capped collection options', async () => {
+      const mockResult = {
+        success: true,
+        message: 'Collection created successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const options = { capped: true, size: 1024, max: 100 };
+      const result = await mongoApi.createCollection(
+        baseConnection,
+        'testdb',
+        'cappedcollection',
+        options,
+      );
+
+      expect(invoke).toHaveBeenCalledWith('mongo_create_collection', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        collection: 'cappedcollection',
+        options,
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('calls invoke with timeseries options', async () => {
+      const mockResult = {
+        success: true,
+        message: 'Collection created successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const options = {
+        timeseries: { time_field: 'timestamp', meta_field: 'metadata', granularity: 'hours' },
+      };
+      const result = await mongoApi.createCollection(
+        baseConnection,
+        'testdb',
+        'timeseriescollection',
+        options,
+      );
+
+      expect(invoke).toHaveBeenCalledWith('mongo_create_collection', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        collection: 'timeseriescollection',
+        options,
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to create collection'));
+
+      const result = await mongoApi.createCollection(baseConnection, 'testdb', 'newcollection');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to create collection');
+    });
+  });
+
+  describe('dropCollection', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        message: 'Collection dropped successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.dropCollection(baseConnection, 'testdb', 'oldcollection');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_drop_collection', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        collection: 'oldcollection',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to drop collection'));
+
+      const result = await mongoApi.dropCollection(baseConnection, 'testdb', 'oldcollection');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to drop collection');
+    });
+  });
 });
 
 describe('MongoDB connection types', () => {
@@ -297,5 +715,233 @@ describe('MongoDB connection types', () => {
     };
     expect(conn.database).toBe('mydb');
     expect(conn.tls).toBe(true);
+  });
+
+  it('can include activeDatabase', () => {
+    const conn: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+      activeDatabase: 'production',
+    };
+    expect(conn.activeDatabase).toBe('production');
+  });
+
+  it('can include favoriteCollections', () => {
+    const conn: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+      favoriteCollections: [
+        { database: 'mydb', collection: 'users' },
+        { database: 'mydb', collection: 'orders' },
+        { database: 'mydb', collection: 'products' },
+      ],
+    };
+    expect(conn.favoriteCollections).toHaveLength(3);
+    expect(conn.favoriteCollections[0].collection).toBe('users');
+    expect(conn.favoriteCollections[1].collection).toBe('orders');
+    expect(conn.favoriteCollections[2].collection).toBe('products');
+  });
+
+  it('can include both activeDatabase and favoriteCollections', () => {
+    const conn: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+      database: 'mydb',
+      tls: true,
+      activeDatabase: 'production',
+      favoriteCollections: [
+        { database: 'production', collection: 'users' },
+        { database: 'production', collection: 'orders' },
+      ],
+    };
+    expect(conn.database).toBe('mydb');
+    expect(conn.tls).toBe(true);
+    expect(conn.activeDatabase).toBe('production');
+    expect(conn.favoriteCollections).toHaveLength(2);
+    expect(conn.favoriteCollections[0].database).toBe('production');
+  });
+});
+
+describe('mongoApi cluster monitoring', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const baseConnection: MongoDBConnection = {
+    name: 'test',
+    type: DatabaseType.MONGODB,
+    host: 'localhost',
+    port: 27017,
+    auth: { kind: 'none' },
+  };
+
+  describe('serverStatus', () => {
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        status: {
+          host: 'localhost:27017',
+          version: '7.0.0',
+          uptime: 3600,
+          connections: { current: 10, available: 100, total_created: 50 },
+          network: { bytes_in: 102400, bytes_out: 51200, num_requests: 1000 },
+          memory: { resident: 128, virtual_mem: 256 },
+        },
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.serverStatus(baseConnection);
+
+      expect(invoke).toHaveBeenCalledWith('mongo_server_status', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+      });
+      expect(result.success).toBe(true);
+      expect(result.status?.host).toBe('localhost:27017');
+      expect(result.status?.version).toBe('7.0.0');
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to get server status'));
+
+      const result = await mongoApi.serverStatus(baseConnection);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to get server status');
+    });
+  });
+
+  describe('replSetStatus', () => {
+    it('calls invoke with correct command for replica set', async () => {
+      const mockResult = {
+        success: true,
+        status: {
+          set: 'rs0',
+          my_state: 1,
+          members: [
+            { name: 'host1:27017', state: 1, state_str: 'PRIMARY', health: 1, uptime: 3600 },
+            {
+              name: 'host2:27017',
+              state: 2,
+              state_str: 'SECONDARY',
+              health: 1,
+              uptime: 3500,
+              lag_time: 5,
+            },
+          ],
+        },
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.replSetStatus(baseConnection);
+
+      expect(invoke).toHaveBeenCalledWith('mongo_repl_set_status', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+      });
+      expect(result.success).toBe(true);
+      expect(result.status?.set).toBe('rs0');
+      expect(result.status?.members).toHaveLength(2);
+    });
+
+    it('returns error for standalone instance', async () => {
+      const mockResult = {
+        success: false,
+        error: 'Not a replica set or error: ...',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.replSetStatus(baseConnection);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Not a replica set');
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Connection failed'));
+
+      const result = await mongoApi.replSetStatus(baseConnection);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Connection failed');
+    });
+  });
+
+  describe('shardStatus', () => {
+    it('calls invoke with correct command for sharded cluster', async () => {
+      const mockResult = {
+        success: true,
+        cluster: {
+          is_sharding_enabled: true,
+          shards: [
+            { id: 'shard01', host: 'shard01/host1:27017,host2:27017', state: 1 },
+            { id: 'shard02', host: 'shard02/host3:27017,host4:27017', state: 1 },
+          ],
+          mongos: [{ id: 'mongos1', host: 'localhost:27017' }],
+        },
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.shardStatus(baseConnection);
+
+      expect(invoke).toHaveBeenCalledWith('mongo_shard_status', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+      });
+      expect(result.success).toBe(true);
+      expect(result.cluster?.is_sharding_enabled).toBe(true);
+      expect(result.cluster?.shards).toHaveLength(2);
+    });
+
+    it('returns cluster with sharding disabled for standalone', async () => {
+      const mockResult = {
+        success: true,
+        cluster: {
+          is_sharding_enabled: false,
+          shards: [],
+          mongos: [],
+        },
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.shardStatus(baseConnection);
+
+      expect(result.success).toBe(true);
+      expect(result.cluster?.is_sharding_enabled).toBe(false);
+      expect(result.cluster?.shards).toHaveLength(0);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to get shard status'));
+
+      const result = await mongoApi.shardStatus(baseConnection);
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to get shard status');
+    });
   });
 });
