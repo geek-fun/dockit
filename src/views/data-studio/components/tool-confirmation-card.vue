@@ -1,3 +1,36 @@
+<script setup lang="ts">
+import { computed } from 'vue';
+import { Button } from '@/components/ui/button';
+import type { AgentToolCall } from '@/store/dataStudioStore';
+
+export type ConfirmationAction = {
+  toolCallId: string;
+  action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always';
+};
+
+const props = defineProps<{
+  toolCall: AgentToolCall;
+}>();
+
+const emit = defineEmits<{
+  confirm: [event: ConfirmationAction];
+}>();
+
+const targetSource = computed(() => {
+  const raw = (props.toolCall.args as Record<string, unknown>)?.connection_id;
+  return typeof raw === 'string' && raw ? raw : null;
+});
+
+const formattedArgs = computed(() => {
+  try {
+    const { connection_id: _omit, ...rest } = props.toolCall.args as Record<string, unknown>;
+    return JSON.stringify(rest, null, 2);
+  } catch {
+    return String(props.toolCall.args);
+  }
+});
+</script>
+
 <template>
   <div :class="['confirmation-card', `risk-${toolCall.riskLevel}`]">
     <div class="confirmation-header">
@@ -8,6 +41,13 @@
       <span :class="['risk-badge', `risk-badge-${toolCall.riskLevel}`]">
         {{ $t(`dataStudio.agent.riskLevel.${toolCall.riskLevel}`) }}
       </span>
+    </div>
+    <div v-if="targetSource" class="target-source-row">
+      <span class="i-carbon-data-base h-3.5 w-3.5 opacity-60" />
+      <span class="target-source-label">
+        {{ $t('dataStudio.agent.toolConfirmation.targetSource') }}
+      </span>
+      <span class="target-source-value">{{ targetSource }}</span>
     </div>
     <pre class="confirmation-args">{{ formattedArgs }}</pre>
     <div class="confirmation-actions">
@@ -43,33 +83,6 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { computed } from 'vue';
-import { Button } from '@/components/ui/button';
-import type { AgentToolCall } from '@/store/dataStudioStore';
-
-export type ConfirmationAction = {
-  toolCallId: string;
-  action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always';
-};
-
-const props = defineProps<{
-  toolCall: AgentToolCall;
-}>();
-
-const emit = defineEmits<{
-  confirm: [event: ConfirmationAction];
-}>();
-
-const formattedArgs = computed(() => {
-  try {
-    return JSON.stringify(props.toolCall.args, null, 2);
-  } catch {
-    return String(props.toolCall.args);
-  }
-});
-</script>
-
 <style scoped>
 .confirmation-card {
   border: 1px solid hsl(var(--border));
@@ -92,6 +105,27 @@ const formattedArgs = computed(() => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
+}
+
+.target-source-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background: hsl(var(--muted));
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.target-source-label {
+  color: hsl(var(--muted-foreground));
+}
+
+.target-source-value {
+  font-family: monospace;
+  font-weight: 600;
+  color: hsl(var(--foreground));
 }
 
 .risk-badge {
