@@ -186,6 +186,7 @@ export const useDataStudioChatAgent = () => {
     activeSession: agent.activeSession,
     activeSessionSources,
     messages,
+    lastSettings: agent.lastSettings,
     sendMessage,
     handleConfirmation: agent.handleConfirmation,
     cancelSession: agent.cancelSession,

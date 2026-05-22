@@ -157,6 +157,7 @@ export const useSidebarChatAgent = () => {
     isLoading: agent.isLoading,
     error: agent.error,
     activeSession: agent.activeSession,
+    lastSettings: agent.lastSettings,
     messages,
     sendMessage,
     handleConfirmation: agent.handleConfirmation,

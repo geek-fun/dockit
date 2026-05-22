@@ -15,6 +15,7 @@ import type {
   SessionSource,
 } from '@/store/dataStudioStore';
 import { getFeatureModelConfig } from '@/store/chatStore';
+import { useAppStore } from '@/store';
 import { ProviderEnum } from '@/datasources';
 import {
   agentApi,
@@ -287,6 +288,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
   const error = ref<string | undefined>();
 
   const activeSession = config.sessionStore.activeSession;
+  const lastSettings = ref<Record<string, unknown> | null>(null);
   const sessions = config.sessionStore.sessions;
 
   const shouldRequireConfirmation = (
@@ -527,6 +529,8 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         httpProxy: provider.proxy || undefined,
         systemPrompt,
         tools: noConnection ? [] : (runtime.tools ?? []),
+        autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
+        contextWindowOverride: provider.contextWindowOverride,
       };
 
       if (context?.connections) {
@@ -534,6 +538,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       }
 
       await invokeAgentLoop(sessionId, userMessage, settings);
+      lastSettings.value = settings;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg !== 'cancelled') {
@@ -664,6 +669,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     isLoading,
     error,
     activeSession,
+    lastSettings,
     sendMessage,
     handleConfirmation,
     cancelSession,

@@ -45,6 +45,7 @@ export type ProviderConfig = {
   enabled: boolean;
   connected: boolean;
   discoveredModels: Array<ModelRef>;
+  contextWindowOverride?: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -55,12 +56,17 @@ export type FeatureModelRoute = {
   useRecommendedModel?: boolean;
 };
 
+export type ChatRuntimeConfig = {
+  autoCompact: boolean;
+};
+
 export type LlmSettings = {
   providers: Array<ProviderConfig>;
   models: {
     sidebarAssistant: FeatureModelRoute;
     dataStudio: FeatureModelRoute;
   };
+  chat: ChatRuntimeConfig;
 };
 
 export type EditorConfig = {
@@ -224,6 +230,9 @@ const defaultLlmSettings = (): LlmSettings => ({
       useRecommendedModel: true,
     },
   },
+  chat: {
+    autoCompact: true,
+  },
 });
 
 const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => {
@@ -335,6 +344,9 @@ const mergeLlmSettings = (stored: Partial<LlmSettings> | undefined): LlmSettings
         'general',
       ),
       dataStudio: normalizeFeatureRoute(stored?.models?.dataStudio, providers, 'reasoning'),
+    },
+    chat: {
+      autoCompact: stored?.chat?.autoCompact ?? true,
     },
   };
 };
