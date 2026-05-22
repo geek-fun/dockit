@@ -74,6 +74,11 @@
               @open="onModelPickerOpen"
               @update:model-value="onModelChange"
             />
+            <ContextIndicator
+              v-if="sessionId && contextSettings"
+              :session-id="sessionId"
+              :settings="contextSettings"
+            />
           </div>
 
           <button
@@ -94,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
@@ -103,6 +108,7 @@ import type { ChatMessage } from '@/types/chat';
 import AgentMessageBubble from './agent-message-bubble.vue';
 import ToolConfirmationCard from '@/views/data-studio/components/tool-confirmation-card.vue';
 import ModelPicker from './model-picker.vue';
+import ContextIndicator from './context-indicator.vue';
 import { ScrollArea } from './ui/scroll-area';
 import { Spinner } from './ui/spinner';
 import { useMessageService } from '@/composables';
@@ -123,6 +129,8 @@ const props = withDefaults(
     showModelPicker?: boolean;
     feature?: 'sidebarAssistant' | 'dataStudio';
     compact?: boolean;
+    sessionId?: string | null;
+    contextSettings?: unknown;
   }>(),
   {
     error: undefined,
@@ -131,6 +139,8 @@ const props = withDefaults(
     showModelPicker: true,
     feature: 'dataStudio',
     compact: false,
+    sessionId: null,
+    contextSettings: undefined,
   },
 );
 
@@ -145,9 +155,24 @@ const emit = defineEmits<{
   modelPickerOpen: [];
 }>();
 
-const scrollbarRef = ref<{ $el: HTMLElement } | null>(null);
+const scrollbarRef = ref<{ viewportElement: HTMLElement | null } | null>(null);
 const inputText = ref('');
 const modelVerified = ref<boolean | null>(null);
+const stickToBottom = ref(true);
+const STICKY_THRESHOLD_PX = 32;
+
+const getViewport = (): HTMLElement | null => scrollbarRef.value?.viewportElement ?? null;
+
+const isNearBottom = (el: HTMLElement): boolean => {
+  const distance = el.scrollHeight - (el.scrollTop + el.clientHeight);
+  return distance <= STICKY_THRESHOLD_PX;
+};
+
+const handleViewportScroll = () => {
+  const el = getViewport();
+  if (!el) return;
+  stickToBottom.value = isNearBottom(el);
+};
 
 const canSend = computed(() => inputText.value.trim().length > 0 && !props.isLoading);
 
@@ -180,10 +205,17 @@ const featureRoute = computed(() =>
 const selectedModelId = computed(() => featureRoute.value.selectedModelId ?? undefined);
 const recentModelIds = computed(() => (selectedModelId.value ? [selectedModelId.value] : []));
 
-const scrollToBottom = () => {
+const scrollToBottom = (behavior: 'auto' | 'smooth' = 'smooth') => {
   nextTick(() => {
-    scrollbarRef.value?.$el?.scrollTo({ top: 999999, behavior: 'smooth' });
+    const el = getViewport();
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
   });
+};
+
+const forceScrollToBottom = () => {
+  stickToBottom.value = true;
+  scrollToBottom('smooth');
 };
 
 const handleSend = async () => {
@@ -196,6 +228,7 @@ const handleSend = async () => {
   const text = inputText.value.trim();
   inputText.value = '';
   emit('send', text);
+  forceScrollToBottom();
 };
 
 const handleConfirmation = (
@@ -228,13 +261,22 @@ const onModelPickerOpen = () => {
 
 watch(
   () => props.messages,
-  () => scrollToBottom(),
+  () => {
+    if (stickToBottom.value) scrollToBottom();
+  },
   { deep: true },
 );
 
 onMounted(async () => {
   await appStore.fetchLlmSettings();
-  scrollToBottom();
+  const el = getViewport();
+  el?.addEventListener('scroll', handleViewportScroll, { passive: true });
+  scrollToBottom('auto');
+});
+
+onBeforeUnmount(() => {
+  const el = getViewport();
+  el?.removeEventListener('scroll', handleViewportScroll);
 });
 </script>
 
