@@ -181,6 +181,99 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             required_permission: "delete",
         },
         ToolDefinition {
+            name: "mongo__find",
+            description: "Query documents from a MongoDB collection using a filter. Returns matching documents. Use for reading and searching data.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "collection": { "type": "string", "description": "Collection name to query" },
+                    "filter": { "type": "object", "description": "MongoDB query filter, e.g. {\"status\": \"active\"}. Use {} for all documents." },
+                    "projection": { "type": "object", "description": "Optional fields to include/exclude, e.g. {\"name\": 1, \"_id\": 0}" },
+                    "limit": { "type": "integer", "description": "Maximum number of documents to return (default 20, max 100)" },
+                    "sort": { "type": "object", "description": "Optional sort specification, e.g. {\"createdAt\": -1}" }
+                },
+                "required": ["connection_id", "collection", "filter"]
+            }),
+            risk_level: RiskLevel::Safe,
+            required_permission: "read",
+        },
+        ToolDefinition {
+            name: "mongo__aggregate",
+            description: "Execute a MongoDB aggregation pipeline on a collection. Use for complex queries, grouping, and transformations. Note: $out and $merge stages are allowed but will modify data.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "collection": { "type": "string", "description": "Collection name" },
+                    "pipeline": { "type": "array", "description": "Aggregation pipeline stages, e.g. [{\"$match\": {\"status\": \"active\"}}, {\"$group\": {\"_id\": \"$category\", \"count\": {\"$sum\": 1}}}]" }
+                },
+                "required": ["connection_id", "collection", "pipeline"]
+            }),
+            risk_level: RiskLevel::Elevated,
+            required_permission: "read",
+        },
+        ToolDefinition {
+            name: "mongo__insert_one",
+            description: "Insert a single document into a MongoDB collection.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "collection": { "type": "string", "description": "Collection name" },
+                    "document": { "type": "object", "description": "Document to insert" }
+                },
+                "required": ["connection_id", "collection", "document"]
+            }),
+            risk_level: RiskLevel::Elevated,
+            required_permission: "create",
+        },
+        ToolDefinition {
+            name: "mongo__update_many",
+            description: "Update documents in a MongoDB collection matching a filter. Use $set, $unset, $inc and other update operators.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "collection": { "type": "string", "description": "Collection name" },
+                    "filter": { "type": "object", "description": "Filter to match documents to update" },
+                    "update": { "type": "object", "description": "Update operations, e.g. {\"$set\": {\"status\": \"inactive\"}}" },
+                    "upsert": { "type": "boolean", "description": "If true, insert a document if none matches the filter (default false)" }
+                },
+                "required": ["connection_id", "collection", "filter", "update"]
+            }),
+            risk_level: RiskLevel::Elevated,
+            required_permission: "update",
+        },
+        ToolDefinition {
+            name: "mongo__delete_many",
+            description: "Delete documents from a MongoDB collection matching a filter. DESTRUCTIVE: permanently removes data.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "collection": { "type": "string", "description": "Collection name" },
+                    "filter": { "type": "object", "description": "Filter to match documents to delete. Use {} to delete ALL documents." }
+                },
+                "required": ["connection_id", "collection", "filter"]
+            }),
+            risk_level: RiskLevel::Destructive,
+            required_permission: "delete",
+        },
+        ToolDefinition {
+            name: "mongo__list_collections",
+            description: "List all collection names in the connected MongoDB database.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" }
+                },
+                "required": ["connection_id"]
+            }),
+            risk_level: RiskLevel::Safe,
+            required_permission: "read",
+        },
+        ToolDefinition {
             name: "dynamo__describe_table",
             description: "Describe a DynamoDB table schema: key schema, attribute definitions, indexes, and throughput.",
             parameters: json!({

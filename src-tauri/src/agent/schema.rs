@@ -1,8 +1,10 @@
 use serde_json::{json, Value};
 
-use super::executor::{build_es_base_url, build_es_headers, create_dynamo_client, get_es_ssl_flag};
+use super::executor::{build_es_base_url, build_es_headers, create_dynamo_client, create_mongo_client_from_config, get_es_ssl_flag};
 use crate::common::http_client::create_http_client;
 use crate::dynamo::describe_table::describe_table;
+use futures::TryStreamExt;
+use mongodb::bson::Document;
 
 async fn introspect_es(config: &Value) -> Result<String, String> {
     let base_url = build_es_base_url(config)?;
@@ -86,6 +88,47 @@ async fn introspect_dynamo(config: &Value) -> Result<String, String> {
     serde_json::to_string(&response).map_err(|e| e.to_string())
 }
 
+async fn introspect_mongo(config: &Value) -> Result<String, String> {
+    let (client, db_name) = create_mongo_client_from_config(config).await?;
+    let db = client.database(&db_name);
+
+    let collection_names = db
+        .list_collection_names()
+        .await
+        .map_err(|e| format!("Failed to list collections: {}", e))?;
+
+    let mut collections_schema = serde_json::Map::new();
+    for name in collection_names.iter().take(20) {
+        let coll = db.collection::<Document>(name);
+        let mut cursor = coll
+            .find(mongodb::bson::doc! {})
+            .limit(5)
+            .await
+            .map_err(|e| format!("Failed to sample {}: {}", name, e))?;
+        let mut fields: std::collections::HashSet<String> = std::collections::HashSet::new();
+        while let Some(doc) = cursor
+            .try_next()
+            .await
+            .map_err(|e| format!("cursor error: {}", e))?
+        {
+            for key in doc.keys() {
+                fields.insert(key.clone());
+            }
+        }
+        let mut field_list: Vec<String> = fields.into_iter().collect();
+        field_list.sort();
+        collections_schema.insert(name.clone(), json!(field_list));
+    }
+
+    let schema = json!({
+        "database": db_name,
+        "collections": collection_names,
+        "sample_fields": collections_schema
+    });
+
+    Ok(schema.to_string())
+}
+
 #[tauri::command]
 pub async fn introspect_schema(
     connection_config: serde_json::Value,
@@ -94,6 +137,7 @@ pub async fn introspect_schema(
     match database_type.as_str() {
         "ELASTICSEARCH" | "OPENSEARCH" | "EASYSEARCH" => introspect_es(&connection_config).await,
         "DYNAMODB" => introspect_dynamo(&connection_config).await,
+        "MONGODB" => introspect_mongo(&connection_config).await,
         _ => Err(format!("Unknown database type: {}", database_type)),
     }
 }
