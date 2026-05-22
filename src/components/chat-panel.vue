@@ -65,6 +65,11 @@
           </div>
 
           <div class="toolbar-center">
+            <ContextIndicator
+              v-if="sessionId"
+              :session-id="sessionId"
+              :settings="contextSettings ?? null"
+            />
             <ModelPicker
               v-if="showModelPicker"
               :groups="modelGroups"
@@ -73,11 +78,6 @@
               :compact="compact"
               @open="onModelPickerOpen"
               @update:model-value="onModelChange"
-            />
-            <ContextIndicator
-              v-if="sessionId && contextSettings"
-              :session-id="sessionId"
-              :settings="contextSettings"
             />
           </div>
 

@@ -75,7 +75,7 @@ import { useMessageService } from '@/composables';
 
 const props = defineProps<{
   sessionId: string | null;
-  settings: unknown;
+  settings: unknown | null;
 }>();
 
 const emit = defineEmits<{ compacted: [usage: ContextUsage] }>();
@@ -123,7 +123,7 @@ const formatTokens = (n: number) => {
 };
 
 const refresh = async () => {
-  if (!props.sessionId) return;
+  if (!props.sessionId || !props.settings) return;
   try {
     usage.value = await getAgentContextUsage(props.sessionId, props.settings);
   } catch {
@@ -137,7 +137,7 @@ const togglePopover = async () => {
 };
 
 const onCompact = async () => {
-  if (!props.sessionId || compacting.value) return;
+  if (!props.sessionId || !props.settings || compacting.value) return;
   compacting.value = true;
   try {
     const next = await compactAgentSession(props.sessionId, props.settings);
