@@ -22,6 +22,32 @@ pub struct AgentMessage {
     pub created_at: i64,
 }
 
+/// Unwraps a `_compact_boundary` JSON payload into UI text; non-boundary or invalid JSON pass through unchanged.
+fn normalize_message_content(role: &str, content: &str) -> String {
+    if role != "system" {
+        return content.to_string();
+    }
+    let Ok(v) = serde_json::from_str::<Value>(content) else {
+        return content.to_string();
+    };
+    if !v
+        .get("_compact_boundary")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false)
+    {
+        return content.to_string();
+    }
+    let summary = v.get("summary").and_then(|x| x.as_str()).unwrap_or("");
+    let pre = v.get("pre_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
+    let post = v.get("post_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
+    let mut body = format!(
+        "[Compacted conversation — {} tokens summarized into {} tokens]\n",
+        pre, post
+    );
+    body.push_str(summary);
+    body
+}
+
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -188,7 +214,10 @@ pub async fn load_session_messages(
                     id: row.get(0)?,
                     session_id: row.get(1)?,
                     role: row.get(2)?,
-                    content: row.get(3)?,
+                    content: normalize_message_content(
+                        &row.get::<_, String>(2)?,
+                        &row.get::<_, String>(3)?,
+                    ),
                     created_at: row.get(4)?,
                 })
             })
@@ -238,7 +267,10 @@ pub async fn export_agent_session(
                     id: row.get(0)?,
                     session_id: row.get(1)?,
                     role: row.get(2)?,
-                    content: row.get(3)?,
+                    content: normalize_message_content(
+                        &row.get::<_, String>(2)?,
+                        &row.get::<_, String>(3)?,
+                    ),
                     created_at: row.get(4)?,
                 })
             })
