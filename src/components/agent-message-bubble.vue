@@ -127,10 +127,7 @@
 
       <!-- Main response content (only when not part of an activity timeline) -->
       <div
-        v-if="
-          (message.content && !message.toolCalls?.length) ||
-          (!message.thinking && !message.toolCalls?.length && isStreaming)
-        "
+        v-if="(message.content || isStreaming) && !message.toolCalls?.length"
         class="message-content assistant-content"
       >
         <MarkdownRender
@@ -138,7 +135,7 @@
           :markdown="message.content"
           class="markdown-body prose prose-sm max-w-none"
         />
-        <div v-if="isStreaming && !message.content && !message.thinking" class="typing-indicator">
+        <div v-if="isStreaming && !message.content" class="typing-indicator">
           <span class="dot" />
           <span class="dot" />
           <span class="dot" />
