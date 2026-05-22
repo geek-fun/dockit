@@ -107,6 +107,24 @@
       </div>
     </section>
 
+    <section class="space-y-4">
+      <div class="space-y-1">
+        <h3 class="text-lg font-semibold">{{ $t('setting.ai.chat.title') }}</h3>
+        <p class="text-sm text-muted-foreground">{{ $t('setting.ai.chat.description') }}</p>
+      </div>
+      <div
+        class="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/70 px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between"
+      >
+        <div class="min-w-0 space-y-1">
+          <p class="text-base font-semibold">{{ $t('setting.ai.chat.autoCompactLabel') }}</p>
+          <p class="text-sm text-muted-foreground">
+            {{ $t('setting.ai.chat.autoCompactDescription') }}
+          </p>
+        </div>
+        <Switch :model-value="autoCompactEnabled" @update:model-value="setAutoCompact" />
+      </div>
+    </section>
+
     <Dialog :open="providerDialogOpen" @update:open="handleProviderDialogOpenChange">
       <DialogContent class="sm:max-w-[640px]">
         <DialogHeader>
@@ -270,6 +288,19 @@
               <FormItem :label="$t('setting.ai.proxy')" :error="draftProviderErrors.proxy">
                 <Input v-model="draftProvider.proxy" placeholder="http://127.0.0.1:7890" />
               </FormItem>
+
+              <FormItem :label="$t('setting.ai.providers.contextWindowLabel')">
+                <Input
+                  v-model="contextWindowOverrideInput"
+                  type="number"
+                  min="1024"
+                  step="1024"
+                  :placeholder="$t('setting.ai.providers.contextWindowPlaceholder')"
+                />
+                <p class="mt-1 text-xs text-muted-foreground">
+                  {{ $t('setting.ai.providers.contextWindowDescription') }}
+                </p>
+              </FormItem>
             </div>
 
             <Alert v-if="draftProvider.kind === 'custom-anthropic'" variant="warning">
@@ -350,6 +381,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 
 type ProviderErrorMap = Partial<Record<'apiKey' | 'baseUrl' | 'proxy', string>>;
 type ProviderAuthTab = 'website' | 'api-key';
@@ -364,6 +396,35 @@ const message = useMessageService();
 
 const providerActionState = reactive<Record<string, 'idle' | 'testing'>>({});
 const providerSyncState = reactive<Record<string, 'idle' | 'loading'>>({});
+
+const autoCompactEnabled = computed(() => llmSettings.value.chat?.autoCompact ?? true);
+const setAutoCompact = async (value: boolean) => {
+  if (!llmSettings.value.chat) {
+    llmSettings.value.chat = { autoCompact: value };
+  } else {
+    llmSettings.value.chat.autoCompact = value;
+  }
+  await appStore.persistLlmSettings();
+};
+
+const contextWindowOverrideInput = computed<string>({
+  get: () =>
+    draftProvider.value?.contextWindowOverride
+      ? String(draftProvider.value.contextWindowOverride)
+      : '',
+  set: raw => {
+    if (!draftProvider.value) return;
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      draftProvider.value.contextWindowOverride = undefined;
+      return;
+    }
+    const parsed = Number.parseInt(trimmed, 10);
+    if (Number.isFinite(parsed) && parsed >= 1024) {
+      draftProvider.value.contextWindowOverride = parsed;
+    }
+  },
+});
 
 const providerDialogOpen = ref(false);
 const providerDialogMode = ref<'create' | 'edit'>('create');
@@ -661,6 +722,7 @@ const saveDraftProvider = async () => {
     apiKey: resolvedApiKey,
     baseUrl: normalizeBaseUrl(draftProvider.value.baseUrl ?? ''),
     proxy: draftProvider.value.proxy?.trim() ?? '',
+    contextWindowOverride: draftProvider.value.contextWindowOverride,
     enabled: true,
     connected:
       draftProvider.value.kind === 'ollama' || draftProvider.value.kind === 'lm-studio'

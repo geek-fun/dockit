@@ -140,6 +140,18 @@ export const enUS = {
         featureRequest: 'Create feature request',
         customAnthropicDescription:
           'Anthropic-compatible providers are not implemented in this pass. Use the feature request button to track it on GitHub.',
+        contextWindowLabel: 'Context window override (tokens)',
+        contextWindowPlaceholder: 'Auto-detect',
+        contextWindowDescription:
+          'Set the maximum context size DocKit should assume for this provider. Useful for Ollama models that change num_ctx, or self-hosted setups with non-default limits. Minimum 1024.',
+      },
+
+      chat: {
+        title: 'Chat Behavior',
+        description: 'Control how DocKit manages long conversations.',
+        autoCompactLabel: 'Auto-compact context',
+        autoCompactDescription:
+          'When the context window fills up, automatically summarize older messages to keep the conversation going. Disable to be prompted instead.',
       },
 
       models: {

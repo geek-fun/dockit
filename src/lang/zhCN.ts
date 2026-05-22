@@ -136,6 +136,18 @@ export const zhCN = {
         featureRequest: '创建功能需求',
         customAnthropicDescription:
           '本次改版暂未实现 Anthropic-compatible 服务商。可通过按钮在 GitHub 上跟踪该功能需求。',
+        contextWindowLabel: '上下文窗口覆盖（tokens）',
+        contextWindowPlaceholder: '自动检测',
+        contextWindowDescription:
+          '为该服务商设置 DocKit 使用的最大上下文长度。适用于自定义 num_ctx 的 Ollama 模型或非默认上限的自托管部署。最小 1024。',
+      },
+
+      chat: {
+        title: '会话行为',
+        description: '控制 DocKit 如何管理长对话。',
+        autoCompactLabel: '自动压缩上下文',
+        autoCompactDescription:
+          '当上下文窗口接近上限时，自动总结较早的消息以便继续对话。关闭后将改为提示你手动处理。',
       },
 
       models: {
