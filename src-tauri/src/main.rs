@@ -13,8 +13,8 @@ mod mongo_client;
 
 use agent::executor::DocKitToolExecutor;
 use agent::loop_runner::{
-    cancel_agent_loop, confirm_tool_call, get_tool_full_result, run_agent_loop, CancelMap,
-    ConfirmMap,
+    cancel_agent_loop, compact_agent_session, confirm_tool_call, get_agent_context_usage,
+    get_tool_full_result, run_agent_loop, CancelMap, ConfirmMap,
 };
 use agent::session_store::{
     clear_agent_session_messages, create_agent_session, delete_agent_session, export_agent_session,
@@ -125,6 +125,8 @@ fn main() {
             get_all_tools,
             run_agent_loop,
             cancel_agent_loop,
+            compact_agent_session,
+            get_agent_context_usage,
             confirm_tool_call,
             get_tool_full_result,
             load_agent_sessions,

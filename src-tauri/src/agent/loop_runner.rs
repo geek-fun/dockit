@@ -7,8 +7,10 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::oneshot;
 
+use crate::agent::compact::{evaluate, resolve_model_spec, run_compact};
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::executor::ToolEnvelope;
+use crate::agent::loop_runner_support::load_messages_for_compact;
 use crate::agent::tool_executor::ToolExecutor;
 use crate::agent::tools::all_tools;
 use crate::common::http_client::create_http_client;
@@ -18,7 +20,6 @@ pub type ConfirmMap = Arc<Mutex<HashMap<String, oneshot::Sender<bool>>>>;
 pub type CancelMap = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;
 
 const MAX_ITERATIONS: usize = 20;
-const CONTEXT_CHAR_THRESHOLD: usize = 64_000;
 const CONFIRM_TIMEOUT_SECS: u64 = 300;
 const RETRY_DELAYS_MS: &[u64] = &[1_000, 3_000, 8_000];
 const RETRY_JITTER_MS: u64 = 250;
@@ -175,31 +176,6 @@ fn insert_tool_result(
     Ok(id)
 }
 
-fn replace_messages_with_summary(
-    db: &AgentDb,
-    session_id: &str,
-    ids_to_remove: &[String],
-    summary: &str,
-) -> Result<(), String> {
-    let mut conn = db.0.lock().map_err(|e| e.to_string())?;
-    let tx_now = now_ms();
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
-    for id in ids_to_remove {
-        tx.execute(
-            "DELETE FROM agent_messages WHERE id = ?1",
-            rusqlite::params![id],
-        )
-        .map_err(|e| e.to_string())?;
-    }
-    tx.execute(
-        "INSERT INTO agent_messages (id, session_id, role, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-        rusqlite::params![new_id(), session_id, "system", format!("[Summary] {}", summary), tx_now - 1_000_000],
-    )
-    .map_err(|e| e.to_string())?;
-    tx.commit().map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 fn classify_error(body: &str) -> Option<String> {
     let v: Value = serde_json::from_str(body).ok()?;
     v.get("error")
@@ -210,48 +186,6 @@ fn classify_error(body: &str) -> Option<String> {
 
 fn is_retryable(err_type: &str) -> bool {
     RETRYABLE_ERROR_TYPES.iter().any(|t| *t == err_type)
-}
-
-async fn post_chat_completions(
-    http_client: &reqwest::Client,
-    base_url: &str,
-    headers: reqwest::header::HeaderMap,
-    body: Value,
-) -> Result<reqwest::Response, String> {
-    let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
-    let mut last_err = String::from("LLM request failed");
-    for attempt in 0..=RETRY_DELAYS_MS.len() {
-        let resp = http_client
-            .post(&url)
-            .headers(headers.clone())
-            .json(&body)
-            .send()
-            .await;
-        match resp {
-            Ok(r) => {
-                if r.status().is_success() {
-                    return Ok(r);
-                }
-                let status = r.status();
-                let text = r.text().await.unwrap_or_default();
-                let err_type = classify_error(&text).unwrap_or_default();
-                let retryable =
-                    status.as_u16() == 429 || status.as_u16() == 503 || is_retryable(&err_type);
-                last_err = format!("LLM HTTP {}: {}", status, text);
-                if !retryable || attempt >= RETRY_DELAYS_MS.len() {
-                    return Err(last_err);
-                }
-            }
-            Err(e) => {
-                last_err = format!("LLM request error: {}", e);
-                if attempt >= RETRY_DELAYS_MS.len() {
-                    return Err(last_err);
-                }
-            }
-        }
-        jittered_sleep_ms(RETRY_DELAYS_MS[attempt]).await;
-    }
-    Err(last_err)
 }
 
 fn build_request_body(settings: &Value, history_msgs: &[Value], stream: bool) -> Value {
@@ -313,75 +247,63 @@ fn db_messages_to_chat(
             }
             out.push(json!({"role": "assistant", "content": content}));
         } else {
+            if role == "system" {
+                if let Ok(v) = serde_json::from_str::<Value>(content) {
+                    if v.get("_compact_boundary")
+                        .and_then(|x| x.as_bool())
+                        .unwrap_or(false)
+                    {
+                        let summary =
+                            v.get("summary").and_then(|x| x.as_str()).unwrap_or_default();
+                        let preserved = v
+                            .get("preserved_tool_calls")
+                            .and_then(|x| x.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .filter_map(|v| v.as_str())
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            })
+                            .unwrap_or_default();
+                        let mut body = String::from(
+                            "[Conversation summary - earlier turns were compacted to save context]\n",
+                        );
+                        body.push_str(summary);
+                        if !preserved.is_empty() {
+                            body.push_str("\n\n[Note] Dropped tool calls without replies: ");
+                            body.push_str(&preserved);
+                        }
+                        out.push(json!({"role": "system", "content": body}));
+                        continue;
+                    }
+                }
+            }
             out.push(json!({"role": role, "content": content}));
         }
     }
     out
 }
 
-fn total_chars(messages: &[(String, String, String)]) -> usize {
-    messages.iter().map(|(_, _, c)| c.chars().count()).sum()
-}
-
-async fn maybe_summarize_context(
-    session_id: &str,
-    settings: &Value,
-    app: &AppHandle,
-    db: &AgentDb,
-) -> Result<(), String> {
-    let messages = load_messages(db, session_id)?;
-    if total_chars(&messages) < CONTEXT_CHAR_THRESHOLD {
-        return Ok(());
-    }
-    let keep_last = 4usize;
-    if messages.len() <= keep_last {
-        return Ok(());
-    }
-    let split = (messages.len() - keep_last) / 2;
-    if split == 0 {
-        return Ok(());
-    }
-    let to_summarize = &messages[..split];
-    let ids_to_remove: Vec<String> = to_summarize.iter().map(|(id, _, _)| id.clone()).collect();
-
-    let chat_msgs = db_messages_to_chat(to_summarize, None);
-    let summarize_prompt = json!([
-        {"role": "system", "content": "Summarize the following conversation concisely, preserving key facts, tool results, decisions, and unresolved tasks. Output a plain text summary."},
-        {"role": "user", "content": serde_json::to_string(&chat_msgs).unwrap_or_default()}
-    ]);
-
-    let base_url = get_base_url(settings);
-    let headers = build_headers(settings)?;
-    let http_proxy = settings_get_str(settings, "httpProxy").map(|s| s.to_string());
-    let http_client = create_http_client(http_proxy, None);
-
-    let body = json!({
-        "model": settings_get_str(settings, "model").unwrap_or("gpt-4o-mini"),
-        "messages": summarize_prompt,
-        "stream": false,
-    });
-
-    let resp = post_chat_completions(&http_client, &base_url, headers, body).await?;
-    let payload: Value = resp.json().await.map_err(|e| e.to_string())?;
-    let summary = payload
-        .get("choices")
-        .and_then(|c| c.get(0))
-        .and_then(|c| c.get("message"))
-        .and_then(|m| m.get("content"))
-        .and_then(|c| c.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    if summary.is_empty() {
-        return Ok(());
-    }
-
-    replace_messages_with_summary(db, session_id, &ids_to_remove, &summary)?;
+fn emit_context_usage(app: &AppHandle, session_id: &str, settings: &Value, db: &AgentDb) {
+    let messages = match load_messages_for_compact(db, session_id) {
+        Ok(m) => m,
+        Err(_) => return,
+    };
+    let spec = resolve_model_spec(settings);
+    let decision = evaluate(&messages, &spec);
     let _ = app.emit(
-        "agent-loop-summary-injected",
-        json!({"session_id": session_id}),
+        "agent-context-usage",
+        json!({
+            "session_id": session_id,
+            "used_tokens": decision.used_tokens,
+            "capacity": decision.capacity,
+            "context_window": spec.context_window,
+            "output_reserve": spec.output_reserve,
+            "trigger_at": decision.trigger_at,
+            "should_compact": decision.should_compact,
+            "model": spec.model_id,
+        }),
     );
-    Ok(())
 }
 
 #[derive(Default)]
@@ -638,11 +560,21 @@ async fn run_agent_loop_inner(
         .unwrap_or_default();
 
     for _iter in 0..MAX_ITERATIONS {
-        if let Err(summary_err) = maybe_summarize_context(session_id, settings, app, db).await {
-            let _ = app.emit(
-                "agent-loop-warning",
-                json!({"session_id": session_id, "warning": format!("Context summarization skipped: {}", summary_err)}),
-            );
+        emit_context_usage(app, session_id, settings, db);
+        let auto_compact = settings
+            .get("autoCompact")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+        if auto_compact {
+            match run_compact(session_id, settings, db).await {
+                Ok(_) => emit_context_usage(app, session_id, settings, db),
+                Err(compact_err) => {
+                    let _ = app.emit(
+                        "agent-loop-warning",
+                        json!({"session_id": session_id, "warning": format!("Context compaction skipped: {}", compact_err)}),
+                    );
+                }
+            }
         }
 
         let history = load_messages(db, session_id)?;
@@ -1042,4 +974,52 @@ pub async fn get_tool_full_result(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn compact_agent_session(
+    session_id: String,
+    settings: Value,
+    app: AppHandle,
+) -> Result<Value, String> {
+    let db_state: State<AgentDb> = app.state::<AgentDb>();
+    let db: AgentDb = AgentDb(db_state.0.clone());
+    crate::agent::compact::run_compact(&session_id, &settings, &db).await?;
+    emit_context_usage(&app, &session_id, &settings, &db);
+    let messages = load_messages_for_compact(&db, &session_id)?;
+    let spec = resolve_model_spec(&settings);
+    let decision = evaluate(&messages, &spec);
+    Ok(json!({
+        "session_id": session_id,
+        "used_tokens": decision.used_tokens,
+        "capacity": decision.capacity,
+        "context_window": spec.context_window,
+        "output_reserve": spec.output_reserve,
+        "trigger_at": decision.trigger_at,
+        "should_compact": decision.should_compact,
+        "model": spec.model_id,
+    }))
+}
+
+#[tauri::command]
+pub async fn get_agent_context_usage(
+    session_id: String,
+    settings: Value,
+    app: AppHandle,
+) -> Result<Value, String> {
+    let db_state: State<AgentDb> = app.state::<AgentDb>();
+    let db: AgentDb = AgentDb(db_state.0.clone());
+    let messages = load_messages_for_compact(&db, &session_id)?;
+    let spec = resolve_model_spec(&settings);
+    let decision = evaluate(&messages, &spec);
+    Ok(json!({
+        "session_id": session_id,
+        "used_tokens": decision.used_tokens,
+        "capacity": decision.capacity,
+        "context_window": spec.context_window,
+        "output_reserve": spec.output_reserve,
+        "trigger_at": decision.trigger_at,
+        "should_compact": decision.should_compact,
+        "model": spec.model_id,
+    }))
 }
