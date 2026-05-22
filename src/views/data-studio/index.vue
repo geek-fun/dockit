@@ -56,6 +56,8 @@
           :error="error"
           :empty-hint="emptyHint"
           :input-placeholder="$t('dataStudio.inputPlaceholder')"
+          :session-id="activeSession?.id ?? null"
+          :context-settings="lastSettings ?? undefined"
           feature="dataStudio"
           compact
           @send="sendMessage"
@@ -313,6 +315,7 @@ const {
   cancelSession,
   clearChat,
   activeSessionSources,
+  lastSettings,
 } = useDataStudioChatAgent();
 
 const handleConfirmation = (

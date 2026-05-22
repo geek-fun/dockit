@@ -207,6 +207,26 @@ const onAgentLoopError = (handler: (payload: { session_id: string; error: string
 const onAgentLoopSummaryInjected = (handler: (payload: { session_id: string }) => void) =>
   listen('agent-loop-summary-injected', e => handler(e.payload as any));
 
+export type ContextUsage = {
+  session_id: string;
+  used_tokens: number;
+  capacity: number;
+  context_window: number;
+  output_reserve: number;
+  trigger_at: number;
+  should_compact: boolean;
+  model: string;
+};
+
+const compactAgentSession = (sessionId: string, settings: unknown) =>
+  invoke<ContextUsage>('compact_agent_session', { sessionId, settings });
+
+const getAgentContextUsage = (sessionId: string, settings: unknown) =>
+  invoke<ContextUsage>('get_agent_context_usage', { sessionId, settings });
+
+const onAgentContextUsage = (handler: (payload: ContextUsage) => void) =>
+  listen('agent-context-usage', e => handler(e.payload as ContextUsage));
+
 export {
   agentApi,
   validateLlmConfig,
@@ -222,6 +242,8 @@ export {
   cancelAgentLoop,
   confirmToolCall,
   getToolFullResult,
+  compactAgentSession,
+  getAgentContextUsage,
   onAgentLoopDelta,
   onAgentLoopThinkingDelta,
   onAgentLoopToolCall,
@@ -230,4 +252,5 @@ export {
   onAgentLoopDone,
   onAgentLoopError,
   onAgentLoopSummaryInjected,
+  onAgentContextUsage,
 };

@@ -19,6 +19,8 @@
       :error="error"
       :empty-hint="$t('aside.chatBotEmptyHint')"
       :input-placeholder="$t('aside.chatBotPlaceholder')"
+      :session-id="activeSession?.id ?? null"
+      :context-settings="lastSettings ?? undefined"
       feature="sidebarAssistant"
       compact
       @send="sendMessage"
@@ -74,6 +76,8 @@ const {
   sendMessage,
   handleConfirmation: rawHandleConfirmation,
   clearChat,
+  activeSession,
+  lastSettings,
 } = useSidebarChatAgent();
 
 const handleConfirmation = (
