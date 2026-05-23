@@ -15,42 +15,43 @@
 
     <!-- Data state -->
     <template v-else-if="hasData">
-      <!-- Header bar -->
-      <div class="result-header">
-        <div class="flex items-center gap-2">
-          <span class="text-base font-semibold">{{ $t('editor.mongo.resultTitle') }}</span>
-          <span v-if="total !== undefined && total >= 0" class="text-muted-foreground text-sm">
+      <!-- Single toolbar row: tabs left, status + actions right -->
+      <div class="result-toolbar">
+        <Tabs v-model="activeView" class="shrink-0">
+          <TabsList class="h-7">
+            <TabsTrigger value="table" class="text-xs h-6 px-2">
+              {{ $t('editor.mongo.viewTable') }}
+            </TabsTrigger>
+            <TabsTrigger value="tree" class="text-xs h-6 px-2">
+              {{ $t('editor.mongo.viewTree') }}
+            </TabsTrigger>
+            <TabsTrigger value="json" class="text-xs h-6 px-2">
+              {{ $t('editor.mongo.viewJson') }}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        <div class="toolbar-right">
+          <span v-if="total !== undefined && total >= 0" class="status-text">
             {{ $t('editor.mongo.totalDocuments', { count: total }) }}
           </span>
-          <span v-if="queryTime !== undefined" class="text-muted-foreground text-xs">
-            ({{ queryTime }}ms)
-          </span>
-        </div>
-        <div class="flex items-center gap-2">
-          <Button v-if="collection" size="sm" variant="outline" @click="handleInsertClick">
-            <span class="i-carbon-add h-4 w-4 mr-1" />
+          <span v-if="queryTime !== undefined" class="status-text dimmed">({{ queryTime }}ms)</span>
+          <div class="toolbar-divider" />
+          <Button
+            v-if="collection"
+            size="sm"
+            variant="ghost"
+            class="h-6 px-2 text-xs"
+            @click="handleInsertClick"
+          >
+            <span class="i-carbon-add h-3.5 w-3.5 mr-1" />
             {{ $t('editor.mongo.insertDocument') }}
           </Button>
-          <Button variant="ghost" size="icon" class="close-btn" @click="$emit('close')">
-            <span class="i-carbon-close h-4 w-4" />
+          <Button variant="ghost" size="icon" class="h-6 w-6" @click="$emit('close')">
+            <span class="i-carbon-close h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
-
-      <!-- View mode tabs -->
-      <Tabs v-model="activeView" class="view-tabs">
-        <TabsList class="h-8">
-          <TabsTrigger value="table" class="text-xs h-7">
-            {{ $t('editor.mongo.viewTable') }}
-          </TabsTrigger>
-          <TabsTrigger value="tree" class="text-xs h-7">
-            {{ $t('editor.mongo.viewTree') }}
-          </TabsTrigger>
-          <TabsTrigger value="json" class="text-xs h-7">
-            {{ $t('editor.mongo.viewJson') }}
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
 
       <!-- TABLE VIEW -->
       <template v-if="activeView === 'table'">
@@ -704,19 +705,39 @@ const TreeNode: Component = markRaw(
   overflow: hidden;
 }
 
-.result-header {
+.result-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  border-bottom: 1px solid hsl(var(--border));
-  shrink: 0;
-}
-
-.view-tabs {
-  padding: 4px 12px;
+  padding: 4px 8px;
   border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
+  gap: 8px;
+  min-height: 0;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.status-text {
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
+.status-text.dimmed {
+  opacity: 0.65;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 14px;
+  background: hsl(var(--border));
+  margin: 0 2px;
 }
 
 .table-scroll-area {
