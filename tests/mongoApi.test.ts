@@ -944,4 +944,234 @@ describe('mongoApi cluster monitoring', () => {
       expect(result.error).toBe('Failed to get shard status');
     });
   });
+
+  describe('findDocuments', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with collection and optional params', async () => {
+      const mockResult = {
+        success: true,
+        documents: [{ _id: '1', name: 'Alice' }],
+        total: 1,
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.findDocuments(baseConnection, 'users', '{}', '{}', 0, 25);
+
+      expect(invoke).toHaveBeenCalledWith('mongo_find_documents', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        collection: 'users',
+        filter: '{}',
+        sort: '{}',
+        skip: 0,
+        limit: 25,
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('calls invoke without optional params when omitted', async () => {
+      invoke.mockResolvedValue({ success: true, documents: [], total: 0 });
+
+      await mongoApi.findDocuments(baseConnection, 'users');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_find_documents', {
+        config: expect.any(Object),
+        collection: 'users',
+        filter: undefined,
+        sort: undefined,
+        skip: undefined,
+        limit: undefined,
+      });
+    });
+
+    it('returns error result on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Collection not found'));
+
+      const result = await mongoApi.findDocuments(baseConnection, 'users');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Collection not found');
+    });
+  });
+
+  describe('countDocuments', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke and returns count', async () => {
+      invoke.mockResolvedValue(42);
+
+      const result = await mongoApi.countDocuments(baseConnection, 'users', '{}');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_count_documents', {
+        config: expect.any(Object),
+        collection: 'users',
+        filter: '{}',
+      });
+      expect(result).toBe(42);
+    });
+
+    it('returns -1 on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Count failed'));
+
+      const result = await mongoApi.countDocuments(baseConnection, 'users');
+
+      expect(result).toBe(-1);
+    });
+  });
+
+  describe('insertDocument', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with collection and document', async () => {
+      const mockResult = { success: true, inserted_id: 'abc123' };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.insertDocument(baseConnection, 'users', '{"name":"Alice"}');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_insert_document', {
+        config: expect.any(Object),
+        collection: 'users',
+        document: '{"name":"Alice"}',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error result on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Insert failed'));
+
+      const result = await mongoApi.insertDocument(baseConnection, 'users', '{"name":"Alice"}');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Insert failed');
+    });
+  });
+
+  describe('updateDocument', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with collection, id, and document', async () => {
+      const mockResult = { success: true, matched_count: 1, modified_count: 1 };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.updateDocument(
+        baseConnection,
+        'users',
+        'abc123',
+        '{"name":"Bob"}',
+      );
+
+      expect(invoke).toHaveBeenCalledWith('mongo_update_document', {
+        config: expect.any(Object),
+        collection: 'users',
+        id: 'abc123',
+        document: '{"name":"Bob"}',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error result on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Update failed'));
+
+      const result = await mongoApi.updateDocument(baseConnection, 'users', 'abc123', '{}');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Update failed');
+    });
+  });
+
+  describe('deleteDocument', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with collection and id', async () => {
+      const mockResult = { success: true, deleted_count: 1 };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.deleteDocument(baseConnection, 'users', 'abc123');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_delete_document', {
+        config: expect.any(Object),
+        collection: 'users',
+        id: 'abc123',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error result on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Delete failed'));
+
+      const result = await mongoApi.deleteDocument(baseConnection, 'users', 'abc123');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Delete failed');
+    });
+  });
+
+  describe('deleteDocuments', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with collection and filter', async () => {
+      const mockResult = { success: true, deleted_count: 5 };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.deleteDocuments(baseConnection, 'users', '{"active":false}');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_delete_documents', {
+        config: expect.any(Object),
+        collection: 'users',
+        filter: '{"active":false}',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error result on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Bulk delete failed'));
+
+      const result = await mongoApi.deleteDocuments(baseConnection, 'users', '{}');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Bulk delete failed');
+    });
+  });
 });
