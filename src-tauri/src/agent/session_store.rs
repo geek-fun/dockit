@@ -22,28 +22,10 @@ pub struct AgentMessage {
     pub created_at: i64,
 }
 
-/// Unwraps a `_compact_boundary` JSON payload into UI text; non-boundary or invalid JSON pass through unchanged.
-fn normalize_message_content(role: &str, content: &str) -> String {
-    if role != "system" {
-        return content.to_string();
-    }
-    let Ok(v) = serde_json::from_str::<Value>(content) else {
-        return content.to_string();
-    };
-    if !v
-        .get("_compact_boundary")
-        .and_then(|x| x.as_bool())
-        .unwrap_or(false)
-    {
-        return content.to_string();
-    }
-    let summary = v.get("summary").and_then(|x| x.as_str()).unwrap_or("");
-    let pre = v.get("pre_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
-    let post = v.get("post_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
-    let trigger = v.get("trigger").and_then(|x| x.as_str()).unwrap_or("auto");
-    format!(
-        "[Compacted ({trigger}) — {pre} tokens → {post} tokens]\n{summary}"
-    )
+/// Pass-through. The frontend hydrator parses `_compact_boundary` JSON for `system` rows
+/// into structured UI data; non-boundary content is returned unchanged.
+fn normalize_message_content(_role: &str, content: &str) -> String {
+    content.to_string()
 }
 
 fn now_ms() -> i64 {

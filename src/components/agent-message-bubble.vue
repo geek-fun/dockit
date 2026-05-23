@@ -1,9 +1,53 @@
 <template>
-  <div :class="['message-bubble', `message-${normalizedRole}`]">
+  <div
+    v-if="normalizedRole !== 'tool'"
+    :class="[
+      'message-bubble',
+      `message-${normalizedRole}`,
+      normalizedRole === 'system' ? 'message-system' : '',
+    ]"
+  >
     <div v-if="normalizedRole === 'user'" class="message-content user-content">
       <p class="whitespace-pre-wrap">{{ message.content }}</p>
     </div>
 
+    <div
+      v-else-if="normalizedRole === 'system' && message.compaction"
+      class="compaction-marker"
+    >
+      <div class="compaction-divider" />
+      <div class="compaction-card">
+        <span class="compaction-icon i-carbon-compare" />
+        <span class="compaction-label">
+          {{
+            t('dataStudio.agent.message.compactionLabel', {
+              trigger: t(`dataStudio.agent.message.compactionTrigger.${message.compaction.trigger}`),
+            })
+          }}
+        </span>
+        <span class="compaction-delta">
+          {{ formatTokens(message.compaction.preTokens) }}
+          <span class="i-carbon-arrow-right delta-arrow" />
+          {{ formatTokens(message.compaction.postTokens) }}
+          <span class="delta-saved">
+            -{{ formatTokens(message.compaction.preTokens - message.compaction.postTokens) }}
+          </span>
+        </span>
+        <details v-if="message.compaction.summary" class="compaction-summary-details">
+          <summary class="compaction-summary-toggle">
+            <span class="i-carbon-chevron-down" />
+            {{ t('dataStudio.agent.message.compactionSummary') }}
+          </summary>
+          <div class="compaction-summary-body">
+            <MarkdownRender
+              :markdown="message.compaction.summary"
+              class="markdown-body prose prose-sm max-w-none"
+            />
+          </div>
+        </details>
+      </div>
+      <div class="compaction-divider" />
+    </div>
     <div v-else-if="normalizedRole === 'assistant'" class="assistant-wrapper">
       <!-- Activity timeline: thinking + tool call/result pairs -->
       <div v-if="message.thinking || message.toolCalls?.length" class="activity-list">
@@ -28,10 +72,38 @@
             <span class="activity-icon i-carbon-idea" />
             <span class="activity-label">
               <span
-                v-if="isStreaming && !message.toolCalls?.length"
+                v-if="activeState === 'thinking'"
                 class="activity-label-streaming"
               >
                 {{ t('dataStudio.agent.message.thinkingInProgress') }}
+                <span class="inline-dots">
+                  <span class="dot" />
+                  <span class="dot" />
+                  <span class="dot" />
+                </span>
+              </span>
+              <span
+                v-else-if="activeState === 'generating'"
+                class="activity-label-streaming"
+              >
+                {{ t('dataStudio.agent.message.generating') }}
+                <span class="inline-dots">
+                  <span class="dot" />
+                  <span class="dot" />
+                  <span class="dot" />
+                </span>
+              </span>
+              <span
+                v-else-if="activeState === 'awaitingConfirm'"
+                class="activity-label-streaming"
+              >
+                {{ t('dataStudio.agent.message.awaitingConfirm', { tool: activeToolName }) }}
+              </span>
+              <span
+                v-else-if="activeState === 'executing'"
+                class="activity-label-streaming"
+              >
+                {{ t('dataStudio.agent.message.executingTool', { tool: activeToolName }) }}
                 <span class="inline-dots">
                   <span class="dot" />
                   <span class="dot" />
@@ -142,9 +214,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Tool role messages are surfaced via tc.result in the assistant activity list -->
-    <template v-else-if="normalizedRole === 'tool'" />
   </div>
 </template>
 
@@ -166,12 +235,33 @@ const normalizedRole = computed(() => {
   if (r === 'BOT' || r === 'assistant') return 'assistant';
   if (r === 'USER' || r === 'user') return 'user';
   if (r === 'tool') return 'tool';
+  if (r === 'system') return 'system';
   return 'user';
 });
 
 const isStreaming = computed(
   () => props.message.status === 'streaming' || props.message.status === 'SENDING',
 );
+
+const activeState = computed<
+  'thinking' | 'generating' | 'awaitingConfirm' | 'executing' | 'done'
+>(() => {
+  if (!isStreaming.value) return 'done';
+  const toolCalls: AgentToolCall[] = props.message.toolCalls ?? [];
+  if (toolCalls.some(tc => tc.status === 'executing')) return 'executing';
+  if (toolCalls.some(tc => tc.status === 'pending')) return 'awaitingConfirm';
+  if ((props.message.content ?? '').length > 0) return 'generating';
+  return 'thinking';
+});
+
+const activeToolName = computed(() => {
+  const toolCalls: AgentToolCall[] = props.message.toolCalls ?? [];
+  return (
+    toolCalls.find(tc => tc.status === 'executing')?.toolName ??
+    toolCalls.find(tc => tc.status === 'pending')?.toolName ??
+    ''
+  );
+});
 
 const resultStatus = (tc: AgentToolCall): 'success' | 'error' | 'denied' => {
   if (tc.status === 'denied') return 'denied';
@@ -194,6 +284,12 @@ const resultPreview = (text: string): string => {
 const formatDuration = (ms: number): string => {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
+};
+
+const formatTokens = (n: number): string => {
+  const abs = Math.abs(n);
+  if (abs >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 };
 
 const formatToolArgs = (tc: AgentToolCall): string => {
@@ -705,5 +801,151 @@ details[open] .activity-chevron {
 .markdown-body :deep(ol) {
   padding-left: 20px;
   margin: 4px 0;
+}
+
+.markdown-body :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.markdown-body :deep(th),
+.markdown-body :deep(td) {
+  border: 1px solid hsl(var(--border));
+  padding: 5px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.markdown-body :deep(th) {
+  background: hsl(var(--muted));
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.markdown-body :deep(tr:nth-child(even) td) {
+  background: hsl(var(--muted) / 0.4);
+}
+
+/* ── Compaction marker ── */
+.message-bubble.message-system {
+  justify-content: stretch;
+  margin-bottom: 12px;
+}
+
+.compaction-marker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.compaction-divider {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    hsl(var(--border)) 30%,
+    hsl(var(--border)) 70%,
+    transparent
+  );
+}
+
+.compaction-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  background: hsl(var(--muted) / 0.5);
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
+.compaction-icon {
+  width: 12px;
+  height: 12px;
+  color: hsl(var(--muted-foreground) / 0.7);
+  flex-shrink: 0;
+}
+
+.compaction-label {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.compaction-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
+  font-size: 11px;
+  color: hsl(var(--foreground) / 0.75);
+  padding: 1px 8px;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border) / 0.5);
+  border-radius: 8px;
+}
+
+.delta-arrow {
+  width: 10px;
+  height: 10px;
+  color: hsl(var(--muted-foreground) / 0.6);
+}
+
+.delta-saved {
+  margin-left: 4px;
+  padding-left: 6px;
+  border-left: 1px solid hsl(var(--border) / 0.6);
+  color: hsl(142 72% 38%);
+  font-weight: 600;
+}
+
+.compaction-summary-details {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.compaction-summary-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground) / 0.7);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.compaction-summary-toggle::-webkit-details-marker {
+  display: none;
+}
+
+details[open] .compaction-summary-toggle > .i-carbon-chevron-down {
+  transform: rotate(180deg);
+}
+
+.compaction-summary-toggle > .i-carbon-chevron-down {
+  width: 10px;
+  height: 10px;
+  transition: transform 0.18s ease;
+}
+
+.compaction-summary-body {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: hsl(var(--muted) / 0.4);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: hsl(var(--foreground) / 0.85);
+  max-height: 240px;
+  overflow-y: auto;
 }
 </style>

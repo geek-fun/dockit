@@ -75,6 +75,7 @@ export type UseChatAgentConfig = {
     setSessionSchema?: (sessionId: string, schema: string) => void;
     clearSession: (sessionId: string) => Promise<void>;
     getOrCreateSession: () => Promise<string>;
+    reloadSessionMessages: (sessionId: string) => Promise<void>;
   };
   contextProvider?: () => ChatContextConfig;
   confirmationRules?: Ref<Array<ConfirmationRule>>;
@@ -169,10 +170,16 @@ const buildSystemPrompt = ({
       buildDynamoDBKnowledge(),
       '',
       'Rules:',
-      '- Be helpful and concise.',
+      '- Be concise and direct. No filler phrases, greetings, or sign-offs.',
       '- When writing queries or code, clearly state which database and interface you are targeting.',
       '- If the user asks to query actual live data, remind them to connect a data source first.',
       '- Never fabricate data or pretend to have live query results.',
+      '',
+      'Output format:',
+      '- No emojis.',
+      '- Use proper markdown tables (header row + separator row `| --- |`) when presenting tabular data.',
+      '- After bulk operations, give a brief factual summary: what was done, counts, any anomalies. No celebrations.',
+      '- Wrap queries and code in fenced code blocks with the appropriate language tag.',
     ].join('\n');
   }
 
@@ -193,7 +200,15 @@ const buildSystemPrompt = ({
     '- Explain your reasoning before executing queries.',
     '- For destructive operations, clearly explain what will be affected.',
     '- If a query might return large results, add appropriate limits.',
+    '- Be concise and direct. No filler phrases, greetings, sign-offs, or celebratory language.',
     ...(includesDynamo ? [buildDynamoDBRules()] : []),
+    '',
+    'Output format:',
+    '- No emojis.',
+    '- Use proper markdown tables (header row + separator row `| --- |`) when presenting tabular data.',
+    '- After bulk operations, give a brief factual summary: what was done, counts, any anomalies. No celebrations.',
+    '- Wrap queries and code in fenced code blocks with the appropriate language tag.',
+    '- Keep responses focused. Do not offer unsolicited next-step suggestions unless the result is ambiguous.',
   ].join('\n');
 
   return schema ? `${base}\n\nDatabase Schema:\n${schema}` : base;
@@ -290,6 +305,28 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
   const activeSession = config.sessionStore.activeSession;
   const lastSettings = ref<Record<string, unknown> | null>(null);
   const sessions = config.sessionStore.sessions;
+
+  // Build a minimal settings object usable by the context-usage backend probe.
+  // Token counting only needs provider/model/contextWindowOverride; no API key required.
+  const initContextSettings = async (): Promise<void> => {
+    if (lastSettings.value) return;
+    try {
+      const { provider, model } = await getFeatureModelConfig(config.feature);
+      lastSettings.value = {
+        provider: kindToProviderEnum(provider.kind),
+        model: model.label,
+        apiKey: provider.apiKey ?? '',
+        baseUrl: provider.baseUrl,
+        httpProxy: provider.proxy || undefined,
+        systemPrompt: '',
+        tools: [],
+        autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
+        contextWindowOverride: provider.contextWindowOverride,
+      };
+    } catch {
+      lastSettings.value = null;
+    }
+  };
 
   const shouldRequireConfirmation = (
     toolName: string,
@@ -481,7 +518,9 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       }
     }).then(unlisten => unlisteners.push(unlisten));
 
-    onAgentLoopSummaryInjected(() => {}).then(unlisten => unlisteners.push(unlisten));
+    onAgentLoopSummaryInjected(({ session_id }) => {
+      void config.sessionStore.reloadSessionMessages(session_id);
+    }).then(unlisten => unlisteners.push(unlisten));
   };
 
   setupEventListeners();
@@ -670,6 +709,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     error,
     activeSession,
     lastSettings,
+    initContextSettings,
     sendMessage,
     handleConfirmation,
     cancelSession,

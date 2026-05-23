@@ -78,6 +78,7 @@ const {
   clearChat,
   activeSession,
   lastSettings,
+  initContextSettings,
 } = useSidebarChatAgent();
 
 const handleConfirmation = (
@@ -137,6 +138,7 @@ const startNewSession = () => {
 onMounted(async () => {
   await appStore.fetchLlmSettings();
   await dataStudioStore.loadSessions();
+  await initContextSettings();
 });
 
 onUnmounted(() => {

@@ -219,11 +219,21 @@ fn db_messages_to_chat(
             out.push(json!({"role": "system", "content": sys}));
         }
     }
+    // Track tool_call_ids announced by the most recent assistant message.
+    // OpenAI rejects role="tool" messages whose tool_call_id was not declared
+    // by an immediately-preceding assistant.tool_calls entry. Drop orphans
+    // to survive any compaction-boundary edge case.
+    let mut pending_tool_call_ids: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+
     for (_id, role, content) in messages {
         if role == "tool" {
             if let Ok(v) = serde_json::from_str::<Value>(content) {
                 let tool_call_id = v.get("tool_call_id").and_then(|x| x.as_str()).unwrap_or("");
                 let inner = v.get("content").and_then(|x| x.as_str()).unwrap_or("");
+                if tool_call_id.is_empty() || !pending_tool_call_ids.remove(tool_call_id) {
+                    continue;
+                }
                 out.push(json!({
                     "role": "tool",
                     "tool_call_id": tool_call_id,
@@ -231,6 +241,7 @@ fn db_messages_to_chat(
                 }));
             }
         } else if role == "assistant" {
+            pending_tool_call_ids.clear();
             if let Ok(v) = serde_json::from_str::<Value>(content) {
                 if v.is_object() && (v.get("tool_calls").is_some() || v.get("content").is_some()) {
                     let mut msg = json!({"role": "assistant"});
@@ -240,6 +251,13 @@ fn db_messages_to_chat(
                         msg["content"] = Value::Null;
                     }
                     if let Some(tc) = v.get("tool_calls") {
+                        if let Some(arr) = tc.as_array() {
+                            for call in arr {
+                                if let Some(id) = call.get("id").and_then(|x| x.as_str()) {
+                                    pending_tool_call_ids.insert(id.to_string());
+                                }
+                            }
+                        }
                         msg["tool_calls"] = tc.clone();
                     }
                     if let Some(thinking) = v.get("thinking").and_then(|t| t.as_str()) {
@@ -253,6 +271,7 @@ fn db_messages_to_chat(
             }
             out.push(json!({"role": "assistant", "content": content}));
         } else {
+            pending_tool_call_ids.clear();
             if role == "system" {
                 if let Ok(v) = serde_json::from_str::<Value>(content) {
                     if v.get("_compact_boundary")
@@ -547,6 +566,9 @@ async fn run_agent_loop_inner(
         })
         .unwrap_or_default();
 
+    let mut recent_tool_signatures: std::collections::VecDeque<String> =
+        std::collections::VecDeque::with_capacity(4);
+
     for _iter in 0..MAX_ITERATIONS {
         emit_context_usage(app, session_id, settings, db);
         let auto_compact = settings
@@ -555,7 +577,20 @@ async fn run_agent_loop_inner(
             .unwrap_or(true);
         if auto_compact {
             match run_compact(session_id, settings, db).await {
-                Ok(_) => emit_context_usage(app, session_id, settings, db),
+                Ok(Some(info)) => {
+                    let _ = app.emit(
+                        "agent-loop-summary-injected",
+                        json!({
+                            "session_id": session_id,
+                            "trigger": info.trigger,
+                            "pre_tokens": info.pre_tokens,
+                            "post_tokens": info.post_tokens,
+                            "removed_count": info.removed_count,
+                        }),
+                    );
+                    emit_context_usage(app, session_id, settings, db);
+                }
+                Ok(None) => {}
                 Err(compact_err) => {
                     let _ = app.emit(
                         "agent-loop-warning",
@@ -600,6 +635,42 @@ async fn run_agent_loop_inner(
             let _ = app.emit(
                 "agent-loop-step-done",
                 json!({"session_id": session_id, "message_id": assistant_message_id}),
+            );
+            let _ = app.emit("agent-loop-done", json!({"session_id": session_id}));
+            return Ok(());
+        }
+
+        // Runaway-loop guard: if the LLM emits the exact same tool-call set
+        // (name+arguments) for 3 consecutive iterations, treat it as a stuck
+        // loop. Without this guard a misbehaving model can issue the same
+        // mongo__insert_one until MAX_ITERATIONS is exhausted (see PR #440).
+        let iter_signature: String = {
+            let mut sigs: Vec<String> = acc
+                .tool_calls
+                .iter()
+                .map(|t| format!("{}:{}", t.name, t.arguments))
+                .collect();
+            sigs.sort();
+            sigs.join("|")
+        };
+        recent_tool_signatures.push_back(iter_signature.clone());
+        if recent_tool_signatures.len() > 3 {
+            recent_tool_signatures.pop_front();
+        }
+        if recent_tool_signatures.len() == 3
+            && recent_tool_signatures.iter().all(|s| s == &iter_signature)
+        {
+            let stuck_msg = "Agent stopped: detected the same tool call repeating across 3 iterations with no progress. Try rephrasing your request or check the tool's previous results.";
+            insert_message(
+                db,
+                &assistant_message_id,
+                session_id,
+                "assistant",
+                stuck_msg,
+            )?;
+            let _ = app.emit(
+                "agent-loop-error",
+                json!({"session_id": session_id, "error": stuck_msg}),
             );
             let _ = app.emit("agent-loop-done", json!({"session_id": session_id}));
             return Ok(());
@@ -972,7 +1043,19 @@ pub async fn compact_agent_session(
 ) -> Result<Value, String> {
     let db_state: State<AgentDb> = app.state::<AgentDb>();
     let db: AgentDb = AgentDb(db_state.0.clone());
-    crate::agent::compact::run_compact(&session_id, &settings, &db).await?;
+    let outcome = crate::agent::compact::run_compact(&session_id, &settings, &db).await?;
+    if let Some(info) = outcome {
+        let _ = app.emit(
+            "agent-loop-summary-injected",
+            json!({
+                "session_id": session_id,
+                "trigger": "manual",
+                "pre_tokens": info.pre_tokens,
+                "post_tokens": info.post_tokens,
+                "removed_count": info.removed_count,
+            }),
+        );
+    }
     emit_context_usage(&app, &session_id, &settings, &db);
     let messages = load_messages_for_compact(&db, &session_id)?;
     let spec = resolve_model_spec(&settings);

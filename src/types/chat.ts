@@ -1,8 +1,8 @@
-import type { AgentToolCall, ConfirmationRule } from '@/store/dataStudioStore';
+import type { AgentToolCall, CompactionMarker, ConfirmationRule } from '@/store/dataStudioStore';
 
 export type ChatMessageStatus = 'pending' | 'streaming' | 'sending' | 'done' | 'error';
 
-export type ChatMessageRole = 'user' | 'assistant' | 'tool';
+export type ChatMessageRole = 'user' | 'assistant' | 'tool' | 'system';
 
 export type ChatMessage = {
   id: string;
@@ -15,6 +15,7 @@ export type ChatMessage = {
   thinkingDuration?: number;
   toolCalls?: Array<AgentToolCall>;
   toolCallId?: string;
+  compaction?: CompactionMarker;
 };
 
 export type ChatSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error';

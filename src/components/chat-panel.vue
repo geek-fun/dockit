@@ -30,13 +30,6 @@
           </template>
         </template>
 
-        <div v-if="isLoading" class="loading-indicator">
-          <span class="i-carbon-renew h-4 w-4 animate-spin text-muted-foreground" />
-          <span class="text-xs text-muted-foreground">
-            {{ $t('dataStudio.agent.message.thinkingInProgress') }}
-          </span>
-        </div>
-
         <div v-if="error" class="error-banner">
           <span class="i-carbon-warning h-4 w-4" />
           <span class="text-xs">{{ error }}</span>
@@ -67,6 +60,7 @@
           <div class="toolbar-center">
             <ContextIndicator
               v-if="sessionId"
+              ref="contextIndicatorRef"
               :session-id="sessionId"
               :settings="contextSettings ?? null"
             />
@@ -156,6 +150,7 @@ const emit = defineEmits<{
 }>();
 
 const scrollbarRef = ref<{ viewportElement: HTMLElement | null } | null>(null);
+const contextIndicatorRef = ref<{ refresh: () => Promise<void> } | null>(null);
 const inputText = ref('');
 const modelVerified = ref<boolean | null>(null);
 const stickToBottom = ref(true);
@@ -267,6 +262,13 @@ watch(
   { deep: true },
 );
 
+watch(
+  () => props.contextSettings,
+  (next, prev) => {
+    if (next && !prev) contextIndicatorRef.value?.refresh();
+  },
+);
+
 onMounted(async () => {
   await appStore.fetchLlmSettings();
   const el = getViewport();
@@ -342,13 +344,6 @@ onBeforeUnmount(() => {
 
 .error-settings-btn:hover {
   opacity: 0.75;
-}
-
-.loading-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
 }
 
 .chat-input-area {

@@ -181,12 +181,13 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             required_permission: "delete",
         },
         ToolDefinition {
-            name: "mongo__find",
+             name: "mongo__find",
             description: "Query documents from a MongoDB collection using a filter. Returns matching documents. Use for reading and searching data.",
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." },
                     "collection": { "type": "string", "description": "Collection name to query" },
                     "filter": { "type": "object", "description": "MongoDB query filter, e.g. {\"status\": \"active\"}. Use {} for all documents." },
                     "projection": { "type": "object", "description": "Optional fields to include/exclude, e.g. {\"name\": 1, \"_id\": 0}" },
@@ -205,6 +206,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                 "type": "object",
                 "properties": {
                     "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." },
                     "collection": { "type": "string", "description": "Collection name" },
                     "pipeline": { "type": "array", "description": "Aggregation pipeline stages, e.g. [{\"$match\": {\"status\": \"active\"}}, {\"$group\": {\"_id\": \"$category\", \"count\": {\"$sum\": 1}}}]" }
                 },
@@ -220,6 +222,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                 "type": "object",
                 "properties": {
                     "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." },
                     "collection": { "type": "string", "description": "Collection name" },
                     "document": { "type": "object", "description": "Document to insert" }
                 },
@@ -235,6 +238,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                 "type": "object",
                 "properties": {
                     "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." },
                     "collection": { "type": "string", "description": "Collection name" },
                     "filter": { "type": "object", "description": "Filter to match documents to update" },
                     "update": { "type": "object", "description": "Update operations, e.g. {\"$set\": {\"status\": \"inactive\"}}" },
@@ -252,6 +256,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                 "type": "object",
                 "properties": {
                     "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." },
                     "collection": { "type": "string", "description": "Collection name" },
                     "filter": { "type": "object", "description": "Filter to match documents to delete. Use {} to delete ALL documents." }
                 },
@@ -262,7 +267,21 @@ pub fn all_tools() -> Vec<ToolDefinition> {
         },
         ToolDefinition {
             name: "mongo__list_collections",
-            description: "List all collection names in the connected MongoDB database.",
+            description: "List all collection names in a MongoDB database.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." }
+                },
+                "required": ["connection_id"]
+            }),
+            risk_level: RiskLevel::Safe,
+            required_permission: "read",
+        },
+        ToolDefinition {
+            name: "mongo__list_databases",
+            description: "List all database names on a MongoDB server. Use this first when no database is known so you can pick one for subsequent calls.",
             parameters: json!({
                 "type": "object",
                 "properties": {

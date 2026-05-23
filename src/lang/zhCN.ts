@@ -1374,6 +1374,9 @@ export const zhCN = {
         thinkingInProgress: '思考中…',
         thinkingDone: '已完成思考',
         thinkingDuration: '{s}秒',
+        generating: '生成中…',
+        awaitingConfirm: '等待确认 {tool}…',
+        executingTool: '执行 {tool} 中…',
         toolWrote: '写入了',
         toolRead: '读取了',
         toolExecuted: '执行了命令',
@@ -1383,6 +1386,12 @@ export const zhCN = {
         toolResultSuccess: '结果',
         toolResultError: '失败',
         iterationLabel: '第 {n} 轮',
+        compactionLabel: '对话已压缩（{trigger}）',
+        compactionSummary: '查看摘要',
+        compactionTrigger: {
+          auto: '自动',
+          manual: '手动',
+        },
       },
     },
     history: {

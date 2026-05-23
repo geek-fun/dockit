@@ -1413,6 +1413,9 @@ export const enUS = {
         thinkingInProgress: 'Thinking…',
         thinkingDone: 'Done thinking',
         thinkingDuration: '{s}s',
+        generating: 'Generating…',
+        awaitingConfirm: 'Awaiting approval for {tool}…',
+        executingTool: 'Executing {tool}…',
         toolWrote: 'Wrote',
         toolRead: 'Read',
         toolExecuted: 'Executed',
@@ -1422,6 +1425,12 @@ export const enUS = {
         toolResultSuccess: 'Result',
         toolResultError: 'Failed',
         iterationLabel: 'Loop {n}',
+        compactionLabel: 'Conversation compacted ({trigger})',
+        compactionSummary: 'Show summary',
+        compactionTrigger: {
+          auto: 'auto',
+          manual: 'manual',
+        },
       },
     },
     history: {

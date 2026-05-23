@@ -157,6 +157,8 @@ export const useDataStudioChatAgent = () => {
       setSessionSchema: (_sessionId: string, _schema: string) => undefined,
       clearSession: (sessionId: string) => dataStudioStore.clearSession(sessionId),
       getOrCreateSession: () => dataStudioStore.getOrCreateSession(),
+      reloadSessionMessages: (sessionId: string) =>
+        dataStudioStore.reloadSessionMessages(sessionId),
     },
     contextProvider,
     confirmationRules: confirmationRules as Ref<ConfirmationRule[]>,
@@ -187,6 +189,7 @@ export const useDataStudioChatAgent = () => {
     activeSessionSources,
     messages,
     lastSettings: agent.lastSettings,
+    initContextSettings: agent.initContextSettings,
     sendMessage,
     handleConfirmation: agent.handleConfirmation,
     cancelSession: agent.cancelSession,

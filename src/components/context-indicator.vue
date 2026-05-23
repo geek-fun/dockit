@@ -64,6 +64,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+
 import {
   compactAgentSession,
   getAgentContextUsage,
@@ -177,6 +178,19 @@ watch(
     await refresh();
   },
 );
+
+// One-shot: when settings arrive after mount and usage hasn't been populated yet, fetch.
+// Self-stops once usage is set to avoid permanent reactive overhead.
+const stopSettingsWatch = watch(
+  () => props.settings,
+  async next => {
+    if (!next || usage.value) return;
+    await refresh();
+    if (usage.value) stopSettingsWatch();
+  },
+);
+
+defineExpose({ refresh });
 </script>
 
 <style scoped>

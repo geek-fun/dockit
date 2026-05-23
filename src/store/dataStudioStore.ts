@@ -77,9 +77,16 @@ export type AgentToolCall = {
   requiresConfirmation: boolean;
 };
 
-export type AgentMessageRole = 'user' | 'assistant' | 'tool';
+export type AgentMessageRole = 'user' | 'assistant' | 'tool' | 'system';
 
 export type AgentMessageStatus = 'pending' | 'streaming' | 'done' | 'error';
+
+export type CompactionMarker = {
+  summary: string;
+  preTokens: number;
+  postTokens: number;
+  trigger: 'auto' | 'manual';
+};
 
 export type AgentMessage = {
   id: string;
@@ -91,6 +98,7 @@ export type AgentMessage = {
   toolCalls?: Array<AgentToolCall>;
   toolCallId?: string;
   timestamp: number;
+  compaction?: CompactionMarker;
 };
 
 export type AgentSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error';
@@ -174,6 +182,35 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
     status: 'done' as AgentMessageStatus,
     timestamp: m.created_at,
   };
+
+  if (m.role === 'system') {
+    try {
+      const parsed = JSON.parse(m.content) as {
+        _compact_boundary?: boolean;
+        summary?: string;
+        pre_tokens?: number;
+        post_tokens?: number;
+        trigger?: string;
+      };
+      if (parsed?._compact_boundary) {
+        const trigger: CompactionMarker['trigger'] =
+          parsed.trigger === 'manual' ? 'manual' : 'auto';
+        return {
+          ...base,
+          content: '',
+          compaction: {
+            summary: parsed.summary ?? '',
+            preTokens: parsed.pre_tokens ?? 0,
+            postTokens: parsed.post_tokens ?? 0,
+            trigger,
+          },
+        };
+      }
+    } catch {
+      return { ...base, content: m.content };
+    }
+    return { ...base, content: m.content };
+  }
 
   if (m.role === 'tool') {
     try {
@@ -595,6 +632,16 @@ export const useDataStudioStore = defineStore('dataStudio', {
       if (this.sessionMeta[sessionId]) {
         this.sessionMeta[sessionId].modelId = modelId;
       }
+    },
+
+    async reloadSessionMessages(sessionId: string) {
+      const backendMessages = await loadSessionMessages(sessionId).catch(
+        () => [] as BackendAgentMessage[],
+      );
+      const messages: Array<AgentMessage> = backendMessages.map(hydrateMessage);
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, messages } : s,
+      );
     },
 
     // ── Confirmation rules ───────────────────────────────────────────────────

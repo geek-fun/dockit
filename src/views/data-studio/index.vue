@@ -160,11 +160,11 @@
                           <span>{{ $t('dataStudio.modifySource.modeDefault') }}</span>
                         </button>
                         <button
-                          :class="['mode-btn', addSourceMode === 'Auto' && 'mode-btn--active']"
-                          @click="addSourceMode = 'Auto'"
+                          :class="['mode-btn', addSourceMode === 'Inherit' && 'mode-btn--active']"
+                          @click="addSourceMode = 'Inherit'"
                         >
-                          <span class="i-carbon-unlocked h-3.5 w-3.5" />
-                          <span>{{ $t('dataStudio.modifySource.modeFull') }}</span>
+                          <span class="i-carbon-link h-3.5 w-3.5" />
+                          <span>{{ $t('dataStudio.modifySource.inheritTitle') }}</span>
                         </button>
                       </div>
                     </div>
@@ -289,12 +289,14 @@ import dynamoDB from '@/assets/svg/dynamoDB.svg?url';
 import elasticsearch from '@/assets/svg/elasticsearch.svg?url';
 import opensearch from '@/assets/svg/db-opensearch.svg?url';
 import easysearch from '@/assets/svg/easysearch.svg?url';
+import mongodb from '@/assets/svg/mongodb.svg?url';
 
 const AGENT_SUPPORTED_TYPES = new Set([
   DatabaseType.ELASTICSEARCH,
   DatabaseType.OPENSEARCH,
   DatabaseType.EASYSEARCH,
   DatabaseType.DYNAMODB,
+  DatabaseType.MONGODB,
 ]);
 
 const appStore = useAppStore();
@@ -316,6 +318,7 @@ const {
   clearChat,
   activeSessionSources,
   lastSettings,
+  initContextSettings,
 } = useDataStudioChatAgent();
 
 const handleConfirmation = (
@@ -334,14 +337,14 @@ const modelVerified = ref<boolean | null>(null);
 const addSourceOpen = ref(false);
 const addSourceQuery = ref('');
 const addSourceSelectedId = ref('');
-const addSourceMode = ref<'Ask' | 'Auto'>('Ask');
+const addSourceMode = ref<'Ask' | 'Inherit'>('Inherit');
 const addSourcePickerRef = ref<HTMLElement | null>(null);
 
 const resetAddSourceState = () => {
   addSourceOpen.value = false;
   addSourceQuery.value = '';
   addSourceSelectedId.value = '';
-  addSourceMode.value = 'Ask';
+  addSourceMode.value = 'Inherit';
 };
 
 onClickOutside(addSourcePickerRef, resetAddSourceState);
@@ -375,6 +378,7 @@ const getConnectionIcon = (type: string) => {
   if (type === DatabaseType.DYNAMODB) return dynamoDB;
   if (type === DatabaseType.OPENSEARCH) return opensearch;
   if (type === DatabaseType.EASYSEARCH) return easysearch;
+  if (type === DatabaseType.MONGODB) return mongodb;
   return elasticsearch;
 };
 
@@ -383,6 +387,7 @@ const getConnectionMeta = (conn: Connection) => {
   if (conn.type === DatabaseType.OPENSEARCH) return `OpenSearch • ${conn.host}`;
   if (conn.type === DatabaseType.EASYSEARCH) return `EasySearch • ${conn.host}`;
   if (conn.type === DatabaseType.DYNAMODB) return `DynamoDB • ${conn.region}`;
+  if (conn.type === DatabaseType.MONGODB) return `MongoDB • ${conn.host}`;
   return conn.type;
 };
 
@@ -394,10 +399,6 @@ const confirmAddSource = async () => {
   if (!addSourceSelectedId.value) return;
   const conn = connections.value.find(c => String(c.id) === addSourceSelectedId.value);
   if (!conn || conn.id === undefined) return;
-  const permissions =
-    addSourceMode.value === 'Auto'
-      ? { read: true, create: true, update: true, delete: true }
-      : { read: true, create: false, update: false, delete: false };
   const newSource = dataStudioStore.addDatabaseSourceFromConnection({
     connectionId: Number(conn.id),
     name: conn.name,
@@ -407,12 +408,15 @@ const confirmAddSource = async () => {
       | 'EASYSEARCH'
       | 'DYNAMODB'
       | 'MONGODB',
-    permissions,
+    permissions: { read: true, create: false, update: false, delete: false },
   });
   if (!dataStudioStore.activeSession) {
     await dataStudioStore.getOrCreateSession([]);
   }
   dataStudioStore.attachSourceToActiveSession(newSource);
+  if (addSourceMode.value === 'Ask' && dataStudioStore.activeSession) {
+    dataStudioStore.updateSessionSourceMode(dataStudioStore.activeSession.id, newSource.sourceId, 'custom');
+  }
   resetAddSourceState();
 };
 
@@ -490,6 +494,7 @@ const openModifyModal = (index: number) => {
 onMounted(async () => {
   await Promise.all([dataStudioStore.loadSessions(), connectionStore.fetchConnections()]);
   document.addEventListener('click', closeOpenMenus);
+  await initContextSettings();
 });
 
 onBeforeUnmount(() => {

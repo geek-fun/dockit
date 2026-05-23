@@ -4,6 +4,7 @@ use futures::TryStreamExt;
 use mongodb::bson::{doc, Bson, Document};
 use mongodb::{options::ClientOptions, Client as MongoClient};
 use serde_json::{json, Value};
+use url::form_urlencoded;
 
 use crate::common::http_client::create_http_client;
 
@@ -34,16 +35,7 @@ fn validate_index_name(name: &str, allow_wildcard: bool) -> Result<(), String> {
 }
 
 fn url_encode_segment(segment: &str) -> String {
-    segment
-        .bytes()
-        .flat_map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => vec![b as char]
-                .into_iter()
-                .map(|c| c.to_string())
-                .collect::<Vec<_>>(),
-            _ => vec![format!("%{:02X}", b)],
-        })
-        .collect()
+    form_urlencoded::byte_serialize(segment.as_bytes()).collect()
 }
 
 fn truncate_tool_output(output: String) -> String {
@@ -530,7 +522,7 @@ fn build_mongo_uri(config: &Value) -> Result<String, String> {
         };
         Ok(format!(
             "mongodb://{}:{}@{}:{}{}{}",
-            username, password, host, port, db_path, query
+            url_encode_segment(username), url_encode_segment(password), host, port, db_path, query
         ))
     } else {
         let query = if params.is_empty() {
@@ -589,7 +581,27 @@ async fn execute_mongo_tool(
     args: &Value,
     config: &Value,
 ) -> Result<String, String> {
-    let (client, db_name) = create_mongo_client_from_config(config).await?;
+    let (client, config_db_name) = create_mongo_client_from_config(config).await?;
+
+    // list_databases is the only tool that does not require a target database.
+    if tool_name == "mongo__list_databases" {
+        let names = client
+            .list_database_names()
+            .await
+            .map_err(|e| format!("Failed to list databases: {}", e))?;
+        let result = json!({ "databases": names });
+        return Ok(truncate_tool_output(result.to_string()));
+    }
+
+    let db_name = args
+        .get("database")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or(&config_db_name)
+        .to_string();
+    if db_name.is_empty() {
+        return Err("No database specified. Pass a \"database\" argument or set a default database in the connection settings.".to_string());
+    }
 
     match tool_name {
         "mongo__list_collections" => {

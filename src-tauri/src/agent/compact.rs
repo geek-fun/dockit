@@ -25,6 +25,14 @@ pub struct CompactDecision {
     pub should_compact: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct CompactionInfo {
+    pub trigger: String,
+    pub pre_tokens: usize,
+    pub post_tokens: usize,
+    pub removed_count: usize,
+}
+
 pub fn evaluate(messages: &[StoredMessage], spec: &ModelSpec) -> CompactDecision {
     let used: usize = messages
         .iter()
@@ -218,12 +226,12 @@ pub async fn run_compact(
     session_id: &str,
     settings: &Value,
     db: &AgentDb,
-) -> Result<Option<CompactDecision>, String> {
+) -> Result<Option<CompactionInfo>, String> {
     let mut messages = load_messages_for_compact(db, session_id)?;
     let spec = resolve_model_spec(settings);
     let decision = evaluate(&messages, &spec);
     if !decision.should_compact {
-        return Ok(Some(decision));
+        return Ok(None);
     }
 
     let _ = microcompact(&mut messages);
@@ -236,7 +244,12 @@ pub async fn run_compact(
             &ids_to_remove,
             &build_boundary_payload("[microcompact: elided old tool bodies]", 0, 0, "auto"),
         )?;
-        return Ok(Some(post_micro));
+        return Ok(Some(CompactionInfo {
+            trigger: "auto".to_string(),
+            pre_tokens: decision.used_tokens,
+            post_tokens: post_micro.used_tokens,
+            removed_count: 0,
+        }));
     }
 
     let proposed = target_split_keeping_pairs(&messages, KEEP_LAST_PAIRS);
@@ -258,8 +271,13 @@ pub async fn run_compact(
     let summary = summarize_with_llm(to_summarize, settings).await?;
     let payload = build_boundary_payload(&summary, pre_tokens, post_tokens, "auto");
     let ids_to_remove: Vec<String> = to_summarize.iter().map(|m| m.id.clone()).collect();
+    let removed_count = ids_to_remove.len();
     replace_messages_with_summary(db, session_id, &ids_to_remove, &payload)?;
 
-    let post = evaluate(&load_messages_for_compact(db, session_id)?, &spec);
-    Ok(Some(post))
+    Ok(Some(CompactionInfo {
+        trigger: "auto".to_string(),
+        pre_tokens,
+        post_tokens,
+        removed_count,
+    }))
 }
