@@ -185,6 +185,22 @@ export type MongoShardStatusResult = {
   error?: string;
 };
 
+export type MongoFindDocumentsResult = {
+  success: boolean;
+  documents?: Record<string, unknown>[];
+  total?: number;
+  error?: string;
+};
+
+export type MongoWriteResult = {
+  success: boolean;
+  matched_count?: number;
+  modified_count?: number;
+  deleted_count?: number;
+  inserted_id?: string;
+  error?: string;
+};
+
 const buildConfig = (con: MongoDBConnection) => ({
   host: con.host,
   port: con.port,
@@ -390,6 +406,108 @@ export const mongoApi = {
         success: false,
         error: e instanceof Error ? e.message : String(e),
       };
+    }
+  },
+
+  findDocuments: async (
+    con: MongoDBConnection,
+    collection: string,
+    filter?: string,
+    sort?: string,
+    skip?: number,
+    limit?: number,
+  ): Promise<MongoFindDocumentsResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoFindDocumentsResult>('mongo_find_documents', {
+        config,
+        collection,
+        filter,
+        sort,
+        skip,
+        limit,
+      });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  },
+
+  countDocuments: async (
+    con: MongoDBConnection,
+    collection: string,
+    filter?: string,
+  ): Promise<number> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<number>('mongo_count_documents', { config, collection, filter });
+    } catch {
+      return -1;
+    }
+  },
+
+  insertDocument: async (
+    con: MongoDBConnection,
+    collection: string,
+    document: string,
+  ): Promise<MongoWriteResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoWriteResult>('mongo_insert_document', {
+        config,
+        collection,
+        document,
+      });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  },
+
+  updateDocument: async (
+    con: MongoDBConnection,
+    collection: string,
+    id: string,
+    document: string,
+  ): Promise<MongoWriteResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoWriteResult>('mongo_update_document', {
+        config,
+        collection,
+        id,
+        document,
+      });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  },
+
+  deleteDocument: async (
+    con: MongoDBConnection,
+    collection: string,
+    id: string,
+  ): Promise<MongoWriteResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoWriteResult>('mongo_delete_document', { config, collection, id });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  },
+
+  deleteDocuments: async (
+    con: MongoDBConnection,
+    collection: string,
+    filter: string,
+  ): Promise<MongoWriteResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoWriteResult>('mongo_delete_documents', {
+        config,
+        collection,
+        filter,
+      });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 };

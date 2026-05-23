@@ -1719,3 +1719,245 @@ pub async fn mongo_shard_status(config: MongoConnectionConfig) -> Result<MongoSh
         error: None,
     })
 }
+
+// ==================== Document CRUD Commands ====================
+
+#[derive(Debug, Serialize)]
+pub struct MongoFindDocumentsResult {
+    pub success: bool,
+    pub documents: Option<Vec<Value>>,
+    pub total: Option<i64>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoDocumentResult {
+    pub success: bool,
+    pub document: Option<Value>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoWriteResult {
+    pub success: bool,
+    pub matched_count: Option<i64>,
+    pub modified_count: Option<i64>,
+    pub deleted_count: Option<i64>,
+    pub inserted_id: Option<String>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_find_documents(
+    config: MongoConnectionConfig,
+    collection: String,
+    filter: Option<String>,
+    sort: Option<String>,
+    skip: Option<u64>,
+    limit: Option<i64>,
+) -> Result<MongoFindDocumentsResult, String> {
+    let client = build_client(&config).await?;
+    let db_name = config.database.ok_or("Database name is required")?;
+    let db = client.database(&db_name);
+    let coll = db.collection::<Document>(&collection);
+
+    let filter_doc = match filter.as_deref() {
+        Some(f) if !f.trim().is_empty() => parse_json_arg(f).and_then(json_to_bson_doc)?,
+        _ => doc! {},
+    };
+
+    let total = coll.count_documents(filter_doc.clone()).await
+        .map(|c| c as i64)
+        .unwrap_or(-1);
+
+    let mut opts = mongodb::options::FindOptions::default();
+    opts.skip = skip;
+    opts.limit = Some(limit.unwrap_or(50));
+
+    if let Some(sort_str) = sort.as_deref() {
+        if !sort_str.trim().is_empty() {
+            if let Ok(sort_doc) = parse_json_arg(sort_str).and_then(json_to_bson_doc) {
+                opts.sort = Some(sort_doc);
+            }
+        }
+    }
+
+    let mut cursor = coll.find(filter_doc).with_options(opts).await
+        .map_err(|e| e.to_string())?;
+
+    let mut documents: Vec<Value> = vec![];
+    while let Some(doc) = cursor.try_next().await.map_err(|e| e.to_string())? {
+        documents.push(bson_to_json(&Bson::Document(doc)));
+    }
+
+    Ok(MongoFindDocumentsResult {
+        success: true,
+        documents: Some(documents),
+        total: Some(total),
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_count_documents(
+    config: MongoConnectionConfig,
+    collection: String,
+    filter: Option<String>,
+) -> Result<i64, String> {
+    let client = build_client(&config).await?;
+    let db_name = config.database.ok_or("Database name is required")?;
+    let db = client.database(&db_name);
+    let coll = db.collection::<Document>(&collection);
+
+    let filter_doc = match filter.as_deref() {
+        Some(f) if !f.trim().is_empty() => parse_json_arg(f).and_then(json_to_bson_doc)?,
+        _ => doc! {},
+    };
+
+    let count = coll.count_documents(filter_doc).await.map_err(|e| e.to_string())?;
+    Ok(count as i64)
+}
+
+#[tauri::command]
+pub async fn mongo_insert_document(
+    config: MongoConnectionConfig,
+    collection: String,
+    document: String,
+) -> Result<MongoWriteResult, String> {
+    let client = build_client(&config).await?;
+    let db_name = config.database.ok_or("Database name is required")?;
+    let db = client.database(&db_name);
+    let coll = db.collection::<Document>(&collection);
+
+    let doc = parse_json_arg(&document).and_then(json_to_bson_doc)?;
+
+    match coll.insert_one(doc).await {
+        Ok(result) => Ok(MongoWriteResult {
+            success: true,
+            matched_count: None,
+            modified_count: None,
+            deleted_count: None,
+            inserted_id: Some(result.inserted_id.to_string()),
+            error: None,
+        }),
+        Err(e) => Ok(MongoWriteResult {
+            success: false,
+            matched_count: None,
+            modified_count: None,
+            deleted_count: None,
+            inserted_id: None,
+            error: Some(e.to_string()),
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn mongo_update_document(
+    config: MongoConnectionConfig,
+    collection: String,
+    id: String,
+    document: String,
+) -> Result<MongoWriteResult, String> {
+    let client = build_client(&config).await?;
+    let db_name = config.database.ok_or("Database name is required")?;
+    let db = client.database(&db_name);
+    let coll = db.collection::<Document>(&collection);
+
+    let filter = if let Ok(oid) = ObjectId::parse_str(&id) {
+        doc! { "_id": oid }
+    } else {
+        doc! { "_id": &id }
+    };
+
+    let new_doc = parse_json_arg(&document).and_then(json_to_bson_doc)?;
+    let update = doc! { "$set": new_doc };
+
+    match coll.update_one(filter, update).await {
+        Ok(result) => Ok(MongoWriteResult {
+            success: true,
+            matched_count: Some(result.matched_count as i64),
+            modified_count: Some(result.modified_count as i64),
+            deleted_count: None,
+            inserted_id: None,
+            error: None,
+        }),
+        Err(e) => Ok(MongoWriteResult {
+            success: false,
+            matched_count: None,
+            modified_count: None,
+            deleted_count: None,
+            inserted_id: None,
+            error: Some(e.to_string()),
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn mongo_delete_document(
+    config: MongoConnectionConfig,
+    collection: String,
+    id: String,
+) -> Result<MongoWriteResult, String> {
+    let client = build_client(&config).await?;
+    let db_name = config.database.ok_or("Database name is required")?;
+    let db = client.database(&db_name);
+    let coll = db.collection::<Document>(&collection);
+
+    let filter = if let Ok(oid) = ObjectId::parse_str(&id) {
+        doc! { "_id": oid }
+    } else {
+        doc! { "_id": &id }
+    };
+
+    match coll.delete_one(filter).await {
+        Ok(result) => Ok(MongoWriteResult {
+            success: true,
+            matched_count: None,
+            modified_count: None,
+            deleted_count: Some(result.deleted_count as i64),
+            inserted_id: None,
+            error: None,
+        }),
+        Err(e) => Ok(MongoWriteResult {
+            success: false,
+            matched_count: None,
+            modified_count: None,
+            deleted_count: None,
+            inserted_id: None,
+            error: Some(e.to_string()),
+        }),
+    }
+}
+
+#[tauri::command]
+pub async fn mongo_delete_documents(
+    config: MongoConnectionConfig,
+    collection: String,
+    filter: String,
+) -> Result<MongoWriteResult, String> {
+    let client = build_client(&config).await?;
+    let db_name = config.database.ok_or("Database name is required")?;
+    let db = client.database(&db_name);
+    let coll = db.collection::<Document>(&collection);
+
+    let filter_doc = parse_json_arg(&filter).and_then(json_to_bson_doc)?;
+
+    match coll.delete_many(filter_doc).await {
+        Ok(result) => Ok(MongoWriteResult {
+            success: true,
+            matched_count: None,
+            modified_count: None,
+            deleted_count: Some(result.deleted_count as i64),
+            inserted_id: None,
+            error: None,
+        }),
+        Err(e) => Ok(MongoWriteResult {
+            success: false,
+            matched_count: None,
+            modified_count: None,
+            deleted_count: None,
+            inserted_id: None,
+            error: Some(e.to_string()),
+        }),
+    }
+}

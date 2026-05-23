@@ -33,10 +33,11 @@ use dynamo_client::{
 use fetch_client::fetch_api;
 use file_api::{get_file_info, read_file_batch, stream_file_lines};
 use mongo_client::{
-    mongo_collection_stats, mongo_create_collection, mongo_create_database, mongo_database_stats,
-    mongo_drop_collection, mongo_drop_database, mongo_execute_query, mongo_list_collections,
-    mongo_list_databases, mongo_test_connection, mongo_server_status, mongo_repl_set_status,
-    mongo_shard_status,
+    mongo_collection_stats, mongo_count_documents, mongo_create_collection, mongo_create_database,
+    mongo_database_stats, mongo_delete_document, mongo_delete_documents, mongo_drop_collection,
+    mongo_drop_database, mongo_execute_query, mongo_find_documents, mongo_insert_document,
+    mongo_list_collections, mongo_list_databases, mongo_repl_set_status, mongo_server_status,
+    mongo_shard_status, mongo_test_connection, mongo_update_document,
 };
 use tauri::Emitter;
 
@@ -118,6 +119,12 @@ fn main() {
             mongo_server_status,
             mongo_repl_set_status,
             mongo_shard_status,
+            mongo_find_documents,
+            mongo_count_documents,
+            mongo_insert_document,
+            mongo_update_document,
+            mongo_delete_document,
+            mongo_delete_documents,
             run_agent_step,
             validate_llm_config,
             list_llm_models,

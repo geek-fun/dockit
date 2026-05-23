@@ -6,7 +6,20 @@
       </div>
     </template>
     <template #2>
-      <DisplayEditor id="mongo-display-editor" ref="displayRef" />
+      <ResultPanel
+        v-if="resultPanelVisible"
+        :documents="resultDocuments"
+        :total="resultTotal"
+        :query-time="resultQueryTime"
+        :collection="resultCollection"
+        :error-message="resultError"
+        :has-data="resultHasData"
+        :executed="resultExecuted"
+        :loading="resultLoading"
+        class="result-panel-area"
+        @close="handleResultClose"
+        @refresh="executeCurrentStatement"
+      />
     </template>
   </SplitPane>
 </template>
@@ -27,7 +40,7 @@ import {
   useTabStore,
 } from '../../../store';
 import { useLang } from '../../../lang';
-import DisplayEditor from '../es-editor/display-editor.vue';
+import ResultPanel from './components/result-panel.vue';
 import {
   Editor,
   monaco,
@@ -63,9 +76,19 @@ const activeConnection = computed(
 );
 
 const queryEditorRef = ref();
-const displayRef = ref<InstanceType<typeof DisplayEditor>>();
 let queryEditor: Editor | null = null;
 let cleanupFileListener: (() => void) | null = null;
+
+// Result panel state
+const resultPanelVisible = ref(false);
+const resultDocuments = ref<Record<string, unknown>[]>([]);
+const resultTotal = ref<number | undefined>(undefined);
+const resultQueryTime = ref<number | undefined>(undefined);
+const resultCollection = ref<string | undefined>(undefined);
+const resultError = ref<string | null>(null);
+const resultHasData = ref(false);
+const resultExecuted = ref(false);
+const resultLoading = ref(false);
 
 const debouncedValidate = createDebouncedValidator((model: monaco.editor.ITextModel) => {
   validateMongoModel(model);
@@ -94,7 +117,7 @@ watch(
   () => {
     const saved = activePanel.value.queryResult;
     if (saved !== undefined) {
-      showDisplayEditor(saved);
+      showResultPanel(saved as unknown);
     }
   },
 );
@@ -122,9 +145,44 @@ watch(insertBuffer, () => {
   }
 });
 
-const showDisplayEditor = (content: unknown, format?: string) => {
+const showResultPanel = (
+  content: unknown,
+  error?: string,
+  queryTime?: number,
+  collection?: string,
+) => {
   queryEditorSize.value = queryEditorSize.value === 1 ? 0.5 : queryEditorSize.value;
-  displayRef.value?.display(content, format);
+  resultPanelVisible.value = true;
+  resultExecuted.value = true;
+  resultError.value = error ?? null;
+  resultQueryTime.value = queryTime;
+  resultCollection.value = collection;
+
+  if (error) {
+    resultDocuments.value = [];
+    resultTotal.value = undefined;
+    resultHasData.value = false;
+    return;
+  }
+
+  if (Array.isArray(content)) {
+    resultDocuments.value = content as Record<string, unknown>[];
+    resultTotal.value = (content as Record<string, unknown>[]).length;
+    resultHasData.value = true;
+  } else if (content !== null && content !== undefined && content !== '') {
+    resultDocuments.value = [{ result: content }];
+    resultTotal.value = 1;
+    resultHasData.value = true;
+  } else {
+    resultDocuments.value = [];
+    resultTotal.value = 0;
+    resultHasData.value = false;
+  }
+};
+
+const handleResultClose = () => {
+  resultPanelVisible.value = false;
+  queryEditorSize.value = 1;
 };
 
 const executeCurrentStatement = async () => {
@@ -154,10 +212,14 @@ const executeCurrentStatement = async () => {
   }
 
   try {
-    showDisplayEditor('');
+    resultLoading.value = true;
+    resultPanelVisible.value = true;
+    queryEditorSize.value = queryEditorSize.value === 1 ? 0.5 : queryEditorSize.value;
     loadingBar.start();
 
+    const startTime = Date.now();
     const result = await mongoApi.executeQuery(activeConnection.value, code);
+    const queryTime = Date.now() - startTime;
 
     if (!result.success) {
       throw new Error(result.error || 'Query execution failed');
@@ -172,16 +234,20 @@ const executeCurrentStatement = async () => {
       connectionId: activeConnection.value.id,
     });
 
-    showDisplayEditor(result.data);
+    const collection = activePanel.value.activeTable ?? undefined;
+    showResultPanel(result.data, undefined, queryTime, collection);
     saveQueryResult(result.data);
     loadingBar.finish();
   } catch (_err) {
     loadingBar.error();
     const errorMessage = _err instanceof Error ? _err.message : String(_err);
+    showResultPanel(null, errorMessage);
     message.error(`${lang.t('editor.mongo.error')}: ${errorMessage}`, {
       closable: true,
       keepAliveOnHover: true,
     });
+  } finally {
+    resultLoading.value = false;
   }
 };
 
@@ -300,7 +366,6 @@ onUnmounted(() => {
     clearMongoDynamicOptions(model.uri.toString());
   }
   queryEditor?.dispose();
-  displayRef?.value?.dispose();
 });
 
 defineExpose({
@@ -326,7 +391,7 @@ defineExpose({
   height: 100%;
 }
 
-.editor #mongo-display-editor {
+.result-panel-area {
   width: 100%;
   height: 100%;
   border-left: 1px solid hsl(var(--border));
