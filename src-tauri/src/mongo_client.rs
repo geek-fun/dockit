@@ -192,6 +192,24 @@ fn bson_to_json(bson: &Bson) -> Value {
     }
 }
 
+fn doc_get_i64(doc: &Document, key: &str) -> i64 {
+    match doc.get(key) {
+        Some(Bson::Int64(v)) => *v,
+        Some(Bson::Int32(v)) => *v as i64,
+        Some(Bson::Double(v)) => *v as i64,
+        _ => 0,
+    }
+}
+
+fn doc_get_i64_opt(doc: &Document, key: &str) -> Option<i64> {
+    match doc.get(key) {
+        Some(Bson::Int64(v)) => Some(*v),
+        Some(Bson::Int32(v)) => Some(*v as i64),
+        Some(Bson::Double(v)) => Some(*v as i64),
+        _ => None,
+    }
+}
+
 fn doc_to_json(d: Document) -> Value {
     let map: serde_json::Map<String, Value> =
         d.into_iter().map(|(k, v)| (k, bson_to_json(&v))).collect();
@@ -1049,7 +1067,7 @@ pub async fn mongo_list_databases(config: MongoConnectionConfig) -> Result<Mongo
             .filter_map(|bson| {
                 if let Bson::Document(d) = bson {
                     let name = d.get_str("name").unwrap_or("unknown").to_string();
-                    let size_on_disk = d.get_i64("sizeOnDisk").ok();
+                    let size_on_disk = doc_get_i64_opt(d, "sizeOnDisk");
                     let empty = d.get_bool("empty").ok();
                     // collections count is not directly provided by listDatabases
                     // we'll fetch it separately if needed, or set to None
@@ -1144,12 +1162,12 @@ pub async fn mongo_collection_stats(
 
     let stats = MongoCollectionStats {
         ns: result.get_str("ns").unwrap_or(&format!("{}.{}", database, collection)).to_string(),
-        count: result.get_i64("count").unwrap_or(0),
-        size: result.get_i64("size").unwrap_or(0),
-        avg_obj_size: result.get_i64("avgObjSize").ok(),
-        storage_size: result.get_i64("storageSize").unwrap_or(0),
-        nindexes: result.get_i64("nindexes").unwrap_or(0),
-        total_index_size: result.get_i64("totalIndexSize").unwrap_or(0),
+        count: doc_get_i64(&result, "count"),
+        size: doc_get_i64(&result, "size"),
+        avg_obj_size: doc_get_i64_opt(&result, "avgObjSize"),
+        storage_size: doc_get_i64(&result, "storageSize"),
+        nindexes: doc_get_i64(&result, "nindexes"),
+        total_index_size: doc_get_i64(&result, "totalIndexSize"),
         index_sizes: match result.get("indexSizes") {
             Some(Bson::Document(d)) => {
                 let map: serde_json::Map<String, Value> = d
@@ -1161,8 +1179,8 @@ pub async fn mongo_collection_stats(
             _ => None,
         },
         capped: result.get_bool("capped").ok(),
-        max: result.get_i64("max").ok(),
-        max_size: result.get_i64("maxSize").ok(),
+        max: doc_get_i64_opt(&result, "max"),
+        max_size: doc_get_i64_opt(&result, "maxSize"),
     };
 
     Ok(MongoCollectionStatsResult {
@@ -1193,15 +1211,15 @@ pub async fn mongo_database_stats(
 
     let stats = MongoDatabaseStats {
         db: result.get_str("db").unwrap_or(&database).to_string(),
-        collections: result.get_i64("collections").unwrap_or(0),
-        objects: result.get_i64("objects").unwrap_or(0),
-        avg_obj_size: result.get_i64("avgObjSize").ok(),
-        data_size: result.get_i64("dataSize").unwrap_or(0),
-        storage_size: result.get_i64("storageSize").unwrap_or(0),
-        indexes: result.get_i64("indexes").unwrap_or(0),
-        index_size: result.get_i64("indexSize").unwrap_or(0),
-        total_size: result.get_i64("totalSize").unwrap_or(0),
-        scale_factor: result.get_i64("scaleFactor").ok(),
+        collections: doc_get_i64(&result, "collections"),
+        objects: doc_get_i64(&result, "objects"),
+        avg_obj_size: doc_get_i64_opt(&result, "avgObjSize"),
+        data_size: doc_get_i64(&result, "dataSize"),
+        storage_size: doc_get_i64(&result, "storageSize"),
+        indexes: doc_get_i64(&result, "indexes"),
+        index_size: doc_get_i64(&result, "indexSize"),
+        total_size: doc_get_i64(&result, "totalSize"),
+        scale_factor: doc_get_i64_opt(&result, "scaleFactor"),
     };
 
     Ok(MongoDatabaseStatsResult {
