@@ -77,9 +77,9 @@ const initEditor = () => {
     language: 'json',
     automaticLayout: true,
     scrollBeyondLastLine: false,
+    ...options,
     minimap: { enabled: false },
     lineNumbers: 'on',
-    ...options,
   });
 };
 

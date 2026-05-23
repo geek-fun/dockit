@@ -347,7 +347,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onUnmounted, nextTick, defineComponent, h } from 'vue';
+import {
+  computed,
+  ref,
+  watch,
+  onUnmounted,
+  nextTick,
+  defineComponent,
+  h,
+  markRaw,
+  type Component,
+} from 'vue';
 import { storeToRefs } from 'pinia';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -542,8 +552,8 @@ const initJsonEditor = () => {
     automaticLayout: true,
     readOnly: true,
     scrollBeyondLastLine: false,
-    minimap: { enabled: false },
     ...options,
+    minimap: { enabled: false },
   });
 };
 
@@ -626,62 +636,64 @@ const handleDeleteConfirm = async () => {
 };
 
 // TreeNode inline component
-const TreeNode = defineComponent({
-  name: 'TreeNode',
-  props: {
-    fieldKey: { type: String, required: true },
-    value: { type: [String, Number, Boolean, Object, Array], default: null },
-    depth: { type: Number, default: 0 },
-  },
-  setup(nodeProps) {
-    const expanded = ref(false);
-    const isObject = computed(
-      () => nodeProps.value !== null && typeof nodeProps.value === 'object',
-    );
-    const indent = computed(() => nodeProps.depth * 16);
+const TreeNode: Component = markRaw(
+  defineComponent({
+    name: 'TreeNode',
+    props: {
+      fieldKey: { type: String, required: true },
+      value: { type: [String, Number, Boolean, Object, Array], default: null },
+      depth: { type: Number, default: 0 },
+    },
+    setup(nodeProps) {
+      const expanded = ref(false);
+      const isObject = computed(
+        () => nodeProps.value !== null && typeof nodeProps.value === 'object',
+      );
+      const indent = computed(() => nodeProps.depth * 16);
 
-    return () => {
-      const children = isObject.value
-        ? Object.entries(nodeProps.value as Record<string, unknown>).map(([k, v]) =>
-            h(TreeNode, { fieldKey: k, value: v, depth: nodeProps.depth + 1 }),
-          )
-        : [];
+      return (): ReturnType<typeof h> => {
+        const children: ReturnType<typeof h>[] = isObject.value
+          ? Object.entries(nodeProps.value as Record<string, unknown>).map(([k, v]) =>
+              h(TreeNode, { fieldKey: k, value: v, depth: nodeProps.depth + 1 }),
+            )
+          : [];
 
-      return h('div', { class: 'tree-node', style: { paddingLeft: `${indent.value}px` } }, [
-        h(
-          'div',
-          {
-            class: 'tree-node-row',
-            onClick: () => isObject.value && (expanded.value = !expanded.value),
-          },
-          [
-            isObject.value
-              ? h('span', {
-                  class: expanded.value
-                    ? 'i-carbon-chevron-down h-3 w-3 mr-1'
-                    : 'i-carbon-chevron-right h-3 w-3 mr-1',
-                })
-              : h('span', { class: 'w-4 inline-block' }),
-            h('span', { class: 'tree-key' }, nodeProps.fieldKey),
-            h('span', { class: 'tree-colon' }, ': '),
-            !isObject.value || !expanded.value
-              ? h(
-                  'span',
-                  { class: `tree-value type-${typeof nodeProps.value}` },
-                  isObject.value
-                    ? Array.isArray(nodeProps.value)
-                      ? `Array(${(nodeProps.value as unknown[]).length})`
-                      : `{…}`
-                    : String(nodeProps.value ?? 'null'),
-                )
-              : null,
-          ],
-        ),
-        expanded.value && isObject.value ? h('div', { class: 'tree-children' }, children) : null,
-      ]);
-    };
-  },
-});
+        return h('div', { class: 'tree-node', style: { paddingLeft: `${indent.value}px` } }, [
+          h(
+            'div',
+            {
+              class: 'tree-node-row',
+              onClick: () => isObject.value && (expanded.value = !expanded.value),
+            },
+            [
+              isObject.value
+                ? h('span', {
+                    class: expanded.value
+                      ? 'i-carbon-chevron-down h-3 w-3 mr-1'
+                      : 'i-carbon-chevron-right h-3 w-3 mr-1',
+                  })
+                : h('span', { class: 'w-4 inline-block' }),
+              h('span', { class: 'tree-key' }, nodeProps.fieldKey),
+              h('span', { class: 'tree-colon' }, ': '),
+              !isObject.value || !expanded.value
+                ? h(
+                    'span',
+                    { class: `tree-value type-${typeof nodeProps.value}` },
+                    isObject.value
+                      ? Array.isArray(nodeProps.value)
+                        ? `Array(${(nodeProps.value as unknown[]).length})`
+                        : `{…}`
+                      : String(nodeProps.value ?? 'null'),
+                  )
+                : null,
+            ],
+          ),
+          expanded.value && isObject.value ? h('div', { class: 'tree-children' }, children) : null,
+        ]);
+      };
+    },
+  }),
+);
 </script>
 
 <style scoped>
