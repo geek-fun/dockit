@@ -109,10 +109,15 @@ const handleOpenChange = (open: boolean) => {
 const handleSubmit = () => {
   const value = editorInstance?.getValue() ?? '';
   errorMessage.value = '';
+  let parsed: unknown;
   try {
-    JSON.parse(value);
+    parsed = JSON.parse(value);
   } catch {
     errorMessage.value = lang.t('dialogOps.invalidJson');
+    return;
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    errorMessage.value = lang.t('editor.mongo.invalidJsonObject');
     return;
   }
   emit('insert', value);

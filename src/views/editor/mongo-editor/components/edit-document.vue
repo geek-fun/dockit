@@ -119,16 +119,21 @@ const handleOpenChange = (open: boolean) => {
 const handleSubmit = () => {
   const value = editorInstance?.getValue() ?? '';
   errorMessage.value = '';
-  let parsed: Record<string, unknown>;
+  let parsed: unknown;
   try {
     parsed = JSON.parse(value);
   } catch {
     errorMessage.value = lang.t('dialogOps.invalidJson');
     return;
   }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    errorMessage.value = lang.t('editor.mongo.invalidJsonObject');
+    return;
+  }
+  const doc = parsed as Record<string, unknown>;
   const id = String(props.document?._id ?? '');
-  delete parsed._id;
-  emit('save', id, JSON.stringify(parsed));
+  delete doc._id;
+  emit('save', id, JSON.stringify(doc));
 };
 
 const setLoading = (value: boolean) => {

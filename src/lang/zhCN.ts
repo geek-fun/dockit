@@ -925,6 +925,8 @@ export const zhCN = {
       updateError: '文档更新失败',
       deleteDocumentSuccess: '文档删除成功',
       deleteError: '文档删除失败',
+      closePanel: '关闭面板',
+      invalidJsonObject: '值必须是 JSON 对象，不能是数组或基本类型',
     },
   },
   file: {

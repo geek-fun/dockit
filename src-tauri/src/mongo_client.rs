@@ -1731,13 +1731,6 @@ pub struct MongoFindDocumentsResult {
 }
 
 #[derive(Debug, Serialize)]
-pub struct MongoDocumentResult {
-    pub success: bool,
-    pub document: Option<Value>,
-    pub error: Option<String>,
-}
-
-#[derive(Debug, Serialize)]
 pub struct MongoWriteResult {
     pub success: bool,
     pub matched_count: Option<i64>,
@@ -1768,7 +1761,7 @@ pub async fn mongo_find_documents(
 
     let total = coll.count_documents(filter_doc.clone()).await
         .map(|c| c as i64)
-        .unwrap_or(-1);
+        .map_err(|e| e.to_string())?;
 
     let mut opts = mongodb::options::FindOptions::default();
     opts.skip = skip;
@@ -1873,14 +1866,27 @@ pub async fn mongo_update_document(
     let update = doc! { "$set": new_doc };
 
     match coll.update_one(filter, update).await {
-        Ok(result) => Ok(MongoWriteResult {
-            success: true,
-            matched_count: Some(result.matched_count as i64),
-            modified_count: Some(result.modified_count as i64),
-            deleted_count: None,
-            inserted_id: None,
-            error: None,
-        }),
+        Ok(result) => {
+            if result.matched_count == 0 {
+                Ok(MongoWriteResult {
+                    success: false,
+                    matched_count: Some(0),
+                    modified_count: Some(0),
+                    deleted_count: None,
+                    inserted_id: None,
+                    error: Some("No document matched the given id".to_string()),
+                })
+            } else {
+                Ok(MongoWriteResult {
+                    success: true,
+                    matched_count: Some(result.matched_count as i64),
+                    modified_count: Some(result.modified_count as i64),
+                    deleted_count: None,
+                    inserted_id: None,
+                    error: None,
+                })
+            }
+        }
         Err(e) => Ok(MongoWriteResult {
             success: false,
             matched_count: None,
@@ -1910,14 +1916,27 @@ pub async fn mongo_delete_document(
     };
 
     match coll.delete_one(filter).await {
-        Ok(result) => Ok(MongoWriteResult {
-            success: true,
-            matched_count: None,
-            modified_count: None,
-            deleted_count: Some(result.deleted_count as i64),
-            inserted_id: None,
-            error: None,
-        }),
+        Ok(result) => {
+            if result.deleted_count == 0 {
+                Ok(MongoWriteResult {
+                    success: false,
+                    matched_count: None,
+                    modified_count: None,
+                    deleted_count: Some(0),
+                    inserted_id: None,
+                    error: Some("No document matched the given id".to_string()),
+                })
+            } else {
+                Ok(MongoWriteResult {
+                    success: true,
+                    matched_count: None,
+                    modified_count: None,
+                    deleted_count: Some(result.deleted_count as i64),
+                    inserted_id: None,
+                    error: None,
+                })
+            }
+        }
         Err(e) => Ok(MongoWriteResult {
             success: false,
             matched_count: None,

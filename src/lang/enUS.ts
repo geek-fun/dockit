@@ -956,6 +956,8 @@ export const enUS = {
       updateError: 'Failed to update document',
       deleteDocumentSuccess: 'Document deleted successfully',
       deleteError: 'Failed to delete document',
+      closePanel: 'Close panel',
+      invalidJsonObject: 'Value must be a JSON object, not an array or primitive',
     },
   },
   file: {

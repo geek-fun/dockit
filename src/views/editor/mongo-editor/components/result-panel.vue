@@ -4,7 +4,13 @@
     <Card v-if="errorMessage" class="error-card">
       <CardHeader class="p-3 flex flex-row items-center justify-between">
         <CardTitle class="text-base">{{ $t('editor.mongo.resultTitle') }}</CardTitle>
-        <Button variant="ghost" size="icon" class="close-btn" @click="$emit('close')">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="close-btn"
+          :aria-label="$t('editor.mongo.closePanel')"
+          @click="$emit('close')"
+        >
           <span class="i-carbon-close h-4 w-4" />
         </Button>
       </CardHeader>
@@ -47,7 +53,13 @@
             <span class="i-carbon-add h-3.5 w-3.5 mr-1" />
             {{ $t('editor.mongo.insertDocument') }}
           </Button>
-          <Button variant="ghost" size="icon" class="h-6 w-6" @click="$emit('close')">
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-6 w-6"
+            :aria-label="$t('editor.mongo.closePanel')"
+            @click="$emit('close')"
+          >
             <span class="i-carbon-close h-3.5 w-3.5" />
           </Button>
         </div>
@@ -103,6 +115,8 @@
                                 variant="ghost"
                                 size="icon"
                                 class="h-7 w-7"
+                                :disabled="!getDocumentId(row)"
+                                :aria-label="$t('editor.mongo.editDocument')"
                                 @click="handleEditClick(row)"
                               >
                                 <span class="i-carbon-edit h-3.5 w-3.5" />
@@ -118,6 +132,7 @@
                                 variant="ghost"
                                 size="icon"
                                 class="h-7 w-7"
+                                :aria-label="$t('editor.mongo.cloneDocument')"
                                 @click="handleCloneClick(row)"
                               >
                                 <span class="i-carbon-copy h-3.5 w-3.5" />
@@ -133,6 +148,8 @@
                                 variant="ghost"
                                 size="icon"
                                 class="h-7 w-7 text-destructive hover:text-destructive"
+                                :disabled="!getDocumentId(row)"
+                                :aria-label="$t('editor.mongo.deleteDocument')"
                                 @click="handleDeleteClick(row)"
                               >
                                 <span class="i-carbon-trash-can h-3.5 w-3.5" />
@@ -311,7 +328,13 @@
     <Card v-else-if="hasData === false && executed" class="success-card">
       <CardHeader class="p-3 flex flex-row items-center justify-between">
         <CardTitle class="text-base">{{ $t('editor.mongo.resultTitle') }}</CardTitle>
-        <Button variant="ghost" size="icon" class="close-btn" @click="$emit('close')">
+        <Button
+          variant="ghost"
+          size="icon"
+          class="close-btn"
+          :aria-label="$t('editor.mongo.closePanel')"
+          @click="$emit('close')"
+        >
           <span class="i-carbon-close h-4 w-4" />
         </Button>
       </CardHeader>
@@ -480,7 +503,9 @@ const tableColumnsWithActions = computed(() =>
   props.collection ? [...tableColumns.value, actionColumn.value] : tableColumns.value,
 );
 
-const totalPages = computed(() => Math.max(1, Math.ceil(props.documents.length / pageSize.value)));
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil((props.total ?? props.documents.length) / pageSize.value)),
+);
 
 const paginatedDocuments = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
@@ -661,10 +686,21 @@ const TreeNode: Component = markRaw(
 
         return h('div', { class: 'tree-node', style: { paddingLeft: `${indent.value}px` } }, [
           h(
-            'div',
+            isObject.value ? 'button' : 'div',
             {
               class: 'tree-node-row',
-              onClick: () => isObject.value && (expanded.value = !expanded.value),
+              ...(isObject.value
+                ? {
+                    type: 'button',
+                    onClick: () => (expanded.value = !expanded.value),
+                    onKeydown: (e: KeyboardEvent) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        expanded.value = !expanded.value;
+                      }
+                    },
+                  }
+                : {}),
             },
             [
               isObject.value
