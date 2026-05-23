@@ -205,7 +205,7 @@ const buildConfig = (con: MongoDBConnection) => ({
   host: con.host,
   port: con.port,
   auth: con.auth,
-  database: con.database,
+  database: con.activeDatabase || con.database,
   tls: con.tls,
 });
 
