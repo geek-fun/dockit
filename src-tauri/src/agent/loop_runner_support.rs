@@ -39,7 +39,13 @@ pub fn load_messages_for_compact(
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare(
-            "SELECT id, role, content FROM agent_messages WHERE session_id = ?1 ORDER BY created_at ASC, id ASC",
+            "SELECT id, role, content FROM agent_messages \
+             WHERE session_id = ?1 \
+               AND created_at >= COALESCE(\
+                 (SELECT created_at FROM agent_messages \
+                  WHERE session_id = ?1 AND role = 'system' AND content LIKE '%_compact_boundary%' \
+                  ORDER BY created_at DESC LIMIT 1), 0) \
+             ORDER BY created_at ASC, id ASC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
@@ -61,19 +67,12 @@ pub fn load_messages_for_compact(
 pub fn replace_messages_with_summary(
     db: &AgentDb,
     session_id: &str,
-    ids_to_remove: &[String],
+    _ids_to_remove: &[String],
     summary_payload: &str,
 ) -> Result<(), String> {
     let mut conn = db.0.lock().map_err(|e| e.to_string())?;
     let tx_now = now_ms();
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    for id in ids_to_remove {
-        tx.execute(
-            "DELETE FROM agent_messages WHERE id = ?1",
-            rusqlite::params![id],
-        )
-        .map_err(|e| e.to_string())?;
-    }
     tx.execute(
         "INSERT INTO agent_messages (id, session_id, role, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
         rusqlite::params![new_id(), session_id, "system", summary_payload, tx_now - 1_000_000],

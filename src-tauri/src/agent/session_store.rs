@@ -40,12 +40,10 @@ fn normalize_message_content(role: &str, content: &str) -> String {
     let summary = v.get("summary").and_then(|x| x.as_str()).unwrap_or("");
     let pre = v.get("pre_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
     let post = v.get("post_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
-    let mut body = format!(
-        "[Compacted conversation — {} tokens summarized into {} tokens]\n",
-        pre, post
-    );
-    body.push_str(summary);
-    body
+    let trigger = v.get("trigger").and_then(|x| x.as_str()).unwrap_or("auto");
+    format!(
+        "[Compacted ({trigger}) — {pre} tokens → {post} tokens]\n{summary}"
+    )
 }
 
 fn now_ms() -> i64 {

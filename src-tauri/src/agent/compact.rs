@@ -129,21 +129,26 @@ pub fn microcompact(messages: &mut Vec<StoredMessage>) -> usize {
     elided
 }
 
-pub const COMPACT_SYSTEM_PROMPT: &str = r#"You are summarizing a long conversation between a user and an AI assistant working on database tasks (Elasticsearch, OpenSearch, DynamoDB).
+pub const COMPACT_SYSTEM_PROMPT: &str = "Summarize this conversation so it can continue without the full history.
 
-Produce a STRUCTURED summary with the following nine sections, in this exact order. Be concrete, preserve names, ids, paths, queries, error strings, and decisions verbatim. Do NOT speculate.
+Output exactly this Markdown structure, keeping all sections even if empty:
 
-1. Primary Intent — What the user is ultimately trying to accomplish.
-2. Key Technical Concepts — Schemas, tables, indexes, queries, API surfaces involved.
-3. Files & Code — File paths and code snippets that were inspected or modified, with brief purpose.
-4. Errors & Fixes — Errors encountered with verbatim error strings and the fix applied (or attempted).
-5. All User Messages — One bullet per user message, paraphrased tightly. Preserve order.
-6. Pending Tasks — Work items not yet finished.
-7. Current Work — What was happening immediately before this summary.
-8. Next Step — The single next action that should be taken.
-9. Preserved Tool Calls — Any in-flight tool_call ids that have NOT been answered with a matching tool result; list them so the next turn can avoid duplicating work.
+## What We Were Doing
+- [The user's goal and current task — one or two sentences]
 
-Output plain text with the section headers exactly as above. No preamble, no apology, no closing remarks."#;
+## What We Found / Did
+- [Key results, queries run, data discovered, decisions made]
+
+## Next Steps
+- [What to do next, or \"(none)\"]
+
+## Critical Details
+- [Exact names to preserve: connections, indexes, fields, query strings, error messages]
+
+Rules:
+- Bullets only, no prose.
+- Preserve exact identifiers verbatim.
+- Do not mention this summary process.";
 
 pub async fn summarize_with_llm(
     messages_to_summarize: &[StoredMessage],
@@ -192,60 +197,21 @@ pub fn build_boundary_payload(
     summary: &str,
     pre_tokens: usize,
     post_tokens: usize,
-    preserved_tool_calls: &[String],
+    trigger: &str,
 ) -> String {
+    let compacted_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
     json!({
         "_compact_boundary": true,
+        "trigger": trigger,
+        "summary": summary,
         "pre_tokens": pre_tokens,
         "post_tokens": post_tokens,
-        "preserved_tool_calls": preserved_tool_calls,
-        "summary": summary,
+        "compacted_at": compacted_at,
     })
     .to_string()
-}
-
-/// Collect tool_call ids from the assistant message at `split-1` that do NOT
-/// have a matching tool reply in the kept tail. Those must be surfaced so the
-/// next LLM turn knows they were dropped.
-pub fn collect_orphan_tool_calls(messages: &[StoredMessage], split: usize) -> Vec<String> {
-    if split == 0 || split > messages.len() {
-        return Vec::new();
-    }
-    let prev = &messages[split - 1];
-    if prev.role != "assistant" {
-        return Vec::new();
-    }
-    let parsed: Value = match serde_json::from_str(&prev.content) {
-        Ok(v) => v,
-        Err(_) => return Vec::new(),
-    };
-    let tool_call_ids: Vec<String> = parsed
-        .get("tool_calls")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|tc| tc.get("id").and_then(|i| i.as_str()).map(String::from))
-                .collect()
-        })
-        .unwrap_or_default();
-    if tool_call_ids.is_empty() {
-        return Vec::new();
-    }
-    let tail = &messages[split..];
-    let answered: std::collections::HashSet<String> = tail
-        .iter()
-        .filter(|m| m.role == "tool")
-        .filter_map(|m| serde_json::from_str::<Value>(&m.content).ok())
-        .filter_map(|v| {
-            v.get("tool_call_id")
-                .and_then(|i| i.as_str())
-                .map(String::from)
-        })
-        .collect();
-    tool_call_ids
-        .into_iter()
-        .filter(|id| !answered.contains(id))
-        .collect()
 }
 
 pub async fn run_compact(
@@ -268,7 +234,7 @@ pub async fn run_compact(
             db,
             session_id,
             &ids_to_remove,
-            &build_boundary_payload("[microcompact: elided old tool bodies]", 0, 0, &[]),
+            &build_boundary_payload("[microcompact: elided old tool bodies]", 0, 0, "auto"),
         )?;
         return Ok(Some(post_micro));
     }
@@ -280,7 +246,6 @@ pub async fn run_compact(
     }
 
     let to_summarize = &messages[..split];
-    let preserved = collect_orphan_tool_calls(&messages, split);
     let pre_tokens: usize = to_summarize
         .iter()
         .map(|m| estimate_stored_message(&m.role, &m.content, &spec))
@@ -291,7 +256,7 @@ pub async fn run_compact(
         .sum();
 
     let summary = summarize_with_llm(to_summarize, settings).await?;
-    let payload = build_boundary_payload(&summary, pre_tokens, post_tokens, &preserved);
+    let payload = build_boundary_payload(&summary, pre_tokens, post_tokens, "auto");
     let ids_to_remove: Vec<String> = to_summarize.iter().map(|m| m.id.clone()).collect();
     replace_messages_with_summary(db, session_id, &ids_to_remove, &payload)?;
 

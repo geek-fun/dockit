@@ -114,7 +114,13 @@ fn load_messages(db: &AgentDb, session_id: &str) -> Result<Vec<(String, String, 
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare(
-            "SELECT id, role, content FROM agent_messages WHERE session_id = ?1 ORDER BY created_at ASC, id ASC",
+            "SELECT id, role, content FROM agent_messages \
+             WHERE session_id = ?1 \
+               AND created_at >= COALESCE(\
+                 (SELECT created_at FROM agent_messages \
+                  WHERE session_id = ?1 AND role = 'system' AND content LIKE '%_compact_boundary%' \
+                  ORDER BY created_at DESC LIMIT 1), 0) \
+             ORDER BY created_at ASC, id ASC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
@@ -255,25 +261,7 @@ fn db_messages_to_chat(
                     {
                         let summary =
                             v.get("summary").and_then(|x| x.as_str()).unwrap_or_default();
-                        let preserved = v
-                            .get("preserved_tool_calls")
-                            .and_then(|x| x.as_array())
-                            .map(|arr| {
-                                arr.iter()
-                                    .filter_map(|v| v.as_str())
-                                    .collect::<Vec<_>>()
-                                    .join(", ")
-                            })
-                            .unwrap_or_default();
-                        let mut body = String::from(
-                            "[Conversation summary - earlier turns were compacted to save context]\n",
-                        );
-                        body.push_str(summary);
-                        if !preserved.is_empty() {
-                            body.push_str("\n\n[Note] Dropped tool calls without replies: ");
-                            body.push_str(&preserved);
-                        }
-                        out.push(json!({"role": "system", "content": body}));
+                        out.push(json!({"role": "system", "content": summary}));
                         continue;
                     }
                 }
