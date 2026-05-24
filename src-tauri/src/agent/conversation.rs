@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex as AsyncMutex;
 
-use crate::agent::compact::{evaluate, resolve_model_spec_for_session, run_compact};
+use crate::agent::compact::{evaluate, resolve_model_spec_for_session, run_compact_with_events};
 use crate::agent::loop_runner_support::{load_messages_for_compact, new_id, now_ms};
 use crate::db::AgentDb;
 
@@ -122,7 +122,8 @@ pub fn append_with_new_id(
 /// awaits it so the next LLM payload reflects the post-compact state. Then
 /// runs one final compaction synchronously if `should_compact` is still true
 /// (e.g., because the background spawn hasn't started yet, or fresh appends
-/// landed during it).
+/// landed during it). When compaction runs, compact.rs emits
+/// `agent-loop-compacting` phase start/end around the summarize LLM call.
 pub async fn prepare_for_llm(
     db: &AgentDb,
     app: &AppHandle,
@@ -138,7 +139,7 @@ pub async fn prepare_for_llm(
     let _guard = lock.lock().await;
 
     if needs_compact(db, session_id, settings) {
-        match run_compact(session_id, settings, db).await {
+        match run_compact_with_events(session_id, settings, db, app).await {
             Ok(Some(info)) => {
                 let _ = app.emit(
                     "agent-loop-summary-injected",
@@ -148,6 +149,7 @@ pub async fn prepare_for_llm(
                         "pre_tokens": info.pre_tokens,
                         "post_tokens": info.post_tokens,
                         "removed_count": info.removed_count,
+                        "fallback_keep_pairs": info.fallback_keep_pairs,
                     }),
                 );
             }
@@ -169,7 +171,8 @@ pub async fn prepare_for_llm(
 
 /// Fire-and-forget background compaction. Acquires the per-session mutex so
 /// it serializes with `prepare_for_llm`. Errors are swallowed (emitted as
-/// warnings) because the caller already returned.
+/// warnings) because the caller already returned. Progress for long summarize
+/// calls is emitted via `agent-loop-compacting` start/end from compact.rs.
 fn spawn_background_compact(db: AgentDb, app: AppHandle, settings: Value, session_id: String) {
     tokio::spawn(async move {
         let lock = lock_for(&session_id);
@@ -179,7 +182,7 @@ fn spawn_background_compact(db: AgentDb, app: AppHandle, settings: Value, sessio
             return;
         }
 
-        match run_compact(&session_id, &settings, &db).await {
+        match run_compact_with_events(&session_id, &settings, &db, &app).await {
             Ok(Some(info)) => {
                 let _ = app.emit(
                     "agent-loop-summary-injected",
@@ -189,6 +192,7 @@ fn spawn_background_compact(db: AgentDb, app: AppHandle, settings: Value, sessio
                         "pre_tokens": info.pre_tokens,
                         "post_tokens": info.post_tokens,
                         "removed_count": info.removed_count,
+                        "fallback_keep_pairs": info.fallback_keep_pairs,
                     }),
                 );
                 emit_usage(&app, &session_id, &settings, &db);

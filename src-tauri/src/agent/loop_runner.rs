@@ -620,6 +620,16 @@ async fn run_agent_loop_inner(
             return Ok(());
         }
         iter_count += 1;
+        // Progress heartbeat emitted before each loop iteration body so the UI
+        // can keep a live status even while waiting on long operations.
+        let _ = app.emit(
+            "agent-loop-iteration",
+            json!({
+                "session_id": session_id,
+                "iter_count": iter_count,
+                "max_iterations": max_iterations,
+            }),
+        );
         crate::agent::conversation::prepare_for_llm(db, app, settings, session_id).await?;
 
         let history = load_messages(db, session_id)?;
@@ -640,6 +650,15 @@ async fn run_agent_loop_inner(
             return Ok(());
         }
         let body = build_request_body(settings, &chat_msgs, true);
+        // Emitted immediately before the main streaming call starts. The first
+        // `agent-loop-delta` event implicitly signals waiting finished.
+        let _ = app.emit(
+            "agent-loop-waiting-llm",
+            json!({
+                "session_id": session_id,
+                "iter_count": iter_count,
+            }),
+        );
 
         let acc = tokio::select! {
             biased;
@@ -1069,6 +1088,7 @@ pub async fn compact_agent_session(
                 "pre_tokens": info.pre_tokens,
                 "post_tokens": info.post_tokens,
                 "removed_count": info.removed_count,
+                "fallback_keep_pairs": info.fallback_keep_pairs,
             }),
         );
     }

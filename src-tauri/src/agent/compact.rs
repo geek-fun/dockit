@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
 use serde_json::{json, Value};
+use tauri::{AppHandle, Emitter};
 
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::loop_runner_support::{
@@ -35,6 +36,7 @@ pub struct CompactionInfo {
     pub pre_tokens: usize,
     pub post_tokens: usize,
     pub removed_count: usize,
+    pub fallback_keep_pairs: Option<usize>,
 }
 
 pub fn evaluate(messages: &[StoredMessage], spec: &ModelSpec) -> CompactDecision {
@@ -100,30 +102,43 @@ pub fn resolve_model_spec_for_session(session_id: &str, settings: &Value) -> Mod
     spec
 }
 
+fn assistant_has_tool_calls(message: &StoredMessage) -> bool {
+    message.role == "assistant"
+        && serde_json::from_str::<Value>(&message.content)
+            .ok()
+            .and_then(|v| v.get("tool_calls").cloned())
+            .and_then(|tc| tc.as_array().map(|a| !a.is_empty()))
+            .unwrap_or(false)
+}
+
+fn is_safe_boundary(messages: &[StoredMessage], split: usize) -> bool {
+    if split == 0 || split > messages.len() {
+        return false;
+    }
+    let curr_role = messages.get(split).map(|m| m.role.as_str()).unwrap_or("");
+    let prev = &messages[split - 1];
+    curr_role != "tool" && !assistant_has_tool_calls(prev)
+}
+
 /// Find a safe split point that preserves the (assistant+tool_calls, tool...) pairing
 /// invariant. Walks backward from `proposed_split` while the boundary would orphan
 /// a tool message or sever a tool_calls -> tool group.
 pub fn safe_split_index(messages: &[StoredMessage], proposed_split: usize) -> usize {
     let mut split = proposed_split.min(messages.len());
-    while split > 0 {
-        let curr_role = messages
-            .get(split)
-            .map(|m| m.role.as_str())
-            .unwrap_or("");
-        let prev = &messages[split - 1];
-        let prev_has_tool_calls = prev.role == "assistant"
-            && serde_json::from_str::<Value>(&prev.content)
-                .ok()
-                .and_then(|v| v.get("tool_calls").cloned())
-                .and_then(|tc| tc.as_array().map(|a| !a.is_empty()))
-                .unwrap_or(false);
-        if curr_role == "tool" || prev_has_tool_calls {
-            split -= 1;
-        } else {
-            break;
-        }
+    while split > 0 && !is_safe_boundary(messages, split) {
+        split -= 1;
     }
     split
+}
+
+/// Forward fallback for tool-heavy histories where backward scan collapses to zero.
+/// Starting at `proposed_split`, walks forward until finding a boundary that does
+/// not split assistant tool_calls from following tool messages.
+pub fn safe_split_index_forward(messages: &[StoredMessage], proposed_split: usize) -> usize {
+    let start = proposed_split.min(messages.len());
+    (start..=messages.len())
+        .find(|split| is_safe_boundary(messages, *split))
+        .unwrap_or(0)
 }
 
 /// Compute a target split that keeps the last N user/assistant pairs intact.
@@ -230,6 +245,31 @@ pub async fn run_compact(
     settings: &Value,
     db: &AgentDb,
 ) -> Result<Option<CompactionInfo>, String> {
+    run_compact_inner(session_id, settings, db, None).await
+}
+
+/// Same compaction flow as `run_compact`, but emits `agent-loop-compacting`
+/// start/end phase events around the summarize LLM call for UI progress.
+pub async fn run_compact_with_events(
+    session_id: &str,
+    settings: &Value,
+    db: &AgentDb,
+    app: &AppHandle,
+) -> Result<Option<CompactionInfo>, String> {
+    run_compact_inner(session_id, settings, db, Some(app)).await
+}
+
+/// Auto-compaction split fallback strategy:
+/// 1) Try backward-safe split with KEEP_LAST_PAIRS=4.
+/// 2) If it collapses to zero, retry with keep_pairs 2, then 1.
+/// 3) If still zero, do a forward walk from the keep_pairs=1 proposed split.
+/// Emits compacting phase progress events when an app handle is provided.
+async fn run_compact_inner(
+    session_id: &str,
+    settings: &Value,
+    db: &AgentDb,
+    app: Option<&AppHandle>,
+) -> Result<Option<CompactionInfo>, String> {
     let messages = load_messages_for_compact(db, session_id)?;
     let spec = resolve_model_spec_for_session(session_id, settings);
     let decision = evaluate(&messages, &spec);
@@ -237,8 +277,26 @@ pub async fn run_compact(
         return Ok(None);
     }
 
-    let proposed = target_split_keeping_pairs(&messages, KEEP_LAST_PAIRS);
-    let split = safe_split_index(&messages, proposed);
+    let keep_candidates: [usize; 3] = [KEEP_LAST_PAIRS, 2, 1];
+    let split_result = keep_candidates.iter().find_map(|keep_pairs| {
+        let proposed = target_split_keeping_pairs(&messages, *keep_pairs);
+        let split = safe_split_index(&messages, proposed);
+        (split > 0).then_some((split, *keep_pairs, proposed))
+    });
+
+    let (split, fallback_keep_pairs) = if let Some((split, keep_pairs, _)) = split_result {
+        let fallback = (keep_pairs != KEEP_LAST_PAIRS).then_some(keep_pairs);
+        (split, fallback)
+    } else {
+        let fallback_keep = 1usize;
+        let fallback_proposed = target_split_keeping_pairs(&messages, fallback_keep);
+        let forward_split = safe_split_index_forward(&messages, fallback_proposed);
+        if forward_split == 0 {
+            return Err("Context compaction failed: history has too many consecutive tool calls — consider clearing the session or asking a more focused question".to_string());
+        }
+        (forward_split, Some(fallback_keep))
+    };
+
     if split == 0 {
         return Err("compact: cannot find safe split".to_string());
     }
@@ -253,7 +311,26 @@ pub async fn run_compact(
         .map(|m| estimate_stored_message(&m.role, &m.content, &spec))
         .sum();
 
-    let summary = summarize_with_llm(to_summarize, settings).await?;
+    if let Some(app) = app {
+        let _ = app.emit(
+            "agent-loop-compacting",
+            json!({
+                "session_id": session_id,
+                "phase": "start",
+            }),
+        );
+    }
+    let summary_result = summarize_with_llm(to_summarize, settings).await;
+    if let Some(app) = app {
+        let _ = app.emit(
+            "agent-loop-compacting",
+            json!({
+                "session_id": session_id,
+                "phase": "end",
+            }),
+        );
+    }
+    let summary = summary_result?;
     let payload = build_boundary_payload(&summary, pre_tokens, post_tokens, "auto");
     let ids_to_remove: Vec<String> = to_summarize.iter().map(|m| m.id.clone()).collect();
     let removed_count = ids_to_remove.len();
@@ -264,5 +341,6 @@ pub async fn run_compact(
         pre_tokens,
         post_tokens,
         removed_count,
+        fallback_keep_pairs,
     }))
 }
