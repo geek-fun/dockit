@@ -1,5 +1,6 @@
 pub mod compact;
 pub mod config;
+pub mod conversation;
 pub mod executor;
 pub mod harness;
 pub mod loop_runner;

@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::oneshot;
 
-use crate::agent::compact::{evaluate, resolve_model_spec, run_compact};
+use crate::agent::compact::{evaluate, resolve_model_spec};
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::executor::ToolEnvelope;
 use crate::agent::loop_runner_support::load_messages_for_compact;
@@ -77,23 +77,14 @@ fn settings_get_str<'a>(settings: &'a Value, key: &str) -> Option<&'a str> {
 
 fn insert_message(
     db: &AgentDb,
+    app: &AppHandle,
+    settings: &Value,
     id: &str,
     session_id: &str,
     role: &str,
     content: &str,
 ) -> Result<(), String> {
-    let conn = db.0.lock().map_err(|e| e.to_string())?;
-    conn.execute(
-        "INSERT INTO agent_messages (id, session_id, role, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-        rusqlite::params![id, session_id, role, content, now_ms()],
-    )
-    .map_err(|e| format!("Failed to insert message: {}", e))?;
-    conn.execute(
-        "UPDATE agent_sessions SET updated_at = ?1 WHERE id = ?2",
-        rusqlite::params![now_ms(), session_id],
-    )
-    .map_err(|e| format!("Failed to update session: {}", e))?;
-    Ok(())
+    crate::agent::conversation::append(db, app, settings, session_id, id, role, content)
 }
 
 fn update_session_status_inline(
@@ -534,7 +525,7 @@ async fn run_agent_loop_inner(
     update_session_status_inline(db, session_id, "running")?;
 
     let user_id = new_id();
-    insert_message(db, &user_id, session_id, "user", user_message)?;
+    insert_message(db, app, settings, &user_id, session_id, "user", user_message)?;
 
     let connections: HashMap<String, Value> = settings
         .get("connections")
@@ -570,35 +561,7 @@ async fn run_agent_loop_inner(
         std::collections::VecDeque::with_capacity(4);
 
     for _iter in 0..MAX_ITERATIONS {
-        emit_context_usage(app, session_id, settings, db);
-        let auto_compact = settings
-            .get("autoCompact")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(true);
-        if auto_compact {
-            match run_compact(session_id, settings, db).await {
-                Ok(Some(info)) => {
-                    let _ = app.emit(
-                        "agent-loop-summary-injected",
-                        json!({
-                            "session_id": session_id,
-                            "trigger": info.trigger,
-                            "pre_tokens": info.pre_tokens,
-                            "post_tokens": info.post_tokens,
-                            "removed_count": info.removed_count,
-                        }),
-                    );
-                    emit_context_usage(app, session_id, settings, db);
-                }
-                Ok(None) => {}
-                Err(compact_err) => {
-                    let _ = app.emit(
-                        "agent-loop-warning",
-                        json!({"session_id": session_id, "warning": format!("Context compaction skipped: {}", compact_err)}),
-                    );
-                }
-            }
-        }
+        crate::agent::conversation::prepare_for_llm(db, app, settings, session_id).await?;
 
         let history = load_messages(db, session_id)?;
         let chat_msgs = db_messages_to_chat(&history, system_prompt.as_deref());
@@ -631,7 +594,7 @@ async fn run_agent_loop_inner(
                 })
                 .to_string()
             };
-            insert_message(db, &assistant_message_id, session_id, "assistant", &payload)?;
+            insert_message(db, app, settings, &assistant_message_id, session_id, "assistant", &payload)?;
             let _ = app.emit(
                 "agent-loop-step-done",
                 json!({"session_id": session_id, "message_id": assistant_message_id}),
@@ -661,13 +624,7 @@ async fn run_agent_loop_inner(
             && recent_tool_signatures.iter().all(|s| s == &iter_signature)
         {
             let stuck_msg = "Agent stopped: detected the same tool call repeating across 3 iterations with no progress. Try rephrasing your request or check the tool's previous results.";
-            insert_message(
-                db,
-                &assistant_message_id,
-                session_id,
-                "assistant",
-                stuck_msg,
-            )?;
+            insert_message(db, app, settings, &assistant_message_id, session_id, "assistant", stuck_msg)?;
             let _ = app.emit(
                 "agent-loop-error",
                 json!({"session_id": session_id, "error": stuck_msg}),
@@ -705,13 +662,7 @@ async fn run_agent_loop_inner(
             "thinking": if acc.thinking.is_empty() { Value::Null } else { Value::String(acc.thinking.clone()) },
             "tool_calls": tool_calls_json,
         });
-        insert_message(
-            db,
-            &assistant_message_id,
-            session_id,
-            "assistant",
-            &assistant_payload.to_string(),
-        )?;
+        insert_message(db, app, settings, &assistant_message_id, session_id, "assistant", &assistant_payload.to_string())?;
         let _ = app.emit(
             "agent-loop-step-done",
             json!({"session_id": session_id, "message_id": assistant_message_id}),
@@ -737,7 +688,7 @@ async fn run_agent_loop_inner(
                         "name": tool_name,
                         "content": format!("Invalid JSON arguments from LLM: {}", e),
                     });
-                    insert_message(db, &new_id(), session_id, "tool", &err_msg.to_string())?;
+                    insert_message(db, app, settings, &new_id(), session_id, "tool", &err_msg.to_string())?;
                     continue;
                 }
             };
@@ -760,7 +711,7 @@ async fn run_agent_loop_inner(
                     "name": tool_name,
                     "content": err_content,
                 });
-                insert_message(db, &new_id(), session_id, "tool", &deny_msg.to_string())?;
+                insert_message(db, app, settings, &new_id(), session_id, "tool", &deny_msg.to_string())?;
                 let _ = app.emit(
                     "agent-loop-tool-result",
                     json!({
@@ -814,13 +765,7 @@ async fn run_agent_loop_inner(
                     "name": tool_name,
                     "content": format!("Tool call '{}' was denied by the user. Try an alternative approach.", tool_name),
                 });
-                insert_message(
-                    db,
-                    &new_id(),
-                    session_id,
-                    "tool",
-                    &tool_deny_msg.to_string(),
-                )?;
+                insert_message(db, app, settings, &new_id(), session_id, "tool", &tool_deny_msg.to_string())?;
                 continue;
             }
 
@@ -840,7 +785,7 @@ async fn run_agent_loop_inner(
                             "name": tool_name,
                             "content": err_content,
                         });
-                        insert_message(db, &new_id(), session_id, "tool", &err_msg.to_string())?;
+                        insert_message(db, app, settings, &new_id(), session_id, "tool", &err_msg.to_string())?;
                         let _ = app.emit(
                             "agent-loop-tool-result",
                             json!({
@@ -866,7 +811,7 @@ async fn run_agent_loop_inner(
                             "name": tool_name,
                             "content": err_content,
                         });
-                        insert_message(db, &new_id(), session_id, "tool", &err_msg.to_string())?;
+                        insert_message(db, app, settings, &new_id(), session_id, "tool", &err_msg.to_string())?;
                         let _ = app.emit(
                             "agent-loop-tool-result",
                             json!({
@@ -905,7 +850,7 @@ async fn run_agent_loop_inner(
                         "name": tool_name,
                         "content": err_content,
                     });
-                    insert_message(db, &new_id(), session_id, "tool", &perm_err.to_string())?;
+                    insert_message(db, app, settings, &new_id(), session_id, "tool", &perm_err.to_string())?;
                     let _ = app.emit(
                         "agent-loop-tool-result",
                         json!({
@@ -928,7 +873,7 @@ async fn run_agent_loop_inner(
                         "name": tool_name,
                         "content": format!("Tool '{}' was cancelled before completion. Partial execution may have occurred.", tool_name),
                     });
-                    insert_message(db, &new_id(), session_id, "tool", &cancel_msg.to_string())?;
+                    insert_message(db, app, settings, &new_id(), session_id, "tool", &cancel_msg.to_string())?;
                     return Err("cancelled".to_string());
                 }
                 res = tool_executor.execute(&tool_name, &arguments_value, &resolved_config) => match res {
@@ -941,7 +886,7 @@ async fn run_agent_loop_inner(
                             "name": tool_name,
                             "content": err_content,
                         });
-                        insert_message(db, &new_id(), session_id, "tool", &error_msg.to_string())?;
+                        insert_message(db, app, settings, &new_id(), session_id, "tool", &error_msg.to_string())?;
                         let _ = app.emit(
                             "agent-loop-tool-result",
                             json!({
@@ -973,7 +918,7 @@ async fn run_agent_loop_inner(
                 "name": tool_name,
                 "content": envelope.summary,
             });
-            insert_message(db, &new_id(), session_id, "tool", &tool_msg.to_string())?;
+            insert_message(db, app, settings, &new_id(), session_id, "tool", &tool_msg.to_string())?;
         }
     }
 
