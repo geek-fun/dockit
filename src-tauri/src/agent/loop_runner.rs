@@ -103,6 +103,71 @@ fn update_session_status_inline(
     Ok(())
 }
 
+fn scrub_broken_tail(db: &AgentDb, session_id: &str) -> Result<(), String> {
+    let ids_to_delete: Vec<String> = {
+        let conn = db.0.lock().map_err(|e| e.to_string())?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, role, content FROM agent_messages \
+                 WHERE session_id = ?1 ORDER BY created_at DESC, id DESC LIMIT 20",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows: Vec<(String, String, String)> = stmt
+            .query_map(rusqlite::params![session_id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        let mut ids: Vec<String> = Vec::new();
+        for (id, role, content) in &rows {
+            if role == "user" {
+                break;
+            }
+            if role == "assistant" {
+                let is_error_msg = content.starts_with("LLM HTTP ");
+                let is_orphaned_tool_calls = serde_json::from_str::<serde_json::Value>(content)
+                    .ok()
+                    .and_then(|v| {
+                        v.get("tool_calls")
+                            .and_then(|tc| tc.as_array())
+                            .map(|a| !a.is_empty())
+                    })
+                    .unwrap_or(false);
+                if is_error_msg || is_orphaned_tool_calls {
+                    ids.push(id.clone());
+                    continue;
+                }
+            }
+            break;
+        }
+        ids
+    };
+
+    if ids_to_delete.is_empty() {
+        return Ok(());
+    }
+
+    let conn = db.0.lock().map_err(|e| e.to_string())?;
+    let placeholders = ids_to_delete.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let sql = format!(
+        "DELETE FROM agent_messages WHERE session_id = ? AND id IN ({})",
+        placeholders
+    );
+    let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![Box::new(session_id.to_string())];
+    for id in &ids_to_delete {
+        params.push(Box::new(id.clone()));
+    }
+    conn.execute(&sql, rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())))
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn load_messages(db: &AgentDb, session_id: &str) -> Result<Vec<(String, String, String)>, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
@@ -547,6 +612,7 @@ async fn run_agent_loop_inner(
     tool_executor: &dyn ToolExecutor,
 ) -> Result<(), String> {
     update_session_status_inline(db, session_id, "running")?;
+    scrub_broken_tail(db, session_id)?;
 
     let user_id = new_id();
     insert_message(db, app, settings, &user_id, session_id, "user", user_message)?;
