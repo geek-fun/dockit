@@ -263,7 +263,8 @@ pub async fn run_compact_with_events(
 /// 1) Try backward-safe split with KEEP_LAST_PAIRS=4.
 /// 2) If it collapses to zero, retry with keep_pairs 2, then 1.
 /// 3) If still zero, do a forward walk from the keep_pairs=1 proposed split.
-/// Emits compacting phase progress events when an app handle is provided.
+/// Emits `agent-loop-compacting` phase start/end around summarize_with_llm
+/// when an app handle is provided.
 async fn run_compact_inner(
     session_id: &str,
     settings: &Value,
@@ -292,7 +293,17 @@ async fn run_compact_inner(
         let fallback_proposed = target_split_keeping_pairs(&messages, fallback_keep);
         let forward_split = safe_split_index_forward(&messages, fallback_proposed);
         if forward_split == 0 {
-            return Err("Context compaction failed: history has too many consecutive tool calls — consider clearing the session or asking a more focused question".to_string());
+            let warning_message = "Context compaction failed: history has too many consecutive tool calls — consider clearing the session or asking a more focused question";
+            if let Some(app) = app {
+                let _ = app.emit(
+                    "agent-loop-warning",
+                    json!({
+                        "session_id": session_id,
+                        "warning": warning_message,
+                    }),
+                );
+            }
+            return Err(warning_message.to_string());
         }
         (forward_split, Some(fallback_keep))
     };

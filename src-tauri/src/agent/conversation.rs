@@ -29,6 +29,10 @@ fn auto_compact_enabled(settings: &Value) -> bool {
         .unwrap_or(true)
 }
 
+fn is_tool_heavy_compaction_warning(message: &str) -> bool {
+    message.starts_with("Context compaction failed: history has too many consecutive tool calls")
+}
+
 fn write_message(
     db: &AgentDb,
     id: &str,
@@ -141,27 +145,32 @@ pub async fn prepare_for_llm(
     if needs_compact(db, session_id, settings) {
         match run_compact_with_events(session_id, settings, db, app).await {
             Ok(Some(info)) => {
+                let mut summary_payload = json!({
+                    "session_id": session_id,
+                    "trigger": info.trigger,
+                    "pre_tokens": info.pre_tokens,
+                    "post_tokens": info.post_tokens,
+                    "removed_count": info.removed_count,
+                });
+                if let Some(fallback_keep_pairs) = info.fallback_keep_pairs {
+                    summary_payload["fallback_keep_pairs"] = json!(fallback_keep_pairs);
+                }
                 let _ = app.emit(
                     "agent-loop-summary-injected",
-                    json!({
-                        "session_id": session_id,
-                        "trigger": info.trigger,
-                        "pre_tokens": info.pre_tokens,
-                        "post_tokens": info.post_tokens,
-                        "removed_count": info.removed_count,
-                        "fallback_keep_pairs": info.fallback_keep_pairs,
-                    }),
+                    summary_payload,
                 );
             }
             Ok(None) => {}
             Err(compact_err) => {
-                let _ = app.emit(
-                    "agent-loop-warning",
-                    json!({
-                        "session_id": session_id,
-                        "warning": format!("Context compaction skipped: {}", compact_err),
-                    }),
-                );
+                if !is_tool_heavy_compaction_warning(&compact_err) {
+                    let _ = app.emit(
+                        "agent-loop-warning",
+                        json!({
+                            "session_id": session_id,
+                            "warning": compact_err,
+                        }),
+                    );
+                }
             }
         }
     }
@@ -184,28 +193,33 @@ fn spawn_background_compact(db: AgentDb, app: AppHandle, settings: Value, sessio
 
         match run_compact_with_events(&session_id, &settings, &db, &app).await {
             Ok(Some(info)) => {
+                let mut summary_payload = json!({
+                    "session_id": session_id,
+                    "trigger": info.trigger,
+                    "pre_tokens": info.pre_tokens,
+                    "post_tokens": info.post_tokens,
+                    "removed_count": info.removed_count,
+                });
+                if let Some(fallback_keep_pairs) = info.fallback_keep_pairs {
+                    summary_payload["fallback_keep_pairs"] = json!(fallback_keep_pairs);
+                }
                 let _ = app.emit(
                     "agent-loop-summary-injected",
-                    json!({
-                        "session_id": session_id,
-                        "trigger": info.trigger,
-                        "pre_tokens": info.pre_tokens,
-                        "post_tokens": info.post_tokens,
-                        "removed_count": info.removed_count,
-                        "fallback_keep_pairs": info.fallback_keep_pairs,
-                    }),
+                    summary_payload,
                 );
                 emit_usage(&app, &session_id, &settings, &db);
             }
             Ok(None) => {}
             Err(compact_err) => {
-                let _ = app.emit(
-                    "agent-loop-warning",
-                    json!({
-                        "session_id": session_id,
-                        "warning": format!("Background compaction skipped: {}", compact_err),
-                    }),
-                );
+                if !is_tool_heavy_compaction_warning(&compact_err) {
+                    let _ = app.emit(
+                        "agent-loop-warning",
+                        json!({
+                            "session_id": session_id,
+                            "warning": compact_err,
+                        }),
+                    );
+                }
             }
         }
     });
