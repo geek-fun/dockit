@@ -113,7 +113,11 @@ export type AgentMessage = {
 
 export type AgentSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped';
 
-export type AgentSessionStopReason = 'iteration_cap' | 'wall_clock_budget' | 'token_budget' | 'llm_error';
+export type AgentSessionStopReason =
+  | 'iteration_cap'
+  | 'wall_clock_budget'
+  | 'token_budget'
+  | 'llm_error';
 
 export type AgentSession = {
   id: string;
@@ -272,9 +276,11 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
       };
     }
   } catch {
-    return { ...base, content: m.content };
+    const isLlmError = m.role === 'assistant' && m.content.startsWith('LLM HTTP ');
+    return { ...base, status: isLlmError ? 'error' : 'done', content: m.content };
   }
-  return { ...base, content: m.content };
+  const isLlmError = m.role === 'assistant' && m.content.startsWith('LLM HTTP ');
+  return { ...base, status: isLlmError ? 'error' : 'done', content: m.content };
 };
 
 // ── Store ────────────────────────────────────────────────────────────────────

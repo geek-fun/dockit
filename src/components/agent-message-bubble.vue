@@ -5,6 +5,7 @@
       'message-bubble',
       `message-${normalizedRole}`,
       normalizedRole === 'system' ? 'message-system' : '',
+      message.status === 'error' ? 'message-error' : '',
     ]"
   >
     <div v-if="normalizedRole === 'user'" class="message-content user-content">
@@ -470,6 +471,12 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
   color: hsl(var(--foreground));
   border-bottom-left-radius: 4px;
   max-width: 100%;
+}
+
+.message-error .assistant-content {
+  background: hsl(var(--destructive) / 0.08);
+  border: 1px solid hsl(var(--destructive) / 0.3);
+  color: hsl(var(--destructive));
 }
 
 /* ── Activity timeline ── */
