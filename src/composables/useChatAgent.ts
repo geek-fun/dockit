@@ -302,8 +302,6 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
   const lastSettings = ref<Record<string, unknown> | null>(null);
   const sessions = config.sessionStore.sessions;
 
-  // Build a minimal settings object usable by the context-usage backend probe.
-  // Token counting only needs provider/model/contextWindowOverride; no API key required.
   const initContextSettings = async (): Promise<void> => {
     if (lastSettings.value) return;
     try {
@@ -311,7 +309,9 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       lastSettings.value = {
         provider: kindToProviderEnum(provider.kind),
         model: model.label,
+        apiKey: provider.apiKey ?? '',
         baseUrl: provider.baseUrl,
+        httpProxy: provider.proxy || undefined,
         autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
         maxIterations: useAppStore().llmSettings.chat?.maxIterations ?? 200,
         wallClockBudgetMin: useAppStore().llmSettings.chat?.wallClockBudgetMin ?? 30,
