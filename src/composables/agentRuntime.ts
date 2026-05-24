@@ -274,7 +274,7 @@ const initAgentRuntime = async (): Promise<void> => {
       const session = getSessionById(store.sessions, payload.session_id);
       if (!session) return;
 
-      store.insertCompactionMarker(payload.session_id, {
+      store.replaceCompactionInProgressWithMarker(payload.session_id, {
         trigger: payload.trigger,
         pre_tokens: payload.pre_tokens,
         post_tokens: payload.post_tokens,
@@ -301,6 +301,14 @@ const initAgentRuntime = async (): Promise<void> => {
       const store = useDataStudioStore();
       if (phase === 'start') {
         store.setSessionProgress(session_id, { phase: 'compacting' });
+        store.addMessage(session_id, {
+          id: 'compacting-' + session_id,
+          role: 'system',
+          content: '',
+          timestamp: Date.now(),
+          status: 'streaming',
+          compactionInProgress: true,
+        });
       } else if (phase === 'end') {
         const existing = store.getSessionProgress(session_id);
         store.setSessionProgress(session_id, {

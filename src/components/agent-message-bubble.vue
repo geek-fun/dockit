@@ -12,6 +12,22 @@
       <p class="whitespace-pre-wrap">{{ message.content }}</p>
     </div>
 
+    <div
+      v-else-if="normalizedRole === 'system' && message.compactionInProgress"
+      class="compaction-marker compaction-marker--in-progress"
+    >
+      <div class="compaction-row">
+        <span class="compaction-icon i-carbon-archive compaction-icon-pulsing" />
+        <span class="compaction-label">
+          {{ t('dataStudio.agent.message.compactionInProgress') }}
+          <span class="inline-dots">
+            <span class="dot" />
+            <span class="dot" />
+            <span class="dot" />
+          </span>
+        </span>
+      </div>
+    </div>
     <div v-else-if="normalizedRole === 'system' && message.compaction" class="compaction-marker">
       <div class="compaction-row">
         <span class="compaction-icon i-carbon-archive" />
@@ -54,7 +70,10 @@
     </div>
     <div v-else-if="normalizedRole === 'assistant'" class="assistant-wrapper">
       <!-- Activity timeline: thinking + tool call/result pairs -->
-      <div v-if="message.thinking || message.toolCalls?.length" class="activity-list">
+      <div
+        v-if="message.thinking || message.toolCalls?.length || isStreaming"
+        class="activity-list"
+      >
         <!-- Iteration header (only when there are tool calls → marks this as an agent loop step) -->
         <div
           v-if="iterationIndex !== undefined && message.toolCalls?.length"
@@ -68,14 +87,25 @@
 
         <!-- Thinking node -->
         <details
-          v-if="message.thinking"
+          v-if="message.thinking || isStreaming"
           class="activity-item-details"
-          :open="isStreaming && !message.content"
+          :open="isStreaming && !message.content && !!message.thinking"
         >
           <summary class="activity-item">
-            <span class="activity-icon i-carbon-idea" />
+            <span
+              class="activity-icon i-carbon-idea"
+              :class="{ 'activity-icon-pulsing': activeState === 'waiting' }"
+            />
             <span class="activity-label">
-              <span v-if="activeState === 'thinking'" class="activity-label-streaming">
+              <span v-if="activeState === 'waiting'" class="activity-label-streaming">
+                {{ t('dataStudio.agent.message.waitingForModel') }}
+                <span class="inline-dots">
+                  <span class="dot" />
+                  <span class="dot" />
+                  <span class="dot" />
+                </span>
+              </span>
+              <span v-else-if="activeState === 'thinking'" class="activity-label-streaming">
                 {{ t('dataStudio.agent.message.thinkingInProgress') }}
                 <span class="inline-dots">
                   <span class="dot" />
@@ -111,9 +141,9 @@
                 </span>
               </span>
             </span>
-            <span class="activity-chevron i-carbon-chevron-down" />
+            <span v-if="message.thinking" class="activity-chevron i-carbon-chevron-down" />
           </summary>
-          <div v-auto-stick class="activity-body thinking-body">
+          <div v-if="message.thinking" v-auto-stick class="activity-body thinking-body">
             <MarkdownRender
               :markdown="message.thinking"
               class="markdown-body prose prose-sm max-w-none"
@@ -191,19 +221,13 @@
 
       <!-- Main response content (only when not part of an activity timeline) -->
       <div
-        v-if="(message.content || isStreaming) && !message.toolCalls?.length"
+        v-if="message.content && !message.toolCalls?.length"
         class="message-content assistant-content"
       >
         <MarkdownRender
-          v-if="message.content"
           :markdown="message.content"
           class="markdown-body prose prose-sm max-w-none"
         />
-        <div v-if="isStreaming && !message.content" class="typing-indicator">
-          <span class="dot" />
-          <span class="dot" />
-          <span class="dot" />
-        </div>
       </div>
     </div>
   </div>
@@ -266,16 +290,17 @@ const isStreaming = computed(
   () => props.message.status === 'streaming' || props.message.status === 'SENDING',
 );
 
-const activeState = computed<'thinking' | 'generating' | 'awaitingConfirm' | 'executing' | 'done'>(
-  () => {
-    if (!isStreaming.value) return 'done';
-    const toolCalls: AgentToolCall[] = props.message.toolCalls ?? [];
-    if (toolCalls.some(tc => tc.status === 'executing')) return 'executing';
-    if (toolCalls.some(tc => tc.status === 'pending')) return 'awaitingConfirm';
-    if ((props.message.content ?? '').length > 0) return 'generating';
-    return 'thinking';
-  },
-);
+const activeState = computed<
+  'waiting' | 'thinking' | 'generating' | 'awaitingConfirm' | 'executing' | 'done'
+>(() => {
+  if (!isStreaming.value) return 'done';
+  const toolCalls: AgentToolCall[] = props.message.toolCalls ?? [];
+  if (toolCalls.some(tc => tc.status === 'executing')) return 'executing';
+  if (toolCalls.some(tc => tc.status === 'pending')) return 'awaitingConfirm';
+  if ((props.message.content ?? '').length > 0) return 'generating';
+  if ((props.message.thinking ?? '').length > 0) return 'thinking';
+  return 'waiting';
+});
 
 const activeToolName = computed(() => {
   const toolCalls: AgentToolCall[] = props.message.toolCalls ?? [];
@@ -759,14 +784,7 @@ details[open] .activity-chevron {
   color: hsl(var(--muted-foreground) / 0.6);
 }
 
-/* ── Typing indicator ── */
-.typing-indicator {
-  display: flex;
-  gap: 4px;
-  padding: 4px 0;
-  align-items: center;
-}
-
+/* ── Typing indicator dots ── */
 .dot {
   width: 5px;
   height: 5px;
@@ -958,5 +976,36 @@ details[open] .activity-chevron {
   max-height: 240px;
   overflow-y: auto;
   max-width: 600px;
+}
+
+.activity-icon-pulsing {
+  animation: subtle-pulse 1.8s ease-in-out infinite;
+}
+@keyframes subtle-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.compaction-icon-pulsing {
+  animation: compaction-pulse 1.4s ease-in-out infinite;
+}
+@keyframes compaction-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+.compaction-marker--in-progress .compaction-row {
+  background: hsl(var(--muted) / 0.55);
+  border-color: hsl(var(--primary) / 0.3);
 }
 </style>

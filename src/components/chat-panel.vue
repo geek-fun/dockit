@@ -49,14 +49,6 @@
     </div>
 
     <div class="chat-input-area">
-      <div v-if="progress && isLoading" class="chat-progress-pill" role="status" aria-live="polite">
-        <span
-          class="chat-progress-pill__dot"
-          :class="`chat-progress-pill__dot--${progress.phase}`"
-        />
-        <span class="chat-progress-pill__label">{{ progressLabel }}</span>
-      </div>
-
       <div v-if="stopReason && stopMessage" class="loop-stopped-banner" role="status">
         <div class="loop-stopped-banner__body">
           <span class="loop-stopped-banner__icon i-carbon-pause-filled" />
@@ -319,18 +311,6 @@ const handleStop = () => {
   emit('stopLoop');
 };
 
-const progressLabel = computed(() => {
-  if (!props.progress) return '';
-  if (props.progress.phase === 'iterating') {
-    return props.progress.maxIter
-      ? t('chat.progress.iterating', { iter: props.progress.iter, maxIter: props.progress.maxIter })
-      : t('chat.progress.iteratingNoMax', { iter: props.progress.iter });
-  }
-  if (props.progress.phase === 'waiting_llm') return t('chat.progress.waitingLlm');
-  if (props.progress.phase === 'compacting') return t('chat.progress.compacting');
-  return '';
-});
-
 const handleConfirmation = (
   msgId: string,
   event: { toolCallId: string; action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' },
@@ -563,47 +543,6 @@ onBeforeUnmount(() => {
 .loop-stopped-banner__action:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.chat-progress-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: hsl(var(--secondary));
-  color: hsl(var(--muted-foreground));
-  font-size: 12px;
-  line-height: 1;
-}
-
-.chat-progress-pill__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  animation: pulse-dot 1s ease-in-out infinite alternate;
-}
-
-.chat-progress-pill__dot--iterating {
-  background-color: hsl(210 100% 60%);
-}
-
-.chat-progress-pill__dot--waiting_llm {
-  background-color: hsl(38 92% 50%);
-}
-
-.chat-progress-pill__dot--compacting {
-  background-color: hsl(270 60% 60%);
-}
-
-@keyframes pulse-dot {
-  0% {
-    opacity: 0.4;
-  }
-  100% {
-    opacity: 1;
-  }
 }
 
 .chat-input-wrapper {

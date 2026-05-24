@@ -109,6 +109,7 @@ export type AgentMessage = {
   toolCallId?: string;
   timestamp: number;
   compaction?: CompactionMarker;
+  compactionInProgress?: boolean;
 };
 
 export type AgentSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped';
@@ -192,6 +193,14 @@ export const attachSourceToSession = (
 };
 
 // ── Hydration ────────────────────────────────────────────────────────────────
+
+const dedupAdjacentCompactions = (messages: AgentMessage[]): AgentMessage[] => {
+  return messages.filter((m, i) => {
+    if (!m.compaction) return true;
+    const next = messages[i + 1];
+    return !next?.compaction;
+  });
+};
 
 const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
   const base = {
@@ -693,6 +702,58 @@ export const useDataStudioStore = defineStore('dataStudio', {
       );
     },
 
+    replaceCompactionInProgressWithMarker(
+      sessionId: string,
+      payload: CompactionMarkerInsertPayload,
+    ) {
+      const trigger: CompactionMarker['trigger'] = payload.trigger === 'manual' ? 'manual' : 'auto';
+      const fallbackSummary =
+        payload.fallback_keep_pairs !== undefined
+          ? `\n\nDeep compaction fallback applied (keep_pairs=${payload.fallback_keep_pairs}).`
+          : '';
+      const summary = `Compaction removed ${payload.removed_count} messages.${fallbackSummary}`;
+
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        let found = false;
+        const messages = s.messages.map(m => {
+          if (m.id === `compacting-${sessionId}`) {
+            found = true;
+            return {
+              ...m,
+              id: `compaction-${sessionId}-${Date.now()}`,
+              compactionInProgress: false,
+              status: 'done' as AgentMessageStatus,
+              compaction: {
+                summary,
+                preTokens: payload.pre_tokens,
+                postTokens: payload.post_tokens,
+                trigger,
+              },
+            };
+          }
+          return m;
+        });
+
+        if (!found) {
+          messages.push({
+            id: `compaction-${sessionId}-${Date.now()}`,
+            role: 'system',
+            content: '',
+            status: 'done',
+            timestamp: Date.now(),
+            compaction: {
+              summary,
+              preTokens: payload.pre_tokens,
+              postTokens: payload.post_tokens,
+              trigger,
+            },
+          });
+        }
+        return { ...s, messages };
+      });
+    },
+
     getToolResultFullBody(toolCallId: string): string | undefined {
       return this.toolResultFullBodies[toolCallId];
     },
@@ -779,16 +840,18 @@ export const useDataStudioStore = defineStore('dataStudio', {
       );
       const existing = this.sessions.find(s => s.id === sessionId)?.messages ?? [];
       const existingById = new Map(existing.map(m => [m.id, m]));
-      const messages: Array<AgentMessage> = backendMessages.map(msg => {
-        const hydrated = hydrateMessage(msg);
-        const inMemory = existingById.get(hydrated.id);
-        if (!inMemory) return hydrated;
-        return {
-          ...hydrated,
-          toolCalls: inMemory.toolCalls ?? hydrated.toolCalls,
-          status: inMemory.status ?? hydrated.status,
-        };
-      });
+      const messages: Array<AgentMessage> = dedupAdjacentCompactions(
+        backendMessages.map(msg => {
+          const hydrated = hydrateMessage(msg);
+          const inMemory = existingById.get(hydrated.id);
+          if (!inMemory) return hydrated;
+          return {
+            ...hydrated,
+            toolCalls: inMemory.toolCalls ?? hydrated.toolCalls,
+            status: inMemory.status ?? hydrated.status,
+          };
+        }),
+      );
       this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, messages } : s));
     },
 
@@ -838,7 +901,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
           const backendMessages = await loadSessionMessages(s.id).catch(
             () => [] as BackendAgentMessage[],
           );
-          const messages: Array<AgentMessage> = backendMessages.map(hydrateMessage);
+          const messages: Array<AgentMessage> = dedupAdjacentCompactions(
+            backendMessages.map(hydrateMessage),
+          );
           const sources: SessionSource[] = raw?.sources ?? [];
           return {
             id: s.id,

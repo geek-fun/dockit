@@ -1432,6 +1432,8 @@ export const enUS = {
         toolDenied: 'Tool execution denied',
         toolError: 'Tool execution failed',
         thinking: 'Thinking',
+        waitingForModel: 'Waiting for model',
+        compactionInProgress: 'Compacting conversation',
         thinkingInProgress: 'Thinking…',
         thinkingDone: 'Done thinking',
         thinkingDuration: '{s}s',
