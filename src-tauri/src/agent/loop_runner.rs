@@ -168,7 +168,7 @@ fn scrub_broken_tail(db: &AgentDb, session_id: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn load_messages(db: &AgentDb, session_id: &str) -> Result<Vec<(String, String, String)>, String> {
+fn load_active_history(db: &AgentDb, session_id: &str) -> Result<Vec<(String, String, String)>, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare(
@@ -267,7 +267,12 @@ fn build_request_body(settings: &Value, history_msgs: &[Value], stream: bool) ->
     body
 }
 
-fn db_messages_to_chat(
+// Projection layer: stored DB rows -> LLM ModelMessage[].
+// DB is the full audit log (UIMessage equivalent); this function filters
+// and reshapes rows into a payload the LLM API will accept. Mirrors the
+// role of Vercel AI SDK's `convertToModelMessages` and OpenCode's
+// `toModelMessagesEffect`. All "what does the LLM see?" logic belongs here.
+fn build_llm_messages(
     messages: &[(String, String, String)],
     system_prompt: Option<&str>,
 ) -> Vec<Value> {
@@ -708,8 +713,8 @@ async fn run_agent_loop_inner(
         );
         crate::agent::conversation::prepare_for_llm(db, app, settings, session_id).await?;
 
-        let history = load_messages(db, session_id)?;
-        let chat_msgs = db_messages_to_chat(&history, system_prompt.as_deref());
+    let history = load_active_history(db, session_id)?;
+    let chat_msgs = build_llm_messages(&history, system_prompt.as_deref());
         let spec = resolve_model_spec_for_session(session_id, settings);
         cumulative_input_tokens = cumulative_input_tokens
             .saturating_add(crate::agent::token_counter::count_chat_messages(&chat_msgs, &spec));
