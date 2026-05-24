@@ -321,6 +321,9 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         systemPrompt: '',
         tools: [],
         autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
+        maxIterations: useAppStore().llmSettings.chat?.maxIterations ?? 200,
+        wallClockBudgetMin: useAppStore().llmSettings.chat?.wallClockBudgetMin ?? 30,
+        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 1_000_000,
         contextWindowOverride: provider.contextWindowOverride,
       };
     } catch {
@@ -569,6 +572,9 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         systemPrompt,
         tools: noConnection ? [] : (runtime.tools ?? []),
         autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
+        maxIterations: useAppStore().llmSettings.chat?.maxIterations ?? 200,
+        wallClockBudgetMin: useAppStore().llmSettings.chat?.wallClockBudgetMin ?? 30,
+        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 1_000_000,
         contextWindowOverride: provider.contextWindowOverride,
       };
 

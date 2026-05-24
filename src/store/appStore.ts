@@ -58,6 +58,9 @@ export type FeatureModelRoute = {
 
 export type ChatRuntimeConfig = {
   autoCompact: boolean;
+  maxIterations: number;
+  wallClockBudgetMin: number;
+  tokenBudget: number;
 };
 
 export type LlmSettings = {
@@ -232,6 +235,9 @@ const defaultLlmSettings = (): LlmSettings => ({
   },
   chat: {
     autoCompact: true,
+    maxIterations: 200,
+    wallClockBudgetMin: 30,
+    tokenBudget: 1_000_000,
   },
 });
 
@@ -347,6 +353,9 @@ const mergeLlmSettings = (stored: Partial<LlmSettings> | undefined): LlmSettings
     },
     chat: {
       autoCompact: stored?.chat?.autoCompact ?? true,
+      maxIterations: stored?.chat?.maxIterations ?? 200,
+      wallClockBudgetMin: stored?.chat?.wallClockBudgetMin ?? 30,
+      tokenBudget: stored?.chat?.tokenBudget ?? 1_000_000,
     },
   };
 };

@@ -19,7 +19,9 @@ use crate::db::AgentDb;
 pub type ConfirmMap = Arc<Mutex<HashMap<String, oneshot::Sender<bool>>>>;
 pub type CancelMap = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;
 
-const MAX_ITERATIONS: usize = 20;
+const DEFAULT_MAX_ITERATIONS: usize = 200;
+const DEFAULT_WALL_CLOCK_BUDGET_SECS: u64 = 30 * 60;
+const DEFAULT_TOKEN_BUDGET: usize = 1_000_000;
 const CONFIRM_TIMEOUT_SECS: u64 = 300;
 const RETRY_DELAYS_MS: &[u64] = &[1_000, 3_000, 8_000];
 const RETRY_JITTER_MS: u64 = 250;
@@ -280,6 +282,18 @@ fn db_messages_to_chat(
         }
     }
     out
+}
+
+fn emit_loop_stopped(app: &AppHandle, session_id: &str, reason: &str, message: &str) {
+    let _ = app.emit(
+        "agent-loop-stopped",
+        json!({
+            "session_id": session_id,
+            "reason": reason,
+            "message": message,
+        }),
+    );
+    let _ = app.emit("agent-loop-done", json!({"session_id": session_id}));
 }
 
 fn emit_context_usage(app: &AppHandle, session_id: &str, settings: &Value, db: &AgentDb) {
@@ -560,11 +574,71 @@ async fn run_agent_loop_inner(
     let mut recent_tool_signatures: std::collections::VecDeque<String> =
         std::collections::VecDeque::with_capacity(4);
 
-    for _iter in 0..MAX_ITERATIONS {
+    let max_iterations = settings
+        .get("maxIterations")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as usize)
+        .unwrap_or(DEFAULT_MAX_ITERATIONS);
+    let wall_clock_budget_secs = settings
+        .get("wallClockBudgetMin")
+        .and_then(|v| v.as_u64())
+        .map(|n| n.saturating_mul(60))
+        .unwrap_or(DEFAULT_WALL_CLOCK_BUDGET_SECS);
+    let token_budget = settings
+        .get("tokenBudget")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as usize)
+        .unwrap_or(DEFAULT_TOKEN_BUDGET);
+    let loop_started_at = std::time::Instant::now();
+    let mut cumulative_input_tokens: usize = 0;
+    let mut iter_count: usize = 0;
+
+    loop {
+        if iter_count >= max_iterations {
+            emit_loop_stopped(
+                app,
+                session_id,
+                "iteration_cap",
+                &format!(
+                    "Agent paused after {} iterations (configured cap). The task may need more work — reply 'continue' or raise the cap in settings.",
+                    iter_count
+                ),
+            );
+            return Ok(());
+        }
+        let elapsed_secs = loop_started_at.elapsed().as_secs();
+        if elapsed_secs >= wall_clock_budget_secs {
+            emit_loop_stopped(
+                app,
+                session_id,
+                "wall_clock_budget",
+                &format!(
+                    "Agent paused after {}m wall-clock budget. Reply 'continue' to keep going or raise the budget in settings.",
+                    elapsed_secs / 60
+                ),
+            );
+            return Ok(());
+        }
+        if cumulative_input_tokens >= token_budget {
+            emit_loop_stopped(
+                app,
+                session_id,
+                "token_budget",
+                &format!(
+                    "Agent paused after consuming {} input tokens (configured budget {}). Reply 'continue' to keep going or raise the budget in settings.",
+                    cumulative_input_tokens, token_budget
+                ),
+            );
+            return Ok(());
+        }
+        iter_count += 1;
         crate::agent::conversation::prepare_for_llm(db, app, settings, session_id).await?;
 
         let history = load_messages(db, session_id)?;
         let chat_msgs = db_messages_to_chat(&history, system_prompt.as_deref());
+        let spec = resolve_model_spec_for_session(session_id, settings);
+        cumulative_input_tokens = cumulative_input_tokens
+            .saturating_add(crate::agent::token_counter::count_chat_messages(&chat_msgs, &spec));
         let body = build_request_body(settings, &chat_msgs, true);
 
         let acc = tokio::select! {
@@ -921,9 +995,6 @@ async fn run_agent_loop_inner(
             insert_message(db, app, settings, &new_id(), session_id, "tool", &tool_msg.to_string())?;
         }
     }
-
-    let _ = app.emit("agent-loop-done", json!({"session_id": session_id}));
-    Ok(())
 }
 
 #[tauri::command]

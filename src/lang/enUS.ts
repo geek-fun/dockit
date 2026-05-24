@@ -152,6 +152,15 @@ export const enUS = {
         autoCompactLabel: 'Auto-compact context',
         autoCompactDescription:
           'When the context window fills up, automatically summarize older messages to keep the conversation going. Disable to be prompted instead.',
+        maxIterationsLabel: 'Max agent iterations',
+        maxIterationsDescription:
+          'Maximum tool-call rounds per request before the agent stops and asks you to continue. Default: 200.',
+        wallClockBudgetLabel: 'Wall-clock budget (minutes)',
+        wallClockBudgetDescription:
+          'Maximum wall-clock time for a single agent run. The agent stops gracefully when this is exceeded. Default: 30.',
+        tokenBudgetLabel: 'Token budget',
+        tokenBudgetDescription:
+          'Maximum cumulative input tokens across all iterations in one agent run. Default: 1,000,000.',
       },
 
       models: {

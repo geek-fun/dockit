@@ -123,6 +123,65 @@
         </div>
         <Switch :model-value="autoCompactEnabled" @update:model-value="setAutoCompact" />
       </div>
+
+      <div
+        class="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/70 px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between"
+      >
+        <div class="min-w-0 space-y-1">
+          <p class="text-base font-semibold">{{ $t('setting.ai.chat.maxIterationsLabel') }}</p>
+          <p class="text-sm text-muted-foreground">
+            {{ $t('setting.ai.chat.maxIterationsDescription') }}
+          </p>
+        </div>
+        <Input
+          type="number"
+          min="1"
+          max="1000"
+          class="w-32"
+          :model-value="maxIterations"
+          @update:model-value="value => setMaxIterations(Number(value))"
+        />
+      </div>
+
+      <div
+        class="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/70 px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between"
+      >
+        <div class="min-w-0 space-y-1">
+          <p class="text-base font-semibold">
+            {{ $t('setting.ai.chat.wallClockBudgetLabel') }}
+          </p>
+          <p class="text-sm text-muted-foreground">
+            {{ $t('setting.ai.chat.wallClockBudgetDescription') }}
+          </p>
+        </div>
+        <Input
+          type="number"
+          min="1"
+          max="240"
+          class="w-32"
+          :model-value="wallClockBudgetMin"
+          @update:model-value="value => setWallClockBudgetMin(Number(value))"
+        />
+      </div>
+
+      <div
+        class="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/70 px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between"
+      >
+        <div class="min-w-0 space-y-1">
+          <p class="text-base font-semibold">{{ $t('setting.ai.chat.tokenBudgetLabel') }}</p>
+          <p class="text-sm text-muted-foreground">
+            {{ $t('setting.ai.chat.tokenBudgetDescription') }}
+          </p>
+        </div>
+        <Input
+          type="number"
+          min="1000"
+          step="1000"
+          class="w-40"
+          :model-value="tokenBudget"
+          @update:model-value="value => setTokenBudget(Number(value))"
+        />
+      </div>
     </section>
 
     <Dialog :open="providerDialogOpen" @update:open="handleProviderDialogOpenChange">
@@ -398,12 +457,39 @@ const providerActionState = reactive<Record<string, 'idle' | 'testing'>>({});
 const providerSyncState = reactive<Record<string, 'idle' | 'loading'>>({});
 
 const autoCompactEnabled = computed(() => llmSettings.value.chat?.autoCompact ?? true);
-const setAutoCompact = async (value: boolean) => {
+const maxIterations = computed(() => llmSettings.value.chat?.maxIterations ?? 200);
+const wallClockBudgetMin = computed(() => llmSettings.value.chat?.wallClockBudgetMin ?? 30);
+const tokenBudget = computed(() => llmSettings.value.chat?.tokenBudget ?? 1_000_000);
+
+const ensureChatConfig = () => {
   if (!llmSettings.value.chat) {
-    llmSettings.value.chat = { autoCompact: value };
-  } else {
-    llmSettings.value.chat.autoCompact = value;
+    llmSettings.value.chat = {
+      autoCompact: true,
+      maxIterations: 200,
+      wallClockBudgetMin: 30,
+      tokenBudget: 1_000_000,
+    };
   }
+  return llmSettings.value.chat;
+};
+
+const setAutoCompact = async (value: boolean) => {
+  ensureChatConfig().autoCompact = value;
+  await appStore.persistLlmSettings();
+};
+
+const setMaxIterations = async (value: number) => {
+  ensureChatConfig().maxIterations = Math.max(1, Math.floor(value));
+  await appStore.persistLlmSettings();
+};
+
+const setWallClockBudgetMin = async (value: number) => {
+  ensureChatConfig().wallClockBudgetMin = Math.max(1, Math.floor(value));
+  await appStore.persistLlmSettings();
+};
+
+const setTokenBudget = async (value: number) => {
+  ensureChatConfig().tokenBudget = Math.max(1_000, Math.floor(value));
   await appStore.persistLlmSettings();
 };
 
