@@ -29,7 +29,11 @@
           <span class="i-carbon-arrow-right delta-arrow" />
           {{ formatTokens(message.compaction.postTokens) }}
           <span class="delta-saved">
-            -{{ formatTokens(Math.max(0, message.compaction.preTokens - message.compaction.postTokens)) }}
+            -{{
+              formatTokens(
+                Math.max(0, message.compaction.preTokens - message.compaction.postTokens),
+              )
+            }}
           </span>
         </span>
         <details v-if="message.compaction.summary" class="compaction-summary-details">

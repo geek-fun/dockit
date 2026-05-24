@@ -22,7 +22,9 @@
 
     <div v-if="open" class="context-indicator__popover" @click.stop>
       <header class="context-indicator__popover-header">
-        <span class="context-indicator__popover-title">{{ t('dataStudio.contextIndicator.popoverTitle') }}</span>
+        <span class="context-indicator__popover-title">
+          {{ t('dataStudio.contextIndicator.popoverTitle') }}
+        </span>
         <span class="context-indicator__popover-model">{{ usage?.model ?? '—' }}</span>
       </header>
 
@@ -67,7 +69,13 @@
         >
           <Spinner v-if="compacting" size="sm" />
           <span v-else class="i-carbon-compress h-3.5 w-3.5" />
-          <span>{{ compacting ? t('dataStudio.contextIndicator.compacting') : t('dataStudio.contextIndicator.compactNow') }}</span>
+          <span>
+            {{
+              compacting
+                ? t('dataStudio.contextIndicator.compacting')
+                : t('dataStudio.contextIndicator.compactNow')
+            }}
+          </span>
         </button>
       </footer>
     </div>

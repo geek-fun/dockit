@@ -13,7 +13,13 @@ import {
 import { useConnectionStore } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
 import { buildConnectionConfig } from './connectionConfig';
-import type { ChatMessage, ChatSession, ChatSessionStatus, ChatMessageStatus, ChatMessageRole } from '@/types/chat';
+import type {
+  ChatMessage,
+  ChatSession,
+  ChatSessionStatus,
+  ChatMessageStatus,
+  ChatMessageRole,
+} from '@/types/chat';
 
 const adaptDataStudioMessage = (msg: AgentMessage): ChatMessage => ({
   id: msg.id,
