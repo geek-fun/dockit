@@ -236,6 +236,34 @@ const scrollToBottom = (behavior: 'auto' | 'smooth' = 'smooth') => {
   });
 };
 
+// Sync scroll without nextTick for streaming (height already changed when RO fires).
+let rafId = 0;
+const stickToBottomNow = () => {
+  if (!stickToBottom.value) return;
+  if (rafId) return;
+  rafId = requestAnimationFrame(() => {
+    rafId = 0;
+    const el = getViewport();
+    if (!el || !stickToBottom.value) return;
+    el.scrollTop = el.scrollHeight;
+  });
+};
+
+let contentResizeObserver: ResizeObserver | null = null;
+
+const observeContentSize = () => {
+  const el = getViewport();
+  if (!el) return;
+  // Observe the inner content wrapper (first child) so we react to any
+  // height growth — streamed text, expanding thinking blocks, tool results,
+  // even a lone newline appended to the current assistant message.
+  const content = el.firstElementChild as HTMLElement | null;
+  if (!content) return;
+  contentResizeObserver?.disconnect();
+  contentResizeObserver = new ResizeObserver(() => stickToBottomNow());
+  contentResizeObserver.observe(content);
+};
+
 const forceScrollToBottom = () => {
   stickToBottom.value = true;
   scrollToBottom('smooth');
@@ -291,7 +319,13 @@ const onModelPickerOpen = () => {
 watch(
   () => props.messages.length,
   () => {
-    if (stickToBottom.value) scrollToBottom();
+    // On new message append: re-stick (user expects to follow new turns) and
+    // re-bind the ResizeObserver in case the virtualized content node changed.
+    stickToBottom.value = true;
+    nextTick(() => {
+      observeContentSize();
+      stickToBottomNow();
+    });
   },
 );
 
@@ -309,11 +343,16 @@ onMounted(async () => {
   viewportEl.value = el;
   el?.addEventListener('scroll', handleViewportScroll, { passive: true });
   scrollToBottom('auto');
+  await nextTick();
+  observeContentSize();
 });
 
 onBeforeUnmount(() => {
   const el = getViewport();
   el?.removeEventListener('scroll', handleViewportScroll);
+  contentResizeObserver?.disconnect();
+  contentResizeObserver = null;
+  if (rafId) cancelAnimationFrame(rafId);
 });
 </script>
 
@@ -337,6 +376,15 @@ onBeforeUnmount(() => {
   flex: 1;
   height: 0;
   padding: 8px 0 8px 8px;
+  /* Buffer at the bottom so the last streamed line never sits flush against
+     the chat input area; keeps the latest content visually clear. */
+  scroll-padding-bottom: 16px;
+}
+
+.chat-messages :deep([data-radix-scroll-area-viewport]) > div {
+  /* Virtua may render at an exact fit; this ensures the last bubble has
+     breathing room above the input toolbar during streaming. */
+  padding-bottom: 16px;
 }
 
 .empty-state {
