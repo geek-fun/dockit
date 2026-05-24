@@ -82,6 +82,7 @@ const initAgentRuntime = async (): Promise<void> => {
   runtimeInitPromise = Promise.all([
     onAgentLoopDelta(({ session_id, content }) => {
       const store = useDataStudioStore();
+      store.removePreparingPlaceholder(session_id);
       const session = getSessionById(store.sessions, session_id);
       if (!session) return;
 
@@ -113,6 +114,7 @@ const initAgentRuntime = async (): Promise<void> => {
     }),
     onAgentLoopThinkingDelta(({ session_id, content }) => {
       const store = useDataStudioStore();
+      store.removePreparingPlaceholder(session_id);
       const session = getSessionById(store.sessions, session_id);
       if (!session) return;
 
@@ -136,6 +138,7 @@ const initAgentRuntime = async (): Promise<void> => {
     }),
     onAgentLoopToolCall(({ session_id, tool_call_id, tool_name, arguments: args }) => {
       const store = useDataStudioStore();
+      store.removePreparingPlaceholder(session_id);
       const session = getSessionById(store.sessions, session_id);
       if (!session) return;
 
@@ -292,6 +295,7 @@ const initAgentRuntime = async (): Promise<void> => {
     }),
     onAgentLoopWaitingLlm(({ session_id, iter_count }) => {
       const store = useDataStudioStore();
+      store.removePreparingPlaceholder(session_id);
       store.setSessionProgress(session_id, {
         phase: 'waiting_llm',
         iter: iter_count,
@@ -300,6 +304,7 @@ const initAgentRuntime = async (): Promise<void> => {
     onAgentLoopCompacting(({ session_id, phase }) => {
       const store = useDataStudioStore();
       if (phase === 'start') {
+        store.removePreparingPlaceholder(session_id);
         store.setSessionProgress(session_id, { phase: 'compacting' });
         store.addMessage(session_id, {
           id: 'compacting-' + session_id,

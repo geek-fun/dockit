@@ -1393,6 +1393,7 @@ export const zhCN = {
         thinking: '思考过程',
         waitingForModel: '等待模型响应',
         compactionInProgress: '正在压缩对话',
+        preparingInProgress: '准备中',
         thinkingInProgress: '思考中…',
         thinkingDone: '已完成思考',
         thinkingDuration: '{s}秒',

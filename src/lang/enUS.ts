@@ -1434,6 +1434,7 @@ export const enUS = {
         thinking: 'Thinking',
         waitingForModel: 'Waiting for model',
         compactionInProgress: 'Compacting conversation',
+        preparingInProgress: 'Preparing',
         thinkingInProgress: 'Thinking…',
         thinkingDone: 'Done thinking',
         thinkingDuration: '{s}s',

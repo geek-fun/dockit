@@ -110,6 +110,7 @@ export type AgentMessage = {
   timestamp: number;
   compaction?: CompactionMarker;
   compactionInProgress?: boolean;
+  preparingInProgress?: boolean;
 };
 
 export type AgentSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped';
@@ -294,7 +295,12 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
 
 // ── Store ────────────────────────────────────────────────────────────────────
 
-export type SessionProgressPhase = 'idle' | 'iterating' | 'waiting_llm' | 'compacting';
+export type SessionProgressPhase =
+  | 'idle'
+  | 'preparing'
+  | 'iterating'
+  | 'waiting_llm'
+  | 'compacting';
 export type SessionProgress = {
   phase: SessionProgressPhase;
   iter?: number;
@@ -758,6 +764,37 @@ export const useDataStudioStore = defineStore('dataStudio', {
       return this.toolResultFullBodies[toolCallId];
     },
 
+    insertPreparingPlaceholder(sessionId: string) {
+      const placeholderId = `preparing-${sessionId}`;
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        if (s.messages.some(m => m.id === placeholderId)) return s;
+        return {
+          ...s,
+          messages: [
+            ...s.messages,
+            {
+              id: placeholderId,
+              role: 'system' as AgentMessageRole,
+              content: '',
+              status: 'streaming' as AgentMessageStatus,
+              timestamp: Date.now(),
+              preparingInProgress: true,
+            },
+          ],
+        };
+      });
+    },
+
+    removePreparingPlaceholder(sessionId: string) {
+      const placeholderId = `preparing-${sessionId}`;
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        if (!s.messages.some(m => m.id === placeholderId)) return s;
+        return { ...s, messages: s.messages.filter(m => m.id !== placeholderId) };
+      });
+    },
+
     setSessionProgress(sessionId: string, partial: Partial<Omit<SessionProgress, 'updatedAt'>>) {
       const existing = this.sessionProgress[sessionId];
       this.sessionProgress = {
@@ -783,6 +820,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
       }
       if (status === 'idle' || status === 'stopped' || status === 'error') {
         this.clearSessionProgress(sessionId);
+        this.removePreparingPlaceholder(sessionId);
       }
       updateSessionStatus(sessionId, status === 'stopped' ? 'idle' : status).catch(() => undefined);
     },

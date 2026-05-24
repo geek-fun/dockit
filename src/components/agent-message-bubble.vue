@@ -28,6 +28,22 @@
         </span>
       </div>
     </div>
+    <div
+      v-else-if="normalizedRole === 'system' && message.preparingInProgress"
+      class="compaction-marker compaction-marker--in-progress"
+    >
+      <div class="compaction-row">
+        <span class="compaction-icon i-carbon-circle-dash compaction-icon-pulsing" />
+        <span class="compaction-label">
+          {{ t('dataStudio.agent.message.preparingInProgress') }}
+          <span class="inline-dots">
+            <span class="dot" />
+            <span class="dot" />
+            <span class="dot" />
+          </span>
+        </span>
+      </div>
+    </div>
     <div v-else-if="normalizedRole === 'system' && message.compaction" class="compaction-marker">
       <div class="compaction-row">
         <span class="compaction-icon i-carbon-archive" />

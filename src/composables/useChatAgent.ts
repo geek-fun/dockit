@@ -404,6 +404,9 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       timestamp: Date.now(),
     });
 
+    dataStudioStore.insertPreparingPlaceholder(sessionId);
+    dataStudioStore.setSessionProgress(sessionId, { phase: 'preparing' });
+
     const context = options.context ?? config.contextProvider?.() ?? {};
 
     try {
