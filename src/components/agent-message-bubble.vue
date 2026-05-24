@@ -11,17 +11,16 @@
       <p class="whitespace-pre-wrap">{{ message.content }}</p>
     </div>
 
-    <div
-      v-else-if="normalizedRole === 'system' && message.compaction"
-      class="compaction-marker"
-    >
+    <div v-else-if="normalizedRole === 'system' && message.compaction" class="compaction-marker">
       <div class="compaction-divider" />
       <div class="compaction-card">
         <span class="compaction-icon i-carbon-compare" />
         <span class="compaction-label">
           {{
             t('dataStudio.agent.message.compactionLabel', {
-              trigger: t(`dataStudio.agent.message.compactionTrigger.${message.compaction.trigger}`),
+              trigger: t(
+                `dataStudio.agent.message.compactionTrigger.${message.compaction.trigger}`,
+              ),
             })
           }}
         </span>
@@ -71,10 +70,7 @@
           <summary class="activity-item">
             <span class="activity-icon i-carbon-idea" />
             <span class="activity-label">
-              <span
-                v-if="activeState === 'thinking'"
-                class="activity-label-streaming"
-              >
+              <span v-if="activeState === 'thinking'" class="activity-label-streaming">
                 {{ t('dataStudio.agent.message.thinkingInProgress') }}
                 <span class="inline-dots">
                   <span class="dot" />
@@ -82,10 +78,7 @@
                   <span class="dot" />
                 </span>
               </span>
-              <span
-                v-else-if="activeState === 'generating'"
-                class="activity-label-streaming"
-              >
+              <span v-else-if="activeState === 'generating'" class="activity-label-streaming">
                 {{ t('dataStudio.agent.message.generating') }}
                 <span class="inline-dots">
                   <span class="dot" />
@@ -93,16 +86,10 @@
                   <span class="dot" />
                 </span>
               </span>
-              <span
-                v-else-if="activeState === 'awaitingConfirm'"
-                class="activity-label-streaming"
-              >
+              <span v-else-if="activeState === 'awaitingConfirm'" class="activity-label-streaming">
                 {{ t('dataStudio.agent.message.awaitingConfirm', { tool: activeToolName }) }}
               </span>
-              <span
-                v-else-if="activeState === 'executing'"
-                class="activity-label-streaming"
-              >
+              <span v-else-if="activeState === 'executing'" class="activity-label-streaming">
                 {{ t('dataStudio.agent.message.executingTool', { tool: activeToolName }) }}
                 <span class="inline-dots">
                   <span class="dot" />
@@ -272,16 +259,16 @@ const isStreaming = computed(
   () => props.message.status === 'streaming' || props.message.status === 'SENDING',
 );
 
-const activeState = computed<
-  'thinking' | 'generating' | 'awaitingConfirm' | 'executing' | 'done'
->(() => {
-  if (!isStreaming.value) return 'done';
-  const toolCalls: AgentToolCall[] = props.message.toolCalls ?? [];
-  if (toolCalls.some(tc => tc.status === 'executing')) return 'executing';
-  if (toolCalls.some(tc => tc.status === 'pending')) return 'awaitingConfirm';
-  if ((props.message.content ?? '').length > 0) return 'generating';
-  return 'thinking';
-});
+const activeState = computed<'thinking' | 'generating' | 'awaitingConfirm' | 'executing' | 'done'>(
+  () => {
+    if (!isStreaming.value) return 'done';
+    const toolCalls: AgentToolCall[] = props.message.toolCalls ?? [];
+    if (toolCalls.some(tc => tc.status === 'executing')) return 'executing';
+    if (toolCalls.some(tc => tc.status === 'pending')) return 'awaitingConfirm';
+    if ((props.message.content ?? '').length > 0) return 'generating';
+    return 'thinking';
+  },
+);
 
 const activeToolName = computed(() => {
   const toolCalls: AgentToolCall[] = props.message.toolCalls ?? [];

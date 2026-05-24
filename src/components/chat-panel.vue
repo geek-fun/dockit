@@ -17,14 +17,17 @@
 
         <Virtualizer
           v-if="viewportEl && messages.length > 0"
+          v-slot="{ item: msg }"
           :data="messages"
           :scroll-ref="viewportEl"
           :item-size="160"
-          #default="{ item: msg }"
         >
           <AgentMessageBubble :message="msg" :iteration-index="iterationIndexMap[msg.id]" />
           <template
-            v-if="msg.role === 'assistant' && msg.toolCalls?.some((tc: AgentToolCall) => tc.status === 'pending')"
+            v-if="
+              msg.role === 'assistant' &&
+              msg.toolCalls?.some((tc: AgentToolCall) => tc.status === 'pending')
+            "
           >
             <ToolConfirmationCard
               v-for="tc in msg.toolCalls.filter((tc: AgentToolCall) => tc.status === 'pending')"

@@ -149,13 +149,12 @@ export const zhCN = {
         autoCompactDescription:
           '当上下文窗口接近上限时，自动总结较早的消息以便继续对话。关闭后将改为提示你手动处理。',
         maxIterationsLabel: '最大代理迭代次数',
-        maxIterationsDescription: '单次请求中工具调用的最大轮数，达到后代理停止并请你继续。默认：200。',
+        maxIterationsDescription:
+          '单次请求中工具调用的最大轮数，达到后代理停止并请你继续。默认：200。',
         wallClockBudgetLabel: '挂钟时间预算（分钟）',
-        wallClockBudgetDescription:
-          '单次代理运行的最长挂钟时间，超出后代理将优雅停止。默认：30。',
+        wallClockBudgetDescription: '单次代理运行的最长挂钟时间，超出后代理将优雅停止。默认：30。',
         tokenBudgetLabel: 'Token 预算',
-        tokenBudgetDescription:
-          '单次代理运行中所有迭代累计的最大输入 Token 数。默认：1,000,000。',
+        tokenBudgetDescription: '单次代理运行中所有迭代累计的最大输入 Token 数。默认：1,000,000。',
       },
 
       models: {
