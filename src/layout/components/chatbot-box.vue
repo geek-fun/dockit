@@ -21,7 +21,7 @@
       :input-placeholder="$t('aside.chatBotPlaceholder')"
       :session-id="activeSession?.id ?? null"
       :context-settings="lastSettings ?? undefined"
-      :progress="activeSession ? store.getSessionProgress(activeSession.id) : null"
+      :progress="activeSession ? dataStudioStore.getSessionProgress(activeSession.id) : null"
       :stop-reason="activeSession?.stopReason ?? null"
       :stop-message="activeSession?.stopMessage ?? null"
       feature="sidebarAssistant"
