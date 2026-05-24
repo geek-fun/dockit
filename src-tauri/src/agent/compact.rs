@@ -11,7 +11,7 @@ use crate::agent::loop_runner_support::{
 use crate::agent::model_registry::{
     apply_overrides, resolve_spec, usable_window, ModelSpec, TokenizerFamily,
 };
-use crate::agent::token_counter::estimate_stored_message;
+use crate::agent::token_counter::{count_chat_messages, count_tools_tokens, estimate_stored_message};
 use crate::common::http_client::create_http_client;
 use crate::db::AgentDb;
 
@@ -51,6 +51,41 @@ pub fn evaluate(messages: &[StoredMessage], spec: &ModelSpec) -> CompactDecision
         trigger_at,
         should_compact: used >= trigger_at,
     }
+}
+
+pub fn count_projected_tokens(
+    messages: &[StoredMessage],
+    system_prompt: Option<&str>,
+    tools: Option<&Value>,
+    spec: &ModelSpec,
+) -> usize {
+    let mut chat_msgs: Vec<Value> = Vec::new();
+
+    if let Some(sys) = system_prompt {
+        if !sys.trim().is_empty() {
+            chat_msgs.push(json!({"role": "system", "content": sys}));
+        }
+    }
+
+    for m in messages {
+        if m.role == "assistant" && m.content.starts_with("LLM HTTP ") {
+            continue;
+        }
+        if m.role == "system" {
+            if let Ok(v) = serde_json::from_str::<Value>(&m.content) {
+                if v.get("_compact_boundary").and_then(|x| x.as_bool()).unwrap_or(false) {
+                    let summary = v.get("summary").and_then(|x| x.as_str()).unwrap_or_default();
+                    chat_msgs.push(json!({"role": "system", "content": summary}));
+                    continue;
+                }
+            }
+        }
+        chat_msgs.push(json!({"role": m.role, "content": m.content}));
+    }
+
+    let msg_tokens = count_chat_messages(&chat_msgs, spec);
+    let tool_tokens = tools.map(|t| count_tools_tokens(t, spec)).unwrap_or(0);
+    msg_tokens + tool_tokens
 }
 
 /// Claude-Code-style trigger: compact at min(ratio * capacity, capacity - safety_buffer).

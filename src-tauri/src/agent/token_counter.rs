@@ -100,3 +100,11 @@ pub fn estimate_stored_message(role: &str, content: &str, spec: &ModelSpec) -> u
     let family = spec.tokenizer;
     PER_MESSAGE_OVERHEAD + count_text(role, family) + count_text(content, family)
 }
+
+pub fn count_tools_tokens(tools: &Value, spec: &ModelSpec) -> usize {
+    if !tools.is_array() {
+        return 0;
+    }
+    let family = spec.tokenizer;
+    count_text(&tools.to_string(), family)
+}

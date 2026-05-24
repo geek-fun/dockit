@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex as AsyncMutex;
 
-use crate::agent::compact::{evaluate, resolve_model_spec_for_session, run_compact_with_events};
+use crate::agent::compact::{count_projected_tokens, evaluate, resolve_model_spec_for_session, run_compact_with_events};
 use crate::agent::loop_runner_support::{load_messages_for_compact, new_id, now_ms, StoredMessage};
 use crate::db::AgentDb;
 
@@ -82,16 +82,20 @@ fn emit_usage(app: &AppHandle, session_id: &str, settings: &Value, db: &AgentDb)
     };
     let spec = resolve_model_spec_for_session(session_id, settings);
     let decision = evaluate(&messages, &spec);
+    let system_prompt = settings.get("systemPrompt").and_then(|v| v.as_str());
+    let tools = settings.get("tools");
+    let used_tokens = count_projected_tokens(&messages, system_prompt, tools, &spec);
+    let should_compact = used_tokens >= decision.trigger_at;
     let _ = app.emit(
         "agent-context-usage",
         json!({
             "session_id": session_id,
-            "used_tokens": decision.used_tokens,
+            "used_tokens": used_tokens,
             "capacity": decision.capacity,
             "context_window": spec.context_window,
             "output_reserve": spec.output_reserve,
             "trigger_at": decision.trigger_at,
-            "should_compact": decision.should_compact,
+            "should_compact": should_compact,
             "model": spec.model_id,
         }),
     );
