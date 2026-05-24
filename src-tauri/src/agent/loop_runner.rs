@@ -290,6 +290,12 @@ fn build_llm_messages(
         std::collections::HashSet::new();
 
     for (_id, role, content) in messages {
+        // Persisted LLM HTTP errors live in the DB as assistant rows so users
+        // see them in chat history, but they are NOT valid model turns and
+        // sending them back to the LLM corrupts the request. Skip them here.
+        if role == "assistant" && content.starts_with("LLM HTTP ") {
+            continue;
+        }
         if role == "tool" {
             if let Ok(v) = serde_json::from_str::<Value>(content) {
                 let tool_call_id = v.get("tool_call_id").and_then(|x| x.as_str()).unwrap_or("");
@@ -339,6 +345,16 @@ fn build_llm_messages(
             }
             out.push(json!({"role": "assistant", "content": content}));
         } else {
+            // Reaching a non-assistant/non-tool row (user or system) means
+            // any still-pending tool_calls will never be answered. Drop the
+            // orphan assistant so OpenAI doesn't reject the request.
+            if !pending_tool_call_ids.is_empty() {
+                if out.last().and_then(|m| m.get("role")).and_then(|r| r.as_str())
+                    == Some("assistant")
+                {
+                    out.pop();
+                }
+            }
             pending_tool_call_ids.clear();
             if role == "system" {
                 if let Ok(v) = serde_json::from_str::<Value>(content) {
