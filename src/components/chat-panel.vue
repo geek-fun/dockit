@@ -289,11 +289,10 @@ const onModelPickerOpen = () => {
 };
 
 watch(
-  () => props.messages,
+  () => props.messages.length,
   () => {
     if (stickToBottom.value) scrollToBottom();
   },
-  { deep: true },
 );
 
 watch(

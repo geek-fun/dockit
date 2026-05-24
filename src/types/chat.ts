@@ -18,7 +18,7 @@ export type ChatMessage = {
   compaction?: CompactionMarker;
 };
 
-export type ChatSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error';
+export type ChatSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped';
 
 export type ChatSessionStopReason = 'iteration_cap' | 'wall_clock_budget' | 'token_budget';
 

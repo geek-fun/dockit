@@ -11,7 +11,7 @@
       <span
         v-if="autoCompactOff"
         class="context-indicator__off-badge"
-        title="Auto-compact is OFF — context will not shrink automatically"
+        :title="t('dataStudio.contextIndicator.offBadgeTitle')"
       >
         OFF
       </span>
@@ -22,41 +22,38 @@
 
     <div v-if="open" class="context-indicator__popover" @click.stop>
       <header class="context-indicator__popover-header">
-        <span class="context-indicator__popover-title">Context window</span>
+        <span class="context-indicator__popover-title">{{ t('dataStudio.contextIndicator.popoverTitle') }}</span>
         <span class="context-indicator__popover-model">{{ usage?.model ?? '—' }}</span>
       </header>
 
       <div v-if="autoCompactOff && usage?.should_compact" class="context-indicator__warning">
         <span class="i-carbon-warning-alt h-3.5 w-3.5" />
-        <span>
-          Auto-compact is OFF and context is over threshold. Compact now or the next request may
-          fail.
-        </span>
+        <span>{{ t('dataStudio.contextIndicator.warningText') }}</span>
       </div>
 
       <dl class="context-indicator__grid">
         <div>
-          <dt>Used</dt>
+          <dt>{{ t('dataStudio.contextIndicator.labelUsed') }}</dt>
           <dd>{{ formatTokens(usage?.used_tokens ?? 0) }}</dd>
         </div>
         <div>
-          <dt>Capacity</dt>
+          <dt>{{ t('dataStudio.contextIndicator.labelCapacity') }}</dt>
           <dd>{{ formatTokens(usage?.capacity ?? 0) }}</dd>
         </div>
         <div>
-          <dt>Window</dt>
+          <dt>{{ t('dataStudio.contextIndicator.labelWindow') }}</dt>
           <dd>{{ formatTokens(usage?.context_window ?? 0) }}</dd>
         </div>
         <div>
-          <dt>Reserved out</dt>
+          <dt>{{ t('dataStudio.contextIndicator.labelReservedOut') }}</dt>
           <dd>{{ formatTokens(usage?.output_reserve ?? 0) }}</dd>
         </div>
         <div>
-          <dt>Auto-compact at</dt>
+          <dt>{{ t('dataStudio.contextIndicator.labelAutoCompactAt') }}</dt>
           <dd>{{ formatTokens(usage?.trigger_at ?? 0) }}</dd>
         </div>
         <div>
-          <dt>Status</dt>
+          <dt>{{ t('dataStudio.contextIndicator.labelStatus') }}</dt>
           <dd>{{ statusText }}</dd>
         </div>
       </dl>
@@ -70,7 +67,7 @@
         >
           <Spinner v-if="compacting" size="sm" />
           <span v-else class="i-carbon-compress h-3.5 w-3.5" />
-          <span>{{ compacting ? 'Compacting…' : 'Compact now' }}</span>
+          <span>{{ compacting ? t('dataStudio.contextIndicator.compacting') : t('dataStudio.contextIndicator.compactNow') }}</span>
         </button>
       </footer>
     </div>
@@ -79,6 +76,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import {
   compactAgentSession,
@@ -96,6 +94,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ compacted: [usage: ContextUsage] }>();
 
+const { t } = useI18n();
 const message = useMessageService();
 
 const usage = ref<ContextUsage | null>(null);
@@ -125,20 +124,24 @@ const autoCompactOff = computed(() => {
 });
 
 const statusText = computed(() => {
-  if (!usage.value) return 'Idle';
+  if (!usage.value) return t('dataStudio.contextIndicator.statusIdle');
   if (autoCompactOff.value) {
-    return usage.value.should_compact ? 'Over threshold (auto-compact OFF)' : 'Auto-compact OFF';
+    return usage.value.should_compact
+      ? t('dataStudio.contextIndicator.statusOverThresholdOff')
+      : t('dataStudio.contextIndicator.statusAutoCompactOff');
   }
-  if (usage.value.should_compact) return 'Will auto-compact';
-  return 'Healthy';
+  if (usage.value.should_compact) return t('dataStudio.contextIndicator.statusWillAutoCompact');
+  return t('dataStudio.contextIndicator.statusHealthy');
 });
 
 const tooltip = computed(() => {
-  if (!usage.value) return 'Context usage';
+  if (!usage.value) return t('dataStudio.contextIndicator.tooltipIdle');
   const base = `Context ${percentText.value} · ${formatTokens(usage.value.used_tokens)} / ${formatTokens(
     usage.value.capacity,
   )}`;
-  return autoCompactOff.value ? `${base} · auto-compact OFF` : base;
+  return autoCompactOff.value
+    ? `${base} · ${t('dataStudio.contextIndicator.tooltipAutoCompactOff')}`
+    : base;
 });
 
 const formatTokens = (n: number) => {
@@ -169,9 +172,9 @@ const onCompact = async () => {
     const next = await compactAgentSession(props.sessionId, props.settings);
     usage.value = next;
     emit('compacted', next);
-    message.success('Context compacted');
+    message.success(t('dataStudio.contextIndicator.compactSuccess'));
   } catch (err) {
-    message.error(`Compact failed: ${err}`);
+    message.error(t('dataStudio.contextIndicator.compactFailed', { error: err }));
   } finally {
     compacting.value = false;
   }

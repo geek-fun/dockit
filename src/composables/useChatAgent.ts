@@ -331,11 +331,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       lastSettings.value = {
         provider: kindToProviderEnum(provider.kind),
         model: model.label,
-        apiKey: provider.apiKey ?? '',
         baseUrl: provider.baseUrl,
-        httpProxy: provider.proxy || undefined,
-        systemPrompt: '',
-        tools: [],
         autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
         maxIterations: useAppStore().llmSettings.chat?.maxIterations ?? 200,
         wallClockBudgetMin: useAppStore().llmSettings.chat?.wallClockBudgetMin ?? 30,

@@ -17,12 +17,13 @@ import type {
   ChatSession,
   ChatSessionStatus,
   ChatMessageStatus,
+  ChatMessageRole,
   ChatContextConfig,
 } from '@/types/chat';
 
 const adaptMessage = (msg: AgentMessage): ChatMessage => ({
   id: msg.id,
-  role: msg.role as 'user' | 'assistant' | 'tool',
+  role: msg.role as ChatMessageRole,
   content: msg.content,
   status: msg.status as ChatMessageStatus,
   timestamp: msg.timestamp,
@@ -30,6 +31,7 @@ const adaptMessage = (msg: AgentMessage): ChatMessage => ({
   thinkingDuration: msg.thinkingDuration,
   toolCalls: msg.toolCalls,
   toolCallId: msg.toolCallId,
+  compaction: msg.compaction,
 });
 
 const adaptSession = (session: AgentSession): ChatSession => ({

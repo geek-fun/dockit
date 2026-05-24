@@ -619,6 +619,14 @@ async fn run_agent_loop_inner(
             );
             return Ok(());
         }
+        iter_count += 1;
+        crate::agent::conversation::prepare_for_llm(db, app, settings, session_id).await?;
+
+        let history = load_messages(db, session_id)?;
+        let chat_msgs = db_messages_to_chat(&history, system_prompt.as_deref());
+        let spec = resolve_model_spec_for_session(session_id, settings);
+        cumulative_input_tokens = cumulative_input_tokens
+            .saturating_add(crate::agent::token_counter::count_chat_messages(&chat_msgs, &spec));
         if cumulative_input_tokens >= token_budget {
             emit_loop_stopped(
                 app,
@@ -631,14 +639,6 @@ async fn run_agent_loop_inner(
             );
             return Ok(());
         }
-        iter_count += 1;
-        crate::agent::conversation::prepare_for_llm(db, app, settings, session_id).await?;
-
-        let history = load_messages(db, session_id)?;
-        let chat_msgs = db_messages_to_chat(&history, system_prompt.as_deref());
-        let spec = resolve_model_spec_for_session(session_id, settings);
-        cumulative_input_tokens = cumulative_input_tokens
-            .saturating_add(crate::agent::token_counter::count_chat_messages(&chat_msgs, &spec));
         let body = build_request_body(settings, &chat_msgs, true);
 
         let acc = tokio::select! {

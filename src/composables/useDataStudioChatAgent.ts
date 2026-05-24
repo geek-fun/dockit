@@ -13,11 +13,11 @@ import {
 import { useConnectionStore } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
 import { buildConnectionConfig } from './connectionConfig';
-import type { ChatMessage, ChatSession, ChatSessionStatus, ChatMessageStatus } from '@/types/chat';
+import type { ChatMessage, ChatSession, ChatSessionStatus, ChatMessageStatus, ChatMessageRole } from '@/types/chat';
 
 const adaptDataStudioMessage = (msg: AgentMessage): ChatMessage => ({
   id: msg.id,
-  role: msg.role as 'user' | 'assistant' | 'tool',
+  role: msg.role as ChatMessageRole,
   content: msg.content,
   status: msg.status as ChatMessageStatus,
   timestamp: msg.timestamp,
@@ -25,6 +25,7 @@ const adaptDataStudioMessage = (msg: AgentMessage): ChatMessage => ({
   thinkingDuration: msg.thinkingDuration,
   toolCalls: msg.toolCalls,
   toolCallId: msg.toolCallId,
+  compaction: msg.compaction,
 });
 
 const adaptDataStudioSession = (session: AgentSession): ChatSession => ({

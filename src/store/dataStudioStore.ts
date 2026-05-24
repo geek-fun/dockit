@@ -681,7 +681,18 @@ export const useDataStudioStore = defineStore('dataStudio', {
       const backendMessages = await loadSessionMessages(sessionId).catch(
         () => [] as BackendAgentMessage[],
       );
-      const messages: Array<AgentMessage> = backendMessages.map(hydrateMessage);
+      const existing = this.sessions.find(s => s.id === sessionId)?.messages ?? [];
+      const existingById = new Map(existing.map(m => [m.id, m]));
+      const messages: Array<AgentMessage> = backendMessages.map(msg => {
+        const hydrated = hydrateMessage(msg);
+        const inMemory = existingById.get(hydrated.id);
+        if (!inMemory) return hydrated;
+        return {
+          ...hydrated,
+          toolCalls: inMemory.toolCalls ?? hydrated.toolCalls,
+          status: inMemory.status ?? hydrated.status,
+        };
+      });
       this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, messages } : s));
     },
 
