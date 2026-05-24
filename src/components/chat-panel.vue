@@ -172,7 +172,7 @@ const props = withDefaults(
     sessionId?: string | null;
     contextSettings?: unknown;
     progress?: { phase: string; iter?: number; maxIter?: number } | null;
-    stopReason?: 'iteration_cap' | 'wall_clock_budget' | 'token_budget' | null;
+    stopReason?: 'iteration_cap' | 'wall_clock_budget' | 'token_budget' | 'llm_error' | null;
     stopMessage?: string | null;
   }>(),
   {

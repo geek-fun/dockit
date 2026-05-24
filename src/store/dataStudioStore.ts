@@ -113,7 +113,7 @@ export type AgentMessage = {
 
 export type AgentSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped';
 
-export type AgentSessionStopReason = 'iteration_cap' | 'wall_clock_budget' | 'token_budget';
+export type AgentSessionStopReason = 'iteration_cap' | 'wall_clock_budget' | 'token_budget' | 'llm_error';
 
 export type AgentSession = {
   id: string;

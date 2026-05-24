@@ -234,6 +234,11 @@ fn db_messages_to_chat(
                 }));
             }
         } else if role == "assistant" {
+            if !pending_tool_call_ids.is_empty() {
+                if out.last().and_then(|m| m.get("role")).and_then(|r| r.as_str()) == Some("assistant") {
+                    out.pop();
+                }
+            }
             pending_tool_call_ids.clear();
             if let Ok(v) = serde_json::from_str::<Value>(content) {
                 if v.is_object() && (v.get("tool_calls").is_some() || v.get("content").is_some()) {
@@ -681,7 +686,12 @@ async fn run_agent_loop_inner(
                 Ok(a) => a,
                 Err(e) => {
                     let _ = insert_message(db, app, settings, &new_id(), session_id, "assistant", &e);
-                    emit_loop_stopped(app, session_id, "llm_error", &e);
+                    let is_bad_request = e.contains("invalid_request_error");
+                    if is_bad_request {
+                        let _ = app.emit("agent-loop-error", json!({"session_id": session_id, "error": e}));
+                    } else {
+                        emit_loop_stopped(app, session_id, "llm_error", &e);
+                    }
                     return Ok(());
                 }
             },

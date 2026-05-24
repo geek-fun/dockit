@@ -243,6 +243,7 @@ const initAgentRuntime = async (): Promise<void> => {
         'iteration_cap',
         'wall_clock_budget',
         'token_budget',
+        'llm_error',
       ];
       const normalized = validReasons.includes(reason as AgentSessionStopReason)
         ? (reason as AgentSessionStopReason)
