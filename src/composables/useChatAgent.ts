@@ -305,6 +305,15 @@ const getSessionById = (sessions: Array<ChatSession>, sessionId: string): ChatSe
 export const useChatAgent = (config: UseChatAgentConfig) => {
   const sessionRuntime = new Map<string, SessionRuntime>();
   const unlisteners: Array<() => void> = [];
+  let isDisposed = false;
+
+  const trackUnlisten = (unlisten: () => void) => {
+    if (isDisposed) {
+      unlisten();
+      return;
+    }
+    unlisteners.push(unlisten);
+  };
 
   const isLoading = ref(false);
   const error = ref<string | undefined>();
@@ -392,7 +401,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
           });
         }
       }
-    }).then(unlisten => unlisteners.push(unlisten));
+    }).then(trackUnlisten);
 
     onAgentLoopThinkingDelta(({ session_id, content }) => {
       const session = getSessionById(sessions.value, session_id);
@@ -412,7 +421,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
           timestamp: Date.now(),
         });
       }
-    }).then(unlisten => unlisteners.push(unlisten));
+    }).then(trackUnlisten);
 
     onAgentLoopToolCall(({ session_id, tool_call_id, tool_name, arguments: args }) => {
       const session = getSessionById(sessions.value, session_id);
@@ -466,7 +475,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       } else {
         config.sessionStore.setSessionStatus(session_id, 'waiting_confirmation');
       }
-    }).then(unlisten => unlisteners.push(unlisten));
+    }).then(trackUnlisten);
 
     onAgentLoopToolResult(({ session_id, tool_call_id, envelope, error }) => {
       const session = getSessionById(sessions.value, session_id);
@@ -488,7 +497,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
           envelope.metadata?.duration_ms,
         );
       }
-    }).then(unlisten => unlisteners.push(unlisten));
+    }).then(trackUnlisten);
 
     onAgentLoopStepDone(({ session_id }) => {
       const session = getSessionById(sessions.value, session_id);
@@ -500,7 +509,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         config.sessionStore.setMessageStatus(session_id, streamingMsg.id, 'done');
         config.sessionStore.removeOrphanedStreamingMessages(session_id, streamingMsg.id);
       }
-    }).then(unlisten => unlisteners.push(unlisten));
+    }).then(trackUnlisten);
 
     onAgentLoopDone(({ session_id }) => {
       const session = getSessionById(sessions.value, session_id);
@@ -511,7 +520,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       }
       config.sessionStore.setSessionStatus(session_id, 'idle');
       isLoading.value = false;
-    }).then(unlisten => unlisteners.push(unlisten));
+    }).then(trackUnlisten);
 
     onAgentLoopStopped(({ session_id, reason, message }) => {
       const validReasons = ['iteration_cap', 'wall_clock_budget', 'token_budget'] as const;
@@ -520,7 +529,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         : 'iteration_cap';
       config.sessionStore.setSessionStopped?.(session_id, normalized, message);
       isLoading.value = false;
-    }).then(unlisten => unlisteners.push(unlisten));
+    }).then(trackUnlisten);
 
     onAgentLoopError(({ session_id, error: errMsg }) => {
       error.value = errMsg;
@@ -535,11 +544,11 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
           config.sessionStore.setMessageStatus(session_id, streamingMsg.id, 'error');
         }
       }
-    }).then(unlisten => unlisteners.push(unlisten));
+    }).then(trackUnlisten);
 
     onAgentLoopSummaryInjected(({ session_id }) => {
       void config.sessionStore.reloadSessionMessages(session_id);
-    }).then(unlisten => unlisteners.push(unlisten));
+    }).then(trackUnlisten);
   };
 
   setupEventListeners();
@@ -722,6 +731,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
   };
 
   onUnmounted(() => {
+    isDisposed = true;
     unlisteners.forEach(unlisten => unlisten());
     unlisteners.length = 0;
     sessionRuntime.clear();

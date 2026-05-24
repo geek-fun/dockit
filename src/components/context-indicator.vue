@@ -101,6 +101,7 @@ const usage = ref<ContextUsage | null>(null);
 const open = ref(false);
 const compacting = ref(false);
 let unlisten: (() => void) | null = null;
+let isDisposed = false;
 
 const percent = computed(() => {
   if (!usage.value || usage.value.capacity === 0) return 0;
@@ -181,14 +182,20 @@ const closeOnOutside = (e: MouseEvent) => {
 };
 
 onMounted(async () => {
-  unlisten = await onAgentContextUsage(payload => {
+  const fn = await onAgentContextUsage(payload => {
     if (payload.session_id === props.sessionId) usage.value = payload;
   });
+  if (isDisposed) {
+    fn();
+  } else {
+    unlisten = fn;
+  }
   document.addEventListener('click', closeOnOutside);
   await refresh();
 });
 
 onBeforeUnmount(() => {
+  isDisposed = true;
   unlisten?.();
   document.removeEventListener('click', closeOnOutside);
 });
