@@ -30,6 +30,7 @@ import {
   onAgentLoopToolResult,
   onAgentLoopStepDone,
   onAgentLoopDone,
+  onAgentLoopStopped,
   onAgentLoopError,
   onAgentLoopSummaryInjected,
 } from '@/datasources/agentApi';
@@ -72,6 +73,12 @@ export type UseChatAgentConfig = {
       durationMs?: number,
     ) => void;
     setSessionStatus: (sessionId: string, status: ChatSessionStatus) => void;
+    setSessionStopped?: (
+      sessionId: string,
+      reason: 'iteration_cap' | 'wall_clock_budget' | 'token_budget',
+      message: string,
+    ) => void;
+    clearSessionStop?: (sessionId: string) => void;
     setSessionSchema?: (sessionId: string, schema: string) => void;
     clearSession: (sessionId: string) => Promise<void>;
     getOrCreateSession: () => Promise<string>;
@@ -506,6 +513,15 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       isLoading.value = false;
     }).then(unlisten => unlisteners.push(unlisten));
 
+    onAgentLoopStopped(({ session_id, reason, message }) => {
+      const validReasons = ['iteration_cap', 'wall_clock_budget', 'token_budget'] as const;
+      const normalized = (validReasons as readonly string[]).includes(reason)
+        ? (reason as (typeof validReasons)[number])
+        : 'iteration_cap';
+      config.sessionStore.setSessionStopped?.(session_id, normalized, message);
+      isLoading.value = false;
+    }).then(unlisten => unlisteners.push(unlisten));
+
     onAgentLoopError(({ session_id, error: errMsg }) => {
       error.value = errMsg;
       config.sessionStore.setSessionStatus(session_id, 'error');
@@ -599,6 +615,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     isLoading.value = true;
 
     const sessionId = await config.sessionStore.getOrCreateSession();
+    config.sessionStore.clearSessionStop?.(sessionId);
 
     config.sessionStore.addMessage(sessionId, {
       id: ulid(),

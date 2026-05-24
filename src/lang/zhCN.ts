@@ -1310,6 +1310,11 @@ export const zhCN = {
     failedToValidateData: '验证数据结构失败：{error}',
     failedToParseMetadata: '解析元数据文件失败：JSON 格式无效',
   },
+  chat: {
+    loopStopped: {
+      continueButton: '继续',
+    },
+  },
   dataStudio: {
     title: '数据工坊 BETA',
     configuration: '配置',

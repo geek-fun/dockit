@@ -58,6 +58,8 @@
           :input-placeholder="$t('dataStudio.inputPlaceholder')"
           :session-id="activeSession?.id ?? null"
           :context-settings="lastSettings ?? undefined"
+          :stop-reason="(activeSession as any)?.stopReason ?? null"
+          :stop-message="(activeSession as any)?.stopMessage ?? null"
           feature="dataStudio"
           compact
           @send="sendMessage"

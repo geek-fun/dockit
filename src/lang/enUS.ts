@@ -1343,6 +1343,11 @@ export const enUS = {
     failedToValidateData: 'Failed to validate data structure: {error}',
     failedToParseMetadata: 'Failed to parse metadata file: Invalid JSON format',
   },
+  chat: {
+    loopStopped: {
+      continueButton: 'Continue',
+    },
+  },
   dataStudio: {
     title: 'DATA STUDIO BETA',
     configuration: 'Configuration',

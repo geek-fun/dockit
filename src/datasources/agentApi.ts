@@ -201,6 +201,10 @@ const onAgentLoopStepDone = (
 const onAgentLoopDone = (handler: (payload: { session_id: string }) => void) =>
   listen('agent-loop-done', e => handler(e.payload as any));
 
+const onAgentLoopStopped = (
+  handler: (payload: { session_id: string; reason: string; message: string }) => void,
+) => listen('agent-loop-stopped', e => handler(e.payload as any));
+
 const onAgentLoopError = (handler: (payload: { session_id: string; error: string }) => void) =>
   listen('agent-loop-error', e => handler(e.payload as any));
 
@@ -250,6 +254,7 @@ export {
   onAgentLoopToolResult,
   onAgentLoopStepDone,
   onAgentLoopDone,
+  onAgentLoopStopped,
   onAgentLoopError,
   onAgentLoopSummaryInjected,
   onAgentContextUsage,

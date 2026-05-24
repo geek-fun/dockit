@@ -101,7 +101,17 @@ export type AgentMessage = {
   compaction?: CompactionMarker;
 };
 
-export type AgentSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error';
+export type AgentSessionStatus =
+  | 'idle'
+  | 'running'
+  | 'waiting_confirmation'
+  | 'error'
+  | 'stopped';
+
+export type AgentSessionStopReason =
+  | 'iteration_cap'
+  | 'wall_clock_budget'
+  | 'token_budget';
 
 export type AgentSession = {
   id: string;
@@ -110,6 +120,8 @@ export type AgentSession = {
   messages: Array<AgentMessage>;
   status: AgentSessionStatus;
   maxIterations: number;
+  stopReason?: AgentSessionStopReason;
+  stopMessage?: string;
 };
 
 export type ConfirmationRule = {
@@ -618,7 +630,28 @@ export const useDataStudioStore = defineStore('dataStudio', {
 
     setSessionStatus(sessionId: string, status: AgentSessionStatus) {
       this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, status } : s));
-      updateSessionStatus(sessionId, status).catch(() => undefined);
+      updateSessionStatus(sessionId, status === 'stopped' ? 'idle' : status).catch(
+        () => undefined,
+      );
+    },
+
+    setSessionStopped(
+      sessionId: string,
+      reason: AgentSessionStopReason,
+      message: string,
+    ) {
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId
+          ? { ...s, status: 'stopped' as AgentSessionStatus, stopReason: reason, stopMessage: message }
+          : s,
+      );
+      updateSessionStatus(sessionId, 'idle').catch(() => undefined);
+    },
+
+    clearSessionStop(sessionId: string) {
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, stopReason: undefined, stopMessage: undefined } : s,
+      );
     },
 
     setSessionMaxIterations(sessionId: string, maxIterations: number) {

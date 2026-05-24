@@ -41,6 +41,19 @@
     </div>
 
     <div class="chat-input-area">
+      <div v-if="stopReason && stopMessage" class="loop-stopped-banner" role="status">
+        <span class="i-carbon-pause-filled loop-stopped-banner__icon" />
+        <span class="loop-stopped-banner__message">{{ stopMessage }}</span>
+        <button
+          class="loop-stopped-banner__action"
+          type="button"
+          :disabled="isLoading"
+          @click="handleContinue"
+        >
+          {{ t('chat.loopStopped.continueButton') }}
+        </button>
+      </div>
+
       <slot name="input-prepend" />
 
       <div class="chat-input-wrapper">
@@ -125,6 +138,8 @@ const props = withDefaults(
     compact?: boolean;
     sessionId?: string | null;
     contextSettings?: unknown;
+    stopReason?: 'iteration_cap' | 'wall_clock_budget' | 'token_budget' | null;
+    stopMessage?: string | null;
   }>(),
   {
     error: undefined,
@@ -135,6 +150,8 @@ const props = withDefaults(
     compact: false,
     sessionId: null,
     contextSettings: undefined,
+    stopReason: null,
+    stopMessage: null,
   },
 );
 
@@ -223,6 +240,12 @@ const handleSend = async () => {
   const text = inputText.value.trim();
   inputText.value = '';
   emit('send', text);
+  forceScrollToBottom();
+};
+
+const handleContinue = () => {
+  if (props.isLoading) return;
+  emit('send', 'continue');
   forceScrollToBottom();
 };
 
@@ -349,6 +372,53 @@ onBeforeUnmount(() => {
 .chat-input-area {
   padding: 8px;
   position: relative;
+}
+
+.loop-stopped-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid hsl(38 92% 50% / 0.35);
+  background: hsl(38 92% 50% / 0.08);
+  color: hsl(var(--foreground));
+}
+
+.loop-stopped-banner__icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: hsl(38 92% 50%);
+}
+
+.loop-stopped-banner__message {
+  flex: 1 1 auto;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.loop-stopped-banner__action {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid hsl(38 92% 50% / 0.5);
+  background: hsl(38 92% 50% / 0.15);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.loop-stopped-banner__action:hover:not(:disabled) {
+  background: hsl(38 92% 50% / 0.25);
+}
+
+.loop-stopped-banner__action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .chat-input-wrapper {

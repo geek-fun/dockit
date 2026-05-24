@@ -132,8 +132,11 @@ export const useSidebarChatAgent = () => {
       setSessionStatus: (sessionId, status) =>
         store.setSessionStatus(
           sessionId,
-          status as 'idle' | 'running' | 'waiting_confirmation' | 'error',
+          status as 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped',
         ),
+      setSessionStopped: (sessionId, reason, message) =>
+        store.setSessionStopped(sessionId, reason, message),
+      clearSessionStop: (sessionId: string) => store.clearSessionStop(sessionId),
       setSessionSchema: (_sessionId, _schema) => undefined,
       clearSession: sessionId => store.clearSession(sessionId),
       getOrCreateSession: () => store.getOrCreateSidebarSession(),

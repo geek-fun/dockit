@@ -152,8 +152,11 @@ export const useDataStudioChatAgent = () => {
       setSessionStatus: (sessionId: string, status: ChatSessionStatus) =>
         dataStudioStore.setSessionStatus(
           sessionId,
-          status as 'idle' | 'running' | 'waiting_confirmation' | 'error',
+          status as 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped',
         ),
+      setSessionStopped: (sessionId, reason, message) =>
+        dataStudioStore.setSessionStopped(sessionId, reason, message),
+      clearSessionStop: (sessionId: string) => dataStudioStore.clearSessionStop(sessionId),
       setSessionSchema: (_sessionId: string, _schema: string) => undefined,
       clearSession: (sessionId: string) => dataStudioStore.clearSession(sessionId),
       getOrCreateSession: () => dataStudioStore.getOrCreateSession(),
