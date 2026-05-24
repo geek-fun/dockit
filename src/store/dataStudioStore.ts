@@ -72,6 +72,8 @@ export type AgentToolCall = {
   args: Record<string, unknown>;
   status: AgentToolCallStatus;
   result?: string;
+  resultTruncated?: boolean;
+  resultFullLength?: number;
   durationMs?: number;
   riskLevel: RiskLevel;
   requiresConfirmation: boolean;
@@ -285,6 +287,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     sidebarSessionId: string | undefined;
     confirmationRules: Array<ConfirmationRule>;
     sessionMeta: Record<string, SessionMeta>;
+    toolResultFullBodies: Record<string, string>;
   } => ({
     attachedSources: [],
     sessions: [],
@@ -292,6 +295,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     sidebarSessionId: undefined,
     confirmationRules: [],
     sessionMeta: {},
+    toolResultFullBodies: {},
   }),
   persist: {
     pick: [
@@ -605,6 +609,16 @@ export const useDataStudioStore = defineStore('dataStudio', {
       result?: string,
       durationMs?: number,
     ) {
+      const TOOL_RESULT_PREVIEW_CHARS = 200;
+      let storedResult = result;
+      let resultTruncated = false;
+      let resultFullLength: number | undefined;
+      if (result !== undefined && result.length > TOOL_RESULT_PREVIEW_CHARS) {
+        this.toolResultFullBodies = { ...this.toolResultFullBodies, [toolCallId]: result };
+        storedResult = result.slice(0, TOOL_RESULT_PREVIEW_CHARS);
+        resultTruncated = true;
+        resultFullLength = result.length;
+      }
       this.sessions = this.sessions.map(s => {
         if (s.id !== sessionId) return s;
         return {
@@ -618,7 +632,8 @@ export const useDataStudioStore = defineStore('dataStudio', {
                 return {
                   ...tc,
                   status,
-                  ...(result !== undefined ? { result } : {}),
+                  ...(storedResult !== undefined ? { result: storedResult } : {}),
+                  ...(resultTruncated ? { resultTruncated: true, resultFullLength } : {}),
                   ...(durationMs !== undefined ? { durationMs } : {}),
                 };
               }),
@@ -626,6 +641,10 @@ export const useDataStudioStore = defineStore('dataStudio', {
           }),
         };
       });
+    },
+
+    getToolResultFullBody(toolCallId: string): string | undefined {
+      return this.toolResultFullBodies[toolCallId];
     },
 
     setSessionStatus(sessionId: string, status: AgentSessionStatus) {
@@ -701,6 +720,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, messages: [], status: 'idle' } : s,
       );
+      this.toolResultFullBodies = {};
     },
 
     async loadSessions() {

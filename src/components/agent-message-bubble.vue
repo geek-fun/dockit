@@ -221,9 +221,11 @@
 import { computed, type Directive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import MarkdownRender from '@/components/markdown-render.vue';
+import { useDataStudioStore } from '@/store/dataStudioStore';
 import type { AgentToolCall } from '@/store/dataStudioStore';
 
 const { t } = useI18n();
+const dataStudioStore = useDataStudioStore();
 
 const STICK_THRESHOLD_PX = 24;
 const stickState = new WeakMap<HTMLElement, { stick: boolean; handler: () => void }>();
@@ -297,6 +299,10 @@ const resultStatus = (tc: AgentToolCall): 'success' | 'error' | 'denied' => {
 };
 
 const toolResultText = (tc: AgentToolCall): string | undefined => {
+  if (tc.resultTruncated) {
+    const full = dataStudioStore.getToolResultFullBody(tc.id);
+    if (full) return full;
+  }
   if (tc.result) return tc.result;
   if (tc.status === 'denied') return t('dataStudio.agent.message.toolDenied');
   if (tc.status === 'error') return t('dataStudio.agent.message.toolError');
