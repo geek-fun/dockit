@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use serde_json::{json, Value};
@@ -6,13 +6,34 @@ use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex as AsyncMutex;
 
 use crate::agent::compact::{evaluate, resolve_model_spec_for_session, run_compact_with_events};
-use crate::agent::loop_runner_support::{load_messages_for_compact, new_id, now_ms};
+use crate::agent::loop_runner_support::{load_messages_for_compact, new_id, now_ms, StoredMessage};
 use crate::db::AgentDb;
 
 /// Per-session async mutex registry. Ensures only one compaction runs per
 /// session at a time, regardless of which append path triggered it.
 static SESSION_COMPACT_LOCKS: OnceLock<Mutex<HashMap<String, Arc<AsyncMutex<()>>>>> =
     OnceLock::new();
+
+/// Sessions that already have a background compaction queued or running.
+/// Used by `append()` to avoid stacking N redundant background tasks while
+/// one is already in flight — the mutex would serialize them anyway, but
+/// every queued task would re-acquire the lock, re-check `needs_compact`,
+/// and (when the summary alone is large) emit another boundary row.
+static SESSION_COMPACT_INFLIGHT: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+
+fn inflight_set() -> &'static Mutex<HashSet<String>> {
+    SESSION_COMPACT_INFLIGHT.get_or_init(|| Mutex::new(HashSet::new()))
+}
+
+fn try_acquire_inflight(session_id: &str) -> bool {
+    let mut set = inflight_set().lock().expect("compact inflight set poisoned");
+    set.insert(session_id.to_string())
+}
+
+fn release_inflight(session_id: &str) {
+    let mut set = inflight_set().lock().expect("compact inflight set poisoned");
+    set.remove(session_id);
+}
 
 fn lock_for(session_id: &str) -> Arc<AsyncMutex<()>> {
     let map_mu = SESSION_COMPACT_LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
@@ -76,10 +97,31 @@ fn emit_usage(app: &AppHandle, session_id: &str, settings: &Value, db: &AgentDb)
     );
 }
 
+fn is_compact_boundary(msg: &StoredMessage) -> bool {
+    if msg.role != "system" {
+        return false;
+    }
+    serde_json::from_str::<Value>(&msg.content)
+        .ok()
+        .and_then(|v| v.get("_compact_boundary").and_then(|b| b.as_bool()))
+        .unwrap_or(false)
+}
+
+fn has_compactable_content_since_boundary(messages: &[StoredMessage]) -> bool {
+    let last_boundary_idx = messages.iter().rposition(is_compact_boundary);
+    let start = last_boundary_idx.map(|i| i + 1).unwrap_or(0);
+    messages[start..]
+        .iter()
+        .any(|m| matches!(m.role.as_str(), "user" | "assistant" | "tool"))
+}
+
 pub fn needs_compact(db: &AgentDb, session_id: &str, settings: &Value) -> bool {
     let Ok(messages) = load_messages_for_compact(db, session_id) else {
         return false;
     };
+    if !has_compactable_content_since_boundary(&messages) {
+        return false;
+    }
     let spec = resolve_model_spec_for_session(session_id, settings);
     evaluate(&messages, &spec).should_compact
 }
@@ -112,7 +154,9 @@ pub fn append(
             .and_then(|v| v.get("tool_calls").and_then(|tc| tc.as_array()).map(|a| !a.is_empty()))
             .unwrap_or(false);
     if !has_pending_tool_calls && auto_compact_enabled(settings) && needs_compact(db, session_id, settings) {
-        spawn_background_compact(db.clone(), app.clone(), settings.clone(), session_id.to_string());
+        if try_acquire_inflight(session_id) {
+            spawn_background_compact(db.clone(), app.clone(), settings.clone(), session_id.to_string());
+        }
     }
     Ok(())
 }
@@ -197,11 +241,16 @@ fn spawn_background_compact(db: AgentDb, app: AppHandle, settings: Value, sessio
         let lock = lock_for(&session_id);
         let _guard = lock.lock().await;
 
-        if !needs_compact(&db, &session_id, &settings) {
+        let should_run = needs_compact(&db, &session_id, &settings);
+        if !should_run {
+            release_inflight(&session_id);
             return;
         }
 
-        match run_compact_with_events(&session_id, &settings, &db, &app).await {
+        let result = run_compact_with_events(&session_id, &settings, &db, &app).await;
+        release_inflight(&session_id);
+
+        match result {
             Ok(Some(info)) => {
                 let mut summary_payload = json!({
                     "session_id": session_id,
