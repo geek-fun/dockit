@@ -15,20 +15,25 @@
           </slot>
         </div>
 
-        <template v-for="msg in messages" :key="msg.id">
+        <Virtualizer
+          v-if="viewportEl && messages.length > 0"
+          :data="messages"
+          :scroll-ref="viewportEl"
+          :item-size="160"
+          #default="{ item: msg }"
+        >
           <AgentMessageBubble :message="msg" :iteration-index="iterationIndexMap[msg.id]" />
-
           <template
-            v-if="msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.status === 'pending')"
+            v-if="msg.role === 'assistant' && msg.toolCalls?.some((tc: AgentToolCall) => tc.status === 'pending')"
           >
             <ToolConfirmationCard
-              v-for="tc in msg.toolCalls.filter(tc => tc.status === 'pending')"
+              v-for="tc in msg.toolCalls.filter((tc: AgentToolCall) => tc.status === 'pending')"
               :key="tc.id"
               :tool-call="tc"
               @confirm="handleConfirmation(msg.id, $event)"
             />
           </template>
-        </template>
+        </Virtualizer>
 
         <div v-if="error" class="error-banner">
           <span class="i-carbon-warning h-4 w-4" />
@@ -110,8 +115,10 @@ import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import { Virtualizer } from 'virtua/vue';
 import { useAppStore } from '@/store';
 import type { ChatMessage } from '@/types/chat';
+import type { AgentToolCall } from '@/store/dataStudioStore';
 import AgentMessageBubble from './agent-message-bubble.vue';
 import ToolConfirmationCard from '@/views/data-studio/components/tool-confirmation-card.vue';
 import ModelPicker from './model-picker.vue';
@@ -167,6 +174,7 @@ const emit = defineEmits<{
 }>();
 
 const scrollbarRef = ref<{ viewportElement: HTMLElement | null } | null>(null);
+const viewportEl = ref<HTMLElement | null>(null);
 const contextIndicatorRef = ref<{ refresh: () => Promise<void> } | null>(null);
 const inputText = ref('');
 const modelVerified = ref<boolean | null>(null);
@@ -294,7 +302,9 @@ watch(
 
 onMounted(async () => {
   await appStore.fetchLlmSettings();
+  await nextTick();
   const el = getViewport();
+  viewportEl.value = el;
   el?.addEventListener('scroll', handleViewportScroll, { passive: true });
   scrollToBottom('auto');
 });
