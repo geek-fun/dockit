@@ -282,10 +282,8 @@ fn db_messages_to_chat(
         }
     }
     if !pending_tool_call_ids.is_empty() {
-        if let Some(last) = out.last_mut() {
-            if last.get("role").and_then(|r| r.as_str()) == Some("assistant") {
-                last["tool_calls"] = serde_json::Value::Array(vec![]);
-            }
+        if out.last().and_then(|m| m.get("role")).and_then(|r| r.as_str()) == Some("assistant") {
+            out.pop();
         }
     }
     out
@@ -679,7 +677,14 @@ async fn run_agent_loop_inner(
                 body,
                 session_id,
                 app,
-            ) => res?,
+            ) => match res {
+                Ok(a) => a,
+                Err(e) => {
+                    let _ = insert_message(db, app, settings, &new_id(), session_id, "assistant", &e);
+                    emit_loop_stopped(app, session_id, "llm_error", &e);
+                    return Ok(());
+                }
+            },
         };
 
         let assistant_message_id = new_id();
