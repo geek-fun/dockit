@@ -49,17 +49,40 @@
     </div>
 
     <div class="chat-input-area">
+      <div v-if="progress && isLoading" class="chat-progress-pill" role="status" aria-live="polite">
+        <span
+          class="chat-progress-pill__dot"
+          :class="`chat-progress-pill__dot--${progress.phase}`"
+        />
+        <span class="chat-progress-pill__label">{{ progressLabel }}</span>
+      </div>
+
       <div v-if="stopReason && stopMessage" class="loop-stopped-banner" role="status">
-        <span class="i-carbon-pause-filled loop-stopped-banner__icon" />
-        <span class="loop-stopped-banner__message">{{ stopMessage }}</span>
-        <button
-          class="loop-stopped-banner__action"
-          type="button"
-          :disabled="isLoading"
-          @click="handleContinue"
-        >
-          {{ t('chat.loopStopped.continueButton') }}
-        </button>
+        <div class="loop-stopped-banner__body">
+          <span class="loop-stopped-banner__icon i-carbon-pause-filled" />
+          <div class="loop-stopped-banner__texts">
+            <span class="loop-stopped-banner__message">{{ stopMessage }}</span>
+            <span class="loop-stopped-banner__hint">{{ t('chat.loopStopped.continueHint') }}</span>
+          </div>
+        </div>
+        <div class="loop-stopped-banner__actions">
+          <button
+            class="loop-stopped-banner__action loop-stopped-banner__action--secondary"
+            type="button"
+            :disabled="isLoading"
+            @click="handleStop"
+          >
+            {{ t('chat.loopStopped.stopButton') }}
+          </button>
+          <button
+            class="loop-stopped-banner__action loop-stopped-banner__action--primary"
+            type="button"
+            :disabled="isLoading"
+            @click="handleContinue"
+          >
+            {{ t('chat.loopStopped.continueButton') }}
+          </button>
+        </div>
       </div>
 
       <slot name="input-prepend" />
@@ -148,6 +171,7 @@ const props = withDefaults(
     compact?: boolean;
     sessionId?: string | null;
     contextSettings?: unknown;
+    progress?: { phase: string; iter?: number; maxIter?: number } | null;
     stopReason?: 'iteration_cap' | 'wall_clock_budget' | 'token_budget' | null;
     stopMessage?: string | null;
   }>(),
@@ -160,6 +184,7 @@ const props = withDefaults(
     compact: false,
     sessionId: null,
     contextSettings: undefined,
+    progress: null,
     stopReason: null,
     stopMessage: null,
   },
@@ -168,6 +193,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   send: [content: string];
   clear: [];
+  stopLoop: [];
   confirmToolCall: [
     msgId: string,
     event: { toolCallId: string; action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' },
@@ -287,6 +313,23 @@ const handleContinue = () => {
   emit('send', 'continue');
   forceScrollToBottom();
 };
+
+const handleStop = () => {
+  if (props.isLoading) return;
+  emit('stopLoop');
+};
+
+const progressLabel = computed(() => {
+  if (!props.progress) return '';
+  if (props.progress.phase === 'iterating') {
+    return props.progress.maxIter
+      ? t('chat.progress.iterating', { iter: props.progress.iter, maxIter: props.progress.maxIter })
+      : t('chat.progress.iteratingNoMax', { iter: props.progress.iter });
+  }
+  if (props.progress.phase === 'waiting_llm') return t('chat.progress.waitingLlm');
+  if (props.progress.phase === 'compacting') return t('chat.progress.compacting');
+  return '';
+});
 
 const handleConfirmation = (
   msgId: string,
@@ -437,6 +480,7 @@ onBeforeUnmount(() => {
 .loop-stopped-banner {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   margin-bottom: 8px;
   padding: 8px 12px;
@@ -446,39 +490,120 @@ onBeforeUnmount(() => {
   color: hsl(var(--foreground));
 }
 
+.loop-stopped-banner__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1 1 auto;
+}
+
+.loop-stopped-banner__texts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .loop-stopped-banner__icon {
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
+  margin-top: 1px;
   color: hsl(38 92% 50%);
 }
 
 .loop-stopped-banner__message {
-  flex: 1 1 auto;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   line-height: 1.4;
 }
 
-.loop-stopped-banner__action {
+.loop-stopped-banner__hint {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+}
+
+.loop-stopped-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex: 0 0 auto;
+}
+
+.loop-stopped-banner__action {
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 600;
   border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.loop-stopped-banner__action--primary {
   border: 1px solid hsl(38 92% 50% / 0.5);
   background: hsl(38 92% 50% / 0.15);
   color: hsl(var(--foreground));
-  cursor: pointer;
-  transition: background 0.15s ease;
 }
 
-.loop-stopped-banner__action:hover:not(:disabled) {
+.loop-stopped-banner__action--primary:hover:not(:disabled) {
   background: hsl(38 92% 50% / 0.25);
+}
+
+.loop-stopped-banner__action--secondary {
+  border: 1px solid transparent;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.loop-stopped-banner__action--secondary:hover:not(:disabled) {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
 }
 
 .loop-stopped-banner__action:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.chat-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: hsl(var(--secondary));
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1;
+}
+
+.chat-progress-pill__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: pulse-dot 1s ease-in-out infinite alternate;
+}
+
+.chat-progress-pill__dot--iterating {
+  background-color: hsl(210 100% 60%);
+}
+
+.chat-progress-pill__dot--waiting_llm {
+  background-color: hsl(38 92% 50%);
+}
+
+.chat-progress-pill__dot--compacting {
+  background-color: hsl(270 60% 60%);
+}
+
+@keyframes pulse-dot {
+  0% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 .chat-input-wrapper {

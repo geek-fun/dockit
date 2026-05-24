@@ -219,6 +219,21 @@ const onAgentLoopSummaryInjected = (
   }) => void,
 ) => listen('agent-loop-summary-injected', e => handler(e.payload as any));
 
+const onAgentLoopIteration = (
+  handler: (payload: { session_id: string; iter_count: number; max_iterations: number }) => void,
+) => listen('agent-loop-iteration', e => handler(e.payload as any));
+
+const onAgentLoopWaitingLlm = (
+  handler: (payload: { session_id: string; iter_count: number }) => void,
+) => listen('agent-loop-waiting-llm', e => handler(e.payload as any));
+
+const onAgentLoopCompacting = (
+  handler: (payload: { session_id: string; phase: 'start' | 'end' }) => void,
+) => listen('agent-loop-compacting', e => handler(e.payload as any));
+
+const onAgentLoopWarning = (handler: (payload: { session_id: string; warning: string }) => void) =>
+  listen('agent-loop-warning', e => handler(e.payload as any));
+
 export type ContextUsage = {
   session_id: string;
   used_tokens: number;
@@ -265,5 +280,9 @@ export {
   onAgentLoopStopped,
   onAgentLoopError,
   onAgentLoopSummaryInjected,
+  onAgentLoopIteration,
+  onAgentLoopWaitingLlm,
+  onAgentLoopCompacting,
+  onAgentLoopWarning,
   onAgentContextUsage,
 };

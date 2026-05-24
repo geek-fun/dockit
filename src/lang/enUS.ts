@@ -1346,6 +1346,14 @@ export const enUS = {
   chat: {
     loopStopped: {
       continueButton: 'Continue',
+      stopButton: 'Stop',
+      continueHint: 'Click Continue to resume, or Stop to end this task.',
+    },
+    progress: {
+      iterating: 'Step {iter} / {maxIter}',
+      iteratingNoMax: 'Step {iter}',
+      waitingLlm: 'Waiting for model…',
+      compacting: 'Compacting context…',
     },
   },
   dataStudio: {

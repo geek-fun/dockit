@@ -1312,6 +1312,14 @@ export const zhCN = {
   chat: {
     loopStopped: {
       continueButton: '继续',
+      stopButton: '停止',
+      continueHint: '点击"继续"恢复任务，或"停止"结束此任务。',
+    },
+    progress: {
+      iterating: '第 {iter} / {maxIter} 步',
+      iteratingNoMax: '第 {iter} 步',
+      waitingLlm: '等待模型响应…',
+      compacting: '正在压缩上下文…',
     },
   },
   dataStudio: {

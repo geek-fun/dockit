@@ -10,6 +10,10 @@ import {
   onAgentLoopStopped,
   onAgentLoopError,
   onAgentLoopSummaryInjected,
+  onAgentLoopIteration,
+  onAgentLoopWaitingLlm,
+  onAgentLoopCompacting,
+  onAgentLoopWarning,
 } from '@/datasources/agentApi';
 import {
   useDataStudioStore,
@@ -276,6 +280,37 @@ const initAgentRuntime = async (): Promise<void> => {
         removed_count: payload.removed_count,
         fallback_keep_pairs: payload.fallback_keep_pairs,
       });
+    }),
+    onAgentLoopIteration(({ session_id, iter_count, max_iterations }) => {
+      const store = useDataStudioStore();
+      store.setSessionProgress(session_id, {
+        phase: 'iterating',
+        iter: iter_count,
+        maxIter: max_iterations,
+      });
+    }),
+    onAgentLoopWaitingLlm(({ session_id, iter_count }) => {
+      const store = useDataStudioStore();
+      store.setSessionProgress(session_id, {
+        phase: 'waiting_llm',
+        iter: iter_count,
+      });
+    }),
+    onAgentLoopCompacting(({ session_id, phase }) => {
+      const store = useDataStudioStore();
+      if (phase === 'start') {
+        store.setSessionProgress(session_id, { phase: 'compacting' });
+      } else if (phase === 'end') {
+        const existing = store.getSessionProgress(session_id);
+        store.setSessionProgress(session_id, {
+          phase: 'iterating',
+          iter: existing?.iter,
+          maxIter: existing?.maxIter,
+        });
+      }
+    }),
+    onAgentLoopWarning(({ session_id, warning }) => {
+      console.warn(`[AgentLoop] session ${session_id} warning:`, warning);
     }),
   ])
     .then(unlisteners => {

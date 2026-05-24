@@ -170,6 +170,7 @@ export const useSidebarChatAgent = () => {
     initContextSettings: agent.initContextSettings,
     messages,
     sendMessage,
+    cancelSession: agent.cancelSession,
     handleConfirmation: agent.handleConfirmation,
     clearChat: agent.clearChat,
   };

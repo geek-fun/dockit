@@ -21,11 +21,13 @@
       :input-placeholder="$t('aside.chatBotPlaceholder')"
       :session-id="activeSession?.id ?? null"
       :context-settings="lastSettings ?? undefined"
+      :progress="activeSession ? store.getSessionProgress(activeSession.id) : null"
       :stop-reason="activeSession?.stopReason ?? null"
       :stop-message="activeSession?.stopMessage ?? null"
       feature="sidebarAssistant"
       compact
       @send="sendMessage"
+      @stop-loop="cancelSession"
       @confirm-tool-call="handleConfirmation"
       @model-change="onModelChange"
       @model-picker-open="syncAllProviderModels"
@@ -81,6 +83,7 @@ const {
   activeSession,
   lastSettings,
   initContextSettings,
+  cancelSession,
 } = useSidebarChatAgent();
 
 const handleConfirmation = (

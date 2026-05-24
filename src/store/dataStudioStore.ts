@@ -279,6 +279,14 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
 
 // ── Store ────────────────────────────────────────────────────────────────────
 
+export type SessionProgressPhase = 'idle' | 'iterating' | 'waiting_llm' | 'compacting';
+export type SessionProgress = {
+  phase: SessionProgressPhase;
+  iter?: number;
+  maxIter?: number;
+  updatedAt: number;
+};
+
 export const useDataStudioStore = defineStore('dataStudio', {
   state: (): {
     attachedSources: Array<AttachedSource>;
@@ -289,6 +297,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     sessionMeta: Record<string, SessionMeta>;
     toolResultFullBodies: Record<string, string>;
     sessionErrors: Record<string, string>;
+    sessionProgress: Record<string, SessionProgress>;
   } => ({
     attachedSources: [],
     sessions: [],
@@ -298,6 +307,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     sessionMeta: {},
     toolResultFullBodies: {},
     sessionErrors: {},
+    sessionProgress: {},
   }),
   persist: {
     pick: [
@@ -311,6 +321,11 @@ export const useDataStudioStore = defineStore('dataStudio', {
   getters: {
     activeSession(state): AgentSession | undefined {
       return state.sessions.find(s => s.id === state.activeSessionId);
+    },
+    getSessionProgress: state => {
+      return (sessionId: string): SessionProgress | undefined => {
+        return state.sessionProgress[sessionId];
+      };
     },
   },
   actions: {
@@ -676,11 +691,31 @@ export const useDataStudioStore = defineStore('dataStudio', {
       return this.toolResultFullBodies[toolCallId];
     },
 
+    setSessionProgress(sessionId: string, partial: Partial<Omit<SessionProgress, 'updatedAt'>>) {
+      const existing = this.sessionProgress[sessionId];
+      this.sessionProgress = {
+        ...this.sessionProgress,
+        [sessionId]: {
+          ...existing,
+          ...partial,
+          updatedAt: Date.now(),
+        } as SessionProgress,
+      };
+    },
+
+    clearSessionProgress(sessionId: string) {
+      const { [sessionId]: _removed, ...rest } = this.sessionProgress;
+      this.sessionProgress = rest;
+    },
+
     setSessionStatus(sessionId: string, status: AgentSessionStatus) {
       this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, status } : s));
       if (status !== 'error') {
         const { [sessionId]: _removed, ...rest } = this.sessionErrors;
         this.sessionErrors = rest;
+      }
+      if (status === 'idle' || status === 'stopped' || status === 'error') {
+        this.clearSessionProgress(sessionId);
       }
       updateSessionStatus(sessionId, status === 'stopped' ? 'idle' : status).catch(() => undefined);
     },
@@ -709,6 +744,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
             }
           : s,
       );
+      this.clearSessionProgress(sessionId);
       updateSessionStatus(sessionId, 'idle').catch(() => undefined);
     },
 
