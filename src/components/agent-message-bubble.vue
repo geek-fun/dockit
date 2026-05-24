@@ -12,9 +12,8 @@
     </div>
 
     <div v-else-if="normalizedRole === 'system' && message.compaction" class="compaction-marker">
-      <div class="compaction-divider" />
-      <div class="compaction-card">
-        <span class="compaction-icon i-carbon-compare" />
+      <div class="compaction-row">
+        <span class="compaction-icon i-carbon-archive" />
         <span class="compaction-label">
           {{
             t('dataStudio.agent.message.compactionLabel', {
@@ -36,20 +35,21 @@
             }}
           </span>
         </span>
-        <details v-if="message.compaction.summary" class="compaction-summary-details">
-          <summary class="compaction-summary-toggle">
-            <span class="i-carbon-chevron-down" />
-            {{ t('dataStudio.agent.message.compactionSummary') }}
-          </summary>
-          <div class="compaction-summary-body">
-            <MarkdownRender
-              :markdown="message.compaction.summary"
-              class="markdown-body prose prose-sm max-w-none"
-            />
-          </div>
-        </details>
+        <button
+          v-if="message.compaction.summary"
+          class="compaction-toggle"
+          @click="summaryOpen = !summaryOpen"
+        >
+          <span class="i-carbon-chevron-down compaction-chevron" :class="{ open: summaryOpen }" />
+          {{ t('dataStudio.agent.message.compactionSummary') }}
+        </button>
       </div>
-      <div class="compaction-divider" />
+      <div v-if="message.compaction.summary" v-show="summaryOpen" class="compaction-summary-body">
+        <MarkdownRender
+          :markdown="message.compaction.summary"
+          class="markdown-body prose prose-sm max-w-none"
+        />
+      </div>
     </div>
     <div v-else-if="normalizedRole === 'assistant'" class="assistant-wrapper">
       <!-- Activity timeline: thinking + tool call/result pairs -->
@@ -209,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, type Directive } from 'vue';
+import { computed, ref, type Directive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import MarkdownRender from '@/components/markdown-render.vue';
 import { useDataStudioStore } from '@/store/dataStudioStore';
@@ -217,6 +217,8 @@ import type { AgentToolCall } from '@/store/dataStudioStore';
 
 const { t } = useI18n();
 const dataStudioStore = useDataStudioStore();
+
+const summaryOpen = ref(false);
 
 const STICK_THRESHOLD_PX = 24;
 const stickState = new WeakMap<HTMLElement, { stick: boolean; handler: () => void }>();
@@ -859,37 +861,21 @@ details[open] .activity-chevron {
 }
 
 .compaction-marker {
+  display: block;
+  margin: 4px 0;
+}
+
+.compaction-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-}
-
-.compaction-divider {
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(
-    to right,
-    transparent,
-    hsl(var(--border)) 30%,
-    hsl(var(--border)) 70%,
-    transparent
-  );
-}
-
-.compaction-card {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 12px;
-  background: hsl(var(--muted) / 0.5);
-  border: 1px solid hsl(var(--border) / 0.7);
-  border-radius: 999px;
+  padding: 6px 10px;
+  background: hsl(var(--muted) / 0.4);
+  border: 1px solid hsl(var(--border) / 0.5);
+  border-radius: 8px;
+  max-width: fit-content;
   font-size: 11.5px;
   color: hsl(var(--muted-foreground));
-  white-space: nowrap;
-  flex-wrap: wrap;
-  max-width: 100%;
 }
 
 .compaction-icon {
@@ -931,34 +917,27 @@ details[open] .activity-chevron {
   font-weight: 600;
 }
 
-.compaction-summary-details {
-  width: 100%;
-  margin-top: 4px;
-}
-
-.compaction-summary-toggle {
+.compaction-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: hsl(var(--muted-foreground) / 0.7);
+  gap: 3px;
+  background: none;
+  border: none;
   cursor: pointer;
-  user-select: none;
-  list-style: none;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground) / 0.8);
+  padding: 0;
+  margin-left: 4px;
 }
 
-.compaction-summary-toggle::-webkit-details-marker {
-  display: none;
-}
-
-details[open] .compaction-summary-toggle > .i-carbon-chevron-down {
-  transform: rotate(180deg);
-}
-
-.compaction-summary-toggle > .i-carbon-chevron-down {
+.compaction-chevron {
   width: 10px;
   height: 10px;
   transition: transform 0.18s ease;
+}
+
+.compaction-chevron.open {
+  transform: rotate(180deg);
 }
 
 .compaction-summary-body {
@@ -971,5 +950,6 @@ details[open] .compaction-summary-toggle > .i-carbon-chevron-down {
   color: hsl(var(--foreground) / 0.85);
   max-height: 240px;
   overflow-y: auto;
+  max-width: 600px;
 }
 </style>
