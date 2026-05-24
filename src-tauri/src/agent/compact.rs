@@ -239,23 +239,24 @@ pub fn build_boundary_payload(
     .to_string()
 }
 
-pub async fn run_compact(
-    session_id: &str,
-    settings: &Value,
-    db: &AgentDb,
-) -> Result<Option<CompactionInfo>, String> {
-    run_compact_inner(session_id, settings, db, None).await
-}
-
-/// Same compaction flow as `run_compact`, but emits `agent-loop-compacting`
-/// start/end phase events around the summarize LLM call for UI progress.
 pub async fn run_compact_with_events(
     session_id: &str,
     settings: &Value,
     db: &AgentDb,
     app: &AppHandle,
 ) -> Result<Option<CompactionInfo>, String> {
-    run_compact_inner(session_id, settings, db, Some(app)).await
+    run_compact_inner(session_id, settings, db, Some(app), "auto", false).await
+}
+
+/// User-forced compaction: bypasses should_compact, tags boundary as "manual",
+/// and emits compacting:start/end events.
+pub async fn run_compact_manual(
+    session_id: &str,
+    settings: &Value,
+    db: &AgentDb,
+    app: &AppHandle,
+) -> Result<Option<CompactionInfo>, String> {
+    run_compact_inner(session_id, settings, db, Some(app), "manual", true).await
 }
 
 /// Auto-compaction split fallback strategy:
@@ -269,11 +270,13 @@ async fn run_compact_inner(
     settings: &Value,
     db: &AgentDb,
     app: Option<&AppHandle>,
+    trigger: &str,
+    force: bool,
 ) -> Result<Option<CompactionInfo>, String> {
     let messages = load_messages_for_compact(db, session_id)?;
     let spec = resolve_model_spec_for_session(session_id, settings);
     let decision = evaluate(&messages, &spec);
-    if !decision.should_compact {
+    if !force && !decision.should_compact {
         return Ok(None);
     }
 
@@ -341,13 +344,13 @@ async fn run_compact_inner(
         );
     }
     let summary = summary_result?;
-    let payload = build_boundary_payload(&summary, pre_tokens, post_tokens, "auto");
+    let payload = build_boundary_payload(&summary, pre_tokens, post_tokens, trigger);
     let ids_to_remove: Vec<String> = to_summarize.iter().map(|m| m.id.clone()).collect();
     let removed_count = ids_to_remove.len();
     insert_compact_boundary(db, session_id, &ids_to_remove, &payload)?;
 
     Ok(Some(CompactionInfo {
-        trigger: "auto".to_string(),
+        trigger: trigger.to_string(),
         pre_tokens,
         post_tokens,
         removed_count,

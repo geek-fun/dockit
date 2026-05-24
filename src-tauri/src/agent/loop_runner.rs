@@ -1121,13 +1121,13 @@ pub async fn compact_agent_session(
 ) -> Result<Value, String> {
     let db_state: State<AgentDb> = app.state::<AgentDb>();
     let db: AgentDb = AgentDb(db_state.0.clone());
-    let outcome = crate::agent::compact::run_compact(&session_id, &settings, &db).await?;
+    let outcome = crate::agent::compact::run_compact_manual(&session_id, &settings, &db, &app).await?;
     if let Some(info) = outcome {
         let _ = app.emit(
             "agent-loop-summary-injected",
             json!({
                 "session_id": session_id,
-                "trigger": "manual",
+                "trigger": info.trigger,
                 "pre_tokens": info.pre_tokens,
                 "post_tokens": info.post_tokens,
                 "removed_count": info.removed_count,
