@@ -6,8 +6,7 @@ use tauri::{AppHandle, Emitter};
 
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::loop_runner_support::{
-    load_messages_for_compact, post_chat_completions_compact, replace_messages_with_summary,
-    StoredMessage,
+    load_messages_for_compact, new_id, now_ms, post_chat_completions_compact, StoredMessage,
 };
 use crate::agent::model_registry::{
     apply_overrides, resolve_spec, usable_window, ModelSpec, TokenizerFamily,
@@ -345,7 +344,7 @@ async fn run_compact_inner(
     let payload = build_boundary_payload(&summary, pre_tokens, post_tokens, "auto");
     let ids_to_remove: Vec<String> = to_summarize.iter().map(|m| m.id.clone()).collect();
     let removed_count = ids_to_remove.len();
-    replace_messages_with_summary(db, session_id, &ids_to_remove, &payload)?;
+    insert_compact_boundary(db, session_id, &ids_to_remove, &payload)?;
 
     Ok(Some(CompactionInfo {
         trigger: "auto".to_string(),
@@ -354,4 +353,54 @@ async fn run_compact_inner(
         removed_count,
         fallback_keep_pairs,
     }))
+}
+
+fn insert_compact_boundary(
+    db: &AgentDb,
+    session_id: &str,
+    removed_ids: &[String],
+    boundary_payload: &str,
+) -> Result<(), String> {
+    let mut conn = db.0.lock().map_err(|e| e.to_string())?;
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    let boundary_ts: i64 = if removed_ids.is_empty() {
+        now_ms()
+    } else {
+        let placeholders = std::iter::repeat("?")
+            .take(removed_ids.len())
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!(
+            "SELECT MAX(created_at) FROM agent_messages WHERE session_id = ? AND id IN ({})",
+            placeholders
+        );
+        let mut params: Vec<&dyn rusqlite::ToSql> = Vec::with_capacity(1 + removed_ids.len());
+        params.push(&session_id);
+        for id in removed_ids {
+            params.push(id);
+        }
+        let latest_removed = tx
+            .query_row(
+                &sql,
+                rusqlite::params_from_iter(params.iter().copied()),
+                |row| row.get::<_, Option<i64>>(0),
+            )
+            .map_err(|e| format!("Failed to read latest removed timestamp: {}", e))?
+            .unwrap_or_else(now_ms);
+        latest_removed.saturating_add(1)
+    };
+
+    // Boundary sits strictly after every compacted row so the
+    // `created_at >= boundary_ts` cutoff in load_active_history /
+    // load_messages_for_compact keeps the boundary plus post-compaction
+    // appends while excluding the rows just summarized.
+    tx.execute(
+        "INSERT INTO agent_messages (id, session_id, role, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
+        rusqlite::params![new_id(), session_id, "system", boundary_payload, boundary_ts],
+    )
+    .map_err(|e| e.to_string())?;
+
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
 }

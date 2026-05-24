@@ -64,55 +64,6 @@ pub fn load_messages_for_compact(
     Ok(out)
 }
 
-pub fn replace_messages_with_summary(
-    db: &AgentDb,
-    session_id: &str,
-    ids_to_remove: &[String],
-    summary_payload: &str,
-) -> Result<(), String> {
-    let mut conn = db.0.lock().map_err(|e| e.to_string())?;
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
-
-    let boundary_ts: i64 = if ids_to_remove.is_empty() {
-        now_ms()
-    } else {
-        let placeholders = std::iter::repeat("?")
-            .take(ids_to_remove.len())
-            .collect::<Vec<_>>()
-            .join(",");
-        let sql = format!(
-            "SELECT MAX(created_at) FROM agent_messages WHERE session_id = ? AND id IN ({})",
-            placeholders
-        );
-        let mut params: Vec<&dyn rusqlite::ToSql> = Vec::with_capacity(1 + ids_to_remove.len());
-        params.push(&session_id);
-        for id in ids_to_remove {
-            params.push(id);
-        }
-        let latest_removed = tx
-            .query_row(&sql, rusqlite::params_from_iter(params.iter().copied()), |row| {
-                row.get::<_, Option<i64>>(0)
-            })
-            .map_err(|e| format!("Failed to read latest removed timestamp: {}", e))?
-            .unwrap_or_else(now_ms);
-        latest_removed.saturating_add(1)
-    };
-
-    // Boundary row sits strictly after every compacted row so the
-    // `created_at >= boundary_ts` cutoff keeps the boundary + any
-    // post-compaction appends while excluding the rows just summarized.
-    let boundary_created_at = boundary_ts;
-
-    tx.execute(
-        "INSERT INTO agent_messages (id, session_id, role, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-        rusqlite::params![new_id(), session_id, "system", summary_payload, boundary_created_at],
-    )
-    .map_err(|e| e.to_string())?;
-
-    tx.commit().map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 fn classify_error(body: &str) -> Option<String> {
     let v: Value = serde_json::from_str(body).ok()?;
     v.get("error")
