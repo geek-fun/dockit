@@ -85,13 +85,12 @@ These tools treat compaction as a **continuous background concern** that the age
 The context window is the property of the conversation, not the loop. The loop just consumes whatever the conversation manager hands it.
 
 ### Sub-issue: 62% → 60% drop without visible compaction
-1. **`microcompact` silently truncates long tool bodies** (`compact.rs:116–138, 237–252`). Inserts a boundary row with `removed_count = 0` and emits `agent-loop-summary-injected`, but the UI either doesn't render the marker or renders it identically to a full compaction. User sees tokens drop with no marker explanation.
-2. Microcompact only runs **inside `run_compact`, after `decision.should_compact` is true** — so a 62%→60% drop while indicator stays below 75% threshold cannot be microcompact. The likely cause is tokenizer drift between two `emit_context_usage` calls (model spec resolution falling back to char-heuristic estimator).
+The likely cause is tokenizer drift between two `emit_context_usage` calls (model spec resolution falling back to char-heuristic estimator). Locking the tokenizer family per session at session creation eliminates the noise.
 
 ### Compaction thrash sub-issue
 36 compactions / 17 min with 8s minimum gap means after each compaction the post-cutoff window almost immediately returns to threshold. Confirmed contributors from SQLite:
 - Assistant messages with up to **97 tool_calls** (huge `tool_calls` JSON) survive compaction in the keep-last-N-pairs window
-- `thinking` blocks up to **46 KB** are not touched by `microcompact` (only `tool` role content is)
+- `thinking` blocks up to **46 KB** survive in the keep-last-N-pairs window
 - Tool responses for `mongo__insert_one` × 1081 each get full `safe_split_index` rollback because they can't sever the assistant→tool pairing
 
 ### Redesign: compaction as a conversation invariant
@@ -131,10 +130,9 @@ This makes compaction **proactive** — by the time the indicator paints, the co
 1. **Implement `ConversationManager.maybe_compact()` and route ALL message appends through it** (the core redesign above).
 2. **Per-session async mutex** to serialize compaction attempts.
 3. **Honor `autoCompact` setting** (already wired) at the manager level; if disabled, manager just emits the usage event without compacting.
-4. **Distinguish microcompact in the UI**: `removed_count == 0` → render as "Trimmed verbose tool outputs"; `removed_count > 0` → render as "Compacted N messages".
-5. **Extend `microcompact`** to also truncate `thinking` field over 2 KB, and limit `tool_calls` array length to last N entries per assistant message. Addresses the 36-thrash.
-6. **Lock tokenizer family per session** at session creation; never fall back mid-session. Eliminates the 62%→60% noise.
-7. **Keep `DEFAULT_COMPACT_RATIO = 0.75`** for now (matches Claude Code); the user's "85%" perception was about *when the indicator pulses red without action*, which the redesign fixes by making compaction proactive — the indicator will hover at or below trigger threshold rather than climbing past it.
+4. **Lock tokenizer family per session** at session creation; never fall back mid-session. Eliminates the 62%→60% noise.
+5. **Keep `DEFAULT_COMPACT_RATIO = 0.75`** for now (matches Claude Code); the user's "85%" perception was about *when the indicator pulses red without action*, which the redesign fixes by making compaction proactive — the indicator will hover at or below trigger threshold rather than climbing past it.
+6. **Remove `microcompact` entirely.** It was a borderline-threshold local optimization (truncate old tool bodies in-memory to dodge a real summarization call), not an industry pattern. Its in-memory mutation followed by inserting a `_compact_boundary` row with empty `ids_to_remove` caused future loads to skip all prior conversation. Real LLM summarization is strictly better for context fidelity than `…[elided]…` placeholders, so the savings did not justify the bug surface.
 
 ### `autoCompact` default behavior (UX note)
 The code default for `autoCompact` is already `true` (`appStore.ts:234, 349`; `useChatAgent.ts:323, 571` — all `?? true`). However, users whose persisted state was written before the field existed, or who toggled it off intentionally, end up with `autoCompact: false`, and the in-loop compaction is silently skipped (`loop_runner.rs:578`). This is the most likely explanation for "compaction never fires" reports that happen even inside an active loop.
@@ -224,7 +222,7 @@ The 4 issues share a root: **the agent loop treats long tasks as edge cases**. T
 |---|---|---|
 | Iteration limit | Hard 20, ignored from FE | Configurable, default 200, hybrid time/token budget |
 | Compaction trigger | Loop-iter only | Routed through `ConversationManager`: every message append checks threshold |
-| Microcompact visibility | Silent | UI marker with `removed_count` distinction |
+| Microcompact | Borderline-threshold tool-body truncation with boundary-row data-loss bug | Removed entirely; real summarization handles all compaction |
 | Message store | Full reactive load | Virtualized + lazy tool results |
 | Scroll sticky | Outer only | Outer + inner activity-body |
 | Tokenizer | Per-call resolution | Per-session locked |
@@ -237,7 +235,7 @@ Three follow-up PRs, in order of impact:
 
 1. **PR-441 perf** — virtualize chat list, throttle markdown, lazy tool results. Fixes Issue 4.
 2. **PR-442 agent-loop** — configurable iteration cap, default 200, hybrid budget, `continue_agent_loop` command, auto-continue on `finish_reason: tool_calls`. Fixes Issue 3.
-3. **PR-443 compaction** — introduce `ConversationManager` that routes all message appends through `maybe_compact()`, per-session async mutex, microcompact UI marker, tokenizer lock per session, microcompact extended to `thinking` blocks, inner-scroll fix from Issue 1. Fixes Issues 1 & 2.
+3. **PR-443 compaction** — introduce `ConversationManager` that routes all message appends through `maybe_compact()`, per-session async mutex, tokenizer lock per session, remove `microcompact` entirely, inner-scroll fix from Issue 1. Fixes Issues 1 & 2.
 
 ---
 
@@ -246,7 +244,7 @@ Three follow-up PRs, in order of impact:
 **Backend (Rust)**:
 - `src-tauri/src/agent/loop_runner.rs` — MAX_ITERATIONS, runaway guard
 - `src-tauri/src/agent/loop_runner_support.rs` — `replace_messages_with_summary` (PR#440 fix)
-- `src-tauri/src/agent/compact.rs` — threshold, `run_compact`, `microcompact`
+- `src-tauri/src/agent/compact.rs` — threshold, `run_compact`
 - `src-tauri/src/agent/token_counter.rs`, `model_registry.rs` — token formula, context window lookup
 - `src-tauri/src/agent/session_store.rs` — in-memory caches
 

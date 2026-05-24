@@ -18,7 +18,6 @@ use crate::db::AgentDb;
 pub const DEFAULT_COMPACT_RATIO: f64 = 0.75;
 pub const SAFETY_BUFFER_TOKENS: usize = 13_000;
 pub const KEEP_LAST_PAIRS: usize = 4;
-pub const MICROCOMPACT_TOOL_BODY_KEEP_CHARS: usize = 800;
 #[allow(dead_code)]
 pub const MAX_CONSECUTIVE_FAILURES: u32 = 3;
 
@@ -141,62 +140,6 @@ pub fn target_split_keeping_pairs(messages: &[StoredMessage], keep_pairs: usize)
     0
 }
 
-pub fn microcompact(messages: &mut Vec<StoredMessage>) -> usize {
-    let cutoff = messages.len().saturating_sub(KEEP_LAST_PAIRS * 2);
-    let mut elided = 0usize;
-    for m in messages.iter_mut().take(cutoff) {
-        if m.role == "tool" && m.content.len() > MICROCOMPACT_TOOL_BODY_KEEP_CHARS {
-            if let Ok(mut v) = serde_json::from_str::<Value>(&m.content) {
-                let inner = v
-                    .get("content")
-                    .and_then(|c| c.as_str())
-                    .map(|s| s.to_string())
-                    .unwrap_or_default();
-                if inner.len() > MICROCOMPACT_TOOL_BODY_KEEP_CHARS {
-                    let mut head: String = inner.chars().take(MICROCOMPACT_TOOL_BODY_KEEP_CHARS).collect();
-                    head.push_str("\n…[elided by microcompact]…");
-                    v["content"] = Value::String(head);
-                    m.content = v.to_string();
-                    elided += 1;
-                }
-            }
-        } else if m.role == "assistant" {
-            if let Ok(mut v) = serde_json::from_str::<Value>(&m.content) {
-                let mut changed = false;
-                if v.get("thinking").and_then(|t| t.as_str()).map_or(false, |s| !s.is_empty()) {
-                    v["thinking"] = Value::Null;
-                    changed = true;
-                }
-                if let Some(arr) = v.get_mut("tool_calls").and_then(|t| t.as_array_mut()) {
-                    for call in arr.iter_mut() {
-                        let args = call
-                            .get("function")
-                            .and_then(|f| f.get("arguments"))
-                            .and_then(|a| a.as_str())
-                            .map(|s| s.to_string());
-                        if let Some(args) = args {
-                            if args.len() > MICROCOMPACT_TOOL_BODY_KEEP_CHARS {
-                                let mut head: String =
-                                    args.chars().take(MICROCOMPACT_TOOL_BODY_KEEP_CHARS).collect();
-                                head.push_str("…[elided by microcompact]");
-                                if let Some(func) = call.get_mut("function") {
-                                    func["arguments"] = Value::String(head);
-                                    changed = true;
-                                }
-                            }
-                        }
-                    }
-                }
-                if changed {
-                    m.content = v.to_string();
-                    elided += 1;
-                }
-            }
-        }
-    }
-    elided
-}
-
 pub const COMPACT_SYSTEM_PROMPT: &str = "Summarize this conversation so it can continue without the full history.
 
 Output exactly this Markdown structure, keeping all sections even if empty:
@@ -287,29 +230,11 @@ pub async fn run_compact(
     settings: &Value,
     db: &AgentDb,
 ) -> Result<Option<CompactionInfo>, String> {
-    let mut messages = load_messages_for_compact(db, session_id)?;
+    let messages = load_messages_for_compact(db, session_id)?;
     let spec = resolve_model_spec_for_session(session_id, settings);
     let decision = evaluate(&messages, &spec);
     if !decision.should_compact {
         return Ok(None);
-    }
-
-    let _ = microcompact(&mut messages);
-    let post_micro = evaluate(&messages, &spec);
-    if !post_micro.should_compact {
-        let ids_to_remove: Vec<String> = Vec::new();
-        replace_messages_with_summary(
-            db,
-            session_id,
-            &ids_to_remove,
-            &build_boundary_payload("[microcompact: elided old tool bodies]", 0, 0, "auto"),
-        )?;
-        return Ok(Some(CompactionInfo {
-            trigger: "auto".to_string(),
-            pre_tokens: decision.used_tokens,
-            post_tokens: post_micro.used_tokens,
-            removed_count: 0,
-        }));
     }
 
     let proposed = target_split_keeping_pairs(&messages, KEEP_LAST_PAIRS);
