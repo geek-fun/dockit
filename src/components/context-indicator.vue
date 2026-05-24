@@ -8,6 +8,12 @@
     >
       <span class="context-indicator__dot" />
       <span class="context-indicator__label">{{ percentText }}</span>
+      <span
+        v-if="autoCompactOff"
+        class="context-indicator__off-badge"
+        title="Auto-compact is OFF — context will not shrink automatically"
+        >OFF</span
+      >
       <span class="context-indicator__bar" aria-hidden="true">
         <span class="context-indicator__bar-fill" :style="{ width: `${clampedPercent}%` }" />
       </span>
@@ -18,6 +24,14 @@
         <span class="context-indicator__popover-title">Context window</span>
         <span class="context-indicator__popover-model">{{ usage?.model ?? '—' }}</span>
       </header>
+
+      <div v-if="autoCompactOff && usage?.should_compact" class="context-indicator__warning">
+        <span class="i-carbon-warning-alt h-3.5 w-3.5" />
+        <span
+          >Auto-compact is OFF and context is over threshold. Compact now or the next request may
+          fail.</span
+        >
+      </div>
 
       <dl class="context-indicator__grid">
         <div>
@@ -103,17 +117,26 @@ const severityClass = computed(() => {
   return 'context-indicator--ok';
 });
 
+const autoCompactOff = computed(() => {
+  const s = props.settings as { autoCompact?: boolean } | null;
+  return s?.autoCompact === false;
+});
+
 const statusText = computed(() => {
   if (!usage.value) return 'Idle';
+  if (autoCompactOff.value) {
+    return usage.value.should_compact ? 'Over threshold (auto-compact OFF)' : 'Auto-compact OFF';
+  }
   if (usage.value.should_compact) return 'Will auto-compact';
   return 'Healthy';
 });
 
 const tooltip = computed(() => {
   if (!usage.value) return 'Context usage';
-  return `Context ${percentText.value} · ${formatTokens(usage.value.used_tokens)} / ${formatTokens(
+  const base = `Context ${percentText.value} · ${formatTokens(usage.value.used_tokens)} / ${formatTokens(
     usage.value.capacity,
   )}`;
+  return autoCompactOff.value ? `${base} · auto-compact OFF` : base;
 });
 
 const formatTokens = (n: number) => {
@@ -233,6 +256,31 @@ defineExpose({ refresh });
 
 .context-indicator__label {
   font-weight: 500;
+}
+
+.context-indicator__off-badge {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: hsl(38 92% 48% / 0.18);
+  color: hsl(38 92% 38%);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+}
+
+.context-indicator__warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid hsl(38 92% 48% / 0.4);
+  border-radius: 6px;
+  background: hsl(38 92% 48% / 0.08);
+  color: hsl(38 92% 30%);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .context-indicator__bar {
