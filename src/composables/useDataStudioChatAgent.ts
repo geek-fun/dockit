@@ -115,7 +115,7 @@ export const useDataStudioChatAgent = () => {
       addMessage: (sessionId: string, message: ChatMessage) => {
         dataStudioStore.addMessage(sessionId, {
           id: message.id,
-          role: message.role as 'user' | 'assistant' | 'tool',
+          role: message.role as 'user' | 'assistant' | 'tool' | 'system',
           content: message.content,
           status: message.status as 'pending' | 'streaming' | 'done' | 'error',
           timestamp: message.timestamp,
@@ -123,6 +123,7 @@ export const useDataStudioChatAgent = () => {
           thinkingDuration: message.thinkingDuration,
           toolCalls: message.toolCalls,
           toolCallId: message.toolCallId,
+          compaction: message.compaction,
         });
       },
       updateStreamingContent: (sessionId: string, messageId: string, chunk: string) =>

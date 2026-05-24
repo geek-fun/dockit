@@ -208,8 +208,16 @@ const onAgentLoopStopped = (
 const onAgentLoopError = (handler: (payload: { session_id: string; error: string }) => void) =>
   listen('agent-loop-error', e => handler(e.payload as any));
 
-const onAgentLoopSummaryInjected = (handler: (payload: { session_id: string }) => void) =>
-  listen('agent-loop-summary-injected', e => handler(e.payload as any));
+const onAgentLoopSummaryInjected = (
+  handler: (payload: {
+    session_id: string;
+    trigger: string;
+    pre_tokens: number;
+    post_tokens: number;
+    removed_count: number;
+    fallback_keep_pairs?: number;
+  }) => void,
+) => listen('agent-loop-summary-injected', e => handler(e.payload as any));
 
 export type ContextUsage = {
   session_id: string;

@@ -1,4 +1,4 @@
-import { ref, onUnmounted, type Ref, type ComputedRef } from 'vue';
+import { computed, ref, type Ref, type ComputedRef } from 'vue';
 import { ulid } from 'ulidx';
 import type {
   ChatMessage,
@@ -8,37 +8,19 @@ import type {
   SendMessageOptions,
   ChatMessageStatus,
 } from '@/types/chat';
-import type {
-  AgentToolCall,
-  ConfirmationRule,
-  RiskLevel,
-  SessionSource,
-} from '@/store/dataStudioStore';
+import type { AgentToolCall, ConfirmationRule, SessionSource } from '@/store/dataStudioStore';
+import { useDataStudioStore } from '@/store/dataStudioStore';
 import { getFeatureModelConfig } from '@/store/chatStore';
 import { useAppStore } from '@/store';
 import { ProviderEnum } from '@/datasources';
 import {
   agentApi,
-  type ToolDefinition,
   type ToolMetadata,
   runAgentLoop as invokeAgentLoop,
   cancelAgentLoop as invokeCancelAgentLoop,
   confirmToolCall as invokeConfirmToolCall,
-  onAgentLoopDelta,
-  onAgentLoopThinkingDelta,
-  onAgentLoopToolCall,
-  onAgentLoopToolResult,
-  onAgentLoopStepDone,
-  onAgentLoopDone,
-  onAgentLoopStopped,
-  onAgentLoopError,
-  onAgentLoopSummaryInjected,
 } from '@/datasources/agentApi';
-type SessionRuntime = {
-  tools?: Array<ToolDefinition>;
-  metadata?: Record<string, ToolMetadata>;
-  unlistenDelta?: () => void;
-};
+import { getSessionRuntime, clearSessionRuntime } from './agentRuntime';
 
 type PromptSource = {
   connectionId: string;
@@ -303,22 +285,20 @@ const getSessionById = (sessions: Array<ChatSession>, sessionId: string): ChatSe
   sessions.find(session => session.id === sessionId);
 
 export const useChatAgent = (config: UseChatAgentConfig) => {
-  const sessionRuntime = new Map<string, SessionRuntime>();
-  const unlisteners: Array<() => void> = [];
-  let isDisposed = false;
-
-  const trackUnlisten = (unlisten: () => void) => {
-    if (isDisposed) {
-      unlisten();
-      return;
-    }
-    unlisteners.push(unlisten);
-  };
-
-  const isLoading = ref(false);
-  const error = ref<string | undefined>();
+  const localError = ref<string | undefined>();
 
   const activeSession = config.sessionStore.activeSession;
+  const dataStudioStore = useDataStudioStore();
+  const isLoading = computed(
+    () =>
+      activeSession.value?.status === 'running' ||
+      activeSession.value?.status === 'waiting_confirmation',
+  );
+  const error = computed(
+    () =>
+      localError.value ??
+      (activeSession.value ? dataStudioStore.getSessionError(activeSession.value.id) : undefined),
+  );
   const lastSettings = ref<Record<string, unknown> | null>(null);
   const sessions = config.sessionStore.sessions;
 
@@ -343,219 +323,13 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     }
   };
 
-  const shouldRequireConfirmation = (
-    toolName: string,
-    riskLevel: RiskLevel,
-    sessionId: string,
-  ): boolean => {
-    if (config.findConfirmationRule) {
-      const rule = config.findConfirmationRule(sessionId, toolName);
-      if (rule?.action === 'allow_always') return false;
-      if (rule?.action === 'deny_always') return false;
-    }
-
-    if (riskLevel === 'safe') return false;
-    if (riskLevel === 'destructive') return true;
-    if (!config.autoMode?.value) return true;
-    return false;
-  };
-
-  const isDeniedByRule = (toolName: string, sessionId: string): boolean => {
-    if (!config.findConfirmationRule) return false;
-    const rule = config.findConfirmationRule(sessionId, toolName);
-    return rule?.action === 'deny_always';
-  };
-
-  const getRuntime = (sessionId: string): SessionRuntime => {
-    if (!sessionRuntime.has(sessionId)) {
-      sessionRuntime.set(sessionId, {});
-    }
-    return sessionRuntime.get(sessionId)!;
-  };
-
-  const setupEventListeners = () => {
-    onAgentLoopDelta(({ session_id, content }) => {
-      const session = getSessionById(sessions.value, session_id);
-      if (!session) return;
-      const streamingMsg = [...session.messages]
-        .reverse()
-        .find(message => message.role === 'assistant' && message.status === 'streaming');
-      if (streamingMsg) {
-        config.sessionStore.updateStreamingContent(session_id, streamingMsg.id, content);
-      } else {
-        const lastAssistant = [...session.messages].reverse().find(m => m.role === 'assistant');
-        const hasUnresolvedTools = lastAssistant?.toolCalls?.some(
-          tc => tc.status === 'executing' || tc.status === 'pending',
-        );
-        if (!hasUnresolvedTools) {
-          config.sessionStore.addMessage(session_id, {
-            id: ulid(),
-            role: 'assistant',
-            content,
-            status: 'streaming',
-            timestamp: Date.now(),
-          });
-        }
-      }
-    }).then(trackUnlisten);
-
-    onAgentLoopThinkingDelta(({ session_id, content }) => {
-      const session = getSessionById(sessions.value, session_id);
-      if (!session) return;
-      const streamingMsg = [...session.messages]
-        .reverse()
-        .find(message => message.role === 'assistant' && message.status === 'streaming');
-      if (streamingMsg) {
-        config.sessionStore.updateStreamingThinking(session_id, streamingMsg.id, content);
-      } else {
-        config.sessionStore.addMessage(session_id, {
-          id: ulid(),
-          role: 'assistant',
-          content: '',
-          thinking: content,
-          status: 'streaming',
-          timestamp: Date.now(),
-        });
-      }
-    }).then(trackUnlisten);
-
-    onAgentLoopToolCall(({ session_id, tool_call_id, tool_name, arguments: args }) => {
-      const session = getSessionById(sessions.value, session_id);
-      if (!session) return;
-      const runtime = getRuntime(session_id);
-
-      const riskLevel =
-        (runtime.metadata?.[tool_name]?.riskLevel as RiskLevel | undefined) ?? 'elevated';
-      const needsConfirmation = shouldRequireConfirmation(tool_name, riskLevel, session.id);
-      const denied = isDeniedByRule(tool_name, session.id);
-
-      const toolCall: AgentToolCall = {
-        id: tool_call_id,
-        toolName: tool_name,
-        args: (args ?? {}) as Record<string, unknown>,
-        status: denied ? 'denied' : needsConfirmation ? 'pending' : 'executing',
-        riskLevel,
-        requiresConfirmation: needsConfirmation,
-      };
-
-      const streamingAssistant = [...session.messages]
-        .reverse()
-        .find(message => message.role === 'assistant' && message.status === 'streaming');
-      const lastAssistant =
-        streamingAssistant ??
-        [...session.messages].reverse().find(message => message.role === 'assistant');
-
-      if (lastAssistant) {
-        config.sessionStore.setMessageToolCalls(session_id, lastAssistant.id, [
-          ...(lastAssistant.toolCalls ?? []),
-          toolCall,
-        ]);
-      } else {
-        config.sessionStore.addMessage(session_id, {
-          id: ulid(),
-          role: 'assistant',
-          content: '',
-          status: 'streaming',
-          timestamp: Date.now(),
-          toolCalls: [toolCall],
-        });
-      }
-
-      if (denied) {
-        invokeConfirmToolCall(tool_call_id, false).catch(() => undefined);
-        return;
-      }
-
-      if (!needsConfirmation) {
-        invokeConfirmToolCall(tool_call_id, true).catch(() => undefined);
-      } else {
-        config.sessionStore.setSessionStatus(session_id, 'waiting_confirmation');
-      }
-    }).then(trackUnlisten);
-
-    onAgentLoopToolResult(({ session_id, tool_call_id, envelope, error }) => {
-      const session = getSessionById(sessions.value, session_id);
-      if (!session) return;
-      const assistantMsg = [...session.messages]
-        .reverse()
-        .find(
-          message =>
-            message.role === 'assistant' &&
-            message.toolCalls?.some(toolCall => toolCall.id === tool_call_id),
-        );
-      if (assistantMsg) {
-        config.sessionStore.updateToolCallStatus(
-          session_id,
-          assistantMsg.id,
-          tool_call_id,
-          error ? 'error' : 'done',
-          envelope.summary,
-          envelope.metadata?.duration_ms,
-        );
-      }
-    }).then(trackUnlisten);
-
-    onAgentLoopStepDone(({ session_id }) => {
-      const session = getSessionById(sessions.value, session_id);
-      if (!session) return;
-      const streamingMsg = [...session.messages]
-        .reverse()
-        .find(entry => entry.role === 'assistant' && entry.status === 'streaming');
-      if (streamingMsg) {
-        config.sessionStore.setMessageStatus(session_id, streamingMsg.id, 'done');
-        config.sessionStore.removeOrphanedStreamingMessages(session_id, streamingMsg.id);
-      }
-    }).then(trackUnlisten);
-
-    onAgentLoopDone(({ session_id }) => {
-      const session = getSessionById(sessions.value, session_id);
-      if (session) {
-        session.messages
-          .filter(message => message.role === 'assistant' && message.status === 'streaming')
-          .forEach(message => config.sessionStore.setMessageStatus(session_id, message.id, 'done'));
-      }
-      config.sessionStore.setSessionStatus(session_id, 'idle');
-      isLoading.value = false;
-    }).then(trackUnlisten);
-
-    onAgentLoopStopped(({ session_id, reason, message }) => {
-      const validReasons = ['iteration_cap', 'wall_clock_budget', 'token_budget'] as const;
-      const normalized = (validReasons as readonly string[]).includes(reason)
-        ? (reason as (typeof validReasons)[number])
-        : 'iteration_cap';
-      config.sessionStore.setSessionStopped?.(session_id, normalized, message);
-      isLoading.value = false;
-    }).then(trackUnlisten);
-
-    onAgentLoopError(({ session_id, error: errMsg }) => {
-      error.value = errMsg;
-      config.sessionStore.setSessionStatus(session_id, 'error');
-      isLoading.value = false;
-      const session = getSessionById(sessions.value, session_id);
-      if (session) {
-        const streamingMsg = [...session.messages]
-          .reverse()
-          .find(message => message.role === 'assistant' && message.status === 'streaming');
-        if (streamingMsg) {
-          config.sessionStore.setMessageStatus(session_id, streamingMsg.id, 'error');
-        }
-      }
-    }).then(trackUnlisten);
-
-    onAgentLoopSummaryInjected(({ session_id }) => {
-      void config.sessionStore.reloadSessionMessages(session_id);
-    }).then(trackUnlisten);
-  };
-
-  setupEventListeners();
-
   const runAgentLoop = async (
     sessionId: string,
     userMessage: string,
     context?: ChatContextConfig,
   ) => {
     const session = getSessionById(sessions.value, sessionId);
-    const runtime = getRuntime(sessionId);
+    const runtime = getSessionRuntime(sessionId);
     if (!session) return;
 
     const promptSources = toPromptSources(session, context);
@@ -566,8 +340,8 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       resolvedSources.length === 0 && Object.keys(context?.connections ?? {}).length === 0;
 
     config.sessionStore.setSessionStatus(sessionId, 'running');
-    isLoading.value = true;
-    error.value = undefined;
+    localError.value = undefined;
+    dataStudioStore.clearSessionError(sessionId);
 
     try {
       const { provider, model } = await getFeatureModelConfig(config.feature);
@@ -608,18 +382,18 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg !== 'cancelled') {
-        error.value = errMsg;
+        localError.value = errMsg;
+        dataStudioStore.setSessionError(sessionId, errMsg);
         config.sessionStore.setSessionStatus(sessionId, 'error');
       }
-      isLoading.value = false;
     }
   };
 
   const sendMessage = async (options: SendMessageOptions) => {
-    error.value = undefined;
-    isLoading.value = true;
+    localError.value = undefined;
 
     const sessionId = await config.sessionStore.getOrCreateSession();
+    dataStudioStore.clearSessionError(sessionId);
     config.sessionStore.clearSessionStop?.(sessionId);
 
     config.sessionStore.addMessage(sessionId, {
@@ -633,7 +407,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     const context = options.context ?? config.contextProvider?.() ?? {};
 
     try {
-      const runtime = getRuntime(sessionId);
+      const runtime = getSessionRuntime(sessionId);
       const hasConnections = Object.keys(context.connections ?? {}).length > 0;
 
       if (hasConnections) {
@@ -645,8 +419,10 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         runtime.metadata = {};
       }
     } catch (err) {
-      error.value = err instanceof Error ? err.message : String(err);
-      isLoading.value = false;
+      const errMsg = err instanceof Error ? err.message : String(err);
+      localError.value = errMsg;
+      dataStudioStore.setSessionError(sessionId, errMsg);
+      config.sessionStore.setSessionStatus(sessionId, 'error');
       return;
     }
 
@@ -703,10 +479,8 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
 
     if (allResolved && anyAllowed) {
       config.sessionStore.setSessionStatus(session.id, 'running');
-      isLoading.value = true;
     } else if (allResolved && !anyAllowed) {
       config.sessionStore.setSessionStatus(session.id, 'idle');
-      isLoading.value = false;
     }
   };
 
@@ -715,23 +489,16 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     if (!session) return;
     await invokeCancelAgentLoop(session.id).catch(() => undefined);
     config.sessionStore.setSessionStatus(session.id, 'idle');
-    isLoading.value = false;
+    dataStudioStore.clearSessionError(session.id);
   };
 
   const clearChat = async () => {
     const session = activeSession.value;
     if (session) {
       await config.sessionStore.clearSession(session.id);
-      sessionRuntime.delete(session.id);
+      clearSessionRuntime(session.id);
     }
   };
-
-  onUnmounted(() => {
-    isDisposed = true;
-    unlisteners.forEach(unlisten => unlisten());
-    unlisteners.length = 0;
-    sessionRuntime.clear();
-  });
 
   return {
     isLoading,

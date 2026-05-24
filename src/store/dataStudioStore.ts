@@ -90,6 +90,14 @@ export type CompactionMarker = {
   trigger: 'auto' | 'manual';
 };
 
+export type CompactionMarkerInsertPayload = {
+  trigger: string;
+  pre_tokens: number;
+  post_tokens: number;
+  removed_count: number;
+  fallback_keep_pairs?: number;
+};
+
 export type AgentMessage = {
   id: string;
   role: AgentMessageRole;
@@ -280,6 +288,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     confirmationRules: Array<ConfirmationRule>;
     sessionMeta: Record<string, SessionMeta>;
     toolResultFullBodies: Record<string, string>;
+    sessionErrors: Record<string, string>;
   } => ({
     attachedSources: [],
     sessions: [],
@@ -288,6 +297,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     confirmationRules: [],
     sessionMeta: {},
     toolResultFullBodies: {},
+    sessionErrors: {},
   }),
   persist: {
     pick: [
@@ -635,13 +645,57 @@ export const useDataStudioStore = defineStore('dataStudio', {
       });
     },
 
+    insertCompactionMarker(sessionId: string, payload: CompactionMarkerInsertPayload) {
+      const trigger: CompactionMarker['trigger'] = payload.trigger === 'manual' ? 'manual' : 'auto';
+      const fallbackSummary =
+        payload.fallback_keep_pairs !== undefined
+          ? `\n\nDeep compaction fallback applied (keep_pairs=${payload.fallback_keep_pairs}).`
+          : '';
+      const summary = `Compaction removed ${payload.removed_count} messages.${fallbackSummary}`;
+
+      const marker: AgentMessage = {
+        id: `compaction-${sessionId}-${Date.now()}`,
+        role: 'system',
+        content: '',
+        status: 'done',
+        timestamp: Date.now(),
+        compaction: {
+          summary,
+          preTokens: payload.pre_tokens,
+          postTokens: payload.post_tokens,
+          trigger,
+        },
+      };
+
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, messages: [...s.messages, marker] } : s,
+      );
+    },
+
     getToolResultFullBody(toolCallId: string): string | undefined {
       return this.toolResultFullBodies[toolCallId];
     },
 
     setSessionStatus(sessionId: string, status: AgentSessionStatus) {
       this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, status } : s));
+      if (status !== 'error') {
+        const { [sessionId]: _removed, ...rest } = this.sessionErrors;
+        this.sessionErrors = rest;
+      }
       updateSessionStatus(sessionId, status === 'stopped' ? 'idle' : status).catch(() => undefined);
+    },
+
+    setSessionError(sessionId: string, error: string) {
+      this.sessionErrors = { ...this.sessionErrors, [sessionId]: error };
+    },
+
+    clearSessionError(sessionId: string) {
+      const { [sessionId]: _removed, ...rest } = this.sessionErrors;
+      this.sessionErrors = rest;
+    },
+
+    getSessionError(sessionId: string): string | undefined {
+      return this.sessionErrors[sessionId];
     },
 
     setSessionStopped(sessionId: string, reason: AgentSessionStopReason, message: string) {
@@ -724,6 +778,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, messages: [], status: 'idle' } : s,
       );
+      this.clearSessionError(sessionId);
       if (toolCallIds.length > 0) {
         const next = { ...this.toolResultFullBodies };
         toolCallIds.forEach(id => delete next[id]);
