@@ -281,6 +281,13 @@ fn db_messages_to_chat(
             out.push(json!({"role": role, "content": content}));
         }
     }
+    if !pending_tool_call_ids.is_empty() {
+        if let Some(last) = out.last_mut() {
+            if last.get("role").and_then(|r| r.as_str()) == Some("assistant") {
+                last["tool_calls"] = serde_json::Value::Array(vec![]);
+            }
+        }
+    }
     out
 }
 

@@ -101,7 +101,17 @@ pub fn append(
     write_message(db, id, session_id, role, content)?;
     emit_usage(app, session_id, settings, db);
 
-    if auto_compact_enabled(settings) && needs_compact(db, session_id, settings) {
+    // Do not trigger background compaction immediately after an assistant message that
+    // contains tool_calls: the tool results have not been written yet, so compaction
+    // would see a dangling assistant+tool_calls with no following tool messages and
+    // produce a payload that OpenAI rejects with HTTP 400. The prepare_for_llm gate
+    // runs before every LLM call and is the correct place to compact.
+    let has_pending_tool_calls = role == "assistant"
+        && serde_json::from_str::<serde_json::Value>(content)
+            .ok()
+            .and_then(|v| v.get("tool_calls").and_then(|tc| tc.as_array()).map(|a| !a.is_empty()))
+            .unwrap_or(false);
+    if !has_pending_tool_calls && auto_compact_enabled(settings) && needs_compact(db, session_id, settings) {
         spawn_background_compact(db.clone(), app.clone(), settings.clone(), session_id.to_string());
     }
     Ok(())
