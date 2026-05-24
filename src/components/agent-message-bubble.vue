@@ -121,7 +121,7 @@
             </span>
             <span class="activity-chevron i-carbon-chevron-down" />
           </summary>
-          <div class="activity-body thinking-body">
+          <div v-auto-stick class="activity-body thinking-body">
             <MarkdownRender
               :markdown="message.thinking"
               class="markdown-body prose prose-sm max-w-none"
@@ -181,7 +181,7 @@
               </span>
               <span class="activity-chevron i-carbon-chevron-down" />
             </summary>
-            <div class="activity-body tool-body-wrapper">
+            <div v-auto-stick class="activity-body tool-body-wrapper">
               <pre class="tool-args-pre">{{ formatToolArgs(tc) }}</pre>
               <pre
                 v-if="toolResultText(tc)"
@@ -218,12 +218,39 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type Directive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import MarkdownRender from '@/components/markdown-render.vue';
 import type { AgentToolCall } from '@/store/dataStudioStore';
 
 const { t } = useI18n();
+
+const STICK_THRESHOLD_PX = 24;
+const stickState = new WeakMap<HTMLElement, { stick: boolean; handler: () => void }>();
+
+const isNearBottom = (el: HTMLElement) =>
+  el.scrollHeight - (el.scrollTop + el.clientHeight) <= STICK_THRESHOLD_PX;
+
+const vAutoStick: Directive<HTMLElement> = {
+  mounted(el) {
+    const handler = () => {
+      const state = stickState.get(el);
+      if (state) state.stick = isNearBottom(el);
+    };
+    stickState.set(el, { stick: true, handler });
+    el.addEventListener('scroll', handler, { passive: true });
+    el.scrollTop = el.scrollHeight;
+  },
+  updated(el) {
+    const state = stickState.get(el);
+    if (state?.stick) el.scrollTop = el.scrollHeight;
+  },
+  unmounted(el) {
+    const state = stickState.get(el);
+    if (state) el.removeEventListener('scroll', state.handler);
+    stickState.delete(el);
+  },
+};
 
 const props = defineProps<{
   message: any;
