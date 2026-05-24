@@ -96,9 +96,29 @@ pub fn replace_messages_with_summary(
         .unwrap_or_else(now_ms)
     };
 
-    // Boundary row must sort strictly before any compacted row so the
-    // `created_at >= boundary_ts` cutoff in load_messages_for_compact /
-    // load_active_history excludes everything that came before it.
+    // Delete the compacted rows in the same transaction as the boundary
+    // insert. The loader uses `created_at >= boundary_ts` so leaving the
+    // old rows would keep them in every subsequent LLM payload.
+    if !ids_to_remove.is_empty() {
+        let placeholders = std::iter::repeat("?")
+            .take(ids_to_remove.len())
+            .collect::<Vec<_>>()
+            .join(",");
+        let sql = format!(
+            "DELETE FROM agent_messages WHERE session_id = ? AND id IN ({})",
+            placeholders
+        );
+        let mut params: Vec<&dyn rusqlite::ToSql> = Vec::with_capacity(1 + ids_to_remove.len());
+        params.push(&session_id);
+        for id in ids_to_remove {
+            params.push(id);
+        }
+        tx.execute(&sql, rusqlite::params_from_iter(params.iter().copied()))
+            .map_err(|e| format!("Failed to delete compacted messages: {}", e))?;
+    }
+
+    // Boundary timestamp sits one millisecond before the earliest deleted
+    // row so future appends (created_at = now_ms()) sort strictly after it.
     let boundary_created_at = boundary_ts.saturating_sub(1);
 
     tx.execute(

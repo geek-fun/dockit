@@ -736,19 +736,22 @@ export const useDataStudioStore = defineStore('dataStudio', {
         });
 
         if (!found) {
-          messages.push({
-            id: `compaction-${sessionId}-${Date.now()}`,
-            role: 'system',
-            content: '',
-            status: 'done',
-            timestamp: Date.now(),
-            compaction: {
-              summary,
-              preTokens: payload.pre_tokens,
-              postTokens: payload.post_tokens,
-              trigger,
-            },
-          });
+          const last = messages[messages.length - 1];
+          if (!last?.compaction) {
+            messages.push({
+              id: `compaction-${sessionId}-${Date.now()}`,
+              role: 'system',
+              content: '',
+              status: 'done',
+              timestamp: Date.now(),
+              compaction: {
+                summary,
+                preTokens: payload.pre_tokens,
+                postTokens: payload.post_tokens,
+                trigger,
+              },
+            });
+          }
         }
         return { ...s, messages };
       });
