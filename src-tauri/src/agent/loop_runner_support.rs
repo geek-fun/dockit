@@ -96,8 +96,9 @@ pub fn replace_messages_with_summary(
         .unwrap_or_else(now_ms)
     };
 
-    // Boundary row must sort before any kept message, so back-date by 1ms.
-    // load_messages uses created_at >= boundary_ts as the cutoff.
+    // Boundary row must sort strictly before any compacted row so the
+    // `created_at >= boundary_ts` cutoff in load_messages_for_compact /
+    // load_active_history excludes everything that came before it.
     let boundary_created_at = boundary_ts.saturating_sub(1);
 
     tx.execute(
@@ -105,38 +106,6 @@ pub fn replace_messages_with_summary(
         rusqlite::params![new_id(), session_id, "system", summary_payload, boundary_created_at],
     )
     .map_err(|e| e.to_string())?;
-
-    if !ids_to_remove.is_empty() {
-        let placeholders = std::iter::repeat("?")
-            .take(ids_to_remove.len())
-            .collect::<Vec<_>>()
-            .join(",");
-        let sql = format!(
-            "DELETE FROM agent_messages WHERE session_id = ? AND id IN ({})",
-            placeholders
-        );
-        let mut params: Vec<&dyn rusqlite::ToSql> = Vec::with_capacity(1 + ids_to_remove.len());
-        params.push(&session_id);
-        for id in ids_to_remove {
-            params.push(id);
-        }
-        tx.execute(&sql, rusqlite::params_from_iter(params.iter().copied()))
-            .map_err(|e| format!("Failed to delete compacted messages: {}", e))?;
-
-        // Cascade-delete any orphaned tool_calls + tool_result_store rows
-        // whose parent assistant message was just removed, to keep the DB
-        // free of zombie references that could confuse later replays.
-        let tc_sql = format!(
-            "DELETE FROM agent_tool_calls WHERE session_id = ? AND message_id IN ({})",
-            placeholders
-        );
-        let mut tc_params: Vec<&dyn rusqlite::ToSql> = Vec::with_capacity(1 + ids_to_remove.len());
-        tc_params.push(&session_id);
-        for id in ids_to_remove {
-            tc_params.push(id);
-        }
-        let _ = tx.execute(&tc_sql, rusqlite::params_from_iter(tc_params.iter().copied()));
-    }
 
     tx.commit().map_err(|e| e.to_string())?;
     Ok(())
