@@ -33,6 +33,8 @@ const adaptDataStudioSession = (session: AgentSession): ChatSession => ({
   status: session.status as ChatSessionStatus,
   sources: session.sources,
   maxIterations: session.maxIterations,
+  stopReason: session.stopReason,
+  stopMessage: session.stopMessage,
 });
 
 const getNonDetachedSources = (sources: SessionSource[]): SessionSource[] =>

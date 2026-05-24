@@ -58,8 +58,8 @@
           :input-placeholder="$t('dataStudio.inputPlaceholder')"
           :session-id="activeSession?.id ?? null"
           :context-settings="lastSettings ?? undefined"
-          :stop-reason="(activeSession as any)?.stopReason ?? null"
-          :stop-message="(activeSession as any)?.stopMessage ?? null"
+          :stop-reason="activeSession?.stopReason ?? null"
+          :stop-message="activeSession?.stopMessage ?? null"
           feature="dataStudio"
           compact
           @send="sendMessage"
@@ -417,7 +417,11 @@ const confirmAddSource = async () => {
   }
   dataStudioStore.attachSourceToActiveSession(newSource);
   if (addSourceMode.value === 'Ask' && dataStudioStore.activeSession) {
-    dataStudioStore.updateSessionSourceMode(dataStudioStore.activeSession.id, newSource.sourceId, 'custom');
+    dataStudioStore.updateSessionSourceMode(
+      dataStudioStore.activeSession.id,
+      newSource.sourceId,
+      'custom',
+    );
   }
   resetAddSourceState();
 };

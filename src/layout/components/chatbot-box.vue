@@ -21,8 +21,8 @@
       :input-placeholder="$t('aside.chatBotPlaceholder')"
       :session-id="activeSession?.id ?? null"
       :context-settings="lastSettings ?? undefined"
-      :stop-reason="(activeSession as any)?.stopReason ?? null"
-      :stop-message="(activeSession as any)?.stopMessage ?? null"
+      :stop-reason="activeSession?.stopReason ?? null"
+      :stop-message="activeSession?.stopMessage ?? null"
       feature="sidebarAssistant"
       compact
       @send="sendMessage"

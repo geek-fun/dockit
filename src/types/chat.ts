@@ -20,6 +20,8 @@ export type ChatMessage = {
 
 export type ChatSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error';
 
+export type ChatSessionStopReason = 'iteration_cap' | 'wall_clock_budget' | 'token_budget';
+
 export type ChatSession = {
   id: string;
   messages: Array<ChatMessage>;
@@ -27,6 +29,8 @@ export type ChatSession = {
   schema?: string;
   sources?: import('@/store/dataStudioStore').SessionSource[];
   maxIterations: number;
+  stopReason?: ChatSessionStopReason;
+  stopMessage?: string;
 };
 
 export type ChatContextConfig = {

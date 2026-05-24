@@ -12,8 +12,9 @@
         v-if="autoCompactOff"
         class="context-indicator__off-badge"
         title="Auto-compact is OFF — context will not shrink automatically"
-        >OFF</span
       >
+        OFF
+      </span>
       <span class="context-indicator__bar" aria-hidden="true">
         <span class="context-indicator__bar-fill" :style="{ width: `${clampedPercent}%` }" />
       </span>
@@ -27,10 +28,10 @@
 
       <div v-if="autoCompactOff && usage?.should_compact" class="context-indicator__warning">
         <span class="i-carbon-warning-alt h-3.5 w-3.5" />
-        <span
-          >Auto-compact is OFF and context is over threshold. Compact now or the next request may
-          fail.</span
-        >
+        <span>
+          Auto-compact is OFF and context is over threshold. Compact now or the next request may
+          fail.
+        </span>
       </div>
 
       <dl class="context-indicator__grid">
@@ -187,9 +188,9 @@ onMounted(async () => {
   });
   if (isDisposed) {
     fn();
-  } else {
-    unlisten = fn;
+    return;
   }
+  unlisten = fn;
   document.addEventListener('click', closeOnOutside);
   await refresh();
 });

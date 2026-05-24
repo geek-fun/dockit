@@ -38,6 +38,8 @@ const adaptSession = (session: AgentSession): ChatSession => ({
   status: session.status as ChatSessionStatus,
   sources: session.sources,
   maxIterations: session.maxIterations,
+  stopReason: session.stopReason,
+  stopMessage: session.stopMessage,
 });
 
 const getSidebarContext = (): ChatContextConfig => {

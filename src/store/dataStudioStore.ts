@@ -103,17 +103,9 @@ export type AgentMessage = {
   compaction?: CompactionMarker;
 };
 
-export type AgentSessionStatus =
-  | 'idle'
-  | 'running'
-  | 'waiting_confirmation'
-  | 'error'
-  | 'stopped';
+export type AgentSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped';
 
-export type AgentSessionStopReason =
-  | 'iteration_cap'
-  | 'wall_clock_budget'
-  | 'token_budget';
+export type AgentSessionStopReason = 'iteration_cap' | 'wall_clock_budget' | 'token_budget';
 
 export type AgentSession = {
   id: string;
@@ -649,19 +641,18 @@ export const useDataStudioStore = defineStore('dataStudio', {
 
     setSessionStatus(sessionId: string, status: AgentSessionStatus) {
       this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, status } : s));
-      updateSessionStatus(sessionId, status === 'stopped' ? 'idle' : status).catch(
-        () => undefined,
-      );
+      updateSessionStatus(sessionId, status === 'stopped' ? 'idle' : status).catch(() => undefined);
     },
 
-    setSessionStopped(
-      sessionId: string,
-      reason: AgentSessionStopReason,
-      message: string,
-    ) {
+    setSessionStopped(sessionId: string, reason: AgentSessionStopReason, message: string) {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId
-          ? { ...s, status: 'stopped' as AgentSessionStatus, stopReason: reason, stopMessage: message }
+          ? {
+              ...s,
+              status: 'stopped' as AgentSessionStatus,
+              stopReason: reason,
+              stopMessage: message,
+            }
           : s,
       );
       updateSessionStatus(sessionId, 'idle').catch(() => undefined);
@@ -691,9 +682,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
         () => [] as BackendAgentMessage[],
       );
       const messages: Array<AgentMessage> = backendMessages.map(hydrateMessage);
-      this.sessions = this.sessions.map(s =>
-        s.id === sessionId ? { ...s, messages } : s,
-      );
+      this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, messages } : s));
     },
 
     // ── Confirmation rules ───────────────────────────────────────────────────
@@ -717,10 +706,18 @@ export const useDataStudioStore = defineStore('dataStudio', {
 
     async clearSession(sessionId: string) {
       await clearAgentSessionMessages(sessionId);
+      const session = this.sessions.find(s => s.id === sessionId);
+      const toolCallIds = (session?.messages ?? []).flatMap(m =>
+        (m.toolCalls ?? []).map(tc => tc.id),
+      );
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, messages: [], status: 'idle' } : s,
       );
-      this.toolResultFullBodies = {};
+      if (toolCallIds.length > 0) {
+        const next = { ...this.toolResultFullBodies };
+        toolCallIds.forEach(id => delete next[id]);
+        this.toolResultFullBodies = next;
+      }
     },
 
     async loadSessions() {
