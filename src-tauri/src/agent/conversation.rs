@@ -5,7 +5,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::Mutex as AsyncMutex;
 
-use crate::agent::compact::{evaluate, resolve_model_spec, run_compact};
+use crate::agent::compact::{evaluate, resolve_model_spec_for_session, run_compact};
 use crate::agent::loop_runner_support::{load_messages_for_compact, new_id, now_ms};
 use crate::db::AgentDb;
 
@@ -55,7 +55,7 @@ fn emit_usage(app: &AppHandle, session_id: &str, settings: &Value, db: &AgentDb)
         Ok(m) => m,
         Err(_) => return,
     };
-    let spec = resolve_model_spec(settings);
+    let spec = resolve_model_spec_for_session(session_id, settings);
     let decision = evaluate(&messages, &spec);
     let _ = app.emit(
         "agent-context-usage",
@@ -76,7 +76,7 @@ pub fn needs_compact(db: &AgentDb, session_id: &str, settings: &Value) -> bool {
     let Ok(messages) = load_messages_for_compact(db, session_id) else {
         return false;
     };
-    let spec = resolve_model_spec(settings);
+    let spec = resolve_model_spec_for_session(session_id, settings);
     evaluate(&messages, &spec).should_compact
 }
 

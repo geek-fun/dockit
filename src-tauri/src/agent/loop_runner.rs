@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::oneshot;
 
-use crate::agent::compact::{evaluate, resolve_model_spec};
+use crate::agent::compact::{evaluate, resolve_model_spec_for_session};
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::executor::ToolEnvelope;
 use crate::agent::loop_runner_support::load_messages_for_compact;
@@ -287,7 +287,7 @@ fn emit_context_usage(app: &AppHandle, session_id: &str, settings: &Value, db: &
         Ok(m) => m,
         Err(_) => return,
     };
-    let spec = resolve_model_spec(settings);
+    let spec = resolve_model_spec_for_session(session_id, settings);
     let decision = evaluate(&messages, &spec);
     let _ = app.emit(
         "agent-context-usage",
@@ -1003,7 +1003,7 @@ pub async fn compact_agent_session(
     }
     emit_context_usage(&app, &session_id, &settings, &db);
     let messages = load_messages_for_compact(&db, &session_id)?;
-    let spec = resolve_model_spec(&settings);
+    let spec = resolve_model_spec_for_session(&session_id, &settings);
     let decision = evaluate(&messages, &spec);
     Ok(json!({
         "session_id": session_id,
@@ -1026,7 +1026,7 @@ pub async fn get_agent_context_usage(
     let db_state: State<AgentDb> = app.state::<AgentDb>();
     let db: AgentDb = AgentDb(db_state.0.clone());
     let messages = load_messages_for_compact(&db, &session_id)?;
-    let spec = resolve_model_spec(&settings);
+    let spec = resolve_model_spec_for_session(&session_id, &settings);
     let decision = evaluate(&messages, &spec);
     Ok(json!({
         "session_id": session_id,

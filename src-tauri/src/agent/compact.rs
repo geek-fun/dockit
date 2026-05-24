@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::{Mutex, OnceLock};
+
 use serde_json::{json, Value};
 
 use crate::agent::config::{build_headers, get_base_url};
@@ -5,7 +8,9 @@ use crate::agent::loop_runner_support::{
     load_messages_for_compact, post_chat_completions_compact, replace_messages_with_summary,
     StoredMessage,
 };
-use crate::agent::model_registry::{apply_overrides, resolve_spec, usable_window, ModelSpec};
+use crate::agent::model_registry::{
+    apply_overrides, resolve_spec, usable_window, ModelSpec, TokenizerFamily,
+};
 use crate::agent::token_counter::estimate_stored_message;
 use crate::common::http_client::create_http_client;
 use crate::db::AgentDb;
@@ -71,6 +76,29 @@ pub fn resolve_model_spec(settings: &Value) -> ModelSpec {
         .and_then(|v| v.as_u64())
         .map(|n| n as usize);
     apply_overrides(resolve_spec(provider, model), override_window)
+}
+
+/// Tokenizer family cache, keyed by session_id. Once a session has been
+/// resolved, subsequent calls force the same TokenizerFamily even if the
+/// caller's settings (provider/model) drift mid-session. This prevents
+/// context-usage percentage from jumping when the model picker is changed
+/// or when settings are partially reloaded, which previously produced the
+/// observed 62% -> 60% regression mid-loop.
+static SESSION_TOKENIZER_CACHE: OnceLock<Mutex<HashMap<String, TokenizerFamily>>> = OnceLock::new();
+
+pub fn resolve_model_spec_for_session(session_id: &str, settings: &Value) -> ModelSpec {
+    let mut spec = resolve_model_spec(settings);
+    let cache = SESSION_TOKENIZER_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut map = cache.lock().expect("tokenizer cache poisoned");
+    match map.get(session_id) {
+        Some(locked) => {
+            spec.tokenizer = *locked;
+        }
+        None => {
+            map.insert(session_id.to_string(), spec.tokenizer);
+        }
+    }
+    spec
 }
 
 /// Find a safe split point that preserves the (assistant+tool_calls, tool...) pairing
@@ -260,7 +288,7 @@ pub async fn run_compact(
     db: &AgentDb,
 ) -> Result<Option<CompactionInfo>, String> {
     let mut messages = load_messages_for_compact(db, session_id)?;
-    let spec = resolve_model_spec(settings);
+    let spec = resolve_model_spec_for_session(session_id, settings);
     let decision = evaluate(&messages, &spec);
     if !decision.should_compact {
         return Ok(None);
