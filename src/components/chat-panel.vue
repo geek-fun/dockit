@@ -207,6 +207,16 @@ const viewportEl = ref<HTMLElement | null>(null);
 const contextIndicatorRef = ref<{ refresh: () => Promise<void> } | null>(null);
 const inputText = ref('');
 const modelVerified = ref<boolean | null>(null);
+// ── Scroll behavior (standard AI chat UX) ──────────────────────────
+//
+// 1. Default: auto-scroll to bottom as new content streams in
+// 2. User scrolls up: stop auto-scrolling (they're reading history)
+// 3. User scrolls back to bottom: resume auto-scrolling
+//
+// Uses a lightweight reactive watch instead of DOM ResizeObserver because
+// virtua's Virtualizer rewrites the DOM layout and observer-based
+// approaches are unreliable during streaming re-renders.
+
 const stickToBottom = ref(true);
 const STICKY_THRESHOLD_PX = 32;
 
@@ -222,6 +232,52 @@ const handleViewportScroll = () => {
   if (!el) return;
   stickToBottom.value = isNearBottom(el);
 };
+
+// Batched scroll: at most one rAF frame, fresh scrollHeight every time.
+let scrollRafId = 0;
+const stickToBottomNow = () => {
+  if (!stickToBottom.value || scrollRafId) return;
+  scrollRafId = requestAnimationFrame(() => {
+    scrollRafId = 0;
+    const el = getViewport();
+    if (el && stickToBottom.value) el.scrollTop = el.scrollHeight;
+  });
+};
+
+const scrollToBottom = (behavior: 'auto' | 'smooth' = 'smooth') => {
+  nextTick(() => {
+    const el = getViewport();
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  });
+};
+
+const forceScrollToBottom = () => {
+  stickToBottom.value = true;
+  scrollToBottom('smooth');
+};
+
+// Watch the last message's content for streaming growth.
+// This is the primary scroll trigger — reacts to reactive data,
+// independent of virtua's DOM structure.
+watch(
+  () => {
+    const msgs = props.messages;
+    if (msgs.length === 0) return '';
+    const last = msgs[msgs.length - 1];
+    return `${last.content?.length ?? 0}:${last.thinking?.length ?? 0}:${last.toolCalls?.length ?? 0}`;
+  },
+  () => stickToBottomNow(),
+);
+
+// When a new message appears (count change), re-stick and scroll.
+watch(
+  () => props.messages.length,
+  () => {
+    stickToBottom.value = true;
+    nextTick(() => stickToBottomNow());
+  },
+);
 
 const canSend = computed(() => inputText.value.trim().length > 0 && !props.isLoading);
 
@@ -253,47 +309,6 @@ const featureRoute = computed(() =>
 
 const selectedModelId = computed(() => featureRoute.value.selectedModelId ?? undefined);
 const recentModelIds = computed(() => (selectedModelId.value ? [selectedModelId.value] : []));
-
-const scrollToBottom = (behavior: 'auto' | 'smooth' = 'smooth') => {
-  nextTick(() => {
-    const el = getViewport();
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior });
-  });
-};
-
-// Sync scroll without nextTick for streaming (height already changed when RO fires).
-let rafId = 0;
-const stickToBottomNow = () => {
-  if (!stickToBottom.value) return;
-  if (rafId) return;
-  rafId = requestAnimationFrame(() => {
-    rafId = 0;
-    const el = getViewport();
-    if (!el || !stickToBottom.value) return;
-    el.scrollTop = el.scrollHeight;
-  });
-};
-
-let contentResizeObserver: ResizeObserver | null = null;
-
-const observeContentSize = () => {
-  const el = getViewport();
-  if (!el) return;
-  // Observe the inner content wrapper (first child) so we react to any
-  // height growth — streamed text, expanding thinking blocks, tool results,
-  // even a lone newline appended to the current assistant message.
-  const content = el.firstElementChild as HTMLElement | null;
-  if (!content) return;
-  contentResizeObserver?.disconnect();
-  contentResizeObserver = new ResizeObserver(() => stickToBottomNow());
-  contentResizeObserver.observe(content);
-};
-
-const forceScrollToBottom = () => {
-  stickToBottom.value = true;
-  scrollToBottom('smooth');
-};
 
 const handleSend = async () => {
   if (modelVerified.value === false) {
@@ -351,19 +366,6 @@ const onModelPickerOpen = () => {
 };
 
 watch(
-  () => props.messages.length,
-  () => {
-    // On new message append: re-stick (user expects to follow new turns) and
-    // re-bind the ResizeObserver in case the virtualized content node changed.
-    stickToBottom.value = true;
-    nextTick(() => {
-      observeContentSize();
-      stickToBottomNow();
-    });
-  },
-);
-
-watch(
   () => props.contextSettings,
   (next, prev) => {
     if (next && !prev) contextIndicatorRef.value?.refresh();
@@ -377,16 +379,12 @@ onMounted(async () => {
   viewportEl.value = el;
   el?.addEventListener('scroll', handleViewportScroll, { passive: true });
   scrollToBottom('auto');
-  await nextTick();
-  observeContentSize();
 });
 
 onBeforeUnmount(() => {
   const el = getViewport();
   el?.removeEventListener('scroll', handleViewportScroll);
-  contentResizeObserver?.disconnect();
-  contentResizeObserver = null;
-  if (rafId) cancelAnimationFrame(rafId);
+  if (scrollRafId) cancelAnimationFrame(scrollRafId);
 });
 </script>
 
