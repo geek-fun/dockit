@@ -366,7 +366,10 @@ const isSearchConnectionComputed = computed(() => {
 
 // Check if run button is visible (DynamoDB SQL editor) — used to avoid margin conflict
 const showRunButton = computed(() => {
-  return props.type === 'DYNAMO_EDITOR' && activePanel.value.editorType === 'DYNAMO_EDITOR_SQL';
+  return (
+    props.type === 'MONGO_EDITOR' ||
+    (props.type === 'DYNAMO_EDITOR' && activePanel.value.editorType === 'DYNAMO_EDITOR_SQL')
+  );
 });
 
 const loadingRef = ref({
