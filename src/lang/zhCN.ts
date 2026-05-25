@@ -903,6 +903,7 @@ export const zhCN = {
       executionSuccess: '查询执行成功',
       error: '查询错误',
       insertDocumentTitle: '插入文档',
+      cloneDocumentTitle: '克隆文档',
       editDocumentTitle: '编辑文档',
       insert: '插入',
       deleteDocumentConfirm: '确定要删除该文档吗？此操作不可撤销。',

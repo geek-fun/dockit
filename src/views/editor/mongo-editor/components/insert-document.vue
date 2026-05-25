@@ -2,7 +2,9 @@
   <Dialog :open="show" @update:open="handleOpenChange">
     <DialogContent class="sm:max-w-[700px]" :show-close="false">
       <DialogHeader>
-        <DialogTitle>{{ $t('editor.mongo.insertDocumentTitle') }}</DialogTitle>
+        <DialogTitle>
+          {{ props.mode === 'clone' ? $t('editor.mongo.cloneDocumentTitle') : $t('editor.mongo.insertDocumentTitle') }}
+        </DialogTitle>
         <button
           class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
           @click="handleClose"
@@ -23,7 +25,7 @@
         </Button>
         <Button :disabled="loading" @click="handleSubmit">
           <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
-          {{ $t('editor.mongo.insert') }}
+          {{ props.mode === 'clone' ? $t('editor.mongo.clone') : $t('editor.mongo.insert') }}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -50,6 +52,7 @@ import { useLang } from '../../../../lang';
 const props = defineProps<{
   show: boolean;
   initialValue?: string;
+  mode?: 'insert' | 'clone';
 }>();
 
 const emit = defineEmits<{

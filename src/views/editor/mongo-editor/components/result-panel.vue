@@ -330,6 +330,7 @@
     ref="insertDocumentRef"
     v-model:show="showInsertModal"
     :initial-value="cloneDocumentValue"
+    :mode="insertMode"
     @insert="handleInsertSubmit"
   />
   <EditDocument
@@ -448,6 +449,7 @@ const editDocumentRef = ref<EditDocumentExposed>();
 const deleteConfirmRef = ref<DeleteConfirmExposed>();
 const deletingId = ref('');
 const cloneDocumentValue = ref<string | undefined>(undefined);
+const insertMode = ref<'insert' | 'clone'>('insert');
 
 // Monaco JSON editor
 const jsonEditorRef = ref<HTMLElement>();
@@ -565,6 +567,7 @@ onUnmounted(() => jsonEditor?.dispose());
 
 const handleInsertClick = () => {
   cloneDocumentValue.value = undefined;
+  insertMode.value = 'insert';
   showInsertModal.value = true;
 };
 
@@ -572,6 +575,7 @@ const handleCloneClick = (row: Record<string, unknown>) => {
   const clone = { ...row };
   delete clone._id;
   cloneDocumentValue.value = JSON.stringify(clone, null, 2);
+  insertMode.value = 'clone';
   showInsertModal.value = true;
 };
 

@@ -933,6 +933,7 @@ export const enUS = {
       executionSuccess: 'Query executed successfully',
       error: 'Query Error',
       insertDocumentTitle: 'Insert Document',
+      cloneDocumentTitle: 'Clone Document',
       editDocumentTitle: 'Edit Document',
       insert: 'Insert',
       deleteDocumentConfirm:
