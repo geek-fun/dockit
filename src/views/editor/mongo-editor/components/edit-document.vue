@@ -123,7 +123,7 @@ const handleSubmit = () => {
   try {
     parsed = JSON.parse(value);
   } catch {
-    errorMessage.value = lang.t('dialogOps.invalidJson');
+    errorMessage.value = lang.t('editor.mongo.invalidJson');
     return;
   }
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
