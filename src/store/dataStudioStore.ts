@@ -196,11 +196,15 @@ export const attachSourceToSession = (
 // ── Hydration ────────────────────────────────────────────────────────────────
 
 const dedupAdjacentCompactions = (messages: AgentMessage[]): AgentMessage[] => {
-  return messages.filter((m, i) => {
-    if (!m.compaction) return true;
-    const next = messages[i + 1];
-    return !next?.compaction;
-  });
+  // Keep only the last compaction marker (robust against non-deterministic ordering).
+  let found = false;
+  return messages.reduceRight((acc, m) => {
+    if (!m.compaction || !found) {
+      if (m.compaction) found = true;
+      acc.unshift(m);
+    }
+    return acc;
+  }, [] as AgentMessage[]);
 };
 
 const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {

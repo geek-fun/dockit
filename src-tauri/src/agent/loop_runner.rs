@@ -10,7 +10,7 @@ use tokio::sync::oneshot;
 use crate::agent::compact::{count_projected_tokens, evaluate, resolve_model_spec_for_session};
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::executor::ToolEnvelope;
-use crate::agent::loop_runner_support::load_messages_for_compact;
+use crate::agent::loop_runner_support::{load_messages_for_compact, StoredMessage};
 use crate::agent::tool_executor::ToolExecutor;
 use crate::common::http_client::create_http_client;
 use crate::db::AgentDb;
@@ -314,6 +314,20 @@ fn build_llm_messages(
         }
     }
     out
+}
+
+/// Public wrapper that projects stored messages the same way as
+/// build_llm_messages. Used by count_projected_tokens for accurate
+/// token estimation that matches what the LLM actually receives.
+pub fn project_messages(
+    messages: &[StoredMessage],
+    system_prompt: Option<&str>,
+) -> Vec<Value> {
+    let tuples: Vec<(String, String, String)> = messages
+        .iter()
+        .map(|m| (m.id.clone(), m.role.clone(), m.content.clone()))
+        .collect();
+    build_llm_messages(&tuples, system_prompt)
 }
 
 fn emit_loop_stopped(app: &AppHandle, session_id: &str, reason: &str, message: &str) {
