@@ -234,7 +234,8 @@ const executeCurrentStatement = async () => {
       connectionId: activeConnection.value.id,
     });
 
-    const collection = activePanel.value.activeTable ?? undefined;
+    const collectionFromQuery = /^db\.(\w+)\./m.exec(code.trim())?.[1];
+    const collection = activePanel.value.activeTable ?? collectionFromQuery ?? undefined;
     showResultPanel(result.data, undefined, queryTime, collection);
     saveQueryResult(result.data);
     loadingBar.finish();
