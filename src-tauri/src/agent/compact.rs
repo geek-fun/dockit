@@ -379,43 +379,18 @@ async fn run_compact_inner(
 fn insert_compact_boundary(
     db: &AgentDb,
     session_id: &str,
-    removed_ids: &[String],
+    _removed_ids: &[String],
     boundary_payload: &str,
 ) -> Result<(), String> {
     let mut conn = db.0.lock().map_err(|e| e.to_string())?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
-    let boundary_ts: i64 = if removed_ids.is_empty() {
-        now_ms()
-    } else {
-        let placeholders = std::iter::repeat("?")
-            .take(removed_ids.len())
-            .collect::<Vec<_>>()
-            .join(",");
-        let sql = format!(
-            "SELECT MAX(created_at) FROM agent_messages WHERE session_id = ? AND id IN ({})",
-            placeholders
-        );
-        let mut params: Vec<&dyn rusqlite::ToSql> = Vec::with_capacity(1 + removed_ids.len());
-        params.push(&session_id);
-        for id in removed_ids {
-            params.push(id);
-        }
-        let latest_removed = tx
-            .query_row(
-                &sql,
-                rusqlite::params_from_iter(params.iter().copied()),
-                |row| row.get::<_, Option<i64>>(0),
-            )
-            .map_err(|e| format!("Failed to read latest removed timestamp: {}", e))?
-            .unwrap_or_else(now_ms);
-        latest_removed.saturating_add(1)
-    };
+    let boundary_ts: i64 = now_ms();
 
-    // Boundary sits strictly after every compacted row so the
-    // `created_at >= boundary_ts` cutoff in load_active_history /
-    // load_messages_for_compact keeps the boundary plus post-compaction
-    // appends while excluding the rows just summarized.
+    // Each boundary uses now_ms() so it gets a unique timestamp.
+    // load_messages_for_compact loads rows where created_at >= last
+    // boundary_ts — keeping the boundary plus post-compaction appends
+    // while excluding rows summarized in previous compactions.
     tx.execute(
         "INSERT INTO agent_messages (id, session_id, role, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
         rusqlite::params![new_id(), session_id, "system", boundary_payload, boundary_ts],
