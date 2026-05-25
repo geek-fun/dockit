@@ -948,7 +948,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
             sources,
             permissionsMode: raw?.permissionsMode ?? ('Ask' as PermissionsMode),
             messages,
-            status: 'idle' as AgentSessionStatus,
+            status: s.status as AgentSessionStatus,
             maxIterations: raw?.maxIterations ?? 10,
           };
         }),
