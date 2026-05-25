@@ -323,9 +323,7 @@ const initAgentRuntime = async (): Promise<void> => {
         });
       }
     }),
-    onAgentLoopWarning(({ session_id, warning }) => {
-      console.warn(`[AgentLoop] session ${session_id} warning:`, warning);
-    }),
+    onAgentLoopWarning(() => {}),
   ])
     .then(unlisteners => {
       if (runtimeDisposed) {

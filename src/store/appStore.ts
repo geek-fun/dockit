@@ -549,14 +549,7 @@ export const useAppStore = defineStore('app', {
             httpProxy: provider.proxy || undefined,
             baseUrl: provider.baseUrl,
           });
-          console.warn('[syncProviderModels]', {
-            kind: provider.kind,
-            providerEnum: providerKindToEnum(provider.kind),
-            baseUrl: provider.baseUrl,
-            result: discoveredModelLabels,
-          });
-        } catch (err) {
-          console.warn('[appStore] listModels failed, preserving existing models', err);
+        } catch (_err) {
           provider.connected = false;
           provider.updatedAt = Date.now();
           await this.persistLlmSettings();
