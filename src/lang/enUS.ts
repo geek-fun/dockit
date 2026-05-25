@@ -1421,7 +1421,7 @@ export const enUS = {
         allowAlways: 'Allow Always',
         deny: 'Deny',
         denyAlways: 'Deny Always',
-        cancel: 'Stop Agent',
+        cancel: 'Cancel',
       },
       riskLevel: {
         safe: 'Safe',
