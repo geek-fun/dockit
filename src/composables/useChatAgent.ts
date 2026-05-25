@@ -487,7 +487,13 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     }
 
     const allowed = action === 'allow_once' || action === 'allow_always';
-    await invokeConfirmToolCall(toolCallId, allowed);
+    try {
+      await invokeConfirmToolCall(toolCallId, allowed);
+    } catch {
+      config.sessionStore.updateToolCallStatus(session.id, assistantMsgId, toolCallId, 'error');
+      config.sessionStore.setSessionStatus(session.id, 'idle');
+      return;
+    }
 
     config.sessionStore.updateToolCallStatus(
       session.id,

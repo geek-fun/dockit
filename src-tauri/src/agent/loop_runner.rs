@@ -865,6 +865,13 @@ async fn run_agent_loop_inner(
                 continue;
             }
 
+            let (confirm_tx, confirm_rx) = oneshot::channel::<bool>();
+            {
+                let mut cm = confirm_map.lock().map_err(|e| e.to_string())?;
+                cm.insert(tool_call_id.clone(), confirm_tx);
+            }
+            let _guard = ConfirmGuard::new(confirm_map.clone(), tool_call_id.clone());
+
             let _ = app.emit(
                 "agent-loop-tool-call",
                 json!({
@@ -874,13 +881,6 @@ async fn run_agent_loop_inner(
                     "arguments": arguments_value,
                 }),
             );
-
-            let (confirm_tx, confirm_rx) = oneshot::channel::<bool>();
-            {
-                let mut cm = confirm_map.lock().map_err(|e| e.to_string())?;
-                cm.insert(tool_call_id.clone(), confirm_tx);
-            }
-            let _guard = ConfirmGuard::new(confirm_map.clone(), tool_call_id.clone());
 
             let confirm_future =
                 tokio::time::timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), confirm_rx);

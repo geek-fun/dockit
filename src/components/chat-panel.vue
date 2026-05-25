@@ -26,11 +26,11 @@
           <template
             v-if="
               msg.role === 'assistant' &&
-              msg.toolCalls?.some((tc: AgentToolCall) => tc.status === 'pending')
+              msg.toolCalls?.some((tc: AgentToolCall) => tc.requiresConfirmation)
             "
           >
             <ToolConfirmationCard
-              v-for="tc in msg.toolCalls.filter((tc: AgentToolCall) => tc.status === 'pending')"
+              v-for="tc in msg.toolCalls.filter((tc: AgentToolCall) => tc.requiresConfirmation)"
               :key="tc.id"
               :tool-call="tc"
               @confirm="handleConfirmation(msg.id, $event)"

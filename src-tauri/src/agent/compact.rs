@@ -23,7 +23,6 @@ pub const MAX_CONSECUTIVE_FAILURES: u32 = 3;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CompactDecision {
-    pub used_tokens: usize,
     pub capacity: usize,
     pub trigger_at: usize,
     pub should_compact: bool,
@@ -46,7 +45,6 @@ pub fn evaluate(messages: &[StoredMessage], spec: &ModelSpec) -> CompactDecision
     let capacity = usable_window(spec);
     let trigger_at = compact_trigger_threshold(capacity);
     CompactDecision {
-        used_tokens: used,
         capacity,
         trigger_at,
         should_compact: used >= trigger_at,

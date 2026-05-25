@@ -29,6 +29,23 @@ const formattedArgs = computed(() => {
     return String(props.toolCall.args);
   }
 });
+
+const stateLabel = computed(() => {
+  switch (props.toolCall.status) {
+    case 'pending':
+      return null;
+    case 'executing':
+      return { icon: 'i-carbon-renew animate-spin', text: 'Executing…' };
+    case 'denied':
+      return { icon: 'i-carbon-subtract', text: 'Denied' };
+    case 'done':
+      return { icon: 'i-carbon-checkmark', text: 'Allowed' };
+    case 'error':
+      return { icon: 'i-carbon-warning', text: 'Error' };
+    default:
+      return null;
+  }
+});
 </script>
 
 <template>
@@ -38,9 +55,15 @@ const formattedArgs = computed(() => {
         <span class="i-carbon-warning-alt h-4 w-4" />
         <span class="text-sm font-medium">{{ toolCall.toolName }}</span>
       </div>
-      <span :class="['risk-badge', `risk-badge-${toolCall.riskLevel}`]">
-        {{ $t(`dataStudio.agent.riskLevel.${toolCall.riskLevel}`) }}
-      </span>
+      <div class="flex items-center gap-2">
+        <span :class="['risk-badge', `risk-badge-${toolCall.riskLevel}`]">
+          {{ $t(`dataStudio.agent.riskLevel.${toolCall.riskLevel}`) }}
+        </span>
+        <span v-if="stateLabel" :class="['status-badge', `status-badge-${toolCall.status}`]">
+          <span :class="stateLabel.icon" />
+          {{ stateLabel.text }}
+        </span>
+      </div>
     </div>
     <div v-if="targetSource" class="target-source-row">
       <span class="i-carbon-data-base h-3.5 w-3.5 opacity-60" />
@@ -50,7 +73,7 @@ const formattedArgs = computed(() => {
       <span class="target-source-value">{{ targetSource }}</span>
     </div>
     <pre class="confirmation-args">{{ formattedArgs }}</pre>
-    <div class="confirmation-actions">
+    <div v-if="toolCall.status === 'pending'" class="confirmation-actions">
       <Button
         size="sm"
         variant="outline"
@@ -154,6 +177,36 @@ const formattedArgs = computed(() => {
 }
 
 .risk-badge-destructive {
+  background: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.status-badge-executing {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+
+.status-badge-denied {
+  background: hsl(var(--destructive) / 0.1);
+  color: hsl(var(--destructive));
+}
+
+.status-badge-done {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+}
+
+.status-badge-error {
   background: hsl(var(--destructive) / 0.1);
   color: hsl(var(--destructive));
 }
