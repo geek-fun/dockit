@@ -3,7 +3,11 @@
     <DialogContent class="sm:max-w-[700px]" :show-close="false">
       <DialogHeader>
         <DialogTitle>
-          {{ props.mode === 'clone' ? $t('editor.mongo.cloneDocumentTitle') : $t('editor.mongo.insertDocumentTitle') }}
+          {{
+            props.mode === 'clone'
+              ? $t('editor.mongo.cloneDocumentTitle')
+              : $t('editor.mongo.insertDocumentTitle')
+          }}
         </DialogTitle>
         <button
           class="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none"
@@ -25,7 +29,9 @@
         </Button>
         <Button :disabled="loading" @click="handleSubmit">
           <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
-          {{ props.mode === 'clone' ? $t('editor.mongo.cloneDocument') : $t('editor.mongo.insert') }}
+          {{
+            props.mode === 'clone' ? $t('editor.mongo.cloneDocument') : $t('editor.mongo.insert')
+          }}
         </Button>
       </DialogFooter>
     </DialogContent>
