@@ -1109,6 +1109,8 @@ pub async fn compact_agent_session(
 ) -> Result<Value, String> {
     let db_state: State<AgentDb> = app.state::<AgentDb>();
     let db: AgentDb = AgentDb(db_state.0.clone());
+    let lock = crate::agent::conversation::lock_for(&session_id);
+    let _guard = lock.lock().await;
     let outcome = crate::agent::compact::run_compact_manual(&session_id, &settings, &db, &app).await?;
     if let Some(info) = outcome {
         let _ = app.emit(

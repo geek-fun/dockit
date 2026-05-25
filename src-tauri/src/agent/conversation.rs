@@ -35,12 +35,51 @@ fn release_inflight(session_id: &str) {
     set.remove(session_id);
 }
 
-fn lock_for(session_id: &str) -> Arc<AsyncMutex<()>> {
+pub fn lock_for(session_id: &str) -> Arc<AsyncMutex<()>> {
     let map_mu = SESSION_COMPACT_LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
     let mut map = map_mu.lock().expect("compact lock map poisoned");
     map.entry(session_id.to_string())
         .or_insert_with(|| Arc::new(AsyncMutex::new(())))
         .clone()
+}
+
+/// Prevents rapid cascading compactions when no new user content exists
+/// between successive compactions (e.g. after a compaction keeps 4 pairs
+/// that still exceed the threshold).
+const COMPACTION_COOLDOWN_MS: i64 = 30_000;
+
+static SESSION_LAST_COMPACT: OnceLock<Mutex<HashMap<String, i64>>> = OnceLock::new();
+
+fn compact_cooldown_elapsed(session_id: &str) -> bool {
+    let map = SESSION_LAST_COMPACT.get_or_init(|| Mutex::new(HashMap::new()));
+    let map = map.lock().expect("last compact map poisoned");
+    let now = now_ms();
+    match map.get(session_id) {
+        Some(last) => now - *last >= COMPACTION_COOLDOWN_MS,
+        None => true,
+    }
+}
+
+fn record_compaction_time(session_id: &str) {
+    let map = SESSION_LAST_COMPACT.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut map = map.lock().expect("last compact map poisoned");
+    map.insert(session_id.to_string(), now_ms());
+}
+
+struct InflightGuard {
+    session_id: String,
+}
+
+impl InflightGuard {
+    fn new(session_id: String) -> Self {
+        InflightGuard { session_id }
+    }
+}
+
+impl Drop for InflightGuard {
+    fn drop(&mut self) {
+        release_inflight(&self.session_id);
+    }
 }
 
 fn auto_compact_enabled(settings: &Value) -> bool {
@@ -126,6 +165,9 @@ pub fn needs_compact(db: &AgentDb, session_id: &str, settings: &Value) -> bool {
     if !has_compactable_content_since_boundary(&messages) {
         return false;
     }
+    if !compact_cooldown_elapsed(session_id) {
+        return false;
+    }
     let spec = resolve_model_spec_for_session(session_id, settings);
     evaluate(&messages, &spec).should_compact
 }
@@ -157,7 +199,7 @@ pub fn append(
             .ok()
             .and_then(|v| v.get("tool_calls").and_then(|tc| tc.as_array()).map(|a| !a.is_empty()))
             .unwrap_or(false);
-    if !has_pending_tool_calls && auto_compact_enabled(settings) && needs_compact(db, session_id, settings) {
+    if !has_pending_tool_calls && auto_compact_enabled(settings) {
         if try_acquire_inflight(session_id) {
             spawn_background_compact(db.clone(), app.clone(), settings.clone(), session_id.to_string());
         }
@@ -203,6 +245,7 @@ pub async fn prepare_for_llm(
     if needs_compact(db, session_id, settings) {
         match run_compact_with_events(session_id, settings, db, app).await {
             Ok(Some(info)) => {
+                record_compaction_time(session_id);
                 let mut summary_payload = json!({
                     "session_id": session_id,
                     "trigger": info.trigger,
@@ -242,20 +285,20 @@ pub async fn prepare_for_llm(
 /// calls is emitted via `agent-loop-compacting` start/end from compact.rs.
 fn spawn_background_compact(db: AgentDb, app: AppHandle, settings: Value, session_id: String) {
     tokio::spawn(async move {
+        let _inflight = InflightGuard::new(session_id.clone());
         let lock = lock_for(&session_id);
         let _guard = lock.lock().await;
 
         let should_run = needs_compact(&db, &session_id, &settings);
         if !should_run {
-            release_inflight(&session_id);
             return;
         }
 
         let result = run_compact_with_events(&session_id, &settings, &db, &app).await;
-        release_inflight(&session_id);
 
         match result {
             Ok(Some(info)) => {
+                record_compaction_time(&session_id);
                 let mut summary_payload = json!({
                     "session_id": session_id,
                     "trigger": info.trigger,
