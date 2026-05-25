@@ -55,6 +55,7 @@ fn truncate_tool_output(output: String) -> String {
 }
 use crate::dynamo::describe_table::describe_table;
 use crate::dynamo::execute_statement::{execute_statement, ExecuteStatementInput};
+use crate::dynamo::list_tables::list_tables;
 
 use aws_config::meta::region::RegionProviderChain;
 use aws_config::profile::ProfileFileCredentialsProvider;
@@ -323,6 +324,36 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
                 None,
             )
         }
+        "es__create_index" => {
+            let index = args
+                .get("index")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing index")?;
+            validate_index_name(index, false)?;
+            let body = args.get("body").map(|b| b.to_string());
+            ("PUT", format!("/{}", url_encode_segment(index)), body)
+        }
+        "es__delete_index" => {
+            let index = args
+                .get("index")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing index")?;
+            validate_index_name(index, false)?;
+            ("DELETE", format!("/{}", url_encode_segment(index)), None)
+        }
+        "es__put_mapping" => {
+            let index = args
+                .get("index")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing index")?;
+            validate_index_name(index, false)?;
+            let body = args.get("body").ok_or("Missing body")?.to_string();
+            (
+                "PUT",
+                format!("/{}/_mapping", url_encode_segment(index)),
+                Some(body),
+            )
+        }
         _ => return Err(format!("Unknown ES tool: {}", tool_name)),
     };
 
@@ -446,6 +477,12 @@ async fn execute_dynamo_tool(
                 .and_then(|v| v.as_str())
                 .ok_or("Missing table_name")?;
             let response = describe_table(&client, table_name).await?;
+            serde_json::to_string(&response)
+                .map(truncate_tool_output)
+                .map_err(|e| e.to_string())
+        }
+        "dynamo__list_tables" => {
+            let response = list_tables(&client).await?;
             serde_json::to_string(&response)
                 .map(truncate_tool_output)
                 .map_err(|e| e.to_string())

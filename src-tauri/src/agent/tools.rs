@@ -139,6 +139,50 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             required_permission: "read",
         },
         ToolDefinition {
+            name: "es__create_index",
+            description: "Create a new Elasticsearch index with optional custom mappings and settings.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "index": { "type": "string", "description": "Name for the new index" },
+                    "body": { "type": "object", "description": "Optional index body with settings and mappings, e.g. {\"settings\":{\"number_of_shards\":1},\"mappings\":{\"properties\":{...}}}" }
+                },
+                "required": ["connection_id", "index"]
+            }),
+            risk_level: RiskLevel::Elevated,
+            required_permission: "create",
+        },
+        ToolDefinition {
+            name: "es__delete_index",
+            description: "Delete an entire Elasticsearch index and all its data permanently. This action is IRREVERSIBLE.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "index": { "type": "string", "description": "Name of the index to delete" }
+                },
+                "required": ["connection_id", "index"]
+            }),
+            risk_level: RiskLevel::Destructive,
+            required_permission: "delete",
+        },
+        ToolDefinition {
+            name: "es__put_mapping",
+            description: "Add or update field mappings in an existing Elasticsearch index.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "index": { "type": "string", "description": "Target index name" },
+                    "body": { "type": "object", "description": "Mapping body, e.g. {\"properties\":{\"field_name\":{\"type\":\"text\"}}}" }
+                },
+                "required": ["connection_id", "index", "body"]
+            }),
+            risk_level: RiskLevel::Elevated,
+            required_permission: "update",
+        },
+        ToolDefinition {
             name: "dynamo__execute_query",
             description: "Execute a PartiQL SELECT query against DynamoDB. Use for reading and querying table data.",
             parameters: json!({
@@ -302,6 +346,19 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                     "table_name": { "type": "string", "description": "DynamoDB table name" }
                 },
                 "required": ["connection_id", "table_name"]
+            }),
+            risk_level: RiskLevel::Safe,
+            required_permission: "read",
+        },
+        ToolDefinition {
+            name: "dynamo__list_tables",
+            description: "List all DynamoDB table names in the connected account and region.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" }
+                },
+                "required": ["connection_id"]
             }),
             risk_level: RiskLevel::Safe,
             required_permission: "read",
