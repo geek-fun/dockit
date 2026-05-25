@@ -68,106 +68,82 @@
       <!-- TABLE VIEW -->
       <template v-if="activeView === 'table'">
         <div class="table-scroll-area">
-          <div class="table-container">
-            <Table>
-              <TableHeader class="sticky-header">
-                <TableRow>
-                  <TableHead
-                    v-for="col in tableColumnsWithActions"
-                    :key="col.key"
-                    :class="{ 'sticky-action-header': col.key === 'actions' }"
-                    :style="{ minWidth: col.key === 'actions' ? '90px' : '140px' }"
-                  >
-                    {{ col.title }}
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-if="loading">
-                  <TableCell :colspan="tableColumnsWithActions.length" class="text-center py-8">
-                    <Spinner class="mx-auto" />
-                  </TableCell>
-                </TableRow>
-                <TableRow v-else-if="documents.length === 0">
-                  <TableCell :colspan="tableColumnsWithActions.length" class="text-center py-8">
-                    <Empty :description="$t('editor.mongo.noDocuments')" />
-                  </TableCell>
-                </TableRow>
-                <TableRow
-                  v-for="(row, rowIndex) in paginatedDocuments"
-                  v-else
-                  :key="rowIndex"
-                  class="group"
+          <table class="data-table">
+            <thead class="sticky-header">
+              <tr>
+                <th
+                  v-for="col in tableColumnsWithActions"
+                  :key="col.key"
+                  :class="{ 'sticky-action-header': col.key === 'actions' }"
+                  :style="{
+                    minWidth: col.key === 'actions' ? '44px' : '140px',
+                    width: col.key === 'actions' ? '44px' : undefined,
+                  }"
                 >
-                  <TableCell
-                    v-for="col in tableColumnsWithActions"
-                    :key="col.key"
-                    :class="{ 'sticky-action-cell': col.key === 'actions' }"
-                  >
-                    <template v-if="col.key === 'actions'">
-                      <div
-                        class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger as-child>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-7 w-7"
-                                :disabled="!getDocumentId(row)"
-                                :aria-label="$t('editor.mongo.editDocument')"
-                                @click="handleEditClick(row)"
-                              >
-                                <span class="i-carbon-edit h-3.5 w-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{{ $t('editor.mongo.editDocument') }}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger as-child>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-7 w-7"
-                                :aria-label="$t('editor.mongo.cloneDocument')"
-                                @click="handleCloneClick(row)"
-                              >
-                                <span class="i-carbon-copy h-3.5 w-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{{ $t('editor.mongo.cloneDocument') }}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger as-child>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-7 w-7 text-destructive hover:text-destructive"
-                                :disabled="!getDocumentId(row)"
-                                :aria-label="$t('editor.mongo.deleteDocument')"
-                                @click="handleDeleteClick(row)"
-                              >
-                                <span class="i-carbon-trash-can h-3.5 w-3.5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{{ $t('editor.mongo.deleteDocument') }}</TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    </template>
-                    <template v-else>
-                      <span class="cell-value">{{ formatCellValue(row[col.key]) }}</span>
-                    </template>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
+                  {{ col.title }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="loading">
+                <td :colspan="tableColumnsWithActions.length" class="text-center py-8">
+                  <Spinner class="mx-auto" />
+                </td>
+              </tr>
+              <tr v-else-if="documents.length === 0">
+                <td :colspan="tableColumnsWithActions.length" class="text-center py-8">
+                  <Empty :description="$t('editor.mongo.noDocuments')" />
+                </td>
+              </tr>
+              <tr
+                v-for="(row, rowIndex) in paginatedDocuments"
+                v-else
+                :key="rowIndex"
+                class="data-row"
+              >
+                <td
+                  v-for="col in tableColumnsWithActions"
+                  :key="col.key"
+                  :class="{ 'sticky-action-cell': col.key === 'actions' }"
+                >
+                  <template v-if="col.key === 'actions'">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger as-child>
+                        <Button variant="ghost" size="icon" class="h-7 w-7">
+                          <span class="i-carbon-overflow-menu-horizontal h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" class="w-36">
+                        <DropdownMenuItem
+                          :disabled="!getDocumentId(row)"
+                          @click="handleEditClick(row)"
+                        >
+                          <span class="i-carbon-edit h-3.5 w-3.5 mr-2" />
+                          {{ $t('editor.mongo.editDocument') }}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem @click="handleCloneClick(row)">
+                          <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
+                          {{ $t('editor.mongo.cloneDocument') }}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          :disabled="!getDocumentId(row)"
+                          class="text-destructive focus:text-destructive"
+                          @click="handleDeleteClick(row)"
+                        >
+                          <span class="i-carbon-trash-can h-3.5 w-3.5 mr-2" />
+                          {{ $t('editor.mongo.deleteDocument') }}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </template>
+                  <template v-else>
+                    <span class="cell-value">{{ formatCellValue(row[col.key]) }}</span>
+                  </template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <!-- Pagination -->
@@ -390,14 +366,12 @@ import { Empty } from '@/components/ui/empty';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Select,
   SelectContent,
@@ -782,8 +756,36 @@ const TreeNode: Component = markRaw(
   min-height: 0;
 }
 
-.table-container {
-  min-width: 100%;
+.data-table {
+  width: 100%;
+  caption-side: bottom;
+  font-size: 0.875rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.data-table th {
+  height: 2rem;
+  padding: 0 0.5rem;
+  text-align: left;
+  vertical-align: middle;
+  font-weight: 500;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+
+.data-table td {
+  padding: 0.375rem 0.5rem;
+  vertical-align: middle;
+}
+
+.data-row {
+  border-bottom: 1px solid hsl(var(--border));
+  transition: background-color 0.15s;
+}
+
+.data-row:hover {
+  background: hsl(var(--muted) / 0.5);
 }
 
 .tree-scroll-area {
@@ -851,6 +853,28 @@ const TreeNode: Component = markRaw(
   right: 0;
   background: hsl(var(--background));
   z-index: 5;
+  box-shadow: -4px 0 6px -2px hsl(var(--border));
+}
+
+.sticky-action-header {
+  z-index: 11;
+}
+
+.data-row:hover .sticky-action-cell {
+  background: hsl(var(--muted) / 0.5);
+}
+
+.sticky-action-header,
+.sticky-action-cell {
+  position: sticky;
+  right: 0;
+  background: hsl(var(--background));
+  z-index: 5;
+  box-shadow: -4px 0 6px -2px hsl(var(--border));
+}
+
+tr:hover .sticky-action-cell {
+  background: hsl(var(--muted) / 0.5);
 }
 
 .sticky-action-header {
