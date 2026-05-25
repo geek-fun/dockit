@@ -1,12 +1,95 @@
 <template>
-  <div :class="['message-bubble', `message-${normalizedRole}`]">
+  <div
+    v-if="normalizedRole !== 'tool'"
+    :class="[
+      'message-bubble',
+      `message-${normalizedRole}`,
+      normalizedRole === 'system' ? 'message-system' : '',
+      message.status === 'error' ? 'message-error' : '',
+    ]"
+  >
     <div v-if="normalizedRole === 'user'" class="message-content user-content">
       <p class="whitespace-pre-wrap">{{ message.content }}</p>
     </div>
 
+    <div
+      v-else-if="normalizedRole === 'system' && message.compactionInProgress"
+      class="compaction-marker compaction-marker--in-progress"
+    >
+      <div class="compaction-row">
+        <span class="compaction-icon i-carbon-archive compaction-icon-pulsing" />
+        <span class="compaction-label">
+          {{ t('dataStudio.agent.message.compactionInProgress') }}
+          <span class="inline-dots">
+            <span class="dot" />
+            <span class="dot" />
+            <span class="dot" />
+          </span>
+        </span>
+      </div>
+    </div>
+    <div
+      v-else-if="normalizedRole === 'system' && message.preparingInProgress"
+      class="compaction-marker compaction-marker--in-progress"
+    >
+      <div class="compaction-row">
+        <span class="compaction-icon i-carbon-circle-dash compaction-icon-pulsing" />
+        <span class="compaction-label">
+          {{ t('dataStudio.agent.message.preparingInProgress') }}
+          <span class="inline-dots">
+            <span class="dot" />
+            <span class="dot" />
+            <span class="dot" />
+          </span>
+        </span>
+      </div>
+    </div>
+    <div v-else-if="normalizedRole === 'system' && message.compaction" class="compaction-marker">
+      <div class="compaction-row">
+        <span class="compaction-icon i-carbon-archive" />
+        <span class="compaction-label">
+          {{
+            t('dataStudio.agent.message.compactionLabel', {
+              trigger: t(
+                `dataStudio.agent.message.compactionTrigger.${message.compaction.trigger}`,
+              ),
+            })
+          }}
+        </span>
+        <span class="compaction-delta">
+          {{ formatTokens(message.compaction.preTokens) }}
+          <span class="i-carbon-arrow-right delta-arrow" />
+          {{ formatTokens(message.compaction.postTokens) }}
+          <span class="delta-saved">
+            -{{
+              formatTokens(
+                Math.max(0, message.compaction.preTokens - message.compaction.postTokens),
+              )
+            }}
+          </span>
+        </span>
+        <button
+          v-if="message.compaction.summary"
+          class="compaction-toggle"
+          @click="summaryOpen = !summaryOpen"
+        >
+          <span class="i-carbon-chevron-down compaction-chevron" :class="{ open: summaryOpen }" />
+          {{ t('dataStudio.agent.message.compactionSummary') }}
+        </button>
+      </div>
+      <div v-if="message.compaction.summary" v-show="summaryOpen" class="compaction-summary-body">
+        <MarkdownRender
+          :markdown="message.compaction.summary"
+          class="markdown-body prose prose-sm max-w-none"
+        />
+      </div>
+    </div>
     <div v-else-if="normalizedRole === 'assistant'" class="assistant-wrapper">
       <!-- Activity timeline: thinking + tool call/result pairs -->
-      <div v-if="message.thinking || message.toolCalls?.length" class="activity-list">
+      <div
+        v-if="message.thinking || message.toolCalls?.length || isStreaming"
+        class="activity-list"
+      >
         <!-- Iteration header (only when there are tool calls → marks this as an agent loop step) -->
         <div
           v-if="iterationIndex !== undefined && message.toolCalls?.length"
@@ -20,18 +103,45 @@
 
         <!-- Thinking node -->
         <details
-          v-if="message.thinking"
+          v-if="message.thinking || isStreaming"
           class="activity-item-details"
-          :open="isStreaming && !message.content"
+          :open="isStreaming && !message.content && !!message.thinking"
         >
           <summary class="activity-item">
-            <span class="activity-icon i-carbon-idea" />
+            <span
+              class="activity-icon i-carbon-idea"
+              :class="{ 'activity-icon-pulsing': activeState === 'waiting' }"
+            />
             <span class="activity-label">
-              <span
-                v-if="isStreaming && !message.toolCalls?.length"
-                class="activity-label-streaming"
-              >
+              <span v-if="activeState === 'waiting'" class="activity-label-streaming">
+                {{ t('dataStudio.agent.message.waitingForModel') }}
+                <span class="inline-dots">
+                  <span class="dot" />
+                  <span class="dot" />
+                  <span class="dot" />
+                </span>
+              </span>
+              <span v-else-if="activeState === 'thinking'" class="activity-label-streaming">
                 {{ t('dataStudio.agent.message.thinkingInProgress') }}
+                <span class="inline-dots">
+                  <span class="dot" />
+                  <span class="dot" />
+                  <span class="dot" />
+                </span>
+              </span>
+              <span v-else-if="activeState === 'generating'" class="activity-label-streaming">
+                {{ t('dataStudio.agent.message.generating') }}
+                <span class="inline-dots">
+                  <span class="dot" />
+                  <span class="dot" />
+                  <span class="dot" />
+                </span>
+              </span>
+              <span v-else-if="activeState === 'awaitingConfirm'" class="activity-label-streaming">
+                {{ t('dataStudio.agent.message.awaitingConfirm', { tool: activeToolName }) }}
+              </span>
+              <span v-else-if="activeState === 'executing'" class="activity-label-streaming">
+                {{ t('dataStudio.agent.message.executingTool', { tool: activeToolName }) }}
                 <span class="inline-dots">
                   <span class="dot" />
                   <span class="dot" />
@@ -47,9 +157,9 @@
                 </span>
               </span>
             </span>
-            <span class="activity-chevron i-carbon-chevron-down" />
+            <span v-if="message.thinking" class="activity-chevron i-carbon-chevron-down" />
           </summary>
-          <div class="activity-body thinking-body">
+          <div v-if="message.thinking" v-auto-stick class="activity-body thinking-body">
             <MarkdownRender
               :markdown="message.thinking"
               class="markdown-body prose prose-sm max-w-none"
@@ -109,7 +219,7 @@
               </span>
               <span class="activity-chevron i-carbon-chevron-down" />
             </summary>
-            <div class="activity-body tool-body-wrapper">
+            <div v-auto-stick class="activity-body tool-body-wrapper">
               <pre class="tool-args-pre">{{ formatToolArgs(tc) }}</pre>
               <pre
                 v-if="toolResultText(tc)"
@@ -127,37 +237,56 @@
 
       <!-- Main response content (only when not part of an activity timeline) -->
       <div
-        v-if="
-          (message.content && !message.toolCalls?.length) ||
-          (!message.thinking && !message.toolCalls?.length && isStreaming)
-        "
+        v-if="message.content && !message.toolCalls?.length"
         class="message-content assistant-content"
       >
         <MarkdownRender
-          v-if="message.content"
           :markdown="message.content"
           class="markdown-body prose prose-sm max-w-none"
         />
-        <div v-if="isStreaming && !message.content && !message.thinking" class="typing-indicator">
-          <span class="dot" />
-          <span class="dot" />
-          <span class="dot" />
-        </div>
       </div>
     </div>
-
-    <!-- Tool role messages are surfaced via tc.result in the assistant activity list -->
-    <template v-else-if="normalizedRole === 'tool'" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, type Directive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import MarkdownRender from '@/components/markdown-render.vue';
+import { useDataStudioStore } from '@/store/dataStudioStore';
 import type { AgentToolCall } from '@/store/dataStudioStore';
 
 const { t } = useI18n();
+const dataStudioStore = useDataStudioStore();
+
+const summaryOpen = ref(false);
+
+const STICK_THRESHOLD_PX = 24;
+const stickState = new WeakMap<HTMLElement, { stick: boolean; handler: () => void }>();
+
+const isNearBottom = (el: HTMLElement) =>
+  el.scrollHeight - (el.scrollTop + el.clientHeight) <= STICK_THRESHOLD_PX;
+
+const vAutoStick: Directive<HTMLElement> = {
+  mounted(el) {
+    const handler = () => {
+      const state = stickState.get(el);
+      if (state) state.stick = isNearBottom(el);
+    };
+    stickState.set(el, { stick: true, handler });
+    el.addEventListener('scroll', handler, { passive: true });
+    el.scrollTop = el.scrollHeight;
+  },
+  updated(el) {
+    const state = stickState.get(el);
+    if (state?.stick) el.scrollTop = el.scrollHeight;
+  },
+  unmounted(el) {
+    const state = stickState.get(el);
+    if (state) el.removeEventListener('scroll', state.handler);
+    stickState.delete(el);
+  },
+};
 
 const props = defineProps<{
   message: any;
@@ -169,12 +298,34 @@ const normalizedRole = computed(() => {
   if (r === 'BOT' || r === 'assistant') return 'assistant';
   if (r === 'USER' || r === 'user') return 'user';
   if (r === 'tool') return 'tool';
+  if (r === 'system') return 'system';
   return 'user';
 });
 
 const isStreaming = computed(
   () => props.message.status === 'streaming' || props.message.status === 'SENDING',
 );
+
+const activeState = computed<
+  'waiting' | 'thinking' | 'generating' | 'awaitingConfirm' | 'executing' | 'done'
+>(() => {
+  if (!isStreaming.value) return 'done';
+  const toolCalls: AgentToolCall[] = props.message.toolCalls ?? [];
+  if (toolCalls.some(tc => tc.status === 'executing')) return 'executing';
+  if (toolCalls.some(tc => tc.status === 'pending')) return 'awaitingConfirm';
+  if ((props.message.content ?? '').length > 0) return 'generating';
+  if ((props.message.thinking ?? '').length > 0) return 'thinking';
+  return 'waiting';
+});
+
+const activeToolName = computed(() => {
+  const toolCalls: AgentToolCall[] = props.message.toolCalls ?? [];
+  return (
+    toolCalls.find(tc => tc.status === 'executing')?.toolName ??
+    toolCalls.find(tc => tc.status === 'pending')?.toolName ??
+    ''
+  );
+});
 
 const resultStatus = (tc: AgentToolCall): 'success' | 'error' | 'denied' => {
   if (tc.status === 'denied') return 'denied';
@@ -183,6 +334,10 @@ const resultStatus = (tc: AgentToolCall): 'success' | 'error' | 'denied' => {
 };
 
 const toolResultText = (tc: AgentToolCall): string | undefined => {
+  if (tc.resultTruncated) {
+    const full = dataStudioStore.getToolResultFullBody(tc.id);
+    if (full) return full;
+  }
   if (tc.result) return tc.result;
   if (tc.status === 'denied') return t('dataStudio.agent.message.toolDenied');
   if (tc.status === 'error') return t('dataStudio.agent.message.toolError');
@@ -197,6 +352,12 @@ const resultPreview = (text: string): string => {
 const formatDuration = (ms: number): string => {
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
+};
+
+const formatTokens = (n: number): string => {
+  const abs = Math.abs(n);
+  if (abs >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 };
 
 const formatToolArgs = (tc: AgentToolCall): string => {
@@ -351,6 +512,12 @@ const toolVerb = (toolName: string, tc: AgentToolCall): string => {
   color: hsl(var(--foreground));
   border-bottom-left-radius: 4px;
   max-width: 100%;
+}
+
+.message-error .assistant-content {
+  background: hsl(var(--destructive) / 0.08);
+  border: 1px solid hsl(var(--destructive) / 0.3);
+  color: hsl(var(--destructive));
 }
 
 /* ── Activity timeline ── */
@@ -633,14 +800,7 @@ details[open] .activity-chevron {
   color: hsl(var(--muted-foreground) / 0.6);
 }
 
-/* ── Typing indicator ── */
-.typing-indicator {
-  display: flex;
-  gap: 4px;
-  padding: 4px 0;
-  align-items: center;
-}
-
+/* ── Typing indicator dots ── */
 .dot {
   width: 5px;
   height: 5px;
@@ -708,5 +868,160 @@ details[open] .activity-chevron {
 .markdown-body :deep(ol) {
   padding-left: 20px;
   margin: 4px 0;
+}
+
+.markdown-body :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 12px;
+}
+
+.markdown-body :deep(th),
+.markdown-body :deep(td) {
+  border: 1px solid hsl(var(--border));
+  padding: 5px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.markdown-body :deep(th) {
+  background: hsl(var(--muted));
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.markdown-body :deep(tr:nth-child(even) td) {
+  background: hsl(var(--muted) / 0.4);
+}
+
+/* ── Compaction marker ── */
+.message-bubble.message-system {
+  justify-content: stretch;
+  margin-bottom: 12px;
+}
+
+.compaction-marker {
+  display: block;
+  margin: 4px 0;
+}
+
+.compaction-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: hsl(var(--muted) / 0.4);
+  border: 1px solid hsl(var(--border) / 0.5);
+  border-radius: 8px;
+  max-width: fit-content;
+  font-size: 11.5px;
+  color: hsl(var(--muted-foreground));
+}
+
+.compaction-icon {
+  width: 12px;
+  height: 12px;
+  color: hsl(var(--muted-foreground) / 0.7);
+  flex-shrink: 0;
+}
+
+.compaction-label {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.compaction-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
+  font-size: 11px;
+  color: hsl(var(--foreground) / 0.75);
+  padding: 1px 8px;
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border) / 0.5);
+  border-radius: 8px;
+}
+
+.delta-arrow {
+  width: 10px;
+  height: 10px;
+  color: hsl(var(--muted-foreground) / 0.6);
+}
+
+.delta-saved {
+  margin-left: 4px;
+  padding-left: 6px;
+  border-left: 1px solid hsl(var(--border) / 0.6);
+  color: hsl(142 72% 38%);
+  font-weight: 600;
+}
+
+.compaction-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground) / 0.8);
+  padding: 0;
+  margin-left: 4px;
+}
+
+.compaction-chevron {
+  width: 10px;
+  height: 10px;
+  transition: transform 0.18s ease;
+}
+
+.compaction-chevron.open {
+  transform: rotate(180deg);
+}
+
+.compaction-summary-body {
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: hsl(var(--muted) / 0.4);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: hsl(var(--foreground) / 0.85);
+  max-height: 240px;
+  overflow-y: auto;
+  max-width: 600px;
+}
+
+.activity-icon-pulsing {
+  animation: subtle-pulse 1.8s ease-in-out infinite;
+}
+@keyframes subtle-pulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.compaction-icon-pulsing {
+  animation: compaction-pulse 1.4s ease-in-out infinite;
+}
+@keyframes compaction-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+.compaction-marker--in-progress .compaction-row {
+  background: hsl(var(--muted) / 0.55);
+  border-color: hsl(var(--primary) / 0.3);
 }
 </style>

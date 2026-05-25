@@ -22,6 +22,12 @@ pub struct AgentMessage {
     pub created_at: i64,
 }
 
+/// Pass-through. The frontend hydrator parses `_compact_boundary` JSON for `system` rows
+/// into structured UI data; non-boundary content is returned unchanged.
+fn normalize_message_content(_role: &str, content: &str) -> String {
+    content.to_string()
+}
+
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -65,11 +71,12 @@ pub async fn load_agent_sessions(db: State<'_, AgentDb>) -> Result<Vec<AgentSess
 }
 
 pub fn recover_stuck_sessions(conn: &rusqlite::Connection) -> Result<(), String> {
-    conn.execute(
-        "UPDATE agent_sessions SET status = 'idle' WHERE status = 'running'",
-        [],
-    )
-    .map_err(|e| e.to_string())?;
+    // Run the UPDATE and log how many sessions were reset so devs can see
+    // orphaned sessions cleared at startup.
+    let changed = conn
+        .execute("UPDATE agent_sessions SET status = 'idle' WHERE status = 'running'", [])
+        .map_err(|e| e.to_string())?;
+    log::info!("Reset {} stuck agent session(s) from 'running' to 'idle'", changed);
     Ok(())
 }
 
@@ -188,7 +195,10 @@ pub async fn load_session_messages(
                     id: row.get(0)?,
                     session_id: row.get(1)?,
                     role: row.get(2)?,
-                    content: row.get(3)?,
+                    content: normalize_message_content(
+                        &row.get::<_, String>(2)?,
+                        &row.get::<_, String>(3)?,
+                    ),
                     created_at: row.get(4)?,
                 })
             })
@@ -238,7 +248,10 @@ pub async fn export_agent_session(
                     id: row.get(0)?,
                     session_id: row.get(1)?,
                     role: row.get(2)?,
-                    content: row.get(3)?,
+                    content: normalize_message_content(
+                        &row.get::<_, String>(2)?,
+                        &row.get::<_, String>(3)?,
+                    ),
                     created_at: row.get(4)?,
                 })
             })

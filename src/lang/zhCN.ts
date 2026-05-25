@@ -136,6 +136,25 @@ export const zhCN = {
         featureRequest: '创建功能需求',
         customAnthropicDescription:
           '本次改版暂未实现 Anthropic-compatible 服务商。可通过按钮在 GitHub 上跟踪该功能需求。',
+        contextWindowLabel: '上下文窗口覆盖（tokens）',
+        contextWindowPlaceholder: '自动检测',
+        contextWindowDescription:
+          '为该服务商设置 DocKit 使用的最大上下文长度。适用于自定义 num_ctx 的 Ollama 模型或非默认上限的自托管部署。最小 1024。',
+      },
+
+      chat: {
+        title: '会话行为',
+        description: '控制 DocKit 如何管理长对话。',
+        autoCompactLabel: '自动压缩上下文',
+        autoCompactDescription:
+          '当上下文窗口接近上限时，自动总结较早的消息以便继续对话。关闭后将改为提示你手动处理。',
+        maxIterationsLabel: '最大代理迭代次数',
+        maxIterationsDescription:
+          '单次请求中工具调用的最大轮数，达到后代理停止并请你继续。默认：200。',
+        wallClockBudgetLabel: '挂钟时间预算（分钟）',
+        wallClockBudgetDescription: '单次代理运行的最长挂钟时间，超出后代理将优雅停止。默认：30。',
+        tokenBudgetLabel: 'Token 预算',
+        tokenBudgetDescription: '单次代理运行中所有迭代累计的最大输入 Token 数。默认：1,000,000。',
       },
 
       models: {
@@ -1316,6 +1335,19 @@ export const zhCN = {
     failedToValidateData: '验证数据结构失败：{error}',
     failedToParseMetadata: '解析元数据文件失败：JSON 格式无效',
   },
+  chat: {
+    loopStopped: {
+      continueButton: '继续',
+      stopButton: '停止',
+      continueHint: '点击"继续"恢复任务，或"停止"结束此任务。',
+    },
+    progress: {
+      iterating: '第 {iter} / {maxIter} 步',
+      iteratingNoMax: '第 {iter} 步',
+      waitingLlm: '等待模型响应…',
+      compacting: '正在压缩上下文…',
+    },
+  },
   dataStudio: {
     title: '数据工坊 BETA',
     configuration: '配置',
@@ -1374,6 +1406,7 @@ export const zhCN = {
         allowAlways: '始终允许',
         deny: '拒绝',
         denyAlways: '始终拒绝',
+        cancel: '取消',
       },
       riskLevel: {
         safe: '安全',
@@ -1385,9 +1418,15 @@ export const zhCN = {
         toolDenied: '工具执行已拒绝',
         toolError: '工具执行失败',
         thinking: '思考过程',
+        waitingForModel: '等待模型响应',
+        compactionInProgress: '正在压缩对话',
+        preparingInProgress: '准备中',
         thinkingInProgress: '思考中…',
         thinkingDone: '已完成思考',
         thinkingDuration: '{s}秒',
+        generating: '生成中…',
+        awaitingConfirm: '等待确认 {tool}…',
+        executingTool: '执行 {tool} 中…',
         toolWrote: '写入了',
         toolRead: '读取了',
         toolExecuted: '执行了命令',
@@ -1397,7 +1436,35 @@ export const zhCN = {
         toolResultSuccess: '结果',
         toolResultError: '失败',
         iterationLabel: '第 {n} 轮',
+        compactionLabel: '对话已压缩（{trigger}）',
+        compactionSummary: '查看摘要',
+        compactionTrigger: {
+          auto: '自动',
+          manual: '手动',
+        },
       },
+    },
+    contextIndicator: {
+      offBadgeTitle: '自动压缩已关闭 — 上下文不会自动收缩',
+      popoverTitle: '上下文窗口',
+      warningText: '自动压缩已关闭且上下文超出阈值。请立即压缩，否则下一次请求可能失败。',
+      labelUsed: '已用',
+      labelCapacity: '容量',
+      labelWindow: '窗口',
+      labelReservedOut: '输出保留',
+      labelAutoCompactAt: '自动压缩阈值',
+      labelStatus: '状态',
+      compactNow: '立即压缩',
+      compacting: '压缩中…',
+      statusIdle: '空闲',
+      statusOverThresholdOff: '超出阈值（自动压缩已关闭）',
+      statusAutoCompactOff: '自动压缩已关闭',
+      statusWillAutoCompact: '将自动压缩',
+      statusHealthy: '正常',
+      tooltipIdle: '上下文使用情况',
+      tooltipAutoCompactOff: '自动压缩已关闭',
+      compactSuccess: '上下文压缩成功',
+      compactFailed: '压缩失败：{error}',
     },
     history: {
       title: '会话历史',

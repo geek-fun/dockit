@@ -13,11 +13,17 @@ import {
 import { useConnectionStore } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
 import { buildConnectionConfig } from './connectionConfig';
-import type { ChatMessage, ChatSession, ChatSessionStatus, ChatMessageStatus } from '@/types/chat';
+import type {
+  ChatMessage,
+  ChatSession,
+  ChatSessionStatus,
+  ChatMessageStatus,
+  ChatMessageRole,
+} from '@/types/chat';
 
 const adaptDataStudioMessage = (msg: AgentMessage): ChatMessage => ({
   id: msg.id,
-  role: msg.role as 'user' | 'assistant' | 'tool',
+  role: msg.role as ChatMessageRole,
   content: msg.content,
   status: msg.status as ChatMessageStatus,
   timestamp: msg.timestamp,
@@ -25,6 +31,7 @@ const adaptDataStudioMessage = (msg: AgentMessage): ChatMessage => ({
   thinkingDuration: msg.thinkingDuration,
   toolCalls: msg.toolCalls,
   toolCallId: msg.toolCallId,
+  compaction: msg.compaction,
 });
 
 const adaptDataStudioSession = (session: AgentSession): ChatSession => ({
@@ -32,7 +39,10 @@ const adaptDataStudioSession = (session: AgentSession): ChatSession => ({
   messages: session.messages.map(adaptDataStudioMessage),
   status: session.status as ChatSessionStatus,
   sources: session.sources,
+  permissionsMode: session.permissionsMode,
   maxIterations: session.maxIterations,
+  stopReason: session.stopReason,
+  stopMessage: session.stopMessage,
 });
 
 const getNonDetachedSources = (sources: SessionSource[]): SessionSource[] =>
@@ -106,7 +116,7 @@ export const useDataStudioChatAgent = () => {
       addMessage: (sessionId: string, message: ChatMessage) => {
         dataStudioStore.addMessage(sessionId, {
           id: message.id,
-          role: message.role as 'user' | 'assistant' | 'tool',
+          role: message.role as 'user' | 'assistant' | 'tool' | 'system',
           content: message.content,
           status: message.status as 'pending' | 'streaming' | 'done' | 'error',
           timestamp: message.timestamp,
@@ -114,6 +124,7 @@ export const useDataStudioChatAgent = () => {
           thinkingDuration: message.thinkingDuration,
           toolCalls: message.toolCalls,
           toolCallId: message.toolCallId,
+          compaction: message.compaction,
         });
       },
       updateStreamingContent: (sessionId: string, messageId: string, chunk: string) =>
@@ -152,11 +163,16 @@ export const useDataStudioChatAgent = () => {
       setSessionStatus: (sessionId: string, status: ChatSessionStatus) =>
         dataStudioStore.setSessionStatus(
           sessionId,
-          status as 'idle' | 'running' | 'waiting_confirmation' | 'error',
+          status as 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped',
         ),
+      setSessionStopped: (sessionId, reason, message) =>
+        dataStudioStore.setSessionStopped(sessionId, reason, message),
+      clearSessionStop: (sessionId: string) => dataStudioStore.clearSessionStop(sessionId),
       setSessionSchema: (_sessionId: string, _schema: string) => undefined,
       clearSession: (sessionId: string) => dataStudioStore.clearSession(sessionId),
       getOrCreateSession: () => dataStudioStore.getOrCreateSession(),
+      reloadSessionMessages: (sessionId: string) =>
+        dataStudioStore.reloadSessionMessages(sessionId),
     },
     contextProvider,
     confirmationRules: confirmationRules as Ref<ConfirmationRule[]>,
@@ -186,6 +202,8 @@ export const useDataStudioChatAgent = () => {
     activeSession: agent.activeSession,
     activeSessionSources,
     messages,
+    lastSettings: agent.lastSettings,
+    initContextSettings: agent.initContextSettings,
     sendMessage,
     handleConfirmation: agent.handleConfirmation,
     cancelSession: agent.cancelSession,

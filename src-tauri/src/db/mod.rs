@@ -3,6 +3,12 @@ use std::sync::{Arc, Mutex};
 
 pub struct AgentDb(pub Arc<Mutex<rusqlite::Connection>>);
 
+impl Clone for AgentDb {
+    fn clone(&self) -> Self {
+        AgentDb(Arc::clone(&self.0))
+    }
+}
+
 pub fn open(path: &Path) -> Result<AgentDb, String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create db dir: {}", e))?;

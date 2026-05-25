@@ -19,9 +19,15 @@
       :error="error"
       :empty-hint="$t('aside.chatBotEmptyHint')"
       :input-placeholder="$t('aside.chatBotPlaceholder')"
+      :session-id="activeSession?.id ?? null"
+      :context-settings="lastSettings ?? undefined"
+      :progress="activeSession ? dataStudioStore.getSessionProgress(activeSession.id) : null"
+      :stop-reason="activeSession?.stopReason ?? null"
+      :stop-message="activeSession?.stopMessage ?? null"
       feature="sidebarAssistant"
       compact
       @send="sendMessage"
+      @stop-loop="cancelSession"
       @confirm-tool-call="handleConfirmation"
       @model-change="onModelChange"
       @model-picker-open="syncAllProviderModels"
@@ -74,11 +80,18 @@ const {
   sendMessage,
   handleConfirmation: rawHandleConfirmation,
   clearChat,
+  activeSession,
+  lastSettings,
+  initContextSettings,
+  cancelSession,
 } = useSidebarChatAgent();
 
 const handleConfirmation = (
   msgId: string,
-  event: { toolCallId: string; action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' },
+  event: {
+    toolCallId: string;
+    action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' | 'cancel';
+  },
 ) => {
   rawHandleConfirmation(msgId, event.toolCallId, event.action);
 };
@@ -133,6 +146,7 @@ const startNewSession = () => {
 onMounted(async () => {
   await appStore.fetchLlmSettings();
   await dataStudioStore.loadSessions();
+  await initContextSettings();
 });
 
 onUnmounted(() => {

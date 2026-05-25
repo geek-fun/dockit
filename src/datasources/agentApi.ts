@@ -201,11 +201,58 @@ const onAgentLoopStepDone = (
 const onAgentLoopDone = (handler: (payload: { session_id: string }) => void) =>
   listen('agent-loop-done', e => handler(e.payload as any));
 
+const onAgentLoopStopped = (
+  handler: (payload: { session_id: string; reason: string; message: string }) => void,
+) => listen('agent-loop-stopped', e => handler(e.payload as any));
+
 const onAgentLoopError = (handler: (payload: { session_id: string; error: string }) => void) =>
   listen('agent-loop-error', e => handler(e.payload as any));
 
-const onAgentLoopSummaryInjected = (handler: (payload: { session_id: string }) => void) =>
-  listen('agent-loop-summary-injected', e => handler(e.payload as any));
+const onAgentLoopSummaryInjected = (
+  handler: (payload: {
+    session_id: string;
+    trigger: string;
+    pre_tokens: number;
+    post_tokens: number;
+    removed_count: number;
+    fallback_keep_pairs?: number;
+  }) => void,
+) => listen('agent-loop-summary-injected', e => handler(e.payload as any));
+
+const onAgentLoopIteration = (
+  handler: (payload: { session_id: string; iter_count: number; max_iterations: number }) => void,
+) => listen('agent-loop-iteration', e => handler(e.payload as any));
+
+const onAgentLoopWaitingLlm = (
+  handler: (payload: { session_id: string; iter_count: number }) => void,
+) => listen('agent-loop-waiting-llm', e => handler(e.payload as any));
+
+const onAgentLoopCompacting = (
+  handler: (payload: { session_id: string; phase: 'start' | 'end' }) => void,
+) => listen('agent-loop-compacting', e => handler(e.payload as any));
+
+const onAgentLoopWarning = (handler: (payload: { session_id: string; warning: string }) => void) =>
+  listen('agent-loop-warning', e => handler(e.payload as any));
+
+export type ContextUsage = {
+  session_id: string;
+  used_tokens: number;
+  capacity: number;
+  context_window: number;
+  output_reserve: number;
+  trigger_at: number;
+  should_compact: boolean;
+  model: string;
+};
+
+const compactAgentSession = (sessionId: string, settings: unknown) =>
+  invoke<ContextUsage>('compact_agent_session', { sessionId, settings });
+
+const getAgentContextUsage = (sessionId: string, settings: unknown) =>
+  invoke<ContextUsage>('get_agent_context_usage', { sessionId, settings });
+
+const onAgentContextUsage = (handler: (payload: ContextUsage) => void) =>
+  listen('agent-context-usage', e => handler(e.payload as ContextUsage));
 
 export {
   agentApi,
@@ -222,12 +269,20 @@ export {
   cancelAgentLoop,
   confirmToolCall,
   getToolFullResult,
+  compactAgentSession,
+  getAgentContextUsage,
   onAgentLoopDelta,
   onAgentLoopThinkingDelta,
   onAgentLoopToolCall,
   onAgentLoopToolResult,
   onAgentLoopStepDone,
   onAgentLoopDone,
+  onAgentLoopStopped,
   onAgentLoopError,
   onAgentLoopSummaryInjected,
+  onAgentLoopIteration,
+  onAgentLoopWaitingLlm,
+  onAgentLoopCompacting,
+  onAgentLoopWarning,
+  onAgentContextUsage,
 };

@@ -1,8 +1,8 @@
-import type { AgentToolCall, ConfirmationRule } from '@/store/dataStudioStore';
+import type { AgentToolCall, CompactionMarker, ConfirmationRule } from '@/store/dataStudioStore';
 
 export type ChatMessageStatus = 'pending' | 'streaming' | 'sending' | 'done' | 'error';
 
-export type ChatMessageRole = 'user' | 'assistant' | 'tool';
+export type ChatMessageRole = 'user' | 'assistant' | 'tool' | 'system';
 
 export type ChatMessage = {
   id: string;
@@ -15,9 +15,16 @@ export type ChatMessage = {
   thinkingDuration?: number;
   toolCalls?: Array<AgentToolCall>;
   toolCallId?: string;
+  compaction?: CompactionMarker;
 };
 
-export type ChatSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error';
+export type ChatSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped';
+
+export type ChatSessionStopReason =
+  | 'iteration_cap'
+  | 'wall_clock_budget'
+  | 'token_budget'
+  | 'llm_error';
 
 export type ChatSession = {
   id: string;
@@ -25,7 +32,10 @@ export type ChatSession = {
   status: ChatSessionStatus;
   schema?: string;
   sources?: import('@/store/dataStudioStore').SessionSource[];
+  permissionsMode?: import('@/store/dataStudioStore').PermissionsMode;
   maxIterations: number;
+  stopReason?: ChatSessionStopReason;
+  stopMessage?: string;
 };
 
 export type ChatContextConfig = {

@@ -15,27 +15,28 @@
           </slot>
         </div>
 
-        <template v-for="msg in messages" :key="msg.id">
+        <Virtualizer
+          v-if="viewportEl && messages.length > 0"
+          v-slot="{ item: msg }"
+          :data="messages"
+          :scroll-ref="viewportEl"
+          :item-size="160"
+        >
           <AgentMessageBubble :message="msg" :iteration-index="iterationIndexMap[msg.id]" />
-
           <template
-            v-if="msg.role === 'assistant' && msg.toolCalls?.some(tc => tc.status === 'pending')"
+            v-if="
+              msg.role === 'assistant' &&
+              msg.toolCalls?.some((tc: AgentToolCall) => tc.requiresConfirmation)
+            "
           >
             <ToolConfirmationCard
-              v-for="tc in msg.toolCalls.filter(tc => tc.status === 'pending')"
+              v-for="tc in msg.toolCalls.filter((tc: AgentToolCall) => tc.requiresConfirmation)"
               :key="tc.id"
               :tool-call="tc"
               @confirm="handleConfirmation(msg.id, $event)"
             />
           </template>
-        </template>
-
-        <div v-if="isLoading" class="loading-indicator">
-          <span class="i-carbon-renew h-4 w-4 animate-spin text-muted-foreground" />
-          <span class="text-xs text-muted-foreground">
-            {{ $t('dataStudio.agent.message.thinkingInProgress') }}
-          </span>
-        </div>
+        </Virtualizer>
 
         <div v-if="error" class="error-banner">
           <span class="i-carbon-warning h-4 w-4" />
@@ -48,6 +49,34 @@
     </div>
 
     <div class="chat-input-area">
+      <div v-if="stopReason && stopMessage" class="loop-stopped-banner" role="status">
+        <div class="loop-stopped-banner__body">
+          <span class="loop-stopped-banner__icon i-carbon-pause-filled" />
+          <div class="loop-stopped-banner__texts">
+            <span class="loop-stopped-banner__message">{{ stopMessage }}</span>
+            <span class="loop-stopped-banner__hint">{{ t('chat.loopStopped.continueHint') }}</span>
+          </div>
+        </div>
+        <div class="loop-stopped-banner__actions">
+          <button
+            class="loop-stopped-banner__action loop-stopped-banner__action--secondary"
+            type="button"
+            :disabled="isLoading"
+            @click="handleStop"
+          >
+            {{ t('chat.loopStopped.stopButton') }}
+          </button>
+          <button
+            class="loop-stopped-banner__action loop-stopped-banner__action--primary"
+            type="button"
+            :disabled="isLoading"
+            @click="handleContinue"
+          >
+            {{ t('chat.loopStopped.continueButton') }}
+          </button>
+        </div>
+      </div>
+
       <slot name="input-prepend" />
 
       <div class="chat-input-wrapper">
@@ -56,6 +85,11 @@
           class="chat-textarea"
           rows="3"
           :placeholder="inputPlaceholder"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          data-form-type="other"
           @keydown.enter.exact.prevent="handleSend"
         />
 
@@ -65,6 +99,12 @@
           </div>
 
           <div class="toolbar-center">
+            <ContextIndicator
+              v-if="sessionId"
+              ref="contextIndicatorRef"
+              :session-id="sessionId"
+              :settings="contextSettings ?? null"
+            />
             <ModelPicker
               v-if="showModelPicker"
               :groups="modelGroups"
@@ -94,15 +134,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
+import { Virtualizer } from 'virtua/vue';
 import { useAppStore } from '@/store';
 import type { ChatMessage } from '@/types/chat';
+import type { AgentToolCall } from '@/store/dataStudioStore';
 import AgentMessageBubble from './agent-message-bubble.vue';
 import ToolConfirmationCard from '@/views/data-studio/components/tool-confirmation-card.vue';
 import ModelPicker from './model-picker.vue';
+import ContextIndicator from './context-indicator.vue';
 import { ScrollArea } from './ui/scroll-area';
 import { Spinner } from './ui/spinner';
 import { useMessageService } from '@/composables';
@@ -123,6 +166,11 @@ const props = withDefaults(
     showModelPicker?: boolean;
     feature?: 'sidebarAssistant' | 'dataStudio';
     compact?: boolean;
+    sessionId?: string | null;
+    contextSettings?: unknown;
+    progress?: { phase: string; iter?: number; maxIter?: number } | null;
+    stopReason?: 'iteration_cap' | 'wall_clock_budget' | 'token_budget' | 'llm_error' | null;
+    stopMessage?: string | null;
   }>(),
   {
     error: undefined,
@@ -131,23 +179,105 @@ const props = withDefaults(
     showModelPicker: true,
     feature: 'dataStudio',
     compact: false,
+    sessionId: null,
+    contextSettings: undefined,
+    progress: null,
+    stopReason: null,
+    stopMessage: null,
   },
 );
 
 const emit = defineEmits<{
   send: [content: string];
   clear: [];
+  stopLoop: [];
   confirmToolCall: [
     msgId: string,
-    event: { toolCallId: string; action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' },
+    event: {
+      toolCallId: string;
+      action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' | 'cancel';
+    },
   ];
   modelChange: [modelId: string];
   modelPickerOpen: [];
 }>();
 
-const scrollbarRef = ref<{ $el: HTMLElement } | null>(null);
+const scrollbarRef = ref<{ viewportElement: HTMLElement | null } | null>(null);
+const viewportEl = ref<HTMLElement | null>(null);
+const contextIndicatorRef = ref<{ refresh: () => Promise<void> } | null>(null);
 const inputText = ref('');
 const modelVerified = ref<boolean | null>(null);
+// ── Scroll behavior (standard AI chat UX) ──────────────────────────
+//
+// 1. Default: auto-scroll to bottom as new content streams in
+// 2. User scrolls up: stop auto-scrolling (they're reading history)
+// 3. User scrolls back to bottom: resume auto-scrolling
+//
+// Uses a lightweight reactive watch instead of DOM ResizeObserver because
+// virtua's Virtualizer rewrites the DOM layout and observer-based
+// approaches are unreliable during streaming re-renders.
+
+const stickToBottom = ref(true);
+const STICKY_THRESHOLD_PX = 32;
+
+const getViewport = (): HTMLElement | null => scrollbarRef.value?.viewportElement ?? null;
+
+const isNearBottom = (el: HTMLElement): boolean => {
+  const distance = el.scrollHeight - (el.scrollTop + el.clientHeight);
+  return distance <= STICKY_THRESHOLD_PX;
+};
+
+const handleViewportScroll = () => {
+  const el = getViewport();
+  if (!el) return;
+  stickToBottom.value = isNearBottom(el);
+};
+
+// Batched scroll: at most one rAF frame, fresh scrollHeight every time.
+let scrollRafId = 0;
+const stickToBottomNow = () => {
+  if (!stickToBottom.value || scrollRafId) return;
+  scrollRafId = requestAnimationFrame(() => {
+    scrollRafId = 0;
+    const el = getViewport();
+    if (el && stickToBottom.value) el.scrollTop = el.scrollHeight;
+  });
+};
+
+const scrollToBottom = (behavior: 'auto' | 'smooth' = 'smooth') => {
+  nextTick(() => {
+    const el = getViewport();
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  });
+};
+
+const forceScrollToBottom = () => {
+  stickToBottom.value = true;
+  scrollToBottom('smooth');
+};
+
+// Watch the last message's content for streaming growth.
+// This is the primary scroll trigger — reacts to reactive data,
+// independent of virtua's DOM structure.
+watch(
+  () => {
+    const msgs = props.messages;
+    if (msgs.length === 0) return '';
+    const last = msgs[msgs.length - 1];
+    return `${last.content?.length ?? 0}:${last.thinking?.length ?? 0}:${last.toolCalls?.length ?? 0}`;
+  },
+  () => stickToBottomNow(),
+);
+
+// When a new message appears (count change), re-stick and scroll.
+watch(
+  () => props.messages.length,
+  () => {
+    stickToBottom.value = true;
+    nextTick(() => stickToBottomNow());
+  },
+);
 
 const canSend = computed(() => inputText.value.trim().length > 0 && !props.isLoading);
 
@@ -180,12 +310,6 @@ const featureRoute = computed(() =>
 const selectedModelId = computed(() => featureRoute.value.selectedModelId ?? undefined);
 const recentModelIds = computed(() => (selectedModelId.value ? [selectedModelId.value] : []));
 
-const scrollToBottom = () => {
-  nextTick(() => {
-    scrollbarRef.value?.$el?.scrollTo({ top: 999999, behavior: 'smooth' });
-  });
-};
-
 const handleSend = async () => {
   if (modelVerified.value === false) {
     message.warning(t('dataStudio.modelUnavailableSend'));
@@ -196,11 +320,26 @@ const handleSend = async () => {
   const text = inputText.value.trim();
   inputText.value = '';
   emit('send', text);
+  forceScrollToBottom();
+};
+
+const handleContinue = () => {
+  if (props.isLoading) return;
+  emit('send', 'continue');
+  forceScrollToBottom();
+};
+
+const handleStop = () => {
+  if (props.isLoading) return;
+  emit('stopLoop');
 };
 
 const handleConfirmation = (
   msgId: string,
-  event: { toolCallId: string; action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' },
+  event: {
+    toolCallId: string;
+    action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' | 'cancel';
+  },
 ) => {
   emit('confirmToolCall', msgId, event);
 };
@@ -227,14 +366,25 @@ const onModelPickerOpen = () => {
 };
 
 watch(
-  () => props.messages,
-  () => scrollToBottom(),
-  { deep: true },
+  () => props.contextSettings,
+  (next, prev) => {
+    if (next && !prev) contextIndicatorRef.value?.refresh();
+  },
 );
 
 onMounted(async () => {
   await appStore.fetchLlmSettings();
-  scrollToBottom();
+  await nextTick();
+  const el = getViewport();
+  viewportEl.value = el;
+  el?.addEventListener('scroll', handleViewportScroll, { passive: true });
+  scrollToBottom('auto');
+});
+
+onBeforeUnmount(() => {
+  const el = getViewport();
+  el?.removeEventListener('scroll', handleViewportScroll);
+  if (scrollRafId) cancelAnimationFrame(scrollRafId);
 });
 </script>
 
@@ -258,6 +408,15 @@ onMounted(async () => {
   flex: 1;
   height: 0;
   padding: 8px 0 8px 8px;
+  /* Buffer at the bottom so the last streamed line never sits flush against
+     the chat input area; keeps the latest content visually clear. */
+  scroll-padding-bottom: 16px;
+}
+
+.chat-messages :deep([data-radix-scroll-area-viewport]) > div {
+  /* Virtua may render at an exact fit; this ensures the last bubble has
+     breathing room above the input toolbar during streaming. */
+  padding-bottom: 16px;
 }
 
 .empty-state {
@@ -302,16 +461,97 @@ onMounted(async () => {
   opacity: 0.75;
 }
 
-.loading-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-}
-
 .chat-input-area {
   padding: 8px;
   position: relative;
+}
+
+.loop-stopped-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid hsl(38 92% 50% / 0.35);
+  background: hsl(38 92% 50% / 0.08);
+  color: hsl(var(--foreground));
+}
+
+.loop-stopped-banner__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1 1 auto;
+}
+
+.loop-stopped-banner__texts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.loop-stopped-banner__icon {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  color: hsl(38 92% 50%);
+}
+
+.loop-stopped-banner__message {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.loop-stopped-banner__hint {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.4;
+}
+
+.loop-stopped-banner__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.loop-stopped-banner__action {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.loop-stopped-banner__action--primary {
+  border: 1px solid hsl(38 92% 50% / 0.5);
+  background: hsl(38 92% 50% / 0.15);
+  color: hsl(var(--foreground));
+}
+
+.loop-stopped-banner__action--primary:hover:not(:disabled) {
+  background: hsl(38 92% 50% / 0.25);
+}
+
+.loop-stopped-banner__action--secondary {
+  border: 1px solid transparent;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.loop-stopped-banner__action--secondary:hover:not(:disabled) {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+}
+
+.loop-stopped-banner__action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .chat-input-wrapper {

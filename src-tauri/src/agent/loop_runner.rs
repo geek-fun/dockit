@@ -7,18 +7,20 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::oneshot;
 
+use crate::agent::compact::{count_projected_tokens, evaluate, resolve_model_spec_for_session};
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::executor::ToolEnvelope;
+use crate::agent::loop_runner_support::{load_messages_for_compact, StoredMessage};
 use crate::agent::tool_executor::ToolExecutor;
-use crate::agent::tools::all_tools;
 use crate::common::http_client::create_http_client;
 use crate::db::AgentDb;
 
 pub type ConfirmMap = Arc<Mutex<HashMap<String, oneshot::Sender<bool>>>>;
 pub type CancelMap = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;
 
-const MAX_ITERATIONS: usize = 20;
-const CONTEXT_CHAR_THRESHOLD: usize = 64_000;
+const DEFAULT_MAX_ITERATIONS: usize = 200;
+const DEFAULT_WALL_CLOCK_BUDGET_SECS: u64 = 30 * 60;
+const DEFAULT_TOKEN_BUDGET: usize = 1_000_000;
 const CONFIRM_TIMEOUT_SECS: u64 = 300;
 const RETRY_DELAYS_MS: &[u64] = &[1_000, 3_000, 8_000];
 const RETRY_JITTER_MS: u64 = 250;
@@ -76,23 +78,14 @@ fn settings_get_str<'a>(settings: &'a Value, key: &str) -> Option<&'a str> {
 
 fn insert_message(
     db: &AgentDb,
+    app: &AppHandle,
+    settings: &Value,
     id: &str,
     session_id: &str,
     role: &str,
     content: &str,
 ) -> Result<(), String> {
-    let conn = db.0.lock().map_err(|e| e.to_string())?;
-    conn.execute(
-        "INSERT INTO agent_messages (id, session_id, role, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-        rusqlite::params![id, session_id, role, content, now_ms()],
-    )
-    .map_err(|e| format!("Failed to insert message: {}", e))?;
-    conn.execute(
-        "UPDATE agent_sessions SET updated_at = ?1 WHERE id = ?2",
-        rusqlite::params![now_ms(), session_id],
-    )
-    .map_err(|e| format!("Failed to update session: {}", e))?;
-    Ok(())
+    crate::agent::conversation::append(db, app, settings, session_id, id, role, content)
 }
 
 fn update_session_status_inline(
@@ -109,11 +102,19 @@ fn update_session_status_inline(
     Ok(())
 }
 
-fn load_messages(db: &AgentDb, session_id: &str) -> Result<Vec<(String, String, String)>, String> {
+fn load_active_history(db: &AgentDb, session_id: &str) -> Result<Vec<(String, String, String)>, String> {
     let conn = db.0.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
         .prepare(
-            "SELECT id, role, content FROM agent_messages WHERE session_id = ?1 ORDER BY created_at ASC, id ASC",
+            "SELECT id, role, content FROM agent_messages \
+             WHERE session_id = ?1 \
+               AND created_at >= COALESCE(\
+                 (SELECT created_at FROM agent_messages \
+                  WHERE session_id = ?1 AND role = 'system' AND content LIKE '%_compact_boundary%' \
+                  ORDER BY created_at DESC LIMIT 1), 0) \
+             ORDER BY created_at ASC, \
+               CASE WHEN role = 'system' AND content LIKE '%_compact_boundary%' THEN 0 ELSE 1 END, \
+               id ASC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
@@ -175,31 +176,6 @@ fn insert_tool_result(
     Ok(id)
 }
 
-fn replace_messages_with_summary(
-    db: &AgentDb,
-    session_id: &str,
-    ids_to_remove: &[String],
-    summary: &str,
-) -> Result<(), String> {
-    let mut conn = db.0.lock().map_err(|e| e.to_string())?;
-    let tx_now = now_ms();
-    let tx = conn.transaction().map_err(|e| e.to_string())?;
-    for id in ids_to_remove {
-        tx.execute(
-            "DELETE FROM agent_messages WHERE id = ?1",
-            rusqlite::params![id],
-        )
-        .map_err(|e| e.to_string())?;
-    }
-    tx.execute(
-        "INSERT INTO agent_messages (id, session_id, role, content, created_at) VALUES (?1, ?2, ?3, ?4, ?5)",
-        rusqlite::params![new_id(), session_id, "system", format!("[Summary] {}", summary), tx_now - 1_000_000],
-    )
-    .map_err(|e| e.to_string())?;
-    tx.commit().map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 fn classify_error(body: &str) -> Option<String> {
     let v: Value = serde_json::from_str(body).ok()?;
     v.get("error")
@@ -210,48 +186,6 @@ fn classify_error(body: &str) -> Option<String> {
 
 fn is_retryable(err_type: &str) -> bool {
     RETRYABLE_ERROR_TYPES.iter().any(|t| *t == err_type)
-}
-
-async fn post_chat_completions(
-    http_client: &reqwest::Client,
-    base_url: &str,
-    headers: reqwest::header::HeaderMap,
-    body: Value,
-) -> Result<reqwest::Response, String> {
-    let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
-    let mut last_err = String::from("LLM request failed");
-    for attempt in 0..=RETRY_DELAYS_MS.len() {
-        let resp = http_client
-            .post(&url)
-            .headers(headers.clone())
-            .json(&body)
-            .send()
-            .await;
-        match resp {
-            Ok(r) => {
-                if r.status().is_success() {
-                    return Ok(r);
-                }
-                let status = r.status();
-                let text = r.text().await.unwrap_or_default();
-                let err_type = classify_error(&text).unwrap_or_default();
-                let retryable =
-                    status.as_u16() == 429 || status.as_u16() == 503 || is_retryable(&err_type);
-                last_err = format!("LLM HTTP {}: {}", status, text);
-                if !retryable || attempt >= RETRY_DELAYS_MS.len() {
-                    return Err(last_err);
-                }
-            }
-            Err(e) => {
-                last_err = format!("LLM request error: {}", e);
-                if attempt >= RETRY_DELAYS_MS.len() {
-                    return Err(last_err);
-                }
-            }
-        }
-        jittered_sleep_ms(RETRY_DELAYS_MS[attempt]).await;
-    }
-    Err(last_err)
 }
 
 fn build_request_body(settings: &Value, history_msgs: &[Value], stream: bool) -> Value {
@@ -269,7 +203,12 @@ fn build_request_body(settings: &Value, history_msgs: &[Value], stream: bool) ->
     body
 }
 
-fn db_messages_to_chat(
+// Projection layer: stored DB rows -> LLM ModelMessage[].
+// DB is the full audit log (UIMessage equivalent); this function filters
+// and reshapes rows into a payload the LLM API will accept. Mirrors the
+// role of Vercel AI SDK's `convertToModelMessages` and OpenCode's
+// `toModelMessagesEffect`. All "what does the LLM see?" logic belongs here.
+fn build_llm_messages(
     messages: &[(String, String, String)],
     system_prompt: Option<&str>,
 ) -> Vec<Value> {
@@ -279,11 +218,27 @@ fn db_messages_to_chat(
             out.push(json!({"role": "system", "content": sys}));
         }
     }
+    // Track tool_call_ids announced by the most recent assistant message.
+    // OpenAI rejects role="tool" messages whose tool_call_id was not declared
+    // by an immediately-preceding assistant.tool_calls entry. Drop orphans
+    // to survive any compaction-boundary edge case.
+    let mut pending_tool_call_ids: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+
     for (_id, role, content) in messages {
+        // Persisted LLM HTTP errors live in the DB as assistant rows so users
+        // see them in chat history, but they are NOT valid model turns and
+        // sending them back to the LLM corrupts the request. Skip them here.
+        if role == "assistant" && content.starts_with("LLM HTTP ") {
+            continue;
+        }
         if role == "tool" {
             if let Ok(v) = serde_json::from_str::<Value>(content) {
                 let tool_call_id = v.get("tool_call_id").and_then(|x| x.as_str()).unwrap_or("");
                 let inner = v.get("content").and_then(|x| x.as_str()).unwrap_or("");
+                if tool_call_id.is_empty() || !pending_tool_call_ids.remove(tool_call_id) {
+                    continue;
+                }
                 out.push(json!({
                     "role": "tool",
                     "tool_call_id": tool_call_id,
@@ -291,6 +246,12 @@ fn db_messages_to_chat(
                 }));
             }
         } else if role == "assistant" {
+            if !pending_tool_call_ids.is_empty() {
+                if out.last().and_then(|m| m.get("role")).and_then(|r| r.as_str()) == Some("assistant") {
+                    out.pop();
+                }
+            }
+            pending_tool_call_ids.clear();
             if let Ok(v) = serde_json::from_str::<Value>(content) {
                 if v.is_object() && (v.get("tool_calls").is_some() || v.get("content").is_some()) {
                     let mut msg = json!({"role": "assistant"});
@@ -300,6 +261,13 @@ fn db_messages_to_chat(
                         msg["content"] = Value::Null;
                     }
                     if let Some(tc) = v.get("tool_calls") {
+                        if let Some(arr) = tc.as_array() {
+                            for call in arr {
+                                if let Some(id) = call.get("id").and_then(|x| x.as_str()) {
+                                    pending_tool_call_ids.insert(id.to_string());
+                                }
+                            }
+                        }
                         msg["tool_calls"] = tc.clone();
                     }
                     if let Some(thinking) = v.get("thinking").and_then(|t| t.as_str()) {
@@ -313,75 +281,91 @@ fn db_messages_to_chat(
             }
             out.push(json!({"role": "assistant", "content": content}));
         } else {
+            // Reaching a non-assistant/non-tool row (user or system) means
+            // any still-pending tool_calls will never be answered. Drop the
+            // orphan assistant so OpenAI doesn't reject the request.
+            if !pending_tool_call_ids.is_empty() {
+                if out.last().and_then(|m| m.get("role")).and_then(|r| r.as_str())
+                    == Some("assistant")
+                {
+                    out.pop();
+                }
+            }
+            pending_tool_call_ids.clear();
+            if role == "system" {
+                if let Ok(v) = serde_json::from_str::<Value>(content) {
+                    if v.get("_compact_boundary")
+                        .and_then(|x| x.as_bool())
+                        .unwrap_or(false)
+                    {
+                        let summary =
+                            v.get("summary").and_then(|x| x.as_str()).unwrap_or_default();
+                        out.push(json!({"role": "system", "content": summary}));
+                        continue;
+                    }
+                }
+            }
             out.push(json!({"role": role, "content": content}));
+        }
+    }
+    if !pending_tool_call_ids.is_empty() {
+        if out.last().and_then(|m| m.get("role")).and_then(|r| r.as_str()) == Some("assistant") {
+            out.pop();
         }
     }
     out
 }
 
-fn total_chars(messages: &[(String, String, String)]) -> usize {
-    messages.iter().map(|(_, _, c)| c.chars().count()).sum()
+/// Public wrapper that projects stored messages the same way as
+/// build_llm_messages. Used by count_projected_tokens for accurate
+/// token estimation that matches what the LLM actually receives.
+pub fn project_messages(
+    messages: &[StoredMessage],
+    system_prompt: Option<&str>,
+) -> Vec<Value> {
+    let tuples: Vec<(String, String, String)> = messages
+        .iter()
+        .map(|m| (m.id.clone(), m.role.clone(), m.content.clone()))
+        .collect();
+    build_llm_messages(&tuples, system_prompt)
 }
 
-async fn maybe_summarize_context(
-    session_id: &str,
-    settings: &Value,
-    app: &AppHandle,
-    db: &AgentDb,
-) -> Result<(), String> {
-    let messages = load_messages(db, session_id)?;
-    if total_chars(&messages) < CONTEXT_CHAR_THRESHOLD {
-        return Ok(());
-    }
-    let keep_last = 4usize;
-    if messages.len() <= keep_last {
-        return Ok(());
-    }
-    let split = (messages.len() - keep_last) / 2;
-    if split == 0 {
-        return Ok(());
-    }
-    let to_summarize = &messages[..split];
-    let ids_to_remove: Vec<String> = to_summarize.iter().map(|(id, _, _)| id.clone()).collect();
-
-    let chat_msgs = db_messages_to_chat(to_summarize, None);
-    let summarize_prompt = json!([
-        {"role": "system", "content": "Summarize the following conversation concisely, preserving key facts, tool results, decisions, and unresolved tasks. Output a plain text summary."},
-        {"role": "user", "content": serde_json::to_string(&chat_msgs).unwrap_or_default()}
-    ]);
-
-    let base_url = get_base_url(settings);
-    let headers = build_headers(settings)?;
-    let http_proxy = settings_get_str(settings, "httpProxy").map(|s| s.to_string());
-    let http_client = create_http_client(http_proxy, None);
-
-    let body = json!({
-        "model": settings_get_str(settings, "model").unwrap_or("gpt-4o-mini"),
-        "messages": summarize_prompt,
-        "stream": false,
-    });
-
-    let resp = post_chat_completions(&http_client, &base_url, headers, body).await?;
-    let payload: Value = resp.json().await.map_err(|e| e.to_string())?;
-    let summary = payload
-        .get("choices")
-        .and_then(|c| c.get(0))
-        .and_then(|c| c.get("message"))
-        .and_then(|m| m.get("content"))
-        .and_then(|c| c.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    if summary.is_empty() {
-        return Ok(());
-    }
-
-    replace_messages_with_summary(db, session_id, &ids_to_remove, &summary)?;
+fn emit_loop_stopped(app: &AppHandle, session_id: &str, reason: &str, message: &str) {
     let _ = app.emit(
-        "agent-loop-summary-injected",
-        json!({"session_id": session_id}),
+        "agent-loop-stopped",
+        json!({
+            "session_id": session_id,
+            "reason": reason,
+            "message": message,
+        }),
     );
-    Ok(())
+    let _ = app.emit("agent-loop-done", json!({"session_id": session_id}));
+}
+
+fn emit_context_usage(app: &AppHandle, session_id: &str, settings: &Value, db: &AgentDb) {
+    let messages = match load_messages_for_compact(db, session_id) {
+        Ok(m) => m,
+        Err(_) => return,
+    };
+    let spec = resolve_model_spec_for_session(session_id, settings);
+    let decision = evaluate(&messages, &spec);
+    let system_prompt = settings_get_str(settings, "systemPrompt");
+    let tools = settings.get("tools");
+    let used_tokens = count_projected_tokens(&messages, system_prompt, tools, &spec);
+    let should_compact = used_tokens >= decision.trigger_at;
+    let _ = app.emit(
+        "agent-context-usage",
+        json!({
+            "session_id": session_id,
+            "used_tokens": used_tokens,
+            "capacity": decision.capacity,
+            "context_window": spec.context_window,
+            "output_reserve": spec.output_reserve,
+            "trigger_at": decision.trigger_at,
+            "should_compact": should_compact,
+            "model": spec.model_id,
+        }),
+    );
 }
 
 #[derive(Default)]
@@ -605,7 +589,7 @@ async fn run_agent_loop_inner(
     update_session_status_inline(db, session_id, "running")?;
 
     let user_id = new_id();
-    insert_message(db, &user_id, session_id, "user", user_message)?;
+    insert_message(db, app, settings, &user_id, session_id, "user", user_message)?;
 
     let connections: HashMap<String, Value> = settings
         .get("connections")
@@ -637,17 +621,94 @@ async fn run_agent_loop_inner(
         })
         .unwrap_or_default();
 
-    for _iter in 0..MAX_ITERATIONS {
-        if let Err(summary_err) = maybe_summarize_context(session_id, settings, app, db).await {
-            let _ = app.emit(
-                "agent-loop-warning",
-                json!({"session_id": session_id, "warning": format!("Context summarization skipped: {}", summary_err)}),
-            );
-        }
+    let mut recent_tool_signatures: std::collections::VecDeque<String> =
+        std::collections::VecDeque::with_capacity(4);
 
-        let history = load_messages(db, session_id)?;
-        let chat_msgs = db_messages_to_chat(&history, system_prompt.as_deref());
+    let max_iterations = settings
+        .get("maxIterations")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as usize)
+        .unwrap_or(DEFAULT_MAX_ITERATIONS);
+    let wall_clock_budget_secs = settings
+        .get("wallClockBudgetMin")
+        .and_then(|v| v.as_u64())
+        .map(|n| n.saturating_mul(60))
+        .unwrap_or(DEFAULT_WALL_CLOCK_BUDGET_SECS);
+    let token_budget = settings
+        .get("tokenBudget")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as usize)
+        .unwrap_or(DEFAULT_TOKEN_BUDGET);
+    let loop_started_at = std::time::Instant::now();
+    let mut cumulative_input_tokens: usize = 0;
+    let mut iter_count: usize = 0;
+
+    loop {
+        if iter_count >= max_iterations {
+            emit_loop_stopped(
+                app,
+                session_id,
+                "iteration_cap",
+                &format!(
+                    "Agent paused after {} iterations (configured cap). The task may need more work — reply 'continue' or raise the cap in settings.",
+                    iter_count
+                ),
+            );
+            return Ok(());
+        }
+        let elapsed_secs = loop_started_at.elapsed().as_secs();
+        if elapsed_secs >= wall_clock_budget_secs {
+            emit_loop_stopped(
+                app,
+                session_id,
+                "wall_clock_budget",
+                &format!(
+                    "Agent paused after {}m wall-clock budget. Reply 'continue' to keep going or raise the budget in settings.",
+                    elapsed_secs / 60
+                ),
+            );
+            return Ok(());
+        }
+        iter_count += 1;
+        // Progress heartbeat emitted before each loop iteration body so the UI
+        // can keep a live status even while waiting on long operations.
+        let _ = app.emit(
+            "agent-loop-iteration",
+            json!({
+                "session_id": session_id,
+                "iter_count": iter_count,
+                "max_iterations": max_iterations,
+            }),
+        );
+        crate::agent::conversation::prepare_for_llm(db, app, settings, session_id).await?;
+
+    let history = load_active_history(db, session_id)?;
+    let chat_msgs = build_llm_messages(&history, system_prompt.as_deref());
+        let spec = resolve_model_spec_for_session(session_id, settings);
+        cumulative_input_tokens = cumulative_input_tokens
+            .saturating_add(crate::agent::token_counter::count_chat_messages(&chat_msgs, &spec));
+        if cumulative_input_tokens >= token_budget {
+            emit_loop_stopped(
+                app,
+                session_id,
+                "token_budget",
+                &format!(
+                    "Agent paused after consuming {} input tokens (configured budget {}). Reply 'continue' to keep going or raise the budget in settings.",
+                    cumulative_input_tokens, token_budget
+                ),
+            );
+            return Ok(());
+        }
         let body = build_request_body(settings, &chat_msgs, true);
+        // Emitted immediately before the main streaming call starts. The first
+        // `agent-loop-delta` event implicitly signals waiting finished.
+        let _ = app.emit(
+            "agent-loop-waiting-llm",
+            json!({
+                "session_id": session_id,
+                "iter_count": iter_count,
+            }),
+        );
 
         let acc = tokio::select! {
             biased;
@@ -661,7 +722,19 @@ async fn run_agent_loop_inner(
                 body,
                 session_id,
                 app,
-            ) => res?,
+            ) => match res {
+                Ok(a) => a,
+                Err(e) => {
+                    let _ = insert_message(db, app, settings, &new_id(), session_id, "assistant", &e);
+                    let is_bad_request = e.contains("invalid_request_error");
+                    if is_bad_request {
+                        let _ = app.emit("agent-loop-error", json!({"session_id": session_id, "error": e}));
+                    } else {
+                        emit_loop_stopped(app, session_id, "llm_error", &e);
+                    }
+                    return Ok(());
+                }
+            },
         };
 
         let assistant_message_id = new_id();
@@ -676,12 +749,41 @@ async fn run_agent_loop_inner(
                 })
                 .to_string()
             };
-            insert_message(db, &assistant_message_id, session_id, "assistant", &payload)?;
+            insert_message(db, app, settings, &assistant_message_id, session_id, "assistant", &payload)?;
             let _ = app.emit(
                 "agent-loop-step-done",
                 json!({"session_id": session_id, "message_id": assistant_message_id}),
             );
             let _ = app.emit("agent-loop-done", json!({"session_id": session_id}));
+            return Ok(());
+        }
+
+        // Runaway-loop guard: if the LLM emits the exact same tool-call set
+        // (name+arguments) for 3 consecutive iterations, treat it as a stuck
+        // loop. Without this guard a misbehaving model can issue the same
+        // mongo__insert_one until MAX_ITERATIONS is exhausted (see PR #440).
+        let iter_signature: String = {
+            let mut sigs: Vec<String> = acc
+                .tool_calls
+                .iter()
+                .map(|t| format!("{}:{}", t.name, t.arguments))
+                .collect();
+            sigs.sort();
+            sigs.join("|")
+        };
+        recent_tool_signatures.push_back(iter_signature.clone());
+        if recent_tool_signatures.len() > 3 {
+            recent_tool_signatures.pop_front();
+        }
+        if recent_tool_signatures.len() == 3
+            && recent_tool_signatures.iter().all(|s| s == &iter_signature)
+        {
+            let stuck_msg = "Agent stopped: detected the same tool call repeating across 3 iterations with no progress. Try rephrasing your request or check the tool's previous results.";
+            insert_message(db, app, settings, &assistant_message_id, session_id, "assistant", stuck_msg)?;
+            let _ = app.emit(
+                "agent-loop-error",
+                json!({"session_id": session_id, "error": stuck_msg}),
+            );
             return Ok(());
         }
 
@@ -714,13 +816,7 @@ async fn run_agent_loop_inner(
             "thinking": if acc.thinking.is_empty() { Value::Null } else { Value::String(acc.thinking.clone()) },
             "tool_calls": tool_calls_json,
         });
-        insert_message(
-            db,
-            &assistant_message_id,
-            session_id,
-            "assistant",
-            &assistant_payload.to_string(),
-        )?;
+        insert_message(db, app, settings, &assistant_message_id, session_id, "assistant", &assistant_payload.to_string())?;
         let _ = app.emit(
             "agent-loop-step-done",
             json!({"session_id": session_id, "message_id": assistant_message_id}),
@@ -746,7 +842,7 @@ async fn run_agent_loop_inner(
                         "name": tool_name,
                         "content": format!("Invalid JSON arguments from LLM: {}", e),
                     });
-                    insert_message(db, &new_id(), session_id, "tool", &err_msg.to_string())?;
+                    insert_message(db, app, settings, &new_id(), session_id, "tool", &err_msg.to_string())?;
                     continue;
                 }
             };
@@ -769,7 +865,7 @@ async fn run_agent_loop_inner(
                     "name": tool_name,
                     "content": err_content,
                 });
-                insert_message(db, &new_id(), session_id, "tool", &deny_msg.to_string())?;
+                insert_message(db, app, settings, &new_id(), session_id, "tool", &deny_msg.to_string())?;
                 let _ = app.emit(
                     "agent-loop-tool-result",
                     json!({
@@ -782,59 +878,8 @@ async fn run_agent_loop_inner(
                 continue;
             }
 
-            let _ = app.emit(
-                "agent-loop-tool-call",
-                json!({
-                    "session_id": session_id,
-                    "tool_call_id": tool_call_id,
-                    "tool_name": tool_name,
-                    "arguments": arguments_value,
-                }),
-            );
-
-            let (confirm_tx, confirm_rx) = oneshot::channel::<bool>();
-            {
-                let mut cm = confirm_map.lock().map_err(|e| e.to_string())?;
-                cm.insert(tool_call_id.clone(), confirm_tx);
-            }
-            let _guard = ConfirmGuard::new(confirm_map.clone(), tool_call_id.clone());
-
-            let confirm_future =
-                tokio::time::timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), confirm_rx);
-
-            let allowed = tokio::select! {
-                biased;
-                _ = &mut cancel_rx => {
-                    return Err("cancelled".to_string());
-                }
-                res = confirm_future => match res {
-                    Ok(Ok(v)) => v,
-                    Ok(Err(_)) => false,
-                    Err(_) => {
-                        return Err(format!("tool confirmation timeout: {}", tool_call_id));
-                    }
-                },
-            };
-
-            if !allowed {
-                update_tool_call_status(db, &tool_call_id, "denied")?;
-                let tool_deny_msg = json!({
-                    "tool_call_id": tool_call_id,
-                    "name": tool_name,
-                    "content": format!("Tool call '{}' was denied by the user. Try an alternative approach.", tool_name),
-                });
-                insert_message(
-                    db,
-                    &new_id(),
-                    session_id,
-                    "tool",
-                    &tool_deny_msg.to_string(),
-                )?;
-                continue;
-            }
-
-            update_tool_call_status(db, &tool_call_id, "approved")?;
-
+            // Resolve connection config and check permissions BEFORE prompting the user,
+            // so the user never sees a confirmation card for an impossible-to-execute tool.
             let resolved_config = match arguments_value
                 .get("connection_id")
                 .and_then(|v| v.as_str())
@@ -849,7 +894,7 @@ async fn run_agent_loop_inner(
                             "name": tool_name,
                             "content": err_content,
                         });
-                        insert_message(db, &new_id(), session_id, "tool", &err_msg.to_string())?;
+                        insert_message(db, app, settings, &new_id(), session_id, "tool", &err_msg.to_string())?;
                         let _ = app.emit(
                             "agent-loop-tool-result",
                             json!({
@@ -875,7 +920,7 @@ async fn run_agent_loop_inner(
                             "name": tool_name,
                             "content": err_content,
                         });
-                        insert_message(db, &new_id(), session_id, "tool", &err_msg.to_string())?;
+                        insert_message(db, app, settings, &new_id(), session_id, "tool", &err_msg.to_string())?;
                         let _ = app.emit(
                             "agent-loop-tool-result",
                             json!({
@@ -891,42 +936,57 @@ async fn run_agent_loop_inner(
                 }
             };
 
-            let required_perm = all_tools()
-                .into_iter()
-                .find(|t| t.name == tool_name)
-                .map(|t| t.required_permission);
-            if let Some(perm) = required_perm {
-                let allowed_by_perms = resolved_config
-                    .get("permissions")
-                    .and_then(|p| p.get(perm))
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
-                if !allowed_by_perms {
-                    update_tool_call_status(db, &tool_call_id, "failed")?;
-                    let err_content = format!(
-                        "Permission denied: tool '{}' requires '{}' permission on connection '{}'.",
-                        tool_name,
-                        perm,
-                        arguments_value.get("connection_id").and_then(|v| v.as_str()).unwrap_or("unknown")
-                    );
-                    let perm_err = json!({
-                        "tool_call_id": tool_call_id,
-                        "name": tool_name,
-                        "content": err_content,
-                    });
-                    insert_message(db, &new_id(), session_id, "tool", &perm_err.to_string())?;
-                    let _ = app.emit(
-                        "agent-loop-tool-result",
-                        json!({
-                            "session_id": session_id,
-                            "tool_call_id": tool_call_id,
-                            "error": true,
-                            "envelope": { "summary": err_content },
-                        }),
-                    );
-                    continue;
-                }
+            // Frontend confirmation (Allow/Deny card in Ask mode) is the primary
+            // permission gate. Once the user approves, the tool executes — no
+            // secondary permission check here. Real API-level errors from the
+            // database server are surfaced via the executor.
+
+            let (confirm_tx, confirm_rx) = oneshot::channel::<bool>();
+            {
+                let mut cm = confirm_map.lock().map_err(|e| e.to_string())?;
+                cm.insert(tool_call_id.clone(), confirm_tx);
             }
+            let _guard = ConfirmGuard::new(confirm_map.clone(), tool_call_id.clone());
+
+            let _ = app.emit(
+                "agent-loop-tool-call",
+                json!({
+                    "session_id": session_id,
+                    "tool_call_id": tool_call_id,
+                    "tool_name": tool_name,
+                    "arguments": arguments_value,
+                }),
+            );
+
+            let confirm_future =
+                tokio::time::timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), confirm_rx);
+
+            let allowed = tokio::select! {
+                biased;
+                _ = &mut cancel_rx => {
+                    return Err("cancelled".to_string());
+                }
+                res = confirm_future => match res {
+                    Ok(Ok(v)) => v,
+                    Ok(Err(_)) => false,
+                    Err(_) => {
+                        return Err(format!("tool confirmation timeout: {}", tool_call_id));
+                    }
+                },
+            };
+
+            if !allowed {
+                update_tool_call_status(db, &tool_call_id, "denied")?;
+                let tool_deny_msg = json!({
+                    "tool_call_id": tool_call_id,
+                    "name": tool_name,
+                    "content": format!("Tool call '{}' was denied by the user. Try an alternative approach.", tool_name),
+                });
+                insert_message(db, app, settings, &new_id(), session_id, "tool", &tool_deny_msg.to_string())?;
+                continue;
+            }
+
+            update_tool_call_status(db, &tool_call_id, "approved")?;
 
             let envelope: ToolEnvelope = tokio::select! {
                 biased;
@@ -937,7 +997,7 @@ async fn run_agent_loop_inner(
                         "name": tool_name,
                         "content": format!("Tool '{}' was cancelled before completion. Partial execution may have occurred.", tool_name),
                     });
-                    insert_message(db, &new_id(), session_id, "tool", &cancel_msg.to_string())?;
+                    insert_message(db, app, settings, &new_id(), session_id, "tool", &cancel_msg.to_string())?;
                     return Err("cancelled".to_string());
                 }
                 res = tool_executor.execute(&tool_name, &arguments_value, &resolved_config) => match res {
@@ -950,7 +1010,7 @@ async fn run_agent_loop_inner(
                             "name": tool_name,
                             "content": err_content,
                         });
-                        insert_message(db, &new_id(), session_id, "tool", &error_msg.to_string())?;
+                        insert_message(db, app, settings, &new_id(), session_id, "tool", &error_msg.to_string())?;
                         let _ = app.emit(
                             "agent-loop-tool-result",
                             json!({
@@ -982,12 +1042,9 @@ async fn run_agent_loop_inner(
                 "name": tool_name,
                 "content": envelope.summary,
             });
-            insert_message(db, &new_id(), session_id, "tool", &tool_msg.to_string())?;
+            insert_message(db, app, settings, &new_id(), session_id, "tool", &tool_msg.to_string())?;
         }
     }
-
-    let _ = app.emit("agent-loop-done", json!({"session_id": session_id}));
-    Ok(())
 }
 
 #[tauri::command]
@@ -1042,4 +1099,75 @@ pub async fn get_tool_full_result(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn compact_agent_session(
+    session_id: String,
+    settings: Value,
+    app: AppHandle,
+) -> Result<Value, String> {
+    let db_state: State<AgentDb> = app.state::<AgentDb>();
+    let db: AgentDb = AgentDb(db_state.0.clone());
+    let lock = crate::agent::conversation::lock_for(&session_id);
+    let _guard = lock.lock().await;
+    let outcome = crate::agent::compact::run_compact_manual(&session_id, &settings, &db, &app).await?;
+    if let Some(info) = outcome {
+        let _ = app.emit(
+            "agent-loop-summary-injected",
+            json!({
+                "session_id": session_id,
+                "trigger": info.trigger,
+                "pre_tokens": info.pre_tokens,
+                "post_tokens": info.post_tokens,
+                "removed_count": info.removed_count,
+                "fallback_keep_pairs": info.fallback_keep_pairs,
+            }),
+        );
+    }
+    emit_context_usage(&app, &session_id, &settings, &db);
+    let messages = load_messages_for_compact(&db, &session_id)?;
+    let spec = resolve_model_spec_for_session(&session_id, &settings);
+    let decision = evaluate(&messages, &spec);
+    let system_prompt = settings_get_str(&settings, "systemPrompt");
+    let tools = settings.get("tools");
+    let used_tokens = count_projected_tokens(&messages, system_prompt, tools, &spec);
+    let should_compact = used_tokens >= decision.trigger_at;
+    Ok(json!({
+        "session_id": session_id,
+        "used_tokens": used_tokens,
+        "capacity": decision.capacity,
+        "context_window": spec.context_window,
+        "output_reserve": spec.output_reserve,
+        "trigger_at": decision.trigger_at,
+        "should_compact": should_compact,
+        "model": spec.model_id,
+    }))
+}
+
+#[tauri::command]
+pub async fn get_agent_context_usage(
+    session_id: String,
+    settings: Value,
+    app: AppHandle,
+) -> Result<Value, String> {
+    let db_state: State<AgentDb> = app.state::<AgentDb>();
+    let db: AgentDb = AgentDb(db_state.0.clone());
+    let messages = load_messages_for_compact(&db, &session_id)?;
+    let spec = resolve_model_spec_for_session(&session_id, &settings);
+    let decision = evaluate(&messages, &spec);
+    let system_prompt = settings_get_str(&settings, "systemPrompt");
+    let tools = settings.get("tools");
+    let used_tokens = count_projected_tokens(&messages, system_prompt, tools, &spec);
+    let should_compact = used_tokens >= decision.trigger_at;
+    Ok(json!({
+        "session_id": session_id,
+        "used_tokens": used_tokens,
+        "capacity": decision.capacity,
+        "context_window": spec.context_window,
+        "output_reserve": spec.output_reserve,
+        "trigger_at": decision.trigger_at,
+        "should_compact": should_compact,
+        "model": spec.model_id,
+    }))
 }

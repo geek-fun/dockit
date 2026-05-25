@@ -17,12 +17,13 @@ import type {
   ChatSession,
   ChatSessionStatus,
   ChatMessageStatus,
+  ChatMessageRole,
   ChatContextConfig,
 } from '@/types/chat';
 
 const adaptMessage = (msg: AgentMessage): ChatMessage => ({
   id: msg.id,
-  role: msg.role as 'user' | 'assistant' | 'tool',
+  role: msg.role as ChatMessageRole,
   content: msg.content,
   status: msg.status as ChatMessageStatus,
   timestamp: msg.timestamp,
@@ -30,6 +31,7 @@ const adaptMessage = (msg: AgentMessage): ChatMessage => ({
   thinkingDuration: msg.thinkingDuration,
   toolCalls: msg.toolCalls,
   toolCallId: msg.toolCallId,
+  compaction: msg.compaction,
 });
 
 const adaptSession = (session: AgentSession): ChatSession => ({
@@ -38,6 +40,8 @@ const adaptSession = (session: AgentSession): ChatSession => ({
   status: session.status as ChatSessionStatus,
   sources: session.sources,
   maxIterations: session.maxIterations,
+  stopReason: session.stopReason,
+  stopMessage: session.stopMessage,
 });
 
 const getSidebarContext = (): ChatContextConfig => {
@@ -95,7 +99,7 @@ export const useSidebarChatAgent = () => {
       addMessage: (sessionId: string, message: ChatMessage) =>
         store.addMessage(sessionId, {
           id: message.id,
-          role: message.role as 'user' | 'assistant' | 'tool',
+          role: message.role as 'user' | 'assistant' | 'tool' | 'system',
           content: message.content,
           status: message.status as 'pending' | 'streaming' | 'done' | 'error',
           timestamp: message.timestamp,
@@ -103,6 +107,7 @@ export const useSidebarChatAgent = () => {
           thinkingDuration: message.thinkingDuration,
           toolCalls: message.toolCalls,
           toolCallId: message.toolCallId,
+          compaction: message.compaction,
         }),
       updateStreamingContent: (sessionId, messageId, chunk) =>
         store.updateStreamingContent(sessionId, messageId, chunk),
@@ -132,11 +137,15 @@ export const useSidebarChatAgent = () => {
       setSessionStatus: (sessionId, status) =>
         store.setSessionStatus(
           sessionId,
-          status as 'idle' | 'running' | 'waiting_confirmation' | 'error',
+          status as 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped',
         ),
+      setSessionStopped: (sessionId, reason, message) =>
+        store.setSessionStopped(sessionId, reason, message),
+      clearSessionStop: (sessionId: string) => store.clearSessionStop(sessionId),
       setSessionSchema: (_sessionId, _schema) => undefined,
       clearSession: sessionId => store.clearSession(sessionId),
       getOrCreateSession: () => store.getOrCreateSidebarSession(),
+      reloadSessionMessages: (sessionId: string) => store.reloadSessionMessages(sessionId),
     },
     contextProvider: getSidebarContext,
     confirmationRules: confirmationRules as Ref<ConfirmationRule[]>,
@@ -157,8 +166,11 @@ export const useSidebarChatAgent = () => {
     isLoading: agent.isLoading,
     error: agent.error,
     activeSession: agent.activeSession,
+    lastSettings: agent.lastSettings,
+    initContextSettings: agent.initContextSettings,
     messages,
     sendMessage,
+    cancelSession: agent.cancelSession,
     handleConfirmation: agent.handleConfirmation,
     clearChat: agent.clearChat,
   };
