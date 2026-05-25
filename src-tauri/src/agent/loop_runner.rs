@@ -865,53 +865,8 @@ async fn run_agent_loop_inner(
                 continue;
             }
 
-            let (confirm_tx, confirm_rx) = oneshot::channel::<bool>();
-            {
-                let mut cm = confirm_map.lock().map_err(|e| e.to_string())?;
-                cm.insert(tool_call_id.clone(), confirm_tx);
-            }
-            let _guard = ConfirmGuard::new(confirm_map.clone(), tool_call_id.clone());
-
-            let _ = app.emit(
-                "agent-loop-tool-call",
-                json!({
-                    "session_id": session_id,
-                    "tool_call_id": tool_call_id,
-                    "tool_name": tool_name,
-                    "arguments": arguments_value,
-                }),
-            );
-
-            let confirm_future =
-                tokio::time::timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), confirm_rx);
-
-            let allowed = tokio::select! {
-                biased;
-                _ = &mut cancel_rx => {
-                    return Err("cancelled".to_string());
-                }
-                res = confirm_future => match res {
-                    Ok(Ok(v)) => v,
-                    Ok(Err(_)) => false,
-                    Err(_) => {
-                        return Err(format!("tool confirmation timeout: {}", tool_call_id));
-                    }
-                },
-            };
-
-            if !allowed {
-                update_tool_call_status(db, &tool_call_id, "denied")?;
-                let tool_deny_msg = json!({
-                    "tool_call_id": tool_call_id,
-                    "name": tool_name,
-                    "content": format!("Tool call '{}' was denied by the user. Try an alternative approach.", tool_name),
-                });
-                insert_message(db, app, settings, &new_id(), session_id, "tool", &tool_deny_msg.to_string())?;
-                continue;
-            }
-
-            update_tool_call_status(db, &tool_call_id, "approved")?;
-
+            // Resolve connection config and check permissions BEFORE prompting the user,
+            // so the user never sees a confirmation card for an impossible-to-execute tool.
             let resolved_config = match arguments_value
                 .get("connection_id")
                 .and_then(|v| v.as_str())
@@ -1004,6 +959,53 @@ async fn run_agent_loop_inner(
                     continue;
                 }
             }
+
+            let (confirm_tx, confirm_rx) = oneshot::channel::<bool>();
+            {
+                let mut cm = confirm_map.lock().map_err(|e| e.to_string())?;
+                cm.insert(tool_call_id.clone(), confirm_tx);
+            }
+            let _guard = ConfirmGuard::new(confirm_map.clone(), tool_call_id.clone());
+
+            let _ = app.emit(
+                "agent-loop-tool-call",
+                json!({
+                    "session_id": session_id,
+                    "tool_call_id": tool_call_id,
+                    "tool_name": tool_name,
+                    "arguments": arguments_value,
+                }),
+            );
+
+            let confirm_future =
+                tokio::time::timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), confirm_rx);
+
+            let allowed = tokio::select! {
+                biased;
+                _ = &mut cancel_rx => {
+                    return Err("cancelled".to_string());
+                }
+                res = confirm_future => match res {
+                    Ok(Ok(v)) => v,
+                    Ok(Err(_)) => false,
+                    Err(_) => {
+                        return Err(format!("tool confirmation timeout: {}", tool_call_id));
+                    }
+                },
+            };
+
+            if !allowed {
+                update_tool_call_status(db, &tool_call_id, "denied")?;
+                let tool_deny_msg = json!({
+                    "tool_call_id": tool_call_id,
+                    "name": tool_name,
+                    "content": format!("Tool call '{}' was denied by the user. Try an alternative approach.", tool_name),
+                });
+                insert_message(db, app, settings, &new_id(), session_id, "tool", &tool_deny_msg.to_string())?;
+                continue;
+            }
+
+            update_tool_call_status(db, &tool_call_id, "approved")?;
 
             let envelope: ToolEnvelope = tokio::select! {
                 biased;
