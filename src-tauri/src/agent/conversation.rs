@@ -43,29 +43,6 @@ pub fn lock_for(session_id: &str) -> Arc<AsyncMutex<()>> {
         .clone()
 }
 
-/// Prevents rapid cascading compactions when no new user content exists
-/// between successive compactions (e.g. after a compaction keeps 4 pairs
-/// that still exceed the threshold).
-const COMPACTION_COOLDOWN_MS: i64 = 30_000;
-
-static SESSION_LAST_COMPACT: OnceLock<Mutex<HashMap<String, i64>>> = OnceLock::new();
-
-fn compact_cooldown_elapsed(session_id: &str) -> bool {
-    let map = SESSION_LAST_COMPACT.get_or_init(|| Mutex::new(HashMap::new()));
-    let map = map.lock().expect("last compact map poisoned");
-    let now = now_ms();
-    match map.get(session_id) {
-        Some(last) => now - *last >= COMPACTION_COOLDOWN_MS,
-        None => true,
-    }
-}
-
-fn record_compaction_time(session_id: &str) {
-    let map = SESSION_LAST_COMPACT.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut map = map.lock().expect("last compact map poisoned");
-    map.insert(session_id.to_string(), now_ms());
-}
-
 struct InflightGuard {
     session_id: String,
 }
@@ -165,9 +142,6 @@ pub fn needs_compact(db: &AgentDb, session_id: &str, settings: &Value) -> bool {
     if !has_compactable_content_since_boundary(&messages) {
         return false;
     }
-    if !compact_cooldown_elapsed(session_id) {
-        return false;
-    }
     let spec = resolve_model_spec_for_session(session_id, settings);
     evaluate(&messages, &spec).should_compact
 }
@@ -245,7 +219,6 @@ pub async fn prepare_for_llm(
     if needs_compact(db, session_id, settings) {
         match run_compact_with_events(session_id, settings, db, app).await {
             Ok(Some(info)) => {
-                record_compaction_time(session_id);
                 let mut summary_payload = json!({
                     "session_id": session_id,
                     "trigger": info.trigger,
@@ -298,7 +271,6 @@ fn spawn_background_compact(db: AgentDb, app: AppHandle, settings: Value, sessio
 
         match result {
             Ok(Some(info)) => {
-                record_compaction_time(&session_id);
                 let mut summary_payload = json!({
                     "session_id": session_id,
                     "trigger": info.trigger,
