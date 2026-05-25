@@ -140,6 +140,27 @@ export const enUS = {
         featureRequest: 'Create feature request',
         customAnthropicDescription:
           'Anthropic-compatible providers are not implemented in this pass. Use the feature request button to track it on GitHub.',
+        contextWindowLabel: 'Context window override (tokens)',
+        contextWindowPlaceholder: 'Auto-detect',
+        contextWindowDescription:
+          'Set the maximum context size DocKit should assume for this provider. Useful for Ollama models that change num_ctx, or self-hosted setups with non-default limits. Minimum 1024.',
+      },
+
+      chat: {
+        title: 'Chat Behavior',
+        description: 'Control how DocKit manages long conversations.',
+        autoCompactLabel: 'Auto-compact context',
+        autoCompactDescription:
+          'When the context window fills up, automatically summarize older messages to keep the conversation going. Disable to be prompted instead.',
+        maxIterationsLabel: 'Max agent iterations',
+        maxIterationsDescription:
+          'Maximum tool-call rounds per request before the agent stops and asks you to continue. Default: 200.',
+        wallClockBudgetLabel: 'Wall-clock budget (minutes)',
+        wallClockBudgetDescription:
+          'Maximum wall-clock time for a single agent run. The agent stops gracefully when this is exceeded. Default: 30.',
+        tokenBudgetLabel: 'Token budget',
+        tokenBudgetDescription:
+          'Maximum cumulative input tokens across all iterations in one agent run. Default: 1,000,000.',
       },
 
       models: {
@@ -1322,6 +1343,19 @@ export const enUS = {
     failedToValidateData: 'Failed to validate data structure: {error}',
     failedToParseMetadata: 'Failed to parse metadata file: Invalid JSON format',
   },
+  chat: {
+    loopStopped: {
+      continueButton: 'Continue',
+      stopButton: 'Stop',
+      continueHint: 'Click Continue to resume, or Stop to end this task.',
+    },
+    progress: {
+      iterating: 'Step {iter} / {maxIter}',
+      iteratingNoMax: 'Step {iter}',
+      waitingLlm: 'Waiting for model…',
+      compacting: 'Compacting context…',
+    },
+  },
   dataStudio: {
     title: 'DATA STUDIO BETA',
     configuration: 'Configuration',
@@ -1387,6 +1421,7 @@ export const enUS = {
         allowAlways: 'Allow Always',
         deny: 'Deny',
         denyAlways: 'Deny Always',
+        cancel: 'Cancel',
       },
       riskLevel: {
         safe: 'Safe',
@@ -1398,9 +1433,15 @@ export const enUS = {
         toolDenied: 'Tool execution denied',
         toolError: 'Tool execution failed',
         thinking: 'Thinking',
+        waitingForModel: 'Waiting for model',
+        compactionInProgress: 'Compacting conversation',
+        preparingInProgress: 'Preparing',
         thinkingInProgress: 'Thinking…',
         thinkingDone: 'Done thinking',
         thinkingDuration: '{s}s',
+        generating: 'Generating…',
+        awaitingConfirm: 'Awaiting approval for {tool}…',
+        executingTool: 'Executing {tool}…',
         toolWrote: 'Wrote',
         toolRead: 'Read',
         toolExecuted: 'Executed',
@@ -1410,7 +1451,36 @@ export const enUS = {
         toolResultSuccess: 'Result',
         toolResultError: 'Failed',
         iterationLabel: 'Loop {n}',
+        compactionLabel: 'Conversation compacted ({trigger})',
+        compactionSummary: 'Show summary',
+        compactionTrigger: {
+          auto: 'auto',
+          manual: 'manual',
+        },
       },
+    },
+    contextIndicator: {
+      offBadgeTitle: 'Auto-compact is OFF — context will not shrink automatically',
+      popoverTitle: 'Context window',
+      warningText:
+        'Auto-compact is OFF and context is over threshold. Compact now or the next request may fail.',
+      labelUsed: 'Used',
+      labelCapacity: 'Capacity',
+      labelWindow: 'Window',
+      labelReservedOut: 'Reserved out',
+      labelAutoCompactAt: 'Auto-compact at',
+      labelStatus: 'Status',
+      compactNow: 'Compact now',
+      compacting: 'Compacting…',
+      statusIdle: 'Idle',
+      statusOverThresholdOff: 'Over threshold (auto-compact OFF)',
+      statusAutoCompactOff: 'Auto-compact OFF',
+      statusWillAutoCompact: 'Will auto-compact',
+      statusHealthy: 'Healthy',
+      tooltipIdle: 'Context usage',
+      tooltipAutoCompactOff: 'auto-compact OFF',
+      compactSuccess: 'Context compacted',
+      compactFailed: 'Compact failed: {error}',
     },
     history: {
       title: 'Session History',

@@ -139,6 +139,50 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             required_permission: "read",
         },
         ToolDefinition {
+            name: "es__create_index",
+            description: "Create a new Elasticsearch index with optional custom mappings and settings.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "index": { "type": "string", "description": "Name for the new index" },
+                    "body": { "type": "object", "description": "Optional index body with settings and mappings, e.g. {\"settings\":{\"number_of_shards\":1},\"mappings\":{\"properties\":{...}}}" }
+                },
+                "required": ["connection_id", "index"]
+            }),
+            risk_level: RiskLevel::Elevated,
+            required_permission: "create",
+        },
+        ToolDefinition {
+            name: "es__delete_index",
+            description: "Delete an entire Elasticsearch index and all its data permanently. This action is IRREVERSIBLE.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "index": { "type": "string", "description": "Name of the index to delete" }
+                },
+                "required": ["connection_id", "index"]
+            }),
+            risk_level: RiskLevel::Destructive,
+            required_permission: "delete",
+        },
+        ToolDefinition {
+            name: "es__put_mapping",
+            description: "Add or update field mappings in an existing Elasticsearch index.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "index": { "type": "string", "description": "Target index name" },
+                    "body": { "type": "object", "description": "Mapping body, e.g. {\"properties\":{\"field_name\":{\"type\":\"text\"}}}" }
+                },
+                "required": ["connection_id", "index", "body"]
+            }),
+            risk_level: RiskLevel::Elevated,
+            required_permission: "update",
+        },
+        ToolDefinition {
             name: "dynamo__execute_query",
             description: "Execute a PartiQL SELECT query against DynamoDB. Use for reading and querying table data.",
             parameters: json!({
@@ -181,12 +225,13 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             required_permission: "delete",
         },
         ToolDefinition {
-            name: "mongo__find",
+             name: "mongo__find",
             description: "Query documents from a MongoDB collection using a filter. Returns matching documents. Use for reading and searching data.",
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." },
                     "collection": { "type": "string", "description": "Collection name to query" },
                     "filter": { "type": "object", "description": "MongoDB query filter, e.g. {\"status\": \"active\"}. Use {} for all documents." },
                     "projection": { "type": "object", "description": "Optional fields to include/exclude, e.g. {\"name\": 1, \"_id\": 0}" },
@@ -205,6 +250,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                 "type": "object",
                 "properties": {
                     "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." },
                     "collection": { "type": "string", "description": "Collection name" },
                     "pipeline": { "type": "array", "description": "Aggregation pipeline stages, e.g. [{\"$match\": {\"status\": \"active\"}}, {\"$group\": {\"_id\": \"$category\", \"count\": {\"$sum\": 1}}}]" }
                 },
@@ -220,6 +266,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                 "type": "object",
                 "properties": {
                     "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." },
                     "collection": { "type": "string", "description": "Collection name" },
                     "document": { "type": "object", "description": "Document to insert" }
                 },
@@ -235,6 +282,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                 "type": "object",
                 "properties": {
                     "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." },
                     "collection": { "type": "string", "description": "Collection name" },
                     "filter": { "type": "object", "description": "Filter to match documents to update" },
                     "update": { "type": "object", "description": "Update operations, e.g. {\"$set\": {\"status\": \"inactive\"}}" },
@@ -252,6 +300,7 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                 "type": "object",
                 "properties": {
                     "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." },
                     "collection": { "type": "string", "description": "Collection name" },
                     "filter": { "type": "object", "description": "Filter to match documents to delete. Use {} to delete ALL documents." }
                 },
@@ -262,7 +311,21 @@ pub fn all_tools() -> Vec<ToolDefinition> {
         },
         ToolDefinition {
             name: "mongo__list_collections",
-            description: "List all collection names in the connected MongoDB database.",
+            description: "List all collection names in a MongoDB database.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "database": { "type": "string", "description": "MongoDB database name. Required if the connection has no default database." }
+                },
+                "required": ["connection_id"]
+            }),
+            risk_level: RiskLevel::Safe,
+            required_permission: "read",
+        },
+        ToolDefinition {
+            name: "mongo__list_databases",
+            description: "List all database names on a MongoDB server. Use this first when no database is known so you can pick one for subsequent calls.",
             parameters: json!({
                 "type": "object",
                 "properties": {
@@ -283,6 +346,19 @@ pub fn all_tools() -> Vec<ToolDefinition> {
                     "table_name": { "type": "string", "description": "DynamoDB table name" }
                 },
                 "required": ["connection_id", "table_name"]
+            }),
+            risk_level: RiskLevel::Safe,
+            required_permission: "read",
+        },
+        ToolDefinition {
+            name: "dynamo__list_tables",
+            description: "List all DynamoDB table names in the connected account and region.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" }
+                },
+                "required": ["connection_id"]
             }),
             risk_level: RiskLevel::Safe,
             required_permission: "read",

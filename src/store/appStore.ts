@@ -45,6 +45,7 @@ export type ProviderConfig = {
   enabled: boolean;
   connected: boolean;
   discoveredModels: Array<ModelRef>;
+  contextWindowOverride?: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -55,12 +56,20 @@ export type FeatureModelRoute = {
   useRecommendedModel?: boolean;
 };
 
+export type ChatRuntimeConfig = {
+  autoCompact: boolean;
+  maxIterations: number;
+  wallClockBudgetMin: number;
+  tokenBudget: number;
+};
+
 export type LlmSettings = {
   providers: Array<ProviderConfig>;
   models: {
     sidebarAssistant: FeatureModelRoute;
     dataStudio: FeatureModelRoute;
   };
+  chat: ChatRuntimeConfig;
 };
 
 export type EditorConfig = {
@@ -224,6 +233,12 @@ const defaultLlmSettings = (): LlmSettings => ({
       useRecommendedModel: true,
     },
   },
+  chat: {
+    autoCompact: true,
+    maxIterations: 200,
+    wallClockBudgetMin: 30,
+    tokenBudget: 1_000_000,
+  },
 });
 
 const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => {
@@ -335,6 +350,12 @@ const mergeLlmSettings = (stored: Partial<LlmSettings> | undefined): LlmSettings
         'general',
       ),
       dataStudio: normalizeFeatureRoute(stored?.models?.dataStudio, providers, 'reasoning'),
+    },
+    chat: {
+      autoCompact: stored?.chat?.autoCompact ?? true,
+      maxIterations: stored?.chat?.maxIterations ?? 200,
+      wallClockBudgetMin: stored?.chat?.wallClockBudgetMin ?? 30,
+      tokenBudget: stored?.chat?.tokenBudget ?? 1_000_000,
     },
   };
 };
@@ -528,14 +549,7 @@ export const useAppStore = defineStore('app', {
             httpProxy: provider.proxy || undefined,
             baseUrl: provider.baseUrl,
           });
-          console.warn('[syncProviderModels]', {
-            kind: provider.kind,
-            providerEnum: providerKindToEnum(provider.kind),
-            baseUrl: provider.baseUrl,
-            result: discoveredModelLabels,
-          });
-        } catch (err) {
-          console.warn('[appStore] listModels failed, preserving existing models', err);
+        } catch (_err) {
           provider.connected = false;
           provider.updatedAt = Date.now();
           await this.persistLlmSettings();

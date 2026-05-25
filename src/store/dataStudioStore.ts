@@ -72,14 +72,31 @@ export type AgentToolCall = {
   args: Record<string, unknown>;
   status: AgentToolCallStatus;
   result?: string;
+  resultTruncated?: boolean;
+  resultFullLength?: number;
   durationMs?: number;
   riskLevel: RiskLevel;
   requiresConfirmation: boolean;
 };
 
-export type AgentMessageRole = 'user' | 'assistant' | 'tool';
+export type AgentMessageRole = 'user' | 'assistant' | 'tool' | 'system';
 
 export type AgentMessageStatus = 'pending' | 'streaming' | 'done' | 'error';
+
+export type CompactionMarker = {
+  summary: string;
+  preTokens: number;
+  postTokens: number;
+  trigger: 'auto' | 'manual';
+};
+
+export type CompactionMarkerInsertPayload = {
+  trigger: string;
+  pre_tokens: number;
+  post_tokens: number;
+  removed_count: number;
+  fallback_keep_pairs?: number;
+};
 
 export type AgentMessage = {
   id: string;
@@ -91,9 +108,18 @@ export type AgentMessage = {
   toolCalls?: Array<AgentToolCall>;
   toolCallId?: string;
   timestamp: number;
+  compaction?: CompactionMarker;
+  compactionInProgress?: boolean;
+  preparingInProgress?: boolean;
 };
 
-export type AgentSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error';
+export type AgentSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped';
+
+export type AgentSessionStopReason =
+  | 'iteration_cap'
+  | 'wall_clock_budget'
+  | 'token_budget'
+  | 'llm_error';
 
 export type AgentSession = {
   id: string;
@@ -102,6 +128,8 @@ export type AgentSession = {
   messages: Array<AgentMessage>;
   status: AgentSessionStatus;
   maxIterations: number;
+  stopReason?: AgentSessionStopReason;
+  stopMessage?: string;
 };
 
 export type ConfirmationRule = {
@@ -167,6 +195,18 @@ export const attachSourceToSession = (
 
 // ── Hydration ────────────────────────────────────────────────────────────────
 
+const dedupAdjacentCompactions = (messages: AgentMessage[]): AgentMessage[] => {
+  // Keep only the last compaction marker (robust against non-deterministic ordering).
+  let found = false;
+  return messages.reduceRight((acc, m) => {
+    if (!m.compaction || !found) {
+      if (m.compaction) found = true;
+      acc.unshift(m);
+    }
+    return acc;
+  }, [] as AgentMessage[]);
+};
+
 const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
   const base = {
     id: m.id,
@@ -174,6 +214,35 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
     status: 'done' as AgentMessageStatus,
     timestamp: m.created_at,
   };
+
+  if (m.role === 'system') {
+    try {
+      const parsed = JSON.parse(m.content) as {
+        _compact_boundary?: boolean;
+        summary?: string;
+        pre_tokens?: number;
+        post_tokens?: number;
+        trigger?: string;
+      };
+      if (parsed?._compact_boundary) {
+        const trigger: CompactionMarker['trigger'] =
+          parsed.trigger === 'manual' ? 'manual' : 'auto';
+        return {
+          ...base,
+          content: '',
+          compaction: {
+            summary: parsed.summary ?? '',
+            preTokens: parsed.pre_tokens ?? 0,
+            postTokens: parsed.post_tokens ?? 0,
+            trigger,
+          },
+        };
+      }
+    } catch {
+      return { ...base, content: m.content };
+    }
+    return { ...base, content: m.content };
+  }
 
   if (m.role === 'tool') {
     try {
@@ -221,12 +290,27 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
       };
     }
   } catch {
-    return { ...base, content: m.content };
+    const isLlmError = m.role === 'assistant' && m.content.startsWith('LLM HTTP ');
+    return { ...base, status: isLlmError ? 'error' : 'done', content: m.content };
   }
-  return { ...base, content: m.content };
+  const isLlmError = m.role === 'assistant' && m.content.startsWith('LLM HTTP ');
+  return { ...base, status: isLlmError ? 'error' : 'done', content: m.content };
 };
 
 // ── Store ────────────────────────────────────────────────────────────────────
+
+export type SessionProgressPhase =
+  | 'idle'
+  | 'preparing'
+  | 'iterating'
+  | 'waiting_llm'
+  | 'compacting';
+export type SessionProgress = {
+  phase: SessionProgressPhase;
+  iter?: number;
+  maxIter?: number;
+  updatedAt: number;
+};
 
 export const useDataStudioStore = defineStore('dataStudio', {
   state: (): {
@@ -236,6 +320,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
     sidebarSessionId: string | undefined;
     confirmationRules: Array<ConfirmationRule>;
     sessionMeta: Record<string, SessionMeta>;
+    toolResultFullBodies: Record<string, string>;
+    sessionErrors: Record<string, string>;
+    sessionProgress: Record<string, SessionProgress>;
   } => ({
     attachedSources: [],
     sessions: [],
@@ -243,6 +330,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
     sidebarSessionId: undefined,
     confirmationRules: [],
     sessionMeta: {},
+    toolResultFullBodies: {},
+    sessionErrors: {},
+    sessionProgress: {},
   }),
   persist: {
     pick: [
@@ -256,6 +346,11 @@ export const useDataStudioStore = defineStore('dataStudio', {
   getters: {
     activeSession(state): AgentSession | undefined {
       return state.sessions.find(s => s.id === state.activeSessionId);
+    },
+    getSessionProgress: state => {
+      return (sessionId: string): SessionProgress | undefined => {
+        return state.sessionProgress[sessionId];
+      };
     },
   },
   actions: {
@@ -556,6 +651,16 @@ export const useDataStudioStore = defineStore('dataStudio', {
       result?: string,
       durationMs?: number,
     ) {
+      const TOOL_RESULT_PREVIEW_CHARS = 200;
+      let storedResult = result;
+      let resultTruncated = false;
+      let resultFullLength: number | undefined;
+      if (result !== undefined && result.length > TOOL_RESULT_PREVIEW_CHARS) {
+        this.toolResultFullBodies = { ...this.toolResultFullBodies, [toolCallId]: result };
+        storedResult = result.slice(0, TOOL_RESULT_PREVIEW_CHARS);
+        resultTruncated = true;
+        resultFullLength = result.length;
+      }
       this.sessions = this.sessions.map(s => {
         if (s.id !== sessionId) return s;
         return {
@@ -569,7 +674,8 @@ export const useDataStudioStore = defineStore('dataStudio', {
                 return {
                   ...tc,
                   status,
-                  ...(result !== undefined ? { result } : {}),
+                  ...(storedResult !== undefined ? { result: storedResult } : {}),
+                  ...(resultTruncated ? { resultTruncated: true, resultFullLength } : {}),
                   ...(durationMs !== undefined ? { durationMs } : {}),
                 };
               }),
@@ -579,9 +685,182 @@ export const useDataStudioStore = defineStore('dataStudio', {
       });
     },
 
+    insertCompactionMarker(sessionId: string, payload: CompactionMarkerInsertPayload) {
+      const trigger: CompactionMarker['trigger'] = payload.trigger === 'manual' ? 'manual' : 'auto';
+      const fallbackSummary =
+        payload.fallback_keep_pairs != null
+          ? `\n\nDeep compaction fallback applied (keep_pairs=${payload.fallback_keep_pairs}).`
+          : '';
+      const summary = `Compaction removed ${payload.removed_count} messages.${fallbackSummary}`;
+
+      const marker: AgentMessage = {
+        id: `compaction-${sessionId}-${Date.now()}`,
+        role: 'system',
+        content: '',
+        status: 'done',
+        timestamp: Date.now(),
+        compaction: {
+          summary,
+          preTokens: payload.pre_tokens,
+          postTokens: payload.post_tokens,
+          trigger,
+        },
+      };
+
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, messages: [...s.messages, marker] } : s,
+      );
+    },
+
+    replaceCompactionInProgressWithMarker(
+      sessionId: string,
+      payload: CompactionMarkerInsertPayload,
+    ) {
+      const trigger: CompactionMarker['trigger'] = payload.trigger === 'manual' ? 'manual' : 'auto';
+      const fallbackSummary =
+        payload.fallback_keep_pairs != null
+          ? `\n\nDeep compaction fallback applied (keep_pairs=${payload.fallback_keep_pairs}).`
+          : '';
+      const summary = `Compaction removed ${payload.removed_count} messages.${fallbackSummary}`;
+
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        let found = false;
+        const messages = s.messages.map(m => {
+          if (m.id === `compacting-${sessionId}`) {
+            found = true;
+            return {
+              ...m,
+              id: `compaction-${sessionId}-${Date.now()}`,
+              compactionInProgress: false,
+              status: 'done' as AgentMessageStatus,
+              compaction: {
+                summary,
+                preTokens: payload.pre_tokens,
+                postTokens: payload.post_tokens,
+                trigger,
+              },
+            };
+          }
+          return m;
+        });
+
+        if (!found) {
+          messages.push({
+            id: `compaction-${sessionId}-${Date.now()}`,
+            role: 'system',
+            content: '',
+            status: 'done',
+            timestamp: Date.now(),
+            compaction: {
+              summary,
+              preTokens: payload.pre_tokens,
+              postTokens: payload.post_tokens,
+              trigger,
+            },
+          });
+        }
+        return { ...s, messages };
+      });
+    },
+
+    getToolResultFullBody(toolCallId: string): string | undefined {
+      return this.toolResultFullBodies[toolCallId];
+    },
+
+    insertPreparingPlaceholder(sessionId: string) {
+      const placeholderId = `preparing-${sessionId}`;
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        if (s.messages.some(m => m.id === placeholderId)) return s;
+        return {
+          ...s,
+          messages: [
+            ...s.messages,
+            {
+              id: placeholderId,
+              role: 'system' as AgentMessageRole,
+              content: '',
+              status: 'streaming' as AgentMessageStatus,
+              timestamp: Date.now(),
+              preparingInProgress: true,
+            },
+          ],
+        };
+      });
+    },
+
+    removePreparingPlaceholder(sessionId: string) {
+      const placeholderId = `preparing-${sessionId}`;
+      this.sessions = this.sessions.map(s => {
+        if (s.id !== sessionId) return s;
+        if (!s.messages.some(m => m.id === placeholderId)) return s;
+        return { ...s, messages: s.messages.filter(m => m.id !== placeholderId) };
+      });
+    },
+
+    setSessionProgress(sessionId: string, partial: Partial<Omit<SessionProgress, 'updatedAt'>>) {
+      const existing = this.sessionProgress[sessionId];
+      this.sessionProgress = {
+        ...this.sessionProgress,
+        [sessionId]: {
+          ...existing,
+          ...partial,
+          updatedAt: Date.now(),
+        } as SessionProgress,
+      };
+    },
+
+    clearSessionProgress(sessionId: string) {
+      const { [sessionId]: _removed, ...rest } = this.sessionProgress;
+      this.sessionProgress = rest;
+    },
+
     setSessionStatus(sessionId: string, status: AgentSessionStatus) {
       this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, status } : s));
-      updateSessionStatus(sessionId, status).catch(() => undefined);
+      if (status !== 'error') {
+        const { [sessionId]: _removed, ...rest } = this.sessionErrors;
+        this.sessionErrors = rest;
+      }
+      if (status === 'idle' || status === 'stopped' || status === 'error') {
+        this.clearSessionProgress(sessionId);
+        this.removePreparingPlaceholder(sessionId);
+      }
+      updateSessionStatus(sessionId, status === 'stopped' ? 'idle' : status).catch(() => undefined);
+    },
+
+    setSessionError(sessionId: string, error: string) {
+      this.sessionErrors = { ...this.sessionErrors, [sessionId]: error };
+    },
+
+    clearSessionError(sessionId: string) {
+      const { [sessionId]: _removed, ...rest } = this.sessionErrors;
+      this.sessionErrors = rest;
+    },
+
+    getSessionError(sessionId: string): string | undefined {
+      return this.sessionErrors[sessionId];
+    },
+
+    setSessionStopped(sessionId: string, reason: AgentSessionStopReason, message: string) {
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId
+          ? {
+              ...s,
+              status: 'stopped' as AgentSessionStatus,
+              stopReason: reason,
+              stopMessage: message,
+            }
+          : s,
+      );
+      this.clearSessionProgress(sessionId);
+      updateSessionStatus(sessionId, 'idle').catch(() => undefined);
+    },
+
+    clearSessionStop(sessionId: string) {
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, stopReason: undefined, stopMessage: undefined } : s,
+      );
     },
 
     setSessionMaxIterations(sessionId: string, maxIterations: number) {
@@ -595,6 +874,27 @@ export const useDataStudioStore = defineStore('dataStudio', {
       if (this.sessionMeta[sessionId]) {
         this.sessionMeta[sessionId].modelId = modelId;
       }
+    },
+
+    async reloadSessionMessages(sessionId: string) {
+      const backendMessages = await loadSessionMessages(sessionId).catch(
+        () => [] as BackendAgentMessage[],
+      );
+      const existing = this.sessions.find(s => s.id === sessionId)?.messages ?? [];
+      const existingById = new Map(existing.map(m => [m.id, m]));
+      const messages: Array<AgentMessage> = dedupAdjacentCompactions(
+        backendMessages.map(msg => {
+          const hydrated = hydrateMessage(msg);
+          const inMemory = existingById.get(hydrated.id);
+          if (!inMemory) return hydrated;
+          return {
+            ...hydrated,
+            toolCalls: inMemory.toolCalls ?? hydrated.toolCalls,
+            status: inMemory.status ?? hydrated.status,
+          };
+        }),
+      );
+      this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, messages } : s));
     },
 
     // ── Confirmation rules ───────────────────────────────────────────────────
@@ -618,9 +918,19 @@ export const useDataStudioStore = defineStore('dataStudio', {
 
     async clearSession(sessionId: string) {
       await clearAgentSessionMessages(sessionId);
+      const session = this.sessions.find(s => s.id === sessionId);
+      const toolCallIds = (session?.messages ?? []).flatMap(m =>
+        (m.toolCalls ?? []).map(tc => tc.id),
+      );
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, messages: [], status: 'idle' } : s,
       );
+      this.clearSessionError(sessionId);
+      if (toolCallIds.length > 0) {
+        const next = { ...this.toolResultFullBodies };
+        toolCallIds.forEach(id => delete next[id]);
+        this.toolResultFullBodies = next;
+      }
     },
 
     async loadSessions() {
@@ -633,14 +943,16 @@ export const useDataStudioStore = defineStore('dataStudio', {
           const backendMessages = await loadSessionMessages(s.id).catch(
             () => [] as BackendAgentMessage[],
           );
-          const messages: Array<AgentMessage> = backendMessages.map(hydrateMessage);
+          const messages: Array<AgentMessage> = dedupAdjacentCompactions(
+            backendMessages.map(hydrateMessage),
+          );
           const sources: SessionSource[] = raw?.sources ?? [];
           return {
             id: s.id,
             sources,
             permissionsMode: raw?.permissionsMode ?? ('Ask' as PermissionsMode),
             messages,
-            status: 'idle' as AgentSessionStatus,
+            status: s.status as AgentSessionStatus,
             maxIterations: raw?.maxIterations ?? 10,
           };
         }),

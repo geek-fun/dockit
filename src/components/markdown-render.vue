@@ -65,10 +65,39 @@ md.renderer.rules['code'] = (tokens, idx, _options, _env, _self) => {
   return `${code}`;
 };
 
+const RENDER_THROTTLE_MS = 100;
+let pendingValue: string | null = null;
+let lastRenderAt = 0;
+let trailingTimer: ReturnType<typeof setTimeout> | null = null;
+
+const runRender = (value: string) => {
+  parsedMarkdown.value = md.render(value);
+  lastRenderAt = Date.now();
+  pendingValue = null;
+};
+
+const scheduleRender = (value: string) => {
+  pendingValue = value;
+  const elapsed = Date.now() - lastRenderAt;
+  if (elapsed >= RENDER_THROTTLE_MS) {
+    if (trailingTimer) {
+      clearTimeout(trailingTimer);
+      trailingTimer = null;
+    }
+    runRender(value);
+    return;
+  }
+  if (trailingTimer) return;
+  trailingTimer = setTimeout(() => {
+    trailingTimer = null;
+    if (pendingValue !== null) runRender(pendingValue);
+  }, RENDER_THROTTLE_MS - elapsed);
+};
+
 watch(
   () => props.markdown,
   newMarkdown => {
-    parsedMarkdown.value = md.render(`${newMarkdown}`);
+    scheduleRender(`${newMarkdown}`);
   },
   { immediate: true },
 );
@@ -93,6 +122,11 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.removeEventListener('chatbot-code-actions', onCodeAction);
+  if (trailingTimer) {
+    clearTimeout(trailingTimer);
+    trailingTimer = null;
+    if (pendingValue !== null) runRender(pendingValue);
+  }
 });
 </script>
 

@@ -13,6 +13,7 @@ export { useAppUpdater } from './useAppUpdater';
 export { setupEditorKeyboardShortcuts } from './useKeyboardShortcuts';
 export { setupGlobalShortcuts } from './useGlobalShortcuts';
 export { useChatAgent } from './useChatAgent';
+export { initAgentRuntime, disposeAgentRuntime } from './agentRuntime';
 export { useAgentContext } from './useAgentContext';
 export { useSidebarChatAgent } from './useSidebarChatAgent';
 export { useDataStudioChatAgent } from './useDataStudioChatAgent';

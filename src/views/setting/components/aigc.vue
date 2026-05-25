@@ -107,6 +107,83 @@
       </div>
     </section>
 
+    <section class="space-y-4">
+      <div class="space-y-1">
+        <h3 class="text-lg font-semibold">{{ $t('setting.ai.chat.title') }}</h3>
+        <p class="text-sm text-muted-foreground">{{ $t('setting.ai.chat.description') }}</p>
+      </div>
+      <div
+        class="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/70 px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between"
+      >
+        <div class="min-w-0 space-y-1">
+          <p class="text-base font-semibold">{{ $t('setting.ai.chat.autoCompactLabel') }}</p>
+          <p class="text-sm text-muted-foreground">
+            {{ $t('setting.ai.chat.autoCompactDescription') }}
+          </p>
+        </div>
+        <Switch :model-value="autoCompactEnabled" @update:model-value="setAutoCompact" />
+      </div>
+
+      <div
+        class="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/70 px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between"
+      >
+        <div class="min-w-0 space-y-1">
+          <p class="text-base font-semibold">{{ $t('setting.ai.chat.maxIterationsLabel') }}</p>
+          <p class="text-sm text-muted-foreground">
+            {{ $t('setting.ai.chat.maxIterationsDescription') }}
+          </p>
+        </div>
+        <Input
+          type="number"
+          min="1"
+          max="1000"
+          class="w-32"
+          :model-value="maxIterations"
+          @update:model-value="value => setMaxIterations(Number(value))"
+        />
+      </div>
+
+      <div
+        class="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/70 px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between"
+      >
+        <div class="min-w-0 space-y-1">
+          <p class="text-base font-semibold">
+            {{ $t('setting.ai.chat.wallClockBudgetLabel') }}
+          </p>
+          <p class="text-sm text-muted-foreground">
+            {{ $t('setting.ai.chat.wallClockBudgetDescription') }}
+          </p>
+        </div>
+        <Input
+          type="number"
+          min="1"
+          max="240"
+          class="w-32"
+          :model-value="wallClockBudgetMin"
+          @update:model-value="value => setWallClockBudgetMin(Number(value))"
+        />
+      </div>
+
+      <div
+        class="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/70 px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between"
+      >
+        <div class="min-w-0 space-y-1">
+          <p class="text-base font-semibold">{{ $t('setting.ai.chat.tokenBudgetLabel') }}</p>
+          <p class="text-sm text-muted-foreground">
+            {{ $t('setting.ai.chat.tokenBudgetDescription') }}
+          </p>
+        </div>
+        <Input
+          type="number"
+          min="1000"
+          step="1000"
+          class="w-40"
+          :model-value="tokenBudget"
+          @update:model-value="value => setTokenBudget(Number(value))"
+        />
+      </div>
+    </section>
+
     <Dialog :open="providerDialogOpen" @update:open="handleProviderDialogOpenChange">
       <DialogContent class="sm:max-w-[640px]">
         <DialogHeader>
@@ -270,6 +347,19 @@
               <FormItem :label="$t('setting.ai.proxy')" :error="draftProviderErrors.proxy">
                 <Input v-model="draftProvider.proxy" placeholder="http://127.0.0.1:7890" />
               </FormItem>
+
+              <FormItem :label="$t('setting.ai.providers.contextWindowLabel')">
+                <Input
+                  v-model="contextWindowOverrideInput"
+                  type="number"
+                  min="1024"
+                  step="1024"
+                  :placeholder="$t('setting.ai.providers.contextWindowPlaceholder')"
+                />
+                <p class="mt-1 text-xs text-muted-foreground">
+                  {{ $t('setting.ai.providers.contextWindowDescription') }}
+                </p>
+              </FormItem>
             </div>
 
             <Alert v-if="draftProvider.kind === 'custom-anthropic'" variant="warning">
@@ -350,6 +440,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 
 type ProviderErrorMap = Partial<Record<'apiKey' | 'baseUrl' | 'proxy', string>>;
 type ProviderAuthTab = 'website' | 'api-key';
@@ -364,6 +455,62 @@ const message = useMessageService();
 
 const providerActionState = reactive<Record<string, 'idle' | 'testing'>>({});
 const providerSyncState = reactive<Record<string, 'idle' | 'loading'>>({});
+
+const autoCompactEnabled = computed(() => llmSettings.value.chat?.autoCompact ?? true);
+const maxIterations = computed(() => llmSettings.value.chat?.maxIterations ?? 200);
+const wallClockBudgetMin = computed(() => llmSettings.value.chat?.wallClockBudgetMin ?? 30);
+const tokenBudget = computed(() => llmSettings.value.chat?.tokenBudget ?? 1_000_000);
+
+const ensureChatConfig = () => {
+  if (!llmSettings.value.chat) {
+    llmSettings.value.chat = {
+      autoCompact: true,
+      maxIterations: 200,
+      wallClockBudgetMin: 30,
+      tokenBudget: 1_000_000,
+    };
+  }
+  return llmSettings.value.chat;
+};
+
+const setAutoCompact = async (value: boolean) => {
+  ensureChatConfig().autoCompact = value;
+  await appStore.persistLlmSettings();
+};
+
+const setMaxIterations = async (value: number) => {
+  ensureChatConfig().maxIterations = Math.max(1, Math.floor(value));
+  await appStore.persistLlmSettings();
+};
+
+const setWallClockBudgetMin = async (value: number) => {
+  ensureChatConfig().wallClockBudgetMin = Math.max(1, Math.floor(value));
+  await appStore.persistLlmSettings();
+};
+
+const setTokenBudget = async (value: number) => {
+  ensureChatConfig().tokenBudget = Math.max(1_000, Math.floor(value));
+  await appStore.persistLlmSettings();
+};
+
+const contextWindowOverrideInput = computed<string>({
+  get: () =>
+    draftProvider.value?.contextWindowOverride
+      ? String(draftProvider.value.contextWindowOverride)
+      : '',
+  set: raw => {
+    if (!draftProvider.value) return;
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      draftProvider.value.contextWindowOverride = undefined;
+      return;
+    }
+    const parsed = Number.parseInt(trimmed, 10);
+    if (Number.isFinite(parsed) && parsed >= 1024) {
+      draftProvider.value.contextWindowOverride = parsed;
+    }
+  },
+});
 
 const providerDialogOpen = ref(false);
 const providerDialogMode = ref<'create' | 'edit'>('create');
@@ -661,6 +808,7 @@ const saveDraftProvider = async () => {
     apiKey: resolvedApiKey,
     baseUrl: normalizeBaseUrl(draftProvider.value.baseUrl ?? ''),
     proxy: draftProvider.value.proxy?.trim() ?? '',
+    contextWindowOverride: draftProvider.value.contextWindowOverride,
     enabled: true,
     connected:
       draftProvider.value.kind === 'ollama' || draftProvider.value.kind === 'lm-studio'
