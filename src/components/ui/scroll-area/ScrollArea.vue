@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, type HTMLAttributes } from 'vue';
+import { ref, computed, unref, type HTMLAttributes } from 'vue';
 import { ScrollAreaRoot, type ScrollAreaRootProps, ScrollAreaViewport } from 'radix-vue';
 import ScrollBar from './ScrollBar.vue';
 import { cn } from '@/lib/utils';
@@ -11,9 +11,12 @@ const props = defineProps<
 >();
 
 const viewportRef = ref<InstanceType<typeof ScrollAreaViewport> | null>(null);
-const viewportElement = computed<HTMLElement | null>(
-  () => viewportRef.value?.viewportElement ?? null,
-);
+const viewportElement = computed<HTMLElement | null>(() => {
+  const raw = viewportRef.value?.viewportElement;
+  // radix-vue exposes viewportElement as Ref<HTMLElement | undefined>;
+  // use unref to safely unwrap and also handle plain HTMLElement values
+  return raw ? (unref(raw) ?? null) : null;
+});
 
 defineExpose({ viewportElement });
 </script>

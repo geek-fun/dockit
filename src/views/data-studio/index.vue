@@ -392,7 +392,7 @@ const getConnectionMeta = (conn: Connection) => {
   if (conn.type === DatabaseType.EASYSEARCH) return `EasySearch • ${conn.host}`;
   if (conn.type === DatabaseType.DYNAMODB) return `DynamoDB • ${conn.region}`;
   if (conn.type === DatabaseType.MONGODB) return `MongoDB • ${conn.host}`;
-  return '';
+  return String(conn.type);
 };
 
 const selectAddConnection = (conn: Connection) => {

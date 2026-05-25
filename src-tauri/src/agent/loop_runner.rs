@@ -113,7 +113,9 @@ fn load_active_history(db: &AgentDb, session_id: &str) -> Result<Vec<(String, St
                  (SELECT created_at FROM agent_messages \
                   WHERE session_id = ?1 AND role = 'system' AND content LIKE '%_compact_boundary%' \
                   ORDER BY created_at DESC LIMIT 1), 0) \
-             ORDER BY created_at ASC, id ASC",
+             ORDER BY created_at ASC, \
+               CASE WHEN role = 'system' AND content LIKE '%_compact_boundary%' THEN 0 ELSE 1 END, \
+               id ASC",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
@@ -769,7 +771,6 @@ async fn run_agent_loop_inner(
                 "agent-loop-error",
                 json!({"session_id": session_id, "error": stuck_msg}),
             );
-            let _ = app.emit("agent-loop-done", json!({"session_id": session_id}));
             return Ok(());
         }
 
