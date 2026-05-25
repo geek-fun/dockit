@@ -6,7 +6,8 @@ use tauri::{AppHandle, Emitter};
 
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::loop_runner_support::{
-    load_messages_for_compact, new_id, now_ms, post_chat_completions_compact, StoredMessage,
+    load_all_messages, load_messages_for_compact, new_id, now_ms,
+    post_chat_completions_compact, StoredMessage,
 };
 use crate::agent::model_registry::{
     apply_overrides, resolve_spec, usable_window, ModelSpec, TokenizerFamily,
@@ -283,7 +284,14 @@ async fn run_compact_inner(
     trigger: &str,
     force: bool,
 ) -> Result<Option<CompactionInfo>, String> {
-    let messages = load_messages_for_compact(db, session_id)?;
+    // Manual compaction loads ALL session messages, ignoring existing
+    // compaction boundaries, to compact the full conversation.
+    // Auto compaction only loads from the last boundary onward.
+    let messages = if force {
+        load_all_messages(db, session_id)?
+    } else {
+        load_messages_for_compact(db, session_id)?
+    };
     let spec = resolve_model_spec_for_session(session_id, settings);
     let decision = evaluate(&messages, &spec);
     if !force && !decision.should_compact {

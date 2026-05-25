@@ -688,7 +688,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     insertCompactionMarker(sessionId: string, payload: CompactionMarkerInsertPayload) {
       const trigger: CompactionMarker['trigger'] = payload.trigger === 'manual' ? 'manual' : 'auto';
       const fallbackSummary =
-        payload.fallback_keep_pairs !== undefined
+        payload.fallback_keep_pairs != null
           ? `\n\nDeep compaction fallback applied (keep_pairs=${payload.fallback_keep_pairs}).`
           : '';
       const summary = `Compaction removed ${payload.removed_count} messages.${fallbackSummary}`;
@@ -718,7 +718,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     ) {
       const trigger: CompactionMarker['trigger'] = payload.trigger === 'manual' ? 'manual' : 'auto';
       const fallbackSummary =
-        payload.fallback_keep_pairs !== undefined
+        payload.fallback_keep_pairs != null
           ? `\n\nDeep compaction fallback applied (keep_pairs=${payload.fallback_keep_pairs}).`
           : '';
       const summary = `Compaction removed ${payload.removed_count} messages.${fallbackSummary}`;
