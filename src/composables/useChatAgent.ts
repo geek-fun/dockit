@@ -142,11 +142,13 @@ const buildSystemPrompt = ({
   noConnection,
   sources,
   databaseType,
+  permissionsMode,
 }: {
   schema?: string;
   noConnection?: boolean;
   sources: Array<PromptSource>;
   databaseType?: string;
+  permissionsMode?: string;
 }): string => {
   if (noConnection) {
     return [
@@ -176,15 +178,31 @@ const buildSystemPrompt = ({
     sources.some(source => source.databaseType.toUpperCase() === 'DYNAMODB') ||
     databaseType?.toUpperCase() === 'DYNAMODB';
 
+  const isAskMode = permissionsMode === 'Ask';
+
   const base = [
     'You are a Data Studio agent embedded in DocKit, a desktop database client.',
     'You help users query, analyze, and manage their database data through natural language.',
     '',
     buildSourceSummary(sources),
     '',
-    'Rules:',
-    '- Always use the available tools to interact with the database.',
-    '- Only use connection IDs listed above — the list reflects current session state and may change between turns if sources are attached or detached.',
+    `Current mode: ${isAskMode ? 'ASK' : 'AUTO'}.`,
+    ...(isAskMode
+      ? [
+          '',
+          '- In ASK mode, prefer answering from your knowledge and expertise.',
+          '- Do NOT call tools unless the user explicitly asks you to execute an action.',
+          '- Explicit action requests include phrases like "create", "insert", "update", "delete", "modify", "run it", "do it", "go ahead", "proceed", "execute", "apply".',
+          '- When the user describes a scenario or asks "what if" / "how would I" questions, explain the approach without executing anything.',
+          '- If you are unsure whether the user wants you to act or just explain, default to explaining and ask if they want you to proceed.',
+        ]
+      : [
+          '',
+          '- Use the available tools to interact with the database.',
+          '- Only use connection IDs listed above — the list reflects current session state and may change between turns if sources are attached or detached.',
+        ]),
+    '',
+    'Rules (apply regardless of mode):',
     '- Never fabricate data — only return actual query results.',
     '- Explain your reasoning before executing queries.',
     '- For destructive operations, clearly explain what will be affected.',
@@ -352,6 +370,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         noConnection,
         sources: promptSources,
         databaseType: context?.databaseType,
+        permissionsMode: session.permissionsMode,
       });
 
       if (config.feature === 'sidebarAssistant' && context) {
@@ -435,7 +454,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
   const handleConfirmation = async (
     assistantMsgId: string,
     toolCallId: string,
-    action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always',
+    action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' | 'cancel',
   ) => {
     const session = activeSession.value;
     if (!session) return;
@@ -443,6 +462,14 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     const assistantMsg = session.messages.find(message => message.id === assistantMsgId);
     const toolCall = assistantMsg?.toolCalls?.find(entry => entry.id === toolCallId);
     if (!toolCall) return;
+
+    if (action === 'cancel') {
+      await invokeCancelAgentLoop(session.id).catch(() => undefined);
+      config.sessionStore.setSessionStatus(session.id, 'idle');
+      dataStudioStore.clearSessionError(session.id);
+      config.sessionStore.updateToolCallStatus(session.id, assistantMsgId, toolCallId, 'denied');
+      return;
+    }
 
     if (action === 'allow_always' && config.addConfirmationRule) {
       config.addConfirmationRule({

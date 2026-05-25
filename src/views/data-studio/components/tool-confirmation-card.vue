@@ -5,7 +5,7 @@ import type { AgentToolCall } from '@/store/dataStudioStore';
 
 export type ConfirmationAction = {
   toolCallId: string;
-  action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always';
+  action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' | 'cancel';
 };
 
 const props = defineProps<{
@@ -78,6 +78,14 @@ const formattedArgs = computed(() => {
         @click="emit('confirm', { toolCallId: toolCall.id, action: 'deny_always' })"
       >
         {{ $t('dataStudio.agent.toolConfirmation.denyAlways') }}
+      </Button>
+      <span class="confirm-spacer" />
+      <Button
+        size="sm"
+        variant="ghost"
+        @click="emit('confirm', { toolCallId: toolCall.id, action: 'cancel' })"
+      >
+        {{ $t('dataStudio.agent.toolConfirmation.cancel') }}
       </Button>
     </div>
   </div>
@@ -169,5 +177,10 @@ const formattedArgs = computed(() => {
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
+}
+
+.confirm-spacer {
+  flex: 1;
+  min-width: 20px;
 }
 </style>

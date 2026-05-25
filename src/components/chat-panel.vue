@@ -85,6 +85,11 @@
           class="chat-textarea"
           rows="3"
           :placeholder="inputPlaceholder"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          data-form-type="other"
           @keydown.enter.exact.prevent="handleSend"
         />
 
@@ -313,7 +318,10 @@ const handleStop = () => {
 
 const handleConfirmation = (
   msgId: string,
-  event: { toolCallId: string; action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' },
+  event: {
+    toolCallId: string;
+    action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' | 'cancel';
+  },
 ) => {
   emit('confirmToolCall', msgId, event);
 };

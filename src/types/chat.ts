@@ -32,6 +32,7 @@ export type ChatSession = {
   status: ChatSessionStatus;
   schema?: string;
   sources?: import('@/store/dataStudioStore').SessionSource[];
+  permissionsMode?: import('@/store/dataStudioStore').PermissionsMode;
   maxIterations: number;
   stopReason?: ChatSessionStopReason;
   stopMessage?: string;

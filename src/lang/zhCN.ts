@@ -1380,6 +1380,7 @@ export const zhCN = {
         allowAlways: '始终允许',
         deny: '拒绝',
         denyAlways: '始终拒绝',
+        cancel: '停止代理',
       },
       riskLevel: {
         safe: '安全',

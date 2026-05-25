@@ -327,7 +327,10 @@ const {
 
 const handleConfirmation = (
   msgId: string,
-  event: { toolCallId: string; action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' },
+  event: {
+    toolCallId: string;
+    action: 'allow_once' | 'allow_always' | 'deny' | 'deny_always' | 'cancel';
+  },
 ) => {
   rawHandleConfirmation(msgId, event.toolCallId, event.action);
 };

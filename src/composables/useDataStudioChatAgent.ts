@@ -39,6 +39,7 @@ const adaptDataStudioSession = (session: AgentSession): ChatSession => ({
   messages: session.messages.map(adaptDataStudioMessage),
   status: session.status as ChatSessionStatus,
   sources: session.sources,
+  permissionsMode: session.permissionsMode,
   maxIterations: session.maxIterations,
   stopReason: session.stopReason,
   stopMessage: session.stopMessage,
