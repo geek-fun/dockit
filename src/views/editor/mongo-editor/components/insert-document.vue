@@ -25,7 +25,7 @@
         </Button>
         <Button :disabled="loading" @click="handleSubmit">
           <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
-          {{ props.mode === 'clone' ? $t('editor.mongo.clone') : $t('editor.mongo.insert') }}
+          {{ props.mode === 'clone' ? $t('editor.mongo.cloneDocument') : $t('editor.mongo.insert') }}
         </Button>
       </DialogFooter>
     </DialogContent>
