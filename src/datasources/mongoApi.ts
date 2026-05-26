@@ -524,8 +524,8 @@ export const mongoApi = {
       return await invoke<MongoOperationResult>('mongo_rename_collection', {
         config,
         database,
-        from_collection: fromCollection,
-        to_collection: toCollection,
+        fromCollection,
+        toCollection,
       });
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
@@ -543,8 +543,8 @@ export const mongoApi = {
       return await invoke<MongoCloneCollectionResult>('mongo_clone_collection', {
         config,
         database,
-        source_collection: sourceCollection,
-        target_collection: targetCollection,
+        sourceCollection,
+        targetCollection,
       });
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
@@ -620,7 +620,7 @@ export const mongoApi = {
         config,
         database,
         collection,
-        index_name: indexName,
+        indexName,
       });
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
