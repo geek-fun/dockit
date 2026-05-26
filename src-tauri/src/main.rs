@@ -33,11 +33,13 @@ use dynamo_client::{
 use fetch_client::fetch_api;
 use file_api::{get_file_info, read_file_batch, stream_file_lines};
 use mongo_client::{
-    mongo_collection_stats, mongo_count_documents, mongo_create_collection, mongo_create_database,
-    mongo_database_stats, mongo_delete_document, mongo_delete_documents, mongo_drop_collection,
-    mongo_drop_database, mongo_execute_query, mongo_find_documents, mongo_insert_document,
-    mongo_list_collections, mongo_list_databases, mongo_repl_set_status, mongo_server_status,
-    mongo_shard_status, mongo_test_connection, mongo_update_document,
+    mongo_clone_collection, mongo_collection_stats, mongo_count_documents, mongo_create_collection,
+    mongo_create_database, mongo_create_index, mongo_database_stats, mongo_delete_document,
+    mongo_delete_documents, mongo_drop_collection, mongo_drop_database, mongo_drop_index,
+    mongo_execute_query, mongo_find_documents, mongo_insert_document, mongo_list_collections,
+    mongo_list_databases, mongo_list_indexes, mongo_rename_collection, mongo_repl_set_status,
+    mongo_server_status, mongo_shard_status, mongo_test_connection, mongo_truncate_collection,
+    mongo_update_document,
 };
 use tauri::Emitter;
 
@@ -125,6 +127,12 @@ fn main() {
             mongo_update_document,
             mongo_delete_document,
             mongo_delete_documents,
+            mongo_rename_collection,
+            mongo_clone_collection,
+            mongo_truncate_collection,
+            mongo_list_indexes,
+            mongo_create_index,
+            mongo_drop_index,
             run_agent_step,
             validate_llm_config,
             list_llm_models,
