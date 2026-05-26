@@ -144,6 +144,8 @@ export const enUS = {
         contextWindowPlaceholder: 'Auto-detect',
         contextWindowDescription:
           'Set the maximum context size DocKit should assume for this provider. Useful for Ollama models that change num_ctx, or self-hosted setups with non-default limits. Minimum 1024.',
+        removeProviderNotice:
+          'Remove this provider? This will clear all credentials and model settings.',
       },
 
       chat: {
@@ -821,9 +823,6 @@ export const enUS = {
     execute: 'Run',
     createFolder: 'Create Folder',
     overwrite: 'Overwrite',
-
-    removeProviderNotice:
-      'Remove this provider? This will clear all credentials and model settings.',
 
     edit: 'Edit',
   },

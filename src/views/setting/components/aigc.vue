@@ -278,7 +278,10 @@
                 <Input v-model="draftProvider.proxy" placeholder="http://127.0.0.1:7890" />
               </FormItem>
 
-              <FormItem :label="$t('setting.ai.providers.contextWindowLabel')">
+              <FormItem
+                v-if="showContextWindowField(draftProvider)"
+                :label="$t('setting.ai.providers.contextWindowLabel')"
+              >
                 <Input
                   v-model="contextWindowOverrideInput"
                   type="number"
@@ -671,6 +674,8 @@ const showBaseUrlField = (provider: ProviderConfig) =>
   provider.kind === 'lm-studio' ||
   provider.kind === 'custom-openai' ||
   provider.kind === 'custom-anthropic';
+
+const showContextWindowField = (provider: ProviderConfig) => provider.apiCompatibility === 'local';
 
 const updateDraftProviderKind = (value: string | number) => {
   draftProviderKind.value = value as ProviderKind;

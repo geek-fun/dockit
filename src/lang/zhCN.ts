@@ -140,6 +140,7 @@ export const zhCN = {
         contextWindowPlaceholder: '自动检测',
         contextWindowDescription:
           '为该服务商设置 DocKit 使用的最大上下文长度。适用于自定义 num_ctx 的 Ollama 模型或非默认上限的自托管部署。最小 1024。',
+        removeProviderNotice: '确认移除此提供商？这将清除所有凭据和模型配置。',
       },
 
       chat: {
@@ -791,8 +792,6 @@ export const zhCN = {
     execute: '执行',
     createFolder: '创建文件夹',
     overwrite: '覆盖',
-
-    removeProviderNotice: '确认移除此提供商？这将清除所有凭据和模型配置。',
 
     edit: '编辑',
   },
