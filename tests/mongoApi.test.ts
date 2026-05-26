@@ -1395,12 +1395,7 @@ describe('mongoApi cluster monitoring', () => {
       };
       invoke.mockResolvedValue(mockResult);
 
-      const result = await mongoApi.createIndex(
-        baseConnection,
-        'testdb',
-        'users',
-        { email: 1 },
-      );
+      const result = await mongoApi.createIndex(baseConnection, 'testdb', 'users', { email: 1 });
 
       expect(invoke).toHaveBeenCalledWith('mongo_create_index', {
         config: {
