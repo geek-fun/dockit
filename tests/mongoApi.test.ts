@@ -1174,4 +1174,333 @@ describe('mongoApi cluster monitoring', () => {
       expect(result.error).toBe('Bulk delete failed');
     });
   });
+
+  describe('renameCollection', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        message: 'Collection renamed successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.renameCollection(
+        baseConnection,
+        'testdb',
+        'oldname',
+        'newname',
+      );
+
+      expect(invoke).toHaveBeenCalledWith('mongo_rename_collection', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        from_collection: 'oldname',
+        to_collection: 'newname',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to rename collection'));
+
+      const result = await mongoApi.renameCollection(
+        baseConnection,
+        'testdb',
+        'oldname',
+        'newname',
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to rename collection');
+    });
+  });
+
+  describe('cloneCollection', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        documents_copied: 100,
+        indexes_copied: 2,
+        message: 'Collection cloned successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.cloneCollection(
+        baseConnection,
+        'testdb',
+        'sourcecoll',
+        'targetcoll',
+      );
+
+      expect(invoke).toHaveBeenCalledWith('mongo_clone_collection', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        source_collection: 'sourcecoll',
+        target_collection: 'targetcoll',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to clone collection'));
+
+      const result = await mongoApi.cloneCollection(
+        baseConnection,
+        'testdb',
+        'sourcecoll',
+        'targetcoll',
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to clone collection');
+    });
+  });
+
+  describe('truncateCollection', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        deleted_count: 500,
+        message: 'Collection emptied successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.truncateCollection(baseConnection, 'testdb', 'users');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_truncate_collection', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        collection: 'users',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to truncate collection'));
+
+      const result = await mongoApi.truncateCollection(baseConnection, 'testdb', 'users');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to truncate collection');
+    });
+  });
+
+  describe('listIndexes', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        indexes: [
+          { name: '_id_', key: { _id: 1 }, unique: false, sparse: false, size: 8192, accesses: 0 },
+          {
+            name: 'name_idx',
+            key: { name: 1 },
+            unique: true,
+            sparse: false,
+            size: 4096,
+            accesses: 150,
+          },
+        ],
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.listIndexes(baseConnection, 'testdb', 'users');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_list_indexes', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        collection: 'users',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to list indexes'));
+
+      const result = await mongoApi.listIndexes(baseConnection, 'testdb', 'users');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to list indexes');
+    });
+  });
+
+  describe('createIndex', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command without options', async () => {
+      const mockResult = {
+        success: true,
+        index_name: 'email_idx',
+        message: 'Index created successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.createIndex(
+        baseConnection,
+        'testdb',
+        'users',
+        { email: 1 },
+      );
+
+      expect(invoke).toHaveBeenCalledWith('mongo_create_index', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        collection: 'users',
+        keys: { email: 1 },
+        options: undefined,
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('calls invoke with index options', async () => {
+      const mockResult = {
+        success: true,
+        index_name: 'custom_idx',
+        message: 'Index created successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const options = { name: 'custom_idx', unique: true, sparse: true };
+      const result = await mongoApi.createIndex(
+        baseConnection,
+        'testdb',
+        'users',
+        { name: 1, email: -1 },
+        options,
+      );
+
+      expect(invoke).toHaveBeenCalledWith('mongo_create_index', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        collection: 'users',
+        keys: { name: 1, email: -1 },
+        options,
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to create index'));
+
+      const result = await mongoApi.createIndex(baseConnection, 'testdb', 'users', { field: 1 });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to create index');
+    });
+  });
+
+  describe('dropIndex', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct command', async () => {
+      const mockResult = {
+        success: true,
+        message: 'Index dropped successfully',
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.dropIndex(baseConnection, 'testdb', 'users', 'name_idx');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_drop_index', {
+        config: {
+          host: 'localhost',
+          port: 27017,
+          auth: { kind: 'none' },
+          database: undefined,
+          tls: undefined,
+        },
+        database: 'testdb',
+        collection: 'users',
+        index_name: 'name_idx',
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('returns error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Failed to drop index'));
+
+      const result = await mongoApi.dropIndex(baseConnection, 'testdb', 'users', 'name_idx');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to drop index');
+    });
+  });
 });
