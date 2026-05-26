@@ -53,6 +53,10 @@
                 </Input>
               </div>
               <div class="toolbar-actions">
+                <Button size="sm" variant="outline" @click="fetchCollectionsWithStats">
+                  <span class="i-carbon-renew h-4 w-4 mr-1" />
+                  {{ $t('manage.mongo.refresh') }}
+                </Button>
                 <Button size="sm" @click="showCreateCollectionDialog = true">
                   <span class="i-carbon-add h-4 w-4 mr-1" />
                   {{ $t('manage.mongo.createCollection') }}
@@ -175,6 +179,19 @@
                                 ? $t('manage.mongo.unfavorite')
                                 : $t('manage.mongo.favorite')
                             }}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem @click.stop="showRenameDialog(coll.name)">
+                            <span class="i-carbon-rename h-4 w-4 mr-2" />
+                            {{ $t('manage.mongo.renameCollection') }}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem @click.stop="showCloneDialog(coll.name)">
+                            <span class="i-carbon-copy-file h-4 w-4 mr-2" />
+                            {{ $t('manage.mongo.cloneCollection') }}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem @click.stop="showEmptyDialog(coll.name)">
+                            <span class="i-carbon-clean h-4 w-4 mr-2" />
+                            {{ $t('manage.mongo.emptyCollection') }}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -485,6 +502,221 @@
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <Dialog
+      :open="showRenameCollectionDialog"
+      @update:open="
+        val => {
+          showRenameCollectionDialog = val;
+          if (!val) resetRenameDialog();
+        }
+      "
+    >
+      <DialogContent class="max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>{{ $t('manage.mongo.renameCollectionTitle') }}</DialogTitle>
+          <DialogDescription>
+            {{ $t('manage.mongo.renameCollectionDesc', { name: collectionToRename }) }}
+          </DialogDescription>
+        </DialogHeader>
+        <Alert v-if="renameError" variant="destructive">
+          <AlertDescription>{{ renameError }}</AlertDescription>
+        </Alert>
+        <div v-if="renameResult === 'success'">
+          <Alert variant="default">
+            <AlertDescription>{{ $t('manage.mongo.renameCollectionSuccess') }}</AlertDescription>
+          </Alert>
+        </div>
+        <div v-else>
+          <Form class="py-4">
+            <FormItem :label="$t('manage.mongo.newCollectionName')" required>
+              <Input
+                v-model="renameNewName"
+                autocapitalize="off"
+                autocomplete="off"
+                :spellcheck="false"
+                autocorrect="off"
+              />
+            </FormItem>
+          </Form>
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            :disabled="renamingCollection"
+            @click="
+              showRenameCollectionDialog = false;
+              resetRenameDialog();
+            "
+          >
+            {{ $t('common.cancel') }}
+          </Button>
+          <Button
+            v-if="renameResult === 'error'"
+            :disabled="renamingCollection"
+            @click="handleRenameCollection"
+          >
+            <Loader2 v-if="renamingCollection" class="mr-2 h-4 w-4 animate-spin" />
+            {{ $t('dialogOps.retry') }}
+          </Button>
+          <Button
+            v-else-if="renameResult !== 'success'"
+            :disabled="renamingCollection || !renameNewName.trim()"
+            @click="handleRenameCollection"
+          >
+            <Loader2 v-if="renamingCollection" class="mr-2 h-4 w-4 animate-spin" />
+            {{ $t('manage.mongo.renameCollection') }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog
+      :open="showCloneCollectionDialog"
+      @update:open="
+        val => {
+          showCloneCollectionDialog = val;
+          if (!val) resetCloneDialog();
+        }
+      "
+    >
+      <DialogContent class="max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>{{ $t('manage.mongo.cloneCollectionTitle') }}</DialogTitle>
+          <DialogDescription>
+            {{ $t('manage.mongo.cloneCollectionDesc', { name: collectionToClone }) }}
+          </DialogDescription>
+        </DialogHeader>
+        <Alert v-if="cloneError" variant="destructive">
+          <AlertDescription>{{ cloneError }}</AlertDescription>
+        </Alert>
+        <div v-if="cloneResult === 'success'">
+          <Alert variant="default">
+            <AlertDescription>
+              {{ cloneMessage || $t('manage.mongo.cloneCollectionSuccess') }}
+            </AlertDescription>
+          </Alert>
+        </div>
+        <div v-else>
+          <Form class="py-4">
+            <FormItem :label="$t('manage.mongo.targetCollectionName')" required>
+              <Input
+                v-model="cloneTargetName"
+                autocapitalize="off"
+                autocomplete="off"
+                :spellcheck="false"
+                autocorrect="off"
+              />
+            </FormItem>
+          </Form>
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            :disabled="cloningCollection"
+            @click="
+              showCloneCollectionDialog = false;
+              resetCloneDialog();
+            "
+          >
+            {{ $t('common.cancel') }}
+          </Button>
+          <Button
+            v-if="cloneResult === 'error'"
+            :disabled="cloningCollection"
+            @click="handleCloneCollection"
+          >
+            <Loader2 v-if="cloningCollection" class="mr-2 h-4 w-4 animate-spin" />
+            {{ $t('dialogOps.retry') }}
+          </Button>
+          <Button
+            v-else-if="cloneResult !== 'success'"
+            :disabled="cloningCollection || !cloneTargetName.trim()"
+            @click="handleCloneCollection"
+          >
+            <Loader2 v-if="cloningCollection" class="mr-2 h-4 w-4 animate-spin" />
+            {{ $t('manage.mongo.cloneCollection') }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog
+      :open="showEmptyCollectionDialog"
+      @update:open="
+        val => {
+          showEmptyCollectionDialog = val;
+          if (!val) resetEmptyDialog();
+        }
+      "
+    >
+      <DialogContent class="max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle>{{ $t('manage.mongo.emptyCollectionTitle') }}</DialogTitle>
+        </DialogHeader>
+        <Alert v-if="emptyError" variant="destructive">
+          <AlertDescription>{{ emptyError }}</AlertDescription>
+        </Alert>
+        <div v-if="emptyResult === 'success'">
+          <Alert variant="default">
+            <AlertDescription>
+              {{ emptyMessage || $t('manage.mongo.emptyCollectionSuccess') }}
+            </AlertDescription>
+          </Alert>
+        </div>
+        <div v-else>
+          <Alert variant="destructive">
+            <AlertDescription>
+              {{ $t('manage.mongo.emptyCollectionConfirm', { name: collectionToEmpty }) }}
+            </AlertDescription>
+          </Alert>
+          <Form class="py-4">
+            <FormItem
+              :label="$t('manage.mongo.typeNameToConfirm', { name: collectionToEmpty })"
+              required
+            >
+              <Input
+                v-model="emptyConfirmName"
+                autocapitalize="off"
+                autocomplete="off"
+                :spellcheck="false"
+                autocorrect="off"
+              />
+            </FormItem>
+          </Form>
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            :disabled="emptyingCollection"
+            @click="
+              showEmptyCollectionDialog = false;
+              resetEmptyDialog();
+            "
+          >
+            {{ $t('common.cancel') }}
+          </Button>
+          <Button
+            v-if="emptyResult === 'error'"
+            variant="destructive"
+            :disabled="emptyingCollection"
+            @click="handleEmptyCollection"
+          >
+            <Loader2 v-if="emptyingCollection" class="mr-2 h-4 w-4 animate-spin" />
+            {{ $t('dialogOps.retry') }}
+          </Button>
+          <Button
+            v-else-if="emptyResult !== 'success'"
+            variant="destructive"
+            :disabled="emptyingCollection || emptyConfirmName !== collectionToEmpty"
+            @click="handleEmptyCollection"
+          >
+            <Loader2 v-if="emptyingCollection" class="mr-2 h-4 w-4 animate-spin" />
+            {{ $t('manage.mongo.emptyCollection') }}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>
 
@@ -522,6 +754,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -581,6 +814,32 @@ const dropDatabaseConfirmName = ref('');
 const dropDatabaseError = ref('');
 const dropDatabaseResult = ref<'success' | 'error' | null>(null);
 
+// Rename collection dialog state
+const showRenameCollectionDialog = ref(false);
+const renamingCollection = ref(false);
+const collectionToRename = ref('');
+const renameNewName = ref('');
+const renameError = ref('');
+const renameResult = ref<'success' | 'error' | null>(null);
+
+// Clone collection dialog state
+const showCloneCollectionDialog = ref(false);
+const cloningCollection = ref(false);
+const collectionToClone = ref('');
+const cloneTargetName = ref('');
+const cloneError = ref('');
+const cloneResult = ref<'success' | 'error' | null>(null);
+const cloneMessage = ref('');
+
+// Empty collection dialog state
+const showEmptyCollectionDialog = ref(false);
+const emptyingCollection = ref(false);
+const collectionToEmpty = ref('');
+const emptyConfirmName = ref('');
+const emptyError = ref('');
+const emptyResult = ref<'success' | 'error' | null>(null);
+const emptyMessage = ref('');
+
 const resetDropCollectionDialog = () => {
   dropCollectionConfirmName.value = '';
   dropCollectionError.value = '';
@@ -591,6 +850,26 @@ const resetDropDatabaseDialog = () => {
   dropDatabaseConfirmName.value = '';
   dropDatabaseError.value = '';
   dropDatabaseResult.value = null;
+};
+
+const resetRenameDialog = () => {
+  renameNewName.value = '';
+  renameError.value = '';
+  renameResult.value = null;
+};
+
+const resetCloneDialog = () => {
+  cloneTargetName.value = '';
+  cloneError.value = '';
+  cloneResult.value = null;
+  cloneMessage.value = '';
+};
+
+const resetEmptyDialog = () => {
+  emptyConfirmName.value = '';
+  emptyError.value = '';
+  emptyResult.value = null;
+  emptyMessage.value = '';
 };
 
 const submittingCreateDatabase = ref(false);
@@ -742,6 +1021,26 @@ const confirmDropCollection = (name: string) => {
   collectionToDrop.value = name;
   resetDropCollectionDialog();
   showDropCollectionDialog.value = true;
+};
+
+const showRenameDialog = (name: string) => {
+  collectionToRename.value = name;
+  renameNewName.value = name;
+  resetRenameDialog();
+  showRenameCollectionDialog.value = true;
+};
+
+const showCloneDialog = (name: string) => {
+  collectionToClone.value = name;
+  cloneTargetName.value = `${name}_copy`;
+  resetCloneDialog();
+  showCloneCollectionDialog.value = true;
+};
+
+const showEmptyDialog = (name: string) => {
+  collectionToEmpty.value = name;
+  resetEmptyDialog();
+  showEmptyCollectionDialog.value = true;
 };
 
 const fetchDatabases = async () => {
@@ -959,6 +1258,111 @@ const handleDropDatabase = async () => {
     dropDatabaseError.value = e instanceof Error ? e.message : String(e);
   } finally {
     droppingDatabase.value = false;
+  }
+};
+
+const handleRenameCollection = async () => {
+  if (!mongoConnection.value || !selectedDatabase.value || !collectionToRename.value) return;
+  if (!renameNewName.value.trim()) return;
+
+  renamingCollection.value = true;
+  renameError.value = '';
+  try {
+    const result = await withLoadingDelay(
+      mongoApi.renameCollection(
+        mongoConnection.value,
+        selectedDatabase.value,
+        collectionToRename.value,
+        renameNewName.value.trim(),
+      ),
+      MIN_LOADING_TIME,
+    );
+    if (result.success) {
+      renameResult.value = 'success';
+      setTimeout(() => {
+        showRenameCollectionDialog.value = false;
+        resetRenameDialog();
+        fetchCollectionsWithStats();
+      }, SUCCESS_MESSAGE_DELAY);
+    } else {
+      renameResult.value = 'error';
+      renameError.value = result.error ?? lang.t('manage.mongo.renameCollectionError');
+    }
+  } catch (e) {
+    renameResult.value = 'error';
+    renameError.value = e instanceof Error ? e.message : String(e);
+  } finally {
+    renamingCollection.value = false;
+  }
+};
+
+const handleCloneCollection = async () => {
+  if (!mongoConnection.value || !selectedDatabase.value || !collectionToClone.value) return;
+  if (!cloneTargetName.value.trim()) return;
+
+  cloningCollection.value = true;
+  cloneError.value = '';
+  try {
+    const result = await withLoadingDelay(
+      mongoApi.cloneCollection(
+        mongoConnection.value,
+        selectedDatabase.value,
+        collectionToClone.value,
+        cloneTargetName.value.trim(),
+      ),
+      MIN_LOADING_TIME,
+    );
+    if (result.success) {
+      cloneResult.value = 'success';
+      cloneMessage.value = result.message ?? lang.t('manage.mongo.cloneCollectionSuccess');
+      setTimeout(() => {
+        showCloneCollectionDialog.value = false;
+        resetCloneDialog();
+        fetchCollectionsWithStats();
+      }, SUCCESS_MESSAGE_DELAY);
+    } else {
+      cloneResult.value = 'error';
+      cloneError.value = result.error ?? lang.t('manage.mongo.cloneCollectionError');
+    }
+  } catch (e) {
+    cloneResult.value = 'error';
+    cloneError.value = e instanceof Error ? e.message : String(e);
+  } finally {
+    cloningCollection.value = false;
+  }
+};
+
+const handleEmptyCollection = async () => {
+  if (!mongoConnection.value || !selectedDatabase.value || !collectionToEmpty.value) return;
+
+  emptyingCollection.value = true;
+  emptyError.value = '';
+  try {
+    const result = await withLoadingDelay(
+      mongoApi.truncateCollection(
+        mongoConnection.value,
+        selectedDatabase.value,
+        collectionToEmpty.value,
+      ),
+      MIN_LOADING_TIME,
+    );
+    if (result.success) {
+      emptyResult.value = 'success';
+      emptyMessage.value = result.message ?? lang.t('manage.mongo.emptyCollectionSuccess');
+      setTimeout(() => {
+        showEmptyCollectionDialog.value = false;
+        resetEmptyDialog();
+        fetchCollectionsWithStats();
+      }, SUCCESS_MESSAGE_DELAY);
+    } else {
+      emptyResult.value = 'error';
+      emptyError.value = result.error ?? lang.t('manage.mongo.emptyCollectionError');
+    }
+  } catch (e) {
+    emptyResult.value = 'error';
+    emptyError.value = e instanceof Error ? e.message : String(e);
+  } finally {
+    emptyingCollection.value = false;
   }
 };
 
