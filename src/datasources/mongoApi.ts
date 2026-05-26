@@ -510,4 +510,169 @@ export const mongoApi = {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
+
+  // ==================== Collection Management ====================
+
+  renameCollection: async (
+    con: MongoDBConnection,
+    database: string,
+    fromCollection: string,
+    toCollection: string,
+  ): Promise<MongoOperationResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoOperationResult>('mongo_rename_collection', {
+        config,
+        database,
+        from_collection: fromCollection,
+        to_collection: toCollection,
+      });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  },
+
+  cloneCollection: async (
+    con: MongoDBConnection,
+    database: string,
+    sourceCollection: string,
+    targetCollection: string,
+  ): Promise<MongoCloneCollectionResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoCloneCollectionResult>('mongo_clone_collection', {
+        config,
+        database,
+        source_collection: sourceCollection,
+        target_collection: targetCollection,
+      });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  },
+
+  truncateCollection: async (
+    con: MongoDBConnection,
+    database: string,
+    collection: string,
+  ): Promise<MongoTruncateCollectionResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoTruncateCollectionResult>('mongo_truncate_collection', {
+        config,
+        database,
+        collection,
+      });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  },
+
+  // ==================== Index Management ====================
+
+  listIndexes: async (
+    con: MongoDBConnection,
+    database: string,
+    collection: string,
+  ): Promise<MongoListIndexesResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoListIndexesResult>('mongo_list_indexes', {
+        config,
+        database,
+        collection,
+      });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  },
+
+  createIndex: async (
+    con: MongoDBConnection,
+    database: string,
+    collection: string,
+    keys: Record<string, number | string>,
+    options?: MongoCreateIndexOptions,
+  ): Promise<MongoCreateIndexResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoCreateIndexResult>('mongo_create_index', {
+        config,
+        database,
+        collection,
+        keys,
+        options,
+      });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  },
+
+  dropIndex: async (
+    con: MongoDBConnection,
+    database: string,
+    collection: string,
+    indexName: string,
+  ): Promise<MongoOperationResult> => {
+    const config = buildConfig(con);
+    try {
+      return await invoke<MongoOperationResult>('mongo_drop_index', {
+        config,
+        database,
+        collection,
+        index_name: indexName,
+      });
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  },
+};
+
+// ==================== Additional Types ====================
+
+export type MongoCloneCollectionResult = {
+  success: boolean;
+  documents_copied?: number;
+  indexes_copied?: number;
+  message?: string;
+  error?: string;
+};
+
+export type MongoTruncateCollectionResult = {
+  success: boolean;
+  deleted_count?: number;
+  message?: string;
+  error?: string;
+};
+
+export type MongoIndexInfo = {
+  name: string;
+  key: Record<string, unknown>;
+  unique?: boolean;
+  sparse?: boolean;
+  ttl_seconds?: number;
+  size?: number;
+  accesses?: number;
+  since?: string;
+};
+
+export type MongoListIndexesResult = {
+  success: boolean;
+  indexes?: MongoIndexInfo[];
+  error?: string;
+};
+
+export type MongoCreateIndexOptions = {
+  name?: string;
+  unique?: boolean;
+  sparse?: boolean;
+  expire_after_seconds?: number;
+  partial_filter_expression?: Record<string, unknown>;
+};
+
+export type MongoCreateIndexResult = {
+  success: boolean;
+  index_name?: string;
+  message?: string;
+  error?: string;
 };
