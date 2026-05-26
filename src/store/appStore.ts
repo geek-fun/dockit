@@ -21,7 +21,12 @@ export type ProviderKind =
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
-  | 'custom-anthropic';
+  | 'custom-anthropic'
+  | 'anthropic'
+  | 'gemini'
+  | 'grok'
+  | 'mistral'
+  | 'azure-openai';
 
 export type ModelCategory = 'general' | 'reasoning' | 'coding' | 'fast' | 'vision';
 
@@ -36,6 +41,7 @@ export type ModelRef = {
 export type ProviderConfig = {
   id: string;
   kind: ProviderKind;
+  apiCompatibility: 'openai-compatible' | 'anthropic' | 'local';
   label: string;
   authMode: 'oauth' | 'api-key' | 'none';
   apiKey?: string;
@@ -93,55 +99,140 @@ type LegacyAiConfig = {
   provider?: ProviderEnum;
 };
 
-const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
-const DEFAULT_DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1';
-const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434';
-const DEFAULT_LM_STUDIO_BASE_URL = 'http://127.0.0.1:1234/v1';
-
-const providerKindToEnum = (kind: ProviderKind): ProviderEnum => {
-  switch (kind) {
-    case 'deepseek':
-      return ProviderEnum.DEEP_SEEK;
-    case 'openrouter':
-      return ProviderEnum.OPENROUTER;
-    case 'ollama':
-      return ProviderEnum.OLLAMA;
-    case 'lm-studio':
-      return ProviderEnum.LM_STUDIO;
-    default:
-      return ProviderEnum.OPENAI;
-  }
+type ProviderPreset = {
+  kind: ProviderKind;
+  apiCompatibility: ProviderConfig['apiCompatibility'];
+  label: string;
+  authMode: ProviderConfig['authMode'];
+  defaultBaseUrl: string;
+  enabled: boolean;
+  defaultModels: string[];
 };
 
-const providerDefaults = (
-  kind: ProviderKind,
-): Pick<ProviderConfig, 'label' | 'authMode' | 'baseUrl'> => {
-  switch (kind) {
-    case 'openai':
-      return { label: 'OpenAI', authMode: 'api-key', baseUrl: DEFAULT_OPENAI_BASE_URL };
-    case 'deepseek':
-      return { label: 'DeepSeek', authMode: 'api-key', baseUrl: DEFAULT_DEEPSEEK_BASE_URL };
-    case 'openrouter':
-      return { label: 'OpenRouter', authMode: 'oauth', baseUrl: DEFAULT_OPENROUTER_BASE_URL };
-    case 'ollama':
-      return { label: 'Ollama', authMode: 'none', baseUrl: DEFAULT_OLLAMA_BASE_URL };
-    case 'lm-studio':
-      return { label: 'LM Studio', authMode: 'none', baseUrl: DEFAULT_LM_STUDIO_BASE_URL };
-    case 'custom-openai':
-      return { label: 'OpenAI-Compatible', authMode: 'api-key', baseUrl: '' };
-    case 'custom-anthropic':
-      return { label: 'Anthropic-Compatible', authMode: 'api-key', baseUrl: '' };
-  }
-};
+const PROVIDER_PRESETS: ProviderPreset[] = [
+  {
+    kind: 'openai',
+    apiCompatibility: 'openai-compatible',
+    label: 'OpenAI',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.openai.com/v1',
+    enabled: true,
+    defaultModels: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o-mini'],
+  },
+  {
+    kind: 'deepseek',
+    apiCompatibility: 'openai-compatible',
+    label: 'DeepSeek',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.deepseek.com/v1',
+    enabled: true,
+    defaultModels: ['deepseek-chat', 'deepseek-reasoner'],
+  },
+  {
+    kind: 'openrouter',
+    apiCompatibility: 'openai-compatible',
+    label: 'OpenRouter',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://openrouter.ai/api/v1',
+    enabled: true,
+    defaultModels: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
+  },
+  {
+    kind: 'anthropic',
+    apiCompatibility: 'anthropic',
+    label: 'Anthropic',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.anthropic.com/v1',
+    enabled: false,
+    defaultModels: ['claude-sonnet-4-5', 'claude-opus-4'],
+  },
+  {
+    kind: 'gemini',
+    apiCompatibility: 'openai-compatible',
+    label: 'Google Gemini',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    enabled: true,
+    defaultModels: ['gemini-2.5-pro', 'gemini-2.5-flash'],
+  },
+  {
+    kind: 'grok',
+    apiCompatibility: 'openai-compatible',
+    label: 'Grok',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.x.ai/v1',
+    enabled: false,
+    defaultModels: ['grok-3'],
+  },
+  {
+    kind: 'mistral',
+    apiCompatibility: 'openai-compatible',
+    label: 'Mistral',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://api.mistral.ai/v1',
+    enabled: false,
+    defaultModels: ['mistral-large', 'mistral-small', 'codestral'],
+  },
+  {
+    kind: 'azure-openai',
+    apiCompatibility: 'openai-compatible',
+    label: 'Azure OpenAI',
+    authMode: 'api-key',
+    defaultBaseUrl: '',
+    enabled: false,
+    defaultModels: [],
+  },
+  {
+    kind: 'ollama',
+    apiCompatibility: 'local',
+    label: 'Ollama',
+    authMode: 'none',
+    defaultBaseUrl: 'http://127.0.0.1:11434',
+    enabled: true,
+    defaultModels: ['llama3.1', 'qwen2.5-coder', 'mistral'],
+  },
+  {
+    kind: 'lm-studio',
+    apiCompatibility: 'openai-compatible',
+    label: 'LM Studio',
+    authMode: 'none',
+    defaultBaseUrl: 'http://127.0.0.1:1234/v1',
+    enabled: false,
+    defaultModels: [],
+  },
+  {
+    kind: 'custom-openai',
+    apiCompatibility: 'openai-compatible',
+    label: 'Custom OpenAI-Compatible',
+    authMode: 'api-key',
+    defaultBaseUrl: '',
+    enabled: false,
+    defaultModels: [],
+  },
+  {
+    kind: 'custom-anthropic',
+    apiCompatibility: 'anthropic',
+    label: 'Custom Anthropic-Compatible',
+    authMode: 'api-key',
+    defaultBaseUrl: '',
+    enabled: false,
+    defaultModels: [],
+  },
+];
 
-const defaultModelsByKind: Record<Exclude<ProviderKind, 'custom-anthropic'>, string[]> = {
+const defaultModelsByKind: Record<ProviderKind, string[]> = {
   openai: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o-mini'],
   deepseek: ['deepseek-chat', 'deepseek-reasoner'],
   openrouter: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
+  anthropic: ['claude-sonnet-4-5', 'claude-opus-4'],
+  'custom-anthropic': [],
+  gemini: ['gemini-2.5-pro', 'gemini-2.5-flash'],
+  grok: ['grok-3'],
+  mistral: ['mistral-large', 'mistral-small', 'codestral'],
+  'azure-openai': [],
 };
 
 const inferModelCategory = (modelId: string): ModelCategory => {
@@ -180,7 +271,7 @@ const createProviderConfig = (
   overrides: Partial<ProviderConfig> = {},
 ): ProviderConfig => {
   const now = Date.now();
-  const defaults = providerDefaults(kind);
+  const preset = PROVIDER_PRESETS.find(p => p.kind === kind) ?? PROVIDER_PRESETS[0];
   const id = overrides.id ?? `${kind}`;
   const discoveredModels =
     overrides.discoveredModels && overrides.discoveredModels.length > 0
@@ -190,13 +281,14 @@ const createProviderConfig = (
   return {
     id,
     kind,
-    label: defaults.label,
-    authMode: defaults.authMode,
-    baseUrl: defaults.baseUrl,
+    apiCompatibility: preset.apiCompatibility,
+    label: preset.label,
+    authMode: preset.authMode,
+    baseUrl: preset.defaultBaseUrl,
     apiKey: '',
     proxy: '',
     headers: {},
-    enabled: kind === 'openai' || kind === 'deepseek',
+    enabled: preset.enabled,
     connected: false,
     discoveredModels,
     createdAt: now,
@@ -205,19 +297,8 @@ const createProviderConfig = (
   };
 };
 
-const defaultProviderConfigs = (): Array<ProviderConfig> => [
-  createProviderConfig('openai'),
-  createProviderConfig('deepseek'),
-  createProviderConfig('openrouter'),
-  createProviderConfig('ollama'),
-  createProviderConfig('lm-studio', { enabled: false }),
-  createProviderConfig('custom-openai', { enabled: false, label: 'Custom OpenAI-Compatible' }),
-  createProviderConfig('custom-anthropic', {
-    enabled: false,
-    label: 'Custom Anthropic-Compatible',
-    discoveredModels: [],
-  }),
-];
+const defaultProviderConfigs = (): Array<ProviderConfig> =>
+  PROVIDER_PRESETS.map(preset => createProviderConfig(preset.kind));
 
 const defaultLlmSettings = (): LlmSettings => ({
   providers: defaultProviderConfigs(),
@@ -534,7 +615,7 @@ export const useAppStore = defineStore('app', {
       const provider = this.llmSettings.providers.find(item => item.id === providerId);
       if (!provider) return [];
 
-      if (provider.kind === 'custom-anthropic') {
+      if (provider.kind === 'custom-anthropic' || provider.kind === 'anthropic') {
         return provider.discoveredModels;
       }
 
@@ -544,7 +625,7 @@ export const useAppStore = defineStore('app', {
       } else {
         try {
           discoveredModelLabels = await chatBotApi.listModels({
-            provider: providerKindToEnum(provider.kind),
+            provider: provider.apiCompatibility,
             apiKey: provider.apiKey ?? '',
             httpProxy: provider.proxy || undefined,
             baseUrl: provider.baseUrl,
@@ -573,12 +654,12 @@ export const useAppStore = defineStore('app', {
     async testProvider(providerId: string): Promise<boolean> {
       const provider = this.llmSettings.providers.find(item => item.id === providerId);
       if (!provider || !provider.enabled) return false;
-      if (provider.kind === 'custom-anthropic') return false;
+      if (provider.kind === 'custom-anthropic' || provider.kind === 'anthropic') return false;
 
       const modelLabel = provider.discoveredModels[0]?.label ?? '';
 
       const isValid = await chatBotApi.validateConfig({
-        provider: providerKindToEnum(provider.kind),
+        provider: provider.apiCompatibility,
         apiKey: provider.apiKey ?? '',
         model: modelLabel,
         httpProxy: provider.proxy || undefined,
@@ -595,10 +676,10 @@ export const useAppStore = defineStore('app', {
       if (!model) return false;
       const provider = this.llmSettings.providers.find(p => p.id === model.providerConfigId);
       if (!provider || !provider.enabled) return false;
-      if (provider.kind === 'custom-anthropic') return false;
+      if (provider.kind === 'custom-anthropic' || provider.kind === 'anthropic') return false;
 
       return validateLlmConfig({
-        provider: providerKindToEnum(provider.kind).toString(),
+        provider: provider.apiCompatibility,
         apiKey: provider.apiKey ?? '',
         model: model.label,
         httpProxy: provider.proxy || undefined,

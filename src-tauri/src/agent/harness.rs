@@ -4,10 +4,10 @@ use async_openai::types::chat::{
 };
 use async_openai::{config::OpenAIConfig, Client};
 use futures::StreamExt;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use serde_json::{json, Value};
 use tauri::Emitter;
 
+use crate::agent::provider_adapter;
 use crate::common::http_client::create_http_client;
 
 fn sanitize_error(msg: String, api_key: &str) -> String {
@@ -17,115 +17,13 @@ fn sanitize_error(msg: String, api_key: &str) -> String {
     msg.replace(api_key, "[REDACTED]")
 }
 
-static OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
-static DEEPSEEK_BASE_URL: &str = "https://api.deepseek.com/v1";
-static OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
-static OLLAMA_BASE_URL: &str = "http://127.0.0.1:11434/v1";
-static LM_STUDIO_BASE_URL: &str = "http://127.0.0.1:1234/v1";
-
-fn normalize_base_url(url: &str) -> String {
-    let trimmed = url.trim();
-    if trimmed.is_empty() {
-        return trimmed.to_string();
-    }
-    let without_slashes = trimmed.trim_end_matches('/');
-    if without_slashes.ends_with("/v1") {
-        without_slashes.to_string()
-    } else {
-        format!("{}/v1", without_slashes)
-    }
-}
-
-fn get_base_url(provider: &str, base_url: Option<String>) -> String {
-    if let Some(explicit) = base_url {
-        if !explicit.trim().is_empty() {
-            return normalize_base_url(&explicit);
-        }
-    }
-
-    match provider {
-        "DEEP_SEEK" => DEEPSEEK_BASE_URL.to_string(),
-        "OPENROUTER" => OPENROUTER_BASE_URL.to_string(),
-        "OLLAMA" => OLLAMA_BASE_URL.to_string(),
-        "LM_STUDIO" => LM_STUDIO_BASE_URL.to_string(),
-        _ => OPENAI_BASE_URL.to_string(),
-    }
-}
-
-fn get_native_api_url(provider: &str, normalized_base_url: &str, endpoint: &str) -> String {
-    let base_without_v1 = normalized_base_url.trim_end_matches("/v1");
-    match provider {
-        "OLLAMA" => format!("{}/{}", base_without_v1, endpoint),
-        "LM_STUDIO" => format!("{}/{}", base_without_v1, endpoint),
-        _ => format!("{}/{}", normalized_base_url, endpoint),
-    }
-}
-
-fn build_headers(api_key: &str) -> HeaderMap {
-    let mut headers = HeaderMap::new();
-    if !api_key.is_empty() {
-        if let Ok(value) = HeaderValue::from_str(&format!("Bearer {}", api_key)) {
-            headers.insert(AUTHORIZATION, value);
-        }
-    }
-    headers
-}
-
-fn extract_model_ids(provider: &str, payload: &Value) -> Vec<String> {
-    // LM Studio native API: /api/v1/models returns {"models": [{"key": "...", ...}]}
-    if provider == "LM_STUDIO" {
-        return payload
-            .get("models")
-            .and_then(|models| models.as_array())
-            .map(|models| {
-                models
-                    .iter()
-                    .filter_map(|model| {
-                        // LM Studio uses "key" as model identifier
-                        model
-                            .get("key")
-                            .and_then(|value| value.as_str())
-                            .map(|value| value.to_string())
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-    }
-
-    // Ollama native API: /api/tags returns {"models": [{"name": "...", ...}]}
-    if provider == "OLLAMA" {
-        return payload
-            .get("models")
-            .and_then(|models| models.as_array())
-            .map(|models| {
-                models
-                    .iter()
-                    .filter_map(|model| {
-                        // Ollama uses "name" as model identifier
-                        model
-                            .get("name")
-                            .or_else(|| model.get("model"))
-                            .or_else(|| model.get("id"))
-                            .and_then(|value| value.as_str())
-                            .map(|value| value.to_string())
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-    }
-
-    // OpenAI-compatible: /v1/models returns {"data": [{"id": "...", ...}]}
-    payload
-        .get("data")
-        .and_then(|data| data.as_array())
-        .map(|models| {
-            models
-                .iter()
-                .filter_map(|model| model.get("id").and_then(|value| value.as_str()))
-                .map(|value| value.to_string())
-                .collect()
-        })
-        .unwrap_or_default()
+/// Build a minimal settings value from a legacy provider string and optional
+/// base URL, suitable for passing to `provider_adapter::get_base_url`.
+fn make_settings(provider: &str, base_url: Option<String>) -> Value {
+    json!({
+        "apiCompatibility": provider_adapter::map_to_api_compatibility(provider),
+        "baseUrl": base_url,
+    })
 }
 
 #[tauri::command]
@@ -140,7 +38,8 @@ pub async fn run_agent_step(
     api_key: String,
     base_url: Option<String>,
 ) -> Result<String, String> {
-    let normalized_base_url = get_base_url(&provider, base_url);
+    let settings = make_settings(&provider, base_url);
+    let normalized_base_url = provider_adapter::get_base_url(&settings);
 
     let config = OpenAIConfig::new()
         .with_api_key(&api_key)
@@ -279,61 +178,47 @@ pub async fn run_agent_step(
 #[tauri::command]
 pub async fn validate_llm_config(
     provider: String,
-    api_key: String,
+    _api_key: String,
     model: String,
     http_proxy: Option<String>,
     base_url: Option<String>,
 ) -> Result<bool, String> {
     let http_client = create_http_client(http_proxy, None);
-    let normalized_base_url = get_base_url(&provider, base_url);
+    let settings = make_settings(&provider, base_url);
+    let normalized_base_url = provider_adapter::get_base_url(&settings);
+    let api_compatibility = provider_adapter::map_to_api_compatibility(&provider);
 
-    if provider == "OLLAMA" {
-        let url = get_native_api_url(&provider, &normalized_base_url, "api/tags");
+    // Local providers (Ollama) use native API for validation
+    if api_compatibility == "local" {
+        let url = provider_adapter::get_native_api_url(
+            "OLLAMA",
+            &normalized_base_url,
+            "api/tags",
+        );
         let response = http_client
             .get(&url)
             .send()
             .await
             .map_err(|e| format!("Validation request failed: {}", e))?;
-
         return Ok(response.status().is_success());
     }
 
-    if provider == "LM_STUDIO" {
-        let url = get_native_api_url(&provider, &normalized_base_url, "api/v1/models");
-        let response = http_client
-            .get(&url)
-            .send()
-            .await
-            .map_err(|e| format!("Validation request failed: {}", e))?;
-
-        return Ok(response.status().is_success());
+    // Anthropic requires x-api-key header and /v1/messages endpoint
+    // Full Anthropic native adapter is not yet implemented — reject validation
+    if api_compatibility == "anthropic" {
+        return Err("Anthropic native adapter is not yet implemented. Use OpenRouter to access Anthropic models.".to_string());
     }
 
-    if provider == "DEEP_SEEK" || provider == "OPENROUTER" {
-        let url = format!("{}/models", normalized_base_url);
-        let response = http_client
-            .get(&url)
-            .headers(build_headers(&api_key))
-            .send()
-            .await
-            .map_err(|e| format!("Validation request failed: {}", e))?;
-
-        return Ok(response.status().is_success());
-    }
-
+    // All openai-compatible providers: validate via /v1/models
     let url = if model.trim().is_empty() {
         format!("{}/models", normalized_base_url)
     } else {
         format!("{}/models/{}", normalized_base_url, model)
     };
 
-    let request = if api_key.is_empty() {
-        http_client.get(&url)
-    } else {
-        http_client
-            .get(&url)
-            .header("Authorization", format!("Bearer {}", api_key))
-    };
+    let request = http_client
+        .get(&url)
+        .headers(provider_adapter::build_headers(&settings)?);
 
     let response = request
         .send()
@@ -351,17 +236,21 @@ pub async fn list_llm_models(
     base_url: Option<String>,
 ) -> Result<Vec<String>, String> {
     let http_client = create_http_client(http_proxy, None);
-    let normalized_base_url = get_base_url(&provider, base_url);
+    let settings = make_settings(&provider, base_url);
+    let normalized_base_url = provider_adapter::get_base_url(&settings);
+    let api_compatibility = provider_adapter::map_to_api_compatibility(&provider);
 
-    let (url, requires_auth) = match provider.as_str() {
-        "OLLAMA" => (
-            get_native_api_url(&provider, &normalized_base_url, "api/tags"),
+    let (url, requires_auth) = match api_compatibility {
+        "local" => (
+            provider_adapter::get_native_api_url("OLLAMA", &normalized_base_url, "api/tags"),
             false,
         ),
-        "LM_STUDIO" => (
-            get_native_api_url(&provider, &normalized_base_url, "api/v1/models"),
-            false,
-        ),
+        "anthropic" => {
+            return Err(
+                "Anthropic native adapter is not yet implemented. Use OpenRouter to access Anthropic models."
+                    .to_string(),
+            );
+        }
         _ => (
             format!("{}/models", normalized_base_url),
             !api_key.is_empty(),
@@ -369,7 +258,9 @@ pub async fn list_llm_models(
     };
 
     let request = if requires_auth {
-        http_client.get(&url).headers(build_headers(&api_key))
+        http_client
+            .get(&url)
+            .headers(provider_adapter::build_headers(&settings)?)
     } else {
         http_client.get(&url)
     };
@@ -388,5 +279,8 @@ pub async fn list_llm_models(
         .await
         .map_err(|e| format!("Failed to parse models response: {}", e))?;
 
-    Ok(extract_model_ids(&provider, &payload))
+    Ok(provider_adapter::extract_model_ids(
+        &api_compatibility,
+        &payload,
+    ))
 }

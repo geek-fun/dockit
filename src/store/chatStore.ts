@@ -153,7 +153,7 @@ export const useChatStore = defineStore('chat', {
         try {
           await agentApi.runAgentStep({
             requestId,
-            provider: kindToProviderEnum(provider.kind),
+            provider: provider.apiCompatibility,
             model: model.label,
             messages: openAiMessages,
             tools: [],
@@ -215,6 +215,14 @@ const kindToProviderEnum = (kind: ProviderConfig['kind']): ProviderEnum => {
       return ProviderEnum.OPENROUTER;
     case 'ollama':
       return ProviderEnum.OLLAMA;
+    case 'lm-studio':
+      return ProviderEnum.LM_STUDIO;
+    case 'anthropic':
+    case 'custom-anthropic':
+    case 'gemini':
+    case 'grok':
+    case 'mistral':
+    case 'azure-openai':
     default:
       return ProviderEnum.OPENAI;
   }

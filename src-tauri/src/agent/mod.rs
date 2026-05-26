@@ -6,6 +6,7 @@ pub mod harness;
 pub mod loop_runner;
 pub mod loop_runner_support;
 pub mod model_registry;
+pub mod provider_adapter;
 pub mod schema;
 pub mod session_store;
 pub mod token_counter;

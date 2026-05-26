@@ -20,6 +20,7 @@ pub struct ModelSpec {
 }
 
 const DEFAULT_OPENAI_RESERVE: usize = 16_000;
+const DEFAULT_ANTHROPIC_WINDOW: usize = 200_000;
 const DEFAULT_ANTHROPIC_RESERVE: usize = 20_000;
 const DEFAULT_DEEPSEEK_RESERVE: usize = 8_000;
 const DEFAULT_OLLAMA_WINDOW: usize = 8_192;
@@ -81,7 +82,7 @@ pub fn resolve_spec(provider: &str, model_id: &str) -> ModelSpec {
         };
     }
 
-    if lower.starts_with("claude") {
+    if provider == "anthropic" || lower.starts_with("claude") {
         for (id, ctx, reserve) in ANTHROPIC_MODELS {
             if matches_prefix(&lower, id) {
                 return ModelSpec {
@@ -94,7 +95,7 @@ pub fn resolve_spec(provider: &str, model_id: &str) -> ModelSpec {
         }
         return ModelSpec {
             model_id: model_id.to_string(),
-            context_window: 200_000,
+            context_window: DEFAULT_ANTHROPIC_WINDOW,
             output_reserve: DEFAULT_ANTHROPIC_RESERVE,
             tokenizer: TokenizerFamily::Anthropic,
         };

@@ -12,7 +12,6 @@ import type { AgentToolCall, ConfirmationRule, SessionSource } from '@/store/dat
 import { useDataStudioStore } from '@/store/dataStudioStore';
 import { getFeatureModelConfig } from '@/store/chatStore';
 import { useAppStore } from '@/store';
-import { ProviderEnum } from '@/datasources';
 import {
   agentApi,
   type ToolMetadata,
@@ -242,30 +241,6 @@ const buildSidebarContextPrompt = (context: ChatContextConfig): string => {
   return parts.length > 0 ? `Context:\n${parts.join('\n')}\n\n` : '';
 };
 
-const kindToProviderEnum = (
-  kind:
-    | 'openai'
-    | 'deepseek'
-    | 'openrouter'
-    | 'ollama'
-    | 'lm-studio'
-    | 'custom-openai'
-    | 'custom-anthropic',
-): ProviderEnum => {
-  switch (kind) {
-    case 'deepseek':
-      return ProviderEnum.DEEP_SEEK;
-    case 'openrouter':
-      return ProviderEnum.OPENROUTER;
-    case 'ollama':
-      return ProviderEnum.OLLAMA;
-    case 'lm-studio':
-      return ProviderEnum.LM_STUDIO;
-    default:
-      return ProviderEnum.OPENAI;
-  }
-};
-
 const getActiveSources = (session?: ChatSession): SessionSource[] =>
   (session?.sources ?? []).filter(source => !source.detached);
 
@@ -325,7 +300,8 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     try {
       const { provider, model } = await getFeatureModelConfig(config.feature);
       lastSettings.value = {
-        provider: kindToProviderEnum(provider.kind),
+        provider: provider.apiCompatibility,
+        apiCompatibility: provider.apiCompatibility,
         model: model.label,
         apiKey: provider.apiKey ?? '',
         baseUrl: provider.baseUrl,
@@ -378,7 +354,8 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       }
 
       const settings: Record<string, unknown> = {
-        provider: kindToProviderEnum(provider.kind),
+        provider: provider.apiCompatibility,
+        apiCompatibility: provider.apiCompatibility,
         model: model.label,
         apiKey: provider.apiKey ?? '',
         baseUrl: provider.baseUrl,

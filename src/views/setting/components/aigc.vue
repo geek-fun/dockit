@@ -225,77 +225,7 @@
               />
             </FormItem>
 
-            <Tabs
-              v-if="supportsAuthTabs(draftProvider.kind)"
-              :model-value="providerAuthTab"
-              @update:model-value="updateProviderAuthTab"
-            >
-              <TabsList class="grid w-full grid-cols-2">
-                <TabsTrigger value="website">
-                  {{ $t('setting.ai.providers.websiteTab') }}
-                </TabsTrigger>
-                <TabsTrigger value="api-key">
-                  {{ $t('setting.ai.providers.apiKeyTab') }}
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="website" class="m-0 pt-4">
-                <Alert variant="info">
-                  <span class="i-carbon-information h-4 w-4" />
-                  <AlertDescription>
-                    {{ $t('setting.ai.providers.openrouterAuthDesc') }}
-                  </AlertDescription>
-                </Alert>
-
-                <div
-                  class="mt-4 flex items-center justify-between rounded-2xl border border-border/80 bg-muted/30 p-4"
-                >
-                  <div>
-                    <p class="text-sm font-medium">
-                      {{ $t('setting.ai.providers.openrouterAuthTitle') }}
-                    </p>
-                    <p class="text-sm text-muted-foreground">
-                      {{ $t('setting.ai.providers.websiteTabDescription') }}
-                    </p>
-                  </div>
-                  <Button variant="default" @click="openOpenRouterWebsite">
-                    {{ $t('setting.ai.providers.openRouterConnect') }}
-                  </Button>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="api-key" class="m-0 pt-4 space-y-4">
-                <FormItem
-                  :label="$t('setting.ai.apiKey')"
-                  :error="draftProviderErrors.apiKey"
-                  required
-                >
-                  <div class="relative">
-                    <Input
-                      v-model="apiKeyDisplayValue"
-                      :type="showApiKey ? 'text' : 'password'"
-                      :readonly="hasExistingApiKey"
-                      class="pr-9"
-                      :placeholder="$t('setting.ai.apiKeyPlaceholder')"
-                      @click="beginReplaceApiKey"
-                    />
-                    <button
-                      type="button"
-                      class="absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground hover:text-foreground focus-visible:outline-none"
-                      :aria-label="showApiKey ? 'Hide API key' : 'Show API key'"
-                      @click.stop="showApiKey = !showApiKey"
-                    >
-                      <span
-                        :class="showApiKey ? 'i-carbon-view-off' : 'i-carbon-view'"
-                        class="h-4 w-4"
-                      />
-                    </button>
-                  </div>
-                </FormItem>
-              </TabsContent>
-            </Tabs>
-
-            <div v-else class="space-y-4">
+            <div class="space-y-4">
               <FormItem
                 v-if="showApiKeyField(draftProvider)"
                 :label="$t('setting.ai.apiKey')"
@@ -413,12 +343,11 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
 import { cloneDeep } from 'lodash';
-import { open } from '@tauri-apps/plugin-shell';
 import { storeToRefs } from 'pinia';
 import { useLang } from '@/lang';
 import { useDialogService, useMessageService } from '@/composables';
 import { type ProviderConfig, type ProviderKind, useAppStore } from '@/store';
-import { chatBotApi, ProviderEnum } from '@/datasources';
+import { chatBotApi } from '@/datasources';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -439,11 +368,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 
 type ProviderErrorMap = Partial<Record<'apiKey' | 'baseUrl' | 'proxy', string>>;
-type ProviderAuthTab = 'website' | 'api-key';
 
 const API_KEY_SENTINEL = '__UNCHANGED__';
 
@@ -517,7 +444,7 @@ const providerDialogMode = ref<'create' | 'edit'>('create');
 const editingProviderId = ref<string | null>(null);
 const showApiKey = ref(false);
 const draftProviderKind = ref<ProviderKind | null>(null);
-const providerAuthTab = ref<ProviderAuthTab>('api-key');
+const providerAuthTab = ref<string>('api-key');
 const draftProvider = ref<ProviderConfig | null>(null);
 const draftProviderErrors = reactive<ProviderErrorMap>({});
 
@@ -536,14 +463,82 @@ const normalizeBaseUrl = (url: string): string => {
   return `${withoutSlashes}/v1`;
 };
 
-const providerPresets: Record<ProviderKind, Partial<ProviderConfig>> = {
-  openai: { label: 'OpenAI', authMode: 'api-key', baseUrl: 'https://api.openai.com/v1' },
-  deepseek: { label: 'DeepSeek', authMode: 'api-key', baseUrl: 'https://api.deepseek.com/v1' },
-  openrouter: { label: 'OpenRouter', authMode: 'oauth', baseUrl: 'https://openrouter.ai/api/v1' },
-  ollama: { label: 'Ollama', authMode: 'none', baseUrl: 'http://127.0.0.1:11434' },
-  'lm-studio': { label: 'LM Studio', authMode: 'none', baseUrl: 'http://127.0.0.1:1234/v1' },
-  'custom-openai': { label: 'Custom OpenAI-Compatible', authMode: 'api-key', baseUrl: '' },
-  'custom-anthropic': { label: 'Custom Anthropic-Compatible', authMode: 'api-key', baseUrl: '' },
+const providerPresets: Record<
+  ProviderKind,
+  Partial<ProviderConfig> & { apiCompatibility?: ProviderConfig['apiCompatibility'] }
+> = {
+  openai: {
+    label: 'OpenAI',
+    authMode: 'api-key',
+    baseUrl: 'https://api.openai.com/v1',
+    apiCompatibility: 'openai-compatible',
+  },
+  deepseek: {
+    label: 'DeepSeek',
+    authMode: 'api-key',
+    baseUrl: 'https://api.deepseek.com/v1',
+    apiCompatibility: 'openai-compatible',
+  },
+  openrouter: {
+    label: 'OpenRouter',
+    authMode: 'api-key',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    apiCompatibility: 'openai-compatible',
+  },
+  anthropic: {
+    label: 'Anthropic',
+    authMode: 'api-key',
+    baseUrl: 'https://api.anthropic.com/v1',
+    apiCompatibility: 'anthropic',
+  },
+  gemini: {
+    label: 'Google Gemini',
+    authMode: 'api-key',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
+    apiCompatibility: 'openai-compatible',
+  },
+  grok: {
+    label: 'Grok',
+    authMode: 'api-key',
+    baseUrl: 'https://api.x.ai/v1',
+    apiCompatibility: 'openai-compatible',
+  },
+  mistral: {
+    label: 'Mistral',
+    authMode: 'api-key',
+    baseUrl: 'https://api.mistral.ai/v1',
+    apiCompatibility: 'openai-compatible',
+  },
+  'azure-openai': {
+    label: 'Azure OpenAI',
+    authMode: 'api-key',
+    baseUrl: '',
+    apiCompatibility: 'openai-compatible',
+  },
+  ollama: {
+    label: 'Ollama',
+    authMode: 'none',
+    baseUrl: 'http://127.0.0.1:11434',
+    apiCompatibility: 'local',
+  },
+  'lm-studio': {
+    label: 'LM Studio',
+    authMode: 'none',
+    baseUrl: 'http://127.0.0.1:1234/v1',
+    apiCompatibility: 'openai-compatible',
+  },
+  'custom-openai': {
+    label: 'Custom OpenAI-Compatible',
+    authMode: 'api-key',
+    baseUrl: '',
+    apiCompatibility: 'openai-compatible',
+  },
+  'custom-anthropic': {
+    label: 'Custom Anthropic-Compatible',
+    authMode: 'api-key',
+    baseUrl: '',
+    apiCompatibility: 'anthropic',
+  },
 };
 
 const configuredProviders = computed(() =>
@@ -617,6 +612,7 @@ const createDraftProvider = (kind: ProviderKind) => {
   return normalizeProviderDraft({
     id: kind,
     kind,
+    apiCompatibility: preset.apiCompatibility ?? 'openai-compatible',
     label: preset.label ?? kind,
     authMode: preset.authMode ?? 'api-key',
     apiKey: '',
@@ -638,12 +634,7 @@ const validateDraftProvider = () => {
   const apiKeyValue = draftProvider.value.apiKey?.trim();
   const apiKeyUnchanged = apiKeyValue === API_KEY_SENTINEL;
 
-  if (
-    showApiKeyField(draftProvider.value) &&
-    providerAuthTab.value === 'api-key' &&
-    !apiKeyUnchanged &&
-    !apiKeyValue
-  ) {
+  if (showApiKeyField(draftProvider.value) && !apiKeyUnchanged && !apiKeyValue) {
     draftProviderErrors.apiKey = 'API key is required for this provider.';
   }
 
@@ -681,19 +672,10 @@ const showBaseUrlField = (provider: ProviderConfig) =>
   provider.kind === 'custom-openai' ||
   provider.kind === 'custom-anthropic';
 
-const supportsAuthTabs = (kind: ProviderKind) => kind === 'openrouter';
-
-const updateProviderAuthTab = (value: string | number) => {
-  providerAuthTab.value = value as ProviderAuthTab;
-  dialogTestState.value = 'idle';
-  if (!draftProvider.value) return;
-  draftProvider.value.authMode = providerAuthTab.value === 'website' ? 'oauth' : 'api-key';
-};
-
 const updateDraftProviderKind = (value: string | number) => {
   draftProviderKind.value = value as ProviderKind;
   draftProvider.value = createDraftProvider(draftProviderKind.value);
-  providerAuthTab.value = draftProvider.value.kind === 'openrouter' ? 'website' : 'api-key';
+  providerAuthTab.value = 'api-key';
   dialogTestState.value = 'idle';
   resetDraftProviderErrors();
 };
@@ -705,7 +687,7 @@ const openCreateProviderDialog = () => {
   draftProvider.value = draftProviderKind.value
     ? createDraftProvider(draftProviderKind.value)
     : null;
-  providerAuthTab.value = draftProvider.value?.kind === 'openrouter' ? 'website' : 'api-key';
+  providerAuthTab.value = 'api-key';
   resetDraftProviderErrors();
   providerDialogOpen.value = true;
 };
@@ -718,24 +700,9 @@ const openEditProviderDialog = (providerId: string) => {
   editingProviderId.value = providerId;
   draftProviderKind.value = provider.kind;
   draftProvider.value = normalizeProviderDraft(provider);
-  providerAuthTab.value = provider.authMode === 'oauth' ? 'website' : 'api-key';
+  providerAuthTab.value = 'api-key';
   resetDraftProviderErrors();
   providerDialogOpen.value = true;
-};
-
-const draftKindToEnum = (kind: ProviderKind): ProviderEnum => {
-  switch (kind) {
-    case 'deepseek':
-      return ProviderEnum.DEEP_SEEK;
-    case 'openrouter':
-      return ProviderEnum.OPENROUTER;
-    case 'ollama':
-      return ProviderEnum.OLLAMA;
-    case 'lm-studio':
-      return ProviderEnum.LM_STUDIO;
-    default:
-      return ProviderEnum.OPENAI;
-  }
 };
 
 const testDraftProvider = async () => {
@@ -745,14 +712,12 @@ const testDraftProvider = async () => {
   const draftApiKey = draft.apiKey?.trim();
   const originalProvider = llmSettings.value.providers.find(p => p.id === draft.id);
   const resolvedApiKey =
-    providerAuthTab.value === 'website'
-      ? ''
-      : draftApiKey === API_KEY_SENTINEL
-        ? (originalProvider?.apiKey?.trim() ?? '')
-        : (draftApiKey ?? '');
+    draftApiKey === API_KEY_SENTINEL
+      ? (originalProvider?.apiKey?.trim() ?? '')
+      : (draftApiKey ?? '');
 
   const isValid = await chatBotApi.validateConfig({
-    provider: draftKindToEnum(draft.kind),
+    provider: draft.apiCompatibility ?? 'openai-compatible',
     apiKey: resolvedApiKey,
     model: '',
     httpProxy: draft.proxy?.trim() || undefined,
@@ -785,26 +750,15 @@ const saveDraftProvider = async () => {
     return;
   }
 
-  const isWebsiteAuth =
-    draftProvider.value.kind === 'openrouter' && providerAuthTab.value === 'website';
-
   // Sentinel means user didn't change the key — keep existing value
   const draftApiKey = draftProvider.value.apiKey?.trim();
   const originalProvider = llmSettings.value.providers.find(p => p.id === draftProvider.value!.id);
-  const resolvedApiKey = isWebsiteAuth
-    ? ''
-    : draftApiKey === API_KEY_SENTINEL
-      ? (originalProvider?.apiKey ?? '')
-      : (draftApiKey ?? '');
+  const resolvedApiKey =
+    draftApiKey === API_KEY_SENTINEL ? (originalProvider?.apiKey ?? '') : (draftApiKey ?? '');
 
   await appStore.updateProviderConfig(draftProvider.value.id, {
     label: draftProvider.value.label.trim() || providerPresets[draftProvider.value.kind].label,
-    authMode:
-      draftProvider.value.kind === 'openrouter'
-        ? providerAuthTab.value === 'website'
-          ? 'oauth'
-          : 'api-key'
-        : draftProvider.value.authMode,
+    authMode: draftProvider.value.authMode,
     apiKey: resolvedApiKey,
     baseUrl: normalizeBaseUrl(draftProvider.value.baseUrl ?? ''),
     proxy: draftProvider.value.proxy?.trim() ?? '',
@@ -815,10 +769,6 @@ const saveDraftProvider = async () => {
         ? draftProvider.value.connected
         : false,
   });
-
-  if (isWebsiteAuth) {
-    await openOpenRouterWebsite();
-  }
 
   closeProviderDialog();
   message.success('Provider saved.');
@@ -870,8 +820,6 @@ const testProvider = async (providerId: string) => {
 
 const providerAuthLabel = (provider: ProviderConfig) => {
   switch (provider.authMode) {
-    case 'oauth':
-      return 'Website auth';
     case 'none':
       return 'Local endpoint';
     default:
@@ -922,10 +870,6 @@ const providerBaseUrlPlaceholder = (kind: ProviderKind) => {
     default:
       return 'https://api.example.com/v1';
   }
-};
-
-const openOpenRouterWebsite = async () => {
-  await open('https://openrouter.ai/settings/keys');
 };
 
 onMounted(async () => {

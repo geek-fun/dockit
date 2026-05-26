@@ -137,7 +137,7 @@ const chatBotApi = {
     });
   },
   validateConfig: async (config: {
-    provider: ProviderEnum;
+    provider: string;
     apiKey: string;
     model: string;
     httpProxy?: string;
@@ -150,7 +150,7 @@ const chatBotApi = {
     }
   },
   listModels: async (config: {
-    provider: ProviderEnum;
+    provider: string;
     apiKey: string;
     httpProxy?: string;
     baseUrl?: string;
