@@ -82,6 +82,7 @@ const handleCreateDynamoTable = () => {
 };
 
 const handleMongoRefresh = () => {
+  refreshStates();
   mongoCollectionManageRef.value?.handleRefresh();
 };
 
