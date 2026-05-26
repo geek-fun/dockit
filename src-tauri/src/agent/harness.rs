@@ -19,10 +19,11 @@ fn sanitize_error(msg: String, api_key: &str) -> String {
 
 /// Build a minimal settings value from a legacy provider string and optional
 /// base URL, suitable for passing to `provider_adapter::get_base_url`.
-fn make_settings(provider: &str, base_url: Option<String>) -> Value {
+fn make_settings(provider: &str, base_url: Option<String>, api_key: &str) -> Value {
     json!({
         "apiCompatibility": provider_adapter::map_to_api_compatibility(provider),
         "baseUrl": base_url,
+        "apiKey": api_key,
     })
 }
 
@@ -38,7 +39,7 @@ pub async fn run_agent_step(
     api_key: String,
     base_url: Option<String>,
 ) -> Result<String, String> {
-    let settings = make_settings(&provider, base_url);
+    let settings = make_settings(&provider, base_url, &api_key);
     let normalized_base_url = provider_adapter::get_base_url(&settings);
 
     let config = OpenAIConfig::new()
@@ -178,13 +179,13 @@ pub async fn run_agent_step(
 #[tauri::command]
 pub async fn validate_llm_config(
     provider: String,
-    _api_key: String,
+    api_key: String,
     model: String,
     http_proxy: Option<String>,
     base_url: Option<String>,
 ) -> Result<bool, String> {
     let http_client = create_http_client(http_proxy, None);
-    let settings = make_settings(&provider, base_url);
+    let settings = make_settings(&provider, base_url, &api_key);
     let normalized_base_url = provider_adapter::get_base_url(&settings);
     let api_compatibility = provider_adapter::map_to_api_compatibility(&provider);
 
@@ -236,7 +237,7 @@ pub async fn list_llm_models(
     base_url: Option<String>,
 ) -> Result<Vec<String>, String> {
     let http_client = create_http_client(http_proxy, None);
-    let settings = make_settings(&provider, base_url);
+    let settings = make_settings(&provider, base_url, &api_key);
     let normalized_base_url = provider_adapter::get_base_url(&settings);
     let api_compatibility = provider_adapter::map_to_api_compatibility(&provider);
 

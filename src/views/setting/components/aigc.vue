@@ -782,7 +782,7 @@ const saveDraftProvider = async () => {
 const removeProvider = (providerId: string) => {
   dialog.warning({
     title: lang.t('dialogOps.warning'),
-    content: lang.t('setting.ai.removeProviderNotice'),
+      content: lang.t('setting.ai.providers.removeProviderNotice'),
     positiveText: lang.t('dialogOps.delete'),
     negativeText: lang.t('dialogOps.cancel'),
     onPositiveClick: async () => {
