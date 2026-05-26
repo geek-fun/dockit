@@ -1874,14 +1874,14 @@ pub async fn mongo_update_document(
     let db = client.database(&db_name);
     let coll = db.collection::<Document>(&collection);
 
+    let new_doc = parse_json_arg(&document).and_then(json_to_bson_doc)?;
+    let update = doc! { "$set": new_doc };
+
     let filter = if let Ok(oid) = ObjectId::parse_str(&id) {
-        doc! { "_id": oid }
+        doc! { "$or": [{ "_id": oid }, { "_id": &id }] }
     } else {
         doc! { "_id": &id }
     };
-
-    let new_doc = parse_json_arg(&document).and_then(json_to_bson_doc)?;
-    let update = doc! { "$set": new_doc };
 
     match coll.update_one(filter, update).await {
         Ok(result) => {
@@ -1927,8 +1927,11 @@ pub async fn mongo_delete_document(
     let db = client.database(&db_name);
     let coll = db.collection::<Document>(&collection);
 
+    // Build a filter that matches _id as either ObjectId or string.
+    // MongoDB can store _id as ObjectId (default) or as a string (e.g. when
+    // data is imported from JSON). The `$or` handles both cases in one query.
     let filter = if let Ok(oid) = ObjectId::parse_str(&id) {
-        doc! { "_id": oid }
+        doc! { "$or": [{ "_id": oid }, { "_id": &id }] }
     } else {
         doc! { "_id": &id }
     };
