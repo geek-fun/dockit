@@ -309,7 +309,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
         maxIterations: useAppStore().llmSettings.chat?.maxIterations ?? 200,
         wallClockBudgetMin: useAppStore().llmSettings.chat?.wallClockBudgetMin ?? 30,
-        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 1_000_000,
+        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 20_000_000,
         contextWindowOverride: provider.contextWindowOverride,
       };
     } catch {
@@ -365,7 +365,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
         maxIterations: useAppStore().llmSettings.chat?.maxIterations ?? 200,
         wallClockBudgetMin: useAppStore().llmSettings.chat?.wallClockBudgetMin ?? 30,
-        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 1_000_000,
+        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 20_000_000,
         contextWindowOverride: provider.contextWindowOverride,
       };
 

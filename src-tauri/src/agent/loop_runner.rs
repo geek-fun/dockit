@@ -20,7 +20,7 @@ pub type CancelMap = Arc<Mutex<HashMap<String, oneshot::Sender<()>>>>;
 
 const DEFAULT_MAX_ITERATIONS: usize = 200;
 const DEFAULT_WALL_CLOCK_BUDGET_SECS: u64 = 30 * 60;
-const DEFAULT_TOKEN_BUDGET: usize = 1_000_000;
+const DEFAULT_TOKEN_BUDGET: usize = 20_000_000;
 const CONFIRM_TIMEOUT_SECS: u64 = 300;
 const RETRY_DELAYS_MS: &[u64] = &[1_000, 3_000, 8_000];
 const RETRY_JITTER_MS: u64 = 250;

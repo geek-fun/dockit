@@ -389,7 +389,7 @@ const providerSyncState = reactive<Record<string, 'idle' | 'loading'>>({});
 const autoCompactEnabled = computed(() => llmSettings.value.chat?.autoCompact ?? true);
 const maxIterations = computed(() => llmSettings.value.chat?.maxIterations ?? 200);
 const wallClockBudgetMin = computed(() => llmSettings.value.chat?.wallClockBudgetMin ?? 30);
-const tokenBudget = computed(() => llmSettings.value.chat?.tokenBudget ?? 1_000_000);
+const tokenBudget = computed(() => llmSettings.value.chat?.tokenBudget ?? 20_000_000);
 
 const ensureChatConfig = () => {
   if (!llmSettings.value.chat) {
@@ -397,7 +397,7 @@ const ensureChatConfig = () => {
       autoCompact: true,
       maxIterations: 200,
       wallClockBudgetMin: 30,
-      tokenBudget: 1_000_000,
+      tokenBudget: 20_000_000,
     };
   }
   return llmSettings.value.chat;
