@@ -277,7 +277,17 @@
               <FormItem :label="$t('setting.ai.proxy')" :error="draftProviderErrors.proxy">
                 <div class="space-y-2">
                   <div class="flex items-center gap-6">
-                    <label class="flex items-center gap-1.5 cursor-pointer">
+                    <label class="flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
+                      <input
+                        type="radio"
+                        value="none"
+                        :checked="draftProvider.proxyMode === 'none'"
+                        class="h-4 w-4"
+                        @change="draftProvider.proxyMode = 'none'"
+                      />
+                      <span class="text-sm">{{ $t('setting.ai.providers.proxyNone') }}</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
                       <input
                         type="radio"
                         value="system"
@@ -287,7 +297,7 @@
                       />
                       <span class="text-sm">{{ $t('setting.ai.providers.proxySystem') }}</span>
                     </label>
-                    <label class="flex items-center gap-1.5 cursor-pointer">
+                    <label class="flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
                       <input
                         type="radio"
                         value="manual"
@@ -296,16 +306,6 @@
                         @change="draftProvider.proxyMode = 'manual'"
                       />
                       <span class="text-sm">{{ $t('setting.ai.providers.proxyManual') }}</span>
-                    </label>
-                    <label class="flex items-center gap-1.5 cursor-pointer">
-                      <input
-                        type="radio"
-                        value="none"
-                        :checked="draftProvider.proxyMode === 'none'"
-                        class="h-4 w-4"
-                        @change="draftProvider.proxyMode = 'none'"
-                      />
-                      <span class="text-sm">{{ $t('setting.ai.providers.proxyNone') }}</span>
                     </label>
                   </div>
                   <Input
@@ -673,7 +673,7 @@ const normalizeProviderDraft = (provider: ProviderConfig): ProviderConfig => ({
   ...cloneDeep(provider),
   apiKey: provider.apiKey ? API_KEY_SENTINEL : '',
   baseUrl: provider.baseUrl ?? '',
-  proxyMode: provider.proxyMode ?? 'system',
+  proxyMode: provider.proxyMode ?? 'none',
   proxy: provider.proxy ?? '',
   enabled: true,
 });
@@ -688,7 +688,7 @@ const createDraftProvider = (kind: ProviderKind) => {
     authMode: preset.authMode ?? 'api-key',
     apiKey: '',
     baseUrl: preset.baseUrl ?? '',
-    proxyMode: 'system',
+    proxyMode: 'none',
     proxy: '',
     headers: {},
     enabled: true,
@@ -841,7 +841,7 @@ const saveDraftProvider = async () => {
     apiKey: resolvedApiKey,
     baseUrl: normalizeBaseUrl(draftProvider.value.baseUrl ?? ''),
     proxy: draftProvider.value.proxy?.trim() ?? '',
-    proxyMode: draftProvider.value.proxyMode ?? 'system',
+      proxyMode: draftProvider.value.proxyMode ?? 'none',
     contextWindowOverride: draftProvider.value.contextWindowOverride,
     enabled: true,
     connected:

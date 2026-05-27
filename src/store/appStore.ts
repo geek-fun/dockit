@@ -287,7 +287,7 @@ const createProviderConfig = (
     authMode: preset.authMode,
     baseUrl: preset.defaultBaseUrl,
     apiKey: '',
-    proxyMode: 'system',
+    proxyMode: 'none',
     proxy: '',
     headers: {},
     enabled: preset.enabled,
@@ -351,7 +351,7 @@ const migrateLegacyAiConfigs = (legacyAiConfigs: Array<LegacyAiConfig>): LlmSett
     Object.assign(existing, {
       apiKey: config.apiKey ?? '',
       proxy: config.httpProxy ?? '',
-      proxyMode: config.httpProxy ? 'manual' : 'system',
+      proxyMode: config.httpProxy ? 'manual' : 'none',
       enabled: Boolean(config.enabled),
       connected: Boolean(config.apiKey || kind === 'ollama'),
       discoveredModels: buildDiscoveredModels(existing.id, existing.kind, modelIds),
@@ -398,7 +398,7 @@ const mergeProviderConfigs = (storedProviders: Array<ProviderConfig>): Array<Pro
       ...stored,
       label: defaultProvider.label,
       // Migrate: if user had a proxy URL but no proxyMode, default to manual
-      proxyMode: stored.proxyMode ?? (stored.proxy ? 'manual' : 'system'),
+      proxyMode: stored.proxyMode ?? (stored.proxy ? 'manual' : 'none'),
       discoveredModels,
     };
   });
