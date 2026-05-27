@@ -21,7 +21,7 @@ pub struct LlmToolCall {
 
 /// A single SSE event parsed by a ChatFormatter.
 /// Not all fields are populated on every event — the accumulator merges them.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct StreamDelta {
     pub content_delta: String,
     pub thinking_delta: String,
@@ -29,7 +29,7 @@ pub struct StreamDelta {
     pub finish_reason: Option<String>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct StreamToolCallDelta {
     pub index: usize,
     pub id: String,

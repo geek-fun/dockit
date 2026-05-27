@@ -256,3 +256,177 @@ impl ChatFormatter for AnthropicChatFormatter {
         json!([])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::agent::chat_formatter::{LlmMessage, LlmToolCall};
+
+    #[test]
+    fn test_build_request_system_user() {
+        let f = AnthropicChatFormatter;
+        let msgs = vec![
+            LlmMessage { role: "user".into(), text_content: "Hello".into(), tool_calls: None, tool_call_id: None, thinking: None },
+        ];
+        let body = f.build_request("claude-sonnet-4", Some("Be helpful."), &msgs, None, true);
+        assert_eq!(body["model"], "claude-sonnet-4");
+        assert_eq!(body["system"], "Be helpful.");
+        assert_eq!(body["stream"], true);
+        assert_eq!(body["messages"][0]["role"], "user");
+        assert_eq!(body["messages"][0]["content"][0]["type"], "text");
+        assert_eq!(body["messages"][0]["content"][0]["text"], "Hello");
+    }
+
+    #[test]
+    fn test_build_request_tool_use() {
+        let f = AnthropicChatFormatter;
+        let msgs = vec![
+            LlmMessage {
+                role: "assistant".into(),
+                text_content: "Using tool".into(),
+                tool_calls: Some(vec![
+                    LlmToolCall { id: "tu_1".into(), name: "get_weather".into(), arguments: r#"{"city":"Paris"}"#.into() },
+                ]),
+                tool_call_id: None,
+                thinking: None,
+            },
+        ];
+        let body = f.build_request("claude-4", None, &msgs, None, true);
+        let content = &body["messages"][0]["content"];
+        assert_eq!(content[0]["type"], "text");
+        assert_eq!(content[0]["text"], "Using tool");
+        assert_eq!(content[1]["type"], "tool_use");
+        assert_eq!(content[1]["id"], "tu_1");
+        assert_eq!(content[1]["name"], "get_weather");
+        assert_eq!(content[1]["input"]["city"], "Paris");
+    }
+
+    #[test]
+    fn test_build_request_tool_result() {
+        let f = AnthropicChatFormatter;
+        let msgs = vec![
+            LlmMessage { role: "tool".into(), text_content: "Sunny 25C".into(), tool_calls: None, tool_call_id: Some("tu_1".into()), thinking: None },
+        ];
+        let body = f.build_request("claude-4", None, &msgs, None, true);
+        let msg = &body["messages"][0];
+        assert_eq!(msg["role"], "user");
+        assert_eq!(msg["content"][0]["type"], "tool_result");
+        assert_eq!(msg["content"][0]["tool_use_id"], "tu_1");
+        assert_eq!(msg["content"][0]["content"], "Sunny 25C");
+    }
+
+    #[test]
+    fn test_build_request_with_tools_param() {
+        let f = AnthropicChatFormatter;
+        let msgs = vec![
+            LlmMessage { role: "user".into(), text_content: "Get weather".into(), tool_calls: None, tool_call_id: None, thinking: None },
+        ];
+        let tools = json!([{
+            "type": "function",
+            "function": { "name": "get_weather", "description": "Get weather", "parameters": {"type": "object", "properties": {"city": {"type": "string"}} } }
+        }]);
+        let body = f.build_request("claude-4", None, &msgs, Some(&tools), false);
+        assert!(body["tools"].is_array());
+        assert_eq!(body["tools"][0]["name"], "get_weather");
+        assert!(body["tools"][0]["input_schema"].is_object());
+    }
+
+    #[test]
+    fn test_build_request_no_system() {
+        let f = AnthropicChatFormatter;
+        let msgs = vec![
+            LlmMessage { role: "user".into(), text_content: "Hi".into(), tool_calls: None, tool_call_id: None, thinking: None },
+        ];
+        let body = f.build_request("claude-4", None, &msgs, None, false);
+        assert!(body.get("system").is_none());
+        assert_eq!(body["messages"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_parse_chunk_content_block_delta() {
+        let f = AnthropicChatFormatter;
+        let data = r#"{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello"}}"#;
+        let delta = f.parse_chunk(data).unwrap();
+        assert_eq!(delta.content_delta, "Hello");
+        assert!(delta.finish_reason.is_none());
+    }
+
+    #[test]
+    fn test_parse_chunk_tool_use_start() {
+        let f = AnthropicChatFormatter;
+        let data = r#"{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"tu_1","name":"get_weather","input":{}}}"#;
+        let delta = f.parse_chunk(data).unwrap();
+        assert_eq!(delta.tool_call_deltas.len(), 1);
+        assert_eq!(delta.tool_call_deltas[0].id, "tu_1");
+        assert_eq!(delta.tool_call_deltas[0].name, "get_weather");
+    }
+
+    #[test]
+    fn test_parse_chunk_input_json_delta() {
+        let f = AnthropicChatFormatter;
+        let data = r#"{"type":"input_json_delta","index":0,"delta":{"partial_json":"{\"city\":\"Paris\"}"}}"#;
+        let delta = f.parse_chunk(data).unwrap();
+        assert_eq!(delta.tool_call_deltas[0].arguments_delta, "{\"city\":\"Paris\"}");
+    }
+
+    #[test]
+    fn test_parse_chunk_message_delta() {
+        let f = AnthropicChatFormatter;
+        let data = r#"{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null}}"#;
+        let delta = f.parse_chunk(data).unwrap();
+        assert_eq!(delta.finish_reason, Some("end_turn".into()));
+    }
+
+    #[test]
+    fn test_parse_chunk_message_stop() {
+        let f = AnthropicChatFormatter;
+        let data = r#"{"type":"message_stop"}"#;
+        let delta = f.parse_chunk(data).unwrap();
+        assert_eq!(delta.finish_reason, Some("end_turn".into()));
+    }
+
+    #[test]
+    fn test_parse_chunk_ping() {
+        let f = AnthropicChatFormatter;
+        let delta = f.parse_chunk(r#"{"type":"ping"}"#).unwrap();
+        assert!(delta.content_delta.is_empty());
+        assert!(delta.finish_reason.is_none());
+    }
+
+    #[test]
+    fn test_parse_chunk_content_block_stop() {
+        let f = AnthropicChatFormatter;
+        let delta = f.parse_chunk(r#"{"type":"content_block_stop","index":0}"#).unwrap();
+        assert!(delta.content_delta.is_empty());
+    }
+
+    #[test]
+    fn test_parse_chunk_error() {
+        let f = AnthropicChatFormatter;
+        let data = r#"{"type":"error","error":{"message":"Invalid API key"}}"#;
+        let result = f.parse_chunk(data);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Invalid API key"));
+    }
+
+    #[test]
+    fn test_parse_chunk_data_prefix() {
+        let f = AnthropicChatFormatter;
+        let data = r#"data: {"type":"message_stop"}"#;
+        let delta = f.parse_chunk(data).unwrap();
+        assert_eq!(delta.finish_reason, Some("end_turn".into()));
+    }
+
+    #[test]
+    fn test_format_tools_conversion() {
+        let f = AnthropicChatFormatter;
+        let tools = json!([{
+            "type": "function",
+            "function": { "name": "get_weather", "description": "Get weather", "parameters": {"type": "object"} }
+        }]);
+        let result = f.format_tools(&tools);
+        assert_eq!(result[0]["name"], "get_weather");
+        assert_eq!(result[0]["description"], "Get weather");
+        assert!(result[0]["input_schema"].is_object());
+    }
+}
