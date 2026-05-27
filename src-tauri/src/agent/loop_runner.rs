@@ -26,9 +26,13 @@ const RETRY_DELAYS_MS: &[u64] = &[1_000, 3_000, 8_000];
 const RETRY_JITTER_MS: u64 = 250;
 const RETRYABLE_ERROR_TYPES: &[&str] = &[
     "rate_limit_exceeded",
-    "insufficient_quota",
     "service_unavailable",
     "overloaded_error",
+];
+const FATAL_ERROR_TYPES: &[&str] = &[
+    "insufficient_quota",
+    "invalid_request_error",
+    "authentication_error",
 ];
 
 use rand::Rng;
@@ -186,6 +190,10 @@ fn classify_error(body: &str) -> Option<String> {
 
 fn is_retryable(err_type: &str) -> bool {
     RETRYABLE_ERROR_TYPES.iter().any(|t| *t == err_type)
+}
+
+fn is_fatal(err_type: &str) -> bool {
+    FATAL_ERROR_TYPES.iter().any(|t| *t == err_type)
 }
 
 fn build_request_body(settings: &Value, history_msgs: &[Value], stream: bool) -> Value {
@@ -730,7 +738,12 @@ async fn run_agent_loop_inner(
                     if is_bad_request {
                         let _ = app.emit("agent-loop-error", json!({"session_id": session_id, "error": e}));
                     } else {
-                        emit_loop_stopped(app, session_id, "llm_error", &e);
+                        let err_type = classify_error(&e).unwrap_or_default();
+                        if is_fatal(&err_type) {
+                            emit_loop_stopped(app, session_id, "llm_error_fatal", &e);
+                        } else {
+                            emit_loop_stopped(app, session_id, "llm_error", &e);
+                        }
                     }
                     return Ok(());
                 }

@@ -49,12 +49,12 @@
     </div>
 
     <div class="chat-input-area">
-      <div v-if="stopReason && stopMessage" class="loop-stopped-banner" role="status">
+      <div v-if="stopReason && stopMessage" class="loop-stopped-banner" role="status" :class="{ 'loop-stopped-banner--fatal': isFatalStop }">
         <div class="loop-stopped-banner__body">
-          <span class="loop-stopped-banner__icon i-carbon-pause-filled" />
+          <span class="loop-stopped-banner__icon" :class="isFatalStop ? 'i-carbon-error' : 'i-carbon-pause-filled'" />
           <div class="loop-stopped-banner__texts">
             <span class="loop-stopped-banner__message">{{ stopMessage }}</span>
-            <span class="loop-stopped-banner__hint">{{ t('chat.loopStopped.continueHint') }}</span>
+            <span v-if="!isFatalStop" class="loop-stopped-banner__hint">{{ t('chat.loopStopped.continueHint') }}</span>
           </div>
         </div>
         <div class="loop-stopped-banner__actions">
@@ -67,6 +67,7 @@
             {{ t('chat.loopStopped.stopButton') }}
           </button>
           <button
+            v-if="!isFatalStop"
             class="loop-stopped-banner__action loop-stopped-banner__action--primary"
             type="button"
             :disabled="isLoading"
@@ -169,7 +170,7 @@ const props = withDefaults(
     sessionId?: string | null;
     contextSettings?: unknown;
     progress?: { phase: string; iter?: number; maxIter?: number } | null;
-    stopReason?: 'iteration_cap' | 'wall_clock_budget' | 'token_budget' | 'llm_error' | null;
+    stopReason?: 'iteration_cap' | 'wall_clock_budget' | 'token_budget' | 'llm_error' | 'llm_error_fatal' | null;
     stopMessage?: string | null;
   }>(),
   {
@@ -309,6 +310,8 @@ const featureRoute = computed(() =>
 
 const selectedModelId = computed(() => featureRoute.value.selectedModelId ?? undefined);
 const recentModelIds = computed(() => (selectedModelId.value ? [selectedModelId.value] : []));
+
+const isFatalStop = computed(() => props.stopReason === 'llm_error_fatal');
 
 const handleSend = async () => {
   if (modelVerified.value === false) {

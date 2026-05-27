@@ -24,7 +24,8 @@ export type ChatSessionStopReason =
   | 'iteration_cap'
   | 'wall_clock_budget'
   | 'token_budget'
-  | 'llm_error';
+  | 'llm_error'
+  | 'llm_error_fatal';
 
 export type ChatSession = {
   id: string;
