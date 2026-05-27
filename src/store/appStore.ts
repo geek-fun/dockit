@@ -708,6 +708,7 @@ export const useAppStore = defineStore('app', {
         apiKey: provider.apiKey ?? '',
         model: model.label,
         httpProxy: provider.proxy || undefined,
+        proxyMode: provider.proxyMode,
         baseUrl: provider.baseUrl,
       }).catch(() => false);
     },

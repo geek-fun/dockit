@@ -156,6 +156,7 @@ const validateLlmConfig = (params: {
   apiKey: string;
   model: string;
   httpProxy?: string;
+  proxyMode?: string;
   baseUrl?: string;
 }): Promise<boolean> => invoke<boolean>('validate_llm_config', params);
 
