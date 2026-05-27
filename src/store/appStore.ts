@@ -502,6 +502,7 @@ export const useAppStore = defineStore('app', {
       'uiThemeType',
       'editorConfig',
       'historyConfig',
+      'llmSettings',
     ],
   },
   getters: {
