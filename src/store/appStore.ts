@@ -472,6 +472,10 @@ const reconcileModelRoutes = (settings: LlmSettings): LlmSettings['models'] => (
   dataStudio: normalizeFeatureRoute(settings.models.dataStudio, settings.providers, 'reasoning'),
 });
 
+// Module-level init promise — deduplicates concurrent fetchLlmSettings calls
+// without polluting Pinia state with a boolean flag.
+let llmSettingsLoadPromise: Promise<LlmSettings> | null = null;
+
 export const useAppStore = defineStore('app', {
   state: (): {
     themeType: ThemeType;
@@ -481,14 +485,12 @@ export const useAppStore = defineStore('app', {
     llmSettings: LlmSettings;
     editorConfig: EditorConfig;
     historyConfig: HistoryConfig;
-    _llmSettingsLoaded: boolean;
   } => ({
     themeType: ThemeType.AUTO,
     languageType: LanguageType.AUTO,
     connectPanel: true,
     uiThemeType: ThemeType.LIGHT,
     llmSettings: defaultLlmSettings(),
-    _llmSettingsLoaded: false,
     editorConfig: {
       fontSize: 14,
       fontWeight: 'normal',
@@ -567,10 +569,17 @@ export const useAppStore = defineStore('app', {
       };
     },
     async fetchLlmSettings() {
-      // Skip reload if already loaded (single load from App.vue)
-      if (this._llmSettingsLoaded) return this.llmSettings;
-      this._llmSettingsLoaded = true;
+      if (llmSettingsLoadPromise) return llmSettingsLoadPromise;
 
+      llmSettingsLoadPromise = this._loadLlmSettings();
+      try {
+        return await llmSettingsLoadPromise;
+      } catch (err) {
+        llmSettingsLoadPromise = null;
+        throw err;
+      }
+    },
+    async _loadLlmSettings() {
       const storedSettings = await storeApi.getSecret<LlmSettings | undefined>(
         'llmSettings',
         undefined,
