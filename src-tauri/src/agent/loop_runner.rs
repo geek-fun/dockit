@@ -604,7 +604,7 @@ async fn run_agent_loop_inner(
     let base_url = get_base_url(settings);
     let headers = build_headers(settings)?;
     let http_proxy = settings_get_str(settings, "httpProxy").map(|s| s.to_string());
-    let http_client = create_http_client(http_proxy, None);
+    let http_client = create_http_client(http_proxy, None, None);
 
     let allowed_tools: std::collections::HashSet<String> = settings
         .get("tools")

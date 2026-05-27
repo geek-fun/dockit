@@ -204,7 +204,7 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
     let base_url = build_es_base_url(config)?;
     let headers = build_es_headers(config);
     let ssl = get_es_ssl_flag(config);
-    let client = create_http_client(None, Some(ssl));
+    let client = create_http_client(None, Some(ssl), None);
 
     let (method, path, body) = match tool_name {
         "es__search" => {

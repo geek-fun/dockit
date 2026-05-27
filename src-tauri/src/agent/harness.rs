@@ -8,7 +8,8 @@ use serde_json::{json, Value};
 use tauri::Emitter;
 
 use crate::agent::provider_adapter;
-use crate::common::http_client::{create_http_client, create_short_http_client};
+use crate::common::http_client::create_http_client;
+use std::time::Duration;
 
 fn sanitize_error(msg: String, api_key: &str) -> String {
     if api_key.is_empty() || api_key.len() < 8 {
@@ -45,7 +46,7 @@ pub async fn run_agent_step(
     let config = OpenAIConfig::new()
         .with_api_key(&api_key)
         .with_api_base(normalized_base_url);
-    let http_client = create_http_client(http_proxy, None);
+    let http_client = create_http_client(http_proxy, None, None);
     let client = Client::with_config(config).with_http_client(http_client);
 
     let msgs: Vec<ChatCompletionRequestMessage> = serde_json::from_value(Value::Array(messages))
@@ -184,7 +185,7 @@ pub async fn validate_llm_config(
     http_proxy: Option<String>,
     base_url: Option<String>,
 ) -> Result<bool, String> {
-    let http_client = create_short_http_client(http_proxy, None, 30);
+    let http_client = create_http_client(http_proxy, None, Some(Duration::from_secs(30)));
     let settings = make_settings(&provider, base_url, &api_key);
     let normalized_base_url = provider_adapter::get_base_url(&settings);
     let api_compatibility = provider_adapter::map_to_api_compatibility(&provider);
@@ -236,7 +237,7 @@ pub async fn list_llm_models(
     http_proxy: Option<String>,
     base_url: Option<String>,
 ) -> Result<Vec<String>, String> {
-    let http_client = create_short_http_client(http_proxy, None, 60);
+    let http_client = create_http_client(http_proxy, None, Some(Duration::from_secs(60)));
     let settings = make_settings(&provider, base_url, &api_key);
     let normalized_base_url = provider_adapter::get_base_url(&settings);
     let api_compatibility = provider_adapter::map_to_api_compatibility(&provider);
