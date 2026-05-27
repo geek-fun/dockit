@@ -144,14 +144,6 @@ const chatBotApi = {
     proxyMode?: string;
     baseUrl?: string;
   }): Promise<{ valid: boolean; error?: string }> => {
-    console.log('[DEBUG] validateConfig called with:', {
-      provider: config.provider,
-      model: config.model,
-      proxyMode: config.proxyMode,
-      httpProxy: config.httpProxy || '(none)',
-      baseUrl: config.baseUrl,
-      apiKeyLength: config.apiKey?.length || 0,
-    });
     const VALIDATE_TIMEOUT_MS = 35_000;
     try {
       const result = await Promise.race([
@@ -160,10 +152,8 @@ const chatBotApi = {
           setTimeout(() => reject(new Error('Connection timed out')), VALIDATE_TIMEOUT_MS),
         ),
       ]);
-      console.log('[DEBUG] validateConfig result:', result);
       return { valid: result };
     } catch (err) {
-      console.error('[DEBUG] validateConfig error:', (err as Error).message || String(err));
       return { valid: false, error: (err as Error).message || String(err) };
     }
   },
