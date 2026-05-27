@@ -281,7 +281,7 @@
                       type="button"
                       class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'none'
-                        ? 'bg-background text-foreground shadow-sm'
+                        ? 'bg-primary/10 text-primary shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
                       @click="draftProvider.proxyMode = 'none'"
                     >
@@ -291,7 +291,7 @@
                       type="button"
                       class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'system'
-                        ? 'bg-background text-foreground shadow-sm'
+                        ? 'bg-primary/10 text-primary shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
                       @click="draftProvider.proxyMode = 'system'"
                     >
@@ -301,7 +301,7 @@
                       type="button"
                       class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'manual'
-                        ? 'bg-background text-foreground shadow-sm'
+                        ? 'bg-primary/10 text-primary shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
                       @click="draftProvider.proxyMode = 'manual'"
                     >
