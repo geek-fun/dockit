@@ -481,12 +481,14 @@ export const useAppStore = defineStore('app', {
     llmSettings: LlmSettings;
     editorConfig: EditorConfig;
     historyConfig: HistoryConfig;
+    _llmSettingsLoaded: boolean;
   } => ({
     themeType: ThemeType.AUTO,
     languageType: LanguageType.AUTO,
     connectPanel: true,
     uiThemeType: ThemeType.LIGHT,
     llmSettings: defaultLlmSettings(),
+    _llmSettingsLoaded: false,
     editorConfig: {
       fontSize: 14,
       fontWeight: 'normal',
@@ -565,6 +567,10 @@ export const useAppStore = defineStore('app', {
       };
     },
     async fetchLlmSettings() {
+      // Skip reload if already loaded (single load from App.vue)
+      if (this._llmSettingsLoaded) return this.llmSettings;
+      this._llmSettingsLoaded = true;
+
       const storedSettings = await storeApi.getSecret<LlmSettings | undefined>(
         'llmSettings',
         undefined,

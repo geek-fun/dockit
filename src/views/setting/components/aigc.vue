@@ -385,7 +385,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { cloneDeep } from 'lodash';
 import { storeToRefs } from 'pinia';
 import { useLang } from '@/lang';
@@ -965,7 +965,4 @@ const providerBaseUrlPlaceholder = (kind: ProviderKind) => {
   }
 };
 
-onMounted(async () => {
-  await appStore.fetchLlmSettings();
-});
 </script>

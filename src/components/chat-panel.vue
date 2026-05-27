@@ -373,7 +373,6 @@ watch(
 );
 
 onMounted(async () => {
-  await appStore.fetchLlmSettings();
   await nextTick();
   const el = getViewport();
   viewportEl.value = el;

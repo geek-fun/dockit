@@ -126,7 +126,7 @@ const syncAllProviderModels = () => {
 };
 
 const onModelChange = async () => {
-  await appStore.fetchLlmSettings();
+  // LLM settings loaded globally in App.vue
 };
 
 const switchSession = (sessionId: string) => {
@@ -144,7 +144,6 @@ const startNewSession = () => {
 };
 
 onMounted(async () => {
-  await appStore.fetchLlmSettings();
   await dataStudioStore.loadSessions();
   await initContextSettings();
 });
