@@ -137,9 +137,6 @@ export const zhCN = {
         openRouterConnect: '打开 OpenRouter 网站',
         useApiKey: '改用 API Key',
         featureRequest: '创建功能需求',
-        customAnthropicDescription:
-          '本次改版暂未实现 Anthropic-compatible 服务商。可通过按钮在 GitHub 上跟踪该功能需求。',
-        contextWindowLabel: '上下文窗口覆盖（tokens）',
         contextWindowPlaceholder: '自动检测',
         contextWindowDescription:
           '该服务商可使用的最大 token 数。最小 1024。',

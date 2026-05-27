@@ -141,9 +141,6 @@ export const enUS = {
         openRouterConnect: 'Open OpenRouter website',
         useApiKey: 'Use API key instead',
         featureRequest: 'Create feature request',
-        customAnthropicDescription:
-          'Anthropic-compatible providers are not implemented in this pass. Use the feature request button to track it on GitHub.',
-        contextWindowLabel: 'Context window override (tokens)',
         contextWindowPlaceholder: 'Auto-detect',
         contextWindowDescription:
           'Maximum tokens this provider should use. Minimum 1024.',

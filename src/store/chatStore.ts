@@ -219,7 +219,6 @@ const kindToProviderEnum = (kind: ProviderConfig['kind']): ProviderEnum => {
     case 'lm-studio':
       return ProviderEnum.LM_STUDIO;
     case 'anthropic':
-    case 'custom-anthropic':
     case 'gemini':
     case 'grok':
     case 'mistral':

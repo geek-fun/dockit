@@ -336,19 +336,13 @@
               </FormItem>
             </div>
 
-            <Alert v-if="draftProvider.kind === 'custom-anthropic'" variant="warning">
-              <span class="i-carbon-warning h-4 w-4" />
-              <AlertDescription>
-                {{ $t('setting.ai.providers.customAnthropicDescription') }}
-              </AlertDescription>
-            </Alert>
           </template>
         </div>
 
         <DialogFooter class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div class="flex items-center gap-2">
             <Button
-              v-if="draftProvider && draftProvider.kind !== 'custom-anthropic'"
+              v-if="draftProvider"
               variant="ghost"
               :disabled="dialogTestState === 'testing'"
               @click="testDraftProvider"
@@ -372,7 +366,7 @@
               {{ $t('dialogOps.cancel') }}
             </Button>
             <Button
-              :disabled="!draftProvider || draftProvider.kind === 'custom-anthropic'"
+              :disabled="!draftProvider"
               @click="saveDraftProvider"
             >
               {{ $t('dialogOps.save') }}
@@ -614,12 +608,6 @@ const providerPresets: Record<
     baseUrl: '',
     apiCompatibility: 'openai-compatible',
   },
-  'custom-anthropic': {
-    label: 'Custom Anthropic-Compatible',
-    authMode: 'api-key',
-    baseUrl: '',
-    apiCompatibility: 'anthropic',
-  },
 };
 
 const configuredProviders = computed(() =>
@@ -746,14 +734,12 @@ const validateDraftProvider = () => {
 
 const showApiKeyField = (provider: ProviderConfig) =>
   provider.kind !== 'ollama' &&
-  provider.kind !== 'lm-studio' &&
-  provider.kind !== 'custom-anthropic';
+  provider.kind !== 'lm-studio';
 
 const showBaseUrlField = (provider: ProviderConfig) =>
   provider.kind === 'ollama' ||
   provider.kind === 'lm-studio' ||
-  provider.kind === 'custom-openai' ||
-  provider.kind === 'custom-anthropic';
+  provider.kind === 'custom-openai';
 
 const showContextWindowField = (provider: ProviderConfig) => provider.apiCompatibility === 'local';
 
@@ -925,7 +911,7 @@ const providerEndpointSummary = (provider: ProviderConfig) => {
   if (provider.kind === 'lm-studio') {
     return provider.baseUrl || 'http://127.0.0.1:1234/v1';
   }
-  if (provider.kind === 'custom-openai' || provider.kind === 'custom-anthropic') {
+  if (provider.kind === 'custom-openai') {
     return provider.baseUrl || 'Custom endpoint';
   }
   return provider.proxy?.trim() ? `Proxy: ${provider.proxy}` : 'Managed endpoint';
@@ -956,8 +942,6 @@ const providerBaseUrlPlaceholder = (kind: ProviderKind) => {
       return 'http://127.0.0.1:1234/v1';
     case 'custom-openai':
       return 'https://your-endpoint.example/v1';
-    case 'custom-anthropic':
-      return 'https://your-endpoint.example';
     default:
       return 'https://api.example.com/v1';
   }

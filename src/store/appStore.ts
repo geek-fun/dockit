@@ -21,7 +21,6 @@ export type ProviderKind =
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
-  | 'custom-anthropic'
   | 'anthropic'
   | 'gemini'
   | 'grok'
@@ -210,15 +209,6 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     enabled: false,
     defaultModels: [],
   },
-  {
-    kind: 'custom-anthropic',
-    apiCompatibility: 'anthropic',
-    label: 'Custom Anthropic-Compatible',
-    authMode: 'api-key',
-    defaultBaseUrl: '',
-    enabled: false,
-    defaultModels: [],
-  },
 ];
 
 const defaultModelsByKind: Record<ProviderKind, string[]> = {
@@ -229,7 +219,6 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   'lm-studio': [],
   'custom-openai': [],
   anthropic: ['claude-sonnet-4-5', 'claude-opus-4'],
-  'custom-anthropic': [],
   gemini: ['gemini-2.5-pro', 'gemini-2.5-flash'],
   grok: ['grok-3'],
   mistral: ['mistral-large', 'mistral-small', 'codestral'],
@@ -638,7 +627,7 @@ export const useAppStore = defineStore('app', {
       const provider = this.llmSettings.providers.find(item => item.id === providerId);
       if (!provider) return [];
 
-      if (provider.kind === 'custom-anthropic' || provider.kind === 'anthropic') {
+      if (provider.kind === 'anthropic') {
         return provider.discoveredModels;
       }
 
@@ -678,7 +667,7 @@ export const useAppStore = defineStore('app', {
     async testProvider(providerId: string): Promise<{ valid: boolean; error?: string }> {
       const provider = this.llmSettings.providers.find(item => item.id === providerId);
       if (!provider || !provider.enabled) return { valid: false };
-      if (provider.kind === 'custom-anthropic' || provider.kind === 'anthropic') return { valid: false };
+      if (provider.kind === 'anthropic') return { valid: false };
 
       const modelLabel = provider.discoveredModels[0]?.label ?? '';
 
@@ -701,7 +690,7 @@ export const useAppStore = defineStore('app', {
       if (!model) return false;
       const provider = this.llmSettings.providers.find(p => p.id === model.providerConfigId);
       if (!provider || !provider.enabled) return false;
-      if (provider.kind === 'custom-anthropic' || provider.kind === 'anthropic') return false;
+      if (provider.kind === 'anthropic') return false;
 
       return validateLlmConfig({
         provider: provider.apiCompatibility,
