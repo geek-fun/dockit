@@ -290,15 +290,21 @@
                 </p>
               </FormItem>
 
-              <FormItem :label="$t('setting.ai.proxy')" class="md:col-span-2" :error="draftProviderErrors.proxy">
+              <FormItem
+                :label="$t('setting.ai.proxy')"
+                class="md:col-span-2"
+                :error="draftProviderErrors.proxy"
+              >
                 <div class="space-y-3">
                   <div class="inline-flex rounded-lg bg-muted/60 p-0.5">
                     <button
                       type="button"
                       class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
-                      :class="draftProvider.proxyMode === 'none'
-                        ? 'text-primary'
-                        : 'text-muted-foreground hover:text-foreground'"
+                      :class="
+                        draftProvider.proxyMode === 'none'
+                          ? 'text-primary'
+                          : 'text-muted-foreground hover:text-foreground'
+                      "
                       @click="draftProvider.proxyMode = 'none'"
                     >
                       <span class="i-carbon-close-outline h-3.5 w-3.5" />
@@ -307,9 +313,11 @@
                     <button
                       type="button"
                       class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
-                      :class="draftProvider.proxyMode === 'system'
-                        ? 'text-primary'
-                        : 'text-muted-foreground hover:text-foreground'"
+                      :class="
+                        draftProvider.proxyMode === 'system'
+                          ? 'text-primary'
+                          : 'text-muted-foreground hover:text-foreground'
+                      "
                       @click="draftProvider.proxyMode = 'system'"
                     >
                       <span class="i-carbon-laptop h-3.5 w-3.5" />
@@ -318,9 +326,11 @@
                     <button
                       type="button"
                       class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
-                      :class="draftProvider.proxyMode === 'manual'
-                        ? 'text-primary'
-                        : 'text-muted-foreground hover:text-foreground'"
+                      :class="
+                        draftProvider.proxyMode === 'manual'
+                          ? 'text-primary'
+                          : 'text-muted-foreground hover:text-foreground'
+                      "
                       @click="draftProvider.proxyMode = 'manual'"
                     >
                       <span class="i-carbon-settings h-3.5 w-3.5" />
@@ -335,7 +345,6 @@
                 </div>
               </FormItem>
             </div>
-
           </template>
         </div>
 
@@ -365,10 +374,7 @@
             <Button variant="secondary" @click="closeProviderDialog">
               {{ $t('dialogOps.cancel') }}
             </Button>
-            <Button
-              :disabled="!draftProvider"
-              @click="saveDraftProvider"
-            >
+            <Button :disabled="!draftProvider" @click="saveDraftProvider">
               {{ $t('dialogOps.save') }}
             </Button>
           </div>
@@ -447,7 +453,8 @@ const setAutoCompact = async (value: boolean) => {
   } catch (err) {
     chat.autoCompact = previous;
     message.error(`Failed to persist: ${(err as Error).message || 'Unknown error'}`, {
-      closable: true, keepAliveOnHover: true,
+      closable: true,
+      keepAliveOnHover: true,
     });
   }
 };
@@ -461,7 +468,8 @@ const setMaxIterations = async (value: number) => {
   } catch (err) {
     chat.maxIterations = previous;
     message.error(`Failed to persist: ${(err as Error).message || 'Unknown error'}`, {
-      closable: true, keepAliveOnHover: true,
+      closable: true,
+      keepAliveOnHover: true,
     });
   }
 };
@@ -475,7 +483,8 @@ const setWallClockBudgetMin = async (value: number) => {
   } catch (err) {
     chat.wallClockBudgetMin = previous;
     message.error(`Failed to persist: ${(err as Error).message || 'Unknown error'}`, {
-      closable: true, keepAliveOnHover: true,
+      closable: true,
+      keepAliveOnHover: true,
     });
   }
 };
@@ -489,7 +498,8 @@ const setTokenBudget = async (value: number) => {
   } catch (err) {
     chat.tokenBudget = previous;
     message.error(`Failed to persist: ${(err as Error).message || 'Unknown error'}`, {
-      closable: true, keepAliveOnHover: true,
+      closable: true,
+      keepAliveOnHover: true,
     });
   }
 };
@@ -733,13 +743,10 @@ const validateDraftProvider = () => {
 };
 
 const showApiKeyField = (provider: ProviderConfig) =>
-  provider.kind !== 'ollama' &&
-  provider.kind !== 'lm-studio';
+  provider.kind !== 'ollama' && provider.kind !== 'lm-studio';
 
 const showBaseUrlField = (provider: ProviderConfig) =>
-  provider.kind === 'ollama' ||
-  provider.kind === 'lm-studio' ||
-  provider.kind === 'custom-openai';
+  provider.kind === 'ollama' || provider.kind === 'lm-studio' || provider.kind === 'custom-openai';
 
 const showContextWindowField = (provider: ProviderConfig) => provider.apiCompatibility === 'local';
 
@@ -838,7 +845,7 @@ const saveDraftProvider = async () => {
     apiKey: resolvedApiKey,
     baseUrl: normalizeBaseUrl(draftProvider.value.baseUrl ?? ''),
     proxy: draftProvider.value.proxy?.trim() ?? '',
-      proxyMode: draftProvider.value.proxyMode ?? 'none',
+    proxyMode: draftProvider.value.proxyMode ?? 'none',
     contextWindowOverride: draftProvider.value.contextWindowOverride,
     enabled: true,
     connected:
@@ -886,10 +893,10 @@ const testProvider = async (providerId: string) => {
       message.success('Provider connection successful.');
       return;
     }
-    message.error(
-      result.error || 'Unable to connect with the current provider configuration.',
-      { closable: true, keepAliveOnHover: true },
-    );
+    message.error(result.error || 'Unable to connect with the current provider configuration.', {
+      closable: true,
+      keepAliveOnHover: true,
+    });
   } finally {
     providerActionState[providerId] = 'idle';
   }

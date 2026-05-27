@@ -143,8 +143,7 @@ export const enUS = {
         featureRequest: 'Create feature request',
         contextWindowLabel: 'Context window override (tokens)',
         contextWindowPlaceholder: 'Auto-detect',
-        contextWindowDescription:
-          'Maximum tokens this provider should use. Minimum 1024.',
+        contextWindowDescription: 'Maximum tokens this provider should use. Minimum 1024.',
         removeProviderNotice:
           'Remove this provider? This will clear all credentials and model settings.',
       },
