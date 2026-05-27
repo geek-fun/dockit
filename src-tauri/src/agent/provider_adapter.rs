@@ -176,13 +176,9 @@ pub fn build_headers(settings: &Value) -> Result<HeaderMap, String> {
         };
         let value = HeaderValue::from_str(&header_value)
             .map_err(|e| format!("Invalid header value: {}", e))?;
-        headers.insert(
-            reqwest::header::HeaderName::from_static(
-                // auth_header_name is static — safe to unwrap
-                config.auth_header_name,
-            ),
-            value,
-        );
+        let header_name = reqwest::header::HeaderName::try_from(config.auth_header_name)
+            .map_err(|e| format!("Invalid header name '{}': {}", config.auth_header_name, e))?;
+        headers.insert(header_name, value);
     }
 
     Ok(headers)
