@@ -285,7 +285,7 @@
                         : 'text-muted-foreground hover:text-foreground'"
                       @click="draftProvider.proxyMode = 'none'"
                     >
-                      <span class="i-carbon-plug h-3.5 w-3.5" />
+                      <span class="i-carbon-close h-3.5 w-3.5" />
                       {{ $t('setting.ai.providers.proxyNone') }}
                     </button>
                     <button
@@ -296,7 +296,7 @@
                         : 'text-muted-foreground hover:text-foreground'"
                       @click="draftProvider.proxyMode = 'system'"
                     >
-                      <span class="i-carbon-globe h-3.5 w-3.5" />
+                      <span class="i-carbon-laptop h-3.5 w-3.5" />
                       {{ $t('setting.ai.providers.proxySystem') }}
                     </button>
                     <button
