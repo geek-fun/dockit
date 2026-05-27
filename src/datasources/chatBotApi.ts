@@ -137,25 +137,41 @@ const chatBotApi = {
     });
   },
   validateConfig: async (config: {
-    provider: ProviderEnum;
+    provider: string;
     apiKey: string;
     model: string;
     httpProxy?: string;
+    proxyMode?: string;
     baseUrl?: string;
-  }) => {
+  }): Promise<{ valid: boolean; error?: string }> => {
+    const VALIDATE_TIMEOUT_MS = 35_000;
     try {
-      return await invoke<boolean>('validate_llm_config', config);
-    } catch (_err) {
-      return false;
+      const result = await Promise.race([
+        invoke<boolean>('validate_llm_config', config),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Connection timed out')), VALIDATE_TIMEOUT_MS),
+        ),
+      ]);
+      return { valid: result };
+    } catch (err) {
+      return { valid: false, error: (err as Error).message || String(err) };
     }
   },
   listModels: async (config: {
-    provider: ProviderEnum;
+    provider: string;
     apiKey: string;
     httpProxy?: string;
+    proxyMode?: string;
     baseUrl?: string;
   }) => {
-    return await invoke<Array<string>>('list_llm_models', config);
+    const LIST_MODELS_TIMEOUT_MS = 60_000;
+    const result = await Promise.race([
+      invoke<Array<string>>('list_llm_models', config),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Model listing timed out')), LIST_MODELS_TIMEOUT_MS),
+      ),
+    ]);
+    return result;
   },
 };
 

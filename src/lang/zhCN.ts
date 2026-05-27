@@ -125,6 +125,9 @@ export const zhCN = {
         testConnection: '测试连接',
         testSuccess: '连接成功',
         testFailed: '无法连接',
+        proxySystem: '使用系统代理',
+        proxyManual: '手动配置',
+        proxyNone: '无（直连）',
         openrouterAuthTitle: '连接 OpenRouter',
         openrouterAuthDesc: '优先使用网页授权；如果你更喜欢手动配置，也可以切换为 API Key。',
         websiteTab: '网页授权',
@@ -134,12 +137,11 @@ export const zhCN = {
         openRouterConnect: '打开 OpenRouter 网站',
         useApiKey: '改用 API Key',
         featureRequest: '创建功能需求',
-        customAnthropicDescription:
-          '本次改版暂未实现 Anthropic-compatible 服务商。可通过按钮在 GitHub 上跟踪该功能需求。',
         contextWindowLabel: '上下文窗口覆盖（tokens）',
         contextWindowPlaceholder: '自动检测',
-        contextWindowDescription:
-          '为该服务商设置 DocKit 使用的最大上下文长度。适用于自定义 num_ctx 的 Ollama 模型或非默认上限的自托管部署。最小 1024。',
+        contextWindowDescription: '该服务商可使用的最大 token 数。最小 1024。',
+        removeProviderNotice: '确认移除此提供商？这将清除所有凭据和模型配置。',
+        customAnthropicDescription: 'Anthropic 兼容接入。使用 API 密钥认证和 /v1/messages 格式。',
       },
 
       chat: {
@@ -791,8 +793,6 @@ export const zhCN = {
     execute: '执行',
     createFolder: '创建文件夹',
     overwrite: '覆盖',
-
-    removeProviderNotice: '确认移除此提供商？这将清除所有凭据和模型配置。',
 
     edit: '编辑',
   },

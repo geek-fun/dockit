@@ -204,7 +204,7 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
     let base_url = build_es_base_url(config)?;
     let headers = build_es_headers(config);
     let ssl = get_es_ssl_flag(config);
-    let client = create_http_client(None, Some(ssl));
+    let client = create_http_client("system", None, Some(ssl), None);
 
     let (method, path, body) = match tool_name {
         "es__search" => {
@@ -353,6 +353,44 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
                 format!("/{}/_mapping", url_encode_segment(index)),
                 Some(body),
             )
+        }
+        "es__cat_aliases" => ("GET", "/_cat/aliases?format=json".to_string(), None),
+        "es__get_alias" => {
+            let index = args
+                .get("index")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing index")?;
+            validate_index_name(index, true)?;
+            ("GET", format!("/{}/_alias", url_encode_segment(index)), None)
+        }
+        "es__put_alias" => {
+            let index = args
+                .get("index")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing index")?;
+            validate_index_name(index, false)?;
+            let name = args
+                .get("name")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing name")?;
+            let body = args.get("body").map(|b| b.to_string());
+            ("PUT", format!("/{}/_alias/{}", url_encode_segment(index), url_encode_segment(name)), body)
+        }
+        "es__delete_alias" => {
+            let index = args
+                .get("index")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing index")?;
+            validate_index_name(index, false)?;
+            let name = args
+                .get("name")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing name")?;
+            ("DELETE", format!("/{}/_alias/{}", url_encode_segment(index), url_encode_segment(name)), None)
+        }
+        "es__update_aliases" => {
+            let body = args.get("body").ok_or("Missing body")?.to_string();
+            ("POST", "/_aliases".to_string(), Some(body))
         }
         _ => return Err(format!("Unknown ES tool: {}", tool_name)),
     };

@@ -128,6 +128,9 @@ export const enUS = {
         testConnection: 'Test connection',
         testSuccess: 'Connection successful',
         testFailed: 'Unable to connect',
+        proxySystem: 'Use system proxy',
+        proxyManual: 'Manual',
+        proxyNone: 'None (direct connection)',
         openrouterAuthTitle: 'Connect OpenRouter',
         openrouterAuthDesc:
           'Use website auth first, or fall back to a standard API key if you prefer manual setup.',
@@ -138,12 +141,13 @@ export const enUS = {
         openRouterConnect: 'Open OpenRouter website',
         useApiKey: 'Use API key instead',
         featureRequest: 'Create feature request',
-        customAnthropicDescription:
-          'Anthropic-compatible providers are not implemented in this pass. Use the feature request button to track it on GitHub.',
         contextWindowLabel: 'Context window override (tokens)',
         contextWindowPlaceholder: 'Auto-detect',
-        contextWindowDescription:
-          'Set the maximum context size DocKit should assume for this provider. Useful for Ollama models that change num_ctx, or self-hosted setups with non-default limits. Minimum 1024.',
+        contextWindowDescription: 'Maximum tokens this provider should use. Minimum 1024.',
+        removeProviderNotice:
+          'Remove this provider? This will clear all credentials and model settings.',
+        customAnthropicDescription:
+          'Anthropic-compatible endpoint. Uses API key authentication and the /v1/messages format.',
       },
 
       chat: {
@@ -821,9 +825,6 @@ export const enUS = {
     execute: 'Run',
     createFolder: 'Create Folder',
     overwrite: 'Overwrite',
-
-    removeProviderNotice:
-      'Remove this provider? This will clear all credentials and model settings.',
 
     edit: 'Edit',
   },

@@ -183,6 +183,78 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             required_permission: "update",
         },
         ToolDefinition {
+            name: "es__cat_aliases",
+            description: "List all index aliases, their target indices, and routing configuration.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" }
+                },
+                "required": ["connection_id"]
+            }),
+            risk_level: RiskLevel::Safe,
+            required_permission: "read",
+        },
+        ToolDefinition {
+            name: "es__get_alias",
+            description: "Get the aliases defined on a specific index.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "index": { "type": "string", "description": "Target index name" }
+                },
+                "required": ["connection_id", "index"]
+            }),
+            risk_level: RiskLevel::Safe,
+            required_permission: "read",
+        },
+        ToolDefinition {
+            name: "es__put_alias",
+            description: "Create or update an alias pointing to a specific index. Optionally include filter and routing settings.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "index": { "type": "string", "description": "Target index name" },
+                    "name": { "type": "string", "description": "Alias name" },
+                    "body": { "type": "object", "description": "Optional alias body with filter/routing, e.g. {\"filter\":{\"term\":{\"user\":\"kimchy\"}}}" }
+                },
+                "required": ["connection_id", "index", "name"]
+            }),
+            risk_level: RiskLevel::Elevated,
+            required_permission: "update",
+        },
+        ToolDefinition {
+            name: "es__delete_alias",
+            description: "Remove an alias from a specific index. Does NOT delete the index or its data.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "index": { "type": "string", "description": "Target index name" },
+                    "name": { "type": "string", "description": "Alias name to remove" }
+                },
+                "required": ["connection_id", "index", "name"]
+            }),
+            risk_level: RiskLevel::Destructive,
+            required_permission: "delete",
+        },
+        ToolDefinition {
+            name: "es__update_aliases",
+            description: "Atomically add and/or remove multiple aliases in a single operation using the _aliases endpoint.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "connection_id": { "type": "string", "description": "ID of the target connection from the session" },
+                    "body": { "type": "object", "description": "Alias actions body, e.g. {\"actions\":[{\"add\":{\"index\":\"a\",\"alias\":\"b\"}},{\"remove\":{\"index\":\"c\",\"alias\":\"d\"}}]}" }
+                },
+                "required": ["connection_id", "body"]
+            }),
+            risk_level: RiskLevel::Elevated,
+            required_permission: "update",
+        },
+        ToolDefinition {
             name: "dynamo__execute_query",
             description: "Execute a PartiQL SELECT query against DynamoDB. Use for reading and querying table data.",
             parameters: json!({

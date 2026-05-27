@@ -122,11 +122,11 @@ const stopResize = () => {
 const syncAllProviderModels = () => {
   llmSettings.value.providers
     .filter(provider => provider.enabled)
-    .forEach(provider => appStore.syncProviderModels(provider.id));
+    .forEach(provider => appStore.syncProviderModels(provider.id).catch(() => {}));
 };
 
 const onModelChange = async () => {
-  await appStore.fetchLlmSettings();
+  // LLM settings loaded globally in App.vue
 };
 
 const switchSession = (sessionId: string) => {
@@ -144,7 +144,6 @@ const startNewSession = () => {
 };
 
 onMounted(async () => {
-  await appStore.fetchLlmSettings();
   await dataStudioStore.loadSessions();
   await initContextSettings();
 });
