@@ -10,7 +10,7 @@ async fn introspect_es(config: &Value) -> Result<String, String> {
     let base_url = build_es_base_url(config)?;
     let headers = build_es_headers(config);
     let ssl = get_es_ssl_flag(config);
-    let client = create_http_client(None, Some(ssl), None);
+    let client = create_http_client("system", None, Some(ssl), None);
 
     let indices_url = format!("{}/_cat/indices?format=json", base_url);
     let indices_resp = client

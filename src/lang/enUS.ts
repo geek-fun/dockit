@@ -128,6 +128,9 @@ export const enUS = {
         testConnection: 'Test connection',
         testSuccess: 'Connection successful',
         testFailed: 'Unable to connect',
+        proxySystem: 'Use system proxy',
+        proxyManual: 'Manual',
+        proxyNone: 'None (direct connection)',
         openrouterAuthTitle: 'Connect OpenRouter',
         openrouterAuthDesc:
           'Use website auth first, or fall back to a standard API key if you prefer manual setup.',

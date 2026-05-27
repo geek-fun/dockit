@@ -210,7 +210,7 @@ pub async fn summarize_with_llm(
         .get("httpProxy")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
-    let http_client = create_http_client(http_proxy, None, None);
+    let http_client = create_http_client("system", http_proxy, None, None);
 
     let resp = post_chat_completions_compact(&http_client, &base_url, headers, body).await?;
     let payload: Value = resp.json().await.map_err(|e| e.to_string())?;

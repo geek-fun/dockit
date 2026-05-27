@@ -2,45 +2,64 @@ use std::env;
 use std::time::Duration;
 
 fn get_proxy(http_proxy: Option<String>) -> Option<String> {
-    let sys_proxy = env::var("HTTPS_PROXY")
-        .ok()
-        .or(env::var("https_proxy").ok());
-    match http_proxy {
-        Some(proxy) if !proxy.is_empty() => Some(proxy),
-        _ => sys_proxy,
+    if let Some(proxy) = http_proxy {
+        if !proxy.is_empty() {
+            return Some(proxy);
+        }
     }
+    env::var("HTTPS_PROXY")
+        .ok()
+        .or_else(|| env::var("https_proxy").ok())
+        .or_else(|| env::var("HTTP_PROXY").ok())
+        .or_else(|| env::var("http_proxy").ok())
+        .or_else(|| {
+            env::var("all_proxy").ok().filter(|p| p.starts_with("http://"))
+        })
 }
 
 const CONNECT_TIMEOUT_SECS: u64 = 15;
 
-/// Build an HTTP client with a configurable request-level timeout.
-///
-/// All clients get a 15s connect timeout (TCP/TLS handshake — never breaks
-/// streaming). Pass `Some(Duration)` for a per-request timeout on short
-/// operations like validation; pass `None` for streaming or long-running
-/// requests (LLM chat, ES queries, file downloads).
 pub fn create_http_client(
-    proxy: Option<String>,
+    proxy_mode: &str,
+    proxy_url: Option<String>,
     ssl: Option<bool>,
     request_timeout: Option<Duration>,
 ) -> reqwest::Client {
     let mut builder = reqwest::ClientBuilder::new()
         .danger_accept_invalid_certs(!ssl.unwrap_or(true))
-        .connect_timeout(Duration::from_secs(CONNECT_TIMEOUT_SECS));
+        .connect_timeout(Duration::from_secs(CONNECT_TIMEOUT_SECS))
+        .no_proxy();
 
     if let Some(duration) = request_timeout {
         builder = builder.timeout(duration);
     }
 
-    if let Some(proxy_url) = get_proxy(proxy) {
-        match reqwest::Proxy::all(&proxy_url) {
-            Ok(proxy) => {
-                builder = builder.proxy(proxy);
+    match proxy_mode {
+        "manual" => {
+            if let Some(proxy_url) = get_proxy(proxy_url) {
+                match reqwest::Proxy::all(&proxy_url) {
+                    Ok(proxy) => {
+                        builder = builder.proxy(proxy);
+                    }
+                    Err(e) => {
+                        eprintln!("[dockit] Failed to configure proxy '{}': {}", proxy_url, e);
+                    }
+                };
             }
-            Err(e) => {
-                eprintln!("[dockit] Failed to configure proxy '{}': {}", proxy_url, e);
+        }
+        "none" => {
+            // no_proxy() already called on builder above — no proxy used
+        }
+        _ => {
+            // "system" (default): let reqwest auto-detect from OS proxy settings.
+            // Re-build without no_proxy() so system-proxy feature takes effect.
+            builder = reqwest::ClientBuilder::new()
+                .danger_accept_invalid_certs(!ssl.unwrap_or(true))
+                .connect_timeout(Duration::from_secs(CONNECT_TIMEOUT_SECS));
+            if let Some(duration) = request_timeout {
+                builder = builder.timeout(duration);
             }
-        };
+        }
     }
 
     builder.build().expect("Failed to build HTTP client")

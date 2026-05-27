@@ -37,6 +37,7 @@ pub async fn run_agent_step(
     messages: Vec<Value>,
     tools: Vec<Value>,
     http_proxy: Option<String>,
+    proxy_mode: Option<String>,
     api_key: String,
     base_url: Option<String>,
 ) -> Result<String, String> {
@@ -46,7 +47,12 @@ pub async fn run_agent_step(
     let config = OpenAIConfig::new()
         .with_api_key(&api_key)
         .with_api_base(normalized_base_url);
-    let http_client = create_http_client(http_proxy, None, None);
+    let http_client = create_http_client(
+        proxy_mode.as_deref().unwrap_or("system"),
+        http_proxy,
+        None,
+        None,
+    );
     let client = Client::with_config(config).with_http_client(http_client);
 
     let msgs: Vec<ChatCompletionRequestMessage> = serde_json::from_value(Value::Array(messages))
@@ -183,9 +189,15 @@ pub async fn validate_llm_config(
     api_key: String,
     model: String,
     http_proxy: Option<String>,
+    proxy_mode: Option<String>,
     base_url: Option<String>,
 ) -> Result<bool, String> {
-    let http_client = create_http_client(http_proxy, None, Some(Duration::from_secs(30)));
+    let http_client = create_http_client(
+        proxy_mode.as_deref().unwrap_or("system"),
+        http_proxy,
+        None,
+        Some(Duration::from_secs(30)),
+    );
     let settings = make_settings(&provider, base_url, &api_key);
     let normalized_base_url = provider_adapter::get_base_url(&settings);
     let api_compatibility = provider_adapter::map_to_api_compatibility(&provider);
@@ -235,9 +247,15 @@ pub async fn list_llm_models(
     provider: String,
     api_key: String,
     http_proxy: Option<String>,
+    proxy_mode: Option<String>,
     base_url: Option<String>,
 ) -> Result<Vec<String>, String> {
-    let http_client = create_http_client(http_proxy, None, Some(Duration::from_secs(60)));
+    let http_client = create_http_client(
+        proxy_mode.as_deref().unwrap_or("system"),
+        http_proxy,
+        None,
+        Some(Duration::from_secs(60)),
+    );
     let settings = make_settings(&provider, base_url, &api_key);
     let normalized_base_url = provider_adapter::get_base_url(&settings);
     let api_compatibility = provider_adapter::map_to_api_compatibility(&provider);

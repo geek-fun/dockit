@@ -158,6 +158,7 @@ export const useChatStore = defineStore('chat', {
             messages: openAiMessages,
             tools: [],
             httpProxy: provider.proxy || undefined,
+            proxyMode: provider.proxyMode,
             apiKey: provider.apiKey ?? '',
             baseUrl: provider.baseUrl,
           });

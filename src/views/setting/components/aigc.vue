@@ -275,7 +275,44 @@
               </FormItem>
 
               <FormItem :label="$t('setting.ai.proxy')" :error="draftProviderErrors.proxy">
-                <Input v-model="draftProvider.proxy" placeholder="http://127.0.0.1:7890" />
+                <div class="space-y-3">
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      value="system"
+                      :checked="draftProvider.proxyMode === 'system'"
+                      class="h-4 w-4"
+                      @change="draftProvider.proxyMode = 'system'"
+                    />
+                    <span class="text-sm">{{ $t('setting.ai.providers.proxySystem') }}</span>
+                  </label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      value="manual"
+                      :checked="draftProvider.proxyMode === 'manual'"
+                      class="h-4 w-4"
+                      @change="draftProvider.proxyMode = 'manual'"
+                    />
+                    <span class="text-sm">{{ $t('setting.ai.providers.proxyManual') }}</span>
+                  </label>
+                  <Input
+                    v-if="draftProvider.proxyMode === 'manual'"
+                    v-model="draftProvider.proxy"
+                    placeholder="http://127.0.0.1:7890"
+                    class="mt-1"
+                  />
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      value="none"
+                      :checked="draftProvider.proxyMode === 'none'"
+                      class="h-4 w-4"
+                      @change="draftProvider.proxyMode = 'none'"
+                    />
+                    <span class="text-sm">{{ $t('setting.ai.providers.proxyNone') }}</span>
+                  </label>
+                </div>
               </FormItem>
 
               <FormItem
@@ -635,6 +672,7 @@ const normalizeProviderDraft = (provider: ProviderConfig): ProviderConfig => ({
   ...cloneDeep(provider),
   apiKey: provider.apiKey ? API_KEY_SENTINEL : '',
   baseUrl: provider.baseUrl ?? '',
+  proxyMode: provider.proxyMode ?? 'system',
   proxy: provider.proxy ?? '',
   enabled: true,
 });
@@ -649,6 +687,7 @@ const createDraftProvider = (kind: ProviderKind) => {
     authMode: preset.authMode ?? 'api-key',
     apiKey: '',
     baseUrl: preset.baseUrl ?? '',
+    proxyMode: 'system',
     proxy: '',
     headers: {},
     enabled: true,
@@ -757,6 +796,7 @@ const testDraftProvider = async () => {
     apiKey: resolvedApiKey,
     model: '',
     httpProxy: draft.proxy?.trim() || undefined,
+    proxyMode: draft.proxyMode,
     baseUrl: draft.baseUrl?.trim() || undefined,
   });
   dialogTestState.value = result.valid ? 'success' : 'failed';
@@ -799,7 +839,8 @@ const saveDraftProvider = async () => {
     authMode: draftProvider.value.authMode,
     apiKey: resolvedApiKey,
     baseUrl: normalizeBaseUrl(draftProvider.value.baseUrl ?? ''),
-    proxy: draftProvider.value.proxy?.trim() ?? '',
+      proxy: draftProvider.value.proxy?.trim() ?? '',
+      proxyMode: draftProvider.value.proxyMode ?? 'system',
     contextWindowOverride: draftProvider.value.contextWindowOverride,
     enabled: true,
     connected:

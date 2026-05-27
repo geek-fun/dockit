@@ -141,6 +141,7 @@ const chatBotApi = {
     apiKey: string;
     model: string;
     httpProxy?: string;
+    proxyMode?: string;
     baseUrl?: string;
   }): Promise<{ valid: boolean; error?: string }> => {
     const VALIDATE_TIMEOUT_MS = 35_000;
@@ -160,6 +161,7 @@ const chatBotApi = {
     provider: string;
     apiKey: string;
     httpProxy?: string;
+    proxyMode?: string;
     baseUrl?: string;
   }) => {
     const LIST_MODELS_TIMEOUT_MS = 60_000;

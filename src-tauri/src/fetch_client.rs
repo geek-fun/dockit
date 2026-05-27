@@ -127,14 +127,14 @@ pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, 
         .as_deref()
         .is_some_and(|p| !p.is_empty());
     let client = if has_proxy {
-        create_http_client(options.agent.http_proxy, Some(options.agent.ssl), None)
+        create_http_client("system", options.agent.http_proxy, Some(options.agent.ssl), None)
     } else if options.agent.ssl {
         SECURE_CLIENT
-            .get_or_init(|| create_http_client(None, Some(true), None))
+            .get_or_init(|| create_http_client("system", None, Some(true), None))
             .clone()
     } else {
         INSECURE_CLIENT
-            .get_or_init(|| create_http_client(None, Some(false), None))
+            .get_or_init(|| create_http_client("system", None, Some(false), None))
             .clone()
     };
 

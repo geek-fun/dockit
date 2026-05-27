@@ -88,6 +88,7 @@ const agentApi = {
     messages: Array<Record<string, unknown>>;
     tools: Array<ToolDefinition>;
     httpProxy?: string;
+    proxyMode?: string;
     apiKey: string;
     baseUrl?: string;
   }): Promise<AgentStepResult> => {
