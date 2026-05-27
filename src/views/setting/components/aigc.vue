@@ -433,28 +433,28 @@ const wallClockBudgetMin = computed(() => llmSettings.value.chat?.wallClockBudge
 const tokenBudget = computed(() => llmSettings.value.chat?.tokenBudget ?? 20_000_000);
 
 const setAutoCompact = async (value: boolean) => {
-  const result = await appStore.persistChatSettings({ autoCompact: value });
+  const result = await appStore.saveChatSettings({ autoCompact: value });
   if (!result.success) {
     message.error(`Failed to persist: ${result.error}`, { closable: true, keepAliveOnHover: true });
   }
 };
 
 const setMaxIterations = async (value: number) => {
-  const result = await appStore.persistChatSettings({ maxIterations: Math.max(1, Math.floor(value)) });
+  const result = await appStore.saveChatSettings({ maxIterations: Math.max(1, Math.floor(value)) });
   if (!result.success) {
     message.error(`Failed to persist: ${result.error}`, { closable: true, keepAliveOnHover: true });
   }
 };
 
 const setWallClockBudgetMin = async (value: number) => {
-  const result = await appStore.persistChatSettings({ wallClockBudgetMin: Math.max(1, Math.floor(value)) });
+  const result = await appStore.saveChatSettings({ wallClockBudgetMin: Math.max(1, Math.floor(value)) });
   if (!result.success) {
     message.error(`Failed to persist: ${result.error}`, { closable: true, keepAliveOnHover: true });
   }
 };
 
 const setTokenBudget = async (value: number) => {
-  const result = await appStore.persistChatSettings({ tokenBudget: Math.max(1_000, Math.floor(value)) });
+  const result = await appStore.saveChatSettings({ tokenBudget: Math.max(1_000, Math.floor(value)) });
   if (!result.success) {
     message.error(`Failed to persist: ${result.error}`, { closable: true, keepAliveOnHover: true });
   }

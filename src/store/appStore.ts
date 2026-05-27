@@ -592,7 +592,7 @@ export const useAppStore = defineStore('app', {
       this.llmSettings.models = reconcileModelRoutes(this.llmSettings);
       await storeApi.setSecret('llmSettings', pureObject(this.llmSettings));
     },
-    async persistChatSettings(chat: Partial<ChatRuntimeConfig>): Promise<{ success: boolean; error?: string }> {
+    async saveChatSettings(chat: Partial<ChatRuntimeConfig>): Promise<{ success: boolean; error?: string }> {
       if (!this.llmSettings.chat) {
         this.llmSettings.chat = { ...chat } as ChatRuntimeConfig;
       }
