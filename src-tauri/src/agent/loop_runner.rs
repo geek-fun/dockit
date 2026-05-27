@@ -777,8 +777,7 @@ async fn run_agent_loop_inner(
             return Ok(());
         }
         let raw_tools = settings.get("tools");
-        let formatted_tools = raw_tools.map(|t| formatter.format_tools(t));
-        let body = formatter.build_request(model, system_prompt.as_deref(), &chat_msgs, formatted_tools.as_ref(), true);
+        let body = formatter.build_request(model, system_prompt.as_deref(), &chat_msgs, raw_tools, true);
         // Emitted immediately before the main streaming call starts. The first
         // `agent-loop-delta` event implicitly signals waiting finished.
         let _ = app.emit(
