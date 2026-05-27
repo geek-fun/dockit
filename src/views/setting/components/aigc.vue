@@ -403,24 +403,52 @@ const ensureChatConfig = () => {
   return llmSettings.value.chat;
 };
 
+const persistChatConfig = async (rollback: () => void) => {
+  try {
+    await appStore.persistLlmSettings();
+  } catch (err) {
+    rollback();
+    message.error(
+      `Failed to persist: ${(err as Error).message || 'Unknown error'}`,
+      { closable: true, keepAliveOnHover: true },
+    );
+  }
+};
+
 const setAutoCompact = async (value: boolean) => {
-  ensureChatConfig().autoCompact = value;
-  await appStore.persistLlmSettings();
+  const chat = ensureChatConfig();
+  const previous = chat.autoCompact;
+  chat.autoCompact = value;
+  await persistChatConfig(() => {
+    chat.autoCompact = previous;
+  });
 };
 
 const setMaxIterations = async (value: number) => {
-  ensureChatConfig().maxIterations = Math.max(1, Math.floor(value));
-  await appStore.persistLlmSettings();
+  const chat = ensureChatConfig();
+  const previous = chat.maxIterations;
+  chat.maxIterations = Math.max(1, Math.floor(value));
+  await persistChatConfig(() => {
+    chat.maxIterations = previous;
+  });
 };
 
 const setWallClockBudgetMin = async (value: number) => {
-  ensureChatConfig().wallClockBudgetMin = Math.max(1, Math.floor(value));
-  await appStore.persistLlmSettings();
+  const chat = ensureChatConfig();
+  const previous = chat.wallClockBudgetMin;
+  chat.wallClockBudgetMin = Math.max(1, Math.floor(value));
+  await persistChatConfig(() => {
+    chat.wallClockBudgetMin = previous;
+  });
 };
 
 const setTokenBudget = async (value: number) => {
-  ensureChatConfig().tokenBudget = Math.max(1_000, Math.floor(value));
-  await appStore.persistLlmSettings();
+  const chat = ensureChatConfig();
+  const previous = chat.tokenBudget;
+  chat.tokenBudget = Math.max(1_000, Math.floor(value));
+  await persistChatConfig(() => {
+    chat.tokenBudget = previous;
+  });
 };
 
 const contextWindowOverrideInput = computed<string>({
