@@ -54,7 +54,4 @@ pub trait ChatFormatter: Send + Sync {
 
     /// Parse a single SSE "data:" line into a StreamDelta.
     fn parse_chunk(&self, data: &str) -> Result<StreamDelta, String>;
-
-    /// Format tool definitions into the provider-specific shape.
-    fn format_tools(&self, tools: &serde_json::Value) -> serde_json::Value;
 }

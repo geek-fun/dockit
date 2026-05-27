@@ -160,10 +160,6 @@ impl ChatFormatter for OpenAIChatFormatter {
             finish_reason,
         })
     }
-
-    fn format_tools(&self, tools: &Value) -> Value {
-        tools.clone()
-    }
 }
 
 #[cfg(test)]
@@ -292,13 +288,5 @@ mod tests {
         let f = OpenAIChatFormatter;
         let result = f.parse_chunk("not json");
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_format_tools_passthrough() {
-        let f = OpenAIChatFormatter;
-        let tools = json!([{"type": "function", "function": {"name": "test"}}]);
-        let result = f.format_tools(&tools);
-        assert_eq!(result, tools);
     }
 }

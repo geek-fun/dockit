@@ -232,29 +232,6 @@ impl ChatFormatter for AnthropicChatFormatter {
             }
         }
     }
-
-    fn format_tools(&self, tools: &Value) -> Value {
-        // Anthropic uses {name, description, input_schema} format
-        if let Some(arr) = tools.as_array() {
-            let formatted: Vec<Value> = arr
-                .iter()
-                .filter_map(|tool| {
-                    let f = tool.get("function")?;
-                    Some(json!({
-                        "name": f.get("name")?.as_str()?,
-                        "description": f.get("description")
-                            .and_then(|d| d.as_str())
-                            .unwrap_or(""),
-                        "input_schema": f.get("parameters")
-                            .cloned()
-                            .unwrap_or(json!({"type": "object", "properties": {}}))
-                    }))
-                })
-                .collect();
-            return Value::Array(formatted);
-        }
-        json!([])
-    }
 }
 
 #[cfg(test)]
@@ -415,18 +392,5 @@ mod tests {
         let data = r#"data: {"type":"message_stop"}"#;
         let delta = f.parse_chunk(data).unwrap();
         assert_eq!(delta.finish_reason, Some("end_turn".into()));
-    }
-
-    #[test]
-    fn test_format_tools_conversion() {
-        let f = AnthropicChatFormatter;
-        let tools = json!([{
-            "type": "function",
-            "function": { "name": "get_weather", "description": "Get weather", "parameters": {"type": "object"} }
-        }]);
-        let result = f.format_tools(&tools);
-        assert_eq!(result[0]["name"], "get_weather");
-        assert_eq!(result[0]["description"], "Get weather");
-        assert!(result[0]["input_schema"].is_object());
     }
 }
