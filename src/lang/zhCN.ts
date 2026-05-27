@@ -142,7 +142,7 @@ export const zhCN = {
         contextWindowLabel: '上下文窗口覆盖（tokens）',
         contextWindowPlaceholder: '自动检测',
         contextWindowDescription:
-          '为该服务商设置 DocKit 使用的最大上下文长度。适用于自定义 num_ctx 的 Ollama 模型或非默认上限的自托管部署。最小 1024。',
+          '该服务商可使用的最大 token 数。最小 1024。',
         removeProviderNotice: '确认移除此提供商？这将清除所有凭据和模型配置。',
       },
 

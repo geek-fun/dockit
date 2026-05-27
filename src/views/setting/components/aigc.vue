@@ -274,7 +274,23 @@
                 />
               </FormItem>
 
-              <FormItem :label="$t('setting.ai.proxy')" :error="draftProviderErrors.proxy">
+              <FormItem
+                v-if="showContextWindowField(draftProvider)"
+                :label="$t('setting.ai.providers.contextWindowLabel')"
+              >
+                <Input
+                  v-model="contextWindowOverrideInput"
+                  type="number"
+                  min="1024"
+                  step="1024"
+                  :placeholder="$t('setting.ai.providers.contextWindowPlaceholder')"
+                />
+                <p class="mt-1 text-xs text-muted-foreground">
+                  {{ $t('setting.ai.providers.contextWindowDescription') }}
+                </p>
+              </FormItem>
+
+              <FormItem :label="$t('setting.ai.proxy')" class="md:col-span-2" :error="draftProviderErrors.proxy">
                 <div class="space-y-3">
                   <div class="inline-flex rounded-lg bg-muted/60 p-0.5">
                     <button
@@ -317,22 +333,6 @@
                     placeholder="http://127.0.0.1:7890"
                   />
                 </div>
-              </FormItem>
-
-              <FormItem
-                v-if="showContextWindowField(draftProvider)"
-                :label="$t('setting.ai.providers.contextWindowLabel')"
-              >
-                <Input
-                  v-model="contextWindowOverrideInput"
-                  type="number"
-                  min="1024"
-                  step="1024"
-                  :placeholder="$t('setting.ai.providers.contextWindowPlaceholder')"
-                />
-                <p class="mt-1 text-xs text-muted-foreground">
-                  {{ $t('setting.ai.providers.contextWindowDescription') }}
-                </p>
               </FormItem>
             </div>
 
@@ -444,52 +444,60 @@ const ensureChatConfig = () => {
   return llmSettings.value.chat;
 };
 
-const persistChatConfig = async (rollback: () => void) => {
-  try {
-    await appStore.persistLlmSettings();
-  } catch (err) {
-    rollback();
-    message.error(`Failed to persist: ${(err as Error).message || 'Unknown error'}`, {
-      closable: true,
-      keepAliveOnHover: true,
-    });
-  }
-};
-
 const setAutoCompact = async (value: boolean) => {
   const chat = ensureChatConfig();
   const previous = chat.autoCompact;
   chat.autoCompact = value;
-  await persistChatConfig(() => {
+  try {
+    await appStore.persistChatSettings({ autoCompact: value });
+  } catch (err) {
     chat.autoCompact = previous;
-  });
+    message.error(`Failed to persist: ${(err as Error).message || 'Unknown error'}`, {
+      closable: true, keepAliveOnHover: true,
+    });
+  }
 };
 
 const setMaxIterations = async (value: number) => {
   const chat = ensureChatConfig();
   const previous = chat.maxIterations;
   chat.maxIterations = Math.max(1, Math.floor(value));
-  await persistChatConfig(() => {
+  try {
+    await appStore.persistChatSettings({ maxIterations: chat.maxIterations });
+  } catch (err) {
     chat.maxIterations = previous;
-  });
+    message.error(`Failed to persist: ${(err as Error).message || 'Unknown error'}`, {
+      closable: true, keepAliveOnHover: true,
+    });
+  }
 };
 
 const setWallClockBudgetMin = async (value: number) => {
   const chat = ensureChatConfig();
   const previous = chat.wallClockBudgetMin;
   chat.wallClockBudgetMin = Math.max(1, Math.floor(value));
-  await persistChatConfig(() => {
+  try {
+    await appStore.persistChatSettings({ wallClockBudgetMin: chat.wallClockBudgetMin });
+  } catch (err) {
     chat.wallClockBudgetMin = previous;
-  });
+    message.error(`Failed to persist: ${(err as Error).message || 'Unknown error'}`, {
+      closable: true, keepAliveOnHover: true,
+    });
+  }
 };
 
 const setTokenBudget = async (value: number) => {
   const chat = ensureChatConfig();
   const previous = chat.tokenBudget;
   chat.tokenBudget = Math.max(1_000, Math.floor(value));
-  await persistChatConfig(() => {
+  try {
+    await appStore.persistChatSettings({ tokenBudget: chat.tokenBudget });
+  } catch (err) {
     chat.tokenBudget = previous;
-  });
+    message.error(`Failed to persist: ${(err as Error).message || 'Unknown error'}`, {
+      closable: true, keepAliveOnHover: true,
+    });
+  }
 };
 
 const contextWindowOverrideInput = computed<string>({

@@ -571,6 +571,14 @@ export const useAppStore = defineStore('app', {
       );
       if (storedSettings) {
         this.llmSettings = mergeLlmSettings(storedSettings);
+        // Load chat settings from dedicated key (more reliable)
+        const storedChat = await storeApi.getSecret<ChatRuntimeConfig | undefined>(
+          'chatSettings',
+          undefined,
+        );
+        if (storedChat) {
+          this.llmSettings.chat = storedChat;
+        }
         return this.llmSettings;
       }
 
@@ -583,6 +591,16 @@ export const useAppStore = defineStore('app', {
     async persistLlmSettings() {
       this.llmSettings.models = reconcileModelRoutes(this.llmSettings);
       await storeApi.setSecret('llmSettings', pureObject(this.llmSettings));
+    },
+    async persistChatSettings(chat: Partial<ChatRuntimeConfig>) {
+      if (this.llmSettings.chat) {
+        Object.assign(this.llmSettings.chat, chat);
+      } else {
+        this.llmSettings.chat = { ...chat } as ChatRuntimeConfig;
+      }
+      // Save to a dedicated key so chat settings survive even if
+      // the full llmSettings object has serialization issues.
+      await storeApi.setSecret('chatSettings', pureObject(this.llmSettings.chat));
     },
     async updateProviderConfig(providerId: string, patch: Partial<ProviderConfig>) {
       const provider = this.llmSettings.providers.find(item => item.id === providerId);

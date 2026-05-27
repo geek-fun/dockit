@@ -146,7 +146,7 @@ export const enUS = {
         contextWindowLabel: 'Context window override (tokens)',
         contextWindowPlaceholder: 'Auto-detect',
         contextWindowDescription:
-          'Set the maximum context size DocKit should assume for this provider. Useful for Ollama models that change num_ctx, or self-hosted setups with non-default limits. Minimum 1024.',
+          'Maximum tokens this provider should use. Minimum 1024.',
         removeProviderNotice:
           'Remove this provider? This will clear all credentials and model settings.',
       },
