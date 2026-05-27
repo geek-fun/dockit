@@ -6,7 +6,7 @@ pub struct AnthropicChatFormatter;
 
 impl ChatFormatter for AnthropicChatFormatter {
     fn chat_path(&self) -> &str {
-        "/v1/messages"
+        "/messages"
     }
 
     fn build_request(

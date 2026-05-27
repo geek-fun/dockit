@@ -646,9 +646,6 @@ export const useAppStore = defineStore('app', {
       const provider = this.llmSettings.providers.find(item => item.id === providerId);
       if (!provider) return [];
 
-      if (provider.kind === 'anthropic') {
-        return provider.discoveredModels;
-      }
 
       let discoveredModelLabels: Array<string>;
       if (modelLabels && modelLabels.length > 0) {
@@ -686,7 +683,6 @@ export const useAppStore = defineStore('app', {
     async testProvider(providerId: string): Promise<{ valid: boolean; error?: string }> {
       const provider = this.llmSettings.providers.find(item => item.id === providerId);
       if (!provider || !provider.enabled) return { valid: false };
-      if (provider.kind === 'anthropic') return { valid: false };
 
       const modelLabel = provider.discoveredModels[0]?.label ?? '';
 
@@ -709,7 +705,6 @@ export const useAppStore = defineStore('app', {
       if (!model) return false;
       const provider = this.llmSettings.providers.find(p => p.id === model.providerConfigId);
       if (!provider || !provider.enabled) return false;
-      if (provider.kind === 'anthropic') return false;
 
       return validateLlmConfig({
         provider: provider.apiCompatibility,

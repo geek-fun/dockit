@@ -6,7 +6,7 @@ pub struct OpenAIChatFormatter;
 
 impl ChatFormatter for OpenAIChatFormatter {
     fn chat_path(&self) -> &str {
-        "/v1/chat/completions"
+        "/chat/completions"
     }
 
     fn build_request(

@@ -53,7 +53,7 @@ pub async fn run_agent_step(
             None,
             None,
         );
-        let anthropic_url = format!("{}{}", normalized_base_url.trim_end_matches('/'), "/v1/messages");
+        let anthropic_url = format!("{}{}", normalized_base_url.trim_end_matches('/'), "/messages");
 
         // Build Anthropic request body
         let request_body = json!({
