@@ -675,10 +675,10 @@ export const useAppStore = defineStore('app', {
       await this.persistLlmSettings();
       return discoveredModels;
     },
-    async testProvider(providerId: string): Promise<boolean> {
+    async testProvider(providerId: string): Promise<{ valid: boolean; error?: string }> {
       const provider = this.llmSettings.providers.find(item => item.id === providerId);
-      if (!provider || !provider.enabled) return false;
-      if (provider.kind === 'custom-anthropic' || provider.kind === 'anthropic') return false;
+      if (!provider || !provider.enabled) return { valid: false };
+      if (provider.kind === 'custom-anthropic' || provider.kind === 'anthropic') return { valid: false };
 
       const modelLabel = provider.discoveredModels[0]?.label ?? '';
 
@@ -694,7 +694,7 @@ export const useAppStore = defineStore('app', {
       provider.connected = result.valid;
       provider.updatedAt = Date.now();
       await this.persistLlmSettings();
-      return result.valid;
+      return result;
     },
     async verifyModelAvailability(modelId: string): Promise<boolean> {
       const model = this.availableModels.find(m => m.id === modelId);

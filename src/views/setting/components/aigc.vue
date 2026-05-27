@@ -895,15 +895,15 @@ const syncProviderModels = async (providerId: string) => {
 const testProvider = async (providerId: string) => {
   providerActionState[providerId] = 'testing';
   try {
-    const isValid = await appStore.testProvider(providerId);
-    if (isValid) {
+    const result = await appStore.testProvider(providerId);
+    if (result.valid) {
       message.success('Provider connection successful.');
       return;
     }
-    message.error('Unable to connect with the current provider configuration.', {
-      closable: true,
-      keepAliveOnHover: true,
-    });
+    message.error(
+      result.error || 'Unable to connect with the current provider configuration.',
+      { closable: true, keepAliveOnHover: true },
+    );
   } finally {
     providerActionState[providerId] = 'idle';
   }
