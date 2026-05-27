@@ -323,7 +323,7 @@
               {{ $t('setting.ai.providers.testSuccess') }}
             </span>
             <span v-if="dialogTestState === 'failed'" class="text-sm text-destructive">
-              {{ $t('setting.ai.providers.testFailed') }}
+              {{ dialogTestError || $t('setting.ai.providers.testFailed') }}
             </span>
           </div>
           <div class="flex gap-2">
@@ -480,6 +480,7 @@ const draftProvider = ref<ProviderConfig | null>(null);
 const draftProviderErrors = reactive<ProviderErrorMap>({});
 
 const dialogTestState = ref<'idle' | 'testing' | 'success' | 'failed'>('idle');
+const dialogTestError = ref<string | null>(null);
 
 const normalizeBaseUrl = (url: string): string => {
   const trimmed = url.trim();
@@ -710,6 +711,7 @@ const updateDraftProviderKind = (value: string | number) => {
   draftProvider.value = createDraftProvider(draftProviderKind.value);
   providerAuthTab.value = 'api-key';
   dialogTestState.value = 'idle';
+  dialogTestError.value = null;
   resetDraftProviderErrors();
 };
 
@@ -741,6 +743,7 @@ const openEditProviderDialog = (providerId: string) => {
 const testDraftProvider = async () => {
   if (!draftProvider.value) return;
   dialogTestState.value = 'testing';
+  dialogTestError.value = null;
   const draft = draftProvider.value;
   const draftApiKey = draft.apiKey?.trim();
   const originalProvider = llmSettings.value.providers.find(p => p.id === draft.id);
@@ -749,14 +752,15 @@ const testDraftProvider = async () => {
       ? (originalProvider?.apiKey?.trim() ?? '')
       : (draftApiKey ?? '');
 
-  const isValid = await chatBotApi.validateConfig({
+  const result = await chatBotApi.validateConfig({
     provider: draft.apiCompatibility ?? 'openai-compatible',
     apiKey: resolvedApiKey,
     model: '',
     httpProxy: draft.proxy?.trim() || undefined,
     baseUrl: draft.baseUrl?.trim() || undefined,
   });
-  dialogTestState.value = isValid ? 'success' : 'failed';
+  dialogTestState.value = result.valid ? 'success' : 'failed';
+  dialogTestError.value = result.error ?? null;
 };
 
 const closeProviderDialog = () => {
@@ -766,6 +770,7 @@ const closeProviderDialog = () => {
   draftProvider.value = null;
   providerAuthTab.value = 'api-key';
   dialogTestState.value = 'idle';
+  dialogTestError.value = null;
   showApiKey.value = false;
   resetDraftProviderErrors();
 };

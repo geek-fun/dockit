@@ -658,7 +658,7 @@ export const useAppStore = defineStore('app', {
 
       const modelLabel = provider.discoveredModels[0]?.label ?? '';
 
-      const isValid = await chatBotApi.validateConfig({
+      const result = await chatBotApi.validateConfig({
         provider: provider.apiCompatibility,
         apiKey: provider.apiKey ?? '',
         model: modelLabel,
@@ -666,10 +666,10 @@ export const useAppStore = defineStore('app', {
         baseUrl: provider.baseUrl,
       });
 
-      provider.connected = isValid;
+      provider.connected = result.valid;
       provider.updatedAt = Date.now();
       await this.persistLlmSettings();
-      return isValid;
+      return result.valid;
     },
     async verifyModelAvailability(modelId: string): Promise<boolean> {
       const model = this.availableModels.find(m => m.id === modelId);

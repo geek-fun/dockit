@@ -142,7 +142,7 @@ const chatBotApi = {
     model: string;
     httpProxy?: string;
     baseUrl?: string;
-  }) => {
+  }): Promise<{ valid: boolean; error?: string }> => {
     const VALIDATE_TIMEOUT_MS = 35_000;
     try {
       const result = await Promise.race([
@@ -151,9 +151,9 @@ const chatBotApi = {
           setTimeout(() => reject(new Error('Connection timed out')), VALIDATE_TIMEOUT_MS),
         ),
       ]);
-      return result;
-    } catch (_err) {
-      return false;
+      return { valid: result };
+    } catch (err) {
+      return { valid: false, error: (err as Error).message || String(err) };
     }
   },
   listModels: async (config: {
