@@ -430,7 +430,7 @@ const mergeLlmSettings = (stored: Partial<LlmSettings> | undefined): LlmSettings
       autoCompact: stored?.chat?.autoCompact ?? true,
       maxIterations: stored?.chat?.maxIterations ?? 200,
       wallClockBudgetMin: stored?.chat?.wallClockBudgetMin ?? 30,
-      tokenBudget: stored?.chat?.tokenBudget ?? 1_000_000,
+      tokenBudget: stored?.chat?.tokenBudget ?? 20_000_000,
     },
   };
 };
