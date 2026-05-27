@@ -143,8 +143,15 @@ const chatBotApi = {
     httpProxy?: string;
     baseUrl?: string;
   }) => {
+    const VALIDATE_TIMEOUT_MS = 35_000;
     try {
-      return await invoke<boolean>('validate_llm_config', config);
+      const result = await Promise.race([
+        invoke<boolean>('validate_llm_config', config),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Connection timed out')), VALIDATE_TIMEOUT_MS),
+        ),
+      ]);
+      return result;
     } catch (_err) {
       return false;
     }
@@ -155,7 +162,14 @@ const chatBotApi = {
     httpProxy?: string;
     baseUrl?: string;
   }) => {
-    return await invoke<Array<string>>('list_llm_models', config);
+    const LIST_MODELS_TIMEOUT_MS = 60_000;
+    const result = await Promise.race([
+      invoke<Array<string>>('list_llm_models', config),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Model listing timed out')), LIST_MODELS_TIMEOUT_MS),
+      ),
+    ]);
+    return result;
   },
 };
 

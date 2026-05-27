@@ -31,8 +31,5 @@ pub fn create_http_client(proxy: Option<String>, ssl: Option<bool>) -> reqwest::
         };
     }
 
-    builder.build().unwrap_or_else(|e| {
-        eprintln!("[dockit] Failed to build HTTP client: {}", e);
-        reqwest::Client::new()
-    })
+    builder.build().expect("Failed to build HTTP client")
 }
