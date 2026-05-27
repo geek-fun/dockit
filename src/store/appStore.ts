@@ -654,11 +654,11 @@ export const useAppStore = defineStore('app', {
             proxyMode: provider.proxyMode,
             baseUrl: provider.baseUrl,
           });
-        } catch (_err) {
+        } catch (err) {
           provider.connected = false;
           provider.updatedAt = Date.now();
           await this.persistLlmSettings();
-          return provider.discoveredModels;
+          throw err;
         }
       }
 
