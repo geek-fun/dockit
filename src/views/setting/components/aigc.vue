@@ -275,38 +275,38 @@
               </FormItem>
 
               <FormItem :label="$t('setting.ai.proxy')" :error="draftProviderErrors.proxy">
-                <div class="space-y-2">
-                  <div class="flex items-center gap-6">
-                    <label class="flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
-                      <input
-                        type="radio"
-                        value="none"
-                        :checked="draftProvider.proxyMode === 'none'"
-                        class="h-4 w-4"
-                        @change="draftProvider.proxyMode = 'none'"
-                      />
-                      <span class="text-sm">{{ $t('setting.ai.providers.proxyNone') }}</span>
-                    </label>
-                    <label class="flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
-                      <input
-                        type="radio"
-                        value="system"
-                        :checked="draftProvider.proxyMode === 'system'"
-                        class="h-4 w-4"
-                        @change="draftProvider.proxyMode = 'system'"
-                      />
-                      <span class="text-sm">{{ $t('setting.ai.providers.proxySystem') }}</span>
-                    </label>
-                    <label class="flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
-                      <input
-                        type="radio"
-                        value="manual"
-                        :checked="draftProvider.proxyMode === 'manual'"
-                        class="h-4 w-4"
-                        @change="draftProvider.proxyMode = 'manual'"
-                      />
-                      <span class="text-sm">{{ $t('setting.ai.providers.proxyManual') }}</span>
-                    </label>
+                <div class="space-y-3">
+                  <div class="inline-flex rounded-lg bg-muted/60 p-0.5">
+                    <button
+                      type="button"
+                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                      :class="draftProvider.proxyMode === 'none'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="draftProvider.proxyMode = 'none'"
+                    >
+                      {{ $t('setting.ai.providers.proxyNone') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                      :class="draftProvider.proxyMode === 'system'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="draftProvider.proxyMode = 'system'"
+                    >
+                      {{ $t('setting.ai.providers.proxySystem') }}
+                    </button>
+                    <button
+                      type="button"
+                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                      :class="draftProvider.proxyMode === 'manual'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'"
+                      @click="draftProvider.proxyMode = 'manual'"
+                    >
+                      {{ $t('setting.ai.providers.proxyManual') }}
+                    </button>
                   </div>
                   <Input
                     v-if="draftProvider.proxyMode === 'manual'"
