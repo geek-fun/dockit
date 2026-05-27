@@ -285,7 +285,7 @@
                         : 'text-muted-foreground hover:text-foreground'"
                       @click="draftProvider.proxyMode = 'none'"
                     >
-                      <span class="i-carbon-misuse-outline h-3.5 w-3.5" />
+                      <span class="i-carbon-close-outline h-3.5 w-3.5" />
                       {{ $t('setting.ai.providers.proxyNone') }}
                     </button>
                     <button
