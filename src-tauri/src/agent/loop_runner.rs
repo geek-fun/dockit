@@ -734,16 +734,13 @@ async fn run_agent_loop_inner(
                 Ok(a) => a,
                 Err(e) => {
                     let _ = insert_message(db, app, settings, &new_id(), session_id, "assistant", &e);
-                    let is_bad_request = e.contains("invalid_request_error");
-                    if is_bad_request {
+                    let err_type = classify_error(&e).unwrap_or_default();
+                    if is_fatal(&err_type) {
+                        let _ = app.emit("agent-loop-error", json!({"session_id": session_id, "error": e}));
+                    } else if e.contains("invalid_request_error") {
                         let _ = app.emit("agent-loop-error", json!({"session_id": session_id, "error": e}));
                     } else {
-                        let err_type = classify_error(&e).unwrap_or_default();
-                        if is_fatal(&err_type) {
-                            emit_loop_stopped(app, session_id, "llm_error_fatal", &e);
-                        } else {
-                            emit_loop_stopped(app, session_id, "llm_error", &e);
-                        }
+                        emit_loop_stopped(app, session_id, "llm_error", &e);
                     }
                     return Ok(());
                 }
