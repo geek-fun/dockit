@@ -1,3 +1,4 @@
+pub mod chat_formatter;
 pub mod compact;
 pub mod config;
 pub mod conversation;

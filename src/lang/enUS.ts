@@ -146,6 +146,8 @@ export const enUS = {
         contextWindowDescription: 'Maximum tokens this provider should use. Minimum 1024.',
         removeProviderNotice:
           'Remove this provider? This will clear all credentials and model settings.',
+        customAnthropicDescription:
+          'Anthropic-compatible endpoint. Uses API key authentication and the /v1/messages format.',
       },
 
       chat: {

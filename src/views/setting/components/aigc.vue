@@ -618,6 +618,12 @@ const providerPresets: Record<
     baseUrl: '',
     apiCompatibility: 'openai-compatible',
   },
+  'custom-anthropic': {
+    label: 'Custom Anthropic-Compatible',
+    authMode: 'api-key',
+    baseUrl: '',
+    apiCompatibility: 'anthropic',
+  },
 };
 
 const configuredProviders = computed(() =>
@@ -746,7 +752,10 @@ const showApiKeyField = (provider: ProviderConfig) =>
   provider.kind !== 'ollama' && provider.kind !== 'lm-studio';
 
 const showBaseUrlField = (provider: ProviderConfig) =>
-  provider.kind === 'ollama' || provider.kind === 'lm-studio' || provider.kind === 'custom-openai';
+  provider.kind === 'ollama' ||
+  provider.kind === 'lm-studio' ||
+  provider.kind === 'custom-openai' ||
+  provider.kind === 'custom-anthropic';
 
 const showContextWindowField = (provider: ProviderConfig) => provider.apiCompatibility === 'local';
 
@@ -949,6 +958,8 @@ const providerBaseUrlPlaceholder = (kind: ProviderKind) => {
       return 'http://127.0.0.1:1234/v1';
     case 'custom-openai':
       return 'https://your-endpoint.example/v1';
+    case 'custom-anthropic':
+      return 'https://your-endpoint.example';
     default:
       return 'https://api.example.com/v1';
   }

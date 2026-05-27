@@ -7,6 +7,7 @@ use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::oneshot;
 
+use crate::agent::chat_formatter::{ChatFormatter, LlmMessage, LlmToolCall, OpenAIChatFormatter};
 use crate::agent::compact::{count_projected_tokens, evaluate, resolve_model_spec_for_session};
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::executor::ToolEnvelope;
@@ -196,21 +197,6 @@ fn is_fatal(err_type: &str) -> bool {
     FATAL_ERROR_TYPES.iter().any(|t| *t == err_type)
 }
 
-fn build_request_body(settings: &Value, history_msgs: &[Value], stream: bool) -> Value {
-    let model = settings_get_str(settings, "model").unwrap_or("gpt-4o-mini");
-    let mut body = json!({
-        "model": model,
-        "messages": history_msgs,
-        "stream": stream,
-    });
-    if let Some(tools) = settings.get("tools") {
-        if tools.is_array() && !tools.as_array().map(|a| a.is_empty()).unwrap_or(true) {
-            body["tools"] = tools.clone();
-        }
-    }
-    body
-}
-
 // Projection layer: stored DB rows -> LLM ModelMessage[].
 // DB is the full audit log (UIMessage equivalent); this function filters
 // and reshapes rows into a payload the LLM API will accept. Mirrors the
@@ -219,15 +205,21 @@ fn build_request_body(settings: &Value, history_msgs: &[Value], stream: bool) ->
 fn build_llm_messages(
     messages: &[(String, String, String)],
     system_prompt: Option<&str>,
-) -> Vec<Value> {
-    let mut out: Vec<Value> = Vec::new();
+) -> Vec<LlmMessage> {
+    let mut out: Vec<LlmMessage> = Vec::new();
     if let Some(sys) = system_prompt {
         if !sys.trim().is_empty() {
-            out.push(json!({"role": "system", "content": sys}));
+            out.push(LlmMessage {
+                role: "system".into(),
+                text_content: sys.to_string(),
+                tool_calls: None,
+                tool_call_id: None,
+                thinking: None,
+            });
         }
     }
     // Track tool_call_ids announced by the most recent assistant message.
-    // OpenAI rejects role="tool" messages whose tool_call_id was not declared
+    // Providers reject role="tool" messages whose tool_call_id was not declared
     // by an immediately-preceding assistant.tool_calls entry. Drop orphans
     // to survive any compaction-boundary edge case.
     let mut pending_tool_call_ids: std::collections::HashSet<String> =
@@ -247,55 +239,88 @@ fn build_llm_messages(
                 if tool_call_id.is_empty() || !pending_tool_call_ids.remove(tool_call_id) {
                     continue;
                 }
-                out.push(json!({
-                    "role": "tool",
-                    "tool_call_id": tool_call_id,
-                    "content": inner,
-                }));
+                out.push(LlmMessage {
+                    role: "tool".into(),
+                    text_content: inner.to_string(),
+                    tool_calls: None,
+                    tool_call_id: Some(tool_call_id.to_string()),
+                    thinking: None,
+                });
             }
         } else if role == "assistant" {
             if !pending_tool_call_ids.is_empty() {
-                if out.last().and_then(|m| m.get("role")).and_then(|r| r.as_str()) == Some("assistant") {
+                if out.last().map(|m| m.role.as_str()) == Some("assistant") {
                     out.pop();
                 }
             }
             pending_tool_call_ids.clear();
             if let Ok(v) = serde_json::from_str::<Value>(content) {
                 if v.is_object() && (v.get("tool_calls").is_some() || v.get("content").is_some()) {
-                    let mut msg = json!({"role": "assistant"});
-                    if let Some(c) = v.get("content") {
-                        msg["content"] = c.clone();
-                    } else {
-                        msg["content"] = Value::Null;
-                    }
-                    if let Some(tc) = v.get("tool_calls") {
-                        if let Some(arr) = tc.as_array() {
-                            for call in arr {
-                                if let Some(id) = call.get("id").and_then(|x| x.as_str()) {
-                                    pending_tool_call_ids.insert(id.to_string());
-                                }
-                            }
-                        }
-                        msg["tool_calls"] = tc.clone();
-                    }
-                    if let Some(thinking) = v.get("thinking").and_then(|t| t.as_str()) {
-                        if !thinking.is_empty() {
-                            msg["reasoning_content"] = Value::String(thinking.to_string());
-                        }
-                    }
-                    out.push(msg);
+                    let text_content = v
+                        .get("content")
+                        .and_then(|c| c.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let tool_calls = v.get("tool_calls").and_then(|tc| {
+                        tc.as_array().map(|arr| {
+                            arr.iter()
+                                .map(|call| {
+                                    let id = call
+                                        .get("id")
+                                        .and_then(|x| x.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    let name = call
+                                        .get("function")
+                                        .and_then(|f| f.get("name"))
+                                        .and_then(|x| x.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    let args = call
+                                        .get("function")
+                                        .and_then(|f| f.get("arguments"))
+                                        .and_then(|x| x.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    if !id.is_empty() {
+                                        pending_tool_call_ids.insert(id.clone());
+                                    }
+                                    LlmToolCall {
+                                        id,
+                                        name,
+                                        arguments: args,
+                                    }
+                                })
+                                .collect()
+                        })
+                    });
+                    let thinking = v
+                        .get("thinking")
+                        .and_then(|t| t.as_str())
+                        .map(|s| s.to_string());
+                    out.push(LlmMessage {
+                        role: "assistant".into(),
+                        text_content,
+                        tool_calls,
+                        tool_call_id: None,
+                        thinking,
+                    });
                     continue;
                 }
             }
-            out.push(json!({"role": "assistant", "content": content}));
+            out.push(LlmMessage {
+                role: "assistant".into(),
+                text_content: content.clone(),
+                tool_calls: None,
+                tool_call_id: None,
+                thinking: None,
+            });
         } else {
             // Reaching a non-assistant/non-tool row (user or system) means
             // any still-pending tool_calls will never be answered. Drop the
-            // orphan assistant so OpenAI doesn't reject the request.
+            // orphan assistant so the provider doesn't reject the request.
             if !pending_tool_call_ids.is_empty() {
-                if out.last().and_then(|m| m.get("role")).and_then(|r| r.as_str())
-                    == Some("assistant")
-                {
+                if out.last().map(|m| m.role.as_str()) == Some("assistant") {
                     out.pop();
                 }
             }
@@ -308,20 +333,72 @@ fn build_llm_messages(
                     {
                         let summary =
                             v.get("summary").and_then(|x| x.as_str()).unwrap_or_default();
-                        out.push(json!({"role": "system", "content": summary}));
+                        out.push(LlmMessage {
+                            role: "system".into(),
+                            text_content: summary.to_string(),
+                            tool_calls: None,
+                            tool_call_id: None,
+                            thinking: None,
+                        });
                         continue;
                     }
                 }
             }
-            out.push(json!({"role": role, "content": content}));
+            out.push(LlmMessage {
+                role: role.clone(),
+                text_content: content.clone(),
+                tool_calls: None,
+                tool_call_id: None,
+                thinking: None,
+            });
         }
     }
     if !pending_tool_call_ids.is_empty() {
-        if out.last().and_then(|m| m.get("role")).and_then(|r| r.as_str()) == Some("assistant") {
+        if out.last().map(|m| m.role.as_str()) == Some("assistant") {
             out.pop();
         }
     }
     out
+}
+
+/// Convert LlmMessage list to OpenAI-format JSON values for token counting.
+fn llm_messages_to_values(messages: &[LlmMessage]) -> Vec<Value> {
+    messages
+        .iter()
+        .map(|msg| match msg.role.as_str() {
+            "tool" => json!({
+                "role": "tool",
+                "tool_call_id": msg.tool_call_id,
+                "content": msg.text_content
+            }),
+            "assistant" => {
+                let mut m = json!({"role": "assistant", "content": msg.text_content});
+                if let Some(ref thinking) = msg.thinking {
+                    if !thinking.is_empty() {
+                        m["reasoning_content"] = Value::String(thinking.clone());
+                    }
+                }
+                if let Some(ref calls) = msg.tool_calls {
+                    let tc: Vec<Value> = calls
+                        .iter()
+                        .map(|tc| {
+                            json!({
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tc.name,
+                                    "arguments": tc.arguments
+                                }
+                            })
+                        })
+                        .collect();
+                    m["tool_calls"] = Value::Array(tc);
+                }
+                m
+            }
+            _ => json!({"role": msg.role, "content": msg.text_content}),
+        })
+        .collect()
 }
 
 /// Public wrapper that projects stored messages the same way as
@@ -335,7 +412,8 @@ pub fn project_messages(
         .iter()
         .map(|m| (m.id.clone(), m.role.clone(), m.content.clone()))
         .collect();
-    build_llm_messages(&tuples, system_prompt)
+    let llm_msgs = build_llm_messages(&tuples, system_prompt);
+    llm_messages_to_values(&llm_msgs)
 }
 
 fn emit_loop_stopped(app: &AppHandle, session_id: &str, reason: &str, message: &str) {
@@ -398,8 +476,9 @@ async fn stream_chat(
     body: Value,
     session_id: &str,
     app: &AppHandle,
+    formatter: &dyn ChatFormatter,
 ) -> Result<StreamAccumulator, String> {
-    let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
+    let url = format!("{}{}", base_url.trim_end_matches('/'), formatter.chat_path());
     let mut last_err = String::from("Stream failed");
 
     for attempt in 0..=RETRY_DELAYS_MS.len() {
@@ -456,70 +535,48 @@ async fn stream_chat(
                     if data == "[DONE]" {
                         return Ok(acc);
                     }
-                    let v: Value = match serde_json::from_str(data) {
-                        Ok(v) => v,
+                    let delta = match formatter.parse_chunk(data) {
+                        Ok(d) => d,
                         Err(_) => continue,
                     };
-                    let choice = match v.get("choices").and_then(|c| c.get(0)) {
-                        Some(c) => c,
-                        None => continue,
-                    };
-                    if let Some(delta) = choice.get("delta") {
-                        if let Some(content) = delta.get("content").and_then(|c| c.as_str()) {
-                            if !content.is_empty() {
-                                acc.content.push_str(content);
-                                let _ = app.emit(
-                                    "agent-loop-delta",
-                                    json!({
-                                        "session_id": session_id,
-                                        "content": content,
-                                    }),
-                                );
-                            }
+                    if !delta.content_delta.is_empty() {
+                        acc.content.push_str(&delta.content_delta);
+                        let _ = app.emit(
+                            "agent-loop-delta",
+                            json!({
+                                "session_id": session_id,
+                                "content": delta.content_delta,
+                            }),
+                        );
+                    }
+                    if !delta.thinking_delta.is_empty() {
+                        acc.thinking.push_str(&delta.thinking_delta);
+                        let _ = app.emit(
+                            "agent-loop-thinking-delta",
+                            json!({
+                                "session_id": session_id,
+                                "content": delta.thinking_delta,
+                            }),
+                        );
+                    }
+                    for tcd in &delta.tool_call_deltas {
+                        let idx = tcd.index;
+                        while acc.tool_calls.len() <= idx {
+                            acc.tool_calls.push(AccTool::default());
                         }
-                        let thinking_chunk = delta
-                            .get("reasoning_content")
-                            .or_else(|| delta.get("thinking"))
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("");
-                        if !thinking_chunk.is_empty() {
-                            acc.thinking.push_str(thinking_chunk);
-                            let _ = app.emit(
-                                "agent-loop-thinking-delta",
-                                json!({
-                                    "session_id": session_id,
-                                    "content": thinking_chunk,
-                                }),
-                            );
+                        let entry = &mut acc.tool_calls[idx];
+                        if !tcd.id.is_empty() {
+                            entry.id = tcd.id.clone();
                         }
-                        if let Some(tcs) = delta.get("tool_calls").and_then(|t| t.as_array()) {
-                            for tc in tcs {
-                                let idx =
-                                    tc.get("index").and_then(|i| i.as_u64()).unwrap_or(0) as usize;
-                                while acc.tool_calls.len() <= idx {
-                                    acc.tool_calls.push(AccTool::default());
-                                }
-                                let entry = &mut acc.tool_calls[idx];
-                                if let Some(id) = tc.get("id").and_then(|x| x.as_str()) {
-                                    entry.id = id.to_string();
-                                }
-                                if let Some(func) = tc.get("function") {
-                                    if let Some(name) = func.get("name").and_then(|x| x.as_str()) {
-                                        if !name.is_empty() {
-                                            entry.name = name.to_string();
-                                        }
-                                    }
-                                    if let Some(args) =
-                                        func.get("arguments").and_then(|x| x.as_str())
-                                    {
-                                        entry.arguments.push_str(args);
-                                    }
-                                }
-                            }
+                        if !tcd.name.is_empty() {
+                            entry.name = tcd.name.clone();
+                        }
+                        if !tcd.arguments_delta.is_empty() {
+                            entry.arguments.push_str(&tcd.arguments_delta);
                         }
                     }
-                    if let Some(reason) = choice.get("finish_reason").and_then(|r| r.as_str()) {
-                        acc.finish_reason = reason.to_string();
+                    if let Some(ref reason) = delta.finish_reason {
+                        acc.finish_reason = reason.clone();
                     }
                 }
             }
@@ -649,6 +706,16 @@ async fn run_agent_loop_inner(
         .map(|n| n as usize)
         .unwrap_or(DEFAULT_TOKEN_BUDGET);
     let loop_started_at = std::time::Instant::now();
+    // Create formatter based on apiCompatibility setting
+    let openai_formatter = OpenAIChatFormatter;
+    let anthropic_formatter = crate::agent::chat_formatter::AnthropicChatFormatter;
+    let api_compat = settings_get_str(settings, "apiCompatibility").unwrap_or("openai-compatible");
+    let formatter: &dyn ChatFormatter = match api_compat {
+        "anthropic" => &anthropic_formatter,
+        _ => &openai_formatter,
+    };
+    let model = settings_get_str(settings, "model").unwrap_or("gpt-4o-mini");
+
     let mut cumulative_input_tokens: usize = 0;
     let mut iter_count: usize = 0;
 
@@ -694,8 +761,9 @@ async fn run_agent_loop_inner(
     let history = load_active_history(db, session_id)?;
     let chat_msgs = build_llm_messages(&history, system_prompt.as_deref());
         let spec = resolve_model_spec_for_session(session_id, settings);
+        let chat_msgs_values = llm_messages_to_values(&chat_msgs);
         cumulative_input_tokens = cumulative_input_tokens
-            .saturating_add(crate::agent::token_counter::count_chat_messages(&chat_msgs, &spec));
+            .saturating_add(crate::agent::token_counter::count_chat_messages(&chat_msgs_values, &spec));
         if cumulative_input_tokens >= token_budget {
             emit_loop_stopped(
                 app,
@@ -708,7 +776,9 @@ async fn run_agent_loop_inner(
             );
             return Ok(());
         }
-        let body = build_request_body(settings, &chat_msgs, true);
+        let raw_tools = settings.get("tools");
+        let formatted_tools = raw_tools.map(|t| formatter.format_tools(t));
+        let body = formatter.build_request(model, system_prompt.as_deref(), &chat_msgs, formatted_tools.as_ref(), true);
         // Emitted immediately before the main streaming call starts. The first
         // `agent-loop-delta` event implicitly signals waiting finished.
         let _ = app.emit(
@@ -731,6 +801,7 @@ async fn run_agent_loop_inner(
                 body,
                 session_id,
                 app,
+                formatter,
             ) => match res {
                 Ok(a) => a,
                 Err(e) => {

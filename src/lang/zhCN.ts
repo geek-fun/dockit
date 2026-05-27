@@ -141,6 +141,7 @@ export const zhCN = {
         contextWindowPlaceholder: '自动检测',
         contextWindowDescription: '该服务商可使用的最大 token 数。最小 1024。',
         removeProviderNotice: '确认移除此提供商？这将清除所有凭据和模型配置。',
+        customAnthropicDescription: 'Anthropic 兼容接入。使用 API 密钥认证和 /v1/messages 格式。',
       },
 
       chat: {

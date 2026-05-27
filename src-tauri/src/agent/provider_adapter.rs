@@ -189,7 +189,7 @@ pub fn map_to_api_compatibility(provider: &str) -> &'static str {
     match provider {
         "OLLAMA" => "local",
         "openai-compatible" | "OPENAI" | "DEEP_SEEK" | "OPENROUTER" | "LM_STUDIO" => "openai-compatible",
-        "anthropic" | "ANTHROPIC" => "anthropic",
+        "custom-anthropic" | "anthropic" | "ANTHROPIC" => "anthropic",
         "local" => "local",
         _ => "openai-compatible",
     }

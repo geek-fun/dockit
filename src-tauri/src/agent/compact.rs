@@ -4,6 +4,7 @@ use std::sync::{Mutex, OnceLock};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter};
 
+use crate::agent::chat_formatter::{ChatFormatter, LlmMessage, OpenAIChatFormatter};
 use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::loop_runner_support::{
     load_all_messages, load_messages_for_compact, new_id, now_ms,
@@ -195,14 +196,20 @@ pub async fn summarize_with_llm(
         .map(|m| json!({"role": m.role, "content": m.content}))
         .collect();
 
-    let body = json!({
-        "model": settings.get("model").and_then(|v| v.as_str()).unwrap_or("gpt-4o-mini"),
-        "messages": [
-            {"role": "system", "content": COMPACT_SYSTEM_PROMPT},
-            {"role": "user", "content": serde_json::to_string(&chat_msgs).unwrap_or_default()}
-        ],
-        "stream": false,
-    });
+    let formatter = OpenAIChatFormatter;
+    let model = settings
+        .get("model")
+        .and_then(|v| v.as_str())
+        .unwrap_or("gpt-4o-mini");
+    let user_msg_text = serde_json::to_string(&chat_msgs).unwrap_or_default();
+    let llm_messages = vec![LlmMessage {
+        role: "user".into(),
+        text_content: user_msg_text,
+        tool_calls: None,
+        tool_call_id: None,
+        thinking: None,
+    }];
+    let body = formatter.build_request(model, Some(COMPACT_SYSTEM_PROMPT), &llm_messages, None, false);
 
     let base_url = get_base_url(settings);
     let headers = build_headers(settings)?;

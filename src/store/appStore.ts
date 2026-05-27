@@ -21,6 +21,7 @@ export type ProviderKind =
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
+  | 'custom-anthropic'
   | 'anthropic'
   | 'gemini'
   | 'grok'
@@ -209,6 +210,15 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     enabled: false,
     defaultModels: [],
   },
+  {
+    kind: 'custom-anthropic',
+    apiCompatibility: 'anthropic',
+    label: 'Custom Anthropic-Compatible',
+    authMode: 'api-key',
+    defaultBaseUrl: '',
+    enabled: false,
+    defaultModels: [],
+  },
 ];
 
 const defaultModelsByKind: Record<ProviderKind, string[]> = {
@@ -218,6 +228,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
+  'custom-anthropic': [],
   anthropic: ['claude-sonnet-4-5', 'claude-opus-4'],
   gemini: ['gemini-2.5-pro', 'gemini-2.5-flash'],
   grok: ['grok-3'],

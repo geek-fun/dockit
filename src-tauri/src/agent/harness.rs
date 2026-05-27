@@ -44,6 +44,76 @@ pub async fn run_agent_step(
     let settings = make_settings(&provider, base_url, &api_key);
     let normalized_base_url = provider_adapter::get_base_url(&settings);
 
+    // Anthropic streaming path — raw HTTP request
+    let api_compat = provider_adapter::map_to_api_compatibility(&provider);
+    if api_compat == "anthropic" {
+        let http_client = create_http_client(
+            proxy_mode.as_deref().unwrap_or("system"),
+            http_proxy,
+            None,
+            None,
+        );
+        let anthropic_url = format!("{}{}", normalized_base_url.trim_end_matches('/'), "/v1/messages");
+
+        // Build Anthropic request body
+        let request_body = json!({
+            "model": model,
+            "messages": messages,
+            "stream": true,
+            "max_tokens": 4096,
+        });
+
+        let response = http_client
+            .post(&anthropic_url)
+            .header("x-api-key", &api_key)
+            .header("anthropic-version", "2023-06-01")
+            .json(&request_body)
+            .send()
+            .await
+            .map_err(|e| format!("Anthropic request failed: {}", e))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let text = response.text().await.unwrap_or_default();
+            return Err(format!("Anthropic HTTP {}: {}", status, text));
+        }
+
+        // Read streaming response
+        let mut stream = response.bytes_stream();
+        let mut buf = String::new();
+        let mut full_content = String::new();
+
+        while let Some(chunk) = stream.next().await {
+            let bytes = chunk.map_err(|e| format!("Stream error: {}", e))?;
+            let s = String::from_utf8_lossy(&bytes);
+            buf.push_str(&s);
+
+            while let Some(pos) = buf.find("\n\n") {
+                let event_block = buf[..pos].to_string();
+                buf.drain(..pos + 2);
+
+                for line in event_block.lines() {
+                    let line = line.trim();
+                    if !line.starts_with("data:") { continue; }
+                    let data = line[5..].trim();
+                    if data == "[DONE]" { break; }
+
+                    // Parse Anthropic event types
+                    let v: Value = serde_json::from_str(data).unwrap_or(json!({}));
+                    if v.get("type").and_then(|t| t.as_str()) == Some("content_block_delta") {
+                        if let Some(text) = v.get("delta").and_then(|d| d.get("text")).and_then(|t| t.as_str()) {
+                            full_content.push_str(text);
+                            let _ = window.emit("agent-delta", json!({"requestId": request_id, "content": text}).to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        let _ = window.emit("agent-step-done", json!({"requestId": request_id, "finishReason": "stop"}).to_string());
+        return Ok(json!({"finishReason": "stop", "toolCalls": []}).to_string());
+    }
+
     let config = OpenAIConfig::new()
         .with_api_key(&api_key)
         .with_api_base(normalized_base_url);
