@@ -1207,8 +1207,8 @@ describe('mongoApi cluster monitoring', () => {
           tls: undefined,
         },
         database: 'testdb',
-        from_collection: 'oldname',
-        to_collection: 'newname',
+        fromCollection: 'oldname',
+        toCollection: 'newname',
       });
       expect(result).toEqual(mockResult);
     });
@@ -1262,8 +1262,8 @@ describe('mongoApi cluster monitoring', () => {
           tls: undefined,
         },
         database: 'testdb',
-        source_collection: 'sourcecoll',
-        target_collection: 'targetcoll',
+        sourceCollection: 'sourcecoll',
+        targetCollection: 'targetcoll',
       });
       expect(result).toEqual(mockResult);
     });
@@ -1484,7 +1484,7 @@ describe('mongoApi cluster monitoring', () => {
         },
         database: 'testdb',
         collection: 'users',
-        index_name: 'name_idx',
+        indexName: 'name_idx',
       });
       expect(result).toEqual(mockResult);
     });
