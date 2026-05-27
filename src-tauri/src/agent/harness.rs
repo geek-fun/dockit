@@ -192,6 +192,7 @@ pub async fn validate_llm_config(
     proxy_mode: Option<String>,
     base_url: Option<String>,
 ) -> Result<bool, String> {
+    let _ = model;
     let http_client = create_http_client(
         proxy_mode.as_deref().unwrap_or("system"),
         http_proxy,
@@ -228,11 +229,9 @@ pub async fn validate_llm_config(
     }
 
     // All openai-compatible providers: validate via /v1/models
-    let url = if model.trim().is_empty() {
-        format!("{}/models", normalized_base_url)
-    } else {
-        format!("{}/models/{}", normalized_base_url, model)
-    };
+    // Always hit the list endpoint — per-model detail (/v1/models/{id}) is
+    // not supported by OpenRouter and other non-OpenAI providers.
+    let url = format!("{}/models", normalized_base_url);
 
     let request = http_client
         .get(&url)
