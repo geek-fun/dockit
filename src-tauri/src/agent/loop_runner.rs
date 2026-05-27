@@ -425,8 +425,8 @@ async fn stream_chat(
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
             let err_type = classify_error(&text).unwrap_or_default();
-            let retryable =
-                status.as_u16() == 429 || status.as_u16() == 503 || is_retryable(&err_type);
+            let retryable = !is_fatal(&err_type)
+                && (status.as_u16() == 429 || status.as_u16() == 503 || is_retryable(&err_type));
             last_err = format!("LLM HTTP {}: {}", status, text);
             if !retryable || attempt >= RETRY_DELAYS_MS.len() {
                 return Err(last_err);
