@@ -61,8 +61,14 @@ pub fn count_projected_tokens(
 ) -> usize {
     let chat_msgs = crate::agent::loop_runner::project_messages(messages, system_prompt);
     let msg_tokens = count_chat_messages(&chat_msgs, spec);
+    // System prompt is NOT in build_llm_messages output (it's passed
+    // separately to formatter.build_request). Count it explicitly.
+    let system_tokens = system_prompt
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| count_chat_messages(&[json!({"role": "system", "content": s})], spec))
+        .unwrap_or(0);
     let tool_tokens = tools.map(|t| count_tools_tokens(t, spec)).unwrap_or(0);
-    msg_tokens + tool_tokens
+    msg_tokens + system_tokens + tool_tokens
 }
 
 /// Claude-Code-style trigger: compact at min(ratio * capacity, capacity - safety_buffer).
