@@ -279,7 +279,7 @@
                   <div class="inline-flex rounded-lg bg-muted/60 p-0.5">
                     <button
                       type="button"
-                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'none'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
@@ -289,7 +289,7 @@
                     </button>
                     <button
                       type="button"
-                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'system'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
@@ -299,7 +299,7 @@
                     </button>
                     <button
                       type="button"
-                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'manual'
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'"
