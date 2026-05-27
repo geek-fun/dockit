@@ -195,6 +195,10 @@ export const attachSourceToSession = (
 
 // ── Hydration ────────────────────────────────────────────────────────────────
 
+const STRIP_XML_RE = /<\/?(?:assistant|thinking|antThinking|think|answer)\s*\/?>/gi;
+
+const stripXmlTags = (text: string): string => text.replace(STRIP_XML_RE, '').trim();
+
 const dedupAdjacentCompactions = (messages: AgentMessage[]): AgentMessage[] => {
   // Keep only the last compaction marker (robust against non-deterministic ordering).
   let found = false;
@@ -284,17 +288,17 @@ const hydrateMessage = (m: BackendAgentMessage): AgentMessage => {
       }));
       return {
         ...base,
-        content: parsed.content ?? '',
-        thinking: parsed.thinking ?? undefined,
+        content: stripXmlTags(parsed.content ?? ''),
+        thinking: parsed.thinking ? stripXmlTags(parsed.thinking) : undefined,
         toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
       };
     }
   } catch {
     const isLlmError = m.role === 'assistant' && m.content.startsWith('LLM HTTP ');
-    return { ...base, status: isLlmError ? 'error' : 'done', content: m.content };
+    return { ...base, status: isLlmError ? 'error' : 'done', content: isLlmError ? m.content : stripXmlTags(m.content) };
   }
   const isLlmError = m.role === 'assistant' && m.content.startsWith('LLM HTTP ');
-  return { ...base, status: isLlmError ? 'error' : 'done', content: m.content };
+  return { ...base, status: isLlmError ? 'error' : 'done', content: isLlmError ? m.content : stripXmlTags(m.content) };
 };
 
 // ── Store ────────────────────────────────────────────────────────────────────
