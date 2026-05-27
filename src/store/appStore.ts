@@ -472,10 +472,6 @@ const reconcileModelRoutes = (settings: LlmSettings): LlmSettings['models'] => (
   dataStudio: normalizeFeatureRoute(settings.models.dataStudio, settings.providers, 'reasoning'),
 });
 
-// Module-level init promise — deduplicates concurrent fetchLlmSettings calls
-// without polluting Pinia state with a boolean flag.
-let llmSettingsLoadPromise: Promise<LlmSettings> | null = null;
-
 export const useAppStore = defineStore('app', {
   state: (): {
     themeType: ThemeType;
@@ -569,17 +565,6 @@ export const useAppStore = defineStore('app', {
       };
     },
     async fetchLlmSettings() {
-      if (llmSettingsLoadPromise) return llmSettingsLoadPromise;
-
-      llmSettingsLoadPromise = this._loadLlmSettings();
-      try {
-        return await llmSettingsLoadPromise;
-      } catch (err) {
-        llmSettingsLoadPromise = null;
-        throw err;
-      }
-    },
-    async _loadLlmSettings() {
       const storedSettings = await storeApi.getSecret<LlmSettings | undefined>(
         'llmSettings',
         undefined,
