@@ -1,5 +1,14 @@
 # DocKit - AI Agent Guidelines
 
+## ⚠️ Git: Never commit or push unless the user explicitly asks
+
+- **Do NOT commit any change** unless the user says "commit", "push", "create a PR", or similar explicit instruction.
+- Stack changes in the working tree. Batch related fixes together. Let the user decide when to commit.
+- Multiple small commits on a PR create noise and make review harder.
+- If you're unsure whether a change is commit-worthy, discuss it with the user first.
+
+---
+
 ## Project Overview
 
 DocKit is a Tauri v2 + Vue 3 + TypeScript desktop client for NoSQL databases (Elasticsearch, OpenSearch, DynamoDB).
@@ -90,3 +99,60 @@ npm run lint:check # Check ESLint violations
 npm run lint:fix   # Auto-fix ESLint issues
 npx tsc --noEmit   # TypeScript type check
 ```
+
+---
+
+## Shared Utilities — Impact Analysis Required
+
+Modifying any of these requires the systemic impact analysis defined in the global AGENTS.md (Rule 5). Before changing, trace all call sites and verify no silent regressions.
+
+### Rust (src-tauri/)
+
+| Utility | Location | Callers | Failure Mode If Changed Carelessly |
+|---|---|---|---|
+| `create_http_client()` | `src/common/http_client.rs` | 10 callers across 7 files | A blanket timeout breaks streaming LLM responses, long ES queries, file downloads |
+| `get_base_url()` | `src/agent/provider_adapter.rs` | `harness.rs`, `loop_runner.rs`, `config.rs` | Wrong base URL for any provider → all API calls fail |
+| `build_headers()` | `src/agent/provider_adapter.rs` | `harness.rs`, `loop_runner.rs`, `config.rs` | Missing/wrong auth headers → all authenticated requests fail |
+| `map_to_api_compatibility()` | `src/agent/provider_adapter.rs` | `harness.rs` | Wrong routing → wrong auth, wrong endpoint, wrong model parser |
+| `resolve_spec()` | `src/agent/model_registry.rs` | `compact.rs`, `loop_runner.rs`, `conversation.rs` | Wrong context window → token budget miscalculation → premature compaction or overflow |
+
+### TypeScript (src/)
+
+| Utility | Location | Callers | Failure Mode If Changed Carelessly |
+|---|---|---|---|
+| `PROVIDER_PRESETS` | `src/store/appStore.ts` | `defaultProviderConfigs()`, `createProviderConfig()`, UI dropdown | Missing/wrong `apiCompatibility` → provider silently broken |
+| `storeApi` | `src/datasources/storeApi.ts` | All Pinia stores | Save/load failure → settings lost on restart |
+| `chatBotApi` | `src/datasources/chatBotApi.ts` | `aigc.vue`, `appStore.ts`, `chatStore.ts` | Wrong provider string → Tauri command maps to wrong API path |
+| `saveChatSettings()` | `src/store/appStore.ts` | `aigc.vue` (setAutoCompact, etc.) | Chat settings not persisted or wrong defaults |
+
+### Typical Caller Counts
+
+When in doubt, grep the project for the symbol name. If a function has 3+ callers across 2+ files, apply the impact table rule. Rust utilities like `create_http_client` (10 callers) and TypeScript configs like `PROVIDER_PRESETS` (consumed by the entire provider pipeline) are the highest-risk categories.
+
+---
+
+## Pipeline Tracing — Required Before Any Bug Fix
+
+Before implementing any fix, trace the FULL pipeline end-to-end. Document each layer.
+
+### Common Dockit Pipelines
+
+| Issue Domain | Pipeline Layers (trace in order) |
+|---|---|
+| **LLM response rendering** | Rust `stream_chat` SSE parsing → Rust `insert_message` DB write → TS `hydrateMessage` → TS `agent-message-bubble.vue` rendering |
+| **LLM request construction** | TS `buildSystemPrompt` → `useChatAgent` settings → Rust `build_llm_messages` → Rust `formatter.build_request` → HTTP |
+| **Chat settings persistence** | `aigc.vue` setter → `appStore.saveChatSettings` → `storeApi.setSecret` → Tauri `.store.dat` → `fetchLlmSettings` load |
+| **Provider validation** | `aigc.vue` test → `chatBotApi.validateConfig` → Rust `validate_llm_config` → HTTP request → response parsing |
+| **URL construction** | `get_base_url()` → `normalize_base_url()` → `formatter.chat_path()` → `format!("{}{}")` final URL |
+| **Proxy routing** | TS `proxyMode` → settings → Rust `create_http_client(proxy_mode, ...)` → `get_proxy()` → `reqwest::Proxy` |
+
+### Known Failure Modes (from real bugs)
+
+| Failure | How to prevent |
+|---|---|
+| **Double `/v1/` in URL** | When adding a new API path to `chat_path()`, verify it's consistent with `get_base_url()` which already appends `/v1`. Trace: `get_base_url` → `chat_path` → URL assembly. |
+| **System messages rejected by Anthropic** | When sending messages to Anthropic via `build_request`, system-role messages MUST go in the top-level `system` field, not the `messages` array. The `AnthropicChatFormatter.build_request` handles this internally. |
+| **Duplicate function declarations** | Before adding any function, grep the file for its name. Vue SFCs often have declarations you might not see on a quick scan. |
+| **Accidental i18n key deletion** | When removing adjacent lines in i18n files, always grep for remaining references to ALL keys in the deleted block. One edit can silently remove 2+ keys. |
+| **Quick UI additions when infrastructure exists** | Before adding a new indicator/label/component, search for existing infrastructure: check `agent-message-bubble.vue`, `context-indicator.vue`, `useChatAgent.ts` phase setters. The "Preparing..." indicator already exists — just needs scroll. |
+| **Proxy ignored in agent loop** | `loop_runner.rs` and `compact.rs` read `proxyMode` from settings. When touching proxy code, verify both paths AND all 10 `create_http_client` call sites. |

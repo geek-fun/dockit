@@ -11,9 +11,12 @@ import AppProvider from './components/AppProvider.vue';
 import RouterMain from './components/RouterMain.vue';
 import VersionDetect from './components/VersionDetect.vue';
 import { initAgentRuntime, disposeAgentRuntime } from '@/composables/agentRuntime';
+import { useAppStore } from '@/store';
 
-onMounted(() => {
+onMounted(async () => {
   void initAgentRuntime();
+  // Single load point for LLM settings — all components read from Pinia state
+  await useAppStore().fetchLlmSettings();
 });
 
 onBeforeUnmount(() => {

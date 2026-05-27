@@ -88,6 +88,7 @@ const agentApi = {
     messages: Array<Record<string, unknown>>;
     tools: Array<ToolDefinition>;
     httpProxy?: string;
+    proxyMode?: string;
     apiKey: string;
     baseUrl?: string;
   }): Promise<AgentStepResult> => {
@@ -155,6 +156,7 @@ const validateLlmConfig = (params: {
   apiKey: string;
   model: string;
   httpProxy?: string;
+  proxyMode?: string;
   baseUrl?: string;
 }): Promise<boolean> => invoke<boolean>('validate_llm_config', params);
 

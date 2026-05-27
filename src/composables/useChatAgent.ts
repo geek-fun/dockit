@@ -12,7 +12,6 @@ import type { AgentToolCall, ConfirmationRule, SessionSource } from '@/store/dat
 import { useDataStudioStore } from '@/store/dataStudioStore';
 import { getFeatureModelConfig } from '@/store/chatStore';
 import { useAppStore } from '@/store';
-import { ProviderEnum } from '@/datasources';
 import {
   agentApi,
   type ToolMetadata,
@@ -152,6 +151,8 @@ const buildSystemPrompt = ({
 }): string => {
   if (noConnection) {
     return [
+      'CRITICAL: Always respond in markdown format. Never wrap your response in XML tags like `<assistant>`, `<thinking>`, `<antThinking>`, or `<think>`. Do not use XML schema formatting of any kind.',
+      '',
       'You are a helpful AI assistant embedded in DocKit, a desktop database client.',
       'You help users with database-related questions, query writing, data analysis, and general programming topics.',
       'No specific database connection is active — answer questions about any supported database using your knowledge.',
@@ -167,6 +168,7 @@ const buildSystemPrompt = ({
       '- Never fabricate data or pretend to have live query results.',
       '',
       'Output format:',
+      '- Respond in markdown format.',
       '- No emojis.',
       '- Use proper markdown tables (header row + separator row `| --- |`) when presenting tabular data.',
       '- After bulk operations, give a brief factual summary: what was done, counts, any anomalies. No celebrations.',
@@ -181,6 +183,8 @@ const buildSystemPrompt = ({
   const isAskMode = permissionsMode === 'Ask';
 
   const base = [
+    'CRITICAL: Always respond in markdown format. Never wrap your response in XML tags like `<assistant>`, `<thinking>`, `<antThinking>`, or `<think>`. Do not use XML schema formatting of any kind.',
+    '',
     'You are a Data Studio agent embedded in DocKit, a desktop database client.',
     'You help users query, analyze, and manage their database data through natural language.',
     '',
@@ -211,7 +215,9 @@ const buildSystemPrompt = ({
     ...(includesDynamo ? [buildDynamoDBRules()] : []),
     '',
     'Output format:',
+    '- Respond in markdown format.',
     '- No emojis.',
+    '- Do NOT use XML tags or schema formatting (no `<thinking>`, `<assistant>`, `<antThinking>`, `</answer>`, etc.).',
     '- Use proper markdown tables (header row + separator row `| --- |`) when presenting tabular data.',
     '- After bulk operations, give a brief factual summary: what was done, counts, any anomalies. No celebrations.',
     '- Wrap queries and code in fenced code blocks with the appropriate language tag.',
@@ -240,30 +246,6 @@ const buildSidebarContextPrompt = (context: ChatContextConfig): string => {
   }
 
   return parts.length > 0 ? `Context:\n${parts.join('\n')}\n\n` : '';
-};
-
-const kindToProviderEnum = (
-  kind:
-    | 'openai'
-    | 'deepseek'
-    | 'openrouter'
-    | 'ollama'
-    | 'lm-studio'
-    | 'custom-openai'
-    | 'custom-anthropic',
-): ProviderEnum => {
-  switch (kind) {
-    case 'deepseek':
-      return ProviderEnum.DEEP_SEEK;
-    case 'openrouter':
-      return ProviderEnum.OPENROUTER;
-    case 'ollama':
-      return ProviderEnum.OLLAMA;
-    case 'lm-studio':
-      return ProviderEnum.LM_STUDIO;
-    default:
-      return ProviderEnum.OPENAI;
-  }
 };
 
 const getActiveSources = (session?: ChatSession): SessionSource[] =>
@@ -325,15 +307,17 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     try {
       const { provider, model } = await getFeatureModelConfig(config.feature);
       lastSettings.value = {
-        provider: kindToProviderEnum(provider.kind),
+        provider: provider.apiCompatibility,
+        apiCompatibility: provider.apiCompatibility,
         model: model.label,
         apiKey: provider.apiKey ?? '',
         baseUrl: provider.baseUrl,
         httpProxy: provider.proxy || undefined,
+        proxyMode: provider.proxyMode,
         autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
         maxIterations: useAppStore().llmSettings.chat?.maxIterations ?? 200,
         wallClockBudgetMin: useAppStore().llmSettings.chat?.wallClockBudgetMin ?? 30,
-        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 1_000_000,
+        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 20_000_000,
         contextWindowOverride: provider.contextWindowOverride,
       };
     } catch {
@@ -378,17 +362,19 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       }
 
       const settings: Record<string, unknown> = {
-        provider: kindToProviderEnum(provider.kind),
+        provider: provider.apiCompatibility,
+        apiCompatibility: provider.apiCompatibility,
         model: model.label,
         apiKey: provider.apiKey ?? '',
         baseUrl: provider.baseUrl,
         httpProxy: provider.proxy || undefined,
+        proxyMode: provider.proxyMode,
         systemPrompt,
         tools: noConnection ? [] : (runtime.tools ?? []),
         autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
         maxIterations: useAppStore().llmSettings.chat?.maxIterations ?? 200,
         wallClockBudgetMin: useAppStore().llmSettings.chat?.wallClockBudgetMin ?? 30,
-        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 1_000_000,
+        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 20_000_000,
         contextWindowOverride: provider.contextWindowOverride,
       };
 

@@ -320,6 +320,7 @@ const handleSend = async () => {
   const text = inputText.value.trim();
   inputText.value = '';
   emit('send', text);
+  await nextTick();
   forceScrollToBottom();
 };
 
@@ -362,7 +363,7 @@ const onModelPickerOpen = () => {
   emit('modelPickerOpen');
   llmSettings.value.providers
     .filter(provider => provider.enabled)
-    .forEach(provider => appStore.syncProviderModels(provider.id));
+    .forEach(provider => appStore.syncProviderModels(provider.id).catch(() => {}));
 };
 
 watch(
@@ -373,7 +374,6 @@ watch(
 );
 
 onMounted(async () => {
-  await appStore.fetchLlmSettings();
   await nextTick();
   const el = getViewport();
   viewportEl.value = el;
