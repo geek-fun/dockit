@@ -320,7 +320,7 @@ const defaultLlmSettings = (): LlmSettings => ({
     autoCompact: true,
     maxIterations: 200,
     wallClockBudgetMin: 30,
-      tokenBudget: 20_000_000,
+    tokenBudget: 20_000_000,
   },
 });
 

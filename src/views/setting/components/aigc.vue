@@ -445,10 +445,10 @@ const persistChatConfig = async (rollback: () => void) => {
     await appStore.persistLlmSettings();
   } catch (err) {
     rollback();
-    message.error(
-      `Failed to persist: ${(err as Error).message || 'Unknown error'}`,
-      { closable: true, keepAliveOnHover: true },
-    );
+    message.error(`Failed to persist: ${(err as Error).message || 'Unknown error'}`, {
+      closable: true,
+      keepAliveOnHover: true,
+    });
   }
 };
 
@@ -839,8 +839,8 @@ const saveDraftProvider = async () => {
     authMode: draftProvider.value.authMode,
     apiKey: resolvedApiKey,
     baseUrl: normalizeBaseUrl(draftProvider.value.baseUrl ?? ''),
-      proxy: draftProvider.value.proxy?.trim() ?? '',
-      proxyMode: draftProvider.value.proxyMode ?? 'system',
+    proxy: draftProvider.value.proxy?.trim() ?? '',
+    proxyMode: draftProvider.value.proxyMode ?? 'system',
     contextWindowOverride: draftProvider.value.contextWindowOverride,
     enabled: true,
     connected:
