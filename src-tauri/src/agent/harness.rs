@@ -292,15 +292,8 @@ pub async fn validate_llm_config(
         return Err(format!("HTTP {} — verify Ollama is running.", status.as_u16()));
     }
 
-    // Anthropic requires x-api-key header and /v1/messages endpoint
-    // Full Anthropic native adapter is not yet implemented — reject validation
-    if api_compatibility == "anthropic" {
-        return Err("Anthropic native adapter is not yet implemented. Use OpenRouter to access Anthropic models.".to_string());
-    }
-
-    // All openai-compatible providers: validate via /v1/models
-    // Always hit the list endpoint — per-model detail (/v1/models/{id}) is
-    // not supported by OpenRouter and other non-OpenAI providers.
+    // All openai-compatible and anthropic providers: validate via /v1/models
+    // build_headers handles both Bearer (OpenAI) and x-api-key (Anthropic) auth.
     let url = format!("{}/models", normalized_base_url);
 
     let request = http_client
@@ -343,12 +336,6 @@ pub async fn list_llm_models(
             provider_adapter::get_native_api_url("OLLAMA", &normalized_base_url, "api/tags"),
             false,
         ),
-        "anthropic" => {
-            return Err(
-                "Anthropic native adapter is not yet implemented. Use OpenRouter to access Anthropic models."
-                    .to_string(),
-            );
-        }
         _ => (
             format!("{}/models", normalized_base_url),
             !api_key.is_empty(),
