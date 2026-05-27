@@ -105,13 +105,6 @@
               :session-id="sessionId"
               :settings="contextSettings ?? null"
             />
-            <span v-if="progress && progress.phase !== 'idle'" class="phase-indicator text-xs text-muted-foreground">
-              <span class="i-carbon-renew h-3 w-3 animate-spin inline-block align-middle mr-1" />
-              <span class="align-middle">{{ phaseLabel(progress.phase) }}</span>
-              <span v-if="progress.iter" class="align-middle ml-1">
-                ({{ progress.iter }}/{{ progress.maxIter }})
-              </span>
-            </span>
             <ModelPicker
               v-if="showModelPicker"
               :groups="modelGroups"
@@ -317,16 +310,6 @@ const featureRoute = computed(() =>
 const selectedModelId = computed(() => featureRoute.value.selectedModelId ?? undefined);
 const recentModelIds = computed(() => (selectedModelId.value ? [selectedModelId.value] : []));
 
-function phaseLabel(phase: string): string {
-  const labels: Record<string, string> = {
-    preparing: 'Preparing...',
-    waiting_llm: 'Waiting for LLM...',
-    iterating: 'Running agent...',
-    compacting: 'Compacting context...',
-  };
-  return labels[phase] || phase;
-}
-
 const handleSend = async () => {
   if (modelVerified.value === false) {
     message.warning(t('dataStudio.modelUnavailableSend'));
@@ -337,6 +320,7 @@ const handleSend = async () => {
   const text = inputText.value.trim();
   inputText.value = '';
   emit('send', text);
+  await nextTick();
   forceScrollToBottom();
 };
 
