@@ -276,33 +276,33 @@
 
               <FormItem :label="$t('setting.ai.proxy')" :error="draftProviderErrors.proxy">
                 <div class="space-y-3">
-                  <div class="flex items-center gap-4">
+                  <div class="flex flex-row gap-2">
                     <button
                       type="button"
-                      class="py-1 text-sm transition-colors whitespace-nowrap"
+                      class="flex items-center py-2 px-3 rounded-lg border cursor-pointer transition-all text-sm whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'none'
-                        ? 'font-semibold text-foreground'
-                        : 'font-normal text-muted-foreground hover:text-foreground'"
+                        ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20'
+                        : 'border-input hover:border-primary/50 hover:bg-accent/50'"
                       @click="draftProvider.proxyMode = 'none'"
                     >
                       {{ $t('setting.ai.providers.proxyNone') }}
                     </button>
                     <button
                       type="button"
-                      class="py-1 text-sm transition-colors whitespace-nowrap"
+                      class="flex items-center py-2 px-3 rounded-lg border cursor-pointer transition-all text-sm whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'system'
-                        ? 'font-semibold text-foreground'
-                        : 'font-normal text-muted-foreground hover:text-foreground'"
+                        ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20'
+                        : 'border-input hover:border-primary/50 hover:bg-accent/50'"
                       @click="draftProvider.proxyMode = 'system'"
                     >
                       {{ $t('setting.ai.providers.proxySystem') }}
                     </button>
                     <button
                       type="button"
-                      class="py-1 text-sm transition-colors whitespace-nowrap"
+                      class="flex items-center py-2 px-3 rounded-lg border cursor-pointer transition-all text-sm whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'manual'
-                        ? 'font-semibold text-foreground'
-                        : 'font-normal text-muted-foreground hover:text-foreground'"
+                        ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20'
+                        : 'border-input hover:border-primary/50 hover:bg-accent/50'"
                       @click="draftProvider.proxyMode = 'manual'"
                     >
                       {{ $t('setting.ai.providers.proxyManual') }}
