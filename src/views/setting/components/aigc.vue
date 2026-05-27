@@ -279,32 +279,35 @@
                   <div class="inline-flex rounded-lg bg-muted/60 p-0.5">
                     <button
                       type="button"
-                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
+                      class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'none'
-                        ? 'bg-primary/10 text-primary shadow-sm'
+                        ? 'text-primary'
                         : 'text-muted-foreground hover:text-foreground'"
                       @click="draftProvider.proxyMode = 'none'"
                     >
+                      <span class="i-carbon-plug h-3.5 w-3.5" />
                       {{ $t('setting.ai.providers.proxyNone') }}
                     </button>
                     <button
                       type="button"
-                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
+                      class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'system'
-                        ? 'bg-primary/10 text-primary shadow-sm'
+                        ? 'text-primary'
                         : 'text-muted-foreground hover:text-foreground'"
                       @click="draftProvider.proxyMode = 'system'"
                     >
+                      <span class="i-carbon-globe h-3.5 w-3.5" />
                       {{ $t('setting.ai.providers.proxySystem') }}
                     </button>
                     <button
                       type="button"
-                      class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
+                      class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
                       :class="draftProvider.proxyMode === 'manual'
-                        ? 'bg-primary/10 text-primary shadow-sm'
+                        ? 'text-primary'
                         : 'text-muted-foreground hover:text-foreground'"
                       @click="draftProvider.proxyMode = 'manual'"
                     >
+                      <span class="i-carbon-settings h-3.5 w-3.5" />
                       {{ $t('setting.ai.providers.proxyManual') }}
                     </button>
                   </div>
