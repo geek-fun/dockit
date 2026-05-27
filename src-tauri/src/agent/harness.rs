@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use tauri::Emitter;
 
 use crate::agent::provider_adapter;
-use crate::common::http_client::create_http_client;
+use crate::common::http_client::{create_http_client, create_short_http_client};
 
 fn sanitize_error(msg: String, api_key: &str) -> String {
     if api_key.is_empty() || api_key.len() < 8 {
@@ -184,7 +184,7 @@ pub async fn validate_llm_config(
     http_proxy: Option<String>,
     base_url: Option<String>,
 ) -> Result<bool, String> {
-    let http_client = create_http_client(http_proxy, None);
+    let http_client = create_short_http_client(http_proxy, None, 30);
     let settings = make_settings(&provider, base_url, &api_key);
     let normalized_base_url = provider_adapter::get_base_url(&settings);
     let api_compatibility = provider_adapter::map_to_api_compatibility(&provider);
@@ -236,7 +236,7 @@ pub async fn list_llm_models(
     http_proxy: Option<String>,
     base_url: Option<String>,
 ) -> Result<Vec<String>, String> {
-    let http_client = create_http_client(http_proxy, None);
+    let http_client = create_short_http_client(http_proxy, None, 60);
     let settings = make_settings(&provider, base_url, &api_key);
     let normalized_base_url = provider_adapter::get_base_url(&settings);
     let api_compatibility = provider_adapter::map_to_api_compatibility(&provider);
