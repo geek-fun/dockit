@@ -204,20 +204,12 @@ fn is_fatal(err_type: &str) -> bool {
 // `toModelMessagesEffect`. All "what does the LLM see?" logic belongs here.
 fn build_llm_messages(
     messages: &[(String, String, String)],
-    system_prompt: Option<&str>,
+    _system_prompt: Option<&str>,
 ) -> Vec<LlmMessage> {
     let mut out: Vec<LlmMessage> = Vec::new();
-    if let Some(sys) = system_prompt {
-        if !sys.trim().is_empty() {
-            out.push(LlmMessage {
-                role: "system".into(),
-                text_content: sys.to_string(),
-                tool_calls: None,
-                tool_call_id: None,
-                thinking: None,
-            });
-        }
-    }
+    // System prompt is NOT added here — it's passed separately to
+    // formatter.build_request(). The formatter decides where to put it
+    // (OpenAI → messages array, Anthropic → top-level "system" field).
     // Track tool_call_ids announced by the most recent assistant message.
     // Providers reject role="tool" messages whose tool_call_id was not declared
     // by an immediately-preceding assistant.tool_calls entry. Drop orphans
