@@ -806,9 +806,7 @@ async fn run_agent_loop_inner(
                 Err(e) => {
                     let _ = insert_message(db, app, settings, &new_id(), session_id, "assistant", &e);
                     let err_type = classify_error(&e).unwrap_or_default();
-                    if is_fatal(&err_type) {
-                        let _ = app.emit("agent-loop-error", json!({"session_id": session_id, "error": e}));
-                    } else if e.contains("invalid_request_error") {
+                    if is_fatal(&err_type) || e.starts_with("LLM HTTP 4") {
                         let _ = app.emit("agent-loop-error", json!({"session_id": session_id, "error": e}));
                     } else {
                         emit_loop_stopped(app, session_id, "llm_error", &e);

@@ -17,8 +17,23 @@ impl ChatFormatter for AnthropicChatFormatter {
         tools: Option<&Value>,
         stream: bool,
     ) -> Value {
+        // Collect system text — from both the explicit system_prompt parameter
+        // AND from any system-role LlmMessages in the array. Anthropic requires
+        // system content as a top-level "system" field, not in the messages array.
+        let mut system_parts = Vec::new();
+        if let Some(sys) = system_prompt {
+            if !sys.is_empty() {
+                system_parts.push(sys.to_string());
+            }
+        }
         let mut anthropic_msgs: Vec<Value> = Vec::new();
         for msg in messages {
+            if msg.role == "system" {
+                if !msg.text_content.is_empty() {
+                    system_parts.push(msg.text_content.clone());
+                }
+                continue;
+            }
             match msg.role.as_str() {
                 "user" => {
                     anthropic_msgs.push(json!({
@@ -70,10 +85,9 @@ impl ChatFormatter for AnthropicChatFormatter {
             "stream": stream,
             "max_tokens": 4096,
         });
-        if let Some(sys) = system_prompt {
-            if !sys.is_empty() {
-                body["system"] = Value::String(sys.to_string());
-            }
+        let system_text = system_parts.join("\n");
+        if !system_text.is_empty() {
+            body["system"] = Value::String(system_text);
         }
         if let Some(t) = tools {
             if t.is_array()
