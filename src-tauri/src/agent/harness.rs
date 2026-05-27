@@ -192,15 +192,21 @@ pub async fn validate_llm_config(
     proxy_mode: Option<String>,
     base_url: Option<String>,
 ) -> Result<bool, String> {
+    eprintln!("[DEBUG validate_llm_config] provider={}, proxy_mode={:?}, http_proxy={:?}, base_url={:?}",
+        provider, proxy_mode, http_proxy, base_url);
+
     let http_client = create_http_client(
         proxy_mode.as_deref().unwrap_or("system"),
-        http_proxy,
+        http_proxy.clone(),
         None,
         Some(Duration::from_secs(30)),
     );
-    let settings = make_settings(&provider, base_url, &api_key);
+    let settings = make_settings(&provider, base_url.clone(), &api_key);
     let normalized_base_url = provider_adapter::get_base_url(&settings);
     let api_compatibility = provider_adapter::map_to_api_compatibility(&provider);
+
+    eprintln!("[DEBUG validate_llm_config] api_compatibility={}, normalized_base_url={}",
+        api_compatibility, normalized_base_url);
 
     // Local providers (Ollama) use native API for validation
     if api_compatibility == "local" {
@@ -209,6 +215,7 @@ pub async fn validate_llm_config(
             &normalized_base_url,
             "api/tags",
         );
+        eprintln!("[DEBUG validate_llm_config] local — hitting {}", url);
         let response = http_client
             .get(&url)
             .send()
@@ -230,14 +237,24 @@ pub async fn validate_llm_config(
         format!("{}/models/{}", normalized_base_url, model)
     };
 
+    eprintln!("[DEBUG validate_llm_config] openai-compatible — hitting {}", url);
+
     let request = http_client
         .get(&url)
         .headers(provider_adapter::build_headers(&settings)?);
 
-    let response = request
-        .send()
-        .await
-        .map_err(|e| format!("Validation request failed: {}", e))?;
+    eprintln!("[DEBUG validate_llm_config] sending request...");
+
+    let response = match request.send().await {
+        Ok(resp) => {
+            eprintln!("[DEBUG validate_llm_config] got response status={}", resp.status());
+            resp
+        }
+        Err(e) => {
+            eprintln!("[DEBUG validate_llm_config] request failed: {:?}", e);
+            return Err(format!("Validation request failed: {}", e));
+        }
+    };
 
     Ok(response.status().is_success())
 }

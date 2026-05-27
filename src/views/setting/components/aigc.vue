@@ -811,6 +811,7 @@ const testDraftProvider = async () => {
     proxyMode: draft.proxyMode,
     baseUrl: draft.baseUrl?.trim() || undefined,
   });
+  console.log('[DEBUG] testDraftProvider result:', result);
   dialogTestState.value = result.valid ? 'success' : 'failed';
   dialogTestError.value = result.error ?? null;
 };

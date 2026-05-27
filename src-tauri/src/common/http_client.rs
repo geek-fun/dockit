@@ -25,6 +25,9 @@ pub fn create_http_client(
     ssl: Option<bool>,
     request_timeout: Option<Duration>,
 ) -> reqwest::Client {
+    eprintln!("[DEBUG create_http_client] proxy_mode={}, proxy_url={:?}, ssl={:?}, timeout={:?}",
+        proxy_mode, proxy_url, ssl, request_timeout);
+
     let mut builder = reqwest::ClientBuilder::new()
         .danger_accept_invalid_certs(!ssl.unwrap_or(true))
         .connect_timeout(Duration::from_secs(CONNECT_TIMEOUT_SECS))
