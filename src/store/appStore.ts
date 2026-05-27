@@ -598,9 +598,11 @@ export const useAppStore = defineStore('app', {
       } else {
         this.llmSettings.chat = { ...chat } as ChatRuntimeConfig;
       }
-      // Save to a dedicated key so chat settings survive even if
-      // the full llmSettings object has serialization issues.
-      await storeApi.setSecret('chatSettings', pureObject(this.llmSettings.chat));
+      // Save to dedicated key + full llmSettings (belt and suspenders)
+      await Promise.all([
+        storeApi.setSecret('chatSettings', pureObject(this.llmSettings.chat)),
+        storeApi.setSecret('llmSettings', pureObject(this.llmSettings)),
+      ]);
     },
     async updateProviderConfig(providerId: string, patch: Partial<ProviderConfig>) {
       const provider = this.llmSettings.providers.find(item => item.id === providerId);
