@@ -151,6 +151,8 @@ const buildSystemPrompt = ({
 }): string => {
   if (noConnection) {
     return [
+      'CRITICAL: Always respond in markdown format. Never wrap your response in XML tags like `<assistant>`, `<thinking>`, `<antThinking>`, or `<think>`. Do not use XML schema formatting of any kind.',
+      '',
       'You are a helpful AI assistant embedded in DocKit, a desktop database client.',
       'You help users with database-related questions, query writing, data analysis, and general programming topics.',
       'No specific database connection is active — answer questions about any supported database using your knowledge.',
@@ -168,7 +170,6 @@ const buildSystemPrompt = ({
       'Output format:',
       '- Respond in markdown format.',
       '- No emojis.',
-      '- Do NOT use XML tags or schema formatting (no `<thinking>`, `<assistant>`, `<antThinking>`, `</answer>`, etc.).',
       '- Use proper markdown tables (header row + separator row `| --- |`) when presenting tabular data.',
       '- After bulk operations, give a brief factual summary: what was done, counts, any anomalies. No celebrations.',
       '- Wrap queries and code in fenced code blocks with the appropriate language tag.',
@@ -182,6 +183,8 @@ const buildSystemPrompt = ({
   const isAskMode = permissionsMode === 'Ask';
 
   const base = [
+    'CRITICAL: Always respond in markdown format. Never wrap your response in XML tags like `<assistant>`, `<thinking>`, `<antThinking>`, or `<think>`. Do not use XML schema formatting of any kind.',
+    '',
     'You are a Data Studio agent embedded in DocKit, a desktop database client.',
     'You help users query, analyze, and manage their database data through natural language.',
     '',
