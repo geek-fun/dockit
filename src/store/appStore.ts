@@ -592,17 +592,23 @@ export const useAppStore = defineStore('app', {
       this.llmSettings.models = reconcileModelRoutes(this.llmSettings);
       await storeApi.setSecret('llmSettings', pureObject(this.llmSettings));
     },
-    async persistChatSettings(chat: Partial<ChatRuntimeConfig>) {
-      if (this.llmSettings.chat) {
-        Object.assign(this.llmSettings.chat, chat);
-      } else {
+    async persistChatSettings(chat: Partial<ChatRuntimeConfig>): Promise<{ success: boolean; error?: string }> {
+      if (!this.llmSettings.chat) {
         this.llmSettings.chat = { ...chat } as ChatRuntimeConfig;
       }
-      // Save to dedicated key + full llmSettings (belt and suspenders)
-      await Promise.all([
-        storeApi.setSecret('chatSettings', pureObject(this.llmSettings.chat)),
-        storeApi.setSecret('llmSettings', pureObject(this.llmSettings)),
-      ]);
+      // Save previous state for rollback
+      const previous = { ...this.llmSettings.chat };
+      Object.assign(this.llmSettings.chat, chat);
+      try {
+        await Promise.all([
+          storeApi.setSecret('chatSettings', pureObject(this.llmSettings.chat)),
+          storeApi.setSecret('llmSettings', pureObject(this.llmSettings)),
+        ]);
+        return { success: true };
+      } catch (err) {
+        this.llmSettings.chat = previous;
+        return { success: false, error: (err as Error).message || String(err) };
+      }
     },
     async updateProviderConfig(providerId: string, patch: Partial<ProviderConfig>) {
       const provider = this.llmSettings.providers.find(item => item.id === providerId);
