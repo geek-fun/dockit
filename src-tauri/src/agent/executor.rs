@@ -354,6 +354,44 @@ async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Resul
                 Some(body),
             )
         }
+        "es__cat_aliases" => ("GET", "/_cat/aliases?format=json".to_string(), None),
+        "es__get_alias" => {
+            let index = args
+                .get("index")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing index")?;
+            validate_index_name(index, true)?;
+            ("GET", format!("/{}/_alias", url_encode_segment(index)), None)
+        }
+        "es__put_alias" => {
+            let index = args
+                .get("index")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing index")?;
+            validate_index_name(index, false)?;
+            let name = args
+                .get("name")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing name")?;
+            let body = args.get("body").map(|b| b.to_string());
+            ("PUT", format!("/{}/_alias/{}", url_encode_segment(index), url_encode_segment(name)), body)
+        }
+        "es__delete_alias" => {
+            let index = args
+                .get("index")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing index")?;
+            validate_index_name(index, false)?;
+            let name = args
+                .get("name")
+                .and_then(|v| v.as_str())
+                .ok_or("Missing name")?;
+            ("DELETE", format!("/{}/_alias/{}", url_encode_segment(index), url_encode_segment(name)), None)
+        }
+        "es__update_aliases" => {
+            let body = args.get("body").ok_or("Missing body")?.to_string();
+            ("POST", "/_aliases".to_string(), Some(body))
+        }
         _ => return Err(format!("Unknown ES tool: {}", tool_name)),
     };
 
