@@ -214,7 +214,11 @@ pub async fn validate_llm_config(
             .send()
             .await
             .map_err(|e| format!("Validation request failed: {}", e))?;
-        return Ok(response.status().is_success());
+        let status = response.status();
+        if status.is_success() {
+            return Ok(true);
+        }
+        return Err(format!("HTTP {} — verify Ollama is running.", status.as_u16()));
     }
 
     // Anthropic requires x-api-key header and /v1/messages endpoint
@@ -239,7 +243,12 @@ pub async fn validate_llm_config(
         .await
         .map_err(|e| format!("Validation request failed: {}", e))?;
 
-    Ok(response.status().is_success())
+    let status = response.status();
+    if status.is_success() {
+        Ok(true)
+    } else {
+        Err(format!("HTTP {} — verify your API key and provider settings.", status.as_u16()))
+    }
 }
 
 #[tauri::command]
