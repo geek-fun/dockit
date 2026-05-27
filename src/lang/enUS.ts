@@ -141,6 +141,7 @@ export const enUS = {
         openRouterConnect: 'Open OpenRouter website',
         useApiKey: 'Use API key instead',
         featureRequest: 'Create feature request',
+        contextWindowLabel: 'Context window override (tokens)',
         contextWindowPlaceholder: 'Auto-detect',
         contextWindowDescription:
           'Maximum tokens this provider should use. Minimum 1024.',

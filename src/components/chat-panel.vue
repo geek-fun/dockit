@@ -362,7 +362,7 @@ const onModelPickerOpen = () => {
   emit('modelPickerOpen');
   llmSettings.value.providers
     .filter(provider => provider.enabled)
-    .forEach(provider => appStore.syncProviderModels(provider.id));
+    .forEach(provider => appStore.syncProviderModels(provider.id).catch(() => {}));
 };
 
 watch(
