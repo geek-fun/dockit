@@ -447,14 +447,18 @@ const setMaxIterations = async (value: number) => {
 };
 
 const setWallClockBudgetMin = async (value: number) => {
-  const result = await appStore.saveChatSettings({ wallClockBudgetMin: Math.max(1, Math.floor(value)) });
+  const result = await appStore.saveChatSettings({
+    wallClockBudgetMin: Math.max(1, Math.floor(value)),
+  });
   if (!result.success) {
     message.error(`Failed to persist: ${result.error}`, { closable: true, keepAliveOnHover: true });
   }
 };
 
 const setTokenBudget = async (value: number) => {
-  const result = await appStore.saveChatSettings({ tokenBudget: Math.max(1_000, Math.floor(value)) });
+  const result = await appStore.saveChatSettings({
+    tokenBudget: Math.max(1_000, Math.floor(value)),
+  });
   if (!result.success) {
     message.error(`Failed to persist: ${result.error}`, { closable: true, keepAliveOnHover: true });
   }
@@ -920,5 +924,4 @@ const providerBaseUrlPlaceholder = (kind: ProviderKind) => {
       return 'https://api.example.com/v1';
   }
 };
-
 </script>

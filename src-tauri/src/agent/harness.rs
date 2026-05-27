@@ -34,7 +34,7 @@ pub async fn run_agent_step(
     request_id: String,
     provider: String,
     model: String,
-    messages: Vec<Value>,
+    mut messages: Vec<Value>,
     tools: Vec<Value>,
     http_proxy: Option<String>,
     proxy_mode: Option<String>,
@@ -55,13 +55,24 @@ pub async fn run_agent_step(
         );
         let anthropic_url = format!("{}{}", normalized_base_url.trim_end_matches('/'), "/messages");
 
-        // Build Anthropic request body
-        let request_body = json!({
+        // Build Anthropic request body — filter system messages out of the
+        // messages array (Anthropic API rejects role="system") and use the
+        // first one as the top-level "system" parameter.
+        let system_parts: Vec<&str> = messages.iter()
+            .filter(|m| m.get("role").and_then(|r| r.as_str()) == Some("system"))
+            .filter_map(|m| m.get("content").and_then(|c| c.as_str()))
+            .collect();
+        let system_text = system_parts.join("\n");
+        messages.retain(|m| m.get("role").and_then(|r| r.as_str()) != Some("system"));
+        let mut request_body = json!({
             "model": model,
             "messages": messages,
             "stream": true,
             "max_tokens": 4096,
         });
+        if !system_text.is_empty() {
+            request_body["system"] = Value::String(system_text);
+        }
 
         let response = http_client
             .post(&anthropic_url)
