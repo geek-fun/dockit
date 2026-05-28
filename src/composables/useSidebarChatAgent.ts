@@ -85,8 +85,11 @@ export const useSidebarChatAgent = () => {
   const { confirmationRules, sessions: rawSessions, activeSessionId } = storeToRefs(store);
 
   const sessions = computed(() => rawSessions.value.map(adaptSession));
+
   const activeSession = computed(() => {
-    const found = rawSessions.value.find(session => session.id === store.activeSessionId);
+    const sid = store.sidebarSessionId;
+    if (!sid) return undefined;
+    const found = rawSessions.value.find(session => session.id === sid);
     return found ? adaptSession(found) : undefined;
   });
 

@@ -59,6 +59,10 @@ const md = new MarkdownIt({
   },
 });
 
+// Wrap <table> in a scrollable div so wide tables don't overflow narrow containers.
+md.renderer.rules.table_open = () => '<div class="table-wrapper"><table>';
+md.renderer.rules.table_close = () => '</table></div>';
+
 md.renderer.rules['code'] = (tokens, idx, _options, _env, _self) => {
   const token = tokens[idx];
   const code = token.content.trim();
@@ -196,5 +200,28 @@ pre:hover .code-actions-bar {
 
 .code-action-btn:hover::after {
   opacity: 1;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  margin: 8px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 2px;
+}
+
+.table-wrapper table {
+  margin: 0;
 }
 </style>

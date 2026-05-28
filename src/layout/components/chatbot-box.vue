@@ -125,8 +125,8 @@ const syncAllProviderModels = () => {
     .forEach(provider => appStore.syncProviderModels(provider.id).catch(() => {}));
 };
 
-const onModelChange = async () => {
-  // LLM settings loaded globally in App.vue
+const onModelChange = async (_modelId: string) => {
+  // Model route persisted by ChatPanel internally
 };
 
 const switchSession = (sessionId: string) => {
@@ -161,7 +161,6 @@ onUnmounted(() => {
   flex-direction: column;
   border-left: 1px solid hsl(var(--border));
   position: relative;
-  overflow: hidden;
 }
 
 .resize-handle {
