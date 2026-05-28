@@ -742,6 +742,7 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { X, Loader2 } from 'lucide-vue-next';
 import { storeToRefs } from 'pinia';
 import { useMessageService } from '@/composables';
@@ -1014,6 +1015,8 @@ const sortBy = (key: string) => {
   }
 };
 
+const router = useRouter();
+
 const openInEditor = async (collectionName: string) => {
   if (!mongoConnection.value || !selectedDatabase.value) return;
 
@@ -1025,7 +1028,7 @@ const openInEditor = async (collectionName: string) => {
   const query = `db.getCollection('${collectionName}').find({}).limit(50)`;
   await tabStore.establishPanel(con);
   tabStore.activePanel.content = query;
-  tabStore.activePanel.editorType = 'MONGO_EDITOR';
+  router.push('/connect');
 };
 
 const copyName = (name: string) => {
