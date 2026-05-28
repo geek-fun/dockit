@@ -202,29 +202,48 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
 };
 
 // Watch for pending query insertion from history view
-watch(pendingInsertQuery, query => {
+watch(pendingInsertQuery, async query => {
   if (!query || activePanel.value.id === 0) return;
 
   const connectionType = activePanel.value.connection?.type;
   const panelId = activePanel.value.id;
 
-  // Insert query based on database type
-  if (connectionType === DatabaseType.DYNAMODB) {
-    // DynamoDB - need to access sql-editor through dynamo-editor
-    // The dynamo-editor exposes insertPartiqlSample which calls sqlEditorRef.insertSampleQuery
-    const dynamoEditor = dynamoEditorRefs.get(panelId);
-    if (dynamoEditor) {
-      (dynamoEditor as any).insertPartiqlSample?.(query);
-    }
-  } else if (connectionType === DatabaseType.MONGODB) {
-    const editor = mongoEditorRefs.get(panelId);
-    editor?.insertSampleQuery(query);
-  } else {
-    // ES, OpenSearch, EasySearch
-    const editor = esEditorRefs.get(panelId);
-    editor?.insertSampleQuery(query);
-  }
+  // Wait for editor to be mounted (may need multiple attempts for newly created panels)
+  const insertQuery = async (retries = 0): Promise<boolean> => {
+    await nextTick();
 
+    // Insert query based on database type
+    if (connectionType === DatabaseType.DYNAMODB) {
+      const dynamoEditor = dynamoEditorRefs.get(panelId);
+      if (dynamoEditor) {
+        (dynamoEditor as any).insertPartiqlSample?.(query);
+        return true;
+      }
+    } else if (connectionType === DatabaseType.MONGODB) {
+      const editor = mongoEditorRefs.get(panelId);
+      if (editor) {
+        editor.insertSampleQuery(query);
+        return true;
+      }
+    } else {
+      // ES, OpenSearch, EasySearch
+      const editor = esEditorRefs.get(panelId);
+      if (editor) {
+        editor.insertSampleQuery(query);
+        return true;
+      }
+    }
+
+    // Retry if editor ref not available yet (up to 5 times with 100ms delay)
+    if (retries < 5) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return insertQuery(retries + 1);
+    }
+
+    return false;
+  };
+
+  await insertQuery();
   clearPendingInsertQuery();
 });
 
