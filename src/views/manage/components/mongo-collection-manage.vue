@@ -1149,7 +1149,7 @@ const handleCreateDatabase = async () => {
     );
     if (result.success) {
       const dbName = newDatabaseName.value.trim();
-      message.success(result.message ?? lang.t('manage.mongo.databaseCreated'));
+      message.success(lang.t('manage.mongo.databaseCreated'));
       showCreateDatabaseDialog.value = false;
       resetCreateDatabaseDialog();
       await handleRefresh();
@@ -1180,7 +1180,7 @@ const handleCreateCollection = async () => {
       MIN_LOADING_TIME,
     );
     if (result.success) {
-      message.success(result.message ?? lang.t('manage.mongo.collectionCreated'));
+      message.success(lang.t('manage.mongo.collectionCreated'));
       showCreateCollectionDialog.value = false;
       resetCreateCollectionDialog();
       await fetchCollectionsWithStats();
@@ -1310,7 +1310,7 @@ const handleCloneCollection = async () => {
     );
     if (result.success) {
       cloneResult.value = 'success';
-      cloneMessage.value = result.message ?? lang.t('manage.mongo.cloneCollectionSuccess');
+      cloneMessage.value = lang.t('manage.mongo.cloneCollectionSuccess');
       setTimeout(() => {
         showCloneCollectionDialog.value = false;
         resetCloneDialog();
@@ -1344,7 +1344,7 @@ const handleEmptyCollection = async () => {
     );
     if (result.success) {
       emptyResult.value = 'success';
-      emptyMessage.value = result.message ?? lang.t('manage.mongo.emptyCollectionSuccess');
+      emptyMessage.value = lang.t('manage.mongo.emptyCollectionSuccess');
       setTimeout(() => {
         showEmptyCollectionDialog.value = false;
         resetEmptyDialog();
