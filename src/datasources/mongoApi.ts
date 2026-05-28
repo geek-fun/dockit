@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { MongoDBConnection } from '../store';
+import type { MongoDBConnection, MongoDBAuth } from '../store';
 
 type MongoTestResult = {
   success: boolean;
@@ -198,6 +198,31 @@ export type MongoWriteResult = {
   modified_count?: number;
   deleted_count?: number;
   inserted_id?: string;
+  error?: string;
+};
+
+export type MongoConnectionConfig = {
+  host: string;
+  port: number;
+  auth?: MongoDBAuth;
+  database?: string;
+  tls?: boolean;
+};
+
+export type MongoExportResult = {
+  success: boolean;
+  documents?: Record<string, unknown>[];
+  total?: number;
+  has_more: boolean;
+  error?: string;
+};
+
+export type MongoImportResult = {
+  success: boolean;
+  inserted: number;
+  updated: number;
+  skipped: number;
+  errors?: string[];
   error?: string;
 };
 
@@ -624,6 +649,74 @@ export const mongoApi = {
       });
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
+    }
+  },
+
+  // ==================== Export/Import ====================
+
+  exportDocuments: async (
+    config: MongoConnectionConfig,
+    collection: string,
+    filter?: string,
+    sort?: string,
+    batchSize?: number,
+    skip?: number,
+  ): Promise<MongoExportResult> => {
+    try {
+      return await invoke<MongoExportResult>('mongo_export_documents', {
+        config,
+        collection,
+        filter,
+        sort,
+        batchSize,
+        skip,
+      });
+    } catch (e) {
+      return {
+        success: false,
+        has_more: false,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  importDocuments: async (
+    config: MongoConnectionConfig,
+    collection: string,
+    documents: string[],
+    upsert?: boolean,
+  ): Promise<MongoImportResult> => {
+    try {
+      return await invoke<MongoImportResult>('mongo_import_documents', {
+        config,
+        collection,
+        documents,
+        upsert,
+      });
+    } catch (e) {
+      return {
+        success: false,
+        inserted: 0,
+        updated: 0,
+        skipped: 0,
+        error: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  sampleDocuments: async (
+    config: MongoConnectionConfig,
+    collection: string,
+    limit?: number,
+  ): Promise<Record<string, unknown>[]> => {
+    try {
+      return await invoke<Record<string, unknown>[]>('mongo_sample_documents', {
+        config,
+        collection,
+        limit,
+      });
+    } catch (e) {
+      throw e;
     }
   },
 };
