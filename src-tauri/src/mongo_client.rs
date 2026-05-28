@@ -1,3 +1,4 @@
+use base64::Engine;
 use futures::TryStreamExt;
 use mongodb::bson::{doc, oid::ObjectId, Bson, Document};
 use mongodb::{options::ClientOptions, Client};
@@ -185,10 +186,31 @@ fn bson_to_json(bson: &Bson) -> Value {
         Bson::Null => Value::Null,
         Bson::Int32(v) => Value::from(*v),
         Bson::Int64(v) => Value::from(*v),
-        Bson::ObjectId(oid) => Value::from(oid.to_string()),
-        Bson::DateTime(dt) => Value::from(dt.to_string()),
-        Bson::Decimal128(d) => Value::from(d.to_string()),
-        _ => Value::from(bson.to_string()),
+        Bson::ObjectId(oid) => serde_json::json!({"$oid": oid.to_string()}),
+        Bson::DateTime(dt) => {
+            serde_json::json!({"$date": {"$numberLong": dt.timestamp_millis().to_string()}})
+        }
+        Bson::Decimal128(d) => serde_json::json!({"$numberDecimal": d.to_string()}),
+        Bson::Binary(b) => {
+            let encoded = base64::engine::general_purpose::STANDARD.encode(&b.bytes);
+            let sub_type = format!("{:02X}", u8::from(b.subtype));
+            serde_json::json!({"$binary": {"base64": encoded, "subType": sub_type}})
+        }
+        Bson::RegularExpression(re) => {
+            serde_json::json!({"$regularExpression": {"pattern": re.pattern, "options": re.options}})
+        }
+        Bson::Timestamp(ts) => serde_json::json!({"$timestamp": {"t": ts.time, "i": ts.increment}}),
+        Bson::JavaScriptCode(code) => serde_json::json!({"$code": code}),
+        Bson::JavaScriptCodeWithScope(code_scope) => {
+            serde_json::json!({"$code": code_scope.code, "$scope": code_scope.scope})
+        }
+        Bson::Symbol(sym) => serde_json::json!({"$symbol": sym}),
+        Bson::MaxKey => serde_json::json!({"$maxKey": 1}),
+        Bson::MinKey => serde_json::json!({"$minKey": 1}),
+        Bson::Undefined => serde_json::json!({"$undefined": true}),
+        Bson::DbPointer(db_pointer) => serde_json::to_value(db_pointer).unwrap(),
+        // Safe fallback: should not be reached for any standard BSON type
+        _ => serde_json::to_value(bson).unwrap(),
     }
 }
 
@@ -1766,6 +1788,25 @@ pub struct MongoWriteResult {
     pub error: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct MongoImportResult {
+    pub success: bool,
+    pub inserted: i64,
+    pub updated: i64,
+    pub skipped: i64,
+    pub errors: Option<Vec<String>>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoExportResult {
+    pub success: bool,
+    pub documents: Option<Vec<Value>>,
+    pub total: Option<i64>,
+    pub has_more: bool,
+    pub error: Option<String>,
+}
+
 #[tauri::command]
 pub async fn mongo_find_documents(
     config: MongoConnectionConfig,
@@ -1815,6 +1856,86 @@ pub async fn mongo_find_documents(
         total: Some(total),
         error: None,
     })
+}
+
+#[tauri::command]
+pub async fn mongo_export_documents(
+    config: MongoConnectionConfig,
+    collection: String,
+    filter: Option<String>,
+    batch_size: Option<i64>,
+    skip: Option<u64>,
+    sort: Option<String>,
+) -> Result<MongoExportResult, String> {
+    let result = async {
+        let client = build_client(&config).await?;
+        let db_name = config.database.unwrap_or_else(|| "test".to_string());
+        let db = client.database(&db_name);
+        let coll = db.collection::<Document>(&collection);
+
+        let filter_doc = match filter {
+            Some(ref f) if !f.trim().is_empty() => {
+                parse_json_arg(f).and_then(json_to_bson_doc)?
+            }
+            _ => doc! {},
+        };
+
+        let batch = batch_size.unwrap_or(1000).min(10000) as u64;
+        let skip_val = skip.unwrap_or(0);
+
+        let total = coll
+            .count_documents(filter_doc.clone())
+            .await
+            .map_err(|e| e.to_string())? as i64;
+
+        let mut opts = mongodb::options::FindOptions::default();
+        opts.limit = Some(batch as i64);
+        opts.skip = Some(skip_val);
+
+        if let Some(ref sort_str) = sort {
+            if !sort_str.trim().is_empty() {
+                if let Ok(sort_doc) = parse_json_arg(sort_str).and_then(json_to_bson_doc) {
+                    opts.sort = Some(sort_doc);
+                }
+            }
+        }
+
+        let mut cursor = coll
+            .find(filter_doc)
+            .with_options(opts)
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let mut docs: Vec<Value> = vec![];
+        while let Some(d) = cursor
+            .try_next()
+            .await
+            .map_err(|e| e.to_string())?
+        {
+            docs.push(doc_to_json(d));
+        }
+
+        let has_more = skip_val + batch < total as u64;
+
+        Ok(MongoExportResult {
+            success: true,
+            documents: Some(docs),
+            total: Some(total),
+            has_more,
+            error: None,
+        })
+    };
+
+    match result.await {
+        Ok(export_result) => Ok(export_result),
+        Err(e) => Ok(MongoExportResult {
+            success: false,
+            documents: None,
+            total: None,
+            has_more: false,
+            error: Some(e),
+        }),
+    }
 }
 
 #[tauri::command]
@@ -1868,6 +1989,145 @@ pub async fn mongo_insert_document(
             error: Some(e.to_string()),
         }),
     }
+}
+
+#[tauri::command]
+pub async fn mongo_import_documents(
+    config: MongoConnectionConfig,
+    collection: String,
+    documents: Vec<String>,
+    upsert: Option<bool>,
+) -> Result<MongoImportResult, String> {
+    let client = build_client(&config).await?;
+    let db_name = config.database.unwrap_or_else(|| "test".to_string());
+    let db = client.database(&db_name);
+    let coll = db.collection::<Document>(&collection);
+
+    let upsert_mode = upsert.unwrap_or(false);
+    let mut inserted = 0i64;
+    let mut updated = 0i64;
+    let mut skipped = 0i64;
+    let mut errors: Vec<String> = vec![];
+
+    if upsert_mode {
+        for (idx, doc_str) in documents.iter().enumerate() {
+            let bson_doc = match parse_json_arg(doc_str).and_then(json_to_bson_doc) {
+                Ok(d) => d,
+                Err(e) => {
+                    skipped += 1;
+                    errors.push(format!("Doc {}: {}", idx, e));
+                    continue;
+                }
+            };
+
+            let id = bson_doc.get_object_id("_id").ok().map(|id| id.clone());
+            if let Some(oid) = id {
+                let filter = doc! { "_id": oid };
+                let update = doc! { "$set": &bson_doc };
+                let opts = mongodb::options::UpdateOptions::builder()
+                    .upsert(true)
+                    .build();
+                match coll.update_one(filter, update).with_options(opts).await {
+                    Ok(result) => {
+                        if result.upserted_id.is_some() {
+                            inserted += 1;
+                        } else {
+                            updated += 1;
+                        }
+                    }
+                    Err(e) => {
+                        skipped += 1;
+                        errors.push(format!("Doc {}: {}", idx, e));
+                    }
+                }
+            } else {
+                match coll.insert_one(bson_doc).await {
+                    Ok(_) => {
+                        inserted += 1;
+                    }
+                    Err(e) => {
+                        skipped += 1;
+                        errors.push(format!("Doc {}: {}", idx, e));
+                    }
+                }
+            }
+        }
+    } else {
+        let mut docs_vec: Vec<Document> = Vec::new();
+        for (idx, doc_str) in documents.iter().enumerate() {
+            match parse_json_arg(doc_str).and_then(json_to_bson_doc) {
+                Ok(bson_doc) => {
+                    docs_vec.push(bson_doc);
+                }
+                Err(e) => {
+                    skipped += 1;
+                    errors.push(format!("Doc {}: {}", idx, e));
+                }
+            }
+        }
+
+        if !docs_vec.is_empty() {
+            match coll.insert_many(docs_vec).await {
+                Ok(result) => {
+                    inserted = result.inserted_ids.len() as i64;
+                }
+                Err(e) => {
+                    return Ok(MongoImportResult {
+                        success: false,
+                        inserted: 0,
+                        updated: 0,
+                        skipped: skipped + documents.len() as i64,
+                        errors: Some(vec![e.to_string()]),
+                        error: Some(format!("Bulk insert failed: {}", e)),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(MongoImportResult {
+        success: errors.is_empty(),
+        inserted,
+        updated,
+        skipped,
+        errors: if errors.is_empty() { None } else { Some(errors) },
+        error: None,
+    })
+}
+
+#[tauri::command]
+pub async fn mongo_sample_documents(
+    config: MongoConnectionConfig,
+    collection: String,
+    limit: Option<i64>,
+) -> Result<Vec<Value>, String> {
+    let client = build_client(&config).await?;
+    let db_name = config.database.unwrap_or_else(|| "test".to_string());
+    let db = client.database(&db_name);
+    let coll = db.collection::<Document>(&collection);
+
+    let sample_limit = limit.unwrap_or(10);
+
+    let opts = mongodb::options::FindOptions::builder()
+        .limit(sample_limit)
+        .build();
+
+    let mut cursor = coll
+        .find(doc! {})
+        .with_options(opts)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut docs: Vec<Value> = vec![];
+    while let Some(d) = cursor
+        .try_next()
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        docs.push(doc_to_json(d));
+    }
+
+    Ok(docs)
 }
 
 #[tauri::command]

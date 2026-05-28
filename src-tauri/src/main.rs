@@ -40,6 +40,9 @@ use mongo_client::{
     mongo_list_databases, mongo_list_indexes, mongo_rename_collection, mongo_repl_set_status,
     mongo_server_status, mongo_shard_status, mongo_test_connection, mongo_truncate_collection,
     mongo_update_document,
+    mongo_export_documents,
+    mongo_import_documents,
+    mongo_sample_documents,
 };
 use tauri::Emitter;
 
@@ -133,6 +136,9 @@ fn main() {
             mongo_list_indexes,
             mongo_create_index,
             mongo_drop_index,
+            mongo_export_documents,
+            mongo_import_documents,
+            mongo_sample_documents,
             run_agent_step,
             validate_llm_config,
             list_llm_models,
