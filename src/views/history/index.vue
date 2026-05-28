@@ -94,10 +94,6 @@
               <span class="i-carbon-add h-4 w-4 mr-1" />
               {{ $t('history.addToEditor') }}
             </Button>
-            <Button size="xs" @click="handleExecute">
-              <span class="i-carbon-play h-4 w-4 mr-1" />
-              {{ $t('history.execute') }}
-            </Button>
             <Button
               variant="ghost"
               size="xs"
@@ -205,14 +201,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
-import {
-  useHistoryStore,
-  useConnectionStore,
-  useTabStore,
-  DatabaseType,
-  useDbDataStore,
-} from '../../store';
-import type { DynamoDBConnection, MongoDBConnection } from '../../store';
+import { useHistoryStore, useConnectionStore, useTabStore, DatabaseType } from '../../store';
 import { useLang } from '../../lang';
 import { useMessageService, useDialogService } from '@/composables';
 import { Button } from '@/components/ui/button';
@@ -236,9 +225,10 @@ const { entries, selectedEntryId, selectedEntry } = storeToRefs(historyStore);
 const { selectEntry, removeEntry, clearHistory, fetchHistory, toggleStar } = historyStore;
 
 const connectionStore = useConnectionStore();
-const { searchQDSL } = connectionStore;
+const { connections } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
+const { establishPanel, panels } = tabStore;
 
 const searchQuery = ref('');
 
@@ -268,9 +258,7 @@ const filteredEntries = computed(() => {
       (entry.mongoDatabase ?? '').toLowerCase().includes(q),
   );
 });
-const { activePanel, activeConnection } = storeToRefs(tabStore);
-
-const dbDataStore = useDbDataStore();
+const { activePanel } = storeToRefs(tabStore);
 
 // Keyboard navigation for history list
 const focusPrevItem = (currentIndex: number) => {
@@ -369,80 +357,37 @@ const handleCopyQuery = async () => {
   }
 };
 
-const handleAddToEditor = () => {
+const handleAddToEditor = async () => {
   if (!selectedEntry.value) return;
   const entry = selectedEntry.value;
 
-  if (entry.databaseType === DatabaseType.DYNAMODB && entry.method === 'PartiQL' && entry.qdsl) {
-    if (activePanel.value?.content != null) {
-      const current = activePanel.value.content || '';
-      activePanel.value.content = current ? current + '\n\n' + entry.qdsl : entry.qdsl;
-    }
-  } else if (entry.databaseType === DatabaseType.MONGODB && entry.qdsl) {
-    if (activePanel.value?.content != null) {
-      const current = activePanel.value.content || '';
-      activePanel.value.content = current ? current + '\n\n' + entry.qdsl : entry.qdsl;
-    }
-  } else if (
-    !entry.databaseType ||
-    entry.databaseType === DatabaseType.ELASTICSEARCH ||
-    entry.databaseType === DatabaseType.OPENSEARCH ||
-    entry.databaseType === DatabaseType.EASYSEARCH
-  ) {
-    const queryText = buildQueryText(entry);
-    if (activePanel.value?.content != null) {
-      const current = activePanel.value.content || '';
-      activePanel.value.content = current ? current + '\n\n' + queryText : queryText;
-    }
-  }
+  // Find the connection from history entry
+  const connection = connections.value.find(c => String(c.id) === String(entry.connectionId));
 
-  router.push('/connect');
-};
-
-const handleExecute = async () => {
-  if (!selectedEntry.value) return;
-  if (!activeConnection.value) {
+  if (!connection) {
     message.error(lang.t('history.noConnection'));
     return;
   }
 
-  const entry = selectedEntry.value;
+  // Check if there's an existing panel for this connection
+  const existingPanel = panels.find(
+    p => p.connection && String(p.connection.id) === String(entry.connectionId),
+  );
 
-  if (entry.connectionId && String(activeConnection.value.id) !== String(entry.connectionId)) {
-    message.error(lang.t('history.wrongConnection'), {
-      closable: true,
-      keepAliveOnHover: true,
-    });
-    return;
+  // If no existing panel, establish one
+  if (!existingPanel) {
+    await establishPanel(connection);
+  } else {
+    // Set active panel to the existing one
+    tabStore.setActivePanel(existingPanel.id);
   }
 
-  try {
-    if (entry.databaseType === DatabaseType.MONGODB && entry.qdsl) {
-      const { mongoApi } = await import('../../datasources');
-      await mongoApi.executeQuery(activeConnection.value as MongoDBConnection, entry.qdsl);
-    } else if (
-      entry.databaseType === DatabaseType.DYNAMODB &&
-      entry.method === 'PartiQL' &&
-      entry.qdsl
-    ) {
-      await dbDataStore.executePartiqlStatement(
-        activeConnection.value as DynamoDBConnection,
-        entry.path,
-        entry.qdsl,
-      );
-    } else {
-      const { method, path, index, qdsl } = entry;
-      await searchQDSL(activeConnection.value, { method, path, index, qdsl });
-    }
-    message.success(lang.t('history.executeSuccess'));
-    router.push('/connect');
-  } catch (err) {
-    const error = err as { status?: number; details?: string; message?: string };
-    message.error(`${error.details || error.message || 'Query failed'}`, {
-      closable: true,
-      keepAliveOnHover: true,
-    });
-  }
+  // Build the query text based on database type
+  const queryText = buildQueryText(entry);
+  const current = activePanel.value?.content || '';
+  activePanel.value!.content = current ? current + '\n\n' + queryText : queryText;
+
+  router.push('/connect');
 };
 
 const handleDelete = () => {
