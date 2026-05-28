@@ -178,7 +178,7 @@
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem @click.stop="showRenameDialog(coll.name)">
-                            <span class="i-carbon-rename h-4 w-4 mr-2" />
+                            <span class="i-carbon-text-edit h-4 w-4 mr-2" />
                             {{ $t('manage.mongo.renameCollection') }}
                           </DropdownMenuItem>
                           <DropdownMenuItem @click.stop="showCloneDialog(coll.name)">
@@ -366,9 +366,11 @@
         </Alert>
 
         <div v-else class="space-y-4">
-          <p class="text-sm text-muted-foreground">
-            {{ $t('manage.mongo.dropCollectionConfirm', { name: collectionToDrop }) }}
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>
+              {{ $t('manage.mongo.dropCollectionConfirm', { name: collectionToDrop }) }}
+            </AlertDescription>
+          </Alert>
           <FormItem
             :label="$t('manage.mongo.typeNameToConfirm', { name: collectionToDrop })"
             required
@@ -449,9 +451,11 @@
         </Alert>
 
         <div v-else class="space-y-4">
-          <p class="text-sm text-muted-foreground">
-            {{ $t('manage.mongo.dropDatabaseConfirm', { name: selectedDatabase }) }}
-          </p>
+          <Alert variant="destructive">
+            <AlertDescription>
+              {{ $t('manage.mongo.dropDatabaseConfirm', { name: selectedDatabase }) }}
+            </AlertDescription>
+          </Alert>
           <FormItem
             :label="$t('manage.mongo.typeNameToConfirm', { name: selectedDatabase })"
             required
@@ -516,12 +520,20 @@
           </DialogDescription>
         </DialogHeader>
         <Alert v-if="renameError" variant="destructive">
-          <AlertDescription>{{ renameError }}</AlertDescription>
+          <AlertDescription class="flex items-center justify-between">
+            <span>{{ renameError }}</span>
+            <button
+              class="ml-2 text-sm hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="renameError = ''"
+            >
+              <X class="w-4 h-4" />
+            </button>
+          </AlertDescription>
         </Alert>
-        <div v-if="renameResult === 'success'">
-          <Alert variant="default">
-            <AlertDescription>{{ $t('manage.mongo.renameCollectionSuccess') }}</AlertDescription>
-          </Alert>
+        <div v-if="renameResult === 'success'" class="text-center py-4">
+          <div class="text-green-500 text-4xl mb-2">✓</div>
+          <p class="text-sm font-medium">{{ $t('manage.mongo.renameCollectionSuccess') }}</p>
         </div>
         <div v-else>
           <Form class="py-4">
@@ -584,14 +596,20 @@
           </DialogDescription>
         </DialogHeader>
         <Alert v-if="cloneError" variant="destructive">
-          <AlertDescription>{{ cloneError }}</AlertDescription>
+          <AlertDescription class="flex items-center justify-between">
+            <span>{{ cloneError }}</span>
+            <button
+              class="ml-2 text-sm hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="cloneError = ''"
+            >
+              <X class="w-4 h-4" />
+            </button>
+          </AlertDescription>
         </Alert>
-        <div v-if="cloneResult === 'success'">
-          <Alert variant="default">
-            <AlertDescription>
-              {{ cloneMessage || $t('manage.mongo.cloneCollectionSuccess') }}
-            </AlertDescription>
-          </Alert>
+        <div v-if="cloneResult === 'success'" class="text-center py-4">
+          <div class="text-green-500 text-4xl mb-2">✓</div>
+          <p class="text-sm font-medium">{{ $t('manage.mongo.cloneCollectionSuccess') }}</p>
         </div>
         <div v-else>
           <Form class="py-4">
@@ -651,14 +669,20 @@
           <DialogTitle>{{ $t('manage.mongo.emptyCollectionTitle') }}</DialogTitle>
         </DialogHeader>
         <Alert v-if="emptyError" variant="destructive">
-          <AlertDescription>{{ emptyError }}</AlertDescription>
+          <AlertDescription class="flex items-center justify-between">
+            <span>{{ emptyError }}</span>
+            <button
+              class="ml-2 text-sm hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="emptyError = ''"
+            >
+              <X class="w-4 h-4" />
+            </button>
+          </AlertDescription>
         </Alert>
-        <div v-if="emptyResult === 'success'">
-          <Alert variant="default">
-            <AlertDescription>
-              {{ emptyMessage || $t('manage.mongo.emptyCollectionSuccess') }}
-            </AlertDescription>
-          </Alert>
+        <div v-if="emptyResult === 'success'" class="text-center py-4">
+          <div class="text-green-500 text-4xl mb-2">✓</div>
+          <p class="text-sm font-medium">{{ $t('manage.mongo.emptyCollectionSuccess') }}</p>
         </div>
         <div v-else>
           <Alert variant="destructive">
@@ -825,7 +849,6 @@ const collectionToClone = ref('');
 const cloneTargetName = ref('');
 const cloneError = ref('');
 const cloneResult = ref<'success' | 'error' | null>(null);
-const cloneMessage = ref('');
 
 // Empty collection dialog state
 const showEmptyCollectionDialog = ref(false);
@@ -834,7 +857,6 @@ const collectionToEmpty = ref('');
 const emptyConfirmName = ref('');
 const emptyError = ref('');
 const emptyResult = ref<'success' | 'error' | null>(null);
-const emptyMessage = ref('');
 
 const resetDropCollectionDialog = () => {
   dropCollectionConfirmName.value = '';
@@ -858,14 +880,12 @@ const resetCloneDialog = () => {
   cloneTargetName.value = '';
   cloneError.value = '';
   cloneResult.value = null;
-  cloneMessage.value = '';
 };
 
 const resetEmptyDialog = () => {
   emptyConfirmName.value = '';
   emptyError.value = '';
   emptyResult.value = null;
-  emptyMessage.value = '';
 };
 
 const submittingCreateDatabase = ref(false);
@@ -994,7 +1014,7 @@ const sortBy = (key: string) => {
   }
 };
 
-const openInEditor = (collectionName: string) => {
+const openInEditor = async (collectionName: string) => {
   if (!mongoConnection.value || !selectedDatabase.value) return;
 
   const con: MongoDBConnection = {
@@ -1003,7 +1023,7 @@ const openInEditor = (collectionName: string) => {
   };
 
   const query = `db.getCollection('${collectionName}').find({}).limit(50)`;
-  tabStore.establishPanel(con);
+  await tabStore.establishPanel(con);
   tabStore.activePanel.content = query;
   tabStore.activePanel.editorType = 'MONGO_EDITOR';
 };
@@ -1310,7 +1330,7 @@ const handleCloneCollection = async () => {
     );
     if (result.success) {
       cloneResult.value = 'success';
-      cloneMessage.value = lang.t('manage.mongo.cloneCollectionSuccess');
+
       setTimeout(() => {
         showCloneCollectionDialog.value = false;
         resetCloneDialog();
@@ -1344,7 +1364,7 @@ const handleEmptyCollection = async () => {
     );
     if (result.success) {
       emptyResult.value = 'success';
-      emptyMessage.value = lang.t('manage.mongo.emptyCollectionSuccess');
+
       setTimeout(() => {
         showEmptyCollectionDialog.value = false;
         resetEmptyDialog();
