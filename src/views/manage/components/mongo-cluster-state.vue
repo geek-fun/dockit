@@ -174,7 +174,9 @@ import {
   MongoReplicaSetStatus,
   MongoShardCluster,
 } from '@/datasources';
+import { useLang } from '@/lang';
 
+const lang = useLang();
 const clusterManageStore = useClusterManageStore();
 const { connection } = storeToRefs(clusterManageStore);
 
@@ -184,11 +186,15 @@ const replSetStatus = ref<MongoReplicaSetStatus | undefined>();
 const shardCluster = ref<MongoShardCluster | undefined>();
 
 const formatUptime = (seconds: number): string => {
-  if (seconds < 60) return `${seconds}s`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+  const s = lang.t('manage.mongo.timeSeconds');
+  const m = lang.t('manage.mongo.timeMinutes');
+  const h = lang.t('manage.mongo.timeHours');
+  const d = lang.t('manage.mongo.timeDays');
+  if (seconds < 60) return `${seconds}${s}`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}${m}`;
   if (seconds < 86400)
-    return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
-  return `${Math.floor(seconds / 86400)}d ${Math.floor((seconds % 86400) / 3600)}h`;
+    return `${Math.floor(seconds / 3600)}${h} ${Math.floor((seconds % 3600) / 60)}${m}`;
+  return `${Math.floor(seconds / 86400)}${d} ${Math.floor((seconds % 86400) / 3600)}${h}`;
 };
 
 const formatBytes = (bytes: number): string => {
