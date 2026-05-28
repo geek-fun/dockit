@@ -1025,9 +1025,10 @@ const openInEditor = async (collectionName: string) => {
     database: selectedDatabase.value,
   };
 
-  const query = `db.${collectionName}.find({}).limit(50)`;
   await tabStore.establishPanel(con);
-  tabStore.activePanel.content = query;
+  if (!tabStore.activePanel.content) {
+    tabStore.activePanel.content = `db.${collectionName}.find({}).limit(50)`;
+  }
   router.push('/connect');
 };
 
