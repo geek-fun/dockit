@@ -1511,23 +1511,24 @@ pub async fn mongo_server_status(config: MongoConnectionConfig) -> Result<MongoS
         Err(_) => "unknown".to_string(),
     };
 
-    // Helper to get int as i64 (handles both i32 and i64)
-    let get_int_as_i64 = |doc: &Document, key: &str| -> i64 {
+    // Helper to get numeric as i64 (handles i32, i64, and f64)
+    let get_num_as_i64 = |doc: &Document, key: &str| -> i64 {
         doc.get_i32(key).ok().map(|v| v as i64)
             .or_else(|| doc.get_i64(key).ok())
+            .or_else(|| doc.get_f64(key).ok().map(|v| v as i64))
             .unwrap_or(0)
     };
 
     let status = MongoServerStatus {
         host: result.get_str("host").unwrap_or("unknown").to_string(),
         version,
-        uptime: get_int_as_i64(&result, "uptime"),
+        uptime: get_num_as_i64(&result, "uptime"),
         connections: MongoConnectionInfo {
             current: result.get_document("connections")
-                .map(|d| get_int_as_i64(&d, "current"))
+                .map(|d| get_num_as_i64(&d, "current"))
                 .unwrap_or(0),
             available: result.get_document("connections")
-                .map(|d| get_int_as_i64(&d, "available"))
+                .map(|d| get_num_as_i64(&d, "available"))
                 .unwrap_or(0),
             total_created: result.get_document("connections")
                 .ok()
@@ -1535,21 +1536,21 @@ pub async fn mongo_server_status(config: MongoConnectionConfig) -> Result<MongoS
         },
         network: MongoNetworkInfo {
             bytes_in: result.get_document("network")
-                .map(|d| get_int_as_i64(&d, "bytesIn"))
+                .map(|d| get_num_as_i64(&d, "bytesIn"))
                 .unwrap_or(0),
             bytes_out: result.get_document("network")
-                .map(|d| get_int_as_i64(&d, "bytesOut"))
+                .map(|d| get_num_as_i64(&d, "bytesOut"))
                 .unwrap_or(0),
             num_requests: result.get_document("network")
-                .map(|d| get_int_as_i64(&d, "numRequests"))
+                .map(|d| get_num_as_i64(&d, "numRequests"))
                 .unwrap_or(0),
         },
         memory: MongoMemoryInfo {
             resident: result.get_document("mem")
-                .map(|d| get_int_as_i64(&d, "resident"))
+                .map(|d| get_num_as_i64(&d, "resident"))
                 .unwrap_or(0),
             virtual_mem: result.get_document("mem")
-                .map(|d| get_int_as_i64(&d, "virtual"))
+                .map(|d| get_num_as_i64(&d, "virtual"))
                 .unwrap_or(0),
         },
     };
