@@ -195,6 +195,13 @@ pub async fn create_global_secondary_index(
                 .get("write_units_per_second")
                 .and_then(|v| v.as_i64()),
         ) {
+            if read_units < 1 || write_units < 1 {
+                return Err(
+                    "Warm throughput values must be at least 1 read and 1 write unit per second"
+                        .to_string(),
+                );
+            }
+
             let warm_throughput_config = WarmThroughput::builder()
                 .read_units_per_second(read_units)
                 .write_units_per_second(write_units)
