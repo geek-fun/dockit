@@ -150,7 +150,7 @@
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger as-child>
-                          <Button variant="ghost" size="sm" class="h-8 w-8 p-0">
+                          <Button variant="ghost" size="sm" class="h-8 w-8 p-0" @click.stop>
                             <span class="i-carbon-overflow-menu-horizontal h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
