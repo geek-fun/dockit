@@ -99,7 +99,8 @@
                 v-for="(row, rowIndex) in paginatedDocuments"
                 v-else
                 :key="rowIndex"
-                class="data-row"
+                :class="['data-row', { 'data-row--selected': selectedRowIndex === rowIndex }]"
+                @click="selectedRowIndex = rowIndex"
               >
                 <td
                   v-for="col in tableColumnsWithActions"
@@ -448,6 +449,7 @@ const insertDocumentRef = ref<InsertDocumentExposed>();
 const editDocumentRef = ref<EditDocumentExposed>();
 const deleteConfirmRef = ref<DeleteConfirmExposed>();
 const deletingId = ref('');
+const selectedRowIndex = ref<number | null>(null);
 const cloneDocumentValue = ref<string | undefined>(undefined);
 const insertMode = ref<'insert' | 'clone'>('insert');
 
@@ -504,6 +506,7 @@ const getDocumentId = (doc: Record<string, unknown>): string => {
 const handlePageChange = (page: number) => {
   currentPage.value = page;
   expandedDocs.value = new Set();
+  selectedRowIndex.value = null;
 };
 
 const handlePageSizeChange = (value: string) => {
@@ -526,11 +529,16 @@ watch(
   () => {
     currentPage.value = 1;
     expandedDocs.value = new Set();
+    selectedRowIndex.value = null;
     if (activeView.value === 'json') {
       updateJsonEditor();
     }
   },
 );
+
+watch(currentPage, () => {
+  selectedRowIndex.value = null;
+});
 
 watch(activeView, newView => {
   if (newView === 'json') {
@@ -786,10 +794,21 @@ const TreeNode: Component = markRaw(
 .data-row {
   border-bottom: 1px solid hsl(var(--border));
   transition: background-color 0.15s;
+  cursor: pointer;
 }
 
 .data-row:hover {
-  background: hsl(var(--muted) / 0.5);
+  background: hsl(var(--muted) / 0.7);
+}
+
+.data-row--selected {
+  background: hsl(var(--primary) / 0.08);
+  outline: 2px solid hsl(var(--primary) / 0.3);
+  outline-offset: -2px;
+}
+
+.data-row--selected:hover {
+  background: hsl(var(--primary) / 0.12);
 }
 
 .tree-scroll-area {

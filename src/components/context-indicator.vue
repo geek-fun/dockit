@@ -68,7 +68,7 @@
           @click="onCompact"
         >
           <Spinner v-if="compacting" size="sm" />
-          <span v-else class="i-carbon-collapse-all h-3.5 w-3.5" />
+          <span v-else class="i-carbon-clean h-3.5 w-3.5" />
           <span>
             {{
               compacting

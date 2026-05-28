@@ -1511,38 +1511,46 @@ pub async fn mongo_server_status(config: MongoConnectionConfig) -> Result<MongoS
         Err(_) => "unknown".to_string(),
     };
 
+    // Helper to get numeric as i64 (handles i32, i64, and f64)
+    let get_num_as_i64 = |doc: &Document, key: &str| -> i64 {
+        doc.get_i32(key).ok().map(|v| v as i64)
+            .or_else(|| doc.get_i64(key).ok())
+            .or_else(|| doc.get_f64(key).ok().map(|v| v as i64))
+            .unwrap_or(0)
+    };
+
     let status = MongoServerStatus {
         host: result.get_str("host").unwrap_or("unknown").to_string(),
         version,
-        uptime: result.get_i64("uptime").unwrap_or(0),
+        uptime: get_num_as_i64(&result, "uptime"),
         connections: MongoConnectionInfo {
             current: result.get_document("connections")
-                .and_then(|d| d.get_i64("current"))
+                .map(|d| get_num_as_i64(&d, "current"))
                 .unwrap_or(0),
             available: result.get_document("connections")
-                .and_then(|d| d.get_i64("available"))
+                .map(|d| get_num_as_i64(&d, "available"))
                 .unwrap_or(0),
             total_created: result.get_document("connections")
-                .and_then(|d| d.get_i64("totalCreated"))
-                .ok(),
+                .ok()
+                .and_then(|d| d.get_i32("totalCreated").ok().map(|v| v as i64).or(d.get_i64("totalCreated").ok())),
         },
         network: MongoNetworkInfo {
             bytes_in: result.get_document("network")
-                .and_then(|d| d.get_i64("bytesIn"))
+                .map(|d| get_num_as_i64(&d, "bytesIn"))
                 .unwrap_or(0),
             bytes_out: result.get_document("network")
-                .and_then(|d| d.get_i64("bytesOut"))
+                .map(|d| get_num_as_i64(&d, "bytesOut"))
                 .unwrap_or(0),
             num_requests: result.get_document("network")
-                .and_then(|d| d.get_i64("numRequests"))
+                .map(|d| get_num_as_i64(&d, "numRequests"))
                 .unwrap_or(0),
         },
         memory: MongoMemoryInfo {
             resident: result.get_document("mem")
-                .and_then(|d| d.get_i64("resident"))
+                .map(|d| get_num_as_i64(&d, "resident"))
                 .unwrap_or(0),
             virtual_mem: result.get_document("mem")
-                .and_then(|d| d.get_i64("virtual"))
+                .map(|d| get_num_as_i64(&d, "virtual"))
                 .unwrap_or(0),
         },
     };
@@ -1874,14 +1882,14 @@ pub async fn mongo_update_document(
     let db = client.database(&db_name);
     let coll = db.collection::<Document>(&collection);
 
+    let new_doc = parse_json_arg(&document).and_then(json_to_bson_doc)?;
+    let update = doc! { "$set": new_doc };
+
     let filter = if let Ok(oid) = ObjectId::parse_str(&id) {
-        doc! { "_id": oid }
+        doc! { "$or": [{ "_id": oid }, { "_id": &id }] }
     } else {
         doc! { "_id": &id }
     };
-
-    let new_doc = parse_json_arg(&document).and_then(json_to_bson_doc)?;
-    let update = doc! { "$set": new_doc };
 
     match coll.update_one(filter, update).await {
         Ok(result) => {
@@ -1927,8 +1935,11 @@ pub async fn mongo_delete_document(
     let db = client.database(&db_name);
     let coll = db.collection::<Document>(&collection);
 
+    // Build a filter that matches _id as either ObjectId or string.
+    // MongoDB can store _id as ObjectId (default) or as a string (e.g. when
+    // data is imported from JSON). The `$or` handles both cases in one query.
     let filter = if let Ok(oid) = ObjectId::parse_str(&id) {
-        doc! { "_id": oid }
+        doc! { "$or": [{ "_id": oid }, { "_id": &id }] }
     } else {
         doc! { "_id": &id }
     };
@@ -1997,4 +2008,486 @@ pub async fn mongo_delete_documents(
             error: Some(e.to_string()),
         }),
     }
+}
+
+// ==================== Collection Management Commands ====================
+
+/// Rename collection result
+#[derive(Debug, Serialize)]
+pub struct MongoRenameCollectionResult {
+    pub success: bool,
+    pub message: Option<String>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_rename_collection(
+    config: MongoConnectionConfig,
+    database: String,
+    from_collection: String,
+    to_collection: String,
+) -> Result<MongoRenameCollectionResult, String> {
+    let client = build_client(&config).await?;
+    let admin_db = client.database("admin");
+
+    // renameCollection must run against admin database
+    // Format: { renameCollection: "sourceNamespace", to: "targetNamespace" }
+    let source_ns = format!("{}.{}", database, from_collection);
+    let target_ns = format!("{}.{}", database, to_collection);
+
+    let result = admin_db
+        .run_command(doc! {
+            "renameCollection": source_ns,
+            "to": target_ns
+        })
+        .await;
+
+    match result {
+        Ok(_) => Ok(MongoRenameCollectionResult {
+            success: true,
+            message: Some(format!(
+                "Collection '{}' renamed to '{}' successfully",
+                from_collection, to_collection
+            )),
+            error: None,
+        }),
+        Err(e) => Ok(MongoRenameCollectionResult {
+            success: false,
+            message: None,
+            error: Some(format!("Failed to rename collection: {}", e)),
+        }),
+    }
+}
+
+/// Clone collection result
+#[derive(Debug, Serialize)]
+pub struct MongoCloneCollectionResult {
+    pub success: bool,
+    pub documents_copied: Option<i64>,
+    pub indexes_copied: Option<i64>,
+    pub message: Option<String>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_clone_collection(
+    config: MongoConnectionConfig,
+    database: String,
+    source_collection: String,
+    target_collection: String,
+) -> Result<MongoCloneCollectionResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    // Check if source collection exists
+    let source_coll: mongodb::Collection<Document> = db.collection(&source_collection);
+
+    // Get source collection info
+    let source_list = db.list_collection_names().await
+        .map_err(|e| format!("Failed to list collections: {}", e))?;
+
+    if !source_list.contains(&source_collection) {
+        return Ok(MongoCloneCollectionResult {
+            success: false,
+            documents_copied: None,
+            indexes_copied: None,
+            message: None,
+            error: Some(format!("Source collection '{}' does not exist", source_collection)),
+        });
+    }
+
+    // Check if target collection already exists
+    if source_list.contains(&target_collection) {
+        return Ok(MongoCloneCollectionResult {
+            success: false,
+            documents_copied: None,
+            indexes_copied: None,
+            message: None,
+            error: Some(format!("Target collection '{}' already exists", target_collection)),
+        });
+    }
+
+    // Copy all documents
+    let mut cursor = source_coll.find(doc! {}).await
+        .map_err(|e| format!("Failed to read source collection: {}", e))?;
+
+    let target_coll: mongodb::Collection<Document> = db.collection(&target_collection);
+    let mut docs: Vec<Document> = Vec::new();
+    while let Some(doc) = cursor.try_next().await.map_err(|e| e.to_string())? {
+        docs.push(doc);
+    }
+
+    let documents_count = docs.len() as i64;
+
+    if !docs.is_empty() {
+        target_coll.insert_many(docs).await
+            .map_err(|e| format!("Failed to copy documents: {}", e))?;
+    }
+
+    // Copy indexes using $indexStats and listIndexes
+    let index_result = db.run_command(doc! { "listIndexes": &source_collection }).await;
+
+    let indexes_count = match index_result {
+        Ok(index_doc) => {
+            let indexes = match index_doc.get("cursor") {
+                Some(Bson::Document(cursor)) => match cursor.get("firstBatch") {
+                    Some(Bson::Array(arr)) => arr.clone(),
+                    _ => vec![],
+                },
+                _ => vec![],
+            };
+
+            let mut created_indexes = 0i64;
+            for idx_bson in indexes {
+                if let Bson::Document(idx) = idx_bson {
+                    // Skip the _id index (it's created automatically)
+                    let name = idx.get_str("name").unwrap_or("");
+                    if name == "_id_" {
+                        continue;
+                    }
+
+                    // Get the key specification
+                    let key = idx.get_document("key").ok();
+                    if let Some(key_doc) = key {
+                        let mut index_options = mongodb::options::IndexOptions::default();
+
+                        // Copy unique if present
+                        if let Some(true) = idx.get_bool("unique").ok() {
+                            index_options.unique = Some(true);
+                        }
+
+                        // Copy sparse if present
+                        if let Some(true) = idx.get_bool("sparse").ok() {
+                            index_options.sparse = Some(true);
+                        }
+
+                        // Copy expireAfterSeconds for TTL indexes
+                        if let Some(expire) = idx.get_i64("expireAfterSeconds").ok() {
+                            index_options.expire_after = Some(std::time::Duration::from_secs(expire as u64));
+                        }
+
+                        // Build and create the index
+                        let index_model = mongodb::IndexModel::builder()
+                            .keys(key_doc.clone())
+                            .options(index_options)
+                            .build();
+
+                        if target_coll.create_index(index_model).await.is_ok() {
+                            created_indexes += 1;
+                        }
+                    }
+                }
+            }
+            created_indexes
+        },
+        Err(_) => 0,
+    };
+
+    Ok(MongoCloneCollectionResult {
+        success: true,
+        documents_copied: Some(documents_count),
+        indexes_copied: Some(indexes_count),
+        message: Some(format!(
+            "Collection '{}' cloned to '{}' successfully ({} documents, {} indexes)",
+            source_collection, target_collection, documents_count, indexes_count
+        )),
+        error: None,
+    })
+}
+
+/// Truncate (empty) collection result
+#[derive(Debug, Serialize)]
+pub struct MongoTruncateCollectionResult {
+    pub success: bool,
+    pub deleted_count: Option<i64>,
+    pub message: Option<String>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_truncate_collection(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+) -> Result<MongoTruncateCollectionResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+    let coll: mongodb::Collection<Document> = db.collection(&collection);
+
+    // Delete all documents but keep the collection and its indexes
+    let result = coll.delete_many(doc! {}).await
+        .map_err(|e| format!("Failed to truncate collection: {}", e))?;
+
+    Ok(MongoTruncateCollectionResult {
+        success: true,
+        deleted_count: Some(result.deleted_count as i64),
+        message: Some(format!(
+            "Collection '{}' emptied successfully ({} documents deleted, indexes preserved)",
+            collection, result.deleted_count
+        )),
+        error: None,
+    })
+}
+
+// ==================== Index Management Commands ====================
+
+/// Index info
+#[derive(Debug, Serialize)]
+pub struct MongoIndexInfo {
+    pub name: String,
+    pub key: serde_json::Map<String, Value>,
+    pub unique: Option<bool>,
+    pub sparse: Option<bool>,
+    pub ttl_seconds: Option<i64>,
+    pub size: Option<i64>,
+    pub accesses: Option<i64>,
+    pub since: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoListIndexesResult {
+    pub success: bool,
+    pub indexes: Option<Vec<MongoIndexInfo>>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_list_indexes(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+) -> Result<MongoListIndexesResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+
+    // Get list of indexes
+    let index_result = db.run_command(doc! { "listIndexes": &collection }).await
+        .map_err(|e| format!("Failed to list indexes: {}", e))?;
+
+    let indexes: Vec<MongoIndexInfo> = match index_result.get("cursor") {
+        Some(Bson::Document(cursor)) => match cursor.get("firstBatch") {
+            Some(Bson::Array(arr)) => {
+                arr.iter()
+                    .filter_map(|bson| {
+                        if let Bson::Document(idx) = bson {
+                            let name = idx.get_str("name").unwrap_or("unknown").to_string();
+
+                            // Get key specification
+                            let key = match idx.get("key") {
+                                Some(Bson::Document(k)) => {
+                                    let map: serde_json::Map<String, Value> = k
+                                        .iter()
+                                        .map(|(k, v)| (k.clone(), bson_to_json(v)))
+                                        .collect();
+                                    map
+                                },
+                                _ => serde_json::Map::new(),
+                            };
+
+                            Some(MongoIndexInfo {
+                                name,
+                                key,
+                                unique: idx.get_bool("unique").ok(),
+                                sparse: idx.get_bool("sparse").ok(),
+                                ttl_seconds: idx.get_i64("expireAfterSeconds").ok(),
+                                size: None,
+                                accesses: None,
+                                since: None,
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            },
+            _ => vec![],
+        },
+        _ => vec![],
+    };
+
+    // Get index sizes from collStats
+    let stats_result = db.run_command(doc! { "collStats": &collection, "scale": 1 }).await.ok();
+    let index_sizes: Option<std::collections::HashMap<String, i64>> = stats_result.and_then(|s| {
+        match s.get("indexSizes") {
+            Some(Bson::Document(d)) => {
+                let map: std::collections::HashMap<String, i64> = d
+                    .iter()
+                    .filter_map(|(k, v)| {
+                        match v {
+                            Bson::Int64(n) => Some((k.clone(), *n)),
+                            Bson::Int32(n) => Some((k.clone(), *n as i64)),
+                            _ => None,
+                        }
+                    })
+                    .collect();
+                Some(map)
+            },
+            _ => None,
+        }
+    });
+
+    // Get index usage stats from $indexStats aggregation
+    let coll: mongodb::Collection<Document> = db.collection(&collection);
+    let index_stats: std::collections::HashMap<String, (i64, Option<String>)> = match coll
+        .aggregate(vec![doc! { "$indexStats": {} }])
+        .await
+    {
+        Ok(mut cursor) => {
+            let mut stats = std::collections::HashMap::new();
+            while let Ok(Some(doc)) = cursor.try_next().await {
+                let name = doc.get_str("name").unwrap_or("unknown").to_string();
+                let accesses = doc.get_document("accesses")
+                    .and_then(|a| a.get_i64("ops"))
+                    .unwrap_or(0);
+                let since = doc.get("since")
+                    .and_then(|b| {
+                        if let Bson::DateTime(dt) = b {
+                            Some(dt.to_string())
+                        } else {
+                            None
+                        }
+                    });
+                stats.insert(name, (accesses, since));
+            }
+            stats
+        },
+        Err(_) => std::collections::HashMap::new(),
+    };
+
+    // Merge index info with sizes and usage stats
+    let indexes_with_stats: Vec<MongoIndexInfo> = indexes
+        .into_iter()
+        .map(|idx| {
+            let size = index_sizes.as_ref().and_then(|s| s.get(&idx.name).copied());
+            let (accesses, since) = index_stats.get(&idx.name)
+                .map(|(a, s)| (*a, s.clone()))
+                .unwrap_or((0, None));
+            MongoIndexInfo {
+                name: idx.name,
+                key: idx.key,
+                unique: idx.unique,
+                sparse: idx.sparse,
+                ttl_seconds: idx.ttl_seconds,
+                size,
+                accesses: Some(accesses),
+                since,
+            }
+        })
+        .collect();
+
+    Ok(MongoListIndexesResult {
+        success: true,
+        indexes: Some(indexes_with_stats),
+        error: None,
+    })
+}
+
+/// Options for creating an index
+#[derive(Debug, Deserialize)]
+pub struct MongoCreateIndexOptions {
+    pub name: Option<String>,
+    pub unique: Option<bool>,
+    pub sparse: Option<bool>,
+    pub expire_after_seconds: Option<i64>,
+    pub partial_filter_expression: Option<Value>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoCreateIndexResult {
+    pub success: bool,
+    pub index_name: Option<String>,
+    pub message: Option<String>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_create_index(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+    keys: Value,
+    options: Option<MongoCreateIndexOptions>,
+) -> Result<MongoCreateIndexResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+    let coll: mongodb::Collection<Document> = db.collection(&collection);
+
+    // Convert keys JSON to BSON document
+    let keys_doc = json_to_bson_doc(keys)?;
+
+    // Build index options
+    let mut index_options = mongodb::options::IndexOptions::default();
+
+    if let Some(opts) = options {
+        if let Some(name) = opts.name {
+            index_options.name = Some(name);
+        }
+        if opts.unique == Some(true) {
+            index_options.unique = Some(true);
+        }
+        if opts.sparse == Some(true) {
+            index_options.sparse = Some(true);
+        }
+        if let Some(expire) = opts.expire_after_seconds {
+            index_options.expire_after = Some(std::time::Duration::from_secs(expire as u64));
+        }
+        if let Some(filter) = opts.partial_filter_expression {
+            let filter_doc = json_to_bson_doc(filter)?;
+            index_options.partial_filter_expression = Some(filter_doc);
+        }
+    }
+
+    // Build and create the index
+    let index_model = mongodb::IndexModel::builder()
+        .keys(keys_doc)
+        .options(index_options)
+        .build();
+
+    let result = coll.create_index(index_model).await
+        .map_err(|e| format!("Failed to create index: {}", e))?;
+
+    let index_name = result.index_name.clone();
+    Ok(MongoCreateIndexResult {
+        success: true,
+        index_name: Some(result.index_name),
+        message: Some(format!("Index '{}' created successfully", index_name)),
+        error: None,
+    })
+}
+
+#[derive(Debug, Serialize)]
+pub struct MongoDropIndexResult {
+    pub success: bool,
+    pub message: Option<String>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn mongo_drop_index(
+    config: MongoConnectionConfig,
+    database: String,
+    collection: String,
+    index_name: String,
+) -> Result<MongoDropIndexResult, String> {
+    let client = build_client(&config).await?;
+    let db = client.database(&database);
+    let coll: mongodb::Collection<Document> = db.collection(&collection);
+
+    // Cannot drop the _id index
+    if index_name == "_id_" {
+        return Ok(MongoDropIndexResult {
+            success: false,
+            message: None,
+            error: Some("Cannot drop the default _id_ index".to_string()),
+        });
+    }
+
+    coll.drop_index(&index_name).await
+        .map_err(|e| format!("Failed to drop index: {}", e))?;
+
+    Ok(MongoDropIndexResult {
+        success: true,
+        message: Some(format!("Index '{}' dropped successfully", index_name)),
+        error: None,
+    })
 }

@@ -14,7 +14,7 @@
       <dynamo-table-manage ref="dynamoTableManageRef" class="state-container" />
     </template>
     <template v-else-if="connection?.type === DatabaseType.MONGODB">
-      <mongo-cluster-state class="cluster-container" />
+      <mongo-cluster-state ref="mongoClusterStateRef" class="cluster-container" />
       <mongo-collection-manage ref="mongoCollectionManageRef" class="state-container" />
     </template>
     <div v-else class="empty-state">
@@ -47,6 +47,10 @@ const dynamoTableManageRef = ref<{
 const mongoCollectionManageRef = ref<{
   handleRefresh: () => Promise<void>;
   showCreateDatabase: () => void;
+}>();
+
+const mongoClusterStateRef = ref<{
+  fetchClusterStatus: () => Promise<void>;
 }>();
 
 const tabStore = useTabStore();
@@ -82,6 +86,7 @@ const handleCreateDynamoTable = () => {
 };
 
 const handleMongoRefresh = () => {
+  mongoClusterStateRef.value?.fetchClusterStatus();
   mongoCollectionManageRef.value?.handleRefresh();
 };
 
