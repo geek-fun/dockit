@@ -56,6 +56,15 @@
             :placeholder="$t('export.filterQueryPlaceholder')"
             rows="3"
           />
+          <template v-if="connection?.type === DatabaseType.MONGODB">
+            <div class="field-label">{{ $t('export.sortQuery') }}</div>
+            <textarea
+              v-model="sortQuery"
+              class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+              :placeholder="$t('export.sortQueryPlaceholder')"
+              rows="3"
+            />
+          </template>
         </CollapseItem>
       </Collapse>
     </CardContent>
@@ -73,6 +82,7 @@ import { useLang } from '../../../lang';
 import {
   DatabaseType,
   DynamoDBConnection,
+  MongoDBConnection,
   SearchConnection,
   isSearchConnection,
   useConnectionStore,
@@ -90,7 +100,7 @@ const { connections } = storeToRefs(connectionStore);
 
 const exportStore = useImportExportStore();
 const { setConnection } = exportStore;
-const { connection, selectedIndex, filterQuery } = storeToRefs(exportStore);
+const { connection, selectedIndex, filterQuery, sortQuery } = storeToRefs(exportStore);
 
 const inputData = ref({
   selectedConnection: '',
@@ -166,6 +176,13 @@ const handleIndexOpen = async (isOpen: boolean) => {
         dynamoConn.tables
           ?.map(t => ({ label: t.name, value: t.name }))
           .sort((a, b) => a.label.localeCompare(b.label)) ?? [];
+    } else if (connection.value?.type === DatabaseType.MONGODB) {
+      // MongoDB metadata is already populated by freshConnection — no extra fetch needed.
+      const mongoConn = connection.value as MongoDBConnection;
+      const collections = mongoConn.collections ?? [];
+      indexOptions.value = collections
+        .map(c => ({ label: c.name, value: c.name }))
+        .sort((a, b) => a.label.localeCompare(b.label));
     }
   } catch (err) {
     const error = err as CustomError;

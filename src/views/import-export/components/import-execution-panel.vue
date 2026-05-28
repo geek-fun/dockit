@@ -102,6 +102,19 @@
         </div>
       </div>
 
+      <!-- Parse Errors Warning -->
+      <Alert v-if="importParseErrors.length > 0" class="parse-errors-alert mt-4 mb-2">
+        <span class="i-carbon-warning h-4 w-4 mr-2" style="color: #f0a020" />
+        <AlertTitle>{{ $t('import.parseErrors') }}</AlertTitle>
+        <AlertDescription>
+          <ul class="parse-errors-list">
+            <li v-for="(error, index) in importParseErrors" :key="index">
+              {{ error }}
+            </li>
+          </ul>
+        </AlertDescription>
+      </Alert>
+
       <!-- Phase Status Display (done/error - shown after stats) -->
       <div
         v-if="importCreationPhase === 'done' || importCreationPhase === 'error'"
@@ -165,6 +178,7 @@ const {
   restoreProgress,
   importCreationPhase,
   importCreationError,
+  importParseErrors,
 } = storeToRefs(importExportStore);
 
 const isImporting = ref(false);
@@ -540,5 +554,22 @@ const executeImport = async () => {
   background-color: rgba(24, 160, 88, 0.1);
   color: #18a058;
   border: 1px solid rgba(24, 160, 88, 0.2);
+}
+
+</script > <style scoped > .parse-errors-alert {
+  background-color: rgba(240, 160, 32, 0.05);
+  border-color: rgba(240, 160, 32, 0.3);
+}
+
+.parse-errors-list {
+  list-style: disc inside;
+  padding-left: 4px;
+  margin-top: 4px;
+}
+
+.parse-errors-list li {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  line-height: 1.5;
 }
 </style>

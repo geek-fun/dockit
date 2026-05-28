@@ -71,6 +71,7 @@ import { SearchableSelect } from '@/components/ui/combobox';
 import {
   useImportExportStore,
   useConnectionStore,
+  MongoDBConnection,
   SearchConnection,
   DynamoDBConnection,
   DatabaseType,
@@ -179,6 +180,13 @@ const updateIndexOptions = () => {
     currentExistingIndices.value = tables.map(t => t.name);
     indexOptions.value = tables
       .map(t => ({ label: t.name, value: t.name }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  } else if (importConnection.value.type === DatabaseType.MONGODB) {
+    const mongoConn = importConnection.value as MongoDBConnection;
+    const collections = mongoConn.collections ?? [];
+    currentExistingIndices.value = collections.map(c => c.name);
+    indexOptions.value = collections
+      .map(c => ({ label: c.name, value: c.name }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }
 };
