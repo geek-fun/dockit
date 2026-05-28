@@ -8,7 +8,7 @@
       <span class="step-badge">{{ $t('export.step') }} 01</span>
     </CardHeader>
     <CardContent>
-      <Grid :cols="2" :x-gap="16" :y-gap="16">
+      <Grid :cols="importConnection?.type === DatabaseType.MONGODB ? 3 : 2" :x-gap="16" :y-gap="16">
         <GridItem>
           <div class="field-label">{{ $t('import.targetDatabase') }}</div>
           <SearchableSelect
@@ -19,6 +19,19 @@
             :placeholder="$t('connection.selectConnection')"
             class="w-full"
             @update:model-value="handleConnectionChange"
+          />
+        </GridItem>
+        <GridItem v-if="importConnection?.type === DatabaseType.MONGODB">
+          <div class="field-label">{{ $t('import.importDatabase') }}</div>
+          <SearchableSelect
+            :model-value="importDatabase"
+            :options="databaseOptions"
+            :loading="loadingStat.database"
+            :search-threshold="0"
+            :placeholder="$t('import.importDatabasePlaceholder')"
+            class="w-full"
+            @update:model-value="handleDatabaseChange"
+            @open="isOpen => isOpen && handleDatabaseOpen()"
           />
         </GridItem>
         <GridItem>
@@ -77,6 +90,7 @@ import {
   DatabaseType,
   isSearchConnection,
 } from '../../../store';
+import { mongoApi } from '../../../datasources';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
 import { useMessageService } from '@/composables';
@@ -89,7 +103,7 @@ const { fetchConnections, fetchIndices, freshConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 
 const importExportStore = useImportExportStore();
-const { importConnection, importTargetIndex, importIsNewCollection } =
+const { importConnection, importTargetIndex, importIsNewCollection, importDatabase } =
   storeToRefs(importExportStore);
 
 const inputData = ref({
@@ -100,8 +114,10 @@ const inputData = ref({
 const loadingStat = ref({
   connection: false,
   index: false,
+  database: false,
 });
 
+const databaseOptions = ref<Array<{ label: string; value: string }>>([]);
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
 const currentExistingIndices = ref<string[]>([]);
 
@@ -127,6 +143,62 @@ const handleConnectionOpen = async () => {
   }
 };
 
+const handleDatabaseOpen = async () => {
+  if (!importConnection.value) return;
+  loadingStat.value.database = true;
+  try {
+    const result = await mongoApi.listDatabases(importConnection.value as MongoDBConnection);
+    if (result.databases) {
+      const systemDbs = new Set(['admin', 'config', 'local']);
+      databaseOptions.value = result.databases
+        .filter(db => db.name)
+        .map(db => ({ label: db.name, value: db.name }))
+        .sort((a, b) => {
+          const aIsSystem = systemDbs.has(a.label);
+          const bIsSystem = systemDbs.has(b.label);
+          if (aIsSystem !== bIsSystem) return aIsSystem ? 1 : -1;
+          return a.label.localeCompare(b.label);
+        });
+    }
+  } catch (err) {
+    const error = err as CustomError;
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3000,
+    });
+  } finally {
+    loadingStat.value.database = false;
+  }
+};
+
+const handleDatabaseChange = async (db: string) => {
+  importExportStore.setImportDatabase(db);
+  loadingStat.value.index = true;
+  try {
+    const result = await mongoApi.listCollections(importConnection.value as MongoDBConnection, db);
+    if (result.collections) {
+      const collections = result.collections.map(c => c.name).sort((a, b) => a.localeCompare(b));
+      currentExistingIndices.value = collections;
+      indexOptions.value = collections.map(c => ({ label: c, value: c }));
+    } else {
+      indexOptions.value = [];
+      currentExistingIndices.value = [];
+    }
+  } catch (err) {
+    const error = err as CustomError;
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3000,
+    });
+    indexOptions.value = [];
+    currentExistingIndices.value = [];
+  } finally {
+    loadingStat.value.index = false;
+  }
+};
+
 const handleIndexOpen = async () => {
   if (!importConnection.value) {
     message.error(lang.t('editor.establishedRequired'), {
@@ -142,6 +214,19 @@ const handleIndexOpen = async () => {
     // Only fetch indices for Elasticsearch/OpenSearch — DynamoDB metadata is already populated by freshConnection.
     if (importConnection.value && isSearchConnection(importConnection.value)) {
       await fetchIndices(importConnection.value);
+    }
+    // For MongoDB with a database selected, fetch collections for that database
+    if (importConnection.value?.type === DatabaseType.MONGODB && importDatabase.value) {
+      const result = await mongoApi.listCollections(
+        importConnection.value as MongoDBConnection,
+        importDatabase.value,
+      );
+      if (result.collections) {
+        currentExistingIndices.value = result.collections.map(c => c.name);
+        indexOptions.value = result.collections
+          .map(c => ({ label: c.name, value: c.name }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+      }
     }
     updateIndexOptions();
   } catch (err) {
@@ -171,9 +256,15 @@ const updateIndexOptions = () => {
       connections.value.find(c => c.id === importConnection.value?.id) ?? importConnection.value;
     const indices = (updatedCon as SearchConnection)?.indices?.map(index => index.index) ?? [];
     currentExistingIndices.value = indices;
-    indexOptions.value = indices
+    const sortedIndices = indices
       .map(index => ({ label: index, value: index }))
-      .sort((a, b) => a.label.localeCompare(b.label));
+      .sort((a, b) => {
+        const aIsSystem = a.label.startsWith('.');
+        const bIsSystem = b.label.startsWith('.');
+        if (aIsSystem !== bIsSystem) return aIsSystem ? 1 : -1;
+        return a.label.localeCompare(b.label);
+      });
+    indexOptions.value = sortedIndices;
   } else if (importConnection.value.type === DatabaseType.DYNAMODB) {
     const dynamoConn = importConnection.value as DynamoDBConnection;
     const tables = dynamoConn.tables ?? [];
@@ -182,12 +273,17 @@ const updateIndexOptions = () => {
       .map(t => ({ label: t.name, value: t.name }))
       .sort((a, b) => a.label.localeCompare(b.label));
   } else if (importConnection.value.type === DatabaseType.MONGODB) {
-    const mongoConn = importConnection.value as MongoDBConnection;
-    const collections = mongoConn.collections ?? [];
-    currentExistingIndices.value = collections.map(c => c.name);
-    indexOptions.value = collections
-      .map(c => ({ label: c.name, value: c.name }))
-      .sort((a, b) => a.label.localeCompare(b.label));
+    if (importDatabase.value) {
+      // Collections for the selected database were already loaded via handleDatabaseChange
+      // and stored in indexOptions / currentExistingIndices. Keep them.
+    } else {
+      const mongoConn = importConnection.value as MongoDBConnection;
+      const collections = mongoConn.collections ?? [];
+      currentExistingIndices.value = collections.map(c => c.name);
+      indexOptions.value = collections
+        .map(c => ({ label: c.name, value: c.name }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+    }
   }
 };
 
@@ -201,6 +297,8 @@ const handleConnectionChange = async (value: string) => {
     importExportStore.setImportConnection(refreshed);
     inputData.value.selectedConnection = value;
     inputData.value.selectedIndex = '';
+    importExportStore.setImportDatabase('');
+    databaseOptions.value = [];
     indexOptions.value = [];
     currentExistingIndices.value = [];
     // Fetch indices after connection change
