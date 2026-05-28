@@ -556,7 +556,7 @@ const executeImport = async () => {
   border: 1px solid rgba(24, 160, 88, 0.2);
 }
 
-</script > <style scoped > .parse-errors-alert {
+.parse-errors-alert {
   background-color: rgba(240, 160, 32, 0.05);
   border-color: rgba(240, 160, 32, 0.3);
 }
