@@ -443,8 +443,7 @@ const dynamoApi = {
         write_capacity_units: indexConfig.writeCapacityUnits,
         warm_throughput:
           indexConfig.warmThroughput &&
-          indexConfig.warmThroughput.readUnits > 0 &&
-          indexConfig.warmThroughput.writeUnits > 0
+          (indexConfig.warmThroughput.readUnits > 0 || indexConfig.warmThroughput.writeUnits > 0)
             ? {
                 read_units_per_second: indexConfig.warmThroughput.readUnits,
                 write_units_per_second: indexConfig.warmThroughput.writeUnits,

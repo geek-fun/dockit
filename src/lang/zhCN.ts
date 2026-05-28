@@ -412,6 +412,8 @@ export const zhCN = {
       warmWriteUnits: '预热写入单位 (WCU/S)',
       warmReadUnitsPlaceholder: '输入每秒预热读取容量单位',
       warmWriteUnitsPlaceholder: '输入每秒预热写入容量单位',
+      warmReadUnitsMin: '预热读取单位至少为 1',
+      warmWriteUnitsMin: '预热写入单位至少为 1',
       indexNameRequired: '索引名称为必填项',
       partitionKeyRequired: '至少需要一个分区键属性',
       rcuRequired: '读取容量单位为必填项',

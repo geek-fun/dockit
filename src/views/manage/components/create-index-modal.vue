@@ -5,7 +5,7 @@
         <DialogTitle>{{ lang.t('manage.dynamo.createGsiTitle') }}</DialogTitle>
       </DialogHeader>
       <ScrollArea class="max-h-[65vh] pr-4">
-        <Form @submit.prevent="handleSubmit">
+        <Form id="create-gsi-form" @submit.prevent="handleSubmit">
           <!-- Index Details Section -->
           <div class="section-divider">
             <Separator />
@@ -188,7 +188,11 @@
                 :variant="baseTableCapacityMode === 'PAY_PER_REQUEST' ? 'secondary' : 'outline'"
                 class="font-medium tracking-wide"
               >
-                {{ baseTableCapacityMode === 'PAY_PER_REQUEST' ? 'On-Demand' : 'Provisioned' }}
+                {{
+                  baseTableCapacityMode === 'PAY_PER_REQUEST'
+                    ? lang.t('manage.dynamo.onDemand')
+                    : lang.t('manage.dynamo.provisioned')
+                }}
               </Badge>
             </div>
             <p class="text-xs text-muted-foreground/70 leading-relaxed">
@@ -293,11 +297,14 @@
                     </label>
                     <InputNumber
                       v-model="formValue.warmReadUnits"
-                      :min="0"
+                      :min="1"
                       :placeholder="String(warmThroughputDefaults.read)"
                       class="w-full"
                       @click.stop
                     />
+                    <p v-if="errors.warmReadUnits" class="text-xs text-destructive mt-1">
+                      {{ errors.warmReadUnits }}
+                    </p>
                   </div>
                   <div>
                     <label class="text-xs text-muted-foreground mb-1 block">
@@ -305,17 +312,22 @@
                     </label>
                     <InputNumber
                       v-model="formValue.warmWriteUnits"
-                      :min="0"
+                      :min="1"
                       :placeholder="String(warmThroughputDefaults.write)"
                       class="w-full"
                       @click.stop
                     />
+                    <p v-if="errors.warmWriteUnits" class="text-xs text-destructive mt-1">
+                      {{ errors.warmWriteUnits }}
+                    </p>
                   </div>
                 </div>
               </div>
             </RadioGroup>
           </FormItem>
         </Form>
+        <!-- Hidden submit button to enable keyboard Enter submission -->
+        <button type="submit" form="create-gsi-form" hidden />
       </ScrollArea>
 
       <Alert v-if="errorMessage" variant="destructive" class="mt-3">
@@ -407,7 +419,12 @@ const baseTableInfo = ref<any>(null);
 const newProjectedAttribute = ref('');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
-const errors = ref<{ indexName?: string; partitionKey?: string }>({});
+const errors = ref<{
+  indexName?: string;
+  partitionKey?: string;
+  warmReadUnits?: string;
+  warmWriteUnits?: string;
+}>({});
 
 const formValue = ref({
   indexName: '',
@@ -497,7 +514,30 @@ const validateForm = async (): Promise<boolean> => {
     errors.value.partitionKey = lang.t('manage.dynamo.partitionKeyRequired');
   }
 
+  // Validate warm throughput
+  validateWarmThroughput();
+
   return valid && Object.keys(errors.value).length === 0;
+};
+
+// Validate warm throughput
+const validateWarmThroughput = (): boolean => {
+  if (formValue.value.warmThroughputMode !== 'increase') {
+    delete errors.value.warmReadUnits;
+    delete errors.value.warmWriteUnits;
+    return true;
+  }
+
+  let valid = true;
+  if (formValue.value.warmReadUnits < 1) {
+    errors.value.warmReadUnits = lang.t('manage.dynamo.warmReadUnitsMin');
+    valid = false;
+  }
+  if (formValue.value.warmWriteUnits < 1) {
+    errors.value.warmWriteUnits = lang.t('manage.dynamo.warmWriteUnitsMin');
+    valid = false;
+  }
+  return valid;
 };
 
 const addPartitionKeyAttribute = () => {
