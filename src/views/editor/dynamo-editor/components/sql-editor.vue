@@ -203,6 +203,12 @@ const insertSampleQuery = (key: string) => {
     queryText = query.replace(/"tablename"/g, `"${tableName}"`);
   }
 
+  insertRawQueryText(queryText);
+};
+
+const insertRawQueryText = (queryText: string) => {
+  if (!editor) return;
+
   const model = editor.getModel();
   if (model) {
     const position = editor.getPosition();
@@ -859,6 +865,7 @@ onUnmounted(async () => {
 defineExpose({
   executeQuery,
   insertSampleQuery,
+  insertRawQueryText,
   getLoadingState: () => loadingRef.value,
 });
 </script>

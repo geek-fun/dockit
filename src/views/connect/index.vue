@@ -79,8 +79,9 @@ const message = useMessageService();
 const lang = useLang();
 
 const tabStore = useTabStore();
-const { establishPanel, closePanel, setActivePanel, checkFileExists } = tabStore;
-const { panels, activePanel } = storeToRefs(tabStore);
+const { establishPanel, closePanel, setActivePanel, checkFileExists, clearPendingInsertQuery } =
+  tabStore;
+const { panels, activePanel, pendingInsertQuery } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
 
@@ -199,6 +200,33 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
     }
   }
 };
+
+// Watch for pending query insertion from history view
+watch(pendingInsertQuery, query => {
+  if (!query || activePanel.value.id === 0) return;
+
+  const connectionType = activePanel.value.connection?.type;
+  const panelId = activePanel.value.id;
+
+  // Insert query based on database type
+  if (connectionType === DatabaseType.DYNAMODB) {
+    // DynamoDB - need to access sql-editor through dynamo-editor
+    // The dynamo-editor exposes insertPartiqlSample which calls sqlEditorRef.insertSampleQuery
+    const dynamoEditor = dynamoEditorRefs.get(panelId);
+    if (dynamoEditor) {
+      (dynamoEditor as any).insertPartiqlSample?.(query);
+    }
+  } else if (connectionType === DatabaseType.MONGODB) {
+    const editor = mongoEditorRefs.get(panelId);
+    editor?.insertSampleQuery(query);
+  } else {
+    // ES, OpenSearch, EasySearch
+    const editor = esEditorRefs.get(panelId);
+    editor?.insertSampleQuery(query);
+  }
+
+  clearPendingInsertQuery();
+});
 
 onMounted(async () => {
   // Global shortcuts work when any editor tab is active (not the connect-list)

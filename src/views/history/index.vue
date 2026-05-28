@@ -228,7 +228,7 @@ const connectionStore = useConnectionStore();
 const { connections } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
-const { establishPanel, panels } = tabStore;
+const { establishPanel, panels, setPendingInsertQuery } = tabStore;
 
 const searchQuery = ref('');
 
@@ -258,7 +258,7 @@ const filteredEntries = computed(() => {
       (entry.mongoDatabase ?? '').toLowerCase().includes(q),
   );
 });
-const { activePanel } = storeToRefs(tabStore);
+// Note: tabStore.activePanel is used directly (not via storeToRefs) for setting editorType
 
 // Keyboard navigation for history list
 const focusPrevItem = (currentIndex: number) => {
@@ -395,8 +395,9 @@ const handleAddToEditor = async () => {
 
   // Build the query text based on database type
   const queryText = buildQueryText(entry);
-  const current = activePanel.value?.content || '';
-  activePanel.value!.content = current ? current + '\n\n' + queryText : queryText;
+
+  // Set pending query for connect view to insert into Monaco
+  setPendingInsertQuery(queryText);
 
   router.push('/connect');
 };
