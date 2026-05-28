@@ -91,6 +91,7 @@ export type ExportTaskConfig = {
   overwriteExisting: boolean;
   createDirectory: boolean;
   beautifyJson: boolean;
+  exportDatabase: string;
 };
 
 export type ImportTaskConfig = {
@@ -217,6 +218,8 @@ export const useImportExportStore = defineStore('importExportStore', {
     runningTasks: BackgroundTask[];
     activeImportTaskId: string | null;
     activeExportTaskId: string | null;
+    exportDatabase: string;
+    importDatabase: string;
   } {
     return {
       restoreProgress: null,
@@ -273,6 +276,8 @@ export const useImportExportStore = defineStore('importExportStore', {
       runningTasks: [],
       activeImportTaskId: null,
       activeExportTaskId: null,
+      exportDatabase: '',
+      importDatabase: '',
     };
   },
   getters: {
@@ -943,7 +948,7 @@ export const useImportExportStore = defineStore('importExportStore', {
         host: mongoConnection.host,
         port: mongoConnection.port,
         auth: mongoConnection.auth,
-        database: mongoConnection.activeDatabase || mongoConnection.database,
+        database: this.importDatabase || mongoConnection.activeDatabase || mongoConnection.database,
         tls: mongoConnection.tls,
       };
 
@@ -1496,7 +1501,8 @@ export const useImportExportStore = defineStore('importExportStore', {
           host: mongoConnection.host,
           port: mongoConnection.port,
           auth: mongoConnection.auth,
-          database: mongoConnection.activeDatabase || mongoConnection.database,
+          database:
+            this.importDatabase || mongoConnection.activeDatabase || mongoConnection.database,
           tls: mongoConnection.tls,
         };
         try {
@@ -1868,7 +1874,7 @@ export const useImportExportStore = defineStore('importExportStore', {
           const mongoConnection = this.importConnection as MongoDBConnection;
           const result = await mongoApi.createCollection(
             mongoConnection,
-            mongoConnection.activeDatabase || mongoConnection.database || '',
+            this.importDatabase || mongoConnection.activeDatabase || mongoConnection.database || '',
             this.importTargetIndex,
           );
           if (!result.success) {
@@ -2030,6 +2036,14 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.sortQuery = query;
     },
 
+    setExportDatabase(db: string) {
+      this.exportDatabase = db;
+    },
+
+    setImportDatabase(db: string) {
+      this.importDatabase = db;
+    },
+
     resetExportForm() {
       this.folderPath = '';
       this.extraPath = '';
@@ -2052,6 +2066,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       };
       this.estimatedRows = null;
       this.estimatedSize = null;
+      this.exportDatabase = '';
     },
 
     async fetchSchemaAndSamples() {
@@ -2271,7 +2286,7 @@ export const useImportExportStore = defineStore('importExportStore', {
         host: mongoConnection.host,
         port: mongoConnection.port,
         auth: mongoConnection.auth,
-        database: mongoConnection.activeDatabase || mongoConnection.database,
+        database: this.exportDatabase || mongoConnection.activeDatabase || mongoConnection.database,
         tls: mongoConnection.tls,
       };
 
@@ -2291,7 +2306,7 @@ export const useImportExportStore = defineStore('importExportStore', {
         try {
           const statsResult = await mongoApi.collectionStats(
             mongoConnection,
-            mongoConnection.activeDatabase || mongoConnection.database || '',
+            this.exportDatabase || mongoConnection.activeDatabase || mongoConnection.database || '',
             collectionName,
           );
           if (statsResult.success && statsResult.stats) {
@@ -2837,7 +2852,7 @@ export const useImportExportStore = defineStore('importExportStore', {
         host: mongoConnection.host,
         port: mongoConnection.port,
         auth: mongoConnection.auth,
-        database: mongoConnection.activeDatabase || mongoConnection.database,
+        database: this.exportDatabase || mongoConnection.activeDatabase || mongoConnection.database,
         tls: mongoConnection.tls,
       };
 
@@ -3108,6 +3123,7 @@ export const useImportExportStore = defineStore('importExportStore', {
         this.overwriteExisting = cfg.overwriteExisting;
         this.createDirectory = cfg.createDirectory;
         this.beautifyJson = cfg.beautifyJson;
+        this.exportDatabase = cfg.exportDatabase;
         this.activeExportTaskId = taskId;
         this.activeMode = 'export';
 

@@ -294,6 +294,7 @@ const executeExport = async () => {
     overwriteExisting: overwriteExisting.value,
     createDirectory: createDirectory.value,
     beautifyJson: beautifyJson.value,
+    exportDatabase: exportStore.exportDatabase,
   };
   exportStore.addRunningTask({
     id: taskId,
