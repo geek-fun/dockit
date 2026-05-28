@@ -40,6 +40,8 @@ export const useTabStore = defineStore('panel', {
     activePanel: homePanel,
     panels: [homePanel],
     defaultSnippet: 0,
+    pendingInsertQuery: null as string | null,
+    pendingInsertToken: 0,
   }),
   getters: {
     activeConnection: state => state.activePanel.connection,
@@ -215,6 +217,15 @@ export const useTabStore = defineStore('panel', {
       conn.favoriteTables = newFavorites;
       this.activePanel.connection = conn;
       await saveConnection(conn);
+    },
+
+    setPendingInsertQuery(query: string) {
+      this.pendingInsertQuery = query;
+      this.pendingInsertToken += 1;
+    },
+
+    clearPendingInsertQuery() {
+      this.pendingInsertQuery = null;
     },
   },
 });

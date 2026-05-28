@@ -14,6 +14,12 @@ export type HistoryEntry = {
   qdsl?: string;
   connectionName: string;
   connectionId?: number | string;
+  mongoOperation?: string;
+  mongoCollection?: string;
+  mongoDatabase?: string;
+  mongoDuration?: number;
+  mongoResultCount?: number;
+  starred?: boolean;
 };
 
 export const useHistoryStore = defineStore('historyStore', {
@@ -26,6 +32,7 @@ export const useHistoryStore = defineStore('historyStore', {
   }),
   getters: {
     selectedEntry: state => state.entries.find(e => e.id === state.selectedEntryId),
+    starredEntries: state => state.entries.filter(e => e.starred),
   },
   actions: {
     async fetchHistory() {
@@ -44,13 +51,27 @@ export const useHistoryStore = defineStore('historyStore', {
         timestamp: Date.now(),
       };
       this.entries.unshift(newEntry);
-      if (this.entries.length > cap) {
+
+      if (entry.connectionId) {
+        const connectionEntries = this.entries.filter(e => e.connectionId === entry.connectionId);
+        if (connectionEntries.length > cap) {
+          const idsToRemove = connectionEntries.slice(cap).map(e => e.id);
+          this.entries = this.entries.filter(e => !idsToRemove.includes(e.id));
+        }
+      } else if (this.entries.length > cap) {
         this.entries = this.entries.slice(0, cap);
       }
+
       await storeApi.set('queryHistory', pureObject(this.entries));
     },
     selectEntry(id: string | null) {
       this.selectedEntryId = id;
+    },
+    async toggleStar(id: string) {
+      const entry = this.entries.find(e => e.id === id);
+      if (!entry) return;
+      entry.starred = !entry.starred;
+      await storeApi.set('queryHistory', pureObject(this.entries));
     },
     async removeEntry(id: string) {
       this.entries = this.entries.filter(e => e.id !== id);

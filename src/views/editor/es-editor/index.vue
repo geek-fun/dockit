@@ -735,6 +735,18 @@ const insertSampleQuery = (queryTemplate: string) => {
   queryEditor.revealLine(newLineNumber);
 };
 
+// Watch for pending query insertion from history view
+watch(
+  () => tabStore.pendingInsertToken,
+  () => {
+    const query = tabStore.pendingInsertQuery;
+    if (query && queryEditor) {
+      insertSampleQuery(query);
+      tabStore.clearPendingInsertQuery();
+    }
+  },
+);
+
 defineExpose({
   insertSampleQuery,
 });

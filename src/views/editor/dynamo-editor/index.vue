@@ -37,6 +37,12 @@ const handleInsertPartiqlSample = (key: string) => {
   }
 };
 
+const insertPartiqlSample = (query: string) => {
+  if (sqlEditorRef) {
+    sqlEditorRef.insertRawQueryText(query);
+  }
+};
+
 const handleExecutePartiqlQuery = () => {
   if (sqlEditorRef) {
     sqlEditorRef.executeQuery();
@@ -45,6 +51,7 @@ const handleExecutePartiqlQuery = () => {
 
 defineExpose({
   toggleShortcutsDialog: () => toolBarRef.value?.toggleShortcutsDialog(),
+  insertPartiqlSample,
 });
 </script>
 

@@ -203,6 +203,12 @@ const insertSampleQuery = (key: string) => {
     queryText = query.replace(/"tablename"/g, `"${tableName}"`);
   }
 
+  insertRawQueryText(queryText);
+};
+
+const insertRawQueryText = (queryText: string) => {
+  if (!editor) return;
+
   const model = editor.getModel();
   if (model) {
     const position = editor.getPosition();
@@ -232,6 +238,18 @@ const insertSampleQuery = (key: string) => {
     editor.revealLine(newLineNumber);
   }
 };
+
+// Watch for pending query insertion from history view
+watch(
+  () => tabStore.pendingInsertToken,
+  () => {
+    const query = tabStore.pendingInsertQuery;
+    if (query && editor) {
+      insertRawQueryText(query);
+      tabStore.clearPendingInsertQuery();
+    }
+  },
+);
 
 /**
  * Execute PartiQL statement with state management
@@ -859,6 +877,7 @@ onUnmounted(async () => {
 defineExpose({
   executeQuery,
   insertSampleQuery,
+  insertRawQueryText,
   getLoadingState: () => loadingRef.value,
 });
 </script>

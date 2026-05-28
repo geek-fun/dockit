@@ -46,9 +46,24 @@
                   {{ entry.method }}
                 </Badge>
               </div>
-              <span class="history-item-time" :title="formatFullTime(entry.timestamp)">
-                {{ formatTime(entry.timestamp) }}
-              </span>
+              <div class="history-item-right">
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  :aria-label="entry.starred ? $t('history.unstar') : $t('history.star')"
+                  class="star-btn"
+                  @click.stop="toggleStar(entry.id)"
+                >
+                  <span
+                    :class="entry.starred ? 'i-carbon-star-filled' : 'i-carbon-star'"
+                    class="h-4 w-4"
+                    :style="entry.starred ? 'color: hsl(var(--warning))' : ''"
+                  />
+                </Button>
+                <span class="history-item-time" :title="formatFullTime(entry.timestamp)">
+                  {{ formatTime(entry.timestamp) }}
+                </span>
+              </div>
             </div>
             <div class="history-item-path" :title="getDisplayPath(entry)">
               {{ getDisplayPath(entry) }}
@@ -78,10 +93,6 @@
             <Button variant="outline" size="xs" @click="handleAddToEditor">
               <span class="i-carbon-add h-4 w-4 mr-1" />
               {{ $t('history.addToEditor') }}
-            </Button>
-            <Button size="xs" @click="handleExecute">
-              <span class="i-carbon-play h-4 w-4 mr-1" />
-              {{ $t('history.execute') }}
             </Button>
             <Button
               variant="ghost"
@@ -122,6 +133,50 @@
               <span class="meta-label">{{ $t('history.index') }}</span>
               <span class="meta-value">{{ selectedEntry.index }}</span>
             </div>
+            <div v-if="selectedEntry.databaseType === DatabaseType.MONGODB" class="meta-row">
+              <span class="meta-label">{{ $t('history.operation') }}</span>
+              <Badge variant="outline" class="method-badge">
+                {{ selectedEntry.mongoOperation || 'MONGO' }}
+              </Badge>
+            </div>
+            <div
+              v-if="
+                selectedEntry.databaseType === DatabaseType.MONGODB && selectedEntry.mongoCollection
+              "
+              class="meta-row"
+            >
+              <span class="meta-label">{{ $t('history.collection') }}</span>
+              <span class="meta-value">{{ selectedEntry.mongoCollection }}</span>
+            </div>
+            <div
+              v-if="
+                selectedEntry.databaseType === DatabaseType.MONGODB && selectedEntry.mongoDatabase
+              "
+              class="meta-row"
+            >
+              <span class="meta-label">{{ $t('history.database') }}</span>
+              <span class="meta-value">{{ selectedEntry.mongoDatabase }}</span>
+            </div>
+            <div
+              v-if="
+                selectedEntry.databaseType === DatabaseType.MONGODB &&
+                selectedEntry.mongoDuration != null
+              "
+              class="meta-row"
+            >
+              <span class="meta-label">{{ $t('history.duration') }}</span>
+              <span class="meta-value">{{ selectedEntry.mongoDuration }}</span>
+            </div>
+            <div
+              v-if="
+                selectedEntry.databaseType === DatabaseType.MONGODB &&
+                selectedEntry.mongoResultCount != null
+              "
+              class="meta-row"
+            >
+              <span class="meta-label">{{ $t('history.results') }}</span>
+              <span class="meta-value">{{ selectedEntry.mongoResultCount }}</span>
+            </div>
             <div class="meta-row">
               <span class="meta-label">{{ $t('history.connection') }}</span>
               <span class="meta-value">{{ selectedEntry.connectionName }}</span>
@@ -146,14 +201,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
-import {
-  useHistoryStore,
-  useConnectionStore,
-  useTabStore,
-  DatabaseType,
-  useDbDataStore,
-} from '../../store';
-import type { DynamoDBConnection } from '../../store';
+import { useHistoryStore, useConnectionStore, useTabStore, DatabaseType } from '../../store';
 import { useLang } from '../../lang';
 import { useMessageService, useDialogService } from '@/composables';
 import { Button } from '@/components/ui/button';
@@ -164,6 +212,7 @@ import dynamoDBIcon from '../../assets/svg/dynamoDB.svg';
 import elasticsearchIcon from '../../assets/svg/elasticsearch.svg';
 import opensearchIcon from '../../assets/svg/db-opensearch.svg';
 import easysearchIcon from '../../assets/svg/easysearch.svg';
+import mongodbIcon from '../../assets/svg/mongodb.svg';
 import HistoryEmpty from './components/history-empty.vue';
 
 const lang = useLang();
@@ -173,12 +222,13 @@ const router = useRouter();
 
 const historyStore = useHistoryStore();
 const { entries, selectedEntryId, selectedEntry } = storeToRefs(historyStore);
-const { selectEntry, removeEntry, clearHistory, fetchHistory } = historyStore;
+const { selectEntry, removeEntry, clearHistory, fetchHistory, toggleStar } = historyStore;
 
 const connectionStore = useConnectionStore();
-const { searchQDSL } = connectionStore;
+const { connections } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
+const { establishPanel, panels, setPendingInsertQuery } = tabStore;
 
 const searchQuery = ref('');
 
@@ -189,7 +239,9 @@ const getDbIcon = (dbType?: string) =>
       ? opensearchIcon
       : dbType === DatabaseType.EASYSEARCH
         ? easysearchIcon
-        : elasticsearchIcon;
+        : dbType === DatabaseType.MONGODB
+          ? mongodbIcon
+          : elasticsearchIcon;
 
 const filteredEntries = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
@@ -200,12 +252,13 @@ const filteredEntries = computed(() => {
       (entry.index ?? '').toLowerCase().includes(q) ||
       entry.method.toLowerCase().includes(q) ||
       entry.connectionName.toLowerCase().includes(q) ||
-      (entry.qdsl ?? '').toLowerCase().includes(q),
+      (entry.qdsl ?? '').toLowerCase().includes(q) ||
+      (entry.mongoOperation ?? '').toLowerCase().includes(q) ||
+      (entry.mongoCollection ?? '').toLowerCase().includes(q) ||
+      (entry.mongoDatabase ?? '').toLowerCase().includes(q),
   );
 });
-const { activePanel, activeConnection } = storeToRefs(tabStore);
-
-const dbDataStore = useDbDataStore();
+// Note: tabStore.activePanel is used directly (not via storeToRefs) for setting editorType
 
 // Keyboard navigation for history list
 const focusPrevItem = (currentIndex: number) => {
@@ -243,7 +296,19 @@ const getMethodStyle = (method: string) => {
   return { color, borderColor: color };
 };
 
-const getDisplayPath = (entry: { databaseType?: string; index?: string; path: string }) => {
+const getDisplayPath = (entry: {
+  databaseType?: string;
+  index?: string;
+  path: string;
+  mongoCollection?: string;
+  mongoDatabase?: string;
+}) => {
+  if (entry.databaseType === DatabaseType.MONGODB) {
+    if (entry.mongoDatabase && entry.mongoCollection) {
+      return `${entry.mongoDatabase}.${entry.mongoCollection}`;
+    }
+    return entry.mongoCollection || entry.path || '';
+  }
   if (entry.databaseType === DatabaseType.DYNAMODB) {
     return entry.index ? `${entry.path} / ${entry.index}` : entry.path;
   }
@@ -271,6 +336,9 @@ const buildQueryText = (entry: {
   index?: string;
   qdsl?: string;
 }) => {
+  if (entry.databaseType === DatabaseType.MONGODB) {
+    return entry.qdsl || '';
+  }
   if (entry.databaseType === DatabaseType.DYNAMODB) {
     return entry.qdsl || '';
   }
@@ -289,60 +357,53 @@ const handleCopyQuery = async () => {
   }
 };
 
-const handleAddToEditor = () => {
+const handleAddToEditor = async () => {
   if (!selectedEntry.value) return;
   const entry = selectedEntry.value;
 
-  if (entry.databaseType === DatabaseType.DYNAMODB && entry.method === 'PartiQL' && entry.qdsl) {
-    if (activePanel.value?.content != null) {
-      const current = activePanel.value.content || '';
-      activePanel.value.content = current ? current + '\n\n' + entry.qdsl : entry.qdsl;
-    }
-  } else if (
-    !entry.databaseType ||
-    entry.databaseType === DatabaseType.ELASTICSEARCH ||
-    entry.databaseType === DatabaseType.OPENSEARCH ||
-    entry.databaseType === DatabaseType.EASYSEARCH
-  ) {
-    const queryText = buildQueryText(entry);
-    if (activePanel.value?.content != null) {
-      const current = activePanel.value.content || '';
-      activePanel.value.content = current ? current + '\n\n' + queryText : queryText;
-    }
-  }
+  // Find the connection from history entry
+  const connection = connections.value.find(c => String(c.id) === String(entry.connectionId));
 
-  router.push('/connect');
-};
-
-const handleExecute = async () => {
-  if (!selectedEntry.value) return;
-  if (!activeConnection.value) {
+  if (!connection) {
     message.error(lang.t('history.noConnection'));
     return;
   }
 
-  const entry = selectedEntry.value;
+  // Check if there's an existing panel for this connection
+  const existingPanel = panels.find(
+    p => p.connection && String(p.connection.id) === String(entry.connectionId),
+  );
 
-  try {
-    if (entry.databaseType === DatabaseType.DYNAMODB && entry.method === 'PartiQL' && entry.qdsl) {
-      await dbDataStore.executePartiqlStatement(
-        activeConnection.value as DynamoDBConnection,
-        entry.path,
-        entry.qdsl,
-      );
-    } else {
-      const { method, path, index, qdsl } = entry;
-      await searchQDSL(activeConnection.value, { method, path, index, qdsl });
+  // If no existing panel, establish one
+  if (!existingPanel) {
+    await establishPanel(connection);
+    // For DynamoDB, switch to SQL editor mode to show content
+    if (connection.type === DatabaseType.DYNAMODB) {
+      tabStore.activePanel.editorType = 'DYNAMO_EDITOR_SQL';
     }
-    message.success(lang.t('history.executeSuccess'));
-    router.push('/connect');
-  } catch (err) {
-    const error = err as { status?: number; details?: string; message?: string };
-    message.error(`${error.details || error.message || 'Query failed'}`, {
-      closable: true,
-      keepAliveOnHover: true,
-    });
+  } else {
+    // Set active panel to the existing one
+    tabStore.setActivePanel(existingPanel.id);
+    // For DynamoDB, switch to SQL editor mode if currently in UI mode
+    if (
+      connection.type === DatabaseType.DYNAMODB &&
+      existingPanel.editorType !== 'DYNAMO_EDITOR_SQL'
+    ) {
+      tabStore.activePanel.editorType = 'DYNAMO_EDITOR_SQL';
+    }
   }
+
+  // Build the query text based on database type
+  const queryText = buildQueryText(entry);
+
+  // Set content on the panel directly (Monaco reads this during initialization for newly created panels)
+  const current = tabStore.activePanel.content || '';
+  tabStore.activePanel.content = current ? current + '\n\n' + queryText : queryText;
+
+  // Set pending query for connect view to insert via onMounted/onActivated
+  setPendingInsertQuery(queryText);
+
+  router.push('/connect');
 };
 
 const handleDelete = () => {
@@ -478,6 +539,18 @@ const handleClearAll = () => {
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.history-item-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.star-btn {
+  padding: 2px;
+  height: auto;
+  min-height: 0;
 }
 
 .history-item-path {
