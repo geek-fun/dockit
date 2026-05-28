@@ -429,6 +429,8 @@ export const enUS = {
       warmWriteUnits: 'Warm Write Units (WCU/S)',
       warmReadUnitsPlaceholder: 'Enter warm read capacity units per second',
       warmWriteUnitsPlaceholder: 'Enter warm write capacity units per second',
+      warmReadUnitsMin: 'Warm read units per second must be at least 1',
+      warmWriteUnitsMin: 'Warm write units per second must be at least 1',
       indexNameRequired: 'Index name is required',
       partitionKeyRequired: 'At least one partition key attribute is required',
       rcuRequired: 'Read capacity units is required',

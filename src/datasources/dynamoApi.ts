@@ -441,12 +441,15 @@ const dynamoApi = {
         projected_attributes: indexConfig.projectedAttributes,
         read_capacity_units: indexConfig.readCapacityUnits,
         write_capacity_units: indexConfig.writeCapacityUnits,
-        warm_throughput: indexConfig.warmThroughput
-          ? {
-              read_units_per_second: indexConfig.warmThroughput.readUnits,
-              write_units_per_second: indexConfig.warmThroughput.writeUnits,
-            }
-          : undefined,
+        warm_throughput:
+          indexConfig.warmThroughput &&
+          indexConfig.warmThroughput.readUnits > 0 &&
+          indexConfig.warmThroughput.writeUnits > 0
+            ? {
+                read_units_per_second: indexConfig.warmThroughput.readUnits,
+                write_units_per_second: indexConfig.warmThroughput.writeUnits,
+              }
+            : undefined,
       },
     };
 
