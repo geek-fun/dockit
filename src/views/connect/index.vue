@@ -79,9 +79,8 @@ const message = useMessageService();
 const lang = useLang();
 
 const tabStore = useTabStore();
-const { establishPanel, closePanel, setActivePanel, checkFileExists, clearPendingInsertQuery } =
-  tabStore;
-const { panels, activePanel, pendingInsertQuery } = storeToRefs(tabStore);
+const { establishPanel, closePanel, setActivePanel, checkFileExists } = tabStore;
+const { panels, activePanel } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
 
@@ -200,52 +199,6 @@ const handleTabChange = async (panelName: string, action: 'CHANGE' | 'CLOSE') =>
     }
   }
 };
-
-// Watch for pending query insertion from history view
-watch(pendingInsertQuery, async query => {
-  if (!query || activePanel.value.id === 0) return;
-
-  const connectionType = activePanel.value.connection?.type;
-  const panelId = activePanel.value.id;
-
-  // Wait for editor to be mounted (may need multiple attempts for newly created panels)
-  const insertQuery = async (retries = 0): Promise<boolean> => {
-    await nextTick();
-
-    // Insert query based on database type
-    if (connectionType === DatabaseType.DYNAMODB) {
-      const dynamoEditor = dynamoEditorRefs.get(panelId);
-      if (dynamoEditor) {
-        (dynamoEditor as any).insertPartiqlSample?.(query);
-        return true;
-      }
-    } else if (connectionType === DatabaseType.MONGODB) {
-      const editor = mongoEditorRefs.get(panelId);
-      if (editor) {
-        editor.insertSampleQuery(query);
-        return true;
-      }
-    } else {
-      // ES, OpenSearch, EasySearch
-      const editor = esEditorRefs.get(panelId);
-      if (editor) {
-        editor.insertSampleQuery(query);
-        return true;
-      }
-    }
-
-    // Retry if editor ref not available yet (up to 5 times with 100ms delay)
-    if (retries < 5) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      return insertQuery(retries + 1);
-    }
-
-    return false;
-  };
-
-  await insertQuery();
-  clearPendingInsertQuery();
-});
 
 onMounted(async () => {
   // Global shortcuts work when any editor tab is active (not the connect-list)

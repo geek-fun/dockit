@@ -80,9 +80,14 @@ const loadingBar = useLoadingBarService();
 const lang = useLang();
 
 const tabStore = useTabStore();
-const { saveContent } = tabStore;
-const { activePanel, defaultSnippet, activeConnection, activeSearchIndexOption } =
-  storeToRefs(tabStore);
+const { saveContent, clearPendingInsertQuery } = tabStore;
+const {
+  activePanel,
+  defaultSnippet,
+  activeConnection,
+  activeSearchIndexOption,
+  pendingInsertQuery,
+} = storeToRefs(tabStore);
 
 const connectionStore = useConnectionStore();
 const { searchQDSL, queryToCurl, fetchIndices } = connectionStore;
@@ -734,6 +739,14 @@ const insertSampleQuery = (queryTemplate: string) => {
   queryEditor.setPosition({ lineNumber: newLineNumber, column: 1 });
   queryEditor.revealLine(newLineNumber);
 };
+
+// Watch for pending query insertion from history view
+watch(pendingInsertQuery, query => {
+  if (query && queryEditor) {
+    insertSampleQuery(query);
+    clearPendingInsertQuery();
+  }
+});
 
 defineExpose({
   insertSampleQuery,

@@ -106,8 +106,8 @@ const { getEditorTheme, getEditorOptions } = appStore;
 const { themeType, editorConfig } = storeToRefs(appStore);
 
 const tabStore = useTabStore();
-const { saveContent } = tabStore;
-const { activePanel, activeConnection } = storeToRefs(tabStore);
+const { saveContent, clearPendingInsertQuery } = tabStore;
+const { activePanel, activeConnection, pendingInsertQuery } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
 const { dynamoData } = storeToRefs(dbDataStore);
@@ -238,6 +238,14 @@ const insertRawQueryText = (queryText: string) => {
     editor.revealLine(newLineNumber);
   }
 };
+
+// Watch for pending query insertion from history view
+watch(pendingInsertQuery, query => {
+  if (query && editor) {
+    insertRawQueryText(query);
+    clearPendingInsertQuery();
+  }
+});
 
 /**
  * Execute PartiQL statement with state management
