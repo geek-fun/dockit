@@ -139,7 +139,7 @@
         <CardHeader>
           <div class="section-header">
             <div class="section-title">
-              <span class="i-carbon-network h-4 w-4" />
+              <span class="i-carbon-network-3 h-4 w-4" />
               <span>{{ $t('manage.mongo.shardedCluster') }}</span>
             </div>
             <span class="shard-count">

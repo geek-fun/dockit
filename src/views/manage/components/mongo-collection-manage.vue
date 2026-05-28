@@ -178,7 +178,7 @@
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem @click.stop="showRenameDialog(coll.name)">
-                            <span class="i-carbon-text-edit h-4 w-4 mr-2" />
+                            <span class="i-carbon-edit h-4 w-4 mr-2" />
                             {{ $t('manage.mongo.renameCollection') }}
                           </DropdownMenuItem>
                           <DropdownMenuItem @click.stop="showCloneDialog(coll.name)">
