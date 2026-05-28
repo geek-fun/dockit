@@ -63,8 +63,8 @@ const { themeType, editorConfig } = storeToRefs(appStore);
 const { insertBuffer } = storeToRefs(codeActionStore);
 
 const tabStore = useTabStore();
-const { activePanel, pendingInsertQuery } = storeToRefs(tabStore);
-const { saveContent, saveQueryResult, clearPendingInsertQuery } = tabStore;
+const { activePanel } = storeToRefs(tabStore);
+const { saveContent, saveQueryResult } = tabStore;
 
 const connectionStore = useConnectionStore();
 const { fetchCollections } = connectionStore;
@@ -300,12 +300,16 @@ const insertSampleQuery = (queryTemplate: string) => {
 };
 
 // Watch for pending query insertion from history view
-watch(pendingInsertQuery, query => {
-  if (query && queryEditor) {
-    insertSampleQuery(query);
-    clearPendingInsertQuery();
-  }
-});
+watch(
+  () => tabStore.pendingInsertToken,
+  () => {
+    const query = tabStore.pendingInsertQuery;
+    if (query && queryEditor) {
+      insertSampleQuery(query);
+      tabStore.clearPendingInsertQuery();
+    }
+  },
+);
 
 const setupQueryEditor = () => {
   const editorOptions = getEditorOptions();

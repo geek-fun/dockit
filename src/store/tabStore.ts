@@ -41,6 +41,7 @@ export const useTabStore = defineStore('panel', {
     panels: [homePanel],
     defaultSnippet: 0,
     pendingInsertQuery: null as string | null,
+    pendingInsertToken: 0,
   }),
   getters: {
     activeConnection: state => state.activePanel.connection,
@@ -220,6 +221,7 @@ export const useTabStore = defineStore('panel', {
 
     setPendingInsertQuery(query: string) {
       this.pendingInsertQuery = query;
+      this.pendingInsertToken += 1;
     },
 
     clearPendingInsertQuery() {

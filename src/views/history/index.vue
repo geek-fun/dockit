@@ -396,7 +396,11 @@ const handleAddToEditor = async () => {
   // Build the query text based on database type
   const queryText = buildQueryText(entry);
 
-  // Set pending query for connect view to insert into Monaco
+  // Set content on the panel directly (Monaco reads this during initialization for newly created panels)
+  const current = tabStore.activePanel.content || '';
+  tabStore.activePanel.content = current ? current + '\n\n' + queryText : queryText;
+
+  // Set pending query for connect view to insert via onMounted/onActivated
   setPendingInsertQuery(queryText);
 
   router.push('/connect');

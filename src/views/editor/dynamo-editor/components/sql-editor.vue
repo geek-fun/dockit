@@ -106,8 +106,8 @@ const { getEditorTheme, getEditorOptions } = appStore;
 const { themeType, editorConfig } = storeToRefs(appStore);
 
 const tabStore = useTabStore();
-const { saveContent, clearPendingInsertQuery } = tabStore;
-const { activePanel, activeConnection, pendingInsertQuery } = storeToRefs(tabStore);
+const { saveContent } = tabStore;
+const { activePanel, activeConnection } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
 const { dynamoData } = storeToRefs(dbDataStore);
@@ -240,12 +240,16 @@ const insertRawQueryText = (queryText: string) => {
 };
 
 // Watch for pending query insertion from history view
-watch(pendingInsertQuery, query => {
-  if (query && editor) {
-    insertRawQueryText(query);
-    clearPendingInsertQuery();
-  }
-});
+watch(
+  () => tabStore.pendingInsertToken,
+  () => {
+    const query = tabStore.pendingInsertQuery;
+    if (query && editor) {
+      insertRawQueryText(query);
+      tabStore.clearPendingInsertQuery();
+    }
+  },
+);
 
 /**
  * Execute PartiQL statement with state management
