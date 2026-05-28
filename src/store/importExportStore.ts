@@ -7,8 +7,10 @@ import {
   dynamoApi,
   esApi,
   loadHttpClient,
+  mongoApi,
   sourceFileApi,
   type DynamoDBTableInfo,
+  type MongoConnectionConfig,
 } from '../datasources';
 import { buildEsMappingBody } from '../views/import-export/utils/schemaMapping';
 import {
@@ -16,6 +18,7 @@ import {
   DatabaseType,
   DynamoDBConnection,
   ElasticsearchConnection,
+  MongoDBConnection,
   SearchConnection,
   findTable,
   isSearchConnection,
@@ -84,6 +87,7 @@ export type ExportTaskConfig = {
   fileType: FileType;
   fields: FieldInfo[];
   filterQuery: string;
+  sortQuery: string;
   overwriteExisting: boolean;
   createDirectory: boolean;
   beautifyJson: boolean;
@@ -138,6 +142,7 @@ export type ExportInput = {
   exportFileType: FileType;
   fields: FieldInfo[];
   filterQuery?: string;
+  sort?: string;
   overwriteExisting: boolean;
   createDirectory: boolean;
   beautifyJson: boolean;
@@ -180,6 +185,7 @@ export const useImportExportStore = defineStore('importExportStore', {
     };
     importCreationPhase: 'idle' | 'creating' | 'importing' | 'done' | 'error';
     importCreationError: string | null;
+    importParseErrors: string[];
     importValidationStatus: {
       step1: boolean;
       step2: boolean;
@@ -195,6 +201,7 @@ export const useImportExportStore = defineStore('importExportStore', {
     selectedIndex: string;
     fields: FieldInfo[];
     filterQuery: string;
+    sortQuery: string;
     overwriteExisting: boolean;
     createDirectory: boolean;
     beautifyJson: boolean;
@@ -234,6 +241,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       },
       importCreationPhase: 'idle' as const,
       importCreationError: null,
+      importParseErrors: [],
       importValidationStatus: {
         step1: false,
         step2: false,
@@ -249,6 +257,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       selectedIndex: '',
       fields: [],
       filterQuery: '',
+      sortQuery: '',
       overwriteExisting: false,
       createDirectory: true,
       beautifyJson: true,
@@ -340,6 +349,8 @@ export const useImportExportStore = defineStore('importExportStore', {
         return await this.restoreToElasticsearch(input);
       } else if (input.connection.type === DatabaseType.DYNAMODB) {
         return await this.restoreToDynamoDB(input);
+      } else if (input.connection.type === DatabaseType.MONGODB) {
+        return await this.restoreToMongoDB(input);
       } else {
         throw new CustomError(400, 'Unsupported connection type');
       }
@@ -893,6 +904,221 @@ export const useImportExportStore = defineStore('importExportStore', {
       }
     },
 
+    async restoreToMongoDB(input: RestoreInput) {
+      const mongoConnection = input.connection as MongoDBConnection;
+      const collectionName = input.index;
+      const fileType = input.restoreFile.split('.').pop()?.toLowerCase();
+
+      const parseCsvLine = (line: string): Array<string | null> => {
+        const result: Array<string | null> = [];
+        let current = '';
+        let inQuotes = false;
+        let hasQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          const nextChar = line[i + 1];
+
+          if (char === '"') {
+            hasQuotes = true;
+            if (inQuotes && nextChar === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === ',' && !inQuotes) {
+            result.push(hasQuotes ? current : current === '' ? null : current);
+            current = '';
+            hasQuotes = false;
+          } else {
+            current += char;
+          }
+        }
+        result.push(hasQuotes ? current : current === '' ? null : current);
+        return result;
+      };
+
+      const config: MongoConnectionConfig = {
+        host: mongoConnection.host,
+        port: mongoConnection.port,
+        auth: mongoConnection.auth,
+        database: mongoConnection.activeDatabase || mongoConnection.database,
+        tls: mongoConnection.tls,
+      };
+
+      const mongoBatchSize = 500;
+      const fileBatchSize = 1000;
+
+      try {
+        const fileInfo = await sourceFileApi.getFileInfo(input.restoreFile);
+
+        this.restoreProgress = {
+          complete: 0,
+          total: fileInfo.totalLines,
+          inserted: 0,
+          updated: 0,
+          skipped: 0,
+        };
+        this.syncImportProgressToTask();
+
+        const upsert = this.importStrategy !== 'append';
+
+        if (fileType === 'json') {
+          const data = await sourceFileApi.readFile(input.restoreFile);
+          const parsed = jsonify.parse(data);
+          const allDocs: Array<Record<string, unknown>> = Array.isArray(parsed) ? parsed : [parsed];
+
+          if (this.restoreProgress) {
+            this.restoreProgress.total = allDocs.length;
+            this.syncImportProgressToTask();
+          }
+
+          for (let i = 0; i < allDocs.length; i += mongoBatchSize) {
+            const batch = allDocs.slice(i, i + mongoBatchSize);
+            const jsonStrings = batch.map(doc => jsonify.stringify(doc));
+            const result = await mongoApi.importDocuments(
+              config,
+              collectionName,
+              jsonStrings,
+              upsert,
+            );
+
+            if (this.restoreProgress) {
+              this.restoreProgress.complete += batch.length;
+              this.restoreProgress.inserted += result.inserted;
+              this.restoreProgress.updated += result.updated;
+              this.restoreProgress.skipped += result.skipped;
+              this.syncImportProgressToTask();
+            }
+          }
+        } else if (fileType === 'jsonl' || fileType === 'csv') {
+          let headers: Array<string | null> = [];
+          let isFirstBatch = true;
+          let accumulatedDocs: string[] = [];
+          let lineOffset = 0;
+
+          await sourceFileApi.streamFileLines(input.restoreFile, fileBatchSize, async batch => {
+            let docs: string[] = [];
+
+            if (fileType === 'jsonl') {
+              docs = batch.lines
+                .map(line => {
+                  lineOffset++;
+                  try {
+                    const doc = jsonify.parse(line) as Record<string, unknown>;
+                    return jsonify.stringify(doc);
+                  } catch {
+                    this.importParseErrors = [
+                      ...this.importParseErrors,
+                      `Line ${lineOffset}: parse error`,
+                    ];
+                    return null;
+                  }
+                })
+                .filter((d): d is string => d !== null);
+            } else if (fileType === 'csv') {
+              const csvLines = isFirstBatch ? batch.lines.slice(1) : batch.lines;
+              if (isFirstBatch) {
+                headers = parseCsvLine(batch.lines[0] || '');
+                isFirstBatch = false;
+                lineOffset++; // account for header line
+              }
+
+              docs = csvLines
+                .map(line => {
+                  lineOffset++;
+                  if (!line.trim()) return null;
+                  const values = parseCsvLine(line);
+                  const doc = headers.reduce(
+                    (acc, header, index) => {
+                      if (header === null) return acc;
+                      let value: unknown = values[index];
+                      if (value === null || value === undefined) return acc;
+                      if (typeof value === 'string') {
+                        try {
+                          value = jsonify.parse(value);
+                        } catch {
+                          // keep original string value
+                        }
+                      }
+                      acc[header] = value;
+                      return acc;
+                    },
+                    {} as Record<string, unknown>,
+                  );
+                  if (Object.keys(doc).length === 0) {
+                    this.importParseErrors = [
+                      ...this.importParseErrors,
+                      `Line ${lineOffset}: parse error`,
+                    ];
+                    return null;
+                  }
+                  return jsonify.stringify(doc);
+                })
+                .filter((d): d is string => d !== null);
+            }
+
+            if (this.restoreProgress) {
+              this.restoreProgress.skipped += batch.lines.length - docs.length;
+              this.syncImportProgressToTask();
+            }
+
+            accumulatedDocs = [...accumulatedDocs, ...docs];
+
+            while (accumulatedDocs.length >= mongoBatchSize) {
+              const sendBatch = accumulatedDocs.slice(0, mongoBatchSize);
+              accumulatedDocs = accumulatedDocs.slice(mongoBatchSize);
+
+              const result = await mongoApi.importDocuments(
+                config,
+                collectionName,
+                sendBatch,
+                upsert,
+              );
+
+              if (this.restoreProgress) {
+                this.restoreProgress.complete += sendBatch.length;
+                this.restoreProgress.inserted += result.inserted;
+                this.restoreProgress.updated += result.updated;
+                this.restoreProgress.skipped += result.skipped;
+                this.syncImportProgressToTask();
+              }
+            }
+
+            if (this.restoreProgress) {
+              this.restoreProgress.complete += batch.lines.length;
+              this.syncImportProgressToTask();
+            }
+          });
+
+          if (accumulatedDocs.length > 0) {
+            const result = await mongoApi.importDocuments(
+              config,
+              collectionName,
+              accumulatedDocs,
+              upsert,
+            );
+
+            if (this.restoreProgress) {
+              this.restoreProgress.complete += accumulatedDocs.length;
+              this.restoreProgress.inserted += result.inserted;
+              this.restoreProgress.updated += result.updated;
+              this.restoreProgress.skipped += result.skipped;
+              this.syncImportProgressToTask();
+            }
+          }
+        } else {
+          throw new CustomError(400, 'Unsupported file type');
+        }
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+
     inferDynamoDBType(value: unknown): string {
       if (typeof value === 'string') return 'S';
       if (typeof value === 'number') return 'N';
@@ -987,6 +1213,8 @@ export const useImportExportStore = defineStore('importExportStore', {
           // Validate data structure for DynamoDB imports (both new and existing collections)
           if (this.importConnection && this.importConnection.type === DatabaseType.DYNAMODB) {
             await this.validateDataStructureForDynamoDB(data, fileType);
+          } else if (this.importConnection && this.importConnection.type === DatabaseType.MONGODB) {
+            // MongoDB is schema-less, no data structure validation needed
           }
 
           // Only build schema comparison if there are no validation errors
@@ -1262,6 +1490,28 @@ export const useImportExportStore = defineStore('importExportStore', {
           }
           return schema;
         }
+      } else if (this.importConnection.type === DatabaseType.MONGODB) {
+        const mongoConnection = this.importConnection as MongoDBConnection;
+        const config: MongoConnectionConfig = {
+          host: mongoConnection.host,
+          port: mongoConnection.port,
+          auth: mongoConnection.auth,
+          database: mongoConnection.activeDatabase || mongoConnection.database,
+          tls: mongoConnection.tls,
+        };
+        try {
+          const samples = await mongoApi.sampleDocuments(config, this.importTargetIndex, 1);
+          if (samples && samples.length > 0) {
+            const schema: Record<string, string> = {};
+            for (const [key, value] of Object.entries(samples[0])) {
+              const type = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+              schema[key] = type.toUpperCase();
+            }
+            return schema;
+          }
+        } catch {
+          // MongoDB schema inference may fail; return null
+        }
       }
       return null;
     },
@@ -1503,8 +1753,11 @@ export const useImportExportStore = defineStore('importExportStore', {
 
       // For existing collections, validate against current schema
       if (!this.importIsNewCollection && this.importTargetIndex && this.importFields.length > 0) {
-        // DynamoDB is schema-less, so skip schema validation for existing collections
-        if (this.importConnection.type === DatabaseType.DYNAMODB) {
+        // DynamoDB and MongoDB are schema-less, so skip schema validation for existing collections
+        if (
+          this.importConnection.type === DatabaseType.DYNAMODB ||
+          this.importConnection.type === DatabaseType.MONGODB
+        ) {
           return { valid: true, errors };
         }
 
@@ -1548,6 +1801,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       };
       this.importCreationPhase = 'idle';
       this.importCreationError = null;
+      this.importParseErrors = [];
       this.importValidationStatus = {
         step1: false,
         step2: false,
@@ -1610,6 +1864,16 @@ export const useImportExportStore = defineStore('importExportStore', {
             readCapacity: this.importCreationOptions.readCapacity,
             writeCapacity: this.importCreationOptions.writeCapacity,
           });
+        } else if (this.importConnection.type === DatabaseType.MONGODB) {
+          const mongoConnection = this.importConnection as MongoDBConnection;
+          const result = await mongoApi.createCollection(
+            mongoConnection,
+            mongoConnection.activeDatabase || mongoConnection.database || '',
+            this.importTargetIndex,
+          );
+          if (!result.success) {
+            throw new CustomError(500, result.error || 'Failed to create MongoDB collection');
+          }
         }
       } catch (error) {
         this.importCreationPhase = 'error';
@@ -1631,6 +1895,9 @@ export const useImportExportStore = defineStore('importExportStore', {
       if (!compatibility.valid) {
         throw new CustomError(400, compatibility.errors.join('; '));
       }
+
+      // Clear any previous parse errors
+      this.importParseErrors = [];
 
       if (this.importIsNewCollection) {
         await this.createTargetCollection();
@@ -1759,6 +2026,10 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.filterQuery = query;
     },
 
+    setSortQuery(query: string) {
+      this.sortQuery = query;
+    },
+
     resetExportForm() {
       this.folderPath = '';
       this.extraPath = '';
@@ -1769,6 +2040,7 @@ export const useImportExportStore = defineStore('importExportStore', {
       this.selectedIndex = '';
       this.fields = [];
       this.filterQuery = '';
+      this.sortQuery = '';
       this.overwriteExisting = false;
       this.createDirectory = true;
       this.beautifyJson = true;
@@ -1791,6 +2063,8 @@ export const useImportExportStore = defineStore('importExportStore', {
         await this.fetchElasticsearchSchema();
       } else if (this.connection.type === DatabaseType.DYNAMODB) {
         await this.fetchDynamoDBSchema();
+      } else if (this.connection.type === DatabaseType.MONGODB) {
+        await this.fetchMongoDBSchema();
       } else {
         throw new CustomError(400, 'Unsupported connection type');
       }
@@ -1987,6 +2261,99 @@ export const useImportExportStore = defineStore('importExportStore', {
       }
     },
 
+    async fetchMongoDBSchema() {
+      if (!this.connection || !this.selectedIndex) return;
+
+      const mongoConnection = this.connection as MongoDBConnection;
+      const collectionName = this.selectedIndex;
+
+      const config: MongoConnectionConfig = {
+        host: mongoConnection.host,
+        port: mongoConnection.port,
+        auth: mongoConnection.auth,
+        database: mongoConnection.activeDatabase || mongoConnection.database,
+        tls: mongoConnection.tls,
+      };
+
+      try {
+        const sampleDocs = await mongoApi.sampleDocuments(config, collectionName, 100);
+
+        if (!sampleDocs || sampleDocs.length === 0) {
+          this.fields = [];
+          this.estimatedRows = 0;
+          this.estimatedSize = null;
+          return [];
+        }
+
+        const sampleDoc = sampleDocs[0];
+
+        // Get document count from collection stats
+        try {
+          const statsResult = await mongoApi.collectionStats(
+            mongoConnection,
+            mongoConnection.activeDatabase || mongoConnection.database || '',
+            collectionName,
+          );
+          if (statsResult.success && statsResult.stats) {
+            this.estimatedRows = statsResult.stats.count;
+          }
+        } catch {
+          this.estimatedRows = null;
+        }
+
+        const fields: FieldInfo[] = Object.entries(sampleDoc)
+          .filter(([name]) => !name.includes('.'))
+          .map(([name, value]) => {
+            let type: string;
+            if (value === null) {
+              type = 'null';
+            } else if (Array.isArray(value)) {
+              type = 'array';
+            } else {
+              type = typeof value;
+            }
+
+            let sampleValue = '';
+            if (value !== undefined && value !== null) {
+              if (typeof value === 'object') {
+                sampleValue = jsonify.stringify(value);
+                if (sampleValue.length > 50) {
+                  sampleValue = sampleValue.substring(0, 47) + '...';
+                }
+              } else {
+                sampleValue = String(value);
+                if (sampleValue.length > 50) {
+                  sampleValue = sampleValue.substring(0, 47) + '...';
+                }
+              }
+            }
+
+            return {
+              name,
+              type: type.toUpperCase(),
+              sampleValue,
+              includeInExport: true,
+            };
+          });
+
+        this.fields = fields;
+        this.validateStep2();
+
+        if (sampleDoc) {
+          const avgDocSize = JSON.stringify(sampleDoc).length;
+          const totalBytes = avgDocSize * (this.estimatedRows || sampleDocs.length);
+          this.estimatedSize = formatBytes(totalBytes);
+        }
+
+        return fields;
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+
     async exportToFile(input: ExportInput): Promise<string> {
       // Reset progress at the start of each export
       this.exportProgress = null;
@@ -1995,6 +2362,8 @@ export const useImportExportStore = defineStore('importExportStore', {
         return await this.exportElasticsearchToFile(input);
       } else if (input.connection.type === DatabaseType.DYNAMODB) {
         return await this.exportDynamoDBToFile(input);
+      } else if (input.connection.type === DatabaseType.MONGODB) {
+        return await this.exportMongoDBToFile(input);
       } else {
         throw new CustomError(400, 'Unsupported connection type');
       }
@@ -2460,6 +2829,209 @@ export const useImportExportStore = defineStore('importExportStore', {
       }
     },
 
+    async exportMongoDBToFile(input: ExportInput): Promise<string> {
+      const mongoConnection = input.connection as MongoDBConnection;
+      const collectionName = input.index;
+
+      const config: MongoConnectionConfig = {
+        host: mongoConnection.host,
+        port: mongoConnection.port,
+        auth: mongoConnection.auth,
+        database: mongoConnection.activeDatabase || mongoConnection.database,
+        tls: mongoConnection.tls,
+      };
+
+      const dataFileName = `${input.exportFileName}.${input.exportFileType}`;
+      const dataFilePath = `${input.exportFolder}/${dataFileName}`;
+      const metadataFileName = `${input.exportFileName}_metadata.json`;
+      const metadataFilePath = `${input.exportFolder}/${metadataFileName}`;
+
+      let skip = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+      let appendFile = false;
+      let totalExported = 0;
+
+      try {
+        if (input.createDirectory) {
+          const folderExists = await sourceFileApi.exists(input.exportFolder);
+          if (!folderExists) {
+            await sourceFileApi.createFolder(input.exportFolder);
+          }
+        }
+
+        this.exportProgress = {
+          complete: 0,
+          total: 0,
+        };
+        this.syncExportProgressToTask();
+
+        const includedFieldNames = input.fields.filter(f => f.includeInExport).map(f => f.name);
+
+        if (input.exportFileType === 'csv') {
+          await sourceFileApi.saveFile(dataFilePath, includedFieldNames.join(',') + '\r\n', false);
+          appendFile = true;
+        } else if (input.exportFileType === 'json') {
+          await sourceFileApi.saveFile(dataFilePath, '[\n', false);
+          appendFile = true;
+        }
+
+        let isFirstBatch = true;
+
+        while (hasMore) {
+          const result = await mongoApi.exportDocuments(
+            config,
+            collectionName,
+            input.filterQuery || undefined,
+            input.sort || undefined,
+            batchSize,
+            skip,
+          );
+
+          if (!result.success) {
+            throw new CustomError(500, result.error || 'Failed to export documents from MongoDB');
+          }
+
+          const documents = result.documents || [];
+
+          if (result.total && this.exportProgress) {
+            this.exportProgress.total = result.total;
+          }
+
+          if (documents.length === 0) {
+            hasMore = false;
+            break;
+          }
+
+          totalExported += documents.length;
+
+          if (this.exportProgress) {
+            this.exportProgress.complete += documents.length;
+            this.syncExportProgressToTask();
+          }
+
+          let dataToWrite: string;
+
+          if (input.exportFileType === 'jsonl') {
+            dataToWrite = documents
+              .map(doc => {
+                if (includedFieldNames.length < input.fields.length) {
+                  const filteredDoc: Record<string, unknown> = {};
+                  includedFieldNames.forEach(field => {
+                    if (field in doc) {
+                      filteredDoc[field] = doc[field];
+                    }
+                  });
+                  return jsonify.stringify(filteredDoc);
+                }
+                return jsonify.stringify(doc);
+              })
+              .join('\n');
+            if (dataToWrite) {
+              dataToWrite += '\n';
+            }
+          } else if (input.exportFileType === 'json') {
+            const jsonDocs = documents.map(doc => {
+              let docToExport = doc;
+              if (includedFieldNames.length < input.fields.length) {
+                const filteredDoc: Record<string, unknown> = {};
+                includedFieldNames.forEach(field => {
+                  if (field in doc) {
+                    filteredDoc[field] = doc[field];
+                  }
+                });
+                docToExport = filteredDoc;
+              }
+              return input.beautifyJson
+                ? jsonify.stringify(docToExport, null, 2)
+                : jsonify.stringify(docToExport);
+            });
+            const prefix = isFirstBatch ? '' : ',\n';
+            dataToWrite = prefix + jsonDocs.join(',\n');
+            isFirstBatch = false;
+          } else {
+            dataToWrite = convertToCsv(includedFieldNames, documents);
+          }
+
+          await sourceFileApi.saveFile(dataFilePath, dataToWrite, appendFile);
+          appendFile = true;
+
+          if (!result.has_more) {
+            hasMore = false;
+          } else {
+            skip += batchSize;
+          }
+        }
+
+        if (input.exportFileType === 'json') {
+          await sourceFileApi.saveFile(dataFilePath, '\n]', true);
+        }
+
+        // Build schema from sampled documents
+        let schemaProperties: Record<string, { type: string }> = {};
+        try {
+          const samples = await mongoApi.sampleDocuments(config, collectionName, 100);
+          if (samples && samples.length > 0) {
+            const fieldTypes: Record<string, Set<string>> = {};
+            for (const doc of samples) {
+              for (const [key, value] of Object.entries(doc)) {
+                if (!fieldTypes[key]) fieldTypes[key] = new Set();
+                const inferredType =
+                  value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
+                fieldTypes[key].add(inferredType);
+              }
+            }
+            schemaProperties = {};
+            for (const [field, types] of Object.entries(fieldTypes)) {
+              schemaProperties[field] = {
+                type: types.size === 1 ? [...types][0] : 'mixed',
+              };
+            }
+          }
+        } catch {
+          // Schema inference is best-effort; proceed with empty schema
+        }
+
+        const metadata = {
+          version: '1.0.0',
+          source: {
+            dbType: input.connection.type.toLowerCase(),
+            dbVersion: 'mongodb',
+            sourceType: 'collection',
+            sourceName: input.index,
+          },
+          export: {
+            format: input.exportFileType,
+            dataFile: dataFileName,
+            encoding: 'utf-8',
+            exportedAt: new Date().toISOString(),
+            rowCount: totalExported,
+            includedFields: includedFieldNames,
+          },
+          schema: { properties: schemaProperties },
+          indexes: [],
+          aliases: {},
+          stats: {},
+          comments: '',
+        };
+
+        if (input.includeMetadata) {
+          await sourceFileApi.saveFile(
+            metadataFilePath,
+            input.beautifyJson ? jsonify.stringify(metadata, null, 2) : jsonify.stringify(metadata),
+            false,
+          );
+        }
+
+        return dataFilePath;
+      } catch (error) {
+        throw new CustomError(
+          get(error, 'status', 500),
+          get(error, 'details', get(error, 'message', '')),
+        );
+      }
+    },
+
     addRunningTask(task: BackgroundTask) {
       this.runningTasks = [...this.runningTasks, task];
     },
@@ -2532,6 +3104,7 @@ export const useImportExportStore = defineStore('importExportStore', {
         this.fileType = cfg.fileType;
         this.fields = cfg.fields;
         this.filterQuery = cfg.filterQuery;
+        this.sortQuery = cfg.sortQuery;
         this.overwriteExisting = cfg.overwriteExisting;
         this.createDirectory = cfg.createDirectory;
         this.beautifyJson = cfg.beautifyJson;
