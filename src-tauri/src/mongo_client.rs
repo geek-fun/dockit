@@ -209,8 +209,6 @@ fn bson_to_json(bson: &Bson) -> Value {
         Bson::MinKey => serde_json::json!({"$minKey": 1}),
         Bson::Undefined => serde_json::json!({"$undefined": true}),
         Bson::DbPointer(db_pointer) => serde_json::to_value(db_pointer).unwrap(),
-        // Safe fallback: should not be reached for any standard BSON type
-        _ => serde_json::to_value(bson).unwrap(),
     }
 }
 
