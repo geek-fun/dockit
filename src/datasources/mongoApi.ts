@@ -709,15 +709,11 @@ export const mongoApi = {
     collection: string,
     limit?: number,
   ): Promise<Record<string, unknown>[]> => {
-    try {
-      return await invoke<Record<string, unknown>[]>('mongo_sample_documents', {
-        config,
-        collection,
-        limit,
-      });
-    } catch (e) {
-      throw e;
-    }
+    return await invoke<Record<string, unknown>[]>('mongo_sample_documents', {
+      config,
+      collection,
+      limit,
+    });
   },
 };
 
