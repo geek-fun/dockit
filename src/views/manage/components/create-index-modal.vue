@@ -34,7 +34,7 @@
             required
             :error="getError('partitionKey', errors.partitionKey)"
           >
-            <div class="w-full flex flex-col gap-2">
+            <div class="w-full flex flex-col gap-2 key-attribute-group partition-key">
               <div
                 v-for="(attr, index) in formValue.partitionKeyAttributes"
                 :key="index"
@@ -69,6 +69,7 @@
                 </Button>
               </div>
               <Button
+                type="button"
                 variant="outline"
                 class="w-full border-dashed"
                 @click="addPartitionKeyAttribute"
@@ -80,7 +81,7 @@
 
           <!-- Sort Key Attributes (Optional) -->
           <FormItem :label="lang.t('manage.dynamo.sortKey')">
-            <div class="w-full flex flex-col gap-2">
+            <div class="w-full flex flex-col gap-2 key-attribute-group sort-key">
               <div
                 v-for="(attr, index) in formValue.sortKeyAttributes"
                 :key="index"
@@ -109,7 +110,12 @@
                   <span class="i-carbon-trash-can h-4 w-4 text-destructive" />
                 </Button>
               </div>
-              <Button variant="outline" class="w-full border-dashed" @click="addSortKeyAttribute">
+              <Button
+                type="button"
+                variant="outline"
+                class="w-full border-dashed"
+                @click="addSortKeyAttribute"
+              >
                 {{ lang.t('manage.dynamo.addAttribute') }}
               </Button>
             </div>
@@ -163,7 +169,7 @@
                   class="flex-1"
                   @keyup.enter="addProjectedAttribute"
                 />
-                <Button variant="outline" @click="addProjectedAttribute">Add</Button>
+                <Button type="button" variant="outline" @click="addProjectedAttribute">Add</Button>
               </div>
             </div>
           </FormItem>
@@ -174,56 +180,71 @@
             <span class="section-title">{{ lang.t('manage.dynamo.indexCapacity') }}</span>
           </div>
 
-          <FormItem :label="lang.t('manage.dynamo.capacityMode')">
-            <div class="w-full">
-              <div class="mb-2 font-medium">
-                {{ baseTableCapacityMode }}
-              </div>
-              <Alert variant="info">
-                <AlertDescription>
-                  {{ lang.t('manage.dynamo.capacityModeNotice') }}
-                </AlertDescription>
-              </Alert>
+          <!-- Capacity Mode - inline key-value display -->
+          <div class="rounded-lg border border-border/60 bg-card/50 px-4 py-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium">{{ lang.t('manage.dynamo.capacityMode') }}</span>
+              <Badge
+                :variant="baseTableCapacityMode === 'PAY_PER_REQUEST' ? 'secondary' : 'outline'"
+                class="font-medium tracking-wide"
+              >
+                {{ baseTableCapacityMode === 'PAY_PER_REQUEST' ? 'On-Demand' : 'Provisioned' }}
+              </Badge>
             </div>
-          </FormItem>
+            <p class="text-xs text-muted-foreground/70 leading-relaxed">
+              {{ lang.t('manage.dynamo.capacityModeNotice') }}
+            </p>
+          </div>
 
           <FormItem
             v-if="baseTableCapacityMode === 'PROVISIONED'"
             :label="lang.t('manage.dynamo.maxTableThroughput')"
           >
-            <RadioGroup v-model="formValue.throughputMode" class="flex flex-col gap-2">
-              <div class="flex items-center space-x-2">
-                <RadioGroupItem id="copy" value="copy" />
-                <label for="copy" class="text-sm cursor-pointer">
+            <RadioGroup v-model="formValue.throughputMode" class="grid grid-cols-2 gap-3">
+              <div
+                class="relative flex items-start gap-3 rounded-lg border-2 p-3 cursor-pointer transition-all"
+                :class="
+                  formValue.throughputMode === 'copy'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground/40'
+                "
+                @click="formValue.throughputMode = 'copy'"
+              >
+                <RadioGroupItem id="copy" value="copy" class="mt-0.5" />
+                <label for="copy" class="text-sm cursor-pointer leading-snug">
                   {{ lang.t('manage.dynamo.copyFromBaseTable') }}
                 </label>
               </div>
-              <div class="flex items-center space-x-2">
-                <RadioGroupItem id="customize" value="customize" />
-                <label for="customize" class="text-sm cursor-pointer">
+              <div
+                class="relative flex items-start gap-3 rounded-lg border-2 p-3 cursor-pointer transition-all"
+                :class="
+                  formValue.throughputMode === 'customize'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground/40'
+                "
+                @click="formValue.throughputMode = 'customize'"
+              >
+                <RadioGroupItem id="customize" value="customize" class="mt-0.5" />
+                <label for="customize" class="text-sm cursor-pointer leading-snug">
                   {{ lang.t('manage.dynamo.customizeSettings') }}
                 </label>
               </div>
             </RadioGroup>
           </FormItem>
 
-          <FormItem
+          <div
             v-if="
               baseTableCapacityMode === 'PROVISIONED' && formValue.throughputMode === 'customize'
             "
-            :label="lang.t('manage.dynamo.rcu')"
+            class="grid grid-cols-2 gap-4 pl-1"
           >
-            <InputNumber v-model="formValue.readCapacityUnits" :min="1" class="w-full" />
-          </FormItem>
-
-          <FormItem
-            v-if="
-              baseTableCapacityMode === 'PROVISIONED' && formValue.throughputMode === 'customize'
-            "
-            :label="lang.t('manage.dynamo.wcu')"
-          >
-            <InputNumber v-model="formValue.writeCapacityUnits" :min="1" class="w-full" />
-          </FormItem>
+            <FormItem :label="lang.t('manage.dynamo.rcu')">
+              <InputNumber v-model="formValue.readCapacityUnits" :min="1" class="w-full" />
+            </FormItem>
+            <FormItem :label="lang.t('manage.dynamo.wcu')">
+              <InputNumber v-model="formValue.writeCapacityUnits" :min="1" class="w-full" />
+            </FormItem>
+          </div>
 
           <!-- Warm Throughput Section -->
           <div class="section-divider">
@@ -232,44 +253,67 @@
           </div>
 
           <FormItem :label="lang.t('manage.dynamo.warmThroughputMode')">
-            <RadioGroup v-model="formValue.warmThroughputMode" class="flex flex-col gap-2">
-              <div class="flex items-center space-x-2">
-                <RadioGroupItem id="default" value="default" />
-                <label for="default" class="text-sm cursor-pointer">
+            <RadioGroup v-model="formValue.warmThroughputMode" class="grid grid-cols-2 gap-3">
+              <div
+                class="relative flex items-start gap-3 rounded-lg border-2 p-3 cursor-pointer transition-all"
+                :class="
+                  formValue.warmThroughputMode === 'default'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground/40'
+                "
+                @click="formValue.warmThroughputMode = 'default'"
+              >
+                <RadioGroupItem id="default" value="default" class="mt-0.5" />
+                <label for="default" class="text-sm cursor-pointer leading-snug">
                   {{ warmThroughputDefaultLabel }}
                 </label>
               </div>
-              <div class="flex items-center space-x-2">
-                <RadioGroupItem id="increase" value="increase" />
-                <label for="increase" class="text-sm cursor-pointer">
-                  {{ lang.t('manage.dynamo.increaseWarmThroughput') }}
-                </label>
+              <div
+                class="relative rounded-lg border-2 p-3 transition-all cursor-pointer"
+                :class="
+                  formValue.warmThroughputMode === 'increase'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground/40'
+                "
+                @click="formValue.warmThroughputMode = 'increase'"
+              >
+                <div class="flex items-start gap-3">
+                  <RadioGroupItem id="increase" value="increase" class="mt-0.5" />
+                  <label for="increase" class="text-sm cursor-pointer leading-snug">
+                    {{ lang.t('manage.dynamo.increaseWarmThroughput') }}
+                  </label>
+                </div>
+                <div
+                  v-if="formValue.warmThroughputMode === 'increase'"
+                  class="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-primary/20"
+                >
+                  <div>
+                    <label class="text-xs text-muted-foreground mb-1 block">
+                      {{ lang.t('manage.dynamo.warmReadUnits') }}
+                    </label>
+                    <InputNumber
+                      v-model="formValue.warmReadUnits"
+                      :min="0"
+                      :placeholder="String(warmThroughputDefaults.read)"
+                      class="w-full"
+                      @click.stop
+                    />
+                  </div>
+                  <div>
+                    <label class="text-xs text-muted-foreground mb-1 block">
+                      {{ lang.t('manage.dynamo.warmWriteUnits') }}
+                    </label>
+                    <InputNumber
+                      v-model="formValue.warmWriteUnits"
+                      :min="0"
+                      :placeholder="String(warmThroughputDefaults.write)"
+                      class="w-full"
+                      @click.stop
+                    />
+                  </div>
+                </div>
               </div>
             </RadioGroup>
-          </FormItem>
-
-          <FormItem
-            v-if="formValue.warmThroughputMode === 'increase'"
-            :label="lang.t('manage.dynamo.warmReadUnits')"
-          >
-            <InputNumber
-              v-model="formValue.warmReadUnits"
-              :min="0"
-              :placeholder="String(warmThroughputDefaults.read)"
-              class="w-full"
-            />
-          </FormItem>
-
-          <FormItem
-            v-if="formValue.warmThroughputMode === 'increase'"
-            :label="lang.t('manage.dynamo.warmWriteUnits')"
-          >
-            <InputNumber
-              v-model="formValue.warmWriteUnits"
-              :min="0"
-              :placeholder="String(warmThroughputDefaults.write)"
-              class="w-full"
-            />
           </FormItem>
         </Form>
       </ScrollArea>
@@ -292,7 +336,7 @@
         <Button variant="outline" :disabled="loading" @click="handleCancel">
           {{ lang.t('dialogOps.cancel') }}
         </Button>
-        <Button type="submit" :disabled="loading">
+        <Button type="button" :disabled="loading" @click="handleSubmit">
           <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.create') }}
         </Button>
@@ -669,5 +713,23 @@ const handleSubmit = async () => {
   font-size: 14px;
   font-weight: 500;
   color: hsl(var(--muted-foreground));
+}
+
+/* Visual differentiation for key attribute groups */
+.key-attribute-group {
+  padding: 12px;
+  border-radius: 8px;
+  background: hsl(var(--card) / 0.5);
+  border: 1px solid hsl(var(--border));
+}
+
+.key-attribute-group.partition-key {
+  border-color: hsl(var(--primary) / 0.3);
+  background: hsl(var(--primary) / 0.05);
+}
+
+.key-attribute-group.sort-key {
+  border-color: hsl(var(--muted-foreground) / 0.2);
+  background: hsl(var(--muted) / 0.3);
 }
 </style>
