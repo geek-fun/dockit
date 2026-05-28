@@ -15,7 +15,7 @@
           {{ $t('connection.connecting', { name: inputData.selectedConnection }) }}
         </span>
       </div>
-      <Grid :cols="2" :x-gap="16" :y-gap="16">
+      <Grid :cols="connection?.type === DatabaseType.MONGODB ? 3 : 2" :x-gap="16" :y-gap="16">
         <GridItem>
           <div class="field-label">{{ $t('export.sourceDatabase') }}</div>
           <SearchableSelect
@@ -27,6 +27,19 @@
             class="w-full"
             @update:model-value="handleConnectionChange"
             @open="isOpen => isOpen && handleConnectionOpen(true)"
+          />
+        </GridItem>
+        <GridItem v-if="connection?.type === DatabaseType.MONGODB">
+          <div class="field-label">{{ $t('export.exportDatabase') }}</div>
+          <SearchableSelect
+            :model-value="exportDatabase"
+            :options="databaseOptions"
+            :loading="loadingStat.database"
+            :search-threshold="0"
+            :placeholder="$t('export.exportDatabasePlaceholder')"
+            class="w-full"
+            @update:model-value="handleDatabaseChange"
+            @open="isOpen => isOpen && handleDatabaseOpen(true)"
           />
         </GridItem>
         <GridItem>
@@ -56,6 +69,15 @@
             :placeholder="$t('export.filterQueryPlaceholder')"
             rows="3"
           />
+          <template v-if="connection?.type === DatabaseType.MONGODB">
+            <div class="field-label">{{ $t('export.sortQuery') }}</div>
+            <textarea
+              v-model="sortQuery"
+              class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50 resize-y"
+              :placeholder="$t('export.sortQueryPlaceholder')"
+              rows="3"
+            />
+          </template>
         </CollapseItem>
       </Collapse>
     </CardContent>
@@ -70,9 +92,11 @@ import { Spinner } from '@/components/ui/spinner';
 import { SearchableSelect } from '@/components/ui/combobox';
 import { CustomError } from '../../../common';
 import { useLang } from '../../../lang';
+import { mongoApi } from '../../../datasources';
 import {
   DatabaseType,
   DynamoDBConnection,
+  MongoDBConnection,
   SearchConnection,
   isSearchConnection,
   useConnectionStore,
@@ -90,7 +114,8 @@ const { connections } = storeToRefs(connectionStore);
 
 const exportStore = useImportExportStore();
 const { setConnection } = exportStore;
-const { connection, selectedIndex, filterQuery } = storeToRefs(exportStore);
+const { connection, selectedIndex, filterQuery, sortQuery, exportDatabase } =
+  storeToRefs(exportStore);
 
 const inputData = ref({
   selectedConnection: '',
@@ -100,6 +125,7 @@ const loadingStat = ref({
   connection: false,
   connecting: false,
   index: false,
+  database: false,
 });
 
 const selectionSummary = computed(() => {
@@ -117,6 +143,7 @@ const connectionOptions = computed(() =>
 );
 
 const indexOptions = ref<Array<{ label: string; value: string }>>([]);
+const databaseOptions = ref<Array<{ label: string; value: string }>>([]);
 
 const handleConnectionOpen = async (isOpen: boolean) => {
   if (!isOpen) return;
@@ -156,9 +183,15 @@ const handleIndexOpen = async (isOpen: boolean) => {
       const updatedCon =
         connections.value.find(c => c.id === connection.value?.id) ?? connection.value;
       const indices = (updatedCon as SearchConnection)?.indices ?? [];
-      indexOptions.value = indices
+      const sortedIndices = indices
         .map(index => ({ label: index.index, value: index.index }))
-        .sort((a, b) => a.label.localeCompare(b.label));
+        .sort((a, b) => {
+          const aIsSystem = a.label.startsWith('.');
+          const bIsSystem = b.label.startsWith('.');
+          if (aIsSystem !== bIsSystem) return aIsSystem ? 1 : -1;
+          return a.label.localeCompare(b.label);
+        });
+      indexOptions.value = sortedIndices;
     } else if (connection.value?.type === DatabaseType.DYNAMODB) {
       // DynamoDB metadata is already populated by freshConnection — no extra fetch needed.
       const dynamoConn = connection.value as DynamoDBConnection;
@@ -166,6 +199,25 @@ const handleIndexOpen = async (isOpen: boolean) => {
         dynamoConn.tables
           ?.map(t => ({ label: t.name, value: t.name }))
           .sort((a, b) => a.label.localeCompare(b.label)) ?? [];
+    } else if (connection.value?.type === DatabaseType.MONGODB) {
+      if (exportDatabase.value) {
+        const mongoConn = connection.value as MongoDBConnection;
+        const result = await mongoApi.listCollections(mongoConn, exportDatabase.value);
+        if (result.success && result.collections) {
+          indexOptions.value = result.collections
+            .map(c => ({ label: c.name, value: c.name }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+        } else {
+          indexOptions.value = [];
+        }
+      } else {
+        // Fall back to cached collections if no database selected yet
+        const mongoConn = connection.value as MongoDBConnection;
+        const collections = mongoConn.collections ?? [];
+        indexOptions.value = collections
+          .map(c => ({ label: c.name, value: c.name }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+      }
     }
   } catch (err) {
     const error = err as CustomError;
@@ -190,6 +242,8 @@ const handleConnectionChange = async (value: string) => {
     inputData.value.selectedConnection = value;
     inputData.value.selectedIndex = '';
     indexOptions.value = [];
+    exportStore.setExportDatabase('');
+    databaseOptions.value = [];
     // Fetch indices immediately after connection change
     await handleIndexOpen(true);
   } catch (err) {
@@ -202,6 +256,63 @@ const handleConnectionChange = async (value: string) => {
   } finally {
     loadingStat.value.connecting = false;
   }
+};
+
+const handleDatabaseOpen = async (isOpen: boolean) => {
+  if (!isOpen) return;
+  if (!connection.value) return;
+  loadingStat.value.database = true;
+  try {
+    const result = await mongoApi.listDatabases(connection.value as MongoDBConnection);
+    if (result.success && result.databases) {
+      const systemDbs = new Set(['admin', 'config', 'local']);
+      databaseOptions.value = result.databases
+        .map(db => ({ label: db.name, value: db.name }))
+        .sort((a, b) => {
+          const aIsSystem = systemDbs.has(a.label);
+          const bIsSystem = systemDbs.has(b.label);
+          if (aIsSystem !== bIsSystem) return aIsSystem ? 1 : -1;
+          return a.label.localeCompare(b.label);
+        });
+    }
+  } catch (err) {
+    const error = err as CustomError;
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3000,
+    });
+  } finally {
+    loadingStat.value.database = false;
+  }
+};
+
+const handleDatabaseChange = async (db: string) => {
+  exportStore.detachActiveTask('export');
+  exportStore.setExportDatabase(db);
+  if (!connection.value) return;
+  loadingStat.value.index = true;
+  try {
+    const result = await mongoApi.listCollections(connection.value as MongoDBConnection, db);
+    if (result.success && result.collections) {
+      indexOptions.value = result.collections
+        .map(c => ({ label: c.name, value: c.name }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+    } else {
+      indexOptions.value = [];
+    }
+  } catch (err) {
+    const error = err as CustomError;
+    message.error(`${error.details || 'Operation failed (status: ' + error.status + ')'}`, {
+      closable: true,
+      keepAliveOnHover: true,
+      duration: 3000,
+    });
+    indexOptions.value = [];
+  } finally {
+    loadingStat.value.index = false;
+  }
+  inputData.value.selectedIndex = '';
 };
 
 const handleIndexChange = (value: string) => {

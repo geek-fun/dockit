@@ -144,6 +144,7 @@ const {
   fileType,
   fields,
   filterQuery,
+  sortQuery,
   overwriteExisting,
   createDirectory,
   beautifyJson,
@@ -271,6 +272,7 @@ const executeExport = async () => {
     exportFileType: fileType.value,
     fields: fields.value,
     filterQuery: filterQuery.value,
+    sort: sortQuery.value,
     overwriteExisting: overwriteExisting.value,
     createDirectory: createDirectory.value,
     beautifyJson: beautifyJson.value,
@@ -288,9 +290,11 @@ const executeExport = async () => {
     fileType: fileType.value,
     fields: [...fields.value],
     filterQuery: filterQuery.value,
+    sortQuery: sortQuery.value,
     overwriteExisting: overwriteExisting.value,
     createDirectory: createDirectory.value,
     beautifyJson: beautifyJson.value,
+    exportDatabase: exportStore.exportDatabase,
   };
   exportStore.addRunningTask({
     id: taskId,

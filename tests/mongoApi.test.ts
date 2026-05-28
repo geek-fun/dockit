@@ -1499,3 +1499,138 @@ describe('mongoApi cluster monitoring', () => {
     });
   });
 });
+
+describe('mongoApi export/import', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const baseConfig = {
+    host: 'localhost',
+    port: 27017,
+    auth: { kind: 'none' },
+    database: 'testdb',
+    tls: false,
+  };
+
+  describe('exportDocuments', () => {
+    it('calls invoke with correct command and returns result', async () => {
+      const mockResult = {
+        success: true,
+        documents: [{ _id: '1', name: 'Alice' }],
+        total: 1,
+        has_more: false,
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.exportDocuments(baseConfig, 'users');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_export_documents', {
+        config: baseConfig,
+        collection: 'users',
+        filter: undefined,
+        sort: undefined,
+        batchSize: undefined,
+        skip: undefined,
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('passes all optional parameters', async () => {
+      invoke.mockResolvedValue({ success: true, documents: [], total: 0, has_more: false });
+      await mongoApi.exportDocuments(
+        baseConfig,
+        'users',
+        '{"active":true}',
+        '{"name":1}',
+        100,
+        200,
+      );
+      expect(invoke).toHaveBeenCalledWith('mongo_export_documents', {
+        config: baseConfig,
+        collection: 'users',
+        filter: '{"active":true}',
+        sort: '{"name":1}',
+        batchSize: 100,
+        skip: 200,
+      });
+    });
+
+    it('returns error result on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Export failed'));
+      const result = await mongoApi.exportDocuments(baseConfig, 'users');
+      expect(result.success).toBe(false);
+      expect(result.has_more).toBe(false);
+      expect(result.error).toBe('Export failed');
+    });
+  });
+
+  describe('importDocuments', () => {
+    it('calls invoke with correct command and returns result', async () => {
+      const mockResult = { success: true, inserted: 10, updated: 0, skipped: 0 };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.importDocuments(baseConfig, 'users', ['{"name":"Alice"}']);
+
+      expect(invoke).toHaveBeenCalledWith('mongo_import_documents', {
+        config: baseConfig,
+        collection: 'users',
+        documents: ['{"name":"Alice"}'],
+        upsert: undefined,
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('passes upsert parameter when true', async () => {
+      invoke.mockResolvedValue({ success: true, inserted: 0, updated: 2, skipped: 0 });
+      await mongoApi.importDocuments(baseConfig, 'users', ['{"_id":"1"}'], true);
+      expect(invoke).toHaveBeenCalledWith('mongo_import_documents', {
+        config: baseConfig,
+        collection: 'users',
+        documents: ['{"_id":"1"}'],
+        upsert: true,
+      });
+    });
+
+    it('returns error result on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Import failed'));
+      const result = await mongoApi.importDocuments(baseConfig, 'users', []);
+      expect(result.success).toBe(false);
+      expect(result.inserted).toBe(0);
+      expect(result.updated).toBe(0);
+      expect(result.skipped).toBe(0);
+      expect(result.error).toBe('Import failed');
+    });
+  });
+
+  describe('sampleDocuments', () => {
+    it('calls invoke with correct command and returns documents', async () => {
+      const mockResult = [{ _id: '1', name: 'Alice' }];
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.sampleDocuments(baseConfig, 'users', 5);
+
+      expect(invoke).toHaveBeenCalledWith('mongo_sample_documents', {
+        config: baseConfig,
+        collection: 'users',
+        limit: 5,
+      });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('omits limit when not provided', async () => {
+      invoke.mockResolvedValue([]);
+      await mongoApi.sampleDocuments(baseConfig, 'users');
+      expect(invoke).toHaveBeenCalledWith('mongo_sample_documents', {
+        config: baseConfig,
+        collection: 'users',
+        limit: undefined,
+      });
+    });
+
+    it('re-throws error on invoke failure', async () => {
+      invoke.mockRejectedValue(new Error('Sample failed'));
+      await expect(mongoApi.sampleDocuments(baseConfig, 'users')).rejects.toThrow('Sample failed');
+    });
+  });
+});
