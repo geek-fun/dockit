@@ -521,23 +521,19 @@ const validateForm = async (): Promise<boolean> => {
 };
 
 // Validate warm throughput
-const validateWarmThroughput = (): boolean => {
+const validateWarmThroughput = (): void => {
   if (formValue.value.warmThroughputMode !== 'increase') {
     delete errors.value.warmReadUnits;
     delete errors.value.warmWriteUnits;
-    return true;
+    return;
   }
 
-  let valid = true;
   if (formValue.value.warmReadUnits < 1) {
     errors.value.warmReadUnits = lang.t('manage.dynamo.warmReadUnitsMin');
-    valid = false;
   }
   if (formValue.value.warmWriteUnits < 1) {
     errors.value.warmWriteUnits = lang.t('manage.dynamo.warmWriteUnitsMin');
-    valid = false;
   }
-  return valid;
 };
 
 const addPartitionKeyAttribute = () => {
