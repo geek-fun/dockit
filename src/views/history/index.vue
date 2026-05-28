@@ -377,9 +377,20 @@ const handleAddToEditor = async () => {
   // If no existing panel, establish one
   if (!existingPanel) {
     await establishPanel(connection);
+    // For DynamoDB, switch to SQL editor mode to show content
+    if (connection.type === DatabaseType.DYNAMODB) {
+      tabStore.activePanel.editorType = 'DYNAMO_EDITOR_SQL';
+    }
   } else {
     // Set active panel to the existing one
     tabStore.setActivePanel(existingPanel.id);
+    // For DynamoDB, switch to SQL editor mode if currently in UI mode
+    if (
+      connection.type === DatabaseType.DYNAMODB &&
+      existingPanel.editorType !== 'DYNAMO_EDITOR_SQL'
+    ) {
+      tabStore.activePanel.editorType = 'DYNAMO_EDITOR_SQL';
+    }
   }
 
   // Build the query text based on database type
