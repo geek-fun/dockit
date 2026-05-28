@@ -225,6 +225,13 @@ const executeCurrentStatement = async () => {
       throw new Error(result.error || 'Query execution failed');
     }
 
+    const collectionFromQuery = [...code.trim().matchAll(/^db\.([^.\s(]+)\./gm)].pop()?.[1];
+    const collection = collectionFromQuery ?? activePanel.value.activeTable ?? undefined;
+    const operationFromQuery = code.match(/db\.\w+\.\s*(\w+)\s*\(/)?.[1];
+    const databaseFromConnection =
+      activeConnection.value.activeDatabase || activeConnection.value.database;
+    const resultCount = Array.isArray(result.data) ? result.data.length : undefined;
+
     historyStore.addEntry({
       databaseType: DatabaseType.MONGODB,
       method: 'MONGO',
@@ -232,10 +239,13 @@ const executeCurrentStatement = async () => {
       qdsl: code,
       connectionName: activeConnection.value.name,
       connectionId: activeConnection.value.id,
+      mongoOperation: operationFromQuery,
+      mongoCollection: collectionFromQuery,
+      mongoDatabase: databaseFromConnection,
+      mongoDuration: queryTime,
+      mongoResultCount: resultCount,
     });
 
-    const collectionFromQuery = [...code.trim().matchAll(/^db\.(\w+)\./gm)].pop()?.[1];
-    const collection = collectionFromQuery ?? activePanel.value.activeTable ?? undefined;
     showResultPanel(result.data, undefined, queryTime, collection);
     saveQueryResult(result.data);
     loadingBar.finish();
