@@ -1,11 +1,5 @@
 <template>
   <div class="mongo-cluster-container">
-    <div class="cluster-header">
-      <Button size="sm" variant="outline" :disabled="loading" @click="fetchClusterStatus">
-        <span class="i-carbon-renew h-4 w-4 mr-1" />
-        {{ $t('manage.mongo.refreshCluster') }}
-      </Button>
-    </div>
     <div v-if="loading" class="metrics-grid">
       <Card v-for="i in 5" :key="i" class="metric-card">
         <CardContent class="p-4 flex flex-col gap-2">
@@ -171,7 +165,6 @@
 import { ref, onMounted, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useClusterManageStore } from '@/store';
 import { DatabaseType, MongoDBConnection } from '@/store/connectionStore';
@@ -241,17 +234,15 @@ const fetchClusterStatus = async () => {
 
 watch(connection, fetchClusterStatus);
 onMounted(fetchClusterStatus);
+
+defineExpose({
+  fetchClusterStatus,
+});
 </script>
 
 <style scoped>
 .mongo-cluster-container {
   padding: 1rem;
-}
-
-.cluster-header {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.5rem;
 }
 
 .metrics-grid {

@@ -53,10 +53,6 @@
                 </Input>
               </div>
               <div class="toolbar-actions">
-                <Button size="sm" variant="outline" @click="fetchCollectionsWithStats">
-                  <span class="i-carbon-renew h-4 w-4 mr-1" />
-                  {{ $t('manage.mongo.refresh') }}
-                </Button>
                 <Button size="sm" @click="showCreateCollectionDialog = true">
                   <span class="i-carbon-add h-4 w-4 mr-1" />
                   {{ $t('manage.mongo.createCollection') }}
