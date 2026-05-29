@@ -22,33 +22,23 @@
 
 DocKit replaces browser consoles like Kibana and AWS Console with a single native desktop app. Describe what you need in natural language and get runnable queries, or use the Monaco-powered editors directly. Supports OpenAI, Anthropic, and DeepSeek — bring your own key.
 
-<p align="center">
-  <a href="#"><img src="src/assets/svg/elasticsearch.svg" width="28" height="28"><br>Elasticsearch</a>
-  &nbsp;&nbsp;
-  <a href="#"><img src="src/assets/svg/db-opensearch.svg" width="28" height="28"><br>OpenSearch</a>
-  &nbsp;&nbsp;
-  <a href="#"><img src="src/assets/svg/dynamoDB.svg" width="28" height="28"><br>DynamoDB</a>
-  &nbsp;&nbsp;
-  <a href="#"><img src="src/assets/svg/mongodb.svg" width="28" height="28"><br>MongoDB</a>
-  &nbsp;&nbsp;
-  <a href="#"><img src="src/assets/svg/easysearch.svg" width="28" height="28"><br>EasySearch</a>
-</p>
-
-## Screenshots
-
-| AI Assistant | Query History |
-|:---:|:---:|
-| ![AI](docs/screenshots/dockit-ai-assistant-question.png) | ![History](docs/screenshots/dockit-query-history.png) |
-
-| DynamoDB Visual Query | PartiQL Editor |
-|:---:|:---:|
-| ![Visual Query](docs/screenshots/dockit-dynamodb-query-ui.png) | ![PartiQL](docs/screenshots/dockit-dynamodb-partiql.png) |
+<table align="center">
+  <tr align="center">
+    <td><img src="src/assets/svg/elasticsearch.svg" width="28" height="28"><br>Elasticsearch</td>
+    <td><img src="src/assets/svg/db-opensearch.svg" width="28" height="28"><br>OpenSearch</td>
+    <td><img src="src/assets/svg/dynamoDB.svg" width="28" height="28"><br>DynamoDB</td>
+    <td><img src="src/assets/svg/mongodb.svg" width="28" height="28"><br>MongoDB</td>
+    <td><img src="src/assets/svg/easysearch.svg" width="28" height="28"><br>EasySearch</td>
+  </tr>
+</table>
 
 ## Key Features
 
 ### Agentic Data Studio
 
 DocKit's data agent lets you interact with your databases through natural language. Describe what you need — the agent writes queries, inspects schemas, updates documents, deletes records, creates indexes, and returns results. Every operation runs through validated tools with built-in safety: fine-grained per-source permissions, a security gate requiring explicit confirmation before destructive actions, and a credential-safe architecture that never exposes connection secrets to the LLM. Supports OpenAI, Anthropic, and DeepSeek.
+
+![AI Assistant](docs/screenshots/dockit-ai-assistant-question.png)
 
 ### Manage & Monitor
 
@@ -57,6 +47,10 @@ Interactive management panels for every supported database. Monitor node health,
 ### DynamoDB
 
 Visual Query Builder for scan and query operations with primary key filtering and advanced conditions. PartiQL Editor with autocomplete and syntax highlighting. Inline edit, update, and delete items directly from results. Full table lifecycle — browse, create, modify tables, manage indexes, monitor capacity and item counts. Supports DynamoDB Local for offline development without AWS credentials.
+
+| DynamoDB Visual Query | PartiQL Editor |
+|:---:|:---:|
+| ![Visual Query](docs/screenshots/dockit-dynamodb-query-ui.png) | ![PartiQL](docs/screenshots/dockit-dynamodb-partiql.png) |
 
 ### MongoDB
 
@@ -69,6 +63,8 @@ Supported as separate connection types with independent configurations. Monaco-p
 ### Query History
 
 Every query recorded automatically. No save button needed. 500 entries per connection, stored locally. Copy, reload into the editor, or re-execute past queries. Covers PartiQL, MongoDB, and visual form queries.
+
+![Query History](docs/screenshots/dockit-query-history.png)
 
 ### Import & Export
 
