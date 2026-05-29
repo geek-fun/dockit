@@ -12,9 +12,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint-and-test:
+  # ── Phase 1: Inspection — runs in parallel ──────────────────────
+
+  lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v5
@@ -30,6 +32,20 @@ jobs:
 
       - run: npm audit --audit-level=critical
 
+  test-js:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - run: npm ci
+
       - run: npm run test:ci
 
       - name: Upload TypeScript coverage to Codecov
@@ -42,7 +58,7 @@ jobs:
           flags: typescript
           fail_ci_if_error: false
 
-  rust-test:
+  test-rust:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -83,8 +99,10 @@ jobs:
           flags: rust
           fail_ci_if_error: false
 
+  # ── Phase 2: Build — runs after all inspections pass ──────────
+
   build:
-    needs: [lint-and-test, rust-test]
+    needs: [lint, test-js, test-rust]
     strategy:
       fail-fast: false
       matrix:
@@ -97,10 +115,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        if: runner.os == 'Linux'
-
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
@@ -112,6 +126,10 @@ jobs:
           echo "deb http://gb.archive.ubuntu.com/ubuntu jammy main" | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
+
+      - name: Install Rust stable
+        if: runner.os == 'Linux'
+        uses: dtolnay/rust-toolchain@stable
 
       - run: npm ci
 

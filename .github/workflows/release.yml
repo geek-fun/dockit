@@ -81,12 +81,12 @@ jobs:
             })
             return data.id
 
-  test:
-    name: Lint & Test
+  lint:
+    name: Lint
     needs: [check-version]
     if: needs.check-version.outputs.is_new_version == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v5
@@ -102,6 +102,23 @@ jobs:
 
       - run: npm audit --audit-level=critical
 
+  test-js:
+    name: JavaScript Tests
+    needs: [check-version]
+    if: needs.check-version.outputs.is_new_version == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
       - run: npm run test:ci
 
       - name: Upload TypeScript coverage to Codecov
@@ -113,6 +130,16 @@ jobs:
           files: ./coverage/lcov.info
           flags: typescript
           fail_ci_if_error: false
+
+  test-rust:
+    name: Rust Tests
+    needs: [check-version]
+    if: needs.check-version.outputs.is_new_version == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -150,7 +177,7 @@ jobs:
 
   release:
     name: ${{ matrix.name }}
-    needs: [check-version, prepare, test]
+    needs: [check-version, prepare, lint, test-js, test-rust]
     if: needs.check-version.outputs.is_new_version == 'true'
     permissions:
       contents: write
