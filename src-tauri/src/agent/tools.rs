@@ -1,13 +1,6 @@
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum RiskLevel {
-    Safe,
-    Elevated,
-    Destructive,
-}
+pub use crate::capabilities::RiskLevel;
 
 pub struct ToolDefinition {
     pub name: &'static str,
@@ -434,6 +427,17 @@ pub fn all_tools() -> Vec<ToolDefinition> {
             }),
             risk_level: RiskLevel::Safe,
             required_permission: "read",
+        },
+        ToolDefinition {
+            name: "dockit__list_connections",
+            description: "List all configured database connections in DocKit with their name, type, and connection id.",
+            parameters: json!({
+                "type": "object",
+                "properties": {},
+                "required": []
+            }),
+            risk_level: RiskLevel::Safe,
+            required_permission: "none",
         },
     ]
 }

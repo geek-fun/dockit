@@ -1,16 +1,13 @@
 use async_trait::async_trait;
 use base64::Engine;
-use futures::TryStreamExt;
-use mongodb::bson::{doc, Bson, Document};
+use mongodb::bson::{Bson, Document};
 use mongodb::{options::ClientOptions, Client as MongoClient};
 use serde_json::{json, Value};
 use url::form_urlencoded;
 
-use crate::common::http_client::create_http_client;
-
 const TOOL_OUTPUT_MAX_BYTES: usize = 32 * 1024; // 32 KB
 
-fn validate_index_name(name: &str, allow_wildcard: bool) -> Result<(), String> {
+pub(crate) fn validate_index_name(name: &str, allow_wildcard: bool) -> Result<(), String> {
     if name.is_empty() {
         return Err("Index name must not be empty".to_string());
     }
@@ -34,11 +31,11 @@ fn validate_index_name(name: &str, allow_wildcard: bool) -> Result<(), String> {
     Ok(())
 }
 
-fn url_encode_segment(segment: &str) -> String {
+pub(crate) fn url_encode_segment(segment: &str) -> String {
     form_urlencoded::byte_serialize(segment.as_bytes()).collect()
 }
 
-fn truncate_tool_output(output: String) -> String {
+pub(crate) fn truncate_tool_output(output: String) -> String {
     if output.len() <= TOOL_OUTPUT_MAX_BYTES {
         return output;
     }
@@ -53,10 +50,6 @@ fn truncate_tool_output(output: String) -> String {
         &output[..boundary], omitted
     )
 }
-use crate::dynamo::describe_table::describe_table;
-use crate::dynamo::execute_statement::{execute_statement, ExecuteStatementInput};
-use crate::dynamo::list_tables::list_tables;
-
 use aws_config::meta::region::RegionProviderChain;
 use aws_config::profile::ProfileFileCredentialsProvider;
 use aws_config::Region;
@@ -200,228 +193,6 @@ pub(crate) async fn create_dynamo_client(config: &Value) -> Result<DynamoClient,
     Ok(DynamoClient::new(&aws_config))
 }
 
-async fn execute_es_tool(tool_name: &str, args: &Value, config: &Value) -> Result<String, String> {
-    let base_url = build_es_base_url(config)?;
-    let headers = build_es_headers(config);
-    let ssl = get_es_ssl_flag(config);
-    let client = create_http_client("system", None, Some(ssl), None);
-
-    let (method, path, body) = match tool_name {
-        "es__search" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, true)?;
-            let body = args.get("body").ok_or("Missing body")?;
-            (
-                "POST",
-                format!("/{}/_search", url_encode_segment(index)),
-                Some(body.to_string()),
-            )
-        }
-        "es__get_document" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, true)?;
-            let id = args
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing id")?;
-            (
-                "GET",
-                format!(
-                    "/{}/_doc/{}",
-                    url_encode_segment(index),
-                    url_encode_segment(id)
-                ),
-                None,
-            )
-        }
-        "es__index_document" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, false)?;
-            let body = args.get("body").ok_or("Missing body")?;
-            let path = match args.get("id").and_then(|v| v.as_str()) {
-                Some(id) => format!(
-                    "/{}/_doc/{}",
-                    url_encode_segment(index),
-                    url_encode_segment(id)
-                ),
-                None => format!("/{}/_doc", url_encode_segment(index)),
-            };
-            ("POST", path, Some(body.to_string()))
-        }
-        "es__update_document" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, false)?;
-            let id = args
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing id")?;
-            let body = args.get("body").ok_or("Missing body")?;
-            (
-                "POST",
-                format!(
-                    "/{}/_update/{}",
-                    url_encode_segment(index),
-                    url_encode_segment(id)
-                ),
-                Some(body.to_string()),
-            )
-        }
-        "es__delete_document" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, false)?;
-            let id = args
-                .get("id")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing id")?;
-            (
-                "DELETE",
-                format!(
-                    "/{}/_doc/{}",
-                    url_encode_segment(index),
-                    url_encode_segment(id)
-                ),
-                None,
-            )
-        }
-        "es__delete_by_query" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, false)?;
-            let body = args.get("body").ok_or("Missing body")?;
-            (
-                "POST",
-                format!("/{}/_delete_by_query", url_encode_segment(index)),
-                Some(body.to_string()),
-            )
-        }
-        "es__cat_indices" => ("GET", "/_cat/indices?format=json".to_string(), None),
-        "es__get_mapping" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, true)?;
-            (
-                "GET",
-                format!("/{}/_mapping", url_encode_segment(index)),
-                None,
-            )
-        }
-        "es__create_index" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, false)?;
-            let body = args.get("body").map(|b| b.to_string());
-            ("PUT", format!("/{}", url_encode_segment(index)), body)
-        }
-        "es__delete_index" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, false)?;
-            ("DELETE", format!("/{}", url_encode_segment(index)), None)
-        }
-        "es__put_mapping" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, false)?;
-            let body = args.get("body").ok_or("Missing body")?.to_string();
-            (
-                "PUT",
-                format!("/{}/_mapping", url_encode_segment(index)),
-                Some(body),
-            )
-        }
-        "es__cat_aliases" => ("GET", "/_cat/aliases?format=json".to_string(), None),
-        "es__get_alias" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, true)?;
-            ("GET", format!("/{}/_alias", url_encode_segment(index)), None)
-        }
-        "es__put_alias" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, false)?;
-            let name = args
-                .get("name")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing name")?;
-            let body = args.get("body").map(|b| b.to_string());
-            ("PUT", format!("/{}/_alias/{}", url_encode_segment(index), url_encode_segment(name)), body)
-        }
-        "es__delete_alias" => {
-            let index = args
-                .get("index")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing index")?;
-            validate_index_name(index, false)?;
-            let name = args
-                .get("name")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing name")?;
-            ("DELETE", format!("/{}/_alias/{}", url_encode_segment(index), url_encode_segment(name)), None)
-        }
-        "es__update_aliases" => {
-            let body = args.get("body").ok_or("Missing body")?.to_string();
-            ("POST", "/_aliases".to_string(), Some(body))
-        }
-        _ => return Err(format!("Unknown ES tool: {}", tool_name)),
-    };
-
-    let url = format!("{}{}", base_url, path);
-    let method =
-        reqwest::Method::from_bytes(method.as_bytes()).map_err(|e| format!("Bad method: {}", e))?;
-
-    let mut request = client.request(method, &url).headers(headers);
-    if let Some(body) = body {
-        request = request.body(body);
-    }
-
-    let response = request
-        .send()
-        .await
-        .map_err(|e| format!("ES request failed: {}", e))?;
-    let status = response.status().as_u16();
-    let body = response
-        .text()
-        .await
-        .map_err(|e| format!("Failed to read ES response: {}", e))?;
-
-    let result = json!({
-        "status": status,
-        "data": serde_json::from_str::<Value>(&body).unwrap_or(Value::String(body))
-    });
-
-    Ok(truncate_tool_output(result.to_string()))
-}
-
 fn strip_sql_comments(input: &str) -> String {
     let mut result = String::with_capacity(input.len());
     let mut chars = input.chars().peekable();
@@ -447,7 +218,7 @@ fn strip_sql_comments(input: &str) -> String {
     result
 }
 
-fn validate_dynamo_statement(tool_name: &str, statement: &str) -> Result<(), String> {
+pub(crate) fn validate_dynamo_statement(tool_name: &str, statement: &str) -> Result<(), String> {
     let cleaned = strip_sql_comments(statement);
     let upper = cleaned.trim().to_uppercase();
     let first_word = upper.split_whitespace().next().unwrap_or("");
@@ -483,50 +254,6 @@ fn validate_dynamo_statement(tool_name: &str, statement: &str) -> Result<(), Str
         _ => {}
     }
     Ok(())
-}
-
-async fn execute_dynamo_tool(
-    tool_name: &str,
-    args: &Value,
-    config: &Value,
-) -> Result<String, String> {
-    let client = create_dynamo_client(config).await?;
-
-    match tool_name {
-        "dynamo__execute_query" | "dynamo__execute_write" | "dynamo__execute_delete" => {
-            let statement = args
-                .get("statement")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing statement")?;
-            validate_dynamo_statement(tool_name, statement)?;
-            let input = ExecuteStatementInput {
-                statement,
-                next_token: None,
-                limit: None,
-            };
-            let response = execute_statement(&client, input).await?;
-            serde_json::to_string(&response)
-                .map(truncate_tool_output)
-                .map_err(|e| e.to_string())
-        }
-        "dynamo__describe_table" => {
-            let table_name = args
-                .get("table_name")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing table_name")?;
-            let response = describe_table(&client, table_name).await?;
-            serde_json::to_string(&response)
-                .map(truncate_tool_output)
-                .map_err(|e| e.to_string())
-        }
-        "dynamo__list_tables" => {
-            let response = list_tables(&client).await?;
-            serde_json::to_string(&response)
-                .map(truncate_tool_output)
-                .map_err(|e| e.to_string())
-        }
-        _ => Err(format!("Unknown DynamoDB tool: {}", tool_name)),
-    }
 }
 
 fn build_mongo_uri(config: &Value) -> Result<String, String> {
@@ -626,7 +353,7 @@ pub(crate) async fn create_mongo_client_from_config(
     Ok((client, database))
 }
 
-fn bson_to_value(bson: &Bson) -> Value {
+pub(crate) fn bson_to_value(bson: &Bson) -> Value {
     match bson {
         Bson::Double(v) => json!(*v),
         Bson::String(v) => json!(v),
@@ -646,217 +373,9 @@ fn bson_to_value(bson: &Bson) -> Value {
     }
 }
 
-fn json_to_bson_doc_agent(val: &Value) -> Result<Document, String> {
+pub(crate) fn json_to_bson_doc_agent(val: &Value) -> Result<Document, String> {
     mongodb::bson::to_document(val)
         .map_err(|e| format!("Failed to convert to BSON document: {}", e))
-}
-
-async fn execute_mongo_tool(
-    tool_name: &str,
-    args: &Value,
-    config: &Value,
-) -> Result<String, String> {
-    let (client, config_db_name) = create_mongo_client_from_config(config).await?;
-
-    // list_databases is the only tool that does not require a target database.
-    if tool_name == "mongo__list_databases" {
-        let names = client
-            .list_database_names()
-            .await
-            .map_err(|e| format!("Failed to list databases: {}", e))?;
-        let result = json!({ "databases": names });
-        return Ok(truncate_tool_output(result.to_string()));
-    }
-
-    let db_name = args
-        .get("database")
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
-        .unwrap_or(&config_db_name)
-        .to_string();
-    if db_name.is_empty() {
-        return Err("No database specified. Pass a \"database\" argument or set a default database in the connection settings.".to_string());
-    }
-
-    match tool_name {
-        "mongo__list_collections" => {
-            let db = client.database(&db_name);
-            let names = db
-                .list_collection_names()
-                .await
-                .map_err(|e| format!("Failed to list collections: {}", e))?;
-            let result = json!({ "collections": names });
-            Ok(truncate_tool_output(result.to_string()))
-        }
-        "mongo__find" => {
-            let collection_name = args
-                .get("collection")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing collection")?;
-            let filter_val = args.get("filter").cloned().unwrap_or(json!({}));
-            let filter = json_to_bson_doc_agent(&filter_val)?;
-            let limit = args
-                .get("limit")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(20)
-                .max(1)
-                .min(100) as i64;
-
-            let db = client.database(&db_name);
-            let coll = db.collection::<Document>(collection_name);
-
-            let mut find_options = mongodb::options::FindOptions::default();
-            find_options.limit = Some(limit);
-            if let Some(sort_val) = args.get("sort") {
-                find_options.sort = Some(json_to_bson_doc_agent(sort_val)?);
-            }
-            if let Some(proj_val) = args.get("projection") {
-                find_options.projection = Some(json_to_bson_doc_agent(proj_val)?);
-            }
-
-            let mut cursor = coll
-                .find(filter)
-                .with_options(find_options)
-                .await
-                .map_err(|e| format!("find failed: {}", e))?;
-            let mut docs: Vec<Value> = Vec::new();
-            while let Some(doc) = cursor
-                .try_next()
-                .await
-                .map_err(|e| format!("cursor error: {}", e))?
-            {
-                docs.push(bson_to_value(&Bson::Document(doc)));
-            }
-            let result = json!({ "count": docs.len(), "documents": docs });
-            Ok(truncate_tool_output(result.to_string()))
-        }
-        "mongo__aggregate" => {
-            let collection_name = args
-                .get("collection")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing collection")?;
-            let pipeline_val = args
-                .get("pipeline")
-                .and_then(|v| v.as_array())
-                .ok_or("Missing or invalid pipeline")?;
-            let pipeline: Vec<Document> = pipeline_val
-                .iter()
-                .map(json_to_bson_doc_agent)
-                .collect::<Result<Vec<_>, _>>()?;
-
-            let db = client.database(&db_name);
-            let coll = db.collection::<Document>(collection_name);
-            let mut cursor = coll
-                .aggregate(pipeline)
-                .await
-                .map_err(|e| format!("aggregate failed: {}", e))?;
-            let mut docs: Vec<Value> = Vec::new();
-            while let Some(doc) = cursor
-                .try_next()
-                .await
-                .map_err(|e| format!("cursor error: {}", e))?
-            {
-                docs.push(bson_to_value(&Bson::Document(doc)));
-                if docs.len() >= 100 {
-                    break;
-                }
-            }
-            let result = json!({ "count": docs.len(), "documents": docs });
-            Ok(truncate_tool_output(result.to_string()))
-        }
-        "mongo__insert_one" => {
-            let collection_name = args
-                .get("collection")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing collection")?;
-            let document_val = args.get("document").ok_or("Missing document")?;
-            let document = json_to_bson_doc_agent(document_val)?;
-
-            let db = client.database(&db_name);
-            let coll = db.collection::<Document>(collection_name);
-            let insert_result = coll
-                .insert_one(document)
-                .await
-                .map_err(|e| format!("insert_one failed: {}", e))?;
-            let inserted_id = bson_to_value(&insert_result.inserted_id);
-            let result = json!({ "inserted_id": inserted_id });
-            Ok(truncate_tool_output(result.to_string()))
-        }
-        "mongo__update_many" => {
-            let collection_name = args
-                .get("collection")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing collection")?;
-            let filter_val = args.get("filter").ok_or("Missing filter")?;
-            let update_val = args.get("update").ok_or("Missing update")?;
-            let filter = json_to_bson_doc_agent(filter_val)?;
-            let update = json_to_bson_doc_agent(update_val)?;
-            let upsert = args
-                .get("upsert")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false);
-
-            let db = client.database(&db_name);
-            let coll = db.collection::<Document>(collection_name);
-            let update_options = mongodb::options::UpdateOptions::builder()
-                .upsert(upsert)
-                .build();
-            let update_result = coll
-                .update_many(filter, update)
-                .with_options(update_options)
-                .await
-                .map_err(|e| format!("update_many failed: {}", e))?;
-            let result = json!({
-                "matched_count": update_result.matched_count,
-                "modified_count": update_result.modified_count,
-                "upserted_id": update_result.upserted_id.map(|id| bson_to_value(&id))
-            });
-            Ok(truncate_tool_output(result.to_string()))
-        }
-        "mongo__delete_many" => {
-            let collection_name = args
-                .get("collection")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing collection")?;
-            let filter_val = args.get("filter").ok_or("Missing filter")?;
-            let filter = json_to_bson_doc_agent(filter_val)?;
-
-            let db = client.database(&db_name);
-            let coll = db.collection::<Document>(collection_name);
-            let delete_result = coll
-                .delete_many(filter)
-                .await
-                .map_err(|e| format!("delete_many failed: {}", e))?;
-            let result = json!({ "deleted_count": delete_result.deleted_count });
-            Ok(truncate_tool_output(result.to_string()))
-        }
-        _ => Err(format!("Unknown MongoDB tool: {}", tool_name)),
-    }
-}
-
-#[tauri::command]
-#[allow(dead_code)]
-pub async fn execute_tool(
-    tool_name: String,
-    arguments: String,
-    connection_config: serde_json::Value,
-) -> Result<String, String> {
-    // Security note: Not registered in the Tauri invoke_handler.
-    // Tool execution is gated by the agent loop, which enforces per-session
-    // tool allow-lists and user confirmation. This helper remains only for
-    // potential internal callers; it is not reachable from the webview.
-    let args: Value = serde_json::from_str(&arguments)
-        .map_err(|e| format!("Failed to parse arguments: {}", e))?;
-
-    if tool_name.starts_with("es__") {
-        execute_es_tool(&tool_name, &args, &connection_config).await
-    } else if tool_name.starts_with("dynamo__") {
-        execute_dynamo_tool(&tool_name, &args, &connection_config).await
-    } else if tool_name.starts_with("mongo__") {
-        execute_mongo_tool(&tool_name, &args, &connection_config).await
-    } else {
-        Err(format!("Unknown tool: {}", tool_name))
-    }
 }
 
 const TOOL_ENVELOPE_MAX_CHARS: usize = 32768;
@@ -896,15 +415,18 @@ impl crate::agent::tool_executor::ToolExecutor for DocKitToolExecutor {
     ) -> Result<ToolEnvelope, String> {
         let start = std::time::Instant::now();
 
-        let raw = if tool_name.starts_with("es__") {
-            execute_es_tool(tool_name, arguments, connection_config).await?
-        } else if tool_name.starts_with("dynamo__") {
-            execute_dynamo_tool(tool_name, arguments, connection_config).await?
-        } else if tool_name.starts_with("mongo__") {
-            execute_mongo_tool(tool_name, arguments, connection_config).await?
+        let conn_opt = if connection_config.is_null() {
+            None
         } else {
-            return Err(format!("Unknown tool: {}", tool_name));
+            Some(connection_config.clone())
         };
+
+        let raw = crate::capabilities::registry::invoke_capability_inner(
+            tool_name,
+            arguments.clone(),
+            conn_opt,
+        )
+        .await?;
 
         let duration_ms = start.elapsed().as_millis() as u64;
         let (full_result, truncated) = char_truncate(&raw, TOOL_ENVELOPE_MAX_CHARS);

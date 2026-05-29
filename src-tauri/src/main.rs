@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod agent;
+mod capabilities;
 mod common;
 mod db;
 mod dynamo;
@@ -25,6 +26,7 @@ use agent::tool_executor::ToolExecutor;
 use agent::{
     get_all_tools, introspect_schema, list_llm_models, run_agent_step, validate_llm_config,
 };
+use capabilities::commands::{execute_tool, get_available_tools, invoke_capability};
 use dynamo_client::{
     aws_assume_role, aws_list_profiles, aws_list_profiles_with_roles, aws_sso_get_role_credentials,
     aws_sso_list_accounts, aws_sso_list_roles, aws_sso_poll_token, aws_sso_start_device_auth,
@@ -98,6 +100,9 @@ fn main() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
+            execute_tool,
+            invoke_capability,
+            get_available_tools,
             fetch_api,
             dynamo_api,
             aws_list_profiles,
@@ -163,6 +168,9 @@ fn main() {
             menu::create_menu(app)?;
 
             use tauri::Manager;
+            // Initialize the capability registry
+            capabilities::registry::init_registry();
+
             let app_data_dir = app
                 .path()
                 .app_data_dir()
