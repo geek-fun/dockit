@@ -99,6 +99,7 @@ jobs:
       - run: npm ci
 
       - name: Lint & audit
+        shell: bash
         run: |
           set +e
           npm run lint:check & pid1=$!
@@ -168,6 +169,7 @@ jobs:
       # ── Tests (JS + Rust in parallel per OS) ────────────
 
       - name: Tests
+        shell: bash
         run: |
           set +e
           npm run test:ci & pid1=$!
