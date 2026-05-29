@@ -1,5 +1,11 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { MongoDBConnection, MongoDBAuth } from '../store';
+import {
+  invokeCapability,
+  buildMongoCapabilityConfig,
+  parseMongoCapabilityResponse,
+} from './capabilityInvoker.ts';
+import { jsonify } from '../common';
 
 type MongoTestResult = {
   success: boolean;
@@ -260,14 +266,16 @@ export const mongoApi = {
   },
 
   listDatabases: async (con: MongoDBConnection): Promise<MongoListDatabasesResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoListDatabasesResult>('mongo_list_databases', { config });
+      const raw = await invokeCapability(
+        'mongo__list_databases',
+        {},
+        buildMongoCapabilityConfig(con),
+      );
+      const data = parseMongoCapabilityResponse<{ databases: string[] }>(raw);
+      return { success: true, databases: data.databases.map(name => ({ name })) };
     } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 
@@ -275,17 +283,19 @@ export const mongoApi = {
     con: MongoDBConnection,
     database: string,
   ): Promise<MongoListCollectionsResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoListCollectionsResult>('mongo_list_collections', {
-        config,
-        database,
-      });
-    } catch (e) {
+      const raw = await invokeCapability(
+        'mongo__list_collections',
+        { database },
+        buildMongoCapabilityConfig(con),
+      );
+      const data = parseMongoCapabilityResponse<{ collections: string[] }>(raw);
       return {
-        success: false,
-        error: e instanceof Error ? e.message : String(e),
+        success: true,
+        collections: data.collections.map(name => ({ name, collection_type: 'collection' })),
       };
+    } catch (e) {
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 
@@ -442,16 +452,23 @@ export const mongoApi = {
     skip?: number,
     limit?: number,
   ): Promise<MongoFindDocumentsResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoFindDocumentsResult>('mongo_find_documents', {
-        config,
-        collection,
-        filter,
-        sort,
-        skip,
-        limit,
-      });
+      const raw = await invokeCapability(
+        'mongo__find',
+        {
+          collection,
+          filter: filter ? jsonify.parse(filter) : {},
+          sort: sort ? jsonify.parse(sort) : undefined,
+          skip,
+          limit: limit ?? 20,
+        },
+        buildMongoCapabilityConfig(con),
+      );
+      const data = parseMongoCapabilityResponse<{
+        documents: Record<string, unknown>[];
+        count: number;
+      }>(raw);
+      return { success: true, documents: data.documents, total: data.count };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -475,13 +492,14 @@ export const mongoApi = {
     collection: string,
     document: string,
   ): Promise<MongoWriteResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoWriteResult>('mongo_insert_document', {
-        config,
-        collection,
-        document,
-      });
+      const raw = await invokeCapability(
+        'mongo__insert_one',
+        { collection, document: jsonify.parse(document) },
+        buildMongoCapabilityConfig(con),
+      );
+      const data = parseMongoCapabilityResponse<{ inserted_id: string }>(raw);
+      return { success: true, inserted_id: data.inserted_id };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -524,13 +542,14 @@ export const mongoApi = {
     collection: string,
     filter: string,
   ): Promise<MongoWriteResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoWriteResult>('mongo_delete_documents', {
-        config,
-        collection,
-        filter,
-      });
+      const raw = await invokeCapability(
+        'mongo__delete_many',
+        { collection, filter: jsonify.parse(filter) },
+        buildMongoCapabilityConfig(con),
+      );
+      const data = parseMongoCapabilityResponse<{ deleted_count: number }>(raw);
+      return { success: true, deleted_count: data.deleted_count };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }

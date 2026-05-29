@@ -304,7 +304,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     };
 
     macro_rules! reg {
-        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr) => {
+        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr) => {
             registry.register(Capability {
                 name: $name,
                 description: $desc,
@@ -313,7 +313,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
                 risk_level: $risk,
                 required_permission: $perm,
                 source_kind: SourceKind::Database("MONGODB"),
-                tags: &["agent"],
+                tags: $tags,
             });
         };
     }
@@ -321,12 +321,12 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     reg!("mongo__list_databases", "List all database names on a MongoDB server. Use this first when no database is known so you can pick one for subsequent calls.",
          MongoListDatabases,
          mongo_schema(&[]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("mongo__list_collections", "List all collection names in a MongoDB database.",
          MongoListCollections,
          mongo_schema(&[("database", "MongoDB database name", "string", false)]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("mongo__find", "Query documents from a MongoDB collection using a filter. Returns matching documents.",
          MongoFind,
@@ -338,7 +338,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
              ("limit", "Maximum documents to return (default 20, max 100)", "integer", false),
              ("sort", "Optional sort specification", "object", false),
          ]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("mongo__aggregate", "Execute a MongoDB aggregation pipeline on a collection.",
          MongoAggregate,
@@ -347,7 +347,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
              ("collection", "Collection name", "string", true),
              ("pipeline", "Aggregation pipeline stages as array", "array", true),
          ]),
-         RiskLevel::Elevated, "read");
+         RiskLevel::Elevated, "read", &["agent"]);
 
     reg!("mongo__insert_one", "Insert a single document into a MongoDB collection.",
          MongoInsertOne,
@@ -356,7 +356,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
              ("collection", "Collection name", "string", true),
              ("document", "Document to insert", "object", true),
          ]),
-         RiskLevel::Elevated, "create");
+         RiskLevel::Elevated, "create", &["agent", "ui"]);
 
     reg!("mongo__update_many", "Update documents in a MongoDB collection matching a filter.",
          MongoUpdateMany,
@@ -367,7 +367,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
              ("update", "Update operations, e.g. {\"$set\": {\"status\": \"inactive\"}}", "object", true),
              ("upsert", "If true, insert if none matches (default false)", "boolean", false),
          ]),
-         RiskLevel::Elevated, "update");
+         RiskLevel::Elevated, "update", &["agent"]);
 
     reg!("mongo__delete_many", "Delete documents from a MongoDB collection matching a filter. DESTRUCTIVE: permanently removes data.",
          MongoDeleteMany,
@@ -376,5 +376,5 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
              ("collection", "Collection name", "string", true),
              ("filter", "Filter to match documents to delete", "object", true),
          ]),
-         RiskLevel::Destructive, "delete");
+         RiskLevel::Destructive, "delete", &["agent", "ui"]);
 }

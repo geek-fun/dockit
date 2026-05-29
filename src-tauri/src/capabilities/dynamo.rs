@@ -145,7 +145,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     };
 
     macro_rules! reg {
-        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr) => {
+        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr) => {
             registry.register(Capability {
                 name: $name,
                 description: $desc,
@@ -154,7 +154,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
                 risk_level: $risk,
                 required_permission: $perm,
                 source_kind: SourceKind::Database("DYNAMODB"),
-                tags: &["agent"],
+                tags: $tags,
             });
         };
     }
@@ -162,25 +162,25 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     reg!("dynamo__execute_query", "Execute a PartiQL SELECT query against DynamoDB. Use for reading and querying table data.",
          DynamoExecuteQuery,
          dynamo_schema(&[("statement", "PartiQL SELECT statement", true)]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("dynamo__execute_write", "Execute a PartiQL INSERT or UPDATE statement against DynamoDB.",
          DynamoExecuteWrite,
          dynamo_schema(&[("statement", "PartiQL INSERT or UPDATE statement", true)]),
-         RiskLevel::Elevated, "create");
+         RiskLevel::Elevated, "create", &["agent", "ui"]);
 
     reg!("dynamo__execute_delete", "Execute a PartiQL DELETE statement against DynamoDB. DESTRUCTIVE: permanently removes data.",
          DynamoExecuteDelete,
          dynamo_schema(&[("statement", "PartiQL DELETE statement", true)]),
-         RiskLevel::Destructive, "delete");
+         RiskLevel::Destructive, "delete", &["agent", "ui"]);
 
     reg!("dynamo__describe_table", "Describe a DynamoDB table schema: key schema, attribute definitions, indexes, and throughput.",
          DynamoDescribeTable,
          dynamo_schema(&[("table_name", "DynamoDB table name", true)]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("dynamo__list_tables", "List all DynamoDB table names in the connected account and region.",
          DynamoListTables,
          dynamo_schema(&[]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent", "ui"]);
 }

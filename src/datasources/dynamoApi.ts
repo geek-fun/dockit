@@ -2,6 +2,11 @@ import { DynamoDBConnection, type DynamoDBAuth } from '../store';
 import { tauriClient, type AwsAuthPayload, type AwsCredentials } from './ApiClients.ts';
 import { CustomError } from '../common';
 import { invoke } from '@tauri-apps/api/core';
+import {
+  invokeCapability,
+  buildDynamoCapabilityConfig,
+  parseDynamoCapabilityResponse,
+} from './capabilityInvoker.ts';
 
 export type KeySchema = {
   attributeName: string;
@@ -196,33 +201,19 @@ const buildAuthPayload = (auth: DynamoDBAuth): AwsAuthPayload => {
 
 const dynamoApi = {
   listTables: async (con: DynamoDBConnection): Promise<string[]> => {
-    const apiCredentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: '',
-      operation: 'LIST_TABLES',
-      payload: {},
-    };
-    const result = await tauriClient.invokeDynamoApi(apiCredentials, options);
-    const { status, message, data } = result;
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    return ((data as { tableNames?: string[] })?.tableNames ?? []) as string[];
+    const raw = await invokeCapability('dynamo__list_tables', {}, buildDynamoCapabilityConfig(con));
+    const data = parseDynamoCapabilityResponse<{ tableNames?: string[] }>(raw);
+    return data.tableNames ?? [];
   },
 
   describeTable: async (con: DynamoDBConnection, tableName: string): Promise<DynamoDBTableInfo> => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'DESCRIBE_TABLE',
-      payload: {},
-    };
-    const result = await tauriClient.invokeDynamoApi(credentials, options);
-    const { status, message, data } = result;
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    const { keySchema, attributeDefinitions } = data as RawDynamoDBTableInfo;
+    const raw = await invokeCapability(
+      'dynamo__describe_table',
+      { table_name: tableName },
+      buildDynamoCapabilityConfig(con),
+    );
+    const data = parseDynamoCapabilityResponse<RawDynamoDBTableInfo>(raw);
+    const { keySchema, attributeDefinitions } = data;
 
     const pkName = keySchema.find(({ keyType }) => keyType.toUpperCase() === 'HASH')?.attributeName;
     const pkValueType = attributeDefinitions.find(
@@ -237,7 +228,6 @@ const dynamoApi = {
     )?.attributeType;
 
     const partitionKey = { name: pkName, valueType: pkValueType, type: 'HASH' };
-
     const sortKey = { name: skName, valueType: skValueType, type: 'RANGE' };
 
     return { ...data, partitionKey, sortKey } as DynamoDBTableInfo;
@@ -345,28 +335,25 @@ const dynamoApi = {
 
   executeStatement: async (
     con: DynamoDBConnection,
-    tableName: string,
+    _tableName: string,
     params: PartiQLParams,
   ): Promise<PartiQLResult> => {
-    const credentials = buildDynamoCredentials(con);
+    // Route to the correct capability based on statement type
+    const statement = params.statement.trim().toUpperCase();
+    const capabilityName = statement.startsWith('SELECT')
+      ? 'dynamo__execute_query'
+      : statement.startsWith('INSERT') || statement.startsWith('UPDATE')
+        ? 'dynamo__execute_write'
+        : statement.startsWith('DELETE')
+          ? 'dynamo__execute_delete'
+          : 'dynamo__execute_query'; // fallback
 
-    const options = {
-      table_name: tableName,
-      operation: 'EXECUTE_STATEMENT',
-      payload: {
-        statement: params.statement,
-        next_token: params.nextToken,
-        limit: params.limit,
-      },
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-
-    return data as PartiQLResult;
+    const raw = await invokeCapability(
+      capabilityName,
+      { statement: params.statement },
+      buildDynamoCapabilityConfig(con),
+    );
+    return parseDynamoCapabilityResponse<PartiQLResult>(raw);
   },
 
   updateItem: async (

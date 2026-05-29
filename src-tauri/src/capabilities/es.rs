@@ -212,7 +212,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     };
 
     macro_rules! reg {
-        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr) => {
+        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr) => {
             registry.register(Capability {
                 name: $name,
                 description: $desc,
@@ -221,72 +221,72 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
                 risk_level: $risk,
                 required_permission: $perm,
                 source_kind: SourceKind::Database("ELASTICSEARCH"),
-                tags: &["agent"],
+                tags: $tags,
             });
         };
     }
 
     reg!("es__search", "Execute an Elasticsearch search query using Query DSL. Returns matching documents with scores.", EsSearch,
          es_schema(&[("index", "Target index name", "string", true), ("body", "Elasticsearch Query DSL body", "object", true)]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent"]);
 
     reg!("es__get_document", "Get a single document by its ID from an Elasticsearch index.", EsGetDocument,
          es_schema(&[("index", "Target index name", "string", true), ("id", "Document ID", "string", true)]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent"]);
 
     reg!("es__index_document", "Create or replace a document in an Elasticsearch index. Omit id to auto-generate one.", EsIndexDocument,
          es_schema(&[("index", "Target index name", "string", true), ("id", "Optional document ID; omit to auto-generate", "string", false), ("body", "Document body to index", "object", true)]),
-         RiskLevel::Elevated, "create");
+         RiskLevel::Elevated, "create", &["agent"]);
 
     reg!("es__update_document", "Partially update an existing document in an Elasticsearch index using the Update API.", EsUpdateDocument,
          es_schema(&[("index", "Target index name", "string", true), ("id", "Document ID to update", "string", true), ("body", "Update body", "object", true)]),
-         RiskLevel::Elevated, "update");
+         RiskLevel::Elevated, "update", &["agent"]);
 
     reg!("es__delete_document", "Delete a single document by ID from an Elasticsearch index.", EsDeleteDocument,
          es_schema(&[("index", "Target index name", "string", true), ("id", "Document ID to delete", "string", true)]),
-         RiskLevel::Destructive, "delete");
+         RiskLevel::Destructive, "delete", &["agent"]);
 
     reg!("es__delete_by_query", "Delete ALL documents matching a query. WARNING: bulk destructive operation.", EsDeleteByQuery,
          es_schema(&[("index", "Target index name", "string", true), ("body", "Query DSL to match documents for deletion", "object", true)]),
-         RiskLevel::Destructive, "delete");
+         RiskLevel::Destructive, "delete", &["agent"]);
 
     reg!("es__cat_indices", "List all indices with health status, document count, and storage size.", EsCatIndices,
          es_schema(&[]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("es__get_mapping", "Get the field mapping (schema) for an Elasticsearch index, showing field names and data types.", EsGetMapping,
          es_schema(&[("index", "Target index name", "string", true)]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent"]);
 
     reg!("es__create_index", "Create a new Elasticsearch index with optional custom mappings and settings.", EsCreateIndex,
          es_schema(&[("index", "Name for the new index", "string", true), ("body", "Optional index body with settings and mappings", "object", false)]),
-         RiskLevel::Elevated, "create");
+         RiskLevel::Elevated, "create", &["agent"]);
 
     reg!("es__delete_index", "Delete an entire Elasticsearch index and all its data permanently. This action is IRREVERSIBLE.", EsDeleteIndex,
          es_schema(&[("index", "Name of the index to delete", "string", true)]),
-         RiskLevel::Destructive, "delete");
+         RiskLevel::Destructive, "delete", &["agent", "ui"]);
 
     reg!("es__put_mapping", "Add or update field mappings in an existing Elasticsearch index.", EsPutMapping,
          es_schema(&[("index", "Target index name", "string", true), ("body", "Mapping body", "object", true)]),
-         RiskLevel::Elevated, "update");
+         RiskLevel::Elevated, "update", &["agent"]);
 
     reg!("es__cat_aliases", "List all index aliases, their target indices, and routing configuration.", EsCatAliases,
          es_schema(&[]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("es__get_alias", "Get the aliases defined on a specific index.", EsGetAlias,
          es_schema(&[("index", "Target index name", "string", true)]),
-         RiskLevel::Safe, "read");
+         RiskLevel::Safe, "read", &["agent"]);
 
     reg!("es__put_alias", "Create or update an alias pointing to a specific index.", EsPutAlias,
          es_schema(&[("index", "Target index name", "string", true), ("name", "Alias name", "string", true), ("body", "Optional alias body with filter/routing", "object", false)]),
-         RiskLevel::Elevated, "update");
+         RiskLevel::Elevated, "update", &["agent"]);
 
     reg!("es__delete_alias", "Remove an alias from a specific index. Does NOT delete the index or its data.", EsDeleteAlias,
          es_schema(&[("index", "Target index name", "string", true), ("name", "Alias name to remove", "string", true)]),
-         RiskLevel::Destructive, "delete");
+         RiskLevel::Destructive, "delete", &["agent", "ui"]);
 
     reg!("es__update_aliases", "Atomically add and/or remove multiple aliases in a single operation using the _aliases endpoint.", EsUpdateAliases,
          es_schema(&[("body", "Alias actions body", "object", true)]),
-         RiskLevel::Elevated, "update");
+         RiskLevel::Elevated, "update", &["agent"]);
 }
