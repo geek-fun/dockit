@@ -12,6 +12,7 @@ import { useTabStore } from '@/store/tabStore';
 import { DatabaseType, type ElasticsearchConnection } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
 import { buildConnectionConfig } from './connectionConfig';
+import { clearSessionRuntime } from './agentRuntime';
 import type {
   ChatMessage,
   ChatSession,
@@ -165,6 +166,14 @@ export const useSidebarChatAgent = () => {
     await agent.sendMessage({ content, context });
   };
 
+  const startNewSession = () => {
+    const oldSessionId = store.sidebarSessionId;
+    if (oldSessionId) {
+      clearSessionRuntime(oldSessionId);
+    }
+    store.sidebarSessionId = undefined;
+  };
+
   return {
     isLoading: agent.isLoading,
     error: agent.error,
@@ -176,5 +185,6 @@ export const useSidebarChatAgent = () => {
     cancelSession: agent.cancelSession,
     handleConfirmation: agent.handleConfirmation,
     clearChat: agent.clearChat,
+    startNewSession,
   };
 };

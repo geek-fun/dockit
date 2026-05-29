@@ -23,6 +23,9 @@ export const enUS = {
     chatBotEmptyHint: 'Ask me anything about your database or code.',
 
     chatBotPlaceholder: 'Type your question here...',
+
+    chatBotCodeCopied: 'Code copied',
+    chatBotCodeInserted: 'Code inserted to editor',
   },
   taskManager: {
     clearCompleted: 'Clear Completed',

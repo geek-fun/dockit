@@ -23,6 +23,9 @@ export const zhCN = {
     chatBotEmptyHint: '有什么关于数据库或代码的问题，尽管问我。',
 
     chatBotPlaceholder: '在这里输入你的问题...',
+
+    chatBotCodeCopied: '代码已复制',
+    chatBotCodeInserted: '代码已插入到编辑器',
   },
   taskManager: {
     clearCompleted: '清除已完成',

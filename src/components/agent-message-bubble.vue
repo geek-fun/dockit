@@ -78,10 +78,7 @@
         </button>
       </div>
       <div v-if="message.compaction.summary" v-show="summaryOpen" class="compaction-summary-body">
-        <MarkdownRender
-          :markdown="message.compaction.summary"
-          class="markdown-body prose prose-sm max-w-none"
-        />
+        <MarkdownRender :markdown="message.compaction.summary" class="markdown-body" />
       </div>
     </div>
     <div v-else-if="normalizedRole === 'assistant'" class="assistant-wrapper">
@@ -160,18 +157,12 @@
             <span v-if="message.thinking" class="activity-chevron i-carbon-chevron-down" />
           </summary>
           <div v-if="message.thinking" v-auto-stick class="activity-body thinking-body">
-            <MarkdownRender
-              :markdown="message.thinking"
-              class="markdown-body prose prose-sm max-w-none"
-            />
+            <MarkdownRender :markdown="message.thinking" class="markdown-body" />
           </div>
         </details>
 
         <div v-if="message.content && message.toolCalls?.length" class="activity-inline-content">
-          <MarkdownRender
-            :markdown="message.content"
-            class="markdown-body prose prose-sm max-w-none"
-          />
+          <MarkdownRender :markdown="message.content" class="markdown-body" />
         </div>
 
         <template v-for="tc in message.toolCalls" :key="tc.id">
@@ -240,10 +231,7 @@
         v-if="message.content && !message.toolCalls?.length"
         class="message-content assistant-content"
       >
-        <MarkdownRender
-          :markdown="message.content"
-          class="markdown-body prose prose-sm max-w-none"
-        />
+        <MarkdownRender :markdown="message.content" class="markdown-body" />
       </div>
     </div>
   </div>
@@ -854,7 +842,7 @@ details[open] .activity-chevron {
 
 .markdown-body :deep(code) {
   font-size: 12px;
-  background: hsl(var(--background));
+  background: hsl(var(--muted));
   padding: 1px 4px;
   border-radius: 3px;
 }
@@ -895,7 +883,100 @@ details[open] .activity-chevron {
   background: hsl(var(--muted) / 0.4);
 }
 
-/* ── Compaction marker ── */
+/* ── Markdown typography (GitHub-like) ──────────────────────────── */
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4),
+.markdown-body :deep(h5),
+.markdown-body :deep(h6) {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: hsl(var(--foreground));
+}
+
+.markdown-body :deep(h1) {
+  font-size: 18px;
+  margin-top: 20px;
+}
+.markdown-body :deep(h2) {
+  font-size: 16px;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 4px;
+}
+.markdown-body :deep(h3) {
+  font-size: 15px;
+}
+.markdown-body :deep(h4) {
+  font-size: 14px;
+}
+.markdown-body :deep(h5) {
+  font-size: 13px;
+}
+.markdown-body :deep(h6) {
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+
+.markdown-body :deep(strong) {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.markdown-body :deep(em) {
+  font-style: italic;
+}
+
+.markdown-body :deep(a) {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown-body :deep(a:hover) {
+  opacity: 0.85;
+}
+
+.markdown-body :deep(blockquote) {
+  margin: 8px 0;
+  padding: 4px 12px;
+  border-left: 3px solid hsl(var(--primary) / 0.4);
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+.markdown-body :deep(blockquote p) {
+  margin: 4px 0;
+}
+
+.markdown-body :deep(hr) {
+  margin: 16px 0;
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+
+.markdown-body :deep(li) {
+  margin: 2px 0;
+}
+
+.markdown-body :deep(li > ul),
+.markdown-body :deep(li > ol) {
+  margin: 0;
+}
+
+.markdown-body :deep(del) {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
 .message-bubble.message-system {
   justify-content: stretch;
   margin-bottom: 12px;

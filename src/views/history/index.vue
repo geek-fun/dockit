@@ -243,6 +243,9 @@ const getDbIcon = (dbType?: string) =>
           ? mongodbIcon
           : elasticsearchIcon;
 
+const getCommentPrefix = (dbType?: string): string =>
+  dbType === DatabaseType.DYNAMODB ? '--' : '//';
+
 const filteredEntries = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
   if (!q) return entries.value;
@@ -396,12 +399,16 @@ const handleAddToEditor = async () => {
   // Build the query text based on database type
   const queryText = buildQueryText(entry);
 
+  // Prefix with a "from history" marker so the user knows where it came from
+  const commentPrefix = getCommentPrefix(connection.type);
+  const historyQuery = `${commentPrefix} From history\n${queryText}`;
+
   // Set content on the panel directly (Monaco reads this during initialization for newly created panels)
   const current = tabStore.activePanel.content || '';
-  tabStore.activePanel.content = current ? current + '\n\n' + queryText : queryText;
+  tabStore.activePanel.content = current ? current + '\n\n' + historyQuery : historyQuery;
 
-  // Set pending query for connect view to insert via onMounted/onActivated
-  setPendingInsertQuery(queryText);
+  // Set pending query for connect view to insert at end of document
+  setPendingInsertQuery(historyQuery, 'append_bottom');
 
   router.push('/connect');
 };

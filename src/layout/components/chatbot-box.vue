@@ -8,7 +8,7 @@
         <SessionHistoryPanel
           @select="switchSession"
           @delete="deleteSession"
-          @new-session="startNewSession"
+          @new-session="handleNewSession"
         />
       </div>
     </transition>
@@ -35,6 +35,13 @@
       <template #header>
         <div class="header-title">{{ $t('aside.chatBot') }}</div>
         <div class="header-actions">
+          <button
+            class="header-icon-btn"
+            :title="$t('dataStudio.history.newSession')"
+            @click="handleNewSession"
+          >
+            <span class="i-carbon-add h-4 w-4" />
+          </button>
           <button
             class="header-icon-btn"
             :class="{ 'header-icon-btn--active': historyPanelOpen }"
@@ -84,6 +91,7 @@ const {
   lastSettings,
   initContextSettings,
   cancelSession,
+  startNewSession,
 } = useSidebarChatAgent();
 
 const handleConfirmation = (
@@ -138,8 +146,8 @@ const deleteSession = async (sessionId: string) => {
   await dataStudioStore.removeSession(sessionId);
 };
 
-const startNewSession = () => {
-  dataStudioStore.setActiveSession('');
+const handleNewSession = () => {
+  startNewSession();
   historyPanelOpen.value = false;
 };
 
