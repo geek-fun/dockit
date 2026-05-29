@@ -1,6 +1,8 @@
 use serde_json::{json, Value};
 
-use super::executor::{build_es_base_url, build_es_headers, create_dynamo_client, create_mongo_client_from_config, get_es_ssl_flag};
+use crate::common::dynamo::create_dynamo_client;
+use crate::common::es::{build_es_base_url, build_es_headers, get_es_ssl_flag};
+use crate::common::mongo::create_mongo_client_from_config;
 use crate::common::http_client::create_http_client;
 use crate::dynamo::describe_table::describe_table;
 use futures::TryStreamExt;
@@ -131,9 +133,12 @@ async fn introspect_mongo(config: &Value) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn introspect_schema(
-    connection_config: serde_json::Value,
+    connection_id: String,
     database_type: String,
+    app: tauri::AppHandle,
 ) -> Result<String, String> {
+    let connection_config =
+        crate::common::connection_resolver::ConnectionResolver::resolve(&app, &connection_id)?;
     match database_type.as_str() {
         "ELASTICSEARCH" | "OPENSEARCH" | "EASYSEARCH" => introspect_es(&connection_config).await,
         "DYNAMODB" => introspect_dynamo(&connection_config).await,

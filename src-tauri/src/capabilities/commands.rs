@@ -1,6 +1,8 @@
 use serde_json::{json, Value};
+use tauri::AppHandle;
 
 use super::registry;
+use crate::common::connection_resolver::ConnectionResolver;
 
 /// Backward-compatible alias for `invoke_capability`.
 ///
@@ -8,15 +10,21 @@ use super::registry;
 /// `connection_config` as a non-optional value (null when absent). This
 /// wrapper preserves that interface for any frontend callers still using
 /// the old command name.
+/// When `connection_id` is provided, it takes priority over `connection_config`
+/// and resolves credentials via ConnectionResolver (no IPC credential exposure).
 #[tauri::command]
 pub async fn execute_tool(
     tool_name: String,
     arguments: String,
     connection_config: Value,
+    connection_id: Option<String>,
+    app: AppHandle,
 ) -> Result<String, String> {
     let args: Value = serde_json::from_str(&arguments)
         .map_err(|e| format!("Failed to parse arguments: {}", e))?;
-    let conn_opt = if connection_config.is_null() {
+    let conn_opt = if let Some(ref id) = connection_id {
+        Some(ConnectionResolver::resolve(&app, id)?)
+    } else if connection_config.is_null() {
         None
     } else {
         Some(connection_config)
@@ -24,7 +32,8 @@ pub async fn execute_tool(
     registry::invoke_capability_inner(&tool_name, args, conn_opt).await
 }
 
-/// Invoke a capability by name with JSON arguments and optional connection config.
+/// Invoke a capability by name with JSON arguments, using a connection_id
+/// to resolve credentials on the Rust side.
 ///
 /// This is the UI-facing entry point into the capability system.
 /// The agent loop uses `invoke_capability_inner` directly.
@@ -32,12 +41,17 @@ pub async fn execute_tool(
 pub async fn invoke_capability(
     name: String,
     args: Value,
-    connection_config: Option<Value>,
+    connection_id: Option<String>,
+    app: AppHandle,
 ) -> Result<String, String> {
-    registry::invoke_capability_inner(&name, args, connection_config).await
+    let config = match connection_id {
+        Some(ref id) => Some(ConnectionResolver::resolve(&app, id)?),
+        None => None,
+    };
+    registry::invoke_capability_inner(&name, args, config).await
 }
 
-/// Return all agent-available tools, optionally filtered by database type.
+/// Return all agent-available capabilities, optionally filtered by database type.
 ///
 /// `source_kinds` — list of database type strings (e.g. "ELASTICSEARCH",
 /// "DYNAMODB", "MONGODB"). Only tools matching those types plus DocKit

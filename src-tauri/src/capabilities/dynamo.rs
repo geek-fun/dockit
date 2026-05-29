@@ -24,8 +24,8 @@ impl CapabilityHandler for DynamoExecuteQuery {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let statement = args.get("statement").and_then(|v| v.as_str()).ok_or("Missing statement")?;
-        crate::agent::executor::validate_dynamo_statement("dynamo__execute_query", statement)?;
-        let client = crate::agent::executor::create_dynamo_client(config).await?;
+        crate::common::validation::validate_dynamo_statement("dynamo__execute_query", statement)?;
+        let client = crate::common::dynamo::create_dynamo_client(config).await?;
         let input = crate::dynamo::execute_statement::ExecuteStatementInput {
             statement,
             next_token: None,
@@ -33,7 +33,7 @@ impl CapabilityHandler for DynamoExecuteQuery {
         };
         let response = crate::dynamo::execute_statement::execute_statement(&client, input).await?;
         serde_json::to_string(&response)
-            .map(crate::agent::executor::truncate_tool_output)
+            .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
     }
 }
@@ -47,8 +47,8 @@ impl CapabilityHandler for DynamoExecuteWrite {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let statement = args.get("statement").and_then(|v| v.as_str()).ok_or("Missing statement")?;
-        crate::agent::executor::validate_dynamo_statement("dynamo__execute_write", statement)?;
-        let client = crate::agent::executor::create_dynamo_client(config).await?;
+        crate::common::validation::validate_dynamo_statement("dynamo__execute_write", statement)?;
+        let client = crate::common::dynamo::create_dynamo_client(config).await?;
         let input = crate::dynamo::execute_statement::ExecuteStatementInput {
             statement,
             next_token: None,
@@ -56,7 +56,7 @@ impl CapabilityHandler for DynamoExecuteWrite {
         };
         let response = crate::dynamo::execute_statement::execute_statement(&client, input).await?;
         serde_json::to_string(&response)
-            .map(crate::agent::executor::truncate_tool_output)
+            .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
     }
 }
@@ -70,8 +70,8 @@ impl CapabilityHandler for DynamoExecuteDelete {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let statement = args.get("statement").and_then(|v| v.as_str()).ok_or("Missing statement")?;
-        crate::agent::executor::validate_dynamo_statement("dynamo__execute_delete", statement)?;
-        let client = crate::agent::executor::create_dynamo_client(config).await?;
+        crate::common::validation::validate_dynamo_statement("dynamo__execute_delete", statement)?;
+        let client = crate::common::dynamo::create_dynamo_client(config).await?;
         let input = crate::dynamo::execute_statement::ExecuteStatementInput {
             statement,
             next_token: None,
@@ -79,7 +79,7 @@ impl CapabilityHandler for DynamoExecuteDelete {
         };
         let response = crate::dynamo::execute_statement::execute_statement(&client, input).await?;
         serde_json::to_string(&response)
-            .map(crate::agent::executor::truncate_tool_output)
+            .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
     }
 }
@@ -93,10 +93,10 @@ impl CapabilityHandler for DynamoDescribeTable {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::agent::executor::create_dynamo_client(config).await?;
+        let client = crate::common::dynamo::create_dynamo_client(config).await?;
         let response = crate::dynamo::describe_table::describe_table(&client, table_name).await?;
         serde_json::to_string(&response)
-            .map(crate::agent::executor::truncate_tool_output)
+            .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
     }
 }
@@ -109,10 +109,10 @@ impl CapabilityHandler for DynamoListTables {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
-        let client = crate::agent::executor::create_dynamo_client(config).await?;
+        let client = crate::common::dynamo::create_dynamo_client(config).await?;
         let response = crate::dynamo::list_tables::list_tables(&client).await?;
         serde_json::to_string(&response)
-            .map(crate::agent::executor::truncate_tool_output)
+            .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
     }
 }

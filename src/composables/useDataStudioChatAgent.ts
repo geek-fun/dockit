@@ -12,13 +12,13 @@ import {
 } from '@/store/dataStudioStore';
 import { useConnectionStore } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
-import { buildConnectionConfig } from './connectionConfig';
 import type {
   ChatMessage,
   ChatSession,
   ChatSessionStatus,
   ChatMessageStatus,
   ChatMessageRole,
+  ConnectionEntry,
 } from '@/types/chat';
 
 const adaptDataStudioMessage = (msg: AgentMessage): ChatMessage => ({
@@ -81,7 +81,7 @@ export const useDataStudioChatAgent = () => {
     const session = rawSessions.value.find(entry => entry.id === dataStudioStore.activeSessionId);
     const activeSources = session ? getNonDetachedSources(session.sources) : [];
 
-    const connections = activeSources.reduce<Record<string, Record<string, unknown>>>(
+    const connections = activeSources.reduce<Record<string, ConnectionEntry>>(
       (acc, sessionSource) => {
         const attachedSource = resolveDatabaseSource(attachedSources.value, sessionSource);
         if (!attachedSource || attachedSource.kind !== 'database') {
@@ -92,12 +92,12 @@ export const useDataStudioChatAgent = () => {
           candidate => Number(candidate.id) === Number(attachedSource.connectionId),
         );
 
-        if (!connection) {
+        if (!connection || connection.id == null) {
           return acc;
         }
 
         acc[sessionSource.alias] = {
-          ...buildConnectionConfig(connection),
+          connectionId: String(connection.id),
           dbType: attachedSource.databaseType,
           permissions: sessionSource.permissions,
         };

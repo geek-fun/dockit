@@ -10,4 +10,4 @@ pub mod types;
 pub mod tests;
 
 pub use registry::registry;
-pub use types::{Capability, RiskLevel};
+pub use types::Capability;

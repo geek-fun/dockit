@@ -11,7 +11,6 @@ import {
 import { useTabStore } from '@/store/tabStore';
 import { DatabaseType, type ElasticsearchConnection } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
-import { buildConnectionConfig } from './connectionConfig';
 import { clearSessionRuntime } from './agentRuntime';
 import type {
   ChatMessage,
@@ -57,7 +56,7 @@ const getSidebarContext = (): ChatContextConfig => {
     context.databaseType = activeConnection.type;
     context.connections = {
       default: {
-        ...buildConnectionConfig(activeConnection),
+        connectionId: String(activeConnection.id),
         dbType: activeConnection.type,
         permissions: { read: true, create: false, update: false, delete: false },
       },

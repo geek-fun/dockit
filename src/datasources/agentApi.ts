@@ -105,7 +105,7 @@ const agentApi = {
   },
 
   introspectSchema: async (params: {
-    connectionConfig: Record<string, unknown>;
+    connectionId: string;
     databaseType: string;
   }): Promise<string> => {
     return await invoke<string>('introspect_schema', params);

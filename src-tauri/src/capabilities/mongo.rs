@@ -27,13 +27,13 @@ impl CapabilityHandler for MongoListDatabases {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::agent::executor::create_mongo_client_from_config(config).await?;
+        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
         let names = client
             .list_database_names()
             .await
             .map_err(|e| format!("Failed to list databases: {}", e))?;
         let result = serde_json::json!({ "databases": names });
-        Ok(crate::agent::executor::truncate_tool_output(result.to_string()))
+        Ok(crate::common::format::truncate_tool_output(result.to_string()))
     }
 }
 
@@ -59,7 +59,7 @@ impl CapabilityHandler for MongoListCollections {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::agent::executor::create_mongo_client_from_config(config).await?;
+        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
         let db_name = get_db_name(args, config)?;
         let db = client.database(&db_name);
         let names = db
@@ -67,7 +67,7 @@ impl CapabilityHandler for MongoListCollections {
             .await
             .map_err(|e| format!("Failed to list collections: {}", e))?;
         let result = serde_json::json!({ "collections": names });
-        Ok(crate::agent::executor::truncate_tool_output(result.to_string()))
+        Ok(crate::common::format::truncate_tool_output(result.to_string()))
     }
 }
 
@@ -79,14 +79,14 @@ impl CapabilityHandler for MongoFind {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::agent::executor::create_mongo_client_from_config(config).await?;
+        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
             .and_then(|v| v.as_str())
             .ok_or("Missing collection")?;
         let filter_val = args.get("filter").cloned().unwrap_or(serde_json::json!({}));
-        let filter = crate::agent::executor::json_to_bson_doc_agent(&filter_val)?;
+        let filter = crate::common::bson::json_to_bson_doc_agent(&filter_val)?;
         let limit = args
             .get("limit")
             .and_then(|v| v.as_u64())
@@ -100,10 +100,10 @@ impl CapabilityHandler for MongoFind {
         let mut find_options = mongodb::options::FindOptions::default();
         find_options.limit = Some(limit);
         if let Some(sort_val) = args.get("sort") {
-            find_options.sort = Some(crate::agent::executor::json_to_bson_doc_agent(sort_val)?);
+            find_options.sort = Some(crate::common::bson::json_to_bson_doc_agent(sort_val)?);
         }
         if let Some(proj_val) = args.get("projection") {
-            find_options.projection = Some(crate::agent::executor::json_to_bson_doc_agent(proj_val)?);
+            find_options.projection = Some(crate::common::bson::json_to_bson_doc_agent(proj_val)?);
         }
 
         let mut cursor = coll
@@ -117,12 +117,12 @@ impl CapabilityHandler for MongoFind {
             .await
             .map_err(|e| format!("cursor error: {}", e))?
         {
-            docs.push(crate::agent::executor::bson_to_value(
+            docs.push(crate::common::bson::bson_to_value(
                 &mongodb::bson::Bson::Document(doc),
             ));
         }
         let result = serde_json::json!({ "count": docs.len(), "documents": docs });
-        Ok(crate::agent::executor::truncate_tool_output(result.to_string()))
+        Ok(crate::common::format::truncate_tool_output(result.to_string()))
     }
 }
 
@@ -134,7 +134,7 @@ impl CapabilityHandler for MongoAggregate {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::agent::executor::create_mongo_client_from_config(config).await?;
+        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -146,7 +146,7 @@ impl CapabilityHandler for MongoAggregate {
             .ok_or("Missing or invalid pipeline")?;
         let pipeline: Vec<Document> = pipeline_val
             .iter()
-            .map(crate::agent::executor::json_to_bson_doc_agent)
+            .map(crate::common::bson::json_to_bson_doc_agent)
             .collect::<Result<Vec<_>, _>>()?;
 
         let db = client.database(&db_name);
@@ -161,7 +161,7 @@ impl CapabilityHandler for MongoAggregate {
             .await
             .map_err(|e| format!("cursor error: {}", e))?
         {
-            docs.push(crate::agent::executor::bson_to_value(
+            docs.push(crate::common::bson::bson_to_value(
                 &mongodb::bson::Bson::Document(doc),
             ));
             if docs.len() >= 100 {
@@ -169,7 +169,7 @@ impl CapabilityHandler for MongoAggregate {
             }
         }
         let result = serde_json::json!({ "count": docs.len(), "documents": docs });
-        Ok(crate::agent::executor::truncate_tool_output(result.to_string()))
+        Ok(crate::common::format::truncate_tool_output(result.to_string()))
     }
 }
 
@@ -181,14 +181,14 @@ impl CapabilityHandler for MongoInsertOne {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::agent::executor::create_mongo_client_from_config(config).await?;
+        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
             .and_then(|v| v.as_str())
             .ok_or("Missing collection")?;
         let document_val = args.get("document").ok_or("Missing document")?;
-        let document = crate::agent::executor::json_to_bson_doc_agent(document_val)?;
+        let document = crate::common::bson::json_to_bson_doc_agent(document_val)?;
 
         let db = client.database(&db_name);
         let coll = db.collection::<Document>(collection_name);
@@ -196,9 +196,9 @@ impl CapabilityHandler for MongoInsertOne {
             .insert_one(document)
             .await
             .map_err(|e| format!("insert_one failed: {}", e))?;
-        let inserted_id = crate::agent::executor::bson_to_value(&insert_result.inserted_id);
+        let inserted_id = crate::common::bson::bson_to_value(&insert_result.inserted_id);
         let result = serde_json::json!({ "inserted_id": inserted_id });
-        Ok(crate::agent::executor::truncate_tool_output(result.to_string()))
+        Ok(crate::common::format::truncate_tool_output(result.to_string()))
     }
 }
 
@@ -210,7 +210,7 @@ impl CapabilityHandler for MongoUpdateMany {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::agent::executor::create_mongo_client_from_config(config).await?;
+        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -218,8 +218,8 @@ impl CapabilityHandler for MongoUpdateMany {
             .ok_or("Missing collection")?;
         let filter_val = args.get("filter").ok_or("Missing filter")?;
         let update_val = args.get("update").ok_or("Missing update")?;
-        let filter = crate::agent::executor::json_to_bson_doc_agent(filter_val)?;
-        let update = crate::agent::executor::json_to_bson_doc_agent(update_val)?;
+        let filter = crate::common::bson::json_to_bson_doc_agent(filter_val)?;
+        let update = crate::common::bson::json_to_bson_doc_agent(update_val)?;
         let upsert = args
             .get("upsert")
             .and_then(|v| v.as_bool())
@@ -239,10 +239,10 @@ impl CapabilityHandler for MongoUpdateMany {
             "matched_count": update_result.matched_count,
             "modified_count": update_result.modified_count,
             "upserted_id": update_result.upserted_id.map(|id| {
-                crate::agent::executor::bson_to_value(&id)
+                crate::common::bson::bson_to_value(&id)
             })
         });
-        Ok(crate::agent::executor::truncate_tool_output(result.to_string()))
+        Ok(crate::common::format::truncate_tool_output(result.to_string()))
     }
 }
 
@@ -254,14 +254,14 @@ impl CapabilityHandler for MongoDeleteMany {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::agent::executor::create_mongo_client_from_config(config).await?;
+        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
             .and_then(|v| v.as_str())
             .ok_or("Missing collection")?;
         let filter_val = args.get("filter").ok_or("Missing filter")?;
-        let filter = crate::agent::executor::json_to_bson_doc_agent(filter_val)?;
+        let filter = crate::common::bson::json_to_bson_doc_agent(filter_val)?;
 
         let db = client.database(&db_name);
         let coll = db.collection::<Document>(collection_name);
@@ -270,7 +270,7 @@ impl CapabilityHandler for MongoDeleteMany {
             .await
             .map_err(|e| format!("delete_many failed: {}", e))?;
         let result = serde_json::json!({ "deleted_count": delete_result.deleted_count });
-        Ok(crate::agent::executor::truncate_tool_output(result.to_string()))
+        Ok(crate::common::format::truncate_tool_output(result.to_string()))
     }
 }
 

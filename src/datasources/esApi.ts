@@ -2,11 +2,7 @@ import { SearchConnection, DatabaseType } from '../store';
 import { loadHttpClient } from './fetchApi.ts';
 import { CustomError, debug, jsonify, optionalToNullableInt } from '../common';
 import { get } from 'lodash';
-import {
-  invokeCapability,
-  buildEsCapabilityConfig,
-  parseEsCapabilityResponse,
-} from './capabilityInvoker.ts';
+import { invokeCapability, parseEsCapabilityResponse } from './capabilityInvoker.ts';
 
 export enum IndexHealth {
   GREEN = 'green',
@@ -673,7 +669,7 @@ const esApi: ESApi = {
       const raw = await invokeCapability(
         'es__delete_index',
         { index: indexName },
-        buildEsCapabilityConfig(connection),
+        String(connection.id),
       );
       const result = parseEsCapabilityResponse<{
         status: number;
@@ -728,7 +724,7 @@ const esApi: ESApi = {
       const raw = await invokeCapability(
         'es__delete_alias',
         { index: indexName, name: aliasName },
-        buildEsCapabilityConfig(connection),
+        String(connection.id),
       );
       const result = parseEsCapabilityResponse<{
         status: number;
@@ -768,7 +764,7 @@ const esApi: ESApi = {
     }
   },
   catIndices: async connection => {
-    const raw = await invokeCapability('es__cat_indices', {}, buildEsCapabilityConfig(connection));
+    const raw = await invokeCapability('es__cat_indices', {}, String(connection.id));
     const data = parseEsCapabilityResponse<Array<{ [key: string]: string }>>(raw);
 
     return data.map((index: { [key: string]: string }) => ({
@@ -785,7 +781,7 @@ const esApi: ESApi = {
     }));
   },
   catAliases: async connection => {
-    const raw = await invokeCapability('es__cat_aliases', {}, buildEsCapabilityConfig(connection));
+    const raw = await invokeCapability('es__cat_aliases', {}, String(connection.id));
     const data = parseEsCapabilityResponse<Array<{ [key: string]: string }>>(raw);
     return data.map((alias: { [key: string]: string }) => ({
       alias: alias.alias,

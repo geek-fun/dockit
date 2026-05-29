@@ -1,10 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { MongoDBConnection, MongoDBAuth } from '../store';
-import {
-  invokeCapability,
-  buildMongoCapabilityConfig,
-  parseMongoCapabilityResponse,
-} from './capabilityInvoker.ts';
+import { invokeCapability, parseMongoCapabilityResponse } from './capabilityInvoker.ts';
 import { jsonify } from '../common';
 
 type MongoTestResult = {
@@ -267,11 +263,7 @@ export const mongoApi = {
 
   listDatabases: async (con: MongoDBConnection): Promise<MongoListDatabasesResult> => {
     try {
-      const raw = await invokeCapability(
-        'mongo__list_databases',
-        {},
-        buildMongoCapabilityConfig(con),
-      );
+      const raw = await invokeCapability('mongo__list_databases', {}, String(con.id));
       const data = parseMongoCapabilityResponse<{ databases: string[] }>(raw);
       return { success: true, databases: data.databases.map(name => ({ name })) };
     } catch (e) {
@@ -284,11 +276,7 @@ export const mongoApi = {
     database: string,
   ): Promise<MongoListCollectionsResult> => {
     try {
-      const raw = await invokeCapability(
-        'mongo__list_collections',
-        { database },
-        buildMongoCapabilityConfig(con),
-      );
+      const raw = await invokeCapability('mongo__list_collections', { database }, String(con.id));
       const data = parseMongoCapabilityResponse<{ collections: string[] }>(raw);
       return {
         success: true,
@@ -462,7 +450,7 @@ export const mongoApi = {
           skip,
           limit: limit ?? 20,
         },
-        buildMongoCapabilityConfig(con),
+        String(con.id),
       );
       const data = parseMongoCapabilityResponse<{
         documents: Record<string, unknown>[];
@@ -496,7 +484,7 @@ export const mongoApi = {
       const raw = await invokeCapability(
         'mongo__insert_one',
         { collection, document: jsonify.parse(document) },
-        buildMongoCapabilityConfig(con),
+        String(con.id),
       );
       const data = parseMongoCapabilityResponse<{ inserted_id: string }>(raw);
       return { success: true, inserted_id: data.inserted_id };
@@ -546,7 +534,7 @@ export const mongoApi = {
       const raw = await invokeCapability(
         'mongo__delete_many',
         { collection, filter: jsonify.parse(filter) },
-        buildMongoCapabilityConfig(con),
+        String(con.id),
       );
       const data = parseMongoCapabilityResponse<{ deleted_count: number }>(raw);
       return { success: true, deleted_count: data.deleted_count };

@@ -2,11 +2,7 @@ import { DynamoDBConnection, type DynamoDBAuth } from '../store';
 import { tauriClient, type AwsAuthPayload, type AwsCredentials } from './ApiClients.ts';
 import { CustomError } from '../common';
 import { invoke } from '@tauri-apps/api/core';
-import {
-  invokeCapability,
-  buildDynamoCapabilityConfig,
-  parseDynamoCapabilityResponse,
-} from './capabilityInvoker.ts';
+import { invokeCapability, parseDynamoCapabilityResponse } from './capabilityInvoker.ts';
 
 export type KeySchema = {
   attributeName: string;
@@ -201,7 +197,7 @@ const buildAuthPayload = (auth: DynamoDBAuth): AwsAuthPayload => {
 
 const dynamoApi = {
   listTables: async (con: DynamoDBConnection): Promise<string[]> => {
-    const raw = await invokeCapability('dynamo__list_tables', {}, buildDynamoCapabilityConfig(con));
+    const raw = await invokeCapability('dynamo__list_tables', {}, String(con.id));
     const data = parseDynamoCapabilityResponse<{ tableNames?: string[] }>(raw);
     return data.tableNames ?? [];
   },
@@ -210,7 +206,7 @@ const dynamoApi = {
     const raw = await invokeCapability(
       'dynamo__describe_table',
       { table_name: tableName },
-      buildDynamoCapabilityConfig(con),
+      String(con.id),
     );
     const data = parseDynamoCapabilityResponse<RawDynamoDBTableInfo>(raw);
     const { keySchema, attributeDefinitions } = data;
@@ -351,7 +347,7 @@ const dynamoApi = {
     const raw = await invokeCapability(
       capabilityName,
       { statement: params.statement },
-      buildDynamoCapabilityConfig(con),
+      String(con.id),
     );
     return parseDynamoCapabilityResponse<PartiQLResult>(raw);
   },

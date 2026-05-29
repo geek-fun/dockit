@@ -16,9 +16,9 @@ pub(crate) async fn execute_es_http(
     body: Option<&str>,
     config: &Value,
 ) -> Result<String, String> {
-    let base_url = crate::agent::executor::build_es_base_url(config)?;
-    let headers = crate::agent::executor::build_es_headers(config);
-    let ssl = crate::agent::executor::get_es_ssl_flag(config);
+    let base_url = crate::common::es::build_es_base_url(config)?;
+    let headers = crate::common::es::build_es_headers(config);
+    let ssl = crate::common::es::get_es_ssl_flag(config);
     let client = crate::common::http_client::create_http_client("system", None, Some(ssl), None);
 
     let url = format!("{}{}", base_url, path);
@@ -45,7 +45,7 @@ pub(crate) async fn execute_es_http(
         "data": serde_json::from_str::<Value>(&body).unwrap_or(Value::String(body))
     });
 
-    Ok(crate::agent::executor::truncate_tool_output(result.to_string()))
+    Ok(crate::common::format::truncate_tool_output(result.to_string()))
 }
 
 pub(crate) struct EsSearch;
@@ -92,92 +92,92 @@ macro_rules! impl_es_handler {
 
 impl_es_handler!(EsSearch, "POST", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, true)?;
-    Ok(format!("/{}/_search", crate::agent::executor::url_encode_segment(index)))
+    crate::common::validation::validate_index_name(index, true)?;
+    Ok(format!("/{}/_search", crate::common::validation::url_encode_segment(index)))
 }, true);
 
 impl_es_handler!(EsGetDocument, "GET", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, true)?;
+    crate::common::validation::validate_index_name(index, true)?;
     let id = args.get("id").and_then(|v| v.as_str()).ok_or_else(|| "Missing id".to_string())?;
-    Ok(format!("/{}/_doc/{}", crate::agent::executor::url_encode_segment(index), crate::agent::executor::url_encode_segment(id)))
+    Ok(format!("/{}/_doc/{}", crate::common::validation::url_encode_segment(index), crate::common::validation::url_encode_segment(id)))
 }, false);
 
 impl_es_handler!(EsIndexDocument, "POST", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, false)?;
+    crate::common::validation::validate_index_name(index, false)?;
     match args.get("id").and_then(|v| v.as_str()) {
-        Some(id) => Ok(format!("/{}/_doc/{}", crate::agent::executor::url_encode_segment(index), crate::agent::executor::url_encode_segment(id))),
-        None => Ok(format!("/{}/_doc", crate::agent::executor::url_encode_segment(index))),
+        Some(id) => Ok(format!("/{}/_doc/{}", crate::common::validation::url_encode_segment(index), crate::common::validation::url_encode_segment(id))),
+        None => Ok(format!("/{}/_doc", crate::common::validation::url_encode_segment(index))),
     }
 }, true);
 
 impl_es_handler!(EsUpdateDocument, "POST", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, false)?;
+    crate::common::validation::validate_index_name(index, false)?;
     let id = args.get("id").and_then(|v| v.as_str()).ok_or_else(|| "Missing id".to_string())?;
-    Ok(format!("/{}/_update/{}", crate::agent::executor::url_encode_segment(index), crate::agent::executor::url_encode_segment(id)))
+    Ok(format!("/{}/_update/{}", crate::common::validation::url_encode_segment(index), crate::common::validation::url_encode_segment(id)))
 }, true);
 
 impl_es_handler!(EsDeleteDocument, "DELETE", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, false)?;
+    crate::common::validation::validate_index_name(index, false)?;
     let id = args.get("id").and_then(|v| v.as_str()).ok_or_else(|| "Missing id".to_string())?;
-    Ok(format!("/{}/_doc/{}", crate::agent::executor::url_encode_segment(index), crate::agent::executor::url_encode_segment(id)))
+    Ok(format!("/{}/_doc/{}", crate::common::validation::url_encode_segment(index), crate::common::validation::url_encode_segment(id)))
 }, false);
 
 impl_es_handler!(EsDeleteByQuery, "POST", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, false)?;
-    Ok(format!("/{}/_delete_by_query", crate::agent::executor::url_encode_segment(index)))
+    crate::common::validation::validate_index_name(index, false)?;
+    Ok(format!("/{}/_delete_by_query", crate::common::validation::url_encode_segment(index)))
 }, true);
 
 impl_es_handler!(EsCatIndices, "GET", |_args: &Value| -> Result<String, String> { Ok("/_cat/indices?format=json".to_string()) }, false);
 
 impl_es_handler!(EsGetMapping, "GET", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, true)?;
-    Ok(format!("/{}/_mapping", crate::agent::executor::url_encode_segment(index)))
+    crate::common::validation::validate_index_name(index, true)?;
+    Ok(format!("/{}/_mapping", crate::common::validation::url_encode_segment(index)))
 }, false);
 
 impl_es_handler!(EsCreateIndex, "PUT", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, false)?;
-    Ok(format!("/{}", crate::agent::executor::url_encode_segment(index)))
+    crate::common::validation::validate_index_name(index, false)?;
+    Ok(format!("/{}", crate::common::validation::url_encode_segment(index)))
 }, true);
 
 impl_es_handler!(EsDeleteIndex, "DELETE", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, false)?;
-    Ok(format!("/{}", crate::agent::executor::url_encode_segment(index)))
+    crate::common::validation::validate_index_name(index, false)?;
+    Ok(format!("/{}", crate::common::validation::url_encode_segment(index)))
 }, false);
 
 impl_es_handler!(EsPutMapping, "PUT", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, false)?;
-    Ok(format!("/{}/_mapping", crate::agent::executor::url_encode_segment(index)))
+    crate::common::validation::validate_index_name(index, false)?;
+    Ok(format!("/{}/_mapping", crate::common::validation::url_encode_segment(index)))
 }, true);
 
 impl_es_handler!(EsCatAliases, "GET", |_args: &Value| -> Result<String, String> { Ok("/_cat/aliases?format=json".to_string()) }, false);
 
 impl_es_handler!(EsGetAlias, "GET", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, true)?;
-    Ok(format!("/{}/_alias", crate::agent::executor::url_encode_segment(index)))
+    crate::common::validation::validate_index_name(index, true)?;
+    Ok(format!("/{}/_alias", crate::common::validation::url_encode_segment(index)))
 }, false);
 
 impl_es_handler!(EsPutAlias, "PUT", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, false)?;
+    crate::common::validation::validate_index_name(index, false)?;
     let name = args.get("name").and_then(|v| v.as_str()).ok_or_else(|| "Missing name".to_string())?;
-    Ok(format!("/{}/_alias/{}", crate::agent::executor::url_encode_segment(index), crate::agent::executor::url_encode_segment(name)))
+    Ok(format!("/{}/_alias/{}", crate::common::validation::url_encode_segment(index), crate::common::validation::url_encode_segment(name)))
 }, true);
 
 impl_es_handler!(EsDeleteAlias, "DELETE", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
-    crate::agent::executor::validate_index_name(index, false)?;
+    crate::common::validation::validate_index_name(index, false)?;
     let name = args.get("name").and_then(|v| v.as_str()).ok_or_else(|| "Missing name".to_string())?;
-    Ok(format!("/{}/_alias/{}", crate::agent::executor::url_encode_segment(index), crate::agent::executor::url_encode_segment(name)))
+    Ok(format!("/{}/_alias/{}", crate::common::validation::url_encode_segment(index), crate::common::validation::url_encode_segment(name)))
 }, false);
 
 impl_es_handler!(EsUpdateAliases, "POST", |_args: &Value| -> Result<String, String> { Ok("/_aliases".to_string()) }, true);
@@ -187,8 +187,8 @@ impl_es_handler!(EsUpdateAliases, "POST", |_args: &Value| -> Result<String, Stri
 // ---------------------------------------------------------------------------
 
 pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
-    /// Each entry: (name, description, json_schema_type, is_required).
-    /// json_schema_type is the OpenAPI type string ("string", "object", "integer", etc.).
+    // Each entry: (name, description, json_schema_type, is_required).
+    // json_schema_type is the OpenAPI type string ("string", "object", "integer", etc.).
     let es_schema = |props: &[(&str, &str, &str, bool)]| -> Value {
         let mut properties = serde_json::Map::new();
         properties.insert(

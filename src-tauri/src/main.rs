@@ -1,6 +1,14 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::sync::OnceLock;
+use tauri::AppHandle;
+
+/// Global AppHandle, set once during app setup. Allows capability handlers
+/// and other background code to access the Tauri application handle without
+/// threading it through every function signature.
+static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
+
 mod agent;
 mod capabilities;
 mod common;
@@ -168,6 +176,8 @@ fn main() {
             menu::create_menu(app)?;
 
             use tauri::Manager;
+            // Store AppHandle globally so capability handlers can access the store
+            let _ = APP_HANDLE.set(app.handle().clone());
             // Initialize the capability registry
             capabilities::registry::init_registry();
 
