@@ -4,34 +4,6 @@ use tauri::AppHandle;
 use super::registry;
 use crate::common::connection_resolver::ConnectionResolver;
 
-/// Backward-compatible alias for `invoke_capability`.
-///
-/// The original `execute_tool` accepted `arguments` as a JSON string and
-/// `connection_config` as a non-optional value (null when absent). This
-/// wrapper preserves that interface for any frontend callers still using
-/// the old command name.
-/// When `connection_id` is provided, it takes priority over `connection_config`
-/// and resolves credentials via ConnectionResolver (no IPC credential exposure).
-#[tauri::command]
-pub async fn execute_tool(
-    tool_name: String,
-    arguments: String,
-    connection_config: Value,
-    connection_id: Option<String>,
-    app: AppHandle,
-) -> Result<String, String> {
-    let args: Value = serde_json::from_str(&arguments)
-        .map_err(|e| format!("Failed to parse arguments: {}", e))?;
-    let conn_opt = if let Some(ref id) = connection_id {
-        Some(ConnectionResolver::resolve(&app, id)?)
-    } else if connection_config.is_null() {
-        None
-    } else {
-        Some(connection_config)
-    };
-    registry::invoke_capability_inner(&tool_name, args, conn_opt).await
-}
-
 /// Invoke a capability by name with JSON arguments, using a connection_id
 /// to resolve credentials on the Rust side.
 ///

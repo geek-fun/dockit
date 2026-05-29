@@ -32,16 +32,16 @@ use agent::session_store::{
 };
 use agent::tool_executor::ToolExecutor;
 use agent::{
-    get_all_tools, introspect_schema, list_llm_models, run_agent_step, validate_llm_config,
+    get_all_tools, list_llm_models, run_agent_step, validate_llm_config,
 };
-use capabilities::commands::{execute_tool, get_available_tools, invoke_capability};
+use capabilities::commands::{get_available_tools, invoke_capability};
 use dynamo_client::{
     aws_assume_role, aws_list_profiles, aws_list_profiles_with_roles, aws_sso_get_role_credentials,
     aws_sso_list_accounts, aws_sso_list_roles, aws_sso_poll_token, aws_sso_start_device_auth,
     dynamo_api,
 };
 use fetch_client::fetch_api;
-use file_api::{get_file_info, read_file_batch, stream_file_lines};
+use file_api::{get_file_info, read_file_batch};
 use mongo_client::{
     mongo_clone_collection, mongo_collection_stats, mongo_count_documents, mongo_create_collection,
     mongo_create_database, mongo_create_index, mongo_database_stats, mongo_delete_document,
@@ -108,7 +108,6 @@ fn main() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .invoke_handler(tauri::generate_handler![
-            execute_tool,
             invoke_capability,
             get_available_tools,
             fetch_api,
@@ -123,7 +122,6 @@ fn main() {
             aws_list_profiles_with_roles,
             get_file_info,
             read_file_batch,
-            stream_file_lines,
             mongo_test_connection,
             mongo_execute_query,
             mongo_list_databases,
@@ -155,7 +153,6 @@ fn main() {
             run_agent_step,
             validate_llm_config,
             list_llm_models,
-            introspect_schema,
             get_all_tools,
             run_agent_loop,
             cancel_agent_loop,
