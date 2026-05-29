@@ -14,6 +14,9 @@ jest.mock('../src/common', () => ({
   buildURL: jest.fn(),
   CustomError: class CustomError extends Error {},
   pureObject: jest.fn(),
+  jsonify: {
+    parse: (str: string) => JSON.parse(str),
+  },
 }));
 jest.mock('../src/common/monaco', () => ({
   SearchAction: {},
@@ -21,8 +24,15 @@ jest.mock('../src/common/monaco', () => ({
   configureDynamicOptions: jest.fn(),
 }));
 
+jest.mock('../src/datasources/capabilityInvoker.ts', () => ({
+  invokeCapability: jest.fn(),
+  parseMongoCapabilityResponse: <T>(raw: string): T => JSON.parse(raw) as T,
+}));
+
 const { invoke } = require('@tauri-apps/api/core');
 const { mongoApi } = require('../src/datasources/mongoApi');
+const { invokeCapability } = require('../src/datasources/capabilityInvoker.ts');
+const mockedInvokeCapability = invokeCapability as jest.MockedFunction<typeof invokeCapability>;
 
 describe('mongoApi', () => {
   beforeEach(() => {
@@ -221,35 +231,25 @@ describe('mongoApi', () => {
       host: 'localhost',
       port: 27017,
       auth: { kind: 'none' },
+      id: 'conn-123',
     };
 
-    it('calls invoke with correct command', async () => {
-      const mockResult = {
-        success: true,
-        databases: [
-          { name: 'test', size_on_disk: 1024, empty: false },
-          { name: 'admin', size_on_disk: 512, empty: false },
-        ],
-        totalSize: 1536,
-      };
-      invoke.mockResolvedValue(mockResult);
+    it('calls invokeCapability with correct command', async () => {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({
+          databases: ['test', 'admin'],
+        }),
+      );
 
       const result = await mongoApi.listDatabases(baseConnection);
 
-      expect(invoke).toHaveBeenCalledWith('mongo_list_databases', {
-        config: {
-          host: 'localhost',
-          port: 27017,
-          auth: { kind: 'none' },
-          database: undefined,
-          tls: undefined,
-        },
-      });
-      expect(result).toEqual(mockResult);
+      expect(mockedInvokeCapability).toHaveBeenCalledWith('mongo__list_databases', {}, 'conn-123');
+      expect(result.success).toBe(true);
+      expect(result.databases).toEqual([{ name: 'test' }, { name: 'admin' }]);
     });
 
-    it('returns error on invoke failure', async () => {
-      invoke.mockRejectedValue(new Error('Failed to list databases'));
+    it('returns error on invokeCapability failure', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Failed to list databases'));
 
       const result = await mongoApi.listDatabases(baseConnection);
 
@@ -265,35 +265,32 @@ describe('mongoApi', () => {
       host: 'localhost',
       port: 27017,
       auth: { kind: 'none' },
+      id: 'conn-123',
     };
 
-    it('calls invoke with correct command and database', async () => {
-      const mockResult = {
-        success: true,
-        collections: [
-          { name: 'users', collection_type: 'collection', document_count: 100 },
-          { name: 'orders', collection_type: 'collection', document_count: 50 },
-        ],
-      };
-      invoke.mockResolvedValue(mockResult);
+    it('calls invokeCapability with correct command and database', async () => {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({
+          collections: ['users', 'orders'],
+        }),
+      );
 
       const result = await mongoApi.listCollections(baseConnection, 'testdb');
 
-      expect(invoke).toHaveBeenCalledWith('mongo_list_collections', {
-        config: {
-          host: 'localhost',
-          port: 27017,
-          auth: { kind: 'none' },
-          database: undefined,
-          tls: undefined,
-        },
-        database: 'testdb',
-      });
-      expect(result).toEqual(mockResult);
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'mongo__list_collections',
+        { database: 'testdb' },
+        'conn-123',
+      );
+      expect(result.success).toBe(true);
+      expect(result.collections).toEqual([
+        { name: 'users', collection_type: 'collection' },
+        { name: 'orders', collection_type: 'collection' },
+      ]);
     });
 
-    it('returns error on invoke failure', async () => {
-      invoke.mockRejectedValue(new Error('Failed to list collections'));
+    it('returns error on invokeCapability failure', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Failed to list collections'));
 
       const result = await mongoApi.listCollections(baseConnection, 'testdb');
 
@@ -952,52 +949,56 @@ describe('mongoApi cluster monitoring', () => {
       host: 'localhost',
       port: 27017,
       auth: { kind: 'none' },
+      id: 'conn-123',
     };
 
-    it('calls invoke with collection and optional params', async () => {
-      const mockResult = {
-        success: true,
-        documents: [{ _id: '1', name: 'Alice' }],
-        total: 1,
-      };
-      invoke.mockResolvedValue(mockResult);
+    it('calls invokeCapability with collection and optional params', async () => {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({
+          documents: [{ _id: '1', name: 'Alice' }],
+          count: 1,
+        }),
+      );
 
       const result = await mongoApi.findDocuments(baseConnection, 'users', '{}', '{}', 0, 25);
 
-      expect(invoke).toHaveBeenCalledWith('mongo_find_documents', {
-        config: {
-          host: 'localhost',
-          port: 27017,
-          auth: { kind: 'none' },
-          database: undefined,
-          tls: undefined,
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'mongo__find',
+        {
+          collection: 'users',
+          filter: {},
+          sort: {},
+          projection: undefined,
+          skip: 0,
+          limit: 25,
         },
-        collection: 'users',
-        filter: '{}',
-        sort: '{}',
-        skip: 0,
-        limit: 25,
-      });
-      expect(result).toEqual(mockResult);
+        'conn-123',
+      );
+      expect(result.success).toBe(true);
+      expect(result.documents).toEqual([{ _id: '1', name: 'Alice' }]);
     });
 
-    it('calls invoke without optional params when omitted', async () => {
-      invoke.mockResolvedValue({ success: true, documents: [], total: 0 });
+    it('calls invokeCapability without optional params when omitted', async () => {
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify({ documents: [], count: 0 }));
 
       await mongoApi.findDocuments(baseConnection, 'users');
 
-      expect(invoke).toHaveBeenCalledWith('mongo_find_documents', {
-        config: expect.any(Object),
-        collection: 'users',
-        filter: undefined,
-        sort: undefined,
-        skip: undefined,
-        limit: undefined,
-      });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'mongo__find',
+        {
+          collection: 'users',
+          filter: {},
+          sort: undefined,
+          projection: undefined,
+          skip: undefined,
+          limit: 20,
+        },
+        'conn-123',
+      );
     });
 
-    it('returns error result on invoke failure', async () => {
-      invoke.mockRejectedValue(new Error('Collection not found'));
+    it('returns error result on invokeCapability failure', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Collection not found'));
 
       const result = await mongoApi.findDocuments(baseConnection, 'users');
 
@@ -1044,24 +1045,28 @@ describe('mongoApi cluster monitoring', () => {
       host: 'localhost',
       port: 27017,
       auth: { kind: 'none' },
+      id: 'conn-123',
     };
 
-    it('calls invoke with collection and document', async () => {
-      const mockResult = { success: true, inserted_id: 'abc123' };
-      invoke.mockResolvedValue(mockResult);
+    it('calls invokeCapability with collection and document', async () => {
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify({ inserted_id: 'abc123' }));
 
       const result = await mongoApi.insertDocument(baseConnection, 'users', '{"name":"Alice"}');
 
-      expect(invoke).toHaveBeenCalledWith('mongo_insert_document', {
-        config: expect.any(Object),
-        collection: 'users',
-        document: '{"name":"Alice"}',
-      });
-      expect(result).toEqual(mockResult);
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'mongo__insert_one',
+        {
+          collection: 'users',
+          document: { name: 'Alice' },
+        },
+        'conn-123',
+      );
+      expect(result.success).toBe(true);
+      expect(result.inserted_id).toBe('abc123');
     });
 
-    it('returns error result on invoke failure', async () => {
-      invoke.mockRejectedValue(new Error('Insert failed'));
+    it('returns error result on invokeCapability failure', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Insert failed'));
 
       const result = await mongoApi.insertDocument(baseConnection, 'users', '{"name":"Alice"}');
 
@@ -1149,24 +1154,28 @@ describe('mongoApi cluster monitoring', () => {
       host: 'localhost',
       port: 27017,
       auth: { kind: 'none' },
+      id: 'conn-123',
     };
 
-    it('calls invoke with collection and filter', async () => {
-      const mockResult = { success: true, deleted_count: 5 };
-      invoke.mockResolvedValue(mockResult);
+    it('calls invokeCapability with collection and filter', async () => {
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify({ deleted_count: 5 }));
 
       const result = await mongoApi.deleteDocuments(baseConnection, 'users', '{"active":false}');
 
-      expect(invoke).toHaveBeenCalledWith('mongo_delete_documents', {
-        config: expect.any(Object),
-        collection: 'users',
-        filter: '{"active":false}',
-      });
-      expect(result).toEqual(mockResult);
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'mongo__delete_many',
+        {
+          collection: 'users',
+          filter: { active: false },
+        },
+        'conn-123',
+      );
+      expect(result.success).toBe(true);
+      expect(result.deleted_count).toBe(5);
     });
 
-    it('returns error result on invoke failure', async () => {
-      invoke.mockRejectedValue(new Error('Bulk delete failed'));
+    it('returns error result on invokeCapability failure', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Bulk delete failed'));
 
       const result = await mongoApi.deleteDocuments(baseConnection, 'users', '{}');
 

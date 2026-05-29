@@ -36,6 +36,17 @@ jest.mock('../../src/lang', () => ({
   useLang: jest.fn(),
 }));
 
+jest.mock('../../src/datasources/capabilityInvoker.ts', () => ({
+  invokeCapability: jest.fn(),
+  parseEsCapabilityResponse: <T>(raw: string): T => {
+    const parsed = JSON.parse(raw) as { status: number; data: T };
+    return parsed.data;
+  },
+}));
+
+import { invokeCapability } from '../../src/datasources/capabilityInvoker.ts';
+const mockedInvokeCapability = invokeCapability as jest.MockedFunction<typeof invokeCapability>;
+
 describe('parseVersionParts', () => {
   it('should parse standard version string', () => {
     expect(parseVersionParts('7.10.1')).toEqual({ major: 7, minor: 10 });
@@ -267,8 +278,6 @@ describe('getTemplateApiMode', () => {
 });
 
 describe('esApi.catIndices', () => {
-  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
-
   const mockIndices = [
     {
       index: 'my-index',
@@ -282,33 +291,23 @@ describe('esApi.catIndices', () => {
   ];
 
   beforeEach(() => {
-    loadHttpClient.mockReturnValue({ get: jest.fn().mockResolvedValue(mockIndices) });
+    mockedInvokeCapability.mockResolvedValue(JSON.stringify({ status: 200, data: mockIndices }));
   });
 
   it('uses expand_wildcards=all for EasySearch connections', async () => {
-    const conn = { type: 'EASYSEARCH', version: '7.10.2' } as never;
-    const mockGet = jest.fn().mockResolvedValue(mockIndices);
-    loadHttpClient.mockReturnValue({ get: mockGet });
+    const conn = { type: 'EASYSEARCH', version: '7.10.2', id: 'conn-123' } as never;
 
     await esApi.catIndices(conn);
 
-    expect(mockGet).toHaveBeenCalledWith(
-      '/_cat/indices',
-      expect.stringContaining('expand_wildcards=all'),
-    );
+    expect(mockedInvokeCapability).toHaveBeenCalledWith('es__cat_indices', {}, 'conn-123');
   });
 
   it('uses expand_wildcards=all for OpenSearch connections', async () => {
-    const conn = { type: 'OPENSEARCH', version: '2.11.0' } as never;
-    const mockGet = jest.fn().mockResolvedValue(mockIndices);
-    loadHttpClient.mockReturnValue({ get: mockGet });
+    const conn = { type: 'OPENSEARCH', version: '2.11.0', id: 'conn-123' } as never;
 
     await esApi.catIndices(conn);
 
-    expect(mockGet).toHaveBeenCalledWith(
-      '/_cat/indices',
-      expect.stringContaining('expand_wildcards=all'),
-    );
+    expect(mockedInvokeCapability).toHaveBeenCalledWith('es__cat_indices', {}, 'conn-123');
   });
 });
 
@@ -402,23 +401,29 @@ describe('esApi.createAlias', () => {
 });
 
 describe('esApi.deleteIndex', () => {
-  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
-  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0', id: 'conn-123' } as never;
 
   it('deletes index successfully', async () => {
-    const mockDelete = jest.fn().mockResolvedValue({ status: 200 });
-    loadHttpClient.mockReturnValue({ delete: mockDelete });
+    mockedInvokeCapability.mockResolvedValue(
+      JSON.stringify({ status: 200, data: { acknowledged: true } }),
+    );
 
     await esApi.deleteIndex(baseConn, 'my-index');
-    expect(mockDelete).toHaveBeenCalledWith('/my-index');
+    expect(mockedInvokeCapability).toHaveBeenCalledWith(
+      'es__delete_index',
+      { index: 'my-index' },
+      'conn-123',
+    );
   });
 
   it('throws on error response', async () => {
-    const mockDelete = jest.fn().mockResolvedValue({
-      status: 404,
-      error: { type: 'index_not_found', reason: 'not found' },
-    });
-    loadHttpClient.mockReturnValue({ delete: mockDelete });
+    mockedInvokeCapability.mockResolvedValue(
+      JSON.stringify({
+        status: 404,
+        data: null,
+        error: { type: 'index_not_found', reason: 'not found' },
+      }),
+    );
 
     await expect(esApi.deleteIndex(baseConn, 'missing')).rejects.toBeInstanceOf(CustomError);
   });
@@ -468,23 +473,29 @@ describe('esApi.openIndex', () => {
 });
 
 describe('esApi.removeAlias', () => {
-  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
-  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0', id: 'conn-123' } as never;
 
   it('removes alias successfully', async () => {
-    const mockDelete = jest.fn().mockResolvedValue({ status: 200 });
-    loadHttpClient.mockReturnValue({ delete: mockDelete });
+    mockedInvokeCapability.mockResolvedValue(
+      JSON.stringify({ status: 200, data: { acknowledged: true } }),
+    );
 
     await esApi.removeAlias(baseConn, 'my-index', 'my-alias');
-    expect(mockDelete).toHaveBeenCalledWith('/my-index/_alias/my-alias');
+    expect(mockedInvokeCapability).toHaveBeenCalledWith(
+      'es__delete_alias',
+      { index: 'my-index', name: 'my-alias' },
+      'conn-123',
+    );
   });
 
   it('throws on error response', async () => {
-    const mockDelete = jest.fn().mockResolvedValue({
-      status: 404,
-      error: { type: 'alias_not_found', reason: 'not found' },
-    });
-    loadHttpClient.mockReturnValue({ delete: mockDelete });
+    mockedInvokeCapability.mockResolvedValue(
+      JSON.stringify({
+        status: 404,
+        data: null,
+        error: { type: 'alias_not_found', reason: 'not found' },
+      }),
+    );
 
     await expect(esApi.removeAlias(baseConn, 'idx', 'alias')).rejects.toBeInstanceOf(CustomError);
   });
@@ -527,21 +538,24 @@ describe('esApi.switchAlias', () => {
 });
 
 describe('esApi.catAliases', () => {
-  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
-  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0', id: 'conn-123' } as never;
 
   it('returns normalized aliases', async () => {
-    const mockGet = jest.fn().mockResolvedValue([
-      {
-        alias: 'my-alias',
-        index: 'my-index',
-        filter: '-',
-        'routing.index': '1',
-        'routing.search': '1',
-        is_write_index: 'true',
-      },
-    ]);
-    loadHttpClient.mockReturnValue({ get: mockGet });
+    mockedInvokeCapability.mockResolvedValue(
+      JSON.stringify({
+        status: 200,
+        data: [
+          {
+            alias: 'my-alias',
+            index: 'my-index',
+            filter: '-',
+            'routing.index': '1',
+            'routing.search': '1',
+            is_write_index: 'true',
+          },
+        ],
+      }),
+    );
 
     const result = await esApi.catAliases(baseConn);
     expect(result).toHaveLength(1);

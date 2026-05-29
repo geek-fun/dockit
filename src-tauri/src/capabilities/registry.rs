@@ -41,6 +41,7 @@ impl CapabilityRegistry {
     }
 
     /// Iterate over all registered capabilities.
+    #[allow(dead_code)]
     pub fn iter(&self) -> impl Iterator<Item = &Capability> {
         self.capabilities.values()
     }
@@ -72,6 +73,7 @@ impl CapabilityRegistry {
     }
 
     /// Return all capabilities tagged for the UI surface.
+    #[allow(dead_code)]
     pub fn ui_capabilities(&self) -> Vec<&Capability> {
         self.capabilities
             .values()

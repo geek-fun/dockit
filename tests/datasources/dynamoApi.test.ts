@@ -1,5 +1,6 @@
 import { dynamoApi } from '../../src/datasources/dynamoApi.ts';
 import { tauriClient } from '../../src/datasources/ApiClients.ts';
+import { invokeCapability } from '../../src/datasources/capabilityInvoker.ts';
 
 jest.mock('../../src/lang/index.ts', () => ({
   lang: {
@@ -16,6 +17,13 @@ jest.mock('../../src/datasources/ApiClients.ts', () => ({
     invokeDynamoApi: jest.fn(),
   },
 }));
+
+jest.mock('../../src/datasources/capabilityInvoker.ts', () => ({
+  invokeCapability: jest.fn(),
+  parseDynamoCapabilityResponse: <T>(raw: string): T => JSON.parse(raw) as T,
+}));
+
+const mockedInvokeCapability = invokeCapability as jest.MockedFunction<typeof invokeCapability>;
 
 const mockConnection = {
   type: 'DYNAMODB',
@@ -253,69 +261,39 @@ describe('dynamoApi - Auth Types', () => {
     jest.clearAllMocks();
   });
 
-  it('should build credentials for profile auth', async () => {
-    (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
-      status: 200,
-      message: 'Success',
-      data: { tableNames: ['table1'] },
-    });
+  it('should call invokeCapability for profile auth', async () => {
+    mockedInvokeCapability.mockResolvedValue(JSON.stringify({ tableNames: ['table1'] }));
 
     await dynamoApi.listTables(mockProfileConnection as any);
 
-    expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
-      expect.objectContaining({
-        auth: expect.objectContaining({
-          kind: 'profile',
-          profile_name: 'default',
-        }),
-      }),
-      expect.any(Object),
+    expect(mockedInvokeCapability).toHaveBeenCalledWith(
+      'dynamo__list_tables',
+      {},
+      expect.any(String),
     );
   });
 
-  it('should build credentials for sso auth', async () => {
-    (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
-      status: 200,
-      message: 'Success',
-      data: { tableNames: ['table1'] },
-    });
+  it('should call invokeCapability for sso auth', async () => {
+    mockedInvokeCapability.mockResolvedValue(JSON.stringify({ tableNames: ['table1'] }));
 
     await dynamoApi.listTables(mockSsoConnection as any);
 
-    expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
-      expect.objectContaining({
-        auth: expect.objectContaining({
-          kind: 'sso',
-          access_key_id: 'sso-key',
-          secret_access_key: 'sso-secret',
-          session_token: 'sso-session',
-          region: 'us-east-1',
-        }),
-      }),
-      expect.any(Object),
+    expect(mockedInvokeCapability).toHaveBeenCalledWith(
+      'dynamo__list_tables',
+      {},
+      expect.any(String),
     );
   });
 
-  it('should build credentials for assumeRole auth', async () => {
-    (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
-      status: 200,
-      message: 'Success',
-      data: { tableNames: ['table1'] },
-    });
+  it('should call invokeCapability for assumeRole auth', async () => {
+    mockedInvokeCapability.mockResolvedValue(JSON.stringify({ tableNames: ['table1'] }));
 
     await dynamoApi.listTables(mockAssumeRoleConnection as any);
 
-    expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
-      expect.objectContaining({
-        auth: expect.objectContaining({
-          kind: 'assumeRole',
-          access_key_id: 'assumed-key',
-          secret_access_key: 'assumed-secret',
-          session_token: 'assumed-session',
-          region: 'us-east-1',
-        }),
-      }),
-      expect.any(Object),
+    expect(mockedInvokeCapability).toHaveBeenCalledWith(
+      'dynamo__list_tables',
+      {},
+      expect.any(String),
     );
   });
 });
@@ -327,30 +305,22 @@ describe('dynamoApi - Basic Operations', () => {
 
   describe('listTables', () => {
     it('should return list of table names', async () => {
-      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
-        status: 200,
-        message: 'Success',
-        data: { tableNames: ['table1', 'table2', 'table3'] },
-      });
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({ tableNames: ['table1', 'table2', 'table3'] }),
+      );
 
       const result = await dynamoApi.listTables(mockConnection as any);
 
-      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
-        expect.any(Object),
-        expect.objectContaining({
-          operation: 'LIST_TABLES',
-        }),
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__list_tables',
+        {},
+        expect.any(String),
       );
-
       expect(result).toEqual(['table1', 'table2', 'table3']);
     });
 
     it('should return empty array when no tables', async () => {
-      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
-        status: 200,
-        message: 'Success',
-        data: {},
-      });
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify({}));
 
       const result = await dynamoApi.listTables(mockConnection as any);
 
@@ -358,11 +328,7 @@ describe('dynamoApi - Basic Operations', () => {
     });
 
     it('should throw error on failed list', async () => {
-      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
-        status: 500,
-        message: 'Failed to list tables',
-        data: null,
-      });
+      mockedInvokeCapability.mockRejectedValue(new Error('Failed to list tables'));
 
       await expect(dynamoApi.listTables(mockConnection as any)).rejects.toThrow();
     });
@@ -370,10 +336,8 @@ describe('dynamoApi - Basic Operations', () => {
 
   describe('describeTable', () => {
     it('should return table info', async () => {
-      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
-        status: 200,
-        message: 'Success',
-        data: {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({
           id: 'test-id',
           name: 'test-table',
           status: 'ACTIVE',
@@ -390,17 +354,15 @@ describe('dynamoApi - Basic Operations', () => {
             { attributeName: 'timestamp', attributeType: 'N' },
           ],
           indices: [],
-        },
-      });
+        }),
+      );
 
       const result = await dynamoApi.describeTable(mockConnection as any, 'test-table');
 
-      expect(tauriClient.invokeDynamoApi).toHaveBeenCalledWith(
-        expect.any(Object),
-        expect.objectContaining({
-          table_name: 'test-table',
-          operation: 'DESCRIBE_TABLE',
-        }),
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__describe_table',
+        { table_name: 'test-table' },
+        expect.any(String),
       );
 
       expect(result.name).toBe('test-table');
@@ -408,11 +370,7 @@ describe('dynamoApi - Basic Operations', () => {
     });
 
     it('should throw error on failed describe', async () => {
-      (tauriClient.invokeDynamoApi as jest.Mock).mockResolvedValue({
-        status: 404,
-        message: 'Table not found',
-        data: null,
-      });
+      mockedInvokeCapability.mockRejectedValue(new Error('Table not found'));
 
       await expect(
         dynamoApi.describeTable(mockConnection as any, 'non-existent'),

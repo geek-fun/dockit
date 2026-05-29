@@ -16,6 +16,7 @@ pub enum RiskLevel {
 /// The kind of source this capability operates on — used by
 /// `get_available_tools` to match capabilities to attached connections.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum SourceKind {
     /// Database type string, e.g. "ELASTICSEARCH", "DYNAMODB", "MONGODB"
     Database(&'static str),
