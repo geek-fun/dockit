@@ -81,65 +81,22 @@ jobs:
             })
             return data.id
 
-  lint:
-    name: Lint
+  check:
+    name: Check
     needs: [check-version]
     if: needs.check-version.outputs.is_new_version == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v5
+
+      # ── Install ───────────────────────────────────────────
 
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
-
-      - run: npm ci
-
-      - run: npm run lint:check
-
-      - run: npm audit --audit-level=critical
-
-  test-js:
-    name: JavaScript Tests
-    needs: [check-version]
-    if: needs.check-version.outputs.is_new_version == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-          cache: npm
-
-      - run: npm ci
-
-      - run: npm run test:ci
-
-      - name: Upload TypeScript coverage to Codecov
-        uses: codecov/codecov-action@v5
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          flags: typescript
-          fail_ci_if_error: false
-
-  test-rust:
-    name: Rust Tests
-    needs: [check-version]
-    if: needs.check-version.outputs.is_new_version == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v5
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -149,35 +106,72 @@ jobs:
         with:
           tool: cargo-llvm-cov
 
-      - name: Install Linux dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
 
-      - name: Run Rust tests
-        working-directory: src-tauri
-        run: cargo test
+      - run: npm ci
 
-      - name: Run Rust coverage
-        working-directory: src-tauri
+      # ── Audit (lint + security) ──────────────────────────
+
+      - name: Lint & audit
         run: |
+          set +e
+          npm run lint:check & pid1=$!
+          npm audit --audit-level=critical & pid2=$!
+          wait $pid1; rc1=$?
+          wait $pid2; rc2=$?
+          echo "LINT=$rc1" >> $GITHUB_ENV
+          echo "AUDIT=$rc2" >> $GITHUB_ENV
+
+      - name: Report lint/audit failures
+        if: env.LINT != '0' || env.AUDIT != '0'
+        run: |
+          [ "$LINT" = "0" ] || echo "::error::lint failed (exit $LINT)"
+          [ "$AUDIT" = "0" ] || echo "::error::audit failed (exit $AUDIT)"
+          exit 1
+
+      # ── Tests (JS + Rust in parallel) ────────────────────
+
+      - name: JavaScript tests & Rust tests
+        run: |
+          set +e
+          npm run test:ci & pid1=$!
+          cd src-tauri && cargo test & pid2=$!
+          wait $pid1; rc1=$?
+          wait $pid2; rc2=$?
+          echo "JS_TEST=$rc1" >> $GITHUB_ENV
+          echo "RUST_TEST=$rc2" >> $GITHUB_ENV
+
+      - name: Report test failures
+        if: env.JS_TEST != '0' || env.RUST_TEST != '0'
+        run: |
+          [ "$JS_TEST" = "0" ] || echo "::error::JS tests failed (exit $JS_TEST)"
+          [ "$RUST_TEST" = "0" ] || echo "::error::Rust tests failed (exit $RUST_TEST)"
+          exit 1
+
+      # ── Coverage ─────────────────────────────────────────
+
+      - name: Rust coverage
+        run: |
+          cd src-tauri
           cargo llvm-cov --lcov --output-path coverage/lcov.info
           sed -i 's|^SF:src/|SF:src-tauri/src/|' coverage/lcov.info
           sed -i 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
 
-      - name: Upload Rust coverage to Codecov
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./src-tauri/coverage/lcov.info
-          flags: rust
+          files: ./coverage/lcov.info,./src-tauri/coverage/lcov.info
           fail_ci_if_error: false
 
   release:
     name: ${{ matrix.name }}
-    needs: [check-version, prepare, lint, test-js, test-rust]
+    needs: [check-version, prepare, check]
     if: needs.check-version.outputs.is_new_version == 'true'
     permissions:
       contents: write
