@@ -22,15 +22,17 @@
 
 DocKit replaces browser consoles like Kibana and AWS Console with a single native desktop app. Describe what you need in natural language and get runnable queries, or use the Monaco-powered editors directly. Supports OpenAI, Anthropic, and DeepSeek — bring your own key.
 
-<table align="center" border="0">
-  <tr align="center">
-    <td><img src="src/assets/svg/elasticsearch.svg" width="28" height="28"><br>Elasticsearch</td>
-    <td><img src="src/assets/svg/db-opensearch.svg" width="28" height="28"><br>OpenSearch</td>
-    <td><img src="src/assets/svg/dynamoDB.svg" width="28" height="28"><br>DynamoDB</td>
-    <td><img src="src/assets/svg/mongodb.svg" width="28" height="28"><br>MongoDB</td>
-    <td><img src="src/assets/svg/easysearch.svg" width="28" height="28"><br>EasySearch</td>
-  </tr>
-</table>
+<p align="center">
+  <a href="#"><img src="src/assets/svg/elasticsearch.svg" width="28" height="28"><br>Elasticsearch</a>
+  &nbsp;&nbsp;
+  <a href="#"><img src="src/assets/svg/db-opensearch.svg" width="28" height="28"><br>OpenSearch</a>
+  &nbsp;&nbsp;
+  <a href="#"><img src="src/assets/svg/dynamoDB.svg" width="28" height="28"><br>DynamoDB</a>
+  &nbsp;&nbsp;
+  <a href="#"><img src="src/assets/svg/mongodb.svg" width="28" height="28"><br>MongoDB</a>
+  &nbsp;&nbsp;
+  <a href="#"><img src="src/assets/svg/easysearch.svg" width="28" height="28"><br>EasySearch</a>
+</p>
 
 ## Screenshots
 
