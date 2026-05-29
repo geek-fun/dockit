@@ -33,6 +33,8 @@ const adaptMessage = (msg: AgentMessage): ChatMessage => ({
   toolCalls: msg.toolCalls,
   toolCallId: msg.toolCallId,
   compaction: msg.compaction,
+  compactionInProgress: msg.compactionInProgress,
+  preparingInProgress: msg.preparingInProgress,
 });
 
 const adaptSession = (session: AgentSession): ChatSession => ({
