@@ -22,28 +22,14 @@
 
 DocKit replaces browser consoles like Kibana and AWS Console with a single native desktop app. Describe what you need in natural language and get runnable queries, or use the Monaco-powered editors directly. Supports OpenAI, Anthropic, and DeepSeek — bring your own key.
 
-<div align="center">
-  <div style="display: inline-block; text-align: center; margin: 0 14px;">
-    <img src="src/assets/svg/elasticsearch.svg" width="36" height="36" alt=""><br>
-    Elasticsearch
-  </div>
-  <div style="display: inline-block; text-align: center; margin: 0 14px;">
-    <img src="src/assets/svg/db-opensearch.svg" width="36" height="36" alt=""><br>
-    OpenSearch
-  </div>
-  <div style="display: inline-block; text-align: center; margin: 0 14px;">
-    <img src="src/assets/svg/dynamoDB.svg" width="36" height="36" alt=""><br>
-    DynamoDB
-  </div>
-  <div style="display: inline-block; text-align: center; margin: 0 14px;">
-    <img src="src/assets/svg/mongodb.svg" width="36" height="36" alt=""><br>
-    MongoDB
-  </div>
-  <div style="display: inline-block; text-align: center; margin: 0 14px;">
-    <img src="src/assets/svg/easysearch.svg" width="36" height="36" alt=""><br>
-    EasySearch
-  </div>
-</div>
+<p align="center">
+  <img src="src/assets/svg/elasticsearch.svg" width="36" height="36" alt="Elasticsearch">&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/db-opensearch.svg" width="36" height="36" alt="OpenSearch">&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/dynamoDB.svg" width="36" height="36" alt="DynamoDB">&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/mongodb.svg" width="36" height="36" alt="MongoDB">&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/easysearch.svg" width="36" height="36" alt="EasySearch"><br>
+  Elasticsearch &nbsp;&nbsp;&nbsp;&nbsp; OpenSearch &nbsp;&nbsp;&nbsp;&nbsp; DynamoDB &nbsp;&nbsp;&nbsp;&nbsp; MongoDB &nbsp;&nbsp;&nbsp;&nbsp; EasySearch
+</p>
 
 ## Screenshots
 

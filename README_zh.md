@@ -22,28 +22,14 @@
 
 DocKit 用一个原生桌面应用替代 Kibana 和 AWS Console 等浏览器控制台。用自然语言描述需求，即可生成可执行的查询；也可以直接使用 Monaco 驱动的编辑器。支持 OpenAI、Anthropic 和 DeepSeek —— 自带密钥即可使用。
 
-<div align="center">
-  <div style="display: inline-block; text-align: center; margin: 0 14px;">
-    <img src="src/assets/svg/elasticsearch.svg" width="36" height="36" alt=""><br>
-    Elasticsearch
-  </div>
-  <div style="display: inline-block; text-align: center; margin: 0 14px;">
-    <img src="src/assets/svg/db-opensearch.svg" width="36" height="36" alt=""><br>
-    OpenSearch
-  </div>
-  <div style="display: inline-block; text-align: center; margin: 0 14px;">
-    <img src="src/assets/svg/dynamoDB.svg" width="36" height="36" alt=""><br>
-    DynamoDB
-  </div>
-  <div style="display: inline-block; text-align: center; margin: 0 14px;">
-    <img src="src/assets/svg/mongodb.svg" width="36" height="36" alt=""><br>
-    MongoDB
-  </div>
-  <div style="display: inline-block; text-align: center; margin: 0 14px;">
-    <img src="src/assets/svg/easysearch.svg" width="36" height="36" alt=""><br>
-    EasySearch
-  </div>
-</div>
+<p align="center">
+  <img src="src/assets/svg/elasticsearch.svg" width="36" height="36" alt="Elasticsearch">&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/db-opensearch.svg" width="36" height="36" alt="OpenSearch">&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/dynamoDB.svg" width="36" height="36" alt="DynamoDB">&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/mongodb.svg" width="36" height="36" alt="MongoDB">&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/easysearch.svg" width="36" height="36" alt="EasySearch"><br>
+  Elasticsearch &nbsp;&nbsp;&nbsp;&nbsp; OpenSearch &nbsp;&nbsp;&nbsp;&nbsp; DynamoDB &nbsp;&nbsp;&nbsp;&nbsp; MongoDB &nbsp;&nbsp;&nbsp;&nbsp; EasySearch
+</p>
 
 ## 截图
 
