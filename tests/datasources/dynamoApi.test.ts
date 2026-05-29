@@ -193,8 +193,468 @@ describe('dynamoApi - Table Lifecycle', () => {
         deletedItems: 100,
         unprocessedCount: 0,
         errors: [],
+  });
+});
+
+describe('dynamoApi - Query Operations', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('queryTable', () => {
+    it('should call QUERY_TABLE operation with basic params', async () => {
+      const mockResult = {
+        items: [{ id: '1', name: 'test' }],
+        count: 1,
+        scanned_count: 1,
+        last_evaluated_key: null,
+      };
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult));
+
+      const result = await dynamoApi.queryTable(mockConnection as any, {
+        tableName: 'test-table',
+        indexName: null,
+        partitionKey: { name: 'id', value: '1' },
       });
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__query_table',
+        expect.objectContaining({
+          table_name: 'test-table',
+          partition_key: { name: 'id', value: '1' },
+        }),
+        expect.any(String),
+      );
+      expect(result).toEqual(mockResult);
     });
+
+    it('should call QUERY_TABLE with sort key and filters', async () => {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({ items: [], count: 0, scanned_count: 0, last_evaluated_key: null }),
+      );
+
+      await dynamoApi.queryTable(mockConnection as any, {
+        tableName: 'test-table',
+        indexName: null,
+        partitionKey: { name: 'id', value: '1' },
+        sortKey: { name: 'timestamp', value: '2024-01-01' },
+        filters: [{ key: 'status', operator: 'EQ', value: 'active' }],
+        limit: 10,
+        exclusiveStartKey: null,
+      });
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__query_table',
+        expect.objectContaining({
+          sort_key: { name: 'timestamp', value: '2024-01-01' },
+          filters: [{ key: 'status', operator: 'EQ', value: 'active' }],
+          limit: 10,
+          exclusive_start_key: null,
+        }),
+        expect.any(String),
+      );
+    });
+
+    it('should throw error on failed query', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Table not found'));
+
+      await expect(
+        dynamoApi.queryTable(mockConnection as any, {
+          tableName: 'non-existent',
+          indexName: null,
+          partitionKey: { name: 'id', value: '1' },
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('scanTable', () => {
+    it('should call SCAN_TABLE operation with basic params', async () => {
+      const mockResult = {
+        items: [{ id: '1', name: 'test' }],
+        count: 1,
+        scanned_count: 100,
+        last_evaluated_key: null,
+      };
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult));
+
+      const result = await dynamoApi.scanTable(mockConnection as any, {
+        tableName: 'test-table',
+        indexName: null,
+        partitionKey: { name: 'id', value: '1' },
+      });
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__scan_table',
+        expect.objectContaining({
+          table_name: 'test-table',
+        }),
+        expect.any(String),
+      );
+      expect(result).toEqual(mockResult);
+    });
+
+    it('should throw error on failed scan', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Scan failed'));
+
+      await expect(
+        dynamoApi.scanTable(mockConnection as any, {
+          tableName: 'non-existent',
+          indexName: null,
+          partitionKey: { name: 'id', value: '1' },
+        }),
+      ).rejects.toThrow();
+    });
+  });
+});
+
+describe('dynamoApi - Item Operations', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('createItem', () => {
+    it('should call CREATE_ITEM operation', async () => {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({
+          message: 'Item created',
+          data: { items: [], count: 0, scanned_count: 0, last_evaluated_key: null },
+        }),
+      );
+
+      const result = await dynamoApi.createItem(
+        mockConnection as any,
+        'test-table',
+        [
+          { key: 'id', value: '1', type: 'S' },
+          { key: 'name', value: 'test', type: 'S' },
+        ],
+      );
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__create_item',
+        expect.objectContaining({
+          table_name: 'test-table',
+        }),
+        expect.any(String),
+      );
+      expect(result.message).toBe('Item created');
+    });
+
+    it('should call CREATE_ITEM with skipExisting option', async () => {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({
+          message: 'Item skipped',
+          data: { items: [], count: 0, scanned_count: 0, last_evaluated_key: null },
+        }),
+      );
+
+      await dynamoApi.createItem(mockConnection as any, 'test-table', [], {
+        skipExisting: true,
+        partitionKey: 'id',
+      });
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__create_item',
+        expect.objectContaining({
+          skip_existing: true,
+          partition_key: 'id',
+        }),
+        expect.any(String),
+      );
+    });
+
+    it('should throw error on failed create', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Item already exists'));
+
+      await expect(
+        dynamoApi.createItem(mockConnection as any, 'test-table', [
+          { key: 'id', value: '1', type: 'S' },
+        ]),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('batchWriteItems', () => {
+    it('should call BATCH_WRITE_ITEMS operation', async () => {
+      const mockResult = {
+        inserted: 2,
+        skipped: 0,
+        errorCount: 0,
+        errors: [],
+        unprocessedItems: [],
+        unprocessedCount: 0,
+      };
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult));
+
+      const result = await dynamoApi.batchWriteItems(
+        mockConnection as any,
+        'test-table',
+        [{ attributes: [{ key: 'id', value: '1', type: 'S' }] }],
+      );
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__batch_write_items',
+        expect.objectContaining({
+          table_name: 'test-table',
+        }),
+        expect.any(String),
+      );
+      expect(result.inserted).toBe(2);
+    });
+
+    it('should throw error on failed batch write', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Write failed'));
+
+      await expect(
+        dynamoApi.batchWriteItems(mockConnection as any, 'test-table', []),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('updateItem', () => {
+    it('should call UPDATE_ITEM operation', async () => {
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify({ message: 'Item updated' }));
+
+      const result = await dynamoApi.updateItem(
+        mockConnection as any,
+        'test-table',
+        [{ key: 'id', value: '1', type: 'S' }],
+        [{ key: 'name', value: 'updated', type: 'S' }],
+      );
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__update_item',
+        expect.objectContaining({
+          table_name: 'test-table',
+        }),
+        expect.any(String),
+      );
+      expect(result).toEqual({ message: 'Item updated' });
+    });
+
+    it('should throw error on failed update', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Item not found'));
+
+      await expect(
+        dynamoApi.updateItem(
+          mockConnection as any,
+          'test-table',
+          [{ key: 'id', value: '1', type: 'S' }],
+          [{ key: 'name', value: 'updated', type: 'S' }],
+        ),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('deleteItem', () => {
+    it('should call DELETE_ITEM operation', async () => {
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify({ message: 'Item deleted' }));
+
+      const result = await dynamoApi.deleteItem(
+        mockConnection as any,
+        'test-table',
+        [{ key: 'id', value: '1', type: 'S' }],
+      );
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__delete_item',
+        expect.objectContaining({
+          table_name: 'test-table',
+        }),
+        expect.any(String),
+      );
+      expect(result).toEqual({ message: 'Item deleted' });
+    });
+
+    it('should throw error on failed delete', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Item not found'));
+
+      await expect(
+        dynamoApi.deleteItem(
+          mockConnection as any,
+          'test-table',
+          [{ key: 'id', value: '1', type: 'S' }],
+        ),
+      ).rejects.toThrow();
+    });
+  });
+});
+
+describe('dynamoApi - Index Management', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('createGlobalSecondaryIndex', () => {
+    it('should call CREATE_GSI operation with basic config', async () => {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({ tableName: 'test-table', indexName: 'test-index' }),
+      );
+
+      const result = await dynamoApi.createGlobalSecondaryIndex(mockConnection as any, 'test-table', {
+        indexName: 'test-index',
+        keySchema: [
+          { attributeName: 'email', keyType: 'HASH', attributeType: 'S' },
+        ],
+        projectionType: 'ALL',
+        readCapacityUnits: 5,
+        writeCapacityUnits: 5,
+      });
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__create_gsi',
+        expect.objectContaining({
+          table_name: 'test-table',
+          index_name: 'test-index',
+          projection_type: 'ALL',
+          read_capacity_units: 5,
+          write_capacity_units: 5,
+        }),
+        expect.any(String),
+      );
+      expect(result).toEqual({ tableName: 'test-table', indexName: 'test-index' });
+    });
+
+    it('should include warm_throughput when values are positive', async () => {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({ tableName: 'test-table', indexName: 'test-index' }),
+      );
+
+      await dynamoApi.createGlobalSecondaryIndex(mockConnection as any, 'test-table', {
+        indexName: 'test-index',
+        keySchema: [
+          { attributeName: 'email', keyType: 'HASH', attributeType: 'S' },
+        ],
+        projectionType: 'ALL',
+        readCapacityUnits: 5,
+        writeCapacityUnits: 5,
+        warmThroughput: { readUnits: 10, writeUnits: 20 },
+      });
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__create_gsi',
+        expect.objectContaining({
+          warm_throughput: {
+            read_units_per_second: 10,
+            write_units_per_second: 20,
+          },
+        }),
+        expect.any(String),
+      );
+    });
+
+    it('should omit warm_throughput when values are 0', async () => {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({ tableName: 'test-table', indexName: 'test-index' }),
+      );
+
+      await dynamoApi.createGlobalSecondaryIndex(mockConnection as any, 'test-table', {
+        indexName: 'test-index',
+        keySchema: [
+          { attributeName: 'email', keyType: 'HASH', attributeType: 'S' },
+        ],
+        projectionType: 'KEYS_ONLY',
+        readCapacityUnits: 0,
+        writeCapacityUnits: 0,
+        warmThroughput: { readUnits: 0, writeUnits: 0 },
+      });
+
+      const calls = mockedInvokeCapability.mock.calls;
+      const args = calls[0][1] as Record<string, unknown>;
+      expect(args.warm_throughput).toBeUndefined();
+    });
+
+    it('should throw error on failed create', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Index already exists'));
+
+      await expect(
+        dynamoApi.createGlobalSecondaryIndex(mockConnection as any, 'test-table', {
+          indexName: 'existing-index',
+          keySchema: [
+            { attributeName: 'email', keyType: 'HASH', attributeType: 'S' },
+          ],
+          projectionType: 'ALL',
+        }),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('updateGlobalSecondaryIndex', () => {
+    it('should call UPDATE_GSI operation', async () => {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({ tableName: 'test-table', indexName: 'test-index' }),
+      );
+
+      const result = await dynamoApi.updateGlobalSecondaryIndex(
+        mockConnection as any,
+        'test-table',
+        { indexName: 'test-index', readCapacityUnits: 10, writeCapacityUnits: 20 },
+      );
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__update_gsi',
+        expect.objectContaining({
+          table_name: 'test-table',
+          index_name: 'test-index',
+          read_capacity_units: 10,
+          write_capacity_units: 20,
+        }),
+        expect.any(String),
+      );
+      expect(result).toEqual({ tableName: 'test-table', indexName: 'test-index' });
+    });
+
+    it('should throw error on failed update', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Index not found'));
+
+      await expect(
+        dynamoApi.updateGlobalSecondaryIndex(
+          mockConnection as any,
+          'test-table',
+          { indexName: 'non-existent', readCapacityUnits: 10, writeCapacityUnits: 10 },
+        ),
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('deleteGlobalSecondaryIndex', () => {
+    it('should call DELETE_GSI operation', async () => {
+      mockedInvokeCapability.mockResolvedValue(
+        JSON.stringify({ tableName: 'test-table', indexName: 'test-index' }),
+      );
+
+      const result = await dynamoApi.deleteGlobalSecondaryIndex(
+        mockConnection as any,
+        'test-table',
+        'test-index',
+      );
+
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__delete_gsi',
+        expect.objectContaining({
+          table_name: 'test-table',
+          index_name: 'test-index',
+        }),
+        expect.any(String),
+      );
+      expect(result).toEqual({ tableName: 'test-table', indexName: 'test-index' });
+    });
+
+    it('should throw error on failed delete', async () => {
+      mockedInvokeCapability.mockRejectedValue(new Error('Index not found'));
+
+      await expect(
+        dynamoApi.deleteGlobalSecondaryIndex(
+          mockConnection as any,
+          'test-table',
+          'non-existent',
+        ),
+      ).rejects.toThrow();
+    });
+  });
+});
+
 
     it('should return errors when truncation has partial failures', async () => {
       mockedInvokeCapability.mockResolvedValue(

@@ -224,6 +224,42 @@ describe('mongoApi', () => {
     });
   });
 
+  describe('executeQuery', () => {
+    const baseConnection: MongoDBConnection = {
+      name: 'test',
+      type: DatabaseType.MONGODB,
+      host: 'localhost',
+      port: 27017,
+      auth: { kind: 'none' },
+    };
+
+    it('calls invoke with correct config and returns result', async () => {
+      const mockResult = {
+        success: true,
+        data: [{ _id: '1', name: 'Alice' }],
+      };
+      invoke.mockResolvedValue(mockResult);
+
+      const result = await mongoApi.executeQuery(baseConnection, 'db.users.find()');
+
+      expect(invoke).toHaveBeenCalledWith('mongo_execute_query', {
+        config: expect.objectContaining({ host: 'localhost' }),
+        code: 'db.users.find()',
+      });
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual([{ _id: '1', name: 'Alice' }]);
+    });
+
+    it('returns failure result when invoke throws', async () => {
+      invoke.mockRejectedValue(new Error('Syntax error'));
+
+      const result = await mongoApi.executeQuery(baseConnection, 'bad code');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Syntax error');
+    });
+  });
+
   describe('listDatabases', () => {
     const baseConnection: MongoDBConnection = {
       name: 'test',
