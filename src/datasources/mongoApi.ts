@@ -95,8 +95,8 @@ export type MongoCreateCollectionOptions = {
   size?: number;
   max?: number;
   timeseries?: {
-    time_field: string;
-    meta_field?: string;
+    timeField: string;
+    metaField?: string;
     granularity?: string;
   };
   validator?: Record<string, unknown>;
@@ -292,18 +292,16 @@ export const mongoApi = {
     database: string,
     collection: string,
   ): Promise<MongoCollectionStatsResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoCollectionStatsResult>('mongo_collection_stats', {
-        config,
-        database,
-        collection,
-      });
+      const raw = await invokeCapability(
+        'mongo__collection_stats',
+        { database, collection },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<MongoCollectionStats>(raw);
+      return { success: true, stats: data };
     } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 
@@ -311,14 +309,12 @@ export const mongoApi = {
     con: MongoDBConnection,
     database: string,
   ): Promise<MongoDatabaseStatsResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoDatabaseStatsResult>('mongo_database_stats', { config, database });
+      const raw = await invokeCapability('mongo__database_stats', { database }, String(con.id));
+      const data = parseMongoCapabilityResponse<MongoDatabaseStats>(raw);
+      return { success: true, stats: data };
     } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 
@@ -327,30 +323,26 @@ export const mongoApi = {
     database: string,
     collection: string,
   ): Promise<MongoOperationResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoOperationResult>('mongo_create_database', {
-        config,
-        database,
-        collection,
-      });
+      const raw = await invokeCapability(
+        'mongo__create_database',
+        { database, collection },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{ message?: string }>(raw);
+      return { success: true, message: data.message };
     } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 
   dropDatabase: async (con: MongoDBConnection, database: string): Promise<MongoOperationResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoOperationResult>('mongo_drop_database', { config, database });
+      const raw = await invokeCapability('mongo__drop_database', { database }, String(con.id));
+      const data = parseMongoCapabilityResponse<{ message?: string }>(raw);
+      return { success: true, message: data.message };
     } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 
@@ -360,19 +352,16 @@ export const mongoApi = {
     collection: string,
     options?: MongoCreateCollectionOptions,
   ): Promise<MongoOperationResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoOperationResult>('mongo_create_collection', {
-        config,
-        database,
-        collection,
-        options,
-      });
+      const raw = await invokeCapability(
+        'mongo__create_collection',
+        { database, collection, options },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{ message?: string }>(raw);
+      return { success: true, message: data.message };
     } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 
@@ -381,54 +370,46 @@ export const mongoApi = {
     database: string,
     collection: string,
   ): Promise<MongoOperationResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoOperationResult>('mongo_drop_collection', {
-        config,
-        database,
-        collection,
-      });
+      const raw = await invokeCapability(
+        'mongo__drop_collection',
+        { database, collection },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{ message?: string }>(raw);
+      return { success: true, message: data.message };
     } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 
   serverStatus: async (con: MongoDBConnection): Promise<MongoServerStatusResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoServerStatusResult>('mongo_server_status', { config });
+      const raw = await invokeCapability('mongo__server_status', {}, String(con.id));
+      const data = parseMongoCapabilityResponse<MongoServerStatus>(raw);
+      return { success: true, status: data };
     } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 
   replSetStatus: async (con: MongoDBConnection): Promise<MongoReplSetStatusResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoReplSetStatusResult>('mongo_repl_set_status', { config });
+      const raw = await invokeCapability('mongo__repl_set_status', {}, String(con.id));
+      const data = parseMongoCapabilityResponse<MongoReplicaSetStatus>(raw);
+      return { success: true, status: data };
     } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 
   shardStatus: async (con: MongoDBConnection): Promise<MongoShardStatusResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoShardStatusResult>('mongo_shard_status', { config });
+      const raw = await invokeCapability('mongo__shard_status', {}, String(con.id));
+      const data = parseMongoCapabilityResponse<MongoShardCluster>(raw);
+      return { success: true, cluster: data };
     } catch (e) {
-      return {
-        success: false,
-        error: e instanceof Error ? e.message : String(e),
-      };
+      return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
   },
 
@@ -469,9 +450,14 @@ export const mongoApi = {
     collection: string,
     filter?: string,
   ): Promise<number> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<number>('mongo_count_documents', { config, collection, filter });
+      const raw = await invokeCapability(
+        'mongo__count_documents',
+        { collection, filter: filter || null },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{ count: number }>(raw);
+      return data.count;
     } catch {
       return -1;
     }
@@ -501,14 +487,21 @@ export const mongoApi = {
     id: string,
     document: string,
   ): Promise<MongoWriteResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoWriteResult>('mongo_update_document', {
-        config,
-        collection,
-        id,
-        document,
-      });
+      const raw = await invokeCapability(
+        'mongo__update_document',
+        { collection, id, document },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{
+        matched_count?: number;
+        modified_count?: number;
+      }>(raw);
+      return {
+        success: true,
+        matched_count: data.matched_count,
+        modified_count: data.modified_count,
+      };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -519,9 +512,14 @@ export const mongoApi = {
     collection: string,
     id: string,
   ): Promise<MongoWriteResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoWriteResult>('mongo_delete_document', { config, collection, id });
+      const raw = await invokeCapability(
+        'mongo__delete_document',
+        { collection, id },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{ deleted_count: number }>(raw);
+      return { success: true, deleted_count: data.deleted_count };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -553,14 +551,14 @@ export const mongoApi = {
     fromCollection: string,
     toCollection: string,
   ): Promise<MongoOperationResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoOperationResult>('mongo_rename_collection', {
-        config,
-        database,
-        fromCollection,
-        toCollection,
-      });
+      const raw = await invokeCapability(
+        'mongo__rename_collection',
+        { database, collection: fromCollection, to_collection: toCollection },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{ message?: string }>(raw);
+      return { success: true, message: data.message };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -572,14 +570,23 @@ export const mongoApi = {
     sourceCollection: string,
     targetCollection: string,
   ): Promise<MongoCloneCollectionResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoCloneCollectionResult>('mongo_clone_collection', {
-        config,
-        database,
-        sourceCollection,
-        targetCollection,
-      });
+      const raw = await invokeCapability(
+        'mongo__clone_collection',
+        { database, source_collection: sourceCollection, target_collection: targetCollection },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{
+        documents_copied?: number;
+        indexes_copied?: number;
+        message?: string;
+      }>(raw);
+      return {
+        success: true,
+        documents_copied: data.documents_copied,
+        indexes_copied: data.indexes_copied,
+        message: data.message,
+      };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -590,13 +597,14 @@ export const mongoApi = {
     database: string,
     collection: string,
   ): Promise<MongoTruncateCollectionResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoTruncateCollectionResult>('mongo_truncate_collection', {
-        config,
-        database,
-        collection,
-      });
+      const raw = await invokeCapability(
+        'mongo__truncate_collection',
+        { database, collection },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{ deleted_count?: number; message?: string }>(raw);
+      return { success: true, deleted_count: data.deleted_count, message: data.message };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -609,13 +617,14 @@ export const mongoApi = {
     database: string,
     collection: string,
   ): Promise<MongoListIndexesResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoListIndexesResult>('mongo_list_indexes', {
-        config,
-        database,
-        collection,
-      });
+      const raw = await invokeCapability(
+        'mongo__list_indexes',
+        { database, collection },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{ indexes: MongoIndexInfo[] }>(raw);
+      return { success: true, indexes: data.indexes };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -628,15 +637,22 @@ export const mongoApi = {
     keys: Record<string, number | string>,
     options?: MongoCreateIndexOptions,
   ): Promise<MongoCreateIndexResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoCreateIndexResult>('mongo_create_index', {
-        config,
-        database,
-        collection,
-        keys,
-        options,
-      });
+      const raw = await invokeCapability(
+        'mongo__create_index',
+        {
+          database,
+          collection,
+          keys,
+          name: options?.name,
+          unique: options?.unique,
+          sparse: options?.sparse,
+          expire_after_seconds: options?.expire_after_seconds,
+        },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{ index_name?: string; message?: string }>(raw);
+      return { success: true, index_name: data.index_name, message: data.message };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -648,14 +664,14 @@ export const mongoApi = {
     collection: string,
     indexName: string,
   ): Promise<MongoOperationResult> => {
-    const config = buildConfig(con);
     try {
-      return await invoke<MongoOperationResult>('mongo_drop_index', {
-        config,
-        database,
-        collection,
-        indexName,
-      });
+      const raw = await invokeCapability(
+        'mongo__drop_index',
+        { database, collection, index_name: indexName },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{ message?: string }>(raw);
+      return { success: true, message: data.message };
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -714,15 +730,21 @@ export const mongoApi = {
   },
 
   sampleDocuments: async (
-    config: MongoConnectionConfig,
+    con: MongoDBConnection,
     collection: string,
     limit?: number,
   ): Promise<Record<string, unknown>[]> => {
-    return await invoke<Record<string, unknown>[]>('mongo_sample_documents', {
-      config,
-      collection,
-      limit,
-    });
+    try {
+      const raw = await invokeCapability(
+        'mongo__sample_documents',
+        { collection, limit },
+        String(con.id),
+      );
+      const data = parseMongoCapabilityResponse<{ documents: Record<string, unknown>[] }>(raw);
+      return data.documents;
+    } catch {
+      return [];
+    }
   },
 };
 

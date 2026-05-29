@@ -1497,16 +1497,12 @@ export const useImportExportStore = defineStore('importExportStore', {
         }
       } else if (this.importConnection.type === DatabaseType.MONGODB) {
         const mongoConnection = this.importConnection as MongoDBConnection;
-        const config: MongoConnectionConfig = {
-          host: mongoConnection.host,
-          port: mongoConnection.port,
-          auth: mongoConnection.auth,
-          database:
-            this.importDatabase || mongoConnection.activeDatabase || mongoConnection.database,
-          tls: mongoConnection.tls,
-        };
         try {
-          const samples = await mongoApi.sampleDocuments(config, this.importTargetIndex, 1);
+          const samples = await mongoApi.sampleDocuments(
+            mongoConnection,
+            this.importTargetIndex,
+            1,
+          );
           if (samples && samples.length > 0) {
             const schema: Record<string, string> = {};
             for (const [key, value] of Object.entries(samples[0])) {
@@ -2282,16 +2278,8 @@ export const useImportExportStore = defineStore('importExportStore', {
       const mongoConnection = this.connection as MongoDBConnection;
       const collectionName = this.selectedIndex;
 
-      const config: MongoConnectionConfig = {
-        host: mongoConnection.host,
-        port: mongoConnection.port,
-        auth: mongoConnection.auth,
-        database: this.exportDatabase || mongoConnection.activeDatabase || mongoConnection.database,
-        tls: mongoConnection.tls,
-      };
-
       try {
-        const sampleDocs = await mongoApi.sampleDocuments(config, collectionName, 100);
+        const sampleDocs = await mongoApi.sampleDocuments(mongoConnection, collectionName, 100);
 
         if (!sampleDocs || sampleDocs.length === 0) {
           this.fields = [];
@@ -2985,7 +2973,7 @@ export const useImportExportStore = defineStore('importExportStore', {
         // Build schema from sampled documents
         let schemaProperties: Record<string, { type: string }> = {};
         try {
-          const samples = await mongoApi.sampleDocuments(config, collectionName, 100);
+          const samples = await mongoApi.sampleDocuments(mongoConnection, collectionName, 100);
           if (samples && samples.length > 0) {
             const fieldTypes: Record<string, Set<string>> = {};
             for (const doc of samples) {
