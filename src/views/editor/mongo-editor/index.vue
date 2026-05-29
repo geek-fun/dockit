@@ -29,12 +29,11 @@ import { listen } from '@tauri-apps/api/event';
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { SplitPane } from '@/components/ui/split-pane';
-import { useMessageService, useLoadingBarService } from '@/composables';
+import { useMessageService, useLoadingBarService, useEditorInsertCode } from '@/composables';
 import {
   DatabaseType,
   MongoDBConnection,
   useAppStore,
-  useCodeActionStore,
   useConnectionStore,
   useHistoryStore,
   useTabStore,
@@ -54,13 +53,11 @@ import {
 import { mongoApi } from '../../../datasources';
 
 const appStore = useAppStore();
-const codeActionStore = useCodeActionStore();
 const message = useMessageService();
 const loadingBar = useLoadingBarService();
 const lang = useLang();
 const { getEditorTheme, getEditorOptions } = appStore;
 const { themeType, editorConfig } = storeToRefs(appStore);
-const { insertBuffer } = storeToRefs(codeActionStore);
 
 const tabStore = useTabStore();
 const { activePanel } = storeToRefs(tabStore);
@@ -78,6 +75,8 @@ const activeConnection = computed(
 const queryEditorRef = ref();
 let queryEditor: Editor | null = null;
 let cleanupFileListener: (() => void) | null = null;
+
+useEditorInsertCode(() => queryEditor);
 
 // Result panel state
 const resultPanelVisible = ref(false);
@@ -121,29 +120,6 @@ watch(
     }
   },
 );
-
-watch(insertBuffer, () => {
-  if (queryEditor) {
-    const position = queryEditor.getPosition();
-    if (!position) return;
-    queryEditor.getModel()?.pushEditOperations(
-      [],
-      [
-        {
-          range: new monaco.Range(
-            position.lineNumber,
-            position.column,
-            position.lineNumber,
-            position.column,
-          ),
-          text: insertBuffer.value,
-        },
-      ],
-      () => null,
-    );
-    codeActionStore.clearInsertBuffer();
-  }
-});
 
 const showResultPanel = (
   content: unknown,
@@ -298,18 +274,6 @@ const insertSampleQuery = (queryTemplate: string) => {
   queryEditor?.setPosition({ lineNumber: newLineNumber, column: 1 });
   queryEditor?.revealLine(newLineNumber);
 };
-
-// Watch for pending query insertion from history view
-watch(
-  () => tabStore.pendingInsertToken,
-  () => {
-    const query = tabStore.pendingInsertQuery;
-    if (query && queryEditor) {
-      insertSampleQuery(query);
-      tabStore.clearPendingInsertQuery();
-    }
-  },
-);
 
 const setupQueryEditor = () => {
   const editorOptions = getEditorOptions();

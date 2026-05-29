@@ -12,6 +12,7 @@ import { useTabStore } from '@/store/tabStore';
 import { DatabaseType, type ElasticsearchConnection } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
 import { buildConnectionConfig } from './connectionConfig';
+import { clearSessionRuntime } from './agentRuntime';
 import type {
   ChatMessage,
   ChatSession,
@@ -32,6 +33,8 @@ const adaptMessage = (msg: AgentMessage): ChatMessage => ({
   toolCalls: msg.toolCalls,
   toolCallId: msg.toolCallId,
   compaction: msg.compaction,
+  compactionInProgress: msg.compactionInProgress,
+  preparingInProgress: msg.preparingInProgress,
 });
 
 const adaptSession = (session: AgentSession): ChatSession => ({
@@ -85,8 +88,11 @@ export const useSidebarChatAgent = () => {
   const { confirmationRules, sessions: rawSessions, activeSessionId } = storeToRefs(store);
 
   const sessions = computed(() => rawSessions.value.map(adaptSession));
+
   const activeSession = computed(() => {
-    const found = rawSessions.value.find(session => session.id === store.activeSessionId);
+    const sid = store.sidebarSessionId;
+    if (!sid) return undefined;
+    const found = rawSessions.value.find(session => session.id === sid);
     return found ? adaptSession(found) : undefined;
   });
 
@@ -162,6 +168,14 @@ export const useSidebarChatAgent = () => {
     await agent.sendMessage({ content, context });
   };
 
+  const startNewSession = () => {
+    const oldSessionId = store.sidebarSessionId;
+    if (oldSessionId) {
+      clearSessionRuntime(oldSessionId);
+    }
+    store.sidebarSessionId = undefined;
+  };
+
   return {
     isLoading: agent.isLoading,
     error: agent.error,
@@ -173,5 +187,6 @@ export const useSidebarChatAgent = () => {
     cancelSession: agent.cancelSession,
     handleConfirmation: agent.handleConfirmation,
     clearChat: agent.clearChat,
+    startNewSession,
   };
 };

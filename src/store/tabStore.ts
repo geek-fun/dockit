@@ -42,6 +42,7 @@ export const useTabStore = defineStore('panel', {
     defaultSnippet: 0,
     pendingInsertQuery: null as string | null,
     pendingInsertToken: 0,
+    pendingInsertMode: 'cursor' as 'cursor' | 'append_bottom',
   }),
   getters: {
     activeConnection: state => state.activePanel.connection,
@@ -219,8 +220,9 @@ export const useTabStore = defineStore('panel', {
       await saveConnection(conn);
     },
 
-    setPendingInsertQuery(query: string) {
+    setPendingInsertQuery(query: string, mode: 'cursor' | 'append_bottom' = 'cursor') {
       this.pendingInsertQuery = query;
+      this.pendingInsertMode = mode;
       this.pendingInsertToken += 1;
     },
 

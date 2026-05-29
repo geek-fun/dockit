@@ -4,8 +4,9 @@
 
 # DocKit
 
-**AI-native desktop client for NoSQL databases. Write queries in natural language. Manage DynamoDB, Elasticsearch, and OpenSearch from one interface.**
-**Fast. Local-first. No cloud dependencies.**
+**Open-source GUI client for Elasticsearch, OpenSearch, DynamoDB and MongoDB — one native desktop app for all your NoSQL databases.**
+
+**Privacy-first. Your data, your keys. Open source.**
 
 [![Release](https://img.shields.io/github/v/release/geek-fun/dockit?color=orange&label=release)](https://github.com/geek-fun/dockit/releases)
 [![Downloads](https://img.shields.io/github/downloads/geek-fun/dockit/total?color=orange)](https://github.com/geek-fun/dockit/releases)
@@ -17,45 +18,32 @@
 
 </div>
 
-## Features
+---
 
-DocKit is an open-source desktop GUI client for NoSQL databases. It replaces browser-based consoles and proprietary tools with a native app built on [Tauri](https://tauri.app/) + Vue 3 + [shadcn-vue](https://www.shadcn-vue.com/) + [UnoCSS](https://unocss.dev/).
+DocKit replaces browser consoles like Kibana and AWS Console with a single native desktop app. Describe what you need in natural language and get runnable queries, or use the Monaco-powered editors directly. Supports OpenAI, Anthropic, and DeepSeek — bring your own key.
 
-- **AI-powered queries.** Describe what you need and get accurate DynamoDB PartiQL or Elasticsearch queries. Schema aware. Bring your own OpenAI or DeepSeek key.
-- **Unified interface.** DynamoDB, Elasticsearch, OpenSearch — one app, zero context switching.
-- **Local-first.** Connections, queries, and history live on your machine. Zero telemetry. Works offline.
-
-### AI Assistant
-
-Ask "find users who signed up last week" or "aggregate sales by region" and get the query. Not just autocomplete. DocKit reads your table schemas and generates queries that actually run. Built-in support for OpenAI and DeepSeek.
-
-### DynamoDB
-
-- **Visual Query Builder.** Scan and query tables without writing code. Primary key filtering, advanced conditions, all from the UI.
-- **PartiQL Editor.** SQL-like syntax with autocomplete, syntax highlighting, and document formatting.
-- **Inline editing.** Update and delete items directly from query results.
-- **Table management.** Browse tables, manage indexes, check capacity and item counts.
-- **DynamoDB Local.** Point it at a local instance and develop offline. No AWS credentials needed.
-
-### Elasticsearch & OpenSearch
-
-- **Monaco Editor.** Same engine as VS Code. Syntax highlighting, autocomplete, your keyboard shortcuts.
-- **Cluster management.** Node health, shard state, index tracking, alias control.
-- **API key authentication.** Native Elasticsearch API key support.
-
-### Query History
-
-DocKit records every query as you run it. No save button. 500 entries per connection, stored on your machine. Copy a past query, load it back into the editor, or re-execute it. Covers PartiQL statements and visual UI form queries.
-
-### Import & Export
-
-JSON, CSV, JSONL. Batch operations handle millions of records. Move data between clusters, back up tables, or seed development environments.
-
-### Privacy & Security
-
-- DocKit does not phone home. No query data, no credentials, no analytics leave your machine.
-- Connection profiles are encrypted by your OS keychain.
-- No internet connection required. Air gap compatible.
+<div align="center">
+  <div style="display: inline-block; text-align: center; margin: 0 14px;">
+    <img src="src/assets/svg/elasticsearch.svg" width="36" height="36" alt=""><br>
+    Elasticsearch
+  </div>
+  <div style="display: inline-block; text-align: center; margin: 0 14px;">
+    <img src="src/assets/svg/db-opensearch.svg" width="36" height="36" alt=""><br>
+    OpenSearch
+  </div>
+  <div style="display: inline-block; text-align: center; margin: 0 14px;">
+    <img src="src/assets/svg/dynamoDB.svg" width="36" height="36" alt=""><br>
+    DynamoDB
+  </div>
+  <div style="display: inline-block; text-align: center; margin: 0 14px;">
+    <img src="src/assets/svg/mongodb.svg" width="36" height="36" alt=""><br>
+    MongoDB
+  </div>
+  <div style="display: inline-block; text-align: center; margin: 0 14px;">
+    <img src="src/assets/svg/easysearch.svg" width="36" height="36" alt=""><br>
+    EasySearch
+  </div>
+</div>
 
 ## Screenshots
 
@@ -67,27 +55,47 @@ JSON, CSV, JSONL. Batch operations handle millions of records. Move data between
 |:---:|:---:|
 | ![Visual Query](docs/screenshots/dockit-dynamodb-query-ui.png) | ![PartiQL](docs/screenshots/dockit-dynamodb-partiql.png) |
 
-## Supported Databases
+## Key Features
 
-| Database | Status |
-|---|---|
-| Elasticsearch | Supported |
-| OpenSearch | Supported |
-| DynamoDB | Supported |
-| MongoDB | In Progress |
-| Azure Cosmos DB | Planned |
+### Agentic Data Studio
 
-## Installation
+DocKit's data agent lets you interact with your databases through natural language. Describe what you need — the agent writes queries, inspects schemas, updates documents, deletes records, creates indexes, and returns results. Every operation runs through validated tools with built-in safety: fine-grained per-source permissions, a security gate requiring explicit confirmation before destructive actions, and a credential-safe architecture that never exposes connection secrets to the LLM. Supports OpenAI, Anthropic, and DeepSeek.
 
-| Platform | Download |
-|---|---|
-| **macOS** (Universal) | [DocKit\_universal.dmg](https://github.com/geek-fun/dockit/releases/latest) |
-| **Windows** (x64) | [DocKit\_x64-setup.exe](https://github.com/geek-fun/dockit/releases/latest) |
-| **Linux** (AppImage / deb) | [DocKit\_amd64.AppImage](https://github.com/geek-fun/dockit/releases/latest) |
+### Manage & Monitor
 
-All versions on the [releases page](https://github.com/geek-fun/dockit/releases).
+Interactive management panels for every supported database. Monitor node health, shard states, index status, and storage metrics. Manage indexes, aliases, table configurations, and collection metadata — all through a visual UI. No command-line needed.
+
+### DynamoDB
+
+Visual Query Builder for scan and query operations with primary key filtering and advanced conditions. PartiQL Editor with autocomplete and syntax highlighting. Inline edit, update, and delete items directly from results. Full table lifecycle — browse, create, modify tables, manage indexes, monitor capacity and item counts. Supports DynamoDB Local for offline development without AWS credentials.
+
+### MongoDB
+
+Connect with authentication, TLS, and replica set configurations. Full-featured query editor with autocomplete and result formatting. Document browser with pagination and inline CRUD. Manage view for indexes, storage stats, and collection metadata. Bulk write support. Query history with star/bookmark favorites, persisted per connection. Import and export collections in JSON, CSV, and JSONL.
+
+### Elasticsearch & OpenSearch
+
+Supported as separate connection types with independent configurations. Monaco-powered editor with full syntax highlighting and autocomplete. Cluster management — node health, shard state, index tracking, alias control. Native API key authentication for both Elasticsearch and OpenSearch.
+
+### Query History
+
+Every query recorded automatically. No save button needed. 500 entries per connection, stored locally. Copy, reload into the editor, or re-execute past queries. Covers PartiQL, MongoDB, and visual form queries.
+
+### Import & Export
+
+JSON, CSV, JSONL. Batch operations handle millions of records. Move data between clusters, back up tables, or seed development environments.
+
+### Privacy & Security
+
+DocKit does not phone home. No query data, credentials, or analytics leave your machine. Connection profiles encrypted by your OS keychain. No internet connection required — air gap compatible.
+
+### Accessibility
+
+Full keyboard navigation — tab through interactive elements, arrow keys in lists and trees, enter/space to activate. Action buttons and query results fully keyboard accessible. Screen reader friendly.
+
 
 ## Development
+DocKit is Built with [Tauri](https://tauri.app/) (Rust), Vue 3 + TypeScript, [shadcn-vue](https://www.shadcn-vue.com/), [UnoCSS](https://unocss.dev/), [Monaco Editor](https://microsoft.github.io/monaco-editor/), and Pinia.
 
 ### Prerequisites
 
@@ -111,30 +119,22 @@ npm run tauri build          # current platform
 npm run build:macos          # macOS Universal
 ```
 
-### Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Desktop Shell | [Tauri](https://tauri.app/) (Rust) |
-| Frontend | Vue 3 + TypeScript |
-| UI Components | [shadcn-vue](https://www.shadcn-vue.com/) (Radix Vue) |
-| Styling | [UnoCSS](https://unocss.dev/) |
-| Editor | [Monaco Editor](https://microsoft.github.io/monaco-editor/) |
-| State | Pinia |
 
 ## Contributing
 
 Issues and PRs welcome. Check the [contribution guide](CONTRIBUTION.md).
 
-## Community
+## Community & Sponsor
 
-<img src="docs/images/wechat_official.png" alt="WeChat Official Account" width="240"/>
-
-## Sponsor
-
-[GitHub Sponsors](https://github.com/sponsors/geek-fun) if DocKit helps your work.
-
-<img src="docs/images/wechat_ponsor.jpg" alt="WeChat Sponsor QR" width="200"/>
+<div style="text-align: left;">
+  <div style="display: inline-block; vertical-align: top; margin: 0 120px 0 0;">
+    <img src="docs/images/wechat_official.png" alt="WeChat Official Account" width="320">
+  </div>
+  <div style="display: inline-block; vertical-align: top;">
+    <img src="docs/images/wechat_ponsor.jpg" alt="WeChat Sponsor QR" width="260"><br><br>
+    <a href="https://github.com/sponsors/geek-fun">GitHub Sponsors</a> if DocKit helps your work.
+  </div>
+</div>
 
 ## License
 

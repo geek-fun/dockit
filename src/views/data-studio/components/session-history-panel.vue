@@ -2,9 +2,18 @@
   <div class="history-panel">
     <div class="history-header">
       <span class="history-title">{{ $t('dataStudio.history.title') }}</span>
-      <button class="icon-btn" @click="$emit('new-session')">
-        <span class="i-carbon-add h-4 w-4" />
-      </button>
+      <div class="history-header-actions">
+        <button
+          class="icon-btn"
+          :title="$t('dataStudio.history.newSession')"
+          @click="$emit('new-session')"
+        >
+          <span class="i-carbon-add h-4 w-4" />
+        </button>
+        <button class="icon-btn close-btn" :title="$t('common.close')" @click="$emit('close')">
+          <span class="i-carbon-close h-4 w-4" />
+        </button>
+      </div>
     </div>
 
     <div class="session-list">
@@ -43,6 +52,7 @@ defineEmits<{
   select: [sessionId: string];
   delete: [sessionId: string];
   'new-session': [];
+  close: [];
 }>();
 
 const { t } = useI18n();
@@ -101,6 +111,12 @@ const formatTime = (session: AgentSession): string => {
   padding: 12px 16px;
   border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
+}
+
+.history-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .history-title {
