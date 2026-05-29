@@ -15,36 +15,21 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check:
+  # ── Lint & Audit (once on Ubuntu, fast) ─────────────────
+
+  lint-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
 
     steps:
       - uses: actions/checkout@v5
-
-      # ── Install ───────────────────────────────────────────
 
       - uses: actions/setup-node@v5
         with:
           node-version: 24.x
           cache: npm
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-llvm-cov
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
-
       - run: npm ci
-
-      # ── Audit (lint + security) ──────────────────────────
 
       - name: Lint & audit
         run: |
@@ -56,16 +41,57 @@ jobs:
           echo "LINT=$rc1" >> $GITHUB_ENV
           echo "AUDIT=$rc2" >> $GITHUB_ENV
 
-      - name: Report lint/audit failures
+      - name: Report failures
         if: env.LINT != '0' || env.AUDIT != '0'
         run: |
           [ "$LINT" = "0" ] || echo "::error::lint failed (exit $LINT)"
           [ "$AUDIT" = "0" ] || echo "::error::audit failed (exit $AUDIT)"
           exit 1
 
-      # ── Tests (JS + Rust in parallel) ────────────────────
+  # ── Build (per OS: install → test → build → tauri) ──────
 
-      - name: JavaScript tests & Rust tests
+  build:
+    needs: [lint-audit]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        node-version: [24.x]
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # ── Install ─────────────────────────────────────────
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-llvm-cov
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Install system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          echo "deb http://gb.archive.ubuntu.com/ubuntu jammy main" | sudo tee -a /etc/apt/sources.list
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
+
+      - run: npm ci
+
+      # ── Tests (JS + Rust in parallel per OS) ────────────
+
+      - name: Tests
         run: |
           set +e
           npm run test:ci & pid1=$!
@@ -82,9 +108,10 @@ jobs:
           [ "$RUST_TEST" = "0" ] || echo "::error::Rust tests failed (exit $RUST_TEST)"
           exit 1
 
-      # ── Coverage ─────────────────────────────────────────
+      # ── Coverage (Ubuntu only) ──────────────────────────
 
       - name: Rust coverage
+        if: runner.os == 'Linux'
         run: |
           cd src-tauri
           cargo llvm-cov --lcov --output-path coverage/lcov.info
@@ -92,6 +119,7 @@ jobs:
           sed -i 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
 
       - name: Upload coverage to Codecov
+        if: runner.os == 'Linux'
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -100,39 +128,7 @@ jobs:
           files: ./coverage/lcov.info,./src-tauri/coverage/lcov.info
           fail_ci_if_error: false
 
-  # ── Builds (matrix on 3 OS) ─────────────────────────────
-
-  build:
-    needs: [check]
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
-        node-version: [24.x]
-
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: |
-          echo "deb http://gb.archive.ubuntu.com/ubuntu jammy main" | sudo tee -a /etc/apt/sources.list
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
-
-      - name: Install Rust stable
-        if: runner.os == 'Linux'
-        uses: dtolnay/rust-toolchain@stable
-
-      - run: npm ci
+      # ── Build & Package ─────────────────────────────────
 
       - run: npm run build
         env:
