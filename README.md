@@ -23,11 +23,13 @@
 DocKit replaces browser consoles like Kibana and AWS Console with a single native desktop app. Describe what you need in natural language and get runnable queries, or use the Monaco-powered editors directly. Supports OpenAI, Anthropic, and DeepSeek — bring your own key.
 
 <p align="center">
-  <img src="src/assets/svg/elasticsearch.svg" width="28" height="28" align="middle"> Elasticsearch &nbsp;&nbsp;&nbsp;
-  <img src="src/assets/svg/db-opensearch.svg" width="28" height="28" align="middle"> OpenSearch &nbsp;&nbsp;&nbsp;
-  <img src="src/assets/svg/dynamoDB.svg" width="28" height="28" align="middle"> DynamoDB &nbsp;&nbsp;&nbsp;
-  <img src="src/assets/svg/mongodb.svg" width="28" height="28" align="middle"> MongoDB &nbsp;&nbsp;&nbsp;
-  <img src="src/assets/svg/easysearch.svg" width="28" height="28" align="middle"> EasySearch
+  <img src="src/assets/svg/elasticsearch.svg" width="28" height="28"> &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/db-opensearch.svg" width="28" height="28"> &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/dynamoDB.svg" width="28" height="28"> &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/mongodb.svg" width="28" height="28"> &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="src/assets/svg/easysearch.svg" width="28" height="28">
+  <br>
+  Elasticsearch &nbsp;&nbsp;&nbsp;&nbsp; OpenSearch &nbsp;&nbsp;&nbsp;&nbsp; DynamoDB &nbsp;&nbsp;&nbsp;&nbsp; MongoDB &nbsp;&nbsp;&nbsp;&nbsp; EasySearch
 </p>
 
 ## Screenshots
