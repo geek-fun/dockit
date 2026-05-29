@@ -16,6 +16,8 @@ export type ChatMessage = {
   toolCalls?: Array<AgentToolCall>;
   toolCallId?: string;
   compaction?: CompactionMarker;
+  compactionInProgress?: boolean;
+  preparingInProgress?: boolean;
 };
 
 export type ChatSessionStatus = 'idle' | 'running' | 'waiting_confirmation' | 'error' | 'stopped';

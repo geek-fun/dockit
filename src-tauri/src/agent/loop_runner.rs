@@ -13,6 +13,7 @@ use crate::agent::config::{build_headers, get_base_url};
 use crate::agent::executor::ToolEnvelope;
 use crate::agent::loop_runner_support::{load_messages_for_compact, StoredMessage};
 use crate::agent::tool_executor::ToolExecutor;
+use crate::agent::tools::get_tool_required_params;
 use crate::common::http_client::create_http_client;
 use crate::db::AgentDb;
 
@@ -718,6 +719,10 @@ async fn run_agent_loop_inner(
 
     let mut cumulative_input_tokens: usize = 0;
     let mut iter_count: usize = 0;
+    // Tracks consecutive argument-parse failures per tool name.
+    // When a tool hits 2 consecutive failures, the loop stops to avoid
+    // burning LLM calls on a model that can't produce valid JSON arguments.
+    let mut consecutive_parse_failures: HashMap<String, usize> = HashMap::new();
 
     loop {
         if iter_count >= max_iterations {
@@ -905,7 +910,10 @@ async fn run_agent_loop_inner(
             let tool_call_id = tool_call_id.clone();
             let tool_name = tc.name.clone();
             let arguments_value: Value = match serde_json::from_str(&tc.arguments) {
-                Ok(v) => v,
+                Ok(v) => {
+                    consecutive_parse_failures.remove(&tool_name);
+                    v
+                }
                 Err(e) => {
                     insert_tool_call(
                         db,
@@ -916,12 +924,46 @@ async fn run_agent_loop_inner(
                         &tc.arguments,
                         "failed",
                     )?;
+                    let required = get_tool_required_params(&tool_name)
+                        .map(|p| format!(" Required parameters: {}.", p))
+                        .unwrap_or_default();
                     let err_msg = json!({
                         "tool_call_id": tool_call_id,
                         "name": tool_name,
-                        "content": format!("Invalid JSON arguments from LLM: {}", e),
+                        "content": format!("Invalid arguments for '{}': {}.{}", tool_name, e, required),
                     });
                     insert_message(db, app, settings, &new_id(), session_id, "tool", &err_msg.to_string())?;
+
+                    let fail_count = consecutive_parse_failures
+                        .entry(tool_name.clone())
+                        .or_insert(0);
+                    *fail_count += 1;
+                    if *fail_count >= 2 {
+                        let param_hint = get_tool_required_params(&tool_name)
+                            .unwrap_or_default();
+                        let stuck_msg = if param_hint.is_empty() {
+                            format!(
+                                "Model keeps generating invalid tool calls for '{}'. \
+                                 Try rephrasing your request or switch to a model with better \
+                                 function-calling support.",
+                                tool_name,
+                            )
+                        } else {
+                            format!(
+                                "Model keeps generating invalid tool calls for '{}'. \
+                                 The tool requires valid JSON arguments with fields: {}. \
+                                 Try rephrasing your request to include all required parameters, \
+                                 or switch to a model with better function-calling support.",
+                                tool_name, param_hint,
+                            )
+                        };
+                        insert_message(db, app, settings, &new_id(), session_id, "assistant", &stuck_msg)?;
+                        let _ = app.emit(
+                            "agent-loop-error",
+                            json!({"session_id": session_id, "error": stuck_msg}),
+                        );
+                        return Ok(());
+                    }
                     continue;
                 }
             };
