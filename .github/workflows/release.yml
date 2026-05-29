@@ -81,9 +81,71 @@ jobs:
             })
             return data.id
 
+  test:
+    name: Lint & Test
+    needs: [check-version]
+    if: needs.check-version.outputs.is_new_version == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint:check
+
+      - run: npm audit --audit-level=critical
+
+      - run: npm run test:ci
+
+      - name: Upload TypeScript coverage to Codecov
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: typescript
+          fail_ci_if_error: false
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Run Rust tests
+        working-directory: src-tauri
+        run: cargo test
+
+      - name: Run Rust coverage
+        working-directory: src-tauri
+        run: |
+          cargo llvm-cov --lcov --output-path coverage/lcov.info
+          sed -i 's|^SF:src/|SF:src-tauri/src/|' coverage/lcov.info
+          sed -i 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
+
+      - name: Upload Rust coverage to Codecov
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./src-tauri/coverage/lcov.info
+          flags: rust
+          fail_ci_if_error: false
+
   release:
     name: ${{ matrix.name }}
-    needs: [check-version, prepare]
+    needs: [check-version, prepare, test]
     if: needs.check-version.outputs.is_new_version == 'true'
     permissions:
       contents: write
@@ -115,12 +177,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install cargo-llvm-cov
-        if: runner.os == 'Linux'
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-llvm-cov
-
       - name: Use Node.js
         uses: actions/setup-node@v5
         with:
@@ -136,35 +192,6 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm ci
-
-      - run: npm run lint:check
-
-      - name: Run Rust tests
-        working-directory: src-tauri
-        run: cargo test
-
-      - run: npm audit --audit-level=critical
-
-      - run: npm run test:ci
-
-      - name: Run Rust coverage
-        if: runner.os == 'Linux'
-        working-directory: src-tauri
-        run: |
-          cargo llvm-cov --lcov --output-path coverage/lcov.info
-          # Normalize source paths: llvm-cov generates relative to crate root
-          # Prefix with 'src-tauri/' so Codecov resolves paths from repo root
-          sed -i 's|^SF:src/|SF:src-tauri/src/|' coverage/lcov.info
-          sed -i 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
-
-      - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-          files: ./coverage/lcov.info,./src-tauri/coverage/lcov.info
 
       - run: npm run build
         env:
