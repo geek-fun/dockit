@@ -833,29 +833,18 @@ details[open] .activity-chevron {
 
 .markdown-body :deep(pre) {
   background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
-  padding: 8px 12px;
-  overflow-x: auto;
-  font-size: 12px;
   margin: 8px 0;
-}
-
-.markdown-body :deep(code) {
-  font-size: 12px;
-  background: hsl(var(--muted));
-  padding: 1px 4px;
-  border-radius: 3px;
+  overflow: hidden;
 }
 
 .markdown-body :deep(pre code) {
+  font-size: 12px;
   background: none;
   padding: 0;
-}
-
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-  padding-left: 20px;
-  margin: 4px 0;
+  border: none;
+  font-weight: 400;
 }
 
 .markdown-body :deep(table) {
@@ -870,7 +859,6 @@ details[open] .activity-chevron {
   border: 1px solid hsl(var(--border));
   padding: 5px 10px;
   text-align: left;
-  white-space: nowrap;
 }
 
 .markdown-body :deep(th) {
@@ -899,25 +887,34 @@ details[open] .activity-chevron {
 }
 
 .markdown-body :deep(h1) {
-  font-size: 18px;
-  margin-top: 20px;
+  font-size: 22px;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 6px;
 }
 .markdown-body :deep(h2) {
-  font-size: 16px;
+  font-size: 18px;
+  margin-top: 20px;
+  margin-bottom: 10px;
   border-bottom: 1px solid hsl(var(--border));
   padding-bottom: 4px;
 }
 .markdown-body :deep(h3) {
-  font-size: 15px;
+  font-size: 16px;
+  margin-top: 18px;
 }
 .markdown-body :deep(h4) {
-  font-size: 14px;
+  font-size: 15px;
+  margin-top: 16px;
 }
 .markdown-body :deep(h5) {
-  font-size: 13px;
+  font-size: 14px;
+  margin-top: 14px;
 }
 .markdown-body :deep(h6) {
-  font-size: 12px;
+  font-size: 13px;
+  margin-top: 14px;
   color: hsl(var(--muted-foreground));
 }
 
@@ -936,16 +933,11 @@ details[open] .activity-chevron {
   text-underline-offset: 2px;
 }
 
-.markdown-body :deep(a:hover) {
-  opacity: 0.85;
-}
-
 .markdown-body :deep(blockquote) {
   margin: 8px 0;
-  padding: 4px 12px;
-  border-left: 3px solid hsl(var(--primary) / 0.4);
-  color: hsl(var(--muted-foreground));
-  font-style: italic;
+  padding: 4px 14px;
+  border-left: 3px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground) / 0.85);
 }
 
 .markdown-body :deep(blockquote p) {
@@ -953,9 +945,11 @@ details[open] .activity-chevron {
 }
 
 .markdown-body :deep(hr) {
+  height: 1px;
+  padding: 0;
   margin: 16px 0;
-  border: none;
-  border-top: 1px solid hsl(var(--border));
+  background-color: hsl(var(--border));
+  border: 0;
 }
 
 .markdown-body :deep(ul),
@@ -976,6 +970,27 @@ details[open] .activity-chevron {
 .markdown-body :deep(del) {
   text-decoration: line-through;
   opacity: 0.6;
+}
+
+/* ── Task list checkboxes ── */
+.markdown-body :deep(.task-list-item) {
+  list-style: none;
+  margin-left: -20px;
+}
+
+.markdown-body :deep(.task-list-item input[type='checkbox']) {
+  margin: 0 6px 0 0;
+  accent-color: hsl(var(--primary));
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  cursor: default;
+}
+
+/* ── Link hover ── */
+.markdown-body :deep(a:hover) {
+  text-decoration: underline;
+  opacity: 0.85;
 }
 .message-bubble.message-system {
   justify-content: stretch;

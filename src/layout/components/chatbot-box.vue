@@ -9,6 +9,7 @@
           @select="switchSession"
           @delete="deleteSession"
           @new-session="handleNewSession"
+          @close="historyPanelOpen = false"
         />
       </div>
     </transition>

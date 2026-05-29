@@ -5,6 +5,7 @@ export const enUS = {
     drop: 'Drop',
     confirm: 'Confirm',
     delete: 'Delete',
+    close: 'Close',
   },
   aside: {
     manage: 'Manage',

@@ -5,6 +5,7 @@ export const zhCN = {
     drop: '删除',
     confirm: '确认',
     delete: '删除',
+    close: '关闭',
   },
   aside: {
     manage: '管理',
