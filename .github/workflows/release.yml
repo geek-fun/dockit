@@ -122,6 +122,11 @@ jobs:
         with:
           tool: cargo-llvm-cov
 
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
+
       - name: Run Rust tests
         working-directory: src-tauri
         run: cargo test
