@@ -22,7 +22,7 @@
 
 DocKit 用一个原生桌面应用替代 Kibana 和 AWS Console 等浏览器控制台。用自然语言描述需求，即可生成可执行的查询；也可以直接使用 Monaco 驱动的编辑器。支持 OpenAI、Anthropic 和 DeepSeek —— 自带密钥即可使用。
 
-<table align="center">
+<table align="center" border="0">
   <tr align="center">
     <td><img src="src/assets/svg/elasticsearch.svg" width="28" height="28"><br>Elasticsearch</td>
     <td><img src="src/assets/svg/db-opensearch.svg" width="28" height="28"><br>OpenSearch</td>

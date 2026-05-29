@@ -22,7 +22,7 @@
 
 DocKit replaces browser consoles like Kibana and AWS Console with a single native desktop app. Describe what you need in natural language and get runnable queries, or use the Monaco-powered editors directly. Supports OpenAI, Anthropic, and DeepSeek — bring your own key.
 
-<table align="center">
+<table align="center" border="0">
   <tr align="center">
     <td><img src="src/assets/svg/elasticsearch.svg" width="28" height="28"><br>Elasticsearch</td>
     <td><img src="src/assets/svg/db-opensearch.svg" width="28" height="28"><br>OpenSearch</td>
