@@ -404,8 +404,12 @@ const handleAddToEditor = async () => {
   const historyQuery = `${commentPrefix} From history\n${queryText}`;
 
   // Set content on the panel directly (Monaco reads this during initialization for newly created panels)
+  // Only set content for empty panels — for existing panels, rely on the pending insert below
+  // to avoid duplicating the query text.
   const current = tabStore.activePanel.content || '';
-  tabStore.activePanel.content = current ? current + '\n\n' + historyQuery : historyQuery;
+  if (!current) {
+    tabStore.activePanel.content = historyQuery;
+  }
 
   // Set pending query for connect view to insert at end of document
   setPendingInsertQuery(historyQuery, 'append_bottom');

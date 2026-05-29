@@ -84,7 +84,8 @@ const getSidebarContext = (): ChatContextConfig => {
 
 export const useSidebarChatAgent = () => {
   const store = useDataStudioStore();
-  const { confirmationRules, sessions: rawSessions, activeSessionId } = storeToRefs(store);
+  const { confirmationRules, sessions: rawSessions } = storeToRefs(store);
+  const sidebarSessionId = computed(() => store.sidebarSessionId);
 
   const sessions = computed(() => rawSessions.value.map(adaptSession));
 
@@ -99,7 +100,7 @@ export const useSidebarChatAgent = () => {
     feature: 'sidebarAssistant',
     sessionStore: {
       sessions: sessions as unknown as Ref<Array<ChatSession>>,
-      activeSessionId: activeSessionId as Ref<string | undefined>,
+      activeSessionId: sidebarSessionId as Ref<string | undefined>,
       activeSession: activeSession as ComputedRef<ChatSession | undefined>,
       addMessage: (sessionId: string, message: ChatMessage) =>
         store.addMessage(sessionId, {

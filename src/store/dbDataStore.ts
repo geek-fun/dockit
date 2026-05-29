@@ -295,7 +295,7 @@ export const useDbDataStore = defineStore('dbDataStore', {
       }
 
       try {
-        const result = await dynamoApi.executeStatement(connection, tableName, {
+        const result = await dynamoApi.executeStatement(connection, {
           statement,
           nextToken: options?.nextToken,
         });

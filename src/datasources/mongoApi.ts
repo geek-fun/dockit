@@ -439,6 +439,7 @@ export const mongoApi = {
     sort?: string,
     skip?: number,
     limit?: number,
+    projection?: string,
   ): Promise<MongoFindDocumentsResult> => {
     try {
       const raw = await invokeCapability(
@@ -447,6 +448,7 @@ export const mongoApi = {
           collection,
           filter: filter ? jsonify.parse(filter) : {},
           sort: sort ? jsonify.parse(sort) : undefined,
+          projection: projection ? jsonify.parse(projection) : undefined,
           skip,
           limit: limit ?? 20,
         },

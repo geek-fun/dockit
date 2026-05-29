@@ -331,7 +331,6 @@ const dynamoApi = {
 
   executeStatement: async (
     con: DynamoDBConnection,
-    _tableName: string,
     params: PartiQLParams,
   ): Promise<PartiQLResult> => {
     // Route to the correct capability based on statement type
@@ -346,7 +345,11 @@ const dynamoApi = {
 
     const raw = await invokeCapability(
       capabilityName,
-      { statement: params.statement },
+      {
+        statement: params.statement,
+        next_token: params.nextToken ?? null,
+        limit: params.limit ?? null,
+      },
       String(con.id),
     );
     return parseDynamoCapabilityResponse<PartiQLResult>(raw);
