@@ -30,6 +30,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         if: runner.os == 'Linux'
 
+      - name: Install cargo-llvm-cov
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v5
         with:
@@ -48,9 +54,19 @@ jobs:
 
       - run: npm run lint:check
 
+      - name: Run Rust tests
+        if: runner.os == 'Linux'
+        working-directory: src-tauri
+        run: cargo test
+
       - run: npm audit --audit-level=critical
 
       - run: npm run test:ci
+
+      - name: Run Rust coverage
+        if: runner.os == 'Linux'
+        working-directory: src-tauri
+        run: cargo llvm-cov --lcov --output-path coverage/lcov.info
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
@@ -59,6 +75,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: false
+          files: ./coverage/lcov.info,./src-tauri/coverage/lcov.info
 
       - run: npm run build
         env:

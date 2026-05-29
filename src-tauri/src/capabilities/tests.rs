@@ -183,6 +183,25 @@ mod tests {
         assert!(reg.get("dynamo__execute_delete").is_some(), "dynamo__execute_delete should be registered");
         assert!(reg.get("dynamo__describe_table").is_some(), "dynamo__describe_table should be registered");
         assert!(reg.get("dynamo__list_tables").is_some(), "dynamo__list_tables should be registered");
+        assert!(reg.get("dynamo__query_table").is_some(), "dynamo__query_table should be registered");
+        assert!(reg.get("dynamo__scan_table").is_some(), "dynamo__scan_table should be registered");
+        assert!(reg.get("dynamo__create_item").is_some(), "dynamo__create_item should be registered");
+        assert!(reg.get("dynamo__batch_write_items").is_some(), "dynamo__batch_write_items should be registered");
+        assert!(reg.get("dynamo__update_item").is_some(), "dynamo__update_item should be registered");
+        assert!(reg.get("dynamo__delete_item").is_some(), "dynamo__delete_item should be registered");
+        assert!(reg.get("dynamo__create_gsi").is_some(), "dynamo__create_gsi should be registered");
+        assert!(reg.get("dynamo__update_gsi").is_some(), "dynamo__update_gsi should be registered");
+        assert!(reg.get("dynamo__delete_gsi").is_some(), "dynamo__delete_gsi should be registered");
+        assert!(reg.get("dynamo__describe_continuous_backups").is_some(), "dynamo__describe_continuous_backups should be registered");
+        assert!(reg.get("dynamo__describe_ttl").is_some(), "dynamo__describe_ttl should be registered");
+        assert!(reg.get("dynamo__get_table_metrics").is_some(), "dynamo__get_table_metrics should be registered");
+        assert!(reg.get("dynamo__create_table").is_some(), "dynamo__create_table should be registered");
+        assert!(reg.get("dynamo__delete_table").is_some(), "dynamo__delete_table should be registered");
+        assert!(reg.get("dynamo__truncate_table").is_some(), "dynamo__truncate_table should be registered");
+        assert!(reg.get("dynamo__update_table_config").is_some(), "dynamo__update_table_config should be registered");
+        assert!(reg.get("dynamo__update_ttl").is_some(), "dynamo__update_ttl should be registered");
+        assert!(reg.get("dynamo__update_pitr").is_some(), "dynamo__update_pitr should be registered");
+        assert!(reg.get("dynamo__update_streams").is_some(), "dynamo__update_streams should be registered");
 
         assert!(reg.get("mongo__find").is_some(), "mongo__find should be registered");
         assert!(reg.get("mongo__aggregate").is_some(), "mongo__aggregate should be registered");
@@ -191,12 +210,31 @@ mod tests {
         assert!(reg.get("mongo__delete_many").is_some(), "mongo__delete_many should be registered");
         assert!(reg.get("mongo__list_collections").is_some(), "mongo__list_collections should be registered");
         assert!(reg.get("mongo__list_databases").is_some(), "mongo__list_databases should be registered");
+        assert!(reg.get("mongo__collection_stats").is_some(), "mongo__collection_stats should be registered");
+        assert!(reg.get("mongo__database_stats").is_some(), "mongo__database_stats should be registered");
+        assert!(reg.get("mongo__create_database").is_some(), "mongo__create_database should be registered");
+        assert!(reg.get("mongo__drop_database").is_some(), "mongo__drop_database should be registered");
+        assert!(reg.get("mongo__create_collection").is_some(), "mongo__create_collection should be registered");
+        assert!(reg.get("mongo__drop_collection").is_some(), "mongo__drop_collection should be registered");
+        assert!(reg.get("mongo__server_status").is_some(), "mongo__server_status should be registered");
+        assert!(reg.get("mongo__repl_set_status").is_some(), "mongo__repl_set_status should be registered");
+        assert!(reg.get("mongo__shard_status").is_some(), "mongo__shard_status should be registered");
+        assert!(reg.get("mongo__count_documents").is_some(), "mongo__count_documents should be registered");
+        assert!(reg.get("mongo__update_document").is_some(), "mongo__update_document should be registered");
+        assert!(reg.get("mongo__delete_document").is_some(), "mongo__delete_document should be registered");
+        assert!(reg.get("mongo__rename_collection").is_some(), "mongo__rename_collection should be registered");
+        assert!(reg.get("mongo__clone_collection").is_some(), "mongo__clone_collection should be registered");
+        assert!(reg.get("mongo__truncate_collection").is_some(), "mongo__truncate_collection should be registered");
+        assert!(reg.get("mongo__list_indexes").is_some(), "mongo__list_indexes should be registered");
+        assert!(reg.get("mongo__create_index").is_some(), "mongo__create_index should be registered");
+        assert!(reg.get("mongo__drop_index").is_some(), "mongo__drop_index should be registered");
+        assert!(reg.get("mongo__sample_documents").is_some(), "mongo__sample_documents should be registered");
 
         assert!(reg.get("dockit__list_connections").is_some(), "dockit__list_connections should be registered");
 
-        // Verify count: 16 ES + 5 Dynamo + 7 Mongo + 1 dockit = 29
-        let count = reg.agent_tools().len();
-        assert_eq!(count, 29, "expected 29 agent tools, got {}", count);
+        // Verify count: 16 ES + 24 Dynamo + 26 Mongo + 1 dockit = 67
+        let count = reg.iter().count();
+        assert_eq!(count, 67, "expected 67 registered tools, got {}", count);
     }
 
     #[tokio::test]
