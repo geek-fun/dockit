@@ -1,0 +1,47 @@
+codecov:
+  require_ci_to_pass: true
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 2%
+      typescript:
+        target: auto
+        threshold: 2%
+        flags:
+          - typescript
+      rust:
+        target: auto
+        threshold: 2%
+        flags:
+          - rust
+    patch:
+      default:
+        target: auto
+        threshold: 5%
+
+flag_management:
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: rust
+      paths:
+        - src-tauri/src/
+      carryforward: true
+    - name: typescript
+      paths:
+        - src/
+        - tests/
+      carryforward: true
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+
+ignore:
+  - "*.test.ts"
+  - "*.spec.ts"
+  - "**/tests/"

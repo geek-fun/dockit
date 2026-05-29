@@ -66,7 +66,12 @@ jobs:
       - name: Run Rust coverage
         if: runner.os == 'Linux'
         working-directory: src-tauri
-        run: cargo llvm-cov --lcov --output-path coverage/lcov.info
+        run: |
+          cargo llvm-cov --lcov --output-path coverage/lcov.info
+          # Normalize source paths: llvm-cov generates relative to crate root
+          # Prefix with 'src-tauri/' so Codecov resolves paths from repo root
+          sed -i 's|^SF:src/|SF:src-tauri/src/|' coverage/lcov.info
+          sed -i 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
 
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
