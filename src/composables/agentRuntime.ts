@@ -300,6 +300,22 @@ const initAgentRuntime = async (): Promise<void> => {
         phase: 'waiting_llm',
         iter: iter_count,
       });
+      // Insert empty streaming assistant message so the bubble shows
+      // "Waiting for model..." while the LLM is processing, before
+      // any thinking/content deltas arrive.
+      const session = store.sessions.find(s => s.id === session_id);
+      if (
+        session &&
+        !session.messages.some(m => m.role === 'assistant' && m.status === 'streaming')
+      ) {
+        store.addMessage(session_id, {
+          id: ulid(),
+          role: 'assistant',
+          content: '',
+          status: 'streaming',
+          timestamp: Date.now(),
+        });
+      }
     }),
     onAgentLoopCompacting(({ session_id, phase }) => {
       const store = useDataStudioStore();

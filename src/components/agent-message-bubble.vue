@@ -78,10 +78,7 @@
         </button>
       </div>
       <div v-if="message.compaction.summary" v-show="summaryOpen" class="compaction-summary-body">
-        <MarkdownRender
-          :markdown="message.compaction.summary"
-          class="markdown-body prose prose-sm max-w-none"
-        />
+        <MarkdownRender :markdown="message.compaction.summary" class="markdown-body" />
       </div>
     </div>
     <div v-else-if="normalizedRole === 'assistant'" class="assistant-wrapper">
@@ -160,18 +157,12 @@
             <span v-if="message.thinking" class="activity-chevron i-carbon-chevron-down" />
           </summary>
           <div v-if="message.thinking" v-auto-stick class="activity-body thinking-body">
-            <MarkdownRender
-              :markdown="message.thinking"
-              class="markdown-body prose prose-sm max-w-none"
-            />
+            <MarkdownRender :markdown="message.thinking" class="markdown-body" />
           </div>
         </details>
 
         <div v-if="message.content && message.toolCalls?.length" class="activity-inline-content">
-          <MarkdownRender
-            :markdown="message.content"
-            class="markdown-body prose prose-sm max-w-none"
-          />
+          <MarkdownRender :markdown="message.content" class="markdown-body" />
         </div>
 
         <template v-for="tc in message.toolCalls" :key="tc.id">
@@ -240,10 +231,7 @@
         v-if="message.content && !message.toolCalls?.length"
         class="message-content assistant-content"
       >
-        <MarkdownRender
-          :markdown="message.content"
-          class="markdown-body prose prose-sm max-w-none"
-        />
+        <MarkdownRender :markdown="message.content" class="markdown-body" />
       </div>
     </div>
   </div>
@@ -845,29 +833,18 @@ details[open] .activity-chevron {
 
 .markdown-body :deep(pre) {
   background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
   border-radius: 6px;
-  padding: 8px 12px;
-  overflow-x: auto;
-  font-size: 12px;
   margin: 8px 0;
-}
-
-.markdown-body :deep(code) {
-  font-size: 12px;
-  background: hsl(var(--background));
-  padding: 1px 4px;
-  border-radius: 3px;
+  overflow: hidden;
 }
 
 .markdown-body :deep(pre code) {
+  font-size: 12px;
   background: none;
   padding: 0;
-}
-
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-  padding-left: 20px;
-  margin: 4px 0;
+  border: none;
+  font-weight: 400;
 }
 
 .markdown-body :deep(table) {
@@ -882,7 +859,6 @@ details[open] .activity-chevron {
   border: 1px solid hsl(var(--border));
   padding: 5px 10px;
   text-align: left;
-  white-space: nowrap;
 }
 
 .markdown-body :deep(th) {
@@ -895,7 +871,127 @@ details[open] .activity-chevron {
   background: hsl(var(--muted) / 0.4);
 }
 
-/* ── Compaction marker ── */
+/* ── Markdown typography (GitHub-like) ──────────────────────────── */
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3),
+.markdown-body :deep(h4),
+.markdown-body :deep(h5),
+.markdown-body :deep(h6) {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: hsl(var(--foreground));
+}
+
+.markdown-body :deep(h1) {
+  font-size: 22px;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 6px;
+}
+.markdown-body :deep(h2) {
+  font-size: 18px;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 4px;
+}
+.markdown-body :deep(h3) {
+  font-size: 16px;
+  margin-top: 18px;
+}
+.markdown-body :deep(h4) {
+  font-size: 15px;
+  margin-top: 16px;
+}
+.markdown-body :deep(h5) {
+  font-size: 14px;
+  margin-top: 14px;
+}
+.markdown-body :deep(h6) {
+  font-size: 13px;
+  margin-top: 14px;
+  color: hsl(var(--muted-foreground));
+}
+
+.markdown-body :deep(strong) {
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+
+.markdown-body :deep(em) {
+  font-style: italic;
+}
+
+.markdown-body :deep(a) {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.markdown-body :deep(blockquote) {
+  margin: 8px 0;
+  padding: 4px 14px;
+  border-left: 3px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground) / 0.85);
+}
+
+.markdown-body :deep(blockquote p) {
+  margin: 4px 0;
+}
+
+.markdown-body :deep(hr) {
+  height: 1px;
+  padding: 0;
+  margin: 16px 0;
+  background-color: hsl(var(--border));
+  border: 0;
+}
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  padding-left: 20px;
+  margin: 4px 0;
+}
+
+.markdown-body :deep(li) {
+  margin: 2px 0;
+}
+
+.markdown-body :deep(li > ul),
+.markdown-body :deep(li > ol) {
+  margin: 0;
+}
+
+.markdown-body :deep(del) {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* ── Task list checkboxes ── */
+.markdown-body :deep(.task-list-item) {
+  list-style: none;
+  margin-left: -20px;
+}
+
+.markdown-body :deep(.task-list-item input[type='checkbox']) {
+  margin: 0 6px 0 0;
+  accent-color: hsl(var(--primary));
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  cursor: default;
+}
+
+/* ── Link hover ── */
+.markdown-body :deep(a:hover) {
+  text-decoration: underline;
+  opacity: 0.85;
+}
 .message-bubble.message-system {
   justify-content: stretch;
   margin-bottom: 12px;

@@ -1,15 +1,20 @@
 <template>
   <!-- eslint-disable-next-line vue/no-v-html -->
-  <div v-html="parsedMarkdown"></div>
+  <div @click="handleActionClick" v-html="parsedMarkdown"></div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import MarkdownIt from 'markdown-it';
+import taskLists from 'markdown-it-task-lists';
+import DOMPurify from 'dompurify';
 import hljs from 'highlight.js'; // https://highlightjs.org
 
-import { useAppStore, useCodeActionStore } from '../store';
+import { useAppStore } from '../store';
+import { useTabStore } from '@/store/tabStore';
+import { useMessageService } from '@/composables';
 
 const props = defineProps({
   markdown: {
@@ -33,17 +38,21 @@ watch(
   { immediate: true },
 );
 
-const codeActionStore = useCodeActionStore();
-const { insertBuffer } = storeToRefs(codeActionStore);
+const tabStore = useTabStore();
+const message = useMessageService();
+const { t } = useI18n();
 
 const parsedMarkdown = ref('');
 
 const md = new MarkdownIt({
+  linkify: true,
+  breaks: true,
   highlight: (str, lang) => {
     let highlightedCode = '';
-    if (lang && hljs.getLanguage(lang)) {
+    const langName = lang || '';
+    if (langName && hljs.getLanguage(langName)) {
       try {
-        highlightedCode = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
+        highlightedCode = hljs.highlight(str, { language: langName, ignoreIllegals: true }).value;
       } catch (_e) {
         // highlight failed, fallback to escaped HTML
       }
@@ -52,18 +61,22 @@ const md = new MarkdownIt({
     }
     // encodeURIComponent + btoa to safely encode any Unicode content
     const encodedCode = btoa(unescape(encodeURIComponent(str)));
-    return `<div class='code-actions-bar'>
-      <svg class='code-action-btn' data-tooltip='Copy' onclick="document.dispatchEvent(new CustomEvent('chatbot-code-actions', {detail: {code: '${encodedCode}', action: 'copy'}}))" xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M28 10v18H10V10h18m0-2H10a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2z' fill='currentColor'></path><path d='M4 18H2V4a2 2 0 0 1 2-2h14v2H4z' fill='currentColor'></path></svg>
-      <svg class='code-action-btn' data-tooltip='Insert to editor' onclick="document.dispatchEvent(new CustomEvent('chatbot-code-actions', {detail: {code: '${encodedCode}', action: 'insert'}}))" xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M28 12H10a2.002 2.002 0 0 1-2-2V4a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zM10 4v6h18V4z' fill='currentColor'></path><path d='M28 30H10a2.002 2.002 0 0 1-2-2v-6a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zm-18-8v6h18v-6z' fill='currentColor'></path><path d='M9 16l-5.586-5.586L2 11.828L6.172 16L2 20.172l1.414 1.414L9 16z' fill='currentColor'></path></svg>
-    </div><code class='hljs'>${highlightedCode}</code>`;
+    const langLabel = langName || 'text';
+    return `<div class="code-block-header">
+      <span class="code-block-lang">${langLabel}</span>
+      <div class="code-block-actions">
+        <svg class="code-action-btn" data-tooltip="Copy" data-action="copy" data-code="${encodedCode}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M28 10v18H10V10h18m0-2H10a2 2 0 0 0-2 2v18a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2z" fill="currentColor"/><path d="M4 18H2V4a2 2 0 0 1 2-2h14v2H4z" fill="currentColor"/></svg>
+        <svg class="code-action-btn" data-tooltip="Insert to editor" data-action="insert" data-code="${encodedCode}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><path d="M28 12H10a2.002 2.002 0 0 1-2-2V4a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zM10 4v6h18V4z" fill="currentColor"/><path d="M28 30H10a2.002 2.002 0 0 1-2-2v-6a2.002 2.002 0 0 1 2-2h18a2.002 2.002 0 0 1 2 2v6a2.002 2.002 0 0 1-2 2zm-18-8v6h18v-6z" fill="currentColor"/><path d="M9 16l-5.586-5.586L2 11.828L6.172 16L2 20.172l1.414 1.414L9 16z" fill="currentColor"/></svg>
+      </div>
+    </div><code class="hljs code-block-content">${highlightedCode}</code>`;
   },
 });
 
-md.renderer.rules['code'] = (tokens, idx, _options, _env, _self) => {
-  const token = tokens[idx];
-  const code = token.content.trim();
-  return `${code}`;
-};
+md.use(taskLists, { enabled: true, label: true, labelAfter: true });
+
+// Wrap <table> in a scrollable div so wide tables don't overflow narrow containers.
+md.renderer.rules.table_open = () => '<div class="table-wrapper"><table>';
+md.renderer.rules.table_close = () => '</table></div>';
 
 const RENDER_THROTTLE_MS = 100;
 let pendingValue: string | null = null;
@@ -71,7 +84,7 @@ let lastRenderAt = 0;
 let trailingTimer: ReturnType<typeof setTimeout> | null = null;
 
 const runRender = (value: string) => {
-  parsedMarkdown.value = md.render(value);
+  parsedMarkdown.value = DOMPurify.sanitize(md.render(value));
   lastRenderAt = Date.now();
   pendingValue = null;
 };
@@ -102,26 +115,27 @@ watch(
   { immediate: true },
 );
 
-const onCodeAction = (event: Event) => {
-  const { detail } = event as unknown as { detail: { action: string; code: string } };
+const handleActionClick = (e: MouseEvent) => {
+  const btn = (e.target as HTMLElement).closest('.code-action-btn') as HTMLElement | null;
+  if (!btn) return;
+  const action = btn.getAttribute('data-action');
+  const encoded = btn.getAttribute('data-code');
+  if (!action || !encoded) return;
   try {
-    const decoded = decodeURIComponent(escape(atob(detail.code)));
-    if (detail.action === 'copy') {
+    const decoded = decodeURIComponent(escape(atob(encoded)));
+    if (action === 'copy') {
       navigator.clipboard.writeText(decoded);
-    } else if (detail.action === 'insert') {
-      insertBuffer.value = decoded;
+      message.success(t('aside.chatBotCodeCopied'));
+    } else if (action === 'insert') {
+      tabStore.setPendingInsertQuery(decoded);
+      message.success(t('aside.chatBotCodeInserted'));
     }
   } catch (_e) {
     // decode failed
   }
 };
 
-onMounted(() => {
-  document.addEventListener('chatbot-code-actions', onCodeAction);
-});
-
 onUnmounted(() => {
-  document.removeEventListener('chatbot-code-actions', onCodeAction);
   if (trailingTimer) {
     clearTimeout(trailingTimer);
     trailingTimer = null;
@@ -131,33 +145,55 @@ onUnmounted(() => {
 </script>
 
 <style>
+/* Reset <pre> — padding/gaps handled by inner elements */
 pre {
   margin: 0;
   padding: 0;
   position: relative;
 }
 
-pre code {
+/* The outer <code class="language-xxx"> that markdown-it wraps around our highlight output.
+   This acts as a block-level container — strip all code-like appearance. */
+pre code[class*='language-'] {
   display: block;
+  background: none;
+  padding: 0;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  line-height: inherit;
 }
 
-/* Action bar: sits as a block row at the top-right of the pre, no overlap with code */
-.code-actions-bar {
+/* ── Code block header ── */
+.code-block-header {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   align-items: center;
+  padding: 5px 12px;
+  background: hsl(var(--muted) / 0.5);
+  border-bottom: 1px solid hsl(var(--border) / 0.5);
+  user-select: none;
+}
+
+.code-block-lang {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, monospace;
+  color: hsl(var(--muted-foreground) / 0.65);
+  text-transform: lowercase;
+}
+
+.code-block-actions {
+  display: flex;
   gap: 6px;
-  padding: 4px 8px 2px;
+  align-items: center;
   opacity: 0;
   transition: opacity 0.15s ease;
-  pointer-events: none;
-  height: 24px;
-  box-sizing: border-box;
 }
 
-pre:hover .code-actions-bar {
+pre:hover .code-block-actions {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .code-action-btn {
@@ -174,7 +210,7 @@ pre:hover .code-actions-bar {
   color: hsl(var(--foreground));
 }
 
-/* CSS tooltip */
+/* CSS tooltip for action buttons */
 .code-action-btn::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -196,5 +232,40 @@ pre:hover .code-actions-bar {
 
 .code-action-btn:hover::after {
   opacity: 1;
+}
+
+/* ── Syntax-highlighted code content ── */
+code.hljs.code-block-content {
+  display: block;
+  padding: 12px 16px;
+  overflow-x: auto;
+  font-size: 12px;
+  line-height: 1.6;
+  background: none;
+  border: none;
+}
+
+/* ── Table wrapper ── */
+.table-wrapper {
+  overflow-x: auto;
+  margin: 8px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 2px;
+}
+
+.table-wrapper table {
+  margin: 0;
 }
 </style>

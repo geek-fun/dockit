@@ -8,7 +8,8 @@
         <SessionHistoryPanel
           @select="switchSession"
           @delete="deleteSession"
-          @new-session="startNewSession"
+          @new-session="handleNewSession"
+          @close="historyPanelOpen = false"
         />
       </div>
     </transition>
@@ -35,6 +36,13 @@
       <template #header>
         <div class="header-title">{{ $t('aside.chatBot') }}</div>
         <div class="header-actions">
+          <button
+            class="header-icon-btn"
+            :title="$t('dataStudio.history.newSession')"
+            @click="handleNewSession"
+          >
+            <span class="i-carbon-add h-4 w-4" />
+          </button>
           <button
             class="header-icon-btn"
             :class="{ 'header-icon-btn--active': historyPanelOpen }"
@@ -84,6 +92,7 @@ const {
   lastSettings,
   initContextSettings,
   cancelSession,
+  startNewSession,
 } = useSidebarChatAgent();
 
 const handleConfirmation = (
@@ -125,8 +134,8 @@ const syncAllProviderModels = () => {
     .forEach(provider => appStore.syncProviderModels(provider.id).catch(() => {}));
 };
 
-const onModelChange = async () => {
-  // LLM settings loaded globally in App.vue
+const onModelChange = async (_modelId: string) => {
+  // Model route persisted by ChatPanel internally
 };
 
 const switchSession = (sessionId: string) => {
@@ -138,8 +147,8 @@ const deleteSession = async (sessionId: string) => {
   await dataStudioStore.removeSession(sessionId);
 };
 
-const startNewSession = () => {
-  dataStudioStore.setActiveSession('');
+const handleNewSession = () => {
+  startNewSession();
   historyPanelOpen.value = false;
 };
 
@@ -161,7 +170,6 @@ onUnmounted(() => {
   flex-direction: column;
   border-left: 1px solid hsl(var(--border));
   position: relative;
-  overflow: hidden;
 }
 
 .resize-handle {

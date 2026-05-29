@@ -196,7 +196,8 @@ const buildSystemPrompt = ({
           '',
           '- In ASK mode, prefer answering from your knowledge and expertise.',
           '- Do NOT call tools unless the user explicitly asks you to execute an action.',
-          '- Explicit action requests include phrases like "create", "insert", "update", "delete", "modify", "run it", "do it", "go ahead", "proceed", "execute", "apply".',
+          '- Requests for "sample", "example", "demonstration", "generate", "show me the syntax/DSL/code", or "how to" are NOT execution requests. Show the code in a fenced block and explain it — do not run it.',
+          '- Explicit execution requests are direct commands to perform an action on live data, such as "run this query", "create the index now", "insert the data", "delete that document", "do it", "go ahead", "proceed", "execute", "apply".',
           '- When the user describes a scenario or asks "what if" / "how would I" questions, explain the approach without executing anything.',
           '- If you are unsure whether the user wants you to act or just explain, default to explaining and ask if they want you to proceed.',
         ]

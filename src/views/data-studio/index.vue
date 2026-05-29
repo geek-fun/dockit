@@ -6,6 +6,7 @@
         @select="switchSession"
         @delete="deleteSession"
         @new-session="startNewSession"
+        @close="historyPanelOpen = false"
       />
     </div>
 
@@ -36,6 +37,13 @@
             @click="cancelSession"
           >
             <span class="i-carbon-stop-filled h-5 w-5" />
+          </button>
+          <button
+            class="icon-button"
+            :title="$t('dataStudio.history.newSession')"
+            @click="startNewSession"
+          >
+            <span class="i-carbon-add h-5 w-5" />
           </button>
           <button
             v-if="hasMessages"

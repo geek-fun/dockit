@@ -81,7 +81,7 @@ import {
   setPartiqlDynamicOptions,
   validatePartiqlModel,
 } from '../../../../common/monaco';
-import { setupEditorKeyboardShortcuts } from '../../../../composables';
+import { setupEditorKeyboardShortcuts, useEditorInsertCode } from '../../../../composables';
 import type { PartiqlDecoration, PartiqlStatement } from '../../../../common/monaco/partiql';
 import { useLang } from '../../../../lang';
 import {
@@ -120,6 +120,8 @@ let cleanupKeyboardShortcuts: (() => void) | null = null;
 const editorRef = ref<HTMLElement>();
 const editorSize = ref(partiqlData.value.showResultPanel ? 0.5 : 1);
 const loadingRef = ref(false);
+
+useEditorInsertCode(() => editor);
 
 // Gutter decorations state
 let executeDecorations: Array<PartiqlDecoration | string> = [];
@@ -238,18 +240,6 @@ const insertRawQueryText = (queryText: string) => {
     editor.revealLine(newLineNumber);
   }
 };
-
-// Watch for pending query insertion from history view
-watch(
-  () => tabStore.pendingInsertToken,
-  () => {
-    const query = tabStore.pendingInsertQuery;
-    if (query && editor) {
-      insertRawQueryText(query);
-      tabStore.clearPendingInsertQuery();
-    }
-  },
-);
 
 /**
  * Execute PartiQL statement with state management

@@ -47,7 +47,6 @@ import {
   ElasticsearchConnection,
   SearchConnection,
   useAppStore,
-  useCodeActionStore,
   useConnectionStore,
   useHistoryStore,
   useTabStore,
@@ -72,7 +71,7 @@ import {
   clearEsValidation,
   createDebouncedValidator,
 } from '../../../common/monaco';
-import { setupEditorKeyboardShortcuts } from '../../../composables';
+import { setupEditorKeyboardShortcuts, useEditorInsertCode } from '../../../composables';
 
 const appStore = useAppStore();
 const message = useMessageService();
@@ -91,13 +90,13 @@ const { themeType, editorConfig } = storeToRefs(appStore);
 
 const historyStore = useHistoryStore();
 
-const codeActionStore = useCodeActionStore();
-const { insertBuffer } = storeToRefs(codeActionStore);
 // https://github.com/tjx666/adobe-devtools/commit/8055d8415ed3ec5996880b3a4ee2db2413a71c61
 let queryEditor: Editor | null = null;
 // DOM
 const queryEditorRef = ref();
 const displayRef = ref();
+
+useEditorInsertCode(() => queryEditor);
 
 let executeDecorations: Array<Decoration | string> = [];
 let cleanupKeyboardShortcuts: (() => void) | null = null;
@@ -206,31 +205,6 @@ watch(
   },
   { deep: true },
 );
-
-watch(insertBuffer, () => {
-  if (queryEditor) {
-    const position = queryEditor.getPosition();
-    if (!position) {
-      return;
-    }
-    queryEditor.getModel()?.pushEditOperations(
-      [],
-      [
-        {
-          range: new monaco.Range(
-            position.lineNumber,
-            position.column,
-            position.lineNumber,
-            position.column,
-          ),
-          text: insertBuffer.value,
-        },
-      ],
-      () => null,
-    );
-    codeActionStore.clearInsertBuffer();
-  }
-});
 
 const executeQueryAction = async (position: { column: number; lineNumber: number }) => {
   const action = searchTokens.find(
@@ -734,18 +708,6 @@ const insertSampleQuery = (queryTemplate: string) => {
   queryEditor.setPosition({ lineNumber: newLineNumber, column: 1 });
   queryEditor.revealLine(newLineNumber);
 };
-
-// Watch for pending query insertion from history view
-watch(
-  () => tabStore.pendingInsertToken,
-  () => {
-    const query = tabStore.pendingInsertQuery;
-    if (query && queryEditor) {
-      insertSampleQuery(query);
-      tabStore.clearPendingInsertQuery();
-    }
-  },
-);
 
 defineExpose({
   insertSampleQuery,
