@@ -298,8 +298,7 @@ export const mongoApi = {
         { database, collection },
         String(con.id),
       );
-      const data = parseMongoCapabilityResponse<MongoCollectionStats>(raw);
-      return { success: true, stats: data };
+      return parseMongoCapabilityResponse<MongoCollectionStatsResult>(raw);
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -311,8 +310,7 @@ export const mongoApi = {
   ): Promise<MongoDatabaseStatsResult> => {
     try {
       const raw = await invokeCapability('mongo__database_stats', { database }, String(con.id));
-      const data = parseMongoCapabilityResponse<MongoDatabaseStats>(raw);
-      return { success: true, stats: data };
+      return parseMongoCapabilityResponse<MongoDatabaseStatsResult>(raw);
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -386,8 +384,7 @@ export const mongoApi = {
   serverStatus: async (con: MongoDBConnection): Promise<MongoServerStatusResult> => {
     try {
       const raw = await invokeCapability('mongo__server_status', {}, String(con.id));
-      const data = parseMongoCapabilityResponse<MongoServerStatus>(raw);
-      return { success: true, status: data };
+      return parseMongoCapabilityResponse<MongoServerStatusResult>(raw);
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -396,8 +393,7 @@ export const mongoApi = {
   replSetStatus: async (con: MongoDBConnection): Promise<MongoReplSetStatusResult> => {
     try {
       const raw = await invokeCapability('mongo__repl_set_status', {}, String(con.id));
-      const data = parseMongoCapabilityResponse<MongoReplicaSetStatus>(raw);
-      return { success: true, status: data };
+      return parseMongoCapabilityResponse<MongoReplSetStatusResult>(raw);
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }
@@ -406,8 +402,7 @@ export const mongoApi = {
   shardStatus: async (con: MongoDBConnection): Promise<MongoShardStatusResult> => {
     try {
       const raw = await invokeCapability('mongo__shard_status', {}, String(con.id));
-      const data = parseMongoCapabilityResponse<MongoShardCluster>(raw);
-      return { success: true, cluster: data };
+      return parseMongoCapabilityResponse<MongoShardStatusResult>(raw);
     } catch (e) {
       return { success: false, error: e instanceof Error ? e.message : String(e) };
     }

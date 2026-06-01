@@ -27,9 +27,9 @@ export const parseEsCapabilityResponse = <T>(raw: string): T => {
   return parsed.data;
 };
 
-// DynamoDB response is direct JSON string, parse it
 export const parseDynamoCapabilityResponse = <T>(raw: string): T => {
-  return jsonify.parse(raw) as T;
+  const parsed = jsonify.parse(raw) as { status: number; message: string; data: T };
+  return parsed.data;
 };
 
 // MongoDB response is direct JSON string

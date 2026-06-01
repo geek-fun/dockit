@@ -56,7 +56,7 @@
             {{ lang.t('dialogOps.cancel') }}
           </Button>
           <Button type="submit" :disabled="loading">
-            <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+            <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
             {{ lang.t('dialogOps.confirm') }}
           </Button>
         </DialogFooter>
@@ -67,7 +67,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import {
   Dialog,
   DialogContent,
@@ -80,7 +80,6 @@ import { InputNumber } from '@/components/ui/input-number';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { useFormValidation } from '@/composables';

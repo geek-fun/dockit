@@ -990,7 +990,7 @@
           :disabled="loading"
           @click="handleRetry"
         >
-          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.retry') }}
         </Button>
         <Button
@@ -1005,7 +1005,7 @@
           :disabled="loading || !canProceed"
           @click="handleConfirm"
         >
-          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('manage.dynamo.createTable') }}
         </Button>
       </DialogFooter>
@@ -1015,7 +1015,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, reactive } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import {
   Dialog,
   DialogContent,
@@ -1037,7 +1037,6 @@ import { Form, FormItem } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../common';
 import { useLang } from '../../../lang';
 import {

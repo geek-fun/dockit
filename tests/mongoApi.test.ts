@@ -357,7 +357,7 @@ describe('mongoApi', () => {
           total_index_size: 8192,
         },
       };
-      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult.stats));
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult));
 
       const result = await mongoApi.collectionStats(baseConnection, 'testdb', 'users');
 
@@ -405,7 +405,7 @@ describe('mongoApi', () => {
         },
         version: '7.0.0',
       };
-      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult.stats));
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult));
 
       const result = await mongoApi.databaseStats(baseConnection, 'testdb');
 
@@ -784,7 +784,7 @@ describe('mongoApi cluster monitoring', () => {
           memory: { resident: 128, virtual_mem: 256 },
         },
       };
-      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult.status));
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult));
 
       const result = await mongoApi.serverStatus(baseConnection);
 
@@ -824,7 +824,7 @@ describe('mongoApi cluster monitoring', () => {
           ],
         },
       };
-      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult.status));
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult));
 
       const result = await mongoApi.replSetStatus(baseConnection);
 
@@ -835,13 +835,13 @@ describe('mongoApi cluster monitoring', () => {
     });
 
     it('returns error in status for standalone instance', async () => {
-      const mockError = { error: 'Not a replica set or error: ...' };
+      const mockError = { success: false, error: 'Not a replica set or error: ...' };
       mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockError));
 
       const result = await mongoApi.replSetStatus(baseConnection);
 
-      expect(result.success).toBe(true);
-      expect(result.status?.error).toContain('Not a replica set');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Not a replica set');
     });
 
     it('returns error on invokeCapability failure', async () => {
@@ -867,7 +867,7 @@ describe('mongoApi cluster monitoring', () => {
           mongos: [{ id: 'mongos1', host: 'localhost:27017' }],
         },
       };
-      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult.cluster));
+      mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockResult));
 
       const result = await mongoApi.shardStatus(baseConnection);
 
@@ -879,9 +879,12 @@ describe('mongoApi cluster monitoring', () => {
 
     it('returns cluster with sharding disabled for standalone', async () => {
       const mockCluster = {
-        is_sharding_enabled: false,
-        shards: [],
-        mongos: [],
+        success: true,
+        cluster: {
+          is_sharding_enabled: false,
+          shards: [],
+          mongos: [],
+        },
       };
       mockedInvokeCapability.mockResolvedValue(JSON.stringify(mockCluster));
 
