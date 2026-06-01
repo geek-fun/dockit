@@ -1,0 +1,6 @@
+# Use LLD linker on Windows to handle large binary sizes from 67 handler vtables.
+# MSVC link.exe can fail with STATUS_DLL_NOT_FOUND when the PE import table or
+# section count exceeds loader capacity. rust-lld (LLD) has no such limitations.
+# This is the standard fix for large Rust projects on Windows (Bevy, etc.)
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"

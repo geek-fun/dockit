@@ -88,15 +88,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
 
-      - name: Add Rust stdlib DLLs to PATH (Windows)
+      - name: Windows LLD linker + stdlib DLL PATH
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # Rust stdlib DLLs (std-*.dll) must be in PATH at runtime on Windows.
-          # They live in target-libdir, NOT sysroot/bin.
-          # See: rust-lang/rustup#3703, rust-lang/cargo#3394, bevyengine/bevy#14129
+          # rust-lld.exe lives in sysroot/bin alongside rustc. Add to PATH
+          # so cargo can find it (linker = "rust-lld.exe" in .cargo/config).
+          $sysroot = & rustc --print sysroot
+          Add-Content -Path $env:GITHUB_PATH -Value "$sysroot\bin"
+          # stdlib DLLs (std-*.dll) in target-libdir needed at load time
           $libdir = & rustc --print target-libdir
-          Write-Host "target-libdir: $libdir"
           Add-Content -Path $env:GITHUB_PATH -Value $libdir
 
       - run: npm ci

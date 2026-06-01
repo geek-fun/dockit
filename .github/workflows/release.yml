@@ -156,12 +156,13 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Add Rust stdlib DLLs to PATH (Windows)
+      - name: Windows LLD linker + stdlib DLL PATH
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $sysroot = & rustc --print sysroot
+          Add-Content -Path $env:GITHUB_PATH -Value "$sysroot\bin"
           $libdir = & rustc --print target-libdir
-          Write-Host "target-libdir: $libdir"
           Add-Content -Path $env:GITHUB_PATH -Value $libdir
 
       - name: Install Linux dependencies
