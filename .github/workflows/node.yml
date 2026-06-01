@@ -90,19 +90,14 @@ jobs:
 
       - name: Add Rust stdlib DLLs to PATH (Windows)
         if: runner.os == 'Windows'
-        shell: bash
+        shell: pwsh
         run: |
           # Rust stdlib DLLs (std-*.dll) must be in PATH at runtime on Windows.
-          # They live in target-libdir, NOT sysroot/bin:
-          #   sysroot     = toolchain root (contains rustc, cargo)
-          #   target-libdir = .../lib/rustlib/<target>/lib  (contains std-*.dll)
-          # When the linker dynamically links std (due to trait object vtables
-          # pulling in additional crate code paths), Windows needs to find
-          # these DLLs at process load time.
+          # They live in target-libdir, NOT sysroot/bin.
           # See: rust-lang/rustup#3703, rust-lang/cargo#3394, bevyengine/bevy#14129
-          RUST_LIBDIR=$(rustc --print target-libdir)
-          echo "target-libdir: $RUST_LIBDIR"
-          echo "$RUST_LIBDIR" >> "$GITHUB_PATH"
+          $libdir = & rustc --print target-libdir
+          Write-Host "target-libdir: $libdir"
+          Add-Content -Path $env:GITHUB_PATH -Value $libdir
 
       - run: npm ci
 

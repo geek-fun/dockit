@@ -158,11 +158,11 @@ jobs:
 
       - name: Add Rust stdlib DLLs to PATH (Windows)
         if: runner.os == 'Windows'
-        shell: bash
+        shell: pwsh
         run: |
-          RUST_LIBDIR=$(rustc --print target-libdir)
-          echo "target-libdir: $RUST_LIBDIR"
-          echo "$RUST_LIBDIR" >> "$GITHUB_PATH"
+          $libdir = & rustc --print target-libdir
+          Write-Host "target-libdir: $libdir"
+          Add-Content -Path $env:GITHUB_PATH -Value $libdir
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
