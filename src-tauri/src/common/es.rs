@@ -59,3 +59,59 @@ pub(crate) fn get_es_ssl_flag(config: &Value) -> bool {
         .and_then(|v| v.as_bool())
         .unwrap_or(false)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_build_es_base_url_valid() {
+        let config = json!({"host": "localhost", "port": 9200});
+        assert_eq!(build_es_base_url(&config).unwrap(), "localhost:9200");
+    }
+
+    #[test]
+    fn test_build_es_base_url_missing_host() {
+        assert!(build_es_base_url(&json!({"port": 9200})).is_err());
+    }
+
+    #[test]
+    fn test_build_es_base_url_missing_port() {
+        assert!(build_es_base_url(&json!({"host": "localhost"})).is_err());
+    }
+
+    #[test]
+    fn test_build_es_headers_no_auth() {
+        let headers = build_es_headers(&json!({}));
+        assert!(headers.get("Authorization").is_none());
+        assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
+    }
+
+    #[test]
+    fn test_build_es_headers_basic() {
+        let h = build_es_headers(&json!({"authType": "basic", "username": "u", "password": "p"}));
+        assert!(h.get("Authorization").unwrap().to_str().unwrap().starts_with("Basic "));
+    }
+
+    #[test]
+    fn test_build_es_headers_api_key() {
+        let h = build_es_headers(&json!({"authType": "apiKey", "apiKey": "k123"}));
+        assert_eq!(h.get("Authorization").unwrap().to_str().unwrap(), "ApiKey k123");
+    }
+
+    #[test]
+    fn test_get_es_ssl_flag_true() {
+        assert!(get_es_ssl_flag(&json!({"sslCertVerification": true})));
+    }
+
+    #[test]
+    fn test_get_es_ssl_flag_false() {
+        assert!(!get_es_ssl_flag(&json!({"sslCertVerification": false})));
+    }
+
+    #[test]
+    fn test_get_es_ssl_flag_default() {
+        assert!(!get_es_ssl_flag(&json!({})));
+    }
+}

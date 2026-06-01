@@ -290,3 +290,79 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          es_schema(&[("body", "Alias actions body", "object", true)]),
          RiskLevel::Elevated, "update", &["agent"]);
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    /// Build a connection config pointing at a wiremock server.
+    /// `build_es_base_url` returns `host:port`, and the ES handler builds
+    /// URLs as `http://host:port/path` — so host must include the scheme.
+    fn mock_config(server: &wiremock::MockServer) -> serde_json::Value {
+        let addr = server.address();
+        json!({"host": format!("http://{}", addr.ip()), "port": addr.port()})
+    }
+
+    #[tokio::test]
+    async fn test_execute_es_http_get() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/_cat/indices"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"[{"index":"my-index","health":"green"}]"#,
+            ))
+            .mount(&server)
+            .await;
+
+        let result = super::execute_es_http("GET", "/_cat/indices", None, &mock_config(&server)).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("my-index"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_es_http_post_with_body() {
+        use wiremock::matchers::{method, path, body_json};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/my-index/_search"))
+            .and(body_json(json!({"query": {"match_all": {}}})))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{"hits":{"total":{"value":1},"hits":[]}}"#,
+            ))
+            .mount(&server)
+            .await;
+
+        let result = super::execute_es_http(
+            "POST",
+            "/my-index/_search",
+            Some(r#"{"query":{"match_all":{}}}"#),
+            &mock_config(&server),
+        )
+        .await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        let body = result.unwrap();
+        assert!(body.contains("hits"), "response should contain query hits, got: {}", body);
+        assert!(body.contains("\"status\":200"), "response should have 200 status, got: {}", body);
+    }
+
+    #[tokio::test]
+    async fn test_execute_es_http_handles_404() {
+        use wiremock::matchers::method;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(404).set_body_string(r#"{"error":"not_found"}"#))
+            .mount(&server)
+            .await;
+
+        let result = super::execute_es_http("GET", "/missing", None, &mock_config(&server)).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("404"));
+    }
+}
