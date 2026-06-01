@@ -227,7 +227,7 @@
       variant="ghost"
       size="sm"
       :disabled="refreshLoading"
-      @click="refreshStates"
+      @click="() => refreshStates()"
     >
       <Loader2 v-if="refreshLoading" class="mr-1 h-4 w-4 animate-spin" />
       <span v-else class="i-carbon-renew mr-1 h-4 w-4" />
