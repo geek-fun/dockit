@@ -1210,6 +1210,7 @@ describe('mongoApi cluster monitoring', () => {
     it('calls invokeCapability with correct command', async () => {
       mockedInvokeCapability.mockResolvedValue(
         JSON.stringify({
+          success: true,
           documents_copied: 100,
           indexes_copied: 2,
           message: 'Collection cloned successfully',

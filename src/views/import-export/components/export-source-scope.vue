@@ -203,7 +203,7 @@ const handleIndexOpen = async (isOpen: boolean) => {
       if (exportDatabase.value) {
         const mongoConn = connection.value as MongoDBConnection;
         const result = await mongoApi.listCollections(mongoConn, exportDatabase.value);
-        if (result.success && result.collections) {
+        if (result.collections) {
           indexOptions.value = result.collections
             .map(c => ({ label: c.name, value: c.name }))
             .sort((a, b) => a.label.localeCompare(b.label));
@@ -264,7 +264,7 @@ const handleDatabaseOpen = async (isOpen: boolean) => {
   loadingStat.value.database = true;
   try {
     const result = await mongoApi.listDatabases(connection.value as MongoDBConnection);
-    if (result.success && result.databases) {
+    if (result.databases) {
       const systemDbs = new Set(['admin', 'config', 'local']);
       databaseOptions.value = result.databases
         .map(db => ({ label: db.name, value: db.name }))
@@ -294,7 +294,7 @@ const handleDatabaseChange = async (db: string) => {
   loadingStat.value.index = true;
   try {
     const result = await mongoApi.listCollections(connection.value as MongoDBConnection, db);
-    if (result.success && result.collections) {
+    if (result.collections) {
       indexOptions.value = result.collections
         .map(c => ({ label: c.name, value: c.name }))
         .sort((a, b) => a.label.localeCompare(b.label));
