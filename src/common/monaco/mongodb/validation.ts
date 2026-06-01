@@ -148,12 +148,58 @@ export const validateMongoSyntax = (content: string, startLine: number): Validat
   return errors;
 };
 
+/**
+ * Detect `_id` queried as a plain hex string that looks like an ObjectId.
+ * MongoDB stores `_id` as ObjectId by default; querying with a plain string
+ * will not match. Users should use `ObjectId("...")` instead.
+ *
+ * Flags patterns like: `"_id": "6a1d9088b00311683dad8c09"`
+ * Does NOT flag: `"_id": ObjectId("...")`, `"_id": "short"`, or `$oid` usage.
+ */
+const OBJECTID_QUERY_REGEX = /(["'])_id\1\s*:\s*(["'])([0-9a-fA-F]{24})\2/g;
+
+export const validateObjectIdQuery = (content: string, startLine: number): ValidationError[] => {
+  const errors: ValidationError[] = [];
+  const lines = content.split('\n');
+
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    const line = lines[lineIdx];
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('//') || trimmed.startsWith('/*')) continue;
+    // Lines already using ObjectId() or Extended JSON $oid are valid
+    if (trimmed.includes('ObjectId(') || trimmed.includes('$oid')) continue;
+
+    OBJECTID_QUERY_REGEX.lastIndex = 0;
+    let match: RegExpExecArray | null;
+    while ((match = OBJECTID_QUERY_REGEX.exec(line)) !== null) {
+      const hexStr = match[3];
+      const valueQuote = match[2];
+      const quotedValue = `${valueQuote}${hexStr}${valueQuote}`;
+      const valueOffsetInMatch = match[0].indexOf(quotedValue);
+      // 1-based column of the value's opening quote
+      const col = match.index + valueOffsetInMatch + 1;
+
+      errors.push({
+        message: `'_id' value "${hexStr}" looks like an ObjectId. Use ObjectId("${hexStr}") to query by ObjectId.`,
+        startLineNumber: startLine + lineIdx,
+        endLineNumber: startLine + lineIdx,
+        startColumn: col,
+        endColumn: col + quotedValue.length,
+        severity: MarkerSeverity.Warning,
+      });
+    }
+  }
+
+  return errors;
+};
+
 export const validateMongoModel = (model: editor.ITextModel): void => {
   const content = model.getValue();
   const errors: ValidationError[] = [
     ...validateBalancedBrackets(content, 1),
     ...validateMethodChains(content, 1),
     ...validateMongoSyntax(content, 1),
+    ...validateObjectIdQuery(content, 1),
   ];
 
   setValidationMarkers(model, errors, MONGO_VALIDATION_OWNER);

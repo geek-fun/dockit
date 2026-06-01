@@ -80,6 +80,13 @@ export const mongodb = {
         [/[{}()[\]]/, '@brackets'],
         [/[;,.]/, 'delimiter'],
 
+        // Match db.collection-name.method — handles hyphens in collection names
+        // that would otherwise be tokenized as keyword-operator parts
+        [/db\.[a-zA-Z_$][\w$-]*\.[a-zA-Z_$][\w$]*/, 'entity.name.function'],
+
+        // Match db.collection-name (without method) — standalone collection ref
+        [/db\.[a-zA-Z_$][\w$-]*/, 'identifier'],
+
         [
           /[a-zA-Z_$][\w$]*/,
           {

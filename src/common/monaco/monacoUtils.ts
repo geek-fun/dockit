@@ -221,7 +221,10 @@ export const parsePartiqlStatements = (content: string): PartiqlStatement[] => {
       return (
         lines[startLine + idx - 1].trim().endsWith(';') ||
         trimmed === '' ||
-        isStatementStart(trimmed)
+        isStatementStart(trimmed) ||
+        // Column-0 comment line is a boundary between statements
+        line.startsWith('--') ||
+        line.startsWith('//')
       );
     });
 
