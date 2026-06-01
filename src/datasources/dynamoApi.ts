@@ -266,7 +266,12 @@ const dynamoApi = {
     params: PartiQLParams,
   ): Promise<PartiQLResult> => {
     // Route to the correct capability based on statement type
-    const statement = params.statement.trim().toUpperCase();
+    // Strip SQL comments to avoid misrouting LLM-generated PartiQL with leading annotations
+    const cleanStatement = params.statement
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/--.*$/gm, '')
+      .trim();
+    const statement = cleanStatement.toUpperCase();
     const capabilityName = statement.startsWith('SELECT')
       ? 'dynamo__execute_query'
       : statement.startsWith('INSERT') || statement.startsWith('UPDATE')

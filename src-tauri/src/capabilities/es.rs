@@ -132,7 +132,7 @@ impl_es_handler!(EsDeleteByQuery, "POST", |args: &Value| -> Result<String, Strin
     Ok(format!("/{}/_delete_by_query", crate::common::validation::url_encode_segment(index)))
 }, true);
 
-impl_es_handler!(EsCatIndices, "GET", |_args: &Value| -> Result<String, String> { Ok("/_cat/indices?format=json".to_string()) }, false);
+impl_es_handler!(EsCatIndices, "GET", |_args: &Value| -> Result<String, String> { Ok("/_cat/indices?format=json&expand_wildcards=all".to_string()) }, false);
 
 impl_es_handler!(EsGetMapping, "GET", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
