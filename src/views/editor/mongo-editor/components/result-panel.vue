@@ -337,7 +337,8 @@
   <EditDocument
     ref="editDocumentRef"
     v-model:show="showEditModal"
-    :document="editingDocument"
+    :initial-value="editDocumentValue"
+    :document-id="editDocumentId"
     @save="handleEditSubmit"
   />
   <DeleteConfirmModal
@@ -437,7 +438,8 @@ const expandedDocs = ref(new Set<number>());
 const showInsertModal = ref(false);
 const showEditModal = ref(false);
 const showDeleteModal = ref(false);
-const editingDocument = ref<Record<string, unknown> | null>(null);
+const editDocumentValue = ref('');
+const editDocumentId = ref('');
 
 type InsertDocumentExposed = { setLoading: (v: boolean) => void; setError: (msg: string) => void };
 type EditDocumentExposed = { setLoading: (v: boolean) => void; setError: (msg: string) => void };
@@ -494,13 +496,6 @@ const formatCellValue = (value: unknown): string => {
   if (value === null || value === undefined) return '';
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
-};
-
-const getDocumentId = (doc: Record<string, unknown>): string => {
-  const id = doc._id;
-  if (!id) return '';
-  if (typeof id === 'object') return JSON.stringify(id);
-  return String(id);
 };
 
 const handlePageChange = (page: number) => {
@@ -587,8 +582,22 @@ const handleCloneClick = (row: Record<string, unknown>) => {
   showInsertModal.value = true;
 };
 
+const getDocumentId = (doc: Record<string, unknown>): string => {
+  const id = doc._id;
+  if (!id) return '';
+  if (typeof id === 'object') {
+    // Extended JSON: {$oid: "66e5..."} — extract the hex string
+    const oid = (id as Record<string, unknown>).$oid;
+    if (typeof oid === 'string') return oid;
+    return JSON.stringify(id);
+  }
+  return String(id);
+};
+
 const handleEditClick = (row: Record<string, unknown>) => {
-  editingDocument.value = row;
+  // Pre-stringify to avoid Vue reactive proxy issues with Monaco init
+  editDocumentValue.value = JSON.stringify(row, null, 2);
+  editDocumentId.value = getDocumentId(row);
   showEditModal.value = true;
 };
 
@@ -602,7 +611,7 @@ const handleInsertSubmit = async (document: string) => {
   insertDocumentRef.value?.setLoading(true);
   const result = await mongoApi.insertDocument(activeConnection.value, props.collection, document);
   insertDocumentRef.value?.setLoading(false);
-  if (result.success) {
+  if (!result.error) {
     showInsertModal.value = false;
     message.success(lang.t('editor.mongo.insertSuccess'));
     emit('refresh');
@@ -621,9 +630,13 @@ const handleEditSubmit = async (id: string, document: string) => {
     document,
   );
   editDocumentRef.value?.setLoading(false);
-  if (result.success) {
+  if (!result.error) {
     showEditModal.value = false;
-    message.success(lang.t('editor.mongo.updateSuccess'));
+    if (result.modified_count != null && result.modified_count === 0) {
+      message.info(lang.t('editor.mongo.updateNoChanges'));
+    } else {
+      message.success(lang.t('editor.mongo.updateSuccess'));
+    }
     emit('refresh');
   } else {
     editDocumentRef.value?.setError(result.error ?? lang.t('editor.mongo.updateError'));
@@ -638,7 +651,7 @@ const handleDeleteConfirm = async () => {
     props.collection,
     deletingId.value,
   );
-  if (result.success) {
+  if (!result.error) {
     showDeleteModal.value = false;
     message.success(lang.t('editor.mongo.deleteDocumentSuccess'));
     emit('refresh');

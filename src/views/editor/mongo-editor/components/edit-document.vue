@@ -49,7 +49,8 @@ import { useLang } from '../../../../lang';
 
 const props = defineProps<{
   show: boolean;
-  document: Record<string, unknown> | null;
+  initialValue: string;
+  documentId: string;
 }>();
 
 const emit = defineEmits<{
@@ -67,14 +68,19 @@ const loading = ref(false);
 const errorMessage = ref('');
 let editorInstance: Editor | null = null;
 
-const getDocumentValue = () => (props.document ? JSON.stringify(props.document, null, 2) : '{}');
-
-const initEditor = () => {
-  if (!editorRef.value || editorInstance) return;
+const initEditor = (retries = 0) => {
+  if (!editorRef.value) {
+    // Teleported dialog content may not be in DOM yet — retry
+    if (retries < 10) {
+      setTimeout(() => initEditor(retries + 1), 30);
+    }
+    return;
+  }
+  if (editorInstance) return;
   const options = getEditorOptions();
   editorInstance = monaco.editor.create(editorRef.value, {
     theme: getEditorTheme(),
-    value: getDocumentValue(),
+    value: props.initialValue || '{}',
     language: 'json',
     automaticLayout: true,
     scrollBeyondLastLine: false,
@@ -84,31 +90,36 @@ const initEditor = () => {
   });
 };
 
+const disposeEditor = () => {
+  editorInstance?.dispose();
+  editorInstance = null;
+};
+
 watch(
   () => props.show,
   open => {
     if (open) {
-      setTimeout(initEditor, 50);
       errorMessage.value = '';
-      if (editorInstance) {
-        editorInstance.setValue(getDocumentValue());
-      }
-    }
-  },
-);
-
-watch(
-  () => props.document,
-  () => {
-    if (props.show && editorInstance) {
-      editorInstance.setValue(getDocumentValue());
+      // Use requestAnimationFrame to ensure the teleported dialog DOM
+      // is fully laid out before Monaco creates the editor
+      requestAnimationFrame(() => {
+        initEditor();
+        if (editorInstance) {
+          editorInstance.setValue(props.initialValue || '{}');
+        }
+      });
+    } else {
+      // Dispose editor on close so it's recreated fresh next open.
+      // Radix removes teleported content from DOM when dialog closes,
+      // leaving editorInstance bound to a detached element.
+      disposeEditor();
     }
   },
 );
 
 watch(themeType, () => editorInstance?.updateOptions({ theme: getEditorTheme() }));
 
-onUnmounted(() => editorInstance?.dispose());
+onUnmounted(() => disposeEditor());
 
 const handleClose = () => emit('update:show', false);
 
@@ -131,9 +142,8 @@ const handleSubmit = () => {
     return;
   }
   const doc = parsed as Record<string, unknown>;
-  const id = String(props.document?._id ?? '');
   delete doc._id;
-  emit('save', id, JSON.stringify(doc));
+  emit('save', props.documentId, JSON.stringify(doc));
 };
 
 const setLoading = (value: boolean) => {
