@@ -9,8 +9,8 @@
 
 set +e
 
-# Ensure cargo is on PATH (GitHub Actions sets CARGO_HOME but bash may not inherit PATH)
-export PATH="$CARGO_HOME/bin:$PATH"
+# Ensure cargo is on PATH (Git Bash on Windows uses Unix paths; CARGO_HOME is Windows-style)
+export PATH="$HOME/.cargo/bin:$PATH"
 
 npm run test:ci; JS_EXIT=$?
 
