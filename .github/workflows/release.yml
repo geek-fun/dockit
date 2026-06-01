@@ -156,13 +156,13 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Add Rust lib path to PATH (Windows)
+      - name: Add Rust stdlib DLLs to PATH (Windows)
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          RUST_SYSROOT=$(rustc --print sysroot)
-          echo "Sysroot: $RUST_SYSROOT"
-          echo "${RUST_SYSROOT}\\bin" >> "$GITHUB_PATH"
+          RUST_LIBDIR=$(rustc --print target-libdir)
+          echo "target-libdir: $RUST_LIBDIR"
+          echo "$RUST_LIBDIR" >> "$GITHUB_PATH"
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'

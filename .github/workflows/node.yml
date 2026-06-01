@@ -88,16 +88,21 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
 
-      - name: Add Rust lib path to PATH (Windows)
+      - name: Add Rust stdlib DLLs to PATH (Windows)
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          # Windows requires std-*.dll (Rust standard library) in PATH at runtime.
-          # cargo run adds this internally, but cargo test lacks it in some cases.
-          # See: rust-lang/rustup#3703, rust-lang/cargo#3394, rust-lang/cargo#3989
-          RUST_SYSROOT=$(rustc --print sysroot)
-          echo "Sysroot: $RUST_SYSROOT"
-          echo "${RUST_SYSROOT}\\bin" >> "$GITHUB_PATH"
+          # Rust stdlib DLLs (std-*.dll) must be in PATH at runtime on Windows.
+          # They live in target-libdir, NOT sysroot/bin:
+          #   sysroot     = toolchain root (contains rustc, cargo)
+          #   target-libdir = .../lib/rustlib/<target>/lib  (contains std-*.dll)
+          # When the linker dynamically links std (due to trait object vtables
+          # pulling in additional crate code paths), Windows needs to find
+          # these DLLs at process load time.
+          # See: rust-lang/rustup#3703, rust-lang/cargo#3394, bevyengine/bevy#14129
+          RUST_LIBDIR=$(rustc --print target-libdir)
+          echo "target-libdir: $RUST_LIBDIR"
+          echo "$RUST_LIBDIR" >> "$GITHUB_PATH"
 
       - run: npm ci
 
@@ -115,7 +120,9 @@ jobs:
         run: |
           set +e
           export PATH="$HOME/.cargo/bin:$PATH"
-          cd src-tauri && cargo test --lib; RUST_TEST=$?
+          cd src-tauri
+          echo "=== cargo test --lib ==="
+          cargo test --lib; RUST_TEST=$?
           echo "RUST_TEST=$RUST_TEST" >> "$GITHUB_ENV"
 
 
