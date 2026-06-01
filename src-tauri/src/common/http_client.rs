@@ -64,3 +64,53 @@ pub fn create_http_client(
 
     builder.build().expect("Failed to build HTTP client")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_proxy_explicit() {
+        assert_eq!(get_proxy(Some("http://proxy:8080".into())), Some("http://proxy:8080".into()));
+    }
+
+    #[test]
+    fn test_get_proxy_explicit_empty() {
+        // Empty explicit proxy falls through to env vars — test that it doesn't crash
+        let result = get_proxy(Some("".into()));
+        // Result depends on env vars — just ensure no panic and valid type
+        let _: Option<String> = result;
+    }
+
+    #[test]
+    fn test_get_proxy_none() {
+        // No explicit proxy and no env vars set
+        let result = get_proxy(None);
+        let _: Option<String> = result;
+    }
+
+    #[test]
+    fn test_create_http_client_default_mode() {
+        let client = create_http_client("system", None, None, None);
+        // Should return a valid client without panicking
+        let _ = client;
+    }
+
+    #[test]
+    fn test_create_http_client_no_proxy_mode() {
+        let client = create_http_client("none", None, None, None);
+        let _ = client;
+    }
+
+    #[test]
+    fn test_create_http_client_manual_proxy() {
+        let client = create_http_client("manual", Some("http://proxy:8080".into()), Some(true), None);
+        let _ = client;
+    }
+
+    #[test]
+    fn test_create_http_client_with_timeout() {
+        let client = create_http_client("system", None, None, Some(Duration::from_secs(30)));
+        let _ = client;
+    }
+}

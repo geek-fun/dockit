@@ -75,3 +75,75 @@ fn to_metadata(cap: &super::Capability) -> Value {
         "requiredPermission": cap.required_permission
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::capabilities::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
+    use async_trait::async_trait;
+    use serde_json::{json, Value};
+    use std::sync::Arc;
+
+    struct TestHandler;
+    #[async_trait]
+    impl CapabilityHandler for TestHandler {
+        async fn handle(&self, _: &Value, _: Option<&Value>) -> Result<String, String> {
+            Ok("ok".to_string())
+        }
+    }
+
+    fn make_cap(name: &'static str, risk: RiskLevel, perm: &'static str) -> Capability {
+        Capability {
+            name,
+            description: "desc",
+            handler: Arc::new(TestHandler),
+            input_schema: json!({"type": "object", "properties": {}}),
+            risk_level: risk,
+            required_permission: perm,
+            source_kind: SourceKind::DocKit,
+            tags: &["agent"],
+        }
+    }
+
+    #[test]
+    fn test_to_openai_tool_format() {
+        let cap = make_cap("test__tool", RiskLevel::Safe, "read");
+        let tool = super::to_openai_tool(&cap);
+        assert_eq!(tool["type"], "function");
+        assert_eq!(tool["function"]["name"], "test__tool");
+        assert_eq!(tool["function"]["description"], "desc");
+        assert!(tool["function"]["parameters"].is_object());
+    }
+
+    #[test]
+    fn test_to_openai_tool_includes_schema() {
+        let mut cap = make_cap("test__schema", RiskLevel::Elevated, "write");
+        cap.input_schema = json!({"type": "object", "properties": {"idx": {"type": "string"}}, "required": ["idx"]});
+        let tool = super::to_openai_tool(&cap);
+        let params = &tool["function"]["parameters"];
+        assert_eq!(params["properties"]["idx"]["type"], "string");
+        assert_eq!(params["required"][0], "idx");
+    }
+
+    #[test]
+    fn test_to_metadata_safe() {
+        let cap = make_cap("safe__tool", RiskLevel::Safe, "read");
+        let meta = super::to_metadata(&cap);
+        assert_eq!(meta["riskLevel"], "safe");
+        assert_eq!(meta["requiredPermission"], "read");
+    }
+
+    #[test]
+    fn test_to_metadata_destructive() {
+        let cap = make_cap("dest__tool", RiskLevel::Destructive, "delete");
+        let meta = super::to_metadata(&cap);
+        assert_eq!(meta["riskLevel"], "destructive");
+        assert_eq!(meta["requiredPermission"], "delete");
+    }
+
+    #[test]
+    fn test_to_metadata_elevated() {
+        let cap = make_cap("elev__tool", RiskLevel::Elevated, "create");
+        let meta = super::to_metadata(&cap);
+        assert_eq!(meta["riskLevel"], "elevated");
+    }
+}
