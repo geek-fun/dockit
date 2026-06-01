@@ -13,18 +13,18 @@
       </DialogHeader>
 
       <div class="modal-content">
-        <Alert v-if="resultType === 'success' && resultMessage" variant="success" class="mb-4">
+        <Alert v-if="isSuccess" variant="success" class="mb-4">
           <AlertDescription>
             {{ lang.t('editor.dynamo.deleteItemSuccess') }}
           </AlertDescription>
         </Alert>
-        <Alert v-else-if="resultMessage" variant="destructive" class="mb-4">
+        <Alert v-else-if="isError" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
-            {{ resultMessage }}
+            {{ message }}
             <button
               class="ml-2 hover:opacity-70 cursor-pointer"
               aria-label="Dismiss"
-              @click="resultMessage = ''"
+              @click="reset()"
             >
               <X class="w-4 h-4" />
             </button>
@@ -38,7 +38,7 @@
           {{ lang.t('dialogOps.cancel') }}
         </Button>
         <Button
-          v-if="resultType === 'error'"
+          v-if="isError"
           variant="destructive"
           :disabled="loading"
           @click="handleRetry"
@@ -48,7 +48,7 @@
           {{ lang.t('dialogOps.retry') }}
         </Button>
         <Button
-          v-else-if="!resultMessage"
+          v-else-if="isIdle"
           variant="destructive"
           :disabled="loading"
           @click="handleConfirm"
@@ -67,6 +67,7 @@ import { ref, watch } from 'vue';
 import { X, Loader2 } from 'lucide-vue-next';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../../common';
 import { useLang } from '../../../../lang';
+import { useDialogResult, formatApiError } from '@/composables';
 import { DynamoDBConnection, useDbDataStore, useTabStore } from '../../../../store';
 
 import {
@@ -103,16 +104,14 @@ const handleOpenChange = (open: boolean) => {
 };
 
 const loading = ref(false);
-const resultMessage = ref('');
-const resultType = ref<'success' | 'error'>('success');
+const { message, isIdle, isSuccess, isError, succeed, fail, reset } = useDialogResult();
 
 // Reset state when modal opens
 watch(
   () => props.show,
   newVal => {
     if (newVal) {
-      resultMessage.value = '';
-      resultType.value = 'success';
+      reset();
       loading.value = false;
     }
   },
@@ -123,8 +122,7 @@ const handleCancel = () => {
 };
 
 const handleRetry = async () => {
-  // Clear error message before retry
-  resultMessage.value = '';
+  reset();
   await handleConfirm();
 };
 
@@ -148,9 +146,7 @@ const handleConfirm = async () => {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
 
-    // Show success result
-    resultType.value = 'success';
-    resultMessage.value = 'success';
+    succeed();
 
     // Close modal after 1 second
     setTimeout(() => {
@@ -164,12 +160,7 @@ const handleConfirm = async () => {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
 
-    // Show error and keep modal open for retry
-    resultType.value = 'error';
-    const err = error as { status?: string; details?: string; message?: string };
-    resultMessage.value = err?.details
-      ? `status: ${err?.status ?? 'unknown'}, details: ${err.details}`
-      : err?.message || String(error);
+    fail(formatApiError(error));
   } finally {
     loading.value = false;
   }

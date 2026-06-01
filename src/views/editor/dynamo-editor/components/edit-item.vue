@@ -303,7 +303,7 @@ watch(
         }
       }
 
-      // Extract other attributes
+      // Extract other attributes from the item
       for (const [attrKey, attrValue] of Object.entries(newItem)) {
         if (attrKey !== props.partitionKeyName && attrKey !== props.sortKeyName) {
           const type = inferType(attrValue);

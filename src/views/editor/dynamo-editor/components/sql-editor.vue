@@ -439,7 +439,8 @@ const getStatementToExecute = (): { statement: string; found: boolean } => {
     }
   }
 
-  // Otherwise, try to find the statement at cursor position
+  // Otherwise, scan bidirectionally from cursor to find statement boundaries.
+  // Boundaries: empty lines, semicolons, or column-0 --/-- lines (indented -- is inline).
   const position = editor.getPosition();
   if (!position) return { statement: '', found: false };
 
@@ -447,39 +448,33 @@ const getStatementToExecute = (): { statement: string; found: boolean } => {
   const lines = fullText.split('\n');
   const currentLineIndex = position.lineNumber - 1;
 
-  // Find statement boundaries by looking for semicolons or empty lines
-  let startLine = currentLineIndex;
-  let endLine = currentLineIndex;
+  const isBoundary = (line: string, original: string): boolean =>
+    line === '' || line.endsWith(';') || (line.startsWith('--') && original.startsWith('--'));
 
-  // Search backwards for statement start
+  let startLine = currentLineIndex;
   for (let i = currentLineIndex; i >= 0; i--) {
-    const line = lines[i].trim();
-    if (i < currentLineIndex && (line === '' || line.endsWith(';'))) {
+    const trimmed = lines[i].trim();
+    if (i < currentLineIndex && isBoundary(trimmed, lines[i])) {
       startLine = i + 1;
       break;
     }
-    if (i === 0) {
-      startLine = 0;
-    }
+    if (i === 0) startLine = 0;
   }
 
-  // Search forwards for statement end
+  let endLine = currentLineIndex;
   for (let i = currentLineIndex; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (line.endsWith(';')) {
+    const trimmed = lines[i].trim();
+    if (trimmed.endsWith(';')) {
       endLine = i;
       break;
     }
-    if (i > currentLineIndex && line === '') {
+    if (i > currentLineIndex && isBoundary(trimmed, lines[i])) {
       endLine = i - 1;
       break;
     }
-    if (i === lines.length - 1) {
-      endLine = i;
-    }
+    if (i === lines.length - 1) endLine = i;
   }
 
-  // Extract the statement
   const statementLines = lines.slice(startLine, endLine + 1);
   const statement = statementLines.join('\n').trim().replace(/;$/, '');
 
