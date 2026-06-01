@@ -4,6 +4,8 @@ use futures::TryStreamExt;
 use mongodb::bson::{doc, oid::ObjectId, Bson, Document};
 use serde_json::Value;
 
+use crate::common::response::ApiResponse;
+
 use super::registry::CapabilityRegistry;
 use super::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
 
@@ -52,8 +54,8 @@ impl CapabilityHandler for MongoListDatabases {
             .list_database_names()
             .await
             .map_err(|e| format!("Failed to list databases: {}", e))?;
-        let result = serde_json::json!({ "databases": names });
-        Ok(crate::common::format::truncate_tool_output(result.to_string()))
+        let data = serde_json::json!({ "databases": names });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -86,8 +88,8 @@ impl CapabilityHandler for MongoListCollections {
             .list_collection_names()
             .await
             .map_err(|e| format!("Failed to list collections: {}", e))?;
-        let result = serde_json::json!({ "collections": names });
-        Ok(crate::common::format::truncate_tool_output(result.to_string()))
+        let data = serde_json::json!({ "collections": names });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -141,8 +143,8 @@ impl CapabilityHandler for MongoFind {
                 &mongodb::bson::Bson::Document(doc),
             ));
         }
-        let result = serde_json::json!({ "count": docs.len(), "documents": docs });
-        Ok(crate::common::format::truncate_tool_output(result.to_string()))
+        let data = serde_json::json!({ "count": docs.len(), "documents": docs });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -188,8 +190,8 @@ impl CapabilityHandler for MongoAggregate {
                 break;
             }
         }
-        let result = serde_json::json!({ "count": docs.len(), "documents": docs });
-        Ok(crate::common::format::truncate_tool_output(result.to_string()))
+        let data = serde_json::json!({ "count": docs.len(), "documents": docs });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -217,8 +219,8 @@ impl CapabilityHandler for MongoInsertOne {
             .await
             .map_err(|e| format!("insert_one failed: {}", e))?;
         let inserted_id = crate::common::bson::bson_to_value(&insert_result.inserted_id);
-        let result = serde_json::json!({ "inserted_id": inserted_id });
-        Ok(crate::common::format::truncate_tool_output(result.to_string()))
+        let data = serde_json::json!({ "inserted_id": inserted_id });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -255,14 +257,14 @@ impl CapabilityHandler for MongoUpdateMany {
             .with_options(update_options)
             .await
             .map_err(|e| format!("update_many failed: {}", e))?;
-        let result = serde_json::json!({
+        let data = serde_json::json!({
             "matched_count": update_result.matched_count,
             "modified_count": update_result.modified_count,
             "upserted_id": update_result.upserted_id.map(|id| {
                 crate::common::bson::bson_to_value(&id)
             })
         });
-        Ok(crate::common::format::truncate_tool_output(result.to_string()))
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -289,8 +291,10 @@ impl CapabilityHandler for MongoDeleteMany {
             .delete_many(filter)
             .await
             .map_err(|e| format!("delete_many failed: {}", e))?;
-        let result = serde_json::json!({ "deleted_count": delete_result.deleted_count });
-        Ok(crate::common::format::truncate_tool_output(result.to_string()))
+        let data = serde_json::json!({
+            "deleted_count": delete_result.deleted_count,
+        });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -340,18 +344,18 @@ impl CapabilityHandler for MongoCollectionStats {
             "ns": result.get_str("ns").unwrap_or(&format!("{}.{}", db_name, collection_name)),
             "count": get_num(&result, "count"),
             "size": get_num(&result, "size"),
-            "avgObjSize": result.get_f64("avgObjSize").ok(),
-            "storageSize": get_num(&result, "storageSize"),
+            "avg_obj_size": result.get_f64("avgObjSize").ok(),
+            "storage_size": get_num(&result, "storageSize"),
             "nindexes": get_num(&result, "nindexes"),
-            "totalIndexSize": get_num(&result, "totalIndexSize"),
-            "indexSizes": index_sizes,
+            "total_index_size": get_num(&result, "totalIndexSize"),
+            "index_sizes": index_sizes,
             "capped": result.get_bool("capped").ok(),
             "max": result.get_i64("max").ok(),
-            "maxSize": result.get_i64("maxSize").ok(),
+            "max_size": result.get_i64("maxSize").ok(),
         });
 
-        let out = serde_json::json!({ "success": true, "stats": stats });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "stats": stats });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -389,17 +393,17 @@ impl CapabilityHandler for MongoDatabaseStats {
             "db": result.get_str("db").unwrap_or(&db_name),
             "collections": get_num(&result, "collections"),
             "objects": get_num(&result, "objects"),
-            "avgObjSize": result.get_f64("avgObjSize").ok(),
-            "dataSize": get_num(&result, "dataSize"),
-            "storageSize": get_num(&result, "storageSize"),
+            "avg_obj_size": result.get_f64("avgObjSize").ok(),
+            "data_size": get_num(&result, "dataSize"),
+            "storage_size": get_num(&result, "storageSize"),
             "indexes": get_num(&result, "indexes"),
-            "indexSize": get_num(&result, "indexSize"),
-            "totalSize": get_num(&result, "totalSize"),
-            "scaleFactor": result.get_i32("scaleFactor").ok().map(|v| v as i64),
+            "index_size": get_num(&result, "indexSize"),
+            "total_size": get_num(&result, "totalSize"),
+            "scale_factor": result.get_i32("scaleFactor").ok().map(|v| v as i64),
         });
 
-        let out = serde_json::json!({ "success": true, "stats": stats, "version": version });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "stats": stats, "version": version });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -436,8 +440,8 @@ impl CapabilityHandler for MongoCreateDatabase {
             .await
             .map_err(|e| format!("Failed to clean up: {}", e))?;
 
-        let out = serde_json::json!({ "success": true, "message": format!("Database '{}' created successfully", db_name) });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "message": format!("Database '{}' created successfully", db_name) });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -461,8 +465,8 @@ impl CapabilityHandler for MongoDropDatabase {
             .await
             .map_err(|e| format!("Failed to drop database: {}", e))?;
 
-        let out = serde_json::json!({ "success": true, "message": format!("Database '{}' dropped successfully", db_name) });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "message": format!("Database '{}' dropped successfully", db_name) });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -528,8 +532,8 @@ impl CapabilityHandler for MongoCreateCollection {
             .await
             .map_err(|e| format!("Failed to create collection: {}", e))?;
 
-        let out = serde_json::json!({ "success": true, "message": format!("Collection '{}' created successfully", collection_name) });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "message": format!("Collection '{}' created successfully", collection_name) });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -555,8 +559,8 @@ impl CapabilityHandler for MongoDropCollection {
             .await
             .map_err(|e| format!("Failed to drop collection: {}", e))?;
 
-        let out = serde_json::json!({ "success": true, "message": format!("Collection '{}' dropped successfully", collection_name) });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "message": format!("Collection '{}' dropped successfully", collection_name) });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -630,8 +634,8 @@ impl CapabilityHandler for MongoServerStatus {
             "memory": memory,
         });
 
-        let out = serde_json::json!({ "success": true, "status": status });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "status": status });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -649,8 +653,7 @@ impl CapabilityHandler for MongoReplSetStatus {
         let result = match admin_db.run_command(doc! { "replSetGetStatus": 1 }).await {
             Ok(r) => r,
             Err(e) => {
-                let out = serde_json::json!({ "success": false, "error": format!("Not a replica set or error: {}", e) });
-                return Ok(crate::common::format::truncate_tool_output(out.to_string()));
+                return Ok(ApiResponse::<serde_json::Value>::err(400, format!("Not a replica set or error: {}", e)).into_string());
             }
         };
 
@@ -680,8 +683,8 @@ impl CapabilityHandler for MongoReplSetStatus {
             "members": members,
         });
 
-        let out = serde_json::json!({ "success": true, "status": status });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "status": status });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -699,11 +702,10 @@ impl CapabilityHandler for MongoShardStatus {
         let is_sharding = admin_db.run_command(doc! { "shardingState": 1 }).await.is_ok();
 
         if !is_sharding {
-            let out = serde_json::json!({
-                "success": true,
-                "cluster": { "isShardingEnabled": false, "shards": [], "mongos": [] }
+            let data = serde_json::json!({
+                "cluster": { "is_sharding_enabled": false, "shards": [], "mongos": [] }
             });
-            return Ok(crate::common::format::truncate_tool_output(out.to_string()));
+            return Ok(ApiResponse::json(data).into_string());
         }
 
         let shards: Vec<Value> = match admin_db.run_command(doc! { "listShards": 1 }).await {
@@ -746,15 +748,14 @@ impl CapabilityHandler for MongoShardStatus {
             Err(_) => vec![],
         };
 
-        let out = serde_json::json!({
-            "success": true,
+        let data = serde_json::json!({
             "cluster": {
-                "isShardingEnabled": true,
+                "is_sharding_enabled": true,
                 "shards": shards,
                 "mongos": mongos,
             }
         });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -793,8 +794,8 @@ impl CapabilityHandler for MongoCountDocuments {
             .await
             .map_err(|e| format!("count_documents failed: {}", e))?;
 
-        let out = serde_json::json!({ "count": count });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "count": count });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -839,13 +840,15 @@ impl CapabilityHandler for MongoUpdateDocument {
             .await
             .map_err(|e| format!("update_one failed: {}", e))?;
 
-        let out = serde_json::json!({
-            "success": result.matched_count > 0,
-            "matched_count": result.matched_count,
-            "modified_count": result.modified_count,
-            "error": if result.matched_count == 0 { Some("No document matched the given id".to_string()) } else { Option::<String>::None },
-        });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        if result.matched_count > 0 {
+            let data = serde_json::json!({
+                "matched_count": result.matched_count,
+                "modified_count": result.modified_count,
+            });
+            Ok(ApiResponse::json(data).into_string())
+        } else {
+            Ok(ApiResponse::<serde_json::Value>::err(404, "No document matched the given id").into_string())
+        }
     }
 }
 
@@ -881,12 +884,14 @@ impl CapabilityHandler for MongoDeleteDocument {
             .await
             .map_err(|e| format!("delete_one failed: {}", e))?;
 
-        let out = serde_json::json!({
-            "success": result.deleted_count > 0,
-            "deleted_count": result.deleted_count,
-            "error": if result.deleted_count == 0 { Some("No document matched the given id".to_string()) } else { Option::<String>::None },
-        });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        if result.deleted_count > 0 {
+            let data = serde_json::json!({
+                "deleted_count": result.deleted_count,
+            });
+            Ok(ApiResponse::json(data).into_string())
+        } else {
+            Ok(ApiResponse::<serde_json::Value>::err(404, "No document matched the given id").into_string())
+        }
     }
 }
 
@@ -925,11 +930,10 @@ impl CapabilityHandler for MongoRenameCollection {
             .await
             .map_err(|e| format!("renameCollection failed: {}", e))?;
 
-        let out = serde_json::json!({
-            "success": true,
+        let data = serde_json::json!({
             "message": format!("Collection '{}' renamed to '{}'", collection_name, to_collection),
         });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -959,18 +963,10 @@ impl CapabilityHandler for MongoCloneCollection {
             .await
             .map_err(|e| format!("Failed to list collections: {}", e))?;
         if !names.contains(&source_coll.to_string()) {
-            let out = serde_json::json!({
-                "success": false,
-                "error": format!("Source collection '{}' does not exist", source_coll)
-            });
-            return Ok(crate::common::format::truncate_tool_output(out.to_string()));
+            return Ok(ApiResponse::<serde_json::Value>::err(404, format!("Source collection '{}' does not exist", source_coll)).into_string());
         }
         if names.contains(&target_coll.to_string()) {
-            let out = serde_json::json!({
-                "success": false,
-                "error": format!("Target collection '{}' already exists", target_coll)
-            });
-            return Ok(crate::common::format::truncate_tool_output(out.to_string()));
+            return Ok(ApiResponse::<serde_json::Value>::err(409, format!("Target collection '{}' already exists", target_coll)).into_string());
         }
 
         let src = db.collection::<Document>(source_coll);
@@ -993,6 +989,12 @@ impl CapabilityHandler for MongoCloneCollection {
             tgt.insert_many(docs)
                 .await
                 .map_err(|e| format!("Failed to copy documents: {}", e))?;
+        } else {
+            // Create empty collection explicitly — when there are no documents
+            // and no non-_id_ indexes, nothing else would trigger creation
+            db.create_collection(target_coll)
+                .await
+                .map_err(|e| format!("Failed to create target collection: {}", e))?;
         }
 
         let index_result = db.run_command(doc! { "listIndexes": source_coll }).await;
@@ -1041,12 +1043,11 @@ impl CapabilityHandler for MongoCloneCollection {
             Err(_) => 0,
         };
 
-        let out = serde_json::json!({
-            "success": true,
+        let data = serde_json::json!({
             "documents_copied": doc_count,
             "indexes_copied": index_count,
         });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -1072,11 +1073,10 @@ impl CapabilityHandler for MongoTruncateCollection {
             .await
             .map_err(|e| format!("truncate failed: {}", e))?;
 
-        let out = serde_json::json!({
-            "success": true,
+        let data = serde_json::json!({
             "deleted_count": result.deleted_count,
         });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -1140,8 +1140,8 @@ impl CapabilityHandler for MongoListIndexes {
             _ => vec![],
         };
 
-        let out = serde_json::json!({ "success": true, "indexes": indexes });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "indexes": indexes });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -1203,8 +1203,8 @@ impl CapabilityHandler for MongoCreateIndex {
             .await
             .map_err(|e| format!("create_index failed: {}", e))?;
 
-        let out = serde_json::json!({ "success": true, "index_name": result.index_name });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "index_name": result.index_name });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -1228,11 +1228,7 @@ impl CapabilityHandler for MongoDropIndex {
             .ok_or("Missing index_name")?;
 
         if index_name == "_id_" {
-            let out = serde_json::json!({
-                "success": false,
-                "error": "Cannot drop the default _id_ index".to_string()
-            });
-            return Ok(crate::common::format::truncate_tool_output(out.to_string()));
+            return Ok(ApiResponse::<serde_json::Value>::err(400, "Cannot drop the default _id_ index").into_string());
         }
 
         client
@@ -1242,11 +1238,10 @@ impl CapabilityHandler for MongoDropIndex {
             .await
             .map_err(|e| format!("drop_index failed: {}", e))?;
 
-        let out = serde_json::json!({
-            "success": true,
+        let data = serde_json::json!({
             "message": format!("Index '{}' dropped successfully", index_name),
         });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 
@@ -1291,8 +1286,8 @@ impl CapabilityHandler for MongoSampleDocuments {
             ));
         }
 
-        let out = serde_json::json!({ "documents": docs, "count": docs.len() });
-        Ok(crate::common::format::truncate_tool_output(out.to_string()))
+        let data = serde_json::json!({ "documents": docs, "count": docs.len() });
+        Ok(ApiResponse::json(data).into_string())
     }
 }
 

@@ -17,7 +17,7 @@ pub async fn query_table(
     input: QueryTableInput<'_>,
 ) -> Result<ApiResponse, String> {
     let index_name = input.payload.get("index_name").and_then(|v| v.as_str());
-    let sort_key = input.payload.get("sort_key");
+    let sort_key = input.payload.get("sort_key").and_then(|v| v.as_object());
     let filters = input.payload.get("filters").and_then(|v| v.as_array());
 
     let partition_key = input
@@ -67,9 +67,8 @@ pub async fn query_table(
 
     // Sort key
     if let Some(sk) = sort_key {
-        let sk_obj = sk.as_object().unwrap();
-        let sk_name = sk_obj.get("name").and_then(|v| v.as_str()).unwrap();
-        let sk_value = sk_obj.get("value").and_then(|v| v.as_str()).unwrap();
+        let sk_name = sk.get("name").and_then(|v| v.as_str()).unwrap();
+        let sk_value = sk.get("value").and_then(|v| v.as_str()).unwrap();
         expr_attr_names.push(("#attr1".to_string(), sk_name.to_string()));
         key_condition_expr = format!(
             "{} AND {} = :skey",

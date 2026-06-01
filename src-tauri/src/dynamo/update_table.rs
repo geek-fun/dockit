@@ -1,4 +1,5 @@
 use crate::dynamo::types::ApiResponse;
+use aws_sdk_dynamodb::error::ProvideErrorMetadata;
 use aws_sdk_dynamodb::types::{
     AttributeDefinition, CreateGlobalSecondaryIndexAction, DeleteGlobalSecondaryIndexAction,
     GlobalSecondaryIndexUpdate, KeySchemaElement, KeyType, Projection, ProjectionType,
@@ -241,11 +242,18 @@ pub async fn create_global_secondary_index(
                 })),
             })
         }
-        Err(e) => Ok(ApiResponse {
-            status: 500,
-            message: format!("Failed to create GSI: {}", e),
-            data: None,
-        }),
+        Err(e) => {
+            let error_code = e.code().unwrap_or("UnknownError");
+            let error_message = e.message().unwrap_or("Unknown error occurred");
+            Ok(ApiResponse {
+                status: 500,
+                message: format!(
+                    "Failed to create GSI\n\nError Code: {}\nMessage: {}",
+                    error_code, error_message
+                ),
+                data: None,
+            })
+        }
     }
 }
 
@@ -308,11 +316,18 @@ pub async fn update_global_secondary_index(
                 })),
             })
         }
-        Err(e) => Ok(ApiResponse {
-            status: 500,
-            message: format!("Failed to update GSI: {}", e),
-            data: None,
-        }),
+        Err(e) => {
+            let error_code = e.code().unwrap_or("UnknownError");
+            let error_message = e.message().unwrap_or("Unknown error occurred");
+            Ok(ApiResponse {
+                status: 500,
+                message: format!(
+                    "Failed to update GSI\n\nError Code: {}\nMessage: {}",
+                    error_code, error_message
+                ),
+                data: None,
+            })
+        }
     }
 }
 
@@ -357,10 +372,17 @@ pub async fn delete_global_secondary_index(
                 })),
             })
         }
-        Err(e) => Ok(ApiResponse {
-            status: 500,
-            message: format!("Failed to delete GSI: {}", e),
-            data: None,
-        }),
+        Err(e) => {
+            let error_code = e.code().unwrap_or("UnknownError");
+            let error_message = e.message().unwrap_or("Unknown error occurred");
+            Ok(ApiResponse {
+                status: 500,
+                message: format!(
+                    "Failed to delete GSI\n\nError Code: {}\nMessage: {}",
+                    error_code, error_message
+                ),
+                data: None,
+            })
+        }
     }
 }

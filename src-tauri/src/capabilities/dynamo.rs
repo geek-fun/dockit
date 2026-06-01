@@ -168,16 +168,16 @@ impl CapabilityHandler for DynamoQueryTable {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
         let client = crate::common::dynamo::create_dynamo_client(config).await?;
-        let payload = serde_json::json!({
-            "table_name": table_name,
-            "partition_key": args.get("partition_key"),
-            "sort_key": args.get("sort_key"),
-            "index_name": args.get("index_name"),
-            "filters": args.get("filters"),
-            "limit": args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10),
-            "exclusive_start_key": args.get("exclusive_start_key"),
-        });
-        let input = QueryTableInput { table_name, payload: &payload };
+        let mut payload = serde_json::Map::new();
+        payload.insert("table_name".to_string(), Value::String(table_name.to_string()));
+        if let Some(v) = args.get("partition_key") { payload.insert("partition_key".to_string(), v.clone()); }
+        if let Some(v) = args.get("sort_key") { payload.insert("sort_key".to_string(), v.clone()); }
+        if let Some(v) = args.get("index_name") { payload.insert("index_name".to_string(), v.clone()); }
+        if let Some(v) = args.get("filters") { payload.insert("filters".to_string(), v.clone()); }
+        payload.insert("limit".to_string(), Value::from(args.get("limit").and_then(|v| v.as_u64()).unwrap_or(10)));
+        if let Some(v) = args.get("exclusive_start_key") { payload.insert("exclusive_start_key".to_string(), v.clone()); }
+        let payload_value = Value::Object(payload);
+        let input = QueryTableInput { table_name, payload: &payload_value };
         let response = query_table(&client, input).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)

@@ -106,38 +106,28 @@ fn build_uri(config: &MongoConnectionConfig) -> String {
 #[tauri::command]
 pub async fn mongo_test_connection(
     config: MongoConnectionConfig,
-) -> Result<MongoTestResult, String> {
+) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
+    use crate::common::response::ApiResponse;
+
     let uri = build_uri(&config);
 
     let client_options = match ClientOptions::parse(&uri).await {
         Ok(opts) => opts,
         Err(e) => {
-            return Ok(MongoTestResult {
-                success: false,
-                message: format!("Failed to parse connection options: {}", e),
-                collections: None,
-            });
+            return Ok(ApiResponse::err(400, format!("Failed to parse connection options: {}", e)));
         }
     };
 
     let client = match Client::with_options(client_options) {
         Ok(c) => c,
         Err(e) => {
-            return Ok(MongoTestResult {
-                success: false,
-                message: format!("Failed to create client: {}", e),
-                collections: None,
-            });
+            return Ok(ApiResponse::err(400, format!("Failed to create client: {}", e)));
         }
     };
 
     let db = client.database("admin");
     if let Err(e) = db.run_command(mongodb::bson::doc! { "ping": 1 }).await {
-        return Ok(MongoTestResult {
-            success: false,
-            message: format!("Connection failed: {}", e),
-            collections: None,
-        });
+        return Ok(ApiResponse::err(400, format!("Connection failed: {}", e)));
     }
 
     let collections = if let Some(db_name) = &config.database {
@@ -145,22 +135,14 @@ pub async fn mongo_test_connection(
         match target_db.list_collection_names().await {
             Ok(names) => names,
             Err(e) => {
-                return Ok(MongoTestResult {
-                    success: false,
-                    message: format!("Failed to list collections: {}", e),
-                    collections: None,
-                });
+                return Ok(ApiResponse::err(400, format!("Failed to list collections: {}", e)));
             }
         }
     } else {
         Vec::new()
     };
 
-    Ok(MongoTestResult {
-        success: true,
-        message: "Connection successful".to_string(),
-        collections: Some(collections),
-    })
+    Ok(ApiResponse::ok(serde_json::json!({ "collections": collections })))
 }
 
 #[derive(Debug, Serialize)]
@@ -694,6 +676,16 @@ fn split_statements(code: &str) -> Vec<String> {
     statements
 }
 
+/// Convert a Bson ID value to a clean string for JSON output.
+/// ObjectId's Display impl returns `ObjectId("...")`, which is ugly in JSON.
+/// This returns just the 24-char hex string for ObjectId, and the Display
+/// value for other Bson types.
+fn bson_id_to_string(id: &Bson) -> String {
+    id.as_object_id()
+        .map(|oid| oid.to_hex())
+        .unwrap_or_else(|| id.to_string())
+}
+
 async fn execute_statement(
     client: &Client,
     db_name: &str,
@@ -753,7 +745,7 @@ async fn execute_statement(
             let doc_raw = stmt.args.first().ok_or("insertOne requires a document argument")?;
             let d = parse_json_arg(doc_raw).and_then(json_to_bson_doc)?;
             let result = coll.insert_one(d).await.map_err(|e| e.to_string())?;
-            Ok(serde_json::json!({ "acknowledged": true, "insertedId": result.inserted_id.to_string() }))
+            Ok(serde_json::json!({ "acknowledged": true, "insertedId": bson_id_to_string(&result.inserted_id) }))
         }
         "insertMany" => {
             let docs_raw = stmt.args.first().ok_or("insertMany requires a documents array")?;
@@ -761,14 +753,14 @@ async fn execute_statement(
             let docs_arr = docs_val.as_array().ok_or("insertMany argument must be an array")?;
             let docs: Vec<Document> = docs_arr.iter().map(|v| json_to_bson_doc(v.clone())).collect::<Result<Vec<_>, _>>()?;
             let result = coll.insert_many(docs).await.map_err(|e| e.to_string())?;
-            let ids: Vec<Value> = result.inserted_ids.values().map(|id| Value::from(id.to_string())).collect();
+            let ids: Vec<Value> = result.inserted_ids.values().map(|id| Value::from(bson_id_to_string(id))).collect();
             Ok(serde_json::json!({ "acknowledged": true, "insertedCount": ids.len(), "insertedIds": ids }))
         }
         "updateOne" => {
             let filter = parse_json_arg(stmt.args.first().ok_or("updateOne requires filter")?).and_then(json_to_bson_doc)?;
             let update = parse_json_arg(stmt.args.get(1).ok_or("updateOne requires update document")?).and_then(json_to_bson_doc)?;
             let result = coll.update_one(filter, update).await.map_err(|e| e.to_string())?;
-            Ok(serde_json::json!({ "acknowledged": true, "matchedCount": result.matched_count, "modifiedCount": result.modified_count, "upsertedId": result.upserted_id.map(|id| id.to_string()) }))
+            Ok(serde_json::json!({ "acknowledged": true, "matchedCount": result.matched_count, "modifiedCount": result.modified_count, "upsertedId": result.upserted_id.as_ref().map(bson_id_to_string) }))
         }
         "updateMany" => {
             let filter = parse_json_arg(stmt.args.first().ok_or("updateMany requires filter")?).and_then(json_to_bson_doc)?;
@@ -780,7 +772,7 @@ async fn execute_statement(
             let filter = parse_json_arg(stmt.args.first().ok_or("replaceOne requires filter")?).and_then(json_to_bson_doc)?;
             let replacement = parse_json_arg(stmt.args.get(1).ok_or("replaceOne requires replacement")?).and_then(json_to_bson_doc)?;
             let result = coll.replace_one(filter, replacement).await.map_err(|e| e.to_string())?;
-            Ok(serde_json::json!({ "acknowledged": true, "matchedCount": result.matched_count, "modifiedCount": result.modified_count, "upsertedId": result.upserted_id.map(|id| id.to_string()) }))
+            Ok(serde_json::json!({ "acknowledged": true, "matchedCount": result.matched_count, "modifiedCount": result.modified_count, "upsertedId": result.upserted_id.as_ref().map(bson_id_to_string) }))
         }
         "deleteOne" => {
             let filter = parse_json_arg(stmt.args.first().ok_or("deleteOne requires a filter")?).and_then(json_to_bson_doc)?;
@@ -915,7 +907,9 @@ async fn execute_statement(
 pub async fn mongo_execute_query(
     config: MongoConnectionConfig,
     code: String,
-) -> Result<MongoQueryResult, String> {
+) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
+    use crate::common::response::ApiResponse;
+
     let db_name = config
         .database
         .clone()
@@ -923,53 +917,27 @@ pub async fn mongo_execute_query(
 
     let client = match build_client(&config).await {
         Ok(c) => c,
-        Err(e) => {
-            return Ok(MongoQueryResult {
-                success: false,
-                data: None,
-                error: Some(e),
-            })
-        }
+        Err(e) => return Ok(ApiResponse::err(500, e)),
     };
 
     let statements = split_statements(&code);
     if statements.is_empty() {
-        return Ok(MongoQueryResult {
-            success: false,
-            data: None,
-            error: Some("No valid statements found".to_string()),
-        });
+        return Ok(ApiResponse::err(400, "No valid statements found"));
     }
 
     let mut last_result: Value = Value::Null;
     for stmt_str in statements {
         let stmt = match parse_statement(&stmt_str) {
             Ok(p) => p,
-            Err(e) => {
-                return Ok(MongoQueryResult {
-                    success: false,
-                    data: None,
-                    error: Some(e),
-                })
-            }
+            Err(e) => return Ok(ApiResponse::err(400, e)),
         };
         match execute_statement(&client, &db_name, stmt).await {
             Ok(result) => last_result = result,
-            Err(e) => {
-                return Ok(MongoQueryResult {
-                    success: false,
-                    data: None,
-                    error: Some(e),
-                })
-            }
+            Err(e) => return Ok(ApiResponse::err(400, e)),
         }
     }
 
-    Ok(MongoQueryResult {
-        success: true,
-        data: Some(last_result),
-        error: None,
-    })
+    Ok(ApiResponse::ok(last_result))
 }
 
 async fn build_client(config: &MongoConnectionConfig) -> Result<Client, String> {
@@ -1864,7 +1832,9 @@ pub async fn mongo_export_documents(
     batch_size: Option<i64>,
     skip: Option<u64>,
     sort: Option<String>,
-) -> Result<MongoExportResult, String> {
+) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
+    use crate::common::response::ApiResponse;
+
     let result = async {
         let client = build_client(&config).await?;
         let db_name = config.database.unwrap_or_else(|| "test".to_string());
@@ -1914,25 +1884,17 @@ pub async fn mongo_export_documents(
         }
 
         let has_more = skip_val + batch < total as u64;
-
-        Ok(MongoExportResult {
-            success: true,
-            documents: Some(docs),
-            total: Some(total),
-            has_more,
-            error: None,
-        })
+        let data = serde_json::json!({
+            "documents": docs,
+            "total": total,
+            "has_more": has_more,
+        });
+        Ok::<ApiResponse<serde_json::Value>, String>(ApiResponse::ok(data))
     };
 
     match result.await {
-        Ok(export_result) => Ok(export_result),
-        Err(e) => Ok(MongoExportResult {
-            success: false,
-            documents: None,
-            total: None,
-            has_more: false,
-            error: Some(e),
-        }),
+        Ok(response) => Ok(response),
+        Err(e) => Ok(ApiResponse::err(500, e)),
     }
 }
 
@@ -1995,7 +1957,9 @@ pub async fn mongo_import_documents(
     collection: String,
     documents: Vec<String>,
     upsert: Option<bool>,
-) -> Result<MongoImportResult, String> {
+) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
+    use crate::common::response::ApiResponse;
+
     let client = build_client(&config).await?;
     let db_name = config.database.unwrap_or_else(|| "test".to_string());
     let db = client.database(&db_name);
@@ -2070,27 +2034,19 @@ pub async fn mongo_import_documents(
                     inserted = result.inserted_ids.len() as i64;
                 }
                 Err(e) => {
-                    return Ok(MongoImportResult {
-                        success: false,
-                        inserted: 0,
-                        updated: 0,
-                        skipped: skipped + documents.len() as i64,
-                        errors: Some(vec![e.to_string()]),
-                        error: Some(format!("Bulk insert failed: {}", e)),
-                    });
+                    return Ok(ApiResponse::err(500, format!("Bulk insert failed: {}", e)));
                 }
             }
         }
     }
 
-    Ok(MongoImportResult {
-        success: errors.is_empty(),
-        inserted,
-        updated,
-        skipped,
-        errors: if errors.is_empty() { None } else { Some(errors) },
-        error: None,
-    })
+    let data = serde_json::json!({
+        "inserted": inserted,
+        "updated": updated,
+        "skipped": skipped,
+        "errors": if errors.is_empty() { serde_json::Value::Null } else { serde_json::json!(errors) },
+    });
+    Ok(ApiResponse::ok(data))
 }
 
 #[tauri::command]
