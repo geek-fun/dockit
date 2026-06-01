@@ -47,7 +47,9 @@
               <FormItem :label="precedenceLabel">
                 <InputNumber v-model="formData.precedence" class="flex-1" />
                 <p class="text-xs text-muted-foreground mt-1">
-                  {{ $t('manage.index.newTemplateForm.precedenceDesc', { field: precedenceLabel }) }}
+                  {{
+                    $t('manage.index.newTemplateForm.precedenceDesc', { field: precedenceLabel })
+                  }}
                 </p>
               </FormItem>
             </div>
