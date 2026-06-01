@@ -94,12 +94,7 @@ jobs:
 
       - name: Tests
         shell: bash
-        run: |
-          set +e
-          npm run test:ci; JS_EXIT=$?
-          cd src-tauri && cargo test; RS_EXIT=$?
-          echo "JS_TEST=$JS_EXIT" >> $GITHUB_ENV
-          echo "RUST_TEST=$RS_EXIT" >> $GITHUB_ENV
+        run: bash scripts/run-tests.sh
 
       - name: Report test failures
         if: env.JS_TEST != '0' || env.RUST_TEST != '0'
