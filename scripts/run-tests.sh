@@ -9,6 +9,9 @@
 
 set +e
 
+# Ensure cargo is on PATH (GitHub Actions sets CARGO_HOME but bash may not inherit PATH)
+export PATH="$CARGO_HOME/bin:$PATH"
+
 npm run test:ci; JS_EXIT=$?
 
 cd src-tauri && cargo test; RS_EXIT=$?
