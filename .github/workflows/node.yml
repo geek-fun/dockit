@@ -96,12 +96,10 @@ jobs:
         shell: bash
         run: |
           set +e
-          npm run test:ci & pid1=$!
-          cd src-tauri && cargo test & pid2=$!
-          wait $pid1; rc1=$?
-          wait $pid2; rc2=$?
-          echo "JS_TEST=$rc1" >> $GITHUB_ENV
-          echo "RUST_TEST=$rc2" >> $GITHUB_ENV
+          npm run test:ci; JS_EXIT=$?
+          cd src-tauri && cargo test; RS_EXIT=$?
+          echo "JS_TEST=$JS_EXIT" >> $GITHUB_ENV
+          echo "RUST_TEST=$RS_EXIT" >> $GITHUB_ENV
 
       - name: Report test failures
         if: env.JS_TEST != '0' || env.RUST_TEST != '0'
