@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use dockit::capabilities::registry::CapabilityRegistry;
-use dockit::capabilities::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
+use crate::capabilities::registry::CapabilityRegistry;
+use crate::capabilities::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -155,8 +155,8 @@ fn test_source_kind_matches_db_type() {
 #[test]
 fn test_init_registry_no_panic() {
     // Call init_registry in a fresh environment
-    dockit::capabilities::registry::init_registry();
-    let reg = dockit::capabilities::registry::registry();
+    crate::capabilities::registry::init_registry();
+    let reg = crate::capabilities::registry::registry();
 
     // All known tools should be present
     assert!(reg.get("es__search").is_some(), "es__search should be registered");
@@ -237,8 +237,8 @@ fn test_init_registry_no_panic() {
 
 #[tokio::test]
 async fn test_invoke_capability_unknown_tool() {
-    dockit::capabilities::registry::init_registry();
-    let result = dockit::capabilities::registry::invoke_capability_inner(
+    crate::capabilities::registry::init_registry();
+    let result = crate::capabilities::registry::invoke_capability_inner(
         "nonexistent",
         json!({}),
         None,

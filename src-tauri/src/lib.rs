@@ -192,3 +192,8 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+// Integration tests — included as a crate module to avoid separate
+// binary linking issues on Windows (exit code 127 from cargo test --test).
+#[cfg(test)]
+mod tests;
