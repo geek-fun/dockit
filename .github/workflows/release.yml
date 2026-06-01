@@ -158,12 +158,11 @@ jobs:
 
       - name: Add Rust lib path to PATH (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
+        shell: bash
         run: |
-          $sysroot = rustc --print sysroot
-          $dllPath = Join-Path $sysroot "bin"
-          Write-Host "Adding to PATH: $dllPath"
-          Add-Content -Path $env:GITHUB_PATH -Value $dllPath
+          RUST_SYSROOT=$(rustc --print sysroot)
+          echo "Sysroot: $RUST_SYSROOT"
+          echo "${RUST_SYSROOT}\\bin" >> "$GITHUB_PATH"
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'

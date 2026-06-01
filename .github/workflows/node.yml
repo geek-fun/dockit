@@ -90,15 +90,14 @@ jobs:
 
       - name: Add Rust lib path to PATH (Windows)
         if: runner.os == 'Windows'
-        shell: pwsh
+        shell: bash
         run: |
           # Windows requires std-*.dll (Rust standard library) in PATH at runtime.
-          # cargo run adds this internally, but cargo test may not in all configurations.
+          # cargo run adds this internally, but cargo test lacks it in some cases.
           # See: rust-lang/rustup#3703, rust-lang/cargo#3394, rust-lang/cargo#3989
-          $sysroot = rustc --print sysroot
-          $dllPath = Join-Path $sysroot "bin"
-          Write-Host "Adding to PATH: $dllPath"
-          Add-Content -Path $env:GITHUB_PATH -Value $dllPath
+          RUST_SYSROOT=$(rustc --print sysroot)
+          echo "Sysroot: $RUST_SYSROOT"
+          echo "${RUST_SYSROOT}\\bin" >> "$GITHUB_PATH"
 
       - run: npm ci
 
