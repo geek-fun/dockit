@@ -156,14 +156,14 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Install Windows dependencies
+      - name: Add Rust lib path to PATH (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          try {
-            $installed = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*Visual C++*" }
-            Write-Host "Installed VC++ runtimes: $($installed.Count)"
-          } catch { Write-Host "Skipping VC++ check" }
+          $sysroot = rustc --print sysroot
+          $dllPath = Join-Path $sysroot "bin"
+          Write-Host "Adding to PATH: $dllPath"
+          Add-Content -Path $env:GITHUB_PATH -Value $dllPath
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -191,21 +191,6 @@ jobs:
           export PATH="$HOME/.cargo/bin:$PATH"
           cd src-tauri && cargo test --lib; RUST_TEST=$?
           echo "RUST_TEST=$RUST_TEST" >> "$GITHUB_ENV"
-
-      - name: Debug Rust binary (Windows)
-        if: always() && runner.os == 'Windows' && env.RUST_TEST != '0'
-        shell: pwsh
-        run: |
-          $bin = Get-ChildItem -Recurse -Filter "dockit-*.exe" | Where-Object { $_.FullName -match 'deps' } | Select-Object -First 1
-          if (-not $bin) { Write-Host "No test binary found"; exit 0 }
-          Write-Host "Test binary: $($bin.FullName)"
-          Write-Host "Binary size: $($bin.Length) bytes"
-          try {
-            $proc = Start-Process -FilePath $bin.FullName -ArgumentList "--list" -NoNewWindow -Wait -PassThru
-            Write-Host "Exit code: $($proc.ExitCode)"
-          } catch {
-            Write-Host "Exception: $_"
-          }
 
       - name: Report test failures
         if: env.JS_TEST != '0' || env.RUST_TEST != '0'

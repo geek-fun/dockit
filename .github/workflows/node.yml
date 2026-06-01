@@ -88,22 +88,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
 
-      - name: Install Windows dependencies
+      - name: Add Rust lib path to PATH (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          # Ensure Visual C++ Redistributable is installed (needed by native Rust deps)
-          try {
-            $installed = Get-WmiObject -Class Win32_Product | Where-Object { $_.Name -like "*Visual C++*" }
-            Write-Host "Installed VC++ runtimes: $($installed.Count)"
-          } catch {
-            Write-Host "Could not check VC++ runtimes, will attempt install"
-          }
-          # vswhere to locate VC++ tools
-          if (Get-Command vswhere -ErrorAction SilentlyContinue) {
-            $path = & vswhere -latest -property productPath
-            Write-Host "VS installed at: $path"
-          }
+          # Windows requires std-*.dll (Rust standard library) in PATH at runtime.
+          # cargo run adds this internally, but cargo test may not in all configurations.
+          # See: rust-lang/rustup#3703, rust-lang/cargo#3394, rust-lang/cargo#3989
+          $sysroot = rustc --print sysroot
+          $dllPath = Join-Path $sysroot "bin"
+          Write-Host "Adding to PATH: $dllPath"
+          Add-Content -Path $env:GITHUB_PATH -Value $dllPath
 
       - run: npm ci
 
@@ -124,24 +119,7 @@ jobs:
           cd src-tauri && cargo test --lib; RUST_TEST=$?
           echo "RUST_TEST=$RUST_TEST" >> "$GITHUB_ENV"
 
-      - name: Debug Rust binary (Windows)
-        if: always() && runner.os == 'Windows' && env.RUST_TEST != '0'
-        shell: pwsh
-        run: |
-          # Find the test binary and try to run it directly for a detailed error
-          $bin = Get-ChildItem -Recurse -Filter "dockit-*.exe" | Where-Object { $_.FullName -match 'deps' } | Select-Object -First 1
-          if (-not $bin) { Write-Host "No test binary found"; exit 1 }
-          Write-Host "Test binary: $($bin.FullName)"
-          try {
-            $proc = Start-Process -FilePath $bin.FullName -ArgumentList "--list" -NoNewWindow -Wait -PassThru
-            Write-Host "Exit code: $($proc.ExitCode)"
-          } catch {
-            Write-Host "Exception: $_"
-          }
-          # Also check event log for application errors
-          try {
-            Get-WinEvent -LogName Application -MaxEvents 5 2>$null | Where-Object { $_.LevelDisplayName -eq 'Error' } | Format-List TimeCreated,Message
-          } catch { Write-Host "No events found" }
+
 
       - name: Report test failures
         if: env.JS_TEST != '0' || env.RUST_TEST != '0'
