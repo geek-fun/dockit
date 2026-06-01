@@ -170,7 +170,13 @@ jobs:
 
       - name: Tests
         shell: bash
-        run: scripts/run-tests.sh
+        run: |
+          set +e
+          export PATH="$HOME/.cargo/bin:$PATH"
+          npm run test:ci; JS_EXIT=$?
+          cd src-tauri && cargo test; RS_EXIT=$?
+          echo "JS_TEST=$JS_EXIT" >> "$GITHUB_ENV"
+          echo "RUST_TEST=$RS_EXIT" >> "$GITHUB_ENV"
 
       - name: Report test failures
         if: env.JS_TEST != '0' || env.RUST_TEST != '0'
