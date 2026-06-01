@@ -181,6 +181,7 @@ jobs:
 
       - name: Report test failures
         if: env.JS_TEST != '0' || env.RUST_TEST != '0'
+        shell: bash
         run: |
           [ "$JS_TEST" = "0" ] || echo "::error::JS tests failed (exit $JS_TEST)"
           [ "$RUST_TEST" = "0" ] || echo "::error::Rust tests failed (exit $RUST_TEST)"
@@ -198,6 +199,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           cd src-tauri
+          mkdir -p coverage
           cargo llvm-cov --lcov --output-path coverage/lcov.info
           sed -i 's|^SF:src/|SF:src-tauri/src/|' coverage/lcov.info
           sed -i 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
