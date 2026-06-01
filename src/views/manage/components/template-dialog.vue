@@ -47,9 +47,7 @@
               <FormItem :label="precedenceLabel">
                 <InputNumber v-model="formData.precedence" class="flex-1" />
                 <p class="text-xs text-muted-foreground mt-1">
-                  {{
-                    $t('manage.index.newTemplateForm.precedenceDesc', { field: precedenceLabel })
-                  }}
+                  {{ $t('manage.index.newTemplateForm.precedenceDesc', { field: precedenceLabel }) }}
                 </p>
               </FormItem>
             </div>
@@ -57,7 +55,6 @@
               <FormItem :label="$t('manage.index.newTemplateForm.masterTimeout')">
                 <div class="flex items-center gap-2">
                   <InputNumber v-model="formData.master_timeout" class="flex-1" />
-                  <span class="text-sm text-muted-foreground">s</span>
                 </div>
               </FormItem>
             </div>
@@ -85,15 +82,15 @@
             </FormItem>
           </div>
         </div>
-      </Form>
 
-      <DialogFooter>
-        <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
-        <Button type="submit" :disabled="createLoading">
-          <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
-          {{ $t('dialogOps.create') }}
-        </Button>
-      </DialogFooter>
+        <DialogFooter>
+          <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
+          <Button type="submit" :disabled="createLoading">
+            <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
+            {{ $t('dialogOps.create') }}
+          </Button>
+        </DialogFooter>
+      </Form>
     </DialogContent>
   </Dialog>
 </template>
