@@ -220,15 +220,15 @@ const fetchClusterStatus = async () => {
       mongoApi.shardStatus(mongoConn),
     ]);
 
-    if (serverResult.success && serverResult.status) {
+    if (serverResult.status) {
       serverStatus.value = serverResult.status;
     }
 
-    if (replResult.success && replResult.status) {
+    if (replResult.status) {
       replSetStatus.value = replResult.status;
     }
 
-    if (shardResult.success && shardResult.cluster) {
+    if (shardResult.cluster) {
       shardCluster.value = shardResult.cluster;
     }
   } catch (_err) {

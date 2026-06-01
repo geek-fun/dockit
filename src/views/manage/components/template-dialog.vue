@@ -5,7 +5,21 @@
         <DialogTitle>{{ $t('manage.index.newTemplateForm.title') }}</DialogTitle>
       </DialogHeader>
 
-      <Form class="mt-4" @submit.prevent="submitCreate">
+      <div v-if="isSuccess" class="text-center py-4">
+        <div class="text-green-500 text-4xl mb-2">✓</div>
+        <p class="text-sm font-medium">{{ lang.t('dialogOps.createSuccess') }}</p>
+      </div>
+
+      <Alert v-else-if="isError" variant="destructive" class="mb-3">
+        <AlertDescription class="flex items-center justify-between">
+          <span>{{ message }}</span>
+          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="reset()">
+            <X class="w-4 h-4" />
+          </button>
+        </AlertDescription>
+      </Alert>
+
+      <Form v-if="isIdle" class="mt-4" @submit.prevent="submitCreate">
         <div class="form-grid">
           <!-- Row 1: Template Name -->
           <div class="form-row-full">
@@ -86,8 +100,19 @@
         </div>
 
         <DialogFooter>
-          <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
-          <Button type="submit" :disabled="createLoading">
+          <Button variant="outline" :disabled="createLoading" @click="closeModal">
+            {{ isSuccess ? $t('dialogOps.close') : $t('dialogOps.cancel') }}
+          </Button>
+          <Button
+            v-if="isError"
+            variant="destructive"
+            :disabled="createLoading"
+            @click="handleRetry"
+          >
+            <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
+            {{ $t('dialogOps.retry') }}
+          </Button>
+          <Button v-else-if="isIdle" type="submit" :disabled="createLoading">
             <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('dialogOps.create') }}
           </Button>
@@ -98,10 +123,10 @@
 </template>
 
 <script setup lang="ts">
-import { useMessageService, useDialogService } from '@/composables';
+import { useDialogService, useDialogResult, formatApiError } from '@/composables';
 import { storeToRefs } from 'pinia';
-import { Loader2 } from 'lucide-vue-next';
-import { CustomError, jsonify, withLoadingDelay } from '../../../common';
+import { Loader2, X } from 'lucide-vue-next';
+import { jsonify, withLoadingDelay } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
 import { TemplateApiMode, TemplateType } from '../../../datasources';
@@ -113,6 +138,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { InputNumber } from '@/components/ui/input-number';
 import { Form, FormItem } from '@/components/ui/form';
@@ -127,11 +153,12 @@ import {
 
 const clusterManageStore = useClusterManageStore();
 const { createTemplate, refreshStates } = clusterManageStore;
-const { templates, templateApiMode } = storeToRefs(clusterManageStore);
+const { templateApiMode, templates } = storeToRefs(clusterManageStore);
 
 const lang = useLang();
-const message = useMessageService();
 const dialog = useDialogService();
+
+const { message, isIdle, isSuccess, isError, succeed, fail, reset } = useDialogResult();
 
 const showModal = ref(false);
 const createLoading = ref(false);
@@ -276,6 +303,7 @@ const toggleModal = () => {
   if (showModal.value) {
     closeModal();
   } else {
+    reset();
     showModal.value = true;
   }
 };
@@ -285,6 +313,7 @@ const closeModal = () => {
   templateType.value = TemplateType.INDEX_TEMPLATE;
   formData.value = { ...defaultFormData };
   errors.value = {};
+  reset();
 };
 
 const buildTemplateBody = () => {
@@ -328,8 +357,14 @@ const submitCreate = async (event: MouseEvent) => {
   }
 };
 
+const handleRetry = () => {
+  reset();
+  doCreateTemplate();
+};
+
 const doCreateTemplate = async () => {
   createLoading.value = true;
+  reset();
   try {
     await withLoadingDelay(
       createTemplate({
@@ -340,15 +375,11 @@ const doCreateTemplate = async () => {
         body: buildTemplateBody(),
       }),
     );
-    message.success(lang.t('dialogOps.createSuccess'));
+    succeed();
     await refreshStates();
-    closeModal();
+    setTimeout(() => closeModal(), 1500);
   } catch (err) {
-    message.error((err as CustomError).details, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 7200,
-    });
+    fail(formatApiError(err));
   } finally {
     createLoading.value = false;
   }
