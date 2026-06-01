@@ -161,3 +161,81 @@ pub(crate) async fn create_cloudwatch_client(config: &Value) -> Result<CloudWatc
     let aws_config = config_builder.load().await;
     Ok(CloudWatchClient::new(&aws_config))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[tokio::test]
+    async fn test_create_dynamo_client_access_key() {
+        // Explicit credentials + region = no network I/O in config resolution.
+        let config = json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "AKID123",
+            "secretAccessKey": "SAK456",
+        });
+        let result = create_dynamo_client(&config).await;
+        assert!(result.is_ok(), "should resolve config with explicit creds: {:?}", result.err());
+    }
+
+    #[tokio::test]
+    async fn test_create_dynamo_client_missing_region() {
+        let config = json!({
+            "authKind": "accessKey",
+            "accessKeyId": "AKID",
+            "secretAccessKey": "SAK",
+        });
+        let result = create_dynamo_client(&config).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("region"));
+    }
+
+    #[tokio::test]
+    async fn test_create_dynamo_client_missing_access_key() {
+        let config = json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            // no accessKeyId
+        });
+        let result = create_dynamo_client(&config).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_create_dynamo_client_endpoint_url() {
+        let config = json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "AKID",
+            "secretAccessKey": "SAK",
+            "endpointUrl": "http://localhost:8000",
+        });
+        let result = create_dynamo_client(&config).await;
+        assert!(result.is_ok(), "custom endpoint should not block: {:?}", result.err());
+    }
+
+    #[tokio::test]
+    async fn test_create_dynamo_client_unsupported_auth() {
+        let config = json!({
+            "region": "us-east-1",
+            "authKind": "unknown_type",
+        });
+        let result = create_dynamo_client(&config).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unsupported auth kind"));
+    }
+
+    #[tokio::test]
+    async fn test_create_cloudwatch_client_access_key() {
+        let config = json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "AKID",
+            "secretAccessKey": "SAK",
+        });
+        let result = create_cloudwatch_client(&config).await;
+        assert!(result.is_ok(), "cloudwatch client with explicit creds: {:?}", result.err());
+    }
+}

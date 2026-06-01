@@ -181,3 +181,124 @@ fn normalize_mongo(conn: Value) -> Value {
 
     Value::Object(config)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_normalize_es_keeps_all_fields() {
+        let conn = json!({
+            "id": 1, "type": "ELASTICSEARCH", "host": "es.host", "port": 9200,
+            "authType": "basic", "username": "u", "password": "p",
+            "sslCertVerification": true,
+        });
+        let cfg = normalize_es(conn);
+        assert_eq!(cfg.get("host").unwrap(), "es.host");
+        assert_eq!(cfg.get("port").unwrap(), 9200);
+        assert_eq!(cfg.get("authType").unwrap(), "basic");
+        assert_eq!(cfg.get("username").unwrap(), "u");
+        assert_eq!(cfg.get("password").unwrap(), "p");
+        assert_eq!(cfg.get("sslCertVerification").unwrap(), true);
+    }
+
+    #[test]
+    fn test_normalize_es_skips_missing_optionals() {
+        let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "h", "port": 9200});
+        let cfg = normalize_es(conn);
+        assert!(cfg.get("username").is_none());
+    }
+
+    #[test]
+    fn test_normalize_dynamo_access_key() {
+        let conn = json!({
+            "id": 1, "type": "DYNAMODB", "region": "us-west-2",
+            "auth": {"kind": "accessKey", "accessKeyId": "AKID", "secretAccessKey": "SAK", "sessionToken": "ST"},
+        });
+        let cfg = normalize_dynamo(conn).unwrap();
+        assert_eq!(cfg.get("region").unwrap(), "us-west-2");
+        assert_eq!(cfg.get("authKind").unwrap(), "accessKey");
+        assert_eq!(cfg.get("accessKeyId").unwrap(), "AKID");
+        assert_eq!(cfg.get("secretAccessKey").unwrap(), "SAK");
+        assert_eq!(cfg.get("sessionToken").unwrap(), "ST");
+    }
+
+    #[test]
+    fn test_normalize_dynamo_profile() {
+        let conn = json!({
+            "id": 1, "type": "DYNAMODB", "region": "us-east-1",
+            "auth": {"kind": "profile", "profileName": "my-profile"},
+        });
+        let cfg = normalize_dynamo(conn).unwrap();
+        assert_eq!(cfg.get("authKind").unwrap(), "profile");
+        assert_eq!(cfg.get("profileName").unwrap(), "my-profile");
+    }
+
+    #[test]
+    fn test_normalize_dynamo_skips_empty_session_token() {
+        let conn = json!({
+            "id": 1, "type": "DYNAMODB", "region": "us-east-1",
+            "auth": {"kind": "accessKey", "accessKeyId": "AKID", "secretAccessKey": "SAK", "sessionToken": ""},
+        });
+        let cfg = normalize_dynamo(conn).unwrap();
+        assert!(cfg.get("sessionToken").is_none(), "empty sessionToken should be omitted");
+    }
+
+    #[test]
+    fn test_normalize_dynamo_endpoint_url() {
+        let conn = json!({
+            "id": 1, "type": "DYNAMODB", "region": "us-east-1", "endpointUrl": "http://localhost:8000",
+            "auth": {"kind": "accessKey", "accessKeyId": "AKID", "secretAccessKey": "SAK"},
+        });
+        let cfg = normalize_dynamo(conn).unwrap();
+        assert_eq!(cfg.get("endpointUrl").unwrap(), "http://localhost:8000");
+    }
+
+    #[test]
+    fn test_normalize_dynamo_missing_endpoint() {
+        let conn = json!({
+            "id": 1, "type": "DYNAMODB", "region": "us-east-1",
+            "auth": {"kind": "accessKey", "accessKeyId": "AKID", "secretAccessKey": "SAK"},
+        });
+        let cfg = normalize_dynamo(conn).unwrap();
+        assert!(cfg.get("endpointUrl").is_none());
+    }
+
+    #[test]
+    fn test_normalize_mongo_scram() {
+        let conn = json!({
+            "id": 1, "type": "MONGODB", "host": "mongo.host", "port": 27017, "tls": true, "database": "testdb",
+            "auth": {"kind": "scram", "username": "admin", "password": "pass", "authSource": "admin", "authMechanism": "SCRAM-SHA-256"},
+        });
+        let cfg = normalize_mongo(conn);
+        assert_eq!(cfg.get("host").unwrap(), "mongo.host");
+        assert_eq!(cfg.get("port").unwrap(), 27017);
+        assert_eq!(cfg.get("tls").unwrap(), true);
+        assert_eq!(cfg.get("database").unwrap(), "testdb");
+        assert_eq!(cfg.get("authKind").unwrap(), "scram");
+        assert_eq!(cfg.get("authMechanism").unwrap(), "SCRAM-SHA-256");
+    }
+
+    #[test]
+    fn test_normalize_mongo_uri_auth() {
+        let conn = json!({
+            "id": 1, "type": "MONGODB",
+            "auth": {"kind": "uri", "uri": "mongodb+srv://cluster.mongodb.net"},
+        });
+        let cfg = normalize_mongo(conn);
+        assert_eq!(cfg.get("authKind").unwrap(), "uri");
+    }
+
+    #[test]
+    fn test_normalize_config_unknown_type() {
+        let err = normalize_config(json!({"id": 1, "type": "UNKNOWN"})).unwrap_err();
+        assert!(err.contains("Unknown connection type"), "got: {}", err);
+    }
+
+    #[test]
+    fn test_normalize_config_missing_type() {
+        let err = normalize_config(json!({"id": 1})).unwrap_err();
+        assert!(err.contains("type"), "got: {}", err);
+    }
+}
