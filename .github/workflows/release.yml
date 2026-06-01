@@ -170,7 +170,7 @@ jobs:
 
       - name: Tests
         shell: bash
-        run: bash scripts/run-tests.sh
+        run: scripts/run-tests.sh
 
       - name: Report test failures
         if: env.JS_TEST != '0' || env.RUST_TEST != '0'
