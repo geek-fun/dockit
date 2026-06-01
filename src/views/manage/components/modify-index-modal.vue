@@ -37,30 +37,30 @@
             @blur="handleBlur('writeCapacityUnits')"
           />
         </FormItem>
+
+        <Alert v-if="errorMessage" variant="destructive" class="mt-3">
+          <AlertDescription class="flex items-center justify-between">
+            <span>{{ errorMessage }}</span>
+            <button
+              class="ml-2 text-sm hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="errorMessage = ''"
+            >
+              <X class="w-4 h-4" />
+            </button>
+          </AlertDescription>
+        </Alert>
+
+        <DialogFooter class="mt-4">
+          <Button variant="outline" :disabled="loading" @click="handleCancel">
+            {{ lang.t('dialogOps.cancel') }}
+          </Button>
+          <Button type="submit" :disabled="loading">
+            <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+            {{ lang.t('dialogOps.confirm') }}
+          </Button>
+        </DialogFooter>
       </Form>
-
-      <Alert v-if="errorMessage" variant="destructive" class="mt-3">
-        <AlertDescription class="flex items-center justify-between">
-          <span>{{ errorMessage }}</span>
-          <button
-            class="ml-2 text-sm hover:opacity-70 cursor-pointer"
-            aria-label="Dismiss"
-            @click="errorMessage = ''"
-          >
-            <X class="w-4 h-4" />
-          </button>
-        </AlertDescription>
-      </Alert>
-
-      <DialogFooter class="mt-4">
-        <Button variant="outline" :disabled="loading" @click="handleCancel">
-          {{ lang.t('dialogOps.cancel') }}
-        </Button>
-        <Button type="submit" :disabled="loading">
-          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
-          {{ lang.t('dialogOps.confirm') }}
-        </Button>
-      </DialogFooter>
     </DialogContent>
   </Dialog>
 </template>

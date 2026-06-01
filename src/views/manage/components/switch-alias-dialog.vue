@@ -4,8 +4,8 @@
       <DialogHeader>
         <DialogTitle>{{ $t('manage.index.switchAliasForm.title') }}</DialogTitle>
       </DialogHeader>
-      <div class="modal-content">
-        <Form @submit.prevent="submitCreate">
+      <Form @submit.prevent="submitCreate">
+        <div class="modal-content">
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
               <FormItem :label="$t('manage.index.switchAliasForm.aliasName')">
@@ -44,15 +44,15 @@
               </FormItem>
             </GridItem>
           </Grid>
-        </Form>
-      </div>
-      <DialogFooter>
-        <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
-        <Button type="submit" :disabled="!validationPassed || createLoading">
-          <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
-          {{ $t('dialogOps.confirm') }}
-        </Button>
-      </DialogFooter>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
+          <Button type="submit" :disabled="!validationPassed || createLoading">
+            <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
+            {{ $t('dialogOps.confirm') }}
+          </Button>
+        </DialogFooter>
+      </Form>
     </DialogContent>
   </Dialog>
 </template>
