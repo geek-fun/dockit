@@ -2,7 +2,7 @@ import { SearchConnection, DatabaseType } from '../store';
 import { loadHttpClient } from './fetchApi.ts';
 import { CustomError, debug, jsonify, optionalToNullableInt } from '../common';
 import { get } from 'lodash';
-import { invokeCapability, parseEsCapabilityResponse } from './capabilityInvoker.ts';
+import { invokeCapability, parseCapabilityResponse } from './capabilityInvoker.ts';
 
 export enum IndexHealth {
   GREEN = 'green',
@@ -671,13 +671,7 @@ const esApi: ESApi = {
         { index: indexName },
         String(connection.id),
       );
-      const result = parseEsCapabilityResponse<{
-        status: number;
-        error?: { type: string; reason: string };
-      }>(raw);
-      if (result.status >= 300) {
-        throw new CustomError(result.status, `${result.error?.type}: ${result.error?.reason}`);
-      }
+      parseCapabilityResponse<void>(raw);
     } catch (err) {
       throw new CustomError(
         err instanceof CustomError ? err.status : 500,
@@ -726,13 +720,7 @@ const esApi: ESApi = {
         { index: indexName, name: aliasName },
         String(connection.id),
       );
-      const result = parseEsCapabilityResponse<{
-        status: number;
-        error?: { type: string; reason: string };
-      }>(raw);
-      if (result.status >= 300) {
-        throw new CustomError(result.status, `${result.error?.type}: ${result.error?.reason}`);
-      }
+      parseCapabilityResponse<void>(raw);
     } catch (err) {
       throw new CustomError(
         err instanceof CustomError ? err.status : 500,
@@ -765,7 +753,7 @@ const esApi: ESApi = {
   },
   catIndices: async connection => {
     const raw = await invokeCapability('es__cat_indices', {}, String(connection.id));
-    const data = parseEsCapabilityResponse<Array<{ [key: string]: string }>>(raw);
+    const data = parseCapabilityResponse<Array<{ [key: string]: string }>>(raw);
 
     return data.map((index: { [key: string]: string }) => ({
       index: index.index,
@@ -782,7 +770,7 @@ const esApi: ESApi = {
   },
   catAliases: async connection => {
     const raw = await invokeCapability('es__cat_aliases', {}, String(connection.id));
-    const data = parseEsCapabilityResponse<Array<{ [key: string]: string }>>(raw);
+    const data = parseCapabilityResponse<Array<{ [key: string]: string }>>(raw);
     return data.map((alias: { [key: string]: string }) => ({
       alias: alias.alias,
       index: alias.index,

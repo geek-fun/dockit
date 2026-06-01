@@ -1,6 +1,6 @@
 import { DynamoDBConnection } from '../store';
 import { invoke } from '@tauri-apps/api/core';
-import { invokeCapability, parseDynamoCapabilityResponse } from './capabilityInvoker.ts';
+import { invokeCapability, parseCapabilityResponse } from './capabilityInvoker.ts';
 
 export type KeySchema = {
   attributeName: string;
@@ -161,7 +161,7 @@ export type BatchWriteResult = {
 const dynamoApi = {
   listTables: async (con: DynamoDBConnection): Promise<string[]> => {
     const raw = await invokeCapability('dynamo__list_tables', {}, String(con.id));
-    const data = parseDynamoCapabilityResponse<{ tableNames?: string[] }>(raw);
+    const data = parseCapabilityResponse<{ tableNames?: string[] }>(raw);
     return data.tableNames ?? [];
   },
 
@@ -171,7 +171,7 @@ const dynamoApi = {
       { table_name: tableName },
       String(con.id),
     );
-    const data = parseDynamoCapabilityResponse<RawDynamoDBTableInfo>(raw);
+    const data = parseCapabilityResponse<RawDynamoDBTableInfo>(raw);
     const { keySchema, attributeDefinitions } = data;
 
     const pkName = keySchema.find(({ keyType }) => keyType.toUpperCase() === 'HASH')?.attributeName;
@@ -207,7 +207,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<QueryResult>(raw);
+    return parseCapabilityResponse<QueryResult>(raw);
   },
   scanTable: async (con: DynamoDBConnection, queryParams: QueryParams) => {
     const raw = await invokeCapability(
@@ -221,7 +221,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<QueryResult>(raw);
+    return parseCapabilityResponse<QueryResult>(raw);
   },
   createItem: async (
     con: DynamoDBConnection,
@@ -239,7 +239,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<{ message: string; data: QueryResult }>(raw);
+    return parseCapabilityResponse<{ message: string; data: QueryResult }>(raw);
   },
 
   batchWriteItems: async (
@@ -258,7 +258,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<BatchWriteResult>(raw);
+    return parseCapabilityResponse<BatchWriteResult>(raw);
   },
 
   executeStatement: async (
@@ -289,7 +289,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<PartiQLResult>(raw);
+    return parseCapabilityResponse<PartiQLResult>(raw);
   },
 
   updateItem: async (
@@ -307,7 +307,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse(raw);
+    return parseCapabilityResponse(raw);
   },
   deleteItem: async (con: DynamoDBConnection, tableName: string, keys: DynamoAttributeItem[]) => {
     const raw = await invokeCapability(
@@ -318,7 +318,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse(raw);
+    return parseCapabilityResponse(raw);
   },
 
   // GSI Management Operations
@@ -368,7 +368,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse(raw);
+    return parseCapabilityResponse(raw);
   },
 
   updateGlobalSecondaryIndex: async (
@@ -390,7 +390,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse(raw);
+    return parseCapabilityResponse(raw);
   },
 
   deleteGlobalSecondaryIndex: async (
@@ -406,7 +406,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse(raw);
+    return parseCapabilityResponse(raw);
   },
 
   // Get Point-in-Time Recovery status
@@ -416,7 +416,7 @@ const dynamoApi = {
       { table_name: tableName },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<{ pitrEnabled: boolean }>(raw);
+    return parseCapabilityResponse<{ pitrEnabled: boolean }>(raw);
   },
 
   // Get Time To Live status
@@ -426,7 +426,7 @@ const dynamoApi = {
       { table_name: tableName },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<{ ttlEnabled: boolean; attributeName?: string }>(raw);
+    return parseCapabilityResponse<{ ttlEnabled: boolean; attributeName?: string }>(raw);
   },
 
   // CloudWatch Metrics
@@ -458,7 +458,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<{
+    return parseCapabilityResponse<{
       available: boolean;
       message?: string;
       metrics?: {
@@ -562,7 +562,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<{ tableName: string }>(raw);
+    return parseCapabilityResponse<{ tableName: string }>(raw);
   },
 
   deleteTable: async (
@@ -574,7 +574,7 @@ const dynamoApi = {
       { table_name: tableName },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<{ tableName: string }>(raw);
+    return parseCapabilityResponse<{ tableName: string }>(raw);
   },
 
   truncateTable: async (
@@ -592,7 +592,7 @@ const dynamoApi = {
       { table_name: tableName },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<{
+    return parseCapabilityResponse<{
       totalItems: number;
       totalScanned: number;
       deletedItems: number;
@@ -622,7 +622,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<{ tableName: string }>(raw);
+    return parseCapabilityResponse<{ tableName: string }>(raw);
   },
 
   updateTimeToLive: async (
@@ -642,7 +642,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<{
+    return parseCapabilityResponse<{
       tableName: string;
       enabled: boolean;
       attributeName?: string;
@@ -662,7 +662,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<{ tableName: string; enabled: boolean }>(raw);
+    return parseCapabilityResponse<{ tableName: string; enabled: boolean }>(raw);
   },
 
   updateStreams: async (
@@ -682,7 +682,7 @@ const dynamoApi = {
       },
       String(con.id),
     );
-    return parseDynamoCapabilityResponse<{
+    return parseCapabilityResponse<{
       tableName: string;
       streamEnabled: boolean;
       streamViewType?: string;

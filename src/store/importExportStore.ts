@@ -1873,7 +1873,7 @@ export const useImportExportStore = defineStore('importExportStore', {
             this.importDatabase || mongoConnection.activeDatabase || mongoConnection.database || '',
             this.importTargetIndex,
           );
-          if (!result.success) {
+          if (result.error) {
             throw new CustomError(500, result.error || 'Failed to create MongoDB collection');
           }
         }
@@ -2297,7 +2297,7 @@ export const useImportExportStore = defineStore('importExportStore', {
             this.exportDatabase || mongoConnection.activeDatabase || mongoConnection.database || '',
             collectionName,
           );
-          if (statsResult.success && statsResult.stats) {
+          if (statsResult.stats) {
             this.estimatedRows = statsResult.stats.count;
           }
         } catch {
@@ -2891,7 +2891,7 @@ export const useImportExportStore = defineStore('importExportStore', {
             skip,
           );
 
-          if (!result.success) {
+          if (result.error) {
             throw new CustomError(500, result.error || 'Failed to export documents from MongoDB');
           }
 
