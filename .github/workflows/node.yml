@@ -92,23 +92,36 @@ jobs:
 
       # ── Tests (JS + Rust in parallel per OS) ────────────
 
-      - name: Tests
+      - name: Tests (JS)
+        shell: bash
+        run: |
+          set +e
+          npm run test:ci; JS_EXIT=$?
+          echo "JS_TEST=$JS_EXIT" >> "$GITHUB_ENV"
+
+      - name: Tests (Rust lib)
         shell: bash
         run: |
           set +e
           export PATH="$HOME/.cargo/bin:$PATH"
-          npm run test:ci; JS_EXIT=$?
-          which cargo || echo "::warning::cargo not found in PATH"
-          cd src-tauri && cargo test; RS_EXIT=$?
-          echo "JS_TEST=$JS_EXIT" >> "$GITHUB_ENV"
-          echo "RUST_TEST=$RS_EXIT" >> "$GITHUB_ENV"
+          cd src-tauri && cargo test --lib; RUST_LIB=$?
+          echo "RUST_LIB=$RUST_LIB" >> "$GITHUB_ENV"
+
+      - name: Tests (Rust integration)
+        shell: bash
+        run: |
+          set +e
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cd src-tauri && cargo test --test capabilities; RUST_INT=$?
+          echo "RUST_INT=$RUST_INT" >> "$GITHUB_ENV"
 
       - name: Report test failures
-        if: env.JS_TEST != '0' || env.RUST_TEST != '0'
+        if: env.JS_TEST != '0' || env.RUST_LIB != '0' || env.RUST_INT != '0'
         shell: bash
         run: |
           [ "$JS_TEST" = "0" ] || echo "::error::JS tests failed (exit $JS_TEST)"
-          [ "$RUST_TEST" = "0" ] || echo "::error::Rust tests failed (exit $RUST_TEST)"
+          [ "$RUST_LIB" = "0" ] || echo "::error::Rust lib tests failed (exit $RUST_LIB)"
+          [ "$RUST_INT" = "0" ] || echo "::error::Rust integration tests failed (exit $RUST_INT)"
           exit 1
 
       # ── Coverage (Ubuntu only) ──────────────────────────
