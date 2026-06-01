@@ -45,6 +45,7 @@ rand = "0.8"
 tiktoken-rs = "0.6"
 [dev-dependencies]
 wiremock = "0.6"
+mockall = "0.13"
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
