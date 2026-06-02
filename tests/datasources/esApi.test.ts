@@ -38,9 +38,13 @@ jest.mock('../../src/lang', () => ({
 
 jest.mock('../../src/datasources/capabilityInvoker.ts', () => ({
   invokeCapability: jest.fn(),
-  parseEsCapabilityResponse: <T>(raw: string): T => {
-    const parsed = JSON.parse(raw) as { status: number; data: T };
-    return parsed.data;
+  parseCapabilityResponse: <T>(raw: string): T => {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'object' && parsed !== null && typeof parsed.status === 'number') {
+      if (parsed.status >= 400) throw new Error(parsed.message || 'Request failed');
+      return (parsed.data ?? {}) as T;
+    }
+    return parsed as T;
   },
 }));
 

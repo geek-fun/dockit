@@ -1939,7 +1939,7 @@ describe('connectionStore - freshConnection (MONGODB)', () => {
     const datasources = require('../src/datasources');
     datasources.mongoApi.testConnection = jest
       .fn()
-      .mockResolvedValue({ success: false, message: 'Auth failed' });
+      .mockResolvedValue({ error: 'Auth failed', message: 'Auth failed' });
 
     const { useConnectionStore } = require('../src/store/connectionStore');
     const store = useConnectionStore();

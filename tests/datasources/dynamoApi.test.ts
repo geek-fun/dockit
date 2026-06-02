@@ -19,7 +19,14 @@ jest.mock('../../src/datasources/ApiClients.ts', () => ({
 
 jest.mock('../../src/datasources/capabilityInvoker.ts', () => ({
   invokeCapability: jest.fn(),
-  parseDynamoCapabilityResponse: <T>(raw: string): T => JSON.parse(raw) as T,
+  parseCapabilityResponse: <T>(raw: string): T => {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'object' && parsed !== null && typeof parsed.status === 'number') {
+      if (parsed.status >= 400) throw new Error(parsed.message || 'Request failed');
+      return (parsed.data ?? {}) as T;
+    }
+    return parsed as T;
+  },
 }));
 
 const mockedInvokeCapability = invokeCapability as jest.MockedFunction<typeof invokeCapability>;

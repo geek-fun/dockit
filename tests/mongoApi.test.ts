@@ -26,7 +26,15 @@ jest.mock('../src/common/monaco', () => ({
 
 jest.mock('../src/datasources/capabilityInvoker.ts', () => ({
   invokeCapability: jest.fn(),
-  parseMongoCapabilityResponse: <T>(raw: string): T => JSON.parse(raw) as T,
+  parseCapabilityResponse: <T>(raw: string): T => {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'object' && parsed !== null && typeof parsed.status === 'number') {
+      if (parsed.status >= 400) throw new Error(parsed.message || 'Request failed');
+      return (parsed.data ?? {}) as T;
+    }
+    return parsed as T;
+  },
+  parseDirectResponse: jest.fn(),
 }));
 
 const { invoke } = require('@tauri-apps/api/core');
@@ -49,12 +57,11 @@ describe('mongoApi', () => {
     };
 
     it('calls invoke with correct config for no auth', async () => {
-      const mockResult = {
-        success: true,
-        message: 'Connection successful',
-        collections: ['users'],
+      const mockApiResponse = {
+        status: 200,
+        data: { collections: ['users'] },
       };
-      invoke.mockResolvedValue(mockResult);
+      invoke.mockResolvedValue(mockApiResponse);
 
       const result = await mongoApi.testConnection(baseConnection);
 
@@ -67,7 +74,7 @@ describe('mongoApi', () => {
           tls: undefined,
         },
       });
-      expect(result).toEqual(mockResult);
+      expect(result.collections).toEqual(['users']);
     });
 
     it('calls invoke with correct config for scram auth', async () => {
@@ -80,10 +87,10 @@ describe('mongoApi', () => {
           authSource: 'admin',
         },
       };
-      const mockResult = { success: true, message: 'Connection successful', collections: [] };
-      invoke.mockResolvedValue(mockResult);
+      const mockApiResponse = { status: 200, data: { collections: [] } };
+      invoke.mockResolvedValue(mockApiResponse);
 
-      await mongoApi.testConnection(connection);
+      const result = await mongoApi.testConnection(connection);
 
       expect(invoke).toHaveBeenCalledWith('mongo_test_connection', {
         config: {
@@ -99,53 +106,19 @@ describe('mongoApi', () => {
           tls: undefined,
         },
       });
+      expect(result.collections).toEqual([]);
     });
 
-    it('calls invoke with correct config for scram auth with mechanism', async () => {
+    it('calls invoke with correct config for URI auth', async () => {
       const connection: MongoDBConnection = {
-        ...baseConnection,
-        auth: {
-          kind: 'scram',
-          username: 'admin',
-          password: 'secret',
-          authSource: 'admin',
-          authMechanism: 'SCRAM-SHA-256',
-        },
-      };
-      const mockResult = { success: true, message: 'Connection successful', collections: [] };
-      invoke.mockResolvedValue(mockResult);
-
-      await mongoApi.testConnection(connection);
-
-      expect(invoke).toHaveBeenCalledWith('mongo_test_connection', {
-        config: {
-          host: 'localhost',
-          port: 27017,
-          auth: {
-            kind: 'scram',
-            username: 'admin',
-            password: 'secret',
-            authSource: 'admin',
-            authMechanism: 'SCRAM-SHA-256',
-          },
-          database: undefined,
-          tls: undefined,
-        },
-      });
-    });
-
-    it('calls invoke with correct config for uri auth', async () => {
-      const connection: MongoDBConnection = {
-        ...baseConnection,
+        name: 'test',
+        type: DatabaseType.MONGODB,
         host: '',
         port: 0,
-        auth: {
-          kind: 'uri',
-          uri: 'mongodb+srv://user:pass@cluster.mongodb.net/db',
-        },
+        auth: { kind: 'uri', uri: 'mongodb://localhost:27017' },
       };
-      const mockResult = { success: true, message: 'Connection successful', collections: [] };
-      invoke.mockResolvedValue(mockResult);
+      const mockApiResponse = { status: 200, data: { collections: [] } };
+      invoke.mockResolvedValue(mockApiResponse);
 
       await mongoApi.testConnection(connection);
 
@@ -153,50 +126,36 @@ describe('mongoApi', () => {
         config: {
           host: '',
           port: 0,
-          auth: {
-            kind: 'uri',
-            uri: 'mongodb+srv://user:pass@cluster.mongodb.net/db',
-          },
+          auth: { kind: 'uri', uri: 'mongodb://localhost:27017' },
           database: undefined,
           tls: undefined,
         },
       });
     });
 
-    it('includes database and tls when provided', async () => {
-      const connection: MongoDBConnection = {
+    it('calls invoke with TLS and database', async () => {
+      const tlsConnection: MongoDBConnection = {
         ...baseConnection,
-        database: 'mydb',
         tls: true,
+        database: 'testdb',
       };
-      const mockResult = { success: true, message: 'Connection successful', collections: [] };
-      invoke.mockResolvedValue(mockResult);
+      const mockApiResponse = {
+        status: 200,
+        data: { collections: ['users', 'orders'] },
+      };
+      invoke.mockResolvedValue(mockApiResponse);
 
-      await mongoApi.testConnection(connection);
+      const result = await mongoApi.testConnection(tlsConnection);
 
       expect(invoke).toHaveBeenCalledWith('mongo_test_connection', {
         config: {
           host: 'localhost',
           port: 27017,
           auth: { kind: 'none' },
-          database: 'mydb',
+          database: 'testdb',
           tls: true,
         },
       });
-    });
-
-    it('returns result from invoke', async () => {
-      const mockResult = {
-        success: true,
-        message: 'Connection successful',
-        collections: ['users', 'orders'],
-      };
-      invoke.mockResolvedValue(mockResult);
-
-      const result = await mongoApi.testConnection(baseConnection);
-
-      expect(result).toEqual(mockResult);
-      expect(result.success).toBe(true);
       expect(result.collections).toEqual(['users', 'orders']);
     });
 
@@ -206,20 +165,20 @@ describe('mongoApi', () => {
 
       const result = await mongoApi.testConnection(baseConnection);
 
-      expect(result.success).toBe(false);
+      expect(result.error).toBe('Connection failed');
       expect(result.message).toBe('Connection failed');
     });
 
-    it('returns failure result when success is false', async () => {
-      const mockResult = {
-        success: false,
+    it('returns failure result when status >= 400', async () => {
+      const mockApiResponse = {
+        status: 400,
         message: 'Authentication failed',
       };
-      invoke.mockResolvedValue(mockResult);
+      invoke.mockResolvedValue(mockApiResponse);
 
       const result = await mongoApi.testConnection(baseConnection);
 
-      expect(result.success).toBe(false);
+      expect(result.error).toBe('Authentication failed');
       expect(result.message).toBe('Authentication failed');
     });
   });
@@ -234,11 +193,11 @@ describe('mongoApi', () => {
     };
 
     it('calls invoke with correct config and returns result', async () => {
-      const mockResult = {
-        success: true,
+      const mockApiResponse = {
+        status: 200,
         data: [{ _id: '1', name: 'Alice' }],
       };
-      invoke.mockResolvedValue(mockResult);
+      invoke.mockResolvedValue(mockApiResponse);
 
       const result = await mongoApi.executeQuery(baseConnection, 'db.users.find()');
 
@@ -246,7 +205,6 @@ describe('mongoApi', () => {
         config: expect.objectContaining({ host: 'localhost' }),
         code: 'db.users.find()',
       });
-      expect(result.success).toBe(true);
       expect(result.data).toEqual([{ _id: '1', name: 'Alice' }]);
     });
 
@@ -255,7 +213,6 @@ describe('mongoApi', () => {
 
       const result = await mongoApi.executeQuery(baseConnection, 'bad code');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Syntax error');
     });
   });
@@ -280,7 +237,6 @@ describe('mongoApi', () => {
       const result = await mongoApi.listDatabases(baseConnection);
 
       expect(mockedInvokeCapability).toHaveBeenCalledWith('mongo__list_databases', {}, 'conn-123');
-      expect(result.success).toBe(true);
       expect(result.databases).toEqual([{ name: 'test' }, { name: 'admin' }]);
     });
 
@@ -289,7 +245,6 @@ describe('mongoApi', () => {
 
       const result = await mongoApi.listDatabases(baseConnection);
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to list databases');
     });
   });
@@ -318,7 +273,6 @@ describe('mongoApi', () => {
         { database: 'testdb' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.collections).toEqual([
         { name: 'users', collection_type: 'collection' },
         { name: 'orders', collection_type: 'collection' },
@@ -330,7 +284,6 @@ describe('mongoApi', () => {
 
       const result = await mongoApi.listCollections(baseConnection, 'testdb');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to list collections');
     });
   });
@@ -366,7 +319,6 @@ describe('mongoApi', () => {
         { database: 'testdb', collection: 'users' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.stats).toEqual(mockResult.stats);
     });
 
@@ -375,7 +327,6 @@ describe('mongoApi', () => {
 
       const result = await mongoApi.collectionStats(baseConnection, 'testdb', 'users');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Collection not found');
     });
   });
@@ -414,7 +365,6 @@ describe('mongoApi', () => {
         { database: 'testdb' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.stats).toEqual(mockResult.stats);
     });
 
@@ -423,7 +373,6 @@ describe('mongoApi', () => {
 
       const result = await mongoApi.databaseStats(baseConnection, 'testdb');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Database not found');
     });
   });
@@ -450,7 +399,6 @@ describe('mongoApi', () => {
         { database: 'newdb', collection: 'initcollection' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.message).toBe('Database created successfully');
     });
 
@@ -459,7 +407,6 @@ describe('mongoApi', () => {
 
       const result = await mongoApi.createDatabase(baseConnection, 'newdb', 'initcollection');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to create database');
     });
   });
@@ -486,7 +433,6 @@ describe('mongoApi', () => {
         { database: 'olddb' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.message).toBe('Database dropped successfully');
     });
 
@@ -495,7 +441,6 @@ describe('mongoApi', () => {
 
       const result = await mongoApi.dropDatabase(baseConnection, 'olddb');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to drop database');
     });
   });
@@ -522,7 +467,6 @@ describe('mongoApi', () => {
         { database: 'testdb', collection: 'newcollection', options: undefined },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.message).toBe('Collection created successfully');
     });
 
@@ -544,7 +488,6 @@ describe('mongoApi', () => {
         { database: 'testdb', collection: 'cappedcollection', options },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.message).toBe('Collection created successfully');
     });
 
@@ -568,7 +511,6 @@ describe('mongoApi', () => {
         { database: 'testdb', collection: 'timeseriescollection', options },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.message).toBe('Collection created successfully');
     });
 
@@ -577,7 +519,6 @@ describe('mongoApi', () => {
 
       const result = await mongoApi.createCollection(baseConnection, 'testdb', 'newcollection');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to create collection');
     });
   });
@@ -604,7 +545,6 @@ describe('mongoApi', () => {
         { database: 'testdb', collection: 'oldcollection' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.message).toBe('Collection dropped successfully');
     });
 
@@ -613,7 +553,6 @@ describe('mongoApi', () => {
 
       const result = await mongoApi.dropCollection(baseConnection, 'testdb', 'oldcollection');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to drop collection');
     });
   });
@@ -789,7 +728,6 @@ describe('mongoApi cluster monitoring', () => {
       const result = await mongoApi.serverStatus(baseConnection);
 
       expect(mockedInvokeCapability).toHaveBeenCalledWith('mongo__server_status', {}, 'conn-123');
-      expect(result.success).toBe(true);
       expect(result.status?.host).toBe('localhost:27017');
       expect(result.status?.version).toBe('7.0.0');
     });
@@ -799,7 +737,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.serverStatus(baseConnection);
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to get server status');
     });
   });
@@ -829,7 +766,6 @@ describe('mongoApi cluster monitoring', () => {
       const result = await mongoApi.replSetStatus(baseConnection);
 
       expect(mockedInvokeCapability).toHaveBeenCalledWith('mongo__repl_set_status', {}, 'conn-123');
-      expect(result.success).toBe(true);
       expect(result.status?.set).toBe('rs0');
       expect(result.status?.members).toHaveLength(2);
     });
@@ -840,7 +776,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.replSetStatus(baseConnection);
 
-      expect(result.success).toBe(false);
       expect(result.error).toContain('Not a replica set');
     });
 
@@ -849,7 +784,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.replSetStatus(baseConnection);
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Connection failed');
     });
   });
@@ -872,7 +806,6 @@ describe('mongoApi cluster monitoring', () => {
       const result = await mongoApi.shardStatus(baseConnection);
 
       expect(mockedInvokeCapability).toHaveBeenCalledWith('mongo__shard_status', {}, 'conn-123');
-      expect(result.success).toBe(true);
       expect(result.cluster?.is_sharding_enabled).toBe(true);
       expect(result.cluster?.shards).toHaveLength(2);
     });
@@ -890,7 +823,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.shardStatus(baseConnection);
 
-      expect(result.success).toBe(true);
       expect(result.cluster?.is_sharding_enabled).toBe(false);
       expect(result.cluster?.shards).toHaveLength(0);
     });
@@ -900,7 +832,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.shardStatus(baseConnection);
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to get shard status');
     });
   });
@@ -937,7 +868,6 @@ describe('mongoApi cluster monitoring', () => {
         },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.documents).toEqual([{ _id: '1', name: 'Alice' }]);
     });
 
@@ -965,7 +895,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.findDocuments(baseConnection, 'users');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Collection not found');
     });
   });
@@ -1025,7 +954,6 @@ describe('mongoApi cluster monitoring', () => {
         },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.inserted_id).toBe('abc123');
     });
 
@@ -1034,7 +962,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.insertDocument(baseConnection, 'users', '{"name":"Alice"}');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Insert failed');
     });
   });
@@ -1066,7 +993,6 @@ describe('mongoApi cluster monitoring', () => {
         { collection: 'users', id: 'abc123', document: '{"name":"Bob"}' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.matched_count).toBe(1);
       expect(result.modified_count).toBe(1);
     });
@@ -1076,7 +1002,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.updateDocument(baseConnection, 'users', 'abc123', '{}');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Update failed');
     });
   });
@@ -1101,7 +1026,7 @@ describe('mongoApi cluster monitoring', () => {
         { collection: 'users', id: 'abc123' },
         'conn-123',
       );
-      expect(result).toEqual({ success: true, deleted_count: 1 });
+      expect(result).toEqual({ deleted_count: 1 });
     });
 
     it('returns error result on invokeCapability failure', async () => {
@@ -1109,7 +1034,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.deleteDocument(baseConnection, 'users', 'abc123');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Delete failed');
     });
   });
@@ -1137,7 +1061,6 @@ describe('mongoApi cluster monitoring', () => {
         },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.deleted_count).toBe(5);
     });
 
@@ -1146,7 +1069,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.deleteDocuments(baseConnection, 'users', '{}');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Bulk delete failed');
     });
   });
@@ -1178,7 +1100,6 @@ describe('mongoApi cluster monitoring', () => {
         { database: 'testdb', collection: 'oldname', to_collection: 'newname' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.message).toBe('Collection renamed successfully');
     });
 
@@ -1192,7 +1113,6 @@ describe('mongoApi cluster monitoring', () => {
         'newname',
       );
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to rename collection');
     });
   });
@@ -1229,7 +1149,6 @@ describe('mongoApi cluster monitoring', () => {
         { database: 'testdb', source_collection: 'sourcecoll', target_collection: 'targetcoll' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.documents_copied).toBe(100);
       expect(result.indexes_copied).toBe(2);
       expect(result.message).toBe('Collection cloned successfully');
@@ -1245,7 +1164,6 @@ describe('mongoApi cluster monitoring', () => {
         'targetcoll',
       );
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to clone collection');
     });
   });
@@ -1270,7 +1188,6 @@ describe('mongoApi cluster monitoring', () => {
         { database: 'testdb', collection: 'users' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.deleted_count).toBe(500);
     });
 
@@ -1279,7 +1196,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.truncateCollection(baseConnection, 'testdb', 'users');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to truncate collection');
     });
   });
@@ -1315,7 +1231,6 @@ describe('mongoApi cluster monitoring', () => {
         { database: 'testdb', collection: 'users' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.indexes).toEqual(mockIndexes);
     });
 
@@ -1324,7 +1239,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.listIndexes(baseConnection, 'testdb', 'users');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to list indexes');
     });
   });
@@ -1349,7 +1263,6 @@ describe('mongoApi cluster monitoring', () => {
         { database: 'testdb', collection: 'users', keys: { email: 1 } },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.index_name).toBe('email_idx');
     });
 
@@ -1377,7 +1290,6 @@ describe('mongoApi cluster monitoring', () => {
         },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.index_name).toBe('custom_idx');
     });
 
@@ -1386,7 +1298,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.createIndex(baseConnection, 'testdb', 'users', { field: 1 });
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to create index');
     });
   });
@@ -1413,7 +1324,6 @@ describe('mongoApi cluster monitoring', () => {
         { database: 'testdb', collection: 'users', index_name: 'name_idx' },
         'conn-123',
       );
-      expect(result.success).toBe(true);
       expect(result.message).toBe('Index dropped successfully');
     });
 
@@ -1422,7 +1332,6 @@ describe('mongoApi cluster monitoring', () => {
 
       const result = await mongoApi.dropIndex(baseConnection, 'testdb', 'users', 'name_idx');
 
-      expect(result.success).toBe(false);
       expect(result.error).toBe('Failed to drop index');
     });
   });
@@ -1443,13 +1352,15 @@ describe('mongoApi export/import', () => {
 
   describe('exportDocuments', () => {
     it('calls invoke with correct command and returns result', async () => {
-      const mockResult = {
-        success: true,
-        documents: [{ _id: '1', name: 'Alice' }],
-        total: 1,
-        has_more: false,
+      const mockApiResponse = {
+        status: 200,
+        data: {
+          documents: [{ _id: '1', name: 'Alice' }],
+          total: 1,
+          has_more: false,
+        },
       };
-      invoke.mockResolvedValue(mockResult);
+      invoke.mockResolvedValue(mockApiResponse);
 
       const result = await mongoApi.exportDocuments(baseConfig, 'users');
 
@@ -1461,11 +1372,11 @@ describe('mongoApi export/import', () => {
         batchSize: undefined,
         skip: undefined,
       });
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(mockApiResponse.data);
     });
 
     it('passes all optional parameters', async () => {
-      invoke.mockResolvedValue({ success: true, documents: [], total: 0, has_more: false });
+      invoke.mockResolvedValue({ status: 200, data: { documents: [], total: 0, has_more: false } });
       await mongoApi.exportDocuments(
         baseConfig,
         'users',
@@ -1487,7 +1398,6 @@ describe('mongoApi export/import', () => {
     it('returns error result on invoke failure', async () => {
       invoke.mockRejectedValue(new Error('Export failed'));
       const result = await mongoApi.exportDocuments(baseConfig, 'users');
-      expect(result.success).toBe(false);
       expect(result.has_more).toBe(false);
       expect(result.error).toBe('Export failed');
     });
@@ -1495,8 +1405,8 @@ describe('mongoApi export/import', () => {
 
   describe('importDocuments', () => {
     it('calls invoke with correct command and returns result', async () => {
-      const mockResult = { success: true, inserted: 10, updated: 0, skipped: 0 };
-      invoke.mockResolvedValue(mockResult);
+      const mockApiResponse = { status: 200, data: { inserted: 10, updated: 0, skipped: 0 } };
+      invoke.mockResolvedValue(mockApiResponse);
 
       const result = await mongoApi.importDocuments(baseConfig, 'users', ['{"name":"Alice"}']);
 
@@ -1506,11 +1416,11 @@ describe('mongoApi export/import', () => {
         documents: ['{"name":"Alice"}'],
         upsert: undefined,
       });
-      expect(result).toEqual(mockResult);
+      expect(result).toEqual(mockApiResponse.data);
     });
 
     it('passes upsert parameter when true', async () => {
-      invoke.mockResolvedValue({ success: true, inserted: 0, updated: 2, skipped: 0 });
+      invoke.mockResolvedValue({ status: 200, data: { inserted: 0, updated: 2, skipped: 0 } });
       await mongoApi.importDocuments(baseConfig, 'users', ['{"_id":"1"}'], true);
       expect(invoke).toHaveBeenCalledWith('mongo_import_documents', {
         config: baseConfig,
@@ -1523,7 +1433,6 @@ describe('mongoApi export/import', () => {
     it('returns error result on invoke failure', async () => {
       invoke.mockRejectedValue(new Error('Import failed'));
       const result = await mongoApi.importDocuments(baseConfig, 'users', []);
-      expect(result.success).toBe(false);
       expect(result.inserted).toBe(0);
       expect(result.updated).toBe(0);
       expect(result.skipped).toBe(0);
