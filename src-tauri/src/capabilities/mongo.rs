@@ -10,36 +10,417 @@ use super::registry::CapabilityRegistry;
 use super::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
 
 // ---------------------------------------------------------------------------
+// Mongo client factory abstraction (testable via mockall)
+// ---------------------------------------------------------------------------
+
+#[cfg_attr(test, mockall::automock)]
+#[async_trait::async_trait]
+pub(crate) trait MongoClientFactory: Send + Sync {
+    async fn create_client(&self, config: &Value) -> Result<(mongodb::Client, String), String>;
+}
+
+pub(crate) struct RealMongoClientFactory;
+
+#[async_trait::async_trait]
+impl MongoClientFactory for RealMongoClientFactory {
+    async fn create_client(&self, config: &Value) -> Result<(mongodb::Client, String), String> {
+        crate::common::mongo::create_mongo_client_from_config(config).await
+    }
+}
+
+// ---------------------------------------------------------------------------
 // MongoDB capability handlers
 // ---------------------------------------------------------------------------
 
-pub(crate) struct MongoListDatabases;
-pub(crate) struct MongoListCollections;
-pub(crate) struct MongoFind;
-pub(crate) struct MongoAggregate;
-pub(crate) struct MongoInsertOne;
-pub(crate) struct MongoUpdateMany;
-pub(crate) struct MongoDeleteMany;
+pub(crate) struct MongoListDatabases {
+    factory: Box<dyn MongoClientFactory>,
+}
 
-pub(crate) struct MongoCollectionStats;
-pub(crate) struct MongoDatabaseStats;
-pub(crate) struct MongoCreateDatabase;
-pub(crate) struct MongoDropDatabase;
-pub(crate) struct MongoCreateCollection;
-pub(crate) struct MongoDropCollection;
-pub(crate) struct MongoServerStatus;
-pub(crate) struct MongoReplSetStatus;
-pub(crate) struct MongoShardStatus;
-pub(crate) struct MongoCountDocuments;
-pub(crate) struct MongoUpdateDocument;
-pub(crate) struct MongoDeleteDocument;
-pub(crate) struct MongoRenameCollection;
-pub(crate) struct MongoCloneCollection;
-pub(crate) struct MongoTruncateCollection;
-pub(crate) struct MongoListIndexes;
-pub(crate) struct MongoCreateIndex;
-pub(crate) struct MongoDropIndex;
-pub(crate) struct MongoSampleDocuments;
+impl MongoListDatabases {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoListCollections {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoListCollections {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoFind {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoFind {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoAggregate {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoAggregate {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoInsertOne {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoInsertOne {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoUpdateMany {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoUpdateMany {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoDeleteMany {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoDeleteMany {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoCollectionStats {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoCollectionStats {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoDatabaseStats {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoDatabaseStats {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoCreateDatabase {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoCreateDatabase {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoDropDatabase {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoDropDatabase {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoCreateCollection {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoCreateCollection {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoDropCollection {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoDropCollection {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoServerStatus {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoServerStatus {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoReplSetStatus {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoReplSetStatus {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoShardStatus {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoShardStatus {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoCountDocuments {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoCountDocuments {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoUpdateDocument {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoUpdateDocument {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoDeleteDocument {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoDeleteDocument {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoRenameCollection {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoRenameCollection {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoCloneCollection {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoCloneCollection {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoTruncateCollection {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoTruncateCollection {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoListIndexes {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoListIndexes {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoCreateIndex {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoCreateIndex {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoDropIndex {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoDropIndex {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoSampleDocuments {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoSampleDocuments {
+    pub(crate) fn new() -> Self {
+        Self { factory: Box::new(RealMongoClientFactory) }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
 
 #[async_trait::async_trait]
 impl CapabilityHandler for MongoListDatabases {
@@ -49,7 +430,7 @@ impl CapabilityHandler for MongoListDatabases {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let names = client
             .list_database_names()
             .await
@@ -81,7 +462,7 @@ impl CapabilityHandler for MongoListCollections {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let db = client.database(&db_name);
         let names = db
@@ -101,7 +482,7 @@ impl CapabilityHandler for MongoFind {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -156,7 +537,7 @@ impl CapabilityHandler for MongoAggregate {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -203,7 +584,7 @@ impl CapabilityHandler for MongoInsertOne {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -232,7 +613,7 @@ impl CapabilityHandler for MongoUpdateMany {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -276,7 +657,7 @@ impl CapabilityHandler for MongoDeleteMany {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -310,7 +691,7 @@ impl CapabilityHandler for MongoCollectionStats {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -367,7 +748,7 @@ impl CapabilityHandler for MongoDatabaseStats {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
 
         let db = client.database(&db_name);
@@ -419,7 +800,7 @@ impl CapabilityHandler for MongoCreateDatabase {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = args
             .get("database")
             .and_then(|v| v.as_str())
@@ -453,7 +834,7 @@ impl CapabilityHandler for MongoDropDatabase {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = args
             .get("database")
             .and_then(|v| v.as_str())
@@ -482,7 +863,7 @@ impl CapabilityHandler for MongoCreateCollection {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -545,7 +926,7 @@ impl CapabilityHandler for MongoDropCollection {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -576,7 +957,7 @@ impl CapabilityHandler for MongoServerStatus {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let admin_db = client.database("admin");
 
         let result = admin_db
@@ -647,7 +1028,7 @@ impl CapabilityHandler for MongoReplSetStatus {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let admin_db = client.database("admin");
 
         let result = match admin_db.run_command(doc! { "replSetGetStatus": 1 }).await {
@@ -696,7 +1077,7 @@ impl CapabilityHandler for MongoShardStatus {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let admin_db = client.database("admin");
 
         let is_sharding = admin_db.run_command(doc! { "shardingState": 1 }).await.is_ok();
@@ -771,7 +1152,7 @@ impl CapabilityHandler for MongoCountDocuments {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -807,7 +1188,7 @@ impl CapabilityHandler for MongoUpdateDocument {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -860,7 +1241,7 @@ impl CapabilityHandler for MongoDeleteDocument {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -907,7 +1288,7 @@ impl CapabilityHandler for MongoRenameCollection {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -945,7 +1326,7 @@ impl CapabilityHandler for MongoCloneCollection {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let source_coll = args
             .get("source_collection")
@@ -1059,7 +1440,7 @@ impl CapabilityHandler for MongoTruncateCollection {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -1092,7 +1473,7 @@ impl CapabilityHandler for MongoListIndexes {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -1153,7 +1534,7 @@ impl CapabilityHandler for MongoCreateIndex {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -1216,7 +1597,7 @@ impl CapabilityHandler for MongoDropIndex {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -1253,7 +1634,7 @@ impl CapabilityHandler for MongoSampleDocuments {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
-        let (client, _) = crate::common::mongo::create_mongo_client_from_config(config).await?;
+        let (client, _) = self.factory.create_client(config).await?;
         let db_name = get_db_name(args, config)?;
         let collection_name = args
             .get("collection")
@@ -1335,218 +1716,763 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         };
     }
 
-    reg!("mongo__list_databases", "List all database names on a MongoDB server. Use this first when no database is known so you can pick one for subsequent calls.",
-         MongoListDatabases,
-         mongo_schema(&[]),
-         RiskLevel::Safe, "read", &["agent", "ui"]);
+     reg!("mongo__list_databases", "List all database names on a MongoDB server. Use this first when no database is known so you can pick one for subsequent calls.",
+          MongoListDatabases::new(),
+          mongo_schema(&[]),
+          RiskLevel::Safe, "read", &["agent", "ui"]);
 
-    reg!("mongo__list_collections", "List all collection names in a MongoDB database.",
-         MongoListCollections,
-         mongo_schema(&[("database", "MongoDB database name", "string", false)]),
-         RiskLevel::Safe, "read", &["agent", "ui"]);
+     reg!("mongo__list_collections", "List all collection names in a MongoDB database.",
+          MongoListCollections::new(),
+          mongo_schema(&[("database", "MongoDB database name", "string", false)]),
+          RiskLevel::Safe, "read", &["agent", "ui"]);
 
-    reg!("mongo__find", "Query documents from a MongoDB collection using a filter. Returns matching documents.",
-         MongoFind,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name to query", "string", true),
-             ("filter", "MongoDB query filter, e.g. {\"status\": \"active\"}", "object", true),
-             ("projection", "Optional fields to include/exclude", "object", false),
-             ("limit", "Maximum documents to return (default 20, max 100)", "integer", false),
-             ("sort", "Optional sort specification", "object", false),
-         ]),
-         RiskLevel::Safe, "read", &["agent", "ui"]);
+     reg!("mongo__find", "Query documents from a MongoDB collection using a filter. Returns matching documents.",
+          MongoFind::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name to query", "string", true),
+              ("filter", "MongoDB query filter, e.g. {\"status\": \"active\"}", "object", true),
+              ("projection", "Optional fields to include/exclude", "object", false),
+              ("limit", "Maximum documents to return (default 20, max 100)", "integer", false),
+              ("sort", "Optional sort specification", "object", false),
+          ]),
+          RiskLevel::Safe, "read", &["agent", "ui"]);
 
-    reg!("mongo__aggregate", "Execute a MongoDB aggregation pipeline on a collection.",
-         MongoAggregate,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-             ("pipeline", "Aggregation pipeline stages as array", "array", true),
-         ]),
-         RiskLevel::Elevated, "read", &["agent"]);
+     reg!("mongo__aggregate", "Execute a MongoDB aggregation pipeline on a collection.",
+          MongoAggregate::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+              ("pipeline", "Aggregation pipeline stages as array", "array", true),
+          ]),
+          RiskLevel::Elevated, "read", &["agent"]);
 
-    reg!("mongo__insert_one", "Insert a single document into a MongoDB collection.",
-         MongoInsertOne,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-             ("document", "Document to insert", "object", true),
-         ]),
-         RiskLevel::Elevated, "create", &["agent", "ui"]);
+     reg!("mongo__insert_one", "Insert a single document into a MongoDB collection.",
+          MongoInsertOne::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+              ("document", "Document to insert", "object", true),
+          ]),
+          RiskLevel::Elevated, "create", &["agent", "ui"]);
 
-    reg!("mongo__update_many", "Update documents in a MongoDB collection matching a filter.",
-         MongoUpdateMany,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-             ("filter", "Filter to match documents to update", "object", true),
-             ("update", "Update operations, e.g. {\"$set\": {\"status\": \"inactive\"}}", "object", true),
-             ("upsert", "If true, insert if none matches (default false)", "boolean", false),
-         ]),
-         RiskLevel::Elevated, "update", &["agent"]);
+     reg!("mongo__update_many", "Update documents in a MongoDB collection matching a filter.",
+          MongoUpdateMany::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+              ("filter", "Filter to match documents to update", "object", true),
+              ("update", "Update operations, e.g. {\"$set\": {\"status\": \"inactive\"}}", "object", true),
+              ("upsert", "If true, insert if none matches (default false)", "boolean", false),
+          ]),
+          RiskLevel::Elevated, "update", &["agent"]);
 
-    reg!("mongo__delete_many", "Delete documents from a MongoDB collection matching a filter. DESTRUCTIVE: permanently removes data.",
-         MongoDeleteMany,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-             ("filter", "Filter to match documents to delete", "object", true),
-         ]),
-         RiskLevel::Destructive, "delete", &["agent", "ui"]);
+     reg!("mongo__delete_many", "Delete documents from a MongoDB collection matching a filter. DESTRUCTIVE: permanently removes data.",
+          MongoDeleteMany::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+              ("filter", "Filter to match documents to delete", "object", true),
+          ]),
+          RiskLevel::Destructive, "delete", &["agent", "ui"]);
 
-    reg!("mongo__collection_stats", "Get detailed statistics for a MongoDB collection including document count, storage size, and index sizes.",
-         MongoCollectionStats,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-         ]),
-         RiskLevel::Safe, "read", &["ui"]);
+     reg!("mongo__collection_stats", "Get detailed statistics for a MongoDB collection including document count, storage size, and index sizes.",
+          MongoCollectionStats::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+          ]),
+          RiskLevel::Safe, "read", &["ui"]);
 
-    reg!("mongo__database_stats", "Get statistics for a MongoDB database including collection count, object count, and storage metrics.",
-         MongoDatabaseStats,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-         ]),
-         RiskLevel::Safe, "read", &["ui"]);
+     reg!("mongo__database_stats", "Get statistics for a MongoDB database including collection count, object count, and storage metrics.",
+          MongoDatabaseStats::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+          ]),
+          RiskLevel::Safe, "read", &["ui"]);
 
-    reg!("mongo__create_database", "Create a new MongoDB database by inserting a temporary document into a collection.",
-         MongoCreateDatabase,
-         mongo_schema(&[
-             ("database", "Database name to create", "string", true),
-             ("collection", "Initial collection name", "string", true),
-         ]),
-         RiskLevel::Elevated, "create", &["ui"]);
+     reg!("mongo__create_database", "Create a new MongoDB database by inserting a temporary document into a collection.",
+          MongoCreateDatabase::new(),
+          mongo_schema(&[
+              ("database", "Database name to create", "string", true),
+              ("collection", "Initial collection name", "string", true),
+          ]),
+          RiskLevel::Elevated, "create", &["ui"]);
 
-    reg!("mongo__drop_database", "Drop a MongoDB database and all its collections. DESTRUCTIVE: permanently removes all data.",
-         MongoDropDatabase,
-         mongo_schema(&[
-             ("database", "Database name to drop", "string", true),
-         ]),
-         RiskLevel::Destructive, "delete", &["ui"]);
+     reg!("mongo__drop_database", "Drop a MongoDB database and all its collections. DESTRUCTIVE: permanently removes all data.",
+          MongoDropDatabase::new(),
+          mongo_schema(&[
+              ("database", "Database name to drop", "string", true),
+          ]),
+          RiskLevel::Destructive, "delete", &["ui"]);
 
-    reg!("mongo__create_collection", "Create a new collection in a MongoDB database with optional settings (capped, size, max, timeseries, validator).",
-         MongoCreateCollection,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name to create", "string", true),
-             ("options", "Optional collection settings {capped, size, max, timeseries, validator}", "object", false),
-         ]),
-         RiskLevel::Elevated, "create", &["ui"]);
+     reg!("mongo__create_collection", "Create a new collection in a MongoDB database with optional settings (capped, size, max, timeseries, validator).",
+          MongoCreateCollection::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name to create", "string", true),
+              ("options", "Optional collection settings {capped, size, max, timeseries, validator}", "object", false),
+          ]),
+          RiskLevel::Elevated, "create", &["ui"]);
 
-    reg!("mongo__drop_collection", "Drop a MongoDB collection and all its documents. DESTRUCTIVE: permanently removes data.",
-         MongoDropCollection,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name to drop", "string", true),
-         ]),
-         RiskLevel::Destructive, "delete", &["ui"]);
+     reg!("mongo__drop_collection", "Drop a MongoDB collection and all its documents. DESTRUCTIVE: permanently removes data.",
+          MongoDropCollection::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name to drop", "string", true),
+          ]),
+          RiskLevel::Destructive, "delete", &["ui"]);
 
-    reg!("mongo__server_status", "Get MongoDB server status including host, version, uptime, connections, network, and memory usage.",
-         MongoServerStatus,
-         mongo_schema(&[]),
-         RiskLevel::Safe, "read", &["ui"]);
+     reg!("mongo__server_status", "Get MongoDB server status including host, version, uptime, connections, network, and memory usage.",
+          MongoServerStatus::new(),
+          mongo_schema(&[]),
+          RiskLevel::Safe, "read", &["ui"]);
 
-    reg!("mongo__repl_set_status", "Get MongoDB replica set status including set name, members, states, and health.",
-         MongoReplSetStatus,
-         mongo_schema(&[]),
-         RiskLevel::Safe, "read", &["ui"]);
+     reg!("mongo__repl_set_status", "Get MongoDB replica set status including set name, members, states, and health.",
+          MongoReplSetStatus::new(),
+          mongo_schema(&[]),
+          RiskLevel::Safe, "read", &["ui"]);
 
-    reg!("mongo__shard_status", "Get MongoDB sharding status including shards and mongos instances.",
-         MongoShardStatus,
-         mongo_schema(&[]),
-         RiskLevel::Safe, "read", &["ui"]);
+     reg!("mongo__shard_status", "Get MongoDB sharding status including shards and mongos instances.",
+          MongoShardStatus::new(),
+          mongo_schema(&[]),
+          RiskLevel::Safe, "read", &["ui"]);
 
-    reg!("mongo__count_documents", "Count documents in a MongoDB collection matching an optional filter.",
-         MongoCountDocuments,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-             ("filter", "Optional JSON filter string, e.g. {\"status\": \"active\"}", "string", false),
-         ]),
-         RiskLevel::Safe, "read", &["agent", "ui"]);
+     reg!("mongo__count_documents", "Count documents in a MongoDB collection matching an optional filter.",
+          MongoCountDocuments::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+              ("filter", "Optional JSON filter string, e.g. {\"status\": \"active\"}", "string", false),
+          ]),
+          RiskLevel::Safe, "read", &["agent", "ui"]);
 
-    reg!("mongo__update_document", "Update a single document in a MongoDB collection by its _id using $set with the provided fields.",
-         MongoUpdateDocument,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-             ("id", "Document _id value (ObjectId string or regular string)", "string", true),
-             ("document", "JSON document with fields to update (will be applied as $set)", "string", true),
-         ]),
-         RiskLevel::Elevated, "update", &["agent", "ui"]);
+     reg!("mongo__update_document", "Update a single document in a MongoDB collection by its _id using $set with the provided fields.",
+          MongoUpdateDocument::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+              ("id", "Document _id value (ObjectId string or regular string)", "string", true),
+              ("document", "JSON document with fields to update (will be applied as $set)", "string", true),
+          ]),
+          RiskLevel::Elevated, "update", &["agent", "ui"]);
 
-    reg!("mongo__delete_document", "Delete a single document from a MongoDB collection by its _id. DESTRUCTIVE: permanently removes the document.",
-         MongoDeleteDocument,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-             ("id", "Document _id value (ObjectId string or regular string)", "string", true),
-         ]),
-         RiskLevel::Destructive, "delete", &["agent", "ui"]);
+     reg!("mongo__delete_document", "Delete a single document from a MongoDB collection by its _id. DESTRUCTIVE: permanently removes the document.",
+          MongoDeleteDocument::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+              ("id", "Document _id value (ObjectId string or regular string)", "string", true),
+          ]),
+          RiskLevel::Destructive, "delete", &["agent", "ui"]);
 
-    reg!("mongo__rename_collection", "Rename a MongoDB collection within the same database.",
-         MongoRenameCollection,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Current collection name", "string", true),
-             ("to_collection", "New collection name", "string", true),
-         ]),
-         RiskLevel::Elevated, "update", &["ui"]);
+     reg!("mongo__rename_collection", "Rename a MongoDB collection within the same database.",
+          MongoRenameCollection::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Current collection name", "string", true),
+              ("to_collection", "New collection name", "string", true),
+          ]),
+          RiskLevel::Elevated, "update", &["ui"]);
 
-    reg!("mongo__clone_collection", "Clone a MongoDB collection including all documents and indexes to a new collection.",
-         MongoCloneCollection,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("source_collection", "Source collection to clone from", "string", true),
-             ("target_collection", "Target collection to clone into", "string", true),
-         ]),
-         RiskLevel::Elevated, "create", &["ui"]);
+     reg!("mongo__clone_collection", "Clone a MongoDB collection including all documents and indexes to a new collection.",
+          MongoCloneCollection::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("source_collection", "Source collection to clone from", "string", true),
+              ("target_collection", "Target collection to clone into", "string", true),
+          ]),
+          RiskLevel::Elevated, "create", &["ui"]);
 
-    reg!("mongo__truncate_collection", "Remove all documents from a MongoDB collection while preserving the collection and indexes. DESTRUCTIVE: permanently removes all documents.",
-         MongoTruncateCollection,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name to truncate", "string", true),
-         ]),
-         RiskLevel::Destructive, "delete", &["ui"]);
+     reg!("mongo__truncate_collection", "Remove all documents from a MongoDB collection while preserving the collection and indexes. DESTRUCTIVE: permanently removes all documents.",
+          MongoTruncateCollection::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name to truncate", "string", true),
+          ]),
+          RiskLevel::Destructive, "delete", &["ui"]);
 
-    reg!("mongo__list_indexes", "List all indexes on a MongoDB collection with their key fields and options.",
-         MongoListIndexes,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-         ]),
-         RiskLevel::Safe, "read", &["ui"]);
+     reg!("mongo__list_indexes", "List all indexes on a MongoDB collection with their key fields and options.",
+          MongoListIndexes::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+          ]),
+          RiskLevel::Safe, "read", &["ui"]);
 
-    reg!("mongo__create_index", "Create an index on a MongoDB collection with optional settings (unique, sparse, TTL).",
-         MongoCreateIndex,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-             ("keys", "Index key specification, e.g. {\"field\": 1}", "object", true),
-             ("name", "Optional index name", "string", false),
-             ("unique", "Whether the index should enforce uniqueness", "boolean", false),
-             ("sparse", "Whether the index should only reference documents with the indexed fields", "boolean", false),
-             ("expire_after_seconds", "TTL index expiration in seconds", "integer", false),
-         ]),
-         RiskLevel::Elevated, "create", &["ui"]);
+     reg!("mongo__create_index", "Create an index on a MongoDB collection with optional settings (unique, sparse, TTL).",
+          MongoCreateIndex::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+              ("keys", "Index key specification, e.g. {\"field\": 1}", "object", true),
+              ("name", "Optional index name", "string", false),
+              ("unique", "Whether the index should enforce uniqueness", "boolean", false),
+              ("sparse", "Whether the index should only reference documents with the indexed fields", "boolean", false),
+              ("expire_after_seconds", "TTL index expiration in seconds", "integer", false),
+          ]),
+          RiskLevel::Elevated, "create", &["ui"]);
 
-    reg!("mongo__drop_index", "Drop an index from a MongoDB collection. Cannot drop the _id_ index.",
-         MongoDropIndex,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-             ("index_name", "Name of the index to drop", "string", true),
-         ]),
-         RiskLevel::Elevated, "delete", &["ui"]);
+     reg!("mongo__drop_index", "Drop an index from a MongoDB collection. Cannot drop the _id_ index.",
+          MongoDropIndex::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+              ("index_name", "Name of the index to drop", "string", true),
+          ]),
+          RiskLevel::Elevated, "delete", &["ui"]);
 
-    reg!("mongo__sample_documents", "Sample documents from a MongoDB collection with a configurable limit (default 10).",
-         MongoSampleDocuments,
-         mongo_schema(&[
-             ("database", "MongoDB database name", "string", false),
-             ("collection", "Collection name", "string", true),
-             ("limit", "Maximum number of documents to return (default 10, max 1000)", "integer", false),
-         ]),
-         RiskLevel::Safe, "read", &["ui"]);
+      reg!("mongo__sample_documents", "Sample documents from a MongoDB collection with a configurable limit (default 10).",
+          MongoSampleDocuments::new(),
+          mongo_schema(&[
+              ("database", "MongoDB database name", "string", false),
+              ("collection", "Collection name", "string", true),
+              ("limit", "Maximum number of documents to return (default 10, max 1000)", "integer", false),
+          ]),
+          RiskLevel::Safe, "read", &["ui"]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    use serde_json::json;
+
+    fn mock_config() -> Value {
+        json!({"host": "localhost", "port": 27017, "database": "testdb"})
+    }
+
+    fn lazy_client() -> mongodb::Client {
+        mongodb::Client::with_options(mongodb::options::ClientOptions::default())
+            .expect("build lazy client")
+    }
+
+    fn err_factory() -> MockMongoClientFactory {
+        let mut m = MockMongoClientFactory::new();
+        m.expect_create_client()
+            .return_once(|_| Err("factory error".to_string()));
+        m
+    }
+
+    fn ok_factory(client: mongodb::Client) -> MockMongoClientFactory {
+        let mut m = MockMongoClientFactory::new();
+        m.expect_create_client()
+            .return_once(move |_| Ok((client, "testdb".to_string())));
+        m
+    }
+
+    #[tokio::test]
+    async fn test_mongo_list_databases_missing_config() {
+        let handler = MongoListDatabases::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err(), "expected Err, got Ok");
+        assert!(
+            result.unwrap_err().contains("connection config"),
+            "should mention connection config"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_mongo_list_collections_missing_config() {
+        let handler = MongoListCollections::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_database_stats_missing_config() {
+        let handler = MongoDatabaseStats::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_list_collections_missing_database() {
+        let handler = MongoListCollections::with_factory(Box::new(err_factory()));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(
+            result.unwrap_err().contains("factory error"),
+            "should propagate factory error, not arg error"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_mongo_find_missing_collection() {
+        let cl = lazy_client();
+        let handler = MongoFind::with_factory(Box::new(ok_factory(cl)));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_aggregate_missing_collection() {
+        let cl = lazy_client();
+        let handler = MongoAggregate::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(
+                &json!({"pipeline": [{"$match": {}}]}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_collection_stats_missing_collection() {
+        let cl = lazy_client();
+        let handler = MongoCollectionStats::with_factory(Box::new(ok_factory(cl)));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_update_many_missing_filter() {
+        let cl = lazy_client();
+        let handler = MongoUpdateMany::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "update": {"$set": {"a": 1}}}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing filter"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_delete_many_missing_filter() {
+        let cl = lazy_client();
+        let handler = MongoDeleteMany::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing filter"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_insert_one_missing_document() {
+        let cl = lazy_client();
+        let handler = MongoInsertOne::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing document"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_find_missing_filter() {
+        let handler = MongoFind::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(&json!({"collection": "test"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(
+            err.contains("factory error"),
+            "should propagate factory error (filter is optional), got: {}",
+            err
+        );
+    }
+
+    #[tokio::test]
+    async fn test_mongo_aggregate_invalid_pipeline() {
+        let cl = lazy_client();
+        let handler = MongoAggregate::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "pipeline": "not_an_array"}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(
+            result.unwrap_err().contains("Missing or invalid pipeline"),
+            "should reject non-array pipeline"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_mongo_list_databases_factory_error() {
+        let handler = MongoListDatabases::with_factory(Box::new(err_factory()));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_find_factory_error() {
+        let handler = MongoFind::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(&json!({"collection": "c", "filter": {}}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_insert_one_factory_error() {
+        let handler = MongoInsertOne::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "document": {"x": 1}}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_collection_stats_factory_error() {
+        let handler = MongoCollectionStats::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_database_stats_factory_error() {
+        let handler = MongoDatabaseStats::with_factory(Box::new(err_factory()));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_update_many_factory_error() {
+        let handler = MongoUpdateMany::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "filter": {}, "update": {"$set": {"a": 1}}}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_update_many_missing_update() {
+        let cl = lazy_client();
+        let handler = MongoUpdateMany::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c", "filter": {}}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing update"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_server_status_missing_config() {
+        let handler = MongoServerStatus::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_server_status_factory_error() {
+        let handler = MongoServerStatus::with_factory(Box::new(err_factory()));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_create_collection_missing_collection() {
+        let cl = lazy_client();
+        let handler = MongoCreateCollection::with_factory(Box::new(ok_factory(cl)));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_create_collection_factory_error() {
+        let handler = MongoCreateCollection::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_create_index_missing_keys() {
+        let cl = lazy_client();
+        let handler = MongoCreateIndex::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing keys"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_create_index_factory_error() {
+        let handler = MongoCreateIndex::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "keys": {"field": 1}}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_delete_many_missing_collection() {
+        let cl = lazy_client();
+        let handler = MongoDeleteMany::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"filter": {}}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_delete_many_factory_error() {
+        let handler = MongoDeleteMany::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(&json!({"collection": "c", "filter": {}}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_count_documents_missing_collection() {
+        let cl = lazy_client();
+        let handler = MongoCountDocuments::with_factory(Box::new(ok_factory(cl)));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_count_documents_factory_error() {
+        let handler = MongoCountDocuments::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_update_document_missing_id() {
+        let cl = lazy_client();
+        let handler = MongoUpdateDocument::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "document": "{}"}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing id"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_update_document_missing_document() {
+        let cl = lazy_client();
+        let handler = MongoUpdateDocument::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c", "id": "abc123"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing document"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_delete_document_missing_id() {
+        let cl = lazy_client();
+        let handler = MongoDeleteDocument::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing id"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_drop_database_missing_database() {
+        let cl = lazy_client();
+        let handler = MongoDropDatabase::with_factory(Box::new(ok_factory(cl)));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing database"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_rename_collection_missing_to() {
+        let cl = lazy_client();
+        let handler = MongoRenameCollection::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing to_collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_clone_collection_missing_source() {
+        let cl = lazy_client();
+        let handler = MongoCloneCollection::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"target_collection": "t"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing source_collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_drop_index_missing_index_name() {
+        let cl = lazy_client();
+        let handler = MongoDropIndex::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing index_name"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_sample_documents_missing_collection() {
+        let cl = lazy_client();
+        let handler = MongoSampleDocuments::with_factory(Box::new(ok_factory(cl)));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_sample_documents_factory_error() {
+        let handler = MongoSampleDocuments::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_truncate_collection_missing_collection() {
+        let cl = lazy_client();
+        let handler = MongoTruncateCollection::with_factory(Box::new(ok_factory(cl)));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_list_indexes_missing_collection() {
+        let cl = lazy_client();
+        let handler = MongoListIndexes::with_factory(Box::new(ok_factory(cl)));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_shard_status_missing_config() {
+        let handler = MongoShardStatus::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_shard_status_factory_error() {
+        let handler = MongoShardStatus::with_factory(Box::new(err_factory()));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    // ── Untested handler coverage ──────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_mongo_create_database_missing_config() {
+        let handler = MongoCreateDatabase::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_create_database_missing_database() {
+        let handler = MongoCreateDatabase::new();
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing database"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_drop_collection_missing_config() {
+        let handler = MongoDropCollection::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_drop_collection_missing_collection() {
+        let handler = MongoDropCollection::new();
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_repl_set_status_missing_config() {
+        let handler = MongoReplSetStatus::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_create_database_factory_error() {
+        let handler = MongoCreateDatabase::with_factory(Box::new(err_factory()));
+        let result = handler.handle(
+            &json!({"database": "testdb", "collection": "testcol"}),
+            Some(&mock_config()),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_drop_collection_factory_error() {
+        let handler = MongoDropCollection::with_factory(Box::new(err_factory()));
+        let result = handler.handle(
+            &json!({"collection": "testcol"}),
+            Some(&mock_config()),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_repl_set_status_factory_error() {
+        let handler = MongoReplSetStatus::with_factory(Box::new(err_factory()));
+        let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
 }

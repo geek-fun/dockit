@@ -365,4 +365,166 @@ mod tests {
         assert!(result.is_ok(), "got: {:?}", result.err());
         assert!(result.unwrap().contains("404"));
     }
+
+    // ---- Handler-level tests through CapabilityHandler::handle() ----
+
+    #[tokio::test]
+    async fn test_handler_rejects_missing_config() {
+        use super::EsSearch;
+        use super::CapabilityHandler;
+
+        let handler = EsSearch;
+        let args = json!({"index": "my-index", "body": {"query": {"match_all": {}}}});
+        let result = handler.handle(&args, None).await;
+
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.contains("connection config"), "got: {}", err);
+    }
+
+    #[tokio::test]
+    async fn test_es_search_missing_index() {
+        use super::EsSearch;
+        use super::CapabilityHandler;
+
+        let handler = EsSearch;
+        let config = json!({"host": "http://localhost", "port": 9200});
+        let args = json!({"body": {"query": {"match_all": {}}}});
+        let result = handler.handle(&args, Some(&config)).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing index"));
+    }
+
+    #[tokio::test]
+    async fn test_es_get_document_missing_index() {
+        use super::EsGetDocument;
+        use super::CapabilityHandler;
+
+        let handler = EsGetDocument;
+        let config = json!({"host": "http://localhost", "port": 9200});
+        let args = json!({"id": "doc-1"});
+        let result = handler.handle(&args, Some(&config)).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing index"));
+    }
+
+    #[tokio::test]
+    async fn test_es_get_document_missing_id() {
+        use super::EsGetDocument;
+        use super::CapabilityHandler;
+
+        let handler = EsGetDocument;
+        let config = json!({"host": "http://localhost", "port": 9200});
+        let args = json!({"index": "my-index"});
+        let result = handler.handle(&args, Some(&config)).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing id"));
+    }
+
+    #[tokio::test]
+    async fn test_es_search_invalid_index_name() {
+        use super::EsSearch;
+        use super::CapabilityHandler;
+
+        let handler = EsSearch;
+        let config = json!({"host": "http://localhost", "port": 9200});
+        let args = json!({"index": "INVALID/INDEX", "body": {"query": {"match_all": {}}}});
+        let result = handler.handle(&args, Some(&config)).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("invalid characters"));
+    }
+
+    #[tokio::test]
+    async fn test_es_create_index_via_wiremock() {
+        use super::EsCreateIndex;
+        use super::CapabilityHandler;
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("PUT"))
+            .and(path("/test-index"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"acknowledged":true}"#))
+            .mount(&server)
+            .await;
+
+        let handler = EsCreateIndex;
+        let args = json!({"index": "test-index", "body": {"settings": {"number_of_shards": 1}}});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("acknowledged"));
+    }
+
+    #[tokio::test]
+    async fn test_es_delete_index_via_wiremock() {
+        use super::EsDeleteIndex;
+        use super::CapabilityHandler;
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("DELETE"))
+            .and(path("/old-index"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"acknowledged":true}"#))
+            .mount(&server)
+            .await;
+
+        let handler = EsDeleteIndex;
+        let args = json!({"index": "old-index"});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("acknowledged"));
+    }
+
+    #[tokio::test]
+    async fn test_es_search_happy_path_via_wiremock() {
+        use super::EsSearch;
+        use super::CapabilityHandler;
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/my-index/_search"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string(
+                    r#"{"hits":{"total":{"value":2},"hits":[{"_index":"my-index","_id":"1","_source":{"name":"hello"}}]}}"#,
+                ),
+            )
+            .mount(&server)
+            .await;
+
+        let handler = EsSearch;
+        let args = json!({"index": "my-index", "body": {"query": {"match_all": {}}}});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        let body = result.unwrap();
+        assert!(body.contains("hits"), "expected hits in response, got: {}", body);
+        assert!(body.contains("my-index"), "expected index name in response, got: {}", body);
+    }
+
+    #[tokio::test]
+    async fn test_es_handles_non_json_response() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/_cat/indices"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("plain text response"))
+            .mount(&server)
+            .await;
+
+        let result = super::execute_es_http("GET", "/_cat/indices?format=json&expand_wildcards=all", None, &mock_config(&server)).await;
+
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("plain text response"));
+    }
 }

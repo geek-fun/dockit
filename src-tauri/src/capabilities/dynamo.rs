@@ -27,14 +27,59 @@ use crate::dynamo::update_table_config::update_table_config;
 use crate::dynamo::update_ttl::update_time_to_live;
 
 // ---------------------------------------------------------------------------
+// DynamoDB client factory traits (testable via mockall)
+// ---------------------------------------------------------------------------
+
+#[cfg_attr(test, mockall::automock)]
+#[async_trait::async_trait]
+pub(crate) trait DynamoClientFactory: Send + Sync {
+    async fn create_client(&self, config: &Value) -> Result<aws_sdk_dynamodb::Client, String>;
+}
+
+pub(crate) struct RealDynamoClientFactory;
+
+#[async_trait::async_trait]
+impl DynamoClientFactory for RealDynamoClientFactory {
+    async fn create_client(&self, config: &Value) -> Result<aws_sdk_dynamodb::Client, String> {
+        crate::common::dynamo::create_dynamo_client(config).await
+    }
+}
+
+#[cfg_attr(test, mockall::automock)]
+#[async_trait::async_trait]
+pub(crate) trait CloudWatchClientFactory: Send + Sync {
+    async fn create_client(&self, config: &Value) -> Result<aws_sdk_cloudwatch::Client, String>;
+}
+
+pub(crate) struct RealCloudWatchClientFactory;
+
+#[async_trait::async_trait]
+impl CloudWatchClientFactory for RealCloudWatchClientFactory {
+    async fn create_client(&self, config: &Value) -> Result<aws_sdk_cloudwatch::Client, String> {
+        crate::common::dynamo::create_cloudwatch_client(config).await
+    }
+}
+
+// ---------------------------------------------------------------------------
 // DynamoDB capability handlers
 // ---------------------------------------------------------------------------
 
-pub(crate) struct DynamoExecuteQuery;
-pub(crate) struct DynamoExecuteWrite;
-pub(crate) struct DynamoExecuteDelete;
-pub(crate) struct DynamoDescribeTable;
-pub(crate) struct DynamoListTables;
+pub(crate) struct DynamoExecuteQuery {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoExecuteQuery {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
 
 #[async_trait::async_trait]
 impl CapabilityHandler for DynamoExecuteQuery {
@@ -46,7 +91,7 @@ impl CapabilityHandler for DynamoExecuteQuery {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let statement = args.get("statement").and_then(|v| v.as_str()).ok_or("Missing statement")?;
         crate::common::validation::validate_dynamo_statement("dynamo__execute_query", statement)?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let input = crate::dynamo::execute_statement::ExecuteStatementInput {
             statement,
             next_token: None,
@@ -56,6 +101,23 @@ impl CapabilityHandler for DynamoExecuteQuery {
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoExecuteWrite {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoExecuteWrite {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -69,7 +131,7 @@ impl CapabilityHandler for DynamoExecuteWrite {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let statement = args.get("statement").and_then(|v| v.as_str()).ok_or("Missing statement")?;
         crate::common::validation::validate_dynamo_statement("dynamo__execute_write", statement)?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let input = crate::dynamo::execute_statement::ExecuteStatementInput {
             statement,
             next_token: None,
@@ -79,6 +141,23 @@ impl CapabilityHandler for DynamoExecuteWrite {
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoExecuteDelete {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoExecuteDelete {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -92,7 +171,7 @@ impl CapabilityHandler for DynamoExecuteDelete {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let statement = args.get("statement").and_then(|v| v.as_str()).ok_or("Missing statement")?;
         crate::common::validation::validate_dynamo_statement("dynamo__execute_delete", statement)?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let input = crate::dynamo::execute_statement::ExecuteStatementInput {
             statement,
             next_token: None,
@@ -105,6 +184,23 @@ impl CapabilityHandler for DynamoExecuteDelete {
     }
 }
 
+pub(crate) struct DynamoDescribeTable {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoDescribeTable {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
 #[async_trait::async_trait]
 impl CapabilityHandler for DynamoDescribeTable {
     async fn handle(
@@ -114,11 +210,28 @@ impl CapabilityHandler for DynamoDescribeTable {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let response = crate::dynamo::describe_table::describe_table(&client, table_name).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoListTables {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoListTables {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -130,7 +243,7 @@ impl CapabilityHandler for DynamoListTables {
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let response = crate::dynamo::list_tables::list_tables(&client).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
@@ -138,25 +251,22 @@ impl CapabilityHandler for DynamoListTables {
     }
 }
 
-pub(crate) struct DynamoQueryTable;
-pub(crate) struct DynamoScanTable;
-pub(crate) struct DynamoCreateItem;
-pub(crate) struct DynamoBatchWriteItems;
-pub(crate) struct DynamoUpdateItem;
-pub(crate) struct DynamoDeleteItem;
-pub(crate) struct DynamoCreateGsi;
-pub(crate) struct DynamoUpdateGsi;
-pub(crate) struct DynamoDeleteGsi;
-pub(crate) struct DynamoDescribeContinuousBackups;
-pub(crate) struct DynamoDescribeTtl;
-pub(crate) struct DynamoGetTableMetrics;
-pub(crate) struct DynamoCreateTable;
-pub(crate) struct DynamoDeleteTable;
-pub(crate) struct DynamoTruncateTable;
-pub(crate) struct DynamoUpdateTableConfig;
-pub(crate) struct DynamoUpdateTtl;
-pub(crate) struct DynamoUpdatePitr;
-pub(crate) struct DynamoUpdateStreams;
+pub(crate) struct DynamoQueryTable {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoQueryTable {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
 
 #[async_trait::async_trait]
 impl CapabilityHandler for DynamoQueryTable {
@@ -167,7 +277,7 @@ impl CapabilityHandler for DynamoQueryTable {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let mut payload = serde_json::Map::new();
         payload.insert("table_name".to_string(), Value::String(table_name.to_string()));
         if let Some(v) = args.get("partition_key") { payload.insert("partition_key".to_string(), v.clone()); }
@@ -185,6 +295,23 @@ impl CapabilityHandler for DynamoQueryTable {
     }
 }
 
+pub(crate) struct DynamoScanTable {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoScanTable {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
 #[async_trait::async_trait]
 impl CapabilityHandler for DynamoScanTable {
     async fn handle(
@@ -194,7 +321,7 @@ impl CapabilityHandler for DynamoScanTable {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let payload = serde_json::json!({
             "table_name": table_name,
             "index_name": args.get("index_name"),
@@ -210,6 +337,23 @@ impl CapabilityHandler for DynamoScanTable {
     }
 }
 
+pub(crate) struct DynamoCreateItem {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoCreateItem {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
 #[async_trait::async_trait]
 impl CapabilityHandler for DynamoCreateItem {
     async fn handle(
@@ -219,7 +363,7 @@ impl CapabilityHandler for DynamoCreateItem {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let payload = serde_json::json!({
             "attributes": args.get("attributes"),
             "skipExisting": args.get("skip_existing").and_then(|v| v.as_bool()).unwrap_or(false),
@@ -233,6 +377,23 @@ impl CapabilityHandler for DynamoCreateItem {
     }
 }
 
+pub(crate) struct DynamoBatchWriteItems {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoBatchWriteItems {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
 #[async_trait::async_trait]
 impl CapabilityHandler for DynamoBatchWriteItems {
     async fn handle(
@@ -242,13 +403,30 @@ impl CapabilityHandler for DynamoBatchWriteItems {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let items = args.get("items").and_then(|v| v.as_array()).cloned().unwrap_or_default();
         let input = BatchWriteInput { table_name, items: &items };
         let response = batch_write_item(&client, input).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoUpdateItem {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoUpdateItem {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -261,7 +439,7 @@ impl CapabilityHandler for DynamoUpdateItem {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let payload = serde_json::json!({
             "keys": args.get("keys"),
             "attributes": args.get("attributes"),
@@ -274,6 +452,23 @@ impl CapabilityHandler for DynamoUpdateItem {
     }
 }
 
+pub(crate) struct DynamoDeleteItem {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoDeleteItem {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
 #[async_trait::async_trait]
 impl CapabilityHandler for DynamoDeleteItem {
     async fn handle(
@@ -283,7 +478,7 @@ impl CapabilityHandler for DynamoDeleteItem {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let payload = serde_json::json!({
             "keys": args.get("keys"),
         });
@@ -292,6 +487,23 @@ impl CapabilityHandler for DynamoDeleteItem {
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoCreateGsi {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoCreateGsi {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -304,7 +516,7 @@ impl CapabilityHandler for DynamoCreateGsi {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let payload = serde_json::json!({
             "index_name": args.get("index_name"),
             "key_schema": args.get("key_schema"),
@@ -325,6 +537,23 @@ impl CapabilityHandler for DynamoCreateGsi {
     }
 }
 
+pub(crate) struct DynamoUpdateGsi {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoUpdateGsi {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
 #[async_trait::async_trait]
 impl CapabilityHandler for DynamoUpdateGsi {
     async fn handle(
@@ -334,7 +563,7 @@ impl CapabilityHandler for DynamoUpdateGsi {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let payload = serde_json::json!({
             "index_name": args.get("index_name"),
             "read_capacity_units": args.get("read_capacity_units").and_then(|v| v.as_i64()),
@@ -351,6 +580,23 @@ impl CapabilityHandler for DynamoUpdateGsi {
     }
 }
 
+pub(crate) struct DynamoDeleteGsi {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoDeleteGsi {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
 #[async_trait::async_trait]
 impl CapabilityHandler for DynamoDeleteGsi {
     async fn handle(
@@ -360,7 +606,7 @@ impl CapabilityHandler for DynamoDeleteGsi {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let payload = serde_json::json!({
             "index_name": args.get("index_name"),
         });
@@ -375,6 +621,23 @@ impl CapabilityHandler for DynamoDeleteGsi {
     }
 }
 
+pub(crate) struct DynamoDescribeContinuousBackups {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoDescribeContinuousBackups {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
 #[async_trait::async_trait]
 impl CapabilityHandler for DynamoDescribeContinuousBackups {
     async fn handle(
@@ -384,11 +647,28 @@ impl CapabilityHandler for DynamoDescribeContinuousBackups {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let response = describe_continuous_backups(&client, table_name).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoDescribeTtl {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoDescribeTtl {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -401,11 +681,28 @@ impl CapabilityHandler for DynamoDescribeTtl {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let response = describe_time_to_live(&client, table_name).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoGetTableMetrics {
+    cloudwatch_factory: Box<dyn CloudWatchClientFactory>,
+}
+
+impl DynamoGetTableMetrics {
+    pub(crate) fn new() -> Self {
+        Self {
+            cloudwatch_factory: Box::new(RealCloudWatchClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn CloudWatchClientFactory>) -> Self {
+        Self { cloudwatch_factory: factory }
     }
 }
 
@@ -418,13 +715,30 @@ impl CapabilityHandler for DynamoGetTableMetrics {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let cloudwatch_client = crate::common::dynamo::create_cloudwatch_client(config).await?;
+        let cloudwatch_client = self.cloudwatch_factory.create_client(config).await?;
         let period_hours = args.get("period_hours").and_then(|v| v.as_i64()).unwrap_or(24);
         let input = CloudWatchInput { table_name, period_hours };
         let response = get_table_metrics(&cloudwatch_client, input).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoCreateTable {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoCreateTable {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -437,7 +751,7 @@ impl CapabilityHandler for DynamoCreateTable {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         // Pass the entire args as the payload — create_table reads all fields from it
         let input = CreateTableInput {
             table_name: table_name.to_string(),
@@ -450,6 +764,23 @@ impl CapabilityHandler for DynamoCreateTable {
     }
 }
 
+pub(crate) struct DynamoDeleteTable {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoDeleteTable {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
 #[async_trait::async_trait]
 impl CapabilityHandler for DynamoDeleteTable {
     async fn handle(
@@ -459,11 +790,28 @@ impl CapabilityHandler for DynamoDeleteTable {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let response = delete_table(&client, table_name).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoTruncateTable {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoTruncateTable {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -476,11 +824,28 @@ impl CapabilityHandler for DynamoTruncateTable {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let response = truncate_table(&client, table_name).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoUpdateTableConfig {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoUpdateTableConfig {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -493,7 +858,7 @@ impl CapabilityHandler for DynamoUpdateTableConfig {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let billing_mode = args.get("billing_mode").and_then(|v| v.as_str());
         let read_capacity = args.get("read_capacity_units").and_then(|v| v.as_i64());
         let write_capacity = args.get("write_capacity_units").and_then(|v| v.as_i64());
@@ -502,6 +867,23 @@ impl CapabilityHandler for DynamoUpdateTableConfig {
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoUpdateTtl {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoUpdateTtl {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -514,13 +896,30 @@ impl CapabilityHandler for DynamoUpdateTtl {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let enabled = args.get("enabled").and_then(|v| v.as_bool()).ok_or("Missing enabled")?;
         let attribute_name = args.get("attribute_name").and_then(|v| v.as_str());
         let response = update_time_to_live(&client, table_name, enabled, attribute_name).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoUpdatePitr {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoUpdatePitr {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -533,12 +932,29 @@ impl CapabilityHandler for DynamoUpdatePitr {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let enabled = args.get("enabled").and_then(|v| v.as_bool()).ok_or("Missing enabled")?;
         let response = update_continuous_backups(&client, table_name, enabled).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoUpdateStreams {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoUpdateStreams {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
     }
 }
 
@@ -551,7 +967,7 @@ impl CapabilityHandler for DynamoUpdateStreams {
     ) -> Result<String, String> {
         let config = connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
         let table_name = args.get("table_name").and_then(|v| v.as_str()).ok_or("Missing table_name")?;
-        let client = crate::common::dynamo::create_dynamo_client(config).await?;
+        let client = self.factory.create_client(config).await?;
         let enabled = args.get("enabled").and_then(|v| v.as_bool()).ok_or("Missing enabled")?;
         let stream_view_type = args.get("stream_view_type").and_then(|v| v.as_str());
         let response = update_streams(&client, table_name, enabled, stream_view_type).await?;
@@ -604,34 +1020,34 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     }
 
     reg!("dynamo__execute_query", "Execute a PartiQL SELECT query against DynamoDB. Use for reading and querying table data.",
-         DynamoExecuteQuery,
+         DynamoExecuteQuery::new(),
          dynamo_schema(&[("statement", "PartiQL SELECT statement", true)]),
          RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("dynamo__execute_write", "Execute a PartiQL INSERT or UPDATE statement against DynamoDB.",
-         DynamoExecuteWrite,
+         DynamoExecuteWrite::new(),
          dynamo_schema(&[("statement", "PartiQL INSERT or UPDATE statement", true)]),
          RiskLevel::Elevated, "create", &["agent", "ui"]);
 
     reg!("dynamo__execute_delete", "Execute a PartiQL DELETE statement against DynamoDB. DESTRUCTIVE: permanently removes data.",
-         DynamoExecuteDelete,
+         DynamoExecuteDelete::new(),
          dynamo_schema(&[("statement", "PartiQL DELETE statement", true)]),
          RiskLevel::Destructive, "delete", &["agent", "ui"]);
 
     reg!("dynamo__describe_table", "Describe a DynamoDB table schema: key schema, attribute definitions, indexes, and throughput.",
-         DynamoDescribeTable,
+         DynamoDescribeTable::new(),
          dynamo_schema(&[("table_name", "DynamoDB table name", true)]),
          RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("dynamo__list_tables", "List all DynamoDB table names in the connected account and region.",
-         DynamoListTables,
+         DynamoListTables::new(),
          dynamo_schema(&[]),
          RiskLevel::Safe, "read", &["agent", "ui"]);
 
     // ── New capability handlers ────────────────────────────────────────────
 
     reg!("dynamo__query_table", "Query a DynamoDB table using partition key, optional sort key, filters, and pagination.",
-         DynamoQueryTable,
+         DynamoQueryTable::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("partition_key", "JSON object with name and value for the partition key", true),
@@ -644,7 +1060,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Safe, "read", &["ui"]);
 
     reg!("dynamo__scan_table", "Scan a DynamoDB table with optional index, filters, and pagination.",
-         DynamoScanTable,
+         DynamoScanTable::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("index_name", "GSI or LSI index name to scan", false),
@@ -655,7 +1071,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Safe, "read", &["ui"]);
 
     reg!("dynamo__create_item", "Create a new item in a DynamoDB table.",
-         DynamoCreateItem,
+         DynamoCreateItem::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("attributes", "JSON array of attribute objects with key, value, and type", true),
@@ -665,7 +1081,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Elevated, "create", &["ui"]);
 
     reg!("dynamo__batch_write_items", "Batch write multiple items to a DynamoDB table (max 25 per call).",
-         DynamoBatchWriteItems,
+         DynamoBatchWriteItems::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("items", "JSON array of items, each with attributes array containing key, value, and type", true),
@@ -675,7 +1091,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Elevated, "create", &["ui"]);
 
     reg!("dynamo__update_item", "Update attributes of an existing DynamoDB item.",
-         DynamoUpdateItem,
+         DynamoUpdateItem::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("keys", "JSON array of key objects with key, value, and type", true),
@@ -684,7 +1100,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Elevated, "update", &["ui"]);
 
     reg!("dynamo__delete_item", "Delete an item from a DynamoDB table by its keys.",
-         DynamoDeleteItem,
+         DynamoDeleteItem::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("keys", "JSON array of key objects with key, value, and type", true),
@@ -692,7 +1108,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Destructive, "delete", &["ui"]);
 
     reg!("dynamo__create_gsi", "Create a global secondary index on a DynamoDB table.",
-         DynamoCreateGsi,
+         DynamoCreateGsi::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("index_name", "Name for the new GSI", true),
@@ -706,7 +1122,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Elevated, "create", &["ui"]);
 
     reg!("dynamo__update_gsi", "Update provisioned throughput for a global secondary index.",
-         DynamoUpdateGsi,
+         DynamoUpdateGsi::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("index_name", "Name of the GSI to update", true),
@@ -716,7 +1132,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Elevated, "update", &["ui"]);
 
     reg!("dynamo__delete_gsi", "Delete a global secondary index from a DynamoDB table. DESTRUCTIVE: permanently removes the index.",
-         DynamoDeleteGsi,
+         DynamoDeleteGsi::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("index_name", "Name of the GSI to delete", true),
@@ -724,21 +1140,21 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Destructive, "delete", &["ui"]);
 
     reg!("dynamo__describe_continuous_backups", "Describe the continuous backups and point-in-time recovery (PITR) settings for a DynamoDB table.",
-         DynamoDescribeContinuousBackups,
+         DynamoDescribeContinuousBackups::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
          ]),
          RiskLevel::Safe, "read", &["ui"]);
 
     reg!("dynamo__describe_ttl", "Describe the Time-To-Live (TTL) configuration for a DynamoDB table.",
-         DynamoDescribeTtl,
+         DynamoDescribeTtl::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
          ]),
          RiskLevel::Safe, "read", &["ui"]);
 
     reg!("dynamo__get_table_metrics", "Get CloudWatch metrics for a DynamoDB table: consumed/provisioned capacity, throttling, and utilization.",
-         DynamoGetTableMetrics,
+         DynamoGetTableMetrics::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("period_hours", "Time period in hours to fetch metrics for (integer, default 24)", false),
@@ -746,7 +1162,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Safe, "read", &["ui"]);
 
     reg!("dynamo__create_table", "Create a new DynamoDB table with key schema, indexes, billing, and stream configuration.",
-         DynamoCreateTable,
+         DynamoCreateTable::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("partition_key", "Partition key attribute name", true),
@@ -765,21 +1181,21 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Elevated, "create", &["ui"]);
 
     reg!("dynamo__delete_table", "Delete a DynamoDB table and all of its items. DESTRUCTIVE: cannot be undone.",
-         DynamoDeleteTable,
+         DynamoDeleteTable::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
          ]),
          RiskLevel::Destructive, "delete", &["ui"]);
 
     reg!("dynamo__truncate_table", "Delete all items from a DynamoDB table using batch writes. DESTRUCTIVE: removes all data but preserves the table.",
-         DynamoTruncateTable,
+         DynamoTruncateTable::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
          ]),
          RiskLevel::Destructive, "delete", &["ui"]);
 
     reg!("dynamo__update_table_config", "Update a DynamoDB table's billing mode, provisioned throughput, or table class.",
-         DynamoUpdateTableConfig,
+         DynamoUpdateTableConfig::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("billing_mode", "Billing mode: PAY_PER_REQUEST or PROVISIONED", false),
@@ -790,7 +1206,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Elevated, "update", &["ui"]);
 
     reg!("dynamo__update_ttl", "Enable or disable Time-To-Live (TTL) on a DynamoDB table, optionally changing the TTL attribute.",
-         DynamoUpdateTtl,
+         DynamoUpdateTtl::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("enabled", "Whether TTL is enabled (boolean)", true),
@@ -799,7 +1215,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Elevated, "update", &["ui"]);
 
     reg!("dynamo__update_pitr", "Enable or disable Point-In-Time Recovery (PITR) on a DynamoDB table.",
-         DynamoUpdatePitr,
+         DynamoUpdatePitr::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("enabled", "Whether PITR is enabled (boolean)", true),
@@ -807,11 +1223,619 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          RiskLevel::Elevated, "update", &["ui"]);
 
     reg!("dynamo__update_streams", "Enable or disable DynamoDB Streams on a table, with optional stream view type.",
-         DynamoUpdateStreams,
+         DynamoUpdateStreams::new(),
          dynamo_schema(&[
              ("table_name", "DynamoDB table name", true),
              ("enabled", "Whether streams are enabled (boolean)", true),
              ("stream_view_type", "Stream view type: KEYS_ONLY, NEW_IMAGE, OLD_IMAGE, or NEW_AND_OLD_IMAGES", false),
          ]),
          RiskLevel::Elevated, "update", &["ui"]);
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// Factory that always fails — used to verify error propagation paths
+    /// where the handler should reach the factory call (i.e. arg extraction
+    /// succeeded before the client is needed).
+    struct FailingFactory;
+
+    #[async_trait::async_trait]
+    impl DynamoClientFactory for FailingFactory {
+        async fn create_client(&self, _config: &Value) -> Result<aws_sdk_dynamodb::Client, String> {
+            Err("factory failure".to_string())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CloudWatchClientFactory for FailingFactory {
+        async fn create_client(&self, _config: &Value) -> Result<aws_sdk_cloudwatch::Client, String> {
+            Err("factory failure".to_string())
+        }
+    }
+
+    // ── Missing connection config ──────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_execute_query_missing_config() {
+        let handler = DynamoExecuteQuery::new();
+        let result = handler.handle(&json!({"statement": "SELECT * FROM t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_list_tables_missing_config() {
+        let handler = DynamoListTables::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_table_missing_config() {
+        let handler = DynamoDescribeTable::new();
+        let result = handler.handle(&json!({"table_name": "t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_query_table_missing_config() {
+        let handler = DynamoQueryTable::new();
+        let result = handler.handle(&json!({"table_name": "t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_scan_table_missing_config() {
+        let handler = DynamoScanTable::new();
+        let result = handler.handle(&json!({"table_name": "t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_batch_write_items_missing_config() {
+        let handler = DynamoBatchWriteItems::new();
+        let result = handler.handle(&json!({"table_name": "t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_update_gsi_missing_config() {
+        let handler = DynamoUpdateGsi::new();
+        let result = handler.handle(&json!({"table_name": "t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_gsi_missing_config() {
+        let handler = DynamoDeleteGsi::new();
+        let result = handler.handle(&json!({"table_name": "t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_continuous_backups_missing_config() {
+        let handler = DynamoDescribeContinuousBackups::new();
+        let result = handler.handle(&json!({"table_name": "t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_ttl_missing_config() {
+        let handler = DynamoDescribeTtl::new();
+        let result = handler.handle(&json!({"table_name": "t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_get_table_metrics_missing_config() {
+        let handler = DynamoGetTableMetrics::new();
+        let result = handler.handle(&json!({"table_name": "t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_create_table_missing_config() {
+        let handler = DynamoCreateTable::new();
+        let result = handler.handle(&json!({"table_name": "t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    // ── Missing required args ──────────────────────────────────────────────
+    //
+    // The handlers check connection_config BEFORE args. We pass Some(empty
+    // config) to pass the config gate and reach arg validation.
+
+    #[tokio::test]
+    async fn test_execute_query_missing_statement() {
+        let handler = DynamoExecuteQuery::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing statement"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_write_missing_statement() {
+        let handler = DynamoExecuteWrite::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing statement"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_delete_missing_statement() {
+        let handler = DynamoExecuteDelete::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing statement"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_table_missing_table_name() {
+        let handler = DynamoDescribeTable::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_query_table_missing_table_name() {
+        let handler = DynamoQueryTable::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_create_item_missing_table_name() {
+        let handler = DynamoCreateItem::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_update_item_missing_table_name() {
+        let handler = DynamoUpdateItem::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_item_missing_table_name() {
+        let handler = DynamoDeleteItem::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_create_gsi_missing_table_name() {
+        let handler = DynamoCreateGsi::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    // ── Factory error propagation ──────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_execute_query_factory_error() {
+        let handler = DynamoExecuteQuery::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"statement": "SELECT * FROM t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_table_factory_error() {
+        let handler = DynamoDescribeTable::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_list_tables_factory_error() {
+        let handler = DynamoListTables::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(&json!({}), Some(&json!({"region": "us-east-1"}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_table_missing_table_name() {
+        let handler = DynamoDeleteTable::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_truncate_table_missing_table_name() {
+        let handler = DynamoTruncateTable::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_update_table_config_missing_table_name() {
+        let handler = DynamoUpdateTableConfig::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_update_ttl_missing_table_name() {
+        let handler = DynamoUpdateTtl::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_update_pitr_missing_table_name() {
+        let handler = DynamoUpdatePitr::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_update_streams_missing_table_name() {
+        let handler = DynamoUpdateStreams::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    // ── Missing required args (handlers from untested gap) ─────────────────
+
+    #[tokio::test]
+    async fn test_scan_table_missing_table_name() {
+        let handler = DynamoScanTable::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_batch_write_items_missing_table_name() {
+        let handler = DynamoBatchWriteItems::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_update_gsi_missing_table_name() {
+        let handler = DynamoUpdateGsi::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_gsi_missing_table_name() {
+        let handler = DynamoDeleteGsi::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_continuous_backups_missing_table_name() {
+        let handler = DynamoDescribeContinuousBackups::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_ttl_missing_table_name() {
+        let handler = DynamoDescribeTtl::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_get_table_metrics_missing_table_name() {
+        let handler = DynamoGetTableMetrics::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    #[tokio::test]
+    async fn test_create_table_missing_table_name() {
+        let handler = DynamoCreateTable::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing table_name"));
+    }
+
+    // ── Factory error propagation ──────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_batch_write_items_factory_error() {
+        let handler = DynamoBatchWriteItems::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t", "items": []}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_update_gsi_factory_error() {
+        let handler = DynamoUpdateGsi::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_gsi_factory_error() {
+        let handler = DynamoDeleteGsi::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_continuous_backups_factory_error() {
+        let handler = DynamoDescribeContinuousBackups::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_describe_ttl_factory_error() {
+        let handler = DynamoDescribeTtl::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_get_table_metrics_factory_error() {
+        let handler = DynamoGetTableMetrics::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_create_table_factory_error() {
+        let handler = DynamoCreateTable::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    // ── Additional factory error tests ─────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_execute_write_factory_error() {
+        let handler = DynamoExecuteWrite::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"statement": "INSERT INTO t VALUE {'pk': 'v'}"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_execute_delete_factory_error() {
+        let handler = DynamoExecuteDelete::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"statement": "DELETE FROM t WHERE pk = 'v'"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_query_table_factory_error() {
+        let handler = DynamoQueryTable::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t", "partition_key": {"name": "pk", "value": "v"}}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_scan_table_factory_error() {
+        let handler = DynamoScanTable::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_create_item_factory_error() {
+        let handler = DynamoCreateItem::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t", "attributes": []}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_update_item_factory_error() {
+        let handler = DynamoUpdateItem::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_item_factory_error() {
+        let handler = DynamoDeleteItem::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_create_gsi_factory_error() {
+        let handler = DynamoCreateGsi::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_delete_table_factory_error() {
+        let handler = DynamoDeleteTable::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_truncate_table_factory_error() {
+        let handler = DynamoTruncateTable::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_update_table_config_factory_error() {
+        let handler = DynamoUpdateTableConfig::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_update_ttl_factory_error() {
+        let handler = DynamoUpdateTtl::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_update_pitr_factory_error() {
+        let handler = DynamoUpdatePitr::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_update_streams_factory_error() {
+        let handler = DynamoUpdateStreams::with_factory(Box::new(FailingFactory));
+        let result = handler.handle(
+            &json!({"table_name": "t"}),
+            Some(&json!({"region": "us-east-1"})),
+        )
+        .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
 }
