@@ -263,7 +263,7 @@ const showModal = ref(false);
 const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
-const { isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
+const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
 const authMode = ref<'none' | 'scram' | 'uri'>('none');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 

@@ -460,7 +460,7 @@ const emit = defineEmits<{
   (e: 'deleted'): void;
 }>();
 
-const { isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
+const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
 const loading = ref(false);
 const saveTimerRef = ref<ReturnType<typeof setTimeout> | null>(null);
 const activeTab = computed(() => props.defaultTab || 'streams');
