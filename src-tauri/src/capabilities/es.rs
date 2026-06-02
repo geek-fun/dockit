@@ -132,7 +132,52 @@ impl_es_handler!(EsDeleteByQuery, "POST", |args: &Value| -> Result<String, Strin
     Ok(format!("/{}/_delete_by_query", crate::common::validation::url_encode_segment(index)))
 }, true);
 
-impl_es_handler!(EsCatIndices, "GET", |_args: &Value| -> Result<String, String> { Ok("/_cat/indices?format=json&expand_wildcards=all".to_string()) }, false);
+#[async_trait::async_trait]
+impl CapabilityHandler for EsCatIndices {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config = connection_config.ok_or_else(|| "ES requires a connection config".to_string())?;
+        let include_system = args
+            .get("include_system")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        let raw = execute_es_http("GET", "/_cat/indices?format=json&expand_wildcards=all", None, config).await?;
+        let parsed: serde_json::Value = serde_json::from_str(&raw)
+            .map_err(|e| format!("Failed to parse cat_indices response: {}", e))?;
+
+        let Some(arr) = parsed.as_array() else {
+            return Ok(raw);
+        };
+
+        let mut user: Vec<&serde_json::Value> = Vec::new();
+        let mut system: Vec<&serde_json::Value> = Vec::new();
+
+        for index in arr {
+            let name = index.get("index").and_then(|v| v.as_str()).unwrap_or("");
+            if name.starts_with('.') || name.starts_with("_") {
+                system.push(index);
+            } else {
+                user.push(index);
+            }
+        }
+
+        let sorted: Vec<&serde_json::Value> = if include_system {
+            let mut result = user;
+            result.extend(system);
+            result
+        } else {
+            user
+        };
+
+        let result = serde_json::to_string(&sorted)
+            .map_err(|e| format!("Failed to serialize cat_indices: {}", e))?;
+        Ok(crate::common::format::truncate_tool_output(result))
+    }
+}
 
 impl_es_handler!(EsGetMapping, "GET", |args: &Value| -> Result<String, String> {
     let index = args.get("index").and_then(|v| v.as_str()).ok_or_else(|| "Missing index".to_string())?;
@@ -250,8 +295,8 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          es_schema(&[("index", "Target index name", "string", true), ("body", "Query DSL to match documents for deletion", "object", true)]),
          RiskLevel::Destructive, "delete", &["agent"]);
 
-    reg!("es__cat_indices", "List all indices with health status, document count, and storage size.", EsCatIndices,
-         es_schema(&[]),
+    reg!("es__cat_indices", "List all indices with health status, document count, and storage size. System indices (starting with . or _) are excluded by default; pass include_system=true to include them after user indices.", EsCatIndices,
+         es_schema(&[("include_system", "Set to true to include system indices after user indices (boolean, default false)", "boolean", false)]),
          RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("es__get_mapping", "Get the field mapping (schema) for an Elasticsearch index, showing field names and data types.", EsGetMapping,

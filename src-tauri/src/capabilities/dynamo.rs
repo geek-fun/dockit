@@ -1034,7 +1034,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          dynamo_schema(&[("statement", "PartiQL DELETE statement", true)]),
          RiskLevel::Destructive, "delete", &["agent", "ui"]);
 
-    reg!("dynamo__describe_table", "Describe a DynamoDB table schema: key schema, attribute definitions, indexes, and throughput.",
+    reg!("dynamo__describe_table", "Describe a DynamoDB table schema and metadata: key schema, attribute definitions, provisioned throughput, billing mode, item count, table size, stream config, SSE status, table class, and index info. Returns GSI and LSI details (index names, types/status, key schema, projection, provisioned throughput, item count, size). Use this to look up index names before querying/scanning a GSI, check table status/health, verify throughput settings, or get table identifiers for further operations.",
          DynamoDescribeTable::new(),
          dynamo_schema(&[("table_name", "DynamoDB table name", true)]),
          RiskLevel::Safe, "read", &["agent", "ui"]);
