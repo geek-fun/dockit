@@ -4,6 +4,12 @@
 # This is the standard fix for large Rust projects on Windows (Bevy, etc.)
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld.exe"
-# Static CRT linking avoids STATUS_ENTRYPOINT_NOT_FOUND at test binary load time
-# when MSVC CRT DLLs (vcruntime140.dll, etc.) can't be resolved in CI.
-rustflags = ["-C", "target-feature=+crt-static"]
+
+# Workaround for STATUS_ENTRYPOINT_NOT_FOUND when running cargo test on Windows.
+# tauri-build embeds the Windows Common Controls 6.0 manifest only for the main
+# binary (rustc-link-arg-bins). Test binaries lack this manifest, so the loader
+# loads comctl32.dll v5.x which doesn't export GetWindowSubclass.
+# See: https://github.com/tauri-apps/tauri/issues/13419
+#      https://github.com/tauri-apps/tauri/issues/14580
+[env]
+__TAURI_WORKSPACE__ = "true"
