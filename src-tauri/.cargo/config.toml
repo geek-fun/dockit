@@ -4,3 +4,6 @@
 # This is the standard fix for large Rust projects on Windows (Bevy, etc.)
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld.exe"
+# Static CRT linking avoids STATUS_ENTRYPOINT_NOT_FOUND at test binary load time
+# when MSVC CRT DLLs (vcruntime140.dll, etc.) can't be resolved in CI.
+rustflags = ["-C", "target-feature=+crt-static"]
