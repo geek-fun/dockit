@@ -866,7 +866,7 @@ export const zhCN = {
     invalidJson: '无效的 JSON 格式',
     copySuccess: '已复制到粘贴板',
     copyFailure: '复制失败',
-    unsupportedFile: 'DocKit仅支持以 .search 结尾的文件',
+    unsupportedFile: 'DocKit仅支持 .search、.partiql 和 .mongo 文件',
     sampleQueries: '示例查询',
     es: {
       sampleClusterHealth: '集群健康',
@@ -1007,11 +1007,16 @@ export const zhCN = {
       insertSuccess: '文档插入成功',
       insertError: '文档插入失败',
       updateSuccess: '文档更新成功',
+      updateNoChanges: '未检测到更改 — 文档已包含这些值',
       updateError: '文档更新失败',
       deleteDocumentSuccess: '文档删除成功',
       deleteError: '文档删除失败',
       closePanel: '关闭面板',
       invalidJsonObject: '值必须是 JSON 对象，不能是数组或基本类型',
+      contextMenu: {
+        execute: '执行',
+        copy: '复制',
+      },
     },
   },
   file: {

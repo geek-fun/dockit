@@ -77,8 +77,14 @@ const loading = ref(false);
 const errorMessage = ref('');
 let editorInstance: Editor | null = null;
 
-const initEditor = () => {
-  if (!editorRef.value || editorInstance) return;
+const initEditor = (retries = 0) => {
+  if (!editorRef.value) {
+    if (retries < 10) {
+      setTimeout(() => initEditor(retries + 1), 30);
+    }
+    return;
+  }
+  if (editorInstance) return;
   const options = getEditorOptions();
   editorInstance = monaco.editor.create(editorRef.value, {
     theme: getEditorTheme(),
@@ -92,22 +98,31 @@ const initEditor = () => {
   });
 };
 
+const disposeEditor = () => {
+  editorInstance?.dispose();
+  editorInstance = null;
+};
+
 watch(
   () => props.show,
   open => {
     if (open) {
-      setTimeout(initEditor, 50);
       errorMessage.value = '';
-      if (editorInstance) {
-        editorInstance.setValue(props.initialValue ?? '{\n  \n}');
-      }
+      requestAnimationFrame(() => {
+        initEditor();
+        if (editorInstance) {
+          editorInstance.setValue(props.initialValue ?? '{\n  \n}');
+        }
+      });
+    } else {
+      disposeEditor();
     }
   },
 );
 
 watch(themeType, () => editorInstance?.updateOptions({ theme: getEditorTheme() }));
 
-onUnmounted(() => editorInstance?.dispose());
+onUnmounted(() => disposeEditor());
 
 const handleClose = () => emit('update:show', false);
 

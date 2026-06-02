@@ -16,25 +16,25 @@
       </DialogHeader>
 
       <div class="modal-content">
-        <Alert v-if="successMessage" variant="success" class="mb-4">
+        <Alert v-if="isSuccess" variant="success" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
-            {{ successMessage }}
+            {{ message }}
             <button
               class="ml-2 hover:opacity-70 cursor-pointer"
               aria-label="Dismiss"
-              @click="successMessage = ''"
+              @click="resetResult()"
             >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
         </Alert>
-        <Alert v-if="errorMessage" variant="destructive" class="mb-4">
+        <Alert v-if="isError" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
-            {{ errorMessage }}
+            {{ message }}
             <button
               class="ml-2 hover:opacity-70 cursor-pointer"
               aria-label="Dismiss"
-              @click="errorMessage = ''"
+              @click="resetResult()"
             >
               <X class="w-4 h-4" />
             </button>
@@ -226,7 +226,7 @@ import opensearchIcon from '../../../assets/svg/db-opensearch.svg';
 import easysearchIcon from '../../../assets/svg/easysearch.svg';
 import { Connection, DatabaseType, SearchConnection, useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
-import { useFormValidation } from '@/composables';
+import { useFormValidation, useDialogResult } from '@/composables';
 
 import {
   Dialog,
@@ -251,8 +251,7 @@ const showModal = ref(false);
 const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
-const errorMessage = ref('');
-const successMessage = ref('');
+const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
 const showPassword = ref(false);
 const authType = ref<'basic' | 'apiKey'>('basic');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
@@ -401,8 +400,7 @@ const showMedal = (
   initialType?: DatabaseType.ELASTICSEARCH | DatabaseType.OPENSEARCH | DatabaseType.EASYSEARCH,
 ) => {
   showModal.value = true;
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   hostValidate.value = { status: undefined, feedback: '' };
   if (con) {
     const selectedIndex = con.activeIndex?.index || '';
@@ -430,8 +428,7 @@ const closeModal = () => {
   formData.value = cloneDeep(defaultFormData);
   veeResetForm({ values: cloneDeep(defaultFormData) });
   modalTitle.value = lang.t('connection.new');
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   hostValidate.value = { status: undefined, feedback: '' };
   authType.value = 'basic';
   resetValidation();
@@ -439,13 +436,12 @@ const closeModal = () => {
 
 const testConnect = async (event: MouseEvent) => {
   event.preventDefault();
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   markSubmitted();
 
   const { valid } = await validate();
   if (!valid) {
-    errorMessage.value = lang.t('connection.validationFailed');
+    fail(lang.t('connection.validationFailed'));
     return;
   }
 
@@ -454,8 +450,7 @@ const testConnect = async (event: MouseEvent) => {
 
 const testConnectConfirm = async () => {
   testLoading.value = true;
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   const startTime = Date.now();
 
   try {
@@ -472,7 +467,7 @@ const testConnectConfirm = async () => {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
 
-    successMessage.value = lang.t('connection.testSuccess');
+    succeed(lang.t('connection.testSuccess'));
   } catch (e) {
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
@@ -481,7 +476,7 @@ const testConnectConfirm = async () => {
     }
 
     const error = e as CustomError;
-    errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
+    fail(error.details || `Connection failed (status: ${error.status})`);
   } finally {
     testLoading.value = false;
   }
@@ -489,13 +484,12 @@ const testConnectConfirm = async () => {
 
 const saveConnect = async (event: MouseEvent) => {
   event.preventDefault();
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   markSubmitted();
 
   const { valid } = await validate();
   if (!valid) {
-    errorMessage.value = lang.t('connection.validationFailed');
+    fail(lang.t('connection.validationFailed'));
     return;
   }
 
@@ -514,7 +508,7 @@ const saveConnectConfirm = async () => {
     closeModal();
   } catch (e) {
     const error = e as CustomError;
-    errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
+    fail(error.details || `Connection failed (status: ${error.status})`);
   } finally {
     saveLoading.value = false;
   }

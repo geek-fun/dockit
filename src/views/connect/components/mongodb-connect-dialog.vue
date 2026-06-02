@@ -16,25 +16,25 @@
       </DialogHeader>
 
       <div class="modal-content min-h-[320px]">
-        <Alert v-if="successMessage" variant="success" class="mb-4">
+        <Alert v-if="isSuccess" variant="success" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
-            {{ successMessage }}
+            {{ message }}
             <button
               class="ml-2 hover:opacity-70 cursor-pointer"
               :aria-label="$t('dialogOps.dismiss')"
-              @click="successMessage = ''"
+              @click="resetResult()"
             >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
         </Alert>
-        <Alert v-if="errorMessage" variant="destructive" class="mb-4">
+        <Alert v-if="isError" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
-            {{ errorMessage }}
+            {{ message }}
             <button
               class="ml-2 hover:opacity-70 cursor-pointer"
               :aria-label="$t('dialogOps.dismiss')"
-              @click="errorMessage = ''"
+              @click="resetResult()"
             >
               <X class="w-4 h-4" />
             </button>
@@ -231,7 +231,7 @@ import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import mongodbIcon from '../../../assets/svg/mongodb.svg';
 import { DatabaseType, MongoDBConnection, useConnectionStore } from '../../../store';
 import { useLang } from '../../../lang';
-import { useFormValidation } from '@/composables';
+import { useFormValidation, useDialogResult } from '@/composables';
 
 import {
   Dialog,
@@ -263,8 +263,7 @@ const showModal = ref(false);
 const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
-const errorMessage = ref('');
-const successMessage = ref('');
+const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
 const authMode = ref<'none' | 'scram' | 'uri'>('none');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
@@ -483,8 +482,7 @@ const buildConnection = (): MongoDBConnection => {
 
 const showMedal = (con: MongoDBConnection | null) => {
   showModal.value = true;
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
 
   if (con) {
     formData.value = cloneDeep(con);
@@ -530,20 +528,18 @@ const closeModal = () => {
   authMechanismValue.value = '';
   tlsChecked.value = false;
   modalTitle.value = lang.t('connection.new');
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   resetValidation();
 };
 
 const testConnect = async (event: MouseEvent) => {
   event.preventDefault();
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   markSubmitted();
 
   const { valid } = await validate();
   if (!valid) {
-    errorMessage.value = lang.t('connection.validationFailed');
+    fail(lang.t('connection.validationFailed'));
     return;
   }
 
@@ -552,8 +548,7 @@ const testConnect = async (event: MouseEvent) => {
 
 const testConnectConfirm = async () => {
   testLoading.value = true;
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   const startTime = Date.now();
 
   try {
@@ -565,7 +560,7 @@ const testConnectConfirm = async () => {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
 
-    successMessage.value = lang.t('connection.mongodb.connectSuccess');
+    succeed(lang.t('connection.mongodb.connectSuccess'));
   } catch (e) {
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
@@ -574,7 +569,7 @@ const testConnectConfirm = async () => {
     }
 
     const error = e as CustomError;
-    errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
+    fail(error.details || `Connection failed (status: ${error.status})`);
   } finally {
     testLoading.value = false;
   }
@@ -582,13 +577,12 @@ const testConnectConfirm = async () => {
 
 const saveConnect = async (event: MouseEvent) => {
   event.preventDefault();
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   markSubmitted();
 
   const { valid } = await validate();
   if (!valid) {
-    errorMessage.value = lang.t('connection.validationFailed');
+    fail(lang.t('connection.validationFailed'));
     return;
   }
 
@@ -602,11 +596,11 @@ const saveConnectConfirm = async () => {
     if (result.success) {
       closeModal();
     } else {
-      errorMessage.value = result.message;
+      fail(result.message);
     }
   } catch (e) {
     const error = e as CustomError;
-    errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
+    fail(error.details || `Connection failed (status: ${error.status})`);
   } finally {
     saveLoading.value = false;
   }

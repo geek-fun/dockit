@@ -2,6 +2,7 @@ import { SearchConnection, DatabaseType } from '../store';
 import { loadHttpClient } from './fetchApi.ts';
 import { CustomError, debug, jsonify, optionalToNullableInt } from '../common';
 import { get } from 'lodash';
+import { invokeCapability, parseCapabilityResponse } from './capabilityInvoker.ts';
 
 export enum IndexHealth {
   GREEN = 'green',
@@ -664,15 +665,13 @@ const esApi: ESApi = {
   },
 
   deleteIndex: async (connection, indexName) => {
-    const client = loadHttpClient(connection);
     try {
-      const response = await client.delete<{
-        status: number;
-        error: { type: string; reason: string };
-      }>(`/${indexName}`);
-      if (response.status >= 300) {
-        throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
-      }
+      const raw = await invokeCapability(
+        'es__delete_index',
+        { index: indexName },
+        String(connection.id),
+      );
+      parseCapabilityResponse<void>(raw);
     } catch (err) {
       throw new CustomError(
         err instanceof CustomError ? err.status : 500,
@@ -715,15 +714,13 @@ const esApi: ESApi = {
     }
   },
   removeAlias: async (connection, indexName, aliasName) => {
-    const client = loadHttpClient(connection);
     try {
-      const response = await client.delete<{
-        status: number;
-        error: { type: string; reason: string };
-      }>(`/${indexName}/_alias/${aliasName}`);
-      if (response.status >= 300) {
-        throw new CustomError(response.status, `${response.error.type}: ${response.error.reason}`);
-      }
+      const raw = await invokeCapability(
+        'es__delete_alias',
+        { index: indexName, name: aliasName },
+        String(connection.id),
+      );
+      parseCapabilityResponse<void>(raw);
     } catch (err) {
       throw new CustomError(
         err instanceof CustomError ? err.status : 500,
@@ -755,20 +752,8 @@ const esApi: ESApi = {
     }
   },
   catIndices: async connection => {
-    const client = loadHttpClient(connection);
-    const majorVersion = parseInt(connection.version?.split('.')[0] ?? '7', 10);
-    const expandWildcards =
-      connection.type === DatabaseType.OPENSEARCH ||
-      connection.type === DatabaseType.EASYSEARCH ||
-      majorVersion >= 6
-        ? '&expand_wildcards=all'
-        : '';
-    const data = (await client.get(
-      '/_cat/indices',
-      `format=json&s=index${expandWildcards}`,
-    )) as Array<{
-      [key: string]: string;
-    }>;
+    const raw = await invokeCapability('es__cat_indices', {}, String(connection.id));
+    const data = parseCapabilityResponse<Array<{ [key: string]: string }>>(raw);
 
     return data.map((index: { [key: string]: string }) => ({
       index: index.index,
@@ -784,10 +769,8 @@ const esApi: ESApi = {
     }));
   },
   catAliases: async connection => {
-    const client = loadHttpClient(connection);
-    const data = (await client.get('/_cat/aliases', 'format=json&s=alias')) as Array<{
-      [key: string]: string;
-    }>;
+    const raw = await invokeCapability('es__cat_aliases', {}, String(connection.id));
+    const data = parseCapabilityResponse<Array<{ [key: string]: string }>>(raw);
     return data.map((alias: { [key: string]: string }) => ({
       alias: alias.alias,
       index: alias.index,

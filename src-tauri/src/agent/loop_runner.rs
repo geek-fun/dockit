@@ -1006,7 +1006,41 @@ async fn run_agent_loop_inner(
                 .and_then(|v| v.as_str())
             {
                 Some(conn_id) => match connections.get(conn_id) {
-                    Some(cfg) => cfg.clone(),
+                    Some(cfg) => {
+                        // If this is a ConnectionEntry (has connectionId field), resolve it
+                        // from the store. Otherwise use the config directly (old format).
+                        if let Some(resolved_id) = cfg.get("connectionId").and_then(|v| v.as_str()) {
+                            match crate::common::connection_resolver::ConnectionResolver::resolve(
+                                &app, resolved_id,
+                            ) {
+                                Ok(resolved) => resolved,
+                                Err(e) => {
+                                    update_tool_call_status(db, &tool_call_id, "failed")?;
+                                    let err_content = format!(
+                                        "Failed to resolve connection '{}': {}", resolved_id, e
+                                    );
+                                    let err_msg = json!({
+                                        "tool_call_id": tool_call_id,
+                                        "name": tool_name,
+                                        "content": err_content,
+                                    });
+                                    insert_message(db, app, settings, &new_id(), session_id, "tool", &err_msg.to_string())?;
+                                    let _ = app.emit(
+                                        "agent-loop-tool-result",
+                                        json!({
+                                            "session_id": session_id,
+                                            "tool_call_id": tool_call_id,
+                                            "error": true,
+                                            "envelope": { "summary": err_content },
+                                        }),
+                                    );
+                                    continue;
+                                }
+                            }
+                        } else {
+                            cfg.clone()
+                        }
+                    }
                     None => {
                         update_tool_call_status(db, &tool_call_id, "failed")?;
                         let err_content = format!("Unknown connection_id '{}' for tool '{}'.", conn_id, tool_name);

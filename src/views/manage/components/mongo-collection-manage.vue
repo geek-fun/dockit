@@ -1069,7 +1069,7 @@ const fetchDatabases = async () => {
 
   try {
     const result = await mongoApi.listDatabases(mongoConnection.value);
-    if (result.success && result.databases) {
+    if (result.databases) {
       databases.value = result.databases.filter(
         db => db.name !== 'admin' && db.name !== 'local' && db.name !== 'config',
       );
@@ -1095,7 +1095,7 @@ const fetchCollectionsWithStats = async () => {
       mongoConnection.value,
       selectedDatabase.value,
     );
-    if (!listResult.success || !listResult.collections) {
+    if (listResult.error || !listResult.collections) {
       message.error(listResult.error ?? lang.t('manage.mongo.failedToListCollections'));
       collections.value = [];
       return;
@@ -1106,7 +1106,7 @@ const fetchCollectionsWithStats = async () => {
       mongoApi
         .collectionStats(mongoConnection.value!, selectedDatabase.value, coll.name)
         .then(statsResult => {
-          if (statsResult.success && statsResult.stats) {
+          if (statsResult.stats) {
             return {
               name: coll.name,
               collection_type: coll.collection_type,
@@ -1135,7 +1135,7 @@ const fetchDatabaseStats = async () => {
 
   try {
     const result = await mongoApi.databaseStats(mongoConnection.value, selectedDatabase.value);
-    if (result.success && result.stats) {
+    if (result.stats) {
       dbStats.value = result.stats;
     }
   } catch {
@@ -1171,7 +1171,7 @@ const handleCreateDatabase = async () => {
       ),
       MIN_LOADING_TIME,
     );
-    if (result.success) {
+    if (!result.error) {
       const dbName = newDatabaseName.value.trim();
       message.success(lang.t('manage.mongo.databaseCreated'));
       showCreateDatabaseDialog.value = false;
@@ -1203,7 +1203,7 @@ const handleCreateCollection = async () => {
       ),
       MIN_LOADING_TIME,
     );
-    if (result.success) {
+    if (!result.error) {
       message.success(lang.t('manage.mongo.collectionCreated'));
       showCreateCollectionDialog.value = false;
       resetCreateCollectionDialog();
@@ -1232,7 +1232,7 @@ const handleDropCollection = async () => {
       ),
       MIN_LOADING_TIME,
     );
-    if (result.success) {
+    if (!result.error) {
       dropCollectionResult.value = 'success';
       setTimeout(() => {
         showDropCollectionDialog.value = false;
@@ -1261,7 +1261,7 @@ const handleDropDatabase = async () => {
       mongoApi.dropDatabase(mongoConnection.value, selectedDatabase.value),
       MIN_LOADING_TIME,
     );
-    if (result.success) {
+    if (!result.error) {
       dropDatabaseResult.value = 'success';
       setTimeout(() => {
         showDropDatabaseDialog.value = false;
@@ -1297,7 +1297,7 @@ const handleRenameCollection = async () => {
       ),
       MIN_LOADING_TIME,
     );
-    if (result.success) {
+    if (!result.error) {
       renameResult.value = 'success';
       setTimeout(() => {
         showRenameCollectionDialog.value = false;
@@ -1332,7 +1332,7 @@ const handleCloneCollection = async () => {
       ),
       MIN_LOADING_TIME,
     );
-    if (result.success) {
+    if (!result.error) {
       cloneResult.value = 'success';
 
       setTimeout(() => {
@@ -1366,7 +1366,7 @@ const handleEmptyCollection = async () => {
       ),
       MIN_LOADING_TIME,
     );
-    if (result.success) {
+    if (!result.error) {
       emptyResult.value = 'success';
 
       setTimeout(() => {

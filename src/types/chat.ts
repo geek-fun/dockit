@@ -40,8 +40,21 @@ export type ChatSession = {
   stopMessage?: string;
 };
 
+export type ChatPermissions = {
+  read: boolean;
+  create: boolean;
+  update: boolean;
+  delete: boolean;
+};
+
+export type ConnectionEntry = {
+  connectionId: string;
+  dbType: string;
+  permissions: ChatPermissions;
+};
+
 export type ChatContextConfig = {
-  connections?: Record<string, Record<string, unknown>>;
+  connections?: Record<string, ConnectionEntry>;
   databaseTypes?: Record<string, string>;
 
   databaseType?: string;
@@ -54,13 +67,6 @@ export type ChatContextConfig = {
     tableName?: string;
     editorContent?: string;
   };
-};
-
-export type ChatPermissions = {
-  read: boolean;
-  create: boolean;
-  update: boolean;
-  delete: boolean;
 };
 
 export type ChatConfig = {

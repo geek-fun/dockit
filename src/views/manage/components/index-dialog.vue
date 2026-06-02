@@ -4,8 +4,23 @@
       <DialogHeader>
         <DialogTitle>{{ $t('manage.index.newIndexForm.title') }}</DialogTitle>
       </DialogHeader>
-      <div class="modal-content">
-        <Form @submit.prevent="submitCreate">
+
+      <div v-if="isSuccess" class="text-center py-4">
+        <div class="text-green-500 text-4xl mb-2">✓</div>
+        <p class="text-sm font-medium">{{ lang.t('dialogOps.createSuccess') }}</p>
+      </div>
+
+      <Alert v-else-if="isError" variant="destructive" class="mb-3">
+        <AlertDescription class="flex items-center justify-between">
+          <span>{{ message }}</span>
+          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="reset()">
+            <X class="w-4 h-4" />
+          </button>
+        </AlertDescription>
+      </Alert>
+
+      <Form v-if="isIdle" @submit.prevent="submitCreate">
+        <div class="modal-content">
           <Grid :cols="8" :x-gap="10" :y-gap="10">
             <GridItem :span="8">
               <FormItem
@@ -96,15 +111,26 @@
               </Grid>
             </CollapseItem>
           </Collapse>
-        </Form>
-      </div>
-      <DialogFooter>
-        <Button variant="outline" @click="closeModal">{{ $t('dialogOps.cancel') }}</Button>
-        <Button type="submit" :disabled="!validationPassed || createLoading">
-          <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
-          {{ $t('dialogOps.create') }}
-        </Button>
-      </DialogFooter>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" :disabled="createLoading" @click="closeModal">
+            {{ isSuccess ? $t('dialogOps.close') : $t('dialogOps.cancel') }}
+          </Button>
+          <Button
+            v-if="isError"
+            variant="destructive"
+            :disabled="createLoading"
+            @click="handleRetry"
+          >
+            <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
+            {{ $t('dialogOps.retry') }}
+          </Button>
+          <Button v-else-if="isIdle" type="submit" :disabled="!validationPassed || createLoading">
+            <Loader2 v-if="createLoading" class="mr-2 h-4 w-4 animate-spin" />
+            {{ $t('dialogOps.create') }}
+          </Button>
+        </DialogFooter>
+      </Form>
     </DialogContent>
   </Dialog>
 </template>
@@ -114,12 +140,11 @@ import { ref, computed, watch } from 'vue';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
 import * as z from 'zod';
-import { useMessageService } from '@/composables';
-import { Loader2 } from 'lucide-vue-next';
-import { CustomError, jsonify, withLoadingDelay } from '../../../common';
+import { Loader2, X } from 'lucide-vue-next';
+import { jsonify, withLoadingDelay } from '../../../common';
 import { useClusterManageStore } from '../../../store';
 import { useLang } from '../../../lang';
-import { useFormValidation } from '@/composables';
+import { useFormValidation, useDialogResult, formatApiError } from '@/composables';
 import {
   Dialog,
   DialogContent,
@@ -128,6 +153,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { InputNumber } from '@/components/ui/input-number';
 import { Form, FormItem } from '@/components/ui/form';
@@ -138,10 +164,10 @@ const clusterManageStore = useClusterManageStore();
 const { createIndex, refreshStates } = clusterManageStore;
 
 const lang = useLang();
-const message = useMessageService();
 
 const showIndexModal = ref(false);
 const createLoading = ref(false);
+const { message, isIdle, isSuccess, isError, succeed, fail, reset } = useDialogResult();
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 
 const defaultFormData = {
@@ -220,6 +246,7 @@ const toggleModal = () => {
   if (showIndexModal.value) {
     closeModal();
   } else {
+    reset();
     showIndexModal.value = true;
   }
 };
@@ -229,6 +256,12 @@ const closeModal = () => {
   formData.value = { ...defaultFormData };
   veeResetForm({ values: { ...defaultFormData } });
   resetValidation();
+  reset();
+};
+
+const handleRetry = () => {
+  reset();
+  submitCreate(new MouseEvent('click'));
 };
 
 const submitCreate = async (event: MouseEvent) => {
@@ -239,17 +272,14 @@ const submitCreate = async (event: MouseEvent) => {
   if (!valid) return;
 
   createLoading.value = true;
+  reset();
   try {
     await withLoadingDelay(createIndex(formData.value));
-    message.success(lang.t('dialogOps.createSuccess'));
+    succeed();
     await refreshStates();
-    closeModal();
+    setTimeout(() => closeModal(), 1500);
   } catch (err) {
-    message.error((err as CustomError).details, {
-      closable: true,
-      keepAliveOnHover: true,
-      duration: 7200,
-    });
+    fail(formatApiError(err));
   } finally {
     createLoading.value = false;
   }

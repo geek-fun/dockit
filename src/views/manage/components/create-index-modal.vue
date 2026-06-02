@@ -330,14 +330,14 @@
         <button type="submit" form="create-gsi-form" hidden />
       </ScrollArea>
 
-      <Alert v-if="errorMessage" variant="destructive" class="mt-3">
+      <Alert v-if="isError" variant="destructive" class="mt-3">
         <AlertDescription class="flex items-center justify-between">
-          {{ errorMessage }}
+          {{ message }}
           <button
             type="button"
             class="ml-2 hover:opacity-70 cursor-pointer"
             aria-label="Dismiss error"
-            @click="errorMessage = ''"
+            @click="reset()"
           >
             <X class="w-4 h-4" />
           </button>
@@ -367,7 +367,7 @@ import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
 import { useClusterManageStore, DatabaseType } from '../../../store';
 import { storeToRefs } from 'pinia';
-import { useFormValidation } from '@/composables';
+import { useFormValidation, useDialogResult } from '@/composables';
 import {
   Dialog,
   DialogContent,
@@ -413,8 +413,8 @@ type KeyAttribute = {
   type: string;
 };
 
+const { isError, message, fail, reset } = useDialogResult();
 const loading = ref(false);
-const errorMessage = ref('');
 const baseTableInfo = ref<any>(null);
 const newProjectedAttribute = ref('');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
@@ -608,7 +608,7 @@ watch(
       };
       veeResetForm({ values: { indexName: '' } });
       errors.value = {};
-      errorMessage.value = '';
+      reset();
       loading.value = false;
       newProjectedAttribute.value = '';
       resetValidation();
@@ -724,9 +724,11 @@ const handleSubmit = async () => {
     }
 
     const err = error as { details?: string; status?: number; message?: string };
-    errorMessage.value = err?.details
-      ? `status: ${err?.status ?? 'unknown'}, details: ${err.details}`
-      : err?.message || String(error);
+    fail(
+      err?.details
+        ? `status: ${err?.status ?? 'unknown'}, details: ${err.details}`
+        : err?.message || String(error),
+    );
   } finally {
     loading.value = false;
   }

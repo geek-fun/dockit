@@ -10,6 +10,15 @@ export {
   getMongoDynamicOptions,
   clearMongoDynamicOptions,
 } from './state';
+export {
+  parseMongoStatements,
+  getStatementAtLine,
+  getMongoStatementDecorations,
+  isMongoStatementStart,
+  mongoExecutionGutterClass,
+  type MongoStatement,
+  type MongoDecoration,
+} from './parser';
 
 export const registerMongodbLanguage = (monaco: typeof import('monaco-editor')): void => {
   monaco.languages.register({ id: mongodb.id });

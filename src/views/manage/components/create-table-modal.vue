@@ -5,15 +5,15 @@
         <DialogTitle>{{ lang.t('manage.dynamo.createTableTitle') }}</DialogTitle>
       </DialogHeader>
 
-      <div v-if="resultType === 'success' && resultMessage" class="text-center py-4">
+      <div v-if="isSuccess" class="text-center py-4">
         <div class="text-green-500 text-4xl mb-2">✓</div>
         <p class="text-sm font-medium">{{ lang.t('manage.dynamo.createTableSuccess') }}</p>
       </div>
 
-      <Alert v-else-if="resultMessage && resultType === 'error'" variant="destructive" class="mb-3">
+      <Alert v-else-if="isError" variant="destructive" class="mb-3">
         <AlertDescription class="flex items-center justify-between">
-          <span>{{ resultMessage }}</span>
-          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="resultMessage = ''">
+          <span>{{ message }}</span>
+          <button class="ml-2 text-sm hover:opacity-70 cursor-pointer" @click="reset()">
             <X class="w-4 h-4" />
           </button>
         </AlertDescription>
@@ -977,35 +977,26 @@
 
       <DialogFooter class="mt-4">
         <Button
-          v-if="currentStep > 0 && !resultMessage"
+          v-if="currentStep > 0 && isIdle"
           variant="outline"
           :disabled="loading"
           @click="prevStep"
         >
           {{ lang.t('manage.dynamo.back') }}
         </Button>
-        <Button
-          v-if="resultType === 'error'"
-          variant="destructive"
-          :disabled="loading"
-          @click="handleRetry"
-        >
-          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+        <Button v-if="isError" variant="destructive" :disabled="loading" @click="handleRetry">
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.retry') }}
         </Button>
         <Button
-          v-else-if="currentStep < steps.length - 1 && !resultMessage"
+          v-else-if="currentStep < steps.length - 1 && isIdle"
           :disabled="loading || !canProceed"
           @click="nextStep"
         >
           {{ lang.t('manage.dynamo.next') }}
         </Button>
-        <Button
-          v-else-if="!resultMessage"
-          :disabled="loading || !canProceed"
-          @click="handleConfirm"
-        >
-          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+        <Button v-else-if="isIdle" :disabled="loading || !canProceed" @click="handleConfirm">
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('manage.dynamo.createTable') }}
         </Button>
       </DialogFooter>
@@ -1015,7 +1006,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, reactive } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import {
   Dialog,
   DialogContent,
@@ -1037,9 +1028,9 @@ import { Form, FormItem } from '@/components/ui/form';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../common';
 import { useLang } from '../../../lang';
+import { useDialogResult, formatApiError } from '@/composables';
 import {
   useDynamoManageStore,
   DynamoDBConnection,
@@ -1095,8 +1086,7 @@ const encryptionOptions = computed(() => [
 
 const currentStep = ref(0);
 const loading = ref(false);
-const resultMessage = ref('');
-const resultType = ref<'success' | 'error'>('success');
+const { message, isIdle, isSuccess, isError, succeed, fail, reset } = useDialogResult();
 const errors = reactive({
   tableName: '',
   partitionKey: '',
@@ -1166,8 +1156,7 @@ watch(
   newVal => {
     if (newVal) {
       currentStep.value = 0;
-      resultMessage.value = '';
-      resultType.value = 'success';
+      reset();
       loading.value = false;
       formValue.tableName = '';
       formValue.tableClass = 'STANDARD';
@@ -1342,7 +1331,7 @@ const nextStep = () => {
 };
 
 const handleRetry = async () => {
-  resultMessage.value = '';
+  reset();
   await handleConfirm();
 };
 
@@ -1437,8 +1426,7 @@ const handleConfirm = async () => {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
 
-    resultType.value = 'success';
-    resultMessage.value = 'success';
+    succeed();
 
     setTimeout(() => {
       emit('update:show', false);
@@ -1451,11 +1439,7 @@ const handleConfirm = async () => {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
 
-    resultType.value = 'error';
-    const err = error as { details?: string; status?: number; message?: string };
-    resultMessage.value = err?.details
-      ? `status: ${err?.status ?? 'unknown'}, details: ${err.details}`
-      : err?.message || String(error);
+    fail(formatApiError(error));
   } finally {
     loading.value = false;
   }

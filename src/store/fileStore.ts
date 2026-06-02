@@ -111,8 +111,12 @@ export const useFileStore = defineStore('fileStore', {
     },
 
     async createFileOrFolder(action: ToolBarAction, name: string) {
-      const path = this.activePath?.path.endsWith('.search')
-        ? this.activePath?.path.substring(0, this.activePath?.path.lastIndexOf('/'))
+      const activePath = this.activePath?.path ?? '';
+      const isKnownExtension = ['.search', '.partiql', '.mongo'].some(ext =>
+        activePath.endsWith(ext),
+      );
+      const path = isKnownExtension
+        ? activePath.substring(0, activePath.lastIndexOf('/'))
         : this.activePath?.path;
 
       const targetPath = `${path}/${name}`;

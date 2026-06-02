@@ -13,39 +13,29 @@
       </DialogHeader>
 
       <div class="modal-content">
-        <Alert v-if="resultType === 'success' && resultMessage" variant="success" class="mb-4">
+        <Alert v-if="isSuccess" variant="success" class="mb-4">
           <AlertDescription>{{ lang.t('editor.mongo.deleteDocumentSuccess') }}</AlertDescription>
         </Alert>
-        <Alert v-else-if="resultMessage" variant="destructive" class="mb-4">
+        <Alert v-else-if="isError" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
-            {{ resultMessage }}
-            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="resultMessage = ''">
+            {{ message }}
+            <button class="ml-2 hover:opacity-70 cursor-pointer" @click="resetResult()">
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
         </Alert>
-        <p v-else>{{ lang.t('editor.mongo.deleteDocumentConfirm') }}</p>
+        <p v-else-if="isIdle">{{ lang.t('editor.mongo.deleteDocumentConfirm') }}</p>
       </div>
 
       <DialogFooter>
         <Button variant="outline" :disabled="loading" @click="handleCancel">
           {{ lang.t('dialogOps.cancel') }}
         </Button>
-        <Button
-          v-if="resultType === 'error'"
-          variant="destructive"
-          :disabled="loading"
-          @click="handleRetry"
-        >
+        <Button v-if="isError" variant="destructive" :disabled="loading" @click="handleRetry">
           <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.retry') }}
         </Button>
-        <Button
-          v-else-if="!resultMessage"
-          variant="destructive"
-          :disabled="loading"
-          @click="handleConfirm"
-        >
+        <Button v-else-if="isIdle" variant="destructive" :disabled="loading" @click="handleConfirm">
           <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.delete') }}
         </Button>
@@ -58,6 +48,7 @@
 import { ref, watch } from 'vue';
 import { X, Loader2 } from 'lucide-vue-next';
 import { useLang } from '../../../../lang';
+import { useDialogResult } from '@/composables';
 import {
   Dialog,
   DialogContent,
@@ -79,16 +70,22 @@ const emit = defineEmits<{
 }>();
 
 const lang = useLang();
+const {
+  isSuccess,
+  isError,
+  isIdle,
+  message,
+  succeed,
+  fail,
+  reset: resetResult,
+} = useDialogResult();
 const loading = ref(false);
-const resultMessage = ref('');
-const resultType = ref<'success' | 'error' | ''>('');
 
 watch(
   () => props.show,
   open => {
     if (open) {
-      resultMessage.value = '';
-      resultType.value = '';
+      resetResult();
       loading.value = false;
     }
   },
@@ -105,8 +102,7 @@ const handleCancel = () => {
 const handleConfirm = () => emit('confirm');
 
 const handleRetry = () => {
-  resultMessage.value = '';
-  resultType.value = '';
+  resetResult();
   emit('confirm');
 };
 
@@ -114,9 +110,9 @@ const setLoading = (value: boolean) => {
   loading.value = value;
 };
 
-const setResult = (type: 'success' | 'error', message: string) => {
-  resultType.value = type;
-  resultMessage.value = message;
+const setResult = (type: 'success' | 'error', msg: string) => {
+  if (type === 'success') succeed();
+  else fail(msg);
   loading.value = false;
 };
 

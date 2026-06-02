@@ -112,7 +112,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       }
     },
     async refreshStates(include?: boolean) {
-      if (include !== undefined && include !== null) {
+      if (typeof include === 'boolean') {
         this.includeSystemIndices = include;
       }
 

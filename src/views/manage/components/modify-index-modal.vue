@@ -37,37 +37,37 @@
             @blur="handleBlur('writeCapacityUnits')"
           />
         </FormItem>
+
+        <Alert v-if="isError" variant="destructive" class="mt-3">
+          <AlertDescription class="flex items-center justify-between">
+            <span>{{ message }}</span>
+            <button
+              class="ml-2 text-sm hover:opacity-70 cursor-pointer"
+              aria-label="Dismiss"
+              @click="reset()"
+            >
+              <X class="w-4 h-4" />
+            </button>
+          </AlertDescription>
+        </Alert>
+
+        <DialogFooter class="mt-4">
+          <Button variant="outline" :disabled="loading" @click="handleCancel">
+            {{ lang.t('dialogOps.cancel') }}
+          </Button>
+          <Button type="submit" :disabled="loading">
+            <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
+            {{ lang.t('dialogOps.confirm') }}
+          </Button>
+        </DialogFooter>
       </Form>
-
-      <Alert v-if="errorMessage" variant="destructive" class="mt-3">
-        <AlertDescription class="flex items-center justify-between">
-          <span>{{ errorMessage }}</span>
-          <button
-            class="ml-2 text-sm hover:opacity-70 cursor-pointer"
-            aria-label="Dismiss"
-            @click="errorMessage = ''"
-          >
-            <X class="w-4 h-4" />
-          </button>
-        </AlertDescription>
-      </Alert>
-
-      <DialogFooter class="mt-4">
-        <Button variant="outline" :disabled="loading" @click="handleCancel">
-          {{ lang.t('dialogOps.cancel') }}
-        </Button>
-        <Button type="submit" :disabled="loading">
-          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
-          {{ lang.t('dialogOps.confirm') }}
-        </Button>
-      </DialogFooter>
     </DialogContent>
   </Dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import {
   Dialog,
   DialogContent,
@@ -80,10 +80,9 @@ import { InputNumber } from '@/components/ui/input-number';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME } from '../../../common';
 import { useLang } from '../../../lang';
-import { useFormValidation } from '@/composables';
+import { useFormValidation, useDialogResult } from '@/composables';
 import type { DynamoIndex } from '../../../datasources';
 import { dynamoApi } from '../../../datasources';
 import { useClusterManageStore, DynamoDBConnection, DatabaseType } from '../../../store';
@@ -108,8 +107,8 @@ const emit = defineEmits<{
   (e: 'modified'): void;
 }>();
 
+const { isError, message, fail, reset } = useDialogResult();
 const loading = ref(false);
-const errorMessage = ref('');
 
 const formValue = ref({
   readCapacityUnits: 5,
@@ -140,7 +139,7 @@ watch(
         readCapacityUnits: props.index.provisionedThroughput?.readCapacityUnits || 5,
         writeCapacityUnits: props.index.provisionedThroughput?.writeCapacityUnits || 5,
       };
-      errorMessage.value = '';
+      reset();
       resetValidation();
       loading.value = false;
     }
@@ -193,9 +192,11 @@ const handleSubmit = async () => {
     }
 
     const err = error as { details?: string; status?: number; message?: string };
-    errorMessage.value = err?.details
-      ? `status: ${err?.status ?? 'unknown'}, details: ${err.details}`
-      : err?.message || String(error);
+    fail(
+      err?.details
+        ? `status: ${err?.status ?? 'unknown'}, details: ${err.details}`
+        : err?.message || String(error),
+    );
   } finally {
     loading.value = false;
   }

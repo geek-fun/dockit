@@ -278,7 +278,7 @@ const lang = useLang();
 
 const clusterManageStore = useClusterManageStore();
 const { refreshStates, deleteIndex, closeIndex, openIndex, removeAlias } = clusterManageStore;
-const { indexWithAliases, templates } = storeToRefs(clusterManageStore);
+const { indexWithAliases, templates, includeSystemIndices } = storeToRefs(clusterManageStore);
 
 const indexDialogRef = ref();
 const aliasDialogRef = ref();
@@ -348,6 +348,7 @@ const indexTable = computed(() => {
 
 const templateTable = computed(() => {
   const data = templates.value
+    .filter(item => (includeSystemIndices.value ? true : !item.name.startsWith('.')))
     .filter(item =>
       filterState.value.name
         ? get(item, 'name', '').toLowerCase().includes(filterState.value.name.toLowerCase())

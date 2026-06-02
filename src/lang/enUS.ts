@@ -899,7 +899,7 @@ export const enUS = {
     invalidJson: 'Invalid JSON format',
     copySuccess: 'Copied to clipboard',
     copyFailure: 'Failed to copy to clipboard',
-    unsupportedFile: 'DocKit only supports file end with .search file',
+    unsupportedFile: 'DocKit only supports .search, .partiql and .mongo files',
     sampleQueries: 'Sample Queries',
     es: {
       sampleClusterHealth: 'Cluster Health',
@@ -1042,11 +1042,16 @@ export const enUS = {
       insertSuccess: 'Document inserted successfully',
       insertError: 'Failed to insert document',
       updateSuccess: 'Document updated successfully',
+      updateNoChanges: 'No changes were made — the document already has these values',
       updateError: 'Failed to update document',
       deleteDocumentSuccess: 'Document deleted successfully',
       deleteError: 'Failed to delete document',
       closePanel: 'Close panel',
       invalidJsonObject: 'Value must be a JSON object, not an array or primitive',
+      contextMenu: {
+        execute: 'Execute',
+        copy: 'Copy',
+      },
     },
   },
   file: {

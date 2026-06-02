@@ -4,7 +4,8 @@ export class CustomError extends Error {
     public readonly details: string,
     public readonly errorType?: string,
   ) {
-    super();
+    super(details);
+    this.name = 'CustomError';
   }
 }
 

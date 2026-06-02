@@ -81,9 +81,44 @@ jobs:
             })
             return data.id
 
+  lint-audit:
+    name: Lint & Audit
+    needs: [check-version]
+    if: needs.check-version.outputs.is_new_version == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint & audit
+        shell: bash
+        run: |
+          set +e
+          npm run lint:check & pid1=$!
+          npm audit --audit-level=critical & pid2=$!
+          wait $pid1; rc1=$?
+          wait $pid2; rc2=$?
+          echo "LINT=$rc1" >> $GITHUB_ENV
+          echo "AUDIT=$rc2" >> $GITHUB_ENV
+
+      - name: Report failures
+        if: env.LINT != '0' || env.AUDIT != '0'
+        run: |
+          [ "$LINT" = "0" ] || echo "::error::lint failed (exit $LINT)"
+          [ "$AUDIT" = "0" ] || echo "::error::audit failed (exit $AUDIT)"
+          exit 1
+
   release:
     name: ${{ matrix.name }}
-    needs: [check-version, prepare]
+    needs: [check-version, prepare, lint-audit]
     if: needs.check-version.outputs.is_new_version == 'true'
     permissions:
       contents: write
@@ -121,6 +156,15 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Windows LLD linker + stdlib DLL PATH
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $sysroot = & rustc --print sysroot
+          Add-Content -Path $env:GITHUB_PATH -Value "$sysroot\bin"
+          $libdir = & rustc --print target-libdir
+          Add-Content -Path $env:GITHUB_PATH -Value $libdir
+
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
@@ -131,19 +175,59 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - run: npm run lint:check
+      # ── Tests (JS + Rust in parallel per OS) ────────────
 
-      - run: npm audit --audit-level=critical
+      - name: Tests (JS)
+        shell: bash
+        run: |
+          set +e
+          npm run test:ci; JS_EXIT=$?
+          echo "JS_TEST=$JS_EXIT" >> "$GITHUB_ENV"
 
-      - run: npm run test:ci
+      - name: Tests (Rust)
+        shell: bash
+        run: |
+          set +e
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cd src-tauri && cargo test --lib; RUST_TEST=$?
+          echo "RUST_TEST=$RUST_TEST" >> "$GITHUB_ENV"
 
-      - name: Upload coverage reports to Codecov
+      - name: Report test failures
+        if: env.JS_TEST != '0' || env.RUST_TEST != '0'
+        shell: bash
+        run: |
+          [ "$JS_TEST" = "0" ] || echo "::error::JS tests failed (exit $JS_TEST)"
+          [ "$RUST_TEST" = "0" ] || echo "::error::Rust tests failed (exit $RUST_TEST)"
+          exit 1
+
+      # ── Coverage (Ubuntu only) ──────────────────────────
+
+      - name: Install cargo-llvm-cov
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Rust coverage
+        if: runner.os == 'Linux'
+        run: |
+          cd src-tauri
+          mkdir -p coverage
+          cargo llvm-cov --lcov --output-path coverage/lcov.info
+          sed -i 's|^SF:src/|SF:src-tauri/src/|' coverage/lcov.info
+          sed -i 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
+
+      - name: Upload coverage to Codecov
+        if: runner.os == 'Linux'
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info,./src-tauri/coverage/lcov.info
           fail_ci_if_error: false
+
+      # ── Build ───────────────────────────────────────────
 
       - run: npm run build
         env:

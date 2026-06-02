@@ -74,6 +74,11 @@ const { sortedFileList } = storeToRefs(fileStore);
 
 const activeRef = ref<PathInfo>();
 
+const SUPPORTED_FILE_EXTENSIONS = ['.search', '.partiql', '.mongo'];
+
+const isSupportedFile = (path: string): boolean =>
+  SUPPORTED_FILE_EXTENSIONS.some(ext => path.endsWith(ext));
+
 enum ClickType {
   SINGLE = 'SINGLE',
   DOUBLE = 'DOUBLE',
@@ -97,7 +102,7 @@ const handleClick = async (type: ClickType, file: PathInfo) => {
     if (file.type === PathTypeEnum.FOLDER) {
       await changeDirectory(file.path);
     } else {
-      if (file.path.endsWith('.search')) {
+      if (isSupportedFile(file.path)) {
         router.push({ name: 'Connect', params: { filePath: file.path } });
       } else {
         message.error(lang.t('editor.unsupportedFile'), {
@@ -157,7 +162,7 @@ const handleContextMenu = async (action: ContextMenuAction) => {
     if (selectedFile.value?.type === PathTypeEnum.FOLDER) {
       await changeDirectory(selectedFile.value?.path);
     } else {
-      if (selectedFile.value?.path.endsWith('.search')) {
+      if (isSupportedFile(selectedFile.value?.path ?? '')) {
         router.push({ name: 'Connect', params: { filePath: selectedFile.value?.path } });
       } else {
         message.error(lang.t('editor.unsupportedFile'), {

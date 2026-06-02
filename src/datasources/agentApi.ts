@@ -96,21 +96,6 @@ const agentApi = {
     return jsonify.parse(result) as AgentStepResult;
   },
 
-  executeTool: async (params: {
-    toolName: string;
-    arguments: string;
-    connectionConfig: Record<string, unknown>;
-  }): Promise<string> => {
-    return await invoke<string>('execute_tool', params);
-  },
-
-  introspectSchema: async (params: {
-    connectionConfig: Record<string, unknown>;
-    databaseType: string;
-  }): Promise<string> => {
-    return await invoke<string>('introspect_schema', params);
-  },
-
   getAllTools: async (): Promise<ToolsResponse> => {
     const result = await invoke<string>('get_all_tools');
     return jsonify.parse(result) as ToolsResponse;

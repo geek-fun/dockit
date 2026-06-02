@@ -150,7 +150,7 @@
             {{ $t('dialogOps.reset') }}
           </Button>
           <Button :disabled="!validationPassed || loadingRef.queryResult" @click="queryToDynamo">
-            <Spinner v-if="loadingRef.queryResult" class="mr-2 h-4 w-4" />
+            <Loader2 v-if="loadingRef.queryResult" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('dialogOps.execute') }}
           </Button>
         </CardFooter>
@@ -208,7 +208,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Spinner } from '@/components/ui/spinner';
+import { Loader2 } from 'lucide-vue-next';
 import {
   Connection,
   DatabaseType,

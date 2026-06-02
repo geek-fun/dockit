@@ -11,8 +11,48 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
+  # ── Lint & Audit (once on Ubuntu, fast) ─────────────────
+
+  lint-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint & audit
+        shell: bash
+        run: |
+          set +e
+          npm run lint:check & pid1=$!
+          npm audit --audit-level=critical & pid2=$!
+          wait $pid1; rc1=$?
+          wait $pid2; rc2=$?
+          echo "LINT=$rc1" >> $GITHUB_ENV
+          echo "AUDIT=$rc2" >> $GITHUB_ENV
+
+      - name: Report failures
+        if: env.LINT != '0' || env.AUDIT != '0'
+        run: |
+          [ "$LINT" = "0" ] || echo "::error::lint failed (exit $LINT)"
+          [ "$AUDIT" = "0" ] || echo "::error::audit failed (exit $AUDIT)"
+          exit 1
+
+  # ── Build (per OS: install → test → build → tauri) ──────
+
   build:
+    needs: [lint-audit]
     strategy:
       fail-fast: false
       matrix:
@@ -20,45 +60,99 @@ jobs:
         node-version: [24.x]
 
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
-      - name: Github checkout
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        if: runner.os == 'Linux'
+      # ── Install ─────────────────────────────────────────
 
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
-      - name: Install Linux dependencies
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-llvm-cov
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Install system dependencies
         if: runner.os == 'Linux'
         run: |
           echo "deb http://gb.archive.ubuntu.com/ubuntu jammy main" | sudo tee -a /etc/apt/sources.list
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf pkg-config libssl-dev
 
-      - name: Install frontend dependencies
-        run: npm ci
+      - name: Windows LLD linker + stdlib DLL PATH
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # rust-lld.exe lives in sysroot/bin alongside rustc. Add to PATH
+          # so cargo can find it (linker = "rust-lld.exe" in .cargo/config).
+          $sysroot = & rustc --print sysroot
+          Add-Content -Path $env:GITHUB_PATH -Value "$sysroot\bin"
+          # stdlib DLLs (std-*.dll) in target-libdir needed at load time
+          $libdir = & rustc --print target-libdir
+          Add-Content -Path $env:GITHUB_PATH -Value $libdir
 
-      - run: npm run lint:check
+      - run: npm ci
 
-      - run: npm audit --audit-level=critical
+      # ── Tests (JS + Rust in parallel per OS) ────────────
 
-      - run: npm run test:ci
+      - name: Tests (JS)
+        shell: bash
+        run: |
+          set +e
+          npm run test:ci; JS_EXIT=$?
+          echo "JS_TEST=$JS_EXIT" >> "$GITHUB_ENV"
 
-      - name: Upload coverage reports to Codecov
+      - name: Tests (Rust)
+        shell: bash
+        run: |
+          set +e
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cd src-tauri
+          echo "=== cargo test --lib ==="
+          cargo test --lib; RUST_TEST=$?
+          echo "RUST_TEST=$RUST_TEST" >> "$GITHUB_ENV"
+
+
+
+      - name: Report test failures
+        if: env.JS_TEST != '0' || env.RUST_TEST != '0'
+        shell: bash
+        run: |
+          [ "$JS_TEST" = "0" ] || echo "::error::JS tests failed (exit $JS_TEST)"
+          [ "$RUST_TEST" = "0" ] || echo "::error::Rust tests failed (exit $RUST_TEST)"
+          exit 1
+
+      # ── Coverage (Ubuntu only) ──────────────────────────
+
+      - name: Rust coverage
+        if: runner.os == 'Linux'
+        run: |
+          cd src-tauri
+          mkdir -p coverage
+          cargo llvm-cov --lcov --output-path coverage/lcov.info
+          sed -i 's|^SF:src/|SF:src-tauri/src/|' coverage/lcov.info
+          sed -i 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
+
+      - name: Upload coverage to Codecov
+        if: runner.os == 'Linux'
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info,./src-tauri/coverage/lcov.info
           fail_ci_if_error: false
+
+      # ── Build & Package ─────────────────────────────────
 
       - run: npm run build
         env:

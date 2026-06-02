@@ -616,7 +616,7 @@ export const useConnectionStore = defineStore('connectionStore', {
 
       const { mongoApi } = await import('../datasources');
       const result = await mongoApi.testConnection(connection);
-      if (!result.success) {
+      if (result.error) {
         throw new CustomError(400, result.message);
       }
 
@@ -639,7 +639,7 @@ export const useConnectionStore = defineStore('connectionStore', {
 
       const { mongoApi } = await import('../datasources');
       const result = await mongoApi.listDatabases(connection);
-      if (!result.success) {
+      if (result.error) {
         throw new CustomError(400, result.error || 'Failed to list databases');
       }
 
@@ -711,7 +711,7 @@ export const useConnectionStore = defineStore('connectionStore', {
       } else if (con.type === DatabaseType.MONGODB) {
         const { mongoApi } = await import('../datasources');
         const result = await mongoApi.testConnection(con);
-        if (!result.success) {
+        if (result.error) {
           throw new CustomError(400, result.message);
         }
         return {

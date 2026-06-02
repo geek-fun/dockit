@@ -5,18 +5,18 @@
         <DialogTitle>{{ lang.t('dialogOps.warning') }}</DialogTitle>
       </DialogHeader>
 
-      <div v-if="resultType === 'success' && resultMessage" class="text-center py-4">
+      <div v-if="isSuccess" class="text-center py-4">
         <div class="text-green-500 text-4xl mb-2">✓</div>
         <p class="text-sm font-medium">{{ lang.t('manage.dynamo.deleteIndexSuccess') }}</p>
       </div>
 
-      <Alert v-else-if="resultMessage" variant="destructive" class="mb-3">
+      <Alert v-else-if="isError" variant="destructive" class="mb-3">
         <AlertDescription class="flex items-center justify-between">
-          <span>{{ resultMessage }}</span>
+          <span>{{ message }}</span>
           <button
             class="ml-2 text-sm hover:opacity-70 cursor-pointer"
             aria-label="Dismiss"
-            @click="resultMessage = ''"
+            @click="reset()"
           >
             <X class="w-4 h-4" />
           </button>
@@ -33,23 +33,23 @@
           {{ lang.t('dialogOps.cancel') }}
         </Button>
         <Button
-          v-if="resultType === 'error'"
+          v-if="isError"
           variant="destructive"
           :disabled="loading"
           @click="handleRetry"
           @keydown.enter.prevent="handleRetry"
         >
-          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.retry') }}
         </Button>
         <Button
-          v-else-if="!resultMessage"
+          v-else-if="isIdle"
           variant="destructive"
           :disabled="loading"
           @click="handleConfirm"
           @keydown.enter.prevent="handleConfirm"
         >
-          <Spinner v-if="loading" class="mr-2 h-4 w-4" />
+          <Loader2 v-if="loading" class="mr-2 h-4 w-4 animate-spin" />
           {{ lang.t('dialogOps.delete') }}
         </Button>
       </DialogFooter>
@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Loader2 } from 'lucide-vue-next';
 import {
   Dialog,
   DialogContent,
@@ -69,9 +69,9 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../common';
 import { useLang } from '../../../lang';
+import { useDialogResult, formatApiError } from '@/composables';
 import { dynamoApi } from '../../../datasources';
 import { useClusterManageStore, DynamoDBConnection, DatabaseType } from '../../../store';
 import { storeToRefs } from 'pinia';
@@ -94,16 +94,14 @@ const emit = defineEmits<{
 }>();
 
 const loading = ref(false);
-const resultMessage = ref('');
-const resultType = ref<'success' | 'error'>('success');
+const { message, isIdle, isSuccess, isError, succeed, fail, reset } = useDialogResult();
 
 // Reset state when modal opens
 watch(
   () => props.show,
   newVal => {
     if (newVal) {
-      resultMessage.value = '';
-      resultType.value = 'success';
+      reset();
       loading.value = false;
     }
   },
@@ -114,8 +112,7 @@ const handleCancel = () => {
 };
 
 const handleRetry = async () => {
-  // Clear error message before retry
-  resultMessage.value = '';
+  reset();
   await handleConfirm();
 };
 
@@ -142,9 +139,7 @@ const handleConfirm = async () => {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
 
-    // Show success result
-    resultType.value = 'success';
-    resultMessage.value = 'success';
+    succeed();
 
     // Close modal after delay and emit deleted event
     setTimeout(() => {
@@ -159,12 +154,7 @@ const handleConfirm = async () => {
       await new Promise(resolve => setTimeout(resolve, remainingTime));
     }
 
-    // Show error and keep modal open for retry
-    resultType.value = 'error';
-    const err = error as { details?: string; status?: number; message?: string };
-    resultMessage.value = err?.details
-      ? `status: ${err?.status ?? 'unknown'}, details: ${err.details}`
-      : err?.message || String(error);
+    fail(formatApiError(error));
   } finally {
     loading.value = false;
   }

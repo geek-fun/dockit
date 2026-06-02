@@ -1,7 +1,6 @@
-import { DynamoDBConnection, type DynamoDBAuth } from '../store';
-import { tauriClient, type AwsAuthPayload, type AwsCredentials } from './ApiClients.ts';
-import { CustomError } from '../common';
+import { DynamoDBConnection } from '../store';
 import { invoke } from '@tauri-apps/api/core';
+import { invokeCapability, parseCapabilityResponse } from './capabilityInvoker.ts';
 
 export type KeySchema = {
   attributeName: string;
@@ -159,70 +158,21 @@ export type BatchWriteResult = {
   unprocessedCount: number;
 };
 
-const buildDynamoCredentials = (con: DynamoDBConnection): AwsCredentials => ({
-  region: con.region,
-  endpoint_url: con.endpointUrl || null,
-  auth: buildAuthPayload(con.auth),
-});
-
-const buildAuthPayload = (auth: DynamoDBAuth): AwsAuthPayload => {
-  switch (auth.kind) {
-    case 'accessKey':
-      return {
-        kind: 'accessKey',
-        access_key_id: auth.accessKeyId,
-        secret_access_key: auth.secretAccessKey,
-      };
-    case 'profile':
-      return { kind: 'profile', profile_name: auth.profileName };
-    case 'sso':
-      return {
-        kind: 'sso',
-        access_key_id: auth.accessKeyId,
-        secret_access_key: auth.secretAccessKey,
-        session_token: auth.sessionToken,
-        region: auth.region,
-      };
-    case 'assumeRole':
-      return {
-        kind: 'assumeRole',
-        access_key_id: auth.accessKeyId,
-        secret_access_key: auth.secretAccessKey,
-        session_token: auth.sessionToken,
-        region: auth.region,
-      };
-  }
-};
-
 const dynamoApi = {
   listTables: async (con: DynamoDBConnection): Promise<string[]> => {
-    const apiCredentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: '',
-      operation: 'LIST_TABLES',
-      payload: {},
-    };
-    const result = await tauriClient.invokeDynamoApi(apiCredentials, options);
-    const { status, message, data } = result;
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    return ((data as { tableNames?: string[] })?.tableNames ?? []) as string[];
+    const raw = await invokeCapability('dynamo__list_tables', {}, String(con.id));
+    const data = parseCapabilityResponse<{ tableNames?: string[] }>(raw);
+    return data.tableNames ?? [];
   },
 
   describeTable: async (con: DynamoDBConnection, tableName: string): Promise<DynamoDBTableInfo> => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'DESCRIBE_TABLE',
-      payload: {},
-    };
-    const result = await tauriClient.invokeDynamoApi(credentials, options);
-    const { status, message, data } = result;
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    const { keySchema, attributeDefinitions } = data as RawDynamoDBTableInfo;
+    const raw = await invokeCapability(
+      'dynamo__describe_table',
+      { table_name: tableName },
+      String(con.id),
+    );
+    const data = parseCapabilityResponse<RawDynamoDBTableInfo>(raw);
+    const { keySchema, attributeDefinitions } = data;
 
     const pkName = keySchema.find(({ keyType }) => keyType.toUpperCase() === 'HASH')?.attributeName;
     const pkValueType = attributeDefinitions.find(
@@ -237,19 +187,16 @@ const dynamoApi = {
     )?.attributeType;
 
     const partitionKey = { name: pkName, valueType: pkValueType, type: 'HASH' };
-
     const sortKey = { name: skName, valueType: skValueType, type: 'RANGE' };
 
     return { ...data, partitionKey, sortKey } as DynamoDBTableInfo;
   },
 
   queryTable: async (con: DynamoDBConnection, queryParams: QueryParams): Promise<QueryResult> => {
-    const credentials = buildDynamoCredentials(con);
-
-    const options = {
-      table_name: queryParams.tableName,
-      operation: 'QUERY_TABLE',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__query_table',
+      {
+        table_name: queryParams.tableName,
         index_name:
           queryParams.indexName === queryParams.tableName ? undefined : queryParams.indexName,
         partition_key: queryParams.partitionKey,
@@ -258,39 +205,23 @@ const dynamoApi = {
         limit: queryParams.limit,
         exclusive_start_key: queryParams.exclusiveStartKey,
       },
-    };
-
-    const result = await tauriClient.invokeDynamoApi(credentials, options);
-    const { status, message, data } = result;
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-
-    return data as QueryResult;
+      String(con.id),
+    );
+    return parseCapabilityResponse<QueryResult>(raw);
   },
   scanTable: async (con: DynamoDBConnection, queryParams: QueryParams) => {
-    const credentials = buildDynamoCredentials(con);
-
-    const options = {
-      table_name: queryParams.tableName,
-      operation: 'SCAN_TABLE',
-      payload: {
-        filters: queryParams.filters,
+    const raw = await invokeCapability(
+      'dynamo__scan_table',
+      {
+        table_name: queryParams.tableName,
         index_name: queryParams.indexName,
+        filters: queryParams.filters,
         limit: queryParams.limit,
         exclusive_start_key: queryParams.exclusiveStartKey,
       },
-    };
-
-    const result = await tauriClient.invokeDynamoApi(credentials, options);
-    const { status, message, data } = result;
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-
-    return data as QueryResult;
+      String(con.id),
+    );
+    return parseCapabilityResponse<QueryResult>(raw);
   },
   createItem: async (
     con: DynamoDBConnection,
@@ -298,23 +229,17 @@ const dynamoApi = {
     attributes: DynamoAttributeItem[],
     options?: { skipExisting?: boolean; partitionKey?: string },
   ) => {
-    const credentials = buildDynamoCredentials(con);
-    const apiOptions = {
-      table_name: tableName,
-      operation: 'CREATE_ITEM',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__create_item',
+      {
+        table_name: tableName,
         attributes,
-        skipExisting: options?.skipExisting,
-        partitionKey: options?.partitionKey,
+        skip_existing: options?.skipExisting,
+        partition_key: options?.partitionKey,
       },
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, apiOptions);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    return { message, data } as { message: string; data: QueryResult };
+      String(con.id),
+    );
+    return parseCapabilityResponse<{ message: string; data: QueryResult }>(raw);
   },
 
   batchWriteItems: async (
@@ -323,50 +248,48 @@ const dynamoApi = {
     items: Array<{ attributes: DynamoAttributeItem[] }>,
     options?: { skipExisting?: boolean; partitionKey?: string },
   ): Promise<BatchWriteResult> => {
-    const credentials = buildDynamoCredentials(con);
-    const apiOptions = {
-      table_name: tableName,
-      operation: 'BATCH_WRITE_ITEM',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__batch_write_items',
+      {
+        table_name: tableName,
         items,
-        skipExisting: options?.skipExisting,
-        partitionKey: options?.partitionKey,
+        skip_existing: options?.skipExisting,
+        partition_key: options?.partitionKey,
       },
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, apiOptions);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-
-    return data as BatchWriteResult;
+      String(con.id),
+    );
+    return parseCapabilityResponse<BatchWriteResult>(raw);
   },
 
   executeStatement: async (
     con: DynamoDBConnection,
-    tableName: string,
     params: PartiQLParams,
   ): Promise<PartiQLResult> => {
-    const credentials = buildDynamoCredentials(con);
+    // Route to the correct capability based on statement type
+    // Strip SQL comments to avoid misrouting LLM-generated PartiQL with leading annotations
+    const cleanStatement = params.statement
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/--.*$/gm, '')
+      .trim();
+    const statement = cleanStatement.toUpperCase();
+    const capabilityName = statement.startsWith('SELECT')
+      ? 'dynamo__execute_query'
+      : statement.startsWith('INSERT') || statement.startsWith('UPDATE')
+        ? 'dynamo__execute_write'
+        : statement.startsWith('DELETE')
+          ? 'dynamo__execute_delete'
+          : 'dynamo__execute_query'; // fallback
 
-    const options = {
-      table_name: tableName,
-      operation: 'EXECUTE_STATEMENT',
-      payload: {
+    const raw = await invokeCapability(
+      capabilityName,
+      {
         statement: params.statement,
-        next_token: params.nextToken,
-        limit: params.limit,
+        next_token: params.nextToken ?? null,
+        limit: params.limit ?? null,
       },
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-
-    return data as PartiQLResult;
+      String(con.id),
+    );
+    return parseCapabilityResponse<PartiQLResult>(raw);
   },
 
   updateItem: async (
@@ -375,34 +298,27 @@ const dynamoApi = {
     keys: DynamoAttributeItem[],
     attributes: DynamoAttributeItem[],
   ) => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'UPDATE_ITEM',
-      payload: { keys, attributes },
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    return data;
+    const raw = await invokeCapability(
+      'dynamo__update_item',
+      {
+        table_name: tableName,
+        keys,
+        attributes,
+      },
+      String(con.id),
+    );
+    return parseCapabilityResponse(raw);
   },
   deleteItem: async (con: DynamoDBConnection, tableName: string, keys: DynamoAttributeItem[]) => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'DELETE_ITEM',
-      payload: { keys },
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    return data;
+    const raw = await invokeCapability(
+      'dynamo__delete_item',
+      {
+        table_name: tableName,
+        keys,
+      },
+      String(con.id),
+    );
+    return parseCapabilityResponse(raw);
   },
 
   // GSI Management Operations
@@ -426,11 +342,10 @@ const dynamoApi = {
       };
     },
   ) => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'CREATE_GLOBAL_SECONDARY_INDEX',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__create_gsi',
+      {
+        table_name: tableName,
         index_name: indexConfig.indexName,
         key_schema: indexConfig.keySchema.map(key => ({
           attribute_name: key.attributeName,
@@ -451,14 +366,9 @@ const dynamoApi = {
               }
             : undefined,
       },
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    return data;
+      String(con.id),
+    );
+    return parseCapabilityResponse(raw);
   },
 
   updateGlobalSecondaryIndex: async (
@@ -470,23 +380,17 @@ const dynamoApi = {
       writeCapacityUnits: number;
     },
   ) => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'UPDATE_GLOBAL_SECONDARY_INDEX',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__update_gsi',
+      {
+        table_name: tableName,
         index_name: indexConfig.indexName,
         read_capacity_units: indexConfig.readCapacityUnits,
         write_capacity_units: indexConfig.writeCapacityUnits,
       },
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    return data;
+      String(con.id),
+    );
+    return parseCapabilityResponse(raw);
   },
 
   deleteGlobalSecondaryIndex: async (
@@ -494,55 +398,35 @@ const dynamoApi = {
     tableName: string,
     indexName: string,
   ) => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'DELETE_GLOBAL_SECONDARY_INDEX',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__delete_gsi',
+      {
+        table_name: tableName,
         index_name: indexName,
       },
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    return data;
+      String(con.id),
+    );
+    return parseCapabilityResponse(raw);
   },
 
   // Get Point-in-Time Recovery status
   describeContinuousBackups: async (con: DynamoDBConnection, tableName: string) => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'DESCRIBE_CONTINUOUS_BACKUPS',
-      payload: {},
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    return data as { pitrEnabled: boolean };
+    const raw = await invokeCapability(
+      'dynamo__describe_continuous_backups',
+      { table_name: tableName },
+      String(con.id),
+    );
+    return parseCapabilityResponse<{ pitrEnabled: boolean }>(raw);
   },
 
   // Get Time To Live status
   describeTimeToLive: async (con: DynamoDBConnection, tableName: string) => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'DESCRIBE_TIME_TO_LIVE',
-      payload: {},
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    return data as { ttlEnabled: boolean; attributeName?: string };
+    const raw = await invokeCapability(
+      'dynamo__describe_ttl',
+      { table_name: tableName },
+      String(con.id),
+    );
+    return parseCapabilityResponse<{ ttlEnabled: boolean; attributeName?: string }>(raw);
   },
 
   // CloudWatch Metrics
@@ -566,21 +450,15 @@ const dynamoApi = {
       totalThrottledEvents: number;
     };
   }> => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'GET_TABLE_METRICS',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__get_table_metrics',
+      {
+        table_name: tableName,
         period_hours: periodHours,
       },
-    };
-
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-
-    if (status !== 200) {
-      throw new CustomError(status, message);
-    }
-    return data as {
+      String(con.id),
+    );
+    return parseCapabilityResponse<{
       available: boolean;
       message?: string;
       metrics?: {
@@ -595,7 +473,7 @@ const dynamoApi = {
         throttledWriteRequests: number;
         totalThrottledEvents: number;
       };
-    };
+    }>(raw);
   },
 
   createTable: async (
@@ -643,11 +521,9 @@ const dynamoApi = {
       tags?: Array<{ key: string; value: string }>;
     },
   ): Promise<{ tableName: string }> => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: config.tableName,
-      operation: 'CREATE_TABLE',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__create_table',
+      {
         table_name: config.tableName,
         table_class: config.tableClass,
         partition_key: config.partitionKey.name,
@@ -684,25 +560,21 @@ const dynamoApi = {
         sse_specification: config.sseSpecification,
         tags: config.tags,
       },
-    };
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-    if (status >= 400) throw new CustomError(status, message);
-    return data as { tableName: string };
+      String(con.id),
+    );
+    return parseCapabilityResponse<{ tableName: string }>(raw);
   },
 
   deleteTable: async (
     con: DynamoDBConnection,
     tableName: string,
   ): Promise<{ tableName: string }> => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'DELETE_TABLE',
-      payload: {},
-    };
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-    if (status >= 400) throw new CustomError(status, message);
-    return data as { tableName: string };
+    const raw = await invokeCapability(
+      'dynamo__delete_table',
+      { table_name: tableName },
+      String(con.id),
+    );
+    return parseCapabilityResponse<{ tableName: string }>(raw);
   },
 
   truncateTable: async (
@@ -715,21 +587,18 @@ const dynamoApi = {
     unprocessedCount: number;
     errors: Array<{ error: string; message: string }>;
   }> => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'TRUNCATE_TABLE',
-      payload: {},
-    };
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-    if (status >= 400) throw new CustomError(status, message);
-    return data as {
+    const raw = await invokeCapability(
+      'dynamo__truncate_table',
+      { table_name: tableName },
+      String(con.id),
+    );
+    return parseCapabilityResponse<{
       totalItems: number;
       totalScanned: number;
       deletedItems: number;
       unprocessedCount: number;
       errors: Array<{ error: string; message: string }>;
-    };
+    }>(raw);
   },
 
   updateTableConfig: async (
@@ -742,20 +611,18 @@ const dynamoApi = {
       tableClass?: 'STANDARD' | 'STANDARD_INFREQUENT_ACCESS';
     },
   ): Promise<{ tableName: string }> => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'UPDATE_TABLE_CONFIG',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__update_table_config',
+      {
+        table_name: tableName,
         billing_mode: config.billingMode,
         read_capacity_units: config.readCapacity,
         write_capacity_units: config.writeCapacity,
         table_class: config.tableClass,
       },
-    };
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-    if (status >= 400) throw new CustomError(status, message);
-    return data as { tableName: string };
+      String(con.id),
+    );
+    return parseCapabilityResponse<{ tableName: string }>(raw);
   },
 
   updateTimeToLive: async (
@@ -766,18 +633,20 @@ const dynamoApi = {
       attributeName?: string;
     },
   ): Promise<{ tableName: string; enabled: boolean; attributeName?: string }> => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'UPDATE_TTL',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__update_ttl',
+      {
+        table_name: tableName,
         enabled: config.enabled,
         attribute_name: config.attributeName,
       },
-    };
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-    if (status >= 400) throw new CustomError(status, message);
-    return data as { tableName: string; enabled: boolean; attributeName?: string };
+      String(con.id),
+    );
+    return parseCapabilityResponse<{
+      tableName: string;
+      enabled: boolean;
+      attributeName?: string;
+    }>(raw);
   },
 
   updateContinuousBackups: async (
@@ -785,17 +654,15 @@ const dynamoApi = {
     tableName: string,
     enabled: boolean,
   ): Promise<{ tableName: string; enabled: boolean }> => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'UPDATE_PITR',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__update_pitr',
+      {
+        table_name: tableName,
         enabled,
       },
-    };
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-    if (status >= 400) throw new CustomError(status, message);
-    return data as { tableName: string; enabled: boolean };
+      String(con.id),
+    );
+    return parseCapabilityResponse<{ tableName: string; enabled: boolean }>(raw);
   },
 
   updateStreams: async (
@@ -806,18 +673,20 @@ const dynamoApi = {
       streamViewType?: 'KEYS_ONLY' | 'NEW_IMAGE' | 'OLD_IMAGE' | 'NEW_AND_OLD_IMAGES';
     },
   ): Promise<{ tableName: string; streamEnabled: boolean; streamViewType?: string }> => {
-    const credentials = buildDynamoCredentials(con);
-    const options = {
-      table_name: tableName,
-      operation: 'UPDATE_STREAMS',
-      payload: {
+    const raw = await invokeCapability(
+      'dynamo__update_streams',
+      {
+        table_name: tableName,
         enabled: config.enabled,
         stream_view_type: config.streamViewType,
       },
-    };
-    const { status, message, data } = await tauriClient.invokeDynamoApi(credentials, options);
-    if (status >= 400) throw new CustomError(status, message);
-    return data as { tableName: string; streamEnabled: boolean; streamViewType?: string };
+      String(con.id),
+    );
+    return parseCapabilityResponse<{
+      tableName: string;
+      streamEnabled: boolean;
+      streamViewType?: string;
+    }>(raw);
   },
 
   listProfiles: async (): Promise<string[]> => {

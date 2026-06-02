@@ -53,6 +53,10 @@ export {
   setMongoDynamicOptions,
   getMongoDynamicOptions,
   clearMongoDynamicOptions,
+  parseMongoStatements,
+  getStatementAtLine as getMongoStatementAtLine,
+  getMongoStatementDecorations,
+  mongoExecutionGutterClass,
 } from './mongodb';
 
 export {

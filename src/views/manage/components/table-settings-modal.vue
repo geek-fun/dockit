@@ -293,19 +293,24 @@
         </template>
       </div>
 
-      <Alert v-if="errorMessage" variant="destructive" class="mt-3">
+      <Alert v-if="isError" variant="destructive" class="mt-3">
         <AlertDescription class="flex items-center justify-between">
-          <span>{{ errorMessage }}</span>
+          <span>{{ message }}</span>
           <button
             class="ml-2 text-sm hover:opacity-70 cursor-pointer"
             aria-label="Dismiss"
             type="button"
-            @click="errorMessage = ''"
+            @click="resetResult()"
           >
             <X class="w-4 h-4" />
           </button>
         </AlertDescription>
       </Alert>
+
+      <div v-if="isSuccess" class="text-center py-4">
+        <div class="text-green-500 text-4xl mb-2">✓</div>
+        <p class="text-sm font-medium">{{ message }}</p>
+      </div>
 
       <DialogFooter v-if="activeTab !== 'danger'" class="mt-4">
         <Button variant="outline" :disabled="loading" @click="handleCancel">
@@ -354,7 +359,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Spinner } from '@/components/ui/spinner';
 import { MIN_LOADING_TIME, SUCCESS_MESSAGE_DELAY } from '../../../common';
 import { useLang } from '../../../lang';
-import { useMessageService } from '@/composables';
+import { useDialogResult } from '@/composables';
+
 import {
   useDynamoManageStore,
   DynamoDBConnection,
@@ -365,7 +371,6 @@ import { DynamoDBTableInfo } from '../../../datasources';
 
 const lang = useLang();
 const dynamoManageStore = useDynamoManageStore();
-const message = useMessageService();
 
 const DELETE_MIN_DELAY = 1000;
 
@@ -455,8 +460,8 @@ const emit = defineEmits<{
   (e: 'deleted'): void;
 }>();
 
+const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
 const loading = ref(false);
-const errorMessage = ref('');
 const saveTimerRef = ref<ReturnType<typeof setTimeout> | null>(null);
 const activeTab = computed(() => props.defaultTab || 'streams');
 
@@ -486,7 +491,7 @@ watch(
         pitrEnabled: props.currentSettings.pitrEnabled,
         tableClass: props.currentSettings.tableClass || 'STANDARD',
       };
-      errorMessage.value = '';
+      resetResult();
       loading.value = false;
       if (saveTimerRef.value) {
         clearTimeout(saveTimerRef.value);
@@ -537,12 +542,12 @@ const handleCancel = () => {
 
 const handleSubmit = async () => {
   if (props.connection.type !== DatabaseType.DYNAMODB) {
-    errorMessage.value = lang.t('manage.dynamo.invalidConnectionType');
+    fail(lang.t('manage.dynamo.invalidConnectionType'));
     return;
   }
 
   const startTime = Date.now();
-  errorMessage.value = '';
+  resetResult();
 
   try {
     loading.value = true;
@@ -583,15 +588,19 @@ const handleSubmit = async () => {
     const remaining = Math.max(0, MIN_LOADING_TIME - elapsed);
     if (remaining > 0) await new Promise(resolve => setTimeout(resolve, remaining));
 
-    if (successKey) message.success(successKey);
-    emit('update:show', false);
-    emit('saved');
+    if (successKey) {
+      succeed(successKey);
+      setTimeout(() => {
+        emit('update:show', false);
+        emit('saved');
+      }, 1500);
+    }
   } catch (error: unknown) {
     const err = error as { details?: string; status?: number; message?: string };
     const errMsg = err?.details
       ? `status: ${err?.status ?? 'unknown'}, details: ${err.details}`
       : err?.message || String(error);
-    message.error(errMsg, { closable: true, keepAliveOnHover: true, duration: 5000 });
+    fail(errMsg);
   } finally {
     loading.value = false;
   }

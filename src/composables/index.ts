@@ -18,3 +18,4 @@ export { useAgentContext } from './useAgentContext';
 export { useSidebarChatAgent } from './useSidebarChatAgent';
 export { useDataStudioChatAgent } from './useDataStudioChatAgent';
 export { useEditorInsertCode } from './useEditorInsertCode';
+export { useDialogResult, formatApiError } from './useDialogResult';

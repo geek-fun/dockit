@@ -16,25 +16,25 @@
       </DialogHeader>
 
       <div class="modal-content">
-        <Alert v-if="successMessage" variant="success" class="mb-4">
+        <Alert v-if="isSuccess" variant="success" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
-            {{ successMessage }}
+            {{ message }}
             <button
               class="ml-2 hover:opacity-70 cursor-pointer"
               aria-label="Dismiss"
-              @click="successMessage = ''"
+              @click="resetResult()"
             >
               <X class="w-4 h-4" />
             </button>
           </AlertDescription>
         </Alert>
-        <Alert v-if="errorMessage" variant="destructive" class="mb-4">
+        <Alert v-if="isError" variant="destructive" class="mb-4">
           <AlertDescription class="flex items-center justify-between">
-            {{ errorMessage }}
+            {{ message }}
             <button
               class="ml-2 hover:opacity-70 cursor-pointer"
               aria-label="Dismiss"
-              @click="errorMessage = ''"
+              @click="resetResult()"
             >
               <X class="w-4 h-4" />
             </button>
@@ -555,7 +555,7 @@ import {
 } from '../../../store';
 import { ApiClientError } from '../../../datasources/ApiClients';
 import { dynamoApi } from '../../../datasources/dynamoApi';
-import { useFormValidation } from '@/composables';
+import { useFormValidation, useDialogResult } from '@/composables';
 
 import {
   Dialog,
@@ -588,8 +588,7 @@ const showModal = ref(false);
 const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
-const errorMessage = ref('');
-const successMessage = ref('');
+const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
 const connectionMode = ref<'accessKey' | 'profile' | 'sso' | 'assumeRole' | 'local'>('accessKey');
 const availableProfiles = ref<string[]>([]);
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
@@ -1014,8 +1013,7 @@ const handleOpenChange = (open: boolean) => {
 
 const showMedal = (con: DynamoDBConnection | null) => {
   showModal.value = true;
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   if (con) {
     formData.value = { ...con };
     veeResetForm({ values: { ...con } });
@@ -1087,8 +1085,7 @@ const closeModal = () => {
   formData.value = cloneDeep(defaultFormData);
   veeResetForm({ values: cloneDeep(defaultFormData) });
   modalTitle.value = lang.t('connection.new');
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   connectionMode.value = 'accessKey';
   availableTables.value = [];
   filterTableNameInput.value = '';
@@ -1131,8 +1128,7 @@ const isFormValid = computed(() => {
 });
 
 const testConnect = async () => {
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'idle') {
     await startSsoLogin();
     return;
@@ -1148,12 +1144,12 @@ const testConnect = async () => {
 
   const { valid } = await validate();
   if (!valid) {
-    errorMessage.value = lang.t('connection.validationFailed');
+    fail(lang.t('connection.validationFailed'));
     return;
   }
 
   if (!validateAuth()) {
-    errorMessage.value = lang.t('connection.validationFailed');
+    fail(lang.t('connection.validationFailed'));
     return;
   }
 
@@ -1167,20 +1163,20 @@ const testConnect = async () => {
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
     if (remainingTime > 0) await new Promise(resolve => setTimeout(resolve, remainingTime));
 
-    successMessage.value = lang.t('connection.testSuccess');
+    succeed(lang.t('connection.testSuccess'));
   } catch (error: unknown) {
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
     if (remainingTime > 0) await new Promise(resolve => setTimeout(resolve, remainingTime));
 
     if (error instanceof CustomError) {
-      errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
+      fail(error.details || `Connection failed (status: ${error.status})`);
     } else if (error instanceof ApiClientError) {
-      errorMessage.value = error.details || `Connection failed (status: ${error.status})`;
+      fail(error.details || `Connection failed (status: ${error.status})`);
     } else if (error instanceof Error) {
-      errorMessage.value = error.message;
+      fail(error.message);
     } else {
-      errorMessage.value = lang.t('connection.unknownError');
+      fail(lang.t('connection.unknownError'));
     }
   } finally {
     testLoading.value = false;
@@ -1220,8 +1216,7 @@ const fetchProfilesWithRoles = async () => {
 };
 
 const saveConnect = async () => {
-  errorMessage.value = '';
-  successMessage.value = '';
+  resetResult();
   if (connectionMode.value === 'sso' && ssoAuthStatus.value === 'idle') {
     await startSsoLogin();
     return;
@@ -1237,7 +1232,7 @@ const saveConnect = async () => {
 
   const { valid } = await validate();
   if (!valid) {
-    errorMessage.value = lang.t('connection.validationFailed');
+    fail(lang.t('connection.validationFailed'));
     return;
   }
 
@@ -1246,7 +1241,7 @@ const saveConnect = async () => {
   if (result.success) {
     closeModal();
   } else {
-    errorMessage.value = result.message;
+    fail(result.message);
   }
   saveLoading.value = false;
 };

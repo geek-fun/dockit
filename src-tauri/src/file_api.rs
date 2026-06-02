@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
-use tauri::Emitter;
 
 #[derive(Debug, serde::Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -78,68 +77,4 @@ pub async fn read_file_batch(
         total_lines_estimate: start_line + lines_count,
         is_last_batch,
     })
-}
-
-#[tauri::command]
-pub async fn stream_file_lines(
-    app: tauri::AppHandle,
-    file_path: String,
-    batch_size: usize,
-    event_name: String,
-) -> Result<(), String> {
-    let path = Path::new(&file_path);
-
-    if !path.exists() {
-        return Err("File does not exist".to_string());
-    }
-
-    let file = File::open(path).map_err(|e| e.to_string())?;
-    let reader = BufReader::new(file);
-
-    let mut batch_number = 0;
-    let mut batch: Vec<String> = Vec::with_capacity(batch_size);
-
-    for line_result in reader.lines() {
-        match line_result {
-            Ok(line) => {
-                if !line.trim().is_empty() {
-                    batch.push(line);
-
-                    if batch.len() >= batch_size {
-                        app.emit(
-                            &event_name,
-                            FileBatchResult {
-                                lines: batch.clone(),
-                                batch_number,
-                                total_lines_estimate: 0,
-                                is_last_batch: false,
-                            },
-                        )
-                        .map_err(|e: tauri::Error| e.to_string())?;
-
-                        batch.clear();
-                        batch_number += 1;
-                    }
-                }
-            }
-            Err(e) => {
-                return Err(e.to_string());
-            }
-        }
-    }
-
-    if !batch.is_empty() {
-        app.emit(
-            &event_name,
-            FileBatchResult {
-                lines: batch,
-                batch_number,
-                total_lines_estimate: 0,
-                is_last_batch: true,
-            },
-        )
-        .map_err(|e: tauri::Error| e.to_string())?;
-    }
-
-    Ok(())
 }
