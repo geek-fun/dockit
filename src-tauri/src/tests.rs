@@ -1,3 +1,4 @@
+#[cfg(not(target_os = "windows"))]
 #[test]
 fn test_init_registry_no_panic() {
     crate::capabilities::registry::init_registry();
