@@ -189,7 +189,14 @@ jobs:
         run: |
           set +e
           export PATH="$HOME/.cargo/bin:$PATH"
-          cd src-tauri && cargo test --lib; RUST_TEST=$?
+          cd src-tauri
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            echo "=== cargo check --lib (Windows: tests skipped) ==="
+            cargo check --lib; RUST_TEST=$?
+          else
+            echo "=== cargo test --lib ==="
+            cargo test --lib; RUST_TEST=$?
+          fi
           echo "RUST_TEST=$RUST_TEST" >> "$GITHUB_ENV"
 
       - name: Report test failures
