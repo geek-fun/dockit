@@ -17,6 +17,7 @@
 
         <Virtualizer
           v-if="viewportEl && messages.length > 0"
+          ref="virtualizerRef"
           v-slot="{ item: msg }"
           :data="messages"
           :scroll-ref="viewportEl"
@@ -204,21 +205,23 @@ const emit = defineEmits<{
 
 const scrollbarRef = ref<{ viewportElement: HTMLElement | null } | null>(null);
 const viewportEl = ref<HTMLElement | null>(null);
+const virtualizerRef = ref<{
+  scrollToIndex: (
+    index: number,
+    options?: { align?: 'start' | 'center' | 'end' | 'nearest' },
+  ) => void;
+} | null>(null);
 const contextIndicatorRef = ref<{ refresh: () => Promise<void> } | null>(null);
 const inputText = ref('');
 const modelVerified = ref<boolean | null>(null);
-// ── Scroll behavior (standard AI chat UX) ──────────────────────────
-//
-// 1. Default: auto-scroll to bottom as new content streams in
-// 2. User scrolls up: stop auto-scrolling (they're reading history)
-// 3. User scrolls back to bottom: resume auto-scrolling
-//
-// Uses a lightweight reactive watch instead of DOM ResizeObserver because
-// virtua's Virtualizer rewrites the DOM layout and observer-based
-// approaches are unreliable during streaming re-renders.
 
-const stickToBottom = ref(true);
+// ── Scroll behavior ───────────────────────────────────────────────
+// - Scrolls to bottom on mount, new messages, and content streaming
+// - Stops auto-scrolling when user scrolls up to read history
+// - Resumes when user scrolls back to bottom or sends a message
+
 const STICKY_THRESHOLD_PX = 32;
+const stickToBottom = ref(true);
 
 const getViewport = (): HTMLElement | null => scrollbarRef.value?.viewportElement ?? null;
 
@@ -233,33 +236,64 @@ const handleViewportScroll = () => {
   stickToBottom.value = isNearBottom(el);
 };
 
-// Batched scroll: at most one rAF frame, fresh scrollHeight every time.
 let scrollRafId = 0;
-const stickToBottomNow = () => {
+let mountRetryTimer: ReturnType<typeof setTimeout> | undefined;
+
+// Always-scroll variant: cancels any pending rAF and re-queues.
+// Used for new messages and user actions where the DOM layout changes
+// significantly and the latest state must always win.
+const scrollToBottomForce = () => {
+  if (!stickToBottom.value) return;
+  if (scrollRafId) cancelAnimationFrame(scrollRafId);
+  scrollRafId = requestAnimationFrame(() => {
+    scrollRafId = 0;
+    const el = getViewport();
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  });
+};
+
+// Batched variant: queues only if no rAF is pending. Used during streaming
+// where content grows incrementally — the pending rAF will already capture
+// the latest scrollHeight when it fires. Cancelling would starve the scroll
+// because each chunk would cancel the previous rAF before it fires.
+const scrollToBottomBatched = () => {
   if (!stickToBottom.value || scrollRafId) return;
   scrollRafId = requestAnimationFrame(() => {
     scrollRafId = 0;
     const el = getViewport();
-    if (el && stickToBottom.value) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   });
 };
 
-const scrollToBottom = (behavior: 'auto' | 'smooth' = 'smooth') => {
-  nextTick(() => {
+// Use the Virtualizer's own scroll API for cases where scrollHeight is
+// unreliable (e.g., initial mount before virtua has measured item sizes,
+// or long messages that exceed the estimated item-size=160).
+// Falls back to DOM scroll when the Virtualizer is not mounted.
+const scrollToLastMessage = () => {
+  if (virtualizerRef.value && props.messages.length > 0) {
+    virtualizerRef.value.scrollToIndex(props.messages.length - 1, { align: 'end' });
+  } else {
     const el = getViewport();
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior });
-  });
+    if (el) el.scrollTop = el.scrollHeight;
+  }
 };
 
 const forceScrollToBottom = () => {
   stickToBottom.value = true;
-  scrollToBottom('smooth');
+  if (scrollRafId) cancelAnimationFrame(scrollRafId);
+  scrollRafId = 0;
+  scrollToLastMessage();
 };
 
-// Watch the last message's content for streaming growth.
-// This is the primary scroll trigger — reacts to reactive data,
-// independent of virtua's DOM structure.
+// Scroll on new messages — force to capture layout changes
+watch(
+  () => props.messages.length,
+  () => requestAnimationFrame(() => scrollToBottomForce()),
+);
+
+// Scroll on streaming content changes in the last message — batched
 watch(
   () => {
     const msgs = props.messages;
@@ -267,16 +301,7 @@ watch(
     const last = msgs[msgs.length - 1];
     return `${last.content?.length ?? 0}:${last.thinking?.length ?? 0}:${last.toolCalls?.length ?? 0}`;
   },
-  () => stickToBottomNow(),
-);
-
-// When a new message appears (count change), re-stick and scroll.
-watch(
-  () => props.messages.length,
-  () => {
-    stickToBottom.value = true;
-    nextTick(() => stickToBottomNow());
-  },
+  () => scrollToBottomBatched(),
 );
 
 const canSend = computed(() => inputText.value.trim().length > 0 && !props.isLoading);
@@ -319,15 +344,14 @@ const handleSend = async () => {
 
   const text = inputText.value.trim();
   inputText.value = '';
-  emit('send', text);
-  await nextTick();
   forceScrollToBottom();
+  emit('send', text);
 };
 
 const handleContinue = () => {
   if (props.isLoading) return;
-  emit('send', 'continue');
   forceScrollToBottom();
+  emit('send', 'continue');
 };
 
 const handleStop = () => {
@@ -378,13 +402,23 @@ onMounted(async () => {
   const el = getViewport();
   viewportEl.value = el;
   el?.addEventListener('scroll', handleViewportScroll, { passive: true });
-  scrollToBottom('auto');
+  // virtua's Virtualizer needs extra frames after mount to initialize its
+  // internal layout engine. Double rAF ensures scrollToIndex has correct
+  // internal state when called.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      forceScrollToBottom();
+    });
+  });
+  // Safety retry after Virtualizer fully settles
+  mountRetryTimer = setTimeout(() => forceScrollToBottom(), 300);
 });
 
 onBeforeUnmount(() => {
   const el = getViewport();
   el?.removeEventListener('scroll', handleViewportScroll);
   if (scrollRafId) cancelAnimationFrame(scrollRafId);
+  clearTimeout(mountRetryTimer);
 });
 </script>
 

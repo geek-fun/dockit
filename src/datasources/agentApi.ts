@@ -101,6 +101,13 @@ const agentApi = {
     return jsonify.parse(result) as ToolsResponse;
   },
 
+  getAvailableTools: async (sourceKinds?: string[]): Promise<ToolsResponse> => {
+    const result = await invoke<string>('get_available_tools', {
+      sourceKinds: sourceKinds ?? [],
+    });
+    return jsonify.parse(result) as ToolsResponse;
+  },
+
   onAgentDelta: (callback: (event: AgentDeltaEvent) => void): Promise<() => void> => {
     return listen<string>('agent-delta', event => {
       callback(jsonify.parse(event.payload) as AgentDeltaEvent);

@@ -16,6 +16,7 @@
 
 [Website](https://www.geekfun.club/products/dockit/) · [Docs](https://www.geekfun.club/docs/dockit/) · [Download](https://www.geekfun.club/download) · [Releases](https://github.com/geek-fun/dockit/releases)
 
+
 </div>
 
 ---
@@ -30,15 +31,9 @@ DocKit replaces browser consoles like Kibana and AWS Console with a single nativ
   <img src="src/assets/svg/easysearch.svg" width="28" height="28" align="middle"> EasySearch
 </p>
 
-## Screenshots
-
-| AI Assistant | Query History |
-|:---:|:---:|
-| ![AI](docs/screenshots/dockit-ai-assistant-question.png) | ![History](docs/screenshots/dockit-query-history.png) |
-
-| DynamoDB Visual Query | PartiQL Editor |
-|:---:|:---:|
-| ![Visual Query](docs/screenshots/dockit-dynamodb-query-ui.png) | ![PartiQL](docs/screenshots/dockit-dynamodb-partiql.png) |
+<p align="center">
+  <img src="docs/images/dockit-client-ui-demo.gif" width="800" alt="DocKit Client UI Demo"/>
+</p>
 
 ## Key Features
 

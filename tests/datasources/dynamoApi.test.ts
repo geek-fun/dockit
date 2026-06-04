@@ -1,5 +1,6 @@
 import { dynamoApi } from '../../src/datasources/dynamoApi.ts';
 import { invokeCapability } from '../../src/datasources/capabilityInvoker.ts';
+import { invoke } from '@tauri-apps/api/core';
 
 jest.mock('../../src/lang/index.ts', () => ({
   lang: {
@@ -17,6 +18,10 @@ jest.mock('../../src/datasources/ApiClients.ts', () => ({
   },
 }));
 
+jest.mock('@tauri-apps/api/core', () => ({
+  invoke: jest.fn(),
+}));
+
 jest.mock('../../src/datasources/capabilityInvoker.ts', () => ({
   invokeCapability: jest.fn(),
   parseCapabilityResponse: <T>(raw: string): T => {
@@ -30,6 +35,7 @@ jest.mock('../../src/datasources/capabilityInvoker.ts', () => ({
 }));
 
 const mockedInvokeCapability = invokeCapability as jest.MockedFunction<typeof invokeCapability>;
+const mockedInvoke = invoke as jest.MockedFunction<typeof invoke>;
 
 const mockConnection = {
   id: '1',
@@ -1058,5 +1064,233 @@ describe('dynamoApi - Table Modification', () => {
         expect.any(String),
       );
     });
+  });
+});
+
+describe('dynamoApi - executeStatement', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const validResult = JSON.stringify({ items: [], count: 0, next_token: null });
+
+  describe('statement routing', () => {
+    it('should route SELECT to dynamo__execute_query', async () => {
+      mockedInvokeCapability.mockResolvedValue(validResult);
+      await dynamoApi.executeStatement(mockConnection as any, { statement: 'SELECT * FROM table' });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__execute_query',
+        expect.any(Object),
+        expect.any(String),
+      );
+    });
+
+    it('should route INSERT to dynamo__execute_write', async () => {
+      mockedInvokeCapability.mockResolvedValue(validResult);
+      await dynamoApi.executeStatement(mockConnection as any, {
+        statement: "INSERT INTO table VALUE {'id': '1'}",
+      });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__execute_write',
+        expect.any(Object),
+        expect.any(String),
+      );
+    });
+
+    it('should route UPDATE to dynamo__execute_write', async () => {
+      mockedInvokeCapability.mockResolvedValue(validResult);
+      await dynamoApi.executeStatement(mockConnection as any, {
+        statement: "UPDATE table SET col=1 WHERE id='1'",
+      });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__execute_write',
+        expect.any(Object),
+        expect.any(String),
+      );
+    });
+
+    it('should route DELETE to dynamo__execute_delete', async () => {
+      mockedInvokeCapability.mockResolvedValue(validResult);
+      await dynamoApi.executeStatement(mockConnection as any, {
+        statement: "DELETE FROM table WHERE id='1'",
+      });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__execute_delete',
+        expect.any(Object),
+        expect.any(String),
+      );
+    });
+
+    it('should route unknown statement to dynamo__execute_query (fallback)', async () => {
+      mockedInvokeCapability.mockResolvedValue(validResult);
+      await dynamoApi.executeStatement(mockConnection as any, { statement: 'SHOW TABLES' });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__execute_query',
+        expect.any(Object),
+        expect.any(String),
+      );
+    });
+
+    it('should be case insensitive', async () => {
+      mockedInvokeCapability.mockResolvedValue(validResult);
+      await dynamoApi.executeStatement(mockConnection as any, { statement: 'select * from table' });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__execute_query',
+        expect.any(Object),
+        expect.any(String),
+      );
+    });
+
+    it('should handle leading whitespace', async () => {
+      mockedInvokeCapability.mockResolvedValue(validResult);
+      await dynamoApi.executeStatement(mockConnection as any, {
+        statement: '  SELECT * FROM table',
+      });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__execute_query',
+        expect.any(Object),
+        expect.any(String),
+      );
+    });
+  });
+
+  describe('SQL comment stripping', () => {
+    it('should strip block comments before routing', async () => {
+      mockedInvokeCapability.mockResolvedValue(validResult);
+      await dynamoApi.executeStatement(mockConnection as any, {
+        statement: '/* block comment */SELECT * FROM table',
+      });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__execute_query',
+        expect.any(Object),
+        expect.any(String),
+      );
+    });
+
+    it('should strip line comments before routing', async () => {
+      mockedInvokeCapability.mockResolvedValue(validResult);
+      await dynamoApi.executeStatement(mockConnection as any, {
+        statement: '-- line comment\nSELECT * FROM table',
+      });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__execute_query',
+        expect.any(Object),
+        expect.any(String),
+      );
+    });
+
+    it('should strip mixed comments before routing', async () => {
+      mockedInvokeCapability.mockResolvedValue(validResult);
+      await dynamoApi.executeStatement(mockConnection as any, {
+        statement: '/* block */-- line\nSELECT * FROM table',
+      });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        'dynamo__execute_query',
+        expect.any(Object),
+        expect.any(String),
+      );
+    });
+  });
+
+  describe('params passthrough', () => {
+    it('should pass statement, next_token, and limit to invokeCapability', async () => {
+      mockedInvokeCapability.mockResolvedValue(validResult);
+      await dynamoApi.executeStatement(mockConnection as any, {
+        statement: 'SELECT * FROM table WHERE id = ?',
+        nextToken: 'token123',
+        limit: 10,
+      });
+      expect(mockedInvokeCapability).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          statement: 'SELECT * FROM table WHERE id = ?',
+          next_token: 'token123',
+          limit: 10,
+        }),
+        expect.any(String),
+      );
+    });
+  });
+});
+
+describe('dynamoApi - listProfiles', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should return profiles on success', async () => {
+    mockedInvoke.mockResolvedValue(['default', 'dev', 'prod']);
+    const result = await dynamoApi.listProfiles();
+    expect(mockedInvoke).toHaveBeenCalledWith('aws_list_profiles');
+    expect(result).toEqual(['default', 'dev', 'prod']);
+  });
+
+  it('should return empty array on error', async () => {
+    mockedInvoke.mockRejectedValue(new Error('Failed to list profiles'));
+    const result = await dynamoApi.listProfiles();
+    expect(result).toEqual([]);
+  });
+});
+
+describe('dynamoApi - ssoPollToken', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should cast pending status correctly', async () => {
+    mockedInvoke.mockResolvedValue({
+      accessToken: 'token123',
+      expiresAt: 1234567890,
+      status: 'pending',
+      errorMessage: null,
+    });
+    const result = await dynamoApi.ssoPollToken(
+      'us-east-1',
+      'client-id',
+      'client-secret',
+      'device-code',
+    );
+    expect(mockedInvoke).toHaveBeenCalledWith('aws_sso_poll_token', {
+      ssoRegion: 'us-east-1',
+      clientId: 'client-id',
+      clientSecret: 'client-secret',
+      deviceCode: 'device-code',
+    });
+    expect(result.status).toBe('pending');
+    expect(result.accessToken).toBe('token123');
+    expect(result.expiresAt).toBe(1234567890);
+    expect(result.errorMessage).toBeNull();
+  });
+
+  it('should cast success status correctly', async () => {
+    mockedInvoke.mockResolvedValue({
+      accessToken: 'token456',
+      expiresAt: 1234567891,
+      status: 'success',
+      errorMessage: null,
+    });
+    const result = await dynamoApi.ssoPollToken(
+      'us-east-1',
+      'client-id2',
+      'client-secret2',
+      'device-code2',
+    );
+    expect(result.status).toBe('success');
+  });
+
+  it('should cast error status correctly', async () => {
+    mockedInvoke.mockResolvedValue({
+      accessToken: null,
+      expiresAt: null,
+      status: 'error',
+      errorMessage: 'User denied access',
+    });
+    const result = await dynamoApi.ssoPollToken(
+      'us-east-1',
+      'client-id3',
+      'client-secret3',
+      'device-code3',
+    );
+    expect(result.status).toBe('error');
   });
 });

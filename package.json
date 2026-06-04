@@ -41,7 +41,7 @@
     "lint:fix": "eslint --fix ./",
     "lint:check": "eslint ./",
     "test": "jest --runInBand --coverage --coverageReporters json-summary text html lcov && cargo test --manifest-path src-tauri/Cargo.toml",
-    "test:ci": "jest --runInBand --ci --coverage --coverageReporters json-summary text html lcov && cargo test --manifest-path src-tauri/Cargo.toml",
+    "test:ci": "npx jest --runInBand --ci --coverage --coverageReporters json-summary text html lcov",
     "build:macos": "tauri build -t universal-apple-darwin"
   },
   "dependencies": {

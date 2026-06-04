@@ -4,7 +4,7 @@ use serde_json::Value;
 use crate::agent::tool_executor::ToolExecutor;
 
 const TOOL_ENVELOPE_MAX_CHARS: usize = 32768;
-const TOOL_ENVELOPE_SUMMARY_CHARS: usize = 1024;
+const TOOL_ENVELOPE_SUMMARY_CHARS: usize = 4096;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ToolResultMetadata {

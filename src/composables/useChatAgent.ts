@@ -170,9 +170,8 @@ const buildSystemPrompt = ({
       'Output format:',
       '- Respond in markdown format.',
       '- No emojis.',
-      '- Use proper markdown tables (header row + separator row `| --- |`) when presenting tabular data.',
+      '- Wrap queries, API requests, and tool results in fenced code blocks with the appropriate language tag (e.g. ```json). Do NOT convert raw query results into markdown tables — preserve their original format.',
       '- After bulk operations, give a brief factual summary: what was done, counts, any anomalies. No celebrations.',
-      '- Wrap queries and code in fenced code blocks with the appropriate language tag.',
     ].join('\n');
   }
 
@@ -219,9 +218,8 @@ const buildSystemPrompt = ({
     '- Respond in markdown format.',
     '- No emojis.',
     '- Do NOT use XML tags or schema formatting (no `<thinking>`, `<assistant>`, `<antThinking>`, `</answer>`, etc.).',
-    '- Use proper markdown tables (header row + separator row `| --- |`) when presenting tabular data.',
+    '- Wrap queries, API requests, and tool results in fenced code blocks with the appropriate language tag (e.g. ```json). Do NOT convert raw query results into markdown tables — preserve their original format.',
     '- After bulk operations, give a brief factual summary: what was done, counts, any anomalies. No celebrations.',
-    '- Wrap queries and code in fenced code blocks with the appropriate language tag.',
     '- Keep responses focused. Do not offer unsolicited next-step suggestions unless the result is ambiguous.',
   ].join('\n');
 
@@ -273,9 +271,12 @@ const toPromptSources = (
     }));
   }
 
-  return context?.databaseType
-    ? [{ connectionId: 'default', databaseType: context.databaseType }]
-    : [];
+  if (context?.databaseType) {
+    const connKeys = context.connections ? Object.keys(context.connections) : [];
+    const connectionId = connKeys.length > 0 ? connKeys[0] : 'default';
+    return [{ connectionId, databaseType: context.databaseType }];
+  }
+  return [];
 };
 
 const normalizeToolMetadata = (
@@ -371,7 +372,10 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         httpProxy: provider.proxy || undefined,
         proxyMode: provider.proxyMode,
         systemPrompt,
-        tools: noConnection ? [] : (runtime.tools ?? []),
+        // Tools are already filtered by getAvailableTools — no need to clear
+        // based on connection state. DocKit tools (dockit__list_connections)
+        // are always available regardless of connection.
+        tools: runtime.tools ?? [],
         autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
         maxIterations: useAppStore().llmSettings.chat?.maxIterations ?? 200,
         wallClockBudgetMin: useAppStore().llmSettings.chat?.wallClockBudgetMin ?? 30,
@@ -417,16 +421,13 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
 
     try {
       const runtime = getSessionRuntime(sessionId);
-      const hasConnections = Object.keys(context.connections ?? {}).length > 0;
-
-      if (hasConnections) {
-        const toolsResponse = await agentApi.getAllTools();
-        runtime.tools = toolsResponse.tools;
-        runtime.metadata = normalizeToolMetadata(toolsResponse.metadata);
-      } else {
-        runtime.tools = [];
-        runtime.metadata = {};
-      }
+      // Always load tools, filtered by available connection types.
+      // When no connections exist, only DocKit tools (like dockit__list_connections)
+      // are returned — the LLM can still use them without an active connection.
+      const dbTypes = Object.values(context.connections ?? {}).map(c => c.dbType);
+      const toolsResponse = await agentApi.getAvailableTools(dbTypes);
+      runtime.tools = toolsResponse.tools;
+      runtime.metadata = normalizeToolMetadata(toolsResponse.metadata);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       localError.value = errMsg;
