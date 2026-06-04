@@ -361,14 +361,13 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
 mod tests {
     use serde_json::json;
 
-    /// Build a connection config pointing at a wiremock server.
-    /// `build_es_base_url` returns `host:port`, and the ES handler builds
-    /// URLs as `http://host:port/path` — so host must include the scheme.
+    #[cfg(not(target_os = "windows"))]
     fn mock_config(server: &wiremock::MockServer) -> serde_json::Value {
         let addr = server.address();
         json!({"host": format!("http://{}", addr.ip()), "port": addr.port()})
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_execute_es_http_get() {
         use wiremock::matchers::{method, path};
@@ -388,6 +387,7 @@ mod tests {
         assert!(result.unwrap().contains("my-index"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_execute_es_http_post_with_body() {
         use wiremock::matchers::{method, path, body_json};
@@ -416,6 +416,7 @@ mod tests {
         assert!(body.contains("\"status\":200"), "response should have 200 status, got: {}", body);
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_execute_es_http_handles_404() {
         use wiremock::matchers::method;
@@ -504,6 +505,7 @@ mod tests {
         assert!(result.unwrap_err().contains("invalid characters"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_create_index_via_wiremock() {
         use super::EsCreateIndex;
@@ -526,6 +528,7 @@ mod tests {
         assert!(result.unwrap().contains("acknowledged"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_delete_index_via_wiremock() {
         use super::EsDeleteIndex;
@@ -548,6 +551,7 @@ mod tests {
         assert!(result.unwrap().contains("acknowledged"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_search_happy_path_via_wiremock() {
         use super::EsSearch;
@@ -576,6 +580,7 @@ mod tests {
         assert!(body.contains("my-index"), "expected index name in response, got: {}", body);
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_handles_non_json_response() {
         use wiremock::matchers::{method, path};
@@ -594,6 +599,7 @@ mod tests {
         assert!(result.unwrap().contains("plain text response"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_execute_es_http_bad_method() {
         let server = wiremock::MockServer::start().await;
@@ -606,6 +612,7 @@ mod tests {
 
     // ---- Remaining handler tests ----
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_index_document_with_id() {
         use super::{CapabilityHandler, EsIndexDocument};
@@ -626,6 +633,7 @@ mod tests {
         assert!(result.unwrap().contains("created"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_index_document_without_id() {
         use super::{CapabilityHandler, EsIndexDocument};
@@ -657,6 +665,7 @@ mod tests {
         assert!(result.unwrap_err().contains("Missing index"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_update_document_via_wiremock() {
         use super::{CapabilityHandler, EsUpdateDocument};
@@ -688,6 +697,7 @@ mod tests {
         assert!(result.unwrap_err().contains("Missing id"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_delete_document_via_wiremock() {
         use super::{CapabilityHandler, EsDeleteDocument};
@@ -708,6 +718,7 @@ mod tests {
         assert!(result.unwrap().contains("deleted"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_delete_by_query_via_wiremock() {
         use super::{CapabilityHandler, EsDeleteByQuery};
@@ -728,6 +739,7 @@ mod tests {
         assert!(result.unwrap().contains("deleted"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_get_mapping_via_wiremock() {
         use super::{CapabilityHandler, EsGetMapping};
@@ -751,6 +763,7 @@ mod tests {
         assert!(result.unwrap().contains("text"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_put_mapping_via_wiremock() {
         use super::{CapabilityHandler, EsPutMapping};
@@ -771,6 +784,7 @@ mod tests {
         assert!(result.unwrap().contains("acknowledged"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_cat_aliases_via_wiremock() {
         use super::{CapabilityHandler, EsCatAliases};
@@ -793,6 +807,7 @@ mod tests {
         assert!(result.unwrap().contains("my-alias"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_get_alias_via_wiremock() {
         use super::{CapabilityHandler, EsGetAlias};
@@ -815,6 +830,7 @@ mod tests {
         assert!(result.unwrap().contains("my-alias"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_put_alias_via_wiremock() {
         use super::{CapabilityHandler, EsPutAlias};
@@ -835,6 +851,7 @@ mod tests {
         assert!(result.unwrap().contains("acknowledged"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_delete_alias_via_wiremock() {
         use super::{CapabilityHandler, EsDeleteAlias};
@@ -855,6 +872,7 @@ mod tests {
         assert!(result.unwrap().contains("acknowledged"));
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_update_aliases_via_wiremock() {
         use super::{CapabilityHandler, EsUpdateAliases};
@@ -877,6 +895,7 @@ mod tests {
 
     // ---- EsCatIndices specific tests ----
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_cat_indices_include_system() {
         use super::CapabilityHandler;
@@ -907,6 +926,7 @@ mod tests {
         assert!(body.contains("_internal"), "should include internal indices");
     }
 
+    #[cfg(not(target_os = "windows"))]
     #[tokio::test]
     async fn test_es_cat_indices_sorts_results() {
         use super::CapabilityHandler;
