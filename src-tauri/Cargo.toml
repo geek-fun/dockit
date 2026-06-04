@@ -9,7 +9,6 @@ edition = "2021"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-embed-manifest = "1"
 
 [dependencies]
 tauri = { version = "2.10", features = [] }

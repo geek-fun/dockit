@@ -1704,7 +1704,6 @@ dependencies = [
  "aws-sdk-ssooidc",
  "aws-sdk-sts",
  "base64 0.22.1",
- "embed-manifest",
  "futures",
  "http 1.4.0",
  "log",
@@ -1797,12 +1796,6 @@ name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
-
-[[package]]
-name = "embed-manifest"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94cdc65b1cf9e871453ce2f86f5aaec24ff2eaa36a1fa3e02e441dddc3613b99"
 
 [[package]]
 name = "embed-resource"
