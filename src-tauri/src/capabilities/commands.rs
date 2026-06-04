@@ -144,4 +144,77 @@ mod tests {
         let meta = super::to_metadata(&cap);
         assert_eq!(meta["riskLevel"], "elevated");
     }
+
+    #[test]
+    fn test_get_available_tools_without_source_kinds() {
+        // The global registry needs to be initialized once.
+        let _ = crate::capabilities::registry::init_registry();
+
+        let result =
+            futures::executor::block_on(super::get_available_tools(None));
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        let body = result.unwrap();
+        assert!(body.contains("tools"), "response should contain tools array");
+        assert!(body.contains("metadata"), "response should contain metadata");
+    }
+
+    #[test]
+    fn test_get_available_tools_with_es_source() {
+        let _ = crate::capabilities::registry::init_registry();
+
+        let result = futures::executor::block_on(super::get_available_tools(Some(
+            vec!["ELASTICSEARCH".to_string()],
+        )));
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        let body = result.unwrap();
+        // Should include ES tools
+        assert!(body.contains("es__search"), "should include es__search");
+        assert!(body.contains("es__cat_indices"), "should include es__cat_indices");
+    }
+
+    #[test]
+    fn test_get_available_tools_with_empty_source_list() {
+        let _ = crate::capabilities::registry::init_registry();
+
+        let result = futures::executor::block_on(super::get_available_tools(Some(
+            vec![],
+        )));
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        let body = result.unwrap();
+        // Empty list should only return DocKit (env) tools, not DB-specific tools
+        assert!(!body.contains("es__search"), "should NOT include es__search");
+        assert!(!body.contains("dynamo__"), "should NOT include dynamo tools");
+    }
+
+    #[test]
+    fn test_to_openai_tool_minimal_fields() {
+        let cap = Capability {
+            name: "minimal",
+            description: "",
+            handler: Arc::new(TestHandler),
+            input_schema: json!({"type": "object", "properties": {}}),
+            risk_level: RiskLevel::Safe,
+            required_permission: "read",
+            source_kind: SourceKind::DocKit,
+            tags: &[],
+        };
+        let tool = super::to_openai_tool(&cap);
+        assert_eq!(tool["type"], "function");
+        assert_eq!(tool["function"]["name"], "minimal");
+        assert_eq!(tool["function"]["description"], "");
+    }
+
+    #[test]
+    fn test_to_metadata_all_risk_levels() {
+        let levels = [
+            (RiskLevel::Safe, "safe"),
+            (RiskLevel::Elevated, "elevated"),
+            (RiskLevel::Destructive, "destructive"),
+        ];
+        for (risk, expected) in &levels {
+            let cap = make_cap("test_tool", *risk, "read");
+            let meta = super::to_metadata(&cap);
+            assert_eq!(meta["riskLevel"], *expected, "mismatch for {:?}", risk);
+        }
+    }
 }

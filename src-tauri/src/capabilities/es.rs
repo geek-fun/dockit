@@ -593,4 +593,381 @@ mod tests {
         assert!(result.is_ok(), "got: {:?}", result.err());
         assert!(result.unwrap().contains("plain text response"));
     }
+
+    #[tokio::test]
+    async fn test_execute_es_http_bad_method() {
+        let server = wiremock::MockServer::start().await;
+        // reqwest rejects methods with spaces as invalid tokens
+        let result =
+            super::execute_es_http("BAD METHOD", "/test", None, &mock_config(&server)).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Bad method"));
+    }
+
+    // ---- Remaining handler tests ----
+
+    #[tokio::test]
+    async fn test_es_index_document_with_id() {
+        use super::{CapabilityHandler, EsIndexDocument};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/my-index/_doc/doc-1"))
+            .respond_with(ResponseTemplate::new(201).set_body_string(r#"{"_id":"doc-1","result":"created"}"#))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsIndexDocument;
+        let args = serde_json::json!({"index": "my-index", "id": "doc-1", "body": {"title": "hello"}});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("created"));
+    }
+
+    #[tokio::test]
+    async fn test_es_index_document_without_id() {
+        use super::{CapabilityHandler, EsIndexDocument};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/my-index/_doc"))
+            .respond_with(ResponseTemplate::new(201).set_body_string(r#"{"_id":"auto-id","result":"created"}"#))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsIndexDocument;
+        let args = serde_json::json!({"index": "my-index", "body": {"title": "hello"}});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("auto-id"));
+    }
+
+    #[tokio::test]
+    async fn test_es_index_document_missing_index() {
+        use super::CapabilityHandler;
+        let handler = super::EsIndexDocument;
+        let config = serde_json::json!({"host": "http://localhost", "port": 9200});
+        let args = serde_json::json!({"body": {"title": "hello"}});
+        let result = handler.handle(&args, Some(&config)).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing index"));
+    }
+
+    #[tokio::test]
+    async fn test_es_update_document_via_wiremock() {
+        use super::{CapabilityHandler, EsUpdateDocument};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/my-index/_update/doc-1"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"_id":"doc-1","result":"updated"}"#))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsUpdateDocument;
+        let args = serde_json::json!({"index": "my-index", "id": "doc-1", "body": {"doc": {"title": "updated"}}});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("updated"));
+    }
+
+    #[tokio::test]
+    async fn test_es_update_document_missing_id() {
+        use super::CapabilityHandler;
+        let handler = super::EsUpdateDocument;
+        let config = serde_json::json!({"host": "http://localhost", "port": 9200});
+        let args = serde_json::json!({"index": "my-index", "body": {"doc": {"title": "updated"}}});
+        let result = handler.handle(&args, Some(&config)).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing id"));
+    }
+
+    #[tokio::test]
+    async fn test_es_delete_document_via_wiremock() {
+        use super::{CapabilityHandler, EsDeleteDocument};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("DELETE"))
+            .and(path("/my-index/_doc/doc-1"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"_id":"doc-1","result":"deleted"}"#))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsDeleteDocument;
+        let args = serde_json::json!({"index": "my-index", "id": "doc-1"});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("deleted"));
+    }
+
+    #[tokio::test]
+    async fn test_es_delete_by_query_via_wiremock() {
+        use super::{CapabilityHandler, EsDeleteByQuery};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/my-index/_delete_by_query"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"deleted":5}"#))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsDeleteByQuery;
+        let args = serde_json::json!({"index": "my-index", "body": {"query": {"match_all": {}}}});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("deleted"));
+    }
+
+    #[tokio::test]
+    async fn test_es_get_mapping_via_wiremock() {
+        use super::{CapabilityHandler, EsGetMapping};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/my-index/_mapping"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(r#"{"my-index":{"mappings":{"properties":{"name":{"type":"text"}}}}}"#),
+            )
+            .mount(&server)
+            .await;
+
+        let handler = super::EsGetMapping;
+        let args = serde_json::json!({"index": "my-index"});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("text"));
+    }
+
+    #[tokio::test]
+    async fn test_es_put_mapping_via_wiremock() {
+        use super::{CapabilityHandler, EsPutMapping};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("PUT"))
+            .and(path("/my-index/_mapping"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"acknowledged":true}"#))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsPutMapping;
+        let args = serde_json::json!({"index": "my-index", "body": {"properties": {"new_field": {"type": "keyword"}}}});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("acknowledged"));
+    }
+
+    #[tokio::test]
+    async fn test_es_cat_aliases_via_wiremock() {
+        use super::{CapabilityHandler, EsCatAliases};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/_cat/aliases"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"[{"alias":"my-alias","index":"my-index"}]"#,
+            ))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsCatAliases;
+        let args = serde_json::json!({});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("my-alias"));
+    }
+
+    #[tokio::test]
+    async fn test_es_get_alias_via_wiremock() {
+        use super::{CapabilityHandler, EsGetAlias};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/my-index/_alias"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{"my-index":{"aliases":{"my-alias":{}}}}"#,
+            ))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsGetAlias;
+        let args = serde_json::json!({"index": "my-index"});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("my-alias"));
+    }
+
+    #[tokio::test]
+    async fn test_es_put_alias_via_wiremock() {
+        use super::{CapabilityHandler, EsPutAlias};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("PUT"))
+            .and(path("/my-index/_alias/my-alias"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"acknowledged":true}"#))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsPutAlias;
+        let args = serde_json::json!({"index": "my-index", "name": "my-alias"});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("acknowledged"));
+    }
+
+    #[tokio::test]
+    async fn test_es_delete_alias_via_wiremock() {
+        use super::{CapabilityHandler, EsDeleteAlias};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("DELETE"))
+            .and(path("/my-index/_alias/my-alias"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"acknowledged":true}"#))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsDeleteAlias;
+        let args = serde_json::json!({"index": "my-index", "name": "my-alias"});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("acknowledged"));
+    }
+
+    #[tokio::test]
+    async fn test_es_update_aliases_via_wiremock() {
+        use super::{CapabilityHandler, EsUpdateAliases};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/_aliases"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"acknowledged":true}"#))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsUpdateAliases;
+        let args = serde_json::json!({"body": {"actions": [{"add": {"index": "my-index", "alias": "my-alias"}}]}});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("acknowledged"));
+    }
+
+    // ---- EsCatIndices specific tests ----
+
+    #[tokio::test]
+    async fn test_es_cat_indices_include_system() {
+        use super::CapabilityHandler;
+        use wiremock::matchers::{method, path, query_param};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/_cat/indices"))
+            .and(query_param("expand_wildcards", "all"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"[
+                    {"index":".system-index","health":"green"},
+                    {"index":"user-index","health":"yellow"},
+                    {"index":"_internal","health":"green"}
+                ]"#,
+            ))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsCatIndices;
+        let args = serde_json::json!({"include_system": true});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        let body = result.unwrap();
+        assert!(body.contains("user-index"), "should include user indices");
+        assert!(body.contains(".system-index"), "should include system indices when requested");
+        assert!(body.contains("_internal"), "should include internal indices");
+    }
+
+    #[tokio::test]
+    async fn test_es_cat_indices_sorts_results() {
+        use super::CapabilityHandler;
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/_cat/indices"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"[
+                    {"index":"z-last","health":"green"},
+                    {"index":"a-first","health":"green"},
+                    {"index":"m-middle","health":"yellow"}
+                ]"#,
+            ))
+            .mount(&server)
+            .await;
+
+        let handler = super::EsCatIndices;
+        let args = serde_json::json!({});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        let body = result.unwrap();
+        // All three index names should appear in the response
+        assert!(body.contains("a-first"));
+        assert!(body.contains("m-middle"));
+        assert!(body.contains("z-last"));
+    }
+
+    // ---- register_all ----
+
+    #[tokio::test]
+    async fn test_es_register_all_registers_capabilities() {
+        use crate::capabilities::registry::CapabilityRegistry;
+
+        let mut reg = CapabilityRegistry::new();
+        super::register_all(&mut reg);
+
+        assert!(reg.get("es__search").is_some());
+        assert!(reg.get("es__get_document").is_some());
+        assert!(reg.get("es__index_document").is_some());
+        assert!(reg.get("es__update_document").is_some());
+        assert!(reg.get("es__delete_document").is_some());
+        assert!(reg.get("es__delete_by_query").is_some());
+        assert!(reg.get("es__cat_indices").is_some());
+        assert!(reg.get("es__get_mapping").is_some());
+        assert!(reg.get("es__create_index").is_some());
+        assert!(reg.get("es__delete_index").is_some());
+        assert!(reg.get("es__put_mapping").is_some());
+        assert!(reg.get("es__cat_aliases").is_some());
+        assert!(reg.get("es__get_alias").is_some());
+        assert!(reg.get("es__put_alias").is_some());
+        assert!(reg.get("es__delete_alias").is_some());
+        assert!(reg.get("es__update_aliases").is_some());
+
+        let all_agent = reg.agent_tools();
+        let es_agent: Vec<_> = all_agent
+            .iter()
+            .filter(|c| c.name.starts_with("es__"))
+            .collect();
+        assert_eq!(es_agent.len(), 16, "expected 16 ES capabilities tagged for agent");
+    }
 }
