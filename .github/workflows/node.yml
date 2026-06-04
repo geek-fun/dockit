@@ -147,8 +147,8 @@ jobs:
           cd src-tauri
           mkdir -p coverage
           cargo llvm-cov --lcov --output-path coverage/lcov.info
-          sed -i 's|^SF:src/|SF:src-tauri/src/|' coverage/lcov.info
-          sed -i 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
+          sed -i '' 's|^SF:src/|SF:src-tauri/src/|' coverage/lcov.info
+          sed -i '' 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
 
       - name: Upload coverage to Codecov
         if: runner.os == 'macOS'
