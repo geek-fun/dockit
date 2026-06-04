@@ -76,7 +76,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-llvm-cov
-        if: runner.os == 'Linux'
+        if: runner.os == 'macOS'
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-llvm-cov
@@ -139,10 +139,10 @@ jobs:
           [ "$RUST_TEST" = "0" ] || echo "::error::Rust tests failed (exit $RUST_TEST)"
           exit 1
 
-      # ── Coverage (Ubuntu only) ──────────────────────────
+      # ── Coverage (macOS only, fastest runner) ───────────
 
       - name: Rust coverage
-        if: runner.os == 'Linux'
+        if: runner.os == 'macOS'
         run: |
           cd src-tauri
           mkdir -p coverage
@@ -151,7 +151,7 @@ jobs:
           sed -i 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
 
       - name: Upload coverage to Codecov
-        if: runner.os == 'Linux'
+        if: runner.os == 'macOS'
         uses: codecov/codecov-action@v5
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
