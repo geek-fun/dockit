@@ -43,20 +43,20 @@ jest.mock('../src/lang', () => ({
 }));
 
 import { useTabStore } from '../src/store/tabStore';
-import type { DynamoDBConnection, Connection } from '../src/store/connectionStore';
+import { DatabaseType } from '../src/store/connectionStore';
 
 const dynamoConn = {
   id: 1,
   name: 'myDynamo',
-  type: 'DYNAMODB' as const,
+  type: DatabaseType.DYNAMODB as const,
   region: 'us-east-1',
   auth: { kind: 'accessKey' as const, accessKeyId: 'ak', secretAccessKey: 'sk' },
 };
 
-const mongoConn: Connection = {
+const mongoConn = {
   id: 2,
   name: 'myMongo',
-  type: 'MONGODB' as const,
+  type: DatabaseType.MONGODB as const,
   host: 'localhost',
   port: 27017,
   auth: { kind: 'none' as const },
@@ -65,12 +65,30 @@ const mongoConn: Connection = {
 const searchConn = {
   id: 3,
   name: 'mySearch',
-  type: 'ELASTICSEARCH' as const,
+  type: DatabaseType.ELASTICSEARCH as const,
   host: 'http://localhost',
   port: 9200,
   indices: [
-    { index: 'index-1', health: 'green', status: 'open', uuid: 'u1', docs: { count: 10, deleted: 0 }, store: { size: '1kb' }, pri: { store: { size: '1kb' } }, mapping: {} },
-    { index: 'index-2', health: 'green', status: 'open', uuid: 'u2', docs: { count: 20, deleted: 0 }, store: { size: '2kb' }, pri: { store: { size: '2kb' } }, mapping: {} },
+    {
+      index: 'index-1',
+      health: 'green',
+      status: 'open',
+      uuid: 'u1',
+      docs: { count: 10, deleted: 0 },
+      store: { size: '1kb' },
+      pri: { store: { size: '1kb' } },
+      mapping: {},
+    },
+    {
+      index: 'index-2',
+      health: 'green',
+      status: 'open',
+      uuid: 'u2',
+      docs: { count: 20, deleted: 0 },
+      store: { size: '2kb' },
+      pri: { store: { size: '2kb' } },
+      mapping: {},
+    },
   ],
   activeIndex: undefined,
   version: '8.0.0',
@@ -80,13 +98,17 @@ const searchConn = {
   sslCertVerification: false,
 };
 
-const mockPathInfo = { name: 'test', path: '/home/test.file', displayPath: '~/test.file', type: 'FILE' as const };
+const mockPathInfo = {
+  name: 'test',
+  path: '/home/test.file',
+  displayPath: '~/test.file',
+  type: 'FILE' as const,
+};
 
 beforeEach(() => {
   setActivePinia(createPinia());
 
-  const { useConnectionStore, isSearchConnection } =
-    require('../src/store/connectionStore');
+  const { useConnectionStore, isSearchConnection } = require('../src/store/connectionStore');
   isSearchConnection.mockReset();
   isSearchConnection.mockReturnValue(false);
   useConnectionStore.mockReset();
@@ -326,7 +348,7 @@ describe('checkFileExists', () => {
 
     const store = useTabStore();
     await store.establishPanel('/file');
-    const result = await store.checkFileExists();
+    const result = await store.checkFileExists(undefined);
 
     expect(result).toBe(true);
     expect(sourceFileApi.exists).toHaveBeenCalled();
@@ -334,7 +356,7 @@ describe('checkFileExists', () => {
 
   it('returns false when activePanel has no file', async () => {
     const store = useTabStore();
-    const result = await store.checkFileExists();
+    const result = await store.checkFileExists(undefined);
 
     expect(result).toBe(false);
   });
@@ -526,7 +548,10 @@ describe('saveContent', () => {
     await store.saveContent(panel as any, 'new content', true);
 
     expect(sourceFileApi.selectFolder).toHaveBeenCalled();
-    expect(sourceFileApi.saveFile).toHaveBeenCalledWith('/selected/folder//path/nonexistent', 'new content');
+    expect(sourceFileApi.saveFile).toHaveBeenCalledWith(
+      '/selected/folder//path/nonexistent',
+      'new content',
+    );
     expect(panel.file).toBe('/selected/folder//path/nonexistent');
   });
 
@@ -656,7 +681,9 @@ describe('selectConnection', () => {
   });
 
   it('picks first matching favorite table over first table for DynamoDB', async () => {
-    const fetchTables = jest.fn().mockResolvedValue([{ name: 'orders' }, { name: 'users' }, { name: 'products' }]);
+    const fetchTables = jest
+      .fn()
+      .mockResolvedValue([{ name: 'orders' }, { name: 'users' }, { name: 'products' }]);
     const { useConnectionStore } = require('../src/store/connectionStore');
     const connWithFavs = { ...dynamoConn, favoriteTables: ['products', 'nonexistent'] };
     useConnectionStore.mockReturnValue({
@@ -687,7 +714,7 @@ describe('selectConnection', () => {
     const store = useTabStore();
     store.activePanel = { id: 1, name: 'panel', activeTable: undefined } as any;
 
-    await store.selectConnection(dynamoConn as any);
+    await store.selectConnection(dynamoConn);
 
     expect(store.activePanel.activeTable).toBeUndefined();
   });
@@ -705,7 +732,7 @@ describe('selectConnection', () => {
     const store = useTabStore();
     store.activePanel = { id: 1, name: 'panel', activeTable: 'existing' } as any;
 
-    await store.selectConnection(dynamoConn as any);
+    await store.selectConnection(dynamoConn);
 
     expect(store.activePanel.activeTable).toBe('existing');
   });
