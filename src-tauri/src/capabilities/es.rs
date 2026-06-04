@@ -619,7 +619,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsIndexDocument;
+        let handler = EsIndexDocument;
         let args = serde_json::json!({"index": "my-index", "id": "doc-1", "body": {"title": "hello"}});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -639,7 +639,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsIndexDocument;
+        let handler = EsIndexDocument;
         let args = serde_json::json!({"index": "my-index", "body": {"title": "hello"}});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -648,8 +648,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_es_index_document_missing_index() {
-        use super::CapabilityHandler;
-        let handler = super::EsIndexDocument;
+        use super::{CapabilityHandler, EsIndexDocument};
+        let handler = EsIndexDocument;
         let config = serde_json::json!({"host": "http://localhost", "port": 9200});
         let args = serde_json::json!({"body": {"title": "hello"}});
         let result = handler.handle(&args, Some(&config)).await;
@@ -670,7 +670,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsUpdateDocument;
+        let handler = EsUpdateDocument;
         let args = serde_json::json!({"index": "my-index", "id": "doc-1", "body": {"doc": {"title": "updated"}}});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -679,8 +679,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_es_update_document_missing_id() {
-        use super::CapabilityHandler;
-        let handler = super::EsUpdateDocument;
+        use super::{CapabilityHandler, EsUpdateDocument};
+        let handler = EsUpdateDocument;
         let config = serde_json::json!({"host": "http://localhost", "port": 9200});
         let args = serde_json::json!({"index": "my-index", "body": {"doc": {"title": "updated"}}});
         let result = handler.handle(&args, Some(&config)).await;
@@ -701,7 +701,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsDeleteDocument;
+        let handler = EsDeleteDocument;
         let args = serde_json::json!({"index": "my-index", "id": "doc-1"});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -721,7 +721,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsDeleteByQuery;
+        let handler = EsDeleteByQuery;
         let args = serde_json::json!({"index": "my-index", "body": {"query": {"match_all": {}}}});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -744,7 +744,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsGetMapping;
+        let handler = EsGetMapping;
         let args = serde_json::json!({"index": "my-index"});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -764,7 +764,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsPutMapping;
+        let handler = EsPutMapping;
         let args = serde_json::json!({"index": "my-index", "body": {"properties": {"new_field": {"type": "keyword"}}}});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -786,7 +786,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsCatAliases;
+        let handler = EsCatAliases;
         let args = serde_json::json!({});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -808,7 +808,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsGetAlias;
+        let handler = EsGetAlias;
         let args = serde_json::json!({"index": "my-index"});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -828,7 +828,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsPutAlias;
+        let handler = EsPutAlias;
         let args = serde_json::json!({"index": "my-index", "name": "my-alias"});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -848,7 +848,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsDeleteAlias;
+        let handler = EsDeleteAlias;
         let args = serde_json::json!({"index": "my-index", "name": "my-alias"});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -868,7 +868,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let handler = super::EsUpdateAliases;
+        let handler = EsUpdateAliases;
         let args = serde_json::json!({"body": {"actions": [{"add": {"index": "my-index", "alias": "my-alias"}}]}});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
