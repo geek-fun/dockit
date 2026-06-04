@@ -205,7 +205,12 @@ const emit = defineEmits<{
 
 const scrollbarRef = ref<{ viewportElement: HTMLElement | null } | null>(null);
 const viewportEl = ref<HTMLElement | null>(null);
-const virtualizerRef = ref<{ scrollToIndex: (index: number) => void } | null>(null);
+const virtualizerRef = ref<{
+  scrollToIndex: (
+    index: number,
+    options?: { align?: 'start' | 'center' | 'end' | 'nearest' },
+  ) => void;
+} | null>(null);
 const contextIndicatorRef = ref<{ refresh: () => Promise<void> } | null>(null);
 const inputText = ref('');
 const modelVerified = ref<boolean | null>(null);
