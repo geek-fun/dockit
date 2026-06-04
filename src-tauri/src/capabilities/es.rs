@@ -145,7 +145,16 @@ impl CapabilityHandler for EsCatIndices {
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
-        let raw = execute_es_http("GET", "/_cat/indices?format=json&expand_wildcards=all", None, config).await?;
+        // Only request system indices from ES when explicitly needed — this keeps the
+        // response smaller (avoiding truncation of user indices) and avoids pulling
+        // system data unnecessarily.
+        let query = if include_system {
+            "/_cat/indices?format=json&expand_wildcards=all"
+        } else {
+            "/_cat/indices?format=json"
+        };
+
+        let raw = execute_es_http("GET", query, None, config).await?;
         let parsed: serde_json::Value = serde_json::from_str(&raw)
             .map_err(|e| format!("Failed to parse cat_indices response: {}", e))?;
 
@@ -164,6 +173,18 @@ impl CapabilityHandler for EsCatIndices {
                 user.push(index);
             }
         }
+
+        // Sort each group alphabetically by index name for predictable ordering
+        user.sort_by(|a, b| {
+            let an = a.get("index").and_then(|v| v.as_str()).unwrap_or("");
+            let bn = b.get("index").and_then(|v| v.as_str()).unwrap_or("");
+            an.cmp(bn)
+        });
+        system.sort_by(|a, b| {
+            let an = a.get("index").and_then(|v| v.as_str()).unwrap_or("");
+            let bn = b.get("index").and_then(|v| v.as_str()).unwrap_or("");
+            an.cmp(bn)
+        });
 
         let sorted: Vec<&serde_json::Value> = if include_system {
             let mut result = user;
@@ -295,8 +316,8 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
          es_schema(&[("index", "Target index name", "string", true), ("body", "Query DSL to match documents for deletion", "object", true)]),
          RiskLevel::Destructive, "delete", &["agent"]);
 
-    reg!("es__cat_indices", "List all indices with health status, document count, and storage size. System indices (starting with . or _) are excluded by default; pass include_system=true to include them after user indices.", EsCatIndices,
-         es_schema(&[("include_system", "Set to true to include system indices after user indices (boolean, default false)", "boolean", false)]),
+    reg!("es__cat_indices", "List user indices with health status, document count, and storage size. Results are sorted alphabetically. System/hidden indices (starting with . or _) are ONLY included when the user explicitly asks for them — pass include_system=true. NEVER include system indices in routine listing.", EsCatIndices,
+         es_schema(&[("include_system", "ONLY set to true when the user explicitly asks for system indices or hidden indices. Default false — system indices are excluded.", "boolean", false)]),
          RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("es__get_mapping", "Get the field mapping (schema) for an Elasticsearch index, showing field names and data types.", EsGetMapping,

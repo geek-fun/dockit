@@ -139,7 +139,7 @@ const onModelChange = async (_modelId: string) => {
 };
 
 const switchSession = (sessionId: string) => {
-  dataStudioStore.setActiveSession(sessionId);
+  dataStudioStore.sidebarSessionId = sessionId;
   historyPanelOpen.value = false;
 };
 

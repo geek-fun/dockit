@@ -54,8 +54,9 @@ const getSidebarContext = (): ChatContextConfig => {
 
   if (activeConnection) {
     context.databaseType = activeConnection.type;
+    const alias = activeConnection.name || 'default';
     context.connections = {
-      default: {
+      [alias]: {
         connectionId: String(activeConnection.id),
         dbType: activeConnection.type,
         permissions: { read: true, create: false, update: false, delete: false },

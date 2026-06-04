@@ -146,6 +146,33 @@ Before implementing any fix, trace the FULL pipeline end-to-end. Document each l
 | **URL construction** | `get_base_url()` → `normalize_base_url()` → `formatter.chat_path()` → `format!("{}{}")` final URL |
 | **Proxy routing** | TS `proxyMode` → settings → Rust `create_http_client(proxy_mode, ...)` → `get_proxy()` → `reqwest::Proxy` |
 
+### ChatPanel Scroll Behavior
+
+The `ChatPanel` component (`src/components/chat-panel.vue`) implements a specific scroll contract that must be preserved:
+
+| Scenario | Expected Behavior | Implementation |
+|---|---|---|
+| **Panel opens** | Scroll to bottom immediately | `onMounted`: `stickToBottom = true` + double `rAF` after `nextTick` → `scrollToLastMessage()` (Virtualizer `scrollToIndex` with `align: 'end'`) + 300ms `setTimeout` retry (catches Virtualizer layout settling) |
+| **New message arrives** | Auto-scroll if user is near bottom | `watch(messages.length)` → `stickToBottom` guard → `nextTick` → rAF-based `scrollToBottomForce()` (DOM scroll) |
+| **Content streaming** | Auto-scroll if user is near bottom | `watch(last message content)` → `stickToBottom` guard → rAF-batched `scrollToBottomBatched()` (DOM scroll) |
+| **User scrolls up** | Freeze auto-scroll — stay where they are | `handleViewportScroll` listener sets `stickToBottom = false` when `scrollHeight - (scrollTop + clientHeight) > 32px` |
+| **User scrolls back to bottom** | Resume auto-scrolling | Same listener sets `stickToBottom = true` when distance ≤ 32px |
+| **User sends a message** | Force scroll to bottom, resume auto-scrolling | `handleSend` calls `forceScrollToBottom()` before emitting |
+| **User clicks continue** | Force scroll to bottom, resume auto-scrolling | `handleContinue` calls `forceScrollToBottom()` before emitting |
+
+**Key variables in the component:**
+- `stickToBottom` (`Ref<boolean>`) — controls whether auto-scroll is active
+- `STICKY_THRESHOLD_PX = 32` — how close to bottom counts as "at bottom"
+- `scrollRafId` — rAF batching guard, prevents redundant scroll calls within one frame
+- `virtualizerRef` — ref to virtua's Virtualizer component, exposes `scrollToIndex(index)` for reliable scroll-to-last-item (used in `scrollToLastMessage` and `forceScrollToBottom`)
+
+**When modifying this behavior:**
+- Never remove the scroll event listener (`'scroll'` on viewport element) — it's the only mechanism that detects user scroll-up
+- Never remove the `stickToBottom` guard in `scrollToBottomForce()` and `scrollToBottomBatched()` — without it, the panel would jump to bottom while user is reading history
+- Always call `forceScrollToBottom()` before `emit('send', ...)` in send/continue handlers — this ensures the user's action overrides any scroll-up state
+- `forceScrollToBottom()` and `onMounted` use `scrollToLastMessage()` (Virtualizer `scrollToIndex` API) for scroll-to-bottom — do NOT revert to DOM `scrollTop = scrollHeight` for mount/force-scroll. The Virtualizer computes `scrollHeight` asynchronously and DOM scroll is unreliable before item sizes are measured.
+- Streaming scrolls (`scrollToBottomForce`, `scrollToBottomBatched`) use DOM `scrollTop = scrollHeight` — this works during streaming because virtua has already rendered the items and updates `scrollHeight` incrementally
+
 ### Known Failure Modes (from real bugs)
 
 | Failure | How to prevent |
@@ -156,3 +183,4 @@ Before implementing any fix, trace the FULL pipeline end-to-end. Document each l
 | **Accidental i18n key deletion** | When removing adjacent lines in i18n files, always grep for remaining references to ALL keys in the deleted block. One edit can silently remove 2+ keys. |
 | **Quick UI additions when infrastructure exists** | Before adding a new indicator/label/component, search for existing infrastructure: check `agent-message-bubble.vue`, `context-indicator.vue`, `useChatAgent.ts` phase setters. The "Preparing..." indicator already exists — just needs scroll. |
 | **Proxy ignored in agent loop** | `loop_runner.rs` and `compact.rs` read `proxyMode` from settings. When touching proxy code, verify both paths AND all 10 `create_http_client` call sites. |
+| **ChatPanel scroll broken by refactor** | When modifying `chat-panel.vue`, always preserve the scroll contract table above. Common mistakes: removing the scroll event listener, removing `stickToBottom` guard, or removing `forceScrollToBottom()` before `emit('send')`. |

@@ -791,7 +791,7 @@ onBeforeUnmount(() => {
 
 .source-chip-edit {
   flex-shrink: 0;
-  opacity: 0;
+  opacity: 0.6;
   transition: opacity 0.15s;
 }
 

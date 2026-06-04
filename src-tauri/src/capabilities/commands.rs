@@ -38,11 +38,9 @@ pub async fn get_available_tools(source_kinds: Option<Vec<String>>) -> Result<St
     let reg = registry::registry();
     let db_types = source_kinds.unwrap_or_default();
 
-    let caps = if db_types.is_empty() {
-        reg.agent_tools()
-    } else {
-        reg.matching_sources(&db_types)
-    };
+    // matching_sources returns only DocKit tools when db_types is empty,
+    // and DocKit + matching database tools when db_types are provided.
+    let caps = reg.matching_sources(&db_types);
 
     let openai_tools: Vec<Value> = caps.iter().map(|c| to_openai_tool(c)).collect();
     let metadata: serde_json::Map<String, Value> = caps
