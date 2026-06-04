@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-06-04
+
+### Added
+
+- AI Data Studio: multi-provider agent backend with chat-based data exploration (OpenAI, DeepSeek, OpenRouter, Ollama, LM Studio) (#431)
+- Multi-source agent architecture with per-source permissions and connection-aware tool routing (#437)
+- Native MongoDB support in Data Studio agent with 6 tools (find, aggregate, insert, update, delete, list collections) (#438)
+- Agent context compaction, permission modes (Ask/Auto), and chat UX hardening (#440)
+- LLM multi-provider refactor: ChatFormatter abstraction, Anthropic streaming, proxy mode selector, error classification, ES alias tools (#444)
+- AI improvements for sidebar and data studio: keyboard navigation, searchable select, resizable chat panel, accessibility (#449)
+- MongoDB: connection management with SCRAM and URI authentication modes (#415)
+- MongoDB: comprehensive query editor with Monaco syntax highlighting, autocomplete, and validation (#422)
+- MongoDB: query execution backend with shell syntax parser (#429)
+- MongoDB: bulkWrite support and persistent query results per tab (#430)
+- MongoDB: Manage View for collection-level infrastructure browsing (#432)
+- MongoDB: Manage View enhancements and bug fixes (#443)
+- MongoDB: document browser with full CRUD operations (insert, edit, clone, delete) (#441)
+- MongoDB: Export & Import in JSON, CSV, and JSONL formats (#448)
+- MongoDB: query history metadata with star/bookmark favorites (#447)
+- DynamoDB: table lifecycle management Phase 1 — create, delete, truncate tables (#419)
+- DynamoDB: table lifecycle Phase 2 — billing mode, TTL, PITR, streams, danger zone (#420)
+- EasySearch as a new connection type (Elasticsearch 7.10 fork) (#428)
+- OpenSearch split from Elasticsearch as a separate connection type (#425)
+- Unified capability registry migrating all legacy datasource functions (#450)
+- Inline source management UI for Data Studio with connection chips and add-source dropdown (#433)
+- Agent loop improvements and chat panel scroll-to-bottom behavior (#453)
+
+### Fixed
+
+- GSI warm throughput validation and cleanup (#445)
+- Destructive agent operations now always require confirmation; target source shown on card
+- MongoDB PR #422 review feedback: 17 issues resolved including validation, i18n, circular dependencies (#427)
+- README database icons rendering (GitHub compatibility)
+
+### Changed
+
+- Refactored data studio source management to inline chips and dropdown UI (#433)
+- Unified capability registry replacing legacy per-source datasource functions (#450)
+
 ## [1.0.1] - 2026-05-11
 
 ### Added
