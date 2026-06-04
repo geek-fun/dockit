@@ -95,8 +95,8 @@ npm run tauri dev
 ### Build
 
 ```bash
-npm run tauri build          # current platform
-npm run build:macos          # macOS Universal
+npm run tauri build         # current platform
+npm run build:macos         # macOS Universal
 ```
 
 
