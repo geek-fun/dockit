@@ -112,6 +112,7 @@ jobs:
           echo "JS_TEST=$JS_EXIT" >> "$GITHUB_ENV"
 
       - name: Tests (Rust)
+        if: runner.os != 'macOS'
         shell: bash
         run: |
           set +e
@@ -129,7 +130,19 @@ jobs:
           fi
           echo "RUST_TEST=$RUST_TEST" >> "$GITHUB_ENV"
 
-
+      - name: Tests & Coverage (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set +e
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cd src-tauri
+          mkdir -p coverage
+          echo "=== cargo llvm-cov --lib ==="
+          cargo llvm-cov --lib --lcov --output-path coverage/lcov.info; RUST_TEST=$?
+          sed -i '' 's|^SF:src/|SF:src-tauri/src/|' coverage/lcov.info
+          sed -i '' 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
+          echo "RUST_TEST=$RUST_TEST" >> "$GITHUB_ENV"
 
       - name: Report test failures
         if: env.JS_TEST != '0' || env.RUST_TEST != '0'
@@ -138,17 +151,6 @@ jobs:
           [ "$JS_TEST" = "0" ] || echo "::error::JS tests failed (exit $JS_TEST)"
           [ "$RUST_TEST" = "0" ] || echo "::error::Rust tests failed (exit $RUST_TEST)"
           exit 1
-
-      # ── Coverage (macOS only, fastest runner) ───────────
-
-      - name: Rust coverage
-        if: runner.os == 'macOS'
-        run: |
-          cd src-tauri
-          mkdir -p coverage
-          cargo llvm-cov --lcov --output-path coverage/lcov.info
-          sed -i '' 's|^SF:src/|SF:src-tauri/src/|' coverage/lcov.info
-          sed -i '' 's|^SF:tests/|SF:src-tauri/tests/|' coverage/lcov.info
 
       - name: Upload coverage to Codecov
         if: runner.os == 'macOS'
