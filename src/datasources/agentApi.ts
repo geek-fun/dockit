@@ -11,7 +11,7 @@ export type QueryHistoryEntry = {
   indexName?: string | null;
   qdsl?: string | null;
   connectionName: string;
-  connectionId?: string | null;
+  connectionId: string;
   mongoOperation?: string | null;
   mongoCollection?: string | null;
   mongoDatabase?: string | null;
@@ -27,7 +27,7 @@ export type AddQueryHistoryInput = {
   indexName?: string | null;
   qdsl?: string | null;
   connectionName: string;
-  connectionId?: string | null;
+  connectionId: string;
   mongoOperation?: string | null;
   mongoCollection?: string | null;
   mongoDatabase?: string | null;

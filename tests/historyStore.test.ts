@@ -16,9 +16,6 @@ jest.mock('../src/datasources', () => ({
     set: async (key: string, value: unknown) => {
       mockStore.set(key, value);
     },
-    delete: async (key: string) => {
-      mockStore.delete(key);
-    },
   },
 }));
 
@@ -47,7 +44,7 @@ const makeBackendEntry = (overrides: Record<string, unknown> = {}) => ({
   indexName: null,
   qdsl: null,
   connectionName: 'test',
-  connectionId: null,
+  connectionId: 'test-conn',
   mongoOperation: null,
   mongoCollection: null,
   mongoDatabase: null,
@@ -103,6 +100,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
         mongoDatabase: 'mydb',
@@ -171,6 +169,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -194,6 +193,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -239,6 +239,7 @@ describe('historyStore', () => {
         {
           id: 'old-1',
           connectionName: 'test',
+          connectionId: 'old-conn',
           method: 'GET',
           path: '/_search',
           timestamp: Date.now(),
@@ -298,6 +299,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -325,6 +327,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'aggregate',
         mongoCollection: 'orders',
       });
@@ -366,6 +369,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -400,6 +404,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo/1',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -426,6 +431,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -458,6 +464,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -483,6 +490,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -516,6 +524,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -550,6 +559,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -574,6 +584,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -600,6 +611,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -637,6 +649,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -678,6 +691,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo/1',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
@@ -686,6 +700,7 @@ describe('historyStore', () => {
         method: 'POST',
         path: '/api/mongo/2',
         connectionName: 'test-mongo',
+        connectionId: 'test-mongo-id',
         mongoOperation: 'aggregate',
         mongoCollection: 'orders',
       });

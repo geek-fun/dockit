@@ -14,7 +14,7 @@ pub struct QueryHistoryEntry {
     pub index_name: Option<String>,
     pub qdsl: Option<String>,
     pub connection_name: String,
-    pub connection_id: Option<String>,
+    pub connection_id: String,
     pub mongo_operation: Option<String>,
     pub mongo_collection: Option<String>,
     pub mongo_database: Option<String>,
@@ -32,7 +32,7 @@ pub struct AddQueryHistoryInput {
     pub index_name: Option<String>,
     pub qdsl: Option<String>,
     pub connection_name: String,
-    pub connection_id: Option<String>,
+    pub connection_id: String,
     pub mongo_operation: Option<String>,
     pub mongo_collection: Option<String>,
     pub mongo_database: Option<String>,
@@ -146,27 +146,25 @@ pub async fn add_query_history_entry(
         )
         .map_err(|e| format!("Failed to insert query history entry: {}", e))?;
 
-        // Cap enforcement: if connection_id is set, keep only the latest `history_cap` entries.
+        // Cap enforcement: keep only the latest `history_cap` entries for this connection.
         // The cap is at minimum 1 to prevent accidental destruction.
         let cap = input.history_cap.max(1);
-        if let Some(ref conn_id) = entry.connection_id {
-            let count: i64 = conn
-                .query_row(
-                    "SELECT COUNT(*) FROM query_history WHERE connection_id = ?1",
-                    rusqlite::params![conn_id],
-                    |row| row.get(0),
-                )
-                .map_err(|e| e.to_string())?;
-            if count > cap {
-                conn.execute(
-                    // LIMIT -1 means "no limit" in SQLite — delete all rows beyond the cap.
-                    "DELETE FROM query_history WHERE id IN ( \
-                     SELECT id FROM query_history WHERE connection_id = ?1 \
-                     ORDER BY timestamp DESC LIMIT -1 OFFSET ?2)",
-                    rusqlite::params![conn_id, cap],
-                )
-                .map_err(|e| format!("Failed to enforce query history cap: {}", e))?;
-            }
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM query_history WHERE connection_id = ?1",
+                rusqlite::params![entry.connection_id],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if count > cap {
+            conn.execute(
+                // LIMIT -1 means "no limit" in SQLite — delete all rows beyond the cap.
+                "DELETE FROM query_history WHERE id IN ( \
+                 SELECT id FROM query_history WHERE connection_id = ?1 \
+                 ORDER BY timestamp DESC LIMIT -1 OFFSET ?2)",
+                rusqlite::params![entry.connection_id, cap],
+            )
+            .map_err(|e| format!("Failed to enforce query history cap: {}", e))?;
         }
 
         Ok(entry)

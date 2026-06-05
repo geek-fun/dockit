@@ -80,6 +80,7 @@ pub fn migrate(db: &AgentDb) -> Result<(), String> {
         );
         CREATE INDEX IF NOT EXISTS idx_query_history_connection ON query_history(connection_id, timestamp DESC);
         CREATE INDEX IF NOT EXISTS idx_query_history_starred ON query_history(starred) WHERE starred = 1;
+        DELETE FROM query_history WHERE connection_id IS NULL;
         "#,
     )
     .map_err(|e| format!("Failed to migrate db: {}", e))?;

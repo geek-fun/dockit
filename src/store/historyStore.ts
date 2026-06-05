@@ -21,7 +21,7 @@ export type HistoryEntry = {
   index?: string;
   qdsl?: string;
   connectionName: string;
-  connectionId?: number | string;
+  connectionId: number | string;
   mongoOperation?: string;
   mongoCollection?: string;
   mongoDatabase?: string;
@@ -40,7 +40,7 @@ const toHistoryEntry = (be: QueryHistoryEntry): HistoryEntry => ({
   index: be.indexName ?? undefined,
   qdsl: be.qdsl ?? undefined,
   connectionName: be.connectionName,
-  connectionId: be.connectionId ?? undefined,
+  connectionId: be.connectionId,
   mongoOperation: be.mongoOperation ?? undefined,
   mongoCollection: be.mongoCollection ?? undefined,
   mongoDatabase: be.mongoDatabase ?? undefined,
@@ -71,6 +71,11 @@ export const useHistoryStore = defineStore('historyStore', {
           const cap = appStore.historyConfig.historyCap;
           let failed = 0;
           for (const entry of oldEntries) {
+            const rawConnId = (entry as any).connectionId;
+            if (rawConnId == null) {
+              console.warn('Skipping migration of entry without connectionId:', (entry as any).id);
+              continue;
+            }
             try {
               await addQueryHistoryEntry({
                 databaseType: (entry as any).databaseType ?? null,
@@ -79,8 +84,7 @@ export const useHistoryStore = defineStore('historyStore', {
                 indexName: (entry as any).index ?? null,
                 qdsl: (entry as any).qdsl ?? null,
                 connectionName: (entry as any).connectionName ?? '',
-                connectionId:
-                  (entry as any).connectionId != null ? String((entry as any).connectionId) : null,
+                connectionId: String(rawConnId),
                 mongoOperation: (entry as any).mongoOperation ?? null,
                 mongoCollection: (entry as any).mongoCollection ?? null,
                 mongoDatabase: (entry as any).mongoDatabase ?? null,
@@ -92,6 +96,11 @@ export const useHistoryStore = defineStore('historyStore', {
               console.error('Failed to migrate query history entry:', err);
               failed++;
             }
+          }
+          if (failed > 0) {
+            console.warn(
+              `Migrated ${oldEntries.length - failed}/${oldEntries.length} query history entries`,
+            );
           }
           // Clear old data regardless of failures to prevent duplicate entries on retry.
           // Failed entries are logged via console.error above — they are individual query
@@ -117,7 +126,7 @@ export const useHistoryStore = defineStore('historyStore', {
           indexName: entry.index ?? null,
           qdsl: entry.qdsl ?? null,
           connectionName: entry.connectionName,
-          connectionId: entry.connectionId != null ? String(entry.connectionId) : null,
+          connectionId: String(entry.connectionId),
           mongoOperation: entry.mongoOperation ?? null,
           mongoCollection: entry.mongoCollection ?? null,
           mongoDatabase: entry.mongoDatabase ?? null,
