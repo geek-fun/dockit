@@ -419,7 +419,7 @@ type ProviderErrorMap = Partial<Record<'apiKey' | 'baseUrl' | 'proxy', string>>;
 const API_KEY_SENTINEL = '__UNCHANGED__';
 
 const appStore = useAppStore();
-const { llmSettings } = storeToRefs(appStore);
+const { llmSettings, chatConfig } = storeToRefs(appStore);
 const lang = useLang();
 const dialog = useDialogService();
 const message = useMessageService();
@@ -427,10 +427,10 @@ const message = useMessageService();
 const providerActionState = reactive<Record<string, 'idle' | 'testing'>>({});
 const providerSyncState = reactive<Record<string, 'idle' | 'loading'>>({});
 
-const autoCompactEnabled = computed(() => llmSettings.value.chat?.autoCompact ?? true);
-const maxIterations = computed(() => llmSettings.value.chat?.maxIterations ?? 200);
-const wallClockBudgetMin = computed(() => llmSettings.value.chat?.wallClockBudgetMin ?? 30);
-const tokenBudget = computed(() => llmSettings.value.chat?.tokenBudget ?? 20_000_000);
+const autoCompactEnabled = computed(() => chatConfig.value.autoCompact);
+const maxIterations = computed(() => chatConfig.value.maxIterations);
+const wallClockBudgetMin = computed(() => chatConfig.value.wallClockBudgetMin);
+const tokenBudget = computed(() => chatConfig.value.tokenBudget);
 
 const setAutoCompact = async (value: boolean) => {
   const result = await appStore.saveChatSettings({ autoCompact: value });

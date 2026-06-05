@@ -1,5 +1,11 @@
 import { defineStore } from 'pinia';
-import { pureObject, HISTORY_CAP_MIN, HISTORY_CAP_MAX, HISTORY_CAP_DEFAULT } from '../common';
+import {
+  pureObject,
+  HISTORY_CAP_MIN,
+  HISTORY_CAP_MAX,
+  HISTORY_CAP_DEFAULT,
+  CHAT_RUNTIME_DEFAULTS,
+} from '../common';
 import { chatBotApi, ProviderEnum, storeApi, validateLlmConfig } from '../datasources';
 
 export enum ThemeType {
@@ -316,12 +322,7 @@ const defaultLlmSettings = (): LlmSettings => ({
       useRecommendedModel: true,
     },
   },
-  chat: {
-    autoCompact: true,
-    maxIterations: 200,
-    wallClockBudgetMin: 30,
-    tokenBudget: 20_000_000,
-  },
+  chat: { ...CHAT_RUNTIME_DEFAULTS },
 });
 
 const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => {
@@ -438,10 +439,11 @@ const mergeLlmSettings = (stored: Partial<LlmSettings> | undefined): LlmSettings
       dataStudio: normalizeFeatureRoute(stored?.models?.dataStudio, providers, 'reasoning'),
     },
     chat: {
-      autoCompact: stored?.chat?.autoCompact ?? true,
-      maxIterations: stored?.chat?.maxIterations ?? 200,
-      wallClockBudgetMin: stored?.chat?.wallClockBudgetMin ?? 30,
-      tokenBudget: stored?.chat?.tokenBudget ?? 20_000_000,
+      autoCompact: stored?.chat?.autoCompact ?? CHAT_RUNTIME_DEFAULTS.autoCompact,
+      maxIterations: stored?.chat?.maxIterations ?? CHAT_RUNTIME_DEFAULTS.maxIterations,
+      wallClockBudgetMin:
+        stored?.chat?.wallClockBudgetMin ?? CHAT_RUNTIME_DEFAULTS.wallClockBudgetMin,
+      tokenBudget: stored?.chat?.tokenBudget ?? CHAT_RUNTIME_DEFAULTS.tokenBudget,
     },
   };
 };
@@ -519,6 +521,15 @@ export const useAppStore = defineStore('app', {
     availableModels(state): Array<ModelRef> {
       return state.llmSettings.providers.flatMap(provider => provider.discoveredModels);
     },
+    chatConfig(state): ChatRuntimeConfig {
+      return {
+        autoCompact: state.llmSettings.chat?.autoCompact ?? CHAT_RUNTIME_DEFAULTS.autoCompact,
+        maxIterations: state.llmSettings.chat?.maxIterations ?? CHAT_RUNTIME_DEFAULTS.maxIterations,
+        wallClockBudgetMin:
+          state.llmSettings.chat?.wallClockBudgetMin ?? CHAT_RUNTIME_DEFAULTS.wallClockBudgetMin,
+        tokenBudget: state.llmSettings.chat?.tokenBudget ?? CHAT_RUNTIME_DEFAULTS.tokenBudget,
+      };
+    },
   },
   actions: {
     setConnectPanel() {
@@ -577,7 +588,13 @@ export const useAppStore = defineStore('app', {
           undefined,
         );
         if (storedChat) {
-          this.llmSettings.chat = storedChat;
+          this.llmSettings.chat = {
+            autoCompact: storedChat.autoCompact ?? CHAT_RUNTIME_DEFAULTS.autoCompact,
+            maxIterations: storedChat.maxIterations ?? CHAT_RUNTIME_DEFAULTS.maxIterations,
+            wallClockBudgetMin:
+              storedChat.wallClockBudgetMin ?? CHAT_RUNTIME_DEFAULTS.wallClockBudgetMin,
+            tokenBudget: storedChat.tokenBudget ?? CHAT_RUNTIME_DEFAULTS.tokenBudget,
+          };
         }
         return this.llmSettings;
       }
