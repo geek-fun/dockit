@@ -164,10 +164,8 @@ const agentApi = {
 const loadQueryHistory = () => invoke<QueryHistoryEntry[]>('load_query_history');
 const addQueryHistoryEntry = (input: AddQueryHistoryInput) =>
   invoke<QueryHistoryEntry>('add_query_history_entry', { input });
-const toggleQueryHistoryStar = (id: string) =>
-  invoke<void>('toggle_query_history_star', { id });
-const deleteQueryHistoryEntry = (id: string) =>
-  invoke<void>('delete_query_history_entry', { id });
+const toggleQueryHistoryStar = (id: string) => invoke<void>('toggle_query_history_star', { id });
+const deleteQueryHistoryEntry = (id: string) => invoke<void>('delete_query_history_entry', { id });
 const clearQueryHistory = () => invoke<void>('clear_query_history');
 
 const loadAgentSessions = () => invoke<AgentSession[]>('load_agent_sessions');

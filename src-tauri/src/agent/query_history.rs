@@ -159,6 +159,7 @@ pub async fn add_query_history_entry(
                 .map_err(|e| e.to_string())?;
             if count > cap {
                 conn.execute(
+                    // LIMIT -1 means "no limit" in SQLite — delete all rows beyond the cap.
                     "DELETE FROM query_history WHERE id IN ( \
                      SELECT id FROM query_history WHERE connection_id = ?1 \
                      ORDER BY timestamp DESC LIMIT -1 OFFSET ?2)",

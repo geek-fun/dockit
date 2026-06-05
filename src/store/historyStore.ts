@@ -93,9 +93,10 @@ export const useHistoryStore = defineStore('historyStore', {
               failed++;
             }
           }
-          if (failed === 0) {
-            await storeApi.set('queryHistory', []);
-          }
+          // Clear old data regardless of failures to prevent duplicate entries on retry.
+          // Failed entries are logged via console.error above — they are individual query
+          // records that the user can re-execute.
+          await storeApi.set('queryHistory', []);
         }
 
         const backendEntries = await loadQueryHistory();
@@ -109,7 +110,7 @@ export const useHistoryStore = defineStore('historyStore', {
       const appStore = useAppStore();
       const cap = appStore.historyConfig.historyCap;
       try {
-        await addQueryHistoryEntry({
+        const result = await addQueryHistoryEntry({
           databaseType: entry.databaseType ?? null,
           method: entry.method,
           path: entry.path,
@@ -124,7 +125,8 @@ export const useHistoryStore = defineStore('historyStore', {
           mongoResultCount: entry.mongoResultCount ?? null,
           historyCap: cap,
         });
-        // Re-fetch after insert to sync with any cap enforcement deletes
+        // Optimistically add the entry, then re-fetch to sync cap enforcement deletes
+        this.entries.unshift(toHistoryEntry(result));
         const backendEntries = await loadQueryHistory();
         this.entries = backendEntries.map(toHistoryEntry);
       } catch (err) {
@@ -148,6 +150,7 @@ export const useHistoryStore = defineStore('historyStore', {
     },
     async removeEntry(id: string) {
       const removed = this.entries.filter(e => e.id === id);
+      const previousSelectedId = this.selectedEntryId;
       this.entries = this.entries.filter(e => e.id !== id);
       if (this.selectedEntryId === id) {
         this.selectedEntryId = null;
@@ -157,10 +160,12 @@ export const useHistoryStore = defineStore('historyStore', {
       } catch (err) {
         console.error('Failed to delete query history entry:', err);
         this.entries = [...this.entries, ...removed];
+        this.selectedEntryId = previousSelectedId;
       }
     },
     async clearHistory() {
       const previous = this.entries;
+      const previousSelectedId = this.selectedEntryId;
       this.entries = [];
       this.selectedEntryId = null;
       try {
@@ -168,6 +173,7 @@ export const useHistoryStore = defineStore('historyStore', {
       } catch (err) {
         console.error('Failed to clear query history:', err);
         this.entries = previous;
+        this.selectedEntryId = previousSelectedId;
       }
     },
   },
