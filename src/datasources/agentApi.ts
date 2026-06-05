@@ -40,6 +40,9 @@ export type AgentSession = {
   id: string;
   title: string;
   status: 'idle' | 'running' | 'error';
+  sources: string;
+  permissions_mode: string;
+  model_id: string | null;
   created_at: number;
   updated_at: number;
 };
@@ -114,6 +117,27 @@ export type MultiSourceToolPermissions = {
   delete: boolean;
 };
 
+export type AttachedSourceRow = {
+  id: string;
+  kind: string;
+  alias: string | null;
+  name: string | null;
+  database_type: string | null;
+  file_type: string | null;
+  file_path: string | null;
+  connection_id: number | null;
+  created_at: number;
+  updated_at: number;
+};
+
+export type ConfirmationRuleRow = {
+  id: string;
+  session_id: string;
+  tool_name: string;
+  action: string;
+  created_at: number;
+};
+
 const agentApi = {
   runAgentStep: async (params: {
     requestId: string;
@@ -169,8 +193,18 @@ const deleteQueryHistoryEntry = (id: string) => invoke<void>('delete_query_histo
 const clearQueryHistory = () => invoke<void>('clear_query_history');
 
 const loadAgentSessions = () => invoke<AgentSession[]>('load_agent_sessions');
-const createAgentSession = (title: string) =>
-  invoke<AgentSession>('create_agent_session', { title });
+const createAgentSession = (
+  title: string,
+  sources?: string,
+  permissionsMode?: string,
+  modelId?: string | null,
+) => {
+  const args: Record<string, unknown> = { title };
+  if (sources !== undefined) args.sources = sources;
+  if (permissionsMode !== undefined) args.permissionsMode = permissionsMode;
+  if (modelId !== undefined) args.modelId = modelId;
+  return invoke<AgentSession>('create_agent_session', args);
+};
 const updateSessionStatus = (sessionId: string, status: string) =>
   invoke<void>('update_session_status', { sessionId, status });
 const deleteAgentSession = (sessionId: string) =>
@@ -200,6 +234,47 @@ const confirmToolCall = (toolCallId: string, allowed: boolean) =>
   invoke<void>('confirm_tool_call', { toolCallId, allowed });
 const getToolFullResult = (toolCallId: string) =>
   invoke<string>('get_tool_full_result', { toolCallId });
+
+const updateSessionMeta = async (
+  sessionId: string,
+  sources?: string,
+  permissionsMode?: string,
+  modelId?: string | null,
+): Promise<void> => {
+  const args: Record<string, unknown> = { sessionId };
+  if (sources !== undefined) args.sources = sources;
+  if (permissionsMode !== undefined) args.permissionsMode = permissionsMode;
+  if (modelId !== undefined) args.modelId = modelId;
+  await invoke<void>('update_session_meta', args);
+};
+
+const loadConfirmationRules = (sessionId: string) =>
+  invoke<ConfirmationRuleRow[]>('load_confirmation_rules', { sessionId });
+
+const saveConfirmationRule = (sessionId: string, toolName: string, action: string) =>
+  invoke<ConfirmationRuleRow>('save_confirmation_rule', { sessionId, toolName, action });
+
+const deleteConfirmationRule = (id: string) => invoke<void>('delete_confirmation_rule', { id });
+
+const clearSessionConfirmationRules = (sessionId: string) =>
+  invoke<void>('clear_session_confirmation_rules', { sessionId });
+
+const loadAttachedSources = () => invoke<AttachedSourceRow[]>('load_attached_sources');
+
+const saveAttachedSource = (
+  fields: Omit<AttachedSourceRow, 'created_at' | 'updated_at'> & {
+    created_at?: number;
+    updated_at?: number;
+  },
+) => invoke<AttachedSourceRow>('save_attached_source', fields);
+
+const deleteAttachedSource = (id: string) => invoke<void>('delete_attached_source', { id });
+
+const migrateSessionMetadata = (
+  sessionMeta: string,
+  confirmationRules: string,
+  attachedSources: string,
+) => invoke<void>('migrate_session_metadata', { sessionMeta, confirmationRules, attachedSources });
 
 const onAgentLoopDelta = (handler: (payload: { session_id: string; content: string }) => void) =>
   listen('agent-loop-delta', e => handler(e.payload as { session_id: string; content: string }));
@@ -309,6 +384,15 @@ export {
   cancelAgentLoop,
   confirmToolCall,
   getToolFullResult,
+  updateSessionMeta,
+  loadConfirmationRules,
+  saveConfirmationRule,
+  deleteConfirmationRule,
+  clearSessionConfirmationRules,
+  loadAttachedSources,
+  saveAttachedSource,
+  deleteAttachedSource,
+  migrateSessionMetadata,
   compactAgentSession,
   getAgentContextUsage,
   onAgentLoopDelta,
