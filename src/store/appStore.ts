@@ -586,41 +586,21 @@ export const useAppStore = defineStore('app', {
       );
       if (storedSettings) {
         this.llmSettings = mergeLlmSettings(storedSettings);
-        // Load chat settings from dedicated key (more reliable)
-        const storedChat = await storeApi.getSecret<ChatRuntimeConfig | undefined>(
-          'chatSettings',
-          undefined,
-        );
         const storedVersion = await storeApi.get<number | undefined>(
           'llmSettingsVersion',
           undefined,
         );
 
-        // V1 migration: reset autoCompact to true for any persisted data from the
-        // old buggy version where it was undefined/false due to the storedChat overwrite bug
+        // V1 migration: reset autoCompact to true for persisted data from old bug
         if (!storedVersion || storedVersion < LLM_SETTINGS_SCHEMA_VERSION) {
-          this.llmSettings.chat = {
-            autoCompact: CHAT_RUNTIME_DEFAULTS.autoCompact,
-            maxIterations: storedChat?.maxIterations ?? CHAT_RUNTIME_DEFAULTS.maxIterations,
-            wallClockBudgetMin:
-              storedChat?.wallClockBudgetMin ?? CHAT_RUNTIME_DEFAULTS.wallClockBudgetMin,
-            tokenBudget: storedChat?.tokenBudget ?? CHAT_RUNTIME_DEFAULTS.tokenBudget,
-          };
+          this.llmSettings.chat.autoCompact = CHAT_RUNTIME_DEFAULTS.autoCompact;
           await Promise.all([
             storeApi.set('llmSettingsVersion', LLM_SETTINGS_SCHEMA_VERSION),
-            storeApi.setSecret('chatSettings', pureObject(this.llmSettings.chat)),
             storeApi.setSecret('llmSettings', pureObject(this.llmSettings)),
           ]);
-        } else if (storedChat) {
-          this.llmSettings.chat = {
-            autoCompact: storedChat.autoCompact ?? CHAT_RUNTIME_DEFAULTS.autoCompact,
-            maxIterations: storedChat.maxIterations ?? CHAT_RUNTIME_DEFAULTS.maxIterations,
-            wallClockBudgetMin:
-              storedChat.wallClockBudgetMin ?? CHAT_RUNTIME_DEFAULTS.wallClockBudgetMin,
-            tokenBudget: storedChat.tokenBudget ?? CHAT_RUNTIME_DEFAULTS.tokenBudget,
-          };
         }
         storeApi.delete('chatStore').catch(() => {});
+        storeApi.delete('chatSettings').catch(() => {});
         return this.llmSettings;
       }
 
@@ -630,6 +610,7 @@ export const useAppStore = defineStore('app', {
       await storeApi.setSecret('llmSettings', pureObject(this.llmSettings));
       await storeApi.set('llmSettingsVersion', LLM_SETTINGS_SCHEMA_VERSION);
       storeApi.delete('chatStore').catch(() => {});
+      storeApi.delete('chatSettings').catch(() => {});
       return this.llmSettings;
     },
     async persistLlmSettings() {
@@ -646,10 +627,7 @@ export const useAppStore = defineStore('app', {
       const previous = { ...this.llmSettings.chat };
       Object.assign(this.llmSettings.chat, chat);
       try {
-        await Promise.all([
-          storeApi.setSecret('chatSettings', pureObject(this.llmSettings.chat)),
-          storeApi.setSecret('llmSettings', pureObject(this.llmSettings)),
-        ]);
+        await storeApi.setSecret('llmSettings', pureObject(this.llmSettings));
         return { success: true };
       } catch (err) {
         this.llmSettings.chat = previous;
