@@ -10,7 +10,6 @@ import type {
 } from '@/types/chat';
 import type { AgentToolCall, ConfirmationRule, SessionSource } from '@/store/dataStudioStore';
 import { useDataStudioStore } from '@/store/dataStudioStore';
-import { getFeatureModelConfig } from '@/store';
 import { useAppStore } from '@/store';
 import {
   agentApi,
@@ -307,7 +306,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
   const initContextSettings = async (): Promise<void> => {
     if (lastSettings.value) return;
     try {
-      const { provider, model } = await getFeatureModelConfig(config.feature);
+      const { provider, model } = await useAppStore().getFeatureModelConfig(config.feature);
       lastSettings.value = {
         provider: provider.apiCompatibility,
         apiCompatibility: provider.apiCompatibility,
@@ -345,7 +344,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     dataStudioStore.clearSessionError(sessionId);
 
     try {
-      const { provider, model } = await getFeatureModelConfig(config.feature);
+      const { provider, model } = await useAppStore().getFeatureModelConfig(config.feature);
       const schema = session.schema ?? context?.schema;
 
       let systemPrompt = buildSystemPrompt({

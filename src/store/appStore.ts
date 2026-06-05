@@ -778,17 +778,15 @@ export const useAppStore = defineStore('app', {
 
       return { provider, model: resolvedModel };
     },
+    async getFeatureModelConfig(feature: 'sidebarAssistant' | 'dataStudio') {
+      await this.fetchLlmSettings();
+      const resolved = this.getResolvedFeatureModel(feature);
+
+      if (!resolved) {
+        throw new CustomError(ErrorCodes.MISSING_GPT_CONFIG, lang.global.t('setting.ai.missing'));
+      }
+
+      return resolved as { provider: ProviderConfig; model: ModelRef };
+    },
   },
 });
-
-export const getFeatureModelConfig = async (feature: 'sidebarAssistant' | 'dataStudio') => {
-  const appStore = useAppStore();
-  await appStore.fetchLlmSettings();
-  const resolved = appStore.getResolvedFeatureModel(feature);
-
-  if (!resolved) {
-    throw new CustomError(ErrorCodes.MISSING_GPT_CONFIG, lang.global.t('setting.ai.missing'));
-  }
-
-  return resolved as { provider: ProviderConfig; model: ModelRef };
-};
