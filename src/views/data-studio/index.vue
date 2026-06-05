@@ -414,7 +414,7 @@ const confirmAddSource = async () => {
   if (!addSourceSelectedId.value) return;
   const conn = connections.value.find(c => String(c.id) === addSourceSelectedId.value);
   if (!conn || conn.id === undefined) return;
-  const newSource = dataStudioStore.addDatabaseSourceFromConnection({
+  const newSource = await dataStudioStore.addDatabaseSourceFromConnection({
     connectionId: Number(conn.id),
     name: conn.name,
     databaseType: conn.type as
@@ -483,7 +483,9 @@ const onModelChange = async (modelId: string) => {
 
 const switchSession = async (sessionId: string) => {
   dataStudioStore.setActiveSession(sessionId);
-  const savedModelId = dataStudioStore.sessionMeta[sessionId]?.modelId;
+  await dataStudioStore.loadConfirmationRulesFromDb(sessionId);
+  const session = dataStudioStore.sessions.find(s => s.id === sessionId);
+  const savedModelId = session?.model_id ?? null;
   if (savedModelId) {
     modelVerified.value = null;
     await appStore.setFeatureModelRoute('dataStudio', {
@@ -511,7 +513,12 @@ const openModifyModal = (index: number) => {
 };
 
 onMounted(async () => {
+  await dataStudioStore.migrateFromLocalStorage();
   await Promise.all([dataStudioStore.loadSessions(), connectionStore.fetchConnections()]);
+  await dataStudioStore.loadAttachedSourcesFromDb();
+  if (dataStudioStore.activeSessionId) {
+    await dataStudioStore.loadConfirmationRulesFromDb(dataStudioStore.activeSessionId);
+  }
   document.addEventListener('click', closeOpenMenus);
   await initContextSettings();
 });

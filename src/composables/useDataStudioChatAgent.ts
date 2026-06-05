@@ -11,6 +11,7 @@ import {
   type SessionSource,
 } from '@/store/dataStudioStore';
 import { useConnectionStore } from '@/store/connectionStore';
+import { useAppStore } from '@/store/appStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
 import type {
   ChatMessage,
@@ -42,7 +43,7 @@ const adaptDataStudioSession = (session: AgentSession): ChatSession => ({
   status: session.status as ChatSessionStatus,
   sources: session.sources,
   permissionsMode: session.permissionsMode,
-  maxIterations: session.maxIterations,
+  maxIterations: useAppStore().chatConfig.maxIterations,
   stopReason: session.stopReason,
   stopMessage: session.stopMessage,
 });

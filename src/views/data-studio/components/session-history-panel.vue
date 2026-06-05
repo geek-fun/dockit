@@ -57,19 +57,18 @@ defineEmits<{
 
 const { t } = useI18n();
 const dataStudioStore = useDataStudioStore();
-const { sessions, activeSessionId, sessionMeta } = storeToRefs(dataStudioStore);
+const { sessions, activeSessionId } = storeToRefs(dataStudioStore);
 
 const sortedSessions = computed(() =>
   [...sessions.value].sort((a, b) => {
-    const aTime = sessionMeta.value[a.id]?.updatedAt ?? 0;
-    const bTime = sessionMeta.value[b.id]?.updatedAt ?? 0;
+    const aTime = a.updated_at ?? 0;
+    const bTime = b.updated_at ?? 0;
     return bTime - aTime;
   }),
 );
 
 const sessionLabel = (session: AgentSession): string => {
-  const meta = sessionMeta.value[session.id];
-  if (meta?.title && meta.title !== t('dataStudio.history.newSession')) return meta.title;
+  if (session.title && session.title !== t('dataStudio.history.newSession')) return session.title;
   const sourceLabel = session.sources
     .filter(source => !source.detached)
     .map(source => source.alias)
@@ -79,11 +78,11 @@ const sessionLabel = (session: AgentSession): string => {
   if (firstUser?.content) {
     return firstUser.content.length > 40 ? firstUser.content.slice(0, 40) + '…' : firstUser.content;
   }
-  return meta?.title ?? t('dataStudio.history.sessionFallback');
+  return session.title || t('dataStudio.history.sessionFallback');
 };
 
 const formatTime = (session: AgentSession): string => {
-  const ts = sessionMeta.value[session.id]?.updatedAt ?? 0;
+  const ts = session.updated_at ?? 0;
   if (!ts) return '';
   const d = new Date(ts);
   const now = new Date();

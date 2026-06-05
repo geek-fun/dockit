@@ -8,6 +8,7 @@ import {
   type AgentMessage,
   type ConfirmationRule,
 } from '@/store/dataStudioStore';
+import { useAppStore } from '@/store/appStore';
 import { useTabStore } from '@/store/tabStore';
 import { DatabaseType, type ElasticsearchConnection } from '@/store/connectionStore';
 import { useChatAgent, type UseChatAgentConfig } from './useChatAgent';
@@ -41,7 +42,7 @@ const adaptSession = (session: AgentSession): ChatSession => ({
   messages: session.messages.map(adaptMessage),
   status: session.status as ChatSessionStatus,
   sources: session.sources,
-  maxIterations: session.maxIterations,
+  maxIterations: useAppStore().chatConfig.maxIterations,
   stopReason: session.stopReason,
   stopMessage: session.stopMessage,
 });

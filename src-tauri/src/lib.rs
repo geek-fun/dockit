@@ -27,9 +27,11 @@ use agent::query_history::{
     load_query_history, toggle_query_history_star,
 };
 use agent::session_store::{
-    clear_agent_session_messages, create_agent_session, delete_agent_session, export_agent_session,
-    import_agent_session, load_agent_sessions, load_session_messages, recover_stuck_sessions,
-    update_session_status,
+    clear_agent_session_messages, clear_session_confirmation_rules, create_agent_session,
+    delete_agent_session, delete_attached_source, delete_confirmation_rule, export_agent_session,
+    import_agent_session, load_agent_sessions, load_attached_sources, load_confirmation_rules,
+    load_session_messages, migrate_session_metadata, recover_stuck_sessions,
+    save_attached_source, save_confirmation_rule, update_session_meta, update_session_status,
 };
 use agent::tool_executor::ToolExecutor;
 use agent::{
@@ -131,11 +133,20 @@ pub fn run() {
             load_agent_sessions,
             create_agent_session,
             update_session_status,
+            update_session_meta,
             delete_agent_session,
             clear_agent_session_messages,
             load_session_messages,
             export_agent_session,
             import_agent_session,
+            load_confirmation_rules,
+            save_confirmation_rule,
+            delete_confirmation_rule,
+            clear_session_confirmation_rules,
+            load_attached_sources,
+            save_attached_source,
+            delete_attached_source,
+            migrate_session_metadata,
             load_query_history,
             add_query_history_entry,
             toggle_query_history_star,
