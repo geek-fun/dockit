@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { defineStore } from 'pinia';
 import { ulid } from 'ulidx';
 import {
@@ -144,7 +145,7 @@ export type AgentSession = {
 };
 
 export type ConfirmationRule = {
-  id: string;
+  id?: string; // optional — backend generates ID on create, present when loaded from DB
   sessionId: string; // scoped to a session, not a source
   toolName: string; // bare tool name without alias prefix
   action: 'allow_always' | 'deny_always';
@@ -434,12 +435,12 @@ export const useDataStudioStore = defineStore('dataStudio', {
     },
 
     // ── Backward compat: create a DatabaseSource from a connectionId + Connection ──
-    addDatabaseSourceFromConnection(params: {
+    async addDatabaseSourceFromConnection(params: {
       connectionId: number;
       name: string;
       databaseType: 'ELASTICSEARCH' | 'OPENSEARCH' | 'EASYSEARCH' | 'DYNAMODB' | 'MONGODB';
       permissions: DataSourcePermissions;
-    }): DatabaseSource {
+    }): Promise<DatabaseSource> {
       const existing = this.attachedSources.find(
         s => s.kind === 'database' && (s as DatabaseSource).connectionId === params.connectionId,
       ) as DatabaseSource | undefined;
@@ -460,7 +461,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
         permissions: params.permissions,
       };
       this.attachedSources = [...this.attachedSources, source];
-      saveAttachedSource({
+      await saveAttachedSource({
         id: source.sourceId,
         kind: 'database',
         alias: source.name,
@@ -471,7 +472,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
         connection_id: source.connectionId,
         created_at: Date.now(),
         updated_at: Date.now(),
-      }).catch(() => {});
+      });
       return source;
     },
 
@@ -482,7 +483,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
       if (!session) return false;
       const updated = attachSourceToSession(session, source);
       this.sessions = this.sessions.map(s => (s.id === session.id ? updated : s));
-      await updateSessionMeta(session.id, JSON.stringify(updated.sources)).catch(() => {});
+      await updateSessionMeta(session.id, JSON.stringify(updated.sources)).catch(e =>
+        console.warn('[persist] updateSessionMeta failed:', e),
+      );
       return true;
     },
 
@@ -495,7 +498,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, sources: updatedSources } : s,
       );
-      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(() => {});
+      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(e =>
+        console.warn('[persist] updateSessionMeta failed:', e),
+      );
     },
 
     async setSessionPermissionsMode(sessionId: string, mode: PermissionsMode) {
@@ -516,7 +521,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, permissionsMode: mode, sources: updatedSources } : s,
       );
-      await updateSessionMeta(sessionId, JSON.stringify(updatedSources), mode).catch(() => {});
+      await updateSessionMeta(sessionId, JSON.stringify(updatedSources), mode).catch(e =>
+        console.warn('[persist] updateSessionMeta failed:', e),
+      );
     },
 
     async updateSessionSourcePermissions(
@@ -530,7 +537,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, sources: updatedSources } : s,
       );
-      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(() => {});
+      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(e =>
+        console.warn('[persist] updateSessionMeta failed:', e),
+      );
     },
 
     async updateSessionSourceMode(
@@ -558,7 +567,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, sources: updatedSources } : s,
       );
-      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(() => {});
+      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(e =>
+        console.warn('[persist] updateSessionMeta failed:', e),
+      );
     },
 
     // ── One-time migration from localStorage to SQLite ─────────────────────
@@ -956,7 +967,9 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, model_id: modelId } : s,
       );
-      await updateSessionMeta(sessionId, undefined, undefined, modelId).catch(() => {});
+      await updateSessionMeta(sessionId, undefined, undefined, modelId).catch(e =>
+        console.warn('[persist] updateSessionMeta failed:', e),
+      );
     },
 
     async reloadSessionMessages(sessionId: string) {

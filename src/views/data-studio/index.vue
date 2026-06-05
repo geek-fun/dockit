@@ -414,7 +414,7 @@ const confirmAddSource = async () => {
   if (!addSourceSelectedId.value) return;
   const conn = connections.value.find(c => String(c.id) === addSourceSelectedId.value);
   if (!conn || conn.id === undefined) return;
-  const newSource = dataStudioStore.addDatabaseSourceFromConnection({
+  const newSource = await dataStudioStore.addDatabaseSourceFromConnection({
     connectionId: Number(conn.id),
     name: conn.name,
     databaseType: conn.type as
