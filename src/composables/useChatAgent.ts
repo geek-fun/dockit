@@ -455,6 +455,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
 
     if (action === 'allow_always' && config.addConfirmationRule) {
       config.addConfirmationRule({
+        id: ulid(),
         sessionId: session.id,
         toolName: toolCall.toolName,
         action: 'allow_always',
@@ -462,6 +463,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     }
     if (action === 'deny_always' && config.addConfirmationRule) {
       config.addConfirmationRule({
+        id: ulid(),
         sessionId: session.id,
         toolName: toolCall.toolName,
         action: 'deny_always',

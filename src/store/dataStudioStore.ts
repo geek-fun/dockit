@@ -7,6 +7,14 @@ import {
   loadAgentSessions,
   loadSessionMessages,
   updateSessionStatus,
+  updateSessionMeta,
+  loadConfirmationRules,
+  saveConfirmationRule,
+  deleteConfirmationRule,
+  loadAttachedSources,
+  saveAttachedSource,
+  deleteAttachedSource,
+  migrateSessionMetadata,
   type AgentSession as BackendAgentSession,
   type AgentMessage as BackendAgentMessage,
 } from '../datasources/agentApi';
@@ -123,28 +131,23 @@ export type AgentSessionStopReason =
 
 export type AgentSession = {
   id: string;
+  title: string; // from backend
   sources: SessionSource[]; // ordered snapshots; records are permanent once added
   permissionsMode: PermissionsMode; // session-level — applies uniformly to all sources
   messages: Array<AgentMessage>;
   status: AgentSessionStatus;
-  maxIterations: number;
   stopReason?: AgentSessionStopReason;
   stopMessage?: string;
+  updated_at: number; // from backend AgentSession
+  created_at: number; // from backend AgentSession
+  model_id: string | null; // from backend agent_sessions.model_id
 };
 
 export type ConfirmationRule = {
+  id: string;
   sessionId: string; // scoped to a session, not a source
   toolName: string; // bare tool name without alias prefix
   action: 'allow_always' | 'deny_always';
-};
-
-export type SessionMeta = {
-  sources: SessionSource[];
-  permissionsMode: PermissionsMode;
-  maxIterations: number;
-  title: string;
-  updatedAt: number;
-  modelId?: string | null;
 };
 
 // ── Alias derivation ─────────────────────────────────────────────────────────
@@ -319,7 +322,6 @@ export const useDataStudioStore = defineStore('dataStudio', {
     activeSessionId: string | undefined;
     sidebarSessionId: string | undefined;
     confirmationRules: Array<ConfirmationRule>;
-    sessionMeta: Record<string, SessionMeta>;
     toolResultFullBodies: Record<string, string>;
     sessionErrors: Record<string, string>;
     sessionProgress: Record<string, SessionProgress>;
@@ -329,19 +331,12 @@ export const useDataStudioStore = defineStore('dataStudio', {
     activeSessionId: undefined,
     sidebarSessionId: undefined,
     confirmationRules: [],
-    sessionMeta: {},
     toolResultFullBodies: {},
     sessionErrors: {},
     sessionProgress: {},
   }),
   persist: {
-    pick: [
-      'attachedSources',
-      'confirmationRules',
-      'sessionMeta',
-      'activeSessionId',
-      'sidebarSessionId',
-    ],
+    pick: ['activeSessionId', 'sidebarSessionId'],
   },
   getters: {
     activeSession(state): AgentSession | undefined {
@@ -356,28 +351,86 @@ export const useDataStudioStore = defineStore('dataStudio', {
   actions: {
     // ── Attached source management ──────────────────────────────────────────
 
-    addAttachedSource(source: AttachedSource): boolean {
+    async addAttachedSource(source: AttachedSource): Promise<boolean> {
       const exists = this.attachedSources.some(s => s.sourceId === source.sourceId);
       if (exists) return false;
+
+      await saveAttachedSource({
+        id: source.sourceId,
+        kind: source.kind,
+        alias: source.name,
+        name: source.name,
+        database_type: source.kind === 'database' ? (source as DatabaseSource).databaseType : null,
+        file_type: source.kind === 'file' ? (source as FileSource).fileType : null,
+        file_path: source.kind === 'file' ? (source as FileSource).filePath : null,
+        connection_id: source.kind === 'database' ? (source as DatabaseSource).connectionId : null,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      });
+
       this.attachedSources = [...this.attachedSources, source];
       return true;
     },
 
-    updateAttachedSource(
+    async updateAttachedSource(
       sourceId: string,
       patch: Partial<Omit<AttachedSource, 'sourceId' | 'kind'>>,
     ) {
       this.attachedSources = this.attachedSources.map(s =>
         s.sourceId === sourceId ? ({ ...s, ...patch } as AttachedSource) : s,
       );
+      const updated = this.attachedSources.find(s => s.sourceId === sourceId);
+      if (updated) {
+        await saveAttachedSource({
+          id: updated.sourceId,
+          kind: updated.kind,
+          alias: updated.name,
+          name: updated.name,
+          database_type:
+            updated.kind === 'database' ? (updated as DatabaseSource).databaseType : null,
+          file_type: updated.kind === 'file' ? (updated as FileSource).fileType : null,
+          file_path: updated.kind === 'file' ? (updated as FileSource).filePath : null,
+          connection_id:
+            updated.kind === 'database' ? (updated as DatabaseSource).connectionId : null,
+          created_at: undefined, // preserve existing DB value
+          updated_at: Date.now(),
+        });
+      }
     },
 
-    removeAttachedSource(sourceId: string) {
+    async removeAttachedSource(sourceId: string) {
       this.attachedSources = this.attachedSources.filter(s => s.sourceId !== sourceId);
+      await deleteAttachedSource(sourceId);
     },
 
     getAttachedSourceById(sourceId: string): AttachedSource | undefined {
       return this.attachedSources.find(s => s.sourceId === sourceId);
+    },
+
+    async loadAttachedSourcesFromDb(): Promise<void> {
+      const rows = await loadAttachedSources();
+      this.attachedSources = rows.map(row => {
+        const base = {
+          sourceId: row.id,
+          name: row.name ?? '',
+        };
+        if (row.kind === 'database') {
+          return {
+            ...base,
+            kind: 'database' as const,
+            connectionId: row.connection_id ?? 0,
+            databaseType: (row.database_type ?? 'ELASTICSEARCH') as DatabaseSource['databaseType'],
+            permissions: { read: true, create: false, update: false, delete: false },
+          } as DatabaseSource;
+        }
+        return {
+          ...base,
+          kind: 'file' as const,
+          fileType: (row.file_type ?? 'json') as FileSource['fileType'],
+          filePath: row.file_path ?? '',
+          permissions: { read: true },
+        } as FileSource;
+      });
     },
 
     // ── Backward compat: create a DatabaseSource from a connectionId + Connection ──
@@ -407,23 +460,33 @@ export const useDataStudioStore = defineStore('dataStudio', {
         permissions: params.permissions,
       };
       this.attachedSources = [...this.attachedSources, source];
+      saveAttachedSource({
+        id: source.sourceId,
+        kind: 'database',
+        alias: source.name,
+        name: source.name,
+        database_type: source.databaseType,
+        file_type: null,
+        file_path: null,
+        connection_id: source.connectionId,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      }).catch(() => {});
       return source;
     },
 
     // ── Session source management ────────────────────────────────────────────
 
-    attachSourceToActiveSession(source: AttachedSource): boolean {
+    async attachSourceToActiveSession(source: AttachedSource): Promise<boolean> {
       const session = this.activeSession;
       if (!session) return false;
       const updated = attachSourceToSession(session, source);
       this.sessions = this.sessions.map(s => (s.id === session.id ? updated : s));
-      if (this.sessionMeta[session.id]) {
-        this.sessionMeta[session.id].sources = updated.sources;
-      }
+      await updateSessionMeta(session.id, JSON.stringify(updated.sources)).catch(() => {});
       return true;
     },
 
-    detachSourceFromSession(sessionId: string, sourceId: string) {
+    async detachSourceFromSession(sessionId: string, sourceId: string) {
       const session = this.sessions.find(s => s.id === sessionId);
       if (!session) return;
       const updatedSources = session.sources.map(s =>
@@ -432,12 +495,10 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, sources: updatedSources } : s,
       );
-      if (this.sessionMeta[sessionId]) {
-        this.sessionMeta[sessionId].sources = updatedSources;
-      }
+      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(() => {});
     },
 
-    setSessionPermissionsMode(sessionId: string, mode: PermissionsMode) {
+    async setSessionPermissionsMode(sessionId: string, mode: PermissionsMode) {
       const writePerms = mode === 'Auto';
       const updatedSources = (this.sessions.find(s => s.id === sessionId)?.sources ?? []).map(s =>
         s.detached || s.permissionsMode === 'custom'
@@ -455,13 +516,10 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, permissionsMode: mode, sources: updatedSources } : s,
       );
-      if (this.sessionMeta[sessionId]) {
-        this.sessionMeta[sessionId].permissionsMode = mode;
-        this.sessionMeta[sessionId].sources = updatedSources;
-      }
+      await updateSessionMeta(sessionId, JSON.stringify(updatedSources), mode).catch(() => {});
     },
 
-    updateSessionSourcePermissions(
+    async updateSessionSourcePermissions(
       sessionId: string,
       sourceId: string,
       permissions: DataSourcePermissions,
@@ -472,12 +530,14 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, sources: updatedSources } : s,
       );
-      if (this.sessionMeta[sessionId]) {
-        this.sessionMeta[sessionId].sources = updatedSources;
-      }
+      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(() => {});
     },
 
-    updateSessionSourceMode(sessionId: string, sourceId: string, mode: SourcePermissionsMode) {
+    async updateSessionSourceMode(
+      sessionId: string,
+      sourceId: string,
+      mode: SourcePermissionsMode,
+    ) {
       const session = this.sessions.find(s => s.id === sessionId);
       const writePerms = session?.permissionsMode === 'Auto';
       const inheritedPermissions: DataSourcePermissions = {
@@ -498,8 +558,36 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, sources: updatedSources } : s,
       );
-      if (this.sessionMeta[sessionId]) {
-        this.sessionMeta[sessionId].sources = updatedSources;
+      await updateSessionMeta(sessionId, JSON.stringify(updatedSources)).catch(() => {});
+    },
+
+    // ── One-time migration from localStorage to SQLite ─────────────────────
+
+    async migrateFromLocalStorage(): Promise<void> {
+      try {
+        const raw = localStorage.getItem('dataStudio');
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        const hasMeta = parsed?.sessionMeta && Object.keys(parsed.sessionMeta).length > 0;
+        const hasRules = parsed?.confirmationRules?.length > 0;
+        const hasSources = parsed?.attachedSources?.length > 0;
+        if (!hasMeta && !hasRules && !hasSources) return;
+
+        await migrateSessionMetadata(
+          JSON.stringify(parsed.sessionMeta ?? {}),
+          JSON.stringify(parsed.confirmationRules ?? []),
+          JSON.stringify(parsed.attachedSources ?? []),
+        );
+
+        const state = { ...parsed };
+        delete state.sessionMeta;
+        delete state.confirmationRules;
+        delete state.attachedSources;
+        localStorage.setItem('dataStudio', JSON.stringify(state));
+
+        await this.loadAttachedSourcesFromDb();
+      } catch (e) {
+        console.error('[migrateFromLocalStorage] Migration failed:', e);
       }
     },
 
@@ -508,28 +596,26 @@ export const useDataStudioStore = defineStore('dataStudio', {
     async createSession(
       initialSources: SessionSource[] = [],
       permissionsMode: PermissionsMode = 'Ask',
-      maxIterations = 10,
       setActive = true,
+      title?: string,
     ): Promise<string> {
-      const title =
-        initialSources.length > 0 ? initialSources.map(s => s.alias).join(', ') : 'New Session';
-      const backend = await createAgentSession(title);
+      const sessionTitle =
+        title ??
+        (initialSources.length > 0 ? initialSources.map(s => s.alias).join(', ') : 'New Session');
+      const sourcesJson = JSON.stringify(initialSources);
+      const backend = await createAgentSession(sessionTitle, sourcesJson, permissionsMode, null);
       const newSession: AgentSession = {
         id: backend.id,
+        title: backend.title,
         sources: initialSources,
         permissionsMode,
         messages: [],
         status: 'idle',
-        maxIterations,
+        updated_at: backend.updated_at,
+        created_at: backend.created_at,
+        model_id: backend.model_id,
       };
       this.sessions = [...this.sessions, newSession];
-      this.sessionMeta[backend.id] = {
-        sources: initialSources,
-        permissionsMode,
-        maxIterations,
-        title,
-        updatedAt: backend.updated_at,
-      };
       if (setActive) this.activeSessionId = backend.id;
       return backend.id;
     },
@@ -549,11 +635,14 @@ export const useDataStudioStore = defineStore('dataStudio', {
       for (const source of sourcesToAttach) {
         const tmpSession: AgentSession = {
           id: '',
+          title: '',
           sources: sessionSources,
           permissionsMode: 'Ask',
           messages: [],
           status: 'idle',
-          maxIterations: 10,
+          updated_at: 0,
+          created_at: 0,
+          model_id: null,
         };
         const updated = attachSourceToSession(tmpSession, source);
         sessionSources.push(...updated.sources.slice(sessionSources.length));
@@ -566,7 +655,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
       if (this.sidebarSessionId && this.sessions.some(s => s.id === this.sidebarSessionId)) {
         return this.sidebarSessionId;
       }
-      const id = await this.createSession([], 'Ask', 10, false);
+      const id = await this.createSession([], 'Ask', false);
       this.sidebarSessionId = id;
       return id;
     },
@@ -863,17 +952,11 @@ export const useDataStudioStore = defineStore('dataStudio', {
       );
     },
 
-    setSessionMaxIterations(sessionId: string, maxIterations: number) {
-      this.sessions = this.sessions.map(s => (s.id === sessionId ? { ...s, maxIterations } : s));
-      if (this.sessionMeta[sessionId]) {
-        this.sessionMeta[sessionId].maxIterations = maxIterations;
-      }
-    },
-
-    setSessionModelId(sessionId: string, modelId: string | null) {
-      if (this.sessionMeta[sessionId]) {
-        this.sessionMeta[sessionId].modelId = modelId;
-      }
+    async setSessionModelId(sessionId: string, modelId: string | null) {
+      this.sessions = this.sessions.map(s =>
+        s.id === sessionId ? { ...s, model_id: modelId } : s,
+      );
+      await updateSessionMeta(sessionId, undefined, undefined, modelId).catch(() => {});
     },
 
     async reloadSessionMessages(sessionId: string) {
@@ -899,19 +982,33 @@ export const useDataStudioStore = defineStore('dataStudio', {
 
     // ── Confirmation rules ───────────────────────────────────────────────────
 
+    async loadConfirmationRulesFromDb(sessionId: string): Promise<void> {
+      const rows = await loadConfirmationRules(sessionId);
+      const sessionRules = rows.map(row => ({
+        id: row.id,
+        sessionId: row.session_id,
+        toolName: row.tool_name,
+        action: row.action as 'allow_always' | 'deny_always',
+      }));
+      // Merge: keep rules for other sessions, replace rules for this session
+      this.confirmationRules = [
+        ...this.confirmationRules.filter(r => r.sessionId !== sessionId),
+        ...sessionRules,
+      ];
+    },
+
     findConfirmationRule(sessionId: string, toolName: string): ConfirmationRule | undefined {
       return this.confirmationRules.find(r => r.sessionId === sessionId && r.toolName === toolName);
     },
 
-    addConfirmationRule(rule: ConfirmationRule) {
-      const index = this.confirmationRules.findIndex(
-        r => r.sessionId === rule.sessionId && r.toolName === rule.toolName,
-      );
-      if (index !== -1) {
-        this.confirmationRules = this.confirmationRules.map((r, i) => (i === index ? rule : r));
-      } else {
-        this.confirmationRules = [...this.confirmationRules, rule];
-      }
+    async addConfirmationRule(rule: ConfirmationRule): Promise<void> {
+      await saveConfirmationRule(rule.sessionId, rule.toolName, rule.action);
+      await this.loadConfirmationRulesFromDb(rule.sessionId);
+    },
+
+    async removeConfirmationRule(id: string): Promise<void> {
+      await deleteConfirmationRule(id);
+      this.confirmationRules = this.confirmationRules.filter(r => r.id !== id);
     },
 
     // ── Session CRUD ─────────────────────────────────────────────────────────
@@ -937,23 +1034,23 @@ export const useDataStudioStore = defineStore('dataStudio', {
       const backendSessions = await loadAgentSessions();
       const loaded = await Promise.all(
         backendSessions.map(async (s: BackendAgentSession) => {
-          const raw = this.sessionMeta[s.id] as
-            | (SessionMeta & { connectionId?: number })
-            | undefined;
           const backendMessages = await loadSessionMessages(s.id).catch(
             () => [] as BackendAgentMessage[],
           );
           const messages: Array<AgentMessage> = dedupAdjacentCompactions(
             backendMessages.map(hydrateMessage),
           );
-          const sources: SessionSource[] = raw?.sources ?? [];
+          const sources: SessionSource[] = s.sources ? JSON.parse(s.sources) : [];
           return {
             id: s.id,
+            title: s.title,
             sources,
-            permissionsMode: raw?.permissionsMode ?? ('Ask' as PermissionsMode),
+            permissionsMode: s.permissions_mode as PermissionsMode,
             messages,
             status: s.status as AgentSessionStatus,
-            maxIterations: raw?.maxIterations ?? 10,
+            updated_at: s.updated_at,
+            created_at: s.created_at,
+            model_id: s.model_id ?? null,
           };
         }),
       );
@@ -970,8 +1067,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
     async removeSession(sessionId: string) {
       await deleteAgentSession(sessionId).catch(() => undefined);
       this.sessions = this.sessions.filter(s => s.id !== sessionId);
-      const { [sessionId]: _, ...rest } = this.sessionMeta;
-      this.sessionMeta = rest;
+      // confirmation_rules are CASCADE deleted by the DB — no cleanup needed
       if (this.activeSessionId === sessionId) {
         this.activeSessionId = this.sessions[0]?.id;
       }
