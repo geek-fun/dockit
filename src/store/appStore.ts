@@ -5,7 +5,11 @@ import {
   HISTORY_CAP_MAX,
   HISTORY_CAP_DEFAULT,
   CHAT_RUNTIME_DEFAULTS,
+  LLM_SETTINGS_SCHEMA_VERSION,
+  CustomError,
+  ErrorCodes,
 } from '../common';
+import { lang } from '../lang';
 import { chatBotApi, ProviderEnum, storeApi, validateLlmConfig } from '../datasources';
 
 export enum ThemeType {
@@ -582,20 +586,21 @@ export const useAppStore = defineStore('app', {
       );
       if (storedSettings) {
         this.llmSettings = mergeLlmSettings(storedSettings);
-        // Load chat settings from dedicated key (more reliable)
-        const storedChat = await storeApi.getSecret<ChatRuntimeConfig | undefined>(
-          'chatSettings',
+        const storedVersion = await storeApi.get<number | undefined>(
+          'llmSettingsVersion',
           undefined,
         );
-        if (storedChat) {
-          this.llmSettings.chat = {
-            autoCompact: storedChat.autoCompact ?? CHAT_RUNTIME_DEFAULTS.autoCompact,
-            maxIterations: storedChat.maxIterations ?? CHAT_RUNTIME_DEFAULTS.maxIterations,
-            wallClockBudgetMin:
-              storedChat.wallClockBudgetMin ?? CHAT_RUNTIME_DEFAULTS.wallClockBudgetMin,
-            tokenBudget: storedChat.tokenBudget ?? CHAT_RUNTIME_DEFAULTS.tokenBudget,
-          };
+
+        // V1 migration: reset autoCompact to true for persisted data from old bug
+        if (!storedVersion || storedVersion < LLM_SETTINGS_SCHEMA_VERSION) {
+          this.llmSettings.chat.autoCompact = CHAT_RUNTIME_DEFAULTS.autoCompact;
+          await Promise.all([
+            storeApi.set('llmSettingsVersion', LLM_SETTINGS_SCHEMA_VERSION),
+            storeApi.setSecret('llmSettings', pureObject(this.llmSettings)),
+          ]);
         }
+        storeApi.delete('chatStore').catch(() => {});
+        storeApi.delete('chatSettings').catch(() => {});
         return this.llmSettings;
       }
 
@@ -603,6 +608,9 @@ export const useAppStore = defineStore('app', {
       this.llmSettings =
         legacyAiConfigs.length > 0 ? migrateLegacyAiConfigs(legacyAiConfigs) : defaultLlmSettings();
       await storeApi.setSecret('llmSettings', pureObject(this.llmSettings));
+      await storeApi.set('llmSettingsVersion', LLM_SETTINGS_SCHEMA_VERSION);
+      storeApi.delete('chatStore').catch(() => {});
+      storeApi.delete('chatSettings').catch(() => {});
       return this.llmSettings;
     },
     async persistLlmSettings() {
@@ -619,10 +627,7 @@ export const useAppStore = defineStore('app', {
       const previous = { ...this.llmSettings.chat };
       Object.assign(this.llmSettings.chat, chat);
       try {
-        await Promise.all([
-          storeApi.setSecret('chatSettings', pureObject(this.llmSettings.chat)),
-          storeApi.setSecret('llmSettings', pureObject(this.llmSettings)),
-        ]);
+        await storeApi.setSecret('llmSettings', pureObject(this.llmSettings));
         return { success: true };
       } catch (err) {
         this.llmSettings.chat = previous;
@@ -772,6 +777,16 @@ export const useAppStore = defineStore('app', {
       }
 
       return { provider, model: resolvedModel };
+    },
+    async getFeatureModelConfig(feature: 'sidebarAssistant' | 'dataStudio') {
+      await this.fetchLlmSettings();
+      const resolved = this.getResolvedFeatureModel(feature);
+
+      if (!resolved) {
+        throw new CustomError(ErrorCodes.MISSING_GPT_CONFIG, lang.global.t('setting.ai.missing'));
+      }
+
+      return resolved as { provider: ProviderConfig; model: ModelRef };
     },
   },
 });

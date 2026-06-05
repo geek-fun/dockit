@@ -173,7 +173,7 @@
 - **Supported providers**: Anything OpenAI-compatible. **Single protocol, multiple endpoints** — OpenAI, DeepSeek, OpenRouter, Ollama, LM Studio. Anthropic/Bedrock/Vertex would require new code paths.
 - **Provider quirks**: None handled — relies on OpenAI compatibility of all endpoints.
 - **Foundation**: `async-openai` Rust crate.
-- **Configuration**: Per-feature model config (`getFeatureModelConfig` in `chatStore`) — `{ apiKey, baseUrl, httpProxy }` passed per-call.
+- **Configuration**: Per-feature model config (`getFeatureModelConfig` in `appStore`) — `{ apiKey, baseUrl, httpProxy }` passed per-call.
 - **Proxy support**: Per-profile via reqwest client builder.
 
 ### Key Differences

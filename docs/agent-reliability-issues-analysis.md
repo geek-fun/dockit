@@ -256,5 +256,5 @@ Three follow-up PRs, in order of impact:
 - `src/components/ui/ScrollArea.vue` — viewport ref
 - `src/views/data-studio/index.vue`, `src/layout/components/chatbot-box.vue` — chat hosts
 - `src/composables/useChatAgent.ts`, `useDataStudioChatAgent.ts`, `useSidebarChatAgent.ts` — listen/unlisten audit
-- `src/store/dataStudioStore.ts`, `src/store/chatStore.ts` — unbounded `messages[]`
+- `src/store/dataStudioStore.ts` — unbounded `messages[]`
 - `src/datasources/agentApi.ts` — backend command map

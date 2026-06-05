@@ -122,7 +122,7 @@ Modifying any of these requires the systemic impact analysis defined in the glob
 |---|---|---|---|
 | `PROVIDER_PRESETS` | `src/store/appStore.ts` | `defaultProviderConfigs()`, `createProviderConfig()`, UI dropdown | Missing/wrong `apiCompatibility` → provider silently broken |
 | `storeApi` | `src/datasources/storeApi.ts` | All Pinia stores | Save/load failure → settings lost on restart |
-| `chatBotApi` | `src/datasources/chatBotApi.ts` | `aigc.vue`, `appStore.ts`, `chatStore.ts` | Wrong provider string → Tauri command maps to wrong API path |
+| `chatBotApi` | `src/datasources/chatBotApi.ts` | `aigc.vue`, `appStore.ts` | Wrong provider string → Tauri command maps to wrong API path |
 | `saveChatSettings()` | `src/store/appStore.ts` | `aigc.vue` (setAutoCompact, etc.) | Chat settings not persisted or wrong defaults |
 
 ### Typical Caller Counts
