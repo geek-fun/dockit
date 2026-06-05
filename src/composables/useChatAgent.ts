@@ -290,6 +290,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
 
   const activeSession = config.sessionStore.activeSession;
   const dataStudioStore = useDataStudioStore();
+  const appStore = useAppStore();
   const isLoading = computed(
     () =>
       activeSession.value?.status === 'running' ||
@@ -306,7 +307,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
   const initContextSettings = async (): Promise<void> => {
     if (lastSettings.value) return;
     try {
-      const { provider, model } = await useAppStore().getFeatureModelConfig(config.feature);
+      const { provider, model } = await appStore.getFeatureModelConfig(config.feature);
       lastSettings.value = {
         provider: provider.apiCompatibility,
         apiCompatibility: provider.apiCompatibility,
@@ -315,7 +316,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         baseUrl: provider.baseUrl,
         httpProxy: provider.proxy || undefined,
         proxyMode: provider.proxyMode,
-        ...useAppStore().chatConfig,
+        ...appStore.chatConfig,
         contextWindowOverride: provider.contextWindowOverride,
       };
     } catch {
@@ -344,7 +345,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
     dataStudioStore.clearSessionError(sessionId);
 
     try {
-      const { provider, model } = await useAppStore().getFeatureModelConfig(config.feature);
+      const { provider, model } = await appStore.getFeatureModelConfig(config.feature);
       const schema = session.schema ?? context?.schema;
 
       let systemPrompt = buildSystemPrompt({
@@ -372,7 +373,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         // based on connection state. DocKit tools (dockit__list_connections)
         // are always available regardless of connection.
         tools: runtime.tools ?? [],
-        ...useAppStore().chatConfig,
+        ...appStore.chatConfig,
         contextWindowOverride: provider.contextWindowOverride,
       };
 
