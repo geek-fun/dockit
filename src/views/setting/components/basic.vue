@@ -60,7 +60,7 @@
         >
           <RadioGroupItem :id="`lang-${langItem.type}`" :value="langItem.type" />
           <Label :for="`lang-${langItem.type}`" class="font-medium cursor-pointer text-sm">
-            {{ langItem.name === 'auto' ? $t('setting.auto') : langItem.name }}
+            {{ $t(langItem.name) }}
           </Label>
         </div>
       </RadioGroup>
@@ -114,9 +114,9 @@ const themeTypes = [
   { type: ThemeType.LIGHT, img: lightImg, name: 'light' },
 ];
 const langTypes = [
-  { type: LanguageType.AUTO, name: 'auto' },
-  { type: LanguageType.ZH_CN, name: '简体中文' },
-  { type: LanguageType.EN_US, name: 'English' },
+  { type: LanguageType.AUTO, name: 'setting.auto' },
+  { type: LanguageType.ZH_CN, name: 'setting.zhCN' },
+  { type: LanguageType.EN_US, name: 'setting.enUS' },
 ];
 
 const setTheme = (type: ThemeType) => {

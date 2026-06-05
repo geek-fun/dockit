@@ -316,10 +316,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         baseUrl: provider.baseUrl,
         httpProxy: provider.proxy || undefined,
         proxyMode: provider.proxyMode,
-        autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
-        maxIterations: useAppStore().llmSettings.chat?.maxIterations ?? 200,
-        wallClockBudgetMin: useAppStore().llmSettings.chat?.wallClockBudgetMin ?? 30,
-        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 20_000_000,
+        ...useAppStore().chatConfig,
         contextWindowOverride: provider.contextWindowOverride,
       };
     } catch {
@@ -376,10 +373,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         // based on connection state. DocKit tools (dockit__list_connections)
         // are always available regardless of connection.
         tools: runtime.tools ?? [],
-        autoCompact: useAppStore().llmSettings.chat?.autoCompact ?? true,
-        maxIterations: useAppStore().llmSettings.chat?.maxIterations ?? 200,
-        wallClockBudgetMin: useAppStore().llmSettings.chat?.wallClockBudgetMin ?? 30,
-        tokenBudget: useAppStore().llmSettings.chat?.tokenBudget ?? 20_000_000,
+        ...useAppStore().chatConfig,
         contextWindowOverride: provider.contextWindowOverride,
       };
 
