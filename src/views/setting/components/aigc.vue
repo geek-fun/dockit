@@ -824,7 +824,7 @@ const saveDraftProvider = async () => {
   });
 
   closeProviderDialog();
-  message.success('Provider saved.');
+  message.success(lang.t('setting.ai.providers.message.saved'));
 };
 
 const removeProvider = (providerId: string) => {
@@ -835,7 +835,7 @@ const removeProvider = (providerId: string) => {
     negativeText: lang.t('dialogOps.cancel'),
     onPositiveClick: async () => {
       await appStore.resetProviderConfig(providerId);
-      message.success('Provider removed.');
+      message.success(lang.t('setting.ai.providers.message.removed'));
     },
   });
 };
@@ -845,7 +845,9 @@ const syncProviderModels = async (providerId: string) => {
   try {
     const models = await appStore.syncProviderModels(providerId);
     message.success(
-      models.length > 0 ? 'Model catalog refreshed.' : 'No models found for this provider.',
+      models.length > 0
+        ? lang.t('setting.ai.providers.message.catalogRefreshed')
+        : lang.t('setting.ai.providers.message.noModelsFound'),
     );
   } catch (err) {
     message.error((err as Error).message, { closable: true, keepAliveOnHover: true });
@@ -859,10 +861,10 @@ const testProvider = async (providerId: string) => {
   try {
     const result = await appStore.testProvider(providerId);
     if (result.valid) {
-      message.success('Provider connection successful.');
+      message.success(lang.t('setting.ai.providers.message.connectionSuccess'));
       return;
     }
-    message.error(result.error || 'Unable to connect with the current provider configuration.', {
+    message.error(result.error || lang.t('setting.ai.providers.message.connectionFailed'), {
       closable: true,
       keepAliveOnHover: true,
     });
@@ -874,9 +876,9 @@ const testProvider = async (providerId: string) => {
 const providerAuthLabel = (provider: ProviderConfig) => {
   switch (provider.authMode) {
     case 'none':
-      return 'Local endpoint';
+      return lang.t('setting.ai.providers.label.localEndpoint');
     default:
-      return 'API key';
+      return lang.t('setting.ai.providers.label.apiKey');
   }
 };
 
@@ -888,26 +890,28 @@ const providerEndpointSummary = (provider: ProviderConfig) => {
     return provider.baseUrl || 'http://127.0.0.1:1234/v1';
   }
   if (provider.kind === 'custom-openai') {
-    return provider.baseUrl || 'Custom endpoint';
+    return provider.baseUrl || lang.t('setting.ai.providers.label.customEndpoint');
   }
-  return provider.proxy?.trim() ? `Proxy: ${provider.proxy}` : 'Managed endpoint';
+  return provider.proxy?.trim()
+    ? lang.t('setting.ai.providers.label.proxyPrefix', { proxy: provider.proxy })
+    : lang.t('setting.ai.providers.label.managedEndpoint');
 };
 
 const providerStatusMessage = (provider: ProviderConfig) => {
   if (provider.connected) {
-    return 'Ready for AI Assistant and Data Studio.';
+    return lang.t('setting.ai.providers.label.ready');
   }
   if (provider.discoveredModels.length > 0) {
-    return 'Models are available. Run connection test to verify credentials.';
+    return lang.t('setting.ai.providers.label.modelsAvailable');
   }
-  return 'Refresh models after saving credentials to populate the shared catalog.';
+  return lang.t('setting.ai.providers.label.refreshModels');
 };
 
 const providerSyncLabel = (provider: ProviderConfig) => {
   if (provider.discoveredModels.length === 0) {
-    return 'No models synced yet';
+    return lang.t('setting.ai.providers.label.noModelsSynced');
   }
-  return `${provider.discoveredModels.length} models available`;
+  return lang.t('setting.ai.providers.label.modelsCount', { n: provider.discoveredModels.length });
 };
 
 const providerBaseUrlPlaceholder = (kind: ProviderKind) => {

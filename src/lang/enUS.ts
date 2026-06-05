@@ -45,6 +45,8 @@ export const enUS = {
     themeDesc: 'Choose your preferred theme appearance',
     language: 'Language',
     languageDesc: 'Select your preferred language',
+    zhCN: '简体中文',
+    enUS: 'English',
     about: 'About Us',
     auto: 'Follow OS',
     dark: 'Dark Theme',
@@ -152,6 +154,26 @@ export const enUS = {
           'Remove this provider? This will clear all credentials and model settings.',
         customAnthropicDescription:
           'Anthropic-compatible endpoint. Uses API key authentication and the /v1/messages format.',
+        message: {
+          saved: 'Provider saved.',
+          removed: 'Provider removed.',
+          catalogRefreshed: 'Model catalog refreshed.',
+          noModelsFound: 'No models found for this provider.',
+          connectionSuccess: 'Provider connection successful.',
+          connectionFailed: 'Unable to connect with the current provider configuration.',
+        },
+        label: {
+          localEndpoint: 'Local endpoint',
+          apiKey: 'API key',
+          ready: 'Ready for AI Assistant and Data Studio.',
+          modelsAvailable: 'Models are available. Run connection test to verify credentials.',
+          refreshModels: 'Refresh models after saving credentials to populate the shared catalog.',
+          noModelsSynced: 'No models synced yet',
+          modelsCount: '{n} models available',
+          customEndpoint: 'Custom endpoint',
+          managedEndpoint: 'Managed endpoint',
+          proxyPrefix: 'Proxy: {proxy}',
+        },
       },
 
       chat: {
@@ -408,6 +430,7 @@ export const enUS = {
       deleteIndexConfirm: 'Are you sure you want to delete this index?',
       deleteIndexSuccess: 'Index deleted successfully',
       createGsiTitle: 'Create Global Secondary Index',
+      modifyGsiTitle: 'Modify Global Secondary Index',
       indexDetails: 'Index Details',
       indexCapacity: 'Index Capacity',
       warmThroughput: 'Warm Throughput',
@@ -846,12 +869,19 @@ export const enUS = {
       authNone: 'No Auth',
       authScram: 'SCRAM Auth',
       authUri: 'URI Auth',
+      authLabelNone: 'No Auth',
+      authLabelScram: 'SCRAM',
+      authLabelUri: 'URI',
+      authTypeNone: 'No Authentication',
+      authTypeScram: 'SCRAM Authentication',
+      authTypeUri: 'URI Connection String',
       collectionCount: '{count} collections',
       connectSuccess: 'MongoDB connection successful',
       editorComingSoon: 'MongoDB query editor coming soon...',
     },
 
     connectionTarget: 'Connection Target',
+    notFound: 'Connection not found',
   },
   toolBar: {
     includeSystemIndices: 'Include System indices',
@@ -889,6 +919,8 @@ export const enUS = {
     reset: 'Reset',
     saveAndEnable: 'Save & Enable',
     execute: 'Run',
+    executing: 'Executing...',
+    noActiveTable: 'No active table selected',
     createFolder: 'Create Folder',
     overwrite: 'Overwrite',
 
@@ -900,6 +932,7 @@ export const enUS = {
     copySuccess: 'Copied to clipboard',
     copyFailure: 'Failed to copy to clipboard',
     unsupportedFile: 'DocKit only supports .search, .partiql and .mongo files',
+    showContextMenu: 'Show Context Menu',
     sampleQueries: 'Sample Queries',
     es: {
       sampleClusterHealth: 'Cluster Health',
@@ -925,6 +958,7 @@ export const enUS = {
       },
     },
     dynamo: {
+      noData: 'No data available',
       uiQuery: 'Query UI',
       sqlEditor: 'PartiQL Editor',
       tableOrIndex: 'Table/Index',
@@ -1056,6 +1090,7 @@ export const enUS = {
   },
   file: {
     newFile: 'New File',
+    newFileFailed: 'Failed to create new file',
     newFolder: 'New Folder',
     open: 'Open Folder',
     contextMenu: {
@@ -1065,6 +1100,7 @@ export const enUS = {
     },
     rename: 'Rename',
     name: 'Name',
+    validationFailed: 'Form validation failed!',
     sortBy: {
       name: 'Name',
       dateModified: 'Date Modified',
@@ -1501,6 +1537,9 @@ export const enUS = {
       inheritDesc: 'Permissions follow the session-level setting and update automatically.',
       customTitle: 'Custom',
       customDesc: 'Manually define which operations are allowed for this source.',
+      autoMode: 'Auto Mode',
+      autoModeDesc:
+        'When enabled, elevated and destructive tools run automatically. Safe tools always execute without confirmation.',
       read: 'Read',
       create: 'Create',
       update: 'Update',
@@ -1536,6 +1575,12 @@ export const enUS = {
         deny: 'Deny',
         denyAlways: 'Deny Always',
         cancel: 'Cancel',
+        status: {
+          executing: 'Executing…',
+          denied: 'Denied',
+          allowed: 'Allowed',
+          error: 'Error',
+        },
       },
       riskLevel: {
         safe: 'Safe',

@@ -271,7 +271,7 @@ const executePartiqlStatement = async (statement: string, nextToken?: string | n
     return match?.[1] ?? activePanel.value?.activeTable;
   })();
   if (!tableName) {
-    message.error('No active table selected');
+    message.error(lang.t('dialogOps.noActiveTable'));
     loadingRef.value = false;
     loadingBar.finish();
     return;
@@ -718,7 +718,7 @@ const setupEditor = () => {
   // Keyboard shortcut for context menu (Shift+F10 or ContextMenu key)
   editor.addAction({
     id: 'show-context-menu',
-    label: 'Show Context Menu',
+    label: lang.t('editor.showContextMenu'),
     keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.F10],
     run: ed => {
       const position = ed.getPosition();

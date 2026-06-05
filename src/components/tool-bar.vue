@@ -194,7 +194,7 @@
         @click="handleExecuteQuery"
       >
         <span class="i-carbon-play-filled-alt mr-1 h-4 w-4" />
-        {{ isExecuting ? 'Executing...' : $t('dialogOps.execute') }}
+        {{ isExecuting ? $t('dialogOps.executing') : $t('dialogOps.execute') }}
       </Button>
     </div>
 

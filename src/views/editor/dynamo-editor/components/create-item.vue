@@ -399,7 +399,7 @@ const handleSubmit = async (event: MouseEvent) => {
     loadingRef.value.createItem = true;
     const tableName = tabStore.activePanel?.activeTable;
     if (!tableName) {
-      message.error('No active table selected');
+      message.error(lang.t('dialogOps.noActiveTable'));
       return;
     }
     const tableSummary = findTable(activeConnection.value as DynamoDBConnection, tableName);

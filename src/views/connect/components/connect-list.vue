@@ -418,9 +418,9 @@ const getEsAuthType = (
 const getMongoAuthLabel = (connection: Connection): string => {
   if (connection.type !== DatabaseType.MONGODB) return '';
   const mongo = connection as MongoDBConnection;
-  if (mongo.auth.kind === 'scram') return 'SCRAM';
-  if (mongo.auth.kind === 'uri') return 'URI';
-  return 'No Auth';
+  if (mongo.auth.kind === 'scram') return lang.t('connection.mongodb.authLabelScram');
+  if (mongo.auth.kind === 'uri') return lang.t('connection.mongodb.authLabelUri');
+  return lang.t('connection.mongodb.authLabelNone');
 };
 
 const getMongoAuthType = (
@@ -430,18 +430,18 @@ const getMongoAuthType = (
   const mongo = connection as MongoDBConnection;
   if (mongo.auth.kind === 'scram')
     return {
-      label: 'SCRAM Authentication',
+      label: lang.t('connection.mongodb.authTypeScram'),
       icon: 'i-carbon-password',
       color: 'text-blue-500',
     };
   if (mongo.auth.kind === 'uri')
     return {
-      label: 'URI Connection String',
+      label: lang.t('connection.mongodb.authTypeUri'),
       icon: 'i-carbon-link',
       color: 'text-purple-500',
     };
   return {
-    label: 'No Authentication',
+    label: lang.t('connection.mongodb.authTypeNone'),
     icon: 'i-carbon-subtract',
     color: 'text-muted-foreground',
   };

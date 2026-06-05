@@ -304,7 +304,7 @@ const copyCurlAction = (position: monaco.Range) => {
     );
     message.success(lang.t('editor.copySuccess'));
   } catch (err) {
-    message.error(`${lang.t('editor.copyFailed')}: ${jsonify.stringify(err)}`, {
+    message.error(`${lang.t('editor.copyFailure')}: ${jsonify.stringify(err)}`, {
       closable: true,
       keepAliveOnHover: true,
     });
@@ -566,7 +566,7 @@ const setupQueryEditor = () => {
   // Keyboard shortcut for context menu (Shift+F10 or ContextMenu key)
   queryEditor.addAction({
     id: 'show-context-menu',
-    label: 'Show Context Menu',
+    label: lang.t('editor.showContextMenu'),
     keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.F10],
     run: ed => {
       const position = ed.getPosition();

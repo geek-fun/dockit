@@ -403,7 +403,7 @@ const queryToDynamo = async (event?: MouseEvent) => {
   const { partitionKey, sortKey, formFilterItems, index } = dynamoQueryForm.value;
   const tableName = activePanel.value?.activeTable;
   if (!tableName) {
-    message.error('No active table selected');
+    message.error(lang.t('dialogOps.noActiveTable'));
     return;
   }
 

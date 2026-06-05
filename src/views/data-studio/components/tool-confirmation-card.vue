@@ -2,6 +2,8 @@
 import { computed } from 'vue';
 import { Button } from '@/components/ui/button';
 import type { AgentToolCall } from '@/store/dataStudioStore';
+import { useLang } from '@/lang';
+const lang = useLang();
 
 export type ConfirmationAction = {
   toolCallId: string;
@@ -35,13 +37,25 @@ const stateLabel = computed(() => {
     case 'pending':
       return null;
     case 'executing':
-      return { icon: 'i-carbon-renew animate-spin', text: 'Executing…' };
+      return {
+        icon: 'i-carbon-renew animate-spin',
+        text: lang.t('dataStudio.agent.toolConfirmation.status.executing'),
+      };
     case 'denied':
-      return { icon: 'i-carbon-subtract', text: 'Denied' };
+      return {
+        icon: 'i-carbon-subtract',
+        text: lang.t('dataStudio.agent.toolConfirmation.status.denied'),
+      };
     case 'done':
-      return { icon: 'i-carbon-checkmark', text: 'Allowed' };
+      return {
+        icon: 'i-carbon-checkmark',
+        text: lang.t('dataStudio.agent.toolConfirmation.status.allowed'),
+      };
     case 'error':
-      return { icon: 'i-carbon-warning', text: 'Error' };
+      return {
+        icon: 'i-carbon-warning',
+        text: lang.t('dataStudio.agent.toolConfirmation.status.error'),
+      };
     default:
       return null;
   }
