@@ -22,6 +22,10 @@ use agent::loop_runner::{
     cancel_agent_loop, compact_agent_session, confirm_tool_call, get_agent_context_usage,
     get_tool_full_result, run_agent_loop, CancelMap, ConfirmMap,
 };
+use agent::query_history::{
+    add_query_history_entry, clear_query_history, delete_query_history_entry,
+    load_query_history, toggle_query_history_star,
+};
 use agent::session_store::{
     clear_agent_session_messages, create_agent_session, delete_agent_session, export_agent_session,
     import_agent_session, load_agent_sessions, load_session_messages, recover_stuck_sessions,
@@ -132,6 +136,11 @@ pub fn run() {
             load_session_messages,
             export_agent_session,
             import_agent_session,
+            load_query_history,
+            add_query_history_entry,
+            toggle_query_history_star,
+            delete_query_history_entry,
+            clear_query_history,
         ])
         .setup(|app| {
             menu::create_menu(app)?;
