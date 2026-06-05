@@ -292,7 +292,7 @@ const executePartiqlStatement = async (statement: string, nextToken?: string | n
         path: tableName,
         qdsl: statement,
         connectionName: activeConnection.value.name,
-        connectionId: activeConnection.value.id,
+        connectionId: activeConnection.value.id!,
       });
     }
 
