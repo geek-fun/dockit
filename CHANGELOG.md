@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-06-05
+
+### Added
+
+- Move session metadata from localStorage to agent.sqlite (#458)
+- Migrate query history from .store.dat to agent.sqlite (#457)
+
+### Fixed
+
+- Reset autoCompact to true, remove dead useChatStore, and clean up redundant chatSettings key (#456)
+- Comprehensive review and sync of all EN/ZH translations (#454)
+
 ## [1.1.0] - 2026-06-04
 
 ### Added
