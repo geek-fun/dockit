@@ -437,7 +437,7 @@ const queryToDynamo = async (event?: MouseEvent) => {
       index: index ?? undefined,
       qdsl: queryDesc || undefined,
       connectionName: conn.name,
-      connectionId: conn.id,
+      connectionId: conn.id!,
     });
 
     editorSize.value = 0.5;

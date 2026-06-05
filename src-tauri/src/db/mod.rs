@@ -61,6 +61,26 @@ pub fn migrate(db: &AgentDb) -> Result<(), String> {
         CREATE INDEX IF NOT EXISTS idx_agent_messages_session ON agent_messages(session_id, created_at);
         CREATE INDEX IF NOT EXISTS idx_agent_tool_calls_session ON agent_tool_calls(session_id);
         CREATE INDEX IF NOT EXISTS idx_tool_result_store_call ON tool_result_store(tool_call_id);
+        CREATE TABLE IF NOT EXISTS query_history (
+            id TEXT PRIMARY KEY,
+            timestamp INTEGER NOT NULL,
+            database_type TEXT,
+            method TEXT NOT NULL,
+            path TEXT NOT NULL DEFAULT '',
+            index_name TEXT,
+            qdsl TEXT,
+            connection_name TEXT NOT NULL,
+            connection_id TEXT,
+            mongo_operation TEXT,
+            mongo_collection TEXT,
+            mongo_database TEXT,
+            mongo_duration INTEGER,
+            mongo_result_count INTEGER,
+            starred INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_query_history_connection ON query_history(connection_id, timestamp DESC);
+        CREATE INDEX IF NOT EXISTS idx_query_history_starred ON query_history(starred) WHERE starred = 1;
+        DELETE FROM query_history WHERE connection_id IS NULL;
         "#,
     )
     .map_err(|e| format!("Failed to migrate db: {}", e))?;

@@ -240,7 +240,7 @@ const executeQueryAction = async (position: { column: number; lineNumber: number
       index: action.index,
       qdsl: transformQDSL(action),
       connectionName: activeConnection.value.name,
-      connectionId: activeConnection.value.id,
+      connectionId: activeConnection.value.id!,
     });
 
     const format = new URLSearchParams(action.queryParams ?? '').get('format') ?? undefined;
