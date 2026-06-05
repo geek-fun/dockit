@@ -2,6 +2,40 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { jsonify } from '../common';
 
+export type QueryHistoryEntry = {
+  id: string;
+  timestamp: number;
+  databaseType?: string | null;
+  method: string;
+  path: string;
+  indexName?: string | null;
+  qdsl?: string | null;
+  connectionName: string;
+  connectionId?: string | null;
+  mongoOperation?: string | null;
+  mongoCollection?: string | null;
+  mongoDatabase?: string | null;
+  mongoDuration?: number | null;
+  mongoResultCount?: number | null;
+  starred: boolean;
+};
+
+export type AddQueryHistoryInput = {
+  databaseType?: string | null;
+  method: string;
+  path: string;
+  indexName?: string | null;
+  qdsl?: string | null;
+  connectionName: string;
+  connectionId?: string | null;
+  mongoOperation?: string | null;
+  mongoCollection?: string | null;
+  mongoDatabase?: string | null;
+  mongoDuration?: number | null;
+  mongoResultCount?: number | null;
+  historyCap: number;
+};
+
 export type AgentSession = {
   id: string;
   title: string;
@@ -127,6 +161,15 @@ const agentApi = {
   },
 };
 
+const loadQueryHistory = () => invoke<QueryHistoryEntry[]>('load_query_history');
+const addQueryHistoryEntry = (input: AddQueryHistoryInput) =>
+  invoke<QueryHistoryEntry>('add_query_history_entry', { input });
+const toggleQueryHistoryStar = (id: string) =>
+  invoke<void>('toggle_query_history_star', { id });
+const deleteQueryHistoryEntry = (id: string) =>
+  invoke<void>('delete_query_history_entry', { id });
+const clearQueryHistory = () => invoke<void>('clear_query_history');
+
 const loadAgentSessions = () => invoke<AgentSession[]>('load_agent_sessions');
 const createAgentSession = (title: string) =>
   invoke<AgentSession>('create_agent_session', { title });
@@ -250,6 +293,11 @@ const onAgentContextUsage = (handler: (payload: ContextUsage) => void) =>
 
 export {
   agentApi,
+  loadQueryHistory,
+  addQueryHistoryEntry,
+  toggleQueryHistoryStar,
+  deleteQueryHistoryEntry,
+  clearQueryHistory,
   validateLlmConfig,
   loadAgentSessions,
   createAgentSession,

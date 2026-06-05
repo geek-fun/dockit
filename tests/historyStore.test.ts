@@ -1,9 +1,13 @@
 import { setActivePinia, createPinia } from 'pinia';
 import { useHistoryStore } from '../src/store/historyStore';
-import type { HistoryEntry } from '../src/store/historyStore';
 import { DatabaseType } from '../src/store/connectionStore';
 
+let mockInvoke = jest.fn();
 const mockStore = new Map<string, unknown>();
+
+jest.mock('@tauri-apps/api/core', () => ({
+  invoke: (...args: unknown[]) => mockInvoke(...args),
+}));
 
 jest.mock('../src/datasources', () => ({
   storeApi: {
@@ -11,6 +15,9 @@ jest.mock('../src/datasources', () => ({
       (mockStore.get(key) as T) ?? defaultValue,
     set: async (key: string, value: unknown) => {
       mockStore.set(key, value);
+    },
+    delete: async (key: string) => {
+      mockStore.delete(key);
     },
   },
 }));
@@ -31,18 +38,65 @@ jest.mock('../src/store/appStore', () => ({
   }),
 }));
 
-const { storeApi } = require('../src/datasources');
+const makeBackendEntry = (overrides: Record<string, unknown> = {}) => ({
+  id: 'test-id',
+  timestamp: Date.now(),
+  databaseType: null,
+  method: 'GET',
+  path: '',
+  indexName: null,
+  qdsl: null,
+  connectionName: 'test',
+  connectionId: null,
+  mongoOperation: null,
+  mongoCollection: null,
+  mongoDatabase: null,
+  mongoDuration: null,
+  mongoResultCount: null,
+  starred: false,
+  ...overrides,
+});
 
 describe('historyStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     mockStore.clear();
     jest.clearAllMocks();
+    mockInvoke.mockImplementation((cmd: string) => {
+      if (cmd === 'load_query_history') return Promise.resolve([]);
+      if (cmd === 'add_query_history_entry') return Promise.resolve(makeBackendEntry());
+      if (cmd === 'toggle_query_history_star') return Promise.resolve();
+      if (cmd === 'delete_query_history_entry') return Promise.resolve();
+      if (cmd === 'clear_query_history') return Promise.resolve();
+      return Promise.reject(new Error(`Unexpected invoke: ${cmd}`));
+    });
   });
 
   describe('addEntry', () => {
     it('should add MongoDB entry with all fields', async () => {
       const store = useHistoryStore();
+      const expectedId = 'mongo-entry-1';
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry') {
+          return Promise.resolve(
+            makeBackendEntry({ id: expectedId, mongoOperation: 'find', databaseType: 'MONGODB' }),
+          );
+        }
+        if (cmd === 'load_query_history') {
+          return Promise.resolve([
+            makeBackendEntry({
+              id: expectedId,
+              mongoOperation: 'find',
+              databaseType: 'MONGODB',
+              mongoCollection: 'users',
+              mongoDatabase: 'mydb',
+              mongoDuration: 42,
+              mongoResultCount: 10,
+            }),
+          ]);
+        }
+        return Promise.resolve();
+      });
 
       await store.addEntry({
         databaseType: DatabaseType.MONGODB,
@@ -68,30 +122,49 @@ describe('historyStore', () => {
       expect(entry.timestamp).toBeDefined();
     });
 
-    it('should enforce FIFO cap when entries exceed limit', async () => {
+    it('should call add_query_history_entry with connectionId as string', async () => {
       const store = useHistoryStore();
+      let capturedInput: unknown;
+      mockInvoke.mockImplementation((cmd: string, args?: { input: unknown }) => {
+        if (cmd === 'add_query_history_entry') {
+          capturedInput = args?.input;
+          return Promise.resolve(makeBackendEntry());
+        }
+        if (cmd === 'load_query_history') return Promise.resolve([]);
+        return Promise.resolve();
+      });
 
-      // Add 101 entries (cap is 100)
-      for (let i = 0; i < 101; i++) {
-        await store.addEntry({
-          databaseType: DatabaseType.MONGODB,
-          method: 'POST',
-          path: `/api/mongo/${i}`,
-          connectionName: 'test-mongo',
-          mongoOperation: 'find',
-          mongoCollection: 'users',
-        });
-      }
+      await store.addEntry({
+        databaseType: DatabaseType.MONGODB,
+        method: 'POST',
+        path: '/api/mongo',
+        connectionName: 'test-mongo',
+        connectionId: 42,
+        mongoOperation: 'find',
+        mongoCollection: 'users',
+      });
 
-      expect(store.entries).toHaveLength(100);
-      // Most recent entry should be preserved
-      expect(store.entries[0].path).toBe('/api/mongo/100');
-      // Oldest entry (index 0) should have been removed
-      expect(store.entries.find(e => e.path === '/api/mongo/0')).toBeUndefined();
+      expect(capturedInput).toBeDefined();
+      expect((capturedInput as Record<string, unknown>).connectionId).toBe('42');
     });
 
-    it('should persist entries to storeApi', async () => {
+    it('should handle entry add with re-fetch from backend', async () => {
       const store = useHistoryStore();
+      let addCalled = false;
+
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry') {
+          addCalled = true;
+          return Promise.resolve(makeBackendEntry({ id: 'new-1', method: 'POST' }));
+        }
+        if (cmd === 'load_query_history') {
+          if (addCalled) {
+            return Promise.resolve([makeBackendEntry({ id: 'new-1', method: 'POST' })]);
+          }
+          return Promise.resolve([]);
+        }
+        return Promise.resolve();
+      });
 
       await store.addEntry({
         databaseType: DatabaseType.MONGODB,
@@ -102,37 +175,56 @@ describe('historyStore', () => {
         mongoCollection: 'users',
       });
 
-      const stored = mockStore.get('queryHistory') as HistoryEntry[];
-      expect(stored).toHaveLength(1);
-      expect(stored[0].mongoOperation).toBe('find');
+      expect(store.entries).toHaveLength(1);
+      expect(store.entries[0].method).toBe('POST');
+    });
+
+    it('should not update entries on add failure', async () => {
+      const store = useHistoryStore();
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry') {
+          return Promise.reject(new Error('DB error'));
+        }
+        if (cmd === 'load_query_history') return Promise.resolve([]);
+        return Promise.resolve();
+      });
+
+      await store.addEntry({
+        databaseType: DatabaseType.MONGODB,
+        method: 'POST',
+        path: '/api/mongo',
+        connectionName: 'test-mongo',
+        mongoOperation: 'find',
+        mongoCollection: 'users',
+      });
+
+      expect(store.entries).toHaveLength(0);
     });
   });
 
   describe('fetchHistory', () => {
-    it('should load entries from storeApi', async () => {
-      const mockEntries: HistoryEntry[] = [
-        {
-          id: '1',
-          timestamp: Date.now(),
-          databaseType: DatabaseType.MONGODB,
-          method: 'POST',
-          path: '/api/mongo',
-          connectionName: 'test-mongo',
-          mongoOperation: 'find',
-          mongoCollection: 'users',
-          mongoDatabase: 'mydb',
-        },
-        {
-          id: '2',
-          timestamp: Date.now(),
-          databaseType: DatabaseType.ELASTICSEARCH,
-          method: 'GET',
-          path: '/_search',
-          index: 'my-index',
-          connectionName: 'test-es',
-        },
-      ];
-      mockStore.set('queryHistory', mockEntries);
+    it('should load entries from SQLite via invoke', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'load_query_history') {
+          return Promise.resolve([
+            makeBackendEntry({
+              id: '1',
+              mongoOperation: 'find',
+              databaseType: 'MONGODB',
+              connectionName: 'test-mongo',
+            }),
+            makeBackendEntry({
+              id: '2',
+              method: 'GET',
+              path: '/_search',
+              indexName: 'my-index',
+              connectionName: 'test-es',
+              databaseType: 'ELASTICSEARCH',
+            }),
+          ]);
+        }
+        return Promise.resolve();
+      });
 
       const store = useHistoryStore();
       await store.fetchHistory();
@@ -142,8 +234,41 @@ describe('historyStore', () => {
       expect(store.entries[1].index).toBe('my-index');
     });
 
-    it('should return empty array when storeApi fails', async () => {
-      jest.spyOn(storeApi, 'get').mockRejectedValueOnce(new Error('Read failed'));
+    it('should migrate old data from storeApi when fetchHistory finds it', async () => {
+      const oldEntries = [
+        {
+          id: 'old-1',
+          connectionName: 'test',
+          method: 'GET',
+          path: '/_search',
+          timestamp: Date.now(),
+        },
+      ];
+      mockStore.set('queryHistory', oldEntries);
+
+      let migrateCalled = false;
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry') {
+          migrateCalled = true;
+          return Promise.resolve(makeBackendEntry({ id: 'new-1' }));
+        }
+        if (cmd === 'load_query_history') {
+          return Promise.resolve([makeBackendEntry({ id: 'migrated-1' })]);
+        }
+        return Promise.resolve();
+      });
+
+      const store = useHistoryStore();
+      await store.fetchHistory();
+
+      expect(migrateCalled).toBe(true);
+      expect(store.entries).toHaveLength(1);
+      const stored = mockStore.get('queryHistory');
+      expect(stored).toEqual([]);
+    });
+
+    it('should return empty array when invoke fails', async () => {
+      mockInvoke.mockRejectedValue(new Error('Invoke failed'));
 
       const store = useHistoryStore();
       await store.fetchHistory();
@@ -153,9 +278,21 @@ describe('historyStore', () => {
   });
 
   describe('toggleStar', () => {
-    it('should star MongoDB entry and persist', async () => {
-      const store = useHistoryStore();
+    it('should star MongoDB entry via toggle invocation', async () => {
+      let toggleInvoked = false;
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry')
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1' }));
+        if (cmd === 'load_query_history')
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1' })]);
+        if (cmd === 'toggle_query_history_star') {
+          toggleInvoked = true;
+          return Promise.resolve();
+        }
+        return Promise.resolve();
+      });
 
+      const store = useHistoryStore();
       await store.addEntry({
         databaseType: DatabaseType.MONGODB,
         method: 'POST',
@@ -169,14 +306,20 @@ describe('historyStore', () => {
       await store.toggleStar(entryId);
 
       expect(store.entries[0].starred).toBe(true);
-
-      const stored = mockStore.get('queryHistory') as HistoryEntry[];
-      expect(stored[0].starred).toBe(true);
+      expect(toggleInvoked).toBe(true);
     });
 
     it('should unstar entry on second toggle', async () => {
-      const store = useHistoryStore();
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry')
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1' }));
+        if (cmd === 'load_query_history')
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1' })]);
+        if (cmd === 'toggle_query_history_star') return Promise.resolve();
+        return Promise.resolve();
+      });
 
+      const store = useHistoryStore();
       await store.addEntry({
         databaseType: DatabaseType.MONGODB,
         method: 'POST',
@@ -201,10 +344,55 @@ describe('historyStore', () => {
 
       expect(store.entries).toHaveLength(0);
     });
+
+    it('should revert star on toggle failure', async () => {
+      let toggleCount = 0;
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry')
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1' }));
+        if (cmd === 'load_query_history')
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1' })]);
+        if (cmd === 'toggle_query_history_star') {
+          toggleCount++;
+          if (toggleCount === 1) return Promise.resolve();
+          return Promise.reject(new Error('DB error'));
+        }
+        return Promise.resolve();
+      });
+
+      const store = useHistoryStore();
+      await store.addEntry({
+        databaseType: DatabaseType.MONGODB,
+        method: 'POST',
+        path: '/api/mongo',
+        connectionName: 'test-mongo',
+        mongoOperation: 'find',
+        mongoCollection: 'users',
+      });
+
+      const entryId = store.entries[0].id;
+      await store.toggleStar(entryId);
+      expect(store.entries[0].starred).toBe(true);
+
+      // Second toggle fails — star should revert
+      await store.toggleStar(entryId);
+      expect(store.entries[0].starred).toBe(true);
+    });
   });
 
   describe('removeEntry', () => {
     it('should remove MongoDB entry', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry') {
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1' }));
+        }
+        if (cmd === 'load_query_history') {
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1', mongoOperation: 'find' })]);
+        }
+        if (cmd === 'delete_query_history_entry') return Promise.resolve();
+        return Promise.resolve();
+      });
+
       const store = useHistoryStore();
 
       await store.addEntry({
@@ -215,25 +403,24 @@ describe('historyStore', () => {
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
-      await store.addEntry({
-        databaseType: DatabaseType.MONGODB,
-        method: 'POST',
-        path: '/api/mongo/2',
-        connectionName: 'test-mongo',
-        mongoOperation: 'aggregate',
-        mongoCollection: 'orders',
-      });
-
-      const findEntry = store.entries.find(e => e.mongoOperation === 'find')!;
-      await store.removeEntry(findEntry.id);
 
       expect(store.entries).toHaveLength(1);
-      expect(store.entries[0].mongoOperation).toBe('aggregate');
+      const entryId = store.entries[0].id;
+      await store.removeEntry(entryId);
+      expect(store.entries).toHaveLength(0);
     });
 
     it('should clear selectedEntryId if removed entry was selected', async () => {
-      const store = useHistoryStore();
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry')
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1' }));
+        if (cmd === 'load_query_history')
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1' })]);
+        if (cmd === 'delete_query_history_entry') return Promise.resolve();
+        return Promise.resolve();
+      });
 
+      const store = useHistoryStore();
       await store.addEntry({
         databaseType: DatabaseType.MONGODB,
         method: 'POST',
@@ -251,9 +438,21 @@ describe('historyStore', () => {
       expect(store.selectedEntryId).toBeNull();
     });
 
-    it('should persist after removal', async () => {
-      const store = useHistoryStore();
+    it('should call delete_query_history_entry on remove', async () => {
+      let deleteCalled = false;
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry')
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1' }));
+        if (cmd === 'load_query_history')
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1' })]);
+        if (cmd === 'delete_query_history_entry') {
+          deleteCalled = true;
+          return Promise.resolve();
+        }
+        return Promise.resolve();
+      });
 
+      const store = useHistoryStore();
       await store.addEntry({
         databaseType: DatabaseType.MONGODB,
         method: 'POST',
@@ -265,16 +464,20 @@ describe('historyStore', () => {
 
       const entryId = store.entries[0].id;
       await store.removeEntry(entryId);
-
-      const stored = mockStore.get('queryHistory') as HistoryEntry[];
-      expect(stored).toHaveLength(0);
+      expect(deleteCalled).toBe(true);
     });
-  });
 
-  describe('clearHistory', () => {
-    it('should clear all entries including MongoDB', async () => {
+    it('should restore entry on delete failure', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry')
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1' }));
+        if (cmd === 'load_query_history')
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1' })]);
+        if (cmd === 'delete_query_history_entry') return Promise.reject(new Error('DB error'));
+        return Promise.resolve();
+      });
+
       const store = useHistoryStore();
-
       await store.addEntry({
         databaseType: DatabaseType.MONGODB,
         method: 'POST',
@@ -283,22 +486,63 @@ describe('historyStore', () => {
         mongoOperation: 'find',
         mongoCollection: 'users',
       });
-      await store.addEntry({
-        databaseType: DatabaseType.ELASTICSEARCH,
-        method: 'GET',
-        path: '/_search',
-        connectionName: 'test-es',
+
+      expect(store.entries).toHaveLength(1);
+      const entryId = store.entries[0].id;
+      await store.removeEntry(entryId);
+      // Entry should be restored after failed delete
+      expect(store.entries).toHaveLength(1);
+    });
+  });
+
+  describe('clearHistory', () => {
+    it('should clear all entries', async () => {
+      let clearCalled = false;
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry')
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1' }));
+        if (cmd === 'load_query_history')
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1' })]);
+        if (cmd === 'clear_query_history') {
+          clearCalled = true;
+          return Promise.resolve();
+        }
+        return Promise.resolve();
       });
 
-      expect(store.entries).toHaveLength(2);
+      const store = useHistoryStore();
+      await store.addEntry({
+        databaseType: DatabaseType.MONGODB,
+        method: 'POST',
+        path: '/api/mongo',
+        connectionName: 'test-mongo',
+        mongoOperation: 'find',
+        mongoCollection: 'users',
+      });
+
+      expect(store.entries).toHaveLength(1);
 
       await store.clearHistory();
 
       expect(store.entries).toHaveLength(0);
       expect(store.selectedEntryId).toBeNull();
+      expect(clearCalled).toBe(true);
     });
 
-    it('should persist empty array', async () => {
+    it('should call clear_query_history on clear', async () => {
+      let clearCalled = false;
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry')
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1' }));
+        if (cmd === 'load_query_history')
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1' })]);
+        if (cmd === 'clear_query_history') {
+          clearCalled = true;
+          return Promise.resolve();
+        }
+        return Promise.resolve();
+      });
+
       const store = useHistoryStore();
 
       await store.addEntry({
@@ -311,15 +555,45 @@ describe('historyStore', () => {
       });
 
       await store.clearHistory();
+      expect(clearCalled).toBe(true);
+    });
 
-      const stored = mockStore.get('queryHistory') as HistoryEntry[];
-      expect(stored).toEqual([]);
+    it('should restore entries on clear failure', async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry')
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1' }));
+        if (cmd === 'load_query_history')
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1' })]);
+        if (cmd === 'clear_query_history') return Promise.reject(new Error('DB error'));
+        return Promise.resolve();
+      });
+
+      const store = useHistoryStore();
+      await store.addEntry({
+        databaseType: DatabaseType.MONGODB,
+        method: 'POST',
+        path: '/api/mongo',
+        connectionName: 'test-mongo',
+        mongoOperation: 'find',
+        mongoCollection: 'users',
+      });
+
+      expect(store.entries).toHaveLength(1);
+      await store.clearHistory();
+      expect(store.entries).toHaveLength(1);
     });
   });
 
   describe('selectEntry', () => {
     it('should set selectedEntryId', async () => {
       const store = useHistoryStore();
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry')
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1' }));
+        if (cmd === 'load_query_history')
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1' })]);
+        return Promise.resolve();
+      });
 
       await store.addEntry({
         databaseType: DatabaseType.MONGODB,
@@ -349,6 +623,14 @@ describe('historyStore', () => {
   describe('getters', () => {
     it('selectedEntry returns the correct entry', async () => {
       const store = useHistoryStore();
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry')
+          return Promise.resolve(makeBackendEntry({ id: 'entry-1', mongoOperation: 'find' }));
+        if (cmd === 'load_query_history')
+          return Promise.resolve([makeBackendEntry({ id: 'entry-1', mongoOperation: 'find' })]);
+        if (cmd === 'toggle_query_history_star') return Promise.resolve();
+        return Promise.resolve();
+      });
 
       await store.addEntry({
         databaseType: DatabaseType.MONGODB,
@@ -367,6 +649,29 @@ describe('historyStore', () => {
 
     it('starredEntries returns only starred entries', async () => {
       const store = useHistoryStore();
+      let addCount = 0;
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === 'add_query_history_entry') {
+          addCount++;
+          return Promise.resolve(
+            makeBackendEntry({
+              id: `entry-${addCount}`,
+              mongoOperation: addCount === 1 ? 'find' : 'aggregate',
+            }),
+          );
+        }
+        if (cmd === 'load_query_history') {
+          if (addCount === 2) {
+            return Promise.resolve([
+              makeBackendEntry({ id: 'entry-2', mongoOperation: 'aggregate' }),
+              makeBackendEntry({ id: 'entry-1', mongoOperation: 'find' }),
+            ]);
+          }
+          return Promise.resolve([]);
+        }
+        if (cmd === 'toggle_query_history_star') return Promise.resolve();
+        return Promise.resolve();
+      });
 
       await store.addEntry({
         databaseType: DatabaseType.MONGODB,

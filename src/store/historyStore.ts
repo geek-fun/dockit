@@ -1,8 +1,16 @@
+/* eslint-disable no-console */
 import { defineStore } from 'pinia';
 import { storeApi } from '../datasources';
-import { pureObject } from '../common';
-import { DatabaseType } from './connectionStore';
 import { useAppStore } from './appStore';
+import type { QueryHistoryEntry } from '../datasources/agentApi';
+import {
+  loadQueryHistory,
+  addQueryHistoryEntry,
+  toggleQueryHistoryStar,
+  deleteQueryHistoryEntry,
+  clearQueryHistory,
+} from '../datasources/agentApi';
+import { DatabaseType } from './connectionStore';
 
 export type HistoryEntry = {
   id: string;
@@ -22,6 +30,25 @@ export type HistoryEntry = {
   starred?: boolean;
 };
 
+// Convert backend camelCase to frontend HistoryEntry
+const toHistoryEntry = (be: QueryHistoryEntry): HistoryEntry => ({
+  id: be.id,
+  timestamp: be.timestamp,
+  databaseType: (be.databaseType as DatabaseType) ?? undefined,
+  method: be.method,
+  path: be.path,
+  index: be.indexName ?? undefined,
+  qdsl: be.qdsl ?? undefined,
+  connectionName: be.connectionName,
+  connectionId: be.connectionId ?? undefined,
+  mongoOperation: be.mongoOperation ?? undefined,
+  mongoCollection: be.mongoCollection ?? undefined,
+  mongoDatabase: be.mongoDatabase ?? undefined,
+  mongoDuration: be.mongoDuration ?? undefined,
+  mongoResultCount: be.mongoResultCount ?? undefined,
+  starred: be.starred, // use raw boolean, undefined becomes undefined naturally
+});
+
 export const useHistoryStore = defineStore('historyStore', {
   state: (): {
     entries: HistoryEntry[];
@@ -37,32 +64,72 @@ export const useHistoryStore = defineStore('historyStore', {
   actions: {
     async fetchHistory() {
       try {
-        this.entries = (await storeApi.get('queryHistory', [])) as HistoryEntry[];
-      } catch (_error) {
+        // One-time migration: if old data exists in .store.dat, move it to SQLite
+        const oldEntries = await storeApi.get<Record<string, unknown>[]>('queryHistory', []);
+        if (oldEntries.length > 0) {
+          const appStore = useAppStore();
+          const cap = appStore.historyConfig.historyCap;
+          let failed = 0;
+          for (const entry of oldEntries) {
+            try {
+              await addQueryHistoryEntry({
+                databaseType: (entry as any).databaseType ?? null,
+                method: (entry as any).method ?? '',
+                path: (entry as any).path ?? '',
+                indexName: (entry as any).index ?? null,
+                qdsl: (entry as any).qdsl ?? null,
+                connectionName: (entry as any).connectionName ?? '',
+                connectionId:
+                  (entry as any).connectionId != null ? String((entry as any).connectionId) : null,
+                mongoOperation: (entry as any).mongoOperation ?? null,
+                mongoCollection: (entry as any).mongoCollection ?? null,
+                mongoDatabase: (entry as any).mongoDatabase ?? null,
+                mongoDuration: (entry as any).mongoDuration ?? null,
+                mongoResultCount: (entry as any).mongoResultCount ?? null,
+                historyCap: cap,
+              });
+            } catch (err) {
+              console.error('Failed to migrate query history entry:', err);
+              failed++;
+            }
+          }
+          if (failed === 0) {
+            await storeApi.set('queryHistory', []);
+          }
+        }
+
+        const backendEntries = await loadQueryHistory();
+        this.entries = backendEntries.map(toHistoryEntry);
+      } catch (err) {
+        console.error('Failed to load query history:', err);
         this.entries = [];
       }
     },
     async addEntry(entry: Omit<HistoryEntry, 'id' | 'timestamp'>) {
       const appStore = useAppStore();
       const cap = appStore.historyConfig.historyCap;
-      const newEntry: HistoryEntry = {
-        ...entry,
-        id: crypto.randomUUID(),
-        timestamp: Date.now(),
-      };
-      this.entries.unshift(newEntry);
-
-      if (entry.connectionId) {
-        const connectionEntries = this.entries.filter(e => e.connectionId === entry.connectionId);
-        if (connectionEntries.length > cap) {
-          const idsToRemove = connectionEntries.slice(cap).map(e => e.id);
-          this.entries = this.entries.filter(e => !idsToRemove.includes(e.id));
-        }
-      } else if (this.entries.length > cap) {
-        this.entries = this.entries.slice(0, cap);
+      try {
+        await addQueryHistoryEntry({
+          databaseType: entry.databaseType ?? null,
+          method: entry.method,
+          path: entry.path,
+          indexName: entry.index ?? null,
+          qdsl: entry.qdsl ?? null,
+          connectionName: entry.connectionName,
+          connectionId: entry.connectionId != null ? String(entry.connectionId) : null,
+          mongoOperation: entry.mongoOperation ?? null,
+          mongoCollection: entry.mongoCollection ?? null,
+          mongoDatabase: entry.mongoDatabase ?? null,
+          mongoDuration: entry.mongoDuration ?? null,
+          mongoResultCount: entry.mongoResultCount ?? null,
+          historyCap: cap,
+        });
+        // Re-fetch after insert to sync with any cap enforcement deletes
+        const backendEntries = await loadQueryHistory();
+        this.entries = backendEntries.map(toHistoryEntry);
+      } catch (err) {
+        console.error('Failed to add query history entry:', err);
       }
-
-      await storeApi.set('queryHistory', pureObject(this.entries));
     },
     selectEntry(id: string | null) {
       this.selectedEntryId = id;
@@ -70,20 +137,38 @@ export const useHistoryStore = defineStore('historyStore', {
     async toggleStar(id: string) {
       const entry = this.entries.find(e => e.id === id);
       if (!entry) return;
-      entry.starred = !entry.starred;
-      await storeApi.set('queryHistory', pureObject(this.entries));
+      const newStarred = !entry.starred;
+      entry.starred = newStarred;
+      try {
+        await toggleQueryHistoryStar(id);
+      } catch (err) {
+        console.error('Failed to toggle query history star:', err);
+        entry.starred = !newStarred;
+      }
     },
     async removeEntry(id: string) {
+      const removed = this.entries.filter(e => e.id === id);
       this.entries = this.entries.filter(e => e.id !== id);
       if (this.selectedEntryId === id) {
         this.selectedEntryId = null;
       }
-      await storeApi.set('queryHistory', pureObject(this.entries));
+      try {
+        await deleteQueryHistoryEntry(id);
+      } catch (err) {
+        console.error('Failed to delete query history entry:', err);
+        this.entries = [...this.entries, ...removed];
+      }
     },
     async clearHistory() {
+      const previous = this.entries;
       this.entries = [];
       this.selectedEntryId = null;
-      await storeApi.set('queryHistory', pureObject(this.entries));
+      try {
+        await clearQueryHistory();
+      } catch (err) {
+        console.error('Failed to clear query history:', err);
+        this.entries = previous;
+      }
     },
   },
 });

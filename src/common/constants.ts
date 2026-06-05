@@ -5,7 +5,7 @@ export const MIN_LOADING_TIME = 1500;
 export const SUCCESS_MESSAGE_DELAY = 1000;
 
 // Query history cap bounds and default
-export const HISTORY_CAP_MIN = 0;
+export const HISTORY_CAP_MIN = 1;
 export const HISTORY_CAP_MAX = 1000;
 export const HISTORY_CAP_DEFAULT = 100;
 
