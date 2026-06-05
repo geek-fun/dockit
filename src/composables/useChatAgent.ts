@@ -10,7 +10,7 @@ import type {
 } from '@/types/chat';
 import type { AgentToolCall, ConfirmationRule, SessionSource } from '@/store/dataStudioStore';
 import { useDataStudioStore } from '@/store/dataStudioStore';
-import { getFeatureModelConfig } from '@/store/chatStore';
+import { getFeatureModelConfig } from '@/store';
 import { useAppStore } from '@/store';
 import {
   agentApi,

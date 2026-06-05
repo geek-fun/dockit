@@ -6,7 +6,10 @@ import {
   HISTORY_CAP_DEFAULT,
   CHAT_RUNTIME_DEFAULTS,
   LLM_SETTINGS_SCHEMA_VERSION,
+  CustomError,
+  ErrorCodes,
 } from '../common';
+import { lang } from '../lang';
 import { chatBotApi, ProviderEnum, storeApi, validateLlmConfig } from '../datasources';
 
 export enum ThemeType {
@@ -617,6 +620,7 @@ export const useAppStore = defineStore('app', {
             tokenBudget: storedChat.tokenBudget ?? CHAT_RUNTIME_DEFAULTS.tokenBudget,
           };
         }
+        storeApi.delete('chatStore').catch(() => {});
         return this.llmSettings;
       }
 
@@ -625,6 +629,7 @@ export const useAppStore = defineStore('app', {
         legacyAiConfigs.length > 0 ? migrateLegacyAiConfigs(legacyAiConfigs) : defaultLlmSettings();
       await storeApi.setSecret('llmSettings', pureObject(this.llmSettings));
       await storeApi.set('llmSettingsVersion', LLM_SETTINGS_SCHEMA_VERSION);
+      storeApi.delete('chatStore').catch(() => {});
       return this.llmSettings;
     },
     async persistLlmSettings() {
@@ -797,3 +802,15 @@ export const useAppStore = defineStore('app', {
     },
   },
 });
+
+export const getFeatureModelConfig = async (feature: 'sidebarAssistant' | 'dataStudio') => {
+  const appStore = useAppStore();
+  await appStore.fetchLlmSettings();
+  const resolved = appStore.getResolvedFeatureModel(feature);
+
+  if (!resolved) {
+    throw new CustomError(ErrorCodes.MISSING_GPT_CONFIG, lang.global.t('setting.ai.missing'));
+  }
+
+  return resolved as { provider: ProviderConfig; model: ModelRef };
+};
