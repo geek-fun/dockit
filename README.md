@@ -16,6 +16,7 @@
 
 [Website](https://www.geekfun.club/products/dockit/) · [Docs](https://www.geekfun.club/docs/dockit/) · [Download](https://www.geekfun.club/download) · [Releases](https://github.com/geek-fun/dockit/releases)
 
+English · [简体中文](README_zh.md)
 
 </div>
 
@@ -35,43 +36,96 @@ DocKit replaces browser consoles like Kibana and AWS Console with a single nativ
   <img src="docs/images/dockit-client-ui-demo.gif" width="800" alt="DocKit Client UI Demo"/>
 </p>
 
+## Installation
+
+<a href="https://www.geekfun.club/download">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/Download-macOS_|_Windows_|_Linux-orange?style=for-the-badge&logo=download&logoColor=white">
+    <img src="https://img.shields.io/badge/Download-macOS_|_Windows_|_Linux-orange?style=for-the-badge&logo=download&logoColor=white" alt="Download">
+  </picture>
+</a>
+&nbsp;
+<a href="https://github.com/geek-fun/dockit/releases">
+  <img src="https://img.shields.io/badge/Releases-GitHub-lightgrey?style=for-the-badge&logo=github" alt="Releases">
+</a>
+&nbsp;
+<a href="https://www.geekfun.club/products/dockit/">
+  <img src="https://img.shields.io/badge/Website-geekfun.club-blue?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Website">
+</a>
+
 ## Key Features
 
 ### Agentic Data Studio
 
-DocKit's data agent lets you interact with your databases through natural language. Describe what you need — the agent writes queries, inspects schemas, updates documents, deletes records, creates indexes, and returns results. Every operation runs through validated tools with built-in safety: fine-grained per-source permissions, a security gate requiring explicit confirmation before destructive actions, and a credential-safe architecture that never exposes connection secrets to the LLM. Supports OpenAI, Anthropic, and DeepSeek.
+Describe what you need in natural language — the agent writes queries, inspects schemas, updates documents, deletes records, creates indexes, and returns results.
 
-### Manage & Monitor
-
-Interactive management panels for every supported database. Monitor node health, shard states, index status, and storage metrics. Manage indexes, aliases, table configurations, and collection metadata — all through a visual UI. No command-line needed.
+- **Query generation** — natural language to Elasticsearch DSL, PartiQL, MongoDB queries
+- **Schema inspection** — agent reads and explains your database schema
+- **Data operations** — CRUD, index management, bulk actions through conversation
+- **Safety** — per-source permissions, confirmation gate for destructive ops, credentials never exposed to the LLM
+- **Supported providers** — OpenAI, Anthropic, DeepSeek, Ollama, LM Studio
 
 ### DynamoDB
 
-Visual Query Builder for scan and query operations with primary key filtering and advanced conditions. PartiQL Editor with autocomplete and syntax highlighting. Inline edit, update, and delete items directly from results. Full table lifecycle — browse, create, modify tables, manage indexes, monitor capacity and item counts. Supports DynamoDB Local for offline development without AWS credentials.
+Visual tools for DynamoDB — query builder, PartiQL editor, table management, import/export.
+
+- **Query Builder** — scan and query with primary key filtering and 13+ operators
+- **PartiQL Editor** — autocomplete, syntax highlighting, inline item CRUD
+- **Table management** — create, modify tables, manage indexes (GSI/LSI), TTL, streams, PITR, encryption
+- **DynamoDB Local** — offline development without AWS credentials
+- **Authentication** — AWS profiles, SSO, access keys, IAM roles
 
 ### MongoDB
 
-Connect with authentication, TLS, and replica set configurations. Full-featured query editor with autocomplete and result formatting. Document browser with pagination and inline CRUD. Manage view for indexes, storage stats, and collection metadata. Bulk write support. Query history with star/bookmark favorites, persisted per connection. Import and export collections in JSON, CSV, and JSONL.
+Full-featured MongoDB client with query editor, document browser, and import/export.
+
+- **Query editor** — autocomplete, result formatting, bulk write support
+- **Document browser** — pagination, inline CRUD
+- **Manage view** — indexes, storage stats, collection metadata at a glance
+- **Connections** — authentication, TLS, replica set configurations
+- **Import / Export** — JSON, CSV, JSONL
 
 ### Elasticsearch & OpenSearch
 
-Supported as separate connection types with independent configurations. Monaco-powered editor with full syntax highlighting and autocomplete. Cluster management — node health, shard state, index tracking, alias control. Native API key authentication for both Elasticsearch and OpenSearch.
+Separate connection types with independent configs. Monaco-powered editor with full syntax highlighting and autocomplete.
+
+- **Cluster management** — node health, shard state, index tracking, alias control
+- **Authentication** — native API key support for both ES and OpenSearch
+- **Editor** — Monaco (VS Code engine), JSON5, inline comments, field autocomplete from live mapping
+- **Grammar catalog** — 120+ ES and OpenSearch API endpoints for reference
+- **Version support** — Elasticsearch 1.x–9.x, OpenSearch 1.x–3.x
+
+### Management & Monitoring
+
+- **Cluster health** — node status, shard states, storage metrics
+- **Index management** — create, delete, open, close, manage aliases and mappings
+- **Table/collection metadata** — view and edit schema, indexes, and configurations
 
 ### Query History
 
-Every query recorded automatically. No save button needed. 500 entries per connection, stored locally. Copy, reload into the editor, or re-execute past queries. Covers PartiQL, MongoDB, and visual form queries.
+- **Auto-recording** — every query saved, no manual save needed
+- **500 entries per connection** — stored locally, searchable
+- **Replay** — copy, reload into editor, or re-execute past queries
+- **Covers** — PartiQL, MongoDB, and visual form queries
 
 ### Import & Export
 
-JSON, CSV, JSONL. Batch operations handle millions of records. Move data between clusters, back up tables, or seed development environments.
+- **Formats** — JSON, CSV, JSONL
+- **Scale** — batch operations handle millions of records
+- **Use cases** — cluster migration, backup, dev environment seeding
 
 ### Privacy & Security
 
-DocKit does not phone home. No query data, credentials, or analytics leave your machine. Connection profiles encrypted by your OS keychain. No internet connection required — air gap compatible.
+- **No telemetry** — DocKit does not phone home
+- **Local storage** — queries, credentials, analytics stay on your machine
+- **Encrypted** — connection profiles secured by your OS keychain
+- **Air gap** — fully offline capable, no internet required
 
 ### Accessibility
 
-Full keyboard navigation — tab through interactive elements, arrow keys in lists and trees, enter/space to activate. Action buttons and query results fully keyboard accessible. Screen reader friendly.
+- **Keyboard navigation** — tab through all interactive elements, arrow keys in lists and trees, enter/space to activate
+- **Screen reader** — action buttons and query results fully accessible
+- **Focus indicators** — visible on all interactive elements
 
 
 ## Development
@@ -106,15 +160,14 @@ Issues and PRs welcome. Check the [contribution guide](CONTRIBUTION.md).
 
 ## Community & Sponsor
 
-<div style="text-align: left;">
-  <div style="display: inline-block; vertical-align: top; margin: 0 120px 0 0;">
-    <img src="docs/images/wechat_official.png" alt="WeChat Official Account" width="320">
-  </div>
-  <div style="display: inline-block; vertical-align: top;">
-    <img src="docs/images/wechat_ponsor.jpg" alt="WeChat Sponsor QR" width="260"><br><br>
-    <a href="https://github.com/sponsors/geek-fun">GitHub Sponsors</a> if DocKit helps your work.
-  </div>
-</div>
+<p align="center">
+  <img src="docs/images/wechat_official.png" alt="WeChat Official Account" width="200">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="docs/images/wechat_ponsor.jpg" alt="WeChat Sponsor QR" width="160">
+</p>
+<p align="center">
+  <a href="https://github.com/sponsors/geek-fun">GitHub Sponsors</a> — if DocKit helps your work.
+</p>
 
 ## License
 
