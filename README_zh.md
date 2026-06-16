@@ -8,13 +8,21 @@
 
 **隐私优先。您的数据，您的密钥。开源开放。**
 
-[![Release](https://img.shields.io/github/v/release/geek-fun/dockit?color=orange&label=release)](https://github.com/geek-fun/dockit/releases)
-[![Downloads](https://img.shields.io/github/downloads/geek-fun/dockit/total?color=orange)](https://github.com/geek-fun/dockit/releases)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Stars](https://img.shields.io/github/stars/geek-fun/dockit)](https://github.com/geek-fun/dockit/stargazers)
-[![CI](https://github.com/geek-fun/dockit/actions/workflows/node.yml/badge.svg)](https://github.com/geek-fun/dockit/actions/workflows/node.yml)
+[![Release](https://img.shields.io/github/v/release/geek-fun/dockit?color=orange&label=release&style=for-the-badge&logo=github)](https://github.com/geek-fun/dockit/releases)
+[![Downloads](https://img.shields.io/github/downloads/geek-fun/dockit/total?color=orange&style=for-the-badge&logo=docusign)](https://github.com/geek-fun/dockit/releases)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge&logo=apache)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/geek-fun/dockit?style=for-the-badge&logo=github)](https://github.com/geek-fun/dockit/stargazers)
+[![CI](https://github.com/geek-fun/dockit/actions/workflows/node.yml/badge.svg?style=for-the-badge)](https://github.com/geek-fun/dockit/actions/workflows/node.yml)
 
-[官网](https://www.geekfun.club/products/dockit/) · [文档](https://www.geekfun.club/docs/dockit/) · [下载](https://www.geekfun.club/download) · [Releases](https://github.com/geek-fun/dockit/releases)
+<p>
+  <img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black"/>
+  <img src="https://img.shields.io/badge/Tauri-FFC131?style=for-the-badge&logo=tauri&logoColor=black"/>
+  <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white"/>
+</p>
+
+[下载](https://www.geekfun.club/download) · [文档](https://www.geekfun.club/docs/dockit/) · [官网](https://www.geekfun.club/products/dockit/) · [Releases](https://github.com/geek-fun/dockit/releases)
 
 [English](README.md) · 简体中文
 
@@ -25,11 +33,11 @@
 DocKit 用一个原生桌面应用替代 Kibana 和 AWS Console 等浏览器控制台。用自然语言描述需求，即可生成可执行的查询；也可以直接使用 Monaco 驱动的编辑器。支持 OpenAI、Anthropic 和 DeepSeek —— 自带密钥即可使用。
 
 <p align="center">
-  <img src="src/assets/svg/elasticsearch.svg" width="28" height="28" align="middle"> Elasticsearch &nbsp;&nbsp;&nbsp;
-  <img src="src/assets/svg/db-opensearch.svg" width="28" height="28" align="middle"> OpenSearch &nbsp;&nbsp;&nbsp;
-  <img src="src/assets/svg/dynamoDB.svg" width="28" height="28" align="middle"> DynamoDB &nbsp;&nbsp;&nbsp;
-  <img src="src/assets/svg/mongodb.svg" width="28" height="28" align="middle"> MongoDB &nbsp;&nbsp;&nbsp;
-  <img src="src/assets/svg/easysearch.svg" width="28" height="28" align="middle"> EasySearch
+  <img src="https://img.shields.io/badge/Elasticsearch-005571?logo=elasticsearch&logoColor=white" />
+  <img src="https://img.shields.io/badge/OpenSearch-005EB8?logo=opensearch&logoColor=white" />
+  <img src="https://img.shields.io/badge/DynamoDB-4053D6?logo=amazondynamodb&logoColor=white" />
+  <img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&logoColor=white" />
+  <img src="https://img.shields.io/badge/EasySearch-4A90D9?logoColor=white" />
 </p>
 
 ## 安装
@@ -152,16 +160,32 @@ npm run build:macos          # macOS Universal
 
 欢迎提交 Issue 和 PR。请查阅[贡献指南](CONTRIBUTION.md)。
 
-## 社区与赞助
+## 社区
 
-<p align="center">
-  <img src="docs/images/wechat_official.png" alt="微信公众号" width="200">
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/images/wechat_ponsor.jpg" alt="微信赞助" width="160">
-</p>
-<p align="center">
-  <a href="https://github.com/sponsors/geek-fun">GitHub Sponsors</a> — 如果 DocKit 对你的工作有帮助，欢迎赞助。
-</p>
+<div align="center">
+  <div style="display: inline-block; vertical-align: middle; margin-right: 80px;">
+    <img src="docs/images/wechat_group.jpg" width="140" alt="微信群">
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+    <img src="docs/images/wechat_official.png" width="140" alt="微信公众号">
+  </div>
+  <div style="display: inline-block; vertical-align: middle; text-align: left;">
+    <a href="https://discord.gg/5NSUyPK2E"><img src="https://img.shields.io/badge/Discord-加入-5865F2?logo=discord&logoColor=white&style=for-the-badge" alt="Discord" /></a><br><br>
+    <a href="https://x.com/geekfun_club"><img src="https://img.shields.io/badge/X-关注-000000?logo=x&logoColor=white&style=for-the-badge" alt="X / Twitter" /></a><br><br>
+    <a href="https://www.youtube.com/@geekfun-club"><img src="https://img.shields.io/badge/YouTube-订阅-FF0000?logo=youtube&logoColor=white&style=for-the-badge" alt="YouTube" /></a><br><br>
+    <a href="https://github.com/geek-fun"><img src="https://img.shields.io/badge/GitHub-关注-181717?logo=github&logoColor=white&style=for-the-badge" alt="GitHub" /></a>
+  </div>
+</div>
+
+## 赞助
+
+<div align="center">
+  <div style="display: inline-block; vertical-align: middle; margin-right: 80px;">
+    <img src="docs/images/wechat_ponsor.jpg" width="140" alt="微信赞助二维码">
+  </div>
+  <div style="display: inline-block; vertical-align: middle; text-align: left;">
+    <a href="https://github.com/sponsors/geek-fun"><img src="https://img.shields.io/badge/GitHub_Sponsors-%E2%9D%A4_支持-EA4AAA?logo=githubsponsors&logoColor=white&style=for-the-badge" alt="GitHub Sponsors" /></a>
+  </div>
+</div>
 
 ## 许可证
 
