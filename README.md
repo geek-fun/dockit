@@ -168,30 +168,34 @@ Issues and PRs welcome. Check the [contribution guide](CONTRIBUTION.md).
 
 ## Community
 
-<div align="center">
-  <div style="display: inline-block; vertical-align: middle; margin-right: 80px;">
-    <img src="docs/images/wechat_group.jpg" width="140" alt="WeChat Group">
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-    <img src="docs/images/wechat_official.png" width="140" alt="WeChat Official Account">
-  </div>
-  <div style="display: inline-block; vertical-align: middle; text-align: left;">
-    <a href="https://discord.gg/5NSUyPK2E"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white&style=for-the-badge" alt="Discord" /></a><br><br>
-    <a href="https://x.com/geekfun_club"><img src="https://img.shields.io/badge/X-Follow-000000?logo=x&logoColor=white&style=for-the-badge" alt="X / Twitter" /></a><br><br>
-    <a href="https://www.youtube.com/@geekfun-club"><img src="https://img.shields.io/badge/YouTube-Subscribe-FF0000?logo=youtube&logoColor=white&style=for-the-badge" alt="YouTube" /></a><br><br>
-    <a href="https://github.com/geek-fun"><img src="https://img.shields.io/badge/GitHub-Follow-181717?logo=github&logoColor=white&style=for-the-badge" alt="GitHub" /></a>
-  </div>
-</div>
+<table>
+  <tr>
+    <td align="center" valign="middle">
+      <img src="docs/images/wechat_group.jpg" width="140" alt="WeChat Group">
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      <img src="docs/images/wechat_official.png" width="140" alt="WeChat Official Account">
+    </td>
+    <td valign="middle">
+      <a href="https://discord.gg/5NSUyPK2E"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white&style=for-the-badge" alt="Discord" /></a><br><br>
+      <a href="https://x.com/geekfun_club"><img src="https://img.shields.io/badge/X-Follow-000000?logo=x&logoColor=white&style=for-the-badge" alt="X / Twitter" /></a><br><br>
+      <a href="https://www.youtube.com/@geekfun-club"><img src="https://img.shields.io/badge/YouTube-Subscribe-FF0000?logo=youtube&logoColor=white&style=for-the-badge" alt="YouTube" /></a><br><br>
+      <a href="https://github.com/geek-fun"><img src="https://img.shields.io/badge/GitHub-Follow-181717?logo=github&logoColor=white&style=for-the-badge" alt="GitHub" /></a>
+    </td>
+  </tr>
+</table>
 
 ## Sponsor
 
-<div align="center">
-  <div style="display: inline-block; vertical-align: middle; margin-right: 80px;">
-    <img src="docs/images/wechat_ponsor.jpg" width="140" alt="WeChat Sponsor QR">
-  </div>
-  <div style="display: inline-block; vertical-align: middle; text-align: left;">
-    <a href="https://github.com/sponsors/geek-fun"><img src="https://img.shields.io/badge/GitHub_Sponsors-%E2%9D%A4_Support-EA4AAA?logo=githubsponsors&logoColor=white&style=for-the-badge" alt="GitHub Sponsors" /></a>
-  </div>
-</div>
+<table>
+  <tr>
+    <td align="center" valign="middle">
+      <img src="docs/images/wechat_ponsor.jpg" width="140" alt="WeChat Sponsor QR">
+    </td>
+    <td valign="middle">
+      <a href="https://github.com/sponsors/geek-fun"><img src="https://img.shields.io/badge/GitHub_Sponsors-%E2%9D%A4_Support-EA4AAA?logo=githubsponsors&logoColor=white&style=for-the-badge" alt="GitHub Sponsors" /></a>
+    </td>
+  </tr>
+</table>
 
 ## Star History
 

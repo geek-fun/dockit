@@ -162,30 +162,34 @@ npm run build:macos          # macOS Universal
 
 ## 社区
 
-<div align="center">
-  <div style="display: inline-block; vertical-align: middle; margin-right: 80px;">
-    <img src="docs/images/wechat_group.jpg" width="140" alt="微信群">
-    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-    <img src="docs/images/wechat_official.png" width="140" alt="微信公众号">
-  </div>
-  <div style="display: inline-block; vertical-align: middle; text-align: left;">
-    <a href="https://discord.gg/5NSUyPK2E"><img src="https://img.shields.io/badge/Discord-加入-5865F2?logo=discord&logoColor=white&style=for-the-badge" alt="Discord" /></a><br><br>
-    <a href="https://x.com/geekfun_club"><img src="https://img.shields.io/badge/X-关注-000000?logo=x&logoColor=white&style=for-the-badge" alt="X / Twitter" /></a><br><br>
-    <a href="https://www.youtube.com/@geekfun-club"><img src="https://img.shields.io/badge/YouTube-订阅-FF0000?logo=youtube&logoColor=white&style=for-the-badge" alt="YouTube" /></a><br><br>
-    <a href="https://github.com/geek-fun"><img src="https://img.shields.io/badge/GitHub-关注-181717?logo=github&logoColor=white&style=for-the-badge" alt="GitHub" /></a>
-  </div>
-</div>
+<table>
+  <tr>
+    <td align="center" valign="middle">
+      <img src="docs/images/wechat_group.jpg" width="140" alt="微信群">
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      <img src="docs/images/wechat_official.png" width="140" alt="微信公众号">
+    </td>
+    <td valign="middle">
+      <a href="https://discord.gg/5NSUyPK2E"><img src="https://img.shields.io/badge/Discord-加入-5865F2?logo=discord&logoColor=white&style=for-the-badge" alt="Discord" /></a><br><br>
+      <a href="https://x.com/geekfun_club"><img src="https://img.shields.io/badge/X-关注-000000?logo=x&logoColor=white&style=for-the-badge" alt="X / Twitter" /></a><br><br>
+      <a href="https://www.youtube.com/@geekfun-club"><img src="https://img.shields.io/badge/YouTube-订阅-FF0000?logo=youtube&logoColor=white&style=for-the-badge" alt="YouTube" /></a><br><br>
+      <a href="https://github.com/geek-fun"><img src="https://img.shields.io/badge/GitHub-关注-181717?logo=github&logoColor=white&style=for-the-badge" alt="GitHub" /></a>
+    </td>
+  </tr>
+</table>
 
 ## 赞助
 
-<div align="center">
-  <div style="display: inline-block; vertical-align: middle; margin-right: 80px;">
-    <img src="docs/images/wechat_ponsor.jpg" width="140" alt="微信赞助二维码">
-  </div>
-  <div style="display: inline-block; vertical-align: middle; text-align: left;">
-    <a href="https://github.com/sponsors/geek-fun"><img src="https://img.shields.io/badge/GitHub_Sponsors-%E2%9D%A4_支持-EA4AAA?logo=githubsponsors&logoColor=white&style=for-the-badge" alt="GitHub Sponsors" /></a>
-  </div>
-</div>
+<table>
+  <tr>
+    <td align="center" valign="middle">
+      <img src="docs/images/wechat_ponsor.jpg" width="140" alt="微信赞助二维码">
+    </td>
+    <td valign="middle">
+      <a href="https://github.com/sponsors/geek-fun"><img src="https://img.shields.io/badge/GitHub_Sponsors-%E2%9D%A4_支持-EA4AAA?logo=githubsponsors&logoColor=white&style=for-the-badge" alt="GitHub Sponsors" /></a>
+    </td>
+  </tr>
+</table>
 
 ## 许可证
 
