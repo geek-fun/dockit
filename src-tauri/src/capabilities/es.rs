@@ -278,7 +278,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     };
 
     macro_rules! reg {
-        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr) => {
+        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr, $parallel_ok:expr) => {
             registry.register(Capability {
                 name: $name,
                 description: $desc,
@@ -288,17 +288,21 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
                 required_permission: $perm,
                 source_kind: SourceKind::Database("ELASTICSEARCH"),
                 tags: $tags,
+                parallel_ok: $parallel_ok,
             });
+        };
+        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr) => {
+            reg!($name, $desc, $handler, $schema, $risk, $perm, $tags, false)
         };
     }
 
     reg!("es__search", "Execute an Elasticsearch search query using Query DSL. Returns matching documents with scores.", EsSearch,
          es_schema(&[("index", "Target index name", "string", true), ("body", "Elasticsearch Query DSL body", "object", true)]),
-         RiskLevel::Safe, "read", &["agent"]);
+         RiskLevel::Safe, "read", &["agent"], true);
 
     reg!("es__get_document", "Get a single document by its ID from an Elasticsearch index.", EsGetDocument,
          es_schema(&[("index", "Target index name", "string", true), ("id", "Document ID", "string", true)]),
-         RiskLevel::Safe, "read", &["agent"]);
+         RiskLevel::Safe, "read", &["agent"], true);
 
     reg!("es__index_document", "Create or replace a document in an Elasticsearch index. Omit id to auto-generate one.", EsIndexDocument,
          es_schema(&[("index", "Target index name", "string", true), ("id", "Optional document ID; omit to auto-generate", "string", false), ("body", "Document body to index", "object", true)]),
@@ -322,7 +326,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
 
     reg!("es__get_mapping", "Get the field mapping (schema) for an Elasticsearch index, showing field names and data types.", EsGetMapping,
          es_schema(&[("index", "Target index name", "string", true)]),
-         RiskLevel::Safe, "read", &["agent"]);
+         RiskLevel::Safe, "read", &["agent"], true);
 
     reg!("es__create_index", "Create a new Elasticsearch index with optional custom mappings and settings.", EsCreateIndex,
          es_schema(&[("index", "Name for the new index", "string", true), ("body", "Optional index body with settings and mappings", "object", false)]),

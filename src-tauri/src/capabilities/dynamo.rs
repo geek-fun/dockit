@@ -1005,7 +1005,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     };
 
     macro_rules! reg {
-        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr) => {
+        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr, $parallel_ok:expr) => {
             registry.register(Capability {
                 name: $name,
                 description: $desc,
@@ -1015,14 +1015,18 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
                 required_permission: $perm,
                 source_kind: SourceKind::Database("DYNAMODB"),
                 tags: $tags,
+                parallel_ok: $parallel_ok,
             });
+        };
+        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr) => {
+            reg!($name, $desc, $handler, $schema, $risk, $perm, $tags, false)
         };
     }
 
     reg!("dynamo__execute_query", "Execute a PartiQL SELECT query against DynamoDB. Use for reading and querying table data.",
          DynamoExecuteQuery::new(),
          dynamo_schema(&[("statement", "PartiQL SELECT statement", true)]),
-         RiskLevel::Safe, "read", &["agent", "ui"]);
+         RiskLevel::Safe, "read", &["agent", "ui"], true);
 
     reg!("dynamo__execute_write", "Execute a PartiQL INSERT or UPDATE statement against DynamoDB.",
          DynamoExecuteWrite::new(),
@@ -1037,7 +1041,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     reg!("dynamo__describe_table", "Describe a DynamoDB table schema and metadata: key schema, attribute definitions, provisioned throughput, billing mode, item count, table size, stream config, SSE status, table class, and index info. Returns GSI and LSI details (index names, types/status, key schema, projection, provisioned throughput, item count, size). Use this to look up index names before querying/scanning a GSI, check table status/health, verify throughput settings, or get table identifiers for further operations.",
          DynamoDescribeTable::new(),
          dynamo_schema(&[("table_name", "DynamoDB table name", true)]),
-         RiskLevel::Safe, "read", &["agent", "ui"]);
+         RiskLevel::Safe, "read", &["agent", "ui"], true);
 
     reg!("dynamo__list_tables", "List all DynamoDB table names in the connected account and region.",
          DynamoListTables::new(),

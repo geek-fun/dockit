@@ -102,6 +102,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         required_permission: "none",
         source_kind: SourceKind::DocKit,
         tags: &["agent"],
+        parallel_ok: true,
     });
 }
 

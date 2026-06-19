@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::State;
 
-use crate::db::AgentDb;
+use data_studio_agent::storage::db::AgentDb;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AgentSession {
