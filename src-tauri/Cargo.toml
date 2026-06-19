@@ -24,7 +24,6 @@ tauri-plugin-deep-link = "2"
 tauri-plugin-system-info = { git = "https://github.com/HuakunShen/tauri-plugin-system-info", rev = "afb2b7fe50f337500937eb946c1204a728353b63" }
 url = "2"
 
-async-openai = { version = "0.32.2", features = ["chat-completion"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy"] }
 tokio = { version = "1", features = ["full"] }
 http = "1.4.0"
@@ -38,11 +37,11 @@ aws-sdk-ssooidc = { version = "1.100.0", default-features = false, features = ["
 aws-sdk-sso = { version = "1.98.0", default-features = false, features = ["default-https-client", "rt-tokio"] }
 base64 = "0.22.1"
 mongodb = "3.1"
-rusqlite = { version = "0.31", features = ["bundled"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }
 async-trait = "0.1"
 rand = "0.8"
-tiktoken-rs = "0.6"
+data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent", tag = "v0.1.1" }
 [dev-dependencies]
 wiremock = "0.6"
 mockall = "0.13"

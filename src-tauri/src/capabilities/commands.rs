@@ -99,6 +99,7 @@ mod tests {
             required_permission: perm,
             source_kind: SourceKind::DocKit,
             tags: &["agent"],
+            parallel_ok: false,
         }
     }
 
@@ -197,6 +198,7 @@ mod tests {
             required_permission: "read",
             source_kind: SourceKind::DocKit,
             tags: &[],
+            parallel_ok: false,
         };
         let tool = super::to_openai_tool(&cap);
         assert_eq!(tool["type"], "function");
