@@ -26,7 +26,7 @@ use agent::session_store::{
     clear_agent_session_messages, clear_session_confirmation_rules, create_agent_session,
     delete_agent_session, delete_attached_source, delete_confirmation_rule, export_agent_session,
     import_agent_session, load_agent_sessions, load_attached_sources, load_confirmation_rules,
-    load_session_messages, migrate_session_metadata, recover_stuck_sessions,
+    load_session_messages, migrate_session_metadata,
     save_attached_source, save_confirmation_rule, update_session_meta, update_session_status,
 };
 use agent_adapters::{
@@ -170,7 +170,7 @@ pub fn run() {
             storage::db::migrate(&agent_db)?;
             {
                 let conn = agent_db.0.lock().map_err(|e| e.to_string())?;
-                recover_stuck_sessions(&conn)?;
+                storage::db::recover_stuck_sessions(&conn)?;
             }
             app.manage(agent_db);
 

@@ -99,16 +99,6 @@ pub async fn load_agent_sessions(db: State<'_, AgentDb>) -> Result<Vec<AgentSess
     .map_err(|e| e.to_string())?
 }
 
-pub fn recover_stuck_sessions(conn: &rusqlite::Connection) -> Result<(), String> {
-    // Run the UPDATE and log how many sessions were reset so devs can see
-    // orphaned sessions cleared at startup.
-    let changed = conn
-        .execute("UPDATE agent_sessions SET status = 'idle' WHERE status = 'running'", [])
-        .map_err(|e| e.to_string())?;
-    log::info!("Reset {} stuck agent session(s) from 'running' to 'idle'", changed);
-    Ok(())
-}
-
 #[tauri::command]
 pub async fn create_agent_session(
     title: String,
