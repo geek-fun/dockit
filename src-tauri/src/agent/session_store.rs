@@ -211,7 +211,7 @@ pub async fn load_session_messages(
         let conn = conn_arc.lock().map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, session_id, role, content, created_at FROM agent_messages WHERE session_id = ?1 ORDER BY created_at ASC, id ASC",
+                "SELECT id, session_id, role, content, created_at FROM agent_messages WHERE session_id = ?1 ORDER BY rowid ASC",
             )
             .map_err(|e| e.to_string())?;
         let rows = stmt
@@ -267,7 +267,7 @@ pub async fn export_agent_session(
 
         let mut stmt = conn
             .prepare(
-                "SELECT id, session_id, role, content, created_at FROM agent_messages WHERE session_id = ?1 ORDER BY created_at ASC, id ASC",
+                "SELECT id, session_id, role, content, created_at FROM agent_messages WHERE session_id = ?1 ORDER BY rowid ASC",
             )
             .map_err(|e| e.to_string())?;
         let rows = stmt
