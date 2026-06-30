@@ -2,7 +2,7 @@
   "name": "dockit",
   "private": true,
   "type": "module",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Agentic desktop GUI client for Elasticsearch, OpenSearch, DynamoDB, MongoDB and EasySearch. Query with natural language. Available for Mac, Windows and Linux.",
   "keywords": [
     "elasticsearch",

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-06-30
+
+### Changed
+
+- **Migrate agent engine to external `data-studio-agent` crate** — extract 12+ inline modules (chat formatters, loop runner, compact, conversation, provider adapter, token counter, tool executor, model registry, etc.) into a reusable Rust crate, reducing the codebase by ~4,100 lines (#460)
+  - Agent loop, LLM formatting (OpenAI, Anthropic), provider routing, token budgeting, conversation management, and tool execution now live in the external crate
+  - Thin `agent_adapters.rs` layer bridges the crate back to Dockit's capability system, session store, and HTTP client
+  - Simplifies maintenance and enables reuse across projects
+
+### Fixed
+
+- Fix agent context awareness: restore assistant role branch in `build_llm_messages` and inject synthetic tool results for missing tool calls to prevent HTTP 400 errors during multi-tool turns (#460)
+- Fix system prompt priority chain: instruct LLM to prefer attached sources, then explicit source names, then `list_connections` as last resort (#460)
+- Fix `useDataStudioChatAgent` context provider — use `sessionSource.databaseType` (frozen snapshot, always correct) instead of `attachedSource.databaseType` (can be wrong after migration) (#460)
+
+### Documentation
+
+- Restructure README for better scannability: convert prose paragraphs to bullet-point format, add prominent download badge buttons, add English/Chinese language toggle links, reduce oversized QR codes (#459).
+
 ## [1.1.1] - 2026-06-05
 
 ### Added
