@@ -201,8 +201,11 @@ const buildSystemPrompt = ({
         ]
       : [
           '',
-          '- Use the available tools to interact with the database.',
-          '- Only use connection IDs listed above — the list reflects current session state and may change between turns if sources are attached or detached.',
+          '- Use database-specific tools (e.g. dynamo__*, es__*, mongo__*) to interact with the database.',
+          '- Tool selection priority:',
+          '  1. Attached sources (listed above) — use these directly. When the user says "this connection" or "current connection", they mean the first attached source.',
+          '  2. User explicitly names a connection — use that connection.',
+          '  3. dockit__list_connections — ONLY if: no attached source exists AND the user asks what connections are available AND you have NOT already called it in this conversation.',
         ]),
     '',
     'Rules (apply regardless of mode):',
