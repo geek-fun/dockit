@@ -147,6 +147,7 @@ mod tests {
             required_permission: "read",
             source_kind: source,
             tags,
+            parallel_ok: false,
         }
     }
 

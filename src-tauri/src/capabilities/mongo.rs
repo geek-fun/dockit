@@ -1702,7 +1702,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     };
 
     macro_rules! reg {
-        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr) => {
+        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr, $parallel_ok:expr) => {
             registry.register(Capability {
                 name: $name,
                 description: $desc,
@@ -1712,7 +1712,11 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
                 required_permission: $perm,
                 source_kind: SourceKind::Database("MONGODB"),
                 tags: $tags,
+                parallel_ok: $parallel_ok,
             });
+        };
+        ($name:expr, $desc:expr, $handler:expr, $schema:expr, $risk:expr, $perm:expr, $tags:expr) => {
+            reg!($name, $desc, $handler, $schema, $risk, $perm, $tags, false)
         };
     }
 
@@ -1736,7 +1740,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
               ("limit", "Maximum documents to return (default 20, max 100)", "integer", false),
               ("sort", "Optional sort specification", "object", false),
           ]),
-          RiskLevel::Safe, "read", &["agent", "ui"]);
+          RiskLevel::Safe, "read", &["agent", "ui"], true);
 
      reg!("mongo__aggregate", "Execute a MongoDB aggregation pipeline on a collection.",
           MongoAggregate::new(),
@@ -1745,7 +1749,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
               ("collection", "Collection name", "string", true),
               ("pipeline", "Aggregation pipeline stages as array", "array", true),
           ]),
-          RiskLevel::Elevated, "read", &["agent"]);
+           RiskLevel::Elevated, "read", &["agent"], false);
 
      reg!("mongo__insert_one", "Insert a single document into a MongoDB collection.",
           MongoInsertOne::new(),
@@ -1845,7 +1849,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
               ("collection", "Collection name", "string", true),
               ("filter", "Optional JSON filter string, e.g. {\"status\": \"active\"}", "string", false),
           ]),
-          RiskLevel::Safe, "read", &["agent", "ui"]);
+          RiskLevel::Safe, "read", &["agent", "ui"], true);
 
      reg!("mongo__update_document", "Update a single document in a MongoDB collection by its _id using $set with the provided fields.",
           MongoUpdateDocument::new(),
@@ -1929,7 +1933,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
               ("collection", "Collection name", "string", true),
               ("limit", "Maximum number of documents to return (default 10, max 1000)", "integer", false),
           ]),
-          RiskLevel::Safe, "read", &["ui"]);
+          RiskLevel::Safe, "read", &["ui"], true);
 }
 
 #[cfg(test)]

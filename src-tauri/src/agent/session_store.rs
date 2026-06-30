@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::State;
 
-use crate::db::AgentDb;
+use data_studio_agent::storage::db::AgentDb;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AgentSession {
@@ -97,16 +97,6 @@ pub async fn load_agent_sessions(db: State<'_, AgentDb>) -> Result<Vec<AgentSess
     })
     .await
     .map_err(|e| e.to_string())?
-}
-
-pub fn recover_stuck_sessions(conn: &rusqlite::Connection) -> Result<(), String> {
-    // Run the UPDATE and log how many sessions were reset so devs can see
-    // orphaned sessions cleared at startup.
-    let changed = conn
-        .execute("UPDATE agent_sessions SET status = 'idle' WHERE status = 'running'", [])
-        .map_err(|e| e.to_string())?;
-    log::info!("Reset {} stuck agent session(s) from 'running' to 'idle'", changed);
-    Ok(())
 }
 
 #[tauri::command]
@@ -221,7 +211,7 @@ pub async fn load_session_messages(
         let conn = conn_arc.lock().map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare(
-                "SELECT id, session_id, role, content, created_at FROM agent_messages WHERE session_id = ?1 ORDER BY created_at ASC, id ASC",
+                "SELECT id, session_id, role, content, created_at FROM agent_messages WHERE session_id = ?1 ORDER BY rowid ASC",
             )
             .map_err(|e| e.to_string())?;
         let rows = stmt
@@ -277,7 +267,7 @@ pub async fn export_agent_session(
 
         let mut stmt = conn
             .prepare(
-                "SELECT id, session_id, role, content, created_at FROM agent_messages WHERE session_id = ?1 ORDER BY created_at ASC, id ASC",
+                "SELECT id, session_id, role, content, created_at FROM agent_messages WHERE session_id = ?1 ORDER BY rowid ASC",
             )
             .map_err(|e| e.to_string())?;
         let rows = stmt

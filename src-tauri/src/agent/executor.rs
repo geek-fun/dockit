@@ -1,24 +1,9 @@
 use async_trait::async_trait;
+use data_studio_agent::tool_executor::{ToolEnvelope, ToolExecutor, ToolResultMetadata};
 use serde_json::Value;
-
-use crate::agent::tool_executor::ToolExecutor;
 
 const TOOL_ENVELOPE_MAX_CHARS: usize = 32768;
 const TOOL_ENVELOPE_SUMMARY_CHARS: usize = 4096;
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ToolResultMetadata {
-    pub tool_name: String,
-    pub duration_ms: u64,
-    pub truncated: bool,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ToolEnvelope {
-    pub summary: String,
-    pub full_result: String,
-    pub metadata: ToolResultMetadata,
-}
 
 fn char_truncate(input: &str, max_chars: usize) -> (String, bool) {
     if input.chars().count() <= max_chars {

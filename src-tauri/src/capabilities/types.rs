@@ -65,4 +65,7 @@ pub struct Capability {
     pub source_kind: SourceKind,
     /// Which surfaces expose this capability: "agent", "ui", or both.
     pub tags: &'static [&'static str],
+    /// Whether this capability is safe to execute in parallel with other
+    /// capabilities (read-only operations that don't conflict).
+    pub parallel_ok: bool,
 }
