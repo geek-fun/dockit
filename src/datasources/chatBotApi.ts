@@ -7,6 +7,7 @@ export enum ProviderEnum {
   OPENAI = 'OPENAI',
   DEEP_SEEK = 'DEEP_SEEK',
   OPENROUTER = 'OPENROUTER',
+  REQUESTY = 'REQUESTY',
   OLLAMA = 'OLLAMA',
   LM_STUDIO = 'LM_STUDIO',
 }

@@ -28,6 +28,7 @@ export type ProviderKind =
   | 'openai'
   | 'deepseek'
   | 'openrouter'
+  | 'requesty'
   | 'ollama'
   | 'lm-studio'
   | 'custom-openai'
@@ -149,6 +150,15 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   },
   {
+    kind: 'requesty',
+    apiCompatibility: 'openai-compatible',
+    label: 'Requesty',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://router.requesty.ai/v1',
+    enabled: true,
+    defaultModels: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
+  },
+  {
     kind: 'anthropic',
     apiCompatibility: 'anthropic',
     label: 'Anthropic',
@@ -235,6 +245,7 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   openai: ['gpt-4.1', 'gpt-4.1-mini', 'gpt-4o-mini'],
   deepseek: ['deepseek-chat', 'deepseek-reasoner'],
   openrouter: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
+  requesty: ['openai/gpt-4.1-mini', 'anthropic/claude-3.7-sonnet', 'google/gemini-2.5-pro'],
   ollama: ['llama3.1', 'qwen2.5-coder', 'mistral'],
   'lm-studio': [],
   'custom-openai': [],
@@ -335,6 +346,8 @@ const normalizeProvider = (provider: ProviderEnum | undefined): ProviderKind => 
       return 'deepseek';
     case ProviderEnum.OPENROUTER:
       return 'openrouter';
+    case ProviderEnum.REQUESTY:
+      return 'requesty';
     case ProviderEnum.OLLAMA:
       return 'ollama';
     default:

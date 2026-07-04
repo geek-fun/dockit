@@ -140,11 +140,17 @@ export const enUS = {
         openrouterAuthTitle: 'Connect OpenRouter',
         openrouterAuthDesc:
           'Use website auth first, or fall back to a standard API key if you prefer manual setup.',
+        requestyAuthTitle: 'Connect Requesty',
+        requestyAuthDesc:
+          'Use website auth first, or fall back to a standard API key if you prefer manual setup.',
         websiteTab: 'Website',
         apiKeyTab: 'API Key',
         websiteTabDescription:
           'Open OpenRouter in your browser, finish setup there, then return and save your provider if you want to keep it shared in DocKit.',
         openRouterConnect: 'Open OpenRouter website',
+        requestyWebsiteTabDescription:
+          'Open Requesty in your browser, finish setup there, then return and save your provider if you want to keep it shared in DocKit.',
+        requestyConnect: 'Open Requesty website',
         useApiKey: 'Use API key instead',
         featureRequest: 'Create feature request',
         contextWindowLabel: 'Context window override (tokens)',

@@ -136,11 +136,16 @@ export const zhCN = {
         proxyNone: '无（直连）',
         openrouterAuthTitle: '连接 OpenRouter',
         openrouterAuthDesc: '优先使用网页授权；如果你更喜欢手动配置，也可以切换为 API Key。',
+        requestyAuthTitle: '连接 Requesty',
+        requestyAuthDesc: '优先使用网页授权；如果你更喜欢手动配置，也可以切换为 API Key。',
         websiteTab: '网页授权',
         apiKeyTab: 'API Key',
         websiteTabDescription:
           '在浏览器中打开 OpenRouter 完成授权或密钥配置，返回后即可将该服务商保存到 DocKit 的共享提供方列表中。',
         openRouterConnect: '打开 OpenRouter 网站',
+        requestyWebsiteTabDescription:
+          '在浏览器中打开 Requesty 完成授权或密钥配置，返回后即可将该服务商保存到 DocKit 的共享提供方列表中。',
+        requestyConnect: '打开 Requesty 网站',
         useApiKey: '改用 API Key',
         featureRequest: '创建功能需求',
         contextWindowLabel: '上下文窗口覆盖（tokens）',
