@@ -530,6 +530,12 @@ const providerPresets: Record<
     baseUrl: 'https://openrouter.ai/api/v1',
     apiCompatibility: 'openai-compatible',
   },
+  requesty: {
+    label: 'Requesty',
+    authMode: 'api-key',
+    baseUrl: 'https://router.requesty.ai/v1',
+    apiCompatibility: 'openai-compatible',
+  },
   anthropic: {
     label: 'Anthropic',
     authMode: 'api-key',
