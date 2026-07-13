@@ -28,6 +28,62 @@ export enum DatabaseType {
   MONGODB = 'MONGODB',
 }
 
+// ── SSH Tunnel Types ──
+
+export type SshAuthMethod = 'password' | 'key' | 'agent' | 'none' | '';
+
+export type SshTunnelConfig = {
+  enabled: boolean;
+  host: string;
+  port: number;
+  username: string;
+  authMethod: SshAuthMethod;
+  password: string;
+  keyPath: string;
+  keyPassphrase: string;
+  useSshAgent: boolean;
+  sshAgentSockPath: string;
+  connectTimeoutSecs: number;
+  keepaliveIntervalSecs: number;
+  verifyHostKey: boolean;
+  exposeLan: boolean;
+};
+
+export type SshConnectionConfig = {
+  enabled: boolean;
+  profileId?: string;
+  hopProfileIds?: string[];
+  inline?: SshTunnelConfig;
+};
+
+export type SshProfile = {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  username: string;
+  authMethod: SshAuthMethod;
+  password: string;
+  keyPath: string;
+  keyPassphrase: string;
+  useSshAgent: boolean;
+  sshAgentSockPath: string;
+  connectTimeoutSecs: number;
+  keepaliveIntervalSecs: number;
+  verifyHostKey: boolean;
+  exposeLan: boolean;
+};
+
+export type SshConfigHostEntry = {
+  host: string;
+  hostName?: string;
+  port?: number;
+  user?: string;
+  identityFile?: string;
+};
+
+export type TransportLayerConfig = { type: 'ssh' } & SshTunnelConfig;
+
 type ElasticSearchIndex = {
   health: string;
   status: string;
@@ -160,6 +216,7 @@ export type DynamoDBConnection = {
   tableFilter?: DynamoTableFilter;
   tables?: Array<DynamoTableSummary>;
   favoriteTables?: Array<string>;
+  ssh?: SshConnectionConfig;
 };
 
 // Shared base for HTTP-API-compatible search engines
@@ -177,6 +234,7 @@ export type SearchConnectionBase = {
   queryParameters?: string;
   activeIndex: ElasticSearchIndex | undefined;
   version: string;
+  ssh?: SshConnectionConfig;
   clusterName: string;
   clusterUuid: string;
 };
@@ -241,6 +299,7 @@ export type MongoDBConnection = {
   databases?: Array<{ name: string; size_on_disk?: number; empty?: boolean }>;
   collections?: MongoDBCollection[];
   favoriteCollections?: Array<{ database: string; collection: string }>;
+  ssh?: SshConnectionConfig;
 };
 
 export type MongoDBCollection = {
@@ -479,7 +538,42 @@ export const migrateConnections = (
     migrated = migrateSearchConnectionsV4ToV5(migrated);
   }
 
+  if (fromVersion < 6) {
+    migrated = migrateConnectionsV5ToV6(migrated);
+  }
+
   return { migrated, consolidatedCount, originalCount };
+};
+
+const migrateConnectionsV5ToV6 = (raw: Connection[]): Connection[] =>
+  raw.map(con =>
+    'ssh' in con && con.ssh !== undefined ? con : { ...con, ssh: { enabled: false } },
+  );
+
+export const buildTransportLayers = (
+  ssh: SshConnectionConfig | undefined,
+): TransportLayerConfig[] => {
+  if (!ssh?.enabled) return [];
+  if (!ssh.profileId && !ssh.inline) return [];
+
+  const config: SshTunnelConfig = ssh.inline ?? {
+    enabled: true,
+    host: '',
+    port: 22,
+    username: '',
+    authMethod: '',
+    password: '',
+    keyPath: '',
+    keyPassphrase: '',
+    useSshAgent: false,
+    sshAgentSockPath: '',
+    connectTimeoutSecs: 10,
+    keepaliveIntervalSecs: 30,
+    verifyHostKey: false,
+    exposeLan: false,
+  };
+
+  return [{ type: 'ssh', ...config }];
 };
 
 export const useConnectionStore = defineStore('connectionStore', {

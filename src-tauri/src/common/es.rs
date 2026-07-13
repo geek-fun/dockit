@@ -13,6 +13,14 @@ pub(crate) fn build_es_base_url(config: &Value) -> Result<String, String> {
     Ok(format!("{}:{}", host, port))
 }
 
+/// Build ES base URL with SSH tunnel support.
+/// Uses resolved host/port directly instead of reading from config,
+/// and includes the protocol scheme (http/https).
+pub fn build_es_base_url_tunneled(resolved_host: &str, resolved_port: u16, ssl: bool) -> String {
+    let protocol = if ssl { "https" } else { "http" };
+    format!("{}://{}:{}", protocol, resolved_host, resolved_port)
+}
+
 pub(crate) fn build_es_headers(config: &Value) -> reqwest::header::HeaderMap {
     let mut headers = reqwest::header::HeaderMap::new();
     headers.insert(

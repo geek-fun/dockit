@@ -45,14 +45,23 @@ fn encode_component(s: &str) -> String {
 }
 
 fn build_uri(config: &MongoConnectionConfig) -> String {
+    build_uri_tunneled(config, None)
+}
+
+fn build_uri_tunneled(config: &MongoConnectionConfig, tunnel_port: Option<u16>) -> String {
     match &config.auth {
         MongoAuth::Uri { uri } => uri.clone(),
         _ => {
             let use_tls = config.tls.unwrap_or(false);
-            let host = if config.host.is_empty() {
-                "localhost".to_string()
+            let host_str = if let Some(local_port) = tunnel_port {
+                format!("127.0.0.1:{}", local_port)
             } else {
-                config.host.clone()
+                let host = if config.host.is_empty() {
+                    "localhost".to_string()
+                } else {
+                    config.host.clone()
+                };
+                format!("{}:{}", host, config.port)
             };
 
             let db_path = config
@@ -86,8 +95,8 @@ fn build_uri(config: &MongoConnectionConfig) -> String {
                         format!("?{}", params.join("&"))
                     };
                     format!(
-                        "mongodb://{}:{}@{}:{}{}{}",
-                        encoded_user, encoded_pass, host, config.port, db_path, query
+                        "mongodb://{}:{}@{}{}{}",
+                        encoded_user, encoded_pass, host_str, db_path, query
                     )
                 }
                 _ => {
@@ -96,7 +105,7 @@ fn build_uri(config: &MongoConnectionConfig) -> String {
                     } else {
                         format!("?{}", params.join("&"))
                     };
-                    format!("mongodb://{}:{}{}{}", host, config.port, db_path, query)
+                    format!("mongodb://{}{}{}", host_str, db_path, query)
                 }
             }
         }
@@ -941,7 +950,14 @@ pub async fn mongo_execute_query(
 }
 
 async fn build_client(config: &MongoConnectionConfig) -> Result<Client, String> {
-    let uri = build_uri(config);
+    build_client_tunneled(config, None).await
+}
+
+async fn build_client_tunneled(
+    config: &MongoConnectionConfig,
+    tunnel_port: Option<u16>,
+) -> Result<Client, String> {
+    let uri = build_uri_tunneled(config, tunnel_port);
     let client_options = ClientOptions::parse(&uri)
         .await
         .map_err(|e| format!("Failed to parse connection options: {}", e))?;

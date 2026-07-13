@@ -511,6 +511,15 @@
               </template>
             </div>
           </FormItem>
+
+          <!-- SSH Tunnel Section -->
+          <SshTunnelSection
+            v-model="sshConfig"
+            :remote-host="sshRemoteHost"
+            :remote-port="sshRemotePort"
+            @create-profile="openSshProfileDialog(null)"
+            @edit-profile="openSshProfileDialog($event)"
+          />
         </Form>
       </div>
 
@@ -533,6 +542,7 @@
       </DialogFooter>
     </DialogContent>
   </Dialog>
+  <SshProfileDialog ref="sshProfileDialogRef" />
 </template>
 
 <script setup lang="ts">
@@ -551,11 +561,15 @@ import {
   DynamoDBConnection,
   type DynamoDBAuth,
   type DynamoTableFilter,
+  type SshConnectionConfig,
   applyTableFilter,
 } from '../../../store';
+import { useSshProfileStore } from '../../../store';
 import { ApiClientError } from '../../../datasources/ApiClients';
 import { dynamoApi } from '../../../datasources/dynamoApi';
 import { useFormValidation, useDialogResult } from '@/composables';
+import { SshTunnelSection } from '@/components/ssh';
+import SshProfileDialog from './ssh-profile-dialog.vue';
 
 import {
   Dialog,
@@ -592,6 +606,41 @@ const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDi
 const connectionMode = ref<'accessKey' | 'profile' | 'sso' | 'assumeRole' | 'local'>('accessKey');
 const availableProfiles = ref<string[]>([]);
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
+const sshConfig = ref<SshConnectionConfig>({ enabled: false });
+const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
+
+function openSshProfileDialog(profileId: string | null) {
+  if (sshProfileDialogRef.value) {
+    const profile = profileId
+      ? (useSshProfileStore().profiles.find(p => p.id === profileId) ?? null)
+      : null;
+    sshProfileDialogRef.value.show(profile);
+  }
+}
+
+const sshRemoteHost = computed(() => {
+  if (formData.value.endpointUrl) {
+    try {
+      return new URL(formData.value.endpointUrl).hostname;
+    } catch {
+      return formData.value.endpointUrl;
+    }
+  }
+  const region = formData.value.region || 'us-east-1';
+  return `dynamodb.${region}.amazonaws.com`;
+});
+
+const sshRemotePort = computed(() => {
+  if (formData.value.endpointUrl) {
+    try {
+      const url = new URL(formData.value.endpointUrl);
+      return url.port ? parseInt(url.port, 10) : url.protocol === 'https:' ? 443 : 80;
+    } catch {
+      return 443;
+    }
+  }
+  return 443;
+});
 
 // ── SSO state ──
 const ssoStartUrl = ref('');
@@ -1016,6 +1065,7 @@ const showMedal = (con: DynamoDBConnection | null) => {
   resetResult();
   if (con) {
     formData.value = { ...con };
+    sshConfig.value = con.ssh ? { ...con.ssh } : { enabled: false };
     veeResetForm({ values: { ...con } });
     connectionMode.value = con.endpointUrl
       ? 'local'
@@ -1045,6 +1095,7 @@ const showMedal = (con: DynamoDBConnection | null) => {
     formData.value = cloneDeep(defaultFormData);
     veeResetForm({ values: cloneDeep(defaultFormData) });
     connectionMode.value = 'accessKey';
+    sshConfig.value = { enabled: false };
     resetSsoState();
     resetAssumeRoleState();
   }
@@ -1090,6 +1141,7 @@ const closeModal = () => {
   availableTables.value = [];
   filterTableNameInput.value = '';
   showSuggestions.value = false;
+  sshConfig.value = { enabled: false };
   resetSsoState();
   resetAssumeRoleState();
   resetValidation();
@@ -1157,7 +1209,7 @@ const testConnect = async () => {
   const startTime = Date.now();
 
   try {
-    await freshConnection(formData.value);
+    await freshConnection({ ...formData.value, ssh: { ...sshConfig.value } });
 
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
@@ -1237,7 +1289,10 @@ const saveConnect = async () => {
   }
 
   saveLoading.value = true;
-  const result = await connectionStore.saveConnection(formData.value);
+  const result = await connectionStore.saveConnection({
+    ...formData.value,
+    ssh: { ...sshConfig.value },
+  });
   if (result.success) {
     closeModal();
   } else {

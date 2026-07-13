@@ -1,208 +1,287 @@
 <template>
   <div class="connection-list-container">
-    <div v-if="connections.length > 0" class="connection-toolbar">
-      <div class="toolbar-left">
-        <span class="connections-title">{{ $t('connection.savedConnections') }}</span>
-        <span class="connections-count">{{ filteredConnections.length }}</span>
-      </div>
-      <div class="toolbar-right">
-        <div class="filter-input-wrapper">
-          <span class="i-carbon-search filter-icon" />
-          <Input
-            v-model="filterText"
-            :placeholder="$t('connection.filterPlaceholder')"
-            class="filter-input"
-          />
-          <button v-if="filterText" class="filter-clear-btn" @click="filterText = ''">
-            <span class="i-carbon-close h-3.5 w-3.5" />
-          </button>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button variant="outline" size="sm" class="sort-trigger">
-              <span :class="sortDirIcon" class="h-4 w-4" />
-              {{ $t(`connection.sortBy.${activeSortKey}`) }}
-              <span class="i-carbon-chevron-down h-3 w-3 opacity-60" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" class="sort-dropdown-content">
-            <div class="sort-section-label">{{ $t('connection.sortBy.sortBy') }}</div>
-            <DropdownMenuItem
-              v-for="option in sortOptions"
-              :key="option.key"
-              class="sort-menu-item"
-              @click="handleSortSelect(option.key)"
-            >
-              <span class="sort-item-label">{{ option.label }}</span>
-              <span
-                v-if="activeSortKey === option.key"
-                :class="sortDirIcon"
-                class="h-3.5 w-3.5 ml-auto text-primary"
-              />
-            </DropdownMenuItem>
-            <div class="sort-divider" />
-            <div class="sort-section-label">{{ $t('connection.sortBy.direction') }}</div>
-            <DropdownMenuItem class="sort-menu-item" @click="toggleSortDir">
-              <span class="sort-item-label">
-                {{ $t(`connection.sortBy.${sortDir === 'asc' ? 'ascending' : 'descending'}`) }}
-              </span>
-              <span :class="sortDirIcon" class="h-3.5 w-3.5 ml-auto text-primary" />
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+    <!-- Section Toggle -->
+    <div class="flex border-b mb-3">
+      <button
+        class="flex-1 px-3 py-2 text-sm font-medium transition-colors"
+        :class="
+          activeSection === 'connections'
+            ? 'border-b-2 border-primary text-foreground'
+            : 'text-muted-foreground'
+        "
+        @click="activeSection = 'connections'"
+      >
+        {{ $t('connection.title') }}
+      </button>
+      <button
+        class="flex-1 px-3 py-2 text-sm font-medium transition-colors"
+        :class="
+          activeSection === 'sshProfiles'
+            ? 'border-b-2 border-primary text-foreground'
+            : 'text-muted-foreground'
+        "
+        @click="activeSection = 'sshProfiles'"
+      >
+        {{ $t('connection.ssh.profilesSection') }}
+      </button>
     </div>
-    <div class="connection-scroll-container">
-      <div v-if="filteredConnections.length > 0" class="connection-list-body">
-        <div
-          v-for="(connection, index) in filteredConnections"
-          :key="connection.id"
-          class="connection-card focus:ring-2 focus:ring-primary focus:outline-none"
-          role="button"
-          tabindex="0"
-          @click="handleSelect('connect', connection)"
-          @keydown.enter="handleSelect('connect', connection)"
-          @keydown.space.prevent="handleSelect('connect', connection)"
-          @keydown.right.prevent="focusConnectionNode(index + 1)"
-          @keydown.left.prevent="focusConnectionNode(index - 1)"
-          @keydown.down.prevent="focusConnectionNode(index + getConnectionGridColumns())"
-          @keydown.up.prevent="focusConnectionNode(index - getConnectionGridColumns())"
-        >
-          <!-- Top section: icon -->
-          <div class="card-top">
-            <div class="card-icon-wrapper">
-              <component :is="getDatabaseIcon(connection.type)" class="h-6 w-6" />
+
+    <!-- Connections View -->
+    <template v-if="activeSection === 'connections'">
+      <div v-if="connections.length > 0" class="connection-toolbar">
+        <div class="toolbar-left">
+          <span class="connections-title">{{ $t('connection.savedConnections') }}</span>
+          <span class="connections-count">{{ filteredConnections.length }}</span>
+        </div>
+        <div class="toolbar-right">
+          <div class="filter-input-wrapper">
+            <span class="i-carbon-search filter-icon" />
+            <Input
+              v-model="filterText"
+              :placeholder="$t('connection.filterPlaceholder')"
+              class="filter-input"
+            />
+            <button v-if="filterText" class="filter-clear-btn" @click="filterText = ''">
+              <span class="i-carbon-close h-3.5 w-3.5" />
+            </button>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button variant="outline" size="sm" class="sort-trigger">
+                <span :class="sortDirIcon" class="h-4 w-4" />
+                {{ $t(`connection.sortBy.${activeSortKey}`) }}
+                <span class="i-carbon-chevron-down h-3 w-3 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" class="sort-dropdown-content">
+              <div class="sort-section-label">{{ $t('connection.sortBy.sortBy') }}</div>
+              <DropdownMenuItem
+                v-for="option in sortOptions"
+                :key="option.key"
+                class="sort-menu-item"
+                @click="handleSortSelect(option.key)"
+              >
+                <span class="sort-item-label">{{ option.label }}</span>
+                <span
+                  v-if="activeSortKey === option.key"
+                  :class="sortDirIcon"
+                  class="h-3.5 w-3.5 ml-auto text-primary"
+                />
+              </DropdownMenuItem>
+              <div class="sort-divider" />
+              <div class="sort-section-label">{{ $t('connection.sortBy.direction') }}</div>
+              <DropdownMenuItem class="sort-menu-item" @click="toggleSortDir">
+                <span class="sort-item-label">
+                  {{ $t(`connection.sortBy.${sortDir === 'asc' ? 'ascending' : 'descending'}`) }}
+                </span>
+                <span :class="sortDirIcon" class="h-3.5 w-3.5 ml-auto text-primary" />
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      <div class="connection-scroll-container">
+        <div v-if="filteredConnections.length > 0" class="connection-list-body">
+          <div
+            v-for="(connection, index) in filteredConnections"
+            :key="connection.id"
+            class="connection-card focus:ring-2 focus:ring-primary focus:outline-none"
+            role="button"
+            tabindex="0"
+            @click="handleSelect('connect', connection)"
+            @keydown.enter="handleSelect('connect', connection)"
+            @keydown.space.prevent="handleSelect('connect', connection)"
+            @keydown.right.prevent="focusConnectionNode(index + 1)"
+            @keydown.left.prevent="focusConnectionNode(index - 1)"
+            @keydown.down.prevent="focusConnectionNode(index + getConnectionGridColumns())"
+            @keydown.up.prevent="focusConnectionNode(index - getConnectionGridColumns())"
+          >
+            <!-- Top section: icon -->
+            <div class="card-top">
+              <div class="card-icon-wrapper">
+                <component :is="getDatabaseIcon(connection.type)" class="h-6 w-6" />
+              </div>
+            </div>
+            <!-- Name + connection string -->
+            <div class="card-info">
+              <div class="card-name">{{ connection.name }}</div>
+              <div class="card-detail">{{ getConnectionDetail(connection) }}</div>
+            </div>
+            <!-- Badges -->
+            <div class="card-badges">
+              <Badge variant="outline" class="card-badge type-badge">
+                {{ getDatabaseLabel(connection.type) }}
+              </Badge>
+              <Badge v-if="getVersion(connection)" variant="secondary" class="card-badge">
+                {{ getVersion(connection) }}
+              </Badge>
+              <Badge
+                v-if="connection.type === DatabaseType.DYNAMODB"
+                variant="secondary"
+                class="card-badge"
+              >
+                {{ getConnectionTarget(connection) }}
+              </Badge>
+              <Badge
+                v-if="connection.type === DatabaseType.MONGODB"
+                variant="secondary"
+                class="card-badge"
+              >
+                {{ getMongoAuthLabel(connection) }}
+              </Badge>
+              <TooltipProvider v-if="getMongoAuthType(connection)" :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span
+                      :class="[
+                        getMongoAuthType(connection)!.icon,
+                        getMongoAuthType(connection)!.color,
+                      ]"
+                      class="h-3.5 w-3.5 cursor-default"
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {{ getMongoAuthType(connection)!.label }}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider v-if="getMongoTls(connection)" :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span class="i-carbon-locked text-green-500 h-3.5 w-3.5 cursor-default" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top">TLS Enabled</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider v-if="getEsProtocol(connection)" :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span
+                      :class="[getEsProtocol(connection)!.icon, getEsProtocol(connection)!.color]"
+                      class="h-3.5 w-3.5 cursor-default"
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {{ getEsProtocol(connection)!.label }}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider v-if="getEsAuthType(connection)" :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <span
+                      :class="[getEsAuthType(connection)!.icon, getEsAuthType(connection)!.color]"
+                      class="h-3.5 w-3.5 cursor-default"
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    {{ getEsAuthType(connection)!.label }}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <!-- Actions row -->
+            <div class="card-actions" @click.stop="">
+              <TooltipProvider :delay-duration="200">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      class="h-7 w-7"
+                      @click="handleSelect('connect', connection)"
+                    >
+                      <span class="i-carbon-login h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {{ $t('connection.operations.connect') }}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <Button variant="ghost" size="icon" class="h-7 w-7">
+                    <span class="i-carbon-overflow-menu-horizontal h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem @click="handleSelect('edit', connection)">
+                    <span class="i-carbon-edit h-4 w-4 mr-2" />
+                    {{ $t('connection.operations.edit') }}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem @click="handleSelect('clone', connection)">
+                    <span class="i-carbon-copy h-4 w-4 mr-2" />
+                    {{ $t('connection.operations.clone') }}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    class="text-destructive"
+                    @click="handleSelect('remove', connection)"
+                  >
+                    <span class="i-carbon-trash-can h-4 w-4 mr-2" />
+                    {{ $t('connection.operations.remove') }}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
-          <!-- Name + connection string -->
-          <div class="card-info">
-            <div class="card-name">{{ connection.name }}</div>
-            <div class="card-detail">{{ getConnectionDetail(connection) }}</div>
+        </div>
+        <div v-if="filterText && filteredConnections.length === 0" class="filter-empty-state">
+          <span class="i-carbon-search h-8 w-8 text-muted-foreground" />
+          <p class="text-sm text-muted-foreground">{{ $t('connection.noMatchingConnections') }}</p>
+        </div>
+      </div>
+    </template>
+
+    <!-- SSH Profiles View -->
+    <template v-if="activeSection === 'sshProfiles'">
+      <div class="flex items-center justify-between mb-3 px-4">
+        <h3 class="text-sm font-medium">{{ $t('connection.ssh.profilesSection') }}</h3>
+        <Button variant="outline" size="sm" @click="openNewSshProfile">
+          <Plus class="h-3 w-3 mr-1" />
+          {{ $t('connection.ssh.createProfile') }}
+        </Button>
+      </div>
+
+      <div
+        v-if="sshStore.profiles.length === 0"
+        class="text-center text-muted-foreground py-8 text-sm"
+      >
+        <Key class="h-8 w-8 mx-auto mb-2 opacity-30" />
+        {{ $t('connection.ssh.noProfile') }}
+      </div>
+
+      <div v-else class="space-y-2 px-4">
+        <div
+          v-for="profile in sshStore.profiles"
+          :key="profile.id"
+          class="flex items-center justify-between p-3 border rounded-md hover:bg-accent/50 transition-colors group"
+        >
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-medium truncate">{{ profile.name }}</div>
+            <div class="text-xs text-muted-foreground truncate">
+              {{ profile.username }}@{{ profile.host }}:{{ profile.port }}
+            </div>
+            <div class="text-xs text-muted-foreground capitalize">
+              {{ profile.authMethod || 'password' }}
+            </div>
           </div>
-          <!-- Badges -->
-          <div class="card-badges">
-            <Badge variant="outline" class="card-badge type-badge">
-              {{ getDatabaseLabel(connection.type) }}
-            </Badge>
-            <Badge v-if="getVersion(connection)" variant="secondary" class="card-badge">
-              {{ getVersion(connection) }}
-            </Badge>
-            <Badge
-              v-if="connection.type === DatabaseType.DYNAMODB"
-              variant="secondary"
-              class="card-badge"
+          <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+            <Button variant="ghost" size="icon" class="h-7 w-7" @click="editSshProfile(profile)">
+              <Pencil class="h-3 w-3" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7 text-destructive"
+              @click="deleteSshProfile(profile.id)"
             >
-              {{ getConnectionTarget(connection) }}
-            </Badge>
-            <Badge
-              v-if="connection.type === DatabaseType.MONGODB"
-              variant="secondary"
-              class="card-badge"
-            >
-              {{ getMongoAuthLabel(connection) }}
-            </Badge>
-            <TooltipProvider v-if="getMongoAuthType(connection)" :delay-duration="200">
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <span
-                    :class="[
-                      getMongoAuthType(connection)!.icon,
-                      getMongoAuthType(connection)!.color,
-                    ]"
-                    class="h-3.5 w-3.5 cursor-default"
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  {{ getMongoAuthType(connection)!.label }}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider v-if="getMongoTls(connection)" :delay-duration="200">
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <span class="i-carbon-locked text-green-500 h-3.5 w-3.5 cursor-default" />
-                </TooltipTrigger>
-                <TooltipContent side="top">TLS Enabled</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider v-if="getEsProtocol(connection)" :delay-duration="200">
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <span
-                    :class="[getEsProtocol(connection)!.icon, getEsProtocol(connection)!.color]"
-                    class="h-3.5 w-3.5 cursor-default"
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  {{ getEsProtocol(connection)!.label }}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <TooltipProvider v-if="getEsAuthType(connection)" :delay-duration="200">
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <span
-                    :class="[getEsAuthType(connection)!.icon, getEsAuthType(connection)!.color]"
-                    class="h-3.5 w-3.5 cursor-default"
-                  />
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  {{ getEsAuthType(connection)!.label }}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <!-- Actions row -->
-          <div class="card-actions" @click.stop="">
-            <TooltipProvider :delay-duration="200">
-              <Tooltip>
-                <TooltipTrigger as-child>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    class="h-7 w-7"
-                    @click="handleSelect('connect', connection)"
-                  >
-                    <span class="i-carbon-login h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {{ $t('connection.operations.connect') }}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <DropdownMenu>
-              <DropdownMenuTrigger as-child>
-                <Button variant="ghost" size="icon" class="h-7 w-7">
-                  <span class="i-carbon-overflow-menu-horizontal h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem @click="handleSelect('edit', connection)">
-                  <span class="i-carbon-edit h-4 w-4 mr-2" />
-                  {{ $t('connection.operations.edit') }}
-                </DropdownMenuItem>
-                <DropdownMenuItem @click="handleSelect('clone', connection)">
-                  <span class="i-carbon-copy h-4 w-4 mr-2" />
-                  {{ $t('connection.operations.clone') }}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  class="text-destructive"
-                  @click="handleSelect('remove', connection)"
-                >
-                  <span class="i-carbon-trash-can h-4 w-4 mr-2" />
-                  {{ $t('connection.operations.remove') }}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <Trash2 class="h-3 w-3" />
+            </Button>
           </div>
         </div>
       </div>
-      <div v-if="filterText && filteredConnections.length === 0" class="filter-empty-state">
-        <span class="i-carbon-search h-8 w-8 text-muted-foreground" />
-        <p class="text-sm text-muted-foreground">{{ $t('connection.noMatchingConnections') }}</p>
-      </div>
-    </div>
+    </template>
   </div>
 
   <FloatingMenu @select="selectDatabaseType" />
@@ -210,10 +289,11 @@
   <DynamodbConnectDialog ref="dynamodbConnectDialog" />
   <MongodbConnectDialog ref="mongodbConnectDialog" />
   <ConnectingModal ref="connectingModal" />
+  <SshProfileDialog ref="sshProfileDialogRef" />
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { cloneDeep } from 'lodash';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -243,12 +323,16 @@ import {
   SearchConnection,
   isSearchConnection,
   useConnectionStore,
+  useSshProfileStore,
+  SshProfile,
 } from '../../../store';
 import FloatingMenu from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
 import MongodbConnectDialog from './mongodb-connect-dialog.vue';
 import ConnectingModal from './connecting-modal.vue';
+import SshProfileDialog from './ssh-profile-dialog.vue';
+import { Key, Plus, Pencil, Trash2 } from 'lucide-vue-next';
 
 type SortKey = 'name' | 'type' | 'dateCreated';
 
@@ -262,6 +346,26 @@ const connectionStore = useConnectionStore();
 const { fetchConnections, removeConnection, freshConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 fetchConnections();
+
+const sshStore = useSshProfileStore();
+const activeSection = ref<'connections' | 'sshProfiles'>('connections');
+const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
+
+const openNewSshProfile = () => {
+  sshProfileDialogRef.value?.show(null);
+};
+
+const editSshProfile = (profile: SshProfile) => {
+  sshProfileDialogRef.value?.show(profile);
+};
+
+const deleteSshProfile = async (profileId: string) => {
+  await sshStore.deleteProfile(profileId);
+};
+
+onMounted(async () => {
+  await sshStore.fetchProfiles();
+});
 
 const filterText = ref('');
 const activeSortKey = ref<SortKey>('name');

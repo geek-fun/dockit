@@ -189,6 +189,16 @@
               </GridItem>
             </template>
           </Grid>
+
+          <!-- SSH Tunnel Section -->
+          <SshTunnelSection
+            v-if="formData.type !== DatabaseType.EASYSEARCH"
+            v-model="sshConfig"
+            :remote-host="formData.host"
+            :remote-port="formData.port"
+            @create-profile="openSshProfileDialog(null)"
+            @edit-profile="openSshProfileDialog($event)"
+          />
         </Form>
       </div>
 
@@ -211,6 +221,7 @@
       </DialogFooter>
     </DialogContent>
   </Dialog>
+  <SshProfileDialog ref="sshProfileDialogRef" />
 </template>
 
 <script setup lang="ts">
@@ -225,8 +236,12 @@ import elasticsearchIcon from '../../../assets/svg/elasticsearch.svg';
 import opensearchIcon from '../../../assets/svg/db-opensearch.svg';
 import easysearchIcon from '../../../assets/svg/easysearch.svg';
 import { Connection, DatabaseType, SearchConnection, useConnectionStore } from '../../../store';
+import type { SshConnectionConfig } from '../../../store';
+import { useSshProfileStore } from '../../../store';
 import { useLang } from '../../../lang';
 import { useFormValidation, useDialogResult } from '@/composables';
+import { SshTunnelSection } from '@/components/ssh';
+import SshProfileDialog from './ssh-profile-dialog.vue';
 
 import {
   Dialog,
@@ -255,6 +270,17 @@ const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDi
 const showPassword = ref(false);
 const authType = ref<'basic' | 'apiKey'>('basic');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
+const sshConfig = ref<SshConnectionConfig>({ enabled: false });
+const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
+
+function openSshProfileDialog(profileId: string | null) {
+  if (sshProfileDialogRef.value) {
+    const profile = profileId
+      ? (useSshProfileStore().profiles.find(p => p.id === profileId) ?? null)
+      : null;
+    sshProfileDialogRef.value.show(profile);
+  }
+}
 
 const defaultFormData = {
   name: '',
@@ -407,6 +433,7 @@ const showMedal = (
     const resolvedAuthType = (con.authType as 'basic' | 'apiKey' | undefined) || 'basic';
     formData.value = { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType };
     authType.value = resolvedAuthType;
+    sshConfig.value = con.ssh ? { ...con.ssh } : { enabled: false };
     veeResetForm({ values: { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType } });
     modalTitle.value = lang.t('connection.edit');
   } else {
@@ -418,6 +445,7 @@ const showMedal = (
     const initialFormData = { ...cloneDeep(defaultFormData), type, ...typeDefaults };
     formData.value = initialFormData;
     authType.value = 'basic';
+    sshConfig.value = { enabled: false };
     veeResetForm({ values: initialFormData });
   }
   resetValidation();
@@ -431,6 +459,7 @@ const closeModal = () => {
   resetResult();
   hostValidate.value = { status: undefined, feedback: '' };
   authType.value = 'basic';
+  sshConfig.value = { enabled: false };
   resetValidation();
 };
 
@@ -459,6 +488,7 @@ const testConnectConfirm = async () => {
       activeIndex: formData.value.selectedIndex
         ? { index: formData.value.selectedIndex }
         : undefined,
+      ssh: { ...sshConfig.value },
     } as Connection);
 
     const elapsed = Date.now() - startTime;
@@ -504,6 +534,7 @@ const saveConnectConfirm = async () => {
       activeIndex: formData.value.selectedIndex
         ? { index: formData.value.selectedIndex }
         : undefined,
+      ssh: { ...sshConfig.value },
     } as Connection);
     closeModal();
   } catch (e) {

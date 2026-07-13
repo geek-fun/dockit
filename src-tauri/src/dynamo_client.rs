@@ -25,6 +25,7 @@ use crate::dynamo::update_ttl::update_time_to_live;
 use aws_config::meta::region::RegionProviderChain;
 use aws_config::profile::ProfileFileCredentialsProvider;
 use aws_config::Region;
+use tauri::Manager;
 use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use aws_sdk_dynamodb::config::Credentials;
 use aws_sdk_dynamodb::Client;
@@ -70,9 +71,15 @@ pub struct DynamoOptions {
     pub table_name: String,
     pub operation: String,
     pub payload: Option<serde_json::Value>,
+    /// Optional connection ID for SSH tunnel resolution.
+    #[serde(default)]
+    pub connection_id: Option<String>,
 }
 
-fn build_config_builder(credentials: &DynamoCredentials) -> aws_config::ConfigLoader {
+fn build_config_builder(
+    credentials: &DynamoCredentials,
+    tunnel_port: Option<u16>,
+) -> aws_config::ConfigLoader {
     let effective_region = if credentials.region.is_empty() {
         match &credentials.auth {
             DynamoAuth::Sso { region, .. } | DynamoAuth::AssumeRole { region, .. } => {
@@ -134,7 +141,10 @@ fn build_config_builder(credentials: &DynamoCredentials) -> aws_config::ConfigLo
         }
     }
 
-    if let Some(ref endpoint) = credentials.endpoint_url {
+    // Apply tunnel endpoint override before the configured endpoint_url
+    if let Some(local_port) = tunnel_port {
+        config_builder = config_builder.endpoint_url(format!("http://127.0.0.1:{}", local_port));
+    } else if let Some(ref endpoint) = credentials.endpoint_url {
         if !endpoint.is_empty() {
             config_builder = config_builder.endpoint_url(endpoint);
         }
@@ -145,10 +155,17 @@ fn build_config_builder(credentials: &DynamoCredentials) -> aws_config::ConfigLo
 
 #[tauri::command]
 pub async fn dynamo_api(
+    app: tauri::AppHandle,
     credentials: DynamoCredentials,
     options: DynamoOptions,
 ) -> Result<String, String> {
-    let config = build_config_builder(&credentials).load().await;
+    // Resolve SSH tunnel port if connection_id is provided
+    let tunnel_port = if let Some(ref cid) = options.connection_id {
+        app.state::<crate::ssh::TunnelManager>().local_port(cid).await
+    } else {
+        None
+    };
+    let config = build_config_builder(&credentials, tunnel_port).load().await;
 
     let client = Client::new(&config);
 

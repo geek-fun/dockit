@@ -16,6 +16,7 @@ pub mod fetch_client;
 pub mod file_api;
 pub mod menu;
 pub mod mongo_client;
+pub mod ssh;
 
 use agent::executor::DocKitToolExecutor;
 use agent::query_history::{
@@ -151,6 +152,11 @@ pub fn run() {
             toggle_query_history_star,
             delete_query_history_entry,
             clear_query_history,
+            crate::ssh::commands::list_ssh_profiles,
+            crate::ssh::commands::save_ssh_profile,
+            crate::ssh::commands::delete_ssh_profile,
+            crate::ssh::commands::test_ssh_connection,
+            crate::ssh::commands::list_ssh_config_hosts,
         ])
         .setup(|app| {
             menu::create_menu(app)?;
@@ -173,6 +179,7 @@ pub fn run() {
                 storage::db::recover_stuck_sessions(&conn)?;
             }
             app.manage(agent_db);
+            app.manage(crate::ssh::TunnelManager::new());
 
             use std::collections::HashMap;
             use std::sync::{Arc, Mutex};

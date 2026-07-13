@@ -5,12 +5,14 @@ use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use aws_sdk_dynamodb::{config::Credentials, Client as DynamoClient};
 use serde_json::Value;
 
-pub(crate) async fn create_dynamo_client(config: &Value) -> Result<DynamoClient, String> {
+pub(crate) async fn create_dynamo_client(
+    config: &Value,
+    tunnel_port: Option<u16>,
+) -> Result<DynamoClient, String> {
     let region = config
         .get("region")
         .and_then(|v| v.as_str())
         .ok_or("Missing region")?;
-    let endpoint_url = config.get("endpointUrl").and_then(|v| v.as_str());
 
     let region_provider = RegionProviderChain::first_try(Region::new(region.to_string()))
         .or_default_provider()
@@ -74,7 +76,10 @@ pub(crate) async fn create_dynamo_client(config: &Value) -> Result<DynamoClient,
         config_builder = config_builder.credentials_provider(creds);
     }
 
-    if let Some(endpoint) = endpoint_url {
+    // Apply tunnel endpoint override before the configured endpoint_url
+    if let Some(local_port) = tunnel_port {
+        config_builder = config_builder.endpoint_url(format!("http://127.0.0.1:{}", local_port));
+    } else if let Some(endpoint) = config.get("endpointUrl").and_then(|v| v.as_str()) {
         if !endpoint.is_empty() {
             config_builder = config_builder.endpoint_url(endpoint);
         }
@@ -84,12 +89,14 @@ pub(crate) async fn create_dynamo_client(config: &Value) -> Result<DynamoClient,
     Ok(DynamoClient::new(&aws_config))
 }
 
-pub(crate) async fn create_cloudwatch_client(config: &Value) -> Result<CloudWatchClient, String> {
+pub(crate) async fn create_cloudwatch_client(
+    config: &Value,
+    tunnel_port: Option<u16>,
+) -> Result<CloudWatchClient, String> {
     let region = config
         .get("region")
         .and_then(|v| v.as_str())
         .ok_or("Missing region")?;
-    let endpoint_url = config.get("endpointUrl").and_then(|v| v.as_str());
 
     let region_provider = RegionProviderChain::first_try(Region::new(region.to_string()))
         .or_default_provider()
@@ -152,7 +159,10 @@ pub(crate) async fn create_cloudwatch_client(config: &Value) -> Result<CloudWatc
         config_builder = config_builder.credentials_provider(creds);
     }
 
-    if let Some(endpoint) = endpoint_url {
+    // Apply tunnel endpoint override before the configured endpoint_url
+    if let Some(local_port) = tunnel_port {
+        config_builder = config_builder.endpoint_url(format!("http://127.0.0.1:{}", local_port));
+    } else if let Some(endpoint) = config.get("endpointUrl").and_then(|v| v.as_str()) {
         if !endpoint.is_empty() {
             config_builder = config_builder.endpoint_url(endpoint);
         }
@@ -176,7 +186,7 @@ mod tests {
             "accessKeyId": "AKID123",
             "secretAccessKey": "SAK456",
         });
-        let result = create_dynamo_client(&config).await;
+        let result = create_dynamo_client(&config, None).await;
         assert!(result.is_ok(), "should resolve config with explicit creds: {:?}", result.err());
     }
 
@@ -187,7 +197,7 @@ mod tests {
             "accessKeyId": "AKID",
             "secretAccessKey": "SAK",
         });
-        let result = create_dynamo_client(&config).await;
+        let result = create_dynamo_client(&config, None).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("region"));
     }
@@ -199,7 +209,7 @@ mod tests {
             "authKind": "accessKey",
             // no accessKeyId
         });
-        let result = create_dynamo_client(&config).await;
+        let result = create_dynamo_client(&config, None).await;
         assert!(result.is_err());
     }
 
@@ -212,8 +222,21 @@ mod tests {
             "secretAccessKey": "SAK",
             "endpointUrl": "http://localhost:8000",
         });
-        let result = create_dynamo_client(&config).await;
+        let result = create_dynamo_client(&config, None).await;
         assert!(result.is_ok(), "custom endpoint should not block: {:?}", result.err());
+    }
+
+    #[tokio::test]
+    async fn test_create_dynamo_client_tunnel_endpoint() {
+        let config = json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "AKID",
+            "secretAccessKey": "SAK",
+            "endpointUrl": "http://real-host:8000",
+        });
+        let result = create_dynamo_client(&config, Some(9999)).await;
+        assert!(result.is_ok(), "tunnel endpoint should override: {:?}", result.err());
     }
 
     #[tokio::test]
@@ -222,7 +245,7 @@ mod tests {
             "region": "us-east-1",
             "authKind": "unknown_type",
         });
-        let result = create_dynamo_client(&config).await;
+        let result = create_dynamo_client(&config, None).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Unsupported auth kind"));
     }
@@ -235,7 +258,7 @@ mod tests {
             "accessKeyId": "AKID",
             "secretAccessKey": "SAK",
         });
-        let result = create_cloudwatch_client(&config).await;
+        let result = create_cloudwatch_client(&config, None).await;
         assert!(result.is_ok(), "cloudwatch client with explicit creds: {:?}", result.err());
     }
 }

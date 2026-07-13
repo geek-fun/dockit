@@ -194,6 +194,17 @@
                   <Switch v-model:checked="tlsChecked" />
                 </FormItem>
               </GridItem>
+
+              <!-- SSH Tunnel Section -->
+              <GridItem :span="8">
+                <SshTunnelSection
+                  v-model="sshConfig"
+                  :remote-host="formData.host"
+                  :remote-port="formData.port"
+                  @create-profile="openSshProfileDialog(null)"
+                  @edit-profile="openSshProfileDialog($event)"
+                />
+              </GridItem>
             </template>
           </Grid>
         </Form>
@@ -218,6 +229,7 @@
       </DialogFooter>
     </DialogContent>
   </Dialog>
+  <SshProfileDialog ref="sshProfileDialogRef" />
 </template>
 
 <script setup lang="ts">
@@ -230,8 +242,12 @@ import * as z from 'zod';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import mongodbIcon from '../../../assets/svg/mongodb.svg';
 import { DatabaseType, MongoDBConnection, useConnectionStore } from '../../../store';
+import type { SshConnectionConfig } from '../../../store';
+import { useSshProfileStore } from '../../../store';
 import { useLang } from '../../../lang';
 import { useFormValidation, useDialogResult } from '@/composables';
+import { SshTunnelSection } from '@/components/ssh';
+import SshProfileDialog from './ssh-profile-dialog.vue';
 
 import {
   Dialog,
@@ -266,6 +282,17 @@ const saveLoading = ref(false);
 const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
 const authMode = ref<'none' | 'scram' | 'uri'>('none');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
+const sshConfig = ref<SshConnectionConfig>({ enabled: false });
+const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
+
+function openSshProfileDialog(profileId: string | null) {
+  if (sshProfileDialogRef.value) {
+    const profile = profileId
+      ? (useSshProfileStore().profiles.find(p => p.id === profileId) ?? null)
+      : null;
+    sshProfileDialogRef.value.show(profile);
+  }
+}
 
 const defaultFormData = {
   name: '',
@@ -448,6 +475,7 @@ const buildConnection = (): MongoDBConnection => {
     ...formData.value,
     tls: tlsChecked.value,
     database: formData.value.database || undefined,
+    ssh: { ...sshConfig.value },
   };
 
   if (authMode.value === 'uri') {
@@ -487,6 +515,7 @@ const showMedal = (con: MongoDBConnection | null) => {
   if (con) {
     formData.value = cloneDeep(con);
     tlsChecked.value = con.tls ?? false;
+    sshConfig.value = con.ssh ? { ...con.ssh } : { enabled: false };
 
     if (con.auth.kind === 'uri') {
       authMode.value = 'uri';
@@ -511,7 +540,9 @@ const showMedal = (con: MongoDBConnection | null) => {
     usernameValue.value = '';
     passwordValue.value = '';
     authSourceValue.value = '';
+    authMechanismValue.value = '';
     tlsChecked.value = false;
+    sshConfig.value = { enabled: false };
     modalTitle.value = lang.t('connection.new');
   }
   resetValidation();
@@ -527,6 +558,7 @@ const closeModal = () => {
   authSourceValue.value = '';
   authMechanismValue.value = '';
   tlsChecked.value = false;
+  sshConfig.value = { enabled: false };
   modalTitle.value = lang.t('connection.new');
   resetResult();
   resetValidation();
