@@ -5,22 +5,41 @@ use serde_json::Value;
 use tauri::AppHandle;
 use tauri::Manager;
 use crate::ssh::config::{SshConnectionConfig, TransportLayerConfig};
-use crate::ssh::{start_transport_layers, stop_transport_layers, TunnelManager};
+use crate::ssh::{start_transport_layers, TunnelManager};
 
-/// Resolved tunnel endpoint. Caller MUST call `cleanup()` after use.
+/// Resolved tunnel endpoint. The tunnel stays alive in TunnelManager
+/// until the app exits — callers should NOT clean up after each use.
+/// Multiple callers with the same SSH config + remote target share one tunnel.
 pub struct TunnelEndpoint {
     pub host: String,
     pub port: u16,
-    cleanup_key: Option<String>,
 }
 
-impl TunnelEndpoint {
-    pub async fn cleanup(&self, app: &AppHandle) {
-        if let Some(key) = &self.cleanup_key {
-            let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state();
-            tunnels.inner().stop_tunnel(key).await;
-        }
+/// Build a deterministic tunnel key from SSH config + remote target.
+/// Same SSH profile/config + same target → same key → tunnel reused.
+fn tunnel_key(ssh: Option<&Value>, host: &str, port: u16) -> String {
+    let ssh = match ssh {
+        Some(v) => v,
+        None => return format!("direct:{}:{}", host, port),
+    };
+
+    // profileIds are deterministic — use sorted IDs as key
+    if let Some(ids) = ssh.get("profileIds").and_then(|v| v.as_array()) {
+        let mut sorted: Vec<&str> = ids.iter().filter_map(|v| v.as_str()).collect();
+        sorted.sort();
+        return format!("ssh:profiles:{}:{}:{}", sorted.join(","), host, port);
     }
+
+    // Inline config — use host:port:username:authMethod as key
+    if let Some(inline) = ssh.get("inline") {
+        let ih = inline.get("host").and_then(|v| v.as_str()).unwrap_or("");
+        let ip = inline.get("port").and_then(|v| v.as_u64()).unwrap_or(0);
+        let iu = inline.get("username").and_then(|v| v.as_str()).unwrap_or("");
+        let ia = inline.get("auth_method").and_then(|v| v.as_str()).unwrap_or("");
+        return format!("ssh:inline:{}:{}:{}:{}:{}:{}", ih, ip, iu, ia, host, port);
+    }
+
+    format!("ssh:unknown:{}:{}", host, port)
 }
 
 /// Resolve connection target through SSH tunnel if enabled.
@@ -56,9 +75,9 @@ pub async fn resolve_connection_target(
     }
 }
 
-/// Resolve SSH tunnel to a local endpoint and return a handle.
-/// Caller uses `endpoint.host` / `endpoint.port` for the actual connection,
-/// then calls `endpoint.cleanup(app)` after finishing.
+/// Resolve SSH tunnel to a local endpoint. The tunnel stays alive in
+/// TunnelManager and is reused for subsequent calls with the same config.
+/// Callers use `endpoint.host` / `endpoint.port` and do NOT clean up.
 pub async fn resolve_ssh_tunnel(
     app: &AppHandle,
     ssh: Option<&Value>,
@@ -74,31 +93,18 @@ pub async fn resolve_ssh_tunnel(
         return Ok(TunnelEndpoint {
             host: host.to_string(),
             port,
-            cleanup_key: None,
         });
     }
 
+    let cid = tunnel_key(ssh, host, port);
     let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state();
-    let cid = format!("op-{}", uuid::Uuid::new_v4());
     let conn_val = serde_json::json!({
         "host": host,
         "port": port,
         "ssh": ssh,
     });
     let (h, p) = resolve_connection_target(app, &conn_val, &cid, tunnels.inner()).await?;
-    Ok(TunnelEndpoint {
-        host: h,
-        port: p,
-        cleanup_key: Some(cid),
-    })
-}
-
-/// Cleanup SSH tunnel for a connection.
-pub async fn cleanup_connection_tunnel(
-    connection_id: &str,
-    tunnels: &TunnelManager,
-) {
-    stop_transport_layers(connection_id, tunnels).await;
+    Ok(TunnelEndpoint { host: h, port: p })
 }
 
 /// Build transport layer configs from the SSH connection config.

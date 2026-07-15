@@ -131,7 +131,6 @@ pub async fn mongo_test_connection(
     let client_options = match ClientOptions::parse(&uri).await {
         Ok(opts) => opts,
         Err(e) => {
-            endpoint.cleanup(&app).await;
             return Ok(ApiResponse::err(400, format!("Failed to parse connection options: {}", e)));
         }
     };
@@ -139,14 +138,12 @@ pub async fn mongo_test_connection(
     let client = match Client::with_options(client_options) {
         Ok(c) => c,
         Err(e) => {
-            endpoint.cleanup(&app).await;
             return Ok(ApiResponse::err(400, format!("Failed to create client: {}", e)));
         }
     };
 
     let db = client.database("admin");
     if let Err(e) = db.run_command(mongodb::bson::doc! { "ping": 1 }).await {
-        endpoint.cleanup(&app).await;
         return Ok(ApiResponse::err(400, format!("Connection failed: {}", e)));
     }
 
@@ -155,7 +152,6 @@ pub async fn mongo_test_connection(
         match target_db.list_collection_names().await {
             Ok(names) => names,
             Err(e) => {
-                endpoint.cleanup(&app).await;
                 return Ok(ApiResponse::err(400, format!("Failed to list collections: {}", e)));
             }
         }
@@ -163,7 +159,6 @@ pub async fn mongo_test_connection(
         Vec::new()
     };
 
-    endpoint.cleanup(&app).await;
     Ok(ApiResponse::ok(serde_json::json!({ "collections": collections })))
 }
 
@@ -938,11 +933,9 @@ pub async fn mongo_execute_query(
     let endpoint = resolve_ssh_tunnel(&app, ssh.as_ref(), &config.host, config.port).await?;
     let client = match build_client_tunneled(&config, Some(endpoint.port)).await {
         Ok(c) => {
-            endpoint.cleanup(&app).await;
             c
         }
         Err(e) => {
-            endpoint.cleanup(&app).await;
             return Ok(ApiResponse::err(500, e));
         }
     };
@@ -1883,7 +1876,6 @@ pub async fn mongo_export_documents(
         let client = match client {
             Ok(c) => c,
             Err(e) => {
-                endpoint.cleanup(&app).await;
                 return Ok(ApiResponse::err(500, e));
             }
         };
@@ -1945,7 +1937,6 @@ pub async fn mongo_export_documents(
         do_export.await
     };
 
-    endpoint.cleanup(&app).await;
     match result {
         Ok(response) => Ok(response),
         Err(e) => Ok(ApiResponse::err(500, e)),
@@ -2021,7 +2012,6 @@ pub async fn mongo_import_documents(
     let client = match build_client_tunneled(&config, Some(endpoint.port)).await {
         Ok(c) => c,
         Err(e) => {
-            endpoint.cleanup(&app).await;
             return Ok(ApiResponse::err(500, e));
         }
     };
@@ -2104,7 +2094,6 @@ pub async fn mongo_import_documents(
         }
     }
 
-    endpoint.cleanup(&app).await;
     let data = serde_json::json!({
         "inserted": inserted,
         "updated": updated,
