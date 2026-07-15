@@ -127,7 +127,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         await this.fetchShards();
         await this.fetchTemplates();
       } catch (err) {
-        debug(`Error in refreshStates: ${err}`);
+        console.error('[clusterManage] refreshStates error:', err);
       } finally {
         const elapsed = Date.now() - start;
         if (elapsed < 500) {
