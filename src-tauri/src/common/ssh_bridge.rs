@@ -3,8 +3,25 @@
 
 use serde_json::Value;
 use tauri::AppHandle;
+use tauri::Manager;
 use crate::ssh::config::{SshConnectionConfig, TransportLayerConfig};
 use crate::ssh::{start_transport_layers, stop_transport_layers, TunnelManager};
+
+/// Resolved tunnel endpoint. Caller MUST call `cleanup()` after use.
+pub struct TunnelEndpoint {
+    pub host: String,
+    pub port: u16,
+    cleanup_key: Option<String>,
+}
+
+impl TunnelEndpoint {
+    pub async fn cleanup(&self, app: &AppHandle) {
+        if let Some(key) = &self.cleanup_key {
+            let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state();
+            tunnels.inner().stop_tunnel(key).await;
+        }
+    }
+}
 
 /// Resolve connection target through SSH tunnel if enabled.
 /// Returns `(host, port)` — either `(127.0.0.1, local_port)` for tunneled
@@ -37,6 +54,43 @@ pub async fn resolve_connection_target(
         Ok(None) => Ok((remote_host, remote_port)),
         Err(e) => Err(e),
     }
+}
+
+/// Resolve SSH tunnel to a local endpoint and return a handle.
+/// Caller uses `endpoint.host` / `endpoint.port` for the actual connection,
+/// then calls `endpoint.cleanup(app)` after finishing.
+pub async fn resolve_ssh_tunnel(
+    app: &AppHandle,
+    ssh: Option<&Value>,
+    host: &str,
+    port: u16,
+) -> Result<TunnelEndpoint, String> {
+    let ssh_enabled = ssh
+        .and_then(|s| s.get("enabled"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    if !ssh_enabled {
+        return Ok(TunnelEndpoint {
+            host: host.to_string(),
+            port,
+            cleanup_key: None,
+        });
+    }
+
+    let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state();
+    let cid = format!("op-{}", uuid::Uuid::new_v4());
+    let conn_val = serde_json::json!({
+        "host": host,
+        "port": port,
+        "ssh": ssh,
+    });
+    let (h, p) = resolve_connection_target(app, &conn_val, &cid, tunnels.inner()).await?;
+    Ok(TunnelEndpoint {
+        host: h,
+        port: p,
+        cleanup_key: Some(cid),
+    })
 }
 
 /// Cleanup SSH tunnel for a connection.

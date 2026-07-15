@@ -121,36 +121,17 @@ pub async fn mongo_test_connection(
     ssh: Option<serde_json::Value>,
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::response::ApiResponse;
-    use crate::common::ssh_bridge::resolve_connection_target;
-    use tauri::Manager;
-
-    use crate::ssh::TunnelManager;
+    use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
     // Resolve SSH tunnel if ssh config is provided
-    let (resolved_host, resolved_port, cleanup_key) = if let Some(ref ssh_config) = ssh {
-        let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
-        let conn_val = serde_json::json!({
-            "host": config.host,
-            "port": config.port,
-            "ssh": ssh_config,
-        });
-        let cid = format!("mongo-{}", uuid::Uuid::new_v4());
-        let (host, port) = resolve_connection_target(&app, &conn_val, &cid, tunnels.inner()).await?;
-        (host, port, cid)
-    } else {
-        (config.host.clone(), config.port, String::new())
-    };
-
-    let config = MongoConnectionConfig { host: resolved_host, port: resolved_port, ..config };
+    let endpoint = resolve_ssh_tunnel(&app, ssh.as_ref(), &config.host, config.port).await?;
+    let config = MongoConnectionConfig { host: endpoint.host.clone(), port: endpoint.port, ..config };
     let uri = build_uri(&config);
 
     let client_options = match ClientOptions::parse(&uri).await {
         Ok(opts) => opts,
         Err(e) => {
-            if !cleanup_key.is_empty() {
-                let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
-                tunnels.inner().stop_tunnel(&cleanup_key).await;
-            }
+            endpoint.cleanup(&app).await;
             return Ok(ApiResponse::err(400, format!("Failed to parse connection options: {}", e)));
         }
     };
@@ -158,20 +139,14 @@ pub async fn mongo_test_connection(
     let client = match Client::with_options(client_options) {
         Ok(c) => c,
         Err(e) => {
-            if !cleanup_key.is_empty() {
-                let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
-                tunnels.inner().stop_tunnel(&cleanup_key).await;
-            }
+            endpoint.cleanup(&app).await;
             return Ok(ApiResponse::err(400, format!("Failed to create client: {}", e)));
         }
     };
 
     let db = client.database("admin");
     if let Err(e) = db.run_command(mongodb::bson::doc! { "ping": 1 }).await {
-        if !cleanup_key.is_empty() {
-            let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
-            tunnels.inner().stop_tunnel(&cleanup_key).await;
-        }
+        endpoint.cleanup(&app).await;
         return Ok(ApiResponse::err(400, format!("Connection failed: {}", e)));
     }
 
@@ -180,10 +155,7 @@ pub async fn mongo_test_connection(
         match target_db.list_collection_names().await {
             Ok(names) => names,
             Err(e) => {
-                if !cleanup_key.is_empty() {
-                    let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
-                    tunnels.inner().stop_tunnel(&cleanup_key).await;
-                }
+                endpoint.cleanup(&app).await;
                 return Ok(ApiResponse::err(400, format!("Failed to list collections: {}", e)));
             }
         }
@@ -191,12 +163,7 @@ pub async fn mongo_test_connection(
         Vec::new()
     };
 
-    // Cleanup tunnel after connection test completes
-    if !cleanup_key.is_empty() {
-        let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
-        tunnels.inner().stop_tunnel(&cleanup_key).await;
-    }
-
+    endpoint.cleanup(&app).await;
     Ok(ApiResponse::ok(serde_json::json!({ "collections": collections })))
 }
 
@@ -960,20 +927,30 @@ async fn execute_statement(
 
 #[tauri::command]
 pub async fn mongo_execute_query(
+    app: tauri::AppHandle,
     config: MongoConnectionConfig,
     code: String,
+    ssh: Option<serde_json::Value>,
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::response::ApiResponse;
+    use crate::common::ssh_bridge::resolve_ssh_tunnel;
+
+    let endpoint = resolve_ssh_tunnel(&app, ssh.as_ref(), &config.host, config.port).await?;
+    let client = match build_client_tunneled(&config, Some(endpoint.port)).await {
+        Ok(c) => {
+            endpoint.cleanup(&app).await;
+            c
+        }
+        Err(e) => {
+            endpoint.cleanup(&app).await;
+            return Ok(ApiResponse::err(500, e));
+        }
+    };
 
     let db_name = config
         .database
         .clone()
         .unwrap_or_else(|| "test".to_string());
-
-    let client = match build_client(&config).await {
-        Ok(c) => c,
-        Err(e) => return Ok(ApiResponse::err(500, e)),
-    };
 
     let statements = split_statements(&code);
     if statements.is_empty() {
@@ -1888,73 +1865,88 @@ pub async fn mongo_find_documents(
 
 #[tauri::command]
 pub async fn mongo_export_documents(
+    app: tauri::AppHandle,
     config: MongoConnectionConfig,
     collection: String,
     filter: Option<String>,
     batch_size: Option<i64>,
     skip: Option<u64>,
     sort: Option<String>,
+    ssh: Option<serde_json::Value>,
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::response::ApiResponse;
+    use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
-    let result = async {
-        let client = build_client(&config).await?;
+    let endpoint = resolve_ssh_tunnel(&app, ssh.as_ref(), &config.host, config.port).await?;
+    let result = {
+        let client = build_client_tunneled(&config, Some(endpoint.port)).await;
+        let client = match client {
+            Ok(c) => c,
+            Err(e) => {
+                endpoint.cleanup(&app).await;
+                return Ok(ApiResponse::err(500, e));
+            }
+        };
         let db_name = config.database.unwrap_or_else(|| "test".to_string());
         let db = client.database(&db_name);
         let coll = db.collection::<Document>(&collection);
 
-        let filter_doc = match filter {
-            Some(ref f) if !f.trim().is_empty() => {
-                parse_json_arg(f).and_then(json_to_bson_doc)?
-            }
-            _ => doc! {},
-        };
+        let do_export = async {
+            let filter_doc = match filter {
+                Some(ref f) if !f.trim().is_empty() => {
+                    parse_json_arg(f).and_then(json_to_bson_doc)?
+                }
+                _ => doc! {},
+            };
 
-        let batch = batch_size.unwrap_or(1000).min(10000) as u64;
-        let skip_val = skip.unwrap_or(0);
+            let batch = batch_size.unwrap_or(1000).min(10000) as u64;
+            let skip_val = skip.unwrap_or(0);
 
-        let total = coll
-            .count_documents(filter_doc.clone())
-            .await
-            .map_err(|e| e.to_string())? as i64;
+            let total = coll
+                .count_documents(filter_doc.clone())
+                .await
+                .map_err(|e| e.to_string())? as i64;
 
-        let mut opts = mongodb::options::FindOptions::default();
-        opts.limit = Some(batch as i64);
-        opts.skip = Some(skip_val);
+            let mut opts = mongodb::options::FindOptions::default();
+            opts.limit = Some(batch as i64);
+            opts.skip = Some(skip_val);
 
-        if let Some(ref sort_str) = sort {
-            if !sort_str.trim().is_empty() {
-                if let Ok(sort_doc) = parse_json_arg(sort_str).and_then(json_to_bson_doc) {
-                    opts.sort = Some(sort_doc);
+            if let Some(ref sort_str) = sort {
+                if !sort_str.trim().is_empty() {
+                    if let Ok(sort_doc) = parse_json_arg(sort_str).and_then(json_to_bson_doc) {
+                        opts.sort = Some(sort_doc);
+                    }
                 }
             }
-        }
 
-        let mut cursor = coll
-            .find(filter_doc)
-            .with_options(opts)
-            .await
-            .map_err(|e| e.to_string())?;
+            let mut cursor = coll
+                .find(filter_doc)
+                .with_options(opts)
+                .await
+                .map_err(|e| e.to_string())?;
 
-        let mut docs: Vec<Value> = vec![];
-        while let Some(d) = cursor
-            .try_next()
-            .await
-            .map_err(|e| e.to_string())?
-        {
-            docs.push(doc_to_json(d));
-        }
+            let mut docs: Vec<Value> = vec![];
+            while let Some(d) = cursor
+                .try_next()
+                .await
+                .map_err(|e| e.to_string())?
+            {
+                docs.push(doc_to_json(d));
+            }
 
-        let has_more = skip_val + batch < total as u64;
-        let data = serde_json::json!({
-            "documents": docs,
-            "total": total,
-            "has_more": has_more,
-        });
-        Ok::<ApiResponse<serde_json::Value>, String>(ApiResponse::ok(data))
+            let has_more = skip_val + batch < total as u64;
+            let data = serde_json::json!({
+                "documents": docs,
+                "total": total,
+                "has_more": has_more,
+            });
+            Ok::<ApiResponse<serde_json::Value>, String>(ApiResponse::ok(data))
+        };
+        do_export.await
     };
 
-    match result.await {
+    endpoint.cleanup(&app).await;
+    match result {
         Ok(response) => Ok(response),
         Err(e) => Ok(ApiResponse::err(500, e)),
     }
@@ -2015,14 +2007,24 @@ pub async fn mongo_insert_document(
 
 #[tauri::command]
 pub async fn mongo_import_documents(
+    app: tauri::AppHandle,
     config: MongoConnectionConfig,
     collection: String,
     documents: Vec<String>,
     upsert: Option<bool>,
+    ssh: Option<serde_json::Value>,
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::response::ApiResponse;
+    use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
-    let client = build_client(&config).await?;
+    let endpoint = resolve_ssh_tunnel(&app, ssh.as_ref(), &config.host, config.port).await?;
+    let client = match build_client_tunneled(&config, Some(endpoint.port)).await {
+        Ok(c) => c,
+        Err(e) => {
+            endpoint.cleanup(&app).await;
+            return Ok(ApiResponse::err(500, e));
+        }
+    };
     let db_name = config.database.unwrap_or_else(|| "test".to_string());
     let db = client.database(&db_name);
     let coll = db.collection::<Document>(&collection);
@@ -2102,6 +2104,7 @@ pub async fn mongo_import_documents(
         }
     }
 
+    endpoint.cleanup(&app).await;
     let data = serde_json::json!({
         "inserted": inserted,
         "updated": updated,

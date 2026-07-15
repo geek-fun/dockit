@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { MongoDBConnection, MongoDBAuth } from '../store';
+import type { MongoDBConnection, MongoDBAuth, SshConnectionConfig } from '../store';
 import {
   invokeCapability,
   parseCapabilityResponse,
@@ -253,6 +253,7 @@ export const mongoApi = {
       const raw = await invoke<ApiResponse<MongoQueryResult>>('mongo_execute_query', {
         config,
         code,
+        ssh: con.ssh ?? null,
       });
       if (raw.status >= 400) {
         return { error: raw.message || 'Request failed' };
@@ -685,6 +686,7 @@ export const mongoApi = {
     sort?: string,
     batchSize?: number,
     skip?: number,
+    ssh?: SshConnectionConfig | null,
   ): Promise<MongoExportResult> => {
     try {
       const raw = await invoke<ApiResponse<MongoExportResult>>('mongo_export_documents', {
@@ -694,6 +696,7 @@ export const mongoApi = {
         sort,
         batchSize,
         skip,
+        ssh: ssh ?? null,
       });
       if (raw.status >= 400) {
         return { has_more: false, error: raw.message || 'Request failed' };
@@ -712,6 +715,7 @@ export const mongoApi = {
     collection: string,
     documents: string[],
     upsert?: boolean,
+    ssh?: SshConnectionConfig | null,
   ): Promise<MongoImportResult> => {
     try {
       const raw = await invoke<ApiResponse<MongoImportResult>>('mongo_import_documents', {
@@ -719,6 +723,7 @@ export const mongoApi = {
         collection,
         documents,
         upsert,
+        ssh: ssh ?? null,
       });
       if (raw.status >= 400) {
         return { inserted: 0, updated: 0, skipped: 0, error: raw.message || 'Request failed' };
