@@ -124,20 +124,21 @@ pub async fn mongo_test_connection(
     use crate::common::ssh_bridge::resolve_connection_target;
     use tauri::Manager;
 
+    use crate::ssh::TunnelManager;
+
     // Resolve SSH tunnel if ssh config is provided
-    let (resolved_host, resolved_port) = if let Some(ref ssh_config) = ssh {
-        let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state::<crate::ssh::TunnelManager>();
+    let (resolved_host, resolved_port, cleanup_key) = if let Some(ref ssh_config) = ssh {
+        let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
         let conn_val = serde_json::json!({
             "host": config.host,
             "port": config.port,
             "ssh": ssh_config,
         });
         let cid = format!("mongo-{}", uuid::Uuid::new_v4());
-        let result = resolve_connection_target(&app, &conn_val, &cid, tunnels.inner()).await?;
-        tunnels.inner().stop_tunnel(&cid).await;
-        result
+        let (host, port) = resolve_connection_target(&app, &conn_val, &cid, tunnels.inner()).await?;
+        (host, port, cid)
     } else {
-        (config.host.clone(), config.port)
+        (config.host.clone(), config.port, String::new())
     };
 
     let config = MongoConnectionConfig { host: resolved_host, port: resolved_port, ..config };
@@ -146,6 +147,10 @@ pub async fn mongo_test_connection(
     let client_options = match ClientOptions::parse(&uri).await {
         Ok(opts) => opts,
         Err(e) => {
+            if !cleanup_key.is_empty() {
+                let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
+                tunnels.inner().stop_tunnel(&cleanup_key).await;
+            }
             return Ok(ApiResponse::err(400, format!("Failed to parse connection options: {}", e)));
         }
     };
@@ -153,12 +158,20 @@ pub async fn mongo_test_connection(
     let client = match Client::with_options(client_options) {
         Ok(c) => c,
         Err(e) => {
+            if !cleanup_key.is_empty() {
+                let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
+                tunnels.inner().stop_tunnel(&cleanup_key).await;
+            }
             return Ok(ApiResponse::err(400, format!("Failed to create client: {}", e)));
         }
     };
 
     let db = client.database("admin");
     if let Err(e) = db.run_command(mongodb::bson::doc! { "ping": 1 }).await {
+        if !cleanup_key.is_empty() {
+            let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
+            tunnels.inner().stop_tunnel(&cleanup_key).await;
+        }
         return Ok(ApiResponse::err(400, format!("Connection failed: {}", e)));
     }
 
@@ -167,12 +180,22 @@ pub async fn mongo_test_connection(
         match target_db.list_collection_names().await {
             Ok(names) => names,
             Err(e) => {
+                if !cleanup_key.is_empty() {
+                    let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
+                    tunnels.inner().stop_tunnel(&cleanup_key).await;
+                }
                 return Ok(ApiResponse::err(400, format!("Failed to list collections: {}", e)));
             }
         }
     } else {
         Vec::new()
     };
+
+    // Cleanup tunnel after connection test completes
+    if !cleanup_key.is_empty() {
+        let tunnels: tauri::State<TunnelManager> = app.state::<TunnelManager>();
+        tunnels.inner().stop_tunnel(&cleanup_key).await;
+    }
 
     Ok(ApiResponse::ok(serde_json::json!({ "collections": collections })))
 }
