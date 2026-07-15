@@ -523,14 +523,25 @@
             </div>
           </FormItem>
 
-          <!-- SSH Tunnel Section -->
-          <SshTunnelSection
-            v-model="sshConfig"
-            :remote-host="sshRemoteHost"
-            :remote-port="sshRemotePort"
-            @create-profile="openSshProfileDialog(null)"
-            @edit-profile="openSshProfileDialog($event)"
-          />
+          <!-- Advanced Section -->
+          <div class="advanced-section">
+            <button type="button" class="advanced-toggle" @click="showAdvanced = !showAdvanced">
+              <ChevronRight
+                class="h-4 w-4 transition-transform duration-200"
+                :class="{ 'rotate-90': showAdvanced }"
+              />
+              <span class="text-sm font-medium">{{ $t('connection.advanced') }}</span>
+            </button>
+            <div v-show="showAdvanced" class="advanced-content">
+              <SshTunnelSection
+                v-model="sshConfig"
+                :remote-host="sshRemoteHost"
+                :remote-port="sshRemotePort"
+                @create-profile="openSshProfileDialog(null)"
+                @edit-profile="openSshProfileDialog($event)"
+              />
+            </div>
+          </div>
         </Form>
       </div>
 
@@ -620,6 +631,7 @@ const availableProfiles = ref<string[]>([]);
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 const sshConfig = ref<SshConnectionConfig>({ enabled: false });
 const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
+const showAdvanced = ref(false);
 
 function openSshProfileDialog(profileId: string | null) {
   if (sshProfileDialogRef.value) {
@@ -1492,5 +1504,32 @@ defineExpose({ showMedal });
 <style scoped>
 .connection-mode-content {
   min-height: 260px;
+}
+
+.advanced-section {
+  margin-top: 16px;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 12px;
+}
+
+.advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  color: hsl(var(--muted-foreground));
+  transition: color 0.15s ease;
+}
+
+.advanced-toggle:hover {
+  color: hsl(var(--foreground));
+}
+
+.advanced-content {
+  padding-top: 12px;
 }
 </style>
