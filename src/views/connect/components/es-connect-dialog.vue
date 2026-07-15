@@ -176,12 +176,23 @@
                       :label="$t('connection.apiKey')"
                       :error="getError('apiKey', errors.apiKey)"
                     >
-                      <Input
-                        v-model="formData.apiKey"
-                        type="password"
-                        :placeholder="$t('connection.apiKeyPlaceholder')"
-                        @blur="handleBlur('apiKey')"
-                      />
+                      <div class="relative">
+                        <Input
+                          v-model="formData.apiKey"
+                          :type="showApiKey ? 'text' : 'password'"
+                          :placeholder="$t('connection.apiKeyPlaceholder')"
+                          class="pr-9"
+                          @blur="handleBlur('apiKey')"
+                        />
+                        <button
+                          type="button"
+                          class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          @click="showApiKey = !showApiKey"
+                        >
+                          <EyeOff v-if="showApiKey" class="h-4 w-4" />
+                          <Eye v-else class="h-4 w-4" />
+                        </button>
+                      </div>
                     </FormItem>
                     <div class="auth-fields-placeholder" />
                   </template>
@@ -226,7 +237,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2, Eye, EyeOff } from 'lucide-vue-next';
 import { cloneDeep } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -268,6 +279,7 @@ const testLoading = ref(false);
 const saveLoading = ref(false);
 const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
 const showPassword = ref(false);
+const showApiKey = ref(false);
 const authType = ref<'basic' | 'apiKey'>('basic');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 const sshConfig = ref<SshConnectionConfig>({ enabled: false });

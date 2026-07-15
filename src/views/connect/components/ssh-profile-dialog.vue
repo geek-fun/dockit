@@ -15,15 +15,15 @@
 
       <div class="space-y-4">
         <!-- Profile Name -->
-        <FormItem :label="$t('connection.ssh.profileName')" required>
-          <Input v-model="form.name" :placeholder="$t('connection.ssh.profileName')" />
+        <FormItem :label="$t('connection.ssh.profileName')" required :error="errors.name">
+          <Input v-model="form.name" :placeholder="$t('connection.ssh.profileName')" @update:model-value="clearError('name')" />
         </FormItem>
 
         <!-- Host & Port -->
         <Grid :cols="8" :x-gap="3" :y-gap="3">
           <GridItem :span="6">
-            <FormItem :label="$t('connection.ssh.host')" required>
-              <Input v-model="form.host" :placeholder="$t('connection.ssh.hostPlaceholder')" />
+            <FormItem :label="$t('connection.ssh.host')" required :error="errors.host">
+              <Input v-model="form.host" :placeholder="$t('connection.ssh.hostPlaceholder')" @update:model-value="clearError('host')" />
             </FormItem>
           </GridItem>
           <GridItem :span="2">
@@ -32,15 +32,15 @@
             </FormItem>
           </GridItem>
           <GridItem :span="8">
-            <FormItem :label="$t('connection.ssh.username')" required>
-              <Input v-model="form.username" autocomplete="off" />
+            <FormItem :label="$t('connection.ssh.username')" required :error="errors.username">
+              <Input v-model="form.username" autocomplete="off" @update:model-value="clearError('username')" />
             </FormItem>
           </GridItem>
         </Grid>
 
         <!-- Auth Method Tabs -->
         <Label>{{ $t('connection.ssh.authMethod') }}</Label>
-        <Tabs v-model="form.authMethod">
+        <Tabs v-model="form.authMethod" @update:model-value="clearError('keyPath')">
           <TabsList class="w-full">
             <TabsTrigger value="password" class="flex-1">
               {{ $t('connection.ssh.authPassword') }}
@@ -54,44 +54,86 @@
           </TabsList>
           <TabsContent value="password" class="mt-3">
             <FormItem :label="$t('connection.ssh.password')">
-              <Input v-model="form.password" type="password" autocomplete="off" />
+              <div class="relative">
+                <Input
+                  v-model="form.password"
+                  :type="showPassword ? 'text' : 'password'"
+                  autocomplete="off"
+                  class="pr-8"
+                />
+                <button
+                  type="button"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  @click="showPassword = !showPassword"
+                >
+                  <Eye v-if="!showPassword" class="h-4 w-4" />
+                  <EyeOff v-else class="h-4 w-4" />
+                </button>
+              </div>
             </FormItem>
           </TabsContent>
           <TabsContent value="key" class="mt-3 space-y-3">
-            <FormItem :label="$t('connection.ssh.keyPath')">
-              <Input
-                v-model="form.keyPath"
-                :placeholder="$t('connection.ssh.keyPathPlaceholder')"
-              />
+            <FormItem :label="$t('connection.ssh.keyPath')" :error="errors.keyPath">
+              <div class="flex gap-2">
+                <div class="flex-1">
+                  <Input
+                    v-model="form.keyPath"
+                    :placeholder="$t('connection.ssh.keyPathPlaceholder')"
+                    @update:model-value="clearError('keyPath')"
+                  />
+                </div>
+                <Button variant="outline" size="icon" class="shrink-0" @click="selectKeyFile">
+                  <Folder class="h-4 w-4" />
+                </Button>
+              </div>
             </FormItem>
             <FormItem :label="$t('connection.ssh.keyPassphrase')">
-              <Input v-model="form.keyPassphrase" type="password" autocomplete="off" />
+              <div class="relative">
+                <Input
+                  v-model="form.keyPassphrase"
+                  :type="showPassphrase ? 'text' : 'password'"
+                  autocomplete="off"
+                  class="pr-8"
+                />
+                <button
+                  type="button"
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  @click="showPassphrase = !showPassphrase"
+                >
+                  <Eye v-if="!showPassphrase" class="h-4 w-4" />
+                  <EyeOff v-else class="h-4 w-4" />
+                </button>
+              </div>
             </FormItem>
           </TabsContent>
-          <TabsContent value="agent" class="mt-3">
-            <div class="text-sm text-muted-foreground p-3 border rounded-md">
-              {{ $t('connection.ssh.authAgent') }}
-            </div>
+          <TabsContent value="agent" class="mt-3 space-y-3">
+            <FormItem :label="$t('connection.ssh.sshAgentSockPath')">
+              <Input v-model="form.sshAgentSockPath" placeholder="$SSH_AUTH_SOCK" />
+            </FormItem>
+            <p class="text-xs text-muted-foreground">
+              {{ $t('connection.ssh.agentSocketHint') }}
+            </p>
           </TabsContent>
         </Tabs>
 
-        <!-- Advanced -->
-        <div class="flex gap-3">
+        <!-- Advanced: Connect Timeout, Keepalive, Expose to LAN -->
+        <div class="flex gap-3 items-end">
           <FormItem :label="$t('connection.ssh.connectTimeout')" class="flex-1">
             <Input v-model.number="form.connectTimeoutSecs" type="number" />
           </FormItem>
           <FormItem :label="$t('connection.ssh.keepaliveInterval')" class="flex-1">
             <Input v-model.number="form.keepaliveIntervalSecs" type="number" />
           </FormItem>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <Switch
-            id="expose-lan"
-            :checked="form.exposeLan"
-            @update:checked="form.exposeLan = $event"
-          />
-          <Label for="expose-lan" class="text-sm">{{ $t('connection.ssh.exposeLan') }}</Label>
+          <div class="flex items-center gap-2 pb-1.5">
+            <Switch
+              id="expose-lan"
+              :checked="form.exposeLan"
+              @update:checked="form.exposeLan = $event"
+            />
+            <Label for="expose-lan" class="text-sm whitespace-nowrap">
+              {{ $t('connection.ssh.exposeLan') }}
+            </Label>
+          </div>
         </div>
 
         <!-- Test result -->
@@ -112,7 +154,8 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue';
-import { X } from 'lucide-vue-next';
+import { X, Eye, EyeOff, Folder } from 'lucide-vue-next';
+import { open } from '@tauri-apps/plugin-dialog';
 import {
   Dialog,
   DialogContent,
@@ -136,6 +179,8 @@ const visible = ref(false);
 const testing = ref(false);
 const testResult = ref<{ success: boolean; message: string } | null>(null);
 const editingId = ref<string | null>(null);
+const showPassword = ref(false);
+const showPassphrase = ref(false);
 
 const form = reactive({
   name: '',
@@ -150,7 +195,38 @@ const form = reactive({
   keepaliveIntervalSecs: 30,
   verifyHostKey: false,
   exposeLan: false,
+  sshAgentSockPath: '',
 });
+
+const errors = reactive<Record<string, string>>({});
+
+function clearError(field: string) {
+  delete errors[field];
+}
+
+function validate(): boolean {
+  let valid = true;
+  for (const key of Object.keys(errors)) delete errors[key];
+
+  if (!form.name.trim()) {
+    errors.name = 'Profile name is required';
+    valid = false;
+  }
+  if (!form.host.trim()) {
+    errors.host = 'Host is required';
+    valid = false;
+  }
+  if (!form.username.trim()) {
+    errors.username = 'Username is required';
+    valid = false;
+  }
+  if (form.authMethod === 'key' && !form.keyPath.trim()) {
+    errors.keyPath = 'Private key path is required';
+    valid = false;
+  }
+
+  return valid;
+}
 
 function resetForm() {
   form.name = '';
@@ -165,6 +241,7 @@ function resetForm() {
   form.keepaliveIntervalSecs = 30;
   form.verifyHostKey = false;
   form.exposeLan = false;
+  form.sshAgentSockPath = '';
   testResult.value = null;
 }
 
@@ -181,6 +258,20 @@ function loadProfile(profile: SshProfile) {
   form.keepaliveIntervalSecs = profile.keepaliveIntervalSecs || 30;
   form.verifyHostKey = profile.verifyHostKey;
   form.exposeLan = profile.exposeLan;
+  form.sshAgentSockPath = profile.sshAgentSockPath ?? '';
+}
+
+async function selectKeyFile() {
+  try {
+    const selected = await open({
+      multiple: false,
+    });
+    if (selected) {
+      form.keyPath = selected;
+    }
+  } catch {
+    // user cancelled
+  }
 }
 
 function show(profile: SshProfile | null) {
@@ -203,6 +294,10 @@ function onOpenChange(open: boolean) {
 }
 
 async function onTest() {
+  if (!validate()) {
+    testing.value = false;
+    return;
+  }
   testing.value = true;
   testResult.value = null;
   try {
@@ -216,11 +311,11 @@ async function onTest() {
       keyPath: form.keyPath,
       keyPassphrase: form.keyPassphrase,
       useSshAgent: form.authMethod === 'agent',
-      sshAgentSockPath: '',
+      sshAgentSockPath: form.sshAgentSockPath,
       connectTimeoutSecs: form.connectTimeoutSecs,
-      keepaliveIntervalSecs: 30,
-      verifyHostKey: false,
-      exposeLan: false,
+      keepaliveIntervalSecs: form.keepaliveIntervalSecs,
+      verifyHostKey: form.verifyHostKey,
+      exposeLan: form.exposeLan,
     };
     testResult.value = await sshStore.testConnection(config, form.host, form.port);
   } catch (e) {
@@ -242,7 +337,7 @@ async function onSave() {
     keyPath: form.keyPath,
     keyPassphrase: form.keyPassphrase,
     useSshAgent: form.authMethod === 'agent',
-    sshAgentSockPath: '',
+    sshAgentSockPath: form.sshAgentSockPath,
     connectTimeoutSecs: form.connectTimeoutSecs,
     keepaliveIntervalSecs: form.keepaliveIntervalSecs,
     verifyHostKey: form.verifyHostKey,

@@ -4,7 +4,8 @@ use std::sync::OnceLock;
 
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
+use tauri::Manager;
 
 use crate::common::http_client::create_http_client;
 
@@ -120,14 +121,50 @@ fn categorize_request_error(e: &reqwest::Error) -> (&'static str, String) {
 }
 
 #[tauri::command]
-pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, String> {
-    let has_proxy = options
-        .agent
-        .http_proxy
-        .as_deref()
-        .is_some_and(|p| !p.is_empty());
-    let client = if has_proxy {
-        create_http_client("system", options.agent.http_proxy, Some(options.agent.ssl), None)
+pub async fn fetch_api(
+    app: tauri::AppHandle,
+    url: String,
+    options: FetchApiOptions,
+    ssh: Option<Value>,
+) -> Result<String, String> {
+    // Extract system proxy from SSH config if present
+    let system_proxy = ssh.as_ref()
+        .and_then(|s| s.get("systemProxy"))
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+
+    let (final_url, cleanup_key) = if let Some(ref ssh_config) = ssh {
+        resolve_url_via_ssh(&app, &url, ssh_config).await?
+    } else {
+        (url, String::new())
+    };
+
+    let result = fetch_raw(&app, &final_url, &options, system_proxy).await;
+
+    if !cleanup_key.is_empty() {
+        let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state::<crate::ssh::TunnelManager>();
+        tunnels.inner().stop_tunnel(&cleanup_key).await;
+    }
+    result
+}
+
+async fn fetch_raw(
+    _app: &tauri::AppHandle,
+    url: &str,
+    options: &FetchApiOptions,
+    system_proxy: Option<String>,
+) -> Result<String, String> {
+    // When URL points to localhost (e.g. SSH tunnel), bypass proxy
+    let is_local = url.contains("127.0.0.1") || url.contains("localhost");
+    let proxy_url = if is_local { None } else { system_proxy.or_else(|| options.agent.http_proxy.clone()) };
+    let has_explicit_proxy = proxy_url.as_deref().is_some_and(|p| !p.is_empty());
+    let client = if has_explicit_proxy {
+        create_http_client("manual", proxy_url, Some(options.agent.ssl), None)
+    } else if is_local {
+        create_http_client("none", None, Some(options.agent.ssl), None)
+    } else if options.agent.ssl {
+        create_http_client("system", options.agent.http_proxy.clone(), Some(options.agent.ssl), None)
     } else if options.agent.ssl {
         SECURE_CLIENT
             .get_or_init(|| create_http_client("system", None, Some(true), None))
@@ -141,10 +178,10 @@ pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, 
     let response = client
         .request(
             reqwest::Method::from_bytes(options.method.as_bytes()).unwrap(),
-            &url,
+            url,
         )
         .headers(headermap_from_hashmap(options.headers.iter()))
-        .body(options.body.unwrap_or_default())
+        .body(options.body.clone().unwrap_or_default())
         .send()
         .await;
 
@@ -157,11 +194,11 @@ pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, 
                 Ok(body) => {
                     let data: serde_json::Value =
                         serde_json::from_str(&body).unwrap_or(json!(&body));
-                    let message = if is_success {
-                        "Success".to_string()
-                    } else {
-                        "Failed to fetch API".to_string()
-                    };
+            let message = if is_success {
+                "Success".to_string()
+            } else {
+                format!("Failed to fetch API (HTTP {})", status_code)
+            };
                     let result = json!({
                         "status": status_code,
                         "message": message,
@@ -190,4 +227,41 @@ pub async fn fetch_api(url: String, options: FetchApiOptions) -> Result<String, 
             Err(result.to_string())
         }
     }
+}
+
+/// Resolve SSH tunnel and rewrite the URL to point to the tunnel endpoint.
+/// Returns (new_url, tunnel_cleanup_key).
+async fn resolve_url_via_ssh(
+    app: &tauri::AppHandle,
+    url: &str,
+    ssh_config: &Value,
+) -> Result<(String, String), String> {
+    use crate::common::ssh_bridge::resolve_connection_target;
+    use url::Url;
+
+    // Frontend buildURL() produces scheme-less URLs like "host:port/path".
+    // Url::parse needs a scheme, so prepend http:// if missing.
+    let normalized = if url.contains("://") { url.to_string() } else { format!("http://{}", url) };
+    let parsed = Url::parse(&normalized).map_err(|e| format!("Invalid URL: {}", e))?;
+    let host = parsed.host_str().unwrap_or("localhost").to_string();
+    let port = parsed.port_or_known_default().unwrap_or(9200);
+
+    let conn_val = serde_json::json!({
+        "host": host,
+        "port": port,
+        "ssh": ssh_config,
+    });
+
+    let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state::<crate::ssh::TunnelManager>();
+    let cid = format!("http-{}", uuid::Uuid::new_v4());
+
+    let (new_host, new_port) = resolve_connection_target(app, &conn_val, &cid, tunnels.inner()).await?;
+
+    let scheme = parsed.scheme();
+    let new_url = match parsed.query() {
+        Some(q) => format!("{}://{}:{}{}?{}", scheme, new_host, new_port, parsed.path(), q),
+        None => format!("{}://{}:{}{}", scheme, new_host, new_port, parsed.path()),
+    };
+
+    Ok((new_url, cid))
 }

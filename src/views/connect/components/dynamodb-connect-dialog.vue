@@ -130,20 +130,31 @@
                   />
                 </FormItem>
                 <FormItem :label="$t('connection.secretAccessKey')" required>
-                  <Input
-                    :model-value="
-                      (formData.auth.kind === 'accessKey' && formData.auth.secretAccessKey) || ''
-                    "
-                    type="password"
-                    :placeholder="$t('connection.secretAccessKey')"
-                    @update:model-value="
-                      v => {
-                        if (formData.auth.kind === 'accessKey')
-                          formData.auth.secretAccessKey = v as string;
-                      }
-                    "
-                    @blur="handleBlur('secretAccessKey')"
-                  />
+                  <div class="relative">
+                    <Input
+                      :model-value="
+                        (formData.auth.kind === 'accessKey' && formData.auth.secretAccessKey) || ''
+                      "
+                      :type="showSecretKey ? 'text' : 'password'"
+                      :placeholder="$t('connection.secretAccessKey')"
+                      class="pr-9"
+                      @update:model-value="
+                        v => {
+                          if (formData.auth.kind === 'accessKey')
+                            formData.auth.secretAccessKey = v as string;
+                        }
+                      "
+                      @blur="handleBlur('secretAccessKey')"
+                    />
+                    <button
+                      type="button"
+                      class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      @click="showSecretKey = !showSecretKey"
+                    >
+                      <EyeOff v-if="showSecretKey" class="h-4 w-4" />
+                      <Eye v-else class="h-4 w-4" />
+                    </button>
+                  </div>
                 </FormItem>
               </template>
 
@@ -547,7 +558,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { X, Loader2, ChevronRight } from 'lucide-vue-next';
+import { X, Loader2, ChevronRight, Eye, EyeOff } from 'lucide-vue-next';
 import { cloneDeep, debounce } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -604,6 +615,7 @@ const testLoading = ref(false);
 const saveLoading = ref(false);
 const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
 const connectionMode = ref<'accessKey' | 'profile' | 'sso' | 'assumeRole' | 'local'>('accessKey');
+const showSecretKey = ref(false);
 const availableProfiles = ref<string[]>([]);
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 const sshConfig = ref<SshConnectionConfig>({ enabled: false });

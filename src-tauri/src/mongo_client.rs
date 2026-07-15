@@ -31,6 +31,8 @@ pub struct MongoConnectionConfig {
     pub auth: MongoAuth,
     pub database: Option<String>,
     pub tls: Option<bool>,
+    #[serde(default)]
+    pub tunnel_port: Option<u16>,
 }
 
 #[derive(Debug, Serialize)]
@@ -45,7 +47,7 @@ fn encode_component(s: &str) -> String {
 }
 
 fn build_uri(config: &MongoConnectionConfig) -> String {
-    build_uri_tunneled(config, None)
+    build_uri_tunneled(config, config.tunnel_port)
 }
 
 fn build_uri_tunneled(config: &MongoConnectionConfig, tunnel_port: Option<u16>) -> String {
@@ -114,10 +116,31 @@ fn build_uri_tunneled(config: &MongoConnectionConfig, tunnel_port: Option<u16>) 
 
 #[tauri::command]
 pub async fn mongo_test_connection(
+    app: tauri::AppHandle,
     config: MongoConnectionConfig,
+    ssh: Option<serde_json::Value>,
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::response::ApiResponse;
+    use crate::common::ssh_bridge::resolve_connection_target;
+    use tauri::Manager;
 
+    // Resolve SSH tunnel if ssh config is provided
+    let (resolved_host, resolved_port) = if let Some(ref ssh_config) = ssh {
+        let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state::<crate::ssh::TunnelManager>();
+        let conn_val = serde_json::json!({
+            "host": config.host,
+            "port": config.port,
+            "ssh": ssh_config,
+        });
+        let cid = format!("mongo-{}", uuid::Uuid::new_v4());
+        let result = resolve_connection_target(&app, &conn_val, &cid, tunnels.inner()).await?;
+        tunnels.inner().stop_tunnel(&cid).await;
+        result
+    } else {
+        (config.host.clone(), config.port)
+    };
+
+    let config = MongoConnectionConfig { host: resolved_host, port: resolved_port, ..config };
     let uri = build_uri(&config);
 
     let client_options = match ClientOptions::parse(&uri).await {

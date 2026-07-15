@@ -19,6 +19,21 @@ fn get_proxy(http_proxy: Option<String>) -> Option<String> {
 
 const CONNECT_TIMEOUT_SECS: u64 = 15;
 
+/// Detect system proxy from environment variables.
+/// Returns the first found proxy URL, or null.
+#[tauri::command]
+pub async fn detect_system_proxy() -> Result<Option<String>, String> {
+    // Check env vars in priority order: HTTPS_PROXY, https_proxy, HTTP_PROXY, http_proxy, all_proxy
+    let proxy = std::env::var("HTTPS_PROXY")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .or_else(|| std::env::var("https_proxy").ok().filter(|s| !s.is_empty()))
+        .or_else(|| std::env::var("HTTP_PROXY").ok().filter(|s| !s.is_empty()))
+        .or_else(|| std::env::var("http_proxy").ok().filter(|s| !s.is_empty()))
+        .or_else(|| std::env::var("all_proxy").ok().filter(|s| s.starts_with("http://")));
+    Ok(proxy)
+}
+
 pub fn create_http_client(
     proxy_mode: &str,
     proxy_url: Option<String>,

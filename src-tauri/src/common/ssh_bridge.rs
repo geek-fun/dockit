@@ -15,7 +15,6 @@ pub async fn resolve_connection_target(
     connection_id: &str,
     tunnels: &TunnelManager,
 ) -> Result<(String, u16), String> {
-    // Extract SSH config from the connection JSON
     let ssh_config: Option<SshConnectionConfig> = config
         .get("ssh")
         .and_then(|v| serde_json::from_value(v.clone()).ok());
@@ -23,21 +22,16 @@ pub async fn resolve_connection_target(
     let ssh_config = match ssh_config {
         Some(c) if c.enabled => c,
         _ => {
-            // No SSH config or SSH disabled — return original host:port
             let host = config["host"].as_str().unwrap_or("localhost").to_string();
             let port = config["port"].as_u64().unwrap_or(0) as u16;
             return Ok((host, port));
         }
     };
 
-    // Build transport layers
     let layers = build_transport_layers(app, &ssh_config)?;
-
-    // Resolve remote host:port from connection config
     let remote_host = config["host"].as_str().unwrap_or("localhost").to_string();
     let remote_port = config["port"].as_u64().unwrap_or(0) as u16;
 
-    // Start transport layers — this starts the SSH tunnel(s) and returns local port
     match start_transport_layers(connection_id, &layers, &remote_host, remote_port, tunnels).await {
         Ok(Some(local_port)) => Ok(("127.0.0.1".to_string(), local_port)),
         Ok(None) => Ok((remote_host, remote_port)),
@@ -54,29 +48,21 @@ pub async fn cleanup_connection_tunnel(
 }
 
 /// Build transport layer configs from the SSH connection config.
+/// Each profile_id represents one hop in the chain, processed in order.
 fn build_transport_layers(
     app: &AppHandle,
     ssh: &SshConnectionConfig,
 ) -> Result<Vec<TransportLayerConfig>, String> {
-    let mut layers = Vec::new();
-
-    // Primary tunnel (from profile or inline)
-    let primary = if let Some(ref profile_id) = ssh.profile_id {
-        load_profile_as_tunnel(app, profile_id)?
+    if !ssh.profile_ids.is_empty() {
+        ssh.profile_ids
+            .iter()
+            .map(|pid| load_profile_as_tunnel(app, pid))
+            .collect()
     } else if let Some(ref inline) = ssh.inline {
-        TransportLayerConfig::Ssh(inline.clone())
+        Ok(vec![TransportLayerConfig::Ssh(inline.clone())])
     } else {
-        return Ok(Vec::new());
-    };
-    layers.push(primary);
-
-    // Additional hops
-    for hop_id in &ssh.hop_profile_ids {
-        let hop = load_profile_as_tunnel(app, hop_id)?;
-        layers.push(hop);
+        Ok(Vec::new())
     }
-
-    Ok(layers)
 }
 
 fn load_profile_as_tunnel(
@@ -112,15 +98,14 @@ mod tests {
 
     #[test]
     fn test_build_transport_layers_no_ssh_returns_empty() {
-        // This tests the early return when profile_id is None and inline is None
+        // This tests the early return when profile_ids is empty and inline is None
         let ssh = SshConnectionConfig {
             enabled: true,
-            profile_id: None,
-            hop_profile_ids: vec![],
+            profile_ids: vec![],
             inline: None,
+            system_proxy: None,
         };
-        // Can't easily create AppHandle in unit tests, so test the None-branch logic
-        assert!(ssh.profile_id.is_none());
+        assert!(ssh.profile_ids.is_empty());
         assert!(ssh.inline.is_none());
     }
 
@@ -136,9 +121,9 @@ mod tests {
         };
         let ssh = SshConnectionConfig {
             enabled: true,
-            profile_id: None,
-            hop_profile_ids: vec![],
+            profile_ids: vec![],
             inline: Some(inline),
+            system_proxy: None,
         };
         assert!(ssh.inline.is_some());
     }

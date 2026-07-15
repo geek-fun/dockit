@@ -51,9 +51,9 @@ export type SshTunnelConfig = {
 
 export type SshConnectionConfig = {
   enabled: boolean;
-  profileId?: string;
-  hopProfileIds?: string[];
+  profileIds?: string[];
   inline?: SshTunnelConfig;
+  systemProxy?: string;
 };
 
 export type SshProfile = {
@@ -554,7 +554,7 @@ export const buildTransportLayers = (
   ssh: SshConnectionConfig | undefined,
 ): TransportLayerConfig[] => {
   if (!ssh?.enabled) return [];
-  if (!ssh.profileId && !ssh.inline) return [];
+  if (!ssh.profileIds?.length && !ssh.inline) return [];
 
   const config: SshTunnelConfig = ssh.inline ?? {
     enabled: true,
@@ -787,7 +787,6 @@ export const useConnectionStore = defineStore('connectionStore', {
           con.activeIndex?.index,
           'format=json',
         );
-
         const detectedAsOpenSearch =
           clusterInfo.version.distribution === 'opensearch' ||
           (clusterInfo.tagline ?? '').toLowerCase().includes('opensearch');

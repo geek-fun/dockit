@@ -231,7 +231,10 @@ export const mongoApi = {
   testConnection: async (con: MongoDBConnection): Promise<MongoTestResult> => {
     const config = buildConfig(con);
     try {
-      const raw = await invoke<ApiResponse<MongoTestResult>>('mongo_test_connection', { config });
+      const raw = await invoke<ApiResponse<MongoTestResult>>('mongo_test_connection', {
+        config,
+        ssh: con.ssh ?? null,
+      });
       if (raw.status >= 400) {
         return { error: raw.message || 'Request failed', message: raw.message || 'Request failed' };
       }

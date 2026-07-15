@@ -157,6 +157,7 @@ pub fn run() {
             crate::ssh::commands::delete_ssh_profile,
             crate::ssh::commands::test_ssh_connection,
             crate::ssh::commands::list_ssh_config_hosts,
+            crate::common::http_client::detect_system_proxy,
         ])
         .setup(|app| {
             menu::create_menu(app)?;

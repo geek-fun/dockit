@@ -145,12 +145,23 @@
                     required
                     :error="getError('password', errors.password)"
                   >
-                    <Input
-                      v-model="passwordValue"
-                      type="password"
-                      :placeholder="$t('connection.password')"
-                      @blur="handleBlur('password')"
-                    />
+                    <div class="relative">
+                      <Input
+                        v-model="passwordValue"
+                        :type="showPassword ? 'text' : 'password'"
+                        :placeholder="$t('connection.password')"
+                        class="pr-9"
+                        @blur="handleBlur('password')"
+                      />
+                      <button
+                        type="button"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        @click="showPassword = !showPassword"
+                      >
+                        <EyeOff v-if="showPassword" class="h-4 w-4" />
+                        <Eye v-else class="h-4 w-4" />
+                      </button>
+                    </div>
                   </FormItem>
                 </GridItem>
 
@@ -234,7 +245,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2, Eye, EyeOff } from 'lucide-vue-next';
 import { cloneDeep } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';

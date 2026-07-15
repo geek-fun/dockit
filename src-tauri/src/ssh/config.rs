@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 /// First-class SSH tunnel profile stored in .store.dat under "sshProfiles".
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct SshProfile {
     #[serde(default)]
     pub id: String,
@@ -38,6 +39,7 @@ pub struct SshProfile {
 
 /// SSH tunnel configuration derived from SshProfile at tunnel start time.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct SshTunnelConfig {
     #[serde(default = "default_true")]
     pub enabled: bool,
@@ -71,15 +73,16 @@ pub struct SshTunnelConfig {
 
 /// SSH connection configuration stored on each database connection.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct SshConnectionConfig {
     #[serde(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub profile_id: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub hop_profile_ids: Vec<String>,
+    pub profile_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inline: Option<SshTunnelConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system_proxy: Option<String>,
 }
 
 /// Transport layer configuration — tagged enum for serde.
@@ -306,8 +309,7 @@ mod tests {
         let json = r#"{}"#;
         let config: SshConnectionConfig = serde_json::from_str(json).unwrap();
         assert!(!config.enabled);
-        assert!(config.profile_id.is_none());
+        assert!(config.profile_ids.is_empty());
         assert!(config.inline.is_none());
-        assert!(config.hop_profile_ids.is_empty());
     }
 }
