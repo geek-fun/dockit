@@ -10,7 +10,8 @@ pub(crate) fn build_es_base_url(config: &Value) -> Result<String, String> {
         .get("port")
         .and_then(|v| v.as_u64())
         .ok_or("Missing port in connection config")?;
-    Ok(format!("{}:{}", host, port))
+    let protocol = if host.starts_with("https://") { "https" } else { "http" };
+    Ok(format!("{}://{}:{}", protocol, host.trim_start_matches("http://").trim_start_matches("https://"), port))
 }
 
 /// Build ES base URL with SSH tunnel support.
