@@ -503,7 +503,7 @@ const buildConnection = (): MongoDBConnection => {
     ...formData.value,
     tls: tlsChecked.value,
     database: formData.value.database || undefined,
-    ssh: { ...sshConfig.value },
+    sshTunnel: { ...sshConfig.value },
   };
 
   if (authMode.value === 'uri') {
@@ -543,7 +543,7 @@ const showMedal = (con: MongoDBConnection | null) => {
   if (con) {
     formData.value = cloneDeep(con);
     tlsChecked.value = con.tls ?? false;
-    sshConfig.value = con.ssh ? { ...con.ssh } : { enabled: false };
+    sshConfig.value = con.sshTunnel ? { ...con.sshTunnel } : { enabled: false };
 
     if (con.auth.kind === 'uri') {
       authMode.value = 'uri';

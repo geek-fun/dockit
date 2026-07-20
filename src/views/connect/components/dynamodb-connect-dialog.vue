@@ -1088,7 +1088,7 @@ const showMedal = (con: DynamoDBConnection | null) => {
   resetResult();
   if (con) {
     formData.value = { ...con };
-    sshConfig.value = con.ssh ? { ...con.ssh } : { enabled: false };
+    sshConfig.value = con.sshTunnel ? { ...con.sshTunnel } : { enabled: false };
     veeResetForm({ values: { ...con } });
     connectionMode.value = con.endpointUrl
       ? 'local'
@@ -1234,7 +1234,7 @@ const testConnect = async () => {
   try {
     const result = await dynamoApi.testConnection({
       ...formData.value,
-      ssh: { ...sshConfig.value },
+      sshTunnel: { ...sshConfig.value },
     });
 
     const elapsed = Date.now() - startTime;
@@ -1321,7 +1321,7 @@ const saveConnect = async () => {
   saveLoading.value = true;
   const result = await connectionStore.saveConnection({
     ...formData.value,
-    ssh: { ...sshConfig.value },
+    sshTunnel: { ...sshConfig.value },
   });
   if (result.success) {
     closeModal();

@@ -52,7 +52,7 @@ pub async fn resolve_connection_target(
     tunnels: &TunnelManager,
 ) -> Result<(String, u16), String> {
     let ssh_config: Option<SshConnectionConfig> = config
-        .get("ssh")
+        .get("sshTunnel")
         .and_then(|v| serde_json::from_value(v.clone()).ok());
 
     let ssh_config = match ssh_config {
@@ -101,7 +101,7 @@ pub async fn resolve_ssh_tunnel(
     let conn_val = serde_json::json!({
         "host": host,
         "port": port,
-        "ssh": ssh,
+        "sshTunnel": ssh,
     });
     let (h, p) = resolve_connection_target(app, &conn_val, &cid, tunnels.inner()).await?;
     Ok(TunnelEndpoint { host: h, port: p })

@@ -81,8 +81,8 @@ fn normalize_es(conn: Value) -> Value {
     if let Some(v) = conn.get("sslCertVerification") {
         config.insert("sslCertVerification".to_string(), v.clone());
     }
-    if let Some(ssh) = conn.get("ssh") {
-        config.insert("ssh".to_string(), ssh.clone());
+    if let Some(ssh) = conn.get("sshTunnel") {
+        config.insert("sshTunnel".to_string(), ssh.clone());
     }
     Value::Object(config)
 }
@@ -133,8 +133,8 @@ fn normalize_dynamo(conn: Value) -> Result<Value, String> {
         }
     }
 
-    if let Some(ssh) = conn.get("ssh") {
-        config.insert("ssh".to_string(), ssh.clone());
+    if let Some(ssh) = conn.get("sshTunnel") {
+        config.insert("sshTunnel".to_string(), ssh.clone());
     }
 
     Ok(Value::Object(config))
@@ -188,8 +188,8 @@ fn normalize_mongo(conn: Value) -> Value {
         }
     }
 
-    if let Some(ssh) = conn.get("ssh") {
-        config.insert("ssh".to_string(), ssh.clone());
+    if let Some(ssh) = conn.get("sshTunnel") {
+        config.insert("sshTunnel".to_string(), ssh.clone());
     }
 
     Value::Object(config)

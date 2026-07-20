@@ -1259,6 +1259,7 @@ describe('migrateConnections', () => {
         clusterUuid: 'uuid',
         indices: [],
         activeIndex: undefined,
+        sshTunnel: { enabled: false },
       } as unknown as Connection,
       {
         name: 'os',
@@ -1271,6 +1272,7 @@ describe('migrateConnections', () => {
         clusterUuid: 'uuid',
         indices: [],
         activeIndex: undefined,
+        sshTunnel: { enabled: false },
       } as unknown as Connection,
     ];
 
@@ -1418,6 +1420,7 @@ describe('migrateConnections', () => {
         clusterUuid: 'uuid',
         indices: [],
         activeIndex: undefined,
+        sshTunnel: { enabled: false },
       } as unknown as Connection,
       {
         name: 'es',
@@ -1430,6 +1433,7 @@ describe('migrateConnections', () => {
         clusterUuid: 'uuid',
         indices: [],
         activeIndex: undefined,
+        sshTunnel: { enabled: false },
       } as unknown as Connection,
       {
         name: 'dynamo',
@@ -1438,6 +1442,7 @@ describe('migrateConnections', () => {
         auth: { kind: 'accessKey', accessKeyId: 'ak', secretAccessKey: 'sk' },
         tables: [{ name: 'orders' }],
         tableFilter: { kind: 'all' },
+        sshTunnel: { enabled: false },
       } as unknown as Connection,
     ];
 

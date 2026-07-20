@@ -32,7 +32,7 @@ impl EventEmitter for TauriEmitter {
 async fn resolve_ssh_in_config(app: &AppHandle, config: &mut Value) -> Result<(), String> {
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
-    let ssh = config.get("ssh").cloned();
+    let ssh = config.get("sshTunnel").cloned();
     let enabled = ssh
         .as_ref()
         .and_then(|s| s.get("enabled"))
@@ -40,7 +40,7 @@ async fn resolve_ssh_in_config(app: &AppHandle, config: &mut Value) -> Result<()
         .unwrap_or(false);
     if !enabled {
         if let Some(obj) = config.as_object_mut() {
-            obj.remove("ssh");
+            obj.remove("sshTunnel");
         }
         return Ok(());
     }
@@ -55,7 +55,7 @@ async fn resolve_ssh_in_config(app: &AppHandle, config: &mut Value) -> Result<()
             "endpointUrl".to_string(),
             serde_json::json!(format!("http://{}:{}", endpoint.host, endpoint.port)),
         );
-        obj.remove("ssh");
+        obj.remove("sshTunnel");
     }
     Ok(())
 }

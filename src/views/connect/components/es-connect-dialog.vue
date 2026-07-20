@@ -457,7 +457,7 @@ const showMedal = (
     const resolvedAuthType = (con.authType as 'basic' | 'apiKey' | undefined) || 'basic';
     formData.value = { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType };
     authType.value = resolvedAuthType;
-    sshConfig.value = con.ssh ? { ...con.ssh } : { enabled: false };
+    sshConfig.value = con.sshTunnel ? { ...con.sshTunnel } : { enabled: false };
     veeResetForm({ values: { ...cloneDeep(con), selectedIndex, authType: resolvedAuthType } });
     modalTitle.value = lang.t('connection.edit');
   } else {
@@ -512,7 +512,7 @@ const testConnectConfirm = async () => {
       activeIndex: formData.value.selectedIndex
         ? { index: formData.value.selectedIndex }
         : undefined,
-      ssh: { ...sshConfig.value },
+      sshTunnel: { ...sshConfig.value },
     } as Connection);
 
     const elapsed = Date.now() - startTime;
@@ -558,7 +558,7 @@ const saveConnectConfirm = async () => {
       activeIndex: formData.value.selectedIndex
         ? { index: formData.value.selectedIndex }
         : undefined,
-      ssh: { ...sshConfig.value },
+      sshTunnel: { ...sshConfig.value },
     } as Connection);
     closeModal();
   } catch (e) {

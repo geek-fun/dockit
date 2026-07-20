@@ -216,7 +216,7 @@ export type DynamoDBConnection = {
   tableFilter?: DynamoTableFilter;
   tables?: Array<DynamoTableSummary>;
   favoriteTables?: Array<string>;
-  ssh?: SshConnectionConfig;
+  sshTunnel?: SshConnectionConfig;
 };
 
 // Shared base for HTTP-API-compatible search engines
@@ -234,7 +234,7 @@ export type SearchConnectionBase = {
   queryParameters?: string;
   activeIndex: ElasticSearchIndex | undefined;
   version: string;
-  ssh?: SshConnectionConfig;
+  sshTunnel?: SshConnectionConfig;
   clusterName: string;
   clusterUuid: string;
 };
@@ -299,7 +299,7 @@ export type MongoDBConnection = {
   databases?: Array<{ name: string; size_on_disk?: number; empty?: boolean }>;
   collections?: MongoDBCollection[];
   favoriteCollections?: Array<{ database: string; collection: string }>;
-  ssh?: SshConnectionConfig;
+  sshTunnel?: SshConnectionConfig;
 };
 
 export type MongoDBCollection = {
@@ -546,17 +546,15 @@ export const migrateConnections = (
 };
 
 const migrateConnectionsV5ToV6 = (raw: Connection[]): Connection[] =>
-  raw.map(con =>
-    'ssh' in con && con.ssh !== undefined ? con : { ...con, ssh: { enabled: false } },
-  );
+  raw.map(con => (con.sshTunnel !== undefined ? con : { ...con, sshTunnel: { enabled: false } }));
 
 export const buildTransportLayers = (
-  ssh: SshConnectionConfig | undefined,
+  sshTunnel: SshConnectionConfig | undefined,
 ): TransportLayerConfig[] => {
-  if (!ssh?.enabled) return [];
-  if (!ssh.profileIds?.length && !ssh.inline) return [];
+  if (!sshTunnel?.enabled) return [];
+  if (!sshTunnel.profileIds?.length && !sshTunnel.inline) return [];
 
-  const config: SshTunnelConfig = ssh.inline ?? {
+  const config: SshTunnelConfig = sshTunnel.inline ?? {
     enabled: true,
     host: '',
     port: 22,
@@ -749,7 +747,7 @@ export const useConnectionStore = defineStore('connectionStore', {
     async freshConnection(con: Connection, tableName?: string) {
       if (con.type === DatabaseType.DYNAMODB) {
         const ddbCon = con as DynamoDBConnection;
-        const allTables = await (ddbCon.ssh?.enabled
+        const allTables = await (ddbCon.sshTunnel?.enabled
           ? dynamoApi.listTablesViaSsh(ddbCon)
           : dynamoApi.listTables(ddbCon));
 

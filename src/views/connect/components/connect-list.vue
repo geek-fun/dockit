@@ -364,7 +364,7 @@ const deleteSshProfile = async (profileId: string) => {
 
   // Check if any connection references this SSH profile
   const referringConnections = connections.value.filter(c =>
-    c.ssh?.profileIds?.includes(profileId),
+    c.sshTunnel?.profileIds?.includes(profileId),
   );
   let warningContent = `Delete SSH profile "${profile.name}" permanently?`;
   if (referringConnections.length > 0) {
@@ -427,7 +427,8 @@ const toggleSortDir = () => {
   sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
 };
 
-const hasSsh = (c: Connection): boolean => 'ssh' in c && c.ssh != null && c.ssh.enabled === true;
+const hasSsh = (c: Connection): boolean =>
+  'sshTunnel' in c && c.sshTunnel != null && c.sshTunnel.enabled === true;
 
 const filteredConnections = computed(() => {
   const keyword = filterText.value.toLowerCase().trim();
