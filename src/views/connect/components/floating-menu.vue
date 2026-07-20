@@ -44,6 +44,7 @@
 
 <script setup lang="ts">
 import { ref, h, onUnmounted } from 'vue';
+import { Key } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DatabaseType } from '@/store';
@@ -62,7 +63,7 @@ const emit = defineEmits<{
 const isExpanded = ref(false);
 let collapseTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const SshIcon = () => h('span', { class: 'i-carbon-server-proxy h-5 w-5' });
+const SshIcon = () => h(Key, { class: 'h-5 w-5' });
 
 const databaseTypes: Array<{ value: FloatingMenuAction; icon: any; label: string }> = [
   { value: DatabaseType.ELASTICSEARCH, icon: elasticsearch, label: 'Elasticsearch' },

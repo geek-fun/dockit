@@ -672,8 +672,10 @@ const establishConnect = async (connection: Connection) => {
     let errorMessage = '';
     if (err instanceof CustomError) {
       errorMessage = `status: ${err.status}, details: ${err.details}`;
+    } else if (err instanceof Error) {
+      errorMessage = err.message;
     } else {
-      errorMessage = lang.t('connection.unknownError') + ` details: ${err}`;
+      errorMessage = String(err);
     }
 
     connectingModal.value.showError(errorMessage);
