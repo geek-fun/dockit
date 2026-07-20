@@ -26,10 +26,66 @@ impl EventEmitter for TauriEmitter {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: resolve SSH tunnel for a connection config in-place
+// ---------------------------------------------------------------------------
+
+async fn resolve_ssh_in_config(app: &AppHandle, config: &mut Value) -> Result<(), String> {
+    use crate::common::ssh_bridge::resolve_ssh_tunnel;
+
+    let ssh = config.get("ssh").cloned();
+    let enabled = ssh
+        .as_ref()
+        .and_then(|s| s.get("enabled"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if !enabled {
+        if let Some(obj) = config.as_object_mut() {
+            obj.remove("ssh");
+        }
+        return Ok(());
+    }
+
+    let (remote_host, remote_port) = extract_remote_target(config);
+
+    let endpoint = resolve_ssh_tunnel(app, ssh.as_ref(), &remote_host, remote_port).await?;
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("host".to_string(), serde_json::json!(endpoint.host));
+        obj.insert("port".to_string(), serde_json::json!(endpoint.port));
+        obj.insert(
+            "endpointUrl".to_string(),
+            serde_json::json!(format!("http://{}:{}", endpoint.host, endpoint.port)),
+        );
+        obj.remove("ssh");
+    }
+    Ok(())
+}
+
+fn extract_remote_target(config: &Value) -> (String, u16) {
+    let obj = match config.as_object() { Some(o) => o, None => return ("localhost".into(), 443) };
+
+    if let (Some(host), Some(port)) = (
+        obj.get("host").and_then(|v| v.as_str()),
+        obj.get("port").and_then(|v| v.as_u64()),
+    ) {
+        return (host.to_string(), port as u16);
+    }
+
+    if let Some(url_str) = obj.get("endpointUrl").and_then(|v| v.as_str()) {
+        if let Ok(parsed) = url::Url::parse(url_str) {
+            let host = parsed.host_str().unwrap_or("localhost").to_string();
+            let port = parsed.port().unwrap_or(443);
+            return (host, port);
+        }
+    }
+
+    ("localhost".into(), 443)
+}
+
+// ---------------------------------------------------------------------------
 // Helper: build pre-resolved connections map from settings
 // ---------------------------------------------------------------------------
 
-fn resolve_connections(
+async fn resolve_connections(
     app: &AppHandle,
     settings: &Value,
 ) -> HashMap<String, Value> {
@@ -40,18 +96,23 @@ fn resolve_connections(
 
     let mut resolved: HashMap<String, Value> = HashMap::new();
     for (conn_id, cfg) in &connections {
-        if let Some(resolved_id) = cfg.get("connectionId").and_then(|v| v.as_str()) {
+        let mut config = if let Some(resolved_id) = cfg.get("connectionId").and_then(|v| v.as_str()) {
             match crate::common::connection_resolver::ConnectionResolver::resolve(app, resolved_id) {
-                Ok(config) => {
-                    resolved.insert(conn_id.clone(), config);
-                }
-                Err(_) => {
-                    resolved.insert(conn_id.clone(), cfg.clone());
+                Ok(config) => config,
+                Err(e) => {
+                    log::warn!("Failed to resolve connection '{}': {}", resolved_id, e);
+                    cfg.clone()
                 }
             }
         } else {
-            resolved.insert(conn_id.clone(), cfg.clone());
+            cfg.clone()
+        };
+
+        if let Err(e) = resolve_ssh_in_config(app, &mut config).await {
+            log::warn!("SSH tunnel resolution failed for agent connection '{}': {}", conn_id, e);
         }
+
+        resolved.insert(conn_id.clone(), config);
     }
     resolved
 }
@@ -78,7 +139,7 @@ pub async fn run_agent_loop(
     let executor_state: State<Arc<dyn lib::ToolExecutor>> = app.state::<Arc<dyn lib::ToolExecutor>>();
     let executor: Arc<dyn lib::ToolExecutor> = executor_state.inner().clone();
 
-    let connections = resolve_connections(&app, &settings);
+    let connections = resolve_connections(&app, &settings).await;
     let fallback = settings
         .get("connectionConfig")
         .cloned()

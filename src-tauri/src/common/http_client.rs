@@ -57,7 +57,7 @@ pub fn create_http_client(
                         builder = builder.proxy(proxy);
                     }
                     Err(e) => {
-                        eprintln!("[dockit] Failed to configure proxy '{}': {}", proxy_url, e);
+                        log::warn!("Failed to configure proxy '{}': {}", proxy_url, e);
                     }
                 };
             }

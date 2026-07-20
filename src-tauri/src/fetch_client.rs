@@ -5,8 +5,6 @@ use std::sync::OnceLock;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tauri::Manager;
-
 use crate::common::http_client::create_http_client;
 
 static SECURE_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
@@ -134,19 +132,13 @@ pub async fn fetch_api(
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string());
 
-    let (final_url, cleanup_key) = if let Some(ref ssh_config) = ssh {
+    let final_url = if let Some(ref ssh_config) = ssh {
         resolve_url_via_ssh(&app, &url, ssh_config).await?
     } else {
-        (url, String::new())
+        url
     };
 
-    let result = fetch_raw(&app, &final_url, &options, system_proxy).await;
-
-    if !cleanup_key.is_empty() {
-        let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state::<crate::ssh::TunnelManager>();
-        tunnels.inner().stop_tunnel(&cleanup_key).await;
-    }
-    result
+    fetch_raw(&app, &final_url, &options, system_proxy).await
 }
 
 async fn fetch_raw(
@@ -230,13 +222,13 @@ async fn fetch_raw(
 }
 
 /// Resolve SSH tunnel and rewrite the URL to point to the tunnel endpoint.
-/// Returns (new_url, tunnel_cleanup_key).
+/// Uses persistent deterministic tunnel keys (shared with invoke_capability path).
 async fn resolve_url_via_ssh(
     app: &tauri::AppHandle,
     url: &str,
     ssh_config: &Value,
-) -> Result<(String, String), String> {
-    use crate::common::ssh_bridge::resolve_connection_target;
+) -> Result<String, String> {
+    use crate::common::ssh_bridge::resolve_ssh_tunnel;
     use url::Url;
 
     // Frontend buildURL() produces scheme-less URLs like "host:port/path".
@@ -246,22 +238,13 @@ async fn resolve_url_via_ssh(
     let host = parsed.host_str().unwrap_or("localhost").to_string();
     let port = parsed.port_or_known_default().unwrap_or(9200);
 
-    let conn_val = serde_json::json!({
-        "host": host,
-        "port": port,
-        "ssh": ssh_config,
-    });
-
-    let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state::<crate::ssh::TunnelManager>();
-    let cid = format!("http-{}", uuid::Uuid::new_v4());
-
-    let (new_host, new_port) = resolve_connection_target(app, &conn_val, &cid, tunnels.inner()).await?;
+    let endpoint = resolve_ssh_tunnel(app, Some(ssh_config), &host, port).await?;
 
     let scheme = parsed.scheme();
     let new_url = match parsed.query() {
-        Some(q) => format!("{}://{}:{}{}?{}", scheme, new_host, new_port, parsed.path(), q),
-        None => format!("{}://{}:{}{}", scheme, new_host, new_port, parsed.path()),
+        Some(q) => format!("{}://{}:{}{}?{}", scheme, endpoint.host, endpoint.port, parsed.path(), q),
+        None => format!("{}://{}:{}{}", scheme, endpoint.host, endpoint.port, parsed.path()),
     };
 
-    Ok((new_url, cid))
+    Ok(new_url)
 }

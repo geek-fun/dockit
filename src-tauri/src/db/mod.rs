@@ -111,7 +111,7 @@ pub fn migrate(db: &AgentDb) -> Result<(), String> {
             if let Err(e) = conn.execute(stmt, []) {
                 // Likely "duplicate column" — the column was already added
                 // by a previous partial migration. Log and continue.
-                eprintln!("[db/migrate] warning (column may already exist): {e}");
+                log::warn!("[db/migrate] column may already exist: {e}");
             }
         }
 

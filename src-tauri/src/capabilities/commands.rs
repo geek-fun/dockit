@@ -24,9 +24,6 @@ async fn resolve_config_via_ssh(
         return Ok(());
     }
 
-    // Extract host and port — ES and MongoDB use host/port, DynamoDB
-    // may have endpointUrl instead. SSH tunnel resolves against the
-    // remote target.
     let mut remote_host = "localhost".to_string();
     let mut remote_port = 443u16;
 
@@ -37,7 +34,6 @@ async fn resolve_config_via_ssh(
         if let Some(p) = obj.get("port").and_then(|v| v.as_u64()) {
             remote_port = p as u16;
         }
-        // DynamoDB may not have host/port, but has endpointUrl
         if let Some(url_str) = obj.get("endpointUrl").and_then(|v| v.as_str()) {
             if let Ok(parsed) = url::Url::parse(url_str) {
                 if let Some(h) = parsed.host_str() {
@@ -54,7 +50,6 @@ async fn resolve_config_via_ssh(
     if let Some(obj) = config.as_object_mut() {
         obj.insert("host".to_string(), json!(endpoint.host));
         obj.insert("port".to_string(), json!(endpoint.port));
-        // For DynamoDB, also set endpointUrl so the SDK connects through the tunnel
         obj.insert(
             "endpointUrl".to_string(),
             json!(format!("http://{}:{}", endpoint.host, endpoint.port)),
