@@ -252,29 +252,29 @@
               @blur="validateCreateDatabase"
             />
           </FormItem>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              :disabled="submittingCreateDatabase"
+              @click="
+                showCreateDatabaseDialog = false;
+                resetCreateDatabaseDialog();
+              "
+            >
+              {{ $t('common.cancel') }}
+            </Button>
+            <Button
+              type="submit"
+              :disabled="!canCreateDatabase || submittingCreateDatabase"
+            >
+              <Loader2
+                v-if="submittingCreateDatabase"
+                class="mr-2 h-4 w-4 animate-spin text-foreground"
+              />
+              {{ $t('common.create') }}
+            </Button>
+          </DialogFooter>
         </Form>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            :disabled="submittingCreateDatabase"
-            @click="
-              showCreateDatabaseDialog = false;
-              resetCreateDatabaseDialog();
-            "
-          >
-            {{ $t('common.cancel') }}
-          </Button>
-          <Button
-            type="submit"
-            :disabled="!canCreateDatabase || submittingCreateDatabase"
-          >
-            <Loader2
-              v-if="submittingCreateDatabase"
-              class="mr-2 h-4 w-4 animate-spin text-foreground"
-            />
-            {{ $t('common.create') }}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
 
@@ -308,29 +308,29 @@
               @blur="validateCreateCollection"
             />
           </FormItem>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              :disabled="submittingCreateCollection"
+              @click="
+                showCreateCollectionDialog = false;
+                resetCreateCollectionDialog();
+              "
+            >
+              {{ $t('common.cancel') }}
+            </Button>
+            <Button
+              type="submit"
+              :disabled="!canCreateCollection || submittingCreateCollection"
+            >
+              <Loader2
+                v-if="submittingCreateCollection"
+                class="mr-2 h-4 w-4 animate-spin text-foreground"
+              />
+              {{ $t('common.create') }}
+            </Button>
+          </DialogFooter>
         </Form>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            :disabled="submittingCreateCollection"
-            @click="
-              showCreateCollectionDialog = false;
-              resetCreateCollectionDialog();
-            "
-          >
-            {{ $t('common.cancel') }}
-          </Button>
-          <Button
-            type="submit"
-            :disabled="!canCreateCollection || submittingCreateCollection"
-          >
-            <Loader2
-              v-if="submittingCreateCollection"
-              class="mr-2 h-4 w-4 animate-spin text-foreground"
-            />
-            {{ $t('common.create') }}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
 
