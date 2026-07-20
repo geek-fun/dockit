@@ -60,7 +60,8 @@ fn normalize_config(connection: Value) -> Result<Value, String> {
 fn normalize_es(conn: Value) -> Value {
     let mut config = serde_json::Map::new();
     if let Some(v) = conn.get("host").and_then(|v| v.as_str()) {
-        config.insert("host".to_string(), Value::String(v.to_string()));
+        let clean = v.trim_start_matches("http://").trim_start_matches("https://");
+        config.insert("host".to_string(), Value::String(clean.to_string()));
     }
     if let Some(v) = conn.get("port") {
         config.insert("port".to_string(), v.clone());
@@ -143,7 +144,8 @@ fn normalize_mongo(conn: Value) -> Value {
     let mut config = serde_json::Map::new();
 
     if let Some(v) = conn.get("host").and_then(|v| v.as_str()) {
-        config.insert("host".to_string(), Value::String(v.to_string()));
+        let clean = v.trim_start_matches("http://").trim_start_matches("https://");
+        config.insert("host".to_string(), Value::String(clean.to_string()));
     }
     if let Some(v) = conn.get("port") {
         config.insert("port".to_string(), v.clone());
@@ -219,6 +221,27 @@ mod tests {
         let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "h", "port": 9200});
         let cfg = normalize_es(conn);
         assert!(cfg.get("username").is_none());
+    }
+
+    #[test]
+    fn test_normalize_es_strips_scheme_prefix() {
+        let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "http://es.host", "port": 9200});
+        let cfg = normalize_es(conn);
+        assert_eq!(cfg.get("host").unwrap(), "es.host");
+    }
+
+    #[test]
+    fn test_normalize_es_strips_https_prefix() {
+        let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "https://es.host", "port": 9200});
+        let cfg = normalize_es(conn);
+        assert_eq!(cfg.get("host").unwrap(), "es.host");
+    }
+
+    #[test]
+    fn test_normalize_es_keeps_host_without_prefix() {
+        let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "es.host", "port": 9200});
+        let cfg = normalize_es(conn);
+        assert_eq!(cfg.get("host").unwrap(), "es.host");
     }
 
     #[test]
