@@ -241,6 +241,8 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (isSearchConnection(this.connection)) {
         await esApi.createIndex(this.connection, options);
+        // refresh data
+        Promise.all([this.fetchIndices(), this.fetchAliases()]).catch();
       }
       return undefined;
     },
@@ -273,6 +275,8 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (isSearchConnection(this.connection)) {
         await esApi.createTemplate(this.connection, options);
+        // refresh data
+        Promise.all([this.fetchTemplates()]).catch();
       }
       return undefined;
     },
