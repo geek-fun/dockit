@@ -263,10 +263,7 @@
             >
               {{ $t('common.cancel') }}
             </Button>
-            <Button
-              type="submit"
-              :disabled="!canCreateDatabase || submittingCreateDatabase"
-            >
+            <Button type="submit" :disabled="!canCreateDatabase || submittingCreateDatabase">
               <Loader2
                 v-if="submittingCreateDatabase"
                 class="mr-2 h-4 w-4 animate-spin text-foreground"
@@ -319,10 +316,7 @@
             >
               {{ $t('common.cancel') }}
             </Button>
-            <Button
-              type="submit"
-              :disabled="!canCreateCollection || submittingCreateCollection"
-            >
+            <Button type="submit" :disabled="!canCreateCollection || submittingCreateCollection">
               <Loader2
                 v-if="submittingCreateCollection"
                 class="mr-2 h-4 w-4 animate-spin text-foreground"
@@ -547,36 +541,32 @@
                 autocorrect="off"
               />
             </FormItem>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                :disabled="renamingCollection"
+                @click="
+                  showRenameCollectionDialog = false;
+                  resetRenameDialog();
+                "
+              >
+                {{ $t('common.cancel') }}
+              </Button>
+              <Button v-if="renameResult === 'error'" type="submit" :disabled="renamingCollection">
+                <Loader2 v-if="renamingCollection" class="mr-2 h-4 w-4 animate-spin" />
+                {{ $t('dialogOps.retry') }}
+              </Button>
+              <Button
+                v-else-if="renameResult !== 'success'"
+                type="submit"
+                :disabled="renamingCollection || !renameNewName.trim()"
+              >
+                <Loader2 v-if="renamingCollection" class="mr-2 h-4 w-4 animate-spin" />
+                {{ $t('manage.mongo.renameCollection') }}
+              </Button>
+            </DialogFooter>
           </Form>
         </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            :disabled="renamingCollection"
-            @click="
-              showRenameCollectionDialog = false;
-              resetRenameDialog();
-            "
-          >
-            {{ $t('common.cancel') }}
-          </Button>
-          <Button
-            v-if="renameResult === 'error'"
-            type="submit"
-            :disabled="renamingCollection"
-          >
-            <Loader2 v-if="renamingCollection" class="mr-2 h-4 w-4 animate-spin" />
-            {{ $t('dialogOps.retry') }}
-          </Button>
-          <Button
-            v-else-if="renameResult !== 'success'"
-            type="submit"
-            :disabled="renamingCollection || !renameNewName.trim()"
-          >
-            <Loader2 v-if="renamingCollection" class="mr-2 h-4 w-4 animate-spin" />
-            {{ $t('manage.mongo.renameCollection') }}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
 
@@ -623,36 +613,32 @@
                 autocorrect="off"
               />
             </FormItem>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                :disabled="cloningCollection"
+                @click="
+                  showCloneCollectionDialog = false;
+                  resetCloneDialog();
+                "
+              >
+                {{ $t('common.cancel') }}
+              </Button>
+              <Button v-if="cloneResult === 'error'" type="submit" :disabled="cloningCollection">
+                <Loader2 v-if="cloningCollection" class="mr-2 h-4 w-4 animate-spin" />
+                {{ $t('dialogOps.retry') }}
+              </Button>
+              <Button
+                v-else-if="cloneResult !== 'success'"
+                type="submit"
+                :disabled="cloningCollection || !cloneTargetName.trim()"
+              >
+                <Loader2 v-if="cloningCollection" class="mr-2 h-4 w-4 animate-spin" />
+                {{ $t('manage.mongo.cloneCollection') }}
+              </Button>
+            </DialogFooter>
           </Form>
         </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            :disabled="cloningCollection"
-            @click="
-              showCloneCollectionDialog = false;
-              resetCloneDialog();
-            "
-          >
-            {{ $t('common.cancel') }}
-          </Button>
-          <Button
-            v-if="cloneResult === 'error'"
-            type="submit"
-            :disabled="cloningCollection"
-          >
-            <Loader2 v-if="cloningCollection" class="mr-2 h-4 w-4 animate-spin" />
-            {{ $t('dialogOps.retry') }}
-          </Button>
-          <Button
-            v-else-if="cloneResult !== 'success'"
-            type="submit"
-            :disabled="cloningCollection || !cloneTargetName.trim()"
-          >
-            <Loader2 v-if="cloningCollection" class="mr-2 h-4 w-4 animate-spin" />
-            {{ $t('manage.mongo.cloneCollection') }}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
 
@@ -704,38 +690,38 @@
                 autocorrect="off"
               />
             </FormItem>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                :disabled="emptyingCollection"
+                @click="
+                  showEmptyCollectionDialog = false;
+                  resetEmptyDialog();
+                "
+              >
+                {{ $t('common.cancel') }}
+              </Button>
+              <Button
+                v-if="emptyResult === 'error'"
+                variant="destructive"
+                type="submit"
+                :disabled="emptyingCollection"
+              >
+                <Loader2 v-if="emptyingCollection" class="mr-2 h-4 w-4 animate-spin" />
+                {{ $t('dialogOps.retry') }}
+              </Button>
+              <Button
+                v-else-if="emptyResult !== 'success'"
+                variant="destructive"
+                type="submit"
+                :disabled="emptyingCollection || emptyConfirmName !== collectionToEmpty"
+              >
+                <Loader2 v-if="emptyingCollection" class="mr-2 h-4 w-4 animate-spin" />
+                {{ $t('manage.mongo.emptyCollection') }}
+              </Button>
+            </DialogFooter>
           </Form>
         </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            :disabled="emptyingCollection"
-            @click="
-              showEmptyCollectionDialog = false;
-              resetEmptyDialog();
-            "
-          >
-            {{ $t('common.cancel') }}
-          </Button>
-          <Button
-            v-if="emptyResult === 'error'"
-            variant="destructive"
-            type="submit"
-            :disabled="emptyingCollection"
-          >
-            <Loader2 v-if="emptyingCollection" class="mr-2 h-4 w-4 animate-spin" />
-            {{ $t('dialogOps.retry') }}
-          </Button>
-          <Button
-            v-else-if="emptyResult !== 'success'"
-            variant="destructive"
-            type="submit"
-            :disabled="emptyingCollection || emptyConfirmName !== collectionToEmpty"
-          >
-            <Loader2 v-if="emptyingCollection" class="mr-2 h-4 w-4 animate-spin" />
-            {{ $t('manage.mongo.emptyCollection') }}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   </div>
@@ -915,9 +901,7 @@ const canCreateDatabase = computed(
   () => newDatabaseName.value.trim().length > 0 && newCollectionName.value.trim().length > 0,
 );
 
-const canCreateCollection = computed(
-  () => newCollectionNameOnly.value.trim().length > 0,
-);
+const canCreateCollection = computed(() => newCollectionNameOnly.value.trim().length > 0);
 
 const resetCreateDatabaseDialog = () => {
   newDatabaseName.value = '';
