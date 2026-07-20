@@ -16,14 +16,22 @@
       <div class="space-y-4">
         <!-- Profile Name -->
         <FormItem :label="$t('connection.ssh.profileName')" required :error="errors.name">
-          <Input v-model="form.name" :placeholder="$t('connection.ssh.profileName')" @update:model-value="clearError('name')" />
+          <Input
+            v-model="form.name"
+            :placeholder="$t('connection.ssh.profileName')"
+            @update:model-value="clearError('name')"
+          />
         </FormItem>
 
         <!-- Host & Port -->
         <Grid :cols="8" :x-gap="3" :y-gap="3">
           <GridItem :span="6">
             <FormItem :label="$t('connection.ssh.host')" required :error="errors.host">
-              <Input v-model="form.host" :placeholder="$t('connection.ssh.hostPlaceholder')" @update:model-value="clearError('host')" />
+              <Input
+                v-model="form.host"
+                :placeholder="$t('connection.ssh.hostPlaceholder')"
+                @update:model-value="clearError('host')"
+              />
             </FormItem>
           </GridItem>
           <GridItem :span="2">
@@ -33,7 +41,11 @@
           </GridItem>
           <GridItem :span="8">
             <FormItem :label="$t('connection.ssh.username')" required :error="errors.username">
-              <Input v-model="form.username" autocomplete="off" @update:model-value="clearError('username')" />
+              <Input
+                v-model="form.username"
+                autocomplete="off"
+                @update:model-value="clearError('username')"
+              />
             </FormItem>
           </GridItem>
         </Grid>

@@ -363,7 +363,9 @@ const deleteSshProfile = async (profileId: string) => {
   if (!profile) return;
 
   // Check if any connection references this SSH profile
-  const referringConnections = connections.value.filter(c => c.ssh?.profileIds?.includes(profileId));
+  const referringConnections = connections.value.filter(c =>
+    c.ssh?.profileIds?.includes(profileId),
+  );
   let warningContent = `Delete SSH profile "${profile.name}" permanently?`;
   if (referringConnections.length > 0) {
     const names = referringConnections.map(c => `"${c.name}"`).join(', ');

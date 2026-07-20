@@ -71,11 +71,7 @@
 
     <!-- Profile list -->
     <div v-else ref="profileListRef" class="ssh-profile-list">
-      <div
-        v-for="pid in profileIds"
-        :key="pid"
-        class="ssh-profile-row"
-      >
+      <div v-for="pid in profileIds" :key="pid" class="ssh-profile-row">
         <div class="ssh-profile-row-order">
           <span class="i-carbon-draggable h-3 w-3" />
         </div>
@@ -187,8 +183,9 @@ function initSortable() {
     fallbackClass: 'sortable-drag',
     fallbackOnBody: true,
     ghostClass: 'sortable-ghost',
-    onEnd: (evt) => {
-      if (evt.oldIndex === undefined || evt.newIndex === undefined || evt.oldIndex === evt.newIndex) return;
+    onEnd: evt => {
+      if (evt.oldIndex === undefined || evt.newIndex === undefined || evt.oldIndex === evt.newIndex)
+        return;
 
       const ids = [...profileIds.value];
       const [removed] = ids.splice(evt.oldIndex, 1);

@@ -209,7 +209,11 @@
               <!-- Advanced Section -->
               <GridItem :span="8">
                 <div class="advanced-section">
-                  <button type="button" class="advanced-toggle" @click="showAdvanced = !showAdvanced">
+                  <button
+                    type="button"
+                    class="advanced-toggle"
+                    @click="showAdvanced = !showAdvanced"
+                  >
                     <ChevronRight
                       class="h-4 w-4 transition-transform duration-200"
                       :class="{ 'rotate-90': showAdvanced }"

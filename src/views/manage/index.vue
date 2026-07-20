@@ -62,7 +62,7 @@ const { cluster, connection } = storeToRefs(clusterManageStore);
 
 const refreshData = async () => {
   try {
-    refreshStates();
+    await refreshStates();
   } catch (err) {
     const { status, details } = err as CustomError;
     message.error(`status: ${status}, details: ${details}`, {

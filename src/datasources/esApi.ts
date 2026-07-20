@@ -753,7 +753,6 @@ const esApi: ESApi = {
   },
   catIndices: async connection => {
     const raw = await invokeCapability('es__cat_indices', {}, String(connection.id));
-    console.log('[catIndices] raw:', raw);
     const data = parseCapabilityResponse<Array<{ [key: string]: string }>>(raw);
 
     return data.map((index: { [key: string]: string }) => ({

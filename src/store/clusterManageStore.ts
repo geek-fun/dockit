@@ -119,6 +119,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       this.refreshLoading = true;
       const start = Date.now();
 
+      let error: unknown;
       try {
         await this.fetchCluster();
         await this.fetchIndices();
@@ -127,7 +128,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         await this.fetchShards();
         await this.fetchTemplates();
       } catch (err) {
-        console.error('[clusterManage] refreshStates error:', err);
+        error = err;
       } finally {
         const elapsed = Date.now() - start;
         if (elapsed < 500) {
@@ -135,6 +136,8 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         }
         this.refreshLoading = false;
       }
+
+      if (error) throw error;
     },
     async fetchCluster() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
