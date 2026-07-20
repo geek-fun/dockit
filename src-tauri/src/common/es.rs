@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn test_build_es_base_url_valid() {
         let config = json!({"host": "localhost", "port": 9200});
-        assert_eq!(build_es_base_url(&config).unwrap(), "localhost:9200");
+        assert_eq!(build_es_base_url(&config).unwrap(), "http://localhost:9200");
     }
 
     #[test]
