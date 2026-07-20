@@ -293,6 +293,21 @@
           <DialogDescription>{{ $t('manage.mongo.createCollectionDesc') }}</DialogDescription>
         </DialogHeader>
         <Form class="grid gap-4 py-4">
+          <FormItem :label="$t('manage.mongo.targetDatabase')" required>
+            <Select v-model="selectedDatabase" :disabled="databases.length === 0">
+              <SelectTrigger>
+                <SelectValue :placeholder="$t('manage.mongo.selectDatabase')" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="db in databases" :key="db.name" :value="db.name">
+                  {{ db.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p v-if="databases.length === 0" class="text-sm text-muted-foreground mt-1">
+              {{ $t('manage.mongo.noDatabasesAvailable') }}
+            </p>
+          </FormItem>
           <FormItem
             :label="$t('manage.mongo.collectionName')"
             required
@@ -788,6 +803,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const message = useMessageService();
 const lang = useLang();
@@ -915,7 +937,9 @@ const canCreateDatabase = computed(
   () => newDatabaseName.value.trim().length > 0 && newCollectionName.value.trim().length > 0,
 );
 
-const canCreateCollection = computed(() => newCollectionNameOnly.value.trim().length > 0);
+const canCreateCollection = computed(
+  () => newCollectionNameOnly.value.trim().length > 0 && !!selectedDatabase.value,
+);
 
 const resetCreateDatabaseDialog = () => {
   newDatabaseName.value = '';
@@ -1190,7 +1214,11 @@ const handleCreateDatabase = async () => {
 const handleCreateCollection = async () => {
   validateCreateCollection();
   if (!canCreateCollection.value) return;
-  if (!mongoConnection.value || !selectedDatabase.value) return;
+  if (!mongoConnection.value) return;
+  if (!selectedDatabase.value) {
+    message.error(lang.t('manage.mongo.noDatabaseSelected'));
+    return;
+  }
 
   submittingCreateCollection.value = true;
   try {

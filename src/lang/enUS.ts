@@ -621,6 +621,9 @@ export const enUS = {
       createCollectionTitle: 'Create New Collection',
       createCollectionDesc: 'Enter the collection name to create.',
       collectionName: 'Collection Name',
+      targetDatabase: 'Target Database',
+      noDatabaseSelected: 'No database selected. Please select a database first.',
+      noDatabasesAvailable: 'No databases available. Create a database first.',
       dropCollectionTitle: 'Drop Collection',
       dropCollectionConfirm:
         'Are you sure you want to drop collection "{name}"? This action cannot be undone.',
