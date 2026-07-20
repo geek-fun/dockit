@@ -1,4 +1,6 @@
+use crate::common::ssh_bridge::resolve_ssh_tunnel;
 use crate::dynamo::batch_write_item::{batch_write_item, BatchWriteInput};
+use crate::dynamo::types::ApiResponse;
 use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};
 use crate::dynamo::continuous_backups::describe_continuous_backups;
 use crate::dynamo::create_item::{create_item, CreateItemInput};
@@ -12,7 +14,6 @@ use crate::dynamo::query_table::{query_table, QueryTableInput};
 use crate::dynamo::scan_table::{scan_table, ScanTableInput};
 use crate::dynamo::time_to_live::describe_time_to_live;
 use crate::dynamo::truncate_table::truncate_table;
-use crate::dynamo::types::ApiResponse;
 use crate::dynamo::update_item::{update_item, UpdateItemInput};
 use crate::dynamo::update_pitr::update_continuous_backups;
 use crate::dynamo::update_streams::update_streams;
@@ -472,6 +473,84 @@ pub async fn dynamo_api(
             Ok(serde_json::to_string(&error_response).map_err(|e| e.to_string())?)
         }
     }
+}
+
+// ── DynamoDB Test Connection ───────────────────────────────────────────
+
+#[tauri::command]
+pub async fn dynamo_test_connection(
+    app: tauri::AppHandle,
+    config: serde_json::Value,
+    ssh: Option<serde_json::Value>,
+) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
+    use crate::common::dynamo::create_dynamo_client;
+    use crate::common::response::ApiResponse;
+
+    // Normalize the frontend connection config into the flat format
+    // that create_dynamo_client expects (authKind, accessKeyId, etc.)
+    let mut normalized = serde_json::Map::new();
+
+    if let Some(v) = config.get("region").and_then(|v| v.as_str()) {
+        normalized.insert("region".to_string(), serde_json::json!(v));
+    }
+    if let Some(v) = config.get("endpointUrl").and_then(|v| v.as_str()) {
+        if !v.is_empty() {
+            normalized.insert("endpointUrl".to_string(), serde_json::json!(v));
+        }
+    }
+    if let Some(auth) = config.get("auth").and_then(|v| v.as_object()) {
+        if let Some(kind) = auth.get("kind").and_then(|v| v.as_str()) {
+            normalized.insert("authKind".to_string(), serde_json::json!(kind));
+            match kind {
+                "accessKey" | "sso" | "assumeRole" => {
+                    if let Some(v) = auth.get("accessKeyId").and_then(|v| v.as_str()) {
+                        normalized.insert("accessKeyId".to_string(), serde_json::json!(v));
+                    }
+                    if let Some(v) = auth.get("secretAccessKey").and_then(|v| v.as_str()) {
+                        normalized.insert("secretAccessKey".to_string(), serde_json::json!(v));
+                    }
+                    if let Some(v) = auth.get("sessionToken").and_then(|v| v.as_str()) {
+                        if !v.is_empty() {
+                            normalized.insert("sessionToken".to_string(), serde_json::json!(v));
+                        }
+                    }
+                }
+                "profile" => {
+                    if let Some(v) = auth.get("profileName").and_then(|v| v.as_str()) {
+                        normalized.insert("profileName".to_string(), serde_json::json!(v));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Extract remote target from endpointUrl for SSH tunnel
+    let remote_host = config
+        .get("endpointUrl")
+        .and_then(|v| v.as_str())
+        .and_then(|u| url::Url::parse(u).ok())
+        .and_then(|p| p.host_str().map(|h| h.to_string()))
+        .unwrap_or_else(|| "localhost".to_string());
+
+    let remote_port = config
+        .get("endpointUrl")
+        .and_then(|v| v.as_str())
+        .and_then(|u| url::Url::parse(u).ok())
+        .and_then(|p| p.port())
+        .unwrap_or(443u16);
+
+    let tunnel = resolve_ssh_tunnel(&app, ssh.as_ref(), &remote_host, remote_port).await?;
+    normalized.insert("endpointUrl".to_string(), serde_json::json!(format!("http://{}:{}", tunnel.host, tunnel.port)));
+
+    let client = create_dynamo_client(&serde_json::Value::Object(normalized), None).await?;
+    let response = list_tables(&client).await?;
+
+    let table_names = response.data
+        .and_then(|d| d.get("tableNames").and_then(|v| v.as_array()).cloned())
+        .unwrap_or_default();
+
+    Ok(ApiResponse::ok(serde_json::json!({ "tableNames": table_names })))
 }
 
 // ── STS AssumeRole ─────────────────────────────────────────────────────────────

@@ -617,7 +617,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 
 const connectionStore = useConnectionStore();
-const { freshConnection } = connectionStore;
 const lang = useLang();
 
 const showModal = ref(false);
@@ -1233,13 +1232,20 @@ const testConnect = async () => {
   const startTime = Date.now();
 
   try {
-    await freshConnection({ ...formData.value, ssh: { ...sshConfig.value } });
+    const result = await dynamoApi.testConnection({
+      ...formData.value,
+      ssh: { ...sshConfig.value },
+    });
 
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
     if (remainingTime > 0) await new Promise(resolve => setTimeout(resolve, remainingTime));
 
-    succeed(lang.t('connection.testSuccess'));
+    if (result.success) {
+      succeed(lang.t('connection.testSuccess'));
+    } else {
+      fail(result.message);
+    }
   } catch (error: unknown) {
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
@@ -1252,7 +1258,7 @@ const testConnect = async () => {
     } else if (error instanceof Error) {
       fail(error.message);
     } else {
-      fail(lang.t('connection.unknownError'));
+      fail(String(error));
     }
   } finally {
     testLoading.value = false;
@@ -1355,7 +1361,9 @@ let fetchAbortFlag = 0;
 const silentFetchTables = async () => {
   const tick = ++fetchAbortFlag;
   try {
-    const tables = await dynamoApi.listTables(formData.value);
+    const tables = await (sshConfig.value.enabled
+      ? dynamoApi.listTablesViaSsh(formData.value)
+      : dynamoApi.listTables(formData.value));
     if (tick === fetchAbortFlag) availableTables.value = tables;
   } catch {
     // silently ignore — no credentials yet or invalid
