@@ -223,7 +223,7 @@
           <DialogTitle>{{ $t('manage.mongo.createDatabaseTitle') }}</DialogTitle>
           <DialogDescription>{{ $t('manage.mongo.createDatabaseDesc') }}</DialogDescription>
         </DialogHeader>
-        <Form class="grid gap-4 py-4" @submit.prevent="handleCreateDatabase">
+        <Form class="grid gap-4 py-4">
           <FormItem
             :label="$t('manage.mongo.databaseName')"
             required
@@ -252,29 +252,29 @@
               @blur="validateCreateDatabase"
             />
           </FormItem>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              :disabled="submittingCreateDatabase"
-              @click="
-                showCreateDatabaseDialog = false;
-                resetCreateDatabaseDialog();
-              "
-            >
-              {{ $t('common.cancel') }}
-            </Button>
-            <Button
-              type="submit"
-              :disabled="!canCreateDatabase || submittingCreateDatabase"
-            >
-              <Loader2
-                v-if="submittingCreateDatabase"
-                class="mr-2 h-4 w-4 animate-spin text-foreground"
-              />
-              {{ $t('common.create') }}
-            </Button>
-          </DialogFooter>
         </Form>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            :disabled="submittingCreateDatabase"
+            @click="
+              showCreateDatabaseDialog = false;
+              resetCreateDatabaseDialog();
+            "
+          >
+            {{ $t('common.cancel') }}
+          </Button>
+          <Button
+            :disabled="!canCreateDatabase || submittingCreateDatabase"
+            @click="handleCreateDatabase"
+          >
+            <Loader2
+              v-if="submittingCreateDatabase"
+              class="mr-2 h-4 w-4 animate-spin text-foreground"
+            />
+            {{ $t('common.create') }}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
 
@@ -292,7 +292,7 @@
           <DialogTitle>{{ $t('manage.mongo.createCollectionTitle') }}</DialogTitle>
           <DialogDescription>{{ $t('manage.mongo.createCollectionDesc') }}</DialogDescription>
         </DialogHeader>
-        <Form class="grid gap-4 py-4" @submit.prevent="handleCreateCollection">
+        <Form class="grid gap-4 py-4">
           <FormItem
             :label="$t('manage.mongo.collectionName')"
             required
@@ -308,29 +308,29 @@
               @blur="validateCreateCollection"
             />
           </FormItem>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              :disabled="submittingCreateCollection"
-              @click="
-                showCreateCollectionDialog = false;
-                resetCreateCollectionDialog();
-              "
-            >
-              {{ $t('common.cancel') }}
-            </Button>
-            <Button
-              type="submit"
-              :disabled="!canCreateCollection || submittingCreateCollection"
-            >
-              <Loader2
-                v-if="submittingCreateCollection"
-                class="mr-2 h-4 w-4 animate-spin text-foreground"
-              />
-              {{ $t('common.create') }}
-            </Button>
-          </DialogFooter>
         </Form>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            :disabled="submittingCreateCollection"
+            @click="
+              showCreateCollectionDialog = false;
+              resetCreateCollectionDialog();
+            "
+          >
+            {{ $t('common.cancel') }}
+          </Button>
+          <Button
+            :disabled="!canCreateCollection || submittingCreateCollection"
+            @click="handleCreateCollection"
+          >
+            <Loader2
+              v-if="submittingCreateCollection"
+              class="mr-2 h-4 w-4 animate-spin text-foreground"
+            />
+            {{ $t('common.create') }}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
 
@@ -537,7 +537,7 @@
           <p class="text-sm font-medium">{{ $t('manage.mongo.renameCollectionSuccess') }}</p>
         </div>
         <div v-else>
-          <Form class="py-4" @submit.prevent="handleRenameCollection">
+          <Form class="py-4">
             <FormItem :label="$t('manage.mongo.newCollectionName')" required>
               <Input
                 v-model="renameNewName"
@@ -562,16 +562,16 @@
           </Button>
           <Button
             v-if="renameResult === 'error'"
-            type="submit"
             :disabled="renamingCollection"
+            @click="handleRenameCollection"
           >
             <Loader2 v-if="renamingCollection" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('dialogOps.retry') }}
           </Button>
           <Button
             v-else-if="renameResult !== 'success'"
-            type="submit"
             :disabled="renamingCollection || !renameNewName.trim()"
+            @click="handleRenameCollection"
           >
             <Loader2 v-if="renamingCollection" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('manage.mongo.renameCollection') }}
@@ -613,7 +613,7 @@
           <p class="text-sm font-medium">{{ $t('manage.mongo.cloneCollectionSuccess') }}</p>
         </div>
         <div v-else>
-          <Form class="py-4" @submit.prevent="handleCloneCollection">
+          <Form class="py-4">
             <FormItem :label="$t('manage.mongo.targetCollectionName')" required>
               <Input
                 v-model="cloneTargetName"
@@ -638,16 +638,16 @@
           </Button>
           <Button
             v-if="cloneResult === 'error'"
-            type="submit"
             :disabled="cloningCollection"
+            @click="handleCloneCollection"
           >
             <Loader2 v-if="cloningCollection" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('dialogOps.retry') }}
           </Button>
           <Button
             v-else-if="cloneResult !== 'success'"
-            type="submit"
             :disabled="cloningCollection || !cloneTargetName.trim()"
+            @click="handleCloneCollection"
           >
             <Loader2 v-if="cloningCollection" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('manage.mongo.cloneCollection') }}
@@ -691,7 +691,7 @@
               {{ $t('manage.mongo.emptyCollectionConfirm', { name: collectionToEmpty }) }}
             </AlertDescription>
           </Alert>
-          <Form class="py-4" @submit.prevent="handleEmptyCollection">
+          <Form class="py-4">
             <FormItem
               :label="$t('manage.mongo.typeNameToConfirm', { name: collectionToEmpty })"
               required
@@ -720,8 +720,8 @@
           <Button
             v-if="emptyResult === 'error'"
             variant="destructive"
-            type="submit"
             :disabled="emptyingCollection"
+            @click="handleEmptyCollection"
           >
             <Loader2 v-if="emptyingCollection" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('dialogOps.retry') }}
@@ -729,8 +729,8 @@
           <Button
             v-else-if="emptyResult !== 'success'"
             variant="destructive"
-            type="submit"
             :disabled="emptyingCollection || emptyConfirmName !== collectionToEmpty"
+            @click="handleEmptyCollection"
           >
             <Loader2 v-if="emptyingCollection" class="mr-2 h-4 w-4 animate-spin" />
             {{ $t('manage.mongo.emptyCollection') }}
@@ -915,9 +915,7 @@ const canCreateDatabase = computed(
   () => newDatabaseName.value.trim().length > 0 && newCollectionName.value.trim().length > 0,
 );
 
-const canCreateCollection = computed(
-  () => newCollectionNameOnly.value.trim().length > 0,
-);
+const canCreateCollection = computed(() => newCollectionNameOnly.value.trim().length > 0);
 
 const resetCreateDatabaseDialog = () => {
   newDatabaseName.value = '';
