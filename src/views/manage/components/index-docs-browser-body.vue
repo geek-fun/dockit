@@ -45,6 +45,17 @@
           </SelectContent>
         </Select>
         <Button
+          v-if="enableSearchFilters"
+          size="sm"
+          variant="outline"
+          class="h-7"
+          :disabled="loading || !indexName || !hasActiveFilters"
+          @click="clearFilters"
+        >
+          <span class="i-carbon-filter-remove h-3.5 w-3.5 mr-1" />
+          {{ $t('manage.docs.clearFilters') }}
+        </Button>
+        <Button
           size="sm"
           variant="outline"
           class="h-7"
@@ -226,6 +237,7 @@ const searchText = ref('');
 const searchColumn = ref('__all__');
 const columnFilters = ref<Record<string, Array<string | number | boolean>>>({});
 let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+let suppressSearchReload = false;
 
 const jsonDialogOpen = ref(false);
 const jsonDialogValue = ref<unknown>(null);
@@ -245,7 +257,9 @@ const browseFields = computed(() =>
   mergeBrowseFieldsWithHitKeys(mappingFields.value, hitKeys.value),
 );
 
-const searchableFields = computed(() => browseFields.value);
+const searchableFields = computed(() =>
+  browseFields.value.filter(f => f.kind !== 'unsupported'),
+);
 
 const columns = computed(() => ['_id', ...[...hitKeys.value].sort((a, b) => a.localeCompare(b))]);
 
@@ -253,6 +267,13 @@ const activeColumnFilters = computed(() =>
   Object.entries(columnFilters.value)
     .filter(([, values]) => values.length > 0)
     .map(([field, values]) => ({ field, values })),
+);
+
+const hasActiveFilters = computed(
+  () =>
+    searchText.value.trim().length > 0 ||
+    searchColumn.value !== '__all__' ||
+    activeColumnFilters.value.length > 0,
 );
 
 const activeQuery = computed(() => {
@@ -328,6 +349,16 @@ const applyColumnFilter = (col: string, values: Array<string | number | boolean>
 
 const handleSearchColumnChange = (value: string) => {
   searchColumn.value = value;
+  void reload();
+};
+
+const clearFilters = () => {
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  suppressSearchReload = true;
+  searchText.value = '';
+  searchColumn.value = '__all__';
+  columnFilters.value = {};
+  suppressSearchReload = false;
   void reload();
 };
 
@@ -429,9 +460,11 @@ watch(
       resetState();
     }
   },
+  { immediate: true },
 );
 
 watch(searchText, () => {
+  if (suppressSearchReload) return;
   if (!props.enableSearchFilters || !props.active || !props.indexName) return;
   if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
   searchDebounceTimer = setTimeout(() => {
@@ -496,7 +529,7 @@ watch(searchText, () => {
 }
 
 .docs-browser-body.embedded .docs-table-wrap {
-  max-height: none;
+  max-height: calc(100% - 2.5rem);
 }
 
 .docs-table-wrap.is-loading {
@@ -589,6 +622,7 @@ watch(searchText, () => {
   align-items: center;
   justify-content: space-between;
   margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
   flex-shrink: 0;
 }
 </style>

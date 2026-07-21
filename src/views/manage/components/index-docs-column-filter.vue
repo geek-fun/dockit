@@ -107,7 +107,6 @@ const errorMessage = ref('');
 const valueSearch = ref('');
 const values = ref<AggregateFieldValue[]>([]);
 const draftSelected = ref<Array<string | number | boolean>>([]);
-let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 const normalizeValue = (value: string | number | boolean): string | number | boolean => value;
 
@@ -116,7 +115,11 @@ const formatValue = (value: string | number | boolean): string => {
   return String(value);
 };
 
-const visibleValues = computed(() => values.value);
+const visibleValues = computed(() => {
+  const needle = valueSearch.value.trim().toLowerCase();
+  if (!needle) return values.value;
+  return values.value.filter(item => formatValue(item.value).toLowerCase().includes(needle));
+});
 
 const allVisibleSelected = computed(() => {
   if (visibleValues.value.length === 0) return false;
@@ -133,7 +136,6 @@ const loadValues = async () => {
       indexName: props.indexName,
       field: props.aggField,
       size: 50,
-      valueSearch: valueSearch.value.trim() || undefined,
       query: props.baseQuery,
     });
   } catch (err) {
@@ -182,14 +184,6 @@ watch(open, isOpen => {
     valueSearch.value = '';
     void loadValues();
   }
-});
-
-watch(valueSearch, () => {
-  if (!open.value) return;
-  if (searchTimer) clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
-    void loadValues();
-  }, 300);
 });
 </script>
 

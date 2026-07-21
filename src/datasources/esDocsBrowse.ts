@@ -213,15 +213,13 @@ const buildTextClause = (
     },
   ];
 
-  const multiMatchFields = fields
-    .filter(f => f.kind === 'text' || f.kind === 'keyword')
-    .map(f => f.searchField);
+  const textFields = fields.filter(f => f.kind === 'text').map(f => f.searchField);
 
-  if (multiMatchFields.length > 0) {
+  if (textFields.length > 0) {
     should.push({
       multi_match: {
         query: trimmed,
-        fields: multiMatchFields,
+        fields: textFields,
         type: 'best_fields',
         lenient: true,
       },
@@ -229,7 +227,7 @@ const buildTextClause = (
     should.push({
       query_string: {
         query: `*${escapeWildcard(trimmed)}*`,
-        fields: multiMatchFields,
+        fields: textFields,
         analyze_wildcard: true,
         lenient: true,
       },
@@ -311,10 +309,12 @@ export const mergeBrowseFieldsWithHitKeys = (
   const byName = new Map(mappingFields.map(f => [f.name, f]));
   hitKeys.forEach(key => {
     if (byName.has(key)) return;
+    // Unknown hit keys stay display-only — never wildcard/terms-search them
+    // (they may be dates, numbers, or objects missing from mapping).
     byName.set(key, {
       name: key,
-      kind: 'keyword',
-      aggField: key,
+      kind: 'unsupported',
+      aggField: null,
       searchField: key,
     });
   });

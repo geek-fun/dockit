@@ -242,7 +242,7 @@ onMounted(async () => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 1rem 1rem;
   box-sizing: border-box;
   gap: 0.75rem;
 }

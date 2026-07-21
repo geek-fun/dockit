@@ -288,6 +288,7 @@ export const zhCN = {
       esOnlyHint: '查看文档仅支持 Elasticsearch 和 OpenSearch 连接',
       searchPlaceholder: '搜索文档…',
       searchAllColumns: '全部',
+      clearFilters: '清除筛选',
       columnFilter: '筛选',
       columnFilterSearch: '搜索取值…',
       columnFilterSelectAll: '全选',

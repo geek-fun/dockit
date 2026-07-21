@@ -529,7 +529,6 @@ interface ESApi {
       indexName: string;
       field: string;
       size?: number;
-      valueSearch?: string;
       query?: Record<string, unknown>;
     },
   ): Promise<AggregateFieldValue[]>;
@@ -1150,18 +1149,13 @@ const esApi: ESApi = {
     }
   },
 
-  aggregateFieldValues: async (connection, { indexName, field, size = 50, valueSearch, query }) => {
+  aggregateFieldValues: async (connection, { indexName, field, size = 50, query }) => {
     const client = loadHttpClient(connection);
     const termsAgg: Record<string, unknown> = {
       field,
       size,
       order: { _key: 'asc' },
     };
-
-    if (valueSearch && valueSearch.trim()) {
-      const escaped = valueSearch.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      termsAgg.include = `.*${escaped}.*`;
-    }
 
     const searchBody: {
       size: number;

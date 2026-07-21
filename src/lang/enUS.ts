@@ -303,6 +303,7 @@ export const enUS = {
       esOnlyHint: 'View Docs is available for Elasticsearch and OpenSearch connections only',
       searchPlaceholder: 'Search documents…',
       searchAllColumns: 'All',
+      clearFilters: 'Clear Filters',
       columnFilter: 'Filter',
       columnFilterSearch: 'Search values…',
       columnFilterSelectAll: 'Select all',
