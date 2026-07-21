@@ -481,7 +481,7 @@ pub async fn dynamo_api(
 pub async fn dynamo_test_connection(
     app: tauri::AppHandle,
     config: serde_json::Value,
-    ssh: Option<serde_json::Value>,
+    sshTunnel: Option<serde_json::Value>,
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::dynamo::create_dynamo_client;
     use crate::common::response::ApiResponse;
@@ -540,7 +540,7 @@ pub async fn dynamo_test_connection(
         .and_then(|p| p.port())
         .unwrap_or(443u16);
 
-    let tunnel = resolve_ssh_tunnel(&app, ssh.as_ref(), &remote_host, remote_port).await?;
+    let tunnel = resolve_ssh_tunnel(&app, sshTunnel.as_ref(), &remote_host, remote_port).await?;
     normalized.insert("endpointUrl".to_string(), serde_json::json!(format!("http://{}:{}", tunnel.host, tunnel.port)));
 
     let client = create_dynamo_client(&serde_json::Value::Object(normalized), None).await?;
