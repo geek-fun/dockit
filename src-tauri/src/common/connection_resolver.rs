@@ -325,6 +325,44 @@ mod tests {
     }
 
     #[test]
+    fn test_normalize_es_passes_ssh_tunnel() {
+        let conn = json!({
+            "host": "es.host", "port": 9200,
+            "sshTunnel": {"enabled": true, "profileIds": ["p1"]},
+        });
+        let cfg = normalize_es(conn);
+        let tunnel = cfg.get("sshTunnel").unwrap();
+        assert_eq!(tunnel["enabled"], true);
+        assert_eq!(tunnel["profileIds"][0], "p1");
+    }
+
+    #[test]
+    fn test_normalize_dynamo_passes_ssh_tunnel() {
+        let conn = json!({
+            "region": "us-east-1",
+            "auth": {"kind": "accessKey", "accessKeyId": "AKID", "secretAccessKey": "SAK"},
+            "sshTunnel": {"enabled": false},
+        });
+        let cfg = normalize_dynamo(conn).unwrap();
+        let tunnel = cfg.get("sshTunnel").unwrap();
+        assert_eq!(tunnel["enabled"], false);
+    }
+
+    #[test]
+    fn test_normalize_mongo_passes_ssh_tunnel() {
+        let conn = json!({
+            "host": "mongo.host", "port": 27017,
+            "auth": {"kind": "none"},
+            "sshTunnel": {"enabled": true, "profileIds": ["p1", "p2"]},
+        });
+        let cfg = normalize_mongo(conn);
+        let tunnel = cfg.get("sshTunnel").unwrap();
+        assert_eq!(tunnel["enabled"], true);
+        assert_eq!(tunnel["profileIds"][0], "p1");
+        assert_eq!(tunnel["profileIds"][1], "p2");
+    }
+
+    #[test]
     fn test_normalize_config_unknown_type() {
         let err = normalize_config(json!({"id": 1, "type": "UNKNOWN"})).unwrap_err();
         assert!(err.contains("Unknown connection type"), "got: {}", err);

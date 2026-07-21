@@ -290,3 +290,41 @@ pub async fn list_llm_models(
 pub fn get_all_tools() -> Result<String, String> {
     lib::tools::get_all_tools()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::extract_remote_target;
+    use serde_json::json;
+
+    #[test]
+    fn test_extract_remote_target_from_host_port() {
+        let config = json!({"host": "db.example.com", "port": 5432});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "db.example.com");
+        assert_eq!(port, 5432);
+    }
+
+    #[test]
+    fn test_extract_remote_target_from_endpoint_url() {
+        let config = json!({"endpointUrl": "https://my-cluster.us-east-1.es.amazonaws.com:443"});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "my-cluster.us-east-1.es.amazonaws.com");
+        assert_eq!(port, 443);
+    }
+
+    #[test]
+    fn test_extract_remote_target_fallback_defaults() {
+        let config = json!({});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "localhost");
+        assert_eq!(port, 443);
+    }
+
+    #[test]
+    fn test_extract_remote_target_endpoint_url_without_port() {
+        let config = json!({"endpointUrl": "http://bastion.internal"});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "bastion.internal");
+        assert_eq!(port, 443);
+    }
+}

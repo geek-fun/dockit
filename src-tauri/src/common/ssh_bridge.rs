@@ -154,37 +154,58 @@ fn load_profile_as_tunnel(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ssh::config::SshTunnelConfig;
+    use serde_json::json;
 
     #[test]
-    fn test_build_transport_layers_no_ssh_returns_empty() {
-        // This tests the early return when profile_ids is empty and inline is None
-        let ssh = SshConnectionConfig {
-            enabled: true,
-            profile_ids: vec![],
-            inline: None,
-            system_proxy: None,
-        };
-        assert!(ssh.profile_ids.is_empty());
-        assert!(ssh.inline.is_none());
+    fn test_tunnel_key_none_returns_direct() {
+        assert_eq!(tunnel_key(None, "localhost", 9200), "direct:localhost:9200");
     }
 
     #[test]
-    fn test_build_transport_layers_with_inline_returns_layer() {
-        let inline = SshTunnelConfig {
-            enabled: true, host: "bastion".into(), port: 22,
-            username: "user".into(), auth_method: "key".into(),
-            password: String::new(), key_path: "~/.ssh/key".into(),
-            key_passphrase: String::new(), use_ssh_agent: false,
-            ssh_agent_sock_path: String::new(), connect_timeout_secs: 10,
-            keepalive_interval_secs: 30, verify_host_key: false, expose_lan: false,
-        };
-        let ssh = SshConnectionConfig {
-            enabled: true,
-            profile_ids: vec![],
-            inline: Some(inline),
-            system_proxy: None,
-        };
-        assert!(ssh.inline.is_some());
+    fn test_tunnel_key_profile_ids_sorted() {
+        let ssh = json!({"profileIds": ["z-pid", "a-pid", "m-pid"]});
+        let key = tunnel_key(Some(&ssh), "db.host", 27017);
+        assert_eq!(key, "ssh:profiles:a-pid,m-pid,z-pid:db.host:27017");
+    }
+
+    #[test]
+    fn test_tunnel_key_inline_config() {
+        let ssh = json!({
+            "inline": {
+                "host": "bastion.host",
+                "port": 2222,
+                "username": "jump-user",
+                "auth_method": "key",
+            }
+        });
+        let key = tunnel_key(Some(&ssh), "target.host", 5432);
+        assert_eq!(key, "ssh:inline:bastion.host:2222:jump-user:key:target.host:5432");
+    }
+
+    #[test]
+    fn test_tunnel_key_inline_missing_auth_method_defaults_empty() {
+        let ssh = json!({
+            "inline": {
+                "host": "bastion",
+                "port": 22,
+                "username": "ubuntu",
+            }
+        });
+        let key = tunnel_key(Some(&ssh), "rds.host", 3306);
+        assert_eq!(key, "ssh:inline:bastion:22:ubuntu::rds.host:3306");
+    }
+
+    #[test]
+    fn test_tunnel_key_unknown_when_no_profile_ids_or_inline() {
+        let ssh = json!({"enabled": true});
+        let key = tunnel_key(Some(&ssh), "some.host", 8080);
+        assert_eq!(key, "ssh:unknown:some.host:8080");
+    }
+
+    #[test]
+    fn test_tunnel_key_single_profile_id() {
+        let ssh = json!({"profileIds": ["single-pid"]});
+        let key = tunnel_key(Some(&ssh), "es.host", 9200);
+        assert_eq!(key, "ssh:profiles:single-pid:es.host:9200");
     }
 }
