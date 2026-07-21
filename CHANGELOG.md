@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-21
+
+### Added
+
+- **SSH tunneling with shared profiles** — connect to databases through SSH tunnels with configurable profiles, supporting key-based and password authentication, multi-hop configurations, and profile management (#463)
+- **Requesty as an AI provider** — add Requesty to the supported LLM provider list alongside OpenAI, Anthropic, and DeepSeek (#462)
+
 ## [1.2.0] - 2026-06-30
 
 ### Changed
