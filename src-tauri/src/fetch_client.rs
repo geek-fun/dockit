@@ -156,8 +156,6 @@ async fn fetch_raw(
     } else if is_local {
         create_http_client("none", None, Some(options.agent.ssl), None)
     } else if options.agent.ssl {
-        create_http_client("system", options.agent.http_proxy.clone(), Some(options.agent.ssl), None)
-    } else if options.agent.ssl {
         SECURE_CLIENT
             .get_or_init(|| create_http_client("system", None, Some(true), None))
             .clone()
