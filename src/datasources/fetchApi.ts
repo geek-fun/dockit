@@ -111,7 +111,7 @@ const fetchRequest = async (
     const response = await invoke<string>('fetch_api', {
       url,
       options: { method, headers, body: payload ?? undefined, agent },
-      ssh_tunnel: sshTunnel || null,
+      sshTunnel: sshTunnel || null,
     });
 
     const { status, message, data } = jsonify.parse(response) as {
