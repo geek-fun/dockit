@@ -379,6 +379,13 @@ const deleteSshProfile = async (profileId: string) => {
     negativeText: lang.t('dialogOps.cancel'),
     onPositiveClick: async () => {
       try {
+        // Detach this profile from all connections that reference it
+        for (const c of referringConnections) {
+          if (c.sshTunnel?.profileIds) {
+            c.sshTunnel.profileIds = c.sshTunnel.profileIds.filter(id => id !== profileId);
+            await connectionStore.saveConnection(c);
+          }
+        }
         await sshStore.deleteProfile(profileId);
         message.success(`SSH profile "${profile.name}" deleted`);
       } catch (_error) {
