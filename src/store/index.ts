@@ -9,3 +9,4 @@ export * from './tabStore.ts';
 export * from './dbDataStore.ts';
 export * from './historyStore.ts';
 export * from './codeActionStore.ts';
+export { useSshProfileStore } from './sshProfileStore';

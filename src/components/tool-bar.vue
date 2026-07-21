@@ -227,7 +227,20 @@
       variant="ghost"
       size="sm"
       :disabled="refreshLoading"
-      @click="() => refreshStates()"
+      @click="
+        async () => {
+          try {
+            await refreshStates();
+          } catch (err) {
+            const e = err as CustomError;
+            message.error(e.details || e.message || 'Refresh failed', {
+              closable: true,
+              keepAliveOnHover: true,
+              duration: 3000,
+            });
+          }
+        }
+      "
     >
       <Loader2 v-if="refreshLoading" class="mr-1 h-4 w-4 animate-spin" />
       <span v-else class="i-carbon-renew mr-1 h-4 w-4" />
@@ -842,7 +855,16 @@ const handleIncludeChange = async (value: boolean) => {
     }
   }
   if (props.type === 'MANAGE' && connection.value) {
-    await refreshStates(value);
+    try {
+      await refreshStates(value);
+    } catch (err) {
+      const e = err as CustomError;
+      message.error(e.details || e.message || 'Refresh failed', {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
+    }
   }
 };
 

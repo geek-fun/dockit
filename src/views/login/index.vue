@@ -12,13 +12,23 @@
           />
         </FormItem>
         <FormItem :error="getError('password', fieldErrors.password)">
-          <Input
-            v-model="loginForm.password"
-            type="password"
-            :placeholder="$t('login.enterPwd')"
-            class="w-full"
-            @blur="handleBlur('password')"
-          />
+          <div class="relative">
+            <Input
+              v-model="loginForm.password"
+              :type="showPassword ? 'text' : 'password'"
+              :placeholder="$t('login.enterPwd')"
+              class="w-full pr-9"
+              @blur="handleBlur('password')"
+            />
+            <button
+              type="button"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              @click="showPassword = !showPassword"
+            >
+              <EyeOff v-if="showPassword" class="h-4 w-4" />
+              <Eye v-else class="h-4 w-4" />
+            </button>
+          </div>
         </FormItem>
         <Button class="w-full" @click="handleLogin">
           {{ $t('login.title') }}
@@ -33,13 +43,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useUserStore } from '../../store';
 import { router } from '../../router';
 import { useLang } from '../../lang';
 import { Form, FormItem } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Eye, EyeOff } from 'lucide-vue-next';
 import { useFormValidation } from '@/composables';
 
 const userStore = useUserStore();
@@ -50,6 +61,7 @@ const loginForm = ref({
   name: '',
   password: '',
 });
+const showPassword = ref(false);
 
 const fieldErrors = computed(() => ({
   name: !loginForm.value.name ? lang.t('login.enterName') : '',

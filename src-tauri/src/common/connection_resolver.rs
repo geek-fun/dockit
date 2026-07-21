@@ -60,7 +60,8 @@ fn normalize_config(connection: Value) -> Result<Value, String> {
 fn normalize_es(conn: Value) -> Value {
     let mut config = serde_json::Map::new();
     if let Some(v) = conn.get("host").and_then(|v| v.as_str()) {
-        config.insert("host".to_string(), Value::String(v.to_string()));
+        let clean = v.trim_start_matches("http://").trim_start_matches("https://");
+        config.insert("host".to_string(), Value::String(clean.to_string()));
     }
     if let Some(v) = conn.get("port") {
         config.insert("port".to_string(), v.clone());
@@ -79,6 +80,9 @@ fn normalize_es(conn: Value) -> Value {
     }
     if let Some(v) = conn.get("sslCertVerification") {
         config.insert("sslCertVerification".to_string(), v.clone());
+    }
+    if let Some(ssh) = conn.get("sshTunnel") {
+        config.insert("sshTunnel".to_string(), ssh.clone());
     }
     Value::Object(config)
 }
@@ -129,6 +133,10 @@ fn normalize_dynamo(conn: Value) -> Result<Value, String> {
         }
     }
 
+    if let Some(ssh) = conn.get("sshTunnel") {
+        config.insert("sshTunnel".to_string(), ssh.clone());
+    }
+
     Ok(Value::Object(config))
 }
 
@@ -136,7 +144,8 @@ fn normalize_mongo(conn: Value) -> Value {
     let mut config = serde_json::Map::new();
 
     if let Some(v) = conn.get("host").and_then(|v| v.as_str()) {
-        config.insert("host".to_string(), Value::String(v.to_string()));
+        let clean = v.trim_start_matches("http://").trim_start_matches("https://");
+        config.insert("host".to_string(), Value::String(clean.to_string()));
     }
     if let Some(v) = conn.get("port") {
         config.insert("port".to_string(), v.clone());
@@ -179,6 +188,10 @@ fn normalize_mongo(conn: Value) -> Value {
         }
     }
 
+    if let Some(ssh) = conn.get("sshTunnel") {
+        config.insert("sshTunnel".to_string(), ssh.clone());
+    }
+
     Value::Object(config)
 }
 
@@ -208,6 +221,27 @@ mod tests {
         let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "h", "port": 9200});
         let cfg = normalize_es(conn);
         assert!(cfg.get("username").is_none());
+    }
+
+    #[test]
+    fn test_normalize_es_strips_scheme_prefix() {
+        let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "http://es.host", "port": 9200});
+        let cfg = normalize_es(conn);
+        assert_eq!(cfg.get("host").unwrap(), "es.host");
+    }
+
+    #[test]
+    fn test_normalize_es_strips_https_prefix() {
+        let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "https://es.host", "port": 9200});
+        let cfg = normalize_es(conn);
+        assert_eq!(cfg.get("host").unwrap(), "es.host");
+    }
+
+    #[test]
+    fn test_normalize_es_keeps_host_without_prefix() {
+        let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "es.host", "port": 9200});
+        let cfg = normalize_es(conn);
+        assert_eq!(cfg.get("host").unwrap(), "es.host");
     }
 
     #[test]
@@ -288,6 +322,44 @@ mod tests {
         });
         let cfg = normalize_mongo(conn);
         assert_eq!(cfg.get("authKind").unwrap(), "uri");
+    }
+
+    #[test]
+    fn test_normalize_es_passes_ssh_tunnel() {
+        let conn = json!({
+            "host": "es.host", "port": 9200,
+            "sshTunnel": {"enabled": true, "profileIds": ["p1"]},
+        });
+        let cfg = normalize_es(conn);
+        let tunnel = cfg.get("sshTunnel").unwrap();
+        assert_eq!(tunnel["enabled"], true);
+        assert_eq!(tunnel["profileIds"][0], "p1");
+    }
+
+    #[test]
+    fn test_normalize_dynamo_passes_ssh_tunnel() {
+        let conn = json!({
+            "region": "us-east-1",
+            "auth": {"kind": "accessKey", "accessKeyId": "AKID", "secretAccessKey": "SAK"},
+            "sshTunnel": {"enabled": false},
+        });
+        let cfg = normalize_dynamo(conn).unwrap();
+        let tunnel = cfg.get("sshTunnel").unwrap();
+        assert_eq!(tunnel["enabled"], false);
+    }
+
+    #[test]
+    fn test_normalize_mongo_passes_ssh_tunnel() {
+        let conn = json!({
+            "host": "mongo.host", "port": 27017,
+            "auth": {"kind": "none"},
+            "sshTunnel": {"enabled": true, "profileIds": ["p1", "p2"]},
+        });
+        let cfg = normalize_mongo(conn);
+        let tunnel = cfg.get("sshTunnel").unwrap();
+        assert_eq!(tunnel["enabled"], true);
+        assert_eq!(tunnel["profileIds"][0], "p1");
+        assert_eq!(tunnel["profileIds"][1], "p2");
     }
 
     #[test]

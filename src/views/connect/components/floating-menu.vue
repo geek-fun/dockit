@@ -43,7 +43,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue';
+import { ref, h, onUnmounted } from 'vue';
+import { Key } from 'lucide-vue-next';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DatabaseType } from '@/store';
@@ -53,17 +54,24 @@ import easysearch from '../../../assets/svg/easysearch.svg';
 import dynamoDB from '../../../assets/svg/dynamoDB.svg';
 import mongodb from '../../../assets/svg/mongodb.svg';
 
-const emit = defineEmits(['select']);
+export type FloatingMenuAction = DatabaseType | 'sshProfile';
+
+const emit = defineEmits<{
+  select: [action: FloatingMenuAction];
+}>();
 
 const isExpanded = ref(false);
 let collapseTimeout: ReturnType<typeof setTimeout> | null = null;
 
-const databaseTypes = [
+const SshIcon = () => h(Key, { class: 'h-5 w-5' });
+
+const databaseTypes: Array<{ value: FloatingMenuAction; icon: any; label: string }> = [
   { value: DatabaseType.ELASTICSEARCH, icon: elasticsearch, label: 'Elasticsearch' },
   { value: DatabaseType.OPENSEARCH, icon: opensearch, label: 'OpenSearch' },
   { value: DatabaseType.EASYSEARCH, icon: easysearch, label: 'EasySearch' },
   { value: DatabaseType.DYNAMODB, icon: dynamoDB, label: 'DynamoDB' },
   { value: DatabaseType.MONGODB, icon: mongodb, label: 'MongoDB' },
+  { value: 'sshProfile', icon: SshIcon, label: 'SSH Profile' },
 ];
 
 const handleMouseEnter = () => {
@@ -92,9 +100,9 @@ const handleFabClick = () => {
   }
 };
 
-const handleSelect = (type: DatabaseType) => {
+const handleSelect = (action: FloatingMenuAction) => {
   isExpanded.value = false;
-  emit('select', type);
+  emit('select', action);
 };
 
 onUnmounted(() => {
@@ -136,6 +144,7 @@ onUnmounted(() => {
   justify-content: center;
   background: hsl(var(--card));
   border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease,

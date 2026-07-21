@@ -9,7 +9,7 @@ export const HISTORY_CAP_MIN = 1;
 export const HISTORY_CAP_MAX = 1000;
 export const HISTORY_CAP_DEFAULT = 100;
 
-export const CONNECTION_SCHEMA_VERSION = 5;
+export const CONNECTION_SCHEMA_VERSION = 6;
 export const LLM_SETTINGS_SCHEMA_VERSION = 1;
 
 // Chat runtime defaults

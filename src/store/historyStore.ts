@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { defineStore } from 'pinia';
 import { storeApi } from '../datasources';
 import { useAppStore } from './appStore';
@@ -69,11 +68,9 @@ export const useHistoryStore = defineStore('historyStore', {
         if (oldEntries.length > 0) {
           const appStore = useAppStore();
           const cap = appStore.historyConfig.historyCap;
-          let failed = 0;
           for (const entry of oldEntries) {
             const rawConnId = (entry as any).connectionId;
             if (rawConnId == null) {
-              console.warn('Skipping migration of entry without connectionId:', (entry as any).id);
               continue;
             }
             try {
@@ -92,26 +89,15 @@ export const useHistoryStore = defineStore('historyStore', {
                 mongoResultCount: (entry as any).mongoResultCount ?? null,
                 historyCap: cap,
               });
-            } catch (err) {
-              console.error('Failed to migrate query history entry:', err);
-              failed++;
-            }
-          }
-          if (failed > 0) {
-            console.warn(
-              `Migrated ${oldEntries.length - failed}/${oldEntries.length} query history entries`,
-            );
+            } catch {}
           }
           // Clear old data regardless of failures to prevent duplicate entries on retry.
-          // Failed entries are logged via console.error above — they are individual query
-          // records that the user can re-execute.
           await storeApi.set('queryHistory', []);
         }
 
         const backendEntries = await loadQueryHistory();
         this.entries = backendEntries.map(toHistoryEntry);
-      } catch (err) {
-        console.error('Failed to load query history:', err);
+      } catch {
         this.entries = [];
       }
     },
@@ -138,8 +124,8 @@ export const useHistoryStore = defineStore('historyStore', {
         this.entries.unshift(toHistoryEntry(result));
         const backendEntries = await loadQueryHistory();
         this.entries = backendEntries.map(toHistoryEntry);
-      } catch (err) {
-        console.error('Failed to add query history entry:', err);
+      } catch {
+        // History is non-critical — query already executed
       }
     },
     selectEntry(id: string | null) {
@@ -152,8 +138,7 @@ export const useHistoryStore = defineStore('historyStore', {
       entry.starred = newStarred;
       try {
         await toggleQueryHistoryStar(id);
-      } catch (err) {
-        console.error('Failed to toggle query history star:', err);
+      } catch {
         entry.starred = !newStarred;
       }
     },
@@ -166,8 +151,7 @@ export const useHistoryStore = defineStore('historyStore', {
       }
       try {
         await deleteQueryHistoryEntry(id);
-      } catch (err) {
-        console.error('Failed to delete query history entry:', err);
+      } catch {
         this.entries = [...this.entries, ...removed];
         this.selectedEntryId = previousSelectedId;
       }
@@ -179,8 +163,7 @@ export const useHistoryStore = defineStore('historyStore', {
       this.selectedEntryId = null;
       try {
         await clearQueryHistory();
-      } catch (err) {
-        console.error('Failed to clear query history:', err);
+      } catch {
         this.entries = previous;
         this.selectedEntryId = previousSelectedId;
       }

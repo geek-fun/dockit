@@ -41,7 +41,8 @@ pub(crate) struct RealDynamoClientFactory;
 #[async_trait::async_trait]
 impl DynamoClientFactory for RealDynamoClientFactory {
     async fn create_client(&self, config: &Value) -> Result<aws_sdk_dynamodb::Client, String> {
-        crate::common::dynamo::create_dynamo_client(config).await
+        // TODO: Wire SSH tunnel resolution — needs AppHandle + connection_id
+        crate::common::dynamo::create_dynamo_client(config, None).await
     }
 }
 
@@ -56,7 +57,8 @@ pub(crate) struct RealCloudWatchClientFactory;
 #[async_trait::async_trait]
 impl CloudWatchClientFactory for RealCloudWatchClientFactory {
     async fn create_client(&self, config: &Value) -> Result<aws_sdk_cloudwatch::Client, String> {
-        crate::common::dynamo::create_cloudwatch_client(config).await
+        // TODO: Wire SSH tunnel resolution — needs AppHandle + connection_id
+        crate::common::dynamo::create_cloudwatch_client(config, None).await
     }
 }
 

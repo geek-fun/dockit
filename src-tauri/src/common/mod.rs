@@ -7,4 +7,5 @@ pub mod format;
 pub mod http_client;
 pub mod mongo;
 pub mod response;
+pub mod ssh_bridge;
 pub mod validation;
