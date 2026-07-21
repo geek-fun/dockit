@@ -2,7 +2,7 @@ use base64::Engine;
 use serde_json::Value;
 
 pub(crate) fn build_es_base_url(config: &Value) -> Result<String, String> {
-    let host = config
+    let host_raw = config
         .get("host")
         .and_then(|v| v.as_str())
         .ok_or("Missing host in connection config")?;
@@ -10,8 +10,12 @@ pub(crate) fn build_es_base_url(config: &Value) -> Result<String, String> {
         .get("port")
         .and_then(|v| v.as_u64())
         .ok_or("Missing port in connection config")?;
-    let protocol = if host.starts_with("https://") { "https" } else { "http" };
-    Ok(format!("{}://{}:{}", protocol, host.trim_start_matches("http://").trim_start_matches("https://"), port))
+    let host = host_raw.trim().trim_start_matches("http://").trim_start_matches("https://");
+    if host.is_empty() {
+        return Err("Host is empty after trimming URL scheme".to_string());
+    }
+    let protocol = if get_es_ssl_flag(config) { "https" } else { "http" };
+    Ok(format!("{}://{}:{}", protocol, host, port))
 }
 
 /// Build ES base URL with SSH tunnel support.
@@ -78,6 +82,24 @@ mod tests {
     fn test_build_es_base_url_valid() {
         let config = json!({"host": "localhost", "port": 9200});
         assert_eq!(build_es_base_url(&config).unwrap(), "http://localhost:9200");
+    }
+
+    #[test]
+    fn test_build_es_base_url_https_when_ssl_flag_true() {
+        let config = json!({"host": "es.example.com", "port": 9200, "sslCertVerification": true});
+        assert_eq!(build_es_base_url(&config).unwrap(), "https://es.example.com:9200");
+    }
+
+    #[test]
+    fn test_build_es_base_url_http_when_ssl_flag_false() {
+        let config = json!({"host": "https://es.example.com", "port": 9200, "sslCertVerification": false});
+        assert_eq!(build_es_base_url(&config).unwrap(), "http://es.example.com:9200");
+    }
+
+    #[test]
+    fn test_build_es_base_url_empty_host_after_trim() {
+        let config = json!({"host": "https://", "port": 9200});
+        assert!(build_es_base_url(&config).is_err());
     }
 
     #[test]
