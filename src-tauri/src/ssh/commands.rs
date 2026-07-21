@@ -111,7 +111,7 @@ pub async fn test_ssh_connection(
     config: SshTunnelConfig,
     remote_host: String,
     remote_port: u16,
-) -> Result<TestSshResult, String> {
+) -> TestSshResult {
     let tunnels = TunnelManager::new();
     let connection_key = format!("test-{}", Uuid::new_v4());
 
@@ -121,18 +121,18 @@ pub async fn test_ssh_connection(
     {
         Ok(_port) => {
             tunnels.stop_tunnel(&connection_key).await;
-            Ok(TestSshResult {
+            TestSshResult {
                 success: true,
                 message: format!(
                     "SSH connection to {}@{}:{} successful",
                     config.username, config.host, config.port
                 ),
-            })
+            }
         }
-        Err(e) => Ok(TestSshResult {
+        Err(e) => TestSshResult {
             success: false,
             message: e,
-        }),
+        },
     }
 }
 

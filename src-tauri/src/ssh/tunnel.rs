@@ -764,7 +764,7 @@ impl TunnelManager {
             }
         }
 
-        let mut handles = Vec::new();
+        let mut handles: Vec<JoinHandle<()>> = Vec::new();
         let mut next_connect_endpoint: Option<(String, u16)> = None;
         let mut final_local_port = 0;
 
@@ -790,14 +790,24 @@ impl TunnelManager {
             hop_config.connect_timeout_secs = hop_timeout;
 
             let expose = is_last && hop.expose_lan;
-            let (handle, local_port) = spawn_tunnel_config(
+            let (handle, local_port) = match spawn_tunnel_config(
                 &hop_config,
                 &target_host,
                 target_port,
                 expose,
             )
             .await
-            .map_err(|err| format!("SSH hop {} failed: {}", index + 1, err))?;
+            {
+                Ok(v) => v,
+                Err(err) => {
+                    // Abort all previously-spawned hops before propagating,
+                    // otherwise their tokio tasks and listeners leak.
+                    for h in &handles {
+                        h.abort();
+                    }
+                    return Err(format!("SSH hop {} failed: {}", index + 1, err));
+                }
+            };
 
             handles.push(handle);
             final_local_port = local_port;
