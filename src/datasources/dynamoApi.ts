@@ -1,6 +1,11 @@
+import { CustomError } from '../common';
 import { DynamoDBConnection } from '../store';
 import { invoke } from '@tauri-apps/api/core';
-import { invokeCapability, parseCapabilityResponse } from './capabilityInvoker.ts';
+import {
+  invokeCapability,
+  parseCapabilityResponse,
+  type ApiResponse,
+} from './capabilityInvoker.ts';
 
 export type KeySchema = {
   attributeName: string;
@@ -159,6 +164,39 @@ export type BatchWriteResult = {
 };
 
 const dynamoApi = {
+  /** Test connection with inline config — does NOT require a saved connection ID. */
+  testConnection: async (con: DynamoDBConnection): Promise<DynamoTestResult> => {
+    try {
+      const raw = await invoke<ApiResponse<{ tableNames?: string[] }>>('dynamo_test_connection', {
+        config: con as unknown as Record<string, unknown>,
+        sshTunnel: con.sshTunnel ?? null,
+      });
+      if (raw.status >= 400) {
+        return { success: false, message: raw.message ?? 'Connection failed' };
+      }
+      return { success: true, message: 'Connection successful' };
+    } catch (e) {
+      return {
+        success: false,
+        message: e instanceof Error ? e.message : String(e),
+      };
+    }
+  },
+
+  /** List tables via direct SSH-aware command (no saved connection ID needed). */
+  listTablesViaSsh: async (con: DynamoDBConnection): Promise<string[]> => {
+    try {
+      const raw = await invoke<ApiResponse<{ tableNames?: string[] }>>('dynamo_test_connection', {
+        config: con as unknown as Record<string, unknown>,
+        sshTunnel: con.sshTunnel ?? null,
+      });
+      if (raw.status >= 400) throw new CustomError(500, raw.message ?? 'Connection failed');
+      return raw.data?.tableNames ?? [];
+    } catch (e) {
+      throw new CustomError(500, e instanceof Error ? e.message : String(e));
+    }
+  },
+
   listTables: async (con: DynamoDBConnection): Promise<string[]> => {
     const raw = await invokeCapability('dynamo__list_tables', {}, String(con.id));
     const data = parseCapabilityResponse<{ tableNames?: string[] }>(raw);
@@ -827,6 +865,11 @@ const dynamoApi = {
   > => {
     return await invoke('aws_list_profiles_with_roles');
   },
+};
+
+export type DynamoTestResult = {
+  success: boolean;
+  message: string;
 };
 
 export { dynamoApi };

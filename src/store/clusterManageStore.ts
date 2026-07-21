@@ -119,6 +119,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       this.refreshLoading = true;
       const start = Date.now();
 
+      let error: unknown;
       try {
         await this.fetchCluster();
         await this.fetchIndices();
@@ -127,7 +128,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         await this.fetchShards();
         await this.fetchTemplates();
       } catch (err) {
-        debug(`Error in refreshStates: ${err}`);
+        error = err;
       } finally {
         const elapsed = Date.now() - start;
         if (elapsed < 500) {
@@ -135,6 +136,8 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
         }
         this.refreshLoading = false;
       }
+
+      if (error) throw error;
     },
     async fetchCluster() {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
@@ -241,6 +244,8 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (isSearchConnection(this.connection)) {
         await esApi.createIndex(this.connection, options);
+        this.fetchIndices().catch(err => debug('refresh indices after create failed', err));
+        this.fetchAliases().catch(err => debug('refresh aliases after create failed', err));
       }
       return undefined;
     },
@@ -273,6 +278,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (isSearchConnection(this.connection)) {
         await esApi.createTemplate(this.connection, options);
+        this.fetchTemplates().catch(err => debug('refresh templates after create failed', err));
       }
       return undefined;
     },

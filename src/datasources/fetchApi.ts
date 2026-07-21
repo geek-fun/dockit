@@ -3,6 +3,8 @@ import { lang } from '../lang';
 import { invoke } from '@tauri-apps/api/core';
 import { get } from 'lodash';
 
+import type { SshConnectionConfig } from '@/store';
+
 type FetchApiOptions = {
   method: string;
   headers: {
@@ -10,6 +12,7 @@ type FetchApiOptions = {
   };
   agent: { ssl: boolean } | undefined;
   payload?: string;
+  sshTunnel?: SshConnectionConfig | null;
 };
 
 const extractEsError = (data: unknown): string | null => {
@@ -68,6 +71,7 @@ const fetchWrapper = async ({
   authType,
   apiKey,
   ssl,
+  sshTunnel,
 }: {
   method: string;
   path?: string;
@@ -80,6 +84,7 @@ const fetchWrapper = async ({
   host: string;
   port: number;
   ssl: boolean;
+  sshTunnel?: SshConnectionConfig | null;
 }) => {
   const url = buildURL(host, port, path, queryParameters);
   const authHeader = buildAuthHeader(authType, username, password, apiKey);
@@ -88,13 +93,14 @@ const fetchWrapper = async ({
     headers: { ...authHeader },
     payload,
     agent: { ssl },
+    sshTunnel,
   });
   return handleFetch({ data, status, details, errorType });
 };
 
 const fetchRequest = async (
   url: string,
-  { method, headers: inputHeaders, payload, agent: agentSslConf }: FetchApiOptions,
+  { method, headers: inputHeaders, payload, agent: agentSslConf, sshTunnel }: FetchApiOptions,
 ) => {
   const agent = { ssl: url.startsWith('https') && agentSslConf?.ssl };
 
@@ -105,6 +111,7 @@ const fetchRequest = async (
     const response = await invoke<string>('fetch_api', {
       url,
       options: { method, headers, body: payload ?? undefined, agent },
+      sshTunnel: sshTunnel || null,
     });
 
     const { status, message, data } = jsonify.parse(response) as {
@@ -156,6 +163,7 @@ const loadHttpClient = (con: {
   authType?: 'basic' | 'apiKey';
   apiKey?: string;
   sslCertVerification: boolean;
+  sshTunnel?: SshConnectionConfig | null;
 }) => ({
   get: async <T = unknown>(path?: string, queryParameters?: string, payload?: string): Promise<T> =>
     fetchWrapper({
@@ -165,6 +173,7 @@ const loadHttpClient = (con: {
       queryParameters,
       payload,
       ssl: con.sslCertVerification,
+      sshTunnel: con.sshTunnel,
     }) as Promise<T>,
   post: async <T = unknown>(path: string, queryParameters?: string, payload?: string): Promise<T> =>
     fetchWrapper({
@@ -174,6 +183,7 @@ const loadHttpClient = (con: {
       queryParameters,
       payload,
       ssl: con.sslCertVerification,
+      sshTunnel: con.sshTunnel,
     }) as Promise<T>,
   put: async <T = unknown>(path: string, queryParameters?: string, payload?: string): Promise<T> =>
     fetchWrapper({
@@ -183,6 +193,7 @@ const loadHttpClient = (con: {
       queryParameters,
       payload,
       ssl: con.sslCertVerification,
+      sshTunnel: con.sshTunnel,
     }) as Promise<T>,
 
   delete: async <T = unknown>(
@@ -197,6 +208,7 @@ const loadHttpClient = (con: {
       queryParameters,
       payload,
       ssl: con.sslCertVerification,
+      sshTunnel: con.sshTunnel,
     }) as Promise<T>,
 });
 

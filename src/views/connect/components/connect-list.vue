@@ -1,9 +1,10 @@
 <template>
   <div class="connection-list-container">
-    <div v-if="connections.length > 0" class="connection-toolbar">
+    <!-- Global Toolbar -->
+    <div v-if="totalItems > 0" class="connection-toolbar">
       <div class="toolbar-left">
         <span class="connections-title">{{ $t('connection.savedConnections') }}</span>
-        <span class="connections-count">{{ filteredConnections.length }}</span>
+        <span class="connections-count">{{ totalItems }}</span>
       </div>
       <div class="toolbar-right">
         <div class="filter-input-wrapper">
@@ -52,37 +53,116 @@
         </DropdownMenu>
       </div>
     </div>
+
     <div class="connection-scroll-container">
-      <div v-if="filteredConnections.length > 0" class="connection-list-body">
+      <!-- Unified grid: profiles first, then all connections -->
+      <div class="connection-list-body">
+        <!-- SSH Profile cards -->
         <div
-          v-for="(connection, index) in filteredConnections"
-          :key="connection.id"
+          v-for="profile in filteredProfiles"
+          :key="'ssh-' + profile.id"
+          class="connection-card profile-card focus:ring-2 focus:ring-primary focus:outline-none"
+          role="button"
+          tabindex="0"
+          @click="editSshProfile(profile)"
+          @keydown.enter="editSshProfile(profile)"
+          @keydown.space.prevent="editSshProfile(profile)"
+        >
+          <div class="card-top">
+            <div class="card-icon-wrapper profile-icon">
+              <Key class="h-5 w-5" />
+            </div>
+            <div class="ssh-badge-icon" title="SSH Profile">
+              <span class="i-carbon-locked h-3.5 w-3.5 text-green-500" />
+            </div>
+          </div>
+          <div class="card-info">
+            <div class="card-name">{{ profile.name }}</div>
+            <div class="card-detail">
+              {{ profile.username }}@{{ profile.host }}:{{ profile.port }}
+            </div>
+          </div>
+          <div class="card-badges">
+            <Badge variant="outline" class="card-badge type-badge profile-type-badge">
+              <span class="i-carbon-key h-3 w-3 mr-0.5" />
+              SSH
+            </Badge>
+            <Badge variant="secondary" class="card-badge">
+              {{ profile.authMethod || 'password' }}
+            </Badge>
+          </div>
+          <div class="card-actions" @click.stop="">
+            <TooltipProvider :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-7 w-7"
+                    @click="editSshProfile(profile)"
+                  >
+                    <Pencil class="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {{ $t('connection.operations.edit') }}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider :delay-duration="200">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    class="h-7 w-7 text-destructive"
+                    @click="deleteSshProfile(profile.id)"
+                  >
+                    <Trash2 class="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {{ $t('connection.operations.remove') }}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+
+        <!-- Connection cards -->
+        <div
+          v-for="connection in filteredConnections"
+          :key="'conn-' + connection.id"
           class="connection-card focus:ring-2 focus:ring-primary focus:outline-none"
           role="button"
           tabindex="0"
           @click="handleSelect('connect', connection)"
           @keydown.enter="handleSelect('connect', connection)"
           @keydown.space.prevent="handleSelect('connect', connection)"
-          @keydown.right.prevent="focusConnectionNode(index + 1)"
-          @keydown.left.prevent="focusConnectionNode(index - 1)"
-          @keydown.down.prevent="focusConnectionNode(index + getConnectionGridColumns())"
-          @keydown.up.prevent="focusConnectionNode(index - getConnectionGridColumns())"
         >
-          <!-- Top section: icon -->
           <div class="card-top">
             <div class="card-icon-wrapper">
               <component :is="getDatabaseIcon(connection.type)" class="h-6 w-6" />
             </div>
+            <div v-if="hasSsh(connection)" class="ssh-badge-icon" title="SSH Tunnel">
+              <span class="i-carbon-locked h-3.5 w-3.5 text-green-500" />
+            </div>
           </div>
-          <!-- Name + connection string -->
           <div class="card-info">
             <div class="card-name">{{ connection.name }}</div>
             <div class="card-detail">{{ getConnectionDetail(connection) }}</div>
           </div>
-          <!-- Badges -->
           <div class="card-badges">
             <Badge variant="outline" class="card-badge type-badge">
               {{ getDatabaseLabel(connection.type) }}
+            </Badge>
+            <Badge
+              v-if="hasSsh(connection)"
+              variant="secondary"
+              class="card-badge ssh-tunnel-badge"
+            >
+              <span class="i-carbon-locked h-3 w-3 mr-0.5" />
+              SSH
             </Badge>
             <Badge v-if="getVersion(connection)" variant="secondary" class="card-badge">
               {{ getVersion(connection) }}
@@ -133,9 +213,7 @@
                     class="h-3.5 w-3.5 cursor-default"
                   />
                 </TooltipTrigger>
-                <TooltipContent side="top">
-                  {{ getEsProtocol(connection)!.label }}
-                </TooltipContent>
+                <TooltipContent side="top">{{ getEsProtocol(connection)!.label }}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
             <TooltipProvider v-if="getEsAuthType(connection)" :delay-duration="200">
@@ -146,13 +224,10 @@
                     class="h-3.5 w-3.5 cursor-default"
                   />
                 </TooltipTrigger>
-                <TooltipContent side="top">
-                  {{ getEsAuthType(connection)!.label }}
-                </TooltipContent>
+                <TooltipContent side="top">{{ getEsAuthType(connection)!.label }}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
-          <!-- Actions row -->
           <div class="card-actions" @click.stop="">
             <TooltipProvider :delay-duration="200">
               <Tooltip>
@@ -198,22 +273,27 @@
           </div>
         </div>
       </div>
-      <div v-if="filterText && filteredConnections.length === 0" class="filter-empty-state">
+
+      <div
+        v-if="filteredProfiles.length === 0 && filteredConnections.length === 0"
+        class="filter-empty-state"
+      >
         <span class="i-carbon-search h-8 w-8 text-muted-foreground" />
         <p class="text-sm text-muted-foreground">{{ $t('connection.noMatchingConnections') }}</p>
       </div>
     </div>
   </div>
 
-  <FloatingMenu @select="selectDatabaseType" />
+  <FloatingMenu @select="handleFabAction" />
   <EsConnectDialog ref="esConnectDialog" />
   <DynamodbConnectDialog ref="dynamodbConnectDialog" />
   <MongodbConnectDialog ref="mongodbConnectDialog" />
   <ConnectingModal ref="connectingModal" />
+  <SshProfileDialog ref="sshProfileDialogRef" />
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { cloneDeep } from 'lodash';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -243,12 +323,16 @@ import {
   SearchConnection,
   isSearchConnection,
   useConnectionStore,
+  useSshProfileStore,
+  SshProfile,
 } from '../../../store';
-import FloatingMenu from './floating-menu.vue';
+import FloatingMenu, { type FloatingMenuAction } from './floating-menu.vue';
 import EsConnectDialog from './es-connect-dialog.vue';
 import DynamodbConnectDialog from './dynamodb-connect-dialog.vue';
 import MongodbConnectDialog from './mongodb-connect-dialog.vue';
 import ConnectingModal from './connecting-modal.vue';
+import SshProfileDialog from './ssh-profile-dialog.vue';
+import { Key, Pencil, Trash2 } from 'lucide-vue-next';
 
 type SortKey = 'name' | 'type' | 'dateCreated';
 
@@ -262,6 +346,58 @@ const connectionStore = useConnectionStore();
 const { fetchConnections, removeConnection, freshConnection } = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 fetchConnections();
+
+const sshStore = useSshProfileStore();
+const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
+
+const openNewSshProfile = () => {
+  sshProfileDialogRef.value?.show(null);
+};
+
+const editSshProfile = (profile: SshProfile) => {
+  sshProfileDialogRef.value?.show(profile);
+};
+
+const deleteSshProfile = async (profileId: string) => {
+  const profile = sshStore.profiles.find(p => p.id === profileId);
+  if (!profile) return;
+
+  // Check if any connection references this SSH profile
+  const referringConnections = connections.value.filter(c =>
+    c.sshTunnel?.profileIds?.includes(profileId),
+  );
+  let warningContent = `Delete SSH profile "${profile.name}" permanently?`;
+  if (referringConnections.length > 0) {
+    const names = referringConnections.map(c => `"${c.name}"`).join(', ');
+    warningContent += `\n\nThis profile is used by ${referringConnections.length} connection(s): ${names}. Those connections will lose SSH tunnel access.`;
+  }
+
+  dialog.warning({
+    title: lang.t('dialogOps.warning'),
+    content: warningContent,
+    positiveText: lang.t('dialogOps.confirm'),
+    negativeText: lang.t('dialogOps.cancel'),
+    onPositiveClick: async () => {
+      try {
+        // Detach this profile from all connections that reference it
+        for (const c of referringConnections) {
+          if (c.sshTunnel?.profileIds) {
+            c.sshTunnel.profileIds = c.sshTunnel.profileIds.filter(id => id !== profileId);
+            await connectionStore.saveConnection(c);
+          }
+        }
+        await sshStore.deleteProfile(profileId);
+        message.success(`SSH profile "${profile.name}" deleted`);
+      } catch (_error) {
+        message.error('Failed to delete SSH profile');
+      }
+    },
+  });
+};
+
+onMounted(async () => {
+  await sshStore.fetchProfiles();
+});
 
 const filterText = ref('');
 const activeSortKey = ref<SortKey>('name');
@@ -298,6 +434,9 @@ const toggleSortDir = () => {
   sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
 };
 
+const hasSsh = (c: Connection): boolean =>
+  'sshTunnel' in c && c.sshTunnel != null && c.sshTunnel.enabled === true;
+
 const filteredConnections = computed(() => {
   const keyword = filterText.value.toLowerCase().trim();
   const dir = sortDir.value === 'asc' ? 1 : -1;
@@ -308,6 +447,14 @@ const filteredConnections = computed(() => {
 
   return [...filtered].sort((a, b) => sortFns[activeSortKey.value](a, b) * dir);
 });
+
+const filteredProfiles = computed(() => {
+  const keyword = filterText.value.toLowerCase().trim();
+  if (!keyword) return sshStore.profiles;
+  return sshStore.profiles.filter(p => p.name.toLowerCase().includes(keyword));
+});
+
+const totalItems = computed(() => filteredProfiles.value.length + filteredConnections.value.length);
 
 const connectionCancelled = ref(false);
 const connectingModal = ref();
@@ -541,8 +688,10 @@ const establishConnect = async (connection: Connection) => {
     let errorMessage = '';
     if (err instanceof CustomError) {
       errorMessage = `status: ${err.status}, details: ${err.details}`;
+    } else if (err instanceof Error) {
+      errorMessage = err.message;
     } else {
-      errorMessage = lang.t('connection.unknownError') + ` details: ${err}`;
+      errorMessage = String(err);
     }
 
     connectingModal.value.showError(errorMessage);
@@ -615,30 +764,20 @@ const esConnectDialog = ref();
 const dynamodbConnectDialog = ref();
 const mongodbConnectDialog = ref();
 
-const getConnectionGridColumns = () => {
-  const container = document.querySelector('.connection-list-body');
-  if (!container) return 1;
-  const gridComputedStyle = window.getComputedStyle(container);
-  return gridComputedStyle.getPropertyValue('grid-template-columns').split(' ').length;
-};
-
-const focusConnectionNode = (index: number) => {
-  const items = document.querySelectorAll('.connection-card');
-  if (index >= 0 && index < items.length) {
-    (items[index] as HTMLElement)?.focus();
+const handleFabAction = (action: FloatingMenuAction) => {
+  if (action === 'sshProfile') {
+    openNewSshProfile();
+    return;
   }
-};
-
-const selectDatabaseType = (type: DatabaseType) => {
   if (
-    type === DatabaseType.ELASTICSEARCH ||
-    type === DatabaseType.OPENSEARCH ||
-    type === DatabaseType.EASYSEARCH
+    action === DatabaseType.ELASTICSEARCH ||
+    action === DatabaseType.OPENSEARCH ||
+    action === DatabaseType.EASYSEARCH
   ) {
-    esConnectDialog.value.showMedal(null, type);
-  } else if (type === DatabaseType.DYNAMODB) {
+    esConnectDialog.value.showMedal(null, action);
+  } else if (action === DatabaseType.DYNAMODB) {
     dynamodbConnectDialog.value.showMedal(null);
-  } else if (type === DatabaseType.MONGODB) {
+  } else if (action === DatabaseType.MONGODB) {
     mongodbConnectDialog.value.showMedal(null);
   }
 };
@@ -791,6 +930,37 @@ const selectDatabaseType = (type: DatabaseType) => {
   grid-template-columns: repeat(auto-fill, 240px);
   gap: 16px;
   padding: 16px;
+}
+
+.ssh-badge-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: hsl(var(--primary) / 0.08);
+}
+
+.ssh-tunnel-badge {
+  color: hsl(142 76% 36%);
+  border-color: hsl(142 76% 36% / 0.3);
+  background: hsl(142 76% 36% / 0.06);
+}
+
+.profile-card {
+  background: hsl(var(--primary) / 0.02);
+}
+
+.profile-icon {
+  background: hsl(var(--primary) / 0.08);
+  color: hsl(var(--primary));
+}
+
+.profile-type-badge {
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.3);
+  background: hsl(var(--primary) / 0.06);
 }
 
 .connection-card {

@@ -73,6 +73,7 @@ describe('mongoApi', () => {
           database: undefined,
           tls: undefined,
         },
+        sshTunnel: null,
       });
       expect(result.collections).toEqual(['users']);
     });
@@ -105,6 +106,7 @@ describe('mongoApi', () => {
           database: undefined,
           tls: undefined,
         },
+        sshTunnel: null,
       });
       expect(result.collections).toEqual([]);
     });
@@ -130,6 +132,7 @@ describe('mongoApi', () => {
           database: undefined,
           tls: undefined,
         },
+        sshTunnel: null,
       });
     });
 
@@ -155,6 +158,7 @@ describe('mongoApi', () => {
           database: 'testdb',
           tls: true,
         },
+        sshTunnel: null,
       });
       expect(result.collections).toEqual(['users', 'orders']);
     });
@@ -204,6 +208,7 @@ describe('mongoApi', () => {
       expect(invoke).toHaveBeenCalledWith('mongo_execute_query', {
         config: expect.objectContaining({ host: 'localhost' }),
         code: 'db.users.find()',
+        sshTunnel: null,
       });
       expect(result.data).toEqual([{ _id: '1', name: 'Alice' }]);
     });
@@ -1371,6 +1376,7 @@ describe('mongoApi export/import', () => {
         sort: undefined,
         batchSize: undefined,
         skip: undefined,
+        sshTunnel: null,
       });
       expect(result).toEqual(mockApiResponse.data);
     });
@@ -1392,6 +1398,7 @@ describe('mongoApi export/import', () => {
         sort: '{"name":1}',
         batchSize: 100,
         skip: 200,
+        sshTunnel: null,
       });
     });
 
@@ -1415,6 +1422,7 @@ describe('mongoApi export/import', () => {
         collection: 'users',
         documents: ['{"name":"Alice"}'],
         upsert: undefined,
+        sshTunnel: null,
       });
       expect(result).toEqual(mockApiResponse.data);
     });
@@ -1427,6 +1435,7 @@ describe('mongoApi export/import', () => {
         collection: 'users',
         documents: ['{"_id":"1"}'],
         upsert: true,
+        sshTunnel: null,
       });
     });
 

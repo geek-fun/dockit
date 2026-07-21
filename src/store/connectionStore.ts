@@ -28,6 +28,62 @@ export enum DatabaseType {
   MONGODB = 'MONGODB',
 }
 
+// ── SSH Tunnel Types ──
+
+export type SshAuthMethod = 'password' | 'key' | 'agent' | 'none' | '';
+
+export type SshTunnelConfig = {
+  enabled: boolean;
+  host: string;
+  port: number;
+  username: string;
+  authMethod: SshAuthMethod;
+  password: string;
+  keyPath: string;
+  keyPassphrase: string;
+  useSshAgent: boolean;
+  sshAgentSockPath: string;
+  connectTimeoutSecs: number;
+  keepaliveIntervalSecs: number;
+  verifyHostKey?: boolean;
+  exposeLan: boolean;
+};
+
+export type SshConnectionConfig = {
+  enabled: boolean;
+  profileIds?: string[];
+  inline?: SshTunnelConfig;
+  systemProxy?: string;
+};
+
+export type SshProfile = {
+  id: string;
+  name: string;
+  host: string;
+  port: number;
+  username: string;
+  authMethod: SshAuthMethod;
+  password: string;
+  keyPath: string;
+  keyPassphrase: string;
+  useSshAgent: boolean;
+  sshAgentSockPath: string;
+  connectTimeoutSecs: number;
+  keepaliveIntervalSecs: number;
+  verifyHostKey?: boolean;
+  exposeLan: boolean;
+};
+
+export type SshConfigHostEntry = {
+  host: string;
+  hostName?: string;
+  port?: number;
+  user?: string;
+  identityFile?: string;
+};
+
+export type TransportLayerConfig = { type: 'ssh' } & SshTunnelConfig;
+
 type ElasticSearchIndex = {
   health: string;
   status: string;
@@ -160,6 +216,7 @@ export type DynamoDBConnection = {
   tableFilter?: DynamoTableFilter;
   tables?: Array<DynamoTableSummary>;
   favoriteTables?: Array<string>;
+  sshTunnel?: SshConnectionConfig;
 };
 
 // Shared base for HTTP-API-compatible search engines
@@ -177,6 +234,7 @@ export type SearchConnectionBase = {
   queryParameters?: string;
   activeIndex: ElasticSearchIndex | undefined;
   version: string;
+  sshTunnel?: SshConnectionConfig;
   clusterName: string;
   clusterUuid: string;
 };
@@ -241,6 +299,7 @@ export type MongoDBConnection = {
   databases?: Array<{ name: string; size_on_disk?: number; empty?: boolean }>;
   collections?: MongoDBCollection[];
   favoriteCollections?: Array<{ database: string; collection: string }>;
+  sshTunnel?: SshConnectionConfig;
 };
 
 export type MongoDBCollection = {
@@ -479,7 +538,39 @@ export const migrateConnections = (
     migrated = migrateSearchConnectionsV4ToV5(migrated);
   }
 
+  if (fromVersion < 6) {
+    migrated = migrateConnectionsV5ToV6(migrated);
+  }
+
   return { migrated, consolidatedCount, originalCount };
+};
+
+const migrateConnectionsV5ToV6 = (raw: Connection[]): Connection[] =>
+  raw.map(con => (con.sshTunnel !== undefined ? con : { ...con, sshTunnel: { enabled: false } }));
+
+export const buildTransportLayers = (
+  sshTunnel: SshConnectionConfig | undefined,
+): TransportLayerConfig[] => {
+  if (!sshTunnel?.enabled) return [];
+  if (!sshTunnel.profileIds?.length && !sshTunnel.inline) return [];
+
+  const config: SshTunnelConfig = sshTunnel.inline ?? {
+    enabled: true,
+    host: '',
+    port: 22,
+    username: '',
+    authMethod: '',
+    password: '',
+    keyPath: '',
+    keyPassphrase: '',
+    useSshAgent: false,
+    sshAgentSockPath: '',
+    connectTimeoutSecs: 10,
+    keepaliveIntervalSecs: 30,
+    exposeLan: false,
+  };
+
+  return [{ type: 'ssh', ...config }];
 };
 
 export const useConnectionStore = defineStore('connectionStore', {
@@ -654,7 +745,10 @@ export const useConnectionStore = defineStore('connectionStore', {
     },
     async freshConnection(con: Connection, tableName?: string) {
       if (con.type === DatabaseType.DYNAMODB) {
-        const allTables = await dynamoApi.listTables(con);
+        const ddbCon = con as DynamoDBConnection;
+        const allTables = await (ddbCon.sshTunnel?.enabled
+          ? dynamoApi.listTablesViaSsh(ddbCon)
+          : dynamoApi.listTables(ddbCon));
 
         const visible = applyTableFilter(allTables, con.tableFilter);
 
@@ -693,7 +787,6 @@ export const useConnectionStore = defineStore('connectionStore', {
           con.activeIndex?.index,
           'format=json',
         );
-
         const detectedAsOpenSearch =
           clusterInfo.version.distribution === 'opensearch' ||
           (clusterInfo.tagline ?? '').toLowerCase().includes('opensearch');

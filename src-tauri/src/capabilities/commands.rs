@@ -3,6 +3,7 @@ use tauri::AppHandle;
 
 use super::registry;
 use crate::common::connection_resolver::ConnectionResolver;
+use crate::common::ssh_bridge::resolve_ssh_in_place;
 
 /// Invoke a capability by name with JSON arguments, using a connection_id
 /// to resolve credentials on the Rust side.
@@ -16,10 +17,15 @@ pub async fn invoke_capability(
     connection_id: Option<String>,
     app: AppHandle,
 ) -> Result<String, String> {
-    let config = match connection_id {
+    let mut config = match connection_id {
         Some(ref id) => Some(ConnectionResolver::resolve(&app, id)?),
         None => None,
     };
+
+    if let Some(ref mut cfg) = config {
+        resolve_ssh_in_place(&app, cfg).await?;
+    }
+
     registry::invoke_capability_inner(&name, args, config).await
 }
 

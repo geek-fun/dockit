@@ -40,10 +40,25 @@ pub(crate) async fn execute_es_http(
         .await
         .map_err(|e| format!("Failed to read ES response: {}", e))?;
 
-    let result = serde_json::json!({
+    let data = serde_json::from_str::<Value>(&body).unwrap_or(Value::String(body));
+    let message = if status >= 400 {
+        data.get("error")
+            .and_then(|e| e.get("reason"))
+            .and_then(|r| r.as_str())
+            .or_else(|| data.as_str())
+            .unwrap_or("Request failed")
+            .to_string()
+    } else {
+        String::new()
+    };
+
+    let mut result = serde_json::json!({
         "status": status,
-        "data": serde_json::from_str::<Value>(&body).unwrap_or(Value::String(body))
+        "data": data,
     });
+    if !message.is_empty() {
+        result["message"] = serde_json::json!(message);
+    }
 
     Ok(crate::common::format::truncate_tool_output(result.to_string()))
 }

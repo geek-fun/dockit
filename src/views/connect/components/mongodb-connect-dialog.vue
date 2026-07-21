@@ -145,12 +145,23 @@
                     required
                     :error="getError('password', errors.password)"
                   >
-                    <Input
-                      v-model="passwordValue"
-                      type="password"
-                      :placeholder="$t('connection.password')"
-                      @blur="handleBlur('password')"
-                    />
+                    <div class="relative">
+                      <Input
+                        v-model="passwordValue"
+                        :type="showPassword ? 'text' : 'password'"
+                        :placeholder="$t('connection.password')"
+                        class="pr-9"
+                        @blur="handleBlur('password')"
+                      />
+                      <button
+                        type="button"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        @click="showPassword = !showPassword"
+                      >
+                        <EyeOff v-if="showPassword" class="h-4 w-4" />
+                        <Eye v-else class="h-4 w-4" />
+                      </button>
+                    </div>
                   </FormItem>
                 </GridItem>
 
@@ -194,6 +205,32 @@
                   <Switch v-model:checked="tlsChecked" />
                 </FormItem>
               </GridItem>
+
+              <!-- Advanced Section -->
+              <GridItem :span="8">
+                <div class="advanced-section">
+                  <button
+                    type="button"
+                    class="advanced-toggle"
+                    @click="showAdvanced = !showAdvanced"
+                  >
+                    <ChevronRight
+                      class="h-4 w-4 transition-transform duration-200"
+                      :class="{ 'rotate-90': showAdvanced }"
+                    />
+                    <span class="text-sm font-medium">{{ $t('connection.advanced') }}</span>
+                  </button>
+                  <div v-show="showAdvanced" class="advanced-content">
+                    <SshTunnelSection
+                      v-model="sshConfig"
+                      :remote-host="formData.host"
+                      :remote-port="formData.port"
+                      @create-profile="openSshProfileDialog(null)"
+                      @edit-profile="openSshProfileDialog($event)"
+                    />
+                  </div>
+                </div>
+              </GridItem>
             </template>
           </Grid>
         </Form>
@@ -218,11 +255,12 @@
       </DialogFooter>
     </DialogContent>
   </Dialog>
+  <SshProfileDialog ref="sshProfileDialogRef" />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { X, Loader2 } from 'lucide-vue-next';
+import { X, Loader2, ChevronRight, Eye, EyeOff } from 'lucide-vue-next';
 import { cloneDeep } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -230,8 +268,12 @@ import * as z from 'zod';
 import { CustomError, MIN_LOADING_TIME } from '../../../common';
 import mongodbIcon from '../../../assets/svg/mongodb.svg';
 import { DatabaseType, MongoDBConnection, useConnectionStore } from '../../../store';
+import type { SshConnectionConfig } from '../../../store';
+import { useSshProfileStore } from '../../../store';
 import { useLang } from '../../../lang';
 import { useFormValidation, useDialogResult } from '@/composables';
+import { SshTunnelSection } from '@/components/ssh';
+import SshProfileDialog from './ssh-profile-dialog.vue';
 
 import {
   Dialog,
@@ -260,12 +302,25 @@ const { freshConnection, saveConnection } = useConnectionStore();
 const lang = useLang();
 
 const showModal = ref(false);
+const showPassword = ref(false);
 const modalTitle = ref(lang.t('connection.new'));
 const testLoading = ref(false);
 const saveLoading = ref(false);
 const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
 const authMode = ref<'none' | 'scram' | 'uri'>('none');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
+const sshConfig = ref<SshConnectionConfig>({ enabled: false });
+const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
+const showAdvanced = ref(false);
+
+function openSshProfileDialog(profileId: string | null) {
+  if (sshProfileDialogRef.value) {
+    const profile = profileId
+      ? (useSshProfileStore().profiles.find(p => p.id === profileId) ?? null)
+      : null;
+    sshProfileDialogRef.value.show(profile);
+  }
+}
 
 const defaultFormData = {
   name: '',
@@ -448,6 +503,7 @@ const buildConnection = (): MongoDBConnection => {
     ...formData.value,
     tls: tlsChecked.value,
     database: formData.value.database || undefined,
+    sshTunnel: { ...sshConfig.value },
   };
 
   if (authMode.value === 'uri') {
@@ -487,6 +543,7 @@ const showMedal = (con: MongoDBConnection | null) => {
   if (con) {
     formData.value = cloneDeep(con);
     tlsChecked.value = con.tls ?? false;
+    sshConfig.value = con.sshTunnel ? { ...con.sshTunnel } : { enabled: false };
 
     if (con.auth.kind === 'uri') {
       authMode.value = 'uri';
@@ -511,7 +568,9 @@ const showMedal = (con: MongoDBConnection | null) => {
     usernameValue.value = '';
     passwordValue.value = '';
     authSourceValue.value = '';
+    authMechanismValue.value = '';
     tlsChecked.value = false;
+    sshConfig.value = { enabled: false };
     modalTitle.value = lang.t('connection.new');
   }
   resetValidation();
@@ -527,6 +586,7 @@ const closeModal = () => {
   authSourceValue.value = '';
   authMechanismValue.value = '';
   tlsChecked.value = false;
+  sshConfig.value = { enabled: false };
   modalTitle.value = lang.t('connection.new');
   resetResult();
   resetValidation();
@@ -608,3 +668,32 @@ const saveConnectConfirm = async () => {
 
 defineExpose({ showMedal });
 </script>
+
+<style scoped>
+.advanced-section {
+  margin-top: 16px;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 12px;
+}
+
+.advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  color: hsl(var(--muted-foreground));
+  transition: color 0.15s ease;
+}
+
+.advanced-toggle:hover {
+  color: hsl(var(--foreground));
+}
+
+.advanced-content {
+  padding-top: 12px;
+}
+</style>

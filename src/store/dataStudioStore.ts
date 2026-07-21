@@ -967,9 +967,7 @@ export const useDataStudioStore = defineStore('dataStudio', {
       this.sessions = this.sessions.map(s =>
         s.id === sessionId ? { ...s, model_id: modelId } : s,
       );
-      await updateSessionMeta(sessionId, undefined, undefined, modelId).catch(e =>
-        console.warn('[persist] updateSessionMeta failed:', e),
-      );
+      await updateSessionMeta(sessionId, undefined, undefined, modelId).catch(() => {});
     },
 
     async reloadSessionMessages(sessionId: string) {

@@ -987,6 +987,7 @@ export const useImportExportStore = defineStore('importExportStore', {
               collectionName,
               jsonStrings,
               upsert,
+              mongoConnection.sshTunnel,
             );
 
             if (this.restoreProgress) {
@@ -1080,6 +1081,7 @@ export const useImportExportStore = defineStore('importExportStore', {
                 collectionName,
                 sendBatch,
                 upsert,
+                mongoConnection.sshTunnel,
               );
 
               if (this.restoreProgress) {
@@ -1103,6 +1105,7 @@ export const useImportExportStore = defineStore('importExportStore', {
               collectionName,
               accumulatedDocs,
               upsert,
+              mongoConnection.sshTunnel,
             );
 
             if (this.restoreProgress) {
@@ -2889,6 +2892,7 @@ export const useImportExportStore = defineStore('importExportStore', {
             input.sort || undefined,
             batchSize,
             skip,
+            mongoConnection.sshTunnel,
           );
 
           if (result.error) {

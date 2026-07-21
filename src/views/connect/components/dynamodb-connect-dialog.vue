@@ -130,20 +130,31 @@
                   />
                 </FormItem>
                 <FormItem :label="$t('connection.secretAccessKey')" required>
-                  <Input
-                    :model-value="
-                      (formData.auth.kind === 'accessKey' && formData.auth.secretAccessKey) || ''
-                    "
-                    type="password"
-                    :placeholder="$t('connection.secretAccessKey')"
-                    @update:model-value="
-                      v => {
-                        if (formData.auth.kind === 'accessKey')
-                          formData.auth.secretAccessKey = v as string;
-                      }
-                    "
-                    @blur="handleBlur('secretAccessKey')"
-                  />
+                  <div class="relative">
+                    <Input
+                      :model-value="
+                        (formData.auth.kind === 'accessKey' && formData.auth.secretAccessKey) || ''
+                      "
+                      :type="showSecretKey ? 'text' : 'password'"
+                      :placeholder="$t('connection.secretAccessKey')"
+                      class="pr-9"
+                      @update:model-value="
+                        v => {
+                          if (formData.auth.kind === 'accessKey')
+                            formData.auth.secretAccessKey = v as string;
+                        }
+                      "
+                      @blur="handleBlur('secretAccessKey')"
+                    />
+                    <button
+                      type="button"
+                      class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      @click="showSecretKey = !showSecretKey"
+                    >
+                      <EyeOff v-if="showSecretKey" class="h-4 w-4" />
+                      <Eye v-else class="h-4 w-4" />
+                    </button>
+                  </div>
                 </FormItem>
               </template>
 
@@ -511,6 +522,26 @@
               </template>
             </div>
           </FormItem>
+
+          <!-- Advanced Section -->
+          <div class="advanced-section">
+            <button type="button" class="advanced-toggle" @click="showAdvanced = !showAdvanced">
+              <ChevronRight
+                class="h-4 w-4 transition-transform duration-200"
+                :class="{ 'rotate-90': showAdvanced }"
+              />
+              <span class="text-sm font-medium">{{ $t('connection.advanced') }}</span>
+            </button>
+            <div v-show="showAdvanced" class="advanced-content">
+              <SshTunnelSection
+                v-model="sshConfig"
+                :remote-host="sshRemoteHost"
+                :remote-port="sshRemotePort"
+                @create-profile="openSshProfileDialog(null)"
+                @edit-profile="openSshProfileDialog($event)"
+              />
+            </div>
+          </div>
         </Form>
       </div>
 
@@ -533,11 +564,12 @@
       </DialogFooter>
     </DialogContent>
   </Dialog>
+  <SshProfileDialog ref="sshProfileDialogRef" />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { X, Loader2, ChevronRight } from 'lucide-vue-next';
+import { X, Loader2, ChevronRight, Eye, EyeOff } from 'lucide-vue-next';
 import { cloneDeep, debounce } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -551,11 +583,15 @@ import {
   DynamoDBConnection,
   type DynamoDBAuth,
   type DynamoTableFilter,
+  type SshConnectionConfig,
   applyTableFilter,
 } from '../../../store';
+import { useSshProfileStore } from '../../../store';
 import { ApiClientError } from '../../../datasources/ApiClients';
 import { dynamoApi } from '../../../datasources/dynamoApi';
 import { useFormValidation, useDialogResult } from '@/composables';
+import { SshTunnelSection } from '@/components/ssh';
+import SshProfileDialog from './ssh-profile-dialog.vue';
 
 import {
   Dialog,
@@ -581,7 +617,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 
 const connectionStore = useConnectionStore();
-const { freshConnection } = connectionStore;
 const lang = useLang();
 
 const showModal = ref(false);
@@ -590,8 +625,45 @@ const testLoading = ref(false);
 const saveLoading = ref(false);
 const { message, isSuccess, isError, succeed, fail, reset: resetResult } = useDialogResult();
 const connectionMode = ref<'accessKey' | 'profile' | 'sso' | 'assumeRole' | 'local'>('accessKey');
+const showSecretKey = ref(false);
 const availableProfiles = ref<string[]>([]);
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
+const sshConfig = ref<SshConnectionConfig>({ enabled: false });
+const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
+const showAdvanced = ref(false);
+
+function openSshProfileDialog(profileId: string | null) {
+  if (sshProfileDialogRef.value) {
+    const profile = profileId
+      ? (useSshProfileStore().profiles.find(p => p.id === profileId) ?? null)
+      : null;
+    sshProfileDialogRef.value.show(profile);
+  }
+}
+
+const sshRemoteHost = computed(() => {
+  if (formData.value.endpointUrl) {
+    try {
+      return new URL(formData.value.endpointUrl).hostname;
+    } catch {
+      return formData.value.endpointUrl;
+    }
+  }
+  const region = formData.value.region || 'us-east-1';
+  return `dynamodb.${region}.amazonaws.com`;
+});
+
+const sshRemotePort = computed(() => {
+  if (formData.value.endpointUrl) {
+    try {
+      const url = new URL(formData.value.endpointUrl);
+      return url.port ? parseInt(url.port, 10) : url.protocol === 'https:' ? 443 : 80;
+    } catch {
+      return 443;
+    }
+  }
+  return 443;
+});
 
 // ── SSO state ──
 const ssoStartUrl = ref('');
@@ -1016,6 +1088,7 @@ const showMedal = (con: DynamoDBConnection | null) => {
   resetResult();
   if (con) {
     formData.value = { ...con };
+    sshConfig.value = con.sshTunnel ? { ...con.sshTunnel } : { enabled: false };
     veeResetForm({ values: { ...con } });
     connectionMode.value = con.endpointUrl
       ? 'local'
@@ -1045,6 +1118,7 @@ const showMedal = (con: DynamoDBConnection | null) => {
     formData.value = cloneDeep(defaultFormData);
     veeResetForm({ values: cloneDeep(defaultFormData) });
     connectionMode.value = 'accessKey';
+    sshConfig.value = { enabled: false };
     resetSsoState();
     resetAssumeRoleState();
   }
@@ -1090,6 +1164,7 @@ const closeModal = () => {
   availableTables.value = [];
   filterTableNameInput.value = '';
   showSuggestions.value = false;
+  sshConfig.value = { enabled: false };
   resetSsoState();
   resetAssumeRoleState();
   resetValidation();
@@ -1157,13 +1232,20 @@ const testConnect = async () => {
   const startTime = Date.now();
 
   try {
-    await freshConnection(formData.value);
+    const result = await dynamoApi.testConnection({
+      ...formData.value,
+      sshTunnel: { ...sshConfig.value },
+    });
 
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
     if (remainingTime > 0) await new Promise(resolve => setTimeout(resolve, remainingTime));
 
-    succeed(lang.t('connection.testSuccess'));
+    if (result.success) {
+      succeed(lang.t('connection.testSuccess'));
+    } else {
+      fail(result.message);
+    }
   } catch (error: unknown) {
     const elapsed = Date.now() - startTime;
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsed);
@@ -1176,7 +1258,7 @@ const testConnect = async () => {
     } else if (error instanceof Error) {
       fail(error.message);
     } else {
-      fail(lang.t('connection.unknownError'));
+      fail(String(error));
     }
   } finally {
     testLoading.value = false;
@@ -1237,7 +1319,10 @@ const saveConnect = async () => {
   }
 
   saveLoading.value = true;
-  const result = await connectionStore.saveConnection(formData.value);
+  const result = await connectionStore.saveConnection({
+    ...formData.value,
+    sshTunnel: { ...sshConfig.value },
+  });
   if (result.success) {
     closeModal();
   } else {
@@ -1276,7 +1361,9 @@ let fetchAbortFlag = 0;
 const silentFetchTables = async () => {
   const tick = ++fetchAbortFlag;
   try {
-    const tables = await dynamoApi.listTables(formData.value);
+    const tables = await (sshConfig.value.enabled
+      ? dynamoApi.listTablesViaSsh(formData.value)
+      : dynamoApi.listTables(formData.value));
     if (tick === fetchAbortFlag) availableTables.value = tables;
   } catch {
     // silently ignore — no credentials yet or invalid
@@ -1425,5 +1512,32 @@ defineExpose({ showMedal });
 <style scoped>
 .connection-mode-content {
   min-height: 260px;
+}
+
+.advanced-section {
+  margin-top: 16px;
+  border-top: 1px solid hsl(var(--border));
+  padding-top: 12px;
+}
+
+.advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  color: hsl(var(--muted-foreground));
+  transition: color 0.15s ease;
+}
+
+.advanced-toggle:hover {
+  color: hsl(var(--foreground));
+}
+
+.advanced-content {
+  padding-top: 12px;
 }
 </style>

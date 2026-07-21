@@ -29,7 +29,7 @@ impl EventEmitter for TauriEmitter {
 // Helper: build pre-resolved connections map from settings
 // ---------------------------------------------------------------------------
 
-fn resolve_connections(
+async fn resolve_connections(
     app: &AppHandle,
     settings: &Value,
 ) -> HashMap<String, Value> {
@@ -40,18 +40,23 @@ fn resolve_connections(
 
     let mut resolved: HashMap<String, Value> = HashMap::new();
     for (conn_id, cfg) in &connections {
-        if let Some(resolved_id) = cfg.get("connectionId").and_then(|v| v.as_str()) {
+        let mut config = if let Some(resolved_id) = cfg.get("connectionId").and_then(|v| v.as_str()) {
             match crate::common::connection_resolver::ConnectionResolver::resolve(app, resolved_id) {
-                Ok(config) => {
-                    resolved.insert(conn_id.clone(), config);
-                }
-                Err(_) => {
-                    resolved.insert(conn_id.clone(), cfg.clone());
+                Ok(config) => config,
+                Err(e) => {
+                    log::warn!("Failed to resolve connection '{}': {}", resolved_id, e);
+                    cfg.clone()
                 }
             }
         } else {
-            resolved.insert(conn_id.clone(), cfg.clone());
+            cfg.clone()
+        };
+
+        if let Err(e) = crate::common::ssh_bridge::resolve_ssh_in_place(app, &mut config).await {
+            log::warn!("SSH tunnel resolution failed for agent connection '{}': {}", conn_id, e);
         }
+
+        resolved.insert(conn_id.clone(), config);
     }
     resolved
 }
@@ -78,7 +83,7 @@ pub async fn run_agent_loop(
     let executor_state: State<Arc<dyn lib::ToolExecutor>> = app.state::<Arc<dyn lib::ToolExecutor>>();
     let executor: Arc<dyn lib::ToolExecutor> = executor_state.inner().clone();
 
-    let connections = resolve_connections(&app, &settings);
+    let connections = resolve_connections(&app, &settings).await;
     let fallback = settings
         .get("connectionConfig")
         .cloned()
@@ -229,3 +234,4 @@ pub async fn list_llm_models(
 pub fn get_all_tools() -> Result<String, String> {
     lib::tools::get_all_tools()
 }
+
