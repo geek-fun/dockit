@@ -232,14 +232,12 @@
           try {
             await refreshStates();
           } catch (err) {
-            message.error(
-              `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
-              {
-                closable: true,
-                keepAliveOnHover: true,
-                duration: 3000,
-              },
-            );
+            const e = err as CustomError;
+            message.error(e.details || e.message || 'Refresh failed', {
+              closable: true,
+              keepAliveOnHover: true,
+              duration: 3000,
+            });
           }
         }
       "
@@ -860,14 +858,12 @@ const handleIncludeChange = async (value: boolean) => {
     try {
       await refreshStates(value);
     } catch (err) {
-      message.error(
-        `status: ${(err as CustomError).status}, details: ${(err as CustomError).details}`,
-        {
-          closable: true,
-          keepAliveOnHover: true,
-          duration: 3000,
-        },
-      );
+      const e = err as CustomError;
+      message.error(e.details || e.message || 'Refresh failed', {
+        closable: true,
+        keepAliveOnHover: true,
+        duration: 3000,
+      });
     }
   }
 };

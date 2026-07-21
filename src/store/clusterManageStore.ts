@@ -244,8 +244,8 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (isSearchConnection(this.connection)) {
         await esApi.createIndex(this.connection, options);
-        // refresh data
-        Promise.all([this.fetchIndices(), this.fetchAliases()]).catch();
+        this.fetchIndices().catch(err => debug('refresh indices after create failed', err));
+        this.fetchAliases().catch(err => debug('refresh aliases after create failed', err));
       }
       return undefined;
     },
@@ -278,8 +278,7 @@ export const useClusterManageStore = defineStore('clusterManageStore', {
       if (!this.connection) throw new Error(lang.global.t('connection.selectConnection'));
       if (isSearchConnection(this.connection)) {
         await esApi.createTemplate(this.connection, options);
-        // refresh data
-        Promise.all([this.fetchTemplates()]).catch();
+        this.fetchTemplates().catch(err => debug('refresh templates after create failed', err));
       }
       return undefined;
     },

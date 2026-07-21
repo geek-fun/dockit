@@ -94,14 +94,29 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
 
     let (remote_host, remote_port) = extract_remote_target(config);
 
+    // Read original endpointUrl before mutable borrow
+    let has_endpoint_url = config
+        .get("endpointUrl")
+        .and_then(|v| v.as_str())
+        .is_some();
+    let scheme = config
+        .get("endpointUrl")
+        .and_then(|v| v.as_str())
+        .and_then(|u| url::Url::parse(u).ok())
+        .map(|u| u.scheme().to_string())
+        .filter(|s| s == "http" || s == "https")
+        .unwrap_or_else(|| "http".to_string());
+
     let endpoint = resolve_ssh_tunnel(app, ssh.as_ref(), &remote_host, remote_port).await?;
     if let Some(obj) = config.as_object_mut() {
         obj.insert("host".to_string(), serde_json::json!(endpoint.host));
         obj.insert("port".to_string(), serde_json::json!(endpoint.port));
-        obj.insert(
-            "endpointUrl".to_string(),
-            serde_json::json!(format!("http://{}:{}", endpoint.host, endpoint.port)),
-        );
+        if has_endpoint_url {
+            obj.insert(
+                "endpointUrl".to_string(),
+                serde_json::json!(format!("{}://{}:{}", scheme, endpoint.host, endpoint.port)),
+            );
+        }
         obj.remove("sshTunnel");
     }
     Ok(())

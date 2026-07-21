@@ -124,7 +124,9 @@ export const useHistoryStore = defineStore('historyStore', {
         this.entries.unshift(toHistoryEntry(result));
         const backendEntries = await loadQueryHistory();
         this.entries = backendEntries.map(toHistoryEntry);
-      } catch {}
+      } catch {
+        // History is non-critical — query already executed
+      }
     },
     selectEntry(id: string | null) {
       this.selectedEntryId = id;

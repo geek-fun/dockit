@@ -59,7 +59,7 @@
       <div class="connection-list-body">
         <!-- SSH Profile cards -->
         <div
-          v-for="profile in sshStore.profiles"
+          v-for="profile in filteredProfiles"
           :key="'ssh-' + profile.id"
           class="connection-card profile-card focus:ring-2 focus:ring-primary focus:outline-none"
           role="button"
@@ -275,7 +275,7 @@
       </div>
 
       <div
-        v-if="sshStore.profiles.length === 0 && filteredConnections.length === 0"
+        v-if="filteredProfiles.length === 0 && filteredConnections.length === 0"
         class="filter-empty-state"
       >
         <span class="i-carbon-search h-8 w-8 text-muted-foreground" />
@@ -448,7 +448,13 @@ const filteredConnections = computed(() => {
   return [...filtered].sort((a, b) => sortFns[activeSortKey.value](a, b) * dir);
 });
 
-const totalItems = computed(() => sshStore.profiles.length + filteredConnections.value.length);
+const filteredProfiles = computed(() => {
+  const keyword = filterText.value.toLowerCase().trim();
+  if (!keyword) return sshStore.profiles;
+  return sshStore.profiles.filter(p => p.name.toLowerCase().includes(keyword));
+});
+
+const totalItems = computed(() => filteredProfiles.value.length + filteredConnections.value.length);
 
 const connectionCancelled = ref(false);
 const connectingModal = ref();

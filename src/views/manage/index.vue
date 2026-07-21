@@ -64,8 +64,8 @@ const refreshData = async () => {
   try {
     await refreshStates();
   } catch (err) {
-    const { status, details } = err as CustomError;
-    message.error(`status: ${status}, details: ${details}`, {
+    const e = err as CustomError;
+    message.error(e.details || e.message || 'Refresh failed', {
       closable: true,
       keepAliveOnHover: true,
       duration: 3000,
