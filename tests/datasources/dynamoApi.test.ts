@@ -1308,7 +1308,7 @@ describe('dynamoApi - testConnection', () => {
     const result = await dynamoApi.testConnection(mockConnection as any);
     expect(mockedInvoke).toHaveBeenCalledWith('dynamo_test_connection', {
       config: mockConnection,
-      sshTunnel: null,
+      ssh_tunnel: null,
     });
     expect(result.success).toBe(true);
   });
@@ -1319,7 +1319,7 @@ describe('dynamoApi - testConnection', () => {
     await dynamoApi.testConnection(conn as any);
     expect(mockedInvoke).toHaveBeenCalledWith('dynamo_test_connection', {
       config: conn,
-      sshTunnel: { enabled: true, profileIds: ['p1'] },
+      ssh_tunnel: { enabled: true, profileIds: ['p1'] },
     });
   });
 
@@ -1350,7 +1350,7 @@ describe('dynamoApi - listTablesViaSsh', () => {
     const result = await dynamoApi.listTablesViaSsh(conn as any);
     expect(mockedInvoke).toHaveBeenCalledWith('dynamo_test_connection', {
       config: conn,
-      sshTunnel: { enabled: true, inline: { host: 'bastion' } },
+      ssh_tunnel: { enabled: true, inline: { host: 'bastion' } },
     });
     expect(result).toEqual(['t1', 't2']);
   });

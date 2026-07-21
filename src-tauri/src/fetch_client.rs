@@ -123,16 +123,16 @@ pub async fn fetch_api(
     app: tauri::AppHandle,
     url: String,
     options: FetchApiOptions,
-    sshTunnel: Option<Value>,
+    ssh_tunnel: Option<Value>,
 ) -> Result<String, String> {
     // Extract system proxy from SSH config if present
-    let system_proxy = sshTunnel.as_ref()
+    let system_proxy = ssh_tunnel.as_ref()
         .and_then(|s| s.get("systemProxy"))
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string());
 
-    let final_url = if let Some(ref ssh_config) = sshTunnel {
+    let final_url = if let Some(ref ssh_config) = ssh_tunnel {
         resolve_url_via_ssh(&app, &url, ssh_config).await?
     } else {
         url

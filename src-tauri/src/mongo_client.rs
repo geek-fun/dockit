@@ -111,13 +111,13 @@ fn build_uri_tunneled(config: &MongoConnectionConfig, tunnel_port: Option<u16>) 
 pub async fn mongo_test_connection(
     app: tauri::AppHandle,
     config: MongoConnectionConfig,
-    sshTunnel: Option<serde_json::Value>,
+    ssh_tunnel: Option<serde_json::Value>,
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::response::ApiResponse;
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
     // Resolve SSH tunnel if ssh config is provided
-    let endpoint = resolve_ssh_tunnel(&app, sshTunnel.as_ref(), &config.host, config.port).await?;
+    let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
     let config = MongoConnectionConfig { host: endpoint.host.clone(), port: endpoint.port, ..config };
     let uri = build_uri(&config);
 
@@ -893,12 +893,12 @@ pub async fn mongo_execute_query(
     app: tauri::AppHandle,
     config: MongoConnectionConfig,
     code: String,
-    sshTunnel: Option<serde_json::Value>,
+    ssh_tunnel: Option<serde_json::Value>,
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::response::ApiResponse;
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
-    let endpoint = resolve_ssh_tunnel(&app, sshTunnel.as_ref(), &config.host, config.port).await?;
+    let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
     let client = match build_client_tunneled(&config, Some(endpoint.port)).await {
         Ok(c) => {
             c
@@ -953,12 +953,12 @@ pub async fn mongo_export_documents(
     batch_size: Option<i64>,
     skip: Option<u64>,
     sort: Option<String>,
-    sshTunnel: Option<serde_json::Value>,
+    ssh_tunnel: Option<serde_json::Value>,
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::response::ApiResponse;
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
-    let endpoint = resolve_ssh_tunnel(&app, sshTunnel.as_ref(), &config.host, config.port).await?;
+    let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
     let result = {
         let client = build_client_tunneled(&config, Some(endpoint.port)).await;
         let client = match client {
@@ -1038,12 +1038,12 @@ pub async fn mongo_import_documents(
     collection: String,
     documents: Vec<String>,
     upsert: Option<bool>,
-    sshTunnel: Option<serde_json::Value>,
+    ssh_tunnel: Option<serde_json::Value>,
 ) -> Result<crate::common::response::ApiResponse<serde_json::Value>, String> {
     use crate::common::response::ApiResponse;
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
-    let endpoint = resolve_ssh_tunnel(&app, sshTunnel.as_ref(), &config.host, config.port).await?;
+    let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
     let client = match build_client_tunneled(&config, Some(endpoint.port)).await {
         Ok(c) => c,
         Err(e) => {

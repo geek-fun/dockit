@@ -169,7 +169,7 @@ const dynamoApi = {
     try {
       const raw = await invoke<ApiResponse<{ tableNames?: string[] }>>('dynamo_test_connection', {
         config: con as unknown as Record<string, unknown>,
-        sshTunnel: con.sshTunnel ?? null,
+        ssh_tunnel: con.sshTunnel ?? null,
       });
       if (raw.status >= 400) {
         return { success: false, message: raw.message ?? 'Connection failed' };
@@ -188,7 +188,7 @@ const dynamoApi = {
     try {
       const raw = await invoke<ApiResponse<{ tableNames?: string[] }>>('dynamo_test_connection', {
         config: con as unknown as Record<string, unknown>,
-        sshTunnel: con.sshTunnel ?? null,
+        ssh_tunnel: con.sshTunnel ?? null,
       });
       if (raw.status >= 400) throw new CustomError(500, raw.message ?? 'Connection failed');
       return raw.data?.tableNames ?? [];
