@@ -3,61 +3,7 @@ use tauri::AppHandle;
 
 use super::registry;
 use crate::common::connection_resolver::ConnectionResolver;
-use crate::common::ssh_bridge::resolve_ssh_tunnel;
-
-/// Resolve SSH tunnel and modify config in-place: replace host/port with
-/// tunnel endpoint, remove ssh field so handlers don't need to know.
-async fn resolve_config_via_ssh(
-    app: &AppHandle,
-    config: &mut Value,
-) -> Result<(), String> {
-    let ssh = config.get("sshTunnel").cloned();
-    let enabled = ssh
-        .as_ref()
-        .and_then(|s| s.get("enabled"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    if !enabled {
-        if let Some(obj) = config.as_object_mut() {
-            obj.remove("sshTunnel");
-        }
-        return Ok(());
-    }
-
-    let mut remote_host = "localhost".to_string();
-    let mut remote_port = 443u16;
-
-    if let Some(obj) = config.as_object() {
-        if let Some(h) = obj.get("host").and_then(|v| v.as_str()) {
-            remote_host = h.to_string();
-        }
-        if let Some(p) = obj.get("port").and_then(|v| v.as_u64()) {
-            remote_port = p as u16;
-        }
-        if let Some(url_str) = obj.get("endpointUrl").and_then(|v| v.as_str()) {
-            if let Ok(parsed) = url::Url::parse(url_str) {
-                if let Some(h) = parsed.host_str() {
-                    remote_host = h.to_string();
-                }
-                if let Some(p) = parsed.port() {
-                    remote_port = p;
-                }
-            }
-        }
-    }
-
-    let endpoint = resolve_ssh_tunnel(app, ssh.as_ref(), &remote_host, remote_port).await?;
-    if let Some(obj) = config.as_object_mut() {
-        obj.insert("host".to_string(), json!(endpoint.host));
-        obj.insert("port".to_string(), json!(endpoint.port));
-        obj.insert(
-            "endpointUrl".to_string(),
-            json!(format!("http://{}:{}", endpoint.host, endpoint.port)),
-        );
-        obj.remove("sshTunnel");
-    }
-    Ok(())
-}
+use crate::common::ssh_bridge::resolve_ssh_in_place;
 
 /// Invoke a capability by name with JSON arguments, using a connection_id
 /// to resolve credentials on the Rust side.
@@ -76,10 +22,8 @@ pub async fn invoke_capability(
         None => None,
     };
 
-    // Resolve SSH tunnel at the capability layer — handlers get a config
-    // with host/port already pointing at the tunnel endpoint.
     if let Some(ref mut cfg) = config {
-        resolve_config_via_ssh(&app, cfg).await?;
+        resolve_ssh_in_place(&app, cfg).await?;
     }
 
     registry::invoke_capability_inner(&name, args, config).await

@@ -75,6 +75,59 @@ pub async fn resolve_connection_target(
     }
 }
 
+/// Resolve the SSH tunnel for a connection config in place: when enabled,
+/// `host`/`port`/`endpointUrl` are rewritten to the local tunnel endpoint
+/// and `sshTunnel` is removed; when disabled, `sshTunnel` is removed.
+pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result<(), String> {
+    let ssh = config.get("sshTunnel").cloned();
+    let enabled = ssh
+        .as_ref()
+        .and_then(|s| s.get("enabled"))
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    if !enabled {
+        if let Some(obj) = config.as_object_mut() {
+            obj.remove("sshTunnel");
+        }
+        return Ok(());
+    }
+
+    let (remote_host, remote_port) = extract_remote_target(config);
+
+    let endpoint = resolve_ssh_tunnel(app, ssh.as_ref(), &remote_host, remote_port).await?;
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("host".to_string(), serde_json::json!(endpoint.host));
+        obj.insert("port".to_string(), serde_json::json!(endpoint.port));
+        obj.insert(
+            "endpointUrl".to_string(),
+            serde_json::json!(format!("http://{}:{}", endpoint.host, endpoint.port)),
+        );
+        obj.remove("sshTunnel");
+    }
+    Ok(())
+}
+
+fn extract_remote_target(config: &Value) -> (String, u16) {
+    let obj = match config.as_object() { Some(o) => o, None => return ("localhost".into(), 443) };
+
+    if let (Some(host), Some(port)) = (
+        obj.get("host").and_then(|v| v.as_str()),
+        obj.get("port").and_then(|v| v.as_u64()),
+    ) {
+        return (host.to_string(), port as u16);
+    }
+
+    if let Some(url_str) = obj.get("endpointUrl").and_then(|v| v.as_str()) {
+        if let Ok(parsed) = url::Url::parse(url_str) {
+            let host = parsed.host_str().unwrap_or("localhost").to_string();
+            let port = parsed.port().unwrap_or(443);
+            return (host, port);
+        }
+    }
+
+    ("localhost".into(), 443)
+}
+
 /// Resolve SSH tunnel to a local endpoint. The tunnel stays alive in
 /// TunnelManager and is reused for subsequent calls with the same config.
 /// Callers use `endpoint.host` / `endpoint.port` and do NOT clean up.
@@ -207,5 +260,37 @@ mod tests {
         let ssh = json!({"profileIds": ["single-pid"]});
         let key = tunnel_key(Some(&ssh), "es.host", 9200);
         assert_eq!(key, "ssh:profiles:single-pid:es.host:9200");
+    }
+
+    #[test]
+    fn test_extract_remote_target_from_host_port() {
+        let config = json!({"host": "db.example.com", "port": 5432});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "db.example.com");
+        assert_eq!(port, 5432);
+    }
+
+    #[test]
+    fn test_extract_remote_target_from_endpoint_url() {
+        let config = json!({"endpointUrl": "https://my-cluster.us-east-1.es.amazonaws.com:443"});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "my-cluster.us-east-1.es.amazonaws.com");
+        assert_eq!(port, 443);
+    }
+
+    #[test]
+    fn test_extract_remote_target_fallback_defaults() {
+        let config = json!({});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "localhost");
+        assert_eq!(port, 443);
+    }
+
+    #[test]
+    fn test_extract_remote_target_endpoint_url_without_port() {
+        let config = json!({"endpointUrl": "http://bastion.internal"});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "bastion.internal");
+        assert_eq!(port, 443);
     }
 }

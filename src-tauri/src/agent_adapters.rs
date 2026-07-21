@@ -26,62 +26,6 @@ impl EventEmitter for TauriEmitter {
 }
 
 // ---------------------------------------------------------------------------
-// Helper: resolve SSH tunnel for a connection config in-place
-// ---------------------------------------------------------------------------
-
-async fn resolve_ssh_in_config(app: &AppHandle, config: &mut Value) -> Result<(), String> {
-    use crate::common::ssh_bridge::resolve_ssh_tunnel;
-
-    let ssh = config.get("sshTunnel").cloned();
-    let enabled = ssh
-        .as_ref()
-        .and_then(|s| s.get("enabled"))
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-    if !enabled {
-        if let Some(obj) = config.as_object_mut() {
-            obj.remove("sshTunnel");
-        }
-        return Ok(());
-    }
-
-    let (remote_host, remote_port) = extract_remote_target(config);
-
-    let endpoint = resolve_ssh_tunnel(app, ssh.as_ref(), &remote_host, remote_port).await?;
-    if let Some(obj) = config.as_object_mut() {
-        obj.insert("host".to_string(), serde_json::json!(endpoint.host));
-        obj.insert("port".to_string(), serde_json::json!(endpoint.port));
-        obj.insert(
-            "endpointUrl".to_string(),
-            serde_json::json!(format!("http://{}:{}", endpoint.host, endpoint.port)),
-        );
-        obj.remove("sshTunnel");
-    }
-    Ok(())
-}
-
-fn extract_remote_target(config: &Value) -> (String, u16) {
-    let obj = match config.as_object() { Some(o) => o, None => return ("localhost".into(), 443) };
-
-    if let (Some(host), Some(port)) = (
-        obj.get("host").and_then(|v| v.as_str()),
-        obj.get("port").and_then(|v| v.as_u64()),
-    ) {
-        return (host.to_string(), port as u16);
-    }
-
-    if let Some(url_str) = obj.get("endpointUrl").and_then(|v| v.as_str()) {
-        if let Ok(parsed) = url::Url::parse(url_str) {
-            let host = parsed.host_str().unwrap_or("localhost").to_string();
-            let port = parsed.port().unwrap_or(443);
-            return (host, port);
-        }
-    }
-
-    ("localhost".into(), 443)
-}
-
-// ---------------------------------------------------------------------------
 // Helper: build pre-resolved connections map from settings
 // ---------------------------------------------------------------------------
 
@@ -108,7 +52,7 @@ async fn resolve_connections(
             cfg.clone()
         };
 
-        if let Err(e) = resolve_ssh_in_config(app, &mut config).await {
+        if let Err(e) = crate::common::ssh_bridge::resolve_ssh_in_place(app, &mut config).await {
             log::warn!("SSH tunnel resolution failed for agent connection '{}': {}", conn_id, e);
         }
 
@@ -291,40 +235,3 @@ pub fn get_all_tools() -> Result<String, String> {
     lib::tools::get_all_tools()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::extract_remote_target;
-    use serde_json::json;
-
-    #[test]
-    fn test_extract_remote_target_from_host_port() {
-        let config = json!({"host": "db.example.com", "port": 5432});
-        let (host, port) = extract_remote_target(&config);
-        assert_eq!(host, "db.example.com");
-        assert_eq!(port, 5432);
-    }
-
-    #[test]
-    fn test_extract_remote_target_from_endpoint_url() {
-        let config = json!({"endpointUrl": "https://my-cluster.us-east-1.es.amazonaws.com:443"});
-        let (host, port) = extract_remote_target(&config);
-        assert_eq!(host, "my-cluster.us-east-1.es.amazonaws.com");
-        assert_eq!(port, 443);
-    }
-
-    #[test]
-    fn test_extract_remote_target_fallback_defaults() {
-        let config = json!({});
-        let (host, port) = extract_remote_target(&config);
-        assert_eq!(host, "localhost");
-        assert_eq!(port, 443);
-    }
-
-    #[test]
-    fn test_extract_remote_target_endpoint_url_without_port() {
-        let config = json!({"endpointUrl": "http://bastion.internal"});
-        let (host, port) = extract_remote_target(&config);
-        assert_eq!(host, "bastion.internal");
-        assert_eq!(port, 443);
-    }
-}
