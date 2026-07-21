@@ -929,7 +929,6 @@ export const enUS = {
       agentSocketHint: 'Leave empty to use default SSH agent socket ($SSH_AUTH_SOCK).',
       connectTimeout: 'Connect Timeout (s)',
       keepaliveInterval: 'Keepalive (s)',
-      verifyHostKey: 'Verify Host Key',
       exposeLan: 'Expose to LAN',
       testConnection: 'Test SSH Connection',
       testing: 'Testing...',

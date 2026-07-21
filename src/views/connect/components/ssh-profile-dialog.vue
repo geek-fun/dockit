@@ -205,7 +205,6 @@ const form = reactive({
   keyPassphrase: '',
   connectTimeoutSecs: 10,
   keepaliveIntervalSecs: 30,
-  verifyHostKey: false,
   exposeLan: false,
   sshAgentSockPath: '',
 });
@@ -251,7 +250,6 @@ function resetForm() {
   form.keyPassphrase = '';
   form.connectTimeoutSecs = 10;
   form.keepaliveIntervalSecs = 30;
-  form.verifyHostKey = false;
   form.exposeLan = false;
   form.sshAgentSockPath = '';
   testResult.value = null;
@@ -268,7 +266,6 @@ function loadProfile(profile: SshProfile) {
   form.keyPassphrase = profile.keyPassphrase;
   form.connectTimeoutSecs = profile.connectTimeoutSecs || 10;
   form.keepaliveIntervalSecs = profile.keepaliveIntervalSecs || 30;
-  form.verifyHostKey = profile.verifyHostKey;
   form.exposeLan = profile.exposeLan;
   form.sshAgentSockPath = profile.sshAgentSockPath ?? '';
 }
@@ -326,7 +323,6 @@ async function onTest() {
       sshAgentSockPath: form.sshAgentSockPath,
       connectTimeoutSecs: form.connectTimeoutSecs,
       keepaliveIntervalSecs: form.keepaliveIntervalSecs,
-      verifyHostKey: form.verifyHostKey,
       exposeLan: form.exposeLan,
     };
     testResult.value = await sshStore.testConnection(config, form.host, form.port);
@@ -352,7 +348,6 @@ async function onSave() {
     sshAgentSockPath: form.sshAgentSockPath,
     connectTimeoutSecs: form.connectTimeoutSecs,
     keepaliveIntervalSecs: form.keepaliveIntervalSecs,
-    verifyHostKey: form.verifyHostKey,
     exposeLan: form.exposeLan,
   };
   await sshStore.saveProfile(profile);

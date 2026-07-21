@@ -303,7 +303,6 @@ async function onTestConnection() {
         profile.sshAgentSockPath || (profile.useSshAgent ? profile.sshAgentSockPath : ''),
       connectTimeoutSecs: profile.connectTimeoutSecs,
       keepaliveIntervalSecs: profile.keepaliveIntervalSecs,
-      verifyHostKey: profile.verifyHostKey,
       exposeLan: profile.exposeLan,
     });
   }

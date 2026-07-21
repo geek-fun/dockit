@@ -45,7 +45,7 @@ export type SshTunnelConfig = {
   sshAgentSockPath: string;
   connectTimeoutSecs: number;
   keepaliveIntervalSecs: number;
-  verifyHostKey: boolean;
+  verifyHostKey?: boolean;
   exposeLan: boolean;
 };
 
@@ -70,7 +70,7 @@ export type SshProfile = {
   sshAgentSockPath: string;
   connectTimeoutSecs: number;
   keepaliveIntervalSecs: number;
-  verifyHostKey: boolean;
+  verifyHostKey?: boolean;
   exposeLan: boolean;
 };
 
@@ -567,7 +567,6 @@ export const buildTransportLayers = (
     sshAgentSockPath: '',
     connectTimeoutSecs: 10,
     keepaliveIntervalSecs: 30,
-    verifyHostKey: false,
     exposeLan: false,
   };
 

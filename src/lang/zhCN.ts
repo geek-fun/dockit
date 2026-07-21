@@ -895,7 +895,6 @@ export const zhCN = {
       agentSocketHint: '留空以使用默认 SSH Agent Socket ($SSH_AUTH_SOCK)。',
       connectTimeout: '连接超时（秒）',
       keepaliveInterval: '心跳间隔（秒）',
-      verifyHostKey: '验证主机密钥',
       exposeLan: '暴露到局域网',
       testConnection: '测试 SSH 连接',
       testing: '测试中...',
