@@ -76,6 +76,13 @@ const mainNavList = ref([
     isLink: false,
   },
   {
+    id: 'view-docs',
+    path: '/view-docs',
+    name: 'viewDocs',
+    iconClass: 'i-carbon-table',
+    isLink: false,
+  },
+  {
     id: 'data-studio',
     path: '/data-studio',
     name: 'dataStudio',

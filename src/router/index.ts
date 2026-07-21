@@ -33,6 +33,14 @@ const router = createRouter({
           component: () => import('../views/connect/index.vue'),
         },
         {
+          name: 'ViewDocs',
+          path: '/view-docs',
+          meta: {
+            keepAlive: false,
+          },
+          component: () => import('../views/view-docs/index.vue'),
+        },
+        {
           name: 'Manage',
           path: '/manage',
           meta: {

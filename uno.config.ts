@@ -1,6 +1,8 @@
 import { defineConfig, presetIcons, transformerDirectives, transformerVariantGroup } from 'unocss';
 import { presetWind4 } from '@unocss/preset-wind4';
 import presetAnimations from 'unocss-preset-animations';
+import carbonIcons from '@iconify-json/carbon/icons.json';
+import lucideIcons from '@iconify-json/lucide/icons.json';
 
 export default defineConfig({
   presets: [
@@ -14,6 +16,16 @@ export default defineConfig({
     presetIcons({
       scale: 1.2,
       warn: true,
+      // Explicit collections — auto-discovery can fail in Tauri/Vite production builds
+      // which leaves sidebar/action icons invisible while click targets still work.
+      collections: {
+        carbon: () => carbonIcons,
+        lucide: () => lucideIcons,
+      },
+      extraProperties: {
+        display: 'inline-block',
+        'vertical-align': 'middle',
+      },
     }),
     presetAnimations(),
   ],
@@ -87,6 +99,17 @@ export default defineConfig({
     'flex-col-center': 'flex flex-col items-center justify-center',
   },
   safelist: [
+    // Sidebar nav icons (bound dynamically via :class)
+    'i-carbon-equalizer',
+    'i-carbon-data-base',
+    'i-carbon-table',
+    'i-carbon-ibm-watsonx-assistant',
+    'i-carbon-folders',
+    'i-carbon-expand-all',
+    'i-carbon-import-export',
+    'i-carbon-logo-github',
+    'i-carbon-user-avatar',
+    'i-carbon-settings',
     // Button variants
     'bg-destructive',
     'text-destructive-foreground',

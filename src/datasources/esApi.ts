@@ -222,6 +222,25 @@ export type AllocationDecider = {
   explanation: string;
 };
 
+export type IndexDocumentHit = {
+  _id: string;
+  _index: string;
+  _score: number | null;
+  _source: Record<string, unknown>;
+  sort?: unknown[];
+};
+
+export type SearchIndexDocumentsResult = {
+  hits: IndexDocumentHit[];
+  total: number;
+  nextSearchAfter: unknown[] | undefined;
+};
+
+export type AggregateFieldValue = {
+  value: string | number | boolean;
+  count: number;
+};
+
 export type NodeAllocationDecision = {
   node_id: string;
   node_name: string;
@@ -491,6 +510,29 @@ interface ESApi {
       primary: boolean;
     },
   ): Promise<ClusterAllocationExplain>;
+
+  getIndexMapping(connection: SearchConnection, indexName: string): Promise<unknown>;
+
+  searchIndexDocuments(
+    connection: SearchConnection,
+    options: {
+      indexName: string;
+      size: number;
+      searchAfter?: unknown[];
+      query?: Record<string, unknown>;
+    },
+  ): Promise<SearchIndexDocumentsResult>;
+
+  aggregateFieldValues(
+    connection: SearchConnection,
+    options: {
+      indexName: string;
+      field: string;
+      size?: number;
+      valueSearch?: string;
+      query?: Record<string, unknown>;
+    },
+  ): Promise<AggregateFieldValue[]>;
 }
 
 const esApi: ESApi = {
@@ -1014,6 +1056,154 @@ const esApi: ESApi = {
       return data;
     } catch (err) {
       debug(`Failed to get allocation explanation: ${err}`);
+      throw new CustomError(
+        err instanceof CustomError ? err.status : 500,
+        err instanceof CustomError ? err.details : (err as Error).message,
+      );
+    }
+  },
+
+  getIndexMapping: async (connection, indexName) => {
+    const client = loadHttpClient(connection);
+    try {
+      return await client.get(`/${indexName}/_mapping`, 'format=json');
+    } catch (err) {
+      throw new CustomError(
+        err instanceof CustomError ? err.status : 500,
+        err instanceof CustomError ? err.details : (err as Error).message,
+      );
+    }
+  },
+
+  searchIndexDocuments: async (connection, { indexName, size, searchAfter, query }) => {
+    const client = loadHttpClient(connection);
+    const searchBody: {
+      size: number;
+      sort: Array<{ [key: string]: string }>;
+      track_total_hits: boolean;
+      search_after?: unknown[];
+      query?: Record<string, unknown>;
+    } = {
+      size,
+      sort: [{ _doc: 'asc' }],
+      track_total_hits: true,
+    };
+
+    if (searchAfter && searchAfter.length > 0) {
+      searchBody.search_after = searchAfter;
+    }
+
+    if (query) {
+      searchBody.query = query;
+    }
+
+    try {
+      const response = await client.post<{
+        status?: number;
+        error?: { type?: string; reason?: string };
+        hits?: {
+          total?: number | { value?: number };
+          hits?: Array<{
+            _index?: string;
+            _id?: string;
+            _score?: number | null;
+            _source?: Record<string, unknown>;
+            sort?: unknown[];
+          }>;
+        };
+      }>(`/${indexName}/_search`, undefined, jsonify.stringify(searchBody));
+
+      if (response.status && response.status >= 300) {
+        throw new CustomError(
+          response.status,
+          `${response.error?.type ?? 'error'}: ${response.error?.reason ?? ''}`,
+        );
+      }
+
+      const rawHits = response.hits?.hits ?? [];
+      const hits: IndexDocumentHit[] = rawHits.map(hit => ({
+        _id: hit._id ?? '',
+        _index: hit._index ?? indexName,
+        _score: hit._score ?? null,
+        _source: hit._source ?? {},
+        sort: hit.sort,
+      }));
+
+      const totalRaw = response.hits?.total;
+      const total =
+        typeof totalRaw === 'number'
+          ? totalRaw
+          : typeof totalRaw?.value === 'number'
+            ? totalRaw.value
+            : hits.length;
+
+      const lastHit = hits[hits.length - 1];
+      const nextSearchAfter =
+        hits.length === size && lastHit?.sort && lastHit.sort.length > 0 ? lastHit.sort : undefined;
+
+      return { hits, total, nextSearchAfter };
+    } catch (err) {
+      throw new CustomError(
+        err instanceof CustomError ? err.status : 500,
+        err instanceof CustomError ? err.details : (err as Error).message,
+      );
+    }
+  },
+
+  aggregateFieldValues: async (connection, { indexName, field, size = 50, valueSearch, query }) => {
+    const client = loadHttpClient(connection);
+    const termsAgg: Record<string, unknown> = {
+      field,
+      size,
+      order: { _key: 'asc' },
+    };
+
+    if (valueSearch && valueSearch.trim()) {
+      const escaped = valueSearch.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      termsAgg.include = `.*${escaped}.*`;
+    }
+
+    const searchBody: {
+      size: number;
+      query?: Record<string, unknown>;
+      aggs: Record<string, unknown>;
+    } = {
+      size: 0,
+      aggs: {
+        field_values: {
+          terms: termsAgg,
+        },
+      },
+    };
+
+    if (query) {
+      searchBody.query = query;
+    }
+
+    try {
+      const response = await client.post<{
+        status?: number;
+        error?: { type?: string; reason?: string };
+        aggregations?: {
+          field_values?: {
+            buckets?: Array<{ key: string | number | boolean; doc_count: number }>;
+          };
+        };
+      }>(`/${indexName}/_search`, undefined, jsonify.stringify(searchBody));
+
+      if (response.status && response.status >= 300) {
+        throw new CustomError(
+          response.status,
+          `${response.error?.type ?? 'error'}: ${response.error?.reason ?? ''}`,
+        );
+      }
+
+      const buckets = response.aggregations?.field_values?.buckets ?? [];
+      return buckets.map(bucket => ({
+        value: bucket.key,
+        count: bucket.doc_count,
+      }));
+    } catch (err) {
       throw new CustomError(
         err instanceof CustomError ? err.status : 500,
         err instanceof CustomError ? err.details : (err as Error).message,

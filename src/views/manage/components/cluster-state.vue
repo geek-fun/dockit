@@ -511,6 +511,26 @@
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
                           <DropdownMenuItem
+                            :disabled="row.status !== 'open'"
+                            @click="openDocsBrowser(row.index)"
+                          >
+                            <span class="i-carbon-table h-4 w-4 mr-2" />
+                            {{ lang.t('manage.index.actions.viewDocs') }}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem @click="openQueryForIndex(row.index)">
+                            <span class="i-carbon-code h-4 w-4 mr-2" />
+                            {{ lang.t('manage.index.actions.openQuery') }}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem @click="openSchemaDialog(row.index)">
+                            <span class="i-carbon-data-structured h-4 w-4 mr-2" />
+                            {{ lang.t('manage.index.actions.viewSchema') }}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem @click="copyIndexSchema(row.index)">
+                            <span class="i-carbon-copy h-4 w-4 mr-2" />
+                            {{ lang.t('manage.index.actions.copySchema') }}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
                             class="text-destructive"
                             @click="handleIndexAction('deleteIndex', row.index)"
                           >
@@ -873,6 +893,17 @@
         </DialogContent>
       </Dialog>
     </div>
+
+    <IndexDocsBrowser
+      v-model:open="docsBrowserOpen"
+      :connection="searchConnection"
+      :index-name="selectedIndexName"
+    />
+    <IndexSchemaDialog
+      v-model:open="schemaDialogOpen"
+      :connection="searchConnection"
+      :index-name="selectedIndexName"
+    />
   </div>
 </template>
 
@@ -926,9 +957,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import IndexDocsBrowser from './index-docs-browser.vue';
+import IndexSchemaDialog from './index-schema-dialog.vue';
+import { useRouter } from 'vue-router';
+import { useConnectionStore, useTabStore } from '../../../store';
+import { esSampleQueries } from '../../../common/monaco';
+import { jsonify } from '../../../common';
 
 const props = defineProps<{ cluster: RawClusterStats | undefined }>();
 
@@ -1014,6 +1052,59 @@ const indexDialogRef = ref();
 const aliasDialogRef = ref();
 const templateDialogRef = ref();
 const switchAliasDialogRef = ref();
+
+const router = useRouter();
+const tabStore = useTabStore();
+const connectionStore = useConnectionStore();
+
+const docsBrowserOpen = ref(false);
+const schemaDialogOpen = ref(false);
+const selectedIndexName = ref('');
+
+const searchConnection = computed(() => {
+  const conn = connection.value;
+  return conn && isSearchConnection(conn) ? conn : undefined;
+});
+
+const openDocsBrowser = (indexName: string) => {
+  selectedIndexName.value = indexName;
+  docsBrowserOpen.value = true;
+};
+
+const openSchemaDialog = (indexName: string) => {
+  selectedIndexName.value = indexName;
+  schemaDialogOpen.value = true;
+};
+
+const copyIndexSchema = async (indexName: string) => {
+  if (!searchConnection.value) return;
+  try {
+    const mapping = await esApi.getIndexMapping(searchConnection.value, indexName);
+    await navigator.clipboard.writeText(jsonify.stringify(mapping, null, 2));
+    message.success(lang.t('manage.schema.copied'));
+  } catch (err) {
+    message.error(
+      err instanceof CustomError ? err.details : err instanceof Error ? err.message : String(err),
+      { closable: true, keepAliveOnHover: true },
+    );
+  }
+};
+
+const openQueryForIndex = async (indexName: string) => {
+  if (!searchConnection.value) return;
+  try {
+    await tabStore.establishPanel(searchConnection.value);
+    const query = esSampleQueries.search.replaceAll('{index}', indexName);
+    tabStore.activePanel.content = query;
+    await connectionStore.selectIndex(searchConnection.value, indexName);
+    router.push('/connect');
+  } catch (err) {
+    message.error(
+      err instanceof CustomError ? err.details : err instanceof Error ? err.message : String(err),
+      { closable: true, keepAliveOnHover: true },
+    );
+  }
+};
 
 const indexFilter = ref('');
 const templateFilter = ref('');
