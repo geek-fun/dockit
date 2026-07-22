@@ -1054,7 +1054,9 @@ describe('esApi.aggregateFieldValues', () => {
   });
 
   it('supports custom size and query', async () => {
-    const mockPost = jest.fn().mockResolvedValue({ aggregations: { field_values: { buckets: [] } } });
+    const mockPost = jest
+      .fn()
+      .mockResolvedValue({ aggregations: { field_values: { buckets: [] } } });
     loadHttpClient.mockReturnValue({ post: mockPost });
 
     await esApi.aggregateFieldValues(baseConn, {

@@ -78,6 +78,23 @@ describe('extractDocsBrowseFields', () => {
       { name: 'mystery', kind: 'keyword', aggField: 'mystery', searchField: 'mystery' },
     ]);
   });
+
+  it('classifies constant_keyword and match_only_text', () => {
+    const fields = extractDocsBrowseFields({
+      properties: {
+        tag: { type: 'constant_keyword' },
+        note: { type: 'match_only_text' },
+      },
+    });
+    expect(fields.find(f => f.name === 'tag')).toMatchObject({
+      kind: 'keyword',
+      aggField: 'tag',
+    });
+    expect(fields.find(f => f.name === 'note')).toMatchObject({
+      kind: 'text',
+      aggField: null,
+    });
+  });
 });
 
 describe('resolveAggField', () => {
@@ -93,7 +110,11 @@ describe('resolveAggField', () => {
 
 describe('mergeBrowseFieldsWithHitKeys', () => {
   it('marks unknown hit keys as unsupported display-only fields', () => {
-    const merged = mergeBrowseFieldsWithHitKeys(sampleFields, ['category', 'createdAt', '@timestamp']);
+    const merged = mergeBrowseFieldsWithHitKeys(sampleFields, [
+      'category',
+      'createdAt',
+      '@timestamp',
+    ]);
     expect(merged.find(f => f.name === 'category')?.kind).toBe('keyword');
     expect(merged.find(f => f.name === 'createdAt')).toEqual({
       name: 'createdAt',
@@ -101,6 +122,12 @@ describe('mergeBrowseFieldsWithHitKeys', () => {
       aggField: null,
       searchField: 'createdAt',
     });
+  });
+
+  it('does not duplicate existing mapping fields', () => {
+    const merged = mergeBrowseFieldsWithHitKeys(sampleFields, ['category', 'title']);
+    expect(merged.filter(f => f.name === 'category')).toHaveLength(1);
+    expect(merged.filter(f => f.name === 'title')).toHaveLength(1);
   });
 });
 
@@ -337,6 +364,67 @@ describe('buildDocsBrowseQuery', () => {
     ).toEqual({
       bool: {
         filter: [{ terms: { _id: ['a', 'b'] } }],
+      },
+    });
+  });
+
+  it('escapes wildcard characters in search text', () => {
+    const query = buildDocsBrowseQuery({
+      text: 'a*b?c',
+      textColumn: '_id',
+      columnFilters: [],
+      fields: sampleFields,
+    });
+    expect(query).toEqual({
+      bool: {
+        must: [
+          {
+            wildcard: {
+              _id: { value: '*a\\*b\\?c*', case_insensitive: true },
+            },
+          },
+        ],
+      },
+    });
+  });
+
+  it('skips column filters when field has no aggField', () => {
+    const fieldsWithTextOnly: DocsBrowseFieldMeta[] = [
+      { name: 'body', kind: 'text', aggField: null, searchField: 'body' },
+    ];
+    expect(
+      buildDocsBrowseQuery({
+        text: '',
+        textColumn: '__all__',
+        columnFilters: [{ field: 'body', values: ['hello'] }],
+        fields: fieldsWithTextOnly,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('uses query_string for text field without keyword subfield', () => {
+    const fields: DocsBrowseFieldMeta[] = [
+      { name: 'summary', kind: 'text', aggField: null, searchField: 'summary' },
+    ];
+    expect(
+      buildDocsBrowseQuery({
+        text: 'report',
+        textColumn: 'summary',
+        columnFilters: [],
+        fields,
+      }),
+    ).toEqual({
+      bool: {
+        must: [
+          {
+            query_string: {
+              query: '*report*',
+              fields: ['summary'],
+              analyze_wildcard: true,
+              lenient: true,
+            },
+          },
+        ],
       },
     });
   });

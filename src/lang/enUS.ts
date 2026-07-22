@@ -16,7 +16,6 @@ export const enUS = {
   aside: {
     manage: 'Manage',
     connect: 'Connect',
-    viewDocs: 'View Docs',
     file: 'File',
     history: 'History',
     github: 'GitHub',
@@ -1043,6 +1042,8 @@ export const enUS = {
     showContextMenu: 'Show Context Menu',
     sampleQueries: 'Sample Queries',
     es: {
+      query: 'Query',
+      browse: 'Browse',
       sampleClusterHealth: 'Cluster Health',
       sampleClusterStats: 'Cluster Stats',
       sampleCatIndices: 'List Indices',

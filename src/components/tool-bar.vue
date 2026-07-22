@@ -117,7 +117,29 @@
       </Tooltip>
     </TooltipProvider>
 
-    <DropdownMenu v-if="props.type === 'ES_EDITOR'">
+    <div v-if="props.type === 'ES_EDITOR'" class="button-group">
+      <Button
+        :variant="esEditorMode === 'ES_EDITOR_QUERY' ? 'default' : 'ghost'"
+        size="sm"
+        class="button-group-first"
+        @click="handleEditorSwitch('ES_EDITOR_QUERY')"
+      >
+        <span class="i-carbon-code mr-1 h-4 w-4" />
+        {{ $t('editor.es.query') }}
+      </Button>
+      <Button
+        :variant="esEditorMode === 'ES_EDITOR_BROWSE' ? 'default' : 'ghost'"
+        size="sm"
+        class="button-group-last"
+        :disabled="!indexSelectValue"
+        @click="handleEditorSwitch('ES_EDITOR_BROWSE')"
+      >
+        <span class="i-carbon-table mr-1 h-4 w-4" />
+        {{ $t('editor.es.browse') }}
+      </Button>
+    </div>
+
+    <DropdownMenu v-if="props.type === 'ES_EDITOR' && esEditorMode === 'ES_EDITOR_QUERY'">
       <DropdownMenuTrigger as-child>
         <Button variant="ghost" size="sm" class="sample-btn">
           <span class="i-carbon-code mr-1 h-4 w-4" />
@@ -332,7 +354,7 @@ import {
 } from '../store';
 import { useDynamoManageStore } from '../store/dynamoManageStore';
 import { useLang } from '../lang';
-import { CustomError } from '../common';
+import { CustomError, buildConnectRouteQuery, resolveEsEditorMode } from '../common';
 import { esSampleQueries, configureDynamicOptions } from '../common/monaco';
 import { mongoSampleQueries } from '../common/monaco/mongodb';
 import { useMessageService } from '@/composables';
@@ -341,6 +363,7 @@ import { SearchableSelect } from '@/components/ui/combobox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const props = defineProps({ type: { type: String, default: undefined } });
+const router = useRouter();
 const emits = defineEmits([
   'insert-sample-query',
   'insert-partiql-sample',
@@ -384,6 +407,19 @@ const showRunButton = computed(() => {
     (props.type === 'DYNAMO_EDITOR' && activePanel.value.editorType === 'DYNAMO_EDITOR_SQL')
   );
 });
+
+const esEditorMode = computed(() => resolveEsEditorMode(activePanel.value.editorType));
+
+const syncEsConnectUrl = () => {
+  if (props.type !== 'ES_EDITOR') return;
+  router.replace({
+    path: '/connect',
+    query: buildConnectRouteQuery({
+      index: indexSelectValue.value,
+      editorType: esEditorMode.value,
+    }),
+  });
+};
 
 const loadingRef = ref({
   connection: false,
@@ -830,6 +866,7 @@ const handleUpdate = async (
       return;
     }
     selectIndex(selectedConnection, value);
+    syncEsConnectUrl();
   }
 };
 
@@ -869,9 +906,16 @@ const handleIncludeChange = async (value: boolean) => {
 };
 
 const handleEditorSwitch = async (
-  value: 'DYNAMO_EDITOR_UI' | 'DYNAMO_EDITOR_SQL' | 'DYNAMO_EDITOR_CREATE_ITEM',
+  value:
+    | 'DYNAMO_EDITOR_UI'
+    | 'DYNAMO_EDITOR_SQL'
+    | 'DYNAMO_EDITOR_CREATE_ITEM'
+    | 'ES_EDITOR_QUERY'
+    | 'ES_EDITOR_BROWSE',
 ) => {
+  if (value === 'ES_EDITOR_BROWSE' && !indexSelectValue.value) return;
   activePanel.value.editorType = value;
+  syncEsConnectUrl();
 };
 </script>
 

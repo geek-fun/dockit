@@ -894,11 +894,6 @@
       </Dialog>
     </div>
 
-    <IndexDocsBrowser
-      v-model:open="docsBrowserOpen"
-      :connection="searchConnection"
-      :index-name="selectedIndexName"
-    />
     <IndexSchemaDialog
       v-model:open="schemaDialogOpen"
       :connection="searchConnection"
@@ -961,7 +956,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import IndexDocsBrowser from './index-docs-browser.vue';
 import IndexSchemaDialog from './index-schema-dialog.vue';
 import { useRouter } from 'vue-router';
 import { useConnectionStore, useTabStore } from '../../../store';
@@ -1057,7 +1051,6 @@ const router = useRouter();
 const tabStore = useTabStore();
 const connectionStore = useConnectionStore();
 
-const docsBrowserOpen = ref(false);
 const schemaDialogOpen = ref(false);
 const selectedIndexName = ref('');
 
@@ -1066,9 +1059,19 @@ const searchConnection = computed(() => {
   return conn && isSearchConnection(conn) ? conn : undefined;
 });
 
-const openDocsBrowser = (indexName: string) => {
-  selectedIndexName.value = indexName;
-  docsBrowserOpen.value = true;
+const openDocsBrowser = async (indexName: string) => {
+  if (!searchConnection.value) return;
+  try {
+    await tabStore.establishPanel(searchConnection.value);
+    await connectionStore.selectIndex(searchConnection.value, indexName);
+    tabStore.activePanel.editorType = 'ES_EDITOR_BROWSE';
+    router.push({ path: '/connect', query: { index: indexName, view: 'browse' } });
+  } catch (err) {
+    message.error(
+      err instanceof CustomError ? err.details : err instanceof Error ? err.message : String(err),
+      { closable: true, keepAliveOnHover: true },
+    );
+  }
 };
 
 const openSchemaDialog = (indexName: string) => {
@@ -1096,8 +1099,9 @@ const openQueryForIndex = async (indexName: string) => {
     await tabStore.establishPanel(searchConnection.value);
     const query = esSampleQueries.search.replaceAll('{index}', indexName);
     tabStore.activePanel.content = query;
+    tabStore.activePanel.editorType = 'ES_EDITOR_QUERY';
     await connectionStore.selectIndex(searchConnection.value, indexName);
-    router.push('/connect');
+    router.push({ path: '/connect', query: { index: indexName, view: 'query' } });
   } catch (err) {
     message.error(
       err instanceof CustomError ? err.details : err instanceof Error ? err.message : String(err),

@@ -11,3 +11,4 @@ export * from './constants';
 export * from './retry';
 export * from './asyncUtils';
 export * from './featureFlags';
+export * from './connectQuery';

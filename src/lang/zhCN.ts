@@ -16,7 +16,6 @@ export const zhCN = {
   aside: {
     manage: '管理',
     connect: '连接',
-    viewDocs: '查看文档',
     file: '文件',
     history: '历史',
     github: 'GitHub',
@@ -1009,6 +1008,8 @@ export const zhCN = {
     showContextMenu: '显示上下文菜单',
     sampleQueries: '示例查询',
     es: {
+      query: '查询',
+      browse: '浏览',
       sampleClusterHealth: '集群健康',
       sampleClusterStats: '集群统计',
       sampleCatIndices: '索引列表',

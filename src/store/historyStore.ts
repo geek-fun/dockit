@@ -89,7 +89,9 @@ export const useHistoryStore = defineStore('historyStore', {
                 mongoResultCount: (entry as any).mongoResultCount ?? null,
                 historyCap: cap,
               });
-            } catch {}
+            } catch {
+              // Skip malformed legacy entries; continue migrating the rest.
+            }
           }
           // Clear old data regardless of failures to prevent duplicate entries on retry.
           await storeApi.set('queryHistory', []);

@@ -257,9 +257,7 @@ const browseFields = computed(() =>
   mergeBrowseFieldsWithHitKeys(mappingFields.value, hitKeys.value),
 );
 
-const searchableFields = computed(() =>
-  browseFields.value.filter(f => f.kind !== 'unsupported'),
-);
+const searchableFields = computed(() => browseFields.value.filter(f => f.kind !== 'unsupported'));
 
 const columns = computed(() => ['_id', ...[...hitKeys.value].sort((a, b) => a.localeCompare(b))]);
 
