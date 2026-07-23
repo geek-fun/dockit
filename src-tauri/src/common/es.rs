@@ -10,11 +10,27 @@ pub(crate) fn build_es_base_url(config: &Value) -> Result<String, String> {
         .get("port")
         .and_then(|v| v.as_u64())
         .ok_or("Missing port in connection config")?;
-    let host = host_raw.trim().trim_start_matches("http://").trim_start_matches("https://");
+    let trimmed = host_raw.trim();
+    let protocol_field = config.get("protocol").and_then(|v| v.as_str());
+    let protocol = if trimmed.starts_with("https://") {
+        "https"
+    } else if trimmed.starts_with("http://") {
+        "http"
+    } else if protocol_field == Some("https") {
+        "https"
+    } else if protocol_field == Some("http") {
+        "http"
+    } else if get_es_ssl_flag(config) {
+        "https"
+    } else {
+        "http"
+    };
+    let host = trimmed
+        .trim_start_matches("http://")
+        .trim_start_matches("https://");
     if host.is_empty() {
         return Err("Host is empty after trimming URL scheme".to_string());
     }
-    let protocol = if get_es_ssl_flag(config) { "https" } else { "http" };
     Ok(format!("{}://{}:{}", protocol, host, port))
 }
 
@@ -92,7 +108,41 @@ mod tests {
 
     #[test]
     fn test_build_es_base_url_http_when_ssl_flag_false() {
+        let config = json!({"host": "es.example.com", "port": 9200, "sslCertVerification": false});
+        assert_eq!(build_es_base_url(&config).unwrap(), "http://es.example.com:9200");
+    }
+
+    #[test]
+    fn test_build_es_base_url_prefers_https_scheme_over_ssl_flag() {
         let config = json!({"host": "https://es.example.com", "port": 9200, "sslCertVerification": false});
+        assert_eq!(build_es_base_url(&config).unwrap(), "https://es.example.com:9200");
+    }
+
+    #[test]
+    fn test_build_es_base_url_prefers_http_scheme() {
+        let config = json!({"host": "http://es.example.com", "port": 9200, "sslCertVerification": true});
+        assert_eq!(build_es_base_url(&config).unwrap(), "http://es.example.com:9200");
+    }
+
+    #[test]
+    fn test_build_es_base_url_uses_protocol_field_when_host_bare() {
+        let config = json!({
+            "host": "es.example.com",
+            "port": 9200,
+            "protocol": "https",
+            "sslCertVerification": false
+        });
+        assert_eq!(build_es_base_url(&config).unwrap(), "https://es.example.com:9200");
+    }
+
+    #[test]
+    fn test_build_es_base_url_protocol_http_overrides_ssl_flag() {
+        let config = json!({
+            "host": "es.example.com",
+            "port": 9200,
+            "protocol": "http",
+            "sslCertVerification": true
+        });
         assert_eq!(build_es_base_url(&config).unwrap(), "http://es.example.com:9200");
     }
 

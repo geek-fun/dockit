@@ -33,7 +33,6 @@
       <template v-else-if="panel.connection && panel.connection.type === DatabaseType.MONGODB">
         <div class="mongo-editor">
           <tool-bar
-            :ref="el => setToolBarRef(el, panel.id)"
             type="MONGO_EDITOR"
             @insert-sample-query="handleInsertMongoSampleQuery"
             @execute-mongo-query="handleExecuteMongoQuery"
