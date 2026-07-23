@@ -169,9 +169,9 @@ Issues and PRs welcome. Check the [contribution guide](CONTRIBUTION.md).
 ## Community
 
 <p align="center">
-  <img src="docs/images/wechat_group.jpg" width="140" alt="WeChat Group">
+  <img src="https://www.geekfun.club/wechat-group.jpg" width="140" alt="WeChat Group">
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="docs/images/wechat_official.png" width="140" alt="WeChat Official Account">
+  <img src="docs/images/wechat_official.png" width="300" alt="WeChat Official Account">
 </p>
 
 <p align="center">
