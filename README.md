@@ -8,18 +8,18 @@
 
 **Privacy-first. Your data, your keys. Open source.**
 
-[![Release](https://img.shields.io/github/v/release/geek-fun/dockit?color=orange&label=release&style=for-the-badge&logo=github)](https://github.com/geek-fun/dockit/releases)
-[![Downloads](https://img.shields.io/github/downloads/geek-fun/dockit/total?color=orange&style=for-the-badge&logo=docusign)](https://github.com/geek-fun/dockit/releases)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge&logo=apache)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/geek-fun/dockit?style=for-the-badge&logo=github)](https://github.com/geek-fun/dockit/stargazers)
-[![CI](https://github.com/geek-fun/dockit/actions/workflows/node.yml/badge.svg?style=for-the-badge)](https://github.com/geek-fun/dockit/actions/workflows/node.yml)
+[![Release](https://img.shields.io/github/v/release/geek-fun/dockit?color=orange&label=release&logo=github)](https://github.com/geek-fun/dockit/releases)
+[![Downloads](https://img.shields.io/github/downloads/geek-fun/dockit/total?color=orange&logo=docusign)](https://github.com/geek-fun/dockit/releases)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg&logo=apache)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/geek-fun/dockit&logo=github)](https://github.com/geek-fun/dockit/stargazers)
+[![CI](https://github.com/geek-fun/dockit/actions/workflows/node.yml/badge.svg)](https://github.com/geek-fun/dockit/actions/workflows/node.yml)
 
 <p>
-  <img src="https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white"/>
-  <img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black"/>
-  <img src="https://img.shields.io/badge/Tauri-FFC131?style=for-the-badge&logo=tauri&logoColor=black"/>
-  <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white"/>
+  <img src="https://img.shields.io/badge/macOS-000000&logo=apple&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Windows-0078D6&logo=windows&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Linux-FCC624&logo=linux&logoColor=black"/>
+  <img src="https://img.shields.io/badge/Tauri-FFC131&logo=tauri&logoColor=black"/>
+  <img src="https://img.shields.io/badge/Rust-000000&logo=rust&logoColor=white"/>
 </p>
 
 [Download](https://www.geekfun.club/download) · [Docs](https://www.geekfun.club/docs/dockit/) · [Website](https://www.geekfun.club/products/dockit/) · [Releases](https://github.com/geek-fun/dockit/releases)
@@ -48,17 +48,17 @@ DocKit replaces browser consoles like Kibana and AWS Console with a single nativ
 
 <a href="https://www.geekfun.club/download">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/Download-macOS_|_Windows_|_Linux-orange?style=for-the-badge&logo=download&logoColor=white">
-    <img src="https://img.shields.io/badge/Download-macOS_|_Windows_|_Linux-orange?style=for-the-badge&logo=download&logoColor=white" alt="Download">
+    <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/Download-macOS_|_Windows_|_Linux-orange&logo=download&logoColor=white">
+    <img src="https://img.shields.io/badge/Download-macOS_|_Windows_|_Linux-orange&logo=download&logoColor=white" alt="Download">
   </picture>
 </a>
 &nbsp;
 <a href="https://github.com/geek-fun/dockit/releases">
-  <img src="https://img.shields.io/badge/Releases-GitHub-lightgrey?style=for-the-badge&logo=github" alt="Releases">
+  <img src="https://img.shields.io/badge/Releases-GitHub-lightgrey&logo=github" alt="Releases">
 </a>
 &nbsp;
 <a href="https://www.geekfun.club/products/dockit/">
-  <img src="https://img.shields.io/badge/Website-geekfun.club-blue?style=for-the-badge&logo=google-chrome&logoColor=white" alt="Website">
+  <img src="https://img.shields.io/badge/Website-geekfun.club-blue&logo=google-chrome&logoColor=white" alt="Website">
 </a>
 
 ## Key Features
@@ -175,13 +175,13 @@ Issues and PRs welcome. Check the [contribution guide](CONTRIBUTION.md).
 </p>
 
 <p align="center">
-  <a href="https://discord.gg/5NSUyPK2E"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white&style=for-the-badge" alt="Discord" /></a>
+  <a href="https://discord.gg/5NSUyPK2E"><img src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white" alt="Discord" /></a>
   &nbsp;&nbsp;&nbsp;
-  <a href="https://x.com/geekfun_club"><img src="https://img.shields.io/badge/X-Follow-000000?logo=x&logoColor=white&style=for-the-badge" alt="X / Twitter" /></a>
+  <a href="https://x.com/geekfun_club"><img src="https://img.shields.io/badge/X-Follow-000000?logo=x&logoColor=white" alt="X / Twitter" /></a>
   &nbsp;&nbsp;&nbsp;
-  <a href="https://www.youtube.com/@geekfun-club"><img src="https://img.shields.io/badge/YouTube-Subscribe-FF0000?logo=youtube&logoColor=white&style=for-the-badge" alt="YouTube" /></a>
+  <a href="https://www.youtube.com/@geekfun-club"><img src="https://img.shields.io/badge/YouTube-Subscribe-FF0000?logo=youtube&logoColor=white" alt="YouTube" /></a>
   &nbsp;&nbsp;&nbsp;
-  <a href="https://github.com/geek-fun"><img src="https://img.shields.io/badge/GitHub-Follow-181717?logo=github&logoColor=white&style=for-the-badge" alt="GitHub" /></a>
+  <a href="https://github.com/geek-fun"><img src="https://img.shields.io/badge/GitHub-Follow-181717?logo=github&logoColor=white" alt="GitHub" /></a>
 </p>
 
 ## Sponsor
@@ -189,7 +189,7 @@ Issues and PRs welcome. Check the [contribution guide](CONTRIBUTION.md).
 <p align="center">
   <img src="docs/images/wechat_ponsor.jpg" width="140" alt="WeChat Sponsor QR">
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="https://github.com/sponsors/geek-fun"><img src="https://img.shields.io/badge/GitHub_Sponsors-%E2%9D%A4_Support-EA4AAA?logo=githubsponsors&logoColor=white&style=for-the-badge" alt="GitHub Sponsors" /></a>
+  <a href="https://github.com/sponsors/geek-fun"><img src="https://img.shields.io/badge/GitHub_Sponsors-%E2%9D%A4_Support-EA4AAA?logo=githubsponsors&logoColor=white" alt="GitHub Sponsors" /></a>
 </p>
 
 ## Star History
