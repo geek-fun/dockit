@@ -24,7 +24,9 @@ type Panel = {
     | 'DYNAMO_EDITOR_UI'
     | 'DYNAMO_EDITOR_SQL'
     | 'DYNAMO_EDITOR_CREATE_ITEM'
-    | 'MONGO_EDITOR';
+    | 'MONGO_EDITOR'
+    | 'ES_EDITOR_QUERY'
+    | 'ES_EDITOR_BROWSE';
 };
 
 const homePanel: Panel = { id: 0, name: 'home', file: '' };
@@ -83,6 +85,7 @@ export const useTabStore = defineStore('panel', {
 
         const isDynamoDB = connectionOrFile.type === DatabaseType.DYNAMODB;
         const isMongoDB = connectionOrFile.type === DatabaseType.MONGODB;
+        const isSearch = isSearchConnection(connectionOrFile);
         const fileExt = isDynamoDB ? '.partiql' : isMongoDB ? '.mongo' : '.search';
         let fileName = !exists.length
           ? `${connectionOrFile.name}${fileExt}`
@@ -99,7 +102,7 @@ export const useTabStore = defineStore('panel', {
           connection: connectionOrFile,
           file: fileInfo?.path,
           content,
-          editorType: isDynamoDB ? 'DYNAMO_EDITOR_UI' : undefined,
+          editorType: isDynamoDB ? 'DYNAMO_EDITOR_UI' : isSearch ? 'ES_EDITOR_QUERY' : undefined,
         };
 
         this.panels.push(newPanel);

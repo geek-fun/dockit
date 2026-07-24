@@ -848,3 +848,256 @@ describe('esApi.catShards', () => {
     await expect(esApi.catShards(baseConn)).rejects.toBeInstanceOf(CustomError);
   });
 });
+
+describe('esApi.getIndexMapping', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('fetches mapping for an index', async () => {
+    const mapping = { 'my-index': { mappings: { properties: { title: { type: 'text' } } } } };
+    const mockGet = jest.fn().mockResolvedValue(mapping);
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    await expect(esApi.getIndexMapping(baseConn, 'my-index')).resolves.toEqual(mapping);
+    expect(mockGet).toHaveBeenCalledWith('/my-index/_mapping', 'format=json');
+  });
+
+  it('rethrows CustomError unchanged', async () => {
+    const mockGet = jest.fn().mockRejectedValue(new CustomError(403, 'forbidden'));
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    await expect(esApi.getIndexMapping(baseConn, 'my-index')).rejects.toMatchObject({
+      status: 403,
+      details: 'forbidden',
+    });
+  });
+
+  it('wraps generic Error as CustomError 500', async () => {
+    const mockGet = jest.fn().mockRejectedValue(new Error('network down'));
+    loadHttpClient.mockReturnValue({ get: mockGet });
+
+    await expect(esApi.getIndexMapping(baseConn, 'my-index')).rejects.toMatchObject({
+      status: 500,
+      details: 'network down',
+    });
+  });
+});
+
+describe('esApi.searchIndexDocuments', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('posts search body with size, sort, and track_total_hits', async () => {
+    const mockPost = jest.fn().mockResolvedValue({
+      hits: {
+        total: { value: 1 },
+        hits: [{ _id: '1', _index: 'idx', _source: { a: 1 }, sort: [0] }],
+      },
+    });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    const result = await esApi.searchIndexDocuments(baseConn, { indexName: 'idx', size: 25 });
+
+    expect(mockPost).toHaveBeenCalledWith('/idx/_search', undefined, expect.any(String));
+    const body = JSON.parse(mockPost.mock.calls[0][2]);
+    expect(body).toEqual({
+      size: 25,
+      sort: [{ _doc: 'asc' }],
+      track_total_hits: true,
+    });
+    expect(result.hits).toHaveLength(1);
+    expect(result.total).toBe(1);
+    expect(result.nextSearchAfter).toBeUndefined();
+  });
+
+  it('includes search_after and query when provided', async () => {
+    const mockPost = jest.fn().mockResolvedValue({ hits: { total: 0, hits: [] } });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await esApi.searchIndexDocuments(baseConn, {
+      indexName: 'idx',
+      size: 10,
+      searchAfter: [42],
+      query: { match_all: {} },
+    });
+
+    const body = JSON.parse(mockPost.mock.calls[0][2]);
+    expect(body.search_after).toEqual([42]);
+    expect(body.query).toEqual({ match_all: {} });
+  });
+
+  it('omits search_after when empty', async () => {
+    const mockPost = jest.fn().mockResolvedValue({ hits: { total: 0, hits: [] } });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await esApi.searchIndexDocuments(baseConn, {
+      indexName: 'idx',
+      size: 10,
+      searchAfter: [],
+    });
+
+    const body = JSON.parse(mockPost.mock.calls[0][2]);
+    expect(body.search_after).toBeUndefined();
+  });
+
+  it('maps hit defaults and numeric total', async () => {
+    const mockPost = jest.fn().mockResolvedValue({
+      hits: {
+        total: 2,
+        hits: [{}, { _id: 'b', _source: { x: 1 }, sort: [1] }],
+      },
+    });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    const result = await esApi.searchIndexDocuments(baseConn, { indexName: 'idx', size: 25 });
+
+    expect(result.hits[0]).toEqual({
+      _id: '',
+      _index: 'idx',
+      _score: null,
+      _source: {},
+      sort: undefined,
+    });
+    expect(result.hits[1]._id).toBe('b');
+    expect(result.total).toBe(2);
+  });
+
+  it('falls back total to hits.length when total missing', async () => {
+    const mockPost = jest.fn().mockResolvedValue({
+      hits: {
+        hits: [{ _id: 'a', sort: [0] }],
+      },
+    });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    const result = await esApi.searchIndexDocuments(baseConn, { indexName: 'idx', size: 25 });
+    expect(result.total).toBe(1);
+  });
+
+  it('returns nextSearchAfter when page is full and last hit has sort', async () => {
+    const mockPost = jest.fn().mockResolvedValue({
+      hits: {
+        total: { value: 100 },
+        hits: [
+          { _id: '1', sort: [10] },
+          { _id: '2', sort: [20] },
+        ],
+      },
+    });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    const result = await esApi.searchIndexDocuments(baseConn, { indexName: 'idx', size: 2 });
+    expect(result.nextSearchAfter).toEqual([20]);
+  });
+
+  it('throws CustomError when response status >= 300', async () => {
+    const mockPost = jest.fn().mockResolvedValue({
+      status: 400,
+      error: { type: 'search_phase_execution_exception', reason: 'all shards failed' },
+    });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await expect(
+      esApi.searchIndexDocuments(baseConn, { indexName: 'idx', size: 10 }),
+    ).rejects.toMatchObject({
+      status: 400,
+      details: 'search_phase_execution_exception: all shards failed',
+    });
+  });
+
+  it('wraps unexpected thrown error as CustomError', async () => {
+    const mockPost = jest.fn().mockRejectedValue(new Error('timeout'));
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await expect(
+      esApi.searchIndexDocuments(baseConn, { indexName: 'idx', size: 10 }),
+    ).rejects.toMatchObject({ status: 500, details: 'timeout' });
+  });
+});
+
+describe('esApi.aggregateFieldValues', () => {
+  const { loadHttpClient } = require('../../src/datasources/fetchApi.ts');
+  const baseConn = { type: 'ELASTICSEARCH', version: '8.0.0' } as never;
+
+  it('requests terms aggregation with default size 50', async () => {
+    const mockPost = jest.fn().mockResolvedValue({
+      aggregations: {
+        field_values: {
+          buckets: [
+            { key: 'Functional', doc_count: 3 },
+            { key: 'Unknown', doc_count: 1 },
+          ],
+        },
+      },
+    });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    const result = await esApi.aggregateFieldValues(baseConn, {
+      indexName: 'idx',
+      field: 'category.keyword',
+    });
+
+    expect(mockPost).toHaveBeenCalledWith('/idx/_search', undefined, expect.any(String));
+    const body = JSON.parse(mockPost.mock.calls[0][2]);
+    expect(body).toEqual({
+      size: 0,
+      aggs: {
+        field_values: {
+          terms: { field: 'category.keyword', size: 50, order: { _key: 'asc' } },
+        },
+      },
+    });
+    expect(result).toEqual([
+      { value: 'Functional', count: 3 },
+      { value: 'Unknown', count: 1 },
+    ]);
+  });
+
+  it('supports custom size and query', async () => {
+    const mockPost = jest
+      .fn()
+      .mockResolvedValue({ aggregations: { field_values: { buckets: [] } } });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await esApi.aggregateFieldValues(baseConn, {
+      indexName: 'idx',
+      field: 'status',
+      size: 10,
+      query: { term: { active: true } },
+    });
+
+    const body = JSON.parse(mockPost.mock.calls[0][2]);
+    expect(body.aggs.field_values.terms.size).toBe(10);
+    expect(body.query).toEqual({ term: { active: true } });
+  });
+
+  it('returns empty array when buckets missing', async () => {
+    const mockPost = jest.fn().mockResolvedValue({});
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await expect(
+      esApi.aggregateFieldValues(baseConn, { indexName: 'idx', field: 'x' }),
+    ).resolves.toEqual([]);
+  });
+
+  it('throws CustomError when response status >= 300', async () => {
+    const mockPost = jest.fn().mockResolvedValue({
+      status: 500,
+      error: { type: 'error', reason: 'Failed to fetch API' },
+    });
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await expect(
+      esApi.aggregateFieldValues(baseConn, { indexName: 'idx', field: 'x' }),
+    ).rejects.toMatchObject({ status: 500 });
+  });
+
+  it('wraps unexpected thrown error as CustomError', async () => {
+    const mockPost = jest.fn().mockRejectedValue(new Error('boom'));
+    loadHttpClient.mockReturnValue({ post: mockPost });
+
+    await expect(
+      esApi.aggregateFieldValues(baseConn, { indexName: 'idx', field: 'x' }),
+    ).rejects.toMatchObject({ status: 500, details: 'boom' });
+  });
+});

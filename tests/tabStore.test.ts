@@ -224,7 +224,7 @@ describe('establishPanel - connection', () => {
     expect(panel.connection).toStrictEqual(mongoConn);
   });
 
-  it('creates Search panel with no editorType and default code snippet content', async () => {
+  it('creates Search panel with ES_EDITOR_QUERY and default code snippet content', async () => {
     const { isSearchConnection } = require('../src/store/connectionStore');
     isSearchConnection.mockReturnValue(true);
 
@@ -235,10 +235,29 @@ describe('establishPanel - connection', () => {
     await store.establishPanel(searchConn);
 
     const panel = store.panels[1];
-    expect(panel.editorType).toBeUndefined();
+    expect(panel.editorType).toBe('ES_EDITOR_QUERY');
     expect(panel.content).toBe('default code snippet');
     expect(panel.name).toBe('mySearch.search');
     expect(panel.connection).toStrictEqual(searchConn);
+  });
+
+  it('creates OpenSearch panel with ES_EDITOR_QUERY', async () => {
+    const { isSearchConnection } = require('../src/store/connectionStore');
+    isSearchConnection.mockReturnValue(true);
+
+    const { sourceFileApi } = require('../src/datasources');
+    sourceFileApi.getPathInfo.mockResolvedValue(undefined);
+
+    const openSearchConn = {
+      ...searchConn,
+      type: DatabaseType.OPENSEARCH as const,
+      isOpenSearch: true,
+    };
+
+    const store = useTabStore();
+    await store.establishPanel(openSearchConn);
+
+    expect(store.panels[1].editorType).toBe('ES_EDITOR_QUERY');
   });
 
   it('reads file content from disk when file exists for connection panel', async () => {

@@ -33,7 +33,6 @@
       <template v-else-if="panel.connection && panel.connection.type === DatabaseType.MONGODB">
         <div class="mongo-editor">
           <tool-bar
-            :ref="el => setToolBarRef(el, panel.id)"
             type="MONGO_EDITOR"
             @insert-sample-query="handleInsertMongoSampleQuery"
             @execute-mongo-query="handleExecuteMongoQuery"
@@ -45,14 +44,7 @@
       </template>
       <template v-else>
         <div class="es-editor">
-          <tool-bar
-            :ref="el => setToolBarRef(el, panel.id)"
-            type="ES_EDITOR"
-            @insert-sample-query="handleInsertSampleQuery"
-          />
-          <div class="es-editor-container">
-            <es-editor :ref="el => setEditorRef(el, panel.id)" />
-          </div>
+          <es-editor :ref="el => setEditorRef(el, panel.id)" />
         </div>
       </template>
     </TabsContent>
@@ -63,14 +55,20 @@
 import { storeToRefs } from 'pinia';
 import { X } from 'lucide-vue-next';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Connection, DatabaseType, useTabStore, useDbDataStore } from '../../store';
+import {
+  Connection,
+  DatabaseType,
+  isSearchConnection,
+  useConnectionStore,
+  useTabStore,
+  useDbDataStore,
+} from '../../store';
 import ConnectList from './components/connect-list.vue';
 import EsEditor from '../editor/es-editor/index.vue';
 import DynamoEditor from '../editor/dynamo-editor/index.vue';
 import MongoEditor from '../editor/mongo-editor/index.vue';
-import ToolBar from '../../components/tool-bar.vue';
 import { useLang } from '../../lang';
-import { CustomError } from '../../common';
+import { CustomError, editorTypeFromConnectView, parseConnectRouteQuery } from '../../common';
 import { useDialogService, useMessageService, setupGlobalShortcuts } from '@/composables';
 
 const route = useRoute();
@@ -79,13 +77,14 @@ const message = useMessageService();
 const lang = useLang();
 
 const tabStore = useTabStore();
+const connectionStore = useConnectionStore();
 const { establishPanel, closePanel, setActivePanel, checkFileExists } = tabStore;
+const { selectIndex } = connectionStore;
 const { panels, activePanel } = storeToRefs(tabStore);
 
 const dbDataStore = useDbDataStore();
 
 const esEditorRefs = new Map<number, InstanceType<typeof EsEditor>>();
-const toolBarRefs = new Map<number, InstanceType<typeof ToolBar>>();
 const dynamoEditorRefs = new Map<number, InstanceType<typeof DynamoEditor>>();
 const mongoEditorRefs = new Map<number, InstanceType<typeof MongoEditor>>();
 let cleanupGlobalShortcuts: (() => void) | null = null;
@@ -95,14 +94,6 @@ const setEditorRef = (el: any, panelId: number) => {
     esEditorRefs.set(panelId, el);
   } else {
     esEditorRefs.delete(panelId);
-  }
-};
-
-const setToolBarRef = (el: any, panelId: number) => {
-  if (el) {
-    toolBarRefs.set(panelId, el);
-  } else {
-    toolBarRefs.delete(panelId);
   }
 };
 
@@ -122,11 +113,6 @@ const setMongoEditorRef = (el: any, panelId: number) => {
   }
 };
 
-const handleInsertSampleQuery = (query: string) => {
-  const editor = esEditorRefs.get(activePanel.value.id);
-  editor?.insertSampleQuery(query);
-};
-
 const handleInsertMongoSampleQuery = (query: string) => {
   const editor = mongoEditorRefs.get(activePanel.value.id);
   editor?.insertSampleQuery(query);
@@ -137,11 +123,25 @@ const handleExecuteMongoQuery = () => {
   editor?.executeCurrentStatement();
 };
 
+const applyConnectQueryParams = async () => {
+  const { index, view } = parseConnectRouteQuery(route.query);
+  const conn = activePanel.value.connection;
+  if (!conn || !isSearchConnection(conn)) return;
+
+  if (index) {
+    await selectIndex(conn, index);
+  }
+  const editorType = editorTypeFromConnectView(view);
+  if (editorType) {
+    activePanel.value.editorType = editorType;
+  }
+};
+
 const handleToggleShortcutsDialog = () => {
   const panelId = activePanel.value.id;
-  const esToolBar = toolBarRefs.get(panelId);
-  if (esToolBar) {
-    esToolBar.toggleShortcutsDialog();
+  const esEditor = esEditorRefs.get(panelId);
+  if (esEditor) {
+    esEditor.toggleShortcutsDialog();
   } else if (dynamoEditorRefs.has(panelId)) {
     dynamoEditorRefs.get(panelId)?.toggleShortcutsDialog();
   }
@@ -217,7 +217,16 @@ onMounted(async () => {
   if (route.params.filePath && route.params.filePath !== ':filePath') {
     await establishPanel(route.params.filePath as string);
   }
+
+  await applyConnectQueryParams();
 });
+
+watch(
+  () => route.query,
+  () => {
+    applyConnectQueryParams();
+  },
+);
 
 onUnmounted(() => {
   cleanupGlobalShortcuts?.();
@@ -289,12 +298,6 @@ onUnmounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-}
-
-.es-editor-container {
-  flex: 1;
-  overflow: hidden;
-  position: relative;
 }
 
 .dynamo-editor {

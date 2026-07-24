@@ -1,75 +1,18 @@
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+use data_studio_agent::storage::db::AgentDb;
 
-pub struct AgentDb(pub Arc<Mutex<rusqlite::Connection>>);
-
-impl Clone for AgentDb {
-    fn clone(&self) -> Self {
-        AgentDb(Arc::clone(&self.0))
-    }
-}
-
-pub fn open(path: &Path) -> Result<AgentDb, String> {
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create db dir: {}", e))?;
-    }
-    let conn =
-        rusqlite::Connection::open(path).map_err(|e| format!("Failed to open database: {}", e))?;
-    conn.execute_batch("PRAGMA foreign_keys = ON;")
-        .map_err(|e| format!("Failed to set pragma: {}", e))?;
-    Ok(AgentDb(Arc::new(Mutex::new(conn))))
-}
-
-pub fn get_schema_version(db: &AgentDb) -> Result<i32, String> {
-    let conn =
-        db.0.lock()
-            .map_err(|e| format!("Failed to lock db: {}", e))?;
-    conn.query_row("PRAGMA user_version", [], |row| row.get(0))
-        .map_err(|e| format!("Failed to read user_version: {}", e))
-}
-
-pub fn migrate(db: &AgentDb) -> Result<(), String> {
-    let conn =
-        db.0.lock()
-            .map_err(|e| format!("Failed to lock db: {}", e))?;
+/// Ensures DocKit-owned `query_history` exists on the shared agent.sqlite.
+/// Called after `data_studio_agent::storage::db::migrate`, which does not create this table.
+///
+/// Also re-applies the agent schema v1 migration (idempotent) as a safety net for
+/// databases that may predate the move of those migrations into `data_studio_agent`.
+pub fn ensure_query_history(db: &AgentDb) -> Result<(), String> {
+    let conn = db
+        .0
+        .lock()
+        .map_err(|e| format!("Failed to lock db: {}", e))?;
 
     conn.execute_batch(
         r#"
-        CREATE TABLE IF NOT EXISTS agent_sessions (
-            id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'idle',
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS agent_messages (
-            id TEXT PRIMARY KEY,
-            session_id TEXT NOT NULL,
-            role TEXT NOT NULL,
-            content TEXT NOT NULL,
-            created_at INTEGER NOT NULL,
-            FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS agent_tool_calls (
-            id TEXT PRIMARY KEY,
-            message_id TEXT NOT NULL,
-            session_id TEXT NOT NULL,
-            tool_name TEXT NOT NULL,
-            arguments TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            created_at INTEGER NOT NULL,
-            FOREIGN KEY (message_id) REFERENCES agent_messages(id) ON DELETE CASCADE
-        );
-        CREATE TABLE IF NOT EXISTS tool_result_store (
-            id TEXT PRIMARY KEY,
-            tool_call_id TEXT NOT NULL,
-            full_result TEXT NOT NULL,
-            created_at INTEGER NOT NULL,
-            FOREIGN KEY (tool_call_id) REFERENCES agent_tool_calls(id) ON DELETE CASCADE
-        );
-        CREATE INDEX IF NOT EXISTS idx_agent_messages_session ON agent_messages(session_id, created_at);
-        CREATE INDEX IF NOT EXISTS idx_agent_tool_calls_session ON agent_tool_calls(session_id);
-        CREATE INDEX IF NOT EXISTS idx_tool_result_store_call ON tool_result_store(tool_call_id);
         CREATE TABLE IF NOT EXISTS query_history (
             id TEXT PRIMARY KEY,
             timestamp INTEGER NOT NULL,
@@ -92,59 +35,179 @@ pub fn migrate(db: &AgentDb) -> Result<(), String> {
         DELETE FROM query_history WHERE connection_id IS NULL;
         "#,
     )
-    .map_err(|e| format!("Failed to create initial tables: {}", e))?;
+    .map_err(|e| format!("Failed to ensure query_history table: {}", e))?;
 
+    ensure_agent_schema_v1(&conn)?;
+
+    Ok(())
+}
+
+/// Agent schema v1: session columns + confirmation_rules + attached_sources.
+/// Safe to run after `storage::db::migrate` — skipped when `user_version >= 1`.
+fn ensure_agent_schema_v1(conn: &rusqlite::Connection) -> Result<(), String> {
     let current_version: i32 = conn
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .map_err(|e| format!("Failed to read user_version: {}", e))?;
 
-    if current_version < 1 {
-        // Individual ALTER TABLE calls so a partially-applied migration
-        // (column already exists) does not abort the whole batch.
-        let alter_statements = [
-            "ALTER TABLE agent_sessions ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'",
-            "ALTER TABLE agent_sessions ADD COLUMN permissions_mode TEXT NOT NULL DEFAULT 'Ask'",
-            "ALTER TABLE agent_sessions ADD COLUMN model_id TEXT",
-        ];
-
-        for stmt in &alter_statements {
-            if let Err(e) = conn.execute(stmt, []) {
-                // Likely "duplicate column" — the column was already added
-                // by a previous partial migration. Log and continue.
-                log::warn!("[db/migrate] column may already exist: {e}");
-            }
-        }
-
-        conn.execute_batch(
-            r#"
-            CREATE TABLE IF NOT EXISTS confirmation_rules (
-                id TEXT PRIMARY KEY,
-                session_id TEXT NOT NULL,
-                tool_name TEXT NOT NULL,
-                action TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE,
-                UNIQUE(session_id, tool_name)
-            );
-            CREATE TABLE IF NOT EXISTS attached_sources (
-                id TEXT PRIMARY KEY,
-                kind TEXT NOT NULL,
-                alias TEXT,
-                name TEXT,
-                database_type TEXT,
-                file_type TEXT,
-                file_path TEXT,
-                connection_id INTEGER,
-                created_at INTEGER NOT NULL,
-                updated_at INTEGER NOT NULL
-            );
-            "#,
-        )
-        .map_err(|e| format!("Failed to create version-1 tables: {e}"))?;
-
-        conn.execute_batch("PRAGMA user_version = 1;")
-            .map_err(|e| format!("Failed to set user_version: {e}"))?;
+    if current_version >= 1 {
+        return Ok(());
     }
 
+    // Individual ALTER TABLE calls so a partially-applied migration
+    // (column already exists) does not abort the whole batch.
+    let alter_statements = [
+        "ALTER TABLE agent_sessions ADD COLUMN sources TEXT NOT NULL DEFAULT '[]'",
+        "ALTER TABLE agent_sessions ADD COLUMN permissions_mode TEXT NOT NULL DEFAULT 'Ask'",
+        "ALTER TABLE agent_sessions ADD COLUMN model_id TEXT",
+    ];
+
+    for stmt in &alter_statements {
+        if let Err(e) = conn.execute(stmt, []) {
+            // Likely "duplicate column" — the column was already added
+            // by a previous partial migration. Log and continue.
+            log::warn!("[db/migrate] column may already exist: {e}");
+        }
+    }
+
+    conn.execute_batch(
+        r#"
+        CREATE TABLE IF NOT EXISTS confirmation_rules (
+            id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            tool_name TEXT NOT NULL,
+            action TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY (session_id) REFERENCES agent_sessions(id) ON DELETE CASCADE,
+            UNIQUE(session_id, tool_name)
+        );
+        CREATE TABLE IF NOT EXISTS attached_sources (
+            id TEXT PRIMARY KEY,
+            kind TEXT NOT NULL,
+            alias TEXT,
+            name TEXT,
+            database_type TEXT,
+            file_type TEXT,
+            file_path TEXT,
+            connection_id INTEGER,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        "#,
+    )
+    .map_err(|e| format!("Failed to create version-1 tables: {e}"))?;
+
+    conn.execute_batch("PRAGMA user_version = 1;")
+        .map_err(|e| format!("Failed to set user_version: {e}"))?;
+
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use data_studio_agent::storage::db as storage_db;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn open_temp_db() -> AgentDb {
+        let path = std::env::temp_dir().join(format!(
+            "dockit-qh-{}.sqlite",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_file(&path);
+        storage_db::open(&path).expect("open db")
+    }
+
+    #[test]
+    fn ensure_query_history_creates_table_and_is_idempotent() {
+        let db = open_temp_db();
+        ensure_query_history(&db).unwrap();
+        ensure_query_history(&db).unwrap();
+
+        let conn = db.0.lock().unwrap();
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='query_history'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(n, 1);
+    }
+
+    #[test]
+    fn ensure_query_history_deletes_null_connection_rows() {
+        let db = open_temp_db();
+        ensure_query_history(&db).unwrap();
+
+        {
+            let conn = db.0.lock().unwrap();
+            conn.execute(
+                "INSERT INTO query_history (id, timestamp, method, connection_name, connection_id)
+                 VALUES ('a', 1, 'GET', 'c', NULL)",
+                [],
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO query_history (id, timestamp, method, connection_name, connection_id)
+                 VALUES ('b', 2, 'GET', 'c', 'conn-1')",
+                [],
+            )
+            .unwrap();
+        }
+
+        ensure_query_history(&db).unwrap();
+
+        let conn = db.0.lock().unwrap();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM query_history", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 1);
+
+        let remaining_id: String = conn
+            .query_row("SELECT id FROM query_history", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(remaining_id, "b");
+    }
+
+    #[test]
+    fn ensure_query_history_applies_agent_schema_v1_when_needed() {
+        let db = open_temp_db();
+        // Create base agent_sessions without v1 columns so our safety-net path can run.
+        {
+            let conn = db.0.lock().unwrap();
+            conn.execute_batch(
+                r#"
+                CREATE TABLE agent_sessions (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'idle',
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );
+                PRAGMA user_version = 0;
+                "#,
+            )
+            .unwrap();
+        }
+
+        ensure_query_history(&db).unwrap();
+
+        let conn = db.0.lock().unwrap();
+        let version: i32 = conn
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 1);
+
+        let rules: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='confirmation_rules'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(rules, 1);
+    }
 }

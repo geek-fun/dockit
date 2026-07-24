@@ -70,6 +70,7 @@ declare module 'vue' {
     Icon: typeof import('./src/components/ui/icon/Icon.vue')['default']
     Input: typeof import('./src/components/ui/input/Input.vue')['default']
     InputNumber: typeof import('./src/components/ui/input-number/InputNumber.vue')['default']
+    JsonValueDialog: typeof import('./src/components/json-value-dialog.vue')['default']
     Label: typeof import('./src/components/ui/label/Label.vue')['default']
     LoadingBar: typeof import('./src/components/ui/loading-bar/LoadingBar.vue')['default']
     MarkdownRender: typeof import('./src/components/markdown-render.vue')['default']

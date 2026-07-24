@@ -10,6 +10,7 @@ pub mod agent;
 pub mod agent_adapters;
 pub mod capabilities;
 pub mod common;
+pub mod db;
 pub mod dynamo;
 pub mod dynamo_client;
 pub mod fetch_client;
@@ -177,6 +178,7 @@ pub fn run() {
             let db_path = app_data_dir.join("agent.sqlite");
             let agent_db = storage::db::open(&db_path)?;
             storage::db::migrate(&agent_db)?;
+            db::ensure_query_history(&agent_db)?;
             {
                 let conn = agent_db.0.lock().map_err(|e| e.to_string())?;
                 storage::db::recover_stuck_sessions(&conn)?;

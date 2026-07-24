@@ -60,7 +60,17 @@ fn normalize_config(connection: Value) -> Result<Value, String> {
 fn normalize_es(conn: Value) -> Value {
     let mut config = serde_json::Map::new();
     if let Some(v) = conn.get("host").and_then(|v| v.as_str()) {
-        let clean = v.trim_start_matches("http://").trim_start_matches("https://");
+        let trimmed = v.trim();
+        // Preserve URL scheme separately — sslCertVerification controls cert
+        // verification only, not http vs https. Host is stored bare for SSH.
+        if trimmed.starts_with("https://") {
+            config.insert("protocol".to_string(), Value::String("https".to_string()));
+        } else if trimmed.starts_with("http://") {
+            config.insert("protocol".to_string(), Value::String("http".to_string()));
+        }
+        let clean = trimmed
+            .trim_start_matches("http://")
+            .trim_start_matches("https://");
         config.insert("host".to_string(), Value::String(clean.to_string()));
     }
     if let Some(v) = conn.get("port") {
@@ -228,6 +238,7 @@ mod tests {
         let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "http://es.host", "port": 9200});
         let cfg = normalize_es(conn);
         assert_eq!(cfg.get("host").unwrap(), "es.host");
+        assert_eq!(cfg.get("protocol").unwrap(), "http");
     }
 
     #[test]
@@ -235,6 +246,7 @@ mod tests {
         let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "https://es.host", "port": 9200});
         let cfg = normalize_es(conn);
         assert_eq!(cfg.get("host").unwrap(), "es.host");
+        assert_eq!(cfg.get("protocol").unwrap(), "https");
     }
 
     #[test]
@@ -242,6 +254,22 @@ mod tests {
         let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "es.host", "port": 9200});
         let cfg = normalize_es(conn);
         assert_eq!(cfg.get("host").unwrap(), "es.host");
+        assert!(cfg.get("protocol").is_none());
+    }
+
+    #[test]
+    fn test_normalize_es_https_scheme_independent_of_ssl_flag() {
+        let conn = json!({
+            "id": 1,
+            "type": "ELASTICSEARCH",
+            "host": "https://es.host",
+            "port": 9200,
+            "sslCertVerification": false,
+        });
+        let cfg = normalize_es(conn);
+        assert_eq!(cfg.get("host").unwrap(), "es.host");
+        assert_eq!(cfg.get("protocol").unwrap(), "https");
+        assert_eq!(cfg.get("sslCertVerification").unwrap(), false);
     }
 
     #[test]
