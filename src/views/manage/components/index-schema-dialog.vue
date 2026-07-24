@@ -1,6 +1,6 @@
 <template>
   <Dialog :open="open" @update:open="emit('update:open', $event)">
-    <DialogContent class="sm:max-w-[800px] max-h-[85vh] flex flex-col">
+    <DialogContent class="sm:max-w-[800px] h-[78vh] flex flex-col">
       <DialogHeader>
         <DialogTitle>
           {{ $t('manage.schema.title') }}
@@ -12,34 +12,40 @@
         <Spinner class="mx-auto" />
       </div>
 
-      <template v-else-if="errorMessage">
+      <div v-else-if="errorMessage" class="schema-error">
         <p class="text-destructive text-sm">{{ errorMessage }}</p>
-      </template>
+      </div>
 
-      <template v-else>
-        <div class="schema-toolbar">
-          <Button size="sm" variant="outline" @click="handleCopy">
-            <span class="i-carbon-copy h-3.5 w-3.5 mr-1.5" />
-            {{ $t('manage.schema.copy') }}
-          </Button>
-        </div>
-        <div class="schema-body macos-scrollable">
-          <pre class="schema-pre"><code>{{ formatted }}</code></pre>
-        </div>
-      </template>
+      <div v-else ref="schemaEditorRef" class="schema-editor macos-scrollable" />
+
+      <DialogFooter>
+        <Button size="sm" :disabled="!mapping" @click="handleCopy">
+          <span class="i-carbon-copy h-3.5 w-3.5 mr-1.5" />
+          {{ $t('manage.schema.copy') }}
+        </Button>
+      </DialogFooter>
     </DialogContent>
   </Dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { computed, ref, watch, nextTick, onUnmounted } from 'vue';
+import { storeToRefs } from 'pinia';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { CustomError, jsonify } from '@/common';
+import { Editor, monaco } from '@/common/monaco';
 import { esApi } from '@/datasources';
 import { useLang } from '@/lang';
 import { useMessageService } from '@/composables';
+import { useAppStore } from '@/store';
 import type { SearchConnection } from '@/store';
 
 const props = defineProps<{
@@ -54,10 +60,17 @@ const emit = defineEmits<{
 
 const lang = useLang();
 const message = useMessageService();
+const appStore = useAppStore();
+const { getEditorTheme, getEditorOptions } = appStore;
+const { themeType, editorConfig } = storeToRefs(appStore);
 
 const loading = ref(false);
 const errorMessage = ref('');
 const mapping = ref<unknown>(null);
+const schemaEditorRef = ref<HTMLElement>();
+
+let schemaEditor: Editor | null = null;
+let editorInitialized = false;
 
 const formatted = computed(() => {
   if (mapping.value === null || mapping.value === undefined) return '';
@@ -67,6 +80,39 @@ const formatted = computed(() => {
     return String(mapping.value);
   }
 });
+
+const initEditor = async () => {
+  if (editorInitialized || !schemaEditorRef.value) return;
+
+  await nextTick();
+  if (!schemaEditorRef.value) return;
+
+  const editorOptions = getEditorOptions();
+  schemaEditor = monaco.editor.create(schemaEditorRef.value, {
+    theme: getEditorTheme(),
+    value: '',
+    language: 'json',
+    automaticLayout: true,
+    readOnly: true,
+    scrollBeyondLastLine: false,
+    minimap: { enabled: false },
+    lineNumbers: 'off',
+    folding: true,
+    ...editorOptions,
+  });
+  schemaEditor.getModel()?.updateOptions({
+    tabSize: editorOptions.tabSize,
+    insertSpaces: editorOptions.insertSpaces,
+  });
+  editorInitialized = true;
+};
+
+const updateEditorContent = () => {
+  if (!schemaEditor) return;
+  const model = schemaEditor.getModel();
+  if (!model) return;
+  model.setValue(formatted.value);
+};
 
 const loadMapping = async () => {
   if (!props.connection || !props.indexName) return;
@@ -96,12 +142,43 @@ const handleCopy = async () => {
 
 watch(
   () => [props.open, props.indexName, props.connection?.id] as const,
-  ([isOpen]) => {
+  async ([isOpen]) => {
     if (isOpen) {
-      void loadMapping();
+      await loadMapping();
+      await initEditor();
+      await nextTick();
+      updateEditorContent();
     }
   },
 );
+
+watch(formatted, () => {
+  updateEditorContent();
+});
+
+watch(themeType, () => {
+  const vsTheme = getEditorTheme();
+  schemaEditor?.updateOptions({ theme: vsTheme });
+});
+
+watch(
+  editorConfig,
+  () => {
+    const options = getEditorOptions();
+    schemaEditor?.updateOptions(options);
+    schemaEditor?.getModel()?.updateOptions({
+      tabSize: options.tabSize,
+      insertSpaces: options.insertSpaces,
+    });
+  },
+  { deep: true },
+);
+
+onUnmounted(() => {
+  schemaEditor?.dispose();
+  schemaEditor = null;
+  editorInitialized = false;
+});
 </script>
 
 <style scoped>
@@ -112,36 +189,23 @@ watch(
   font-size: 0.875rem;
 }
 
-.schema-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.5rem;
-}
-
-.schema-loading {
+.schema-loading,
+.schema-error {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 12rem;
 }
 
-.schema-body {
-  flex: 1;
-  min-height: 0;
-  max-height: 60vh;
-  overflow: auto;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.375rem;
-  background: hsl(var(--muted) / 0.35);
+.schema-error p {
+  padding: 1rem;
 }
 
-.schema-pre {
-  margin: 0;
-  padding: 0.75rem 1rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-word;
+.schema-editor {
+  flex: 1;
+  min-height: 300px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  overflow: hidden;
 }
 </style>

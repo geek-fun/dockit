@@ -1074,6 +1074,23 @@ const openDocsBrowser = async (indexName: string) => {
   }
 };
 
+const openQueryForIndex = async (indexName: string) => {
+  if (!searchConnection.value) return;
+  try {
+    await tabStore.establishPanel(searchConnection.value);
+    const query = esSampleQueries.search.replaceAll('{index}', indexName);
+    tabStore.activePanel.content = query;
+    tabStore.activePanel.editorType = 'ES_EDITOR_QUERY';
+    await connectionStore.selectIndex(searchConnection.value, indexName);
+    router.push({ path: '/connect', query: { index: indexName, view: 'query' } });
+  } catch (err) {
+    message.error(
+      err instanceof CustomError ? err.details : err instanceof Error ? err.message : String(err),
+      { closable: true, keepAliveOnHover: true },
+    );
+  }
+};
+
 const openSchemaDialog = (indexName: string) => {
   selectedIndexName.value = indexName;
   schemaDialogOpen.value = true;
@@ -1085,23 +1102,6 @@ const copyIndexSchema = async (indexName: string) => {
     const mapping = await esApi.getIndexMapping(searchConnection.value, indexName);
     await navigator.clipboard.writeText(jsonify.stringify(mapping, null, 2));
     message.success(lang.t('manage.schema.copied'));
-  } catch (err) {
-    message.error(
-      err instanceof CustomError ? err.details : err instanceof Error ? err.message : String(err),
-      { closable: true, keepAliveOnHover: true },
-    );
-  }
-};
-
-const openQueryForIndex = async (indexName: string) => {
-  if (!searchConnection.value) return;
-  try {
-    await tabStore.establishPanel(searchConnection.value);
-    const query = esSampleQueries.search.replaceAll('{index}', indexName);
-    tabStore.activePanel.content = query;
-    tabStore.activePanel.editorType = 'ES_EDITOR_QUERY';
-    await connectionStore.selectIndex(searchConnection.value, indexName);
-    router.push({ path: '/connect', query: { index: indexName, view: 'query' } });
   } catch (err) {
     message.error(
       err instanceof CustomError ? err.details : err instanceof Error ? err.message : String(err),
