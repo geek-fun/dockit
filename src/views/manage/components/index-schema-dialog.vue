@@ -19,7 +19,7 @@
       <div v-else ref="schemaEditorRef" class="schema-editor macos-scrollable" />
 
       <DialogFooter>
-        <Button size="sm" @click="handleCopy" :disabled="!mapping">
+        <Button size="sm" :disabled="!mapping" @click="handleCopy">
           <span class="i-carbon-copy h-3.5 w-3.5 mr-1.5" />
           {{ $t('manage.schema.copy') }}
         </Button>
@@ -31,7 +31,13 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick, onUnmounted } from 'vue';
 import { storeToRefs } from 'pinia';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { CustomError, jsonify } from '@/common';
