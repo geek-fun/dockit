@@ -95,8 +95,6 @@ const initEditor = async () => {
     automaticLayout: true,
     readOnly: true,
     scrollBeyondLastLine: false,
-    minimap: { enabled: false },
-    lineNumbers: 'off',
     folding: true,
     ...editorOptions,
   });
