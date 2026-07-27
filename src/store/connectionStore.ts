@@ -932,10 +932,18 @@ export const useConnectionStore = defineStore('connectionStore', {
 
       // get the index mapping
       const mapping = await client.get(`/${indexName}/_mapping`, 'format=json');
-      const activeIndex = (connection.indices as ElasticSearchIndex[]).find(
-        ({ index }: { index: string }) => index === indexName,
+      const existing = (connection.indices as ElasticSearchIndex[]).find(
+        ({ index }) => index === indexName,
       );
-      connection.activeIndex = { ...activeIndex, mapping } as ElasticSearchIndex;
+      connection.activeIndex = existing
+        ? ({ ...existing, mapping } as ElasticSearchIndex)
+        : ({ index: indexName, mapping } as ElasticSearchIndex);
+
+      // Ensure the index exists in connection.indices so the toolbar's
+      // index selector combobox has a matching option for its model-value.
+      if (!existing && connection.indices) {
+        (connection.indices as ElasticSearchIndex[]).push(connection.activeIndex);
+      }
 
       // Extract field names from mapping for ES|QL completions
       const fields = extractFieldsFromMapping(mapping as Record<string, unknown>);
@@ -948,6 +956,14 @@ export const useConnectionStore = defineStore('connectionStore', {
         includeSystemIndices: tabStore.activePanel?.includeSystemIndices ?? false,
         fields,
       });
+
+      // Sync the updated connection (with activeIndex) into the active panel.
+      // selectIndex mutates connectionStore.connections by ID, but the panel
+      // may hold a separate reference (e.g. from establishPanel). Without this
+      // sync, the toolbar's index selector and docs browser see no activeIndex.
+      if (tabStore.activePanel?.connection?.id === connection.id) {
+        tabStore.activePanel.connection = connection;
+      }
     },
     async searchQDSL(
       con: Connection,

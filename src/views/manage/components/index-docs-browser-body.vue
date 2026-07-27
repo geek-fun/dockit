@@ -21,29 +21,10 @@
     </div>
 
     <div class="docs-toolbar">
-      <span class="docs-status text-xs text-muted-foreground">
-        <template v-if="indexName">
-          {{ $t('manage.docs.totalDocuments', { count: total }) }}
-        </template>
-        <template v-else>
-          {{ $t('manage.docs.selectIndexHint') }}
-        </template>
-      </span>
+      <div v-if="!indexName" class="text-xs text-muted-foreground">
+        {{ $t('manage.docs.selectIndexHint') }}
+      </div>
       <div class="docs-toolbar-right">
-        <Select
-          :model-value="String(pageSize)"
-          :disabled="!indexName || loading"
-          @update:model-value="handlePageSizeChange"
-        >
-          <SelectTrigger class="h-7 w-[90px] text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem v-for="size in pageSizeOptions" :key="size" :value="String(size)">
-              {{ size }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
         <Button
           v-if="enableSearchFilters"
           size="sm"
@@ -135,37 +116,58 @@
       </div>
 
       <div class="docs-pagination">
-        <span class="text-xs text-muted-foreground">
-          {{ $t('manage.docs.pageInfo', { page: currentPage }) }}
-        </span>
-        <div class="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-7 w-7"
-            :disabled="currentPage <= 1 || loading"
-            @click="goToFirstPage"
-          >
-            <span class="i-carbon-skip-back h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-7 w-7"
-            :disabled="currentPage <= 1 || loading"
-            @click="goToPrevPage"
-          >
-            <span class="i-carbon-chevron-left h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            class="h-7 w-7"
-            :disabled="!hasNextPage || loading"
-            @click="goToNextPage"
-          >
-            <span class="i-carbon-chevron-right h-3.5 w-3.5" />
-          </Button>
+        <div class="flex items-center gap-3 ml-auto">
+          <template v-if="indexName">
+            <span class="text-xs text-muted-foreground whitespace-nowrap">
+              {{ $t('manage.docs.totalDocuments', { count: total }) }}
+            </span>
+            <span class="text-xs text-muted-foreground whitespace-nowrap">
+              {{ $t('manage.docs.pageInfo', { page: currentPage }) }}
+            </span>
+            <Select
+              :model-value="String(pageSize)"
+              :disabled="loading"
+              @update:model-value="handlePageSizeChange"
+            >
+              <SelectTrigger class="h-7 w-[70px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem v-for="size in pageSizeOptions" :key="size" :value="String(size)">
+                  {{ size }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </template>
+          <div class="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              :disabled="currentPage <= 1 || loading"
+              @click="goToFirstPage"
+            >
+              <span class="i-carbon-skip-back h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              :disabled="currentPage <= 1 || loading"
+              @click="goToPrevPage"
+            >
+              <span class="i-carbon-chevron-left h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              :disabled="!hasNextPage || loading"
+              @click="goToNextPage"
+            >
+              <span class="i-carbon-chevron-right h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
     </template>
@@ -618,7 +620,6 @@ watch(searchText, () => {
 .docs-pagination {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   margin-top: 0.5rem;
   margin-bottom: 0.75rem;
   flex-shrink: 0;
