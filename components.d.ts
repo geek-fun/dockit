@@ -71,6 +71,7 @@ declare module 'vue' {
     Input: typeof import('./src/components/ui/input/Input.vue')['default']
     InputNumber: typeof import('./src/components/ui/input-number/InputNumber.vue')['default']
     JsonValueDialog: typeof import('./src/components/json-value-dialog.vue')['default']
+    JsonView: typeof import('./src/components/result/JsonView.vue')['default']
     Label: typeof import('./src/components/ui/label/Label.vue')['default']
     LoadingBar: typeof import('./src/components/ui/loading-bar/LoadingBar.vue')['default']
     MarkdownRender: typeof import('./src/components/markdown-render.vue')['default']
@@ -82,6 +83,7 @@ declare module 'vue' {
     Progress: typeof import('./src/components/ui/progress/Progress.vue')['default']
     RadioGroup: typeof import('./src/components/ui/radio-group/RadioGroup.vue')['default']
     RadioGroupItem: typeof import('./src/components/ui/radio-group/RadioGroupItem.vue')['default']
+    ResultPanel: typeof import('./src/components/result/ResultPanel.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterMain: typeof import('./src/components/RouterMain.vue')['default']
     RouterView: typeof import('vue-router')['RouterView']
@@ -122,6 +124,7 @@ declare module 'vue' {
     TooltipContent: typeof import('./src/components/ui/tooltip/TooltipContent.vue')['default']
     TooltipProvider: typeof import('./src/components/ui/tooltip/TooltipProvider.vue')['default']
     TooltipTrigger: typeof import('./src/components/ui/tooltip/TooltipTrigger.vue')['default']
+    TreeNode: typeof import('./src/components/result/TreeNode.vue')['default']
     UnoIcon: typeof import('./src/components/ui/icon/UnoIcon.vue')['default']
     VersionDetect: typeof import('./src/components/VersionDetect.vue')['default']
   }

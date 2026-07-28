@@ -40,10 +40,10 @@ const init = () => {
     automaticLayout: true,
     readOnly: true,
     scrollBeyondLastLine: false,
-    minimap: { enabled: false },
-    lineNumbers: 'off',
     folding: true,
     ...options,
+    minimap: { enabled: false },
+    lineNumbers: 'off',
   });
   editor.getModel()?.updateOptions({
     tabSize: options.tabSize,
