@@ -17,39 +17,101 @@
     </div>
 
     <template v-else>
-      <div v-if="$slots.toolbar" class="result-toolbar">
-        <slot name="toolbar" />
-      </div>
+      <div class="result-header">
+        <div class="result-header-left">
+          <slot name="toolbar" />
+        </div>
+        <div class="result-header-right">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7"
+                  :disabled="loading"
+                  @click="$emit('refresh')"
+                >
+                  <span v-if="loading" class="i-carbon-renew h-3.5 w-3.5 animate-spin" />
+                  <span v-else class="i-carbon-renew h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-      <div class="result-view-tabs">
-        <Button
-          v-if="viewModes.includes('table')"
-          size="sm"
-          :variant="internalView === 'table' ? 'default' : 'ghost'"
-          @click="switchView('table')"
-        >
-          Table
-        </Button>
-        <Button
-          v-if="viewModes.includes('tree')"
-          size="sm"
-          :variant="internalView === 'tree' ? 'default' : 'ghost'"
-          @click="switchView('tree')"
-        >
-          Tree
-        </Button>
-        <Button
-          v-if="viewModes.includes('json')"
-          size="sm"
-          :variant="internalView === 'json' ? 'default' : 'ghost'"
-          @click="switchView('json')"
-        >
-          JSON
-        </Button>
+          <div class="header-divider" />
+
+          <TooltipProvider v-if="viewModes.includes('table')">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  class="h-7 w-7"
+                  :class="{ 'bg-accent': internalView === 'table' }"
+                  @click="switchView('table')"
+                >
+                  <span class="i-carbon-table h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Table</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider v-if="viewModes.includes('tree')">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  class="h-7 w-7"
+                  :class="{ 'bg-accent': internalView === 'tree' }"
+                  @click="switchView('tree')"
+                >
+                  <span class="i-carbon-tree-view h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Tree</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider v-if="viewModes.includes('json')">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  class="h-7 w-7"
+                  :class="{ 'bg-accent': internalView === 'json' }"
+                  @click="switchView('json')"
+                >
+                  <span class="i-carbon-code h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>JSON</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <div v-if="closable" class="header-divider" />
+          <TooltipProvider v-if="closable">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button variant="ghost" size="icon" class="h-7 w-7" @click="$emit('close')">
+                  <span class="i-carbon-close h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Close</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
 
       <template v-if="internalView === 'table'">
         <div class="table-scroll-area macos-scrollable">
+          <div v-if="loading && loadingOverlay" class="result-loading-overlay">
+            <Spinner />
+          </div>
           <div class="table-container">
             <Table>
               <TableHeader class="sticky-header">
@@ -57,10 +119,10 @@
                   <TableHead
                     v-for="col in displayColumns"
                     :key="col.key"
-                    :class="col.className"
+                    :class="[col.className, { 'col-sticky-left': col.sticky === 'left' }]"
                     :style="colStyle(col)"
                   >
-                    {{ col.title }}
+                    <slot name="columnHeader" :column="col">{{ col.title }}</slot>
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -78,7 +140,7 @@
                   <TableCell
                     v-for="col in displayColumns"
                     :key="col.key"
-                    :class="col.className"
+                    :class="[col.className, { 'col-sticky-left': col.sticky === 'left' }]"
                     :style="{ textAlign: col.align || 'left' }"
                   >
                     <slot name="cell" :column="col" :row="row">
@@ -112,13 +174,13 @@
       <JsonView v-if="internalView === 'json'" :value="displayData" />
 
       <div v-if="showPagination && !loading" class="result-pagination">
-        <div class="pagination-left">
+        <div class="pagination-right">
           <span class="text-xs text-muted-foreground whitespace-nowrap">
             {{ total ?? displayData.length }} documents
           </span>
-          <span class="text-xs text-muted-foreground whitespace-nowrap">Page {{ page }}</span>
-        </div>
-        <div class="pagination-right">
+
+          <div class="pagination-divider" />
+
           <Select :model-value="String(pageSize)" @update:model-value="handlePageSizeChange">
             <SelectTrigger class="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -127,6 +189,7 @@
               </SelectItem>
             </SelectContent>
           </Select>
+
           <div class="flex items-center gap-1">
             <Button
               v-if="isCursor"
@@ -147,6 +210,13 @@
             >
               <span class="i-carbon-chevron-left h-3.5 w-3.5" />
             </Button>
+          </div>
+
+          <span class="text-xs text-muted-foreground whitespace-nowrap">
+            Page {{ page }}
+          </span>
+
+          <div class="flex items-center gap-1">
             <template v-if="hasPages">
               <Button
                 v-for="n in visiblePages"
@@ -196,6 +266,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import JsonView from './JsonView.vue';
 import TreeNode from './TreeNode.vue';
 import { usePagination } from './composables/usePagination';
@@ -213,6 +284,8 @@ const props = withDefaults(
     activeView?: ViewMode;
     emptyText?: string;
     rowKey?: string | ((row: Record<string, unknown>) => string);
+    closable?: boolean;
+    loadingOverlay?: boolean;
   }>(),
   {
     columns: () => [],
@@ -225,6 +298,8 @@ const props = withDefaults(
     activeView: 'table',
     emptyText: 'No data',
     rowKey: undefined,
+    closable: false,
+    loadingOverlay: false,
   },
 );
 
@@ -235,6 +310,8 @@ const emit = defineEmits<{
   'next-page': [];
   'prev-page': [];
   'first-page': [];
+  refresh: [];
+  close: [];
 }>();
 
 const internalView = ref<ViewMode>(props.activeView);
@@ -355,14 +432,31 @@ watch(
   flex: 1;
   min-height: 8rem;
 }
-.result-toolbar {
-  flex-shrink: 0;
-}
-.result-view-tabs {
+.result-header {
   display: flex;
-  gap: 0.25rem;
+  align-items: center;
+  justify-content: space-between;
   flex-shrink: 0;
   padding-bottom: 0.5rem;
+  gap: 0.5rem;
+}
+.result-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.result-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  margin-left: auto;
+}
+.header-divider {
+  width: 1px;
+  height: 1rem;
+  background: hsl(var(--border));
+  margin: 0 0.25rem;
 }
 .table-scroll-area {
   flex: 1;
@@ -370,15 +464,46 @@ watch(
   overflow: auto;
   border: 1px solid hsl(var(--border));
   border-radius: 0.375rem;
+  position: relative;
+}
+
+.result-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(var(--background) / 0.65);
+  backdrop-filter: blur(1px);
+}
+
+.table-container :deep(.col-sticky-left) {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: hsl(var(--background));
+}
+
+.table-container :deep(.sticky-header) {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: hsl(var(--muted));
+}
+
+.table-container :deep(.sticky-header .col-sticky-left) {
+  z-index: 11;
+  background: hsl(var(--muted));
 }
 .table-container {
   min-width: 100%;
 }
-.table-container :deep(.sticky-header) {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: hsl(var(--muted));
+/* Neutralize Table's wrapper overflow-auto so .table-scroll-area is the scroll container */
+.table-container :deep(.relative.w-full.overflow-auto) {
+  overflow: visible;
+  overflow-x: visible;
+  overflow-y: visible;
 }
 .result-loading-row :deep(td) {
   text-align: center;
@@ -403,18 +528,18 @@ watch(
 .result-pagination {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 0.5rem;
+  justify-content: flex-end;
+  padding: 0.25rem 0;
   flex-shrink: 0;
-}
-.pagination-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
 }
 .pagination-right {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+.pagination-divider {
+  width: 1px;
+  height: 1rem;
+  background: hsl(var(--border));
 }
 </style>

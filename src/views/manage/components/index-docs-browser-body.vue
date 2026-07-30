@@ -53,124 +53,53 @@
       <Empty :description="$t('manage.docs.selectIndexHint')" />
     </div>
 
-    <div v-else-if="loading && hits.length === 0" class="docs-loading">
-      <Spinner class="mx-auto" />
-    </div>
-
-    <div v-else-if="errorMessage && hits.length === 0" class="docs-error">
-      <p class="text-destructive text-sm">{{ errorMessage }}</p>
-    </div>
-
-    <div v-else-if="hits.length === 0" class="docs-empty">
-      <Empty :description="$t('manage.docs.noDocuments')" />
-    </div>
-
-    <template v-else>
-      <div class="docs-table-wrap macos-scrollable" :class="{ 'is-loading': loading }">
-        <div v-if="loading" class="docs-table-loader">
-          <Spinner />
+    <ResultPanel
+      v-else
+      :columns="resultColumns"
+      :data="resultData"
+      :total="total"
+      :loading="loading"
+      :loading-overlay="true"
+      :error="errorMessage || null"
+      :pagination="resultPagination"
+      :view-modes="['table', 'tree', 'json']"
+      :empty-text="$t('manage.docs.noDocuments')"
+      row-key="_id"
+      :closable="embedded"
+      @refresh="handleRefresh"
+        @close="$emit('close')"
+      @next-page="goToNextPage"
+      @prev-page="goToPrevPage"
+      @first-page="goToFirstPage"
+      @update:page-size="handleResultPageSize"
+    >
+      <template #columnHeader="{ column }">
+        <div class="th-content">
+          <span>{{ column.title }}</span>
+          <IndexDocsColumnFilter
+            v-if="enableSearchFilters && connection && canFilterColumn(column.key)"
+            :connection="connection"
+            :index-name="indexName"
+            :field="column.key"
+            :agg-field="resolveAggField(browseFields, column.key)!"
+            :selected-values="columnFilters[column.key] ?? []"
+            :base-query="queryWithoutColumn(column.key)"
+            @apply="values => applyColumnFilter(column.key, values)"
+          />
         </div>
-        <table class="docs-table">
-          <thead>
-            <tr>
-              <th v-for="col in columns" :key="col" :class="{ 'id-col': col === '_id' }">
-                <div class="th-content">
-                  <span>{{ col }}</span>
-                  <IndexDocsColumnFilter
-                    v-if="enableSearchFilters && connection && canFilterColumn(col)"
-                    :connection="connection"
-                    :index-name="indexName"
-                    :field="col"
-                    :agg-field="getAggField(col)!"
-                    :selected-values="columnFilters[col] ?? []"
-                    :base-query="queryWithoutColumn(col)"
-                    @apply="values => applyColumnFilter(col, values)"
-                  />
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="hit in hits" :key="hit._id + String(hit.sort)">
-              <td
-                v-for="col in columns"
-                :key="col"
-                :class="{
-                  'id-col': col === '_id',
-                  'json-cell': isComplexValue(getCellValue(hit, col)),
-                }"
-                @click="handleCellClick(getCellValue(hit, col))"
-              >
-                <span
-                  v-if="isComplexValue(getCellValue(hit, col))"
-                  class="json-preview"
-                  :title="$t('manage.docs.viewJson')"
-                >
-                  {{ formatCellPreview(getCellValue(hit, col)) }}
-                </span>
-                <span v-else class="cell-value">{{ formatScalar(getCellValue(hit, col)) }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="docs-pagination">
-        <div class="flex items-center gap-3 ml-auto">
-          <template v-if="indexName">
-            <span class="text-xs text-muted-foreground whitespace-nowrap">
-              {{ $t('manage.docs.totalDocuments', { count: total }) }}
-            </span>
-            <span class="text-xs text-muted-foreground whitespace-nowrap">
-              {{ $t('manage.docs.pageInfo', { page: currentPage }) }}
-            </span>
-            <Select
-              :model-value="String(pageSize)"
-              :disabled="loading"
-              @update:model-value="handlePageSizeChange"
-            >
-              <SelectTrigger class="h-7 w-[70px] text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="size in pageSizeOptions" :key="size" :value="String(size)">
-                  {{ size }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </template>
-          <div class="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-7 w-7"
-              :disabled="currentPage <= 1 || loading"
-              @click="goToFirstPage"
-            >
-              <span class="i-carbon-skip-back h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-7 w-7"
-              :disabled="currentPage <= 1 || loading"
-              @click="goToPrevPage"
-            >
-              <span class="i-carbon-chevron-left h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-7 w-7"
-              :disabled="!hasNextPage || loading"
-              @click="goToNextPage"
-            >
-              <span class="i-carbon-chevron-right h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </template>
+      </template>
+      <template #cell="{ column, row }">
+        <span
+          v-if="isComplexValue(row[column.key])"
+          class="json-preview"
+          :title="$t('manage.docs.viewJson')"
+          @click="handleCellClick(row[column.key])"
+        >
+          {{ formatCellPreview(row[column.key]) }}
+        </span>
+        <span v-else class="cell-value">{{ formatScalar(row[column.key]) }}</span>
+      </template>
+    </ResultPanel>
   </div>
 
   <JsonValueDialog
@@ -184,7 +113,6 @@
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
 import { Empty } from '@/components/ui/empty';
 import {
   Select,
@@ -195,12 +123,15 @@ import {
 } from '@/components/ui/select';
 import JsonValueDialog from '@/components/json-value-dialog.vue';
 import IndexDocsColumnFilter from './index-docs-column-filter.vue';
+import { ResultPanel } from '@/components/result';
+import type { ColumnDef, PaginationConfig } from '@/components/result';
 import { CustomError, jsonify } from '@/common';
 import {
   esApi,
   buildDocsBrowseQuery,
   extractDocsBrowseFields,
   mergeBrowseFieldsWithHitKeys,
+  resolveAggField,
   type DocsBrowseFieldMeta,
   type IndexDocumentHit,
 } from '@/datasources';
@@ -286,10 +217,30 @@ const activeQuery = computed(() => {
   });
 });
 
-const getCellValue = (hit: IndexDocumentHit, col: string): unknown => {
-  if (col === '_id') return hit._id;
-  return hit._source?.[col];
-};
+const resultColumns = computed<ColumnDef[]>(() =>
+  columns.value.map(col => ({
+    key: col,
+    title: col,
+    className: col === '_id' ? 'id-col' : undefined,
+    ellipsis: col !== '_id',
+    sticky: col === '_id' ? 'left' : undefined,
+  })),
+);
+
+const resultData = computed<Record<string, unknown>[]>(() =>
+  hits.value.map(hit => ({
+    ...hit._source,
+    _id: hit._id,
+  })),
+);
+
+const resultPagination = computed<PaginationConfig>(() => ({
+  mode: 'cursor',
+  hasNext: hasNextPage.value,
+  total: total.value,
+  pageSize: pageSize.value,
+  pageSizeOptions: [...pageSizeOptions],
+}));
 
 const isComplexValue = (value: unknown): boolean => {
   return value !== null && typeof value === 'object';
@@ -317,13 +268,8 @@ const handleCellClick = (value: unknown) => {
   jsonDialogOpen.value = true;
 };
 
-const getAggField = (col: string): string | null => {
-  if (col === '_id') return '_id';
-  return browseFields.value.find(f => f.name === col)?.aggField ?? null;
-};
-
 const canFilterColumn = (col: string): boolean => {
-  if (col === '_id') return true;
+  if (col === '_id') return false;
   const meta = browseFields.value.find(f => f.name === col);
   return Boolean(meta?.aggField);
 };
@@ -362,6 +308,24 @@ const clearFilters = () => {
   void reload();
 };
 
+const handleResultPageSize = (value: number) => {
+  if (!pageSizeOptions.includes(value as (typeof pageSizeOptions)[number])) return;
+  pageSize.value = value as (typeof pageSizeOptions)[number];
+  void reload();
+};
+
+const handleRefresh = async () => {
+  const start = Date.now();
+  currentPage.value = 1;
+  searchAfterStack.value = [undefined];
+  await fetchPage(undefined, true);
+  const elapsed = Date.now() - start;
+  if (elapsed < 500) {
+    await new Promise(resolve => setTimeout(resolve, 500 - elapsed));
+  }
+  loading.value = false;
+};
+
 const loadMappingFields = async () => {
   if (!props.connection || !props.indexName || !props.enableSearchFilters) {
     mappingFields.value = [];
@@ -375,7 +339,7 @@ const loadMappingFields = async () => {
   }
 };
 
-const fetchPage = async (searchAfter: unknown[] | undefined) => {
+const fetchPage = async (searchAfter: unknown[] | undefined, keepLoading = false) => {
   if (!props.connection || !props.indexName) return;
 
   loading.value = true;
@@ -398,7 +362,7 @@ const fetchPage = async (searchAfter: unknown[] | undefined) => {
     errorMessage.value =
       err instanceof CustomError ? err.details : err instanceof Error ? err.message : String(err);
   } finally {
-    loading.value = false;
+    if (!keepLoading) loading.value = false;
   }
 };
 
@@ -428,13 +392,6 @@ const goToNextPage = async () => {
   searchAfterStack.value = [...searchAfterStack.value, cursor];
   currentPage.value = currentPage.value + 1;
   await fetchPage(cursor);
-};
-
-const handlePageSizeChange = async (value: string) => {
-  const parsed = Number(value);
-  if (!pageSizeOptions.includes(parsed as (typeof pageSizeOptions)[number])) return;
-  pageSize.value = parsed as (typeof pageSizeOptions)[number];
-  await reload();
 };
 
 const resetState = () => {
@@ -518,79 +475,10 @@ watch(searchText, () => {
   flex: 1;
 }
 
-.docs-table-wrap {
-  flex: 1;
-  min-height: 0;
-  max-height: 58vh;
-  overflow: auto;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.375rem;
-  position: relative;
-}
-
-.docs-browser-body.embedded .docs-table-wrap {
-  max-height: calc(100% - 2.5rem);
-}
-
-.docs-table-wrap.is-loading {
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.docs-table-loader {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: hsl(var(--background) / 0.65);
-  backdrop-filter: blur(1px);
-}
-
-.docs-table {
-  width: max-content;
-  min-width: 100%;
-  border-collapse: collapse;
-  font-size: 0.75rem;
-}
-
-.docs-table th,
-.docs-table td {
-  border-bottom: 1px solid hsl(var(--border));
-  padding: 0.4rem 0.65rem;
-  text-align: left;
-  vertical-align: top;
-  max-width: 280px;
-}
-
-.docs-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: hsl(var(--muted));
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 .th-content {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-}
-
-.docs-table .id-col {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  background: hsl(var(--background));
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  max-width: 180px;
-}
-
-.docs-table th.id-col {
-  z-index: 3;
-  background: hsl(var(--muted));
 }
 
 .cell-value {
@@ -600,28 +488,17 @@ watch(searchText, () => {
   white-space: nowrap;
 }
 
-.json-cell {
-  cursor: pointer;
-}
-
-.json-cell:hover .json-preview {
-  color: hsl(var(--primary));
-}
-
 .json-preview {
   display: block;
   color: hsl(var(--muted-foreground));
+  cursor: pointer;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.docs-pagination {
-  display: flex;
-  align-items: center;
-  margin-top: 0.5rem;
-  margin-bottom: 0.75rem;
-  flex-shrink: 0;
+.json-preview:hover {
+  color: hsl(var(--primary));
 }
 </style>

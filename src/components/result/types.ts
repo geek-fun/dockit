@@ -18,4 +18,5 @@ export type ColumnDef = {
   align?: 'left' | 'center' | 'right';
   ellipsis?: boolean;
   className?: string;
+  sticky?: 'left';
 };
