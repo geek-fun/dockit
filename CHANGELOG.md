@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-07-30
+
+### Added
+
+- **Shared ResultPanel** — unified Table/Tree/JSON view component with 3-mode pagination (offset/cursor/client), replacing separate implementations across database engines (#467)
+- **View Docs — ES/OS document browser** — paginated document browsing with search, column filters (terms aggregation-based), and cursor-based navigation for Elasticsearch and OpenSearch indices (#464)
+- **Docs browser cell context menu** — right-click any cell to filter by value, exclude value, copy value, or view JSON (#467)
+- **Docs browser column header context menu** — right-click column header to open the column filter popover (#467)
+
+### Changed
+
+- **Merged search bar and toolbar** — single compact row with search input, Execute button, and Clear Filters; bottom border separates from result panel (#467)
+
+### Fixed
+
+- **Fix view docs index selection sync** — ensure index selection is properly synchronized between toolbar and docs browser (#466)
+- **Fix schema dialog Monaco integration** — resolve Monaco editor initialization in schema dialog (#466)
+- **Fix docs pagination layout** — correct pagination button alignment and spacing (#466)
+- **Fix data studio context manage issues** — resolve context management errors in data studio views
+- **Fix `_id` wildcard query crash on ES 9.x** — remove `_id` wildcard from `__all__` search mode to prevent `search_phase_execution_exception: all shards failed` (#467)
+
 ## [1.3.0] - 2026-07-21
 
 ### Added
