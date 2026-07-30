@@ -5,15 +5,15 @@
         <DialogTitle>{{ title || $t('common.jsonViewer.title') }}</DialogTitle>
       </DialogHeader>
 
-      <div class="json-viewer-toolbar">
+      <div class="json-viewer-body macos-scrollable">
+        <pre class="json-viewer-pre"><code>{{ formatted }}</code></pre>
+      </div>
+
+      <div class="json-viewer-footer">
         <Button size="sm" variant="outline" @click="handleCopy">
           <span class="i-carbon-copy h-3.5 w-3.5 mr-1.5" />
           {{ $t('common.jsonViewer.copy') }}
         </Button>
-      </div>
-
-      <div class="json-viewer-body macos-scrollable">
-        <pre class="json-viewer-pre"><code>{{ formatted }}</code></pre>
       </div>
     </DialogContent>
   </Dialog>
@@ -60,12 +60,6 @@ const handleCopy = async () => {
 </script>
 
 <style scoped>
-.json-viewer-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 0.5rem;
-}
-
 .json-viewer-body {
   flex: 1;
   min-height: 0;
@@ -84,5 +78,12 @@ const handleCopy = async () => {
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.json-viewer-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+  flex-shrink: 0;
 }
 </style>

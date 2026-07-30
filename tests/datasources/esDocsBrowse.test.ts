@@ -177,11 +177,6 @@ describe('buildDocsBrowseQuery', () => {
     expect(should).toEqual(
       expect.arrayContaining([
         {
-          wildcard: {
-            _id: { value: '*4*', case_insensitive: true },
-          },
-        },
-        {
           multi_match: {
             query: '4',
             fields: ['title'],
@@ -425,6 +420,98 @@ describe('buildDocsBrowseQuery', () => {
             },
           },
         ],
+      },
+    });
+  });
+});
+
+describe('negative filters', () => {
+  it('negative-only query produces bool.must_not with terms clause', () => {
+    const query = buildDocsBrowseQuery({
+      text: '',
+      textColumn: '__all__',
+      columnFilters: [],
+      negativeColumnFilters: [{ field: 'category', values: ['deleted'] }],
+      fields: sampleFields,
+    });
+    expect(query).toEqual({
+      bool: {
+        must_not: [{ terms: { category: ['deleted'] } }],
+      },
+    });
+  });
+
+  it('mixed positive and negative produces both bool.filter and bool.must_not', () => {
+    const query = buildDocsBrowseQuery({
+      text: 'x',
+      textColumn: '_id',
+      columnFilters: [{ field: 'category', values: ['blog'] }],
+      negativeColumnFilters: [{ field: 'category', values: ['deleted'] }],
+      fields: sampleFields,
+    });
+    expect(query).toEqual({
+      bool: {
+        must: [
+          {
+            wildcard: {
+              _id: { value: '*x*', case_insensitive: true },
+            },
+          },
+        ],
+        filter: [{ terms: { category: ['blog'] } }],
+        must_not: [{ terms: { category: ['deleted'] } }],
+      },
+    });
+  });
+
+  it('skips negative filter when field has no aggField', () => {
+    const fieldsWithTextOnly: DocsBrowseFieldMeta[] = [
+      { name: 'body', kind: 'text', aggField: null, searchField: 'body' },
+    ];
+    expect(
+      buildDocsBrowseQuery({
+        text: '',
+        textColumn: '__all__',
+        columnFilters: [],
+        negativeColumnFilters: [{ field: 'body', values: ['draft'] }],
+        fields: fieldsWithTextOnly,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('empty negative list produces no must_not key', () => {
+    const query = buildDocsBrowseQuery({
+      text: 'abc',
+      textColumn: '_id',
+      columnFilters: [],
+      negativeColumnFilters: [],
+      fields: sampleFields,
+    });
+    expect(query).toEqual({
+      bool: {
+        must: [
+          {
+            wildcard: {
+              _id: { value: '*abc*', case_insensitive: true },
+            },
+          },
+        ],
+      },
+    });
+    expect(query).not.toHaveProperty('bool.must_not');
+  });
+
+  it('negative filter with _id field works', () => {
+    const query = buildDocsBrowseQuery({
+      text: '',
+      textColumn: '__all__',
+      columnFilters: [],
+      negativeColumnFilters: [{ field: '_id', values: ['abc123'] }],
+      fields: sampleFields,
+    });
+    expect(query).toEqual({
+      bool: {
+        must_not: [{ terms: { _id: ['abc123'] } }],
       },
     });
   });

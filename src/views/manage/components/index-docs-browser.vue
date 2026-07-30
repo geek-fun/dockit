@@ -18,6 +18,7 @@
       :active="Boolean(connection && indexName)"
       :enable-search-filters="enableSearchFilters"
       embedded
+      @close="emit('close')"
     />
   </div>
 </template>
@@ -44,6 +45,7 @@ withDefaults(
 
 const emit = defineEmits<{
   'update:open': [value: boolean];
+  close: [];
 }>();
 </script>
 

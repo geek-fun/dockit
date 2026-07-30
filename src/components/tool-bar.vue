@@ -131,7 +131,6 @@
         :variant="esEditorMode === 'ES_EDITOR_BROWSE' ? 'default' : 'ghost'"
         size="sm"
         class="button-group-last"
-        :disabled="!indexSelectValue"
         @click="handleEditorSwitch('ES_EDITOR_BROWSE')"
       >
         <span class="i-carbon-table mr-1 h-4 w-4" />
@@ -913,9 +912,14 @@ const handleEditorSwitch = async (
     | 'ES_EDITOR_QUERY'
     | 'ES_EDITOR_BROWSE',
 ) => {
-  if (value === 'ES_EDITOR_BROWSE' && !indexSelectValue.value) return;
   activePanel.value.editorType = value;
   syncEsConnectUrl();
+  if (value === 'ES_EDITOR_BROWSE' && !indexSelectValue.value) {
+    message.warning(lang.t('editor.es.selectIndexFirst'), {
+      closable: true,
+      duration: 3000,
+    });
+  }
 };
 </script>
 

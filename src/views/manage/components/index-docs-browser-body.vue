@@ -1,176 +1,154 @@
 <template>
   <div class="docs-browser-body" :class="{ embedded }">
-    <div v-if="enableSearchFilters && indexName" class="docs-search-row">
-      <Select :model-value="searchColumn" @update:model-value="handleSearchColumnChange">
-        <SelectTrigger class="h-8 w-[160px] text-xs shrink-0">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">{{ $t('manage.docs.searchAllColumns') }}</SelectItem>
-          <SelectItem value="_id">_id</SelectItem>
-          <SelectItem v-for="field in searchableFields" :key="field.name" :value="field.name">
-            {{ field.name }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
-      <Input
-        v-model="searchText"
-        class="h-8 text-xs"
-        :placeholder="$t('manage.docs.searchPlaceholder')"
-      />
-    </div>
-
-    <div class="docs-toolbar">
-      <div v-if="!indexName" class="text-xs text-muted-foreground">
+    <div v-if="indexName" class="docs-search-row">
+      <template v-if="enableSearchFilters">
+        <Select :model-value="searchColumn" @update:model-value="handleSearchColumnChange">
+          <SelectTrigger class="h-8 w-[160px] text-xs shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">{{ $t('manage.docs.searchAllColumns') }}</SelectItem>
+            <SelectItem value="_id">_id</SelectItem>
+            <SelectItem v-for="field in searchableFields" :key="field.name" :value="field.name">
+              {{ field.name }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          v-model="searchText"
+          class="h-8 text-xs flex-1 min-w-0"
+          :placeholder="$t('manage.docs.searchPlaceholder')"
+        />
+      </template>
+      <div v-else class="text-xs text-muted-foreground">
         {{ $t('manage.docs.selectIndexHint') }}
       </div>
-      <div class="docs-toolbar-right">
+      <div class="docs-search-actions">
+        <Button
+          v-if="enableSearchFilters"
+          size="sm"
+          variant="default"
+          class="h-7"
+          :disabled="loading || !indexName"
+          @click="reload"
+        >
+          {{ $t('manage.docs.execute') }}
+        </Button>
         <Button
           v-if="enableSearchFilters"
           size="sm"
           variant="outline"
           class="h-7"
-          :disabled="loading || !indexName || !hasActiveFilters"
+          :disabled="loading || !hasActiveFilters"
           @click="clearFilters"
         >
           <span class="i-carbon-filter-remove h-3.5 w-3.5 mr-1" />
           {{ $t('manage.docs.clearFilters') }}
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          class="h-7"
-          :disabled="loading || !indexName"
-          @click="reload"
-        >
-          <span class="i-carbon-renew h-3.5 w-3.5 mr-1" />
-          {{ $t('manage.docs.refresh') }}
-        </Button>
       </div>
     </div>
 
-    <div v-if="!indexName" class="docs-empty">
+    <div v-else class="docs-empty">
       <Empty :description="$t('manage.docs.selectIndexHint')" />
     </div>
 
-    <div v-else-if="loading && hits.length === 0" class="docs-loading">
-      <Spinner class="mx-auto" />
-    </div>
-
-    <div v-else-if="errorMessage && hits.length === 0" class="docs-error">
-      <p class="text-destructive text-sm">{{ errorMessage }}</p>
-    </div>
-
-    <div v-else-if="hits.length === 0" class="docs-empty">
-      <Empty :description="$t('manage.docs.noDocuments')" />
-    </div>
-
-    <template v-else>
-      <div class="docs-table-wrap macos-scrollable" :class="{ 'is-loading': loading }">
-        <div v-if="loading" class="docs-table-loader">
-          <Spinner />
-        </div>
-        <table class="docs-table">
-          <thead>
-            <tr>
-              <th v-for="col in columns" :key="col" :class="{ 'id-col': col === '_id' }">
-                <div class="th-content">
-                  <span>{{ col }}</span>
-                  <IndexDocsColumnFilter
-                    v-if="enableSearchFilters && connection && canFilterColumn(col)"
-                    :connection="connection"
-                    :index-name="indexName"
-                    :field="col"
-                    :agg-field="getAggField(col)!"
-                    :selected-values="columnFilters[col] ?? []"
-                    :base-query="queryWithoutColumn(col)"
-                    @apply="values => applyColumnFilter(col, values)"
-                  />
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="hit in hits" :key="hit._id + String(hit.sort)">
-              <td
-                v-for="col in columns"
-                :key="col"
-                :class="{
-                  'id-col': col === '_id',
-                  'json-cell': isComplexValue(getCellValue(hit, col)),
-                }"
-                @click="handleCellClick(getCellValue(hit, col))"
-              >
-                <span
-                  v-if="isComplexValue(getCellValue(hit, col))"
-                  class="json-preview"
-                  :title="$t('manage.docs.viewJson')"
-                >
-                  {{ formatCellPreview(getCellValue(hit, col)) }}
-                </span>
-                <span v-else class="cell-value">{{ formatScalar(getCellValue(hit, col)) }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="docs-pagination">
-        <div class="flex items-center gap-3 ml-auto">
-          <template v-if="indexName">
-            <span class="text-xs text-muted-foreground whitespace-nowrap">
-              {{ $t('manage.docs.totalDocuments', { count: total }) }}
+    <ResultPanel
+      v-if="indexName"
+      :columns="resultColumns"
+      :data="resultData"
+      :total="total"
+      :loading="loading"
+      :loading-overlay="true"
+      :error="errorMessage || null"
+      :pagination="resultPagination"
+      :view-modes="['table', 'tree', 'json']"
+      :empty-text="$t('manage.docs.noDocuments')"
+      row-key="_id"
+      :closable="embedded"
+      @refresh="handleRefresh"
+      @close="$emit('close')"
+      @next-page="goToNextPage"
+      @prev-page="goToPrevPage"
+      @first-page="goToFirstPage"
+      @update:page-size="handleResultPageSize"
+    >
+      <template #columnHeader="{ column }">
+        <ContextMenu>
+          <ContextMenuTrigger as-child>
+            <div class="th-content">
+              <span>{{ column.title }}</span>
+              <IndexDocsColumnFilter
+                v-if="enableSearchFilters && connection && canFilterColumn(column.key)"
+                :open="columnFilterOpen === column.key"
+                :connection="connection"
+                :index-name="indexName"
+                :field="column.key"
+                :agg-field="resolveAggField(browseFields, column.key)!"
+                :selected-values="columnFilters[column.key] ?? []"
+                :base-query="queryWithoutColumn(column.key)"
+                @update:open="v => (columnFilterOpen = v ? column.key : null)"
+                @apply="values => applyColumnFilter(column.key, values)"
+              />
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuLabel inset>{{ column.title }}</ContextMenuLabel>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              :disabled="!canFilterColumn(column.key)"
+              @select="columnFilterOpen = column.key"
+            >
+              {{ $t('manage.docs.filterForColumn') }}
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      </template>
+      <template #cell="{ column, row }">
+        <ContextMenu>
+          <ContextMenuTrigger as-child>
+            <span
+              v-if="isComplexValue(row[column.key])"
+              class="json-preview"
+              :title="$t('manage.docs.viewJson')"
+              @click="handleCellClick(row[column.key])"
+            >
+              {{ formatCellPreview(row[column.key]) }}
             </span>
-            <span class="text-xs text-muted-foreground whitespace-nowrap">
-              {{ $t('manage.docs.pageInfo', { page: currentPage }) }}
-            </span>
-            <Select
-              :model-value="String(pageSize)"
-              :disabled="loading"
-              @update:model-value="handlePageSizeChange"
+            <span v-else class="cell-value">{{ formatScalar(row[column.key]) }}</span>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem
+              :disabled="!canFilterColumn(column.key) || isComplexValue(row[column.key])"
+              @select="
+                applyColumnFilter(column.key, [row[column.key] as string | number | boolean])
+              "
             >
-              <SelectTrigger class="h-7 w-[70px] text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="size in pageSizeOptions" :key="size" :value="String(size)">
-                  {{ size }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </template>
-          <div class="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-7 w-7"
-              :disabled="currentPage <= 1 || loading"
-              @click="goToFirstPage"
+              <span class="i-carbon-filter h-3.5 w-3.5 mr-2" />
+              {{ $t('manage.docs.filterForValue') }}
+            </ContextMenuItem>
+            <ContextMenuItem
+              :disabled="!canFilterColumn(column.key) || isComplexValue(row[column.key])"
+              @select="addNegativeFilter(column.key, row[column.key] as string | number | boolean)"
             >
-              <span class="i-carbon-skip-back h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-7 w-7"
-              :disabled="currentPage <= 1 || loading"
-              @click="goToPrevPage"
+              <span class="i-carbon-filter-remove h-3.5 w-3.5 mr-2" />
+              {{ $t('manage.docs.excludeValue') }}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              v-if="isComplexValue(row[column.key])"
+              @select="handleCellClick(row[column.key])"
             >
-              <span class="i-carbon-chevron-left h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              class="h-7 w-7"
-              :disabled="!hasNextPage || loading"
-              @click="goToNextPage"
-            >
-              <span class="i-carbon-chevron-right h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </template>
+              <span class="i-carbon-terminal h-3.5 w-3.5 mr-2" />
+              {{ $t('manage.docs.viewJson') }}
+            </ContextMenuItem>
+            <ContextMenuItem @select="copyCellValue(row[column.key])">
+              <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
+              {{ $t('manage.docs.copyValue') }}
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
+      </template>
+    </ResultPanel>
   </div>
 
   <JsonValueDialog
@@ -184,7 +162,6 @@
 import { computed, ref, watch } from 'vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/spinner';
 import { Empty } from '@/components/ui/empty';
 import {
   Select,
@@ -193,19 +170,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import JsonValueDialog from '@/components/json-value-dialog.vue';
 import IndexDocsColumnFilter from './index-docs-column-filter.vue';
+import { ResultPanel } from '@/components/result';
+import type { ColumnDef, PaginationConfig } from '@/components/result';
 import { CustomError, jsonify } from '@/common';
 import {
   esApi,
   buildDocsBrowseQuery,
   extractDocsBrowseFields,
   mergeBrowseFieldsWithHitKeys,
+  resolveAggField,
   type DocsBrowseFieldMeta,
+  type DocsBrowseColumnFilter,
   type IndexDocumentHit,
 } from '@/datasources';
 import type { SearchConnection } from '@/store';
 import { useLang } from '@/lang';
+import { useMessageService } from '@/composables';
 
 const props = withDefaults(
   defineProps<{
@@ -222,7 +212,12 @@ const props = withDefaults(
   },
 );
 
+defineEmits<{
+  close: [];
+}>();
+
 const lang = useLang();
+const message = useMessageService();
 
 const pageSizeOptions = [25, 50, 100] as const;
 const pageSize = ref<(typeof pageSizeOptions)[number]>(25);
@@ -238,6 +233,8 @@ const mappingFields = ref<DocsBrowseFieldMeta[]>([]);
 const searchText = ref('');
 const searchColumn = ref('__all__');
 const columnFilters = ref<Record<string, Array<string | number | boolean>>>({});
+const negativeColumnFilters = ref<Record<string, Array<string | number | boolean>>>({});
+const columnFilterOpen = ref<string | null>(null);
 let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 let suppressSearchReload = false;
 
@@ -263,8 +260,14 @@ const searchableFields = computed(() => browseFields.value.filter(f => f.kind !=
 
 const columns = computed(() => ['_id', ...[...hitKeys.value].sort((a, b) => a.localeCompare(b))]);
 
-const activeColumnFilters = computed(() =>
+const activeColumnFilters = computed<DocsBrowseColumnFilter[]>(() =>
   Object.entries(columnFilters.value)
+    .filter(([, values]) => values.length > 0)
+    .map(([field, values]) => ({ field, values })),
+);
+
+const activeNegativeColumnFilters = computed<DocsBrowseColumnFilter[]>(() =>
+  Object.entries(negativeColumnFilters.value)
     .filter(([, values]) => values.length > 0)
     .map(([field, values]) => ({ field, values })),
 );
@@ -273,7 +276,8 @@ const hasActiveFilters = computed(
   () =>
     searchText.value.trim().length > 0 ||
     searchColumn.value !== '__all__' ||
-    activeColumnFilters.value.length > 0,
+    activeColumnFilters.value.length > 0 ||
+    activeNegativeColumnFilters.value.length > 0,
 );
 
 const activeQuery = computed(() => {
@@ -282,14 +286,35 @@ const activeQuery = computed(() => {
     text: searchText.value,
     textColumn: searchColumn.value,
     columnFilters: activeColumnFilters.value,
+    negativeColumnFilters: activeNegativeColumnFilters.value,
     fields: browseFields.value,
   });
 });
 
-const getCellValue = (hit: IndexDocumentHit, col: string): unknown => {
-  if (col === '_id') return hit._id;
-  return hit._source?.[col];
-};
+const resultColumns = computed<ColumnDef[]>(() =>
+  columns.value.map(col => ({
+    key: col,
+    title: col,
+    className: col === '_id' ? 'id-col' : undefined,
+    ellipsis: col !== '_id',
+    sticky: col === '_id' ? 'left' : undefined,
+  })),
+);
+
+const resultData = computed<Record<string, unknown>[]>(() =>
+  hits.value.map(hit => ({
+    ...hit._source,
+    _id: hit._id,
+  })),
+);
+
+const resultPagination = computed<PaginationConfig>(() => ({
+  mode: 'cursor',
+  hasNext: hasNextPage.value,
+  total: total.value,
+  pageSize: pageSize.value,
+  pageSizeOptions: [...pageSizeOptions],
+}));
 
 const isComplexValue = (value: unknown): boolean => {
   return value !== null && typeof value === 'object';
@@ -317,13 +342,8 @@ const handleCellClick = (value: unknown) => {
   jsonDialogOpen.value = true;
 };
 
-const getAggField = (col: string): string | null => {
-  if (col === '_id') return '_id';
-  return browseFields.value.find(f => f.name === col)?.aggField ?? null;
-};
-
 const canFilterColumn = (col: string): boolean => {
-  if (col === '_id') return true;
+  if (col === '_id') return false;
   const meta = browseFields.value.find(f => f.name === col);
   return Boolean(meta?.aggField);
 };
@@ -332,7 +352,8 @@ const queryWithoutColumn = (col: string): Record<string, unknown> | undefined =>
   buildDocsBrowseQuery({
     text: searchText.value,
     textColumn: searchColumn.value,
-    columnFilters: activeColumnFilters.value.filter(filter => filter.field !== col),
+    columnFilters: activeColumnFilters.value.filter(f => f.field !== col),
+    negativeColumnFilters: activeNegativeColumnFilters.value.filter(f => f.field !== col),
     fields: browseFields.value,
   });
 
@@ -342,9 +363,43 @@ const applyColumnFilter = (col: string, values: Array<string | number | boolean>
     delete next[col];
   } else {
     next[col] = values;
+    // Remove from negative if present (positive takes precedence)
+    if (negativeColumnFilters.value[col]) {
+      const negNext = { ...negativeColumnFilters.value };
+      delete negNext[col];
+      negativeColumnFilters.value = negNext;
+    }
   }
   columnFilters.value = next;
   void reload();
+};
+
+const addNegativeFilter = (col: string, value: string | number | boolean) => {
+  const next = { ...negativeColumnFilters.value };
+  const existing = next[col] ?? [];
+  if (!existing.includes(value)) {
+    next[col] = [...existing, value];
+  }
+  negativeColumnFilters.value = next;
+  // Remove from positive if present (negative takes precedence if both exist)
+  if (columnFilters.value[col]?.includes(value)) {
+    const posNext = { ...columnFilters.value };
+    posNext[col] = posNext[col].filter(v => v !== value);
+    if (posNext[col].length === 0) delete posNext[col];
+    columnFilters.value = posNext;
+  }
+  void reload();
+};
+
+const copyCellValue = async (value: unknown) => {
+  if (!navigator.clipboard) return;
+  const text = isComplexValue(value) ? jsonify.stringify(value) : formatScalar(value);
+  try {
+    await navigator.clipboard.writeText(text);
+    message.success(lang.t('manage.docs.filterValueCopied'));
+  } catch {
+    message.error(lang.t('manage.docs.copyFailed'));
+  }
 };
 
 const handleSearchColumnChange = (value: string) => {
@@ -358,8 +413,28 @@ const clearFilters = () => {
   searchText.value = '';
   searchColumn.value = '__all__';
   columnFilters.value = {};
+  negativeColumnFilters.value = {};
+  columnFilterOpen.value = null;
   suppressSearchReload = false;
   void reload();
+};
+
+const handleResultPageSize = (value: number) => {
+  if (!pageSizeOptions.includes(value as (typeof pageSizeOptions)[number])) return;
+  pageSize.value = value as (typeof pageSizeOptions)[number];
+  void reload();
+};
+
+const handleRefresh = async () => {
+  const start = Date.now();
+  currentPage.value = 1;
+  searchAfterStack.value = [undefined];
+  await fetchPage(undefined, true);
+  const elapsed = Date.now() - start;
+  if (elapsed < 500) {
+    await new Promise(resolve => setTimeout(resolve, 500 - elapsed));
+  }
+  loading.value = false;
 };
 
 const loadMappingFields = async () => {
@@ -375,7 +450,7 @@ const loadMappingFields = async () => {
   }
 };
 
-const fetchPage = async (searchAfter: unknown[] | undefined) => {
+const fetchPage = async (searchAfter: unknown[] | undefined, keepLoading = false) => {
   if (!props.connection || !props.indexName) return;
 
   loading.value = true;
@@ -398,7 +473,7 @@ const fetchPage = async (searchAfter: unknown[] | undefined) => {
     errorMessage.value =
       err instanceof CustomError ? err.details : err instanceof Error ? err.message : String(err);
   } finally {
-    loading.value = false;
+    if (!keepLoading) loading.value = false;
   }
 };
 
@@ -428,13 +503,6 @@ const goToNextPage = async () => {
   searchAfterStack.value = [...searchAfterStack.value, cursor];
   currentPage.value = currentPage.value + 1;
   await fetchPage(cursor);
-};
-
-const handlePageSizeChange = async (value: string) => {
-  const parsed = Number(value);
-  if (!pageSizeOptions.includes(parsed as (typeof pageSizeOptions)[number])) return;
-  pageSize.value = parsed as (typeof pageSizeOptions)[number];
-  await reload();
 };
 
 const resetState = () => {
@@ -483,29 +551,24 @@ watch(searchText, () => {
 .docs-browser-body.embedded {
   flex: 1;
   height: 100%;
+  padding-top: 0.75rem;
 }
 
 .docs-search-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
 }
 
-.docs-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-  flex-shrink: 0;
-}
-
-.docs-toolbar-right {
+.docs-search-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .docs-loading,
@@ -518,79 +581,10 @@ watch(searchText, () => {
   flex: 1;
 }
 
-.docs-table-wrap {
-  flex: 1;
-  min-height: 0;
-  max-height: 58vh;
-  overflow: auto;
-  border: 1px solid hsl(var(--border));
-  border-radius: 0.375rem;
-  position: relative;
-}
-
-.docs-browser-body.embedded .docs-table-wrap {
-  max-height: calc(100% - 2.5rem);
-}
-
-.docs-table-wrap.is-loading {
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.docs-table-loader {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: hsl(var(--background) / 0.65);
-  backdrop-filter: blur(1px);
-}
-
-.docs-table {
-  width: max-content;
-  min-width: 100%;
-  border-collapse: collapse;
-  font-size: 0.75rem;
-}
-
-.docs-table th,
-.docs-table td {
-  border-bottom: 1px solid hsl(var(--border));
-  padding: 0.4rem 0.65rem;
-  text-align: left;
-  vertical-align: top;
-  max-width: 280px;
-}
-
-.docs-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  background: hsl(var(--muted));
-  font-weight: 600;
-  white-space: nowrap;
-}
-
 .th-content {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-}
-
-.docs-table .id-col {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  background: hsl(var(--background));
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  max-width: 180px;
-}
-
-.docs-table th.id-col {
-  z-index: 3;
-  background: hsl(var(--muted));
 }
 
 .cell-value {
@@ -600,28 +594,17 @@ watch(searchText, () => {
   white-space: nowrap;
 }
 
-.json-cell {
-  cursor: pointer;
-}
-
-.json-cell:hover .json-preview {
-  color: hsl(var(--primary));
-}
-
 .json-preview {
   display: block;
   color: hsl(var(--muted-foreground));
+  cursor: pointer;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.docs-pagination {
-  display: flex;
-  align-items: center;
-  margin-top: 0.5rem;
-  margin-bottom: 0.75rem;
-  flex-shrink: 0;
+.json-preview:hover {
+  color: hsl(var(--primary));
 }
 </style>

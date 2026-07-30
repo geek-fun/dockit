@@ -7,6 +7,7 @@
         enable-search-filters
         :connection="searchConnection"
         :index-name="activeIndexName"
+        @close="handleBrowseClose"
       />
     </div>
     <query-editor v-else ref="queryEditorRef" class="es-editor-query" />
@@ -38,6 +39,12 @@ const activeIndexName = computed(() => searchConnection.value?.activeIndex?.inde
 
 const handleInsertSampleQuery = (query: string) => {
   queryEditorRef.value?.insertSampleQuery(query);
+};
+
+const handleBrowseClose = () => {
+  if (activePanel.value) {
+    activePanel.value.editorType = 'ES_EDITOR_QUERY';
+  }
 };
 
 defineExpose({

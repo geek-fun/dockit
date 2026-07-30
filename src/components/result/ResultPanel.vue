@@ -1,0 +1,543 @@
+<template>
+  <div class="result-panel">
+    <div v-if="error" class="result-error">
+      <slot name="error">
+        <p class="text-destructive text-sm">{{ error }}</p>
+      </slot>
+    </div>
+
+    <div v-else-if="loading && data.length === 0" class="result-loading">
+      <Spinner class="mx-auto" />
+    </div>
+
+    <div v-else-if="data.length === 0 && !loading" class="result-empty">
+      <slot name="empty">
+        <Empty :description="emptyText" />
+      </slot>
+    </div>
+
+    <template v-else>
+      <div class="result-header">
+        <div class="result-header-left">
+          <slot name="toolbar" />
+        </div>
+        <div class="result-header-right">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-7 w-7"
+                  :disabled="loading"
+                  @click="$emit('refresh')"
+                >
+                  <span v-if="loading" class="i-carbon-renew h-3.5 w-3.5 animate-spin" />
+                  <span v-else class="i-carbon-renew h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <div class="header-divider" />
+
+          <TooltipProvider v-if="viewModes.includes('table')">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  class="h-7 w-7"
+                  :class="{ 'bg-accent': internalView === 'table' }"
+                  @click="switchView('table')"
+                >
+                  <span class="i-carbon-table h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Table</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider v-if="viewModes.includes('tree')">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  class="h-7 w-7"
+                  :class="{ 'bg-accent': internalView === 'tree' }"
+                  @click="switchView('tree')"
+                >
+                  <span class="i-carbon-tree-view h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Tree</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider v-if="viewModes.includes('json')">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  class="h-7 w-7"
+                  :class="{ 'bg-accent': internalView === 'json' }"
+                  @click="switchView('json')"
+                >
+                  <span class="i-carbon-code h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>JSON</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <div v-if="closable" class="header-divider" />
+          <TooltipProvider v-if="closable">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button variant="ghost" size="icon" class="h-7 w-7" @click="$emit('close')">
+                  <span class="i-carbon-close h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Close</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </div>
+
+      <template v-if="internalView === 'table'">
+        <div class="table-scroll-area macos-scrollable">
+          <div v-if="loading && loadingOverlay" class="result-loading-overlay">
+            <Spinner />
+          </div>
+          <div class="table-container">
+            <Table>
+              <TableHeader class="sticky-header">
+                <TableRow>
+                  <TableHead
+                    v-for="col in displayColumns"
+                    :key="col.key"
+                    :class="[col.className, { 'col-sticky-left': col.sticky === 'left' }]"
+                    :style="colStyle(col)"
+                  >
+                    <slot name="columnHeader" :column="col">{{ col.title }}</slot>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-if="loading" class="result-loading-row">
+                  <TableCell :colspan="displayColumns.length" class="text-center py-8">
+                    <Spinner class="mx-auto" />
+                  </TableCell>
+                </TableRow>
+                <TableRow
+                  v-for="(row, rowIndex) in displayData"
+                  v-else
+                  :key="getRowKey(row, rowIndex)"
+                >
+                  <TableCell
+                    v-for="col in displayColumns"
+                    :key="col.key"
+                    :class="[col.className, { 'col-sticky-left': col.sticky === 'left' }]"
+                    :style="{ textAlign: col.align || 'left' }"
+                  >
+                    <slot name="cell" :column="col" :row="row">
+                      <span
+                        v-if="col.ellipsis"
+                        class="cell-ellipsis"
+                        :title="formatCellValue(row[col.key])"
+                      >
+                        {{ formatCellValue(row[col.key]) }}
+                      </span>
+                      <span v-else>{{ formatCellValue(row[col.key]) }}</span>
+                    </slot>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      </template>
+
+      <div v-if="internalView === 'tree'" class="tree-scroll-area macos-scrollable">
+        <TreeNode
+          v-for="(item, index) in displayData"
+          :key="index"
+          :value="item"
+          :label="String(index)"
+          :depth="0"
+        />
+      </div>
+
+      <JsonView v-if="internalView === 'json'" :value="displayData" />
+
+      <div v-if="showPagination && !loading" class="result-pagination">
+        <div class="pagination-right">
+          <span class="text-xs text-muted-foreground whitespace-nowrap">
+            {{ total ?? displayData.length }} documents
+          </span>
+
+          <div class="pagination-divider" />
+
+          <Select :model-value="String(pageSize)" @update:model-value="handlePageSizeChange">
+            <SelectTrigger class="h-7 w-[70px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="size in pageSizeOptions" :key="size" :value="String(size)">
+                {{ size }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <div class="flex items-center gap-1">
+            <Button
+              v-if="isCursor"
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              :disabled="!canGoPrev"
+              @click="handleFirstPage"
+            >
+              <span class="i-carbon-skip-back h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              :disabled="!canGoPrev"
+              @click="handlePrevPage"
+            >
+              <span class="i-carbon-chevron-left h-3.5 w-3.5" />
+            </Button>
+          </div>
+
+          <span class="text-xs text-muted-foreground whitespace-nowrap">Page {{ page }}</span>
+
+          <div class="flex items-center gap-1">
+            <template v-if="hasPages">
+              <Button
+                v-for="n in visiblePages"
+                :key="n"
+                :variant="n === page ? 'outline' : 'ghost'"
+                size="sm"
+                class="h-7 min-w-[28px] text-xs px-1"
+                :class="{ 'border-primary text-primary': n === page }"
+                @click="handleGoToPage(n)"
+              >
+                {{ n }}
+              </Button>
+            </template>
+            <Button
+              variant="ghost"
+              size="icon"
+              class="h-7 w-7"
+              :disabled="!canGoNext"
+              @click="handleNextPage"
+            >
+              <span class="i-carbon-chevron-right h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { Empty } from '@/components/ui/empty';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import JsonView from './JsonView.vue';
+import TreeNode from './TreeNode.vue';
+import { usePagination } from './composables/usePagination';
+import type { ColumnDef, ViewMode, PaginationConfig } from './types';
+
+const props = withDefaults(
+  defineProps<{
+    columns?: ColumnDef[];
+    data?: Record<string, unknown>[];
+    total?: number;
+    loading?: boolean;
+    error?: string | null;
+    pagination?: PaginationConfig;
+    viewModes?: ViewMode[];
+    activeView?: ViewMode;
+    emptyText?: string;
+    rowKey?: string | ((row: Record<string, unknown>) => string);
+    closable?: boolean;
+    loadingOverlay?: boolean;
+  }>(),
+  {
+    columns: () => [],
+    data: () => [],
+    total: undefined,
+    loading: false,
+    error: null,
+    pagination: undefined,
+    viewModes: () => ['table', 'json'],
+    activeView: 'table',
+    emptyText: 'No data',
+    rowKey: undefined,
+    closable: false,
+    loadingOverlay: false,
+  },
+);
+
+const emit = defineEmits<{
+  'update:activeView': [value: ViewMode];
+  'update:page': [value: number];
+  'update:page-size': [value: number];
+  'next-page': [];
+  'prev-page': [];
+  'first-page': [];
+  refresh: [];
+  close: [];
+}>();
+
+const internalView = ref<ViewMode>(props.activeView);
+
+const paginationConfig = computed(() => props.pagination);
+const {
+  page,
+  pageSize,
+  mode: paginationMode,
+  canGoPrev,
+  canGoNext,
+  visiblePages,
+  goToPage,
+  nextPage,
+  prevPage,
+  firstPage,
+  setPageSize,
+} = usePagination(paginationConfig);
+
+const isCursor = computed(() => paginationMode.value === 'cursor');
+const hasPages = computed(() => visiblePages.value.length > 0);
+const showPagination = computed(() => props.pagination !== undefined);
+const pageSizeOptions = computed(() => props.pagination?.pageSizeOptions ?? [25, 50, 100]);
+
+const derivedColumns = computed<ColumnDef[]>(() => {
+  if (props.columns && props.columns.length > 0) return props.columns;
+  const keys = new Set<string>();
+  for (const row of props.data) {
+    for (const key of Object.keys(row)) keys.add(key);
+  }
+  return Array.from(keys)
+    .sort()
+    .map(key => ({ key, title: key }));
+});
+
+const displayColumns = computed<ColumnDef[]>(() => derivedColumns.value);
+
+const displayData = computed(() => {
+  if (paginationMode.value === 'client' && props.pagination) {
+    const start = (page.value - 1) * pageSize.value;
+    return props.data.slice(start, start + pageSize.value);
+  }
+  return props.data;
+});
+
+const colStyle = (col: ColumnDef) => {
+  if (!col.width) return undefined;
+  const w = typeof col.width === 'number' ? `${col.width}px` : col.width;
+  return { minWidth: w };
+};
+
+const getRowKey = (row: Record<string, unknown>, index: number): string => {
+  if (typeof props.rowKey === 'function') return props.rowKey(row);
+  if (typeof props.rowKey === 'string') return String(row[props.rowKey] ?? index);
+  return String(index);
+};
+
+const formatCellValue = (value: unknown): string => {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+};
+
+const switchView = (view: ViewMode) => {
+  internalView.value = view;
+  emit('update:activeView', view);
+};
+
+const handlePageSizeChange = (value: string) => {
+  const size = Number(value);
+  const newPage = setPageSize(size);
+  emit('update:page-size', size);
+  emit('update:page', newPage);
+};
+
+const handleGoToPage = (n: number) => {
+  goToPage(n);
+  emit('update:page', n);
+};
+const handlePrevPage = () => {
+  const n = prevPage();
+  emit('prev-page');
+  emit('update:page', n);
+};
+const handleNextPage = () => {
+  const n = nextPage();
+  emit('next-page');
+  emit('update:page', n);
+};
+const handleFirstPage = () => {
+  firstPage();
+  emit('first-page');
+  emit('update:page', 1);
+};
+
+watch(
+  () => props.activeView,
+  val => {
+    internalView.value = val;
+  },
+);
+</script>
+
+<style scoped>
+.result-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.result-error,
+.result-loading,
+.result-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 8rem;
+}
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding-bottom: 0.5rem;
+  gap: 0.5rem;
+}
+.result-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.result-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  margin-left: auto;
+}
+.header-divider {
+  width: 1px;
+  height: 1rem;
+  background: hsl(var(--border));
+  margin: 0 0.25rem;
+}
+.table-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  position: relative;
+}
+
+.result-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: hsl(var(--background) / 0.65);
+  backdrop-filter: blur(1px);
+}
+
+.table-container :deep(.col-sticky-left) {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: hsl(var(--background));
+}
+
+.table-container :deep(.sticky-header) {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: hsl(var(--muted));
+}
+
+.table-container :deep(.sticky-header .col-sticky-left) {
+  z-index: 11;
+  background: hsl(var(--muted));
+}
+.table-container {
+  min-width: 100%;
+}
+/* Neutralize Table's wrapper overflow-auto so .table-scroll-area is the scroll container */
+.table-container :deep(.relative.w-full.overflow-auto) {
+  overflow: visible;
+  overflow-x: visible;
+  overflow-y: visible;
+}
+.result-loading-row :deep(td) {
+  text-align: center;
+}
+.cell-ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+.tree-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+}
+.result-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.25rem 0;
+  flex-shrink: 0;
+}
+.pagination-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.pagination-divider {
+  width: 1px;
+  height: 1rem;
+  background: hsl(var(--border));
+}
+</style>
