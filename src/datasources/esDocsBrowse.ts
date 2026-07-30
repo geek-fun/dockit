@@ -12,6 +12,7 @@ export type DocsBrowseFieldMeta = {
 export type DocsBrowseColumnFilter = {
   field: string;
   values: Array<string | number | boolean>;
+  op?: string;
 };
 
 export type DocsBrowseQueryInput = {
@@ -19,6 +20,7 @@ export type DocsBrowseQueryInput = {
   /** `'__all__'` or a field name */
   textColumn: string;
   columnFilters: DocsBrowseColumnFilter[];
+  negativeColumnFilters?: DocsBrowseColumnFilter[];
   fields: DocsBrowseFieldMeta[];
 };
 
@@ -205,13 +207,7 @@ const buildTextClause = (
     };
   }
 
-  const should: Record<string, unknown>[] = [
-    {
-      wildcard: {
-        _id: { value: `*${escapeWildcard(trimmed)}*`, case_insensitive: true },
-      },
-    },
-  ];
+  const should: Record<string, unknown>[] = [];
 
   const textFields = fields.filter(f => f.kind === 'text').map(f => f.searchField);
 
@@ -283,6 +279,21 @@ const buildColumnFilterClauses = (
       return [{ terms: { [aggField]: filter.values } }];
     });
 
+const buildNegativeColumnFilterClauses = (
+  columnFilters: DocsBrowseColumnFilter[],
+  fields: DocsBrowseFieldMeta[],
+): Record<string, unknown>[] =>
+  columnFilters
+    .filter(filter => filter.values.length > 0)
+    .flatMap(filter => {
+      const aggField =
+        filter.field === '_id'
+          ? '_id'
+          : (fields.find(f => f.name === filter.field)?.aggField ?? null);
+      if (!aggField) return [];
+      return [{ terms: { [aggField]: filter.values } }];
+    });
+
 export const buildDocsBrowseQuery = (
   input: DocsBrowseQueryInput,
 ): Record<string, unknown> | undefined => {
@@ -292,12 +303,15 @@ export const buildDocsBrowseQuery = (
   const textClause = buildTextClause(input.text, input.textColumn, input.fields);
   if (textClause) must.push(textClause);
 
-  if (must.length === 0 && filter.length === 0) return undefined;
+  const mustNot = buildNegativeColumnFilterClauses(input.negativeColumnFilters ?? [], input.fields);
+
+  if (must.length === 0 && filter.length === 0 && mustNot.length === 0) return undefined;
 
   return {
     bool: {
       ...(must.length > 0 ? { must } : {}),
       ...(filter.length > 0 ? { filter } : {}),
+      ...(mustNot.length > 0 ? { must_not: mustNot } : {}),
     },
   };
 };

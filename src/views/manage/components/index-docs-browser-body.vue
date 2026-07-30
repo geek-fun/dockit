@@ -1,60 +1,59 @@
 <template>
   <div class="docs-browser-body" :class="{ embedded }">
-    <div v-if="enableSearchFilters && indexName" class="docs-search-row">
-      <Select :model-value="searchColumn" @update:model-value="handleSearchColumnChange">
-        <SelectTrigger class="h-8 w-[160px] text-xs shrink-0">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">{{ $t('manage.docs.searchAllColumns') }}</SelectItem>
-          <SelectItem value="_id">_id</SelectItem>
-          <SelectItem v-for="field in searchableFields" :key="field.name" :value="field.name">
-            {{ field.name }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
-      <Input
-        v-model="searchText"
-        class="h-8 text-xs"
-        :placeholder="$t('manage.docs.searchPlaceholder')"
-      />
-    </div>
-
-    <div class="docs-toolbar">
-      <div v-if="!indexName" class="text-xs text-muted-foreground">
+    <div v-if="indexName" class="docs-search-row">
+      <template v-if="enableSearchFilters">
+        <Select :model-value="searchColumn" @update:model-value="handleSearchColumnChange">
+          <SelectTrigger class="h-8 w-[160px] text-xs shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">{{ $t('manage.docs.searchAllColumns') }}</SelectItem>
+            <SelectItem value="_id">_id</SelectItem>
+            <SelectItem v-for="field in searchableFields" :key="field.name" :value="field.name">
+              {{ field.name }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Input
+          v-model="searchText"
+          class="h-8 text-xs flex-1 min-w-0"
+          :placeholder="$t('manage.docs.searchPlaceholder')"
+        />
+      </template>
+      <div v-else class="text-xs text-muted-foreground">
         {{ $t('manage.docs.selectIndexHint') }}
       </div>
-      <div class="docs-toolbar-right">
+      <div class="docs-search-actions">
+        <Button
+          v-if="enableSearchFilters"
+          size="sm"
+          variant="default"
+          class="h-7"
+          :disabled="loading || !indexName"
+          @click="reload"
+        >
+          {{ $t('manage.docs.execute') }}
+        </Button>
         <Button
           v-if="enableSearchFilters"
           size="sm"
           variant="outline"
           class="h-7"
-          :disabled="loading || !indexName || !hasActiveFilters"
+          :disabled="loading || !hasActiveFilters"
           @click="clearFilters"
         >
           <span class="i-carbon-filter-remove h-3.5 w-3.5 mr-1" />
           {{ $t('manage.docs.clearFilters') }}
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          class="h-7"
-          :disabled="loading || !indexName"
-          @click="reload"
-        >
-          <span class="i-carbon-renew h-3.5 w-3.5 mr-1" />
-          {{ $t('manage.docs.refresh') }}
-        </Button>
       </div>
     </div>
 
-    <div v-if="!indexName" class="docs-empty">
+    <div v-else class="docs-empty">
       <Empty :description="$t('manage.docs.selectIndexHint')" />
     </div>
 
     <ResultPanel
-      v-else
+      v-if="indexName"
       :columns="resultColumns"
       :data="resultData"
       :total="total"
@@ -67,37 +66,87 @@
       row-key="_id"
       :closable="embedded"
       @refresh="handleRefresh"
-        @close="$emit('close')"
+      @close="$emit('close')"
       @next-page="goToNextPage"
       @prev-page="goToPrevPage"
       @first-page="goToFirstPage"
       @update:page-size="handleResultPageSize"
     >
       <template #columnHeader="{ column }">
-        <div class="th-content">
-          <span>{{ column.title }}</span>
-          <IndexDocsColumnFilter
-            v-if="enableSearchFilters && connection && canFilterColumn(column.key)"
-            :connection="connection"
-            :index-name="indexName"
-            :field="column.key"
-            :agg-field="resolveAggField(browseFields, column.key)!"
-            :selected-values="columnFilters[column.key] ?? []"
-            :base-query="queryWithoutColumn(column.key)"
-            @apply="values => applyColumnFilter(column.key, values)"
-          />
-        </div>
+        <ContextMenu>
+          <ContextMenuTrigger as-child>
+            <div class="th-content">
+              <span>{{ column.title }}</span>
+              <IndexDocsColumnFilter
+                v-if="enableSearchFilters && connection && canFilterColumn(column.key)"
+                :open="columnFilterOpen === column.key"
+                :connection="connection"
+                :index-name="indexName"
+                :field="column.key"
+                :agg-field="resolveAggField(browseFields, column.key)!"
+                :selected-values="columnFilters[column.key] ?? []"
+                :base-query="queryWithoutColumn(column.key)"
+                @update:open="v => (columnFilterOpen = v ? column.key : null)"
+                @apply="values => applyColumnFilter(column.key, values)"
+              />
+            </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuLabel inset>{{ column.title }}</ContextMenuLabel>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              :disabled="!canFilterColumn(column.key)"
+              @select="columnFilterOpen = column.key"
+            >
+              {{ $t('manage.docs.filterForColumn') }}
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       </template>
       <template #cell="{ column, row }">
-        <span
-          v-if="isComplexValue(row[column.key])"
-          class="json-preview"
-          :title="$t('manage.docs.viewJson')"
-          @click="handleCellClick(row[column.key])"
-        >
-          {{ formatCellPreview(row[column.key]) }}
-        </span>
-        <span v-else class="cell-value">{{ formatScalar(row[column.key]) }}</span>
+        <ContextMenu>
+          <ContextMenuTrigger as-child>
+            <span
+              v-if="isComplexValue(row[column.key])"
+              class="json-preview"
+              :title="$t('manage.docs.viewJson')"
+              @click="handleCellClick(row[column.key])"
+            >
+              {{ formatCellPreview(row[column.key]) }}
+            </span>
+            <span v-else class="cell-value">{{ formatScalar(row[column.key]) }}</span>
+          </ContextMenuTrigger>
+          <ContextMenuContent>
+            <ContextMenuItem
+              :disabled="!canFilterColumn(column.key) || isComplexValue(row[column.key])"
+              @select="
+                applyColumnFilter(column.key, [row[column.key] as string | number | boolean])
+              "
+            >
+              <span class="i-carbon-filter h-3.5 w-3.5 mr-2" />
+              {{ $t('manage.docs.filterForValue') }}
+            </ContextMenuItem>
+            <ContextMenuItem
+              :disabled="!canFilterColumn(column.key) || isComplexValue(row[column.key])"
+              @select="addNegativeFilter(column.key, row[column.key] as string | number | boolean)"
+            >
+              <span class="i-carbon-filter-remove h-3.5 w-3.5 mr-2" />
+              {{ $t('manage.docs.excludeValue') }}
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              v-if="isComplexValue(row[column.key])"
+              @select="handleCellClick(row[column.key])"
+            >
+              <span class="i-carbon-terminal h-3.5 w-3.5 mr-2" />
+              {{ $t('manage.docs.viewJson') }}
+            </ContextMenuItem>
+            <ContextMenuItem @select="copyCellValue(row[column.key])">
+              <span class="i-carbon-copy h-3.5 w-3.5 mr-2" />
+              {{ $t('manage.docs.copyValue') }}
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
       </template>
     </ResultPanel>
   </div>
@@ -121,6 +170,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import JsonValueDialog from '@/components/json-value-dialog.vue';
 import IndexDocsColumnFilter from './index-docs-column-filter.vue';
 import { ResultPanel } from '@/components/result';
@@ -133,10 +190,12 @@ import {
   mergeBrowseFieldsWithHitKeys,
   resolveAggField,
   type DocsBrowseFieldMeta,
+  type DocsBrowseColumnFilter,
   type IndexDocumentHit,
 } from '@/datasources';
 import type { SearchConnection } from '@/store';
 import { useLang } from '@/lang';
+import { useMessageService } from '@/composables';
 
 const props = withDefaults(
   defineProps<{
@@ -153,7 +212,12 @@ const props = withDefaults(
   },
 );
 
+defineEmits<{
+  close: [];
+}>();
+
 const lang = useLang();
+const message = useMessageService();
 
 const pageSizeOptions = [25, 50, 100] as const;
 const pageSize = ref<(typeof pageSizeOptions)[number]>(25);
@@ -169,6 +233,8 @@ const mappingFields = ref<DocsBrowseFieldMeta[]>([]);
 const searchText = ref('');
 const searchColumn = ref('__all__');
 const columnFilters = ref<Record<string, Array<string | number | boolean>>>({});
+const negativeColumnFilters = ref<Record<string, Array<string | number | boolean>>>({});
+const columnFilterOpen = ref<string | null>(null);
 let searchDebounceTimer: ReturnType<typeof setTimeout> | undefined;
 let suppressSearchReload = false;
 
@@ -194,8 +260,14 @@ const searchableFields = computed(() => browseFields.value.filter(f => f.kind !=
 
 const columns = computed(() => ['_id', ...[...hitKeys.value].sort((a, b) => a.localeCompare(b))]);
 
-const activeColumnFilters = computed(() =>
+const activeColumnFilters = computed<DocsBrowseColumnFilter[]>(() =>
   Object.entries(columnFilters.value)
+    .filter(([, values]) => values.length > 0)
+    .map(([field, values]) => ({ field, values })),
+);
+
+const activeNegativeColumnFilters = computed<DocsBrowseColumnFilter[]>(() =>
+  Object.entries(negativeColumnFilters.value)
     .filter(([, values]) => values.length > 0)
     .map(([field, values]) => ({ field, values })),
 );
@@ -204,7 +276,8 @@ const hasActiveFilters = computed(
   () =>
     searchText.value.trim().length > 0 ||
     searchColumn.value !== '__all__' ||
-    activeColumnFilters.value.length > 0,
+    activeColumnFilters.value.length > 0 ||
+    activeNegativeColumnFilters.value.length > 0,
 );
 
 const activeQuery = computed(() => {
@@ -213,6 +286,7 @@ const activeQuery = computed(() => {
     text: searchText.value,
     textColumn: searchColumn.value,
     columnFilters: activeColumnFilters.value,
+    negativeColumnFilters: activeNegativeColumnFilters.value,
     fields: browseFields.value,
   });
 });
@@ -278,7 +352,8 @@ const queryWithoutColumn = (col: string): Record<string, unknown> | undefined =>
   buildDocsBrowseQuery({
     text: searchText.value,
     textColumn: searchColumn.value,
-    columnFilters: activeColumnFilters.value.filter(filter => filter.field !== col),
+    columnFilters: activeColumnFilters.value.filter(f => f.field !== col),
+    negativeColumnFilters: activeNegativeColumnFilters.value.filter(f => f.field !== col),
     fields: browseFields.value,
   });
 
@@ -288,9 +363,43 @@ const applyColumnFilter = (col: string, values: Array<string | number | boolean>
     delete next[col];
   } else {
     next[col] = values;
+    // Remove from negative if present (positive takes precedence)
+    if (negativeColumnFilters.value[col]) {
+      const negNext = { ...negativeColumnFilters.value };
+      delete negNext[col];
+      negativeColumnFilters.value = negNext;
+    }
   }
   columnFilters.value = next;
   void reload();
+};
+
+const addNegativeFilter = (col: string, value: string | number | boolean) => {
+  const next = { ...negativeColumnFilters.value };
+  const existing = next[col] ?? [];
+  if (!existing.includes(value)) {
+    next[col] = [...existing, value];
+  }
+  negativeColumnFilters.value = next;
+  // Remove from positive if present (negative takes precedence if both exist)
+  if (columnFilters.value[col]?.includes(value)) {
+    const posNext = { ...columnFilters.value };
+    posNext[col] = posNext[col].filter(v => v !== value);
+    if (posNext[col].length === 0) delete posNext[col];
+    columnFilters.value = posNext;
+  }
+  void reload();
+};
+
+const copyCellValue = async (value: unknown) => {
+  if (!navigator.clipboard) return;
+  const text = isComplexValue(value) ? jsonify.stringify(value) : formatScalar(value);
+  try {
+    await navigator.clipboard.writeText(text);
+    message.success(lang.t('manage.docs.filterValueCopied'));
+  } catch {
+    message.error(lang.t('manage.docs.copyFailed'));
+  }
 };
 
 const handleSearchColumnChange = (value: string) => {
@@ -304,6 +413,8 @@ const clearFilters = () => {
   searchText.value = '';
   searchColumn.value = '__all__';
   columnFilters.value = {};
+  negativeColumnFilters.value = {};
+  columnFilterOpen.value = null;
   suppressSearchReload = false;
   void reload();
 };
@@ -440,29 +551,24 @@ watch(searchText, () => {
 .docs-browser-body.embedded {
   flex: 1;
   height: 100%;
+  padding-top: 0.75rem;
 }
 
 .docs-search-row {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid hsl(var(--border));
   flex-shrink: 0;
 }
 
-.docs-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-  flex-shrink: 0;
-}
-
-.docs-toolbar-right {
+.docs-search-actions {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .docs-loading,

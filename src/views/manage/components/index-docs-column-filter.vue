@@ -101,7 +101,7 @@ const emit = defineEmits<{
   apply: [values: Array<string | number | boolean>];
 }>();
 
-const open = ref(false);
+const open = defineModel<boolean>('open', { default: false });
 const loading = ref(false);
 const errorMessage = ref('');
 const valueSearch = ref('');

@@ -212,9 +212,7 @@
             </Button>
           </div>
 
-          <span class="text-xs text-muted-foreground whitespace-nowrap">
-            Page {{ page }}
-          </span>
+          <span class="text-xs text-muted-foreground whitespace-nowrap">Page {{ page }}</span>
 
           <div class="flex items-center gap-1">
             <template v-if="hasPages">
