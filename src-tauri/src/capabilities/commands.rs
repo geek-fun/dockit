@@ -1,7 +1,8 @@
+use data_studio_agent::capabilities::registry;
+use data_studio_agent::capabilities::types::Capability;
 use serde_json::{json, Value};
 use tauri::AppHandle;
 
-use super::registry;
 use crate::common::connection_resolver::ConnectionResolver;
 use crate::common::ssh_bridge::resolve_ssh_in_place;
 
@@ -62,7 +63,7 @@ pub async fn get_available_tools(source_kinds: Option<Vec<String>>) -> Result<St
     serde_json::to_string(&result).map_err(|e| e.to_string())
 }
 
-fn to_openai_tool(cap: &super::Capability) -> Value {
+fn to_openai_tool(cap: &Capability) -> Value {
     json!({
         "type": "function",
         "function": {
@@ -73,7 +74,7 @@ fn to_openai_tool(cap: &super::Capability) -> Value {
     })
 }
 
-fn to_metadata(cap: &super::Capability) -> Value {
+fn to_metadata(cap: &Capability) -> Value {
     json!({
         "riskLevel": cap.risk_level,
         "requiredPermission": cap.required_permission
@@ -82,7 +83,7 @@ fn to_metadata(cap: &super::Capability) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use crate::capabilities::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
+    use data_studio_agent::capabilities::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
     use async_trait::async_trait;
     use serde_json::{json, Value};
     use std::sync::Arc;
@@ -103,7 +104,7 @@ mod tests {
             input_schema: json!({"type": "object", "properties": {}}),
             risk_level: risk,
             required_permission: perm,
-            source_kind: SourceKind::DocKit,
+            source_kind: SourceKind::AppLocal,
             tags: &["agent"],
             parallel_ok: false,
         }
@@ -153,44 +154,57 @@ mod tests {
     }
 
     #[test]
-    fn test_get_available_tools_without_source_kinds() {
-        // The global registry needs to be initialized once.
-        let _ = crate::capabilities::registry::init_registry();
+    fn test_get_available_tools_variants() {
+        data_studio_agent::capabilities::registry::init_registry(&[|reg| {
+            reg.register(Capability {
+                name: "es__search",
+                description: "test",
+                handler: Arc::new(TestHandler),
+                input_schema: json!({"type": "object", "properties": {}}),
+                risk_level: RiskLevel::Safe,
+                required_permission: "read",
+                source_kind: SourceKind::Database("ELASTICSEARCH"),
+                tags: &["agent"],
+                parallel_ok: false,
+            });
+            reg.register(Capability {
+                name: "es__cat_indices",
+                description: "test",
+                handler: Arc::new(TestHandler),
+                input_schema: json!({"type": "object", "properties": {}}),
+                risk_level: RiskLevel::Safe,
+                required_permission: "read",
+                source_kind: SourceKind::Database("ELASTICSEARCH"),
+                tags: &["agent"],
+                parallel_ok: false,
+            });
+        }]);
 
+        // With no source filter: all tools returned
         let result =
             futures::executor::block_on(super::get_available_tools(None));
         assert!(result.is_ok(), "got: {:?}", result.err());
         let body = result.unwrap();
         assert!(body.contains("tools"), "response should contain tools array");
         assert!(body.contains("metadata"), "response should contain metadata");
-    }
 
-    #[test]
-    fn test_get_available_tools_with_es_source() {
-        let _ = crate::capabilities::registry::init_registry();
-
+        // With ES source: ES tools included
         let result = futures::executor::block_on(super::get_available_tools(Some(
             vec!["ELASTICSEARCH".to_string()],
         )));
         assert!(result.is_ok(), "got: {:?}", result.err());
         let body = result.unwrap();
-        // Should include ES tools
         assert!(body.contains("es__search"), "should include es__search");
         assert!(body.contains("es__cat_indices"), "should include es__cat_indices");
-    }
 
-    #[test]
-    fn test_get_available_tools_with_empty_source_list() {
-        let _ = crate::capabilities::registry::init_registry();
-
+        // With empty source list: no DB tools
         let result = futures::executor::block_on(super::get_available_tools(Some(
             vec![],
         )));
         assert!(result.is_ok(), "got: {:?}", result.err());
         let body = result.unwrap();
-        // Empty list should only return DocKit (env) tools, not DB-specific tools
         assert!(!body.contains("es__search"), "should NOT include es__search");
-        assert!(!body.contains("dynamo__"), "should NOT include dynamo tools");
+        assert!(!body.contains("es__cat_indices"), "should NOT include ES tools");
     }
 
     #[test]
@@ -202,7 +216,7 @@ mod tests {
             input_schema: json!({"type": "object", "properties": {}}),
             risk_level: RiskLevel::Safe,
             required_permission: "read",
-            source_kind: SourceKind::DocKit,
+            source_kind: SourceKind::AppLocal,
             tags: &[],
             parallel_ok: false,
         };

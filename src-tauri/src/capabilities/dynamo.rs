@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
-use super::registry::CapabilityRegistry;
-use super::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
+use data_studio_agent::capabilities::registry::CapabilityRegistry;
+use data_studio_agent::capabilities::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
 
 use crate::dynamo::batch_write_item::{batch_write_item, BatchWriteInput};
 use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};

@@ -169,7 +169,12 @@ pub fn run() {
             // Store AppHandle globally so capability handlers can access the store
             let _ = APP_HANDLE.set(app.handle().clone());
             // Initialize the capability registry
-            capabilities::registry::init_registry();
+            data_studio_agent::capabilities::registry::init_registry(&[
+                crate::capabilities::es::register_all,
+                crate::capabilities::mongo::register_all,
+                crate::capabilities::dynamo::register_all,
+                crate::capabilities::dockit::register_all,
+            ]);
 
             let app_data_dir = app
                 .path()

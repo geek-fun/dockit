@@ -31,7 +31,7 @@ impl ToolExecutor for DocKitToolExecutor {
             Some(connection_config.clone())
         };
 
-        let raw = crate::capabilities::registry::invoke_capability_inner(
+        let raw = data_studio_agent::capabilities::registry::invoke_capability_inner(
             tool_name,
             arguments.clone(),
             conn_opt,
