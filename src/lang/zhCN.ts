@@ -899,6 +899,7 @@ export const zhCN = {
       authTypeNone: '无认证',
       authTypeScram: 'SCRAM 认证',
       authTypeUri: 'URI 连接地址',
+      sshTunnelUnsupportedUri: 'SSH 隧道仅支持单主机 mongodb:// 连接 URI。',
       collectionCount: '{count} 个集合',
       connectSuccess: 'MongoDB 连接成功',
       editorComingSoon: 'MongoDB 查询编辑器即将推出...',

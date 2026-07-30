@@ -15,7 +15,7 @@
         size="sm"
         type="button"
         class="shrink-0"
-        :disabled="testing"
+        :disabled="testing || testDisabled"
         @click="onTestConnection"
       >
         <span v-if="testing" class="i-carbon-circle-dash h-3.5 w-3.5 animate-spin" />
@@ -137,6 +137,7 @@ const props = defineProps<{
   modelValue: SshConnectionConfig;
   remoteHost: string;
   remotePort: number;
+  testDisabled?: boolean;
 }>();
 
 const emit = defineEmits<{

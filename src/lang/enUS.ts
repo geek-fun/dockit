@@ -933,6 +933,8 @@ export const enUS = {
       authTypeNone: 'No Authentication',
       authTypeScram: 'SCRAM Authentication',
       authTypeUri: 'URI Connection String',
+      sshTunnelUnsupportedUri:
+        'SSH tunneling supports only single-host mongodb:// connection URIs.',
       collectionCount: '{count} collections',
       connectSuccess: 'MongoDB connection successful',
       editorComingSoon: 'MongoDB query editor coming soon...',

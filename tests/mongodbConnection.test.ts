@@ -142,19 +142,21 @@ describe('MongoDBConnection', () => {
 
   it('supports uri auth', () => {
     const conn: MongoDBConnection = {
-      name: 'atlas',
+      name: 'remote',
       type: DatabaseType.MONGODB,
-      host: '',
-      port: 0,
+      host: 'mongo.example.com',
+      port: 27017,
       auth: {
         kind: 'uri',
-        uri: 'mongodb+srv://user:pass@cluster.mongodb.net/db?retryWrites=true&w=majority',
+        uri: 'mongodb://user:pass@mongo.example.com:27017/db?retryWrites=true&w=majority',
       },
     };
     expect(conn.auth.kind).toBe('uri');
     if (conn.auth.kind === 'uri') {
       expect(conn.auth.uri).toContain('retryWrites=true');
     }
+    expect(conn.host).toBe('mongo.example.com');
+    expect(conn.port).toBe(27017);
   });
 
   it('can be used as Connection type', () => {
