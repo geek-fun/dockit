@@ -15,6 +15,7 @@ pub mod dynamo;
 pub mod dynamo_client;
 pub mod fetch_client;
 pub mod file_api;
+pub mod mcp_bridge;
 pub mod menu;
 pub mod mongo_client;
 pub mod ssh;
@@ -161,6 +162,8 @@ pub fn run() {
             crate::ssh::commands::test_ssh_connection,
             crate::ssh::commands::list_ssh_config_hosts,
             crate::common::http_client::detect_system_proxy,
+            crate::mcp_bridge::get_mcp_status,
+            crate::mcp_bridge::save_mcp_config,
         ])
         .setup(|app| {
             menu::create_menu(app)?;
@@ -190,6 +193,7 @@ pub fn run() {
             }
             app.manage(agent_db);
             app.manage(crate::ssh::TunnelManager::new());
+            app.manage(crate::mcp_bridge::McpServerHandle::new());
 
             use std::collections::HashMap;
             use std::sync::{Arc, Mutex};
@@ -199,6 +203,36 @@ pub fn run() {
             app.manage(cancel_map);
             let executor: Arc<dyn lib::ToolExecutor> = Arc::new(DocKitToolExecutor);
             app.manage(executor);
+
+            {
+                let app_data_dir = app.path().app_data_dir().map_err(|e| format!("{}", e))?
+                    .to_path_buf();
+                let config = crate::mcp_bridge::McpConfig::load(&app_data_dir);
+                if config.auto_start {
+                    let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
+                    let server_handle: tauri::State<'_, crate::mcp_bridge::McpServerHandle> =
+                        app.state();
+                    {
+                        let mut tx = server_handle.shutdown_tx.lock().unwrap();
+                        *tx = Some(shutdown_tx);
+                    }
+                    let bridge_handle = app.handle().clone();
+                    let data_dir = app_data_dir.clone();
+                    let preferred = config.port.unwrap_or(9120);
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = crate::mcp_bridge::start(
+                            bridge_handle,
+                            data_dir,
+                            preferred,
+                            shutdown_rx,
+                        )
+                        .await
+                        {
+                            log::error!("MCP bridge failed to start: {}", e);
+                        }
+                    });
+                }
+            }
 
             use tauri::{Emitter, Listener};
 
