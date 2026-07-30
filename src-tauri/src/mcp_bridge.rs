@@ -20,12 +20,14 @@ use tokio::sync::oneshot;
 
 pub struct McpServerHandle {
     pub shutdown_tx: Mutex<Option<oneshot::Sender<()>>>,
+    pub server_task: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 
 impl McpServerHandle {
     pub fn new() -> Self {
         Self {
             shutdown_tx: Mutex::new(None),
+            server_task: Mutex::new(None),
         }
     }
 }
@@ -251,7 +253,9 @@ async fn remove_port_file(app_data_dir: &Path) {
 }
 
 /// Shut down the bridge if it's running.
-async fn send_shutdown(handle: &AppHandle) {
+/// Returns the JoinHandle for the old server task, if any, so the caller can
+/// await its full completion (including port file cleanup) before starting a new one.
+async fn send_shutdown(handle: &AppHandle) -> Option<tokio::task::JoinHandle<()>> {
     let server_handle: tauri::State<'_, McpServerHandle> = handle.state();
     let old_tx = {
         let mut tx = server_handle.shutdown_tx.lock().unwrap();
@@ -260,6 +264,8 @@ async fn send_shutdown(handle: &AppHandle) {
     if let Some(sender) = old_tx {
         let _ = sender.send(());
     }
+    let mut task = server_handle.server_task.lock().unwrap();
+    task.take()
 }
 
 pub async fn start(
@@ -287,7 +293,7 @@ pub async fn start(
             write_port_file(&app_data_dir, preferred_port).await?;
 
             let data_dir = app_data_dir.clone();
-            tokio::spawn(async move {
+            let join_handle = tokio::spawn(async move {
                 log::info!("MCP bridge listening on 127.0.0.1:{}", preferred_port);
                 axum::serve(listener, app)
                     .with_graceful_shutdown(async {
@@ -298,6 +304,11 @@ pub async fn start(
                     .ok();
                 let _ = remove_port_file(&data_dir).await;
             });
+            {
+                let mcp_handle: tauri::State<'_, McpServerHandle> = handle.state();
+                let mut task = mcp_handle.server_task.lock().unwrap();
+                *task = Some(join_handle);
+            }
 
             Ok(preferred_port)
         }
@@ -327,7 +338,7 @@ pub async fn start(
             write_port_file(&app_data_dir, random_port).await?;
 
             let data_dir = app_data_dir.clone();
-            tokio::spawn(async move {
+            let join_handle = tokio::spawn(async move {
                 log::info!("MCP bridge listening on 127.0.0.1:{}", random_port);
                 axum::serve(listener, app)
                     .with_graceful_shutdown(async {
@@ -338,6 +349,11 @@ pub async fn start(
                     .ok();
                 let _ = remove_port_file(&data_dir).await;
             });
+            {
+                let mcp_handle: tauri::State<'_, McpServerHandle> = handle.state();
+                let mut task = mcp_handle.server_task.lock().unwrap();
+                *task = Some(join_handle);
+            }
 
             Ok(random_port)
         }
@@ -448,12 +464,15 @@ pub async fn save_mcp_config(
     };
     config.save(&app_data_dir)?;
 
-    // Always shut down the current server first
-    send_shutdown(&app).await;
+    // Always shut down the current server first and await its full exit
+    // (including port file cleanup) to prevent the new server's port file
+    // from being deleted by stale cleanup.
+    let old_task = send_shutdown(&app).await;
+    if let Some(h) = old_task {
+        let _ = h.await;
+    }
 
     if auto_start {
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-
         let (new_shutdown_tx, new_shutdown_rx) = oneshot::channel();
         {
             let server_handle: tauri::State<'_, McpServerHandle> = app.state();
