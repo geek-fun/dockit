@@ -4,7 +4,7 @@ use mongodb::bson::{doc, Bson, Document};
 use mongodb::{options::ClientOptions, Client};
 use serde::Deserialize;
 use serde_json::Value;
-use url::form_urlencoded;
+use url::{form_urlencoded, Url};
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind")]
@@ -39,13 +39,33 @@ fn encode_component(s: &str) -> String {
     form_urlencoded::byte_serialize(s.as_bytes()).collect()
 }
 
-fn build_uri(config: &MongoConnectionConfig) -> String {
-    build_uri_tunneled(config, config.tunnel_port)
-}
-
-fn build_uri_tunneled(config: &MongoConnectionConfig, tunnel_port: Option<u16>) -> String {
+fn build_uri_tunneled(
+    config: &MongoConnectionConfig,
+    tunnel_port: Option<u16>,
+) -> Result<String, String> {
     match &config.auth {
-        MongoAuth::Uri { uri } => uri.clone(),
+        MongoAuth::Uri { uri } => {
+            let Some(local_port) = tunnel_port else {
+                return Ok(uri.clone());
+            };
+            let mut parsed = Url::parse(uri)
+                .map_err(|e| format!("Failed to parse MongoDB URI for SSH tunneling: {}", e))?;
+            if parsed.scheme() != "mongodb"
+                || !matches!(parsed.host_str(), Some(host) if !host.contains(','))
+            {
+                return Err(
+                    "SSH tunneling supports only single-host mongodb:// connection URIs."
+                        .to_string(),
+                );
+            }
+            parsed
+                .set_host(Some("127.0.0.1"))
+                .map_err(|_| "Failed to replace MongoDB URI host for SSH tunneling.".to_string())?;
+            parsed
+                .set_port(Some(local_port))
+                .map_err(|_| "Failed to replace MongoDB URI port for SSH tunneling.".to_string())?;
+            Ok(parsed.into())
+        }
         _ => {
             let use_tls = config.tls.unwrap_or(false);
             let host_str = if let Some(local_port) = tunnel_port {
@@ -89,10 +109,10 @@ fn build_uri_tunneled(config: &MongoConnectionConfig, tunnel_port: Option<u16>) 
                     } else {
                         format!("?{}", params.join("&"))
                     };
-                    format!(
+                    Ok(format!(
                         "mongodb://{}:{}@{}{}{}",
                         encoded_user, encoded_pass, host_str, db_path, query
-                    )
+                    ))
                 }
                 _ => {
                     let query = if params.is_empty() {
@@ -100,11 +120,18 @@ fn build_uri_tunneled(config: &MongoConnectionConfig, tunnel_port: Option<u16>) 
                     } else {
                         format!("?{}", params.join("&"))
                     };
-                    format!("mongodb://{}{}{}", host_str, db_path, query)
+                    Ok(format!("mongodb://{}{}{}", host_str, db_path, query))
                 }
             }
         }
     }
+}
+
+fn is_ssh_enabled(ssh_tunnel: Option<&serde_json::Value>) -> bool {
+    ssh_tunnel
+        .and_then(|tunnel| tunnel.get("enabled"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
 }
 
 #[tauri::command]
@@ -116,10 +143,12 @@ pub async fn mongo_test_connection(
     use crate::common::response::ApiResponse;
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
-    // Resolve SSH tunnel if ssh config is provided
+    let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
     let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
-    let config = MongoConnectionConfig { host: endpoint.host.clone(), port: endpoint.port, ..config };
-    let uri = build_uri(&config);
+    let uri = match build_uri_tunneled(&config, ssh_enabled.then_some(endpoint.port)) {
+        Ok(uri) => uri,
+        Err(e) => return Ok(ApiResponse::err(400, e)),
+    };
 
     let client_options = match ClientOptions::parse(&uri).await {
         Ok(opts) => opts,
@@ -898,8 +927,9 @@ pub async fn mongo_execute_query(
     use crate::common::response::ApiResponse;
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
+    let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
     let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
-    let client = match build_client_tunneled(&config, Some(endpoint.port)).await {
+    let client = match build_client_tunneled(&config, ssh_enabled.then_some(endpoint.port)).await {
         Ok(c) => {
             c
         }
@@ -937,7 +967,7 @@ async fn build_client_tunneled(
     config: &MongoConnectionConfig,
     tunnel_port: Option<u16>,
 ) -> Result<Client, String> {
-    let uri = build_uri_tunneled(config, tunnel_port);
+    let uri = build_uri_tunneled(config, tunnel_port)?;
     let client_options = ClientOptions::parse(&uri)
         .await
         .map_err(|e| format!("Failed to parse connection options: {}", e))?;
@@ -958,9 +988,10 @@ pub async fn mongo_export_documents(
     use crate::common::response::ApiResponse;
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
+    let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
     let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
     let result = {
-        let client = build_client_tunneled(&config, Some(endpoint.port)).await;
+        let client = build_client_tunneled(&config, ssh_enabled.then_some(endpoint.port)).await;
         let client = match client {
             Ok(c) => c,
             Err(e) => {
@@ -1043,8 +1074,9 @@ pub async fn mongo_import_documents(
     use crate::common::response::ApiResponse;
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
 
+    let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
     let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
-    let client = match build_client_tunneled(&config, Some(endpoint.port)).await {
+    let client = match build_client_tunneled(&config, ssh_enabled.then_some(endpoint.port)).await {
         Ok(c) => c,
         Err(e) => {
             return Ok(ApiResponse::err(500, e));
@@ -1138,3 +1170,77 @@ pub async fn mongo_import_documents(
     Ok(ApiResponse::ok(data))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn uri_config(uri: &str) -> MongoConnectionConfig {
+        MongoConnectionConfig {
+            host: "mongo.example.com".to_string(),
+            port: 27017,
+            auth: MongoAuth::Uri {
+                uri: uri.to_string(),
+            },
+            database: None,
+            tls: None,
+            tunnel_port: None,
+        }
+    }
+
+    #[test]
+    fn uri_auth_keeps_the_original_uri_without_ssh() {
+        let uri = "mongodb://user:pass@mongo.example.com:27018/app?tls=true";
+        assert_eq!(build_uri_tunneled(&uri_config(uri), None).unwrap(), uri);
+    }
+
+    #[test]
+    fn uri_auth_replaces_only_the_endpoint_when_ssh_is_enabled() {
+        let uri = "mongodb://user:pass@mongo.example.com:27018/app?tls=true";
+        assert_eq!(
+            build_uri_tunneled(&uri_config(uri), Some(51234)).unwrap(),
+            "mongodb://user:pass@127.0.0.1:51234/app?tls=true"
+        );
+    }
+
+    #[test]
+    fn uri_auth_rejects_srv_uris_when_ssh_is_enabled() {
+        let error = build_uri_tunneled(
+            &uri_config("mongodb+srv://cluster.mongodb.net/app"),
+            Some(51234),
+        )
+        .unwrap_err();
+        assert_eq!(
+            error,
+            "SSH tunneling supports only single-host mongodb:// connection URIs."
+        );
+    }
+
+    #[test]
+    fn uri_auth_rejects_multiple_hosts_when_ssh_is_enabled() {
+        let error = build_uri_tunneled(
+            &uri_config("mongodb://mongo-1.example.com,mongo-2.example.com/app"),
+            Some(51234),
+        )
+        .unwrap_err();
+        assert_eq!(
+            error,
+            "SSH tunneling supports only single-host mongodb:// connection URIs."
+        );
+    }
+
+    #[test]
+    fn non_uri_auth_uses_the_remote_host_without_ssh() {
+        let config = MongoConnectionConfig {
+            host: "mongo.example.com".to_string(),
+            port: 27018,
+            auth: MongoAuth::None,
+            database: Some("app".to_string()),
+            tls: None,
+            tunnel_port: None,
+        };
+        assert_eq!(
+            build_uri_tunneled(&config, None).unwrap(),
+            "mongodb://mongo.example.com:27018/app"
+        );
+    }
+}

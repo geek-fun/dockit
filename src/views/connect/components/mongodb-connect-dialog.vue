@@ -205,33 +205,33 @@
                   <Switch v-model:checked="tlsChecked" />
                 </FormItem>
               </GridItem>
-
-              <!-- Advanced Section -->
-              <GridItem :span="8">
-                <div class="advanced-section">
-                  <button
-                    type="button"
-                    class="advanced-toggle"
-                    @click="showAdvanced = !showAdvanced"
-                  >
-                    <ChevronRight
-                      class="h-4 w-4 transition-transform duration-200"
-                      :class="{ 'rotate-90': showAdvanced }"
-                    />
-                    <span class="text-sm font-medium">{{ $t('connection.advanced') }}</span>
-                  </button>
-                  <div v-show="showAdvanced" class="advanced-content">
-                    <SshTunnelSection
-                      v-model="sshConfig"
-                      :remote-host="formData.host"
-                      :remote-port="formData.port"
-                      @create-profile="openSshProfileDialog(null)"
-                      @edit-profile="openSshProfileDialog($event)"
-                    />
-                  </div>
-                </div>
-              </GridItem>
             </template>
+
+            <!-- Advanced Section -->
+            <GridItem :span="8">
+              <div class="advanced-section">
+                <button type="button" class="advanced-toggle" @click="showAdvanced = !showAdvanced">
+                  <ChevronRight
+                    class="h-4 w-4 transition-transform duration-200"
+                    :class="{ 'rotate-90': showAdvanced }"
+                  />
+                  <span class="text-sm font-medium">{{ $t('connection.advanced') }}</span>
+                </button>
+                <div v-show="showAdvanced" class="advanced-content">
+                  <SshTunnelSection
+                    v-model="sshConfig"
+                    :remote-host="sshRemoteHost"
+                    :remote-port="sshRemotePort"
+                    :test-disabled="Boolean(sshTunnelIssue)"
+                    @create-profile="openSshProfileDialog(null)"
+                    @edit-profile="openSshProfileDialog($event)"
+                  />
+                  <p v-if="sshTunnelIssue" class="mt-2 text-xs text-destructive">
+                    {{ sshTunnelIssue }}
+                  </p>
+                </div>
+              </div>
+            </GridItem>
           </Grid>
         </Form>
       </div>
@@ -339,6 +339,36 @@ const passwordValue = ref('');
 const authSourceValue = ref('');
 const authMechanismValue = ref('');
 const tlsChecked = ref(false);
+
+const parseMongoTunnelTarget = (uri: string): { host: string; port: number } | null => {
+  try {
+    const parsed = new URL(uri);
+    if (parsed.protocol !== 'mongodb:' || !parsed.hostname || parsed.hostname.includes(',')) {
+      return null;
+    }
+    const port = parsed.port ? Number(parsed.port) : 27017;
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      return null;
+    }
+    return { host: parsed.hostname.replace(/^\[(.*)\]$/, '$1'), port };
+  } catch {
+    return null;
+  }
+};
+
+const uriTunnelTarget = computed(() => parseMongoTunnelTarget(uriValue.value));
+const sshRemoteHost = computed(() =>
+  authMode.value === 'uri' ? (uriTunnelTarget.value?.host ?? '') : formData.value.host,
+);
+const sshRemotePort = computed(() =>
+  authMode.value === 'uri' ? (uriTunnelTarget.value?.port ?? 0) : formData.value.port,
+);
+const sshTunnelIssue = computed(() => {
+  if (authMode.value !== 'uri' || !sshConfig.value.enabled || uriTunnelTarget.value) {
+    return '';
+  }
+  return lang.t('connection.mongodb.sshTunnelUnsupportedUri');
+});
 
 const formSchema = toTypedSchema(
   z
@@ -456,7 +486,7 @@ const isFormValid = computed(() => {
   const hasName = formData.value.name && formData.value.name.trim() !== '';
 
   if (authMode.value === 'uri') {
-    return hasName && uriValue.value.trim() !== '';
+    return hasName && uriValue.value.trim() !== '' && !sshTunnelIssue.value;
   }
 
   const hasHost = formData.value.host && formData.value.host.trim() !== '';
@@ -507,10 +537,11 @@ const buildConnection = (): MongoDBConnection => {
   };
 
   if (authMode.value === 'uri') {
+    const tunnelTarget = uriTunnelTarget.value;
     return {
       ...base,
-      host: '',
-      port: 0,
+      host: tunnelTarget?.host ?? '',
+      port: tunnelTarget?.port ?? 0,
       database: undefined,
       tls: undefined,
       auth: { kind: 'uri', uri: uriValue.value },
@@ -597,6 +628,11 @@ const testConnect = async (event: MouseEvent) => {
   resetResult();
   markSubmitted();
 
+  if (sshTunnelIssue.value) {
+    fail(sshTunnelIssue.value);
+    return;
+  }
+
   const { valid } = await validate();
   if (!valid) {
     fail(lang.t('connection.validationFailed'));
@@ -639,6 +675,11 @@ const saveConnect = async (event: MouseEvent) => {
   event.preventDefault();
   resetResult();
   markSubmitted();
+
+  if (sshTunnelIssue.value) {
+    fail(sshTunnelIssue.value);
+    return;
+  }
 
   const { valid } = await validate();
   if (!valid) {

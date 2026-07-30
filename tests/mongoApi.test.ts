@@ -115,8 +115,8 @@ describe('mongoApi', () => {
       const connection: MongoDBConnection = {
         name: 'test',
         type: DatabaseType.MONGODB,
-        host: '',
-        port: 0,
+        host: 'localhost',
+        port: 27017,
         auth: { kind: 'uri', uri: 'mongodb://localhost:27017' },
       };
       const mockApiResponse = { status: 200, data: { collections: [] } };
@@ -126,13 +126,44 @@ describe('mongoApi', () => {
 
       expect(invoke).toHaveBeenCalledWith('mongo_test_connection', {
         config: {
-          host: '',
-          port: 0,
+          host: 'localhost',
+          port: 27017,
           auth: { kind: 'uri', uri: 'mongodb://localhost:27017' },
           database: undefined,
           tls: undefined,
         },
         sshTunnel: null,
+      });
+    });
+
+    it('passes the URI target and SSH configuration for URI auth', async () => {
+      const connection: MongoDBConnection = {
+        name: 'tunneled',
+        type: DatabaseType.MONGODB,
+        host: 'mongo.internal.example.com',
+        port: 27018,
+        auth: {
+          kind: 'uri',
+          uri: 'mongodb://user:pass@mongo.internal.example.com:27018/app',
+        },
+        sshTunnel: { enabled: true, profileIds: ['bastion'] },
+      };
+      invoke.mockResolvedValue({ status: 200, data: { collections: [] } });
+
+      await mongoApi.testConnection(connection);
+
+      expect(invoke).toHaveBeenCalledWith('mongo_test_connection', {
+        config: {
+          host: 'mongo.internal.example.com',
+          port: 27018,
+          auth: {
+            kind: 'uri',
+            uri: 'mongodb://user:pass@mongo.internal.example.com:27018/app',
+          },
+          database: undefined,
+          tls: undefined,
+        },
+        sshTunnel: { enabled: true, profileIds: ['bastion'] },
       });
     });
 
