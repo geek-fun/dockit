@@ -103,7 +103,21 @@ pub async fn run_agent_loop(
     let policy: McpPolicy = McpConfig::load(&app_data_dir).policy;
     let should_deny = move |tool_name: &str, conn_id: Option<&str>| -> bool {
         match registry().get(tool_name) {
-            Some(cap) => !policy.allows(cap.risk_level, conn_id),
+            Some(cap) => {
+                // Allowlist set but no connection specified: a DB capability would
+                // fall back to the default connection, bypassing the allowlist.
+                // AppLocal tools (list_connections etc.) need no connection.
+                if !policy.allowed_connection_ids.is_empty()
+                    && conn_id.is_none()
+                    && !matches!(
+                        cap.source_kind,
+                        data_studio_agent::capabilities::types::SourceKind::AppLocal
+                    )
+                {
+                    return true;
+                }
+                !policy.allows(cap.risk_level, conn_id)
+            }
             None => false,
         }
     };

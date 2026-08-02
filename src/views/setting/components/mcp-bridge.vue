@@ -92,22 +92,23 @@
 
     <!-- Connection Allowlist Section -->
     <div class="space-y-4">
-      <div>
-        <h3 class="text-lg font-semibold">{{ $t('setting.mcp.allowlist') }}</h3>
-        <p class="text-sm text-muted-foreground mt-1">
-          {{ $t('setting.mcp.allowlistDesc') }}
-        </p>
-        <p
-          v-if="policy.allowed_connection_ids.length === 0"
-          class="text-xs text-muted-foreground mt-1 italic"
-        >
-          {{ $t('setting.mcp.allowlistEmpty') }}
-        </p>
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-lg font-semibold">{{ $t('setting.mcp.allowlist') }}</h3>
+          <p class="text-sm text-muted-foreground mt-1">
+            {{ $t('setting.mcp.allowlistDesc') }}
+          </p>
+        </div>
+        <Switch :model-value="allowlistEnabled" @update:model-value="onAllowlistEnableChange" />
       </div>
+      <p v-if="!allowlistEnabled" class="text-xs text-muted-foreground italic">
+        {{ $t('setting.mcp.allowlistEmpty') }}
+      </p>
       <div class="space-y-2">
         <div v-for="connection in connections" :key="connection.id" class="flex items-center gap-2">
           <Checkbox
-            :checked="isConnectionAllowed(connection.id)"
+            :checked="allowlistEnabled && isConnectionAllowed(connection.id)"
+            :disabled="!allowlistEnabled"
             @update:checked="(checked: boolean) => onAllowlistToggle(connection.id, checked)"
           />
           <Label class="cursor-pointer font-normal">
@@ -178,7 +179,7 @@ const defaultPolicy: Policy = {
   mode: 'ReadOnly',
   allowed_connection_ids: [],
   connection_overrides: {},
-  confirm_destructive: false,
+  confirm_destructive: true,
 };
 
 const status = ref<{ running: boolean; port: number | null }>({ running: false, port: null });
@@ -201,6 +202,16 @@ const isConnectionAllowed = (id: string | number): boolean => {
   const idStr = String(id);
   if (policy.value.allowed_connection_ids.length === 0) return true;
   return policy.value.allowed_connection_ids.includes(idStr);
+};
+
+const allowlistEnabled = computed(() => policy.value.allowed_connection_ids.length > 0);
+
+const onAllowlistEnableChange = (val: boolean): void => {
+  const nextIds = val
+    ? connections.value.map(c => String(c.id)).filter((id): id is string => id !== 'undefined')
+    : [];
+  policy.value = { ...policy.value, allowed_connection_ids: nextIds };
+  void savePolicy();
 };
 
 const isConnectionReadOnly = (id: string | number): boolean => {
@@ -272,9 +283,6 @@ const onAutoStartChange = async (val: boolean): Promise<void> => {
 
 const onModeChange = (val: string): void => {
   policy.value = { ...policy.value, mode: val as PermissionMode };
-  if (val !== 'FullAccess') {
-    policy.value = { ...policy.value, confirm_destructive: false };
-  }
   void savePolicy();
 };
 
