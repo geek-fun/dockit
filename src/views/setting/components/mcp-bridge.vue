@@ -6,16 +6,9 @@
         <h3 class="text-lg font-semibold">{{ $t('setting.mcp.title') }}</h3>
       </div>
       <div class="flex items-center gap-2">
-        <span
-          class="inline-block h-2.5 w-2.5 rounded-full"
-          :class="status.running ? 'bg-green-500' : 'bg-red-500'"
-        />
+        <span class="inline-block h-2.5 w-2.5 rounded-full" :class="statusDotClass" />
         <span class="text-sm text-muted-foreground">
-          {{
-            status.running
-              ? $t('setting.mcp.running', { port: status.port })
-              : $t('setting.mcp.stopped')
-          }}
+          {{ statusText }}
         </span>
       </div>
     </div>
@@ -37,8 +30,17 @@
               :placeholder="String(defaultPort)"
               @update:model-value="onPortChange"
             />
-            <Button variant="outline" size="sm" :disabled="loading" @click="restartBridge">
-              {{ $t('setting.mcp.restart') }}
+            <Button
+              variant="outline"
+              size="sm"
+              :disabled="restartPhase !== 'idle'"
+              @click="restartBridge"
+            >
+              <span
+                v-if="restartPhase !== 'idle'"
+                class="i-carbon-circle-dash mr-2 h-4 w-4 shrink-0 animate-spin"
+              />
+              {{ restartButtonText }}
             </Button>
           </div>
         </div>
@@ -178,6 +180,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useConnectionStore } from '@/store/connectionStore';
 import { useI18n } from 'vue-i18n';
+import { useMessageService } from '@/composables';
 
 type PermissionMode = 'ReadOnly' | 'DataReadWrite' | 'FullAccess';
 type McpAction = 'read' | 'write' | 'delete';
@@ -206,11 +209,12 @@ const defaultPolicy: Policy = {
 const status = ref<{ running: boolean; port: number | null }>({ running: false, port: null });
 const portValue = ref<number | undefined>(undefined);
 const autoStart = ref(true);
-const loading = ref(false);
+const restartPhase = ref<'idle' | 'shutting-down' | 'starting' | 'failed'>('idle');
 const policy = ref<Policy>(defaultPolicy);
 const connections = ref<Array<{ id: string | number; name: string; type: string }>>([]);
 
 const connectionStore = useConnectionStore();
+const message = useMessageService();
 const { t } = useI18n();
 
 const permissionModes = computed(() => [
@@ -345,18 +349,77 @@ const onAllowlistEnableChange = (val: boolean): void => {
   void savePolicy();
 };
 
-const restartBridge = async (): Promise<void> => {
-  loading.value = true;
-  try {
-    await invoke('save_mcp_config', { port: portValue.value ?? null, autoStart: autoStart.value });
-    const raw = await invoke<string>('get_mcp_status');
-    const data = JSON.parse(raw);
-    status.value = { running: data.running, port: data.port ?? null };
-  } catch (e) {
-    console.error('Failed to restart MCP bridge:', e);
-  } finally {
-    loading.value = false;
+const statusDotClass = computed(() => {
+  if (restartPhase.value === 'shutting-down' || restartPhase.value === 'starting') {
+    return 'bg-yellow-500 animate-pulse';
   }
+  return status.value.running ? 'bg-green-500' : 'bg-red-500';
+});
+
+const statusText = computed(() => {
+  switch (restartPhase.value) {
+    case 'shutting-down':
+      return t('setting.mcp.shuttingDown');
+    case 'starting':
+      return t('setting.mcp.starting');
+    case 'failed':
+      return t('setting.mcp.restartFailed');
+    default:
+      return status.value.running
+        ? t('setting.mcp.running', { port: status.value.port })
+        : t('setting.mcp.stopped');
+  }
+});
+
+const restartButtonText = computed(() => {
+  switch (restartPhase.value) {
+    case 'shutting-down':
+      return t('setting.mcp.shuttingDown');
+    case 'starting':
+      return t('setting.mcp.starting');
+    default:
+      return t('setting.mcp.restart');
+  }
+});
+
+const restartBridge = async (): Promise<void> => {
+  restartPhase.value = 'shutting-down';
+  try {
+    await invoke('save_mcp_config', {
+      port: portValue.value ?? null,
+      autoStart: autoStart.value,
+      policy: policy.value,
+    });
+    restartPhase.value = 'starting';
+  } catch (e) {
+    restartPhase.value = 'failed';
+    console.error('Failed to restart MCP bridge:', e);
+    message.error(t('setting.mcp.restartFailedDetail'));
+    return;
+  }
+
+  // Poll until the bridge is back up, or fail after 60s
+  const deadline = Date.now() + 60_000;
+  while (Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      const raw = await invoke<string>('get_mcp_status');
+      const data = JSON.parse(raw);
+      if (data.running) {
+        status.value = { running: true, port: data.port ?? null };
+        restartPhase.value = 'idle';
+        message.success(t('setting.mcp.restartSuccess'));
+        return;
+      }
+    } catch (e) {
+      // bridge not up yet — keep polling
+      console.error('Bridge status check failed during restart:', e);
+    }
+  }
+
+  restartPhase.value = 'failed';
+  status.value = { running: false, port: null };
+  message.error(t('setting.mcp.restartTimeout'));
 };
 </script>
 
