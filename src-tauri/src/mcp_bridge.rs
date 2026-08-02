@@ -55,7 +55,10 @@ impl McpConfig {
             Ok(s) => match serde_json::from_str(&s) {
                 Ok(cfg) => cfg,
                 Err(e) => {
-                    log::warn!("Failed to parse mcp-config.json (corrupt?): {}. Using defaults.", e);
+                    log::warn!(
+                        "Failed to parse mcp-config.json (corrupt?): {}. Using defaults.",
+                        e
+                    );
                     McpConfig::default()
                 }
             },
@@ -131,9 +134,7 @@ struct BridgeState {
 // Handlers
 // ---------------------------------------------------------------------------
 
-async fn handle_tools(
-    State(_state): State<Arc<BridgeState>>,
-) -> Json<Value> {
+fn tools_payload() -> Value {
     let reg = registry::registry();
     let caps = reg.agent_tools();
 
@@ -143,22 +144,28 @@ async fn handle_tools(
         .map(|cap| (cap.name.to_string(), to_metadata(cap)))
         .collect();
 
-    let connections = list_connections();
-    let result = json!({
+    json!({
         "tools": openai_tools,
         "metadata": metadata,
-        "connections": connections,
-    });
+    })
+}
+
+async fn handle_tools(State(_state): State<Arc<BridgeState>>) -> Json<Value> {
+    let mut result = tools_payload();
+    result["connections"] = list_connections();
     Json(result)
 }
 
-async fn handle_invoke(
-    Json(payload): Json<InvokeRequest>,
-) -> Json<InvokeResponse> {
+async fn handle_invoke(Json(payload): Json<InvokeRequest>) -> Json<InvokeResponse> {
     // Reject destructive and elevated capabilities on the bridge
     let cap = match registry::registry().get(&payload.name) {
         Some(c) => c,
-        None => return Json(InvokeResponse::error(404, format!("Unknown capability: {}", payload.name))),
+        None => {
+            return Json(InvokeResponse::error(
+                404,
+                format!("Unknown capability: {}", payload.name),
+            ))
+        }
     };
 
     match cap.risk_level {
@@ -193,15 +200,21 @@ async fn handle_invoke(
     }
 }
 
-async fn handle_health(
-    State(state): State<Arc<BridgeState>>,
-) -> Json<Value> {
-    Json(json!({
+fn health_payload(app_name: &str, version: &str, port: u16) -> Value {
+    json!({
         "status": "ok",
-        "app": state.app_name,
-        "version": state.handle.package_info().version.to_string(),
-        "port": get_actual_port(&state.app_data_dir).unwrap_or(0),
-    }))
+        "app": app_name,
+        "version": version,
+        "port": port,
+    })
+}
+
+async fn handle_health(State(state): State<Arc<BridgeState>>) -> Json<Value> {
+    Json(health_payload(
+        state.app_name,
+        &state.handle.package_info().version.to_string(),
+        get_actual_port(&state.app_data_dir).unwrap_or(0),
+    ))
 }
 
 // ---------------------------------------------------------------------------
@@ -417,7 +430,8 @@ async fn resolve_connection(connection_id: &str) -> Result<Value, String> {
     let handle = crate::APP_HANDLE
         .get()
         .ok_or_else(|| "AppHandle not initialized".to_string())?;
-    let mut config = crate::common::connection_resolver::ConnectionResolver::resolve(handle, connection_id)?;
+    let mut config =
+        crate::common::connection_resolver::ConnectionResolver::resolve(handle, connection_id)?;
     crate::common::ssh_bridge::resolve_ssh_in_place(handle, &mut config).await?;
     Ok(config)
 }
@@ -458,10 +472,7 @@ pub async fn save_mcp_config(
         .map_err(|e| format!("Failed to resolve app data dir: {}", e))?
         .to_path_buf();
 
-    let config = McpConfig {
-        port,
-        auto_start,
-    };
+    let config = McpConfig { port, auto_start };
     config.save(&app_data_dir)?;
 
     // Always shut down the current server first and await its full exit
@@ -481,8 +492,281 @@ pub async fn save_mcp_config(
         }
 
         let preferred = port.unwrap_or(get_default_port());
-        start(app.clone(), app_data_dir.clone(), preferred, new_shutdown_rx).await?;
+        start(
+            app.clone(),
+            app_data_dir.clone(),
+            preferred,
+            new_shutdown_rx,
+        )
+        .await?;
     }
 
     Ok(serde_json::to_string(&json!({"status": "ok"})).map_err(|e| e.to_string())?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::TcpListener as StdTcpListener;
+
+    fn temp_data_dir(name: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("dockit-mcp-test-{}-{}", std::process::id(), name));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn init_registry_for_tests() {
+        // OnceLock set-once: subsequent calls are no-ops, safe to call in every test
+        data_studio_agent::capabilities::registry::init_registry(&[
+            crate::capabilities::es::register_all,
+            crate::capabilities::mongo::register_all,
+            crate::capabilities::dynamo::register_all,
+            crate::capabilities::dockit::register_all,
+        ]);
+    }
+
+    #[test]
+    fn test_mcp_config_default() {
+        let cfg = McpConfig::default();
+        assert_eq!(cfg.port, None);
+        assert!(cfg.auto_start);
+    }
+
+    #[test]
+    fn test_mcp_config_save_and_load_roundtrip() {
+        let dir = temp_data_dir("config-roundtrip");
+        let cfg = McpConfig {
+            port: Some(9333),
+            auto_start: false,
+        };
+        cfg.save(&dir).unwrap();
+
+        let loaded = McpConfig::load(&dir);
+        assert_eq!(loaded.port, Some(9333));
+        assert!(!loaded.auto_start);
+
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_mcp_config_load_missing_file_uses_default() {
+        let dir = temp_data_dir("config-missing");
+        let cfg = McpConfig::load(&dir);
+        assert_eq!(cfg.port, None);
+        assert!(cfg.auto_start);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_mcp_config_load_corrupt_file_uses_default() {
+        let dir = temp_data_dir("config-corrupt");
+        std::fs::write(dir.join("mcp-config.json"), "{ not valid json").unwrap();
+        let cfg = McpConfig::load(&dir);
+        assert_eq!(cfg.port, None);
+        assert!(cfg.auto_start);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_invoke_response_ok_serialization() {
+        let resp = InvokeResponse::ok(json!({"hits": 1}));
+        let v = serde_json::to_value(&resp).unwrap();
+        assert_eq!(v["status"], 200);
+        assert_eq!(v["data"]["hits"], 1);
+        assert!(v.get("message").is_none());
+    }
+
+    #[test]
+    fn test_invoke_response_error_serialization() {
+        let resp = InvokeResponse::error(403, "forbidden".into());
+        let v = serde_json::to_value(&resp).unwrap();
+        assert_eq!(v["status"], 403);
+        assert_eq!(v["message"], "forbidden");
+        assert!(v.get("data").is_none());
+    }
+
+    #[test]
+    fn test_get_actual_port_no_file() {
+        let dir = temp_data_dir("port-none");
+        assert_eq!(get_actual_port(&dir), None);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_get_actual_port_stale_file_is_removed() {
+        let dir = temp_data_dir("port-stale");
+        // Port 1 is reserved — nothing will be listening on it
+        std::fs::write(dir.join("mcp-port"), "1").unwrap();
+        assert_eq!(get_actual_port(&dir), None);
+        assert!(
+            !dir.join("mcp-port").exists(),
+            "stale port file should be cleaned up"
+        );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_get_actual_port_live_port() {
+        let dir = temp_data_dir("port-live");
+        let listener = StdTcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::fs::write(dir.join("mcp-port"), port.to_string()).unwrap();
+
+        assert_eq!(get_actual_port(&dir), Some(port));
+        assert!(dir.join("mcp-port").exists());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_write_and_remove_port_file() {
+        let dir = temp_data_dir("port-write-remove");
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            write_port_file(&dir, 9120).await.unwrap();
+            assert_eq!(
+                std::fs::read_to_string(dir.join("mcp-port")).unwrap(),
+                "9120"
+            );
+
+            remove_port_file(&dir).await;
+            assert!(!dir.join("mcp-port").exists());
+        });
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_default_port_is_9120() {
+        assert_eq!(get_default_port(), 9120);
+    }
+
+    #[test]
+    fn test_to_openai_tool_and_metadata() {
+        init_registry_for_tests();
+        let reg = registry::registry();
+        let caps = reg.agent_tools();
+        assert!(!caps.is_empty(), "registry should have agent tools");
+        let cap = &caps[0];
+
+        let tool = to_openai_tool(cap);
+        assert_eq!(tool["type"], "function");
+        assert_eq!(tool["function"]["name"], cap.name);
+        assert_eq!(tool["function"]["description"], cap.description);
+        assert!(tool["function"]["parameters"].is_object());
+
+        let meta = to_metadata(cap);
+        assert!(meta["riskLevel"].is_string());
+        assert!(meta["requiredPermission"].is_string());
+    }
+
+    #[test]
+    fn test_tools_payload_contains_tools_and_metadata() {
+        init_registry_for_tests();
+        let v = tools_payload();
+        assert!(v["tools"].as_array().unwrap().len() > 0);
+        assert!(v["metadata"].as_object().unwrap().len() > 0);
+        // tools and metadata must be keyed by the same capability names
+        let names: std::collections::HashSet<&str> = v["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|t| t["function"]["name"].as_str().unwrap())
+            .collect();
+        for name in names {
+            assert!(
+                v["metadata"].get(name).is_some(),
+                "missing metadata for {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_list_connections_empty_without_app_handle() {
+        assert_eq!(list_connections(), json!([]));
+    }
+
+    #[test]
+    fn test_health_payload_shape() {
+        let v = health_payload("dockit", "1.2.3", 9120);
+        assert_eq!(v["status"], "ok");
+        assert_eq!(v["app"], "dockit");
+        assert_eq!(v["version"], "1.2.3");
+        assert_eq!(v["port"], 9120);
+    }
+
+    #[test]
+    fn test_handle_invoke_unknown_capability_returns_404() {
+        init_registry_for_tests();
+        let req = InvokeRequest {
+            name: "definitely__not_a_real_capability".into(),
+            args: json!({}),
+            connection_id: None,
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let resp = rt.block_on(handle_invoke(Json(req))).0;
+
+        assert_eq!(resp.status, 404);
+        assert!(resp.message.unwrap().contains("Unknown capability"));
+    }
+
+    #[test]
+    fn test_handle_invoke_rejects_elevated_and_destructive() {
+        init_registry_for_tests();
+        let tools = registry::registry().agent_tools();
+        // Concurrent tests may initialize the global registry (OnceLock) with
+        // test-only Safe capabilities; only assert when the full app registry is present.
+        let Some(risky) = tools
+            .iter()
+            .find(|c| !matches!(c.risk_level, RiskLevel::Safe))
+        else {
+            return;
+        };
+
+        let req = InvokeRequest {
+            name: risky.name.to_string(),
+            args: json!({}),
+            connection_id: None,
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let resp = rt.block_on(handle_invoke(Json(req))).0;
+
+        assert_eq!(resp.status, 403);
+        assert!(resp
+            .message
+            .unwrap()
+            .contains("not allowed through the MCP bridge"));
+    }
+
+    #[test]
+    fn test_handle_invoke_safe_capability_without_app_handle() {
+        init_registry_for_tests();
+        let tools = registry::registry().agent_tools();
+        // Same OnceLock guard as above: skip when a concurrent test replaced the registry
+        let has_risky = tools
+            .iter()
+            .any(|c| !matches!(c.risk_level, RiskLevel::Safe));
+        if !has_risky {
+            return;
+        }
+        let safe = tools
+            .iter()
+            .find(|c| matches!(c.risk_level, RiskLevel::Safe))
+            .expect("registry should contain a safe capability");
+
+        let req = InvokeRequest {
+            name: safe.name.to_string(),
+            args: json!({}),
+            connection_id: None,
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let resp = rt.block_on(handle_invoke(Json(req))).0;
+
+        // Safe capability passes the risk check; with no connection config the
+        // capability itself fails, proving execution reached the invoke path.
+        assert_eq!(resp.status, 400);
+    }
 }

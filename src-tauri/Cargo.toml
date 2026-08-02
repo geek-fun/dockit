@@ -51,6 +51,7 @@ russh = "0.60"
 [dev-dependencies]
 wiremock = "0.6"
 mockall = "0.13"
+tauri = { version = "2.10", features = ["test"] }
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!
