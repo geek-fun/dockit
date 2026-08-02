@@ -250,7 +250,6 @@ export const enUS = {
       confirmDestructive: 'Confirm Destructive Operations',
       confirmDestructiveDesc:
         'Require explicit confirmation before destructive operations (delete/drop)',
-      confirmDestructiveDisabledHint: 'Only available in Full Access mode',
       allowlist: 'Connection Allowlist',
       allowlistDesc: 'Restrict MCP to specific connections. Uncheck all to allow all connections.',
       allowlistEmpty: 'All connections allowed',

@@ -234,7 +234,6 @@ export const zhCN = {
       modeFullAccessDesc: '允许所有操作',
       confirmDestructive: '破坏性操作确认',
       confirmDestructiveDesc: '执行删除/销毁等破坏性操作前需显式确认',
-      confirmDestructiveDisabledHint: '仅在完全访问模式下可用',
       allowlist: '连接白名单',
       allowlistDesc: '将 MCP 限制在特定连接。全部取消勾选则允许所有连接。',
       allowlistEmpty: '已允许所有连接',

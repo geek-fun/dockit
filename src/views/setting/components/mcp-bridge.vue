@@ -20,33 +20,35 @@
       </div>
     </div>
 
-    <!-- Port + Auto-start Section (same row) -->
-    <div class="flex items-end justify-between gap-6">
-      <div class="space-y-3 flex-1">
-        <div>
-          <h3 class="text-lg font-semibold">{{ $t('setting.mcp.port') }}</h3>
-          <p class="text-sm text-muted-foreground mt-1">{{ $t('setting.mcp.portDesc') }}</p>
+    <!-- Port + Auto-start Section (card, same row) -->
+    <div class="py-4 px-5 border-border border rounded-lg bg-card space-y-3">
+      <div class="flex items-end justify-between gap-6">
+        <div class="space-y-3 flex-1">
+          <div>
+            <h4 class="text-sm font-semibold">{{ $t('setting.mcp.port') }}</h4>
+            <p class="text-xs text-muted-foreground mt-1">{{ $t('setting.mcp.portDesc') }}</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <InputNumber
+              :model-value="portValue"
+              :min="1024"
+              :max="65535"
+              class="w-36"
+              :placeholder="String(defaultPort)"
+              @update:model-value="onPortChange"
+            />
+            <Button variant="outline" size="sm" :disabled="loading" @click="restartBridge">
+              {{ $t('setting.mcp.restart') }}
+            </Button>
+          </div>
         </div>
-        <div class="flex items-center gap-3">
-          <InputNumber
-            :model-value="portValue"
-            :min="1024"
-            :max="65535"
-            class="w-36"
-            :placeholder="String(defaultPort)"
-            @update:model-value="onPortChange"
-          />
-          <Button variant="outline" size="sm" :disabled="loading" @click="restartBridge">
-            {{ $t('setting.mcp.restart') }}
-          </Button>
+        <div class="space-y-3">
+          <div>
+            <h4 class="text-sm font-semibold">{{ $t('setting.mcp.autoStart') }}</h4>
+            <p class="text-xs text-muted-foreground mt-1">{{ $t('setting.mcp.autoStartDesc') }}</p>
+          </div>
+          <Switch :model-value="autoStart" @update:model-value="onAutoStartChange" />
         </div>
-      </div>
-      <div class="space-y-3">
-        <div>
-          <h3 class="text-lg font-semibold">{{ $t('setting.mcp.autoStart') }}</h3>
-          <p class="text-sm text-muted-foreground mt-1">{{ $t('setting.mcp.autoStartDesc') }}</p>
-        </div>
-        <Switch :model-value="autoStart" @update:model-value="onAutoStartChange" />
       </div>
     </div>
 
@@ -86,23 +88,20 @@
       <p class="text-xs text-muted-foreground mt-2">
         {{ permissionModeDesc }}
       </p>
-    </div>
 
-    <!-- Confirm Destructive Section -->
-    <div class="space-y-4">
-      <div class="flex items-center justify-between">
+      <!-- Confirm Destructive — only shown for FullAccess -->
+      <div
+        v-if="policy.mode === 'FullAccess'"
+        class="flex items-center justify-between pt-3 mt-3 border-t border-border/60"
+      >
         <div class="flex-1">
-          <h3 class="text-lg font-semibold">{{ $t('setting.mcp.confirmDestructive') }}</h3>
-          <p class="text-sm text-muted-foreground mt-1">
+          <h4 class="text-sm font-medium">{{ $t('setting.mcp.confirmDestructive') }}</h4>
+          <p class="text-xs text-muted-foreground mt-1">
             {{ $t('setting.mcp.confirmDestructiveDesc') }}
-          </p>
-          <p v-if="policy.mode !== 'FullAccess'" class="text-xs text-muted-foreground mt-1 italic">
-            {{ $t('setting.mcp.confirmDestructiveDisabledHint') }}
           </p>
         </div>
         <Switch
           :model-value="policy.confirm_destructive"
-          :disabled="policy.mode !== 'FullAccess'"
           @update:model-value="onConfirmDestructiveChange"
         />
       </div>
@@ -198,7 +197,7 @@ type Policy = {
 const defaultPort = 9120;
 
 const defaultPolicy: Policy = {
-  mode: 'ReadOnly',
+  mode: 'DataReadWrite',
   allowed_connection_ids: [],
   connection_overrides: {},
   confirm_destructive: true,
@@ -292,7 +291,7 @@ onMounted(async () => {
     autoStart.value = data.autoStart;
     if (data.policy) {
       policy.value = {
-        mode: data.policy.mode ?? 'ReadOnly',
+        mode: data.policy.mode ?? 'DataReadWrite',
         allowed_connection_ids: data.policy.allowed_connection_ids ?? [],
         connection_overrides: data.policy.connection_overrides ?? {},
         confirm_destructive: data.policy.confirm_destructive ?? true,
