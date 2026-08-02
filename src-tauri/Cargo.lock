@@ -1850,7 +1850,7 @@ checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
 [[package]]
 name = "data-studio-agent"
 version = "0.1.4"
-source = "git+https://github.com/geek-fun/data-studio-agent.git?branch=feat%2Funified-capability-types#b4d3381afd856e1a270eb345faa799ad7f5008e6"
+source = "git+https://github.com/geek-fun/data-studio-agent.git?branch=feat%2Fmcp-permissions#6b5bb77beeedfe9ac6f6c0667296f2d4a6021173"
 dependencies = [
  "async-openai",
  "async-trait",

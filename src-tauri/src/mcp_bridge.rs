@@ -5,8 +5,9 @@ use std::sync::Mutex;
 use axum::extract::State;
 use axum::routing::{get, post};
 use axum::Json;
+use data_studio_agent::capabilities::permissions::McpPolicy;
 use data_studio_agent::capabilities::registry;
-use data_studio_agent::capabilities::types::{Capability, RiskLevel};
+use data_studio_agent::capabilities::types::Capability;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Manager};
@@ -42,6 +43,8 @@ pub struct McpConfig {
     pub port: Option<u16>,
     #[serde(default = "default_auto_start")]
     pub auto_start: bool,
+    #[serde(default)]
+    pub policy: McpPolicy,
 }
 
 fn default_auto_start() -> bool {
@@ -78,6 +81,7 @@ impl Default for McpConfig {
         Self {
             port: None,
             auto_start: true,
+            policy: McpPolicy::default(),
         }
     }
 }
@@ -128,75 +132,93 @@ struct BridgeState {
     handle: AppHandle,
     app_name: &'static str,
     app_data_dir: PathBuf,
+    policy: McpPolicy,
 }
 
 // ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
 
-fn tools_payload() -> Value {
+fn tools_payload(policy: &McpPolicy) -> Value {
     let reg = registry::registry();
     let caps = reg.agent_tools();
 
-    let openai_tools: Vec<Value> = caps.iter().map(|c| to_openai_tool(c)).collect();
-    let metadata: serde_json::Map<String, Value> = caps
+    let tools: Vec<Value> = caps
         .iter()
-        .map(|cap| (cap.name.to_string(), to_metadata(cap)))
+        .filter(|cap| check_policy(cap, policy, None).is_ok())
+        .map(|cap| {
+            json!({
+                "name": cap.name,
+                "description": cap.description,
+                "inputSchema": cap.input_schema,
+                "metadata": to_metadata(cap),
+            })
+        })
         .collect();
 
     json!({
-        "tools": openai_tools,
-        "metadata": metadata,
+        "tools": tools,
     })
 }
 
-async fn handle_tools(State(_state): State<Arc<BridgeState>>) -> Json<Value> {
-    let mut result = tools_payload();
+async fn handle_tools(State(state): State<Arc<BridgeState>>) -> Json<Value> {
+    let mut result = tools_payload(&state.policy);
     result["connections"] = list_connections();
     Json(result)
 }
 
-async fn handle_invoke(Json(payload): Json<InvokeRequest>) -> Json<InvokeResponse> {
-    // Reject destructive and elevated capabilities on the bridge
+/// Gate a capability against the MCP permission policy.
+/// /tools advertises connection-agnostically (None), so visibility reflects
+/// the global mode + confirm_destructive gate, not per-connection overrides.
+fn check_policy(
+    cap: &Capability,
+    policy: &McpPolicy,
+    connection_id: Option<&str>,
+) -> Result<(), String> {
+    if policy.allows(cap.risk_level, connection_id) {
+        return Ok(());
+    }
+    let risk = format!("{:?}", cap.risk_level).to_lowercase();
+    Err(format!(
+        "Capability '{}' ({}) blocked by MCP policy (mode={:?}, confirm_destructive={})",
+        cap.name, risk, policy.mode, policy.confirm_destructive
+    ))
+}
+
+async fn handle_invoke(
+    State(state): State<Arc<BridgeState>>,
+    Json(payload): Json<InvokeRequest>,
+) -> Json<InvokeResponse> {
+    Json(invoke_with_policy(&state.policy, payload).await)
+}
+
+// Split from handle_invoke so tests can run it without a Tauri runtime —
+// BridgeState holds a Wry AppHandle, which tauri::test mocks cannot provide.
+async fn invoke_with_policy(policy: &McpPolicy, payload: InvokeRequest) -> InvokeResponse {
     let cap = match registry::registry().get(&payload.name) {
         Some(c) => c,
-        None => {
-            return Json(InvokeResponse::error(
-                404,
-                format!("Unknown capability: {}", payload.name),
-            ))
-        }
+        None => return InvokeResponse::error(404, format!("Unknown capability: {}", payload.name)),
     };
 
-    match cap.risk_level {
-        RiskLevel::Safe => {}
-        RiskLevel::Elevated | RiskLevel::Destructive => {
-            let level_str = serde_json::to_string(&cap.risk_level).unwrap_or_default();
-            return Json(InvokeResponse::error(
-                403,
-                format!(
-                    "Capability '{}' requires {} permission and is not allowed through the MCP bridge",
-                    payload.name, level_str
-                ),
-            ));
-        }
+    if let Err(msg) = check_policy(cap, policy, payload.connection_id.as_deref()) {
+        return InvokeResponse::error(403, msg);
     }
 
     // Connection resolution is handled server-side via the configured connection
     let config = match payload.connection_id {
         Some(ref id) => match resolve_connection(id).await {
             Ok(cfg) => Some(cfg),
-            Err(e) => return Json(InvokeResponse::error(400, e)),
+            Err(e) => return InvokeResponse::error(400, e),
         },
         None => None,
     };
 
     match registry::invoke_capability_inner(&payload.name, payload.args, config).await {
         Ok(data) => match serde_json::from_str::<Value>(&data) {
-            Ok(parsed) => Json(InvokeResponse::ok(parsed)),
-            Err(_) => Json(InvokeResponse::ok(json!({"result": data}))),
+            Ok(parsed) => InvokeResponse::ok(parsed),
+            Err(_) => InvokeResponse::ok(json!({"result": data})),
         },
-        Err(msg) => Json(InvokeResponse::error(400, msg)),
+        Err(msg) => InvokeResponse::error(400, msg),
     }
 }
 
@@ -288,12 +310,14 @@ pub async fn start(
     shutdown_rx: oneshot::Receiver<()>,
 ) -> Result<u16, String> {
     // Try preferred port first, fall back to random
+    let policy = McpConfig::load(&app_data_dir).policy;
     let port = match TcpListener::bind(format!("127.0.0.1:{}", preferred_port)).await {
         Ok(listener) => {
             let state = Arc::new(BridgeState {
                 handle: handle.clone(),
                 app_name: "dockit",
                 app_data_dir: app_data_dir.clone(),
+                policy: policy.clone(),
             });
 
             let app = axum::Router::new()
@@ -340,6 +364,7 @@ pub async fn start(
                 handle: handle.clone(),
                 app_name: "dockit",
                 app_data_dir: app_data_dir.clone(),
+                policy: policy.clone(),
             });
 
             let app = axum::Router::new()
@@ -378,17 +403,6 @@ pub async fn start(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-fn to_openai_tool(cap: &Capability) -> Value {
-    json!({
-        "type": "function",
-        "function": {
-            "name": cap.name,
-            "description": cap.description,
-            "parameters": cap.input_schema.clone()
-        }
-    })
-}
 
 fn to_metadata(cap: &Capability) -> Value {
     json!({
@@ -455,6 +469,7 @@ pub async fn get_mcp_status(app: AppHandle) -> Result<String, String> {
         "port": running_port,
         "configuredPort": config.port,
         "autoStart": config.auto_start,
+        "policy": serde_json::to_value(&config.policy).map_err(|e| e.to_string())?,
     });
 
     serde_json::to_string(&status).map_err(|e| e.to_string())
@@ -464,6 +479,7 @@ pub async fn get_mcp_status(app: AppHandle) -> Result<String, String> {
 pub async fn save_mcp_config(
     port: Option<u16>,
     auto_start: bool,
+    policy: Option<McpPolicy>,
     app: AppHandle,
 ) -> Result<String, String> {
     let app_data_dir = app
@@ -472,7 +488,13 @@ pub async fn save_mcp_config(
         .map_err(|e| format!("Failed to resolve app data dir: {}", e))?
         .to_path_buf();
 
-    let config = McpConfig { port, auto_start };
+    // Load first so a None policy from older clients keeps the stored policy.
+    let mut config = McpConfig::load(&app_data_dir);
+    config.port = port;
+    config.auto_start = auto_start;
+    if let Some(p) = policy {
+        config.policy = p;
+    }
     config.save(&app_data_dir)?;
 
     // Always shut down the current server first and await its full exit
@@ -507,6 +529,8 @@ pub async fn save_mcp_config(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use data_studio_agent::capabilities::permissions::McpPermissionMode;
+    use data_studio_agent::capabilities::types::RiskLevel;
     use std::net::TcpListener as StdTcpListener;
 
     fn temp_data_dir(name: &str) -> PathBuf {
@@ -532,6 +556,7 @@ mod tests {
         let cfg = McpConfig::default();
         assert_eq!(cfg.port, None);
         assert!(cfg.auto_start);
+        assert_eq!(cfg.policy, McpPolicy::default());
     }
 
     #[test]
@@ -540,12 +565,18 @@ mod tests {
         let cfg = McpConfig {
             port: Some(9333),
             auto_start: false,
+            policy: McpPolicy {
+                mode: McpPermissionMode::DataReadWrite,
+                confirm_destructive: false,
+                ..McpPolicy::default()
+            },
         };
         cfg.save(&dir).unwrap();
 
         let loaded = McpConfig::load(&dir);
         assert_eq!(loaded.port, Some(9333));
         assert!(!loaded.auto_start);
+        assert_eq!(loaded.policy, cfg.policy);
 
         std::fs::remove_dir_all(&dir).unwrap();
     }
@@ -642,43 +673,71 @@ mod tests {
     }
 
     #[test]
-    fn test_to_openai_tool_and_metadata() {
+    fn test_to_metadata_shape() {
         init_registry_for_tests();
         let reg = registry::registry();
         let caps = reg.agent_tools();
         assert!(!caps.is_empty(), "registry should have agent tools");
         let cap = &caps[0];
 
-        let tool = to_openai_tool(cap);
-        assert_eq!(tool["type"], "function");
-        assert_eq!(tool["function"]["name"], cap.name);
-        assert_eq!(tool["function"]["description"], cap.description);
-        assert!(tool["function"]["parameters"].is_object());
-
         let meta = to_metadata(cap);
-        assert!(meta["riskLevel"].is_string());
-        assert!(meta["requiredPermission"].is_string());
+        assert_eq!(
+            meta["riskLevel"],
+            serde_json::to_value(cap.risk_level).unwrap(),
+            "riskLevel should use the lowercase serde name"
+        );
+        assert_eq!(meta["requiredPermission"], cap.required_permission);
     }
 
     #[test]
     fn test_tools_payload_contains_tools_and_metadata() {
         init_registry_for_tests();
-        let v = tools_payload();
-        assert!(v["tools"].as_array().unwrap().len() > 0);
-        assert!(v["metadata"].as_object().unwrap().len() > 0);
-        // tools and metadata must be keyed by the same capability names
+        let v = tools_payload(&McpPolicy::default());
+        let tools = v["tools"].as_array().unwrap();
+        assert!(!tools.is_empty());
+        for t in tools {
+            assert!(t["name"].is_string());
+            assert!(t["description"].is_string());
+            assert!(t["inputSchema"].is_object());
+            assert!(t["metadata"]["riskLevel"].is_string());
+            assert!(t["metadata"]["requiredPermission"].is_string());
+        }
+    }
+
+    #[test]
+    fn test_tools_payload_filters_by_policy() {
+        init_registry_for_tests();
+        let reg = registry::registry();
+        let caps = reg.agent_tools();
+        if caps.iter().all(|c| matches!(c.risk_level, RiskLevel::Safe)) {
+            return;
+        }
+
+        // ReadOnly default exposes only Safe capabilities
+        let v = tools_payload(&McpPolicy::default());
         let names: std::collections::HashSet<&str> = v["tools"]
             .as_array()
             .unwrap()
             .iter()
-            .map(|t| t["function"]["name"].as_str().unwrap())
+            .map(|t| t["name"].as_str().unwrap())
             .collect();
-        for name in names {
-            assert!(
-                v["metadata"].get(name).is_some(),
-                "missing metadata for {name}"
+        for cap in caps.iter() {
+            let exposed = names.contains(cap.name);
+            assert_eq!(
+                exposed,
+                matches!(cap.risk_level, RiskLevel::Safe),
+                "capability '{}' exposure should follow the ReadOnly default policy",
+                cap.name
             );
         }
+
+        // FullAccess exposes every capability (confirm_destructive stays on)
+        let full = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            ..McpPolicy::default()
+        };
+        let v_full = tools_payload(&full);
+        assert_eq!(v_full["tools"].as_array().unwrap().len(), caps.len());
     }
 
     #[test]
@@ -696,6 +755,88 @@ mod tests {
     }
 
     #[test]
+    fn test_check_policy_allows_safe_by_default() {
+        init_registry_for_tests();
+        let cap = registry::registry().get("es__search").unwrap();
+        assert!(check_policy(cap, &McpPolicy::default(), None).is_ok());
+    }
+
+    #[test]
+    fn test_check_policy_blocks_risky_by_default() {
+        init_registry_for_tests();
+        let caps = registry::registry().agent_tools();
+        let Some(risky) = caps
+            .iter()
+            .find(|c| !matches!(c.risk_level, RiskLevel::Safe))
+        else {
+            return;
+        };
+        let err = check_policy(risky, &McpPolicy::default(), None).unwrap_err();
+        assert!(err.contains(&format!("blocked by MCP policy (mode=ReadOnly")));
+    }
+
+    #[test]
+    fn test_check_policy_full_access_allows_destructive() {
+        init_registry_for_tests();
+        let caps = registry::registry().agent_tools();
+        let Some(destructive) = caps
+            .iter()
+            .find(|c| matches!(c.risk_level, RiskLevel::Destructive))
+        else {
+            return;
+        };
+        let policy = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            ..McpPolicy::default()
+        };
+        assert!(check_policy(destructive, &policy, None).is_ok());
+    }
+
+    #[test]
+    fn test_check_policy_confirm_off_blocks_destructive_even_in_full_access() {
+        init_registry_for_tests();
+        let caps = registry::registry().agent_tools();
+        let Some(destructive) = caps
+            .iter()
+            .find(|c| matches!(c.risk_level, RiskLevel::Destructive))
+        else {
+            return;
+        };
+        let policy = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            confirm_destructive: false,
+            ..McpPolicy::default()
+        };
+        assert!(check_policy(destructive, &policy, None).is_err());
+    }
+
+    #[test]
+    fn test_check_policy_respects_connection_read_only_override() {
+        init_registry_for_tests();
+        let caps = registry::registry().agent_tools();
+        let Some(elevated) = caps
+            .iter()
+            .find(|c| matches!(c.risk_level, RiskLevel::Elevated))
+        else {
+            return;
+        };
+        let policy = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            connection_overrides: std::collections::HashMap::from([(
+                "prod".into(),
+                data_studio_agent::capabilities::permissions::ConnectionMcpOverride {
+                    read_only: true,
+                },
+            )]),
+            ..McpPolicy::default()
+        };
+        // Global mode allows Elevated, but the per-connection override blocks it
+        assert!(check_policy(elevated, &policy, None).is_ok());
+        assert!(check_policy(elevated, &policy, Some("prod")).is_err());
+        assert!(check_policy(elevated, &policy, Some("staging")).is_ok());
+    }
+
+    #[test]
     fn test_handle_invoke_unknown_capability_returns_404() {
         init_registry_for_tests();
         let req = InvokeRequest {
@@ -705,7 +846,7 @@ mod tests {
         };
 
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let resp = rt.block_on(handle_invoke(Json(req))).0;
+        let resp = rt.block_on(invoke_with_policy(&McpPolicy::default(), req));
 
         assert_eq!(resp.status, 404);
         assert!(resp.message.unwrap().contains("Unknown capability"));
@@ -731,13 +872,10 @@ mod tests {
         };
 
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let resp = rt.block_on(handle_invoke(Json(req))).0;
+        let resp = rt.block_on(invoke_with_policy(&McpPolicy::default(), req));
 
         assert_eq!(resp.status, 403);
-        assert!(resp
-            .message
-            .unwrap()
-            .contains("not allowed through the MCP bridge"));
+        assert!(resp.message.unwrap().contains("blocked by MCP policy"));
     }
 
     #[test]
@@ -763,9 +901,9 @@ mod tests {
         };
 
         let rt = tokio::runtime::Runtime::new().unwrap();
-        let resp = rt.block_on(handle_invoke(Json(req))).0;
+        let resp = rt.block_on(invoke_with_policy(&McpPolicy::default(), req));
 
-        // Safe capability passes the risk check; with no connection config the
+        // Safe capability passes the policy check; with no connection config the
         // capability itself fails, proving execution reached the invoke path.
         assert_eq!(resp.status, 400);
     }

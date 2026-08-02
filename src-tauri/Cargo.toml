@@ -42,7 +42,7 @@ uuid = { version = "1", features = ["v4"] }
 async-trait = "0.1"
 rand = "0.8"
 # data-studio-agent: active development branch. Revert to tag after release.
-data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent.git", branch = "feat/unified-capability-types" }
+data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent.git", branch = "feat/mcp-permissions" }
 axum = "0.8"
 portpicker = "0.1.1"
 pageant = "0.2"
