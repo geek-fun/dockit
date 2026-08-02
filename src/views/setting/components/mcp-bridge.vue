@@ -60,14 +60,14 @@
       </div>
       <RadioGroup
         :model-value="policy.mode"
-        class="flex flex-row gap-3 flex-wrap"
+        class="flex flex-row gap-3"
         @update:model-value="onModeChange"
       >
         <div
           v-for="mode in permissionModes"
           :key="mode.value"
           :class="[
-            'flex items-center gap-2.5 py-2.5 px-4 rounded-lg border cursor-pointer transition-all min-w-[120px]',
+            'flex items-center gap-2.5 py-2.5 px-4 rounded-lg border cursor-pointer transition-all',
             policy.mode === mode.value
               ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20'
               : 'border-input hover:border-primary/50 hover:bg-accent/50',
@@ -75,11 +75,17 @@
           @click="onModeChange(mode.value)"
         >
           <RadioGroupItem :id="`mode-${mode.value}`" :value="mode.value" />
-          <Label :for="`mode-${mode.value}`" class="font-medium cursor-pointer text-sm">
+          <Label
+            :for="`mode-${mode.value}`"
+            class="font-medium cursor-pointer text-sm whitespace-nowrap"
+          >
             {{ mode.label }}
           </Label>
         </div>
       </RadioGroup>
+      <p class="text-xs text-muted-foreground mt-2">
+        {{ permissionModeDesc }}
+      </p>
     </div>
 
     <!-- Confirm Destructive Section -->
@@ -214,6 +220,19 @@ const permissionModes = computed(() => [
   { value: 'FullAccess' as const, label: t('setting.mcp.modeFullAccess') },
 ]);
 
+const permissionModeDesc = computed(() => {
+  switch (policy.value.mode) {
+    case 'ReadOnly':
+      return t('setting.mcp.modeReadOnlyDesc');
+    case 'DataReadWrite':
+      return t('setting.mcp.modeDataReadWriteDesc');
+    case 'FullAccess':
+      return t('setting.mcp.modeFullAccessDesc');
+    default:
+      return t('setting.mcp.modeReadOnlyDesc');
+  }
+});
+
 const actionOptions = computed(() => [
   { value: 'read' as const, label: t('setting.mcp.actionRead') },
   { value: 'write' as const, label: t('setting.mcp.actionWrite') },
@@ -276,7 +295,7 @@ onMounted(async () => {
         mode: data.policy.mode ?? 'ReadOnly',
         allowed_connection_ids: data.policy.allowed_connection_ids ?? [],
         connection_overrides: data.policy.connection_overrides ?? {},
-        confirm_destructive: data.policy.confirm_destructive ?? false,
+        confirm_destructive: data.policy.confirm_destructive ?? true,
       };
     }
   } catch (e) {
