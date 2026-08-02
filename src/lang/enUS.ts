@@ -255,6 +255,15 @@ export const enUS = {
       overrideReadOnly: 'Read-only',
       overrideReadOnlyDesc: 'Force read-only operations for this connection',
       saveFailed: 'Failed to save MCP settings',
+      connectionAccess: 'Connection Access',
+      connectionAccessDesc:
+        'When enabled, only listed connections are allowed. Set per-connection actions (read/write/delete).',
+      connectionName: 'Connection',
+      connectionType: 'Type',
+      allowedActions: 'Allowed Actions',
+      actionRead: 'Read',
+      actionWrite: 'Write',
+      actionDelete: 'Delete',
     },
   },
   manage: {

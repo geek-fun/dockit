@@ -23,16 +23,16 @@
           {{ $t('setting.ai.title') }}
         </TabsTrigger>
         <TabsTrigger
-          value="About"
-          class="w-full justify-end rounded-md data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-sm py-2.5 px-4 text-sm hover:bg-accent/50 transition-all"
-        >
-          {{ $t('setting.about') }}
-        </TabsTrigger>
-        <TabsTrigger
           value="MCP"
           class="w-full justify-end rounded-md data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-sm py-2.5 px-4 text-sm hover:bg-accent/50 transition-all"
         >
           {{ $t('setting.mcp.title') }}
+        </TabsTrigger>
+        <TabsTrigger
+          value="About"
+          class="w-full justify-end rounded-md data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:shadow-sm py-2.5 px-4 text-sm hover:bg-accent/50 transition-all"
+        >
+          {{ $t('setting.about') }}
         </TabsTrigger>
       </TabsList>
       <div class="flex-1 overflow-y-auto">
@@ -46,11 +46,11 @@
           <TabsContent value="AI" class="m-0">
             <aigc />
           </TabsContent>
-          <TabsContent value="About" class="m-0">
-            <about-us />
-          </TabsContent>
           <TabsContent value="MCP" class="m-0">
             <mcp-bridge />
+          </TabsContent>
+          <TabsContent value="About" class="m-0">
+            <about-us />
           </TabsContent>
         </div>
       </div>

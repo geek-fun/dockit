@@ -826,6 +826,7 @@ mod tests {
                 "prod".into(),
                 data_studio_agent::capabilities::permissions::ConnectionMcpOverride {
                     read_only: true,
+                    allowed_actions: None,
                 },
             )]),
             ..McpPolicy::default()
