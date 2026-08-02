@@ -725,8 +725,8 @@ mod tests {
             let exposed = names.contains(cap.name);
             assert_eq!(
                 exposed,
-                matches!(cap.risk_level, RiskLevel::Safe),
-                "capability '{}' exposure should follow the ReadOnly default policy",
+                matches!(cap.risk_level, RiskLevel::Safe | RiskLevel::Elevated),
+                "capability '{}' exposure should follow the DataReadWrite default policy",
                 cap.name
             );
         }
@@ -762,17 +762,18 @@ mod tests {
     }
 
     #[test]
-    fn test_check_policy_blocks_risky_by_default() {
+    fn test_check_policy_blocks_destructive_by_default() {
         init_registry_for_tests();
         let caps = registry::registry().agent_tools();
-        let Some(risky) = caps
+        let Some(destructive) = caps
             .iter()
-            .find(|c| !matches!(c.risk_level, RiskLevel::Safe))
+            .find(|c| matches!(c.risk_level, RiskLevel::Destructive))
         else {
             return;
         };
-        let err = check_policy(risky, &McpPolicy::default(), None).unwrap_err();
-        assert!(err.contains(&format!("blocked by MCP policy (mode=ReadOnly")));
+        // Default mode is DataReadWrite — Destructive must be blocked
+        let err = check_policy(destructive, &McpPolicy::default(), None).unwrap_err();
+        assert!(err.contains("blocked by MCP policy"));
     }
 
     #[test]
@@ -858,10 +859,10 @@ mod tests {
         init_registry_for_tests();
         let tools = registry::registry().agent_tools();
         // Concurrent tests may initialize the global registry (OnceLock) with
-        // test-only Safe capabilities; only assert when the full app registry is present.
+        // Default (DataReadWrite) rejects Destructive, allows Elevated
         let Some(risky) = tools
             .iter()
-            .find(|c| !matches!(c.risk_level, RiskLevel::Safe))
+            .find(|c| matches!(c.risk_level, RiskLevel::Destructive))
         else {
             return;
         };
