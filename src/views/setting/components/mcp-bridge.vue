@@ -47,7 +47,7 @@
             <h4 class="text-sm font-semibold">{{ $t('setting.mcp.autoStart') }}</h4>
             <p class="text-xs text-muted-foreground mt-1">{{ $t('setting.mcp.autoStartDesc') }}</p>
           </div>
-          <Switch :model-value="autoStart" @update:model-value="onAutoStartChange" />
+          <Switch :checked="autoStart" @update:checked="onAutoStartChange" />
         </div>
       </div>
     </div>
@@ -101,8 +101,8 @@
           </p>
         </div>
         <Switch
-          :model-value="policy.confirm_destructive"
-          @update:model-value="onConfirmDestructiveChange"
+          :checked="policy.confirm_destructive"
+          @update:checked="onConfirmDestructiveChange"
         />
       </div>
     </div>
@@ -116,7 +116,7 @@
             {{ $t('setting.mcp.connectionAccessDesc') }}
           </p>
         </div>
-        <Switch :model-value="allowlistEnabled" @update:model-value="onAllowlistEnableChange" />
+        <Switch :checked="allowlistEnabled" @update:checked="onAllowlistEnableChange" />
       </div>
       <p v-if="!allowlistEnabled" class="text-xs text-muted-foreground italic">
         {{ $t('setting.mcp.allowlistEmpty') }}
