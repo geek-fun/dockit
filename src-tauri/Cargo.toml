@@ -41,7 +41,9 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 uuid = { version = "1", features = ["v4"] }
 async-trait = "0.1"
 rand = "0.8"
-data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent", tag = "v0.1.4" }
+# data-studio-agent: active development branch. Revert to tag after release.
+data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent.git", branch = "feat/unified-capability-types" }
+axum = "0.8"
 portpicker = "0.1.1"
 pageant = "0.2"
 russh = "0.60"
@@ -49,6 +51,7 @@ russh = "0.60"
 [dev-dependencies]
 wiremock = "0.6"
 mockall = "0.13"
+tauri = { version = "2.10", features = ["test"] }
 
 [features]
 # This feature is used for production builds or when a dev server is not specified, DO NOT REMOVE!!

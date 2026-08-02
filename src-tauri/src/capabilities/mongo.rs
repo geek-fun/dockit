@@ -6,8 +6,8 @@ use serde_json::Value;
 
 use crate::common::response::ApiResponse;
 
-use super::registry::CapabilityRegistry;
-use super::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
+use data_studio_agent::capabilities::registry::CapabilityRegistry;
+use data_studio_agent::capabilities::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
 
 // ---------------------------------------------------------------------------
 // Mongo client factory abstraction (testable via mockall)

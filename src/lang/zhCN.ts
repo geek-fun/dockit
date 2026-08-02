@@ -214,6 +214,17 @@ export const zhCN = {
         discoveredModels: '已发现模型',
       },
     },
+    mcp: {
+      title: 'MCP 桥接',
+      status: '状态',
+      running: '运行中（端口 {port}）',
+      stopped: '已停止',
+      port: '端口',
+      portDesc: 'MCP 桥接服务器端口（留空自动选择）',
+      restart: '重启桥接',
+      autoStart: '自动启动',
+      autoStartDesc: '应用启动时自动启动 MCP 桥接',
+    },
   },
   manage: {
     cluster: '集群',
