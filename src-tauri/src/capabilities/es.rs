@@ -1,3 +1,4 @@
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use serde_json::Value;
@@ -15,11 +16,69 @@ pub(crate) async fn execute_es_http(
     path: &str,
     body: Option<&str>,
     config: &Value,
+    extra_root_certs: Option<Vec<reqwest::Certificate>>,
 ) -> Result<String, String> {
-    let base_url = crate::common::es::build_es_base_url(config)?;
-    let headers = crate::common::es::build_es_headers(config);
     let ssl = crate::common::es::get_es_ssl_flag(config);
-    let client = crate::common::http_client::create_http_client("system", None, Some(ssl), None);
+    let headers = crate::common::es::build_es_headers(config);
+    let tunnel_original_host = config
+        .get("tunnelOriginalHost")
+        .and_then(|v| v.as_str())
+        .filter(|h| !h.is_empty());
+
+    // Tunneled connections keep the original hostname for SNI / certificate
+    // validation and only redirect TCP to the local tunnel endpoint via a
+    // DNS override (issue #472). Proxy bypass ("none") so a system proxy
+    // cannot hijack tunnel traffic.
+    let (base_url, client) = match tunnel_original_host {
+        Some(original_host) => {
+            let local_port = config
+                .get("port")
+                .and_then(|v| v.as_u64())
+                .ok_or("Missing port in connection config")? as u16;
+            let trimmed = original_host.trim();
+            let host = trimmed
+                .trim_start_matches("http://")
+                .trim_start_matches("https://");
+            let protocol = if trimmed.starts_with("https://") {
+                "https"
+            } else if trimmed.starts_with("http://") {
+                "http"
+            } else if config.get("protocol").and_then(|v| v.as_str()) == Some("https") {
+                "https"
+            } else if config.get("protocol").and_then(|v| v.as_str()) == Some("http") {
+                "http"
+            } else if ssl {
+                "https"
+            } else {
+                "http"
+            };
+            let base = format!("{}://{}:{}", protocol, host, local_port);
+            let client = crate::common::http_client::create_http_client(
+                "none",
+                None,
+                Some(ssl),
+                None,
+                Some((
+                    host.to_string(),
+                    SocketAddr::from(([127, 0, 0, 1], local_port)),
+                )),
+                extra_root_certs,
+            );
+            (base, client)
+        }
+        None => {
+            let base = crate::common::es::build_es_base_url(config)?;
+            let client = crate::common::http_client::create_http_client(
+                "system",
+                None,
+                Some(ssl),
+                None,
+                None,
+                extra_root_certs,
+            );
+            (base, client)
+        }
+    };
 
     let url = format!("{}{}", base_url, path);
     let method = reqwest::Method::from_bytes(method.as_bytes())
@@ -97,7 +156,7 @@ macro_rules! impl_es_handler {
                 } else {
                     None
                 };
-                execute_es_http($method, &path, body.as_deref(), config).await
+                execute_es_http($method, &path, body.as_deref(), config, None).await
             }
         }
     };
@@ -169,7 +228,7 @@ impl CapabilityHandler for EsCatIndices {
             "/_cat/indices?format=json"
         };
 
-        let raw = execute_es_http("GET", query, None, config).await?;
+        let raw = execute_es_http("GET", query, None, config, None).await?;
         let parsed: serde_json::Value = serde_json::from_str(&raw)
             .map_err(|e| format!("Failed to parse cat_indices response: {}", e))?;
 
@@ -380,6 +439,42 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
 mod tests {
     use serde_json::json;
 
+    /// S1: SSH-tunneled HTTPS request must keep the original hostname for
+    /// SNI / certificate validation while TCP goes through the local tunnel
+    /// endpoint (regression for issue #472).
+    #[cfg(not(target_os = "windows"))]
+    #[tokio::test]
+    async fn test_execute_es_http_tunnel_preserves_hostname_for_tls() {
+        use crate::common::tls_test_server::{spawn_tls_server, test_root_certificate};
+
+        let addr = spawn_tls_server().await;
+        let config = json!({
+            "host": "127.0.0.1",
+            "port": addr.port(),
+            "tunnelOriginalHost": "es.example.com",
+            "sslCertVerification": true,
+        });
+
+        let result = super::execute_es_http(
+            "GET",
+            "/",
+            None,
+            &config,
+            Some(vec![test_root_certificate()]),
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "tunneled TLS request must succeed, got: {:?}",
+            result.err()
+        );
+        assert!(
+            result.unwrap().contains("\"status\":200"),
+            "expected 200 from TLS server"
+        );
+    }
+
     #[cfg(not(target_os = "windows"))]
     fn mock_config(server: &wiremock::MockServer) -> serde_json::Value {
         let addr = server.address();
@@ -401,7 +496,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = super::execute_es_http("GET", "/_cat/indices", None, &mock_config(&server)).await;
+        let result = super::execute_es_http("GET", "/_cat/indices", None, &mock_config(&server), None).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
         assert!(result.unwrap().contains("my-index"));
     }
@@ -427,6 +522,7 @@ mod tests {
             "/my-index/_search",
             Some(r#"{"query":{"match_all":{}}}"#),
             &mock_config(&server),
+            None,
         )
         .await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -447,7 +543,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = super::execute_es_http("GET", "/missing", None, &mock_config(&server)).await;
+        let result = super::execute_es_http("GET", "/missing", None, &mock_config(&server), None).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
         assert!(result.unwrap().contains("404"));
     }
@@ -612,7 +708,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = super::execute_es_http("GET", "/_cat/indices?format=json&expand_wildcards=all", None, &mock_config(&server)).await;
+        let result = super::execute_es_http("GET", "/_cat/indices?format=json&expand_wildcards=all", None, &mock_config(&server), None).await;
 
         assert!(result.is_ok(), "got: {:?}", result.err());
         assert!(result.unwrap().contains("plain text response"));
@@ -624,7 +720,7 @@ mod tests {
         let server = wiremock::MockServer::start().await;
         // reqwest rejects methods with spaces as invalid tokens
         let result =
-            super::execute_es_http("BAD METHOD", "/test", None, &mock_config(&server)).await;
+            super::execute_es_http("BAD METHOD", "/test", None, &mock_config(&server), None).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Bad method"));
     }
