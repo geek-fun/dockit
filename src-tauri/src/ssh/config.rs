@@ -294,10 +294,7 @@ mod tests {
             expose_lan: false,
         };
         // Verify these match our constants
-        assert_eq!(
-            profile.connect_timeout_secs,
-            default_connect_timeout_secs()
-        );
+        assert_eq!(profile.connect_timeout_secs, default_connect_timeout_secs());
         assert_eq!(
             profile.keepalive_interval_secs,
             default_keepalive_interval_secs()

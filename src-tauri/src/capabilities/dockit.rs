@@ -4,7 +4,9 @@ use serde_json::Value;
 use tauri_plugin_store::StoreExt;
 
 use data_studio_agent::capabilities::registry::CapabilityRegistry;
-use data_studio_agent::capabilities::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
+use data_studio_agent::capabilities::types::{
+    Capability, CapabilityHandler, RiskLevel, SourceKind,
+};
 
 // ---------------------------------------------------------------------------
 // Connection store abstraction (testable via mockall)
@@ -118,13 +120,12 @@ mod tests {
     #[tokio::test]
     async fn test_list_connections_returns_safe_list() {
         let mut mock = MockConnectionStoreReader::new();
-        mock.expect_get_connections()
-            .return_once(|| {
-                Ok(json!([
-                    {"id": 1, "name": "My ES", "type": "ELASTICSEARCH", "password": "secret"},
-                    {"id": 2, "name": "My Mongo", "type": "MONGODB", "password": "s3cret"},
-                ]))
-            });
+        mock.expect_get_connections().return_once(|| {
+            Ok(json!([
+                {"id": 1, "name": "My ES", "type": "ELASTICSEARCH", "password": "secret"},
+                {"id": 2, "name": "My Mongo", "type": "MONGODB", "password": "s3cret"},
+            ]))
+        });
 
         let handler = ListConnections::with_store(Box::new(mock));
         let result = handler.handle(&json!({}), None).await;
@@ -144,8 +145,7 @@ mod tests {
     #[tokio::test]
     async fn test_list_connections_empty() {
         let mut mock = MockConnectionStoreReader::new();
-        mock.expect_get_connections()
-            .return_once(|| Ok(json!([])));
+        mock.expect_get_connections().return_once(|| Ok(json!([])));
 
         let handler = ListConnections::with_store(Box::new(mock));
         let result = handler.handle(&json!({}), None).await;
@@ -170,13 +170,12 @@ mod tests {
     #[tokio::test]
     async fn test_list_connections_filters_nulls() {
         let mut mock = MockConnectionStoreReader::new();
-        mock.expect_get_connections()
-            .return_once(|| {
-                Ok(json!([
-                    {"id": null, "name": null, "type": null},
-                    {"id": 1, "name": "valid", "type": "ES"},
-                ]))
-            });
+        mock.expect_get_connections().return_once(|| {
+            Ok(json!([
+                {"id": null, "name": null, "type": null},
+                {"id": 1, "name": "valid", "type": "ES"},
+            ]))
+        });
 
         let handler = ListConnections::with_store(Box::new(mock));
         let result = handler.handle(&json!({}), None).await;

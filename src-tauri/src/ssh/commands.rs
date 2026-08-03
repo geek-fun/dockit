@@ -138,7 +138,7 @@ pub async fn test_ssh_connection(
 
 /// List hosts from ~/.ssh/config.
 #[tauri::command]
-pub async fn list_ssh_config_hosts(
-) -> Result<Vec<crate::ssh::config::SshConfigHostEntry>, String> {
+pub async fn list_ssh_config_hosts() -> Result<Vec<crate::ssh::config::SshConfigHostEntry>, String>
+{
     read_ssh_config()
 }

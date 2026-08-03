@@ -105,12 +105,16 @@ mod tests {
 
     #[test]
     fn test_validate_index_name_empty() {
-        assert!(validate_index_name("", false).unwrap_err().contains("empty"));
+        assert!(validate_index_name("", false)
+            .unwrap_err()
+            .contains("empty"));
     }
 
     #[test]
     fn test_validate_index_name_too_long() {
-        assert!(validate_index_name(&"a".repeat(256), false).unwrap_err().contains("255"));
+        assert!(validate_index_name(&"a".repeat(256), false)
+            .unwrap_err()
+            .contains("255"));
     }
 
     #[test]
@@ -150,18 +154,26 @@ mod tests {
 
     #[test]
     fn test_strip_sql_comments_block() {
-        assert_eq!(strip_sql_comments("/* t */ SELECT * FROM t").trim(), "SELECT * FROM t");
+        assert_eq!(
+            strip_sql_comments("/* t */ SELECT * FROM t").trim(),
+            "SELECT * FROM t"
+        );
     }
 
     #[test]
     fn test_strip_sql_comments_line() {
-        assert_eq!(strip_sql_comments("-- f\nSELECT * FROM t").trim(), "SELECT * FROM t");
+        assert_eq!(
+            strip_sql_comments("-- f\nSELECT * FROM t").trim(),
+            "SELECT * FROM t"
+        );
     }
 
     #[test]
     fn test_strip_sql_comments_mixed() {
         let r = strip_sql_comments("/* b */ SELECT *\n-- l\nFROM t");
-        assert!(r.contains("SELECT") && r.contains("FROM t") && !r.contains("/*") && !r.contains("--"));
+        assert!(
+            r.contains("SELECT") && r.contains("FROM t") && !r.contains("/*") && !r.contains("--")
+        );
     }
 
     #[test]
@@ -171,24 +183,33 @@ mod tests {
 
     #[test]
     fn test_validate_dynamo_query_rejects_write() {
-        let e = validate_dynamo_statement("dynamo__execute_query", "INSERT INTO t VALUE {'a':'b'}").unwrap_err();
+        let e = validate_dynamo_statement("dynamo__execute_query", "INSERT INTO t VALUE {'a':'b'}")
+            .unwrap_err();
         assert!(e.contains("read-only"), "got: {}", e);
     }
 
     #[test]
     fn test_validate_dynamo_write_accepts_insert() {
-        assert!(validate_dynamo_statement("dynamo__execute_write", "INSERT INTO t VALUE {'a':'b'}").is_ok());
+        assert!(validate_dynamo_statement(
+            "dynamo__execute_write",
+            "INSERT INTO t VALUE {'a':'b'}"
+        )
+        .is_ok());
     }
 
     #[test]
     fn test_validate_dynamo_write_rejects_delete() {
-        let e = validate_dynamo_statement("dynamo__execute_write", "DELETE FROM t WHERE pk='x'").unwrap_err();
+        let e = validate_dynamo_statement("dynamo__execute_write", "DELETE FROM t WHERE pk='x'")
+            .unwrap_err();
         assert!(e.contains("destructive"), "got: {}", e);
     }
 
     #[test]
     fn test_validate_dynamo_delete_accepts_delete() {
-        assert!(validate_dynamo_statement("dynamo__execute_delete", "DELETE FROM t WHERE pk='x'").is_ok());
+        assert!(
+            validate_dynamo_statement("dynamo__execute_delete", "DELETE FROM t WHERE pk='x'")
+                .is_ok()
+        );
     }
 
     #[test]
@@ -199,8 +220,15 @@ mod tests {
 
     #[test]
     fn test_validate_dynamo_with_comments_stripped() {
-        assert!(validate_dynamo_statement("dynamo__execute_query", "/* r */ SELECT * FROM t").is_ok());
-        assert!(validate_dynamo_statement("dynamo__execute_query", "-- r\nSELECT * FROM t").is_ok());
-        assert!(validate_dynamo_statement("dynamo__execute_query", "/* clean */ DELETE FROM t").is_err());
+        assert!(
+            validate_dynamo_statement("dynamo__execute_query", "/* r */ SELECT * FROM t").is_ok()
+        );
+        assert!(
+            validate_dynamo_statement("dynamo__execute_query", "-- r\nSELECT * FROM t").is_ok()
+        );
+        assert!(
+            validate_dynamo_statement("dynamo__execute_query", "/* clean */ DELETE FROM t")
+                .is_err()
+        );
     }
 }

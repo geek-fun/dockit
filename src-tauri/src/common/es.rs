@@ -103,25 +103,39 @@ mod tests {
     #[test]
     fn test_build_es_base_url_https_when_ssl_flag_true() {
         let config = json!({"host": "es.example.com", "port": 9200, "sslCertVerification": true});
-        assert_eq!(build_es_base_url(&config).unwrap(), "https://es.example.com:9200");
+        assert_eq!(
+            build_es_base_url(&config).unwrap(),
+            "https://es.example.com:9200"
+        );
     }
 
     #[test]
     fn test_build_es_base_url_http_when_ssl_flag_false() {
         let config = json!({"host": "es.example.com", "port": 9200, "sslCertVerification": false});
-        assert_eq!(build_es_base_url(&config).unwrap(), "http://es.example.com:9200");
+        assert_eq!(
+            build_es_base_url(&config).unwrap(),
+            "http://es.example.com:9200"
+        );
     }
 
     #[test]
     fn test_build_es_base_url_prefers_https_scheme_over_ssl_flag() {
-        let config = json!({"host": "https://es.example.com", "port": 9200, "sslCertVerification": false});
-        assert_eq!(build_es_base_url(&config).unwrap(), "https://es.example.com:9200");
+        let config =
+            json!({"host": "https://es.example.com", "port": 9200, "sslCertVerification": false});
+        assert_eq!(
+            build_es_base_url(&config).unwrap(),
+            "https://es.example.com:9200"
+        );
     }
 
     #[test]
     fn test_build_es_base_url_prefers_http_scheme() {
-        let config = json!({"host": "http://es.example.com", "port": 9200, "sslCertVerification": true});
-        assert_eq!(build_es_base_url(&config).unwrap(), "http://es.example.com:9200");
+        let config =
+            json!({"host": "http://es.example.com", "port": 9200, "sslCertVerification": true});
+        assert_eq!(
+            build_es_base_url(&config).unwrap(),
+            "http://es.example.com:9200"
+        );
     }
 
     #[test]
@@ -132,7 +146,10 @@ mod tests {
             "protocol": "https",
             "sslCertVerification": false
         });
-        assert_eq!(build_es_base_url(&config).unwrap(), "https://es.example.com:9200");
+        assert_eq!(
+            build_es_base_url(&config).unwrap(),
+            "https://es.example.com:9200"
+        );
     }
 
     #[test]
@@ -143,7 +160,10 @@ mod tests {
             "protocol": "http",
             "sslCertVerification": true
         });
-        assert_eq!(build_es_base_url(&config).unwrap(), "http://es.example.com:9200");
+        assert_eq!(
+            build_es_base_url(&config).unwrap(),
+            "http://es.example.com:9200"
+        );
     }
 
     #[test]
@@ -172,13 +192,21 @@ mod tests {
     #[test]
     fn test_build_es_headers_basic() {
         let h = build_es_headers(&json!({"authType": "basic", "username": "u", "password": "p"}));
-        assert!(h.get("Authorization").unwrap().to_str().unwrap().starts_with("Basic "));
+        assert!(h
+            .get("Authorization")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .starts_with("Basic "));
     }
 
     #[test]
     fn test_build_es_headers_api_key() {
         let h = build_es_headers(&json!({"authType": "apiKey", "apiKey": "k123"}));
-        assert_eq!(h.get("Authorization").unwrap().to_str().unwrap(), "ApiKey k123");
+        assert_eq!(
+            h.get("Authorization").unwrap().to_str().unwrap(),
+            "ApiKey k123"
+        );
     }
 
     #[test]

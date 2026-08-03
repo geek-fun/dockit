@@ -7,8 +7,10 @@ pub(crate) fn bson_to_value(bson: &Bson) -> Value {
         Bson::String(v) => json!(v),
         Bson::Array(arr) => Value::Array(arr.iter().map(bson_to_value).collect()),
         Bson::Document(d) => {
-            let map: serde_json::Map<String, Value> =
-                d.iter().map(|(k, v)| (k.clone(), bson_to_value(v))).collect();
+            let map: serde_json::Map<String, Value> = d
+                .iter()
+                .map(|(k, v)| (k.clone(), bson_to_value(v)))
+                .collect();
             Value::Object(map)
         }
         Bson::Boolean(v) => json!(*v),
@@ -93,7 +95,10 @@ mod tests {
     #[test]
     fn test_bson_to_value_other_arm() {
         // Timestamp has no special case → hits the `other` arm → stringified
-        let ts = Bson::Timestamp(mongodb::bson::Timestamp { time: 100, increment: 1 });
+        let ts = Bson::Timestamp(mongodb::bson::Timestamp {
+            time: 100,
+            increment: 1,
+        });
         let result = bson_to_value(&ts);
         assert!(result.is_string());
     }

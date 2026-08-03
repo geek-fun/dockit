@@ -6,10 +6,9 @@ use data_studio_agent::storage::db::AgentDb;
 /// Also re-applies the agent schema v1 migration (idempotent) as a safety net for
 /// databases that may predate the move of those migrations into `data_studio_agent`.
 pub fn ensure_query_history(db: &AgentDb) -> Result<(), String> {
-    let conn = db
-        .0
-        .lock()
-        .map_err(|e| format!("Failed to lock db: {}", e))?;
+    let conn =
+        db.0.lock()
+            .map_err(|e| format!("Failed to lock db: {}", e))?;
 
     conn.execute_batch(
         r#"

@@ -11,8 +11,8 @@ use crate::mcp_bridge::McpConfig;
 use data_studio_agent as lib;
 use data_studio_agent::capabilities::permissions::McpPolicy;
 use data_studio_agent::capabilities::registry::registry;
+use data_studio_agent::storage;
 use data_studio_agent::traits::{CancelMap, ConfirmMap, EventEmitter};
-use data_studio_agent::storage as storage;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -32,10 +32,7 @@ impl EventEmitter for TauriEmitter {
 // Helper: build pre-resolved connections map from settings
 // ---------------------------------------------------------------------------
 
-async fn resolve_connections(
-    app: &AppHandle,
-    settings: &Value,
-) -> HashMap<String, Value> {
+async fn resolve_connections(app: &AppHandle, settings: &Value) -> HashMap<String, Value> {
     let connections: HashMap<String, Value> = settings
         .get("connections")
         .and_then(|v| serde_json::from_value(v.clone()).ok())
@@ -43,8 +40,10 @@ async fn resolve_connections(
 
     let mut resolved: HashMap<String, Value> = HashMap::new();
     for (conn_id, cfg) in &connections {
-        let mut config = if let Some(resolved_id) = cfg.get("connectionId").and_then(|v| v.as_str()) {
-            match crate::common::connection_resolver::ConnectionResolver::resolve(app, resolved_id) {
+        let mut config = if let Some(resolved_id) = cfg.get("connectionId").and_then(|v| v.as_str())
+        {
+            match crate::common::connection_resolver::ConnectionResolver::resolve(app, resolved_id)
+            {
                 Ok(config) => config,
                 Err(e) => {
                     log::warn!("Failed to resolve connection '{}': {}", resolved_id, e);
@@ -56,7 +55,11 @@ async fn resolve_connections(
         };
 
         if let Err(e) = crate::common::ssh_bridge::resolve_ssh_in_place(app, &mut config).await {
-            log::warn!("SSH tunnel resolution failed for agent connection '{}': {}", conn_id, e);
+            log::warn!(
+                "SSH tunnel resolution failed for agent connection '{}': {}",
+                conn_id,
+                e
+            );
         }
 
         resolved.insert(conn_id.clone(), config);
@@ -83,7 +86,8 @@ pub async fn run_agent_loop(
     let confirm_map: ConfirmMap = confirm_state.inner().clone();
     let cancel_state: State<CancelMap> = app.state::<CancelMap>();
     let cancel_map: CancelMap = cancel_state.inner().clone();
-    let executor_state: State<Arc<dyn lib::ToolExecutor>> = app.state::<Arc<dyn lib::ToolExecutor>>();
+    let executor_state: State<Arc<dyn lib::ToolExecutor>> =
+        app.state::<Arc<dyn lib::ToolExecutor>>();
     let executor: Arc<dyn lib::ToolExecutor> = executor_state.inner().clone();
 
     let connections = resolve_connections(&app, &settings).await;
@@ -218,8 +222,7 @@ pub async fn run_agent_step(
     base_url: Option<String>,
 ) -> Result<String, String> {
     let result = lib::harness::run_agent_step(
-        provider, model, messages, tools,
-        http_proxy, proxy_mode, api_key, base_url,
+        provider, model, messages, tools, http_proxy, proxy_mode, api_key, base_url,
     )
     .await?;
 
@@ -239,7 +242,8 @@ pub async fn validate_llm_config(
     proxy_mode: Option<String>,
     base_url: Option<String>,
 ) -> Result<bool, String> {
-    lib::harness::validate_llm_config(provider, api_key, model, http_proxy, proxy_mode, base_url).await
+    lib::harness::validate_llm_config(provider, api_key, model, http_proxy, proxy_mode, base_url)
+        .await
 }
 
 #[tauri::command]
@@ -261,4 +265,3 @@ pub async fn list_llm_models(
 pub fn get_all_tools() -> Result<String, String> {
     lib::tools::get_all_tools()
 }
-

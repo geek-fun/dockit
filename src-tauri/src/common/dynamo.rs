@@ -187,7 +187,11 @@ mod tests {
             "secretAccessKey": "SAK456",
         });
         let result = create_dynamo_client(&config, None).await;
-        assert!(result.is_ok(), "should resolve config with explicit creds: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "should resolve config with explicit creds: {:?}",
+            result.err()
+        );
     }
 
     #[tokio::test]
@@ -223,7 +227,11 @@ mod tests {
             "endpointUrl": "http://localhost:8000",
         });
         let result = create_dynamo_client(&config, None).await;
-        assert!(result.is_ok(), "custom endpoint should not block: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "custom endpoint should not block: {:?}",
+            result.err()
+        );
     }
 
     #[tokio::test]
@@ -236,7 +244,11 @@ mod tests {
             "endpointUrl": "http://real-host:8000",
         });
         let result = create_dynamo_client(&config, Some(9999)).await;
-        assert!(result.is_ok(), "tunnel endpoint should override: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "tunnel endpoint should override: {:?}",
+            result.err()
+        );
     }
 
     #[tokio::test]
@@ -259,6 +271,10 @@ mod tests {
             "secretAccessKey": "SAK",
         });
         let result = create_cloudwatch_client(&config, None).await;
-        assert!(result.is_ok(), "cloudwatch client with explicit creds: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "cloudwatch client with explicit creds: {:?}",
+            result.err()
+        );
     }
 }

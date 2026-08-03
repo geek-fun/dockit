@@ -1,6 +1,5 @@
 use crate::common::ssh_bridge::resolve_ssh_tunnel;
 use crate::dynamo::batch_write_item::{batch_write_item, BatchWriteInput};
-use crate::dynamo::types::ApiResponse;
 use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};
 use crate::dynamo::continuous_backups::describe_continuous_backups;
 use crate::dynamo::create_item::{create_item, CreateItemInput};
@@ -14,6 +13,7 @@ use crate::dynamo::query_table::{query_table, QueryTableInput};
 use crate::dynamo::scan_table::{scan_table, ScanTableInput};
 use crate::dynamo::time_to_live::describe_time_to_live;
 use crate::dynamo::truncate_table::truncate_table;
+use crate::dynamo::types::ApiResponse;
 use crate::dynamo::update_item::{update_item, UpdateItemInput};
 use crate::dynamo::update_pitr::update_continuous_backups;
 use crate::dynamo::update_streams::update_streams;
@@ -26,12 +26,12 @@ use crate::dynamo::update_ttl::update_time_to_live;
 use aws_config::meta::region::RegionProviderChain;
 use aws_config::profile::ProfileFileCredentialsProvider;
 use aws_config::Region;
-use tauri::Manager;
 use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use aws_sdk_dynamodb::config::Credentials;
 use aws_sdk_dynamodb::Client;
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tauri::Manager;
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "kind")]
@@ -162,7 +162,9 @@ pub async fn dynamo_api(
 ) -> Result<String, String> {
     // Resolve SSH tunnel port if connection_id is provided
     let tunnel_port = if let Some(ref cid) = options.connection_id {
-        app.state::<crate::ssh::TunnelManager>().local_port(cid).await
+        app.state::<crate::ssh::TunnelManager>()
+            .local_port(cid)
+            .await
     } else {
         None
     };
@@ -541,16 +543,22 @@ pub async fn dynamo_test_connection(
         .unwrap_or(443u16);
 
     let tunnel = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &remote_host, remote_port).await?;
-    normalized.insert("endpointUrl".to_string(), serde_json::json!(format!("http://{}:{}", tunnel.host, tunnel.port)));
+    normalized.insert(
+        "endpointUrl".to_string(),
+        serde_json::json!(format!("http://{}:{}", tunnel.host, tunnel.port)),
+    );
 
     let client = create_dynamo_client(&serde_json::Value::Object(normalized), None).await?;
     let response = list_tables(&client).await?;
 
-    let table_names = response.data
+    let table_names = response
+        .data
         .and_then(|d| d.get("tableNames").and_then(|v| v.as_array()).cloned())
         .unwrap_or_default();
 
-    Ok(ApiResponse::ok(serde_json::json!({ "tableNames": table_names })))
+    Ok(ApiResponse::ok(
+        serde_json::json!({ "tableNames": table_names }),
+    ))
 }
 
 // ── STS AssumeRole ─────────────────────────────────────────────────────────────

@@ -22,15 +22,15 @@ pub mod ssh;
 
 use agent::executor::DocKitToolExecutor;
 use agent::query_history::{
-    add_query_history_entry, clear_query_history, delete_query_history_entry,
-    load_query_history, toggle_query_history_star,
+    add_query_history_entry, clear_query_history, delete_query_history_entry, load_query_history,
+    toggle_query_history_star,
 };
 use agent::session_store::{
     clear_agent_session_messages, clear_session_confirmation_rules, create_agent_session,
     delete_agent_session, delete_attached_source, delete_confirmation_rule, export_agent_session,
     import_agent_session, load_agent_sessions, load_attached_sources, load_confirmation_rules,
-    load_session_messages, migrate_session_metadata,
-    save_attached_source, save_confirmation_rule, update_session_meta, update_session_status,
+    load_session_messages, migrate_session_metadata, save_attached_source, save_confirmation_rule,
+    update_session_meta, update_session_status,
 };
 use agent_adapters::{
     cancel_agent_loop, compact_agent_session, confirm_tool_call, get_agent_context_usage,
@@ -39,7 +39,7 @@ use agent_adapters::{
 };
 use capabilities::commands::{get_available_tools, invoke_capability};
 use data_studio_agent as lib;
-use data_studio_agent::storage as storage;
+use data_studio_agent::storage;
 use dynamo_client::{
     aws_assume_role, aws_list_profiles, aws_list_profiles_with_roles, aws_sso_get_role_credentials,
     aws_sso_list_accounts, aws_sso_list_roles, aws_sso_poll_token, aws_sso_start_device_auth,
@@ -48,9 +48,7 @@ use dynamo_client::{
 use fetch_client::fetch_api;
 use file_api::{get_file_info, read_file_batch};
 use mongo_client::{
-    mongo_execute_query, mongo_test_connection,
-    mongo_export_documents,
-    mongo_import_documents,
+    mongo_execute_query, mongo_export_documents, mongo_import_documents, mongo_test_connection,
 };
 use tauri::Emitter;
 
@@ -205,7 +203,10 @@ pub fn run() {
             app.manage(executor);
 
             {
-                let app_data_dir = app.path().app_data_dir().map_err(|e| format!("{}", e))?
+                let app_data_dir = app
+                    .path()
+                    .app_data_dir()
+                    .map_err(|e| format!("{}", e))?
                     .to_path_buf();
                 let config = crate::mcp_bridge::McpConfig::load(&app_data_dir);
                 if config.auto_start {

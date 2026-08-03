@@ -57,10 +57,7 @@ pub async fn start_transport_layers(
 }
 
 /// Stop transport layers for a connection.
-pub async fn stop_transport_layers(
-    connection_key: &str,
-    tunnels: &TunnelManager,
-) {
+pub async fn stop_transport_layers(connection_key: &str, tunnels: &TunnelManager) {
     tunnels.stop_tunnel(connection_key).await;
 }
 
@@ -101,7 +98,8 @@ mod tests {
         config.enabled = false;
         let layers = vec![TransportLayerConfig::Ssh(config)];
         let tunnels = TunnelManager::new();
-        let result = start_transport_layers("test", &layers, "db.example.com", 5432, &tunnels).await;
+        let result =
+            start_transport_layers("test", &layers, "db.example.com", 5432, &tunnels).await;
         assert_eq!(result.unwrap(), None);
     }
 

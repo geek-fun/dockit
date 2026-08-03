@@ -174,10 +174,7 @@ pub async fn add_query_history_entry(
 }
 
 #[tauri::command]
-pub async fn toggle_query_history_star(
-    id: String,
-    db: State<'_, AgentDb>,
-) -> Result<(), String> {
+pub async fn toggle_query_history_star(id: String, db: State<'_, AgentDb>) -> Result<(), String> {
     let conn_arc = db.0.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
         let conn = conn_arc.lock().map_err(|e| e.to_string())?;
@@ -193,10 +190,7 @@ pub async fn toggle_query_history_star(
 }
 
 #[tauri::command]
-pub async fn delete_query_history_entry(
-    id: String,
-    db: State<'_, AgentDb>,
-) -> Result<(), String> {
+pub async fn delete_query_history_entry(id: String, db: State<'_, AgentDb>) -> Result<(), String> {
     let conn_arc = db.0.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
         let conn = conn_arc.lock().map_err(|e| e.to_string())?;

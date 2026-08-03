@@ -400,8 +400,11 @@ pub async fn update_session_meta(
                 set_clauses.join(", "),
                 params.len()
             );
-            conn.execute(&sql, rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())))
-                .map_err(|e| format!("Failed to update session meta: {}", e))?;
+            conn.execute(
+                &sql,
+                rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())),
+            )
+            .map_err(|e| format!("Failed to update session meta: {}", e))?;
         }
 
         Ok(())
@@ -473,10 +476,7 @@ pub async fn save_confirmation_rule(
 }
 
 #[tauri::command]
-pub async fn delete_confirmation_rule(
-    id: String,
-    db: State<'_, AgentDb>,
-) -> Result<(), String> {
+pub async fn delete_confirmation_rule(id: String, db: State<'_, AgentDb>) -> Result<(), String> {
     let conn_arc = db.0.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
         let conn = conn_arc.lock().map_err(|e| e.to_string())?;
@@ -602,10 +602,7 @@ pub async fn save_attached_source(
 }
 
 #[tauri::command]
-pub async fn delete_attached_source(
-    id: String,
-    db: State<'_, AgentDb>,
-) -> Result<(), String> {
+pub async fn delete_attached_source(id: String, db: State<'_, AgentDb>) -> Result<(), String> {
     let conn_arc = db.0.clone();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
         let conn = conn_arc.lock().map_err(|e| e.to_string())?;

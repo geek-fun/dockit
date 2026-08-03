@@ -227,7 +227,9 @@ mod tests {
         let content = "Host prod prod-alias\n  HostName 10.0.0.9\n";
         let entries = parse_ssh_config(content);
         assert_eq!(entries.len(), 2);
-        assert!(entries.iter().all(|e| e.host_name == Some("10.0.0.9".into())));
+        assert!(entries
+            .iter()
+            .all(|e| e.host_name == Some("10.0.0.9".into())));
     }
 
     #[test]

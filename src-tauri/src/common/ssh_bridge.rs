@@ -1,11 +1,11 @@
 //! Bridge between SSH transport layers and dockit's connection resolution.
 //! Called by client factories BEFORE creating any database client.
 
+use crate::ssh::config::{SshConnectionConfig, TransportLayerConfig};
+use crate::ssh::{start_transport_layers, TunnelManager};
 use serde_json::Value;
 use tauri::AppHandle;
 use tauri::Manager;
-use crate::ssh::config::{SshConnectionConfig, TransportLayerConfig};
-use crate::ssh::{start_transport_layers, TunnelManager};
 
 /// Resolved tunnel endpoint. The tunnel stays alive in TunnelManager
 /// until the app exits — callers should NOT clean up after each use.
@@ -34,8 +34,14 @@ fn tunnel_key(ssh: Option<&Value>, host: &str, port: u16) -> String {
     if let Some(inline) = ssh.get("inline") {
         let ih = inline.get("host").and_then(|v| v.as_str()).unwrap_or("");
         let ip = inline.get("port").and_then(|v| v.as_u64()).unwrap_or(0);
-        let iu = inline.get("username").and_then(|v| v.as_str()).unwrap_or("");
-        let ia = inline.get("auth_method").and_then(|v| v.as_str()).unwrap_or("");
+        let iu = inline
+            .get("username")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let ia = inline
+            .get("auth_method")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         return format!("ssh:inline:{}:{}:{}:{}:{}:{}", ih, ip, iu, ia, host, port);
     }
 
@@ -95,10 +101,7 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
     let (remote_host, remote_port) = extract_remote_target(config);
 
     // Read original endpointUrl before mutable borrow
-    let has_endpoint_url = config
-        .get("endpointUrl")
-        .and_then(|v| v.as_str())
-        .is_some();
+    let has_endpoint_url = config.get("endpointUrl").and_then(|v| v.as_str()).is_some();
     let scheme = config
         .get("endpointUrl")
         .and_then(|v| v.as_str())
@@ -123,7 +126,10 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
 }
 
 fn extract_remote_target(config: &Value) -> (String, u16) {
-    let obj = match config.as_object() { Some(o) => o, None => return ("localhost".into(), 443) };
+    let obj = match config.as_object() {
+        Some(o) => o,
+        None => return ("localhost".into(), 443),
+    };
 
     if let (Some(host), Some(port)) = (
         obj.get("host").and_then(|v| v.as_str()),
@@ -247,7 +253,10 @@ mod tests {
             }
         });
         let key = tunnel_key(Some(&ssh), "target.host", 5432);
-        assert_eq!(key, "ssh:inline:bastion.host:2222:jump-user:key:target.host:5432");
+        assert_eq!(
+            key,
+            "ssh:inline:bastion.host:2222:jump-user:key:target.host:5432"
+        );
     }
 
     #[test]

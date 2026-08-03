@@ -191,7 +191,10 @@ fn check_policy(
     let reason = policy
         .deny_reason(cap.risk_level, connection_id)
         .unwrap_or_else(|| "blocked by MCP policy".to_string());
-    Err(format!("Capability '{}' ({}) blocked by MCP policy: {}", cap.name, risk, reason))
+    Err(format!(
+        "Capability '{}' ({}) blocked by MCP policy: {}",
+        cap.name, risk, reason
+    ))
 }
 
 async fn handle_invoke(
