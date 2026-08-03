@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::OnceLock;
 
@@ -22,6 +23,13 @@ pub struct FetchApiOptions {
     headers: HashMap<String, String>,
     body: Option<String>,
     agent: Agent,
+}
+
+/// Tunnel routing info for a request: keep the original hostname in the URL
+/// (SNI / certificate validation) while TCP goes to the local tunnel port.
+struct TunnelTarget {
+    hostname: String,
+    local_port: u16,
 }
 
 fn headermap_from_hashmap<'a, I, S>(headers: I) -> HeaderMap
@@ -132,36 +140,51 @@ pub async fn fetch_api(
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string());
 
-    let final_url = if let Some(ref ssh_config) = ssh_tunnel {
+    let (final_url, tunnel) = if let Some(ref ssh_config) = ssh_tunnel {
         resolve_url_via_ssh(&app, &url, ssh_config).await?
     } else {
-        url
+        (url, None)
     };
 
-    fetch_raw(&app, &final_url, &options, system_proxy).await
+    fetch_raw(&final_url, &options, system_proxy, tunnel, None).await
 }
 
 async fn fetch_raw(
-    _app: &tauri::AppHandle,
     url: &str,
     options: &FetchApiOptions,
     system_proxy: Option<String>,
+    tunnel: Option<TunnelTarget>,
+    extra_root_certs: Option<Vec<reqwest::Certificate>>,
 ) -> Result<String, String> {
-    // When URL points to localhost (e.g. SSH tunnel), bypass proxy
+    // When URL points to localhost (e.g. direct local connection), bypass proxy
     let is_local = url.contains("127.0.0.1") || url.contains("localhost");
     let proxy_url = if is_local { None } else { system_proxy.or_else(|| options.agent.http_proxy.clone()) };
     let has_explicit_proxy = proxy_url.as_deref().is_some_and(|p| !p.is_empty());
-    let client = if has_explicit_proxy {
-        create_http_client("manual", proxy_url, Some(options.agent.ssl), None)
+    let client = if let Some(t) = tunnel {
+        // Tunneled requests bypass the proxy and route through the local
+        // tunnel endpoint while keeping the original hostname for TLS.
+        create_http_client(
+            "none",
+            None,
+            Some(options.agent.ssl),
+            None,
+            Some((
+                t.hostname,
+                SocketAddr::from(([127, 0, 0, 1], t.local_port)),
+            )),
+            extra_root_certs,
+        )
+    } else if has_explicit_proxy {
+        create_http_client("manual", proxy_url, Some(options.agent.ssl), None, None, None)
     } else if is_local {
-        create_http_client("none", None, Some(options.agent.ssl), None)
+        create_http_client("none", None, Some(options.agent.ssl), None, None, None)
     } else if options.agent.ssl {
         SECURE_CLIENT
-            .get_or_init(|| create_http_client("system", None, Some(true), None))
+            .get_or_init(|| create_http_client("system", None, Some(true), None, None, None))
             .clone()
     } else {
         INSECURE_CLIENT
-            .get_or_init(|| create_http_client("system", None, Some(false), None))
+            .get_or_init(|| create_http_client("system", None, Some(false), None, None, None))
             .clone()
     };
 
@@ -219,13 +242,16 @@ async fn fetch_raw(
     }
 }
 
-/// Resolve SSH tunnel and rewrite the URL to point to the tunnel endpoint.
-/// Uses persistent deterministic tunnel keys (shared with invoke_capability path).
+/// Resolve SSH tunnel and keep the original URL hostname (TLS SNI /
+/// certificate validation) while routing TCP through the local tunnel
+/// endpoint via a DNS override. When tunneled, the URL port is rewritten
+/// to the local tunnel port: reqwest always uses the URL port for the
+/// connection (the resolve() override only replaces the IP).
 async fn resolve_url_via_ssh(
     app: &tauri::AppHandle,
     url: &str,
     ssh_config: &Value,
-) -> Result<String, String> {
+) -> Result<(String, Option<TunnelTarget>), String> {
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
     use url::Url;
 
@@ -237,12 +263,119 @@ async fn resolve_url_via_ssh(
     let port = parsed.port_or_known_default().unwrap_or(9200);
 
     let endpoint = resolve_ssh_tunnel(app, Some(ssh_config), &host, port).await?;
+    let ssh_enabled = ssh_config
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    // Only treat the request as tunneled when a tunnel was actually
+    // established (endpoint host is 127.0.0.1); with no enabled layers the
+    // endpoint equals the remote target and we must connect directly.
+    let tunnel = (ssh_enabled && endpoint.host == "127.0.0.1").then_some(TunnelTarget {
+        hostname: host,
+        local_port: endpoint.port,
+    });
 
-    let scheme = parsed.scheme();
-    let new_url = match parsed.query() {
-        Some(q) => format!("{}://{}:{}{}?{}", scheme, endpoint.host, endpoint.port, parsed.path(), q),
-        None => format!("{}://{}:{}{}", scheme, endpoint.host, endpoint.port, parsed.path()),
+    let final_url = if ssh_enabled {
+        let mut tunneled = parsed;
+        tunneled
+            .set_port(Some(endpoint.port))
+            .map_err(|_| "Failed to set tunnel port".to_string())?;
+        tunneled.to_string()
+    } else {
+        url.to_string()
     };
 
-    Ok(new_url)
+    Ok((final_url, tunnel))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// S2: a tunneled HTTPS request must keep the original hostname for TLS
+    /// (SNI / certificate validation) while TCP goes to the local tunnel
+    /// endpoint. reqwest resolves the IP via the override but uses the URL
+    /// port, so the tunneled URL carries the local tunnel port (regression
+    /// for #472 — the legacy bare-IP URL fails the handshake, proven by
+    /// tls_test_server::negative_control).
+    #[cfg(not(target_os = "windows"))]
+    #[tokio::test]
+    async fn test_fetch_raw_tunnel_preserves_hostname_for_tls() {
+        use crate::common::tls_test_server::{spawn_tls_server, test_root_certificate};
+
+        let addr = spawn_tls_server().await;
+        let tunnel = TunnelTarget {
+            hostname: "es.example.com".to_string(),
+            local_port: addr.port(),
+        };
+        let options = FetchApiOptions {
+            method: "GET".to_string(),
+            headers: HashMap::new(),
+            body: None,
+            agent: Agent {
+                ssl: true,
+                http_proxy: None,
+            },
+        };
+
+        let result = fetch_raw(
+            &format!("https://es.example.com:{}/", addr.port()),
+            &options,
+            None,
+            Some(tunnel),
+            Some(vec![test_root_certificate()]),
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "tunneled TLS fetch must succeed, got: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().contains("\"status\":200"));
+    }
+
+    /// S3: plain-HTTP tunneled request routes through the local tunnel
+    /// endpoint via the resolve() override (wiremock on 127.0.0.1).
+    #[tokio::test]
+    async fn test_fetch_raw_tunnel_plain_http_via_wiremock() {
+        use wiremock::matchers::method;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"hello":"world"}"#))
+            .mount(&server)
+            .await;
+
+        let tunnel = TunnelTarget {
+            hostname: "es.example.com".to_string(),
+            local_port: server.address().port(),
+        };
+        let options = FetchApiOptions {
+            method: "GET".to_string(),
+            headers: HashMap::new(),
+            body: None,
+            agent: Agent {
+                ssl: false,
+                http_proxy: None,
+            },
+        };
+
+        let result = fetch_raw(
+            &format!("http://es.example.com:{}/", server.address().port()),
+            &options,
+            None,
+            Some(tunnel),
+            None,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "tunneled HTTP fetch must succeed, got: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().contains("hello"));
+    }
 }
