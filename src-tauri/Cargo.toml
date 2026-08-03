@@ -30,6 +30,7 @@ hyper-util = { version = "0.1", default-features = false, features = ["client", 
 system-configuration = "0.7"
 tokio = { version = "1", features = ["full"] }
 http = "1.4.0"
+percent-encoding = "2.3.1"
 log = "0.4.29"
 futures = "0.3.31"
 aws-config = { version = "1.8.16", default-features = false, features = ["default-https-client", "rt-tokio", "credentials-process", "sso"] }

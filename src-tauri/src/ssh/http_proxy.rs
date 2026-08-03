@@ -75,13 +75,25 @@ where
         },
         None => return Err("Bad CONNECT authority".to_string()),
     };
-    if let Err(_) = socket
+    // Open the upstream channel BEFORE replying 200: per RFC 7231 §4.3.6 a
+    // 2xx CONNECT response promises the tunnel is established, so a client
+    // that gets 200 must not then hit a closed stream when outbound fails.
+    let outbound_stream = match outbound(&host, port).await {
+        Ok(stream) => stream,
+        Err(e) => {
+            let _ = socket
+                .write_all(b"HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n")
+                .await;
+            return Err(e);
+        }
+    };
+    if socket
         .write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
         .await
+        .is_err()
     {
         return Err("CONNECT reply failed".to_string());
     }
-    let outbound_stream = outbound(&host, port).await?;
     let _ = fast_socks5::server::transfer(socket, outbound_stream).await;
     Ok(())
 }
@@ -116,9 +128,13 @@ pub async fn connect_via_http_proxy(
 
     let authority = format!("{}:{}", target_host, target_port);
     let mut request = format!("CONNECT {} HTTP/1.1\r\nHost: {}\r\n", authority, authority);
+    // url::Url keeps credentials percent-encoded; proxies expect the raw
+    // form in Proxy-Authorization, so decode before base64.
     let user = parsed.username();
     if !user.is_empty() {
         if let Some(pass) = parsed.password() {
+            let user = percent_encoding::percent_decode_str(user).decode_utf8_lossy();
+            let pass = percent_encoding::percent_decode_str(pass).decode_utf8_lossy();
             let creds =
                 base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", user, pass));
             request.push_str(&format!("Proxy-Authorization: Basic {}\r\n", creds));
@@ -186,7 +202,7 @@ impl<S: AsyncRead + Unpin> AsyncRead for PrefixedStream<S> {
         cx: &mut std::task::Context<'_>,
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
-        if !self.prefix.is_empty() {
+        if !self.prefix.is_empty() && buf.remaining() > 0 {
             let n = std::cmp::min(buf.remaining(), self.prefix.len());
             buf.put_slice(&self.prefix[..n]);
             self.prefix.drain(..n);
@@ -272,20 +288,57 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn connect_via_http_proxy_establishes_tunnel() {
-        let (port, _rx) = fake_proxy(false, "HTTP/1.1 200 Connection established\r\n\r\n").await;
-        let mut stream = connect_via_http_proxy(
-            &format!("http://127.0.0.1:{}", port),
+    async fn connect_via_http_proxy_sends_proxy_auth_basic() {
+        let (port, rx) = fake_proxy(true, "HTTP/1.1 200 Connection established\r\n\r\n").await;
+        let result = connect_via_http_proxy(
+            &format!("http://user:secret@127.0.0.1:{}", port),
             "target.corp",
             22,
             Duration::from_secs(5),
         )
-        .await
-        .expect("CONNECT succeeds");
-        stream.write_all(b"hello").await.unwrap();
-        let mut buf = [0u8; 5];
-        stream.read_exact(&mut buf).await.unwrap();
-        assert_eq!(&buf, b"hello", "echo through CONNECT tunnel");
+        .await;
+        assert!(result.is_ok(), "auth must be accepted: {:?}", result.err());
+        assert!(rx.await.unwrap(), "Proxy-Authorization header must be sent");
+    }
+
+    #[tokio::test]
+    async fn connect_via_http_proxy_decodes_percent_encoded_credentials() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            let (mut sock, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 4096];
+            let n = sock.read(&mut buf).await.unwrap();
+            let req = String::from_utf8_lossy(&buf[..n]).to_string();
+            let _ = tx.send(req);
+            let _ = sock
+                .write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .await;
+        });
+        // url::Url percent-encodes reserved chars; the wire header must carry
+        // the decoded form (user%40corp:p%40ss → user@corp:p@ss).
+        let result = connect_via_http_proxy(
+            &format!("http://user%40corp:p%40ss@127.0.0.1:{}", port),
+            "target.corp",
+            22,
+            Duration::from_secs(5),
+        )
+        .await;
+        assert!(result.is_ok(), "auth must be accepted: {:?}", result.err());
+        let req = rx.await.unwrap();
+        let header = req
+            .lines()
+            .find(|l| l.starts_with("Proxy-Authorization: Basic "))
+            .expect("Proxy-Authorization header must be sent");
+        let creds = header
+            .trim_start_matches("Proxy-Authorization: Basic ")
+            .trim();
+        use base64::Engine;
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(creds)
+            .expect("valid base64");
+        assert_eq!(decoded, b"user@corp:p@ss", "credentials must be decoded");
     }
 
     #[tokio::test]
@@ -428,19 +481,5 @@ mod tests {
         let mut echo_buf = [0u8; 4];
         tcp.read_exact(&mut echo_buf).await.unwrap();
         assert_eq!(&echo_buf, b"ping", "echo through CONNECT tunnel");
-    }
-
-    #[tokio::test]
-    async fn connect_via_http_proxy_sends_proxy_auth_basic() {
-        let (port, rx) = fake_proxy(true, "HTTP/1.1 200 Connection established\r\n\r\n").await;
-        let result = connect_via_http_proxy(
-            &format!("http://user:secret@127.0.0.1:{}", port),
-            "target.corp",
-            22,
-            Duration::from_secs(5),
-        )
-        .await;
-        assert!(result.is_ok(), "auth must be accepted: {:?}", result.err());
-        assert!(rx.await.unwrap(), "Proxy-Authorization header must be sent");
     }
 }

@@ -103,11 +103,18 @@ fn macos_proxy_exempts(_host: &str) -> bool {
     false
 }
 
-/// Detect the system proxy for an arbitrary target, or null when none is
-/// configured. Used by the UI to offer "use system proxy" on SSH tunnels.
+/// Detect the system proxy for `host:port` when given, or for an arbitrary
+/// probe target otherwise. Used by the UI to offer "use system proxy" on
+/// SSH tunnels and to warn when an opted-in proxy no longer applies.
 #[tauri::command]
-pub async fn detect_system_proxy() -> Result<Option<String>, String> {
-    Ok(system_proxy_for("proxy-check.invalid", 443))
+pub async fn detect_system_proxy(
+    host: Option<String>,
+    port: Option<u16>,
+) -> Result<Option<String>, String> {
+    match (host, port) {
+        (Some(h), Some(p)) => Ok(system_proxy_for(&h, p)),
+        _ => Ok(system_proxy_for("proxy-check.invalid", 443)),
+    }
 }
 
 pub fn create_http_client(

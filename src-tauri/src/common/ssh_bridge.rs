@@ -177,7 +177,7 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
     Ok(())
 }
 
-fn extract_remote_target(config: &Value) -> (String, u16) {
+pub fn extract_remote_target(config: &Value) -> (String, u16) {
     let obj = match config.as_object() {
         Some(o) => o,
         None => return ("localhost".into(), 443),

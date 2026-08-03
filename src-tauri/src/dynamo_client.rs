@@ -30,7 +30,6 @@ use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use aws_sdk_dynamodb::config::Credentials;
 use aws_sdk_dynamodb::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
@@ -76,25 +75,6 @@ pub struct DynamoOptions {
     /// Optional connection ID for SSH tunnel resolution.
     #[serde(default)]
     pub connection_id: Option<String>,
-}
-
-/// Extract the SSH tunnel remote target for a DynamoDB config.
-/// Mirrors ssh_bridge::extract_remote_target: endpointUrl → region-derived
-/// AWS default endpoint → localhost fallback.
-fn extract_dynamo_remote_target(config: &Value) -> (String, u16) {
-    if let Some(endpoint) = config.get("endpointUrl").and_then(|v| v.as_str()) {
-        if let Ok(parsed) = url::Url::parse(endpoint) {
-            let host = parsed.host_str().unwrap_or("localhost").to_string();
-            let port = parsed.port().unwrap_or(443);
-            return (host, port);
-        }
-    }
-    if let Some(region) = config.get("region").and_then(|v| v.as_str()) {
-        if !region.is_empty() {
-            return (format!("dynamodb.{}.amazonaws.com", region), 443);
-        }
-    }
-    ("localhost".into(), 443)
 }
 
 fn build_config_builder(
@@ -547,7 +527,7 @@ pub async fn dynamo_test_connection(
         }
     }
 
-    let (remote_host, remote_port) = extract_dynamo_remote_target(&config);
+    let (remote_host, remote_port) = crate::common::ssh_bridge::extract_remote_target(&config);
     let tunnel = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &remote_host, remote_port).await?;
     if let Some(socks5_port) = tunnel.socks5_port {
         // Socks5/CONNECT mode (dual-protocol tunnel): the AWS SDK supports
@@ -1073,13 +1053,12 @@ pub async fn aws_sso_list_roles(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
 
     #[test]
     fn test_extract_dynamo_remote_target_region_fallback() {
         let config = json!({"region": "eu-central-1"});
-        let (host, port) = extract_dynamo_remote_target(&config);
+        let (host, port) = crate::common::ssh_bridge::extract_remote_target(&config);
         assert_eq!(host, "dynamodb.eu-central-1.amazonaws.com");
         assert_eq!(port, 443);
     }
@@ -1087,14 +1066,14 @@ mod tests {
     #[test]
     fn test_extract_dynamo_remote_target_endpoint_url_wins() {
         let config = json!({"region": "eu-central-1", "endpointUrl": "http://ddb.corp:8000"});
-        let (host, port) = extract_dynamo_remote_target(&config);
+        let (host, port) = crate::common::ssh_bridge::extract_remote_target(&config);
         assert_eq!(host, "ddb.corp");
         assert_eq!(port, 8000);
     }
 
     #[test]
     fn test_extract_dynamo_remote_target_fallback_localhost() {
-        let (host, port) = extract_dynamo_remote_target(&json!({}));
+        let (host, port) = crate::common::ssh_bridge::extract_remote_target(&json!({}));
         assert_eq!(host, "localhost");
         assert_eq!(port, 443);
     }

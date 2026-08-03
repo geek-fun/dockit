@@ -2135,6 +2135,7 @@ dependencies = [
  "mockall",
  "mongodb",
  "pageant",
+ "percent-encoding",
  "portpicker",
  "rand 0.8.7",
  "reqwest 0.12.28",
