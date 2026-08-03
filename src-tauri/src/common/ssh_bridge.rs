@@ -118,6 +118,15 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
 
     let (remote_host, remote_port) = extract_remote_target(config);
 
+    // DynamoDB region-only config: derive the AWS default endpoint so the
+    // tunnel targets it and downstream clients read the rewritten local
+    // endpoint (capability path otherwise bypasses the tunnel).
+    if let Some(derived) = derive_region_endpoint(config) {
+        if let Some(obj) = config.as_object_mut() {
+            obj.insert("endpointUrl".to_string(), serde_json::json!(derived));
+        }
+    }
+
     // Read original endpointUrl before mutable borrow
     let has_endpoint_url = config.get("endpointUrl").and_then(|v| v.as_str()).is_some();
     let scheme = config
@@ -189,7 +198,39 @@ fn extract_remote_target(config: &Value) -> (String, u16) {
         }
     }
 
+    // DynamoDB region-only fallback: derive the AWS default endpoint when no
+    // host/port/endpointUrl is configured. ES/Mongo never reach here (they
+    // always carry host/port and have no `region` field on their config).
+    if let Some(region) = obj.get("region").and_then(|v| v.as_str()) {
+        if !region.is_empty() {
+            return (format!("dynamodb.{}.amazonaws.com", region), 443);
+        }
+    }
+
     ("localhost".into(), 443)
+}
+
+/// Derive the AWS default DynamoDB endpoint for region-only configs (no
+/// host/port/endpointUrl). Returns None for any other config shape.
+fn derive_region_endpoint(config: &Value) -> Option<String> {
+    let has_host = config
+        .get("host")
+        .and_then(|v| v.as_str())
+        .map(|h| !h.is_empty())
+        .unwrap_or(false);
+    let has_endpoint = config
+        .get("endpointUrl")
+        .and_then(|v| v.as_str())
+        .map(|u| !u.is_empty())
+        .unwrap_or(false);
+    if has_host || has_endpoint {
+        return None;
+    }
+    config
+        .get("region")
+        .and_then(|v| v.as_str())
+        .filter(|r| !r.is_empty())
+        .map(|region| format!("https://dynamodb.{}.amazonaws.com", region))
 }
 
 /// Resolve SSH tunnel to a local endpoint. The tunnel stays alive in
@@ -358,6 +399,50 @@ mod tests {
         let (host, port) = extract_remote_target(&config);
         assert_eq!(host, "my-cluster.us-east-1.es.amazonaws.com");
         assert_eq!(port, 443);
+    }
+
+    #[test]
+    fn test_extract_remote_target_region_fallback() {
+        let config = json!({"region": "us-east-1"});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "dynamodb.us-east-1.amazonaws.com");
+        assert_eq!(port, 443);
+    }
+
+    #[test]
+    fn test_extract_remote_target_region_fallback_skipped_when_host_present() {
+        let config = json!({"region": "us-east-1", "host": "es.corp", "port": 9200});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "es.corp");
+        assert_eq!(port, 9200);
+    }
+
+    #[test]
+    fn test_extract_remote_target_region_fallback_skipped_when_endpoint_present() {
+        let config = json!({"region": "us-east-1", "endpointUrl": "https://ddb.corp:8000"});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "ddb.corp");
+        assert_eq!(port, 8000);
+    }
+
+    #[test]
+    fn test_derive_region_endpoint_region_only() {
+        let config = json!({"region": "us-west-2"});
+        assert_eq!(
+            derive_region_endpoint(&config).as_deref(),
+            Some("https://dynamodb.us-west-2.amazonaws.com")
+        );
+    }
+
+    #[test]
+    fn test_derive_region_endpoint_none_when_host_or_endpoint_present() {
+        assert_eq!(derive_region_endpoint(&json!({"host": "h"})), None);
+        assert_eq!(
+            derive_region_endpoint(&json!({"endpointUrl": "http://x"})),
+            None
+        );
+        assert_eq!(derive_region_endpoint(&json!({"region": ""})), None);
+        assert_eq!(derive_region_endpoint(&json!({})), None);
     }
 
     #[test]
