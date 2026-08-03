@@ -2123,6 +2123,7 @@ dependencies = [
  "aws-sdk-sso",
  "aws-sdk-ssooidc",
  "aws-sdk-sts",
+ "aws-smithy-http-client",
  "axum",
  "base64 0.22.1",
  "data-studio-agent",

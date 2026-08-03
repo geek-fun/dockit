@@ -76,8 +76,37 @@ pub(crate) async fn create_dynamo_client(
         config_builder = config_builder.credentials_provider(creds);
     }
 
-    // Apply tunnel endpoint override before the configured endpoint_url
-    if let Some(local_port) = tunnel_port {
+    // HTTP CONNECT tunnel (AWS SDK official proxy support): keep the REAL
+    // endpoint URL (SigV4 signs the real host; TLS/SNI validate against it)
+    // and route TCP through the local CONNECT proxy into the SSH tunnel.
+    // This is the officially supported way to reach VPC DynamoDB through a
+    // bastion — rewriting endpointUrl to 127.0.0.1 would break both TLS
+    // (DynamoDB requires TLS 1.2+) and signature verification.
+    let http_proxy = config
+        .get("socks5Proxy")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    if let Some(proxy) = http_proxy {
+        let proxy_url = format!("http://{}", proxy);
+        let client = aws_smithy_http_client::Builder::new().build_with_connector_fn(move |_, _| {
+            aws_smithy_http_client::Connector::builder()
+                .tls_provider(aws_smithy_http_client::tls::Provider::Rustls(
+                    aws_smithy_http_client::tls::rustls_provider::CryptoMode::AwsLc,
+                ))
+                .proxy_config(
+                    aws_smithy_http_client::proxy::ProxyConfig::http(&proxy_url)
+                        .expect("valid DynamoDB tunnel proxy URL"),
+                )
+                .build()
+        });
+        config_builder = config_builder.http_client(client);
+        if let Some(endpoint) = config.get("endpointUrl").and_then(|v| v.as_str()) {
+            if !endpoint.is_empty() {
+                config_builder = config_builder.endpoint_url(endpoint);
+            }
+        }
+    } else if let Some(local_port) = tunnel_port {
+        // Port-forward mode: DynamoDB Local (plain HTTP, no TLS/signature).
         config_builder = config_builder.endpoint_url(format!("http://127.0.0.1:{}", local_port));
     } else if let Some(endpoint) = config.get("endpointUrl").and_then(|v| v.as_str()) {
         if !endpoint.is_empty() {
@@ -230,6 +259,25 @@ mod tests {
         assert!(
             result.is_ok(),
             "custom endpoint should not block: {:?}",
+            result.err()
+        );
+    }
+
+    #[tokio::test]
+    async fn test_create_dynamo_client_http_connect_proxy() {
+        // Socks5/CONNECT mode: real endpoint URL preserved + proxy connector.
+        let config = json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "AKID",
+            "secretAccessKey": "SAK",
+            "endpointUrl": "https://dynamodb.us-east-1.amazonaws.com",
+            "socks5Proxy": "127.0.0.1:51234",
+        });
+        let result = create_dynamo_client(&config, None).await;
+        assert!(
+            result.is_ok(),
+            "CONNECT proxy mode must build a client: {:?}",
             result.err()
         );
     }

@@ -30,6 +30,7 @@ use aws_sdk_cloudwatch::Client as CloudWatchClient;
 use aws_sdk_dynamodb::config::Credentials;
 use aws_sdk_dynamodb::Client;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::Manager;
 
@@ -75,6 +76,25 @@ pub struct DynamoOptions {
     /// Optional connection ID for SSH tunnel resolution.
     #[serde(default)]
     pub connection_id: Option<String>,
+}
+
+/// Extract the SSH tunnel remote target for a DynamoDB config.
+/// Mirrors ssh_bridge::extract_remote_target: endpointUrl → region-derived
+/// AWS default endpoint → localhost fallback.
+fn extract_dynamo_remote_target(config: &Value) -> (String, u16) {
+    if let Some(endpoint) = config.get("endpointUrl").and_then(|v| v.as_str()) {
+        if let Ok(parsed) = url::Url::parse(endpoint) {
+            let host = parsed.host_str().unwrap_or("localhost").to_string();
+            let port = parsed.port().unwrap_or(443);
+            return (host, port);
+        }
+    }
+    if let Some(region) = config.get("region").and_then(|v| v.as_str()) {
+        if !region.is_empty() {
+            return (format!("dynamodb.{}.amazonaws.com", region), 443);
+        }
+    }
+    ("localhost".into(), 443)
 }
 
 fn build_config_builder(
@@ -527,32 +547,36 @@ pub async fn dynamo_test_connection(
         }
     }
 
-    // Extract remote target from endpointUrl for SSH tunnel
-    let remote_host = config
-        .get("endpointUrl")
-        .and_then(|v| v.as_str())
-        .and_then(|u| url::Url::parse(u).ok())
-        .and_then(|p| p.host_str().map(|h| h.to_string()))
-        .unwrap_or_else(|| "localhost".to_string());
-
-    let remote_port = config
-        .get("endpointUrl")
-        .and_then(|v| v.as_str())
-        .and_then(|u| url::Url::parse(u).ok())
-        .and_then(|p| p.port())
-        .unwrap_or(443u16);
-
+    let (remote_host, remote_port) = extract_dynamo_remote_target(&config);
     let tunnel = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &remote_host, remote_port).await?;
-    if tunnel.socks5_port.is_some() {
-        return Err(
-            "SSH SOCKS5 mode is not supported for DynamoDB (the AWS SDK has no SOCKS5 proxy support); use Port Forward tunnel mode instead."
-                .to_string(),
+    if let Some(socks5_port) = tunnel.socks5_port {
+        // Socks5/CONNECT mode (dual-protocol tunnel): the AWS SDK supports
+        // HTTP CONNECT proxies, so route through the tunnel with the real
+        // endpoint URL — TLS and SigV4 signing both use the real hostname.
+        normalized.insert(
+            "socks5Proxy".to_string(),
+            serde_json::json!(format!("127.0.0.1:{}", socks5_port)),
+        );
+        if normalized.get("endpointUrl").is_none() {
+            normalized.insert(
+                "endpointUrl".to_string(),
+                serde_json::json!(format!(
+                    "https://{}{}",
+                    tunnel.host,
+                    if tunnel.port == 443 {
+                        String::new()
+                    } else {
+                        format!(":{}", tunnel.port)
+                    }
+                )),
+            );
+        }
+    } else {
+        normalized.insert(
+            "endpointUrl".to_string(),
+            serde_json::json!(format!("http://{}:{}", tunnel.host, tunnel.port)),
         );
     }
-    normalized.insert(
-        "endpointUrl".to_string(),
-        serde_json::json!(format!("http://{}:{}", tunnel.host, tunnel.port)),
-    );
 
     let client = create_dynamo_client(&serde_json::Value::Object(normalized), None).await?;
     let response = list_tables(&client).await?;
@@ -1045,4 +1069,33 @@ pub async fn aws_sso_list_roles(
 
     roles.sort_by(|a, b| a.role_name.cmp(&b.role_name));
     Ok(roles)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_extract_dynamo_remote_target_region_fallback() {
+        let config = json!({"region": "eu-central-1"});
+        let (host, port) = extract_dynamo_remote_target(&config);
+        assert_eq!(host, "dynamodb.eu-central-1.amazonaws.com");
+        assert_eq!(port, 443);
+    }
+
+    #[test]
+    fn test_extract_dynamo_remote_target_endpoint_url_wins() {
+        let config = json!({"region": "eu-central-1", "endpointUrl": "http://ddb.corp:8000"});
+        let (host, port) = extract_dynamo_remote_target(&config);
+        assert_eq!(host, "ddb.corp");
+        assert_eq!(port, 8000);
+    }
+
+    #[test]
+    fn test_extract_dynamo_remote_target_fallback_localhost() {
+        let (host, port) = extract_dynamo_remote_target(&json!({}));
+        assert_eq!(host, "localhost");
+        assert_eq!(port, 443);
+    }
 }
