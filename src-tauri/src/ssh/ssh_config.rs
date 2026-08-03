@@ -113,6 +113,8 @@ pub fn resolve_ssh_profile(profile: &SshProfile) -> SshProfile {
         keepalive_interval_secs: resolved.keepalive_interval_secs,
         verify_host_key: resolved.verify_host_key,
         expose_lan: resolved.expose_lan,
+        tunnel_mode: resolved.tunnel_mode,
+        ssh_proxy: resolved.ssh_proxy,
     }
 }
 
@@ -189,6 +191,7 @@ fn split_directive(line: &str) -> Option<(&str, &str)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ssh::config::TunnelMode;
 
     fn test_profile() -> SshTunnelConfig {
         SshTunnelConfig {
@@ -206,6 +209,8 @@ mod tests {
             keepalive_interval_secs: 30,
             verify_host_key: false,
             expose_lan: false,
+            tunnel_mode: TunnelMode::default(),
+            ssh_proxy: None,
         }
     }
 
@@ -345,6 +350,10 @@ mod tests {
             keepalive_interval_secs: 30,
             verify_host_key: false,
             expose_lan: false,
+
+            tunnel_mode: TunnelMode::default(),
+
+            ssh_proxy: None,
         };
         let resolved = resolve_ssh_profile(&profile);
         // Alias won't exist in real ~/.ssh/config, so host stays as-is
