@@ -58,10 +58,7 @@ fn ssh_client_config() -> client::Config {
     preferred.kex = std::borrow::Cow::Owned(kex);
 
     let mut macs = preferred.mac.into_owned();
-    for algorithm in [
-        russh::mac::HMAC_SHA1_ETM,
-        russh::mac::HMAC_SHA1,
-    ] {
+    for algorithm in [russh::mac::HMAC_SHA1_ETM, russh::mac::HMAC_SHA1] {
         if !macs.contains(&algorithm) {
             macs.push(algorithm);
         }
@@ -91,13 +88,10 @@ async fn authenticate_session(
     let timeout = Duration::from_secs(connect_timeout_secs);
 
     // Probe with "none" first — some servers accept it.
-    let none_result = tokio::time::timeout(
-        timeout,
-        session.authenticate_none(&config.username),
-    )
-    .await
-    .map_err(|_| format!("SSH auth probe timed out ({}s)", connect_timeout_secs))?
-    .map_err(|e| format!("SSH auth probe failed: {}", e))?;
+    let none_result = tokio::time::timeout(timeout, session.authenticate_none(&config.username))
+        .await
+        .map_err(|_| format!("SSH auth probe timed out ({}s)", connect_timeout_secs))?
+        .map_err(|e| format!("SSH auth probe failed: {}", e))?;
 
     if none_result.success() {
         return Ok(());
@@ -129,9 +123,8 @@ async fn authenticate_session(
             } else {
                 Some(config.key_passphrase.as_str())
             };
-            let key_pair =
-                load_ssh_private_key(&config.key_path, passphrase)
-                    .map_err(|e| format!("Failed to load SSH key: {}", e))?;
+            let key_pair = load_ssh_private_key(&config.key_path, passphrase)
+                .map_err(|e| format!("Failed to load SSH key: {}", e))?;
             let hash_alg = session
                 .best_supported_rsa_hash()
                 .await
@@ -180,7 +173,9 @@ async fn authenticate_session(
 // ── SSH agent authentication ──
 
 async fn authenticate_with_agent_inner(
-    mut agent: AgentClient<impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static>,
+    mut agent: AgentClient<
+        impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+    >,
     session: &mut Handle<SshClient>,
     username: &str,
     timeout: &Duration,
@@ -211,7 +206,12 @@ async fn authenticate_with_agent_inner(
                 }
                 AgentIdentity::Certificate { certificate, .. } => {
                     session
-                        .authenticate_certificate_with(username, certificate.clone(), hash_alg, &mut agent)
+                        .authenticate_certificate_with(
+                            username,
+                            certificate.clone(),
+                            hash_alg,
+                            &mut agent,
+                        )
                         .await
                 }
             };
@@ -640,16 +640,9 @@ async fn tunnel_reconnect_loop(
                                 connect_port,
                                 attempts + 1
                             );
-                            let ka =
-                                Duration::from_secs(current_config.keepalive_interval_secs);
-                            forward_loop(
-                                &raw_session,
-                                &listener,
-                                &remote_host,
-                                remote_port,
-                                ka,
-                            )
-                            .await;
+                            let ka = Duration::from_secs(current_config.keepalive_interval_secs);
+                            forward_loop(&raw_session, &listener, &remote_host, remote_port, ka)
+                                .await;
                             break;
                         }
                         Err(e) => {
@@ -770,8 +763,9 @@ impl TunnelManager {
 
         for (index, hop) in hops.iter().enumerate() {
             let is_last = index + 1 == hops.len();
-            let (connect_host, connect_port) =
-                next_connect_endpoint.clone().unwrap_or_else(|| (hop.host.clone(), hop.port));
+            let (connect_host, connect_port) = next_connect_endpoint
+                .clone()
+                .unwrap_or_else(|| (hop.host.clone(), hop.port));
             let (target_host, target_port) = if is_last {
                 (remote_host.to_string(), remote_port)
             } else {
@@ -790,24 +784,18 @@ impl TunnelManager {
             hop_config.connect_timeout_secs = hop_timeout;
 
             let expose = is_last && hop.expose_lan;
-            let (handle, local_port) = match spawn_tunnel_config(
-                &hop_config,
-                &target_host,
-                target_port,
-                expose,
-            )
-            .await
-            {
-                Ok(v) => v,
-                Err(err) => {
-                    // Abort all previously-spawned hops before propagating,
-                    // otherwise their tokio tasks and listeners leak.
-                    for h in &handles {
-                        h.abort();
+            let (handle, local_port) =
+                match spawn_tunnel_config(&hop_config, &target_host, target_port, expose).await {
+                    Ok(v) => v,
+                    Err(err) => {
+                        // Abort all previously-spawned hops before propagating,
+                        // otherwise their tokio tasks and listeners leak.
+                        for h in &handles {
+                            h.abort();
+                        }
+                        return Err(format!("SSH hop {} failed: {}", index + 1, err));
                     }
-                    return Err(format!("SSH hop {} failed: {}", index + 1, err));
-                }
-            };
+                };
 
             handles.push(handle);
             final_local_port = local_port;

@@ -14,7 +14,9 @@ fn get_proxy(http_proxy: Option<String>) -> Option<String> {
         .or_else(|| env::var("HTTP_PROXY").ok())
         .or_else(|| env::var("http_proxy").ok())
         .or_else(|| {
-            env::var("all_proxy").ok().filter(|p| p.starts_with("http://"))
+            env::var("all_proxy")
+                .ok()
+                .filter(|p| p.starts_with("http://"))
         })
 }
 
@@ -31,7 +33,11 @@ pub async fn detect_system_proxy() -> Result<Option<String>, String> {
         .or_else(|| std::env::var("https_proxy").ok().filter(|s| !s.is_empty()))
         .or_else(|| std::env::var("HTTP_PROXY").ok().filter(|s| !s.is_empty()))
         .or_else(|| std::env::var("http_proxy").ok().filter(|s| !s.is_empty()))
-        .or_else(|| std::env::var("all_proxy").ok().filter(|s| s.starts_with("http://")));
+        .or_else(|| {
+            std::env::var("all_proxy")
+                .ok()
+                .filter(|s| s.starts_with("http://"))
+        });
     Ok(proxy)
 }
 
@@ -99,7 +105,10 @@ mod tests {
 
     #[test]
     fn test_get_proxy_explicit() {
-        assert_eq!(get_proxy(Some("http://proxy:8080".into())), Some("http://proxy:8080".into()));
+        assert_eq!(
+            get_proxy(Some("http://proxy:8080".into())),
+            Some("http://proxy:8080".into())
+        );
     }
 
     #[test]
@@ -132,13 +141,27 @@ mod tests {
 
     #[test]
     fn test_create_http_client_manual_proxy() {
-        let client = create_http_client("manual", Some("http://proxy:8080".into()), Some(true), None, None, None);
+        let client = create_http_client(
+            "manual",
+            Some("http://proxy:8080".into()),
+            Some(true),
+            None,
+            None,
+            None,
+        );
         let _ = client;
     }
 
     #[test]
     fn test_create_http_client_with_timeout() {
-        let client = create_http_client("system", None, None, Some(Duration::from_secs(30)), None, None);
+        let client = create_http_client(
+            "system",
+            None,
+            None,
+            Some(Duration::from_secs(30)),
+            None,
+            None,
+        );
         let _ = client;
     }
 }

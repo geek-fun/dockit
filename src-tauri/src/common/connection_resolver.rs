@@ -116,26 +116,20 @@ fn normalize_dynamo(conn: Value) -> Result<Value, String> {
             match kind {
                 "accessKey" | "sso" | "assumeRole" => {
                     if let Some(v) = auth.get("accessKeyId").and_then(|v| v.as_str()) {
-                        config
-                            .insert("accessKeyId".to_string(), Value::String(v.to_string()));
+                        config.insert("accessKeyId".to_string(), Value::String(v.to_string()));
                     }
                     if let Some(v) = auth.get("secretAccessKey").and_then(|v| v.as_str()) {
-                        config.insert(
-                            "secretAccessKey".to_string(),
-                            Value::String(v.to_string()),
-                        );
+                        config.insert("secretAccessKey".to_string(), Value::String(v.to_string()));
                     }
                     if let Some(v) = auth.get("sessionToken").and_then(|v| v.as_str()) {
                         if !v.is_empty() {
-                            config
-                                .insert("sessionToken".to_string(), Value::String(v.to_string()));
+                            config.insert("sessionToken".to_string(), Value::String(v.to_string()));
                         }
                     }
                 }
                 "profile" => {
                     if let Some(v) = auth.get("profileName").and_then(|v| v.as_str()) {
-                        config
-                            .insert("profileName".to_string(), Value::String(v.to_string()));
+                        config.insert("profileName".to_string(), Value::String(v.to_string()));
                     }
                 }
                 _ => {}
@@ -154,7 +148,9 @@ fn normalize_mongo(conn: Value) -> Value {
     let mut config = serde_json::Map::new();
 
     if let Some(v) = conn.get("host").and_then(|v| v.as_str()) {
-        let clean = v.trim_start_matches("http://").trim_start_matches("https://");
+        let clean = v
+            .trim_start_matches("http://")
+            .trim_start_matches("https://");
         config.insert("host".to_string(), Value::String(clean.to_string()));
     }
     if let Some(v) = conn.get("port") {
@@ -184,8 +180,7 @@ fn normalize_mongo(conn: Value) -> Value {
                         config.insert("authSource".to_string(), Value::String(v.to_string()));
                     }
                     if let Some(v) = auth.get("authMechanism").and_then(|v| v.as_str()) {
-                        config
-                            .insert("authMechanism".to_string(), Value::String(v.to_string()));
+                        config.insert("authMechanism".to_string(), Value::String(v.to_string()));
                     }
                 }
                 "uri" => {
@@ -235,7 +230,8 @@ mod tests {
 
     #[test]
     fn test_normalize_es_strips_scheme_prefix() {
-        let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "http://es.host", "port": 9200});
+        let conn =
+            json!({"id": 1, "type": "ELASTICSEARCH", "host": "http://es.host", "port": 9200});
         let cfg = normalize_es(conn);
         assert_eq!(cfg.get("host").unwrap(), "es.host");
         assert_eq!(cfg.get("protocol").unwrap(), "http");
@@ -243,7 +239,8 @@ mod tests {
 
     #[test]
     fn test_normalize_es_strips_https_prefix() {
-        let conn = json!({"id": 1, "type": "ELASTICSEARCH", "host": "https://es.host", "port": 9200});
+        let conn =
+            json!({"id": 1, "type": "ELASTICSEARCH", "host": "https://es.host", "port": 9200});
         let cfg = normalize_es(conn);
         assert_eq!(cfg.get("host").unwrap(), "es.host");
         assert_eq!(cfg.get("protocol").unwrap(), "https");
@@ -304,7 +301,10 @@ mod tests {
             "auth": {"kind": "accessKey", "accessKeyId": "AKID", "secretAccessKey": "SAK", "sessionToken": ""},
         });
         let cfg = normalize_dynamo(conn).unwrap();
-        assert!(cfg.get("sessionToken").is_none(), "empty sessionToken should be omitted");
+        assert!(
+            cfg.get("sessionToken").is_none(),
+            "empty sessionToken should be omitted"
+        );
     }
 
     #[test]

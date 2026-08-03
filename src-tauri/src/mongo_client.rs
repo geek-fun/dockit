@@ -153,14 +153,20 @@ pub async fn mongo_test_connection(
     let client_options = match ClientOptions::parse(&uri).await {
         Ok(opts) => opts,
         Err(e) => {
-            return Ok(ApiResponse::err(400, format!("Failed to parse connection options: {}", e)));
+            return Ok(ApiResponse::err(
+                400,
+                format!("Failed to parse connection options: {}", e),
+            ));
         }
     };
 
     let client = match Client::with_options(client_options) {
         Ok(c) => c,
         Err(e) => {
-            return Ok(ApiResponse::err(400, format!("Failed to create client: {}", e)));
+            return Ok(ApiResponse::err(
+                400,
+                format!("Failed to create client: {}", e),
+            ));
         }
     };
 
@@ -174,14 +180,19 @@ pub async fn mongo_test_connection(
         match target_db.list_collection_names().await {
             Ok(names) => names,
             Err(e) => {
-                return Ok(ApiResponse::err(400, format!("Failed to list collections: {}", e)));
+                return Ok(ApiResponse::err(
+                    400,
+                    format!("Failed to list collections: {}", e),
+                ));
             }
         }
     } else {
         Vec::new()
     };
 
-    Ok(ApiResponse::ok(serde_json::json!({ "collections": collections })))
+    Ok(ApiResponse::ok(
+        serde_json::json!({ "collections": collections }),
+    ))
 }
 
 fn bson_to_json(bson: &Bson) -> Value {
@@ -930,9 +941,7 @@ pub async fn mongo_execute_query(
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
     let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
     let client = match build_client_tunneled(&config, ssh_enabled.then_some(endpoint.port)).await {
-        Ok(c) => {
-            c
-        }
+        Ok(c) => c,
         Err(e) => {
             return Ok(ApiResponse::err(500, e));
         }
@@ -1037,11 +1046,7 @@ pub async fn mongo_export_documents(
                 .map_err(|e| e.to_string())?;
 
             let mut docs: Vec<Value> = vec![];
-            while let Some(d) = cursor
-                .try_next()
-                .await
-                .map_err(|e| e.to_string())?
-            {
+            while let Some(d) = cursor.try_next().await.map_err(|e| e.to_string())? {
                 docs.push(doc_to_json(d));
             }
 

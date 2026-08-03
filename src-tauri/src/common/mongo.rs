@@ -19,14 +19,8 @@ fn build_mongo_uri(config: &Value) -> Result<String, String> {
         .get("host")
         .and_then(|v| v.as_str())
         .unwrap_or("localhost");
-    let port = config
-        .get("port")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(27017);
-    let tls = config
-        .get("tls")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+    let port = config.get("port").and_then(|v| v.as_u64()).unwrap_or(27017);
+    let tls = config.get("tls").and_then(|v| v.as_bool()).unwrap_or(false);
     let database = config
         .get("database")
         .and_then(|v| v.as_str())
@@ -116,19 +110,25 @@ mod tests {
 
     #[test]
     fn test_build_mongo_uri_with_db() {
-        let uri = build_mongo_uri(&json!({"host": "localhost", "port": 27017, "database": "testdb"})).unwrap();
+        let uri =
+            build_mongo_uri(&json!({"host": "localhost", "port": 27017, "database": "testdb"}))
+                .unwrap();
         assert_eq!(uri, "mongodb://localhost:27017/testdb");
     }
 
     #[test]
     fn test_build_mongo_uri_with_tls() {
-        let uri = build_mongo_uri(&json!({"host": "localhost", "port": 27017, "tls": true})).unwrap();
+        let uri =
+            build_mongo_uri(&json!({"host": "localhost", "port": 27017, "tls": true})).unwrap();
         assert_eq!(uri, "mongodb://localhost:27017?tls=true");
     }
 
     #[test]
     fn test_build_mongo_uri_uri_auth() {
-        let uri = build_mongo_uri(&json!({"authKind": "uri", "uri": "mongodb+srv://cluster.mongodb.net"})).unwrap();
+        let uri = build_mongo_uri(
+            &json!({"authKind": "uri", "uri": "mongodb+srv://cluster.mongodb.net"}),
+        )
+        .unwrap();
         assert_eq!(uri, "mongodb+srv://cluster.mongodb.net");
     }
 
@@ -143,8 +143,13 @@ mod tests {
         let uri = build_mongo_uri(&json!({
             "authKind": "scram", "host": "localhost", "port": 27017,
             "username": "admin", "password": "secret", "database": "mydb",
-        })).unwrap();
-        assert!(uri.starts_with("mongodb://admin:secret@localhost:27017/mydb"), "got: {}", uri);
+        }))
+        .unwrap();
+        assert!(
+            uri.starts_with("mongodb://admin:secret@localhost:27017/mydb"),
+            "got: {}",
+            uri
+        );
         assert!(uri.contains("authSource=admin"), "got: {}", uri);
     }
 
@@ -153,7 +158,8 @@ mod tests {
         let uri = build_mongo_uri(&json!({
             "authKind": "scram", "host": "localhost", "port": 27017,
             "username": "u", "password": "p", "authMechanism": "SCRAM-SHA-256",
-        })).unwrap();
+        }))
+        .unwrap();
         assert!(uri.contains("authMechanism=SCRAM-SHA-256"), "got: {}", uri);
     }
 
@@ -167,8 +173,13 @@ mod tests {
     async fn test_create_mongo_client_parses_uri_locally() {
         let result = create_mongo_client_from_config(&json!({
             "host": "localhost", "port": 27017, "database": "testdb",
-        })).await;
-        assert!(result.is_ok(), "should parse URI and create lazy client: {:?}", result.err());
+        }))
+        .await;
+        assert!(
+            result.is_ok(),
+            "should parse URI and create lazy client: {:?}",
+            result.err()
+        );
         let (_client, db) = result.unwrap();
         assert_eq!(db, "testdb");
     }
@@ -178,7 +189,8 @@ mod tests {
         let result = create_mongo_client_from_config(&json!({
             "authKind": "scram", "host": "", "port": 27017,
             "username": "", "password": "",
-        })).await;
+        }))
+        .await;
         let _ = result; // May pass or fail — just ensure no panic
     }
 
@@ -186,7 +198,8 @@ mod tests {
     async fn test_create_mongo_client_uri_auth() {
         let result = create_mongo_client_from_config(&json!({
             "authKind": "uri", "uri": "mongodb://localhost:27017/test",
-        })).await;
+        }))
+        .await;
         assert!(result.is_ok(), "URI auth should parse: {:?}", result.err());
         let (_client, db) = result.unwrap();
         assert_eq!(db, "test");

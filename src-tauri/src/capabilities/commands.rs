@@ -83,8 +83,10 @@ fn to_metadata(cap: &Capability) -> Value {
 
 #[cfg(test)]
 mod tests {
-    use data_studio_agent::capabilities::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
     use async_trait::async_trait;
+    use data_studio_agent::capabilities::types::{
+        Capability, CapabilityHandler, RiskLevel, SourceKind,
+    };
     use serde_json::{json, Value};
     use std::sync::Arc;
 
@@ -181,30 +183,42 @@ mod tests {
         }]);
 
         // With no source filter: all tools returned
-        let result =
-            futures::executor::block_on(super::get_available_tools(None));
+        let result = futures::executor::block_on(super::get_available_tools(None));
         assert!(result.is_ok(), "got: {:?}", result.err());
         let body = result.unwrap();
-        assert!(body.contains("tools"), "response should contain tools array");
-        assert!(body.contains("metadata"), "response should contain metadata");
+        assert!(
+            body.contains("tools"),
+            "response should contain tools array"
+        );
+        assert!(
+            body.contains("metadata"),
+            "response should contain metadata"
+        );
 
         // With ES source: ES tools included
-        let result = futures::executor::block_on(super::get_available_tools(Some(
-            vec!["ELASTICSEARCH".to_string()],
-        )));
+        let result = futures::executor::block_on(super::get_available_tools(Some(vec![
+            "ELASTICSEARCH".to_string(),
+        ])));
         assert!(result.is_ok(), "got: {:?}", result.err());
         let body = result.unwrap();
         assert!(body.contains("es__search"), "should include es__search");
-        assert!(body.contains("es__cat_indices"), "should include es__cat_indices");
+        assert!(
+            body.contains("es__cat_indices"),
+            "should include es__cat_indices"
+        );
 
         // With empty source list: no DB tools
-        let result = futures::executor::block_on(super::get_available_tools(Some(
-            vec![],
-        )));
+        let result = futures::executor::block_on(super::get_available_tools(Some(vec![])));
         assert!(result.is_ok(), "got: {:?}", result.err());
         let body = result.unwrap();
-        assert!(!body.contains("es__search"), "should NOT include es__search");
-        assert!(!body.contains("es__cat_indices"), "should NOT include ES tools");
+        assert!(
+            !body.contains("es__search"),
+            "should NOT include es__search"
+        );
+        assert!(
+            !body.contains("es__cat_indices"),
+            "should NOT include ES tools"
+        );
     }
 
     #[test]

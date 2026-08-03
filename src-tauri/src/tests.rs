@@ -13,5 +13,8 @@ fn test_init_registry_no_panic() {
     ]);
     let reg = data_studio_agent::capabilities::registry::registry();
     let agent_count = reg.agent_tools().len();
-    assert!(agent_count > 0, "should have agent tools, got {agent_count}");
+    assert!(
+        agent_count > 0,
+        "should have agent tools, got {agent_count}"
+    );
 }

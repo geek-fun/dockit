@@ -3,10 +3,10 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::OnceLock;
 
+use crate::common::http_client::create_http_client;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use crate::common::http_client::create_http_client;
 
 static SECURE_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
 static INSECURE_CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
@@ -134,7 +134,8 @@ pub async fn fetch_api(
     ssh_tunnel: Option<Value>,
 ) -> Result<String, String> {
     // Extract system proxy from SSH config if present
-    let system_proxy = ssh_tunnel.as_ref()
+    let system_proxy = ssh_tunnel
+        .as_ref()
         .and_then(|s| s.get("systemProxy"))
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
@@ -156,9 +157,13 @@ async fn fetch_raw(
     tunnel: Option<TunnelTarget>,
     extra_root_certs: Option<Vec<reqwest::Certificate>>,
 ) -> Result<String, String> {
-    // When URL points to localhost (e.g. direct local connection), bypass proxy
+    // When URL points to localhost (e.g. SSH tunnel), bypass proxy
     let is_local = url.contains("127.0.0.1") || url.contains("localhost");
-    let proxy_url = if is_local { None } else { system_proxy.or_else(|| options.agent.http_proxy.clone()) };
+    let proxy_url = if is_local {
+        None
+    } else {
+        system_proxy.or_else(|| options.agent.http_proxy.clone())
+    };
     let has_explicit_proxy = proxy_url.as_deref().is_some_and(|p| !p.is_empty());
     let client = if let Some(t) = tunnel {
         // Tunneled requests bypass the proxy and route through the local
@@ -168,14 +173,18 @@ async fn fetch_raw(
             None,
             Some(options.agent.ssl),
             None,
-            Some((
-                t.hostname,
-                SocketAddr::from(([127, 0, 0, 1], t.local_port)),
-            )),
+            Some((t.hostname, SocketAddr::from(([127, 0, 0, 1], t.local_port)))),
             extra_root_certs,
         )
     } else if has_explicit_proxy {
-        create_http_client("manual", proxy_url, Some(options.agent.ssl), None, None, None)
+        create_http_client(
+            "manual",
+            proxy_url,
+            Some(options.agent.ssl),
+            None,
+            None,
+            None,
+        )
     } else if is_local {
         create_http_client("none", None, Some(options.agent.ssl), None, None, None)
     } else if options.agent.ssl {
@@ -207,11 +216,11 @@ async fn fetch_raw(
                 Ok(body) => {
                     let data: serde_json::Value =
                         serde_json::from_str(&body).unwrap_or(json!(&body));
-            let message = if is_success {
-                "Success".to_string()
-            } else {
-                format!("Failed to fetch API (HTTP {})", status_code)
-            };
+                    let message = if is_success {
+                        "Success".to_string()
+                    } else {
+                        format!("Failed to fetch API (HTTP {})", status_code)
+                    };
                     let result = json!({
                         "status": status_code,
                         "message": message,
@@ -257,7 +266,11 @@ async fn resolve_url_via_ssh(
 
     // Frontend buildURL() produces scheme-less URLs like "host:port/path".
     // Url::parse needs a scheme, so prepend http:// if missing.
-    let normalized = if url.contains("://") { url.to_string() } else { format!("http://{}", url) };
+    let normalized = if url.contains("://") {
+        url.to_string()
+    } else {
+        format!("http://{}", url)
+    };
     let parsed = Url::parse(&normalized).map_err(|e| format!("Invalid URL: {}", e))?;
     let host = parsed.host_str().unwrap_or("localhost").to_string();
     let port = parsed.port_or_known_default().unwrap_or(9200);
