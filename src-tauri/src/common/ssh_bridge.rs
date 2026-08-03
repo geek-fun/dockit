@@ -13,6 +13,9 @@ use tauri::Manager;
 pub struct TunnelEndpoint {
     pub host: String,
     pub port: u16,
+    /// Local SOCKS5 proxy port when the tunnel runs in Socks5 mode
+    /// (drivers keep the real hostname; None = port-forward mode).
+    pub socks5_port: Option<u16>,
 }
 
 /// Build a deterministic tunnel key from SSH config + remote target.
@@ -74,8 +77,23 @@ pub async fn resolve_connection_target(
     let remote_host = config["host"].as_str().unwrap_or("localhost").to_string();
     let remote_port = config["port"].as_u64().unwrap_or(0) as u16;
 
+    let socks5_mode = ssh_config
+        .inline
+        .as_ref()
+        .map(|i| i.tunnel_mode == crate::ssh::config::TunnelMode::Socks5)
+        .unwrap_or(false);
+
     match start_transport_layers(connection_id, &layers, &remote_host, remote_port, tunnels).await {
-        Ok(Some(local_port)) => Ok(("127.0.0.1".to_string(), local_port)),
+        Ok(Some(local_port)) => {
+            if socks5_mode {
+                // Socks5 mode: the host stays real (TLS sees it); the port
+                // slot carries the LOCAL SOCKS5 listener port so callers can
+                // wire the proxy. The real remote port is known by callers.
+                Ok((remote_host, local_port))
+            } else {
+                Ok(("127.0.0.1".to_string(), local_port))
+            }
+        }
         Ok(None) => Ok((remote_host, remote_port)),
         Err(e) => Err(e),
     }
@@ -111,13 +129,22 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
         .unwrap_or_else(|| "http".to_string());
 
     let endpoint = resolve_ssh_tunnel(app, ssh.as_ref(), &remote_host, remote_port).await?;
+    let socks5_mode = endpoint.socks5_port.is_some();
     if let Some(obj) = config.as_object_mut() {
-        obj.insert("host".to_string(), serde_json::json!(endpoint.host));
-        obj.insert("port".to_string(), serde_json::json!(endpoint.port));
-        if has_endpoint_url {
+        if !socks5_mode {
+            obj.insert("host".to_string(), serde_json::json!(endpoint.host));
+            obj.insert("port".to_string(), serde_json::json!(endpoint.port));
+        }
+        if has_endpoint_url && !socks5_mode {
             obj.insert(
                 "endpointUrl".to_string(),
                 serde_json::json!(format!("{}://{}:{}", scheme, endpoint.host, endpoint.port)),
+            );
+        }
+        if let Some(socks5_port) = endpoint.socks5_port {
+            obj.insert(
+                "socks5Proxy".to_string(),
+                serde_json::json!(format!("127.0.0.1:{}", socks5_port)),
             );
         }
         // Preserve the original remote hostname so TLS clients can keep using
@@ -128,7 +155,9 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
         let stripped_host = remote_host
             .trim_start_matches("http://")
             .trim_start_matches("https://");
-        if endpoint.host == "127.0.0.1" && !stripped_host.is_empty() {
+        if (endpoint.host == "127.0.0.1" || endpoint.socks5_port.is_some())
+            && !stripped_host.is_empty()
+        {
             obj.insert(
                 "tunnelOriginalHost".to_string(),
                 serde_json::json!(stripped_host),
@@ -181,8 +210,16 @@ pub async fn resolve_ssh_tunnel(
         return Ok(TunnelEndpoint {
             host: host.to_string(),
             port,
+            socks5_port: None,
         });
     }
+
+    let socks5_mode = ssh
+        .and_then(|s| s.get("inline"))
+        .and_then(|i| i.get("tunnelMode"))
+        .and_then(|v| v.as_str())
+        .map(|m| m == "socks5")
+        .unwrap_or(false);
 
     let cid = tunnel_key(ssh, host, port);
     let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state();
@@ -192,7 +229,14 @@ pub async fn resolve_ssh_tunnel(
         "sshTunnel": ssh,
     });
     let (h, p) = resolve_connection_target(app, &conn_val, &cid, tunnels.inner()).await?;
-    Ok(TunnelEndpoint { host: h, port: p })
+    let socks5_port = if socks5_mode { Some(p) } else { None };
+    Ok(TunnelEndpoint {
+        // In Socks5 mode h is the real host and p is the LOCAL proxy port;
+        // the endpoint port must stay the real remote port for URI building.
+        host: h,
+        port: if socks5_mode { port } else { p },
+        socks5_port,
+    })
 }
 
 /// Build transport layer configs from the SSH connection config.

@@ -13,9 +13,11 @@ use russh::keys::key::PrivateKeyWithHashAlg;
 use russh::{ChannelMsg, Preferred};
 
 use crate::ssh::config::{
-    default_connect_timeout_secs, SshTunnelConfig, IDLE_PING_TIMEOUT_SECS,
+    default_connect_timeout_secs, SshTunnelConfig, TunnelMode, IDLE_PING_TIMEOUT_SECS,
     INITIAL_RECONNECT_DELAY_SECS, MAX_RECONNECT_ATTEMPTS, MAX_RECONNECT_DELAY_SECS,
 };
+use crate::ssh::http_proxy::connect_via_http_proxy;
+use crate::ssh::socks5::{run_socks5_server, DuplexStream, OutboundFn};
 
 const BUFFER_SIZE: usize = 65536;
 
@@ -423,6 +425,57 @@ fn read_u32(bytes: &[u8], pos: &mut usize) -> Result<u32, String> {
     Ok(value)
 }
 
+// ── SSH connection ──
+
+/// Connects to the bastion: directly, or through an HTTP CONNECT proxy
+/// (P1.5 — corporate networks where the bastion is only reachable via the
+/// company proxy, OpenSSH ProxyCommand equivalent).
+async fn connect_ssh(config: &SshTunnelConfig) -> Result<Handle<SshClient>, String> {
+    let handler = SshClient {
+        verify_host_key: config.verify_host_key,
+    };
+    let cfg = Arc::new(ssh_client_config());
+    let timeout = Duration::from_secs(config.connect_timeout_secs.max(1));
+    if let Some(proxy_url) = config.ssh_proxy.as_deref().filter(|s| !s.is_empty()) {
+        let stream = connect_via_http_proxy(proxy_url, &config.host, config.port, timeout).await?;
+        tokio::time::timeout(timeout, client::connect_stream(cfg, stream, handler))
+            .await
+            .map_err(|_| format!("SSH handshake timed out ({}s)", timeout.as_secs()))?
+            .map_err(|e| format!("SSH connect via HTTP proxy failed: {}", e))
+    } else {
+        tokio::time::timeout(
+            timeout,
+            client::connect(cfg, (&*config.host, config.port), handler),
+        )
+        .await
+        .map_err(|_| format!("SSH connection timed out ({}s)", timeout.as_secs()))?
+        .map_err(|e| format!("SSH connection failed: {}", e))
+    }
+}
+
+/// Pings the session until it dies — the keepalive loop for SOCKS5 tunnels
+/// (port-forward tunnels get their keepalive inside `forward_loop`).
+async fn keepalive_until_lost(session: &Handle<SshClient>, keepalive_interval: Duration) {
+    let interval_secs = std::cmp::max(keepalive_interval.as_secs(), 5);
+    let mut ticker = tokio::time::interval(Duration::from_secs(interval_secs));
+    ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+    loop {
+        ticker.tick().await;
+        if session.is_closed() {
+            return;
+        }
+        match tokio::time::timeout(
+            Duration::from_secs(IDLE_PING_TIMEOUT_SECS),
+            session.send_ping(),
+        )
+        .await
+        {
+            Ok(Ok(())) => continue,
+            _ => return,
+        }
+    }
+}
+
 // ── Forward loop ──
 
 /// Accept connections on the local listener and forward them through the SSH session.
@@ -538,9 +591,10 @@ async fn forward_loop(
 async fn tunnel_reconnect_loop(
     config: SshTunnelConfig,
     connect_timeout_secs: u64,
-    listener: TcpListener,
+    listener: Option<TcpListener>,
     remote_host: String,
     remote_port: u16,
+    session_watch: Option<tokio::sync::watch::Sender<Option<Arc<Handle<SshClient>>>>>,
 ) {
     let initial_config = config;
     let mut current_config = initial_config.clone();
@@ -557,22 +611,22 @@ async fn tunnel_reconnect_loop(
             remote_port
         );
 
-        match client::connect(
-            Arc::new(ssh_client_config()),
-            (&*connect_host, connect_port),
-            SshClient {
-                verify_host_key: current_config.verify_host_key,
-            },
-        )
-        .await
-        {
+        match connect_ssh(&current_config).await {
             Ok(mut raw_session) => {
                 match authenticate_session(&mut raw_session, &current_config, connect_timeout_secs)
                     .await
                 {
                     Ok(()) => {
                         let ka = Duration::from_secs(current_config.keepalive_interval_secs);
-                        forward_loop(&raw_session, &listener, &remote_host, remote_port, ka).await;
+                        if let Some(sender) = session_watch.as_ref() {
+                            let session_arc = Arc::new(raw_session);
+                            let _ = sender.send(Some(session_arc.clone()));
+                            keepalive_until_lost(&session_arc, ka).await;
+                            let _ = sender.send(None);
+                        } else if let Some(listener) = listener.as_ref() {
+                            forward_loop(&raw_session, listener, &remote_host, remote_port, ka)
+                                .await;
+                        }
                         log::warn!(
                             "SSH tunnel lost ({}:{}), reconnecting...",
                             connect_host,
@@ -615,15 +669,7 @@ async fn tunnel_reconnect_loop(
 
             tokio::time::sleep(delay).await;
 
-            match client::connect(
-                Arc::new(ssh_client_config()),
-                (&*connect_host, connect_port),
-                SshClient {
-                    verify_host_key: current_config.verify_host_key,
-                },
-            )
-            .await
-            {
+            match connect_ssh(&current_config).await {
                 Ok(mut raw_session) => {
                     match authenticate_session(
                         &mut raw_session,
@@ -641,8 +687,14 @@ async fn tunnel_reconnect_loop(
                                 attempts + 1
                             );
                             let ka = Duration::from_secs(current_config.keepalive_interval_secs);
-                            forward_loop(&raw_session, &listener, &remote_host, remote_port, ka)
-                                .await;
+                            if let Some(sender) = session_watch.as_ref() {
+                                let session_arc = Arc::new(raw_session);
+                                let _ = sender.send(Some(session_arc.clone()));
+                                keepalive_until_lost(&session_arc, ka).await;
+                                let _ = sender.send(None);
+                            } else if let Some(l) = listener.as_ref() {
+                                forward_loop(&raw_session, l, &remote_host, remote_port, ka).await;
+                            }
                             break;
                         }
                         Err(e) => {
@@ -782,6 +834,11 @@ impl TunnelManager {
             hop_config.host = connect_host;
             hop_config.port = connect_port;
             hop_config.connect_timeout_secs = hop_timeout;
+            // Only the final hop may run a SOCKS5 proxy; intermediate hops
+            // always forward ports to the next hop.
+            if !is_last {
+                hop_config.tunnel_mode = TunnelMode::PortForward;
+            }
 
             let expose = is_last && hop.expose_lan;
             let (handle, local_port) =
@@ -874,12 +931,82 @@ async fn spawn_tunnel(
     spawn_tunnel_config(config, remote_host, remote_port, config.expose_lan).await
 }
 
+/// Outbound forwarder that opens an SSH direct-tcpip channel through the
+/// session published on `session_watch` (updated across reconnects).
+fn make_ssh_outbound(
+    session_watch: tokio::sync::watch::Receiver<Option<Arc<Handle<SshClient>>>>,
+) -> OutboundFn {
+    Arc::new(move |host: &str, port: u16| {
+        let rx = session_watch.clone();
+        let host = host.to_string();
+        Box::pin(async move {
+            let handle = rx
+                .borrow()
+                .clone()
+                .ok_or_else(|| "SSH session not established".to_string())?;
+            let channel = handle
+                .channel_open_direct_tcpip(host, port.into(), "127.0.0.1", 0)
+                .await
+                .map_err(|e| format!("SSH channel open failed: {}", e))?;
+            Ok(Box::new(channel.into_stream()) as Box<dyn DuplexStream>)
+        })
+    })
+}
+
+/// Spawns a SOCKS5-mode tunnel: a local SOCKS5 proxy (always bound to
+/// 127.0.0.1 — an open proxy on the LAN would be a serious risk) whose
+/// CONNECT targets are forwarded through SSH direct-tcpip channels.
+async fn spawn_socks5_tunnel(
+    config: &SshTunnelConfig,
+    remote_host: &str,
+    remote_port: u16,
+) -> Result<(JoinHandle<()>, u16), String> {
+    let local_port = portpicker::pick_unused_port().ok_or("No available local port")?;
+    let listener = TcpListener::bind(("127.0.0.1", local_port))
+        .await
+        .map_err(|e| format!("Failed to bind local SOCKS5 port: {}", e))?;
+
+    let timeout = if config.connect_timeout_secs > 0 {
+        config.connect_timeout_secs
+    } else {
+        default_connect_timeout_secs()
+    };
+
+    // Synchronously verify SSH connectivity before returning.
+    let mut init_session = connect_ssh(config).await?;
+    authenticate_session(&mut init_session, config, timeout).await?;
+
+    let (watch_tx, watch_rx) = tokio::sync::watch::channel(Some(Arc::new(init_session)));
+    let outbound = make_ssh_outbound(watch_rx);
+
+    let task_config = config.clone();
+    let server_task = tokio::spawn(run_socks5_server(listener, outbound));
+    let task_remote_host = remote_host.to_string();
+    let reconnect_task = tokio::spawn(tunnel_reconnect_loop(
+        task_config,
+        timeout,
+        None,
+        task_remote_host,
+        remote_port,
+        Some(watch_tx),
+    ));
+
+    let handle = tokio::spawn(async move {
+        let _ = tokio::join!(server_task, reconnect_task);
+    });
+    Ok((handle, local_port))
+}
+
 async fn spawn_tunnel_config(
     config: &SshTunnelConfig,
     remote_host: &str,
     remote_port: u16,
     expose_lan: bool,
 ) -> Result<(JoinHandle<()>, u16), String> {
+    if config.tunnel_mode == TunnelMode::Socks5 {
+        return spawn_socks5_tunnel(config, remote_host, remote_port).await;
+    }
+
     let local_port = portpicker::pick_unused_port().ok_or("No available local port")?;
 
     let bind_addr = if expose_lan { "0.0.0.0" } else { "127.0.0.1" };
@@ -895,22 +1022,7 @@ async fn spawn_tunnel_config(
 
     // Synchronously verify SSH connectivity before returning.
     // This ensures the tunnel is ready before any client connects.
-    let ssh_config_init = Arc::new(ssh_client_config());
-    let timeout_dur = Duration::from_secs(timeout);
-    let mut init_session = tokio::time::timeout(
-        timeout_dur,
-        client::connect(
-            ssh_config_init,
-            (&*config.host, config.port),
-            SshClient {
-                verify_host_key: config.verify_host_key,
-            },
-        ),
-    )
-    .await
-    .map_err(|_| format!("SSH connection timed out ({}s)", timeout))?
-    .map_err(|e| format!("SSH connection failed: {}", e))?;
-
+    let mut init_session = connect_ssh(config).await?;
     authenticate_session(&mut init_session, config, timeout).await?;
 
     let task_config = config.clone();
@@ -919,9 +1031,10 @@ async fn spawn_tunnel_config(
         tunnel_reconnect_loop(
             task_config,
             timeout,
-            listener,
+            Some(listener),
             task_remote_host,
             remote_port,
+            None,
         )
         .await;
     });
