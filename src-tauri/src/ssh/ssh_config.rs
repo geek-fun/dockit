@@ -114,7 +114,6 @@ pub fn resolve_ssh_profile(profile: &SshProfile) -> SshProfile {
         verify_host_key: resolved.verify_host_key,
         expose_lan: resolved.expose_lan,
         tunnel_mode: resolved.tunnel_mode,
-        ssh_proxy: resolved.ssh_proxy,
     }
 }
 
@@ -210,7 +209,7 @@ mod tests {
             verify_host_key: false,
             expose_lan: false,
             tunnel_mode: TunnelMode::default(),
-            ssh_proxy: None,
+            use_system_proxy: false,
         }
     }
 
@@ -352,8 +351,6 @@ mod tests {
             expose_lan: false,
 
             tunnel_mode: TunnelMode::default(),
-
-            ssh_proxy: None,
         };
         let resolved = resolve_ssh_profile(&profile);
         // Alias won't exist in real ~/.ssh/config, so host stays as-is

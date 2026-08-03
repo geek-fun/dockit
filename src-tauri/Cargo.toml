@@ -25,6 +25,9 @@ tauri-plugin-system-info = { git = "https://github.com/HuakunShen/tauri-plugin-s
 url = "2"
 
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy", "socks"] }
+hyper-util = { version = "0.1", default-features = false, features = ["client", "client-proxy", "client-proxy-system"] }
+[target.'cfg(target_os = "macos")'.dependencies]
+system-configuration = "0.7"
 tokio = { version = "1", features = ["full"] }
 http = "1.4.0"
 log = "0.4.29"

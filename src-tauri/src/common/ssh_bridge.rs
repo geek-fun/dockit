@@ -286,16 +286,24 @@ fn build_transport_layers(
     app: &AppHandle,
     ssh: &SshConnectionConfig,
 ) -> Result<Vec<TransportLayerConfig>, String> {
-    if !ssh.profile_ids.is_empty() {
+    let mut layers = if !ssh.profile_ids.is_empty() {
         ssh.profile_ids
             .iter()
             .map(|pid| load_profile_as_tunnel(app, pid))
-            .collect()
+            .collect::<Result<Vec<_>, _>>()?
     } else if let Some(ref inline) = ssh.inline {
-        Ok(vec![TransportLayerConfig::Ssh(inline.clone())])
+        vec![TransportLayerConfig::Ssh(inline.clone())]
     } else {
-        Ok(Vec::new())
+        Vec::new()
+    };
+    // The system proxy applies to the first hop only (the local TCP
+    // connection to the bastion). `start_chain` forces it off for later hops.
+    if ssh.use_system_proxy {
+        if let Some(TransportLayerConfig::Ssh(first)) = layers.first_mut() {
+            first.use_system_proxy = true;
+        }
     }
+    Ok(layers)
 }
 
 fn load_profile_as_tunnel(

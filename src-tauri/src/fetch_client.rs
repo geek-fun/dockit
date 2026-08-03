@@ -135,27 +135,18 @@ pub async fn fetch_api(
     options: FetchApiOptions,
     ssh_tunnel: Option<Value>,
 ) -> Result<String, String> {
-    // Extract system proxy from SSH config if present
-    let system_proxy = ssh_tunnel
-        .as_ref()
-        .and_then(|s| s.get("systemProxy"))
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string());
-
     let (final_url, tunnel) = if let Some(ref ssh_config) = ssh_tunnel {
         resolve_url_via_ssh(&app, &url, ssh_config).await?
     } else {
         (url, None)
     };
 
-    fetch_raw(&final_url, &options, system_proxy, tunnel, None).await
+    fetch_raw(&final_url, &options, tunnel, None).await
 }
 
 async fn fetch_raw(
     url: &str,
     options: &FetchApiOptions,
-    system_proxy: Option<String>,
     tunnel: Option<TunnelTarget>,
     extra_root_certs: Option<Vec<reqwest::Certificate>>,
 ) -> Result<String, String> {
@@ -164,7 +155,7 @@ async fn fetch_raw(
     let proxy_url = if is_local {
         None
     } else {
-        system_proxy.or_else(|| options.agent.http_proxy.clone())
+        options.agent.http_proxy.clone()
     };
     let has_explicit_proxy = proxy_url.as_deref().is_some_and(|p| !p.is_empty());
     let client = if let Some(t) = tunnel {
@@ -353,7 +344,6 @@ mod tests {
         let result = fetch_raw(
             &format!("https://es.example.com:{}/", addr.port()),
             &options,
-            None,
             Some(tunnel),
             Some(vec![test_root_certificate()]),
         )
@@ -417,7 +407,6 @@ mod tests {
         let result = fetch_raw(
             &format!("http://es.example.com:{}/", server.address().port()),
             &options,
-            None,
             Some(tunnel),
             None,
         )
@@ -462,7 +451,6 @@ mod tests {
         let result = fetch_raw(
             &format!("http://es.example.com:{}/", server.address().port()),
             &options,
-            None,
             Some(tunnel),
             None,
         )

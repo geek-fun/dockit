@@ -427,17 +427,24 @@ fn read_u32(bytes: &[u8], pos: &mut usize) -> Result<u32, String> {
 
 // ── SSH connection ──
 
-/// Connects to the bastion: directly, or through an HTTP CONNECT proxy
-/// (P1.5 — corporate networks where the bastion is only reachable via the
-/// company proxy, OpenSSH ProxyCommand equivalent).
+/// Connects to the bastion: directly, or through an HTTP CONNECT proxy.
+/// When `use_system_proxy` is set, the proxy is resolved from the OS at
+/// connect time; if no system proxy applies to the target (or the OS has
+/// none configured), it silently falls back to a direct connection — the
+/// UI shows a warning when this happens, so the tunnel still starts.
 async fn connect_ssh(config: &SshTunnelConfig) -> Result<Handle<SshClient>, String> {
     let handler = SshClient {
         verify_host_key: config.verify_host_key,
     };
     let cfg = Arc::new(ssh_client_config());
     let timeout = Duration::from_secs(config.connect_timeout_secs.max(1));
-    if let Some(proxy_url) = config.ssh_proxy.as_deref().filter(|s| !s.is_empty()) {
-        let stream = connect_via_http_proxy(proxy_url, &config.host, config.port, timeout).await?;
+    let proxy_url = if config.use_system_proxy {
+        crate::common::http_client::system_proxy_for(&config.host, config.port)
+    } else {
+        None
+    };
+    if let Some(proxy_url) = proxy_url {
+        let stream = connect_via_http_proxy(&proxy_url, &config.host, config.port, timeout).await?;
         tokio::time::timeout(timeout, client::connect_stream(cfg, stream, handler))
             .await
             .map_err(|_| format!("SSH handshake timed out ({}s)", timeout.as_secs()))?
@@ -838,6 +845,13 @@ impl TunnelManager {
             // always forward ports to the next hop.
             if !is_last {
                 hop_config.tunnel_mode = TunnelMode::PortForward;
+            }
+            // The system proxy only applies to the first hop: later hops
+            // connect through the previous hop's tunnel, so the local OS
+            // proxy must never be consulted for them (it would CONNECT to
+            // 127.0.0.1 — meaningless or worse).
+            if index > 0 {
+                hop_config.use_system_proxy = false;
             }
 
             let expose = is_last && hop.expose_lan;

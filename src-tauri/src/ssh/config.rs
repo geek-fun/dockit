@@ -37,8 +37,6 @@ pub struct SshProfile {
     pub expose_lan: bool,
     #[serde(default)]
     pub tunnel_mode: TunnelMode,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ssh_proxy: Option<String>,
 }
 
 /// How a transport layer forwards traffic to the remote server.
@@ -86,10 +84,10 @@ pub struct SshTunnelConfig {
     pub expose_lan: bool,
     #[serde(default)]
     pub tunnel_mode: TunnelMode,
-    /// HTTP CONNECT proxy used to reach the bastion (e.g. corporate proxy).
-    /// None = connect directly to the bastion.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub ssh_proxy: Option<String>,
+    /// Route the first hop through the detected system proxy (HTTP CONNECT).
+    /// Resolved at connect time from the OS, so no URL is persisted.
+    #[serde(default)]
+    pub use_system_proxy: bool,
 }
 
 /// SSH connection configuration stored on each database connection.
@@ -102,8 +100,8 @@ pub struct SshConnectionConfig {
     pub profile_ids: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inline: Option<SshTunnelConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub system_proxy: Option<String>,
+    #[serde(default)]
+    pub use_system_proxy: bool,
 }
 
 /// Transport layer configuration — tagged enum for serde.
@@ -181,7 +179,7 @@ impl SshProfile {
             verify_host_key: self.verify_host_key,
             expose_lan: self.expose_lan,
             tunnel_mode: self.tunnel_mode,
-            ssh_proxy: self.ssh_proxy.clone(),
+            use_system_proxy: false,
         }
     }
 }
@@ -218,8 +216,6 @@ mod tests {
             expose_lan: false,
 
             tunnel_mode: TunnelMode::default(),
-
-            ssh_proxy: None,
         };
         let json = serde_json::to_string(&profile).unwrap();
         let parsed: SshProfile = serde_json::from_str(&json).unwrap();
@@ -244,7 +240,7 @@ mod tests {
             verify_host_key: false,
             expose_lan: false,
             tunnel_mode: TunnelMode::default(),
-            ssh_proxy: None,
+            use_system_proxy: false,
         };
         let json = serde_json::to_string(&config).unwrap();
         let parsed: SshTunnelConfig = serde_json::from_str(&json).unwrap();
@@ -269,7 +265,7 @@ mod tests {
             verify_host_key: false,
             expose_lan: false,
             tunnel_mode: TunnelMode::default(),
-            ssh_proxy: None,
+            use_system_proxy: false,
         };
         let layer = TransportLayerConfig::Ssh(config);
         let json = serde_json::to_string(&layer).unwrap();
@@ -297,7 +293,6 @@ mod tests {
             verify_host_key: true,
             expose_lan: true,
             tunnel_mode: TunnelMode::default(),
-            ssh_proxy: None,
         };
         let config = profile.to_tunnel_config();
         assert_eq!(config.host, "h");
@@ -326,7 +321,6 @@ mod tests {
             verify_host_key: false,
             expose_lan: false,
             tunnel_mode: TunnelMode::default(),
-            ssh_proxy: None,
         };
         // Verify these match our constants
         assert_eq!(profile.connect_timeout_secs, default_connect_timeout_secs());
@@ -362,18 +356,16 @@ mod tests {
     }
 
     #[test]
-    fn ssh_proxy_none_default() {
+    fn use_system_proxy_default_false() {
         let cfg: SshTunnelConfig = serde_json::from_str(r#"{"host":"h"}"#).unwrap();
-        assert_eq!(cfg.ssh_proxy, None);
+        assert!(!cfg.use_system_proxy);
     }
 
     #[test]
-    fn ssh_proxy_camelcase_roundtrip() {
-        let cfg: SshTunnelConfig =
-            serde_json::from_str(r#"{"sshProxy":"http://user:pass@proxy.corp:8080"}"#).unwrap();
-        assert_eq!(
-            cfg.ssh_proxy.as_deref(),
-            Some("http://user:pass@proxy.corp:8080")
-        );
+    fn use_system_proxy_camelcase_roundtrip() {
+        let cfg: SshTunnelConfig = serde_json::from_str(r#"{"useSystemProxy":true}"#).unwrap();
+        assert!(cfg.use_system_proxy);
+        let json = serde_json::to_string(&cfg).unwrap();
+        assert!(json.contains("\"useSystemProxy\":true"));
     }
 }
