@@ -229,6 +229,9 @@
                   <p v-if="sshTunnelIssue" class="mt-2 text-xs text-destructive">
                     {{ sshTunnelIssue }}
                   </p>
+                  <p v-if="tlsTunnelConflict" class="mt-2 text-xs text-amber-500">
+                    {{ $t('connection.mongodb.tlsTunnelWarning') }}
+                  </p>
                 </div>
               </div>
             </GridItem>
@@ -369,6 +372,12 @@ const sshTunnelIssue = computed(() => {
   }
   return lang.t('connection.mongodb.sshTunnelUnsupportedUri');
 });
+
+const tlsTunnelConflict = computed(
+  () =>
+    (authMode.value === 'uri' ? /[?&]tls=(true|1)/i.test(uriValue.value) : tlsChecked.value) &&
+    sshConfig.value.enabled,
+);
 
 const formSchema = toTypedSchema(
   z

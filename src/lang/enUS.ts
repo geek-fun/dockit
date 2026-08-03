@@ -979,6 +979,8 @@ export const enUS = {
       authTypeUri: 'URI Connection String',
       sshTunnelUnsupportedUri:
         'SSH tunneling supports only single-host mongodb:// connection URIs.',
+      tlsTunnelWarning:
+        'TLS certificate validation is skipped for SSH-tunneled connections because the MongoDB driver has no SNI override. The SSH tunnel provides an authenticated encrypted channel.',
       collectionCount: '{count} collections',
       connectSuccess: 'MongoDB connection successful',
       editorComingSoon: 'MongoDB query editor coming soon...',
