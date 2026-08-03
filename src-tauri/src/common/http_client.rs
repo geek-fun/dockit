@@ -1,4 +1,5 @@
 use std::env;
+use std::net::SocketAddr;
 use std::time::Duration;
 
 fn get_proxy(http_proxy: Option<String>) -> Option<String> {
@@ -39,6 +40,8 @@ pub fn create_http_client(
     proxy_url: Option<String>,
     ssl: Option<bool>,
     request_timeout: Option<Duration>,
+    dns_override: Option<(String, SocketAddr)>,
+    extra_root_certs: Option<Vec<reqwest::Certificate>>,
 ) -> reqwest::Client {
     let mut builder = reqwest::ClientBuilder::new()
         .danger_accept_invalid_certs(!ssl.unwrap_or(true))
@@ -77,6 +80,16 @@ pub fn create_http_client(
         }
     }
 
+    if let Some((domain, addr)) = dns_override {
+        builder = builder.resolve(&domain, addr);
+    }
+
+    if let Some(certs) = extra_root_certs {
+        for cert in certs {
+            builder = builder.add_root_certificate(cert);
+        }
+    }
+
     builder.build().expect("Failed to build HTTP client")
 }
 
@@ -106,26 +119,26 @@ mod tests {
 
     #[test]
     fn test_create_http_client_default_mode() {
-        let client = create_http_client("system", None, None, None);
+        let client = create_http_client("system", None, None, None, None, None);
         // Should return a valid client without panicking
         let _ = client;
     }
 
     #[test]
     fn test_create_http_client_no_proxy_mode() {
-        let client = create_http_client("none", None, None, None);
+        let client = create_http_client("none", None, None, None, None, None);
         let _ = client;
     }
 
     #[test]
     fn test_create_http_client_manual_proxy() {
-        let client = create_http_client("manual", Some("http://proxy:8080".into()), Some(true), None);
+        let client = create_http_client("manual", Some("http://proxy:8080".into()), Some(true), None, None, None);
         let _ = client;
     }
 
     #[test]
     fn test_create_http_client_with_timeout() {
-        let client = create_http_client("system", None, None, Some(Duration::from_secs(30)));
+        let client = create_http_client("system", None, None, Some(Duration::from_secs(30)), None, None);
         let _ = client;
     }
 }
