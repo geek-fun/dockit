@@ -543,6 +543,12 @@ pub async fn dynamo_test_connection(
         .unwrap_or(443u16);
 
     let tunnel = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &remote_host, remote_port).await?;
+    if tunnel.socks5_port.is_some() {
+        return Err(
+            "SSH SOCKS5 mode is not supported for DynamoDB (the AWS SDK has no SOCKS5 proxy support); use Port Forward tunnel mode instead."
+                .to_string(),
+        );
+    }
     normalized.insert(
         "endpointUrl".to_string(),
         serde_json::json!(format!("http://{}:{}", tunnel.host, tunnel.port)),

@@ -55,17 +55,33 @@ pub(crate) async fn execute_es_http(
                 "http"
             };
             let base = format!("{}://{}:{}", protocol, host, local_port);
-            let client = crate::common::http_client::create_http_client(
-                "none",
-                None,
-                Some(ssl),
-                None,
-                Some((
-                    host.to_string(),
-                    SocketAddr::from(([127, 0, 0, 1], local_port)),
-                )),
-                extra_root_certs,
-            );
+            let socks5_proxy = config
+                .get("socks5Proxy")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty());
+            let client = match socks5_proxy {
+                // Socks5 mode: route through the local SOCKS5 proxy, TLS keeps
+                // the real hostname (no DNS override needed).
+                Some(proxy) => crate::common::http_client::create_http_client(
+                    "manual",
+                    Some(format!("socks5h://{}", proxy)),
+                    Some(ssl),
+                    None,
+                    None,
+                    extra_root_certs,
+                ),
+                None => crate::common::http_client::create_http_client(
+                    "none",
+                    None,
+                    Some(ssl),
+                    None,
+                    Some((
+                        host.to_string(),
+                        SocketAddr::from(([127, 0, 0, 1], local_port)),
+                    )),
+                    extra_root_certs,
+                ),
+            };
             (base, client)
         }
         None => {
