@@ -117,6 +117,20 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
                 serde_json::json!(format!("{}://{}:{}", scheme, endpoint.host, endpoint.port)),
             );
         }
+        // Preserve the original remote hostname so TLS clients can keep using
+        // it for SNI / certificate validation while TCP goes through the
+        // local tunnel endpoint (see execute_es_http / fetch_api). Only when
+        // a tunnel is actually established (endpoint host is 127.0.0.1) —
+        // otherwise the config still points at the remote host directly.
+        let stripped_host = remote_host
+            .trim_start_matches("http://")
+            .trim_start_matches("https://");
+        if endpoint.host == "127.0.0.1" && !stripped_host.is_empty() {
+            obj.insert(
+                "tunnelOriginalHost".to_string(),
+                serde_json::json!(stripped_host),
+            );
+        }
         obj.remove("sshTunnel");
     }
     Ok(())
