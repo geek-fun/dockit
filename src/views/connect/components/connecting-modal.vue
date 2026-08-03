@@ -25,6 +25,9 @@
         <div v-if="isIdle" class="connecting-subtext">
           {{ $t('connection.connectingSubtext') }}
         </div>
+        <div v-if="warning && isIdle" class="connecting-warning">
+          {{ warning }}
+        </div>
       </div>
       <div class="modal-footer">
         <Button v-if="isError" variant="default" @click="handleRetry">
@@ -50,13 +53,15 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 const { isError, isIdle, message, fail, reset: resetResult } = useDialogResult();
 const showModal = ref(false);
 const connectionName = ref('');
+const warning = ref<string | null>(null);
 const cancelCallback = ref<(() => void) | null>(null);
 const retryCallback = ref<(() => void) | null>(null);
 
-const show = (name: string, onCancel: () => void, onRetry: () => void) => {
+const show = (name: string, onCancel: () => void, onRetry: () => void, warn?: string | null) => {
   connectionName.value = name;
   cancelCallback.value = onCancel;
   retryCallback.value = onRetry;
+  warning.value = warn ?? null;
   resetResult();
   showModal.value = true;
 };
@@ -64,6 +69,7 @@ const show = (name: string, onCancel: () => void, onRetry: () => void) => {
 const hide = () => {
   showModal.value = false;
   connectionName.value = '';
+  warning.value = null;
   resetResult();
   cancelCallback.value = null;
   retryCallback.value = null;
@@ -155,6 +161,17 @@ defineExpose({
 .connecting-subtext {
   font-size: 14px;
   color: hsl(var(--muted-foreground));
+  text-align: center;
+}
+
+.connecting-warning {
+  margin-top: 12px;
+  padding: 8px 12px;
+  width: 100%;
+  border-radius: 6px;
+  background: hsl(var(--warning) / 0.12);
+  color: hsl(var(--warning));
+  font-size: 13px;
   text-align: center;
 }
 

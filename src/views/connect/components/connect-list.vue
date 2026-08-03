@@ -295,6 +295,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { cloneDeep } from 'lodash';
+import { invoke } from '@tauri-apps/api/core';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -321,6 +322,7 @@ import {
   DynamoDBConnection,
   MongoDBConnection,
   SearchConnection,
+  SshConnectionConfig,
   isSearchConnection,
   useConnectionStore,
   useSshProfileStore,
@@ -620,6 +622,22 @@ const handleSelect = (key: string, connection: Connection) => {
 const establishConnect = async (connection: Connection) => {
   connectionCancelled.value = false;
 
+  // When the tunnel is set to use the system proxy, warn if none is
+  // currently detected — the backend silently falls back to a direct
+  // connection, so the user should know traffic is not proxied.
+  let proxyWarning: string | null = null;
+  const sshTunnel = (connection as { sshTunnel?: SshConnectionConfig }).sshTunnel;
+  if (sshTunnel?.enabled && sshTunnel.useSystemProxy) {
+    try {
+      const detected = await invoke<string | null>('detect_system_proxy');
+      if (!detected) {
+        proxyWarning = lang.t('connection.ssh.systemProxyNotDetected');
+      }
+    } catch {
+      proxyWarning = null;
+    }
+  }
+
   // Show loading modal with retry callback
   connectingModal.value.show(
     connection.name,
@@ -627,6 +645,7 @@ const establishConnect = async (connection: Connection) => {
       connectionCancelled.value = true;
     },
     () => establishConnect(connection),
+    proxyWarning,
   );
 
   const startTime = Date.now();

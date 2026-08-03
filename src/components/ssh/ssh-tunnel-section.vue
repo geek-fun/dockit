@@ -45,20 +45,37 @@
       </Button>
     </div>
 
-    <!-- System proxy toggle -->
-    <div v-if="systemProxyUrl" class="system-proxy-row">
-      <Switch
-        :checked="useSystemProxy"
-        @update:checked="
-          useSystemProxy = $event;
-          emitUpdate();
-        "
-      />
-      <Label class="text-xs text-muted-foreground cursor-pointer">
-        <span class="i-carbon-network-public h-3.5 w-3.5 mr-1 align-text-bottom" />
-        {{ $t('connection.ssh.systemProxy') }}
-        <code class="text-[10px] bg-muted px-1 rounded ml-1">{{ systemProxyUrl }}</code>
-      </Label>
+    <!-- System proxy: locked [0] item when chosen; Add row when detected -->
+    <div v-if="useSystemProxy && systemProxyUrl" class="system-proxy-row system-proxy-active">
+      <span class="system-proxy-index">0</span>
+      <span class="i-carbon-network-public h-3.5 w-3.5 shrink-0" />
+      <span class="text-xs font-medium">{{ $t('connection.ssh.systemProxy') }}</span>
+      <code class="text-[10px] bg-muted px-1 rounded ml-1 truncate">{{ systemProxyUrl }}</code>
+      <Button
+        variant="ghost"
+        size="icon"
+        type="button"
+        class="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0 ml-auto"
+        :title="$t('connection.ssh.systemProxyDetach')"
+        @click="detachSystemProxy"
+      >
+        <span class="i-carbon-unlink h-3 w-3" />
+      </Button>
+    </div>
+    <div v-else-if="systemProxyUrl" class="system-proxy-row">
+      <span class="i-carbon-network-public h-3.5 w-3.5 shrink-0" />
+      <span class="text-xs text-muted-foreground truncate">
+        {{ $t('connection.ssh.systemProxyDetected', { url: systemProxyUrl }) }}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        type="button"
+        class="h-6 px-2 text-xs shrink-0 ml-auto"
+        @click="attachSystemProxy"
+      >
+        {{ $t('connection.ssh.systemProxyAdd') }}
+      </Button>
     </div>
 
     <!-- Empty state -->
@@ -123,8 +140,6 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { Plus, Pencil } from 'lucide-vue-next';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/combobox';
 import type { ComboboxOption } from '@/components/ui/combobox';
 import { Button } from '@/components/ui/button';
@@ -151,7 +166,7 @@ const testing = ref(false);
 const testResult = ref<{ success: boolean; message: string } | null>(null);
 const selectValue = ref('');
 const systemProxyUrl = ref<string | null>(null);
-const useSystemProxy = ref(true);
+const useSystemProxy = ref(false);
 const profileListRef = ref<HTMLElement>();
 let sortableInstance: Sortable | null = null;
 
@@ -209,6 +224,7 @@ watch(
   () => props.modelValue,
   val => {
     profileIds.value = val.profileIds ? [...val.profileIds] : [];
+    useSystemProxy.value = val.useSystemProxy === true;
   },
   { immediate: true, deep: true },
 );
@@ -240,8 +256,20 @@ function emitUpdate() {
     enabled: profileIds.value.length > 0,
     profileIds: [...profileIds.value],
     inline: props.modelValue.inline,
-    systemProxy: useSystemProxy.value ? (systemProxyUrl.value ?? undefined) : undefined,
+    useSystemProxy: useSystemProxy.value ? true : undefined,
   });
+}
+
+function attachSystemProxy() {
+  useSystemProxy.value = true;
+  testResult.value = null;
+  emitUpdate();
+}
+
+function detachSystemProxy() {
+  useSystemProxy.value = false;
+  testResult.value = null;
+  emitUpdate();
 }
 
 function onAddProfile(id: string) {
@@ -342,6 +370,25 @@ async function onTestConnection() {
   margin-bottom: 8px;
   border-radius: 6px;
   background: hsl(var(--muted) / 0.3);
+}
+
+.system-proxy-active {
+  border: 1px solid hsl(var(--border));
+  background: hsl(var(--muted) / 0.3);
+}
+
+.system-proxy-index {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .ssh-profile-list {
