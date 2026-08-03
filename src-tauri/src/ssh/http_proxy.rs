@@ -11,6 +11,81 @@ const MAX_RESPONSE_HEADER_BYTES: usize = 8192;
 
 /// Establishes a TCP stream to `target_host:target_port` through an HTTP
 /// CONNECT proxy. `proxy_url` is `http://[user:pass@]host:port`.
+/// HTTP CONNECT proxy server: accepts a `CONNECT host:port` request, replies
+/// `200 Connection established`, then forwards the connection through
+/// `outbound` (production: SSH direct-tcpip channel; tests: direct TCP).
+/// Rejects non-CONNECT methods. Used by drivers whose SDK supports only
+/// HTTP CONNECT proxies (e.g. the AWS SDK for DynamoDB).
+pub async fn run_http_proxy_server(
+    listener: tokio::net::TcpListener,
+    outbound: crate::ssh::socks5::OutboundFn,
+) {
+    loop {
+        let (socket, _) = match listener.accept().await {
+            Ok(pair) => pair,
+            Err(_) => continue,
+        };
+        let outbound = std::sync::Arc::clone(&outbound);
+        tokio::spawn(async move {
+            let _ = handle_http_connect_conn(socket, &outbound).await;
+        });
+    }
+}
+
+/// Handles a single accepted connection using the HTTP CONNECT protocol.
+/// Exposed for the dual-protocol tunnel (first-byte dispatch).
+pub async fn handle_http_connect_conn<S>(
+    socket: S,
+    outbound: &crate::ssh::socks5::OutboundFn,
+) -> Result<(), String>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let mut socket = socket;
+    let mut buf = vec![0u8; 8192];
+    let mut read = 0usize;
+    let header_end = loop {
+        if read >= buf.len() {
+            return Err("HTTP CONNECT request too large".to_string());
+        }
+        match socket.read(&mut buf[read..]).await {
+            Ok(0) | Err(_) => return Err("HTTP CONNECT request read failed".to_string()),
+            Ok(n) => {
+                read += n;
+                if let Some(pos) = buf[..read].windows(4).position(|w| w == b"\r\n\r\n") {
+                    break pos;
+                }
+            }
+        }
+    };
+    let head = String::from_utf8_lossy(&buf[..header_end]).to_string();
+    let request_line = head.lines().next().unwrap_or("");
+    let parts: Vec<&str> = request_line.split_whitespace().collect();
+    if parts.len() != 3 || parts[0] != "CONNECT" {
+        let _ = socket
+            .write_all(b"HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\n\r\n")
+            .await;
+        return Err("Non-CONNECT method".to_string());
+    }
+    let authority = parts[1];
+    let (host, port) = match authority.rsplit_once(':') {
+        Some((h, p)) => match p.parse::<u16>() {
+            Ok(port) => (h.to_string(), port),
+            Err(_) => return Err("Bad CONNECT port".to_string()),
+        },
+        None => return Err("Bad CONNECT authority".to_string()),
+    };
+    if let Err(_) = socket
+        .write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+        .await
+    {
+        return Err("CONNECT reply failed".to_string());
+    }
+    let outbound_stream = outbound(&host, port).await?;
+    let _ = fast_socks5::server::transfer(socket, outbound_stream).await;
+    Ok(())
+}
+
 pub async fn connect_via_http_proxy(
     proxy_url: &str,
     target_host: &str,
@@ -100,9 +175,9 @@ pub async fn connect_via_http_proxy(
 /// A stream that replays buffered prefix bytes before forwarding to the
 /// underlying connection (used to preserve bytes read past the CONNECT
 /// response header).
-struct PrefixedStream<S> {
-    prefix: Vec<u8>,
-    inner: S,
+pub struct PrefixedStream<S> {
+    pub prefix: Vec<u8>,
+    pub inner: S,
 }
 
 impl<S: AsyncRead + Unpin> AsyncRead for PrefixedStream<S> {
@@ -277,6 +352,82 @@ mod tests {
             b"SSH-2.0-OpenSSH_9.0\r\n",
             "banner bytes preserved"
         );
+    }
+
+    #[tokio::test]
+    async fn http_proxy_server_connects_and_echoes() {
+        use crate::ssh::socks5::DuplexStream;
+
+        // echo target
+        let echo = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let echo_port = echo.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (mut sock, _) = echo.accept().await.unwrap();
+            let mut b = vec![0u8; 64];
+            loop {
+                match sock.read(&mut b).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        if sock.write_all(&b[..n]).await.is_err() {
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+
+        // proxy server with outbound pinned to the echo server (proves the
+        // CONNECT target is parsed and the tunnel established)
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let proxy_port = listener.local_addr().unwrap().port();
+        let outbound: crate::ssh::socks5::OutboundFn =
+            std::sync::Arc::new(move |_host: &str, _port: u16| {
+                let target = ("127.0.0.1", echo_port);
+                Box::pin(async move {
+                    let stream = tokio::net::TcpStream::connect(target)
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    Ok(Box::new(stream) as Box<dyn DuplexStream>)
+                })
+            });
+        tokio::spawn(run_http_proxy_server(listener, outbound));
+
+        // client: CONNECT then send payload through the tunnel
+        let mut tcp = tokio::net::TcpStream::connect(("127.0.0.1", proxy_port))
+            .await
+            .unwrap();
+        tcp.write_all(
+            format!(
+                "CONNECT target.corp:{} HTTP/1.1\r\nHost: target.corp:{}\r\n\r\n",
+                echo_port, echo_port
+            )
+            .as_bytes(),
+        )
+        .await
+        .unwrap();
+        // read the 200 response
+        let mut resp = [0u8; 64];
+        let mut n = 0;
+        while n < resp.len() {
+            let k = tcp.read(&mut resp[n..]).await.unwrap();
+            if k == 0 {
+                break;
+            }
+            n += k;
+            if resp[..n].windows(4).any(|w| w == b"\r\n\r\n") {
+                break;
+            }
+        }
+        assert!(
+            String::from_utf8_lossy(&resp[..n]).contains("200 Connection established"),
+            "got: {:?}",
+            String::from_utf8_lossy(&resp[..n])
+        );
+        // payload round-trip through the CONNECT tunnel
+        tcp.write_all(b"ping").await.unwrap();
+        let mut echo_buf = [0u8; 4];
+        tcp.read_exact(&mut echo_buf).await.unwrap();
+        assert_eq!(&echo_buf, b"ping", "echo through CONNECT tunnel");
     }
 
     #[tokio::test]

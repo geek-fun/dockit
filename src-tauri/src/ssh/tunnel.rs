@@ -17,7 +17,7 @@ use crate::ssh::config::{
     INITIAL_RECONNECT_DELAY_SECS, MAX_RECONNECT_ATTEMPTS, MAX_RECONNECT_DELAY_SECS,
 };
 use crate::ssh::http_proxy::connect_via_http_proxy;
-use crate::ssh::socks5::{run_socks5_server, DuplexStream, OutboundFn};
+use crate::ssh::socks5::{run_dual_proxy_server, DuplexStream, OutboundFn};
 
 const BUFFER_SIZE: usize = 65536;
 
@@ -980,7 +980,7 @@ async fn spawn_socks5_tunnel(
     let outbound = make_ssh_outbound(watch_rx);
 
     let task_config = config.clone();
-    let server_task = tokio::spawn(run_socks5_server(listener, outbound));
+    let server_task = tokio::spawn(run_dual_proxy_server(listener, outbound));
     let task_remote_host = remote_host.to_string();
     let reconnect_task = tokio::spawn(tunnel_reconnect_loop(
         task_config,
