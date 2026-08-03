@@ -995,6 +995,7 @@ export const zhCN = {
       connectTimeout: '连接超时（秒）',
       keepaliveInterval: '心跳间隔（秒）',
       exposeLan: '暴露到局域网',
+      exposeLanSocks5Hint: '仅端口转发模式生效（SOCKS5 始终绑定 127.0.0.1）。',
       testConnection: '测试 SSH 连接',
       testing: '测试中...',
       testSuccess: 'SSH 连接成功',

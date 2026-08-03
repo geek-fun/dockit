@@ -629,7 +629,18 @@ const establishConnect = async (connection: Connection) => {
   const sshTunnel = (connection as { sshTunnel?: SshConnectionConfig }).sshTunnel;
   if (sshTunnel?.enabled && sshTunnel.useSystemProxy) {
     try {
-      const detected = await invoke<string | null>('detect_system_proxy');
+      // Probe against the actual connection target so the warning reflects
+      // this tunnel's routing: a bastion in NO_PROXY / the OS exception list
+      // bypasses the proxy and should be reported as such.
+      const remoteHost = (connection as { host?: string }).host;
+      const remotePort = (connection as { port?: number }).port;
+      const detected =
+        remoteHost && remotePort
+          ? await invoke<string | null>('detect_system_proxy', {
+              host: remoteHost,
+              port: remotePort,
+            })
+          : await invoke<string | null>('detect_system_proxy');
       if (!detected) {
         proxyWarning = lang.t('connection.ssh.systemProxyNotDetected');
       }

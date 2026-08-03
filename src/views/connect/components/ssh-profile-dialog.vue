@@ -140,13 +140,22 @@
             <Switch
               id="expose-lan"
               :checked="form.exposeLan"
+              :disabled="form.tunnelMode === 'socks5'"
               @update:checked="form.exposeLan = $event"
             />
-            <Label for="expose-lan" class="text-sm whitespace-nowrap">
+            <Label
+              for="expose-lan"
+              class="text-sm whitespace-nowrap"
+              :class="{ 'opacity-50': form.tunnelMode === 'socks5' }"
+            >
               {{ $t('connection.ssh.exposeLan') }}
             </Label>
           </div>
         </div>
+
+        <p v-if="form.tunnelMode === 'socks5'" class="text-xs text-muted-foreground -mt-2">
+          {{ $t('connection.ssh.exposeLanSocks5Hint') }}
+        </p>
 
         <div class="grid gap-2">
           <Label class="text-sm">{{ $t('connection.ssh.tunnelMode') }}</Label>

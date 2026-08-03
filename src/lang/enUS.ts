@@ -1032,6 +1032,7 @@ export const enUS = {
       connectTimeout: 'Connect Timeout (s)',
       keepaliveInterval: 'Keepalive (s)',
       exposeLan: 'Expose to LAN',
+      exposeLanSocks5Hint: 'Only applies to Port Forward mode (SOCKS5 always binds to 127.0.0.1).',
       testConnection: 'Test SSH Connection',
       testing: 'Testing...',
       testSuccess: 'SSH connection successful',
