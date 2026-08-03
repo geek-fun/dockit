@@ -376,7 +376,8 @@ const sshTunnelIssue = computed(() => {
 const tlsTunnelConflict = computed(
   () =>
     (authMode.value === 'uri' ? /[?&]tls=(true|1)/i.test(uriValue.value) : tlsChecked.value) &&
-    sshConfig.value.enabled,
+    sshConfig.value.enabled &&
+    sshConfig.value.inline?.tunnelMode !== 'socks5',
 );
 
 const formSchema = toTypedSchema(

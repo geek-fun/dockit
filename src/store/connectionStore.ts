@@ -47,6 +47,8 @@ export type SshTunnelConfig = {
   keepaliveIntervalSecs: number;
   verifyHostKey?: boolean;
   exposeLan: boolean;
+  tunnelMode?: 'portForward' | 'socks5';
+  sshProxy?: string;
 };
 
 export type SshConnectionConfig = {
@@ -72,6 +74,8 @@ export type SshProfile = {
   keepaliveIntervalSecs: number;
   verifyHostKey?: boolean;
   exposeLan: boolean;
+  tunnelMode?: 'portForward' | 'socks5';
+  sshProxy?: string;
 };
 
 export type SshConfigHostEntry = {

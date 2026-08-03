@@ -977,6 +977,7 @@ export const enUS = {
       authTypeNone: 'No Authentication',
       authTypeScram: 'SCRAM Authentication',
       authTypeUri: 'URI Connection String',
+
       sshTunnelUnsupportedUri:
         'SSH tunneling supports only single-host mongodb:// connection URIs.',
       tlsTunnelWarning:
@@ -990,6 +991,13 @@ export const enUS = {
     notFound: 'Connection not found',
 
     ssh: {
+      tunnelMode: 'Tunnel Mode',
+      tunnelModePortForward: 'Port Forward',
+      tunnelModeSocks5: 'SOCKS5 Proxy',
+      sshProxy: 'HTTP Proxy to Bastion',
+      sshProxyPlaceholder: 'http://user:pass@proxy.corp:8080',
+      sshProxyHint:
+        'Connect to the SSH bastion through an HTTP CONNECT proxy. Leave empty for direct connection.',
       title: 'SSH Tunnel',
       profile: 'SSH Profile',
       profilePlaceholder: 'Select an SSH profile',

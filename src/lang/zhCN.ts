@@ -941,6 +941,7 @@ export const zhCN = {
       authTypeNone: '无认证',
       authTypeScram: 'SCRAM 认证',
       authTypeUri: 'URI 连接地址',
+
       sshTunnelUnsupportedUri: 'SSH 隧道仅支持单主机 mongodb:// 连接 URI。',
       tlsTunnelWarning:
         'SSH 隧道连接会跳过 TLS 证书校验（MongoDB 驱动不支持 SNI 覆盖）。SSH 隧道本身已提供认证加密通道。',
@@ -953,6 +954,12 @@ export const zhCN = {
     notFound: '未找到连接',
 
     ssh: {
+      tunnelMode: '隧道模式',
+      tunnelModePortForward: '端口转发',
+      tunnelModeSocks5: 'SOCKS5 代理',
+      sshProxy: 'HTTP 代理（连向堡垒机）',
+      sshProxyPlaceholder: 'http://user:pass@proxy.corp:8080',
+      sshProxyHint: '通过 HTTP CONNECT 代理连接 SSH 堡垒机。留空则直连。',
       title: 'SSH 隧道',
       profile: 'SSH 配置',
       profilePlaceholder: '选择 SSH 配置',

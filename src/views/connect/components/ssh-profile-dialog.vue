@@ -148,6 +148,34 @@
           </div>
         </div>
 
+        <div class="grid gap-2">
+          <Label class="text-sm">{{ $t('connection.ssh.tunnelMode') }}</Label>
+          <div class="flex gap-4">
+            <label class="flex items-center gap-2 text-sm">
+              <input v-model="form.tunnelMode" type="radio" value="portForward" />
+              {{ $t('connection.ssh.tunnelModePortForward') }}
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <input v-model="form.tunnelMode" type="radio" value="socks5" />
+              {{ $t('connection.ssh.tunnelModeSocks5') }}
+            </label>
+          </div>
+        </div>
+
+        <div class="grid gap-2">
+          <Label for="ssh-proxy" class="text-sm">
+            {{ $t('connection.ssh.sshProxy') }}
+          </Label>
+          <Input
+            id="ssh-proxy"
+            v-model="form.sshProxy"
+            :placeholder="$t('connection.ssh.sshProxyPlaceholder')"
+          />
+          <p class="text-xs text-muted-foreground">
+            {{ $t('connection.ssh.sshProxyHint') }}
+          </p>
+        </div>
+
         <!-- Test result -->
         <Alert v-if="testResult" :variant="testResult.success ? 'success' : 'destructive'">
           <AlertDescription>{{ testResult.message }}</AlertDescription>
@@ -207,6 +235,8 @@ const form = reactive({
   keepaliveIntervalSecs: 30,
   exposeLan: false,
   sshAgentSockPath: '',
+  tunnelMode: 'portForward' as 'portForward' | 'socks5',
+  sshProxy: '',
 });
 
 const errors = reactive<Record<string, string>>({});
@@ -251,6 +281,8 @@ function resetForm() {
   form.connectTimeoutSecs = 10;
   form.keepaliveIntervalSecs = 30;
   form.exposeLan = false;
+  form.tunnelMode = 'portForward';
+  form.sshProxy = '';
   form.sshAgentSockPath = '';
   testResult.value = null;
 }
@@ -267,6 +299,8 @@ function loadProfile(profile: SshProfile) {
   form.connectTimeoutSecs = profile.connectTimeoutSecs || 10;
   form.keepaliveIntervalSecs = profile.keepaliveIntervalSecs || 30;
   form.exposeLan = profile.exposeLan;
+  form.tunnelMode = profile.tunnelMode ?? 'portForward';
+  form.sshProxy = profile.sshProxy ?? '';
   form.sshAgentSockPath = profile.sshAgentSockPath ?? '';
 }
 
@@ -324,6 +358,8 @@ async function onTest() {
       connectTimeoutSecs: form.connectTimeoutSecs,
       keepaliveIntervalSecs: form.keepaliveIntervalSecs,
       exposeLan: form.exposeLan,
+      tunnelMode: form.tunnelMode,
+      sshProxy: form.sshProxy || undefined,
     };
     testResult.value = await sshStore.testConnection(config, form.host, form.port);
   } catch (e) {
@@ -349,6 +385,8 @@ async function onSave() {
     connectTimeoutSecs: form.connectTimeoutSecs,
     keepaliveIntervalSecs: form.keepaliveIntervalSecs,
     exposeLan: form.exposeLan,
+    tunnelMode: form.tunnelMode,
+    sshProxy: form.sshProxy || undefined,
   };
   await sshStore.saveProfile(profile);
   close();
