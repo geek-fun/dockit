@@ -121,7 +121,7 @@
             {{ $t('setting.ai.chat.autoCompactDescription') }}
           </p>
         </div>
-        <Switch :model-value="autoCompactEnabled" @update:model-value="setAutoCompact" />
+        <Switch :checked="autoCompactEnabled" @update:checked="setAutoCompact" />
       </div>
 
       <div

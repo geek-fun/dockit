@@ -7,7 +7,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use crate::mcp_bridge::McpConfig;
 use data_studio_agent as lib;
+use data_studio_agent::capabilities::permissions::McpPolicy;
+use data_studio_agent::capabilities::registry::registry;
 use data_studio_agent::traits::{CancelMap, ConfirmMap, EventEmitter};
 use data_studio_agent::storage as storage;
 use serde_json::Value;
@@ -96,6 +99,29 @@ pub async fn run_agent_loop(
             .unwrap_or(false)
     };
 
+    let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let policy: McpPolicy = McpConfig::load(&app_data_dir).policy;
+    let should_deny = move |tool_name: &str, conn_id: Option<&str>| -> bool {
+        match registry().get(tool_name) {
+            Some(cap) => {
+                // Allowlist set but no connection specified: a DB capability would
+                // fall back to the default connection, bypassing the allowlist.
+                // AppLocal tools (list_connections etc.) need no connection.
+                if !policy.allowed_connection_ids.is_empty()
+                    && conn_id.is_none()
+                    && !matches!(
+                        cap.source_kind,
+                        data_studio_agent::capabilities::types::SourceKind::AppLocal
+                    )
+                {
+                    return true;
+                }
+                !policy.allows(cap.risk_level, conn_id)
+            }
+            None => false,
+        }
+    };
+
     lib::loop_runner::run_agent_loop(
         &session_id,
         &user_message,
@@ -108,6 +134,7 @@ pub async fn run_agent_loop(
         &confirm_map,
         &cancel_map,
         &is_parallel_ok,
+        &should_deny,
     )
     .await
 }

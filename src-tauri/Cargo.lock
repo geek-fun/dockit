@@ -1849,8 +1849,8 @@ checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
 
 [[package]]
 name = "data-studio-agent"
-version = "0.1.4"
-source = "git+https://github.com/geek-fun/data-studio-agent.git?branch=feat%2Funified-capability-types#b4d3381afd856e1a270eb345faa799ad7f5008e6"
+version = "0.1.5"
+source = "git+https://github.com/geek-fun/data-studio-agent.git?tag=v0.1.5#f4871a4e133b5aaf33a09d26002948ec92dc4f1d"
 dependencies = [
  "async-openai",
  "async-trait",
@@ -4837,7 +4837,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.45.0",
 ]
 
 [[package]]
