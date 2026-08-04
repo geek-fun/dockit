@@ -372,6 +372,11 @@ export const enUS = {
       copy: 'Copy Schema',
       copied: 'Schema copied to clipboard',
       copyFailed: 'Failed to copy schema',
+      tabs: {
+        mappings: 'Mappings',
+        settings: 'Settings',
+        aliases: 'Aliases',
+      },
     },
     index: {
       actions: {

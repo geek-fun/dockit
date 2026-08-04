@@ -16,10 +16,19 @@
         <p class="text-destructive text-sm">{{ errorMessage }}</p>
       </div>
 
-      <div v-else ref="schemaEditorRef" class="schema-editor macos-scrollable" />
+      <div v-else class="schema-body">
+        <Tabs v-model="activeTab" class="flex h-full flex-col">
+          <TabsList class="w-fit mb-2">
+            <TabsTrigger value="mappings">{{ $t('manage.schema.tabs.mappings') }}</TabsTrigger>
+            <TabsTrigger value="settings">{{ $t('manage.schema.tabs.settings') }}</TabsTrigger>
+            <TabsTrigger value="aliases">{{ $t('manage.schema.tabs.aliases') }}</TabsTrigger>
+          </TabsList>
+          <div ref="schemaEditorRef" class="schema-editor macos-scrollable" />
+        </Tabs>
+      </div>
 
       <DialogFooter>
-        <Button size="sm" :disabled="!mapping" @click="handleCopy">
+        <Button size="sm" :disabled="!indexInfo" @click="handleCopy">
           <span class="i-carbon-copy h-3.5 w-3.5 mr-1.5" />
           {{ $t('manage.schema.copy') }}
         </Button>
@@ -40,9 +49,11 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CustomError, jsonify } from '@/common';
 import { Editor, monaco } from '@/common/monaco';
 import { esApi } from '@/datasources';
+import type { IndexInfoResponse } from '@/datasources';
 import { useLang } from '@/lang';
 import { useMessageService } from '@/composables';
 import { useAppStore } from '@/store';
@@ -66,18 +77,25 @@ const { themeType, editorConfig } = storeToRefs(appStore);
 
 const loading = ref(false);
 const errorMessage = ref('');
-const mapping = ref<unknown>(null);
+const indexInfo = ref<IndexInfoResponse | null>(null);
+const activeTab = ref<'mappings' | 'settings' | 'aliases'>('mappings');
 const schemaEditorRef = ref<HTMLElement>();
 
 let schemaEditor: Editor | null = null;
 let editorInitialized = false;
 
+const sectionData = computed(() => {
+  if (!indexInfo.value) return undefined;
+  const info = indexInfo.value[props.indexName] ?? indexInfo.value;
+  return info?.[activeTab.value];
+});
+
 const formatted = computed(() => {
-  if (mapping.value === null || mapping.value === undefined) return '';
+  if (sectionData.value === null || sectionData.value === undefined) return '';
   try {
-    return jsonify.stringify(mapping.value, null, 2);
+    return jsonify.stringify(sectionData.value, null, 2);
   } catch {
-    return String(mapping.value);
+    return String(sectionData.value);
   }
 });
 
@@ -112,15 +130,15 @@ const updateEditorContent = () => {
   model.setValue(formatted.value);
 };
 
-const loadMapping = async () => {
+const loadIndexInfo = async () => {
   if (!props.connection || !props.indexName) return;
 
   loading.value = true;
   errorMessage.value = '';
-  mapping.value = null;
+  indexInfo.value = null;
 
   try {
-    mapping.value = await esApi.getIndexMapping(props.connection, props.indexName);
+    indexInfo.value = await esApi.getIndexInfo(props.connection, props.indexName, true);
   } catch (err) {
     errorMessage.value =
       err instanceof CustomError ? err.details : err instanceof Error ? err.message : String(err);
@@ -129,9 +147,18 @@ const loadMapping = async () => {
   }
 };
 
+const copyContent = computed(() => {
+  if (indexInfo.value === null || indexInfo.value === undefined) return '';
+  try {
+    return jsonify.stringify(indexInfo.value, null, 2);
+  } catch {
+    return String(indexInfo.value);
+  }
+});
+
 const handleCopy = async () => {
   try {
-    await navigator.clipboard.writeText(formatted.value);
+    await navigator.clipboard.writeText(copyContent.value);
     message.success(lang.t('manage.schema.copied'));
   } catch {
     message.error(lang.t('manage.schema.copyFailed'));
@@ -142,7 +169,8 @@ watch(
   () => [props.open, props.indexName, props.connection?.id] as const,
   async ([isOpen]) => {
     if (isOpen) {
-      await loadMapping();
+      activeTab.value = 'mappings';
+      await loadIndexInfo();
       await initEditor();
       await nextTick();
       updateEditorContent();
@@ -197,6 +225,14 @@ onUnmounted(() => {
 
 .schema-error p {
   padding: 1rem;
+}
+
+.schema-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
 }
 
 .schema-editor {

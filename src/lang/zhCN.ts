@@ -355,6 +355,11 @@ export const zhCN = {
       copy: '复制 Schema',
       copied: 'Schema 已复制到剪贴板',
       copyFailed: '复制 Schema 失败',
+      tabs: {
+        mappings: '映射',
+        settings: '设置',
+        aliases: '别名',
+      },
     },
     index: {
       actions: {
