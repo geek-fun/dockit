@@ -37,7 +37,9 @@ export type ProviderKind =
   | 'gemini'
   | 'grok'
   | 'mistral'
-  | 'azure-openai';
+  | 'azure-openai'
+  | 'opencode-zen'
+  | 'opencode-go';
 
 export type ModelCategory = 'general' | 'reasoning' | 'coding' | 'fast' | 'vision';
 
@@ -222,6 +224,24 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModels: [],
   },
   {
+    kind: 'opencode-zen',
+    apiCompatibility: 'openai-compatible',
+    label: 'OpenCode Zen',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://opencode.ai/zen/v1',
+    enabled: false,
+    defaultModels: ['deepseek-v4-pro', 'deepseek-v4-flash', 'kimi-k3', 'glm-5.2'],
+  },
+  {
+    kind: 'opencode-go',
+    apiCompatibility: 'openai-compatible',
+    label: 'OpenCode Go',
+    authMode: 'api-key',
+    defaultBaseUrl: 'https://opencode.ai/zen/go/v1',
+    enabled: false,
+    defaultModels: ['deepseek-v4-pro', 'deepseek-v4-flash', 'kimi-k3', 'glm-5.2'],
+  },
+  {
     kind: 'custom-openai',
     apiCompatibility: 'openai-compatible',
     label: 'Custom OpenAI-Compatible',
@@ -255,6 +275,8 @@ const defaultModelsByKind: Record<ProviderKind, string[]> = {
   grok: ['grok-3'],
   mistral: ['mistral-large', 'mistral-small', 'codestral'],
   'azure-openai': [],
+  'opencode-zen': ['deepseek-v4-pro', 'deepseek-v4-flash', 'kimi-k3', 'glm-5.2'],
+  'opencode-go': ['deepseek-v4-pro', 'deepseek-v4-flash', 'kimi-k3', 'glm-5.2'],
 };
 
 const inferModelCategory = (modelId: string): ModelCategory => {
