@@ -66,6 +66,7 @@
       :placeholder="$t('connection.selectIndex')"
       variant="ghost"
       :search-threshold="0"
+      clearable
       class="index-select"
       @update:model-value="value => handleUpdate(value, 'INDEX')"
       @open="isOpen => handleOpen(isOpen, 'INDEX')"
@@ -378,8 +379,14 @@ const message = useMessageService();
 const lang = useLang();
 
 const connectionStore = useConnectionStore();
-const { fetchConnections, fetchIndices, fetchTables, fetchCollections, selectIndex } =
-  connectionStore;
+const {
+  fetchConnections,
+  fetchIndices,
+  fetchTables,
+  fetchCollections,
+  selectIndex,
+  clearActiveIndex,
+} = connectionStore;
 const { connections } = storeToRefs(connectionStore);
 
 const tabStore = useTabStore();
@@ -496,18 +503,31 @@ const connectionOptions = computed(() =>
     .sort((a, b) => a.label.localeCompare(b.label)),
 );
 
-const indexOptions = computed(
-  () =>
-    activeSearchIndexOption.value
-      ?.filter(index => (includeSystemIndicesRef.value ? true : !index.value.startsWith('.')))
-      ?.sort((a, b) => {
-        const aIsSystem = a.value.startsWith('.');
-        const bIsSystem = b.value.startsWith('.');
-        if (aIsSystem && !bIsSystem) return 1;
-        if (!aIsSystem && bIsSystem) return -1;
-        return a.label.localeCompare(b.label);
-      }) ?? [],
-);
+const indexOptions = computed(() => {
+  const conn = activePanel?.value?.connection;
+  const selected = isSearchConnection(conn)
+    ? (conn as SearchConnection).activeIndex?.index
+    : undefined;
+  const base = activeSearchIndexOption.value ?? [];
+  // Always surface the selected index, even when the index listing is
+  // unavailable (e.g. the credentials lack permission for /_cat/indices)
+  const merged =
+    selected && !base.some(opt => opt.value === selected)
+      ? [{ label: selected, value: selected }, ...base]
+      : base;
+  return merged
+    .filter(
+      index =>
+        includeSystemIndicesRef.value || index.value === selected || !index.value.startsWith('.'),
+    )
+    .sort((a, b) => {
+      const aIsSystem = a.value.startsWith('.');
+      const bIsSystem = b.value.startsWith('.');
+      if (aIsSystem && !bIsSystem) return 1;
+      if (!aIsSystem && bIsSystem) return -1;
+      return a.label.localeCompare(b.label);
+    });
+});
 
 const tableOptions = computed(() => {
   const conn = (
@@ -864,7 +884,15 @@ const handleUpdate = async (
       });
       return;
     }
-    selectIndex(selectedConnection, value);
+    // Deselect when the clear button emits '' or the selected index is re-clicked
+    if (
+      isSearchConnection(selectedConnection) &&
+      (value === '' || value === indexSelectValue.value)
+    ) {
+      await clearActiveIndex(selectedConnection);
+    } else {
+      await selectIndex(selectedConnection, value);
+    }
     syncEsConnectUrl();
   }
 };

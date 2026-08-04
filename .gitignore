@@ -120,3 +120,9 @@ reddit-post-dockit.md
 .omo/
 .impeccable.md
 .codegraph/
+
+# Local agent tooling (opencode/playwright MCP)
+.github/agents/
+.github/hooks/
+.github/skills/
+.playwright-mcp/

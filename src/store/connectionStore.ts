@@ -783,10 +783,9 @@ export const useConnectionStore = defineStore('connectionStore', {
         con.type === DatabaseType.EASYSEARCH
       ) {
         const client = loadHttpClient(con);
-        const clusterInfo = await client.get<ElasticsearchClusterInfo>(
-          con.activeIndex?.index,
-          'format=json',
-        );
+        // Cluster info is served at the root endpoint — an index path returns
+        // index metadata without a `version` field and breaks the parsing below
+        const clusterInfo = await client.get<ElasticsearchClusterInfo>('/', 'format=json');
         const detectedAsOpenSearch =
           clusterInfo.version.distribution === 'opensearch' ||
           (clusterInfo.tagline ?? '').toLowerCase().includes('opensearch');
@@ -961,6 +960,23 @@ export const useConnectionStore = defineStore('connectionStore', {
       // selectIndex mutates connectionStore.connections by ID, but the panel
       // may hold a separate reference (e.g. from establishPanel). Without this
       // sync, the toolbar's index selector and docs browser see no activeIndex.
+      if (tabStore.activePanel?.connection?.id === connection.id) {
+        tabStore.activePanel.connection = connection;
+      }
+    },
+    async clearActiveIndex(con: Connection) {
+      const connection = this.connections.find(({ id }) => id === con.id) as SearchConnection;
+      connection.activeIndex = undefined;
+      const tabStore = useTabStore();
+      configureDynamicOptions({
+        activeIndex: undefined,
+        indices: connection.indices?.map(i => i.index) ?? [],
+        includeSystemIndices: tabStore.activePanel?.includeSystemIndices ?? false,
+        fields: undefined,
+      });
+
+      // Sync the cleared connection into the active panel so the toolbar's
+      // index selector and docs browser observe the deselected state.
       if (tabStore.activePanel?.connection?.id === connection.id) {
         tabStore.activePanel.connection = connection;
       }

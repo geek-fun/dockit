@@ -19,6 +19,7 @@ const props = withDefaults(
     createText?: string;
     searchThreshold?: number;
     variant?: 'outline' | 'ghost';
+    clearable?: boolean;
     class?: string;
   }>(),
   {
@@ -31,6 +32,7 @@ const props = withDefaults(
     createText: 'Create',
     searchThreshold: 10,
     variant: 'outline',
+    clearable: false,
     class: undefined,
   },
 );
@@ -235,6 +237,11 @@ watch(searchQuery, () => {
             <slot name="option" :option="option">
               {{ option.label }}
             </slot>
+            <span
+              v-if="clearable && option.value === modelValue"
+              class="i-carbon-close h-3.5 w-3.5 ml-auto shrink-0 opacity-60"
+              aria-hidden="true"
+            />
           </div>
 
           <div
