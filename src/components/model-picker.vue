@@ -353,6 +353,10 @@ const selectModel = (value: string) => {
 
 .model-picker-provider,
 .model-picker-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 11px;
   color: hsl(var(--muted-foreground));
 }

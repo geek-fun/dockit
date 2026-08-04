@@ -21,7 +21,7 @@ const props = defineProps<
       )
     "
   >
-    <SelectItemText>
+    <SelectItemText class="truncate">
       <slot />
     </SelectItemText>
 
