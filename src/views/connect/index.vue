@@ -128,7 +128,7 @@ const applyConnectQueryParams = async () => {
   const conn = activePanel.value.connection;
   if (!conn || !isSearchConnection(conn)) return;
 
-  if (index) {
+  if (index && index !== conn.activeIndex?.index) {
     await selectIndex(conn, index);
   }
   const editorType = editorTypeFromConnectView(view);
