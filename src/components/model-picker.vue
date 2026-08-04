@@ -15,9 +15,26 @@
           </div>
         </div>
 
+        <div class="model-picker-search relative mx-2 mb-2">
+          <span
+            class="i-carbon-search pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-50"
+          />
+          <Input
+            ref="searchInputRef"
+            v-model="searchQuery"
+            role="combobox"
+            :aria-expanded="open"
+            :aria-activedescendant="activeDescendantId"
+            :aria-label="searchAriaLabel"
+            :placeholder="t('setting.ai.models.filterModel')"
+            class="h-8 pl-7 text-xs"
+            @keydown="handleKeydown"
+          />
+        </div>
+
         <div class="model-picker-list">
-          <div v-if="recentModels.length > 0" class="model-picker-section">
-            <p class="model-picker-heading">Recent</p>
+          <div v-if="!isSearching && recentModels.length > 0" class="model-picker-section">
+            <p class="model-picker-heading">{{ t('setting.ai.models.recent') }}</p>
             <button
               v-for="model in recentModels"
               :key="`recent-${model.id}`"
@@ -39,14 +56,23 @@
             </button>
           </div>
 
-          <div v-for="group in props.groups" :key="group.id" class="model-picker-section">
+          <div
+            v-for="(group, groupIndex) in filteredGroups"
+            :key="group.id"
+            class="model-picker-section"
+          >
             <p class="model-picker-heading">{{ group.label }}</p>
             <button
-              v-for="model in group.models"
+              v-for="(model, modelIndex) in group.models"
+              :id="`model-option-${rowIndexFor(groupIndex, modelIndex)}`"
               :key="model.id"
               class="model-picker-row"
-              :class="{ selected: model.id === modelValue }"
+              :class="{
+                selected: model.id === modelValue,
+                active: activeIndex === rowIndexFor(groupIndex, modelIndex),
+              }"
               @click="selectModel(model.id)"
+              @mouseenter="activeIndex = rowIndexFor(groupIndex, modelIndex)"
             >
               <div class="model-picker-main">
                 <span class="model-picker-name">{{ model.label }}</span>
@@ -59,7 +85,11 @@
             </button>
           </div>
 
-          <div v-if="props.groups.length === 0" class="model-picker-empty">
+          <div v-if="isSearching && filteredModels.length === 0" class="model-picker-empty">
+            {{ t('setting.ai.models.noModelMatch') }}
+          </div>
+
+          <div v-if="!isSearching && props.groups.length === 0" class="model-picker-empty">
             {{ emptyText }}
           </div>
         </div>
@@ -69,9 +99,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+
+const { t } = useI18n();
 
 type ModelCategory = 'general' | 'reasoning' | 'coding' | 'fast' | 'vision';
 
@@ -112,9 +146,75 @@ const emit = defineEmits<{
 }>();
 
 const open = ref(false);
+const searchQuery = ref('');
+const activeIndex = ref(-1);
+const searchInputRef = ref<{ $el?: HTMLInputElement } | null>(null);
 
-watch(open, value => {
-  if (value) emit('open');
+watch(open, async value => {
+  if (value) {
+    emit('open');
+    await nextTick();
+    searchInputRef.value?.$el?.focus();
+  } else {
+    searchQuery.value = '';
+    activeIndex.value = -1;
+  }
+});
+
+const isSearching = computed(() => searchQuery.value.trim().length > 0);
+
+const filteredGroups = computed(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query) return props.groups;
+  return props.groups
+    .map(group => ({
+      ...group,
+      models: group.models.filter(model => {
+        const haystack = [model.label, model.category ?? '', group.label].join(' ').toLowerCase();
+        return haystack.includes(query);
+      }),
+    }))
+    .filter(group => group.models.length > 0);
+});
+
+const filteredModels = computed(() => filteredGroups.value.flatMap(group => group.models));
+
+const groupRowStarts = computed(() => {
+  let running = 0;
+  return filteredGroups.value.map(group => {
+    const start = running;
+    running += group.models.length;
+    return start;
+  });
+});
+
+const rowIndexFor = (groupIndex: number, modelIndex: number) =>
+  groupRowStarts.value[groupIndex] + modelIndex;
+
+const activeDescendantId = computed(() =>
+  activeIndex.value >= 0 ? `model-option-${activeIndex.value}` : undefined,
+);
+
+const searchAriaLabel = computed(() => t('setting.ai.models.selectModel') || props.title || '');
+
+const handleKeydown = (e: KeyboardEvent) => {
+  const count = filteredModels.value.length;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    activeIndex.value = count === 0 ? -1 : (activeIndex.value + 1) % count;
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    activeIndex.value = count === 0 ? -1 : (activeIndex.value - 1 + count) % count;
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (activeIndex.value >= 0 && activeIndex.value < count) {
+      selectModel(filteredModels.value[activeIndex.value].id);
+    }
+  }
+};
+
+watch(searchQuery, () => {
+  activeIndex.value = -1;
 });
 
 const triggerClasses = computed(() =>
@@ -211,6 +311,10 @@ const selectModel = (value: string) => {
 
 .model-picker-row:hover {
   background: hsl(var(--muted) / 0.4);
+}
+
+.model-picker-row.active {
+  background: hsl(var(--muted) / 0.6);
 }
 
 .model-picker-row.selected .model-picker-name {
