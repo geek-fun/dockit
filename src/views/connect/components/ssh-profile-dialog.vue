@@ -137,11 +137,7 @@
             <Input v-model.number="form.keepaliveIntervalSecs" type="number" />
           </FormItem>
           <div class="flex items-center gap-2 pb-1.5">
-            <Switch
-              id="expose-lan"
-              :checked="form.exposeLan"
-              @update:checked="form.exposeLan = $event"
-            />
+            <Switch id="expose-lan" :checked="form.exposeLan" @update:checked="onExposeLanChange" />
             <Label for="expose-lan" class="text-sm whitespace-nowrap">
               {{ $t('connection.ssh.exposeLan') }}
             </Label>
@@ -183,10 +179,14 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { FormItem } from '@/components/ui/form';
+import { useMessageService } from '@/composables';
+import { useLang } from '@/lang';
 import { useSshProfileStore } from '@/store';
 import type { SshProfile, SshTunnelConfig } from '@/store';
 
 const sshStore = useSshProfileStore();
+const lang = useLang();
+const message = useMessageService();
 const visible = ref(false);
 const testing = ref(false);
 const testResult = ref<{ success: boolean; message: string } | null>(null);
@@ -208,6 +208,13 @@ const form = reactive({
   exposeLan: false,
   sshAgentSockPath: '',
 });
+
+function onExposeLanChange(value: boolean) {
+  form.exposeLan = value;
+  if (value) {
+    message.warning(lang.t('connection.ssh.exposeLanSocks5Hint'), { duration: 6000 });
+  }
+}
 
 const errors = reactive<Record<string, string>>({});
 

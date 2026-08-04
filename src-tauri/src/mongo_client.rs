@@ -39,6 +39,44 @@ fn encode_component(s: &str) -> String {
     form_urlencoded::byte_serialize(s.as_bytes()).collect()
 }
 
+/// A tunnel exists only when resolve_connection_target returned the local
+/// endpoint (host 127.0.0.1); the SSH toggle alone is not enough — with no
+/// enabled transport layers the endpoint equals the remote target.
+fn tunnel_port(ssh_enabled: bool, endpoint_host: &str, endpoint_port: u16) -> Option<u16> {
+    (ssh_enabled && endpoint_host == "127.0.0.1").then_some(endpoint_port)
+}
+
+/// mongodb 3.8.0's rustls backend exposes no SNI/server_name override, so a
+/// TLS connection routed through an SSH tunnel (endpoint 127.0.0.1) can never
+/// match the remote certificate. The SSH tunnel is itself an authenticated
+/// encrypted channel, so when a tunnel is active AND TLS is enabled we skip
+/// certificate validation. Direct connections never skip (issue #472).
+/// Socks5 mode: wire the local SOCKS5 proxy and force direct connection.
+/// The URI keeps the real host, so no certificate-validation skip is needed.
+fn apply_socks5_proxy(client_options: &mut ClientOptions, socks5_port: Option<u16>) {
+    if let Some(port) = socks5_port {
+        client_options.socks5_proxy = Some(
+            mongodb::options::Socks5Proxy::builder()
+                .host("127.0.0.1")
+                .port(Some(port))
+                .build(),
+        );
+        // Replica-set discovery would hand back internal IPs unreachable
+        // through the tunnel; force direct connection (same as dbx).
+        client_options.direct_connection = Some(true);
+    }
+}
+
+fn apply_tunnel_tls_skip(client_options: &mut ClientOptions, tunnel_port: Option<u16>) {
+    if tunnel_port.is_some()
+        && matches!(client_options.tls, Some(mongodb::options::Tls::Enabled(_)))
+    {
+        if let Some(mongodb::options::Tls::Enabled(ref mut opts)) = client_options.tls {
+            opts.allow_invalid_certificates = Some(true);
+        }
+    }
+}
+
 fn build_uri_tunneled(
     config: &MongoConnectionConfig,
     tunnel_port: Option<u16>,
@@ -145,12 +183,13 @@ pub async fn mongo_test_connection(
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
     let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
-    let uri = match build_uri_tunneled(&config, ssh_enabled.then_some(endpoint.port)) {
+    let tp = tunnel_port(ssh_enabled, &endpoint.host, endpoint.port);
+    let uri = match build_uri_tunneled(&config, tp) {
         Ok(uri) => uri,
         Err(e) => return Ok(ApiResponse::err(400, e)),
     };
 
-    let client_options = match ClientOptions::parse(&uri).await {
+    let mut client_options = match ClientOptions::parse(&uri).await {
         Ok(opts) => opts,
         Err(e) => {
             return Ok(ApiResponse::err(
@@ -159,6 +198,11 @@ pub async fn mongo_test_connection(
             ));
         }
     };
+    if endpoint.socks5_port.is_some() {
+        apply_socks5_proxy(&mut client_options, endpoint.socks5_port);
+    } else {
+        apply_tunnel_tls_skip(&mut client_options, tp);
+    }
 
     let client = match Client::with_options(client_options) {
         Ok(c) => c,
@@ -940,7 +984,13 @@ pub async fn mongo_execute_query(
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
     let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
-    let client = match build_client_tunneled(&config, ssh_enabled.then_some(endpoint.port)).await {
+    let client = match build_client_tunneled(
+        &config,
+        tunnel_port(ssh_enabled, &endpoint.host, endpoint.port),
+        endpoint.socks5_port,
+    )
+    .await
+    {
         Ok(c) => c,
         Err(e) => {
             return Ok(ApiResponse::err(500, e));
@@ -975,11 +1025,23 @@ pub async fn mongo_execute_query(
 async fn build_client_tunneled(
     config: &MongoConnectionConfig,
     tunnel_port: Option<u16>,
+    socks5_port: Option<u16>,
 ) -> Result<Client, String> {
-    let uri = build_uri_tunneled(config, tunnel_port)?;
-    let client_options = ClientOptions::parse(&uri)
+    // Socks5 mode keeps the real host:port in the URI (the driver tunnels
+    // through the local SOCKS5 proxy), so certificate validation stays on.
+    let uri = if socks5_port.is_some() {
+        build_uri_tunneled(config, None)?
+    } else {
+        build_uri_tunneled(config, tunnel_port)?
+    };
+    let mut client_options = ClientOptions::parse(&uri)
         .await
         .map_err(|e| format!("Failed to parse connection options: {}", e))?;
+    if socks5_port.is_some() {
+        apply_socks5_proxy(&mut client_options, socks5_port);
+    } else {
+        apply_tunnel_tls_skip(&mut client_options, tunnel_port);
+    }
     Client::with_options(client_options).map_err(|e| format!("Failed to create client: {}", e))
 }
 
@@ -1000,7 +1062,12 @@ pub async fn mongo_export_documents(
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
     let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
     let result = {
-        let client = build_client_tunneled(&config, ssh_enabled.then_some(endpoint.port)).await;
+        let client = build_client_tunneled(
+            &config,
+            tunnel_port(ssh_enabled, &endpoint.host, endpoint.port),
+            endpoint.socks5_port,
+        )
+        .await;
         let client = match client {
             Ok(c) => c,
             Err(e) => {
@@ -1081,7 +1148,13 @@ pub async fn mongo_import_documents(
 
     let ssh_enabled = is_ssh_enabled(ssh_tunnel.as_ref());
     let endpoint = resolve_ssh_tunnel(&app, ssh_tunnel.as_ref(), &config.host, config.port).await?;
-    let client = match build_client_tunneled(&config, ssh_enabled.then_some(endpoint.port)).await {
+    let client = match build_client_tunneled(
+        &config,
+        tunnel_port(ssh_enabled, &endpoint.host, endpoint.port),
+        endpoint.socks5_port,
+    )
+    .await
+    {
         Ok(c) => c,
         Err(e) => {
             return Ok(ApiResponse::err(500, e));
@@ -1247,5 +1320,114 @@ mod tests {
             build_uri_tunneled(&config, None).unwrap(),
             "mongodb://mongo.example.com:27018/app"
         );
+    }
+
+    // ── Tunnel + TLS: certificate-validation skip (issue #472 follow-up) ──
+
+    fn tls_config(tls: Option<bool>) -> MongoConnectionConfig {
+        MongoConnectionConfig {
+            host: "mongo.example.com".to_string(),
+            port: 27017,
+            auth: MongoAuth::None,
+            database: None,
+            tls,
+            tunnel_port: None,
+        }
+    }
+
+    async fn parse_tunneled(tls: Option<bool>, tunnel_port: Option<u16>) -> ClientOptions {
+        let uri = build_uri_tunneled(&tls_config(tls), tunnel_port).unwrap();
+        let mut options = ClientOptions::parse(&uri).await.unwrap();
+        apply_tunnel_tls_skip(&mut options, tunnel_port);
+        options
+    }
+
+    /// S1: tunnel + TLS → certificate validation is skipped (driver has no
+    /// SNI override, so the 127.0.0.1 endpoint can never match the cert).
+    #[tokio::test]
+    async fn tunnel_tls_skip_enabled() {
+        let options = parse_tunneled(Some(true), Some(51234)).await;
+        match options.tls.unwrap() {
+            mongodb::options::Tls::Enabled(opts) => {
+                assert_eq!(
+                    opts.allow_invalid_certificates,
+                    Some(true),
+                    "tunnel + TLS must skip certificate validation"
+                );
+            }
+            _ => panic!("expected TLS enabled"),
+        }
+    }
+
+    /// S2: direct (non-tunnel) TLS connection must keep full validation.
+    #[tokio::test]
+    async fn direct_tls_no_skip() {
+        let options = parse_tunneled(Some(true), None).await;
+        match options.tls.unwrap() {
+            mongodb::options::Tls::Enabled(opts) => {
+                assert_ne!(
+                    opts.allow_invalid_certificates,
+                    Some(true),
+                    "direct TLS must keep certificate validation"
+                );
+            }
+            _ => panic!("expected TLS enabled"),
+        }
+    }
+
+    /// S3: tunnel without TLS → no skip path is entered.
+    #[tokio::test]
+    async fn tunnel_tls_disabled_no_skip() {
+        let options = parse_tunneled(Some(false), Some(51234)).await;
+        assert!(
+            !matches!(options.tls, Some(mongodb::options::Tls::Enabled(_))),
+            "TLS disabled: no skip should be applied"
+        );
+    }
+
+    /// S5: Socks5 mode wires the local SOCKS5 proxy, forces direct
+    /// connection, and skips NO certificate validation.
+    #[tokio::test]
+    async fn socks5_mode_wires_proxy_no_tls_skip() {
+        let uri = build_uri_tunneled(&tls_config(Some(true)), None).unwrap();
+        let mut options = ClientOptions::parse(&uri).await.unwrap();
+        apply_socks5_proxy(&mut options, Some(51234));
+
+        let proxy = options.socks5_proxy.expect("socks5_proxy must be set");
+        assert_eq!(proxy.host, "127.0.0.1");
+        assert_eq!(proxy.port, Some(51234));
+        assert_eq!(options.direct_connection, Some(true));
+        match options.tls.unwrap() {
+            mongodb::options::Tls::Enabled(opts) => {
+                assert_ne!(
+                    opts.allow_invalid_certificates,
+                    Some(true),
+                    "Socks5 mode must NOT skip certificate validation"
+                );
+            }
+            _ => panic!("expected TLS enabled"),
+        }
+    }
+
+    /// S5b: URI-mode SOCKS5 — the original mongodb:// URI host is preserved.
+    #[tokio::test]
+    async fn socks5_mode_keeps_real_host_in_uri() {
+        let config = uri_config("mongodb://user:pass@mongo.example.com:27018/app?tls=true");
+        let uri = build_uri_tunneled(&config, None).unwrap();
+        assert!(
+            uri.contains("mongo.example.com:27018"),
+            "Socks5 URI must keep the real host, got: {}",
+            uri
+        );
+    }
+
+    /// S4: the tunnel-port sentinel — the SSH toggle alone is not enough.
+    /// With no enabled transport layers the endpoint equals the remote
+    /// target, so no tunnel port must be derived (and no skip applied).
+    #[test]
+    fn tunnel_port_only_when_tunnel_established() {
+        assert_eq!(tunnel_port(true, "127.0.0.1", 51234), Some(51234));
+        assert_eq!(tunnel_port(true, "mongo.example.com", 27017), None);
+        assert_eq!(tunnel_port(false, "127.0.0.1", 51234), None);
     }
 }

@@ -977,8 +977,11 @@ export const enUS = {
       authTypeNone: 'No Authentication',
       authTypeScram: 'SCRAM Authentication',
       authTypeUri: 'URI Connection String',
+
       sshTunnelUnsupportedUri:
         'SSH tunneling supports only single-host mongodb:// connection URIs.',
+      tlsTunnelWarning:
+        'TLS certificate validation is skipped for SSH-tunneled connections because the MongoDB driver has no SNI override. The SSH tunnel provides an authenticated encrypted channel.',
       collectionCount: '{count} collections',
       connectSuccess: 'MongoDB connection successful',
       editorComingSoon: 'MongoDB query editor coming soon...',
@@ -997,6 +1000,10 @@ export const enUS = {
       moveUp: 'Move up',
       moveDown: 'Move down',
       systemProxy: 'System proxy',
+      systemProxyDetected: 'System proxy detected: {url}',
+      systemProxyAdd: 'Add',
+      systemProxyDetach: 'Remove system proxy',
+      systemProxyNotDetected: 'System proxy is enabled but none was detected. Connecting directly.',
       createProfile: 'Create New Profile',
       editProfile: 'Edit Profile',
       noProfile: 'No profile selected',
@@ -1022,6 +1029,8 @@ export const enUS = {
       connectTimeout: 'Connect Timeout (s)',
       keepaliveInterval: 'Keepalive (s)',
       exposeLan: 'Expose to LAN',
+      exposeLanSocks5Hint:
+        'Expose-to-LAN forces Port Forward mode. MongoDB and DynamoDB TLS certificate validation may be affected (the driver connects to 127.0.0.1 instead of the real hostname). Elasticsearch and OpenSearch are unaffected — the tunnel keeps the real hostname.',
       testConnection: 'Test SSH Connection',
       testing: 'Testing...',
       testSuccess: 'SSH connection successful',

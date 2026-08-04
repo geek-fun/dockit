@@ -229,6 +229,9 @@
                   <p v-if="sshTunnelIssue" class="mt-2 text-xs text-destructive">
                     {{ sshTunnelIssue }}
                   </p>
+                  <p v-if="tlsTunnelConflict" class="mt-2 text-xs text-amber-500">
+                    {{ $t('connection.mongodb.tlsTunnelWarning') }}
+                  </p>
                 </div>
               </div>
             </GridItem>
@@ -368,6 +371,22 @@ const sshTunnelIssue = computed(() => {
     return '';
   }
   return lang.t('connection.mongodb.sshTunnelUnsupportedUri');
+});
+
+// exposeLan forces Port Forward on the last hop (backend rule), which breaks
+// MongoDB TLS hostname verification — the driver then connects to 127.0.0.1.
+const tlsTunnelConflict = computed(() => {
+  if (!(authMode.value === 'uri' ? /[?&]tls=(true|1)/i.test(uriValue.value) : tlsChecked.value)) {
+    return false;
+  }
+  if (!sshConfig.value.enabled) return false;
+  if (sshConfig.value.inline?.exposeLan) return true;
+  const profileIds = sshConfig.value.profileIds ?? [];
+  if (profileIds.length === 0) return false;
+  const lastProfile = useSshProfileStore().profiles.find(
+    p => p.id === profileIds[profileIds.length - 1],
+  );
+  return lastProfile?.exposeLan === true;
 });
 
 const formSchema = toTypedSchema(

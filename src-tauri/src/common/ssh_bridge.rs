@@ -13,6 +13,9 @@ use tauri::Manager;
 pub struct TunnelEndpoint {
     pub host: String,
     pub port: u16,
+    /// Local SOCKS5 proxy port when the tunnel runs in Socks5 mode
+    /// (drivers keep the real hostname; None = port-forward mode).
+    pub socks5_port: Option<u16>,
 }
 
 /// Build a deterministic tunnel key from SSH config + remote target.
@@ -49,14 +52,14 @@ fn tunnel_key(ssh: Option<&Value>, host: &str, port: u16) -> String {
 }
 
 /// Resolve connection target through SSH tunnel if enabled.
-/// Returns `(host, port)` — either `(127.0.0.1, local_port)` for tunneled
-/// connections, or `(original_host, original_port)` for direct connections.
+/// Returns `(host, port, socks5_mode)` — `(127.0.0.1, local_port)` for
+/// port-forward, or `(real_host, local_proxy_port, true)` for SOCKS5.
 pub async fn resolve_connection_target(
     app: &AppHandle,
     config: &Value,
     connection_id: &str,
     tunnels: &TunnelManager,
-) -> Result<(String, u16), String> {
+) -> Result<(String, u16, bool), String> {
     let ssh_config: Option<SshConnectionConfig> = config
         .get("sshTunnel")
         .and_then(|v| serde_json::from_value(v.clone()).ok());
@@ -66,7 +69,7 @@ pub async fn resolve_connection_target(
         _ => {
             let host = config["host"].as_str().unwrap_or("localhost").to_string();
             let port = config["port"].as_u64().unwrap_or(0) as u16;
-            return Ok((host, port));
+            return Ok((host, port, false));
         }
     };
 
@@ -74,9 +77,28 @@ pub async fn resolve_connection_target(
     let remote_host = config["host"].as_str().unwrap_or("localhost").to_string();
     let remote_port = config["port"].as_u64().unwrap_or(0) as u16;
 
+    // Socks5 only when the last hop is NOT exposed to the LAN: exposeLan
+    // forces PortForward (effective_tunnel_mode), so the mode is fully
+    // derived from the config — no persisted tunnelMode field.
+    let socks5_mode = layers
+        .last()
+        .map(|layer| match layer {
+            TransportLayerConfig::Ssh(c) => !c.expose_lan,
+        })
+        .unwrap_or(false);
+
     match start_transport_layers(connection_id, &layers, &remote_host, remote_port, tunnels).await {
-        Ok(Some(local_port)) => Ok(("127.0.0.1".to_string(), local_port)),
-        Ok(None) => Ok((remote_host, remote_port)),
+        Ok(Some(local_port)) => {
+            if socks5_mode {
+                // Socks5 mode: the host stays real (TLS sees it); the port
+                // slot carries the LOCAL SOCKS5 listener port so callers can
+                // wire the proxy. The real remote port is known by callers.
+                Ok((remote_host, local_port, true))
+            } else {
+                Ok(("127.0.0.1".to_string(), local_port, false))
+            }
+        }
+        Ok(None) => Ok((remote_host, remote_port, false)),
         Err(e) => Err(e),
     }
 }
@@ -100,6 +122,15 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
 
     let (remote_host, remote_port) = extract_remote_target(config);
 
+    // DynamoDB region-only config: derive the AWS default endpoint so the
+    // tunnel targets it and downstream clients read the rewritten local
+    // endpoint (capability path otherwise bypasses the tunnel).
+    if let Some(derived) = derive_region_endpoint(config) {
+        if let Some(obj) = config.as_object_mut() {
+            obj.insert("endpointUrl".to_string(), serde_json::json!(derived));
+        }
+    }
+
     // Read original endpointUrl before mutable borrow
     let has_endpoint_url = config.get("endpointUrl").and_then(|v| v.as_str()).is_some();
     let scheme = config
@@ -111,13 +142,38 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
         .unwrap_or_else(|| "http".to_string());
 
     let endpoint = resolve_ssh_tunnel(app, ssh.as_ref(), &remote_host, remote_port).await?;
+    let socks5_mode = endpoint.socks5_port.is_some();
     if let Some(obj) = config.as_object_mut() {
-        obj.insert("host".to_string(), serde_json::json!(endpoint.host));
-        obj.insert("port".to_string(), serde_json::json!(endpoint.port));
-        if has_endpoint_url {
+        if !socks5_mode {
+            obj.insert("host".to_string(), serde_json::json!(endpoint.host));
+            obj.insert("port".to_string(), serde_json::json!(endpoint.port));
+        }
+        if has_endpoint_url && !socks5_mode {
             obj.insert(
                 "endpointUrl".to_string(),
                 serde_json::json!(format!("{}://{}:{}", scheme, endpoint.host, endpoint.port)),
+            );
+        }
+        if let Some(socks5_port) = endpoint.socks5_port {
+            obj.insert(
+                "socks5Proxy".to_string(),
+                serde_json::json!(format!("127.0.0.1:{}", socks5_port)),
+            );
+        }
+        // Preserve the original remote hostname so TLS clients can keep using
+        // it for SNI / certificate validation while TCP goes through the
+        // local tunnel endpoint (see execute_es_http / fetch_api). Only when
+        // a tunnel is actually established (endpoint host is 127.0.0.1) —
+        // otherwise the config still points at the remote host directly.
+        let stripped_host = remote_host
+            .trim_start_matches("http://")
+            .trim_start_matches("https://");
+        if (endpoint.host == "127.0.0.1" || endpoint.socks5_port.is_some())
+            && !stripped_host.is_empty()
+        {
+            obj.insert(
+                "tunnelOriginalHost".to_string(),
+                serde_json::json!(stripped_host),
             );
         }
         obj.remove("sshTunnel");
@@ -125,7 +181,7 @@ pub async fn resolve_ssh_in_place(app: &AppHandle, config: &mut Value) -> Result
     Ok(())
 }
 
-fn extract_remote_target(config: &Value) -> (String, u16) {
+pub fn extract_remote_target(config: &Value) -> (String, u16) {
     let obj = match config.as_object() {
         Some(o) => o,
         None => return ("localhost".into(), 443),
@@ -146,7 +202,39 @@ fn extract_remote_target(config: &Value) -> (String, u16) {
         }
     }
 
+    // DynamoDB region-only fallback: derive the AWS default endpoint when no
+    // host/port/endpointUrl is configured. ES/Mongo never reach here (they
+    // always carry host/port and have no `region` field on their config).
+    if let Some(region) = obj.get("region").and_then(|v| v.as_str()) {
+        if !region.is_empty() {
+            return (format!("dynamodb.{}.amazonaws.com", region), 443);
+        }
+    }
+
     ("localhost".into(), 443)
+}
+
+/// Derive the AWS default DynamoDB endpoint for region-only configs (no
+/// host/port/endpointUrl). Returns None for any other config shape.
+fn derive_region_endpoint(config: &Value) -> Option<String> {
+    let has_host = config
+        .get("host")
+        .and_then(|v| v.as_str())
+        .map(|h| !h.is_empty())
+        .unwrap_or(false);
+    let has_endpoint = config
+        .get("endpointUrl")
+        .and_then(|v| v.as_str())
+        .map(|u| !u.is_empty())
+        .unwrap_or(false);
+    if has_host || has_endpoint {
+        return None;
+    }
+    config
+        .get("region")
+        .and_then(|v| v.as_str())
+        .filter(|r| !r.is_empty())
+        .map(|region| format!("https://dynamodb.{}.amazonaws.com", region))
 }
 
 /// Resolve SSH tunnel to a local endpoint. The tunnel stays alive in
@@ -167,6 +255,7 @@ pub async fn resolve_ssh_tunnel(
         return Ok(TunnelEndpoint {
             host: host.to_string(),
             port,
+            socks5_port: None,
         });
     }
 
@@ -177,8 +266,16 @@ pub async fn resolve_ssh_tunnel(
         "port": port,
         "sshTunnel": ssh,
     });
-    let (h, p) = resolve_connection_target(app, &conn_val, &cid, tunnels.inner()).await?;
-    Ok(TunnelEndpoint { host: h, port: p })
+    let (h, p, socks5_mode) =
+        resolve_connection_target(app, &conn_val, &cid, tunnels.inner()).await?;
+    let socks5_port = if socks5_mode { Some(p) } else { None };
+    Ok(TunnelEndpoint {
+        // In Socks5 mode h is the real host and p is the LOCAL proxy port;
+        // the endpoint port must stay the real remote port for URI building.
+        host: h,
+        port: if socks5_mode { port } else { p },
+        socks5_port,
+    })
 }
 
 /// Build transport layer configs from the SSH connection config.
@@ -187,16 +284,24 @@ fn build_transport_layers(
     app: &AppHandle,
     ssh: &SshConnectionConfig,
 ) -> Result<Vec<TransportLayerConfig>, String> {
-    if !ssh.profile_ids.is_empty() {
+    let mut layers = if !ssh.profile_ids.is_empty() {
         ssh.profile_ids
             .iter()
             .map(|pid| load_profile_as_tunnel(app, pid))
-            .collect()
+            .collect::<Result<Vec<_>, _>>()?
     } else if let Some(ref inline) = ssh.inline {
-        Ok(vec![TransportLayerConfig::Ssh(inline.clone())])
+        vec![TransportLayerConfig::Ssh(inline.clone())]
     } else {
-        Ok(Vec::new())
+        Vec::new()
+    };
+    // The system proxy applies to the first hop only (the local TCP
+    // connection to the bastion). `start_chain` forces it off for later hops.
+    if ssh.use_system_proxy {
+        if let Some(TransportLayerConfig::Ssh(first)) = layers.first_mut() {
+            first.use_system_proxy = true;
+        }
     }
+    Ok(layers)
 }
 
 fn load_profile_as_tunnel(
@@ -300,6 +405,50 @@ mod tests {
         let (host, port) = extract_remote_target(&config);
         assert_eq!(host, "my-cluster.us-east-1.es.amazonaws.com");
         assert_eq!(port, 443);
+    }
+
+    #[test]
+    fn test_extract_remote_target_region_fallback() {
+        let config = json!({"region": "us-east-1"});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "dynamodb.us-east-1.amazonaws.com");
+        assert_eq!(port, 443);
+    }
+
+    #[test]
+    fn test_extract_remote_target_region_fallback_skipped_when_host_present() {
+        let config = json!({"region": "us-east-1", "host": "es.corp", "port": 9200});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "es.corp");
+        assert_eq!(port, 9200);
+    }
+
+    #[test]
+    fn test_extract_remote_target_region_fallback_skipped_when_endpoint_present() {
+        let config = json!({"region": "us-east-1", "endpointUrl": "https://ddb.corp:8000"});
+        let (host, port) = extract_remote_target(&config);
+        assert_eq!(host, "ddb.corp");
+        assert_eq!(port, 8000);
+    }
+
+    #[test]
+    fn test_derive_region_endpoint_region_only() {
+        let config = json!({"region": "us-west-2"});
+        assert_eq!(
+            derive_region_endpoint(&config).as_deref(),
+            Some("https://dynamodb.us-west-2.amazonaws.com")
+        );
+    }
+
+    #[test]
+    fn test_derive_region_endpoint_none_when_host_or_endpoint_present() {
+        assert_eq!(derive_region_endpoint(&json!({"host": "h"})), None);
+        assert_eq!(
+            derive_region_endpoint(&json!({"endpointUrl": "http://x"})),
+            None
+        );
+        assert_eq!(derive_region_endpoint(&json!({"region": ""})), None);
+        assert_eq!(derive_region_endpoint(&json!({})), None);
     }
 
     #[test]

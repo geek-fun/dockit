@@ -1,5 +1,7 @@
 pub mod commands;
 pub mod config;
+pub mod http_proxy;
+pub mod socks5;
 pub mod ssh_config;
 pub mod transport;
 pub mod tunnel;
