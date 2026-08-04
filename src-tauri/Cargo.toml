@@ -26,8 +26,6 @@ url = "2"
 
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "system-proxy", "socks"] }
 hyper-util = { version = "0.1", default-features = false, features = ["client", "client-proxy", "client-proxy-system"] }
-[target.'cfg(target_os = "macos")'.dependencies]
-system-configuration = "0.7"
 tokio = { version = "1", features = ["full"] }
 http = "1.4.0"
 percent-encoding = "2.3.1"
@@ -70,3 +68,6 @@ tauri-plugin-global-shortcut = "2"
 tauri-plugin-updater = "2.10"
 tauri-plugin-single-instance = "2"
 tauri-plugin-process = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+system-configuration = "0.7"
