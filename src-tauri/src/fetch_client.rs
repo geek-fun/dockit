@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::OnceLock;
 
@@ -22,6 +23,15 @@ pub struct FetchApiOptions {
     headers: HashMap<String, String>,
     body: Option<String>,
     agent: Agent,
+}
+
+/// Tunnel routing info for a request: keep the original hostname in the URL
+/// (SNI / certificate validation) while TCP goes to the local tunnel port
+/// (port-forward mode) or through the local SOCKS5 proxy (Socks5 mode).
+struct TunnelTarget {
+    hostname: String,
+    local_port: u16,
+    socks5_proxy: Option<String>,
 }
 
 fn headermap_from_hashmap<'a, I, S>(headers: I) -> HeaderMap
@@ -125,48 +135,69 @@ pub async fn fetch_api(
     options: FetchApiOptions,
     ssh_tunnel: Option<Value>,
 ) -> Result<String, String> {
-    // Extract system proxy from SSH config if present
-    let system_proxy = ssh_tunnel
-        .as_ref()
-        .and_then(|s| s.get("systemProxy"))
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string());
-
-    let final_url = if let Some(ref ssh_config) = ssh_tunnel {
+    let (final_url, tunnel) = if let Some(ref ssh_config) = ssh_tunnel {
         resolve_url_via_ssh(&app, &url, ssh_config).await?
     } else {
-        url
+        (url, None)
     };
 
-    fetch_raw(&app, &final_url, &options, system_proxy).await
+    fetch_raw(&final_url, &options, tunnel, None).await
 }
 
 async fn fetch_raw(
-    _app: &tauri::AppHandle,
     url: &str,
     options: &FetchApiOptions,
-    system_proxy: Option<String>,
+    tunnel: Option<TunnelTarget>,
+    extra_root_certs: Option<Vec<reqwest::Certificate>>,
 ) -> Result<String, String> {
     // When URL points to localhost (e.g. SSH tunnel), bypass proxy
     let is_local = url.contains("127.0.0.1") || url.contains("localhost");
     let proxy_url = if is_local {
         None
     } else {
-        system_proxy.or_else(|| options.agent.http_proxy.clone())
+        options.agent.http_proxy.clone()
     };
     let has_explicit_proxy = proxy_url.as_deref().is_some_and(|p| !p.is_empty());
-    let client = if has_explicit_proxy {
-        create_http_client("manual", proxy_url, Some(options.agent.ssl), None)
+    let client = if let Some(t) = tunnel {
+        // Tunneled requests keep the original hostname for TLS. Socks5 mode
+        // routes through the explicit proxy; port-forward mode uses a DNS
+        // override to the local tunnel port.
+        match t.socks5_proxy {
+            Some(proxy) => create_http_client(
+                "manual",
+                Some(format!("socks5h://{}", proxy)),
+                Some(options.agent.ssl),
+                None,
+                None,
+                extra_root_certs,
+            ),
+            None => create_http_client(
+                "none",
+                None,
+                Some(options.agent.ssl),
+                None,
+                Some((t.hostname, SocketAddr::from(([127, 0, 0, 1], t.local_port)))),
+                extra_root_certs,
+            ),
+        }
+    } else if has_explicit_proxy {
+        create_http_client(
+            "manual",
+            proxy_url,
+            Some(options.agent.ssl),
+            None,
+            None,
+            None,
+        )
     } else if is_local {
-        create_http_client("none", None, Some(options.agent.ssl), None)
+        create_http_client("none", None, Some(options.agent.ssl), None, None, None)
     } else if options.agent.ssl {
         SECURE_CLIENT
-            .get_or_init(|| create_http_client("system", None, Some(true), None))
+            .get_or_init(|| create_http_client("system", None, Some(true), None, None, None))
             .clone()
     } else {
         INSECURE_CLIENT
-            .get_or_init(|| create_http_client("system", None, Some(false), None))
+            .get_or_init(|| create_http_client("system", None, Some(false), None, None, None))
             .clone()
     };
 
@@ -224,13 +255,16 @@ async fn fetch_raw(
     }
 }
 
-/// Resolve SSH tunnel and rewrite the URL to point to the tunnel endpoint.
-/// Uses persistent deterministic tunnel keys (shared with invoke_capability path).
+/// Resolve SSH tunnel and keep the original URL hostname (TLS SNI /
+/// certificate validation) while routing TCP through the local tunnel
+/// endpoint via a DNS override. When tunneled, the URL port is rewritten
+/// to the local tunnel port: reqwest always uses the URL port for the
+/// connection (the resolve() override only replaces the IP).
 async fn resolve_url_via_ssh(
     app: &tauri::AppHandle,
     url: &str,
     ssh_config: &Value,
-) -> Result<String, String> {
+) -> Result<(String, Option<TunnelTarget>), String> {
     use crate::common::ssh_bridge::resolve_ssh_tunnel;
     use url::Url;
 
@@ -246,25 +280,187 @@ async fn resolve_url_via_ssh(
     let port = parsed.port_or_known_default().unwrap_or(9200);
 
     let endpoint = resolve_ssh_tunnel(app, Some(ssh_config), &host, port).await?;
+    let ssh_enabled = ssh_config
+        .get("enabled")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    // Only treat the request as tunneled when a tunnel was actually
+    // established (endpoint host is 127.0.0.1); with no enabled layers the
+    // endpoint equals the remote target and we must connect directly.
+    let socks5_proxy = endpoint.socks5_port.map(|p| format!("127.0.0.1:{}", p));
+    let tunnel_established = endpoint.host == "127.0.0.1" || endpoint.socks5_port.is_some();
+    let tunnel = (ssh_enabled && tunnel_established).then_some(TunnelTarget {
+        hostname: host,
+        local_port: endpoint.port,
+        socks5_proxy,
+    });
 
-    let scheme = parsed.scheme();
-    let new_url = match parsed.query() {
-        Some(q) => format!(
-            "{}://{}:{}{}?{}",
-            scheme,
-            endpoint.host,
-            endpoint.port,
-            parsed.path(),
-            q
-        ),
-        None => format!(
-            "{}://{}:{}{}",
-            scheme,
-            endpoint.host,
-            endpoint.port,
-            parsed.path()
-        ),
+    // Socks5 mode keeps the URL untouched (real host + real port): the
+    // proxy routes TCP, TLS still sees the real hostname.
+    let final_url = if ssh_enabled && endpoint.socks5_port.is_none() {
+        let mut tunneled = parsed;
+        tunneled
+            .set_port(Some(endpoint.port))
+            .map_err(|_| "Failed to set tunnel port".to_string())?;
+        tunneled.to_string()
+    } else {
+        url.to_string()
     };
 
-    Ok(new_url)
+    Ok((final_url, tunnel))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// S2: a tunneled HTTPS request must keep the original hostname for TLS
+    /// (SNI / certificate validation) while TCP goes to the local tunnel
+    /// endpoint. reqwest resolves the IP via the override but uses the URL
+    /// port, so the tunneled URL carries the local tunnel port (regression
+    /// for #472 — the legacy bare-IP URL fails the handshake, proven by
+    /// tls_test_server::negative_control).
+    #[cfg(not(target_os = "windows"))]
+    #[tokio::test]
+    async fn test_fetch_raw_tunnel_preserves_hostname_for_tls() {
+        use crate::common::tls_test_server::{spawn_tls_server, test_root_certificate};
+
+        let addr = spawn_tls_server().await;
+        let tunnel = TunnelTarget {
+            hostname: "es.example.com".to_string(),
+            local_port: addr.port(),
+            socks5_proxy: None,
+        };
+        let options = FetchApiOptions {
+            method: "GET".to_string(),
+            headers: HashMap::new(),
+            body: None,
+            agent: Agent {
+                ssl: true,
+                http_proxy: None,
+            },
+        };
+
+        let result = fetch_raw(
+            &format!("https://es.example.com:{}/", addr.port()),
+            &options,
+            Some(tunnel),
+            Some(vec![test_root_certificate()]),
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "tunneled TLS fetch must succeed, got: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().contains("\"status\":200"));
+    }
+
+    /// S4: Socks5 mode routes through a real local SOCKS5 proxy while the
+    /// URL keeps the real hostname (wiremock as the target server).
+    #[tokio::test]
+    async fn test_fetch_raw_socks5_via_real_socks5_proxy() {
+        use crate::ssh::socks5::{run_socks5_server, DuplexStream, OutboundFn};
+        use std::sync::Arc;
+        use wiremock::matchers::method;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"socks5":"ok"}"#))
+            .mount(&server)
+            .await;
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let socks_port = listener.local_addr().unwrap().port();
+        // Outbound pins to the wiremock server regardless of the CONNECT
+        // target — proves the request reached the proxy with the real
+        // hostname intact (socks5h would otherwise resolve it remotely).
+        let target_addr = *server.address();
+        let outbound: OutboundFn = Arc::new(move |_host: &str, _port: u16| {
+            let target = target_addr;
+            Box::pin(async move {
+                let stream = tokio::net::TcpStream::connect((target.ip(), target.port()))
+                    .await
+                    .map_err(|e| e.to_string())?;
+                Ok(Box::new(stream) as Box<dyn DuplexStream>)
+            })
+        });
+        tokio::spawn(run_socks5_server(listener, outbound));
+
+        let tunnel = TunnelTarget {
+            hostname: "es.example.com".to_string(),
+            local_port: 0,
+            socks5_proxy: Some(format!("127.0.0.1:{}", socks_port)),
+        };
+        let options = FetchApiOptions {
+            method: "GET".to_string(),
+            headers: HashMap::new(),
+            body: None,
+            agent: Agent {
+                ssl: false,
+                http_proxy: None,
+            },
+        };
+
+        let result = fetch_raw(
+            &format!("http://es.example.com:{}/", server.address().port()),
+            &options,
+            Some(tunnel),
+            None,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "Socks5 fetch must succeed, got: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().contains("socks5"));
+    }
+
+    /// S3: plain-HTTP tunneled request routes through the local tunnel
+    /// endpoint via the resolve() override (wiremock on 127.0.0.1).
+    #[tokio::test]
+    async fn test_fetch_raw_tunnel_plain_http_via_wiremock() {
+        use wiremock::matchers::method;
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(r#"{"hello":"world"}"#))
+            .mount(&server)
+            .await;
+
+        let tunnel = TunnelTarget {
+            hostname: "es.example.com".to_string(),
+            local_port: server.address().port(),
+            socks5_proxy: None,
+        };
+        let options = FetchApiOptions {
+            method: "GET".to_string(),
+            headers: HashMap::new(),
+            body: None,
+            agent: Agent {
+                ssl: false,
+                http_proxy: None,
+            },
+        };
+
+        let result = fetch_raw(
+            &format!("http://es.example.com:{}/", server.address().port()),
+            &options,
+            Some(tunnel),
+            None,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "tunneled HTTP fetch must succeed, got: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().contains("hello"));
+    }
 }

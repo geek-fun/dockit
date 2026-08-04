@@ -1,4 +1,5 @@
 use std::env;
+use std::net::SocketAddr;
 use std::time::Duration;
 
 fn get_proxy(http_proxy: Option<String>) -> Option<String> {
@@ -21,23 +22,102 @@ fn get_proxy(http_proxy: Option<String>) -> Option<String> {
 
 const CONNECT_TIMEOUT_SECS: u64 = 15;
 
-/// Detect system proxy from environment variables.
-/// Returns the first found proxy URL, or null.
+/// Detect the system proxy that would route traffic to `host:port`, using
+/// hyper-util's OS-aware matcher: environment variables first, then the
+/// macOS network configuration (SCDynamicStore) or the Windows registry.
+/// Honors NO_PROXY / the OS exception list for the target host.
+pub fn system_proxy_for(host: &str, port: u16) -> Option<String> {
+    use hyper_util::client::proxy::matcher::Matcher;
+
+    let matcher = Matcher::from_system();
+    for scheme in ["https", "http"] {
+        let uri: http::Uri = format!("{scheme}://{host}:{port}").parse().ok()?;
+        if let Some(intercept) = matcher.intercept(&uri) {
+            // hyper-util's macOS matcher ignores the OS ExceptionsList, so
+            // honor it here: exempted targets bypass the proxy entirely.
+            if macos_proxy_exempts(host) {
+                return None;
+            }
+            return Some(intercept.uri().to_string());
+        }
+    }
+    None
+}
+
+/// Match a host against one macOS ExceptionsList entry: exact hostname,
+/// "*.suffix" wildcard, or IPv4 CIDR.
+fn proxy_exempt_matches(host: &str, pattern: &str) -> bool {
+    if let Some(rest) = pattern.strip_prefix("*.") {
+        return host == rest || host.ends_with(&format!(".{}", rest));
+    }
+    if let Some((cidr, bits)) = pattern.split_once('/') {
+        let (Ok(ip), Ok(bits)) = (host.parse::<std::net::Ipv4Addr>(), bits.parse::<u8>()) else {
+            return false;
+        };
+        if bits > 32 {
+            return false;
+        }
+        let Some(base) = cidr.parse::<std::net::Ipv4Addr>().ok() else {
+            return false;
+        };
+        let mask = if bits == 0 {
+            0
+        } else {
+            u32::MAX << (32 - bits)
+        };
+        let base_u = u32::from(base) & mask;
+        return u32::from(ip) & mask == base_u;
+    }
+    host == pattern
+}
+
+#[cfg(target_os = "macos")]
+fn macos_proxy_exempts(host: &str) -> bool {
+    use system_configuration::core_foundation::array::CFArray;
+    use system_configuration::core_foundation::base::TCFType;
+    use system_configuration::core_foundation::string::CFString;
+    use system_configuration::dynamic_store::SCDynamicStoreBuilder;
+    use system_configuration::sys::schema_definitions::kSCPropNetProxiesExceptionsList;
+
+    let Some(store) = SCDynamicStoreBuilder::new("dockit").build() else {
+        return false;
+    };
+    let Some(proxies) = store.get_proxies() else {
+        return false;
+    };
+    let Some(exceptions) = proxies.find(unsafe { kSCPropNetProxiesExceptionsList }) else {
+        return false;
+    };
+    let Some(list) = exceptions.downcast::<CFArray<*const std::ffi::c_void>>() else {
+        return false;
+    };
+    for i in 0..list.len() {
+        let item = unsafe { list.get_unchecked(i) };
+        let cfstring = unsafe { CFString::wrap_under_get_rule(*item as *const _) };
+        if proxy_exempt_matches(host, &cfstring.to_string()) {
+            return true;
+        }
+    }
+    false
+}
+
+#[cfg(not(target_os = "macos"))]
+fn macos_proxy_exempts(_host: &str) -> bool {
+    false
+}
+
+/// Detect the system proxy for `host:port` when given, or for an arbitrary
+/// probe target otherwise. Used by the UI to offer "use system proxy" on
+/// SSH tunnels and to warn when an opted-in proxy no longer applies.
 #[tauri::command]
-pub async fn detect_system_proxy() -> Result<Option<String>, String> {
-    // Check env vars in priority order: HTTPS_PROXY, https_proxy, HTTP_PROXY, http_proxy, all_proxy
-    let proxy = std::env::var("HTTPS_PROXY")
-        .ok()
-        .filter(|s| !s.is_empty())
-        .or_else(|| std::env::var("https_proxy").ok().filter(|s| !s.is_empty()))
-        .or_else(|| std::env::var("HTTP_PROXY").ok().filter(|s| !s.is_empty()))
-        .or_else(|| std::env::var("http_proxy").ok().filter(|s| !s.is_empty()))
-        .or_else(|| {
-            std::env::var("all_proxy")
-                .ok()
-                .filter(|s| s.starts_with("http://"))
-        });
-    Ok(proxy)
+pub async fn detect_system_proxy(
+    host: Option<String>,
+    port: Option<u16>,
+) -> Result<Option<String>, String> {
+    match (host, port) {
+        (Some(h), Some(p)) => Ok(system_proxy_for(&h, p)),
+        _ => Ok(system_proxy_for("proxy-check.invalid", 443)),
+    }
 }
 
 pub fn create_http_client(
@@ -45,6 +125,8 @@ pub fn create_http_client(
     proxy_url: Option<String>,
     ssl: Option<bool>,
     request_timeout: Option<Duration>,
+    dns_override: Option<(String, SocketAddr)>,
+    extra_root_certs: Option<Vec<reqwest::Certificate>>,
 ) -> reqwest::Client {
     let mut builder = reqwest::ClientBuilder::new()
         .danger_accept_invalid_certs(!ssl.unwrap_or(true))
@@ -83,6 +165,16 @@ pub fn create_http_client(
         }
     }
 
+    if let Some((domain, addr)) = dns_override {
+        builder = builder.resolve(&domain, addr);
+    }
+
+    if let Some(certs) = extra_root_certs {
+        for cert in certs {
+            builder = builder.add_root_certificate(cert);
+        }
+    }
+
     builder.build().expect("Failed to build HTTP client")
 }
 
@@ -114,28 +206,78 @@ mod tests {
     }
 
     #[test]
+    fn test_proxy_exempt_exact_host() {
+        assert!(proxy_exempt_matches("127.0.0.1", "127.0.0.1"));
+        assert!(!proxy_exempt_matches("127.0.0.2", "127.0.0.1"));
+        assert!(!proxy_exempt_matches("localhost", "127.0.0.1"));
+    }
+
+    #[test]
+    fn test_proxy_exempt_wildcard_suffix() {
+        assert!(proxy_exempt_matches("internal.corp.local", "*.local"));
+        assert!(proxy_exempt_matches("corp.local", "*.local"));
+        assert!(!proxy_exempt_matches("corp.local.evil.com", "*.local"));
+        assert!(!proxy_exempt_matches("evilcorp.localhost", "*.local"));
+    }
+
+    #[test]
+    fn test_proxy_exempt_cidr() {
+        assert!(proxy_exempt_matches("10.1.2.3", "10.0.0.0/8"));
+        assert!(proxy_exempt_matches("192.168.1.5", "192.168.0.0/16"));
+        assert!(proxy_exempt_matches("172.20.0.4", "172.16.0.0/12"));
+        assert!(!proxy_exempt_matches("11.1.2.3", "10.0.0.0/8"));
+        assert!(!proxy_exempt_matches("192.169.1.5", "192.168.0.0/16"));
+        assert!(!proxy_exempt_matches("8.8.8.8", "10.0.0.0/8"));
+    }
+
+    #[test]
+    fn test_proxy_exempt_non_ip_cidr_pattern() {
+        // A CIDR pattern against a non-IP host does not match
+        assert!(!proxy_exempt_matches("bastion.corp.com", "10.0.0.0/8"));
+    }
+
+    #[test]
+    fn test_proxy_exempt_cidr_bits_over_32_no_panic() {
+        // Malformed exception entries (e.g. "10.0.0.0/33") must not panic
+        assert!(!proxy_exempt_matches("10.1.2.3", "10.0.0.0/33"));
+    }
+
+    #[test]
     fn test_create_http_client_default_mode() {
-        let client = create_http_client("system", None, None, None);
+        let client = create_http_client("system", None, None, None, None, None);
         // Should return a valid client without panicking
         let _ = client;
     }
 
     #[test]
     fn test_create_http_client_no_proxy_mode() {
-        let client = create_http_client("none", None, None, None);
+        let client = create_http_client("none", None, None, None, None, None);
         let _ = client;
     }
 
     #[test]
     fn test_create_http_client_manual_proxy() {
-        let client =
-            create_http_client("manual", Some("http://proxy:8080".into()), Some(true), None);
+        let client = create_http_client(
+            "manual",
+            Some("http://proxy:8080".into()),
+            Some(true),
+            None,
+            None,
+            None,
+        );
         let _ = client;
     }
 
     #[test]
     fn test_create_http_client_with_timeout() {
-        let client = create_http_client("system", None, None, Some(Duration::from_secs(30)));
+        let client = create_http_client(
+            "system",
+            None,
+            None,
+            Some(Duration::from_secs(30)),
+            None,
+            None,
+        );
         let _ = client;
     }
 }

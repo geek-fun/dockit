@@ -941,7 +941,10 @@ export const zhCN = {
       authTypeNone: '无认证',
       authTypeScram: 'SCRAM 认证',
       authTypeUri: 'URI 连接地址',
+
       sshTunnelUnsupportedUri: 'SSH 隧道仅支持单主机 mongodb:// 连接 URI。',
+      tlsTunnelWarning:
+        'SSH 隧道连接会跳过 TLS 证书校验（MongoDB 驱动不支持 SNI 覆盖）。SSH 隧道本身已提供认证加密通道。',
       collectionCount: '{count} 个集合',
       connectSuccess: 'MongoDB 连接成功',
       editorComingSoon: 'MongoDB 查询编辑器即将推出...',
@@ -960,6 +963,10 @@ export const zhCN = {
       moveUp: '上移',
       moveDown: '下移',
       systemProxy: '系统代理',
+      systemProxyDetected: '检测到系统代理：{url}',
+      systemProxyAdd: '添加',
+      systemProxyDetach: '移除系统代理',
+      systemProxyNotDetected: '已启用系统代理但当前未检测到，正在直连。',
       createProfile: '新建配置',
       editProfile: '编辑配置',
       noProfile: '未选择配置',
@@ -985,6 +992,8 @@ export const zhCN = {
       connectTimeout: '连接超时（秒）',
       keepaliveInterval: '心跳间隔（秒）',
       exposeLan: '暴露到局域网',
+      exposeLanSocks5Hint:
+        '暴露到局域网将强制使用端口转发模式。MongoDB 和 DynamoDB 的 TLS 证书验证可能受影响（驱动连接到 127.0.0.1 而非真实主机名）。Elasticsearch 和 OpenSearch 不受影响——隧道保留真实主机名。',
       testConnection: '测试 SSH 连接',
       testing: '测试中...',
       testSuccess: 'SSH 连接成功',

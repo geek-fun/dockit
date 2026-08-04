@@ -47,13 +47,14 @@ export type SshTunnelConfig = {
   keepaliveIntervalSecs: number;
   verifyHostKey?: boolean;
   exposeLan: boolean;
+  useSystemProxy?: boolean;
 };
 
 export type SshConnectionConfig = {
   enabled: boolean;
   profileIds?: string[];
   inline?: SshTunnelConfig;
-  systemProxy?: string;
+  useSystemProxy?: boolean;
 };
 
 export type SshProfile = {
@@ -542,11 +543,33 @@ export const migrateConnections = (
     migrated = migrateConnectionsV5ToV6(migrated);
   }
 
+  if (fromVersion < 7) {
+    migrated = migrateConnectionsV6ToV7(migrated);
+  }
+
   return { migrated, consolidatedCount, originalCount };
 };
 
 const migrateConnectionsV5ToV6 = (raw: Connection[]): Connection[] =>
   raw.map(con => (con.sshTunnel !== undefined ? con : { ...con, sshTunnel: { enabled: false } }));
+
+// V6→V7: connection-level `systemProxy` (a stored URL) became the
+// `useSystemProxy` choice — the URL is no longer persisted; it is resolved
+// from the OS at connect time. A previously stored non-empty value keeps the
+// tunnel using the system proxy.
+const migrateConnectionsV6ToV7 = (raw: Connection[]): Connection[] =>
+  raw.map(con => {
+    const sshTunnel = con.sshTunnel as (SshConnectionConfig & { systemProxy?: string }) | undefined;
+    if (!sshTunnel || !sshTunnel.systemProxy) return con;
+    const { systemProxy: _dropped, ...rest } = sshTunnel;
+    return {
+      ...con,
+      sshTunnel: {
+        ...rest,
+        useSystemProxy: true,
+      },
+    } as Connection;
+  });
 
 export const buildTransportLayers = (
   sshTunnel: SshConnectionConfig | undefined,
@@ -570,7 +593,7 @@ export const buildTransportLayers = (
     exposeLan: false,
   };
 
-  return [{ type: 'ssh', ...config }];
+  return [{ type: 'ssh', ...config, useSystemProxy: sshTunnel.useSystemProxy ?? false }];
 };
 
 export const useConnectionStore = defineStore('connectionStore', {
