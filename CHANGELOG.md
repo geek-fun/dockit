@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-04
+
+### Added
+
+- **SSH tunnel TLS preservation + SOCKS5/HTTP-proxy transport** — SSH-tunneled HTTPS connections (e.g. AWS OpenSearch VPC domains) now keep the real hostname for TLS SNI/certificate validation while routing TCP through the tunnel; supports SOCKS5 and HTTP CONNECT proxy transport, multi-hop chains, system-proxy detection, and expose-to-LAN (#474)
+- **MCP bridge with unified capability types** — MCP integration with unified capability registry for agent tools (#471)
+- **MCP permission model + unified policy enforcement** — configurable permission policies and enforcement across MCP tools (#473)
+- **Schema view tabs** — view index/collection settings and aliases via tabs in the schema dialog (#482)
+- **LLM model picker improvements** — search filter for model selection, added OpenCode Zen and Go providers (#481)
+- **Console index/collection deselect** — deselect the active index/collection from the console toolbar (#480)
+
+### Fixed
+
+- **Enable SSH tunnel for MongoDB URI auth mode** — SSH tunneling now works when MongoDB is configured via connection URI (#470)
+- **Fix test connection with default index** — test connection no longer fails when a default index is selected (#480)
+
 ## [1.3.1] - 2026-07-30
 
 ### Added
