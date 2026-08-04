@@ -202,7 +202,7 @@
               :model-value="draftProviderKind ?? undefined"
               @update:model-value="updateDraftProviderKind($event)"
             >
-              <SelectTrigger>
+              <SelectTrigger :title="selectedProviderKindLabel">
                 <SelectValue :placeholder="$t('setting.ai.providers.selectProviderType')" />
               </SelectTrigger>
               <SelectContent>
@@ -210,6 +210,7 @@
                   v-for="option in availableProviderOptions"
                   :key="option.value"
                   :value="option.value"
+                  :title="option.label"
                 >
                   {{ option.label }}
                 </SelectItem>
@@ -590,6 +591,18 @@ const providerPresets: Record<
     baseUrl: '',
     apiCompatibility: 'anthropic',
   },
+  'opencode-zen': {
+    label: 'OpenCode Zen',
+    authMode: 'api-key',
+    baseUrl: 'https://opencode.ai/zen/v1',
+    apiCompatibility: 'openai-compatible',
+  },
+  'opencode-go': {
+    label: 'OpenCode Go',
+    authMode: 'api-key',
+    baseUrl: 'https://opencode.ai/zen/go/v1',
+    apiCompatibility: 'openai-compatible',
+  },
 };
 
 const configuredProviders = computed(() =>
@@ -626,10 +639,19 @@ const beginReplaceApiKey = () => {
   }
 };
 
+const isCustomProviderKind = (kind: ProviderKind) => kind.startsWith('custom-');
+
 const availableProviderOptions = computed(() =>
   llmSettings.value.providers
     .filter(provider => !provider.enabled)
-    .map(provider => ({ value: provider.kind, label: provider.label })),
+    .map(provider => ({ value: provider.kind, label: provider.label }))
+    .sort((a, b) => Number(isCustomProviderKind(a.value)) - Number(isCustomProviderKind(b.value))),
+);
+
+const selectedProviderKindLabel = computed(
+  () =>
+    availableProviderOptions.value.find(option => option.value === draftProviderKind.value)
+      ?.label ?? '',
 );
 
 const providerDialogTitle = computed(() =>
