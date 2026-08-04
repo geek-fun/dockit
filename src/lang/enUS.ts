@@ -991,9 +991,6 @@ export const enUS = {
     notFound: 'Connection not found',
 
     ssh: {
-      tunnelMode: 'Tunnel Mode',
-      tunnelModePortForward: 'Port Forward',
-      tunnelModeSocks5: 'SOCKS5 Proxy',
       title: 'SSH Tunnel',
       profile: 'SSH Profile',
       profilePlaceholder: 'Select an SSH profile',
@@ -1032,7 +1029,8 @@ export const enUS = {
       connectTimeout: 'Connect Timeout (s)',
       keepaliveInterval: 'Keepalive (s)',
       exposeLan: 'Expose to LAN',
-      exposeLanSocks5Hint: 'Only applies to Port Forward mode (SOCKS5 always binds to 127.0.0.1).',
+      exposeLanSocks5Hint:
+        'Expose-to-LAN forces Port Forward mode. MongoDB and DynamoDB TLS certificate validation may be affected (the driver connects to 127.0.0.1 instead of the real hostname). Elasticsearch and OpenSearch are unaffected — the tunnel keeps the real hostname.',
       testConnection: 'Test SSH Connection',
       testing: 'Testing...',
       testSuccess: 'SSH connection successful',

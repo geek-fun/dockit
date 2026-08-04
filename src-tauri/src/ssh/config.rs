@@ -35,17 +35,14 @@ pub struct SshProfile {
     pub verify_host_key: bool,
     #[serde(default)]
     pub expose_lan: bool,
-    #[serde(default)]
-    pub tunnel_mode: TunnelMode,
 }
 
 /// How a transport layer forwards traffic to the remote server.
 /// PortForward = local port forward (v1, driver connects to 127.0.0.1).
 /// Socks5 = local SOCKS5 proxy; drivers keep the real hostname (v2).
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
-#[serde(rename_all = "camelCase")]
+/// Not persisted — derived at tunnel start: expose_lan forces PortForward.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TunnelMode {
-    #[default]
     PortForward,
     Socks5,
 }
@@ -82,8 +79,6 @@ pub struct SshTunnelConfig {
     pub verify_host_key: bool,
     #[serde(default)]
     pub expose_lan: bool,
-    #[serde(default)]
-    pub tunnel_mode: TunnelMode,
     /// Route the first hop through the detected system proxy (HTTP CONNECT).
     /// Resolved at connect time from the OS, so no URL is persisted.
     #[serde(default)]
@@ -178,7 +173,6 @@ impl SshProfile {
             keepalive_interval_secs: self.keepalive_interval_secs,
             verify_host_key: self.verify_host_key,
             expose_lan: self.expose_lan,
-            tunnel_mode: self.tunnel_mode,
             use_system_proxy: false,
         }
     }
@@ -214,8 +208,6 @@ mod tests {
             keepalive_interval_secs: 60,
             verify_host_key: true,
             expose_lan: false,
-
-            tunnel_mode: TunnelMode::default(),
         };
         let json = serde_json::to_string(&profile).unwrap();
         let parsed: SshProfile = serde_json::from_str(&json).unwrap();
@@ -239,7 +231,6 @@ mod tests {
             keepalive_interval_secs: 30,
             verify_host_key: false,
             expose_lan: false,
-            tunnel_mode: TunnelMode::default(),
             use_system_proxy: false,
         };
         let json = serde_json::to_string(&config).unwrap();
@@ -264,7 +255,6 @@ mod tests {
             keepalive_interval_secs: 30,
             verify_host_key: false,
             expose_lan: false,
-            tunnel_mode: TunnelMode::default(),
             use_system_proxy: false,
         };
         let layer = TransportLayerConfig::Ssh(config);
@@ -292,7 +282,6 @@ mod tests {
             keepalive_interval_secs: 60,
             verify_host_key: true,
             expose_lan: true,
-            tunnel_mode: TunnelMode::default(),
         };
         let config = profile.to_tunnel_config();
         assert_eq!(config.host, "h");
@@ -320,7 +309,6 @@ mod tests {
             keepalive_interval_secs: 30,
             verify_host_key: false,
             expose_lan: false,
-            tunnel_mode: TunnelMode::default(),
         };
         // Verify these match our constants
         assert_eq!(profile.connect_timeout_secs, default_connect_timeout_secs());
@@ -341,18 +329,14 @@ mod tests {
     }
 
     #[test]
-    fn tunnel_mode_default_is_port_forward() {
+    fn legacy_tunnel_mode_key_is_ignored() {
+        // Old profiles may carry a tunnelMode key; it must be ignored and
+        // not re-serialized (mode is derived, never persisted).
         let cfg: SshTunnelConfig =
-            serde_json::from_str(r#"{"enabled":true,"host":"h","port":22}"#).unwrap();
-        assert_eq!(cfg.tunnel_mode, TunnelMode::PortForward);
-    }
-
-    #[test]
-    fn tunnel_mode_socks5_roundtrip() {
-        let cfg: SshTunnelConfig = serde_json::from_str(r#"{"tunnelMode":"socks5"}"#).unwrap();
-        assert_eq!(cfg.tunnel_mode, TunnelMode::Socks5);
+            serde_json::from_str(r#"{"enabled":true,"host":"h","port":22,"tunnelMode":"socks5"}"#)
+                .unwrap();
         let json = serde_json::to_string(&cfg).unwrap();
-        assert!(json.contains("\"tunnelMode\":\"socks5\""));
+        assert!(!json.contains("tunnelMode"));
     }
 
     #[test]

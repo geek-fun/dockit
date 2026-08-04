@@ -954,9 +954,6 @@ export const zhCN = {
     notFound: '未找到连接',
 
     ssh: {
-      tunnelMode: '隧道模式',
-      tunnelModePortForward: '端口转发',
-      tunnelModeSocks5: 'SOCKS5 代理',
       title: 'SSH 隧道',
       profile: 'SSH 配置',
       profilePlaceholder: '选择 SSH 配置',
@@ -995,7 +992,8 @@ export const zhCN = {
       connectTimeout: '连接超时（秒）',
       keepaliveInterval: '心跳间隔（秒）',
       exposeLan: '暴露到局域网',
-      exposeLanSocks5Hint: '仅端口转发模式生效（SOCKS5 始终绑定 127.0.0.1）。',
+      exposeLanSocks5Hint:
+        '暴露到局域网将强制使用端口转发模式。MongoDB 和 DynamoDB 的 TLS 证书验证可能受影响（驱动连接到 127.0.0.1 而非真实主机名）。Elasticsearch 和 OpenSearch 不受影响——隧道保留真实主机名。',
       testConnection: '测试 SSH 连接',
       testing: '测试中...',
       testSuccess: 'SSH 连接成功',

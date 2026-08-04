@@ -137,37 +137,10 @@
             <Input v-model.number="form.keepaliveIntervalSecs" type="number" />
           </FormItem>
           <div class="flex items-center gap-2 pb-1.5">
-            <Switch
-              id="expose-lan"
-              :checked="form.exposeLan"
-              :disabled="form.tunnelMode === 'socks5'"
-              @update:checked="form.exposeLan = $event"
-            />
-            <Label
-              for="expose-lan"
-              class="text-sm whitespace-nowrap"
-              :class="{ 'opacity-50': form.tunnelMode === 'socks5' }"
-            >
+            <Switch id="expose-lan" :checked="form.exposeLan" @update:checked="onExposeLanChange" />
+            <Label for="expose-lan" class="text-sm whitespace-nowrap">
               {{ $t('connection.ssh.exposeLan') }}
             </Label>
-          </div>
-        </div>
-
-        <p v-if="form.tunnelMode === 'socks5'" class="text-xs text-muted-foreground -mt-2">
-          {{ $t('connection.ssh.exposeLanSocks5Hint') }}
-        </p>
-
-        <div class="grid gap-2">
-          <Label class="text-sm">{{ $t('connection.ssh.tunnelMode') }}</Label>
-          <div class="flex gap-4">
-            <label class="flex items-center gap-2 text-sm">
-              <input v-model="form.tunnelMode" type="radio" value="portForward" />
-              {{ $t('connection.ssh.tunnelModePortForward') }}
-            </label>
-            <label class="flex items-center gap-2 text-sm">
-              <input v-model="form.tunnelMode" type="radio" value="socks5" />
-              {{ $t('connection.ssh.tunnelModeSocks5') }}
-            </label>
           </div>
         </div>
 
@@ -206,10 +179,14 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Grid, GridItem } from '@/components/ui/grid';
 import { FormItem } from '@/components/ui/form';
+import { useMessageService } from '@/composables';
+import { useLang } from '@/lang';
 import { useSshProfileStore } from '@/store';
 import type { SshProfile, SshTunnelConfig } from '@/store';
 
 const sshStore = useSshProfileStore();
+const lang = useLang();
+const message = useMessageService();
 const visible = ref(false);
 const testing = ref(false);
 const testResult = ref<{ success: boolean; message: string } | null>(null);
@@ -230,8 +207,14 @@ const form = reactive({
   keepaliveIntervalSecs: 30,
   exposeLan: false,
   sshAgentSockPath: '',
-  tunnelMode: 'portForward' as 'portForward' | 'socks5',
 });
+
+function onExposeLanChange(value: boolean) {
+  form.exposeLan = value;
+  if (value) {
+    message.warning(lang.t('connection.ssh.exposeLanSocks5Hint'), { duration: 6000 });
+  }
+}
 
 const errors = reactive<Record<string, string>>({});
 
@@ -275,7 +258,6 @@ function resetForm() {
   form.connectTimeoutSecs = 10;
   form.keepaliveIntervalSecs = 30;
   form.exposeLan = false;
-  form.tunnelMode = 'portForward';
   form.sshAgentSockPath = '';
   testResult.value = null;
 }
@@ -292,7 +274,6 @@ function loadProfile(profile: SshProfile) {
   form.connectTimeoutSecs = profile.connectTimeoutSecs || 10;
   form.keepaliveIntervalSecs = profile.keepaliveIntervalSecs || 30;
   form.exposeLan = profile.exposeLan;
-  form.tunnelMode = profile.tunnelMode ?? 'portForward';
   form.sshAgentSockPath = profile.sshAgentSockPath ?? '';
 }
 
@@ -350,7 +331,6 @@ async function onTest() {
       connectTimeoutSecs: form.connectTimeoutSecs,
       keepaliveIntervalSecs: form.keepaliveIntervalSecs,
       exposeLan: form.exposeLan,
-      tunnelMode: form.tunnelMode,
     };
     testResult.value = await sshStore.testConnection(config, form.host, form.port);
   } catch (e) {
@@ -376,7 +356,6 @@ async function onSave() {
     connectTimeoutSecs: form.connectTimeoutSecs,
     keepaliveIntervalSecs: form.keepaliveIntervalSecs,
     exposeLan: form.exposeLan,
-    tunnelMode: form.tunnelMode,
   };
   await sshStore.saveProfile(profile);
   close();

@@ -52,14 +52,14 @@ fn tunnel_key(ssh: Option<&Value>, host: &str, port: u16) -> String {
 }
 
 /// Resolve connection target through SSH tunnel if enabled.
-/// Returns `(host, port)` — either `(127.0.0.1, local_port)` for tunneled
-/// connections, or `(original_host, original_port)` for direct connections.
+/// Returns `(host, port, socks5_mode)` — `(127.0.0.1, local_port)` for
+/// port-forward, or `(real_host, local_proxy_port, true)` for SOCKS5.
 pub async fn resolve_connection_target(
     app: &AppHandle,
     config: &Value,
     connection_id: &str,
     tunnels: &TunnelManager,
-) -> Result<(String, u16), String> {
+) -> Result<(String, u16, bool), String> {
     let ssh_config: Option<SshConnectionConfig> = config
         .get("sshTunnel")
         .and_then(|v| serde_json::from_value(v.clone()).ok());
@@ -69,7 +69,7 @@ pub async fn resolve_connection_target(
         _ => {
             let host = config["host"].as_str().unwrap_or("localhost").to_string();
             let port = config["port"].as_u64().unwrap_or(0) as u16;
-            return Ok((host, port));
+            return Ok((host, port, false));
         }
     };
 
@@ -77,10 +77,14 @@ pub async fn resolve_connection_target(
     let remote_host = config["host"].as_str().unwrap_or("localhost").to_string();
     let remote_port = config["port"].as_u64().unwrap_or(0) as u16;
 
-    let socks5_mode = ssh_config
-        .inline
-        .as_ref()
-        .map(|i| i.tunnel_mode == crate::ssh::config::TunnelMode::Socks5)
+    // Socks5 only when the last hop is NOT exposed to the LAN: exposeLan
+    // forces PortForward (effective_tunnel_mode), so the mode is fully
+    // derived from the config — no persisted tunnelMode field.
+    let socks5_mode = layers
+        .last()
+        .map(|layer| match layer {
+            TransportLayerConfig::Ssh(c) => !c.expose_lan,
+        })
         .unwrap_or(false);
 
     match start_transport_layers(connection_id, &layers, &remote_host, remote_port, tunnels).await {
@@ -89,12 +93,12 @@ pub async fn resolve_connection_target(
                 // Socks5 mode: the host stays real (TLS sees it); the port
                 // slot carries the LOCAL SOCKS5 listener port so callers can
                 // wire the proxy. The real remote port is known by callers.
-                Ok((remote_host, local_port))
+                Ok((remote_host, local_port, true))
             } else {
-                Ok(("127.0.0.1".to_string(), local_port))
+                Ok(("127.0.0.1".to_string(), local_port, false))
             }
         }
-        Ok(None) => Ok((remote_host, remote_port)),
+        Ok(None) => Ok((remote_host, remote_port, false)),
         Err(e) => Err(e),
     }
 }
@@ -255,13 +259,6 @@ pub async fn resolve_ssh_tunnel(
         });
     }
 
-    let socks5_mode = ssh
-        .and_then(|s| s.get("inline"))
-        .and_then(|i| i.get("tunnelMode"))
-        .and_then(|v| v.as_str())
-        .map(|m| m == "socks5")
-        .unwrap_or(false);
-
     let cid = tunnel_key(ssh, host, port);
     let tunnels: tauri::State<crate::ssh::TunnelManager> = app.state();
     let conn_val = serde_json::json!({
@@ -269,7 +266,8 @@ pub async fn resolve_ssh_tunnel(
         "port": port,
         "sshTunnel": ssh,
     });
-    let (h, p) = resolve_connection_target(app, &conn_val, &cid, tunnels.inner()).await?;
+    let (h, p, socks5_mode) =
+        resolve_connection_target(app, &conn_val, &cid, tunnels.inner()).await?;
     let socks5_port = if socks5_mode { Some(p) } else { None };
     Ok(TunnelEndpoint {
         // In Socks5 mode h is the real host and p is the LOCAL proxy port;

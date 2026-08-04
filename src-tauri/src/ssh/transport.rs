@@ -82,7 +82,6 @@ mod tests {
             keepalive_interval_secs: 30,
             verify_host_key: false,
             expose_lan: false,
-            tunnel_mode: crate::ssh::config::TunnelMode::default(),
             use_system_proxy: false,
         }
     }
