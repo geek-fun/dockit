@@ -129,16 +129,17 @@ pub async fn connect_via_http_proxy(
     let authority = format!("{}:{}", target_host, target_port);
     let mut request = format!("CONNECT {} HTTP/1.1\r\nHost: {}\r\n", authority, authority);
     // url::Url keeps credentials percent-encoded; proxies expect the raw
-    // form in Proxy-Authorization, so decode before base64.
+    // form in Proxy-Authorization, so decode before base64. A missing
+    // password still emits "user:" (some proxies accept username-only).
     let user = parsed.username();
     if !user.is_empty() {
-        if let Some(pass) = parsed.password() {
-            let user = percent_encoding::percent_decode_str(user).decode_utf8_lossy();
-            let pass = percent_encoding::percent_decode_str(pass).decode_utf8_lossy();
-            let creds =
-                base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", user, pass));
-            request.push_str(&format!("Proxy-Authorization: Basic {}\r\n", creds));
-        }
+        let user = percent_encoding::percent_decode_str(user).decode_utf8_lossy();
+        let pass = parsed
+            .password()
+            .map(|p| percent_encoding::percent_decode_str(p).decode_utf8_lossy())
+            .unwrap_or_default();
+        let creds = base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", user, pass));
+        request.push_str(&format!("Proxy-Authorization: Basic {}\r\n", creds));
     }
     request.push_str("\r\n");
 
@@ -339,6 +340,47 @@ mod tests {
             .decode(creds)
             .expect("valid base64");
         assert_eq!(decoded, b"user@corp:p@ss", "credentials must be decoded");
+    }
+
+    #[tokio::test]
+    async fn connect_via_http_proxy_username_only_still_sends_auth() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            let (mut sock, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 4096];
+            let n = sock.read(&mut buf).await.unwrap();
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+            let _ = sock
+                .write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                .await;
+        });
+        let result = connect_via_http_proxy(
+            &format!("http://user@127.0.0.1:{}", port),
+            "target.corp",
+            22,
+            Duration::from_secs(5),
+        )
+        .await;
+        assert!(
+            result.is_ok(),
+            "username-only auth must be accepted: {:?}",
+            result.err()
+        );
+        let req = rx.await.unwrap();
+        let header = req
+            .lines()
+            .find(|l| l.starts_with("Proxy-Authorization: Basic "))
+            .expect("Proxy-Authorization header must be sent for username-only");
+        let creds = header
+            .trim_start_matches("Proxy-Authorization: Basic ")
+            .trim();
+        use base64::Engine;
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(creds)
+            .expect("valid base64");
+        assert_eq!(decoded, b"user:", "username with empty password");
     }
 
     #[tokio::test]

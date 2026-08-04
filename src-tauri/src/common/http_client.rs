@@ -54,6 +54,9 @@ fn proxy_exempt_matches(host: &str, pattern: &str) -> bool {
         let (Ok(ip), Ok(bits)) = (host.parse::<std::net::Ipv4Addr>(), bits.parse::<u8>()) else {
             return false;
         };
+        if bits > 32 {
+            return false;
+        }
         let Some(base) = cidr.parse::<std::net::Ipv4Addr>().ok() else {
             return false;
         };
@@ -231,6 +234,12 @@ mod tests {
     fn test_proxy_exempt_non_ip_cidr_pattern() {
         // A CIDR pattern against a non-IP host does not match
         assert!(!proxy_exempt_matches("bastion.corp.com", "10.0.0.0/8"));
+    }
+
+    #[test]
+    fn test_proxy_exempt_cidr_bits_over_32_no_panic() {
+        // Malformed exception entries (e.g. "10.0.0.0/33") must not panic
+        assert!(!proxy_exempt_matches("10.1.2.3", "10.0.0.0/33"));
     }
 
     #[test]

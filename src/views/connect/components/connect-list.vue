@@ -629,16 +629,23 @@ const establishConnect = async (connection: Connection) => {
   const sshTunnel = (connection as { sshTunnel?: SshConnectionConfig }).sshTunnel;
   if (sshTunnel?.enabled && sshTunnel.useSystemProxy) {
     try {
-      // Probe against the actual connection target so the warning reflects
-      // this tunnel's routing: a bastion in NO_PROXY / the OS exception list
-      // bypasses the proxy and should be reported as such.
-      const remoteHost = (connection as { host?: string }).host;
-      const remotePort = (connection as { port?: number }).port;
+      // Probe against the FIRST HOP (the bastion), not the database host:
+      // the backend resolves the system proxy against the first SSH hop's
+      // host/port, so a bastion in NO_PROXY / the OS exception list is what
+      // determines whether traffic actually bypasses the proxy.
+      const firstHop = sshTunnel.inline
+        ? { host: sshTunnel.inline.host, port: sshTunnel.inline.port }
+        : sshTunnel.profileIds?.length
+          ? (() => {
+              const p = sshStore.getProfileById(sshTunnel.profileIds![0]);
+              return p ? { host: p.host, port: p.port } : null;
+            })()
+          : null;
       const detected =
-        remoteHost && remotePort
+        firstHop?.host && firstHop.port
           ? await invoke<string | null>('detect_system_proxy', {
-              host: remoteHost,
-              port: remotePort,
+              host: firstHop.host,
+              port: firstHop.port,
             })
           : await invoke<string | null>('detect_system_proxy');
       if (!detected) {

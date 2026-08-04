@@ -61,7 +61,15 @@ where
         TargetAddr::Domain(h, p) => (h, p),
         TargetAddr::Ip(addr) => (addr.ip().to_string(), addr.port()),
     };
-    let outbound_stream = outbound(&host, port).await?;
+    let outbound_stream = match outbound(&host, port).await {
+        Ok(stream) => stream,
+        Err(e) => {
+            // Reply before closing so clients see a failure, not a bare
+            // TCP drop (mirrors the HTTP CONNECT path's 502 response).
+            let _ = proto.reply_error(&ReplyError::ConnectionRefused).await;
+            return Err(e);
+        }
+    };
     let bind_addr = SocketAddr::from(([127, 0, 0, 1], 0));
     let client_stream = proto
         .reply_success(bind_addr)
@@ -211,6 +219,33 @@ mod tests {
         let mut status = [0u8; 2];
         tcp.read_exact(&mut status).await.unwrap();
         assert_eq!(status[1], 0x07, "BIND must reply Command not supported");
+    }
+
+    #[tokio::test]
+    async fn socks5_outbound_failure_replies_connection_refused() {
+        let failing: OutboundFn = std::sync::Arc::new(|_h: &str, _p: u16| {
+            Box::pin(async { Err("no route".to_string()) })
+        });
+        let socks_port = spawn_socks5(failing).await;
+        let mut tcp = TcpStream::connect(("127.0.0.1", socks_port)).await.unwrap();
+        tcp.write_all(&[0x05, 0x01, 0x00]).await.unwrap();
+        let mut reply = [0u8; 2];
+        tcp.read_exact(&mut reply).await.unwrap();
+        assert_eq!(reply, [0x05, 0x00]);
+        // CONNECT to db.internal.corp:27017 — outbound will fail
+        let domain = b"db.internal.corp";
+        tcp.write_all(&[0x05, 0x01, 0x00, 0x03, domain.len() as u8])
+            .await
+            .unwrap();
+        tcp.write_all(domain).await.unwrap();
+        tcp.write_all(&[0x69, 0x41]).await.unwrap();
+        let mut status = [0u8; 2];
+        tcp.read_exact(&mut status).await.unwrap();
+        assert_eq!(
+            status[1], 0x05,
+            "outbound failure must reply Connection refused, got {:?}",
+            status
+        );
     }
 
     #[tokio::test]
