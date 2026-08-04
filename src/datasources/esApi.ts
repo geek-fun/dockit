@@ -44,6 +44,14 @@ export type ClusterAlias = {
   isWriteIndex: boolean;
 };
 
+export type IndexInfo = {
+  aliases?: Record<string, unknown>;
+  mappings?: Record<string, unknown>;
+  settings?: Record<string, unknown>;
+};
+
+export type IndexInfoResponse = Record<string, IndexInfo>;
+
 export type ClusterNode = {
   id: string;
   ip: string;
@@ -512,6 +520,12 @@ interface ESApi {
   ): Promise<ClusterAllocationExplain>;
 
   getIndexMapping(connection: SearchConnection, indexName: string): Promise<unknown>;
+
+  getIndexInfo(
+    connection: SearchConnection,
+    indexName: string,
+    includeDefaults?: boolean,
+  ): Promise<IndexInfoResponse>;
 
   searchIndexDocuments(
     connection: SearchConnection,
@@ -1066,6 +1080,19 @@ const esApi: ESApi = {
     const client = loadHttpClient(connection);
     try {
       return await client.get(`/${indexName}/_mapping`, 'format=json');
+    } catch (err) {
+      throw new CustomError(
+        err instanceof CustomError ? err.status : 500,
+        err instanceof CustomError ? err.details : (err as Error).message,
+      );
+    }
+  },
+
+  getIndexInfo: async (connection, indexName, includeDefaults = false) => {
+    const client = loadHttpClient(connection);
+    try {
+      const query = includeDefaults ? 'format=json&include_defaults=true' : 'format=json';
+      return await client.get(`/${indexName}`, query);
     } catch (err) {
       throw new CustomError(
         err instanceof CustomError ? err.status : 500,
