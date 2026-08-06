@@ -1099,7 +1099,7 @@ const openSchemaDialog = (indexName: string) => {
 const copyIndexSchema = async (indexName: string) => {
   if (!searchConnection.value) return;
   try {
-    const indexInfo = await esApi.getIndexInfo(searchConnection.value, indexName, true);
+    const indexInfo = await esApi.getIndexInfo(searchConnection.value, indexName);
     await navigator.clipboard.writeText(jsonify.stringify(indexInfo, null, 2));
     message.success(lang.t('manage.schema.copied'));
   } catch (err) {

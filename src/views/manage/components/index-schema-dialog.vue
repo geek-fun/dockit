@@ -138,7 +138,7 @@ const loadIndexInfo = async () => {
   indexInfo.value = null;
 
   try {
-    indexInfo.value = await esApi.getIndexInfo(props.connection, props.indexName, true);
+    indexInfo.value = await esApi.getIndexInfo(props.connection, props.indexName);
   } catch (err) {
     errorMessage.value =
       err instanceof CustomError ? err.details : err instanceof Error ? err.message : String(err);
