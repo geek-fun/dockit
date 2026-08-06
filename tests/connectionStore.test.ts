@@ -1799,6 +1799,31 @@ describe('connectionStore - searchQDSL', () => {
     await store.searchQDSL(conn, { method: 'GET', path: '_search', qdsl: '{"query":{}}' });
     expect(mockPost).toHaveBeenCalled();
   });
+
+  it('does not change activeIndex when querying a different index', async () => {
+    const { loadHttpClient } = require('../src/datasources');
+    const mockGet = jest.fn().mockResolvedValue({ hits: { total: 0 } });
+    loadHttpClient.mockReturnValue({ get: mockGet, post: jest.fn() });
+
+    const { useConnectionStore } = require('../src/store/connectionStore');
+    const store = useConnectionStore();
+
+    const conn = {
+      id: 6,
+      type: 'ELASTICSEARCH',
+      name: 'es-test',
+      host: 'http://localhost',
+      port: 9200,
+      indices: [{ index: 'my-index', uuid: 'u1', health: 'green', status: 'open' }],
+      activeIndex: undefined,
+    } as unknown as Connection;
+    store.connections = [conn];
+
+    await store.searchQDSL(conn, { method: 'GET', path: 'my-index' });
+
+    const updatedConn = store.connections[0] as ElasticsearchConnection;
+    expect(updatedConn.activeIndex).toBeUndefined();
+  });
 });
 
 describe('connectionStore - queryToCurl', () => {

@@ -1026,24 +1026,6 @@ export const useConnectionStore = defineStore('connectionStore', {
         throw new Error('Operation only supported for Elasticsearch/OpenSearch connections');
       }
       const client = loadHttpClient(connection);
-      // refresh the index mapping
-      try {
-        if (index && index !== connection.activeIndex?.index) {
-          const newIndex = (connection.indices as ElasticSearchIndex[]).find(
-            ({ index: indexName }) => indexName === index,
-          ) as ElasticSearchIndex;
-
-          if (newIndex) {
-            if (!newIndex.mapping) {
-              newIndex.mapping = await client.get(`/${index}/_mapping`, 'format=json');
-            }
-            connection.activeIndex = newIndex;
-          }
-        }
-      } catch (_err) {
-        // Silently ignore mapping fetch errors
-      }
-
       const reqPath = buildPath(index, path, connection);
 
       const dispatch: { [method: string]: () => Promise<unknown> } = {
