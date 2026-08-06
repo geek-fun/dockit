@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ChatPanel Scroll Contract Harness</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 24px;
+        background: #f6f7f9;
+        color: #1a1a1a;
+      }
+      h1 {
+        font-size: 18px;
+      }
+      p.sub {
+        color: #555;
+        font-size: 13px;
+        max-width: 720px;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin: 12px 0;
+      }
+      button {
+        padding: 6px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      button:hover {
+        background: #eee;
+      }
+      #viewport {
+        width: 480px;
+        height: 300px;
+        overflow: auto;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background: #fff;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      .msg {
+        height: 60px;
+        margin-bottom: 8px;
+        border-radius: 6px;
+        background: #e9eef5;
+        padding: 8px;
+        box-sizing: border-box;
+        font-size: 12px;
+        color: #333;
+      }
+      .msg.user {
+        background: #cfe3ff;
+      }
+      .state,
+      .log {
+        margin-top: 12px;
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 12px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 8px;
+        max-width: 480px;
+      }
+      .state {
+        white-space: pre;
+      }
+      .log {
+        height: 120px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+      }
+      .verdict {
+        margin-top: 8px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .verdict.pass {
+        color: #1a7f37;
+      }
+      .verdict.fail {
+        color: #d1242f;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>ChatPanel Scroll Contract Harness</h1>
+    <p class="sub">
+      Exercises the real scroll decision module (<code>/src/common/scrollStickiness.ts</code>) against a
+      real scrollable DOM. The mini controller replicates chat-panel.vue wiring: a native <code>scroll</code>
+      listener feeds <code>decideStickOnScroll</code>, appends call <code>shouldRestickOnLengthChange</code>,
+      and a simulated virtua churn fires a programmatic scroll without user intent.
+    </p>
+
+    <div class="controls">
+      <button id="btn-append" type="button">Append Message</button>
+      <button id="btn-append-user" type="button">Append User Message</button>
+      <button id="btn-remove" type="button">Remove Last Message</button>
+      <button id="btn-tool-result" type="button">Simulate Tool Result Growth (in-place)</button>
+      <button id="btn-churn-down" type="button">Simulate Virtua Churn (scrollTop + 10)</button>
+      <button id="btn-churn-jitter" type="button">Simulate Virtua Jitter (scrollTop - 1)</button>
+      <button id="btn-force" type="button">Force Scroll to Bottom</button>
+      <button id="btn-reset" type="button">Reset</button>
+    </div>
+
+    <div id="viewport" aria-label="chat viewport">
+      <div class="msg user">Initial user message</div>
+      <div class="msg">Initial assistant message</div>
+      <div class="msg user">Second user message</div>
+      <div class="msg">Second assistant message</div>
+    </div>
+
+    <div class="state" id="state">loading…</div>
+    <div class="verdict" id="verdict"></div>
+    <div class="log" id="log"></div>
+
+    <script type="module">
+      import {
+        isNearBottom,
+        decideStickOnScroll,
+        shouldRestickOnLengthChange,
+        computeStreamingSignature,
+        isStatusDoneTransition,
+        STICKY_THRESHOLD_PX,
+      } from '/src/common/scrollStickiness.ts';
+
+      const viewport = document.getElementById('viewport');
+      const stateEl = document.getElementById('state');
+      const logEl = document.getElementById('log');
+      const verdictEl = document.getElementById('verdict');
+
+      let stickToBottom = true;
+      let lastScrollTop = 0;
+      let msgCount = viewport.querySelectorAll('.msg').length;
+
+      const log = line => {
+        const entry = `[${new Date().toISOString().slice(11, 19)}] ${line}`;
+        logEl.textContent = logEl.textContent ? logEl.textContent + '\n' + entry : entry;
+        logEl.scrollTop = logEl.scrollHeight;
+      };
+
+      const render = () => {
+        const distance = viewport.scrollHeight - (viewport.scrollTop + viewport.clientHeight);
+        stateEl.textContent =
+          `stickToBottom: ${stickToBottom}\n` +
+          `scrollTop: ${viewport.scrollTop} / lastScrollTop: ${lastScrollTop}\n` +
+          `scrollHeight: ${viewport.scrollHeight} / clientHeight: ${viewport.clientHeight}\n` +
+          `distanceToBottom: ${distance} (threshold ${STICKY_THRESHOLD_PX})\n` +
+          `isNearBottom: ${isNearBottom(viewport.scrollHeight, viewport.scrollTop, viewport.clientHeight)}\n` +
+          `messageCount: ${msgCount}`;
+      };
+
+      const scrollToBottom = reason => {
+        viewport.scrollTop = viewport.scrollHeight;
+        log(`scrollToBottom (${reason}): scrollTop=${viewport.scrollTop}`);
+        render();
+      };
+
+      const onScroll = () => {
+        const nearBottom = isNearBottom(viewport.scrollHeight, viewport.scrollTop, viewport.clientHeight);
+        const decision = decideStickOnScroll(viewport.scrollTop, lastScrollTop, nearBottom);
+        if (decision === 'stick') stickToBottom = true;
+        else if (decision === 'release') stickToBottom = false;
+        log(`scroll event: scrollTop=${viewport.scrollTop} nearBottom=${nearBottom} → ${decision} (stickToBottom=${stickToBottom})`);
+        lastScrollTop = viewport.scrollTop;
+        render();
+      };
+
+      viewport.addEventListener('scroll', onScroll, { passive: true });
+
+      const appendMessage = user => {
+        const el = document.createElement('div');
+        el.className = 'msg' + (user ? ' user' : '');
+        el.textContent = `${user ? 'User' : 'Assistant'} message ${msgCount + 1}`;
+        viewport.appendChild(el);
+        const oldLen = msgCount;
+        msgCount++;
+        if (shouldRestickOnLengthChange(msgCount, oldLen)) stickToBottom = true;
+        log(`append (len ${oldLen}→${msgCount}): restick=${shouldRestickOnLengthChange(msgCount, oldLen)} stickToBottom=${stickToBottom}`);
+        if (stickToBottom) scrollToBottom('append');
+        render();
+      };
+
+      document.getElementById('btn-append').addEventListener('click', () => appendMessage(false));
+      document.getElementById('btn-append-user').addEventListener('click', () => appendMessage(true));
+
+      document.getElementById('btn-remove').addEventListener('click', () => {
+        const nodes = viewport.querySelectorAll('.msg');
+        if (nodes.length === 0) return;
+        nodes[nodes.length - 1].remove();
+        const oldLen = msgCount;
+        msgCount--;
+        log(`remove (len ${oldLen}→${msgCount}): restick=${shouldRestickOnLengthChange(msgCount, oldLen)}`);
+        render();
+      });
+
+      // Simulates updateToolCallStatus: the last message grows IN PLACE (no
+      // length change). The controller scrolls only when stickToBottom is true,
+      // mirroring chat-panel.vue's scrollToBottomBatched stickToBottom guard.
+      document.getElementById('btn-tool-result').addEventListener('click', () => {
+        const nodes = viewport.querySelectorAll('.msg');
+        if (nodes.length === 0) return;
+        const last = nodes[nodes.length - 1];
+        const grew = last.getAttribute('data-tool-result') !== 'grown';
+        last.setAttribute('data-tool-result', grew ? 'grown' : '');
+        last.style.height = grew ? '140px' : '60px';
+        log(`tool-result in-place growth: ${grew ? 'grow' : 'shrink'} → stickToBottom=${stickToBottom}`);
+        if (grew && stickToBottom) scrollToBottom('tool-result');
+        render();
+      });
+
+      // Simulates virtua's programmatic scrollTop correction WITHOUT user intent.
+      // The harness's own scroll listener must classify it as 'keep' (no release).
+      document.getElementById('btn-churn-down').addEventListener('click', () => {
+        log(`VIRTUA CHURN: programmatic scrollTop += 10 (${viewport.scrollTop} → ${viewport.scrollTop + 10})`);
+        viewport.scrollTop += 10;
+        render();
+      });
+
+      // Simulates virtua's micro-upward jitter (within SCROLL_UP_THRESHOLD_PX=2).
+      document.getElementById('btn-churn-jitter').addEventListener('click', () => {
+        log(`VIRTUA JITTER: programmatic scrollTop -= 1 (${viewport.scrollTop} → ${viewport.scrollTop - 1})`);
+        viewport.scrollTop -= 1;
+        render();
+      });
+
+      document.getElementById('btn-force').addEventListener('click', () => {
+        stickToBottom = true;
+        log(`FORCE: stickToBottom=true`);
+        scrollToBottom('force');
+      });
+
+      document.getElementById('btn-reset').addEventListener('click', () => {
+        stickToBottom = true;
+        lastScrollTop = 0;
+        viewport.scrollTop = 0;
+        log('RESET');
+        render();
+      });
+
+      // Expose test hooks for Playwright.
+      window.__scrollHarness = {
+        get stickToBottom() {
+          return stickToBottom;
+        },
+        get lastScrollTop() {
+          return lastScrollTop;
+        },
+        get scrollTop() {
+          return viewport.scrollTop;
+        },
+        get scrollHeight() {
+          return viewport.scrollHeight;
+        },
+        get isNearBottom() {
+          return isNearBottom(viewport.scrollHeight, viewport.scrollTop, viewport.clientHeight);
+        },
+        appendMessage,
+        removeLast: () => document.getElementById('btn-remove').click(),
+        simulateToolResult: () => document.getElementById('btn-tool-result').click(),
+        churnDown: () => document.getElementById('btn-churn-down').click(),
+        churnJitter: () => document.getElementById('btn-churn-jitter').click(),
+        force: () => document.getElementById('btn-force').click(),
+        scrollTo: y => {
+          viewport.scrollTop = y;
+        },
+        scrollBy: dy => {
+          viewport.scrollTop += dy;
+        },
+        // Pure-module smoke checks exposed for verification
+        pure: {
+          isNearBottom,
+          decideStickOnScroll,
+          shouldRestickOnLengthChange,
+          computeStreamingSignature,
+          isStatusDoneTransition,
+          STICKY_THRESHOLD_PX,
+        },
+      };
+
+      render();
+      log(`harness ready (module loaded, STICKY_THRESHOLD_PX=${STICKY_THRESHOLD_PX})`);
+    </script>
+  </body>
+</html>

@@ -9,6 +9,7 @@ export * from './requestUtil';
 export * from './jsonify.ts';
 export * from './constants';
 export * from './retry';
+export * from './scrollStickiness';
 export * from './asyncUtils';
 export * from './featureFlags';
 export * from './connectQuery';
