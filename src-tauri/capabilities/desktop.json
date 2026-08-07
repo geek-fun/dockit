@@ -17,6 +17,7 @@
     "global-shortcut:allow-unregister",
     "updater:default",
     "process:default",
-    "deep-link:default"
+    "deep-link:default",
+    "clipboard-manager:allow-write-text"
   ]
 }

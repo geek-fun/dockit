@@ -521,11 +521,7 @@ interface ESApi {
 
   getIndexMapping(connection: SearchConnection, indexName: string): Promise<unknown>;
 
-  getIndexInfo(
-    connection: SearchConnection,
-    indexName: string,
-    includeDefaults?: boolean,
-  ): Promise<IndexInfoResponse>;
+  getIndexInfo(connection: SearchConnection, indexName: string): Promise<IndexInfoResponse>;
 
   searchIndexDocuments(
     connection: SearchConnection,
@@ -1088,10 +1084,10 @@ const esApi: ESApi = {
     }
   },
 
-  getIndexInfo: async (connection, indexName, includeDefaults = false) => {
+  getIndexInfo: async (connection, indexName) => {
     const client = loadHttpClient(connection);
     try {
-      const query = includeDefaults ? 'format=json&include_defaults=true' : 'format=json';
+      const query = 'format=json';
       return await client.get(`/${indexName}`, query);
     } catch (err) {
       throw new CustomError(

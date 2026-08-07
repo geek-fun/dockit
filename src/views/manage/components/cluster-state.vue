@@ -961,6 +961,7 @@ import { useRouter } from 'vue-router';
 import { useConnectionStore, useTabStore } from '../../../store';
 import { esSampleQueries } from '../../../common/monaco';
 import { jsonify } from '../../../common';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 
 const props = defineProps<{ cluster: RawClusterStats | undefined }>();
 
@@ -1099,8 +1100,8 @@ const openSchemaDialog = (indexName: string) => {
 const copyIndexSchema = async (indexName: string) => {
   if (!searchConnection.value) return;
   try {
-    const indexInfo = await esApi.getIndexInfo(searchConnection.value, indexName, true);
-    await navigator.clipboard.writeText(jsonify.stringify(indexInfo, null, 2));
+    const indexInfo = await esApi.getIndexInfo(searchConnection.value, indexName);
+    await writeText(jsonify.stringify(indexInfo, null, 2));
     message.success(lang.t('manage.schema.copied'));
   } catch (err) {
     message.error(
