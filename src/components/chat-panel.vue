@@ -150,6 +150,13 @@ import ContextIndicator from './context-indicator.vue';
 import { ScrollArea } from './ui/scroll-area';
 import { Spinner } from './ui/spinner';
 import { useMessageService } from '@/composables';
+import {
+  isNearBottom as checkIsNearBottom,
+  decideStickOnScroll,
+  shouldRestickOnLengthChange,
+  computeStreamingSignature,
+  isStatusDoneTransition,
+} from '@/common';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -219,21 +226,23 @@ const modelVerified = ref<boolean | null>(null);
 // - Scrolls to bottom on mount, new messages, and content streaming
 // - Stops auto-scrolling when user scrolls up to read history
 // - Resumes when user scrolls back to bottom or sends a message
+// Decision logic lives in src/common/scrollStickiness.ts (pure, unit-tested);
+// this component only wires DOM/rAF/Virtualizer calls to it.
 
-const STICKY_THRESHOLD_PX = 32;
 const stickToBottom = ref(true);
+let lastScrollTop = 0;
+let statusDoneTimer: ReturnType<typeof setTimeout> | undefined;
 
 const getViewport = (): HTMLElement | null => scrollbarRef.value?.viewportElement ?? null;
-
-const isNearBottom = (el: HTMLElement): boolean => {
-  const distance = el.scrollHeight - (el.scrollTop + el.clientHeight);
-  return distance <= STICKY_THRESHOLD_PX;
-};
 
 const handleViewportScroll = () => {
   const el = getViewport();
   if (!el) return;
-  stickToBottom.value = isNearBottom(el);
+  const nearBottom = checkIsNearBottom(el.scrollHeight, el.scrollTop, el.clientHeight);
+  const decision = decideStickOnScroll(el.scrollTop, lastScrollTop, nearBottom);
+  if (decision === 'stick') stickToBottom.value = true;
+  else if (decision === 'release') stickToBottom.value = false;
+  lastScrollTop = el.scrollTop;
 };
 
 let scrollRafId = 0;
@@ -287,21 +296,54 @@ const forceScrollToBottom = () => {
   scrollToLastMessage();
 };
 
-// Scroll on new messages — force to capture layout changes
+// Scroll on new messages — force to capture layout changes.
+// Re-stick ONLY on message append (n > old): a user who scrolled up to read
+// history must not be yanked to the bottom by background length changes.
+// Length decreases (compaction trim / orphaned-streaming-message removal)
+// must not re-stick either — shouldRestickOnLengthChange returns false.
 watch(
   () => props.messages.length,
-  () => requestAnimationFrame(() => scrollToBottomForce()),
+  (n, old) => {
+    if (shouldRestickOnLengthChange(n, old ?? 0)) stickToBottom.value = true;
+    requestAnimationFrame(() => scrollToBottomForce());
+  },
 );
 
-// Scroll on streaming content changes in the last message — batched
+// Scroll on streaming content changes in the last message — batched.
+// The signature covers content/thinking length, message status (streaming →
+// done = answer available), and per-tool-call state (status, result length,
+// confirmation card) so ANY visual growth in the last message scrolls.
 watch(
   () => {
     const msgs = props.messages;
     if (msgs.length === 0) return '';
-    const last = msgs[msgs.length - 1];
-    return `${last.content?.length ?? 0}:${last.thinking?.length ?? 0}:${last.toolCalls?.length ?? 0}`;
+    return computeStreamingSignature(msgs[msgs.length - 1]);
   },
   () => scrollToBottomBatched(),
+);
+
+// When the last message finalizes (status → done), snap to the true bottom
+// via the Virtualizer API and re-scroll once virtua settles its post-measure
+// layout. The 300ms retry catches items taller than the item-size=160 estimate.
+watch(
+  () => {
+    const msgs = props.messages;
+    if (msgs.length === 0) return undefined;
+    return msgs[msgs.length - 1].status;
+  },
+  (newStatus, oldStatus) => {
+    if (isStatusDoneTransition(oldStatus, newStatus) && stickToBottom.value) {
+      scrollToLastMessage();
+      statusDoneTimer = setTimeout(() => scrollToLastMessage(), 300);
+    }
+  },
+);
+
+// ChatPanel persists across session switches (neither parent remounts it via
+// :key / v-if), so onMounted does not re-run — force a scroll per session.
+watch(
+  () => props.sessionId,
+  () => forceScrollToBottom(),
 );
 
 const canSend = computed(() => inputText.value.trim().length > 0 && !props.isLoading);
@@ -419,6 +461,7 @@ onBeforeUnmount(() => {
   el?.removeEventListener('scroll', handleViewportScroll);
   if (scrollRafId) cancelAnimationFrame(scrollRafId);
   clearTimeout(mountRetryTimer);
+  clearTimeout(statusDoneTimer);
 });
 </script>
 

@@ -153,18 +153,23 @@ The `ChatPanel` component (`src/components/chat-panel.vue`) implements a specifi
 | Scenario | Expected Behavior | Implementation |
 |---|---|---|
 | **Panel opens** | Scroll to bottom immediately | `onMounted`: `stickToBottom = true` + double `rAF` after `nextTick` → `scrollToLastMessage()` (Virtualizer `scrollToIndex` with `align: 'end'`) + 300ms `setTimeout` retry (catches Virtualizer layout settling) |
-| **New message arrives** | Auto-scroll if user is near bottom | `watch(messages.length)` → `stickToBottom` guard → `nextTick` → rAF-based `scrollToBottomForce()` (DOM scroll) |
-| **Content streaming** | Auto-scroll if user is near bottom | `watch(last message content)` → `stickToBottom` guard → rAF-batched `scrollToBottomBatched()` (DOM scroll) |
-| **User scrolls up** | Freeze auto-scroll — stay where they are | `handleViewportScroll` listener sets `stickToBottom = false` when `scrollHeight - (scrollTop + clientHeight) > 32px` |
-| **User scrolls back to bottom** | Resume auto-scrolling | Same listener sets `stickToBottom = true` when distance ≤ 32px |
+| **New message arrives** | Auto-scroll if user is near bottom | `watch(messages.length)` → `shouldRestickOnLengthChange(n, old)` re-sticks ONLY on append (`n > old`) → rAF-based `scrollToBottomForce()` (DOM scroll). Length decreases (compaction trim, orphaned-streaming-message removal) do NOT re-stick |
+| **Content streaming** | Auto-scroll if user is near bottom | `watch(computeStreamingSignature(last message))` → `stickToBottom` guard → rAF-batched `scrollToBottomBatched()` (DOM scroll). Signature covers content len, thinking len, message status, and per-tool-call state (status, result len, requiresConfirmation) so tool results and confirmation cards also scroll |
+| **User scrolls up** | Freeze auto-scroll — stay where they are | `handleViewportScroll` → `decideStickOnScroll()` sets `stickToBottom = false` ONLY on genuine upward scroll (`scrollTop < lastScrollTop - 2` AND not near bottom). virtua programmatic scroll corrections (item-add pinning, 160px-estimate→measured adjustments) produce stationary/downward/micro-upward movement → `'keep'`, so they never falsely release the stick |
+| **User scrolls back to bottom** | Resume auto-scrolling | `decideStickOnScroll()` returns `'stick'` when distance ≤ 32px (`isNearBottom`), re-sticking regardless of prior state |
 | **User sends a message** | Force scroll to bottom, resume auto-scrolling | `handleSend` calls `forceScrollToBottom()` before emitting |
 | **User clicks continue** | Force scroll to bottom, resume auto-scrolling | `handleContinue` calls `forceScrollToBottom()` before emitting |
+| **Message status → done** | Final scroll to bottom + settle after virtua post-measure | `watch(last message status)` → `isStatusDoneTransition(old, new)` && `stickToBottom` → `scrollToLastMessage()` (virtua API) + 300ms delayed re-scroll (`statusDoneTimer`, cleared in `onBeforeUnmount`) |
+| **Session switch** | Force scroll to bottom on session change | `watch(() => props.sessionId)` → `forceScrollToBottom()`. ChatPanel persists across session switches (no `:key`/`v-if` in either parent), so `onMounted` does not re-run — this watcher is required |
 
 **Key variables in the component:**
 - `stickToBottom` (`Ref<boolean>`) — controls whether auto-scroll is active
-- `STICKY_THRESHOLD_PX = 32` — how close to bottom counts as "at bottom"
+- `lastScrollTop` (`number`) — previous viewport `scrollTop`, used by `decideStickOnScroll` to detect genuine upward scroll
 - `scrollRafId` — rAF batching guard, prevents redundant scroll calls within one frame
+- `statusDoneTimer` (`ReturnType<typeof setTimeout>`) — 300ms delayed re-scroll after `status → 'done'`, cleared in `onBeforeUnmount`
 - `virtualizerRef` — ref to virtua's Virtualizer component, exposes `scrollToIndex(index)` for reliable scroll-to-last-item (used in `scrollToLastMessage` and `forceScrollToBottom`)
+
+**Scroll decision logic** lives in `src/common/scrollStickiness.ts` (pure functions: `isNearBottom`, `decideStickOnScroll`, `shouldRestickOnLengthChange`, `computeStreamingSignature`, `isStatusDoneTransition`; constants `STICKY_THRESHOLD_PX = 32`, `SCROLL_UP_THRESHOLD_PX = 2`), unit-tested in `tests/common/scrollStickiness.test.ts`. The component contains only thin DOM/rAF/Virtualizer wiring. A browser harness at `tests/manual/scroll-harness.html` (served via `npx vite`) exercises the same module against a real scrollable DOM for manual QA.
 
 **When modifying this behavior:**
 - Never remove the scroll event listener (`'scroll'` on viewport element) — it's the only mechanism that detects user scroll-up
@@ -172,6 +177,7 @@ The `ChatPanel` component (`src/components/chat-panel.vue`) implements a specifi
 - Always call `forceScrollToBottom()` before `emit('send', ...)` in send/continue handlers — this ensures the user's action overrides any scroll-up state
 - `forceScrollToBottom()` and `onMounted` use `scrollToLastMessage()` (Virtualizer `scrollToIndex` API) for scroll-to-bottom — do NOT revert to DOM `scrollTop = scrollHeight` for mount/force-scroll. The Virtualizer computes `scrollHeight` asynchronously and DOM scroll is unreliable before item sizes are measured.
 - Streaming scrolls (`scrollToBottomForce`, `scrollToBottomBatched`) use DOM `scrollTop = scrollHeight` — this works during streaming because virtua has already rendered the items and updates `scrollHeight` incrementally
+- Keep the pure decision functions in `src/common/scrollStickiness.ts` — do not re-inline threshold/decision logic into the component (it would lose unit-test coverage)
 
 ### Known Failure Modes (from real bugs)
 
@@ -184,3 +190,4 @@ The `ChatPanel` component (`src/components/chat-panel.vue`) implements a specifi
 | **Quick UI additions when infrastructure exists** | Before adding a new indicator/label/component, search for existing infrastructure: check `agent-message-bubble.vue`, `context-indicator.vue`, `useChatAgent.ts` phase setters. The "Preparing..." indicator already exists — just needs scroll. |
 | **Proxy ignored in agent loop** | `loop_runner.rs` and `compact.rs` read `proxyMode` from settings. When touching proxy code, verify both paths AND all 10 `create_http_client` call sites. |
 | **ChatPanel scroll broken by refactor** | When modifying `chat-panel.vue`, always preserve the scroll contract table above. Common mistakes: removing the scroll event listener, removing `stickToBottom` guard, or removing `forceScrollToBottom()` before `emit('send')`. |
+| **Auto-scroll stops after virtua layout churn** | `handleViewportScroll` used to flip `stickToBottom = false` on ANY scroll event, including virtua's own programmatic corrections (item-add pinning, 160px-estimate→measured adjustments) — leaving the viewport >32px from the bottom right after `send` → all subsequent auto-scrolls suppressed for the run. Fixed by `decideStickOnScroll`, which only releases on genuine upward scroll (`scrollTop < lastScrollTop - 2` && not near bottom); virtua churn returns `'keep'`. Keep using the pure function — never revert to unconditional `stickToBottom = isNearBottom(el)` |
