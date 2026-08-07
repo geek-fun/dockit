@@ -35,7 +35,12 @@ impl ConnectionResolver {
         let connection = all_connections
             .into_iter()
             .find(|c| c.get("id").and_then(|v| v.as_i64()) == Some(id))
-            .ok_or_else(|| format!("Connection '{}' not found in store", connection_id))?;
+            .ok_or_else(|| {
+                format!(
+                    "Connection '{}' not found in store. Connect manually first, or add it in Settings → MCP Bridge.",
+                    connection_id
+                )
+            })?;
 
         normalize_config(connection)
     }

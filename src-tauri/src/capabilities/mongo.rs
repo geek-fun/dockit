@@ -1962,14 +1962,14 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
               ("database", "MongoDB database name", "string", false),
               ("collection", "Collection name", "string", true),
           ]),
-          RiskLevel::Safe, "read", &["ui"]);
+          RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!("mongo__database_stats", "Get statistics for a MongoDB database including collection count, object count, and storage metrics.",
           MongoDatabaseStats::new(),
           mongo_schema(&[
               ("database", "MongoDB database name", "string", false),
           ]),
-          RiskLevel::Safe, "read", &["ui"]);
+          RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!(
         "mongo__create_database",
@@ -1981,7 +1981,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "create",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!("mongo__drop_database", "Drop a MongoDB database and all its collections. DESTRUCTIVE: permanently removes all data.",
@@ -1989,7 +1989,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
           mongo_schema(&[
               ("database", "Database name to drop", "string", true),
           ]),
-          RiskLevel::Destructive, "delete", &["ui"]);
+          RiskLevel::Destructive, "delete", &["agent", "ui"]);
 
     reg!("mongo__create_collection", "Create a new collection in a MongoDB database with optional settings (capped, size, max, timeseries, validator).",
           MongoCreateCollection::new(),
@@ -1998,7 +1998,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
               ("collection", "Collection name to create", "string", true),
               ("options", "Optional collection settings {capped, size, max, timeseries, validator}", "object", false),
           ]),
-          RiskLevel::Elevated, "create", &["ui"]);
+          RiskLevel::Elevated, "create", &["agent", "ui"]);
 
     reg!(
         "mongo__drop_collection",
@@ -2010,13 +2010,13 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Destructive,
         "delete",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!("mongo__server_status", "Get MongoDB server status including host, version, uptime, connections, network, and memory usage.",
           MongoServerStatus::new(),
           mongo_schema(&[]),
-          RiskLevel::Safe, "read", &["ui"]);
+          RiskLevel::Safe, "read", &["agent", "ui"]);
 
     reg!(
         "mongo__repl_set_status",
@@ -2025,7 +2025,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         mongo_schema(&[]),
         RiskLevel::Safe,
         "read",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
@@ -2035,7 +2035,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         mongo_schema(&[]),
         RiskLevel::Safe,
         "read",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
@@ -2088,7 +2088,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "update",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
@@ -2112,7 +2112,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "create",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!("mongo__truncate_collection", "Remove all documents from a MongoDB collection while preserving the collection and indexes. DESTRUCTIVE: permanently removes all documents.",
@@ -2121,7 +2121,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
               ("database", "MongoDB database name", "string", false),
               ("collection", "Collection name to truncate", "string", true),
           ]),
-          RiskLevel::Destructive, "delete", &["ui"]);
+          RiskLevel::Destructive, "delete", &["agent", "ui"]);
 
     reg!(
         "mongo__list_indexes",
@@ -2133,7 +2133,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Safe,
         "read",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
@@ -2171,7 +2171,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "create",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
@@ -2185,7 +2185,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "delete",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
@@ -2204,7 +2204,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Safe,
         "read",
-        &["ui"],
+        &["agent", "ui"],
         true
     );
 }

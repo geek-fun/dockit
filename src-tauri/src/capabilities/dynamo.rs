@@ -1266,7 +1266,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Safe,
         "read",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
@@ -1294,7 +1294,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Safe,
         "read",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
@@ -1321,7 +1321,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "create",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
@@ -1344,7 +1344,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "create",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
@@ -1366,7 +1366,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Elevated,
         "update",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!(
@@ -1383,7 +1383,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Destructive,
         "delete",
-        &["ui"]
+        &["agent", "ui"]
     );
 
     reg!("dynamo__create_gsi", "Create a global secondary index on a DynamoDB table.",
@@ -1398,7 +1398,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
              ("write_capacity_units", "Provisioned write capacity units (integer, for provisioned billing)", false),
              ("warm_throughput", "JSON object with read_units_per_second and write_units_per_second", false),
          ]),
-         RiskLevel::Elevated, "create", &["ui"]);
+         RiskLevel::Elevated, "create", &["agent", "ui"]);
 
     reg!(
         "dynamo__update_gsi",
