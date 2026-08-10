@@ -656,7 +656,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         &["agent"]
     );
 
-    reg!("es__cat_indices", "List user indices with health status, document count, and storage size. Results are sorted alphabetically. System/hidden indices (starting with . or _) are ONLY included when the user explicitly asks for them — pass include_system=true. NEVER include system indices in routine listing. Use this to discover which indices exist before searching. Report results in the user's language (中文/English).", EsCatIndices,
+    reg!("es__cat_indices", "List user indices with health status, document count, and storage size. Results are sorted alphabetically. System/hidden indices (starting with . or _) are ONLY included when the user explicitly asks for them — pass include_system=true. NEVER include system indices in routine listing. First step for any Elasticsearch task: list indices, then get_mapping to inspect structure, then search. Report results in the user's language (中文/English).", EsCatIndices,
          es_schema(&[("include_system", "ONLY set to true when the user explicitly asks for system indices or hidden indices. Default false — system indices are excluded.", "boolean", false)]),
          RiskLevel::Safe, "read", &["agent", "ui"]);
 

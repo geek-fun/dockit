@@ -1834,7 +1834,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         };
     }
 
-    reg!("mongo__list_databases", "List all database names on a MongoDB server. Use this first when no database is known so you can pick one for subsequent calls. Use data_studio/dockit tools for ALL MongoDB access instead of local mongosh CLI. Report results in the user's language (中文/English).",
+    reg!("mongo__list_databases", "List all database names on a MongoDB server. Use this first when no database is known so you can pick one for subsequent calls. First step for any MongoDB task: list databases, then list_collections, then find. Use data_studio/dockit tools for ALL MongoDB access instead of local mongosh CLI. Report results in the user's language (中文/English).",
           MongoListDatabases::new(),
           mongo_schema(&[]),
           RiskLevel::Safe, "read", &["agent", "ui"]);
