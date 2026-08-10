@@ -443,6 +443,9 @@ fn list_connections() -> Value {
                         "id": c.get("id"),
                         "name": c.get("name"),
                         "type": c.get("type"),
+                        // First discovery tool an agent should call for this
+                        // connection type to learn its objects before querying.
+                        "discover": json!(discover_tool_for(&type_str(c))),
                     })
                 })
                 .collect()
@@ -450,6 +453,24 @@ fn list_connections() -> Value {
         .unwrap_or_default();
 
     json!(safe_list)
+}
+
+/// The NoSQL discovery entry point per connection type: list the top-level
+/// objects first (indices, databases, or tables), then drill into structure.
+fn discover_tool_for(conn_type: &str) -> &'static str {
+    match conn_type.to_ascii_lowercase().as_str() {
+        t if t.contains("elastic") || t.contains("open") => "es__cat_indices",
+        t if t.contains("mongo") => "mongo__list_databases",
+        t if t.contains("dynamo") => "dynamo__list_tables",
+        _ => "dockit__list_connections",
+    }
+}
+
+fn type_str(c: &serde_json::Value) -> String {
+    c.get("type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 async fn resolve_connection(connection_id: &str) -> Result<Value, String> {
