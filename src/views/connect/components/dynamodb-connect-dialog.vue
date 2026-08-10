@@ -540,17 +540,26 @@
                 @create-profile="openSshProfileDialog(null)"
                 @edit-profile="openSshProfileDialog($event)"
               />
-              <button type="button" class="prompt-toggle" @click="openPromptDialog">
-                <span class="text-sm font-medium">{{ $t('connection.prompt.label') }}</span>
-                <span class="prompt-summary" :class="{ 'prompt-summary-empty': !promptValue }">
-                  {{
-                    promptValue
-                      ? $t('connection.prompt.description')
-                      : $t('connection.ssh.notConfigured')
-                  }}
+              <div class="prompt-header-row">
+                <span class="i-carbon-chat-bot h-4 w-4 shrink-0 text-muted-foreground" />
+                <span class="text-sm font-medium whitespace-nowrap">
+                  {{ $t('connection.prompt.label') }}
                 </span>
-                <Pencil class="h-3 w-3 shrink-0" />
-              </button>
+                <span v-if="promptValue" class="prompt-summary" :title="promptValue">
+                  {{ $t('connection.prompt.configured') }}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  type="button"
+                  class="ml-auto h-8 w-8 shrink-0"
+                  :title="promptValue ? $t('connection.prompt.edit') : $t('connection.prompt.add')"
+                  @click="openPromptDialog"
+                >
+                  <Plus v-if="!promptValue" class="h-4 w-4" />
+                  <Pencil v-else class="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
           </div>
         </Form>
@@ -581,7 +590,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { X, Loader2, ChevronRight, Eye, EyeOff } from 'lucide-vue-next';
+import { X, Loader2, ChevronRight, Eye, EyeOff, Plus, Pencil } from 'lucide-vue-next';
 import { cloneDeep, debounce } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -1566,31 +1575,21 @@ defineExpose({ showMedal });
   padding-top: 12px;
 }
 
-.prompt-toggle {
+.prompt-header-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px 0;
-  margin-top: 4px;
-  color: hsl(var(--foreground));
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid hsl(var(--border));
 }
 
 .prompt-summary {
-  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-align: left;
   font-size: 0.75rem;
   color: hsl(var(--muted-foreground));
-}
-
-.prompt-summary-empty {
-  font-style: italic;
 }
 </style>
