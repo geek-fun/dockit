@@ -574,7 +574,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         };
     }
 
-    reg!("es__search", "Execute an Elasticsearch search query using Query DSL. Returns matching documents with scores.", EsSearch,
+    reg!("es__search", "Execute an Elasticsearch search query using Query DSL. Returns matching documents with scores. Use this whenever a task needs data from Elasticsearch/OpenSearch (document counts, content search, aggregations) — instead of shelling out to curl or a local client. Report results in the user's language (中文/English).", EsSearch,
          es_schema(&[("index", "Target index name", "string", true), ("body", "Elasticsearch Query DSL body", "object", true)]),
          RiskLevel::Safe, "read", &["agent"], true);
 
@@ -656,11 +656,11 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         &["agent"]
     );
 
-    reg!("es__cat_indices", "List user indices with health status, document count, and storage size. Results are sorted alphabetically. System/hidden indices (starting with . or _) are ONLY included when the user explicitly asks for them — pass include_system=true. NEVER include system indices in routine listing.", EsCatIndices,
+    reg!("es__cat_indices", "List user indices with health status, document count, and storage size. Results are sorted alphabetically. System/hidden indices (starting with . or _) are ONLY included when the user explicitly asks for them — pass include_system=true. NEVER include system indices in routine listing. Use this to discover which indices exist before searching. Report results in the user's language (中文/English).", EsCatIndices,
          es_schema(&[("include_system", "ONLY set to true when the user explicitly asks for system indices or hidden indices. Default false — system indices are excluded.", "boolean", false)]),
          RiskLevel::Safe, "read", &["agent", "ui"]);
 
-    reg!("es__get_mapping", "Get the field mapping (schema) for an Elasticsearch index, showing field names and data types.", EsGetMapping,
+    reg!("es__get_mapping", "Get the field mapping (schema) for an Elasticsearch index, showing field names and data types. Use this to understand an index's structure before querying. Report results in the user's language (中文/English).", EsGetMapping,
          es_schema(&[("index", "Target index name", "string", true)]),
          RiskLevel::Safe, "read", &["agent"], true);
 
