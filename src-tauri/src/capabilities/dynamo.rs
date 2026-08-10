@@ -7,6 +7,7 @@ use data_studio_agent::capabilities::types::{
     Capability, CapabilityHandler, RiskLevel, SourceKind,
 };
 
+use crate::dynamo::batch_get_item::{batch_get_item, BatchGetInput};
 use crate::dynamo::batch_write_item::{batch_write_item, BatchWriteInput};
 use crate::dynamo::cloudwatch_metrics::{get_table_metrics, CloudWatchInput};
 use crate::dynamo::continuous_backups::describe_continuous_backups;
@@ -18,6 +19,7 @@ use crate::dynamo::query_table::{query_table, QueryTableInput};
 use crate::dynamo::scan_table::{scan_table, ScanTableInput};
 use crate::dynamo::time_to_live::describe_time_to_live;
 use crate::dynamo::truncate_table::truncate_table;
+use crate::dynamo::transact_write_items::{transact_write_items, TransactWriteInput};
 use crate::dynamo::update_item::{update_item, UpdateItemInput};
 use crate::dynamo::update_pitr::update_continuous_backups;
 use crate::dynamo::update_streams::update_streams;
@@ -482,6 +484,44 @@ impl CapabilityHandler for DynamoBatchWriteItems {
     }
 }
 
+pub(crate) struct DynamoBatchGetItems {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoBatchGetItems {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityHandler for DynamoBatchGetItems {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
+        let request_items = args
+            .get("request_items")
+            .ok_or("Missing request_items")?;
+        let client = self.factory.create_client(config).await?;
+        let input = BatchGetInput { request_items };
+        let response = batch_get_item(&client, input).await?;
+        serde_json::to_string(&response)
+            .map(crate::common::format::truncate_tool_output)
+            .map_err(|e| e.to_string())
+    }
+}
+
 pub(crate) struct DynamoUpdateItem {
     factory: Box<dyn DynamoClientFactory>,
 }
@@ -567,6 +607,44 @@ impl CapabilityHandler for DynamoDeleteItem {
             payload: &payload,
         };
         let response = delete_item(&client, input).await?;
+        serde_json::to_string(&response)
+            .map(crate::common::format::truncate_tool_output)
+            .map_err(|e| e.to_string())
+    }
+}
+
+pub(crate) struct DynamoTransactWriteItems {
+    factory: Box<dyn DynamoClientFactory>,
+}
+
+impl DynamoTransactWriteItems {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealDynamoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn DynamoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+#[async_trait::async_trait]
+impl CapabilityHandler for DynamoTransactWriteItems {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
+        let transact_items = args
+            .get("transact_items")
+            .ok_or("Missing transact_items")?;
+        let client = self.factory.create_client(config).await?;
+        let input = TransactWriteInput { transact_items };
+        let response = transact_write_items(&client, input).await?;
         serde_json::to_string(&response)
             .map(crate::common::format::truncate_tool_output)
             .map_err(|e| e.to_string())
@@ -1348,6 +1426,22 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     );
 
     reg!(
+        "dynamo__batch_get_items",
+        "Batch retrieve multiple items from one or more DynamoDB tables by primary key. Use this to efficiently fetch many items in a single request without scanning or querying each item individually. Example: request_items is a JSON object mapping table names to { keys: [{id: '123'}, {id: '456'}] }.",
+        DynamoBatchGetItems::new(),
+        dynamo_schema(&[
+            (
+                "request_items",
+                "JSON object mapping table names to { keys: [ {attr: val, ...}, ...] }",
+                true
+            ),
+        ]),
+        RiskLevel::Safe,
+        "read",
+        &["agent", "ui"]
+    );
+
+    reg!(
         "dynamo__update_item",
         "Update attributes of an existing DynamoDB item.",
         DynamoUpdateItem::new(),
@@ -1383,6 +1477,22 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         ]),
         RiskLevel::Destructive,
         "delete",
+        &["agent", "ui"]
+    );
+
+    reg!(
+        "dynamo__transact_write_items",
+        "Execute multiple write operations (put, update, delete) in a single ACID transaction across one or more DynamoDB tables. All operations either succeed together or all roll back — ideal for maintaining data consistency across related items. Example: transact_items is a JSON array of objects each with op (put/update/delete), table_name, and operation-specific fields (attributes for put, keys+attributes for update, keys for delete).",
+        DynamoTransactWriteItems::new(),
+        dynamo_schema(&[
+            (
+                "transact_items",
+                "JSON array of transact items, each with op, table_name, and operation-specific fields",
+                true
+            ),
+        ]),
+        RiskLevel::Elevated,
+        "create",
         &["agent", "ui"]
     );
 
@@ -1641,6 +1751,23 @@ mod tests {
         }
     }
 
+    /// Factory that returns a real SDK client backed by dummy credentials.
+    /// Client construction performs no I/O, so module-level argument
+    /// validation runs before any network call is attempted.
+    struct TestDynamoFactory;
+
+    #[async_trait::async_trait]
+    impl DynamoClientFactory for TestDynamoFactory {
+        async fn create_client(&self, _config: &Value) -> Result<aws_sdk_dynamodb::Client, String> {
+            let config = json!({
+                "region": "us-east-1",
+                "accessKeyId": "test",
+                "secretAccessKey": "test",
+            });
+            crate::common::dynamo::create_dynamo_client(&config, None).await
+        }
+    }
+
     // ── Missing connection config ──────────────────────────────────────────
 
     #[tokio::test]
@@ -1689,6 +1816,26 @@ mod tests {
     async fn test_batch_write_items_missing_config() {
         let handler = DynamoBatchWriteItems::new();
         let result = handler.handle(&json!({"table_name": "t"}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_items_missing_config() {
+        let handler = DynamoBatchGetItems::new();
+        let result = handler
+            .handle(&json!({"request_items": {"t": {"keys": []}}}), None)
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_missing_config() {
+        let handler = DynamoTransactWriteItems::new();
+        let result = handler
+            .handle(&json!({"transact_items": []}), None)
+            .await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("connection config"));
     }
@@ -1923,6 +2070,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_batch_get_items_missing_request_items() {
+        let handler = DynamoBatchGetItems::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing request_items"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_missing_transact_items() {
+        let handler = DynamoTransactWriteItems::new();
+        let result = handler.handle(&json!({}), Some(&json!({}))).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing transact_items"));
+    }
+
+    #[tokio::test]
     async fn test_update_gsi_missing_table_name() {
         let handler = DynamoUpdateGsi::new();
         let result = handler.handle(&json!({}), Some(&json!({}))).await;
@@ -1983,6 +2146,118 @@ mod tests {
             .await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_items_factory_error() {
+        let handler = DynamoBatchGetItems::with_factory(Box::new(FailingFactory));
+        let result = handler
+            .handle(
+                &json!({"request_items": {"t": {"keys": []}}}),
+                Some(&json!({"region": "us-east-1"})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_factory_error() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(FailingFactory));
+        let result = handler
+            .handle(
+                &json!({"transact_items": []}),
+                Some(&json!({"region": "us-east-1"})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory failure"));
+    }
+
+    // ── Parameter format validation (module-level, before SDK call) ────────
+
+    #[tokio::test]
+    async fn test_batch_get_items_rejects_non_object_request_items() {
+        let handler = DynamoBatchGetItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"request_items": [{"t": {"keys": []}}]}),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("request_items must be a JSON object"));
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_items_rejects_string_request_items() {
+        let handler = DynamoBatchGetItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(&json!({"request_items": "not-an-object"}), Some(&json!({})))
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("request_items must be a JSON object"));
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_items_rejects_table_without_keys() {
+        let handler = DynamoBatchGetItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(&json!({"request_items": {"t": {}}}), Some(&json!({})))
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Missing 'keys' array for table 't'"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_rejects_unknown_op() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"transact_items": [{"op": "delete_range", "table_name": "t"}]}),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Unknown operation 'delete_range'"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_put_missing_attributes() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"transact_items": [{"op": "put", "table_name": "t"}]}),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Missing 'attributes' array for 'put' at index 0"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_delete_missing_keys() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"transact_items": [{"op": "delete", "table_name": "t"}]}),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Missing 'keys' array for 'delete' at index 0"));
     }
 
     #[tokio::test]
