@@ -1851,7 +1851,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
 
     reg!(
         "mongo__find",
-        "Query documents from a MongoDB collection using a filter. Returns matching documents. Use this whenever a task needs MongoDB data (document counts, content lookup, aggregation of records) — instead of shelling out to mongosh. Report results in the user's language (中文/English).",
+        "Query documents from a MongoDB collection using a filter and return the matching documents.\n\nUse when a task needs MongoDB data (document counts, content lookup, aggregation of records) — instead of shelling out to mongosh.\n\nExample: {\"database\": \"app\", \"collection\": \"users\", \"filter\": {\"age\": {\"$gt\": 30}}}.",
         MongoFind::new(),
         mongo_schema(&[
             ("database", "MongoDB database name", "string", false),

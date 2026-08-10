@@ -574,7 +574,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
         };
     }
 
-    reg!("es__search", "Execute an Elasticsearch search query using Query DSL. Returns matching documents with scores. Use this whenever a task needs data from Elasticsearch/OpenSearch (document counts, content search, aggregations) — instead of shelling out to curl or a local client. Report results in the user's language (中文/English).", EsSearch,
+    reg!("es__search", "Execute an Elasticsearch search query using Query DSL and return matching documents with scores.\n\nUse when a task needs data from Elasticsearch/OpenSearch (document counts, content search, aggregations) — instead of shelling out to curl or a local client.\n\nExample: {\"index\": \"orders*\", \"body\": {\"query\": {\"match\": {\"status\": \"shipped\"}}}}.", EsSearch,
          es_schema(&[("index", "Target index name", "string", true), ("body", "Elasticsearch Query DSL body", "object", true)]),
          RiskLevel::Safe, "read", &["agent"], true);
 
