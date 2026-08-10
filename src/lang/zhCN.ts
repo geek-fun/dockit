@@ -194,6 +194,9 @@ export const zhCN = {
         wallClockBudgetDescription: '单次代理运行的最长挂钟时间，超出后代理将优雅停止。默认：30。',
         tokenBudgetLabel: 'Token 预算',
         tokenBudgetDescription: '单次代理运行中所有迭代累计的最大输入 Token 数。默认：1,000,000。',
+        systemPromptLabel: '系统提示词',
+        systemPromptDescription:
+          '每次对话都会发送给 LLM 的全局系统提示词，位于任何连接级上下文之前。可用于描述你的整体用法、术语或业务上下文。',
       },
 
       models: {
@@ -960,6 +963,15 @@ export const zhCN = {
 
     connectionTarget: '连接目标',
     notFound: '未找到连接',
+
+    prompt: {
+      title: 'Agent 提示词',
+      label: '系统提示词',
+      description:
+        '连接专属系统提示词。每当此连接被 agent 使用时，会发送给 LLM，位于全局系统提示词之后。',
+      placeholder: '向 AI agent 描述此连接，例如数据的业务含义、命名约定、常见查询……',
+      clear: '清除',
+    },
 
     ssh: {
       title: 'SSH 隧道',
