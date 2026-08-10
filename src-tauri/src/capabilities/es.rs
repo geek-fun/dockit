@@ -158,6 +158,9 @@ pub(crate) struct EsGetAlias;
 pub(crate) struct EsPutAlias;
 pub(crate) struct EsDeleteAlias;
 pub(crate) struct EsUpdateAliases;
+pub(crate) struct EsBulk;
+pub(crate) struct EsCount;
+pub(crate) struct EsReindex;
 
 macro_rules! impl_es_handler {
     ($struct:ty, $method:expr, $path_fn:expr, $has_body:expr) => {
@@ -521,6 +524,61 @@ impl_es_handler!(
     true
 );
 
+#[async_trait::async_trait]
+impl CapabilityHandler for EsBulk {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config = connection_config
+            .ok_or_else(|| "ES requires a connection config".to_string())?;
+        let index = args
+            .get("index")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "Missing index".to_string())?;
+        crate::common::validation::validate_index_name(index, false)?;
+        let body = args
+            .get("body")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "Missing body (NDJSON bulk operations)".to_string())?;
+        let path = format!(
+            "/{}/_bulk",
+            crate::common::validation::url_encode_segment(index)
+        );
+        execute_es_http("POST", &path, Some(body), config, None).await
+    }
+}
+
+impl_es_handler!(
+    EsCount,
+    "POST",
+    |args: &Value| -> Result<String, String> {
+        match args
+            .get("index")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+        {
+            Some(index) => {
+                crate::common::validation::validate_index_name(index, true)?;
+                Ok(format!(
+                    "/{}/_count",
+                    crate::common::validation::url_encode_segment(index)
+                ))
+            }
+            None => Ok("/_count".to_string()),
+        }
+    },
+    true
+);
+
+impl_es_handler!(
+    EsReindex,
+    "POST",
+    |_args: &Value| -> Result<String, String> { Ok("/_reindex".to_string()) },
+    true
+);
+
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
@@ -754,6 +812,18 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     reg!("es__update_aliases", "Atomically add and/or remove multiple aliases in a single operation using the _aliases endpoint.", EsUpdateAliases,
          es_schema(&[("body", "Alias actions body", "object", true)]),
          RiskLevel::Elevated, "update", &["agent"]);
+
+    reg!("es__bulk", "Execute bulk index/create/update/delete operations in a single request using the NDJSON _bulk endpoint.\n\nUse when you need to batch multiple document operations (index, create, update, delete) for performance — instead of calling index_document/update_document/delete_document individually.\n\nExample: {\"index\": \"orders\", \"body\": \"{\\\"index\\\":{\\\"_id\\\":\\\"1\\\"}}\\n{\\\"status\\\":\\\"shipped\\\"}\\n{\\\"delete\\\":{\\\"_id\\\":\\\"2\\\"}}\\n\"}.", EsBulk,
+         es_schema(&[("index", "Target index name", "string", true), ("body", "NDJSON bulk operations body — one action+metadata line per operation, an optional source line for writes, separated by newlines", "string", true)]),
+         RiskLevel::Elevated, "create", &["agent"]);
+
+    reg!("es__count", "Count documents in an Elasticsearch index, optionally matching a query. Supports wildcard patterns and counting across all indices.\n\nUse when you need a quick document count (with optional query filter) — instead of running a full search and checking hits.total.value.\n\nExample: {\"index\": \"orders*\", \"body\": {\"query\": {\"term\": {\"status\": \"shipped\"}}}}.", EsCount,
+         es_schema(&[("index", "Target index name or pattern (supports wildcards, e.g. orders*). Omit to count all indices.", "string", false), ("body", "Optional Elasticsearch query DSL to filter documents before counting", "object", false)]),
+         RiskLevel::Safe, "read", &["agent"], true);
+
+    reg!("es__reindex", "Copy documents from one index to another using the _reindex API, with optional query filtering and script transformations.\n\nUse when migrating data between indices, changing mappings, reindexing a subset of documents, or copying data to a new index.\n\nExample: {\"body\": {\"source\": {\"index\": \"old-orders\"}, \"dest\": {\"index\": \"new-orders\"}}}.", EsReindex,
+         es_schema(&[("body", "Reindex request body with source.index and dest.index", "object", true)]),
+         RiskLevel::Elevated, "create", &["agent"]);
 }
 
 #[cfg(test)]
@@ -1462,6 +1532,9 @@ mod tests {
         assert!(reg.get("es__put_alias").is_some());
         assert!(reg.get("es__delete_alias").is_some());
         assert!(reg.get("es__update_aliases").is_some());
+        assert!(reg.get("es__bulk").is_some());
+        assert!(reg.get("es__count").is_some());
+        assert!(reg.get("es__reindex").is_some());
 
         let all_agent = reg.agent_tools();
         let es_agent: Vec<_> = all_agent
@@ -1470,8 +1543,162 @@ mod tests {
             .collect();
         assert_eq!(
             es_agent.len(),
-            16,
-            "expected 16 ES capabilities tagged for agent"
+            19,
+            "expected 19 ES capabilities tagged for agent"
         );
+    }
+
+    // ---- EsBulk ----
+
+    #[cfg(not(target_os = "windows"))]
+    #[tokio::test]
+    async fn test_es_bulk_via_wiremock() {
+        use super::{CapabilityHandler, EsBulk};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/my-index/_bulk"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(r#"{"errors":false,"items":[{"index":{"_id":"1","result":"created"}},{"delete":{"_id":"2","result":"deleted"}}]}"#),
+            )
+            .mount(&server)
+            .await;
+
+        let handler = EsBulk;
+        let body = "{\"index\":{\"_id\":\"1\"}}\n{\"title\":\"hello\"}\n{\"delete\":{\"_id\":\"2\"}}\n";
+        let args = serde_json::json!({"index": "my-index", "body": body});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("items"));
+    }
+
+    #[tokio::test]
+    async fn test_es_bulk_missing_index() {
+        use super::{CapabilityHandler, EsBulk};
+        let handler = EsBulk;
+        let config = serde_json::json!({"host": "http://localhost", "port": 9200});
+        let args = serde_json::json!({"body": "{}"});
+        let result = handler.handle(&args, Some(&config)).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing index"));
+    }
+
+    #[tokio::test]
+    async fn test_es_bulk_missing_body() {
+        use super::{CapabilityHandler, EsBulk};
+        let handler = EsBulk;
+        let config = serde_json::json!({"host": "http://localhost", "port": 9200});
+        let args = serde_json::json!({"index": "my-index"});
+        let result = handler.handle(&args, Some(&config)).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing body"));
+    }
+
+    // ---- EsCount ----
+
+    #[cfg(not(target_os = "windows"))]
+    #[tokio::test]
+    async fn test_es_count_with_index_via_wiremock() {
+        use super::{CapabilityHandler, EsCount};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/my-index/_count"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string(r#"{"count":42,"_shards":{"total":1,"successful":1}}"#),
+            )
+            .mount(&server)
+            .await;
+
+        let handler = EsCount;
+        let args = serde_json::json!({"index": "my-index"});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("count"));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[tokio::test]
+    async fn test_es_count_all_indices_via_wiremock() {
+        use super::{CapabilityHandler, EsCount};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/_count"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_string(r#"{"count":100,"_shards":{"total":5,"successful":5}}"#),
+            )
+            .mount(&server)
+            .await;
+
+        let handler = EsCount;
+        let args = serde_json::json!({});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("count"));
+    }
+
+    // ---- EsReindex ----
+
+    #[cfg(not(target_os = "windows"))]
+    #[tokio::test]
+    async fn test_es_reindex_via_wiremock() {
+        use super::{CapabilityHandler, EsReindex};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/_reindex"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_string(r#"{"took":123,"total":10,"created":10,"batches":1}"#),
+            )
+            .mount(&server)
+            .await;
+
+        let handler = EsReindex;
+        let args = serde_json::json!({"body": {"source": {"index": "old-index"}, "dest": {"index": "new-index"}}});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(result.is_ok(), "got: {:?}", result.err());
+        assert!(result.unwrap().contains("created"));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    #[tokio::test]
+    async fn test_es_reindex_missing_body() {
+        use super::{CapabilityHandler, EsReindex};
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let server = MockServer::start().await;
+        // The reindex handler does not validate `body` itself — a missing body is
+        // forwarded as-is and rejected by ES with a 400. Verify the handler
+        // surfaces ES's rejection instead of failing on the missing argument.
+        Mock::given(method("POST"))
+            .and(path("/_reindex"))
+            .respond_with(
+                ResponseTemplate::new(400)
+                    .set_body_string(r#"{"error":{"reason":"request body is required"}}"#),
+            )
+            .mount(&server)
+            .await;
+
+        let handler = EsReindex;
+        let args = serde_json::json!({});
+        let result = handler.handle(&args, Some(&mock_config(&server))).await;
+        assert!(
+            result.is_ok(),
+            "missing body must not error locally, got: {:?}",
+            result.err()
+        );
+        assert!(result.unwrap().contains("400"));
     }
 }
