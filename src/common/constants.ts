@@ -18,4 +18,5 @@ export const CHAT_RUNTIME_DEFAULTS = {
   maxIterations: 200,
   wallClockBudgetMin: 30,
   tokenBudget: 20_000_000,
+  systemPrompt: '',
 } as const;

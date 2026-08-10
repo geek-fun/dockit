@@ -81,6 +81,7 @@ export type ChatRuntimeConfig = {
   maxIterations: number;
   wallClockBudgetMin: number;
   tokenBudget: number;
+  systemPrompt: string;
 };
 
 export type LlmSettings = {
@@ -483,6 +484,7 @@ const mergeLlmSettings = (stored: Partial<LlmSettings> | undefined): LlmSettings
       wallClockBudgetMin:
         stored?.chat?.wallClockBudgetMin ?? CHAT_RUNTIME_DEFAULTS.wallClockBudgetMin,
       tokenBudget: stored?.chat?.tokenBudget ?? CHAT_RUNTIME_DEFAULTS.tokenBudget,
+      systemPrompt: stored?.chat?.systemPrompt ?? CHAT_RUNTIME_DEFAULTS.systemPrompt,
     },
   };
 };
@@ -567,6 +569,7 @@ export const useAppStore = defineStore('app', {
         wallClockBudgetMin:
           state.llmSettings.chat?.wallClockBudgetMin ?? CHAT_RUNTIME_DEFAULTS.wallClockBudgetMin,
         tokenBudget: state.llmSettings.chat?.tokenBudget ?? CHAT_RUNTIME_DEFAULTS.tokenBudget,
+        systemPrompt: state.llmSettings.chat?.systemPrompt ?? CHAT_RUNTIME_DEFAULTS.systemPrompt,
       };
     },
   },

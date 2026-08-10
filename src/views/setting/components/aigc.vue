@@ -182,6 +182,23 @@
           @update:model-value="value => setTokenBudget(Number(value))"
         />
       </div>
+
+      <div
+        class="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/70 px-5 py-4 shadow-sm md:flex-col md:items-stretch"
+      >
+        <div class="min-w-0 space-y-1">
+          <p class="text-base font-semibold">{{ $t('setting.ai.chat.systemPromptLabel') }}</p>
+          <p class="text-sm text-muted-foreground">
+            {{ $t('setting.ai.chat.systemPromptDescription') }}
+          </p>
+        </div>
+        <textarea
+          class="textarea-input mt-2 w-full resize-y"
+          :model-value="systemPrompt"
+          :placeholder="$t('setting.ai.chat.systemPromptLabel')"
+          @update:model-value="setSystemPrompt"
+        />
+      </div>
     </section>
 
     <Dialog :open="providerDialogOpen" @update:open="handleProviderDialogOpenChange">
@@ -432,6 +449,7 @@ const autoCompactEnabled = computed(() => chatConfig.value.autoCompact);
 const maxIterations = computed(() => chatConfig.value.maxIterations);
 const wallClockBudgetMin = computed(() => chatConfig.value.wallClockBudgetMin);
 const tokenBudget = computed(() => chatConfig.value.tokenBudget);
+const systemPrompt = computed(() => chatConfig.value.systemPrompt);
 
 const setAutoCompact = async (value: boolean) => {
   const result = await appStore.saveChatSettings({ autoCompact: value });
@@ -460,6 +478,13 @@ const setTokenBudget = async (value: number) => {
   const result = await appStore.saveChatSettings({
     tokenBudget: Math.max(1_000, Math.floor(value)),
   });
+  if (!result.success) {
+    message.error(`Failed to persist: ${result.error}`, { closable: true, keepAliveOnHover: true });
+  }
+};
+
+const setSystemPrompt = async (value: string) => {
+  const result = await appStore.saveChatSettings({ systemPrompt: value });
   if (!result.success) {
     message.error(`Failed to persist: ${result.error}`, { closable: true, keepAliveOnHover: true });
   }
@@ -957,3 +982,25 @@ const providerBaseUrlPlaceholder = (kind: ProviderKind) => {
   }
 };
 </script>
+
+<style scoped>
+.textarea-input {
+  display: flex;
+  min-height: 120px;
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--input));
+  background-color: hsl(var(--background));
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  resize: vertical;
+}
+.textarea-input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(var(--ring));
+}
+.textarea-input::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+</style>
