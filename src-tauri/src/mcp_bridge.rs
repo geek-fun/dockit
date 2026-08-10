@@ -423,6 +423,16 @@ fn to_metadata(cap: &Capability) -> Value {
     })
 }
 
+fn to_safe_connection_summary(connection: &Value) -> Value {
+    json!({
+        "id": connection.get("id"),
+        "name": connection.get("name"),
+        "type": connection.get("type"),
+        // Credentials (password, apiKey, auth) must stay out of this whitelist.
+        "prompt": connection.get("prompt").and_then(Value::as_str),
+    })
+}
+
 fn list_connections() -> Value {
     let handle = match crate::APP_HANDLE.get() {
         Some(h) => h,
@@ -436,17 +446,7 @@ fn list_connections() -> Value {
     let connections = store.get("connections").unwrap_or(json!([]));
     let safe_list: Vec<Value> = connections
         .as_array()
-        .map(|arr| {
-            arr.iter()
-                .map(|c| {
-                    json!({
-                        "id": c.get("id"),
-                        "name": c.get("name"),
-                        "type": c.get("type"),
-                    })
-                })
-                .collect()
-        })
+        .map(|arr| arr.iter().map(to_safe_connection_summary).collect())
         .unwrap_or_default();
 
     json!(safe_list)
@@ -782,6 +782,40 @@ mod tests {
     #[test]
     fn test_list_connections_empty_without_app_handle() {
         assert_eq!(list_connections(), json!([]));
+    }
+
+    #[test]
+    fn test_to_safe_connection_summary_exposes_prompt_only() {
+        let conn = json!({
+            "id": 42,
+            "name": "prod-cluster",
+            "type": "ELASTICSEARCH",
+            "prompt": "Orders cluster. Field meanings: ...",
+            "password": "super-secret",
+            "apiKey": "sk-abc",
+            "auth": { "uri": "mongodb://user:pass@host" },
+        });
+        let summary = to_safe_connection_summary(&conn);
+        assert_eq!(summary["id"], 42);
+        assert_eq!(summary["name"], "prod-cluster");
+        assert_eq!(summary["type"], "ELASTICSEARCH");
+        assert_eq!(summary["prompt"], "Orders cluster. Field meanings: ...");
+        assert!(summary.get("password").is_none());
+        assert!(summary.get("apiKey").is_none());
+        assert!(summary.get("auth").is_none());
+    }
+
+    #[test]
+    fn test_to_safe_connection_summary_prompt_absent_yields_null() {
+        let conn = json!({
+            "id": 7,
+            "name": "no-prompt",
+            "type": "MONGODB",
+            "password": "secret",
+        });
+        let summary = to_safe_connection_summary(&conn);
+        assert_eq!(summary["prompt"], Value::Null);
+        assert!(summary.get("password").is_none());
     }
 
     #[test]
