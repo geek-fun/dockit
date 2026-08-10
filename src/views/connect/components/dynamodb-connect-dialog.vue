@@ -54,20 +54,20 @@
               :model-value="connectionMode"
               @update:model-value="value => onConnectionModeChange(value as string)"
             >
-              <TabsList class="w-full">
-                <TabsTrigger class="flex-1" value="accessKey">
+              <TabsList class="w-full h-8">
+                <TabsTrigger class="flex-1 py-0.5" value="accessKey">
                   {{ $t('connection.authAccessKey') }}
                 </TabsTrigger>
-                <TabsTrigger class="flex-1" value="profile">
+                <TabsTrigger class="flex-1 py-0.5" value="profile">
                   {{ $t('connection.authProfile') }}
                 </TabsTrigger>
-                <TabsTrigger class="flex-1" value="sso">
+                <TabsTrigger class="flex-1 py-0.5" value="sso">
                   {{ $t('connection.authSso') }}
                 </TabsTrigger>
-                <TabsTrigger class="flex-1" value="assumeRole">
+                <TabsTrigger class="flex-1 py-0.5" value="assumeRole">
                   {{ $t('connection.authAssumeRole') }}
                 </TabsTrigger>
-                <TabsTrigger class="flex-1" value="local">
+                <TabsTrigger class="flex-1 py-0.5" value="local">
                   {{ $t('connection.localTarget') }}
                 </TabsTrigger>
               </TabsList>

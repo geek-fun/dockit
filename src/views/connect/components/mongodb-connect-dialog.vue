@@ -63,14 +63,14 @@
                   :model-value="authMode"
                   @update:model-value="value => onAuthModeChange(value as string)"
                 >
-                  <TabsList class="w-full">
-                    <TabsTrigger class="flex-1" value="none">
+                  <TabsList class="w-full h-8">
+                    <TabsTrigger class="flex-1 py-0.5" value="none">
                       {{ $t('connection.mongodb.authNone') }}
                     </TabsTrigger>
-                    <TabsTrigger class="flex-1" value="uri">
+                    <TabsTrigger class="flex-1 py-0.5" value="uri">
                       {{ $t('connection.mongodb.authUri') }}
                     </TabsTrigger>
-                    <TabsTrigger class="flex-1" value="scram">
+                    <TabsTrigger class="flex-1 py-0.5" value="scram">
                       {{ $t('connection.mongodb.authScram') }}
                     </TabsTrigger>
                   </TabsList>

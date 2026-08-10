@@ -144,11 +144,11 @@
                     :model-value="authType"
                     @update:model-value="value => onAuthTypeChange(value as string)"
                   >
-                    <TabsList class="w-full">
-                      <TabsTrigger class="flex-1" value="basic">
+                    <TabsList class="w-full h-8">
+                      <TabsTrigger class="flex-1 py-0.5" value="basic">
                         {{ $t('connection.authTypeBasic') }}
                       </TabsTrigger>
-                      <TabsTrigger class="flex-1" value="apiKey">
+                      <TabsTrigger class="flex-1 py-0.5" value="apiKey">
                         {{ $t('connection.authTypeApiKey') }}
                       </TabsTrigger>
                     </TabsList>
