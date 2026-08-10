@@ -476,6 +476,74 @@ impl MongoSampleDocuments {
     }
 }
 
+pub(crate) struct MongoInsertMany {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoInsertMany {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealMongoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoFindOneAndUpdate {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoFindOneAndUpdate {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealMongoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoBulkWrite {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoBulkWrite {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealMongoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
+pub(crate) struct MongoDistinct {
+    factory: Box<dyn MongoClientFactory>,
+}
+
+impl MongoDistinct {
+    pub(crate) fn new() -> Self {
+        Self {
+            factory: Box::new(RealMongoClientFactory),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_factory(factory: Box<dyn MongoClientFactory>) -> Self {
+        Self { factory }
+    }
+}
+
 #[async_trait::async_trait]
 impl CapabilityHandler for MongoListDatabases {
     async fn handle(
@@ -1782,6 +1850,317 @@ impl CapabilityHandler for MongoSampleDocuments {
 }
 
 // ---------------------------------------------------------------------------
+// insert_many handler
+// ---------------------------------------------------------------------------
+
+#[async_trait::async_trait]
+impl CapabilityHandler for MongoInsertMany {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
+        let (client, _) = self.factory.create_client(config).await?;
+        let db_name = get_db_name(args, config)?;
+        let collection_name = args
+            .get("collection")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing collection")?;
+        let docs_val = args
+            .get("documents")
+            .and_then(|v| v.as_array())
+            .ok_or("Missing or invalid documents array")?;
+        let docs: Vec<Document> = docs_val
+            .iter()
+            .map(crate::common::bson::json_to_bson_doc_agent)
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let db = client.database(&db_name);
+        let coll = db.collection::<Document>(collection_name);
+        let result = coll
+            .insert_many(docs)
+            .await
+            .map_err(|e| format!("insert_many failed: {}", e))?;
+        let inserted_ids: Value = result
+            .inserted_ids
+            .iter()
+            .map(|(k, v)| {
+                (k.to_string(), crate::common::bson::bson_to_value(v))
+            })
+            .collect::<serde_json::Map<_, _>>()
+            .into();
+        let data = serde_json::json!({
+            "inserted_count": result.inserted_ids.len(),
+            "inserted_ids": inserted_ids,
+        });
+        Ok(ApiResponse::json(data).into_string())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// find_one_and_update handler
+// ---------------------------------------------------------------------------
+
+#[async_trait::async_trait]
+impl CapabilityHandler for MongoFindOneAndUpdate {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
+        let (client, _) = self.factory.create_client(config).await?;
+        let db_name = get_db_name(args, config)?;
+        let collection_name = args
+            .get("collection")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing collection")?;
+        let filter_val = args.get("filter").ok_or("Missing filter")?;
+        let update_val = args.get("update").ok_or("Missing update")?;
+        let filter = crate::common::bson::json_to_bson_doc_agent(filter_val)?;
+        let update = crate::common::bson::json_to_bson_doc_agent(update_val)?;
+
+        let db = client.database(&db_name);
+        let coll = db.collection::<Document>(collection_name);
+
+        let return_doc = args
+            .get("options")
+            .and_then(|o| o.get("return_document"))
+            .and_then(|v| v.as_str());
+        let upsert = args
+            .get("options")
+            .and_then(|o| o.get("upsert"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let sort_val = args
+            .get("options")
+            .and_then(|o| o.get("sort"));
+
+        let mut builder = coll.find_one_and_update(filter, update);
+        match return_doc {
+            Some("after") => {
+                builder = builder.return_document(mongodb::options::ReturnDocument::After);
+            }
+            _ => {}
+        }
+        if upsert {
+            builder = builder.upsert(true);
+        }
+        if let Some(sort) = sort_val {
+            let sort_doc = crate::common::bson::json_to_bson_doc_agent(sort)?;
+            builder = builder.sort(sort_doc);
+        }
+
+        let result_doc = builder
+            .await
+            .map_err(|e| format!("find_one_and_update failed: {}", e))?;
+
+        match result_doc {
+            Some(doc) => {
+                let data = serde_json::json!({
+                    "document": crate::common::bson::bson_to_value(&mongodb::bson::Bson::Document(doc)),
+                });
+                Ok(ApiResponse::json(data).into_string())
+            }
+            None => {
+                let data = serde_json::json!({ "document": null });
+                Ok(ApiResponse::json(data).into_string())
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// bulk_write handler
+// ---------------------------------------------------------------------------
+
+#[async_trait::async_trait]
+impl CapabilityHandler for MongoBulkWrite {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
+        let (client, _) = self.factory.create_client(config).await?;
+        let db_name = get_db_name(args, config)?;
+        let collection_name = args
+            .get("collection")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing collection")?;
+        let ops_val = args
+            .get("operations")
+            .and_then(|v| v.as_array())
+            .ok_or("Missing or invalid operations array")?;
+
+        let db = client.database(&db_name);
+        let coll = db.collection::<Document>(collection_name);
+        let ns = coll.namespace();
+
+        let mut models: Vec<mongodb::options::WriteModel> = Vec::new();
+
+        for op in ops_val {
+            let op_type = op
+                .get("op")
+                .and_then(|v| v.as_str())
+                .ok_or("Each operation must have an 'op' field")?;
+
+            match op_type {
+                "insert_one" => {
+                    let doc_val = op
+                        .get("document")
+                        .ok_or("insert_one operation missing 'document'")?;
+                    let doc = crate::common::bson::json_to_bson_doc_agent(doc_val)?;
+                    models.push(mongodb::options::WriteModel::InsertOne(
+                        mongodb::options::InsertOneModel::builder()
+                            .namespace(ns.clone())
+                            .document(doc)
+                            .build(),
+                    ));
+                }
+                "update_one" => {
+                    let filter_val = op.get("filter").ok_or("update_one missing 'filter'")?;
+                    let update_val = op.get("update").ok_or("update_one missing 'update'")?;
+                    let filter = crate::common::bson::json_to_bson_doc_agent(filter_val)?;
+                    let update = crate::common::bson::json_to_bson_doc_agent(update_val)?;
+                    let model = if let Some(true) =
+                        op.get("upsert").and_then(|v| v.as_bool())
+                    {
+                        mongodb::options::UpdateOneModel::builder()
+                            .namespace(ns.clone())
+                            .filter(filter)
+                            .update(update)
+                            .upsert(true)
+                            .build()
+                    } else {
+                        mongodb::options::UpdateOneModel::builder()
+                            .namespace(ns.clone())
+                            .filter(filter)
+                            .update(update)
+                            .build()
+                    };
+                    models.push(mongodb::options::WriteModel::UpdateOne(model));
+                }
+                "update_many" => {
+                    let filter_val =
+                        op.get("filter").ok_or("update_many missing 'filter'")?;
+                    let update_val =
+                        op.get("update").ok_or("update_many missing 'update'")?;
+                    let filter = crate::common::bson::json_to_bson_doc_agent(filter_val)?;
+                    let update = crate::common::bson::json_to_bson_doc_agent(update_val)?;
+                    let model = if let Some(true) =
+                        op.get("upsert").and_then(|v| v.as_bool())
+                    {
+                        mongodb::options::UpdateManyModel::builder()
+                            .namespace(ns.clone())
+                            .filter(filter)
+                            .update(update)
+                            .upsert(true)
+                            .build()
+                    } else {
+                        mongodb::options::UpdateManyModel::builder()
+                            .namespace(ns.clone())
+                            .filter(filter)
+                            .update(update)
+                            .build()
+                    };
+                    models.push(mongodb::options::WriteModel::UpdateMany(model));
+                }
+                "delete_one" => {
+                    let filter_val =
+                        op.get("filter").ok_or("delete_one missing 'filter'")?;
+                    let filter = crate::common::bson::json_to_bson_doc_agent(filter_val)?;
+                    models.push(mongodb::options::WriteModel::DeleteOne(
+                        mongodb::options::DeleteOneModel::builder()
+                            .namespace(ns.clone())
+                            .filter(filter)
+                            .build(),
+                    ));
+                }
+                "delete_many" => {
+                    let filter_val =
+                        op.get("filter").ok_or("delete_many missing 'filter'")?;
+                    let filter = crate::common::bson::json_to_bson_doc_agent(filter_val)?;
+                    models.push(mongodb::options::WriteModel::DeleteMany(
+                        mongodb::options::DeleteManyModel::builder()
+                            .namespace(ns.clone())
+                            .filter(filter)
+                            .build(),
+                    ));
+                }
+                _ => {
+                    return Err(format!("Unknown operation type: {}", op_type));
+                }
+            }
+        }
+
+        let result = client
+            .bulk_write(models)
+            .await
+            .map_err(|e| format!("bulk_write failed: {}", e))?;
+
+        let data = serde_json::json!({
+            "inserted_count": result.inserted_count,
+            "upserted_count": result.upserted_count,
+            "modified_count": result.modified_count,
+            "deleted_count": result.deleted_count,
+        });
+        Ok(ApiResponse::json(data).into_string())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// distinct handler
+// ---------------------------------------------------------------------------
+
+#[async_trait::async_trait]
+impl CapabilityHandler for MongoDistinct {
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String> {
+        let config =
+            connection_config.ok_or_else(|| "MongoDB requires a connection config".to_string())?;
+        let (client, _) = self.factory.create_client(config).await?;
+        let db_name = get_db_name(args, config)?;
+        let collection_name = args
+            .get("collection")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing collection")?;
+        let field = args
+            .get("field")
+            .and_then(|v| v.as_str())
+            .ok_or("Missing field")?;
+        let filter = args
+            .get("filter")
+            .map(crate::common::bson::json_to_bson_doc_agent)
+            .transpose()?
+            .unwrap_or_else(|| doc! {});
+
+        let db = client.database(&db_name);
+        let coll = db.collection::<Document>(collection_name);
+        let values: Vec<Value> = coll
+            .distinct(field, filter)
+            .await
+            .map_err(|e| format!("distinct failed: {}", e))?
+            .iter()
+            .map(crate::common::bson::bson_to_value)
+            .collect();
+
+        let data = serde_json::json!({
+            "field": field,
+            "values": values,
+        });
+        Ok(ApiResponse::json(data).into_string())
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
 
@@ -2199,6 +2578,101 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
                 "limit",
                 "Maximum number of documents to return (default 10, max 1000)",
                 "integer",
+                false
+            ),
+        ]),
+        RiskLevel::Safe,
+        "read",
+        &["agent", "ui"],
+        true
+    );
+
+    reg!(
+        "mongo__insert_many",
+        "Insert multiple documents into a MongoDB collection in a single round trip.\n\nUse when you need to insert several documents at once — more efficient than multiple insert_one calls for bulk inserts.\n\nExample: {\"database\": \"app\", \"collection\": \"users\", \"documents\": [{\"name\": \"Alice\"}, {\"name\": \"Bob\"}]}.",
+        MongoInsertMany::new(),
+        mongo_schema(&[
+            ("database", "MongoDB database name", "string", false),
+            ("collection", "Collection name", "string", true),
+            (
+                "documents",
+                "Array of documents to insert",
+                "array",
+                true
+            ),
+        ]),
+        RiskLevel::Elevated,
+        "create",
+        &["agent", "ui"]
+    );
+
+    reg!(
+        "mongo__find_one_and_update",
+        "Find a single document in a MongoDB collection, update it atomically, and return either the original or updated version.\n\nUse when you need to atomically read and modify a document — e.g., increment a counter, claim a task, or reserve a resource.\n\nExample: {\"database\": \"app\", \"collection\": \"tasks\", \"filter\": {\"status\": \"pending\"}, \"update\": {\"$set\": {\"status\": \"processing\"}}, \"options\": {\"return_document\": \"after\", \"sort\": {\"priority\": 1}}}.",
+        MongoFindOneAndUpdate::new(),
+        mongo_schema(&[
+            ("database", "MongoDB database name", "string", false),
+            ("collection", "Collection name", "string", true),
+            (
+                "filter",
+                "Query filter to match the document to update",
+                "object",
+                true
+            ),
+            (
+                "update",
+                "Update operations, e.g. {\"$set\": {\"status\": \"done\"}}",
+                "object",
+                true
+            ),
+            (
+                "options",
+                "Optional settings: {return_document: \"before\"|\"after\", upsert: bool, sort: object}",
+                "object",
+                false
+            ),
+        ]),
+        RiskLevel::Elevated,
+        "update",
+        &["agent"]
+    );
+
+    reg!(
+        "mongo__bulk_write",
+        "Execute multiple write operations (insert, update, delete) in a single round trip to a MongoDB collection.\n\nUse when you need to batch mixed write operations — insert some docs, update others, delete some — all in one efficient call. Supports insert_one, update_one, update_many, delete_one, delete_many.\n\nExample: {\"database\": \"app\", \"collection\": \"logs\", \"operations\": [{\"op\": \"insert_one\", \"document\": {\"msg\": \"start\"}}, {\"op\": \"delete_many\", \"filter\": {\"level\": \"debug\"}}]}.",
+        MongoBulkWrite::new(),
+        mongo_schema(&[
+            ("database", "MongoDB database name", "string", false),
+            ("collection", "Collection name", "string", true),
+            (
+                "operations",
+                "Array of operations. Each has 'op' field: insert_one (needs 'document'), update_one/update_many (needs 'filter','update', optional 'upsert'), delete_one/delete_many (needs 'filter')",
+                "array",
+                true
+            ),
+        ]),
+        RiskLevel::Elevated,
+        "write",
+        &["agent"]
+    );
+
+    reg!(
+        "mongo__distinct",
+        "Get the distinct values for a specific field across a MongoDB collection, optionally filtered.\n\nUse when you need to enumerate all unique values of a field — e.g., list all categories, tags, or status codes used in a collection.\n\nExample: {\"database\": \"app\", \"collection\": \"products\", \"field\": \"category\", \"filter\": {\"active\": true}}.",
+        MongoDistinct::new(),
+        mongo_schema(&[
+            ("database", "MongoDB database name", "string", false),
+            ("collection", "Collection name", "string", true),
+            (
+                "field",
+                "Field name to find distinct values for",
+                "string",
+                true
+            ),
+            (
+                "filter",
+                "Optional query filter to narrow results",
+                "object",
                 false
             ),
         ]),
@@ -2757,6 +3231,138 @@ mod tests {
     async fn test_mongo_repl_set_status_factory_error() {
         let handler = MongoReplSetStatus::with_factory(Box::new(err_factory()));
         let result = handler.handle(&json!({}), Some(&mock_config())).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_insert_many_missing_documents() {
+        let cl = lazy_client();
+        let handler = MongoInsertMany::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Missing or invalid documents array"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_insert_many_missing_config() {
+        let handler = MongoInsertMany::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_insert_many_factory_error() {
+        let handler = MongoInsertMany::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "documents": [{"x": 1}]}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_find_one_and_update_missing_filter() {
+        let cl = lazy_client();
+        let handler = MongoFindOneAndUpdate::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing filter"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_find_one_and_update_missing_config() {
+        let handler = MongoFindOneAndUpdate::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_find_one_and_update_factory_error() {
+        let handler = MongoFindOneAndUpdate::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "filter": {}, "update": {"$set": {"a": 1}}}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_bulk_write_missing_operations() {
+        let cl = lazy_client();
+        let handler = MongoBulkWrite::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Missing or invalid operations array"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_bulk_write_missing_config() {
+        let handler = MongoBulkWrite::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_bulk_write_factory_error() {
+        let handler = MongoBulkWrite::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "operations": [{"op": "insert_one", "document": {"x": 1}}]}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("factory error"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_distinct_missing_field() {
+        let cl = lazy_client();
+        let handler = MongoDistinct::with_factory(Box::new(ok_factory(cl)));
+        let result = handler
+            .handle(&json!({"collection": "c"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing field"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_distinct_missing_config() {
+        let handler = MongoDistinct::new();
+        let result = handler.handle(&json!({}), None).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("connection config"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_distinct_factory_error() {
+        let handler = MongoDistinct::with_factory(Box::new(err_factory()));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "field": "category"}),
+                Some(&mock_config()),
+            )
+            .await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("factory error"));
     }
