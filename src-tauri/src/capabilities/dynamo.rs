@@ -1221,7 +1221,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
 
     reg!(
         "dynamo__list_tables",
-        "List all DynamoDB table names in the connected account and region.",
+        "List all DynamoDB table names in the connected account and region. Use this to discover which tables exist before querying. Report results in the user's language (中文/English).",
         DynamoListTables::new(),
         dynamo_schema(&[]),
         RiskLevel::Safe,
@@ -1233,7 +1233,7 @@ pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
 
     reg!(
         "dynamo__query_table",
-        "Query a DynamoDB table using partition key, optional sort key, filters, and pagination.",
+        "Query a DynamoDB table using partition key, optional sort key, filters, and pagination. Use this whenever a task needs DynamoDB data — instead of shelling out to aws CLI. Report results in the user's language (中文/English).",
         DynamoQueryTable::new(),
         dynamo_schema(&[
             ("table_name", "DynamoDB table name", true),
