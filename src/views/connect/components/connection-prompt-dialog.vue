@@ -13,15 +13,13 @@
       </DialogHeader>
 
       <div class="space-y-4">
-        <FormItem :label="$t('connection.prompt.label')">
-          <p class="text-sm text-muted-foreground">{{ $t('connection.prompt.description') }}</p>
-          <textarea
-            class="prompt-textarea"
-            :model-value="draft"
-            :placeholder="$t('connection.prompt.placeholder')"
-            @update:model-value="draft = $event"
-          />
-        </FormItem>
+        <p class="text-sm text-muted-foreground">{{ $t('connection.prompt.description') }}</p>
+        <textarea
+          class="prompt-textarea"
+          :model-value="draft"
+          :placeholder="$t('connection.prompt.placeholder')"
+          @update:model-value="draft = $event"
+        />
       </div>
 
       <DialogFooter class="mt-4 flex justify-between sm:justify-between">
@@ -52,7 +50,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FormItem } from '@/components/ui/form';
 
 const emit = defineEmits<{
   save: [value: string];

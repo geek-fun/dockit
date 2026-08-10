@@ -966,7 +966,10 @@ export const zhCN = {
 
     prompt: {
       title: 'Agent 提示词',
-      label: '系统提示词',
+      label: 'Agent 提示词',
+      add: '添加 Agent 提示词',
+      edit: '编辑 Agent 提示词',
+      configured: '已配置',
       description:
         '连接专属系统提示词。每当此连接被 agent 使用时，会发送给 LLM，位于全局系统提示词之后。',
       placeholder: '向 AI agent 描述此连接，例如数据的业务含义、命名约定、常见查询……',

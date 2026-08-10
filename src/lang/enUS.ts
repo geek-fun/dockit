@@ -1003,7 +1003,10 @@ export const enUS = {
 
     prompt: {
       title: 'Agent Prompt',
-      label: 'System Prompt',
+      label: 'Agent Prompt',
+      add: 'Add agent prompt',
+      edit: 'Edit agent prompt',
+      configured: 'Configured',
       description:
         'Connection-specific system prompt. Sent to the LLM whenever this connection is used by the agent, after the global system prompt.',
       placeholder:
