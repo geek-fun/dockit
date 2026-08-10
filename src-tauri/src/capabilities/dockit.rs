@@ -93,7 +93,7 @@ impl CapabilityHandler for ListConnections {
 pub(crate) fn register_all(registry: &mut CapabilityRegistry) {
     registry.register(Capability {
         name: "dockit__list_connections",
-        description: "List all configured database connections in DocKit with their name, type, and connection id.",
+        description: "List all configured database connections in DocKit with their name, type, and connection id. Call this when a task needs to access Elasticsearch/MongoDB/DynamoDB to pick the right connection before querying — never fall back to local CLIs (curl/mongosh/aws). Report results in the user's language (中文/English).",
         handler: Arc::new(ListConnections::new()),
         input_schema: serde_json::json!({
             "type": "object",
