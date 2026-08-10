@@ -226,6 +226,17 @@
                     @create-profile="openSshProfileDialog(null)"
                     @edit-profile="openSshProfileDialog($event)"
                   />
+                  <button type="button" class="prompt-toggle" @click="openPromptDialog">
+                    <span class="text-sm font-medium">{{ $t('connection.prompt.label') }}</span>
+                    <span class="prompt-summary" :class="{ 'prompt-summary-empty': !promptValue }">
+                      {{
+                        promptValue
+                          ? $t('connection.prompt.description')
+                          : $t('connection.ssh.notConfigured')
+                      }}
+                    </span>
+                    <Pencil class="h-3 w-3 shrink-0" />
+                  </button>
                   <p v-if="sshTunnelIssue" class="mt-2 text-xs text-destructive">
                     {{ sshTunnelIssue }}
                   </p>
@@ -259,6 +270,7 @@
     </DialogContent>
   </Dialog>
   <SshProfileDialog ref="sshProfileDialogRef" />
+  <ConnectionPromptDialog ref="promptDialogRef" @save="onPromptSave" />
 </template>
 
 <script setup lang="ts">
@@ -277,6 +289,7 @@ import { useLang } from '../../../lang';
 import { useFormValidation, useDialogResult } from '@/composables';
 import { SshTunnelSection } from '@/components/ssh';
 import SshProfileDialog from './ssh-profile-dialog.vue';
+import ConnectionPromptDialog from './connection-prompt-dialog.vue';
 
 import {
   Dialog,
@@ -314,7 +327,9 @@ const authMode = ref<'none' | 'scram' | 'uri'>('none');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 const sshConfig = ref<SshConnectionConfig>({ enabled: false });
 const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
+const promptDialogRef = ref<InstanceType<typeof ConnectionPromptDialog> | null>(null);
 const showAdvanced = ref(false);
+const promptValue = computed(() => formData.value.prompt ?? '');
 
 function openSshProfileDialog(profileId: string | null) {
   if (sshProfileDialogRef.value) {
@@ -323,6 +338,16 @@ function openSshProfileDialog(profileId: string | null) {
       : null;
     sshProfileDialogRef.value.show(profile);
   }
+}
+
+function openPromptDialog() {
+  if (promptDialogRef.value) {
+    promptDialogRef.value.show(formData.value.prompt);
+  }
+}
+
+function onPromptSave(value: string) {
+  formData.value.prompt = value.trim() || undefined;
 }
 
 const defaultFormData = {
@@ -755,5 +780,33 @@ defineExpose({ showMedal });
 
 .advanced-content {
   padding-top: 12px;
+}
+
+.prompt-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 0;
+  margin-top: 4px;
+  color: hsl(var(--foreground));
+  border-top: 1px solid hsl(var(--border));
+}
+
+.prompt-summary {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.prompt-summary-empty {
+  font-style: italic;
 }
 </style>
