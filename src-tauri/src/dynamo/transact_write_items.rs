@@ -79,17 +79,12 @@ pub async fn transact_write_items(
                 let keys = item
                     .get("keys")
                     .and_then(|v| v.as_array())
-                    .ok_or_else(|| {
-                        format!("Missing 'keys' array for 'update' at index {}", idx)
-                    })?;
+                    .ok_or_else(|| format!("Missing 'keys' array for 'update' at index {}", idx))?;
                 let attributes = item
                     .get("attributes")
                     .and_then(|v| v.as_array())
                     .ok_or_else(|| {
-                        format!(
-                            "Missing 'attributes' array for 'update' at index {}",
-                            idx
-                        )
+                        format!("Missing 'attributes' array for 'update' at index {}", idx)
                     })?;
 
                 let mut key_map: HashMap<String, AttributeValue> = HashMap::new();
@@ -106,8 +101,7 @@ pub async fn transact_write_items(
                 }
 
                 let mut update_expression_parts: Vec<String> = Vec::new();
-                let mut expression_attribute_names: HashMap<String, String> =
-                    HashMap::new();
+                let mut expression_attribute_names: HashMap<String, String> = HashMap::new();
                 let mut expression_attribute_values: HashMap<String, AttributeValue> =
                     HashMap::new();
 
@@ -123,18 +117,14 @@ pub async fn transact_write_items(
                         expression_attribute_names
                             .insert(name_placeholder.clone(), key.to_string());
                         if let Some(av) = convert_json_to_attr_value(value, attr_type) {
-                            expression_attribute_values
-                                .insert(value_placeholder.clone(), av);
-                            update_expression_parts.push(format!(
-                                "{} = {}",
-                                name_placeholder, value_placeholder
-                            ));
+                            expression_attribute_values.insert(value_placeholder.clone(), av);
+                            update_expression_parts
+                                .push(format!("{} = {}", name_placeholder, value_placeholder));
                         }
                     }
                 }
 
-                let update_expression =
-                    format!("SET {}", update_expression_parts.join(", "));
+                let update_expression = format!("SET {}", update_expression_parts.join(", "));
 
                 let mut update_builder = aws_sdk_dynamodb::types::Update::builder()
                     .table_name(table_name)
@@ -142,27 +132,25 @@ pub async fn transact_write_items(
                     .update_expression(update_expression);
 
                 for (placeholder, name) in expression_attribute_names {
-                    update_builder =
-                        update_builder.expression_attribute_names(placeholder, name);
+                    update_builder = update_builder.expression_attribute_names(placeholder, name);
                 }
                 for (placeholder, value) in expression_attribute_values {
-                    update_builder =
-                        update_builder.expression_attribute_values(placeholder, value);
+                    update_builder = update_builder.expression_attribute_values(placeholder, value);
                 }
 
                 aws_sdk_dynamodb::types::TransactWriteItem::builder()
-                    .update(update_builder.build().map_err(|e| {
-                        format!("Failed to build Update: {}", e)
-                    })?)
+                    .update(
+                        update_builder
+                            .build()
+                            .map_err(|e| format!("Failed to build Update: {}", e))?,
+                    )
                     .build()
             }
             "delete" => {
                 let keys = item
                     .get("keys")
                     .and_then(|v| v.as_array())
-                    .ok_or_else(|| {
-                        format!("Missing 'keys' array for 'delete' at index {}", idx)
-                    })?;
+                    .ok_or_else(|| format!("Missing 'keys' array for 'delete' at index {}", idx))?;
 
                 let mut key_map: HashMap<String, AttributeValue> = HashMap::new();
                 for key_attr in keys {
@@ -205,10 +193,7 @@ pub async fn transact_write_items(
         .await
     {
         Ok(response) => {
-            let consumed_count = response
-                .consumed_capacity
-                .as_ref()
-                .map_or(0, |v| v.len());
+            let consumed_count = response.consumed_capacity.as_ref().map_or(0, |v| v.len());
 
             let consumed_capacity: Vec<Value> = response
                 .consumed_capacity
@@ -262,10 +247,7 @@ pub async fn transact_write_items(
 
             Ok(ApiResponse {
                 status: 200,
-                message: format!(
-                    "Transaction completed: {} items processed",
-                    consumed_count
-                ),
+                message: format!("Transaction completed: {} items processed", consumed_count),
                 data: Some(serde_json::json!({
                     "consumed_capacity": consumed_capacity,
                     "item_collection_metrics": item_collection_metrics,
@@ -292,9 +274,7 @@ pub async fn transact_write_items(
 mod tests {
     use super::*;
 
-    async fn make_mock_client(
-        server: &wiremock::MockServer,
-    ) -> aws_sdk_dynamodb::Client {
+    async fn make_mock_client(server: &wiremock::MockServer) -> aws_sdk_dynamodb::Client {
         let config = serde_json::json!({
             "region": "us-east-1",
             "authKind": "accessKey",
@@ -320,14 +300,12 @@ mod tests {
                 "x-amz-target",
                 "DynamoDB_20120810.TransactWriteItems",
             ))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                    "ConsumedCapacity": [
-                        {"TableName": "users", "CapacityUnits": 1.0}
-                    ],
-                    "ItemCollectionMetrics": {}
-                })),
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "ConsumedCapacity": [
+                    {"TableName": "users", "CapacityUnits": 1.0}
+                ],
+                "ItemCollectionMetrics": {}
+            })))
             .mount(&server)
             .await;
 
@@ -408,12 +386,10 @@ mod tests {
                 "x-amz-target",
                 "DynamoDB_20120810.TransactWriteItems",
             ))
-            .respond_with(
-                ResponseTemplate::new(400).set_body_json(serde_json::json!({
-                    "__type": "com.amazonaws.dynamodb.v20120810#TransactionCanceledException",
-                    "message": "Transaction cancelled"
-                })),
-            )
+            .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+                "__type": "com.amazonaws.dynamodb.v20120810#TransactionCanceledException",
+                "message": "Transaction cancelled"
+            })))
             .mount(&server)
             .await;
 
@@ -491,7 +467,9 @@ mod tests {
         };
         let result = transact_write_items(&client, input).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Missing 'keys' array for 'update'"));
+        assert!(result
+            .unwrap_err()
+            .contains("Missing 'keys' array for 'update'"));
     }
 
     #[tokio::test]
@@ -503,7 +481,9 @@ mod tests {
         };
         let result = transact_write_items(&client, input).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Missing 'attributes' array for 'update'"));
+        assert!(result
+            .unwrap_err()
+            .contains("Missing 'attributes' array for 'update'"));
     }
 
     #[tokio::test]
@@ -515,7 +495,9 @@ mod tests {
         };
         let result = transact_write_items(&client, input).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Missing 'attributes' array for 'put'"));
+        assert!(result
+            .unwrap_err()
+            .contains("Missing 'attributes' array for 'put'"));
     }
 
     #[tokio::test]
@@ -527,7 +509,9 @@ mod tests {
         };
         let result = transact_write_items(&client, input).await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Missing 'keys' array for 'delete'"));
+        assert!(result
+            .unwrap_err()
+            .contains("Missing 'keys' array for 'delete'"));
     }
 
     #[tokio::test]

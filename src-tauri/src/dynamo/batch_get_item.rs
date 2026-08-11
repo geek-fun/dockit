@@ -45,8 +45,9 @@ pub async fn batch_get_item(
         let mut key_maps: Vec<HashMap<String, AttributeValue>> = Vec::new();
 
         for key_obj in keys_array {
-            let attrs =
-                key_obj.as_object().ok_or("Each key must be a JSON object")?;
+            let attrs = key_obj
+                .as_object()
+                .ok_or("Each key must be a JSON object")?;
             let mut key_map: HashMap<String, AttributeValue> = HashMap::new();
             for (attr_name, attr_val) in attrs {
                 let av = infer_attr_value_from_json(attr_val);
@@ -97,9 +98,7 @@ pub async fn batch_get_item(
                         .map(|item| {
                             let map: serde_json::Map<String, Value> = item
                                 .iter()
-                                .map(|(k, v)| {
-                                    (k.clone(), convert_attr_value_to_json(v))
-                                })
+                                .map(|(k, v)| (k.clone(), convert_attr_value_to_json(v)))
                                 .collect();
                             Value::Object(map)
                         })
@@ -121,9 +120,7 @@ pub async fn batch_get_item(
                                 .map(|key_map| {
                                     let m: serde_json::Map<String, Value> = key_map
                                         .iter()
-                                        .map(|(k, v)| {
-                                            (k.clone(), convert_attr_value_to_json(v))
-                                        })
+                                        .map(|(k, v)| (k.clone(), convert_attr_value_to_json(v)))
                                         .collect();
                                     Value::Object(m)
                                 })
@@ -171,9 +168,9 @@ fn infer_attr_value_from_json(value: &Value) -> AttributeValue {
         Value::Number(n) => AttributeValue::N(n.to_string()),
         Value::Bool(b) => AttributeValue::Bool(*b),
         Value::Null => AttributeValue::Null(true),
-        Value::Array(arr) => AttributeValue::L(
-            arr.iter().map(infer_attr_value_from_json).collect(),
-        ),
+        Value::Array(arr) => {
+            AttributeValue::L(arr.iter().map(infer_attr_value_from_json).collect())
+        }
         Value::Object(map) => AttributeValue::M(
             map.iter()
                 .map(|(k, v)| (k.clone(), infer_attr_value_from_json(v)))
@@ -240,9 +237,7 @@ mod tests {
 
     // ── Integration tests with wiremock (mock DynamoDB HTTP API) ─────────────
 
-    async fn make_mock_client(
-        server: &wiremock::MockServer,
-    ) -> aws_sdk_dynamodb::Client {
+    async fn make_mock_client(server: &wiremock::MockServer) -> aws_sdk_dynamodb::Client {
         let config = serde_json::json!({
             "region": "us-east-1",
             "authKind": "accessKey",
@@ -264,21 +259,16 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path("/"))
-            .and(header(
-                "x-amz-target",
-                "DynamoDB_20120810.BatchGetItem",
-            ))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                    "Responses": {
-                        "users": [
-                            {"id": {"S": "1"}, "name": {"S": "Alice"}},
-                            {"id": {"S": "2"}, "name": {"S": "Bob"}}
-                        ]
-                    },
-                    "UnprocessedKeys": {}
-                })),
-            )
+            .and(header("x-amz-target", "DynamoDB_20120810.BatchGetItem"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "Responses": {
+                    "users": [
+                        {"id": {"S": "1"}, "name": {"S": "Alice"}},
+                        {"id": {"S": "2"}, "name": {"S": "Bob"}}
+                    ]
+                },
+                "UnprocessedKeys": {}
+            })))
             .mount(&server)
             .await;
 
@@ -318,20 +308,15 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path("/"))
-            .and(header(
-                "x-amz-target",
-                "DynamoDB_20120810.BatchGetItem",
-            ))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                    "Responses": {"users": [{"id": {"S": "1"}}]},
-                    "UnprocessedKeys": {
-                        "orders": {
-                            "Keys": [{"id": {"S": "99"}}]
-                        }
+            .and(header("x-amz-target", "DynamoDB_20120810.BatchGetItem"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "Responses": {"users": [{"id": {"S": "1"}}]},
+                "UnprocessedKeys": {
+                    "orders": {
+                        "Keys": [{"id": {"S": "99"}}]
                     }
-                })),
-            )
+                }
+            })))
             .mount(&server)
             .await;
 
@@ -361,16 +346,11 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path("/"))
-            .and(header(
-                "x-amz-target",
-                "DynamoDB_20120810.BatchGetItem",
-            ))
-            .respond_with(
-                ResponseTemplate::new(400).set_body_json(serde_json::json!({
-                    "__type": "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException",
-                    "message": "Requested resource not found"
-                })),
-            )
+            .and(header("x-amz-target", "DynamoDB_20120810.BatchGetItem"))
+            .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+                "__type": "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException",
+                "message": "Requested resource not found"
+            })))
             .mount(&server)
             .await;
 
@@ -397,16 +377,11 @@ mod tests {
 
         Mock::given(method("POST"))
             .and(path("/"))
-            .and(header(
-                "x-amz-target",
-                "DynamoDB_20120810.BatchGetItem",
-            ))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                    "Responses": {},
-                    "UnprocessedKeys": {}
-                })),
-            )
+            .and(header("x-amz-target", "DynamoDB_20120810.BatchGetItem"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "Responses": {},
+                "UnprocessedKeys": {}
+            })))
             .mount(&server)
             .await;
 

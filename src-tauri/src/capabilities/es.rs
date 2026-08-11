@@ -531,8 +531,8 @@ impl CapabilityHandler for EsBulk {
         args: &Value,
         connection_config: Option<&Value>,
     ) -> Result<String, String> {
-        let config = connection_config
-            .ok_or_else(|| "ES requires a connection config".to_string())?;
+        let config =
+            connection_config.ok_or_else(|| "ES requires a connection config".to_string())?;
         let index = args
             .get("index")
             .and_then(|v| v.as_str())
@@ -1568,7 +1568,8 @@ mod tests {
             .await;
 
         let handler = EsBulk;
-        let body = "{\"index\":{\"_id\":\"1\"}}\n{\"title\":\"hello\"}\n{\"delete\":{\"_id\":\"2\"}}\n";
+        let body =
+            "{\"index\":{\"_id\":\"1\"}}\n{\"title\":\"hello\"}\n{\"delete\":{\"_id\":\"2\"}}\n";
         let args = serde_json::json!({"index": "my-index", "body": body});
         let result = handler.handle(&args, Some(&mock_config(&server))).await;
         assert!(result.is_ok(), "got: {:?}", result.err());
@@ -1610,7 +1611,8 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/my-index/_count"))
             .respond_with(
-                ResponseTemplate::new(200).set_body_string(r#"{"count":42,"_shards":{"total":1,"successful":1}}"#),
+                ResponseTemplate::new(200)
+                    .set_body_string(r#"{"count":42,"_shards":{"total":1,"successful":1}}"#),
             )
             .mount(&server)
             .await;
@@ -1633,7 +1635,8 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/_count"))
             .respond_with(
-                ResponseTemplate::new(200).set_body_string(r#"{"count":100,"_shards":{"total":5,"successful":5}}"#),
+                ResponseTemplate::new(200)
+                    .set_body_string(r#"{"count":100,"_shards":{"total":5,"successful":5}}"#),
             )
             .mount(&server)
             .await;

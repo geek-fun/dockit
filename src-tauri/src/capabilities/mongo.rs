@@ -1886,9 +1886,7 @@ impl CapabilityHandler for MongoInsertMany {
         let inserted_ids: Value = result
             .inserted_ids
             .iter()
-            .map(|(k, v)| {
-                (k.to_string(), crate::common::bson::bson_to_value(v))
-            })
+            .map(|(k, v)| (k.to_string(), crate::common::bson::bson_to_value(v)))
             .collect::<serde_json::Map<_, _>>()
             .into();
         let data = serde_json::json!({
@@ -1935,9 +1933,7 @@ impl CapabilityHandler for MongoFindOneAndUpdate {
             .and_then(|o| o.get("upsert"))
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
-        let sort_val = args
-            .get("options")
-            .and_then(|o| o.get("sort"));
+        let sort_val = args.get("options").and_then(|o| o.get("sort"));
 
         let mut builder = coll.find_one_and_update(filter, update);
         match return_doc {
@@ -2027,9 +2023,7 @@ impl CapabilityHandler for MongoBulkWrite {
                     let update_val = op.get("update").ok_or("update_one missing 'update'")?;
                     let filter = crate::common::bson::json_to_bson_doc_agent(filter_val)?;
                     let update = crate::common::bson::json_to_bson_doc_agent(update_val)?;
-                    let model = if let Some(true) =
-                        op.get("upsert").and_then(|v| v.as_bool())
-                    {
+                    let model = if let Some(true) = op.get("upsert").and_then(|v| v.as_bool()) {
                         mongodb::options::UpdateOneModel::builder()
                             .namespace(ns.clone())
                             .filter(filter)
@@ -2046,15 +2040,11 @@ impl CapabilityHandler for MongoBulkWrite {
                     models.push(mongodb::options::WriteModel::UpdateOne(model));
                 }
                 "update_many" => {
-                    let filter_val =
-                        op.get("filter").ok_or("update_many missing 'filter'")?;
-                    let update_val =
-                        op.get("update").ok_or("update_many missing 'update'")?;
+                    let filter_val = op.get("filter").ok_or("update_many missing 'filter'")?;
+                    let update_val = op.get("update").ok_or("update_many missing 'update'")?;
                     let filter = crate::common::bson::json_to_bson_doc_agent(filter_val)?;
                     let update = crate::common::bson::json_to_bson_doc_agent(update_val)?;
-                    let model = if let Some(true) =
-                        op.get("upsert").and_then(|v| v.as_bool())
-                    {
+                    let model = if let Some(true) = op.get("upsert").and_then(|v| v.as_bool()) {
                         mongodb::options::UpdateManyModel::builder()
                             .namespace(ns.clone())
                             .filter(filter)
@@ -2071,8 +2061,7 @@ impl CapabilityHandler for MongoBulkWrite {
                     models.push(mongodb::options::WriteModel::UpdateMany(model));
                 }
                 "delete_one" => {
-                    let filter_val =
-                        op.get("filter").ok_or("delete_one missing 'filter'")?;
+                    let filter_val = op.get("filter").ok_or("delete_one missing 'filter'")?;
                     let filter = crate::common::bson::json_to_bson_doc_agent(filter_val)?;
                     models.push(mongodb::options::WriteModel::DeleteOne(
                         mongodb::options::DeleteOneModel::builder()
@@ -2082,8 +2071,7 @@ impl CapabilityHandler for MongoBulkWrite {
                     ));
                 }
                 "delete_many" => {
-                    let filter_val =
-                        op.get("filter").ok_or("delete_many missing 'filter'")?;
+                    let filter_val = op.get("filter").ok_or("delete_many missing 'filter'")?;
                     let filter = crate::common::bson::json_to_bson_doc_agent(filter_val)?;
                     models.push(mongodb::options::WriteModel::DeleteMany(
                         mongodb::options::DeleteManyModel::builder()
@@ -3499,6 +3487,8 @@ mod tests {
             )
             .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Unknown operation type: replace_one"));
+        assert!(result
+            .unwrap_err()
+            .contains("Unknown operation type: replace_one"));
     }
 }

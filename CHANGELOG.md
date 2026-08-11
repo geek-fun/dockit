@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-08-11
+
+### Added
+
+- **Three-layer user-configurable system prompt** — build agent system prompts from layered, user-editable components (#492)
+- **MCP NoSQL discovery workflow** — per-connection discover tool with workflow guidance for agent-driven NoSQL access (#491)
+- **MCP dockit tools guidance** — guide agents to use DocKit tools for NoSQL queries (#490)
+- **MCP MongoDB/DynamoDB tools** — expose MongoDB and DynamoDB tools to agents with actionable error messages (#489)
+
+### Fixed
+
+- **Restore Data Studio auto-scroll** — the answer panel auto-scrolls to the latest message when a new answer arrives (#487)
+- **Copy schema includes defaults** — copying schema now includes default values, and copy works from the action list (#486)
+- **Index selector no longer auto-filled** — executing a query no longer auto-selects the index in the selector (#485)
+
 ## [1.4.0] - 2026-08-04
 
 ### Added

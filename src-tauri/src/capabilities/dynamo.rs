@@ -18,8 +18,8 @@ use crate::dynamo::delete_table::delete_table;
 use crate::dynamo::query_table::{query_table, QueryTableInput};
 use crate::dynamo::scan_table::{scan_table, ScanTableInput};
 use crate::dynamo::time_to_live::describe_time_to_live;
-use crate::dynamo::truncate_table::truncate_table;
 use crate::dynamo::transact_write_items::{transact_write_items, TransactWriteInput};
+use crate::dynamo::truncate_table::truncate_table;
 use crate::dynamo::update_item::{update_item, UpdateItemInput};
 use crate::dynamo::update_pitr::update_continuous_backups;
 use crate::dynamo::update_streams::update_streams;
@@ -510,9 +510,7 @@ impl CapabilityHandler for DynamoBatchGetItems {
     ) -> Result<String, String> {
         let config =
             connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
-        let request_items = args
-            .get("request_items")
-            .ok_or("Missing request_items")?;
+        let request_items = args.get("request_items").ok_or("Missing request_items")?;
         let client = self.factory.create_client(config).await?;
         let input = BatchGetInput { request_items };
         let response = batch_get_item(&client, input).await?;
@@ -639,9 +637,7 @@ impl CapabilityHandler for DynamoTransactWriteItems {
     ) -> Result<String, String> {
         let config =
             connection_config.ok_or_else(|| "DynamoDB requires a connection config".to_string())?;
-        let transact_items = args
-            .get("transact_items")
-            .ok_or("Missing transact_items")?;
+        let transact_items = args.get("transact_items").ok_or("Missing transact_items")?;
         let client = self.factory.create_client(config).await?;
         let input = TransactWriteInput { transact_items };
         let response = transact_write_items(&client, input).await?;
@@ -1833,9 +1829,7 @@ mod tests {
     #[tokio::test]
     async fn test_transact_write_items_missing_config() {
         let handler = DynamoTransactWriteItems::new();
-        let result = handler
-            .handle(&json!({"transact_items": []}), None)
-            .await;
+        let result = handler.handle(&json!({"transact_items": []}), None).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("connection config"));
     }
@@ -2268,7 +2262,10 @@ mod tests {
             .await;
         assert!(result.is_ok());
         let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
-        assert_eq!(data["data"]["consumed_capacity"].as_array().unwrap().len(), 0);
+        assert_eq!(
+            data["data"]["consumed_capacity"].as_array().unwrap().len(),
+            0
+        );
     }
 
     #[tokio::test]
@@ -2338,7 +2335,10 @@ mod tests {
             .await;
         let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
         assert_eq!(data["status"], 500);
-        assert!(data["message"].as_str().unwrap().contains("Transaction failed"));
+        assert!(data["message"]
+            .as_str()
+            .unwrap()
+            .contains("Transaction failed"));
     }
 
     #[tokio::test]
@@ -2352,7 +2352,10 @@ mod tests {
             .await;
         let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
         assert_eq!(data["status"], 500);
-        assert!(data["message"].as_str().unwrap().contains("Transaction failed"));
+        assert!(data["message"]
+            .as_str()
+            .unwrap()
+            .contains("Transaction failed"));
     }
 
     #[tokio::test]
@@ -2366,7 +2369,10 @@ mod tests {
             .await;
         let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
         assert_eq!(data["status"], 500);
-        assert!(data["message"].as_str().unwrap().contains("Transaction failed"));
+        assert!(data["message"]
+            .as_str()
+            .unwrap()
+            .contains("Transaction failed"));
     }
 
     #[tokio::test]
@@ -2405,7 +2411,10 @@ mod tests {
             .await;
         let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
         assert_eq!(data["status"], 500);
-        assert!(data["message"].as_str().unwrap().contains("Failed to batch get items"));
+        assert!(data["message"]
+            .as_str()
+            .unwrap()
+            .contains("Failed to batch get items"));
     }
 
     #[tokio::test]
@@ -2418,7 +2427,9 @@ mod tests {
             )
             .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Each key must be a JSON object"));
+        assert!(result
+            .unwrap_err()
+            .contains("Each key must be a JSON object"));
     }
 
     #[tokio::test]
