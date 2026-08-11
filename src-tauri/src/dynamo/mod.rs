@@ -1,3 +1,4 @@
+pub mod batch_get_item;
 pub mod batch_write_item;
 pub mod cloudwatch_metrics;
 pub mod continuous_backups;
@@ -11,6 +12,7 @@ pub mod list_tables;
 pub mod query_table;
 pub mod scan_table;
 pub mod time_to_live;
+pub mod transact_write_items;
 pub mod truncate_table;
 pub mod types;
 pub mod update_item;
