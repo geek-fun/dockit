@@ -181,3 +181,60 @@ fn infer_attr_value_from_json(value: &Value) -> AttributeValue {
         ),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use aws_sdk_dynamodb::types::AttributeValue;
+
+    #[test]
+    fn test_infer_string() {
+        let av = infer_attr_value_from_json(&serde_json::json!("hello"));
+        assert!(matches!(av, AttributeValue::S(ref s) if s == "hello"));
+    }
+
+    #[test]
+    fn test_infer_number() {
+        let av = infer_attr_value_from_json(&serde_json::json!(42));
+        assert!(matches!(av, AttributeValue::N(ref n) if n == "42"));
+    }
+
+    #[test]
+    fn test_infer_bool() {
+        let av = infer_attr_value_from_json(&serde_json::json!(true));
+        assert!(matches!(av, AttributeValue::Bool(true)));
+    }
+
+    #[test]
+    fn test_infer_null() {
+        let av = infer_attr_value_from_json(&serde_json::json!(null));
+        assert!(matches!(av, AttributeValue::Null(true)));
+    }
+
+    #[test]
+    fn test_infer_array() {
+        let av = infer_attr_value_from_json(&serde_json::json!([1, "two", false]));
+        match av {
+            AttributeValue::L(items) => {
+                assert_eq!(items.len(), 3);
+                assert!(matches!(items[0], AttributeValue::N(_)));
+                assert!(matches!(items[1], AttributeValue::S(_)));
+                assert!(matches!(items[2], AttributeValue::Bool(_)));
+            }
+            _ => panic!("expected L"),
+        }
+    }
+
+    #[test]
+    fn test_infer_object() {
+        let av = infer_attr_value_from_json(&serde_json::json!({"a": "x", "b": 99}));
+        match av {
+            AttributeValue::M(map) => {
+                assert_eq!(map.len(), 2);
+                assert!(map.get("a").is_some());
+                assert!(map.get("b").is_some());
+            }
+            _ => panic!("expected M"),
+        }
+    }
+}

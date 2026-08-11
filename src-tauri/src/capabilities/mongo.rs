@@ -3366,4 +3366,139 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("factory error"));
     }
+
+    #[tokio::test]
+    async fn test_mongo_insert_many_missing_collection() {
+        let handler = MongoInsertMany::with_factory(Box::new(ok_factory(lazy_client())));
+        let result = handler
+            .handle(&json!({"documents": []}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_find_one_and_update_missing_collection() {
+        let handler = MongoFindOneAndUpdate::with_factory(Box::new(ok_factory(lazy_client())));
+        let result = handler
+            .handle(&json!({"filter": {}, "update": {}}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_distinct_missing_collection() {
+        let handler = MongoDistinct::with_factory(Box::new(ok_factory(lazy_client())));
+        let result = handler
+            .handle(&json!({"field": "category"}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_bulk_write_missing_collection() {
+        let handler = MongoBulkWrite::with_factory(Box::new(ok_factory(lazy_client())));
+        let result = handler
+            .handle(&json!({"operations": []}), Some(&mock_config()))
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing collection"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_bulk_write_op_missing_op_field() {
+        let handler = MongoBulkWrite::with_factory(Box::new(ok_factory(lazy_client())));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "operations": [{"document": {}}]}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Each operation must have an 'op' field"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_bulk_write_insert_one_missing_document() {
+        let handler = MongoBulkWrite::with_factory(Box::new(ok_factory(lazy_client())));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "operations": [{"op": "insert_one"}]}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("insert_one operation missing 'document'"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_bulk_write_update_one_missing_filter() {
+        let handler = MongoBulkWrite::with_factory(Box::new(ok_factory(lazy_client())));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "operations": [{"op": "update_one", "update": {}}]}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("update_one missing 'filter'"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_bulk_write_update_one_missing_update() {
+        let handler = MongoBulkWrite::with_factory(Box::new(ok_factory(lazy_client())));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "operations": [{"op": "update_one", "filter": {}}]}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("update_one missing 'update'"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_bulk_write_delete_one_missing_filter() {
+        let handler = MongoBulkWrite::with_factory(Box::new(ok_factory(lazy_client())));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "operations": [{"op": "delete_one"}]}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("delete_one missing 'filter'"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_bulk_write_delete_many_missing_filter() {
+        let handler = MongoBulkWrite::with_factory(Box::new(ok_factory(lazy_client())));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "operations": [{"op": "delete_many"}]}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("delete_many missing 'filter'"));
+    }
+
+    #[tokio::test]
+    async fn test_mongo_bulk_write_unknown_op() {
+        let handler = MongoBulkWrite::with_factory(Box::new(ok_factory(lazy_client())));
+        let result = handler
+            .handle(
+                &json!({"collection": "c", "operations": [{"op": "replace_one"}]}),
+                Some(&mock_config()),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unknown operation type: replace_one"));
+    }
 }

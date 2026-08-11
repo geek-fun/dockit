@@ -2261,6 +2261,167 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_transact_write_items_empty_items() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(&json!({"transact_items": []}), Some(&json!({})))
+            .await;
+        assert!(result.is_ok());
+        let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(data["data"]["consumed_capacity"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_missing_op() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"transact_items": [{"table_name": "t"}]}),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing 'op' field"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_missing_table_name() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"transact_items": [{"op": "put"}]}),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing 'table_name'"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_update_missing_keys() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"transact_items": [{"op": "update", "table_name": "t"}]}),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Missing 'keys' array for 'update'"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_update_missing_attributes() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"transact_items": [{"op": "update", "table_name": "t", "keys": []}]}),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("Missing 'attributes' array for 'update'"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_put_sdk_error() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"transact_items": [{"op": "put", "table_name": "t", "attributes": [{"key": "id", "value": "1", "type": "S"}]}]}),
+                Some(&json!({})),
+            )
+            .await;
+        let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(data["status"], 500);
+        assert!(data["message"].as_str().unwrap().contains("Transaction failed"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_update_sdk_error() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"transact_items": [{"op": "update", "table_name": "t", "keys": [{"key": "id", "value": "1", "type": "S"}], "attributes": [{"key": "name", "value": "test", "type": "S"}]}]}),
+                Some(&json!({})),
+            )
+            .await;
+        let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(data["status"], 500);
+        assert!(data["message"].as_str().unwrap().contains("Transaction failed"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_items_delete_sdk_error() {
+        let handler = DynamoTransactWriteItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"transact_items": [{"op": "delete", "table_name": "t", "keys": [{"key": "id", "value": "1", "type": "S"}]}]}),
+                Some(&json!({})),
+            )
+            .await;
+        let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(data["status"], 500);
+        assert!(data["message"].as_str().unwrap().contains("Transaction failed"));
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_items_empty_request() {
+        let handler = DynamoBatchGetItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(&json!({"request_items": {}}), Some(&json!({})))
+            .await;
+        let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(data["status"], 200);
+        assert_eq!(data["data"]["responses"].as_object().unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_items_all_empty_keys() {
+        let handler = DynamoBatchGetItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"request_items": {"t1": {"keys": []}, "t2": {"keys": []}}}),
+                Some(&json!({})),
+            )
+            .await;
+        let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(data["status"], 200);
+        assert_eq!(data["message"], "No valid keys provided");
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_items_sdk_error() {
+        let handler = DynamoBatchGetItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"request_items": {"t": {"keys": [{"id": "1"}]}}}),
+                Some(&json!({})),
+            )
+            .await;
+        let data: Value = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(data["status"], 500);
+        assert!(data["message"].as_str().unwrap().contains("Failed to batch get items"));
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_items_rejects_non_object_key() {
+        let handler = DynamoBatchGetItems::with_factory(Box::new(TestDynamoFactory));
+        let result = handler
+            .handle(
+                &json!({"request_items": {"t": {"keys": ["not-an-object"]}}}),
+                Some(&json!({})),
+            )
+            .await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Each key must be a JSON object"));
+    }
+
+    #[tokio::test]
     async fn test_update_gsi_factory_error() {
         let handler = DynamoUpdateGsi::with_factory(Box::new(FailingFactory));
         let result = handler
