@@ -237,4 +237,190 @@ mod tests {
             _ => panic!("expected M"),
         }
     }
+
+    // ── Integration tests with wiremock (mock DynamoDB HTTP API) ─────────────
+
+    async fn make_mock_client(
+        server: &wiremock::MockServer,
+    ) -> aws_sdk_dynamodb::Client {
+        let config = serde_json::json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "test",
+            "secretAccessKey": "test",
+            "endpointUrl": server.uri(),
+        });
+        crate::common::dynamo::create_dynamo_client(&config, None)
+            .await
+            .expect("client creation should succeed")
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_success() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.BatchGetItem",
+            ))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "Responses": {
+                        "users": [
+                            {"id": {"S": "1"}, "name": {"S": "Alice"}},
+                            {"id": {"S": "2"}, "name": {"S": "Bob"}}
+                        ]
+                    },
+                    "UnprocessedKeys": {}
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = BatchGetInput {
+            request_items: &serde_json::json!({
+                "users": {
+                    "keys": [{"id": "1"}, {"id": "2"}]
+                }
+            }),
+        };
+        let response = batch_get_item(&client, input)
+            .await
+            .expect("batch_get_item should succeed");
+
+        assert_eq!(response.status, 200);
+        assert!(response.message.contains("2 items returned"));
+        let data = response.data.expect("data should be present");
+        let responses = data["responses"]
+            .as_object()
+            .expect("responses should be an object");
+        assert_eq!(responses.len(), 1);
+        let users = responses["users"]
+            .as_array()
+            .expect("users should be an array");
+        assert_eq!(users.len(), 2);
+        assert_eq!(users[0]["id"], "1");
+        assert_eq!(users[0]["name"], "Alice");
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_success_with_unprocessed() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.BatchGetItem",
+            ))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "Responses": {"users": [{"id": {"S": "1"}}]},
+                    "UnprocessedKeys": {
+                        "orders": {
+                            "Keys": [{"id": {"S": "99"}}]
+                        }
+                    }
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = BatchGetInput {
+            request_items: &serde_json::json!({
+                "users": {"keys": [{"id": "1"}]},
+                "orders": {"keys": [{"id": "99"}]}
+            }),
+        };
+        let response = batch_get_item(&client, input)
+            .await
+            .expect("batch_get_item should succeed");
+
+        assert_eq!(response.status, 200);
+        let data = response.data.expect("data should be present");
+        let unprocessed = &data["unprocessed_keys"];
+        assert!(unprocessed.as_object().unwrap().contains_key("orders"));
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_error_response() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.BatchGetItem",
+            ))
+            .respond_with(
+                ResponseTemplate::new(400).set_body_json(serde_json::json!({
+                    "__type": "com.amazonaws.dynamodb.v20120810#ResourceNotFoundException",
+                    "message": "Requested resource not found"
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = BatchGetInput {
+            request_items: &serde_json::json!({
+                "t": {"keys": [{"id": "1"}]}
+            }),
+        };
+        let response = batch_get_item(&client, input)
+            .await
+            .expect("error response is still Ok(ApiResponse)");
+
+        assert_eq!(response.status, 500);
+        assert!(response.message.contains("Failed to batch get items"));
+    }
+
+    #[tokio::test]
+    async fn test_batch_get_empty_response() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.BatchGetItem",
+            ))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "Responses": {},
+                    "UnprocessedKeys": {}
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let input = BatchGetInput {
+            request_items: &serde_json::json!({
+                "t": {"keys": [{"id": "1"}]}
+            }),
+        };
+        let response = batch_get_item(&client, input)
+            .await
+            .expect("batch_get_item should succeed");
+
+        assert_eq!(response.status, 200);
+        assert!(response.message.contains("0 items returned"));
+    }
 }

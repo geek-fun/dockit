@@ -287,3 +287,258 @@ pub async fn transact_write_items(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn make_mock_client(
+        server: &wiremock::MockServer,
+    ) -> aws_sdk_dynamodb::Client {
+        let config = serde_json::json!({
+            "region": "us-east-1",
+            "authKind": "accessKey",
+            "accessKeyId": "test",
+            "secretAccessKey": "test",
+            "endpointUrl": server.uri(),
+        });
+        crate::common::dynamo::create_dynamo_client(&config, None)
+            .await
+            .expect("client creation should succeed")
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_success() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.TransactWriteItems",
+            ))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "ConsumedCapacity": [
+                        {"TableName": "users", "CapacityUnits": 1.0}
+                    ],
+                    "ItemCollectionMetrics": {}
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let items = serde_json::json!([
+            {"op": "put", "table_name": "users", "attributes": [{"key": "id", "value": "1", "type": "S"}, {"key": "name", "value": "Alice", "type": "S"}]}
+        ]);
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let response = transact_write_items(&client, input)
+            .await
+            .expect("transact_write_items should succeed");
+
+        assert_eq!(response.status, 200);
+        assert!(response.message.contains("1 items processed"));
+        let data = response.data.expect("data should be present");
+        let consumed = data["consumed_capacity"]
+            .as_array()
+            .expect("consumed_capacity should be an array");
+        assert_eq!(consumed.len(), 1);
+        assert_eq!(consumed[0]["table_name"], "users");
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_success_with_item_metrics() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.TransactWriteItems",
+            ))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                    "ConsumedCapacity": [],
+                    "ItemCollectionMetrics": {
+                        "users": [
+                            {"ItemCollectionKey": {"pk": {"S": "val"}}, "SizeEstimateRangeGB": [0.0, 1.0]}
+                        ]
+                    }
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let items = serde_json::json!([
+            {"op": "delete", "table_name": "users", "keys": [{"key": "id", "value": "1", "type": "S"}]}
+        ]);
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let response = transact_write_items(&client, input)
+            .await
+            .expect("transact_write_items should succeed");
+
+        assert_eq!(response.status, 200);
+        let data = response.data.expect("data should be present");
+        let metrics = &data["item_collection_metrics"];
+        assert!(metrics.as_object().unwrap().contains_key("users"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_error_response() {
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, ResponseTemplate};
+
+        let server = wiremock::MockServer::start().await;
+
+        Mock::given(method("POST"))
+            .and(path("/"))
+            .and(header(
+                "x-amz-target",
+                "DynamoDB_20120810.TransactWriteItems",
+            ))
+            .respond_with(
+                ResponseTemplate::new(400).set_body_json(serde_json::json!({
+                    "__type": "com.amazonaws.dynamodb.v20120810#TransactionCanceledException",
+                    "message": "Transaction cancelled"
+                })),
+            )
+            .mount(&server)
+            .await;
+
+        let client = make_mock_client(&server).await;
+        let items = serde_json::json!([
+            {"op": "put", "table_name": "users", "attributes": [{"key": "id", "value": "1", "type": "S"}]}
+        ]);
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let response = transact_write_items(&client, input)
+            .await
+            .expect("error response is still Ok(ApiResponse)");
+
+        assert_eq!(response.status, 500);
+        assert!(response.message.contains("Transaction failed"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_empty() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([]);
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let response = transact_write_items(&client, input)
+            .await
+            .expect("empty items should succeed");
+        assert_eq!(response.status, 200);
+        assert!(response.message.contains("No transact items"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_non_array_items() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!({"not": "array"});
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let result = transact_write_items(&client, input).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("must be a JSON array"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_missing_op() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{"table_name": "t"}]);
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let result = transact_write_items(&client, input).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing 'op' field"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_missing_table_name() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{"op": "put"}]);
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let result = transact_write_items(&client, input).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing 'table_name'"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_update_missing_keys() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{"op": "update", "table_name": "t"}]);
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let result = transact_write_items(&client, input).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing 'keys' array for 'update'"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_update_missing_attributes() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{"op": "update", "table_name": "t", "keys": []}]);
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let result = transact_write_items(&client, input).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing 'attributes' array for 'update'"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_put_missing_attributes() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{"op": "put", "table_name": "t"}]);
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let result = transact_write_items(&client, input).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing 'attributes' array for 'put'"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_delete_missing_keys() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{"op": "delete", "table_name": "t"}]);
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let result = transact_write_items(&client, input).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Missing 'keys' array for 'delete'"));
+    }
+
+    #[tokio::test]
+    async fn test_transact_write_unknown_op() {
+        let client = make_mock_client(&wiremock::MockServer::start().await).await;
+        let items = serde_json::json!([{"op": "upsert", "table_name": "t"}]);
+        let input = TransactWriteInput {
+            transact_items: &items,
+        };
+        let result = transact_write_items(&client, input).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Unknown operation 'upsert'"));
+    }
+}
