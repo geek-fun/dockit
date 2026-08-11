@@ -11,6 +11,8 @@ import type {
 import type { AgentToolCall, ConfirmationRule, SessionSource } from '@/store/dataStudioStore';
 import { useDataStudioStore } from '@/store/dataStudioStore';
 import { useAppStore } from '@/store';
+import { useConnectionStore } from '@/store/connectionStore';
+import { assembleSystemPrompt } from '@/common/agentPrompt';
 import {
   agentApi,
   type ToolMetadata,
@@ -294,6 +296,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
   const activeSession = config.sessionStore.activeSession;
   const dataStudioStore = useDataStudioStore();
   const appStore = useAppStore();
+  const connectionStore = useConnectionStore();
   const isLoading = computed(
     () =>
       activeSession.value?.status === 'running' ||
@@ -351,7 +354,7 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
       const { provider, model } = await appStore.getFeatureModelConfig(config.feature);
       const schema = session.schema ?? context?.schema;
 
-      let systemPrompt = buildSystemPrompt({
+      const base = buildSystemPrompt({
         schema,
         noConnection,
         sources: promptSources,
@@ -359,9 +362,29 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         permissionsMode: session.permissionsMode,
       });
 
-      if (config.feature === 'sidebarAssistant' && context) {
-        systemPrompt = buildSidebarContextPrompt(context) + systemPrompt;
-      }
+      const userGlobal = !noConnection ? appStore.chatConfig.systemPrompt : undefined;
+
+      const connectionPrompts = Object.entries(context?.connections ?? {}).flatMap(
+        ([alias, entry]) => {
+          const connection = connectionStore.connections.find(
+            candidate => Number(candidate.id) === Number(entry.connectionId),
+          );
+          const prompt = connection?.prompt?.trim();
+          return prompt ? [{ alias, prompt }] : [];
+        },
+      );
+
+      const sidebarContext =
+        config.feature === 'sidebarAssistant' && context
+          ? buildSidebarContextPrompt(context)
+          : undefined;
+
+      const systemPrompt = assembleSystemPrompt({
+        base,
+        userGlobal,
+        connectionPrompts,
+        sidebarContext,
+      });
 
       const settings: Record<string, unknown> = {
         provider: provider.apiCompatibility,
@@ -371,13 +394,14 @@ export const useChatAgent = (config: UseChatAgentConfig) => {
         baseUrl: provider.baseUrl,
         httpProxy: provider.proxy || undefined,
         proxyMode: provider.proxyMode,
-        systemPrompt,
         // Tools are already filtered by getAvailableTools — no need to clear
         // based on connection state. DocKit tools (dockit__list_connections)
         // are always available regardless of connection.
         tools: runtime.tools ?? [],
         ...appStore.chatConfig,
         contextWindowOverride: provider.contextWindowOverride,
+        // Merged 3-layer prompt wins over the raw per-layer fields spread above
+        systemPrompt,
       };
 
       if (context?.connections) {

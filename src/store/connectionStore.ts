@@ -218,6 +218,7 @@ export type DynamoDBConnection = {
   tables?: Array<DynamoTableSummary>;
   favoriteTables?: Array<string>;
   sshTunnel?: SshConnectionConfig;
+  prompt?: string;
 };
 
 // Shared base for HTTP-API-compatible search engines
@@ -236,6 +237,7 @@ export type SearchConnectionBase = {
   activeIndex: ElasticSearchIndex | undefined;
   version: string;
   sshTunnel?: SshConnectionConfig;
+  prompt?: string;
   clusterName: string;
   clusterUuid: string;
 };
@@ -301,6 +303,7 @@ export type MongoDBConnection = {
   collections?: MongoDBCollection[];
   favoriteCollections?: Array<{ database: string; collection: string }>;
   sshTunnel?: SshConnectionConfig;
+  prompt?: string;
 };
 
 export type MongoDBCollection = {

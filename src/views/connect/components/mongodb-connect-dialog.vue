@@ -63,14 +63,14 @@
                   :model-value="authMode"
                   @update:model-value="value => onAuthModeChange(value as string)"
                 >
-                  <TabsList class="w-full">
-                    <TabsTrigger class="flex-1" value="none">
+                  <TabsList class="w-full h-8">
+                    <TabsTrigger class="flex-1 py-0.5" value="none">
                       {{ $t('connection.mongodb.authNone') }}
                     </TabsTrigger>
-                    <TabsTrigger class="flex-1" value="uri">
+                    <TabsTrigger class="flex-1 py-0.5" value="uri">
                       {{ $t('connection.mongodb.authUri') }}
                     </TabsTrigger>
-                    <TabsTrigger class="flex-1" value="scram">
+                    <TabsTrigger class="flex-1 py-0.5" value="scram">
                       {{ $t('connection.mongodb.authScram') }}
                     </TabsTrigger>
                   </TabsList>
@@ -226,6 +226,28 @@
                     @create-profile="openSshProfileDialog(null)"
                     @edit-profile="openSshProfileDialog($event)"
                   />
+                  <div class="prompt-header-row">
+                    <span class="i-carbon-chat-bot h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span class="text-sm font-medium whitespace-nowrap">
+                      {{ $t('connection.prompt.label') }}
+                    </span>
+                    <span v-if="promptValue" class="prompt-summary" :title="promptValue">
+                      {{ $t('connection.prompt.configured') }}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      type="button"
+                      class="ml-auto h-8 w-8 shrink-0"
+                      :title="
+                        promptValue ? $t('connection.prompt.edit') : $t('connection.prompt.add')
+                      "
+                      @click="openPromptDialog"
+                    >
+                      <Plus v-if="!promptValue" class="h-4 w-4" />
+                      <Pencil v-else class="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                   <p v-if="sshTunnelIssue" class="mt-2 text-xs text-destructive">
                     {{ sshTunnelIssue }}
                   </p>
@@ -259,11 +281,12 @@
     </DialogContent>
   </Dialog>
   <SshProfileDialog ref="sshProfileDialogRef" />
+  <ConnectionPromptDialog ref="promptDialogRef" @save="onPromptSave" />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { X, Loader2, ChevronRight, Eye, EyeOff } from 'lucide-vue-next';
+import { X, Loader2, ChevronRight, Eye, EyeOff, Plus, Pencil } from 'lucide-vue-next';
 import { cloneDeep } from 'lodash';
 import { useForm } from 'vee-validate';
 import { toTypedSchema } from '@vee-validate/zod';
@@ -277,6 +300,7 @@ import { useLang } from '../../../lang';
 import { useFormValidation, useDialogResult } from '@/composables';
 import { SshTunnelSection } from '@/components/ssh';
 import SshProfileDialog from './ssh-profile-dialog.vue';
+import ConnectionPromptDialog from './connection-prompt-dialog.vue';
 
 import {
   Dialog,
@@ -314,7 +338,9 @@ const authMode = ref<'none' | 'scram' | 'uri'>('none');
 const { handleBlur, getError, markSubmitted, resetValidation } = useFormValidation();
 const sshConfig = ref<SshConnectionConfig>({ enabled: false });
 const sshProfileDialogRef = ref<InstanceType<typeof SshProfileDialog> | null>(null);
+const promptDialogRef = ref<InstanceType<typeof ConnectionPromptDialog> | null>(null);
 const showAdvanced = ref(false);
+const promptValue = computed(() => formData.value.prompt ?? '');
 
 function openSshProfileDialog(profileId: string | null) {
   if (sshProfileDialogRef.value) {
@@ -323,6 +349,16 @@ function openSshProfileDialog(profileId: string | null) {
       : null;
     sshProfileDialogRef.value.show(profile);
   }
+}
+
+function openPromptDialog() {
+  if (promptDialogRef.value) {
+    promptDialogRef.value.show(formData.value.prompt);
+  }
+}
+
+function onPromptSave(value: string) {
+  formData.value.prompt = value.trim() || undefined;
 }
 
 const defaultFormData = {
@@ -755,5 +791,23 @@ defineExpose({ showMedal });
 
 .advanced-content {
   padding-top: 12px;
+}
+
+.prompt-header-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.prompt-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
 }
 </style>

@@ -203,6 +203,9 @@ export const enUS = {
         tokenBudgetLabel: 'Token budget',
         tokenBudgetDescription:
           'Maximum cumulative input tokens across all iterations in one agent run. Default: 1,000,000.',
+        systemPromptLabel: 'System Prompt',
+        systemPromptDescription:
+          'Global system prompt sent to the LLM on every chat, before any connection-specific context. Use it to describe your overall usage, terminology, or business context.',
       },
 
       models: {
@@ -997,6 +1000,19 @@ export const enUS = {
 
     connectionTarget: 'Connection Target',
     notFound: 'Connection not found',
+
+    prompt: {
+      title: 'Agent Prompt',
+      label: 'Agent Prompt',
+      add: 'Add agent prompt',
+      edit: 'Edit agent prompt',
+      configured: 'Configured',
+      description:
+        'Connection-specific system prompt. Sent to the LLM whenever this connection is used by the agent, after the global system prompt.',
+      placeholder:
+        'Describe this connection for the AI agent, e.g. business meaning of the data, naming conventions, common queries...',
+      clear: 'Clear',
+    },
 
     ssh: {
       title: 'SSH Tunnel',
