@@ -7,6 +7,11 @@
     <TabsList class="tabs-list">
       <div v-for="(panel, index) in panels" :key="panel.id" class="tab-trigger-wrapper">
         <TabsTrigger :value="panel.name" class="tab-trigger">
+          <component
+            :is="getDbIcon(panel.connection.type)"
+            v-if="panel.connection"
+            class="h-3.5 w-3.5 mr-1 object-contain"
+          />
           {{ panel.name }}
         </TabsTrigger>
         <button
@@ -68,6 +73,11 @@ import EsEditor from '../editor/es-editor/index.vue';
 import DynamoEditor from '../editor/dynamo-editor/index.vue';
 import MongoEditor from '../editor/mongo-editor/index.vue';
 import { useLang } from '../../lang';
+import elasticsearchIcon from '../../assets/svg/elasticsearch.svg';
+import opensearchIcon from '../../assets/svg/db-opensearch.svg';
+import easysearchIcon from '../../assets/svg/easysearch.svg';
+import dynamoDBIcon from '../../assets/svg/dynamoDB.svg';
+import mongodbIcon from '../../assets/svg/mongodb.svg';
 import { CustomError, editorTypeFromConnectView, parseConnectRouteQuery } from '../../common';
 import { useDialogService, useMessageService, setupGlobalShortcuts } from '@/composables';
 
@@ -81,6 +91,15 @@ const connectionStore = useConnectionStore();
 const { establishPanel, closePanel, setActivePanel, checkFileExists } = tabStore;
 const { selectIndex } = connectionStore;
 const { panels, activePanel } = storeToRefs(tabStore);
+
+const dbIcons: Record<string, any> = {
+  [DatabaseType.DYNAMODB]: dynamoDBIcon,
+  [DatabaseType.OPENSEARCH]: opensearchIcon,
+  [DatabaseType.EASYSEARCH]: easysearchIcon,
+  [DatabaseType.MONGODB]: mongodbIcon,
+  [DatabaseType.ELASTICSEARCH]: elasticsearchIcon,
+};
+const getDbIcon = (dbType?: string) => dbIcons[dbType ?? ''] ?? elasticsearchIcon;
 
 const dbDataStore = useDbDataStore();
 
