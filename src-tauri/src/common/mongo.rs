@@ -80,18 +80,54 @@ fn build_mongo_uri(config: &Value) -> Result<String, String> {
     }
 }
 
+fn parse_socks5_proxy(socks5_proxy: Option<&str>) -> Result<Option<(String, u16)>, String> {
+    let Some(proxy) = socks5_proxy.filter(|s| !s.is_empty()) else {
+        return Ok(None);
+    };
+    let (host, port_str) = proxy
+        .rsplit_once(':')
+        .ok_or_else(|| format!("Invalid socks5Proxy (no port separator): {}", proxy))?;
+    let port: u16 = port_str
+        .parse()
+        .map_err(|e| format!("Invalid socks5Proxy port '{}': {}", port_str, e))?;
+    Ok(Some((host.to_string(), port)))
+}
+
+fn apply_socks5_proxy_from_config(
+    client_options: &mut ClientOptions,
+    socks5_proxy: Option<&str>,
+) -> Result<(), String> {
+    if let Some((host, port)) = parse_socks5_proxy(socks5_proxy)? {
+        client_options.socks5_proxy = Some(
+            mongodb::options::Socks5Proxy::builder()
+                .host(host)
+                .port(Some(port))
+                .build(),
+        );
+        client_options.direct_connection = Some(true);
+    }
+    Ok(())
+}
+
+async fn build_client_options(config: &Value) -> Result<ClientOptions, String> {
+    let uri = build_mongo_uri(config)?;
+    let mut client_options = ClientOptions::parse(&uri)
+        .await
+        .map_err(|e| format!("Failed to parse MongoDB connection options: {}", e))?;
+    let socks5_proxy = config.get("socks5Proxy").and_then(|v| v.as_str());
+    apply_socks5_proxy_from_config(&mut client_options, socks5_proxy)?;
+    Ok(client_options)
+}
+
 pub(crate) async fn create_mongo_client_from_config(
     config: &Value,
 ) -> Result<(MongoClient, String), String> {
-    let uri = build_mongo_uri(config)?;
     let database = config
         .get("database")
         .and_then(|v| v.as_str())
         .unwrap_or("test")
         .to_string();
-    let client_options = ClientOptions::parse(&uri)
-        .await
-        .map_err(|e| format!("Failed to parse MongoDB connection options: {}", e))?;
+    let client_options = build_client_options(config).await?;
     let client = MongoClient::with_options(client_options)
         .map_err(|e| format!("Failed to create MongoDB client: {}", e))?;
     Ok((client, database))
@@ -203,5 +239,136 @@ mod tests {
         assert!(result.is_ok(), "URI auth should parse: {:?}", result.err());
         let (_client, db) = result.unwrap();
         assert_eq!(db, "test");
+    }
+
+    #[test]
+    fn test_parse_socks5_proxy_none() {
+        assert_eq!(parse_socks5_proxy(None).unwrap(), None);
+    }
+
+    #[test]
+    fn test_parse_socks5_proxy_empty() {
+        assert_eq!(parse_socks5_proxy(Some("")).unwrap(), None);
+    }
+
+    #[test]
+    fn test_parse_socks5_proxy_default_localhost() {
+        assert_eq!(
+            parse_socks5_proxy(Some("127.0.0.1:51234")).unwrap(),
+            Some(("127.0.0.1".to_string(), 51234))
+        );
+    }
+
+    #[test]
+    fn test_parse_socks5_proxy_custom_host() {
+        assert_eq!(
+            parse_socks5_proxy(Some("10.0.0.5:1080")).unwrap(),
+            Some(("10.0.0.5".to_string(), 1080))
+        );
+    }
+
+    #[test]
+    fn test_parse_socks5_proxy_no_colon() {
+        let err = parse_socks5_proxy(Some("invalid")).unwrap_err();
+        assert!(err.contains("no port separator"), "got: {}", err);
+    }
+
+    #[test]
+    fn test_parse_socks5_proxy_bad_port() {
+        let err = parse_socks5_proxy(Some("127.0.0.1:abc")).unwrap_err();
+        assert!(err.contains("Invalid socks5Proxy port"), "got: {}", err);
+    }
+
+    #[test]
+    fn test_parse_socks5_proxy_empty_port() {
+        assert!(parse_socks5_proxy(Some("127.0.0.1:")).is_err());
+    }
+
+    #[tokio::test]
+    async fn test_apply_socks5_proxy_sets_fields() {
+        let mut options = ClientOptions::parse("mongodb://localhost:27017").await.unwrap();
+        apply_socks5_proxy_from_config(&mut options, Some("127.0.0.1:51234")).unwrap();
+        let proxy = options.socks5_proxy.expect("socks5_proxy must be set");
+        assert_eq!(proxy.host, "127.0.0.1");
+        assert_eq!(proxy.port, Some(51234));
+        assert_eq!(options.direct_connection, Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_apply_socks5_proxy_none_no_changes() {
+        let mut options = ClientOptions::parse("mongodb://localhost:27017").await.unwrap();
+        apply_socks5_proxy_from_config(&mut options, None).unwrap();
+        assert!(options.socks5_proxy.is_none());
+        assert!(options.direct_connection.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_apply_socks5_proxy_malformed_returns_err() {
+        let mut options = ClientOptions::parse("mongodb://localhost:27017").await.unwrap();
+        let err = apply_socks5_proxy_from_config(&mut options, Some("invalid")).unwrap_err();
+        assert!(err.contains("no port separator"), "got: {}", err);
+    }
+
+    #[tokio::test]
+    async fn test_build_client_options_applies_socks5_proxy() {
+        let options = build_client_options(&json!({
+            "host": "ssh-mongo-test", "port": 27017,
+            "socks5Proxy": "127.0.0.1:51234",
+        }))
+        .await
+        .expect("options should build");
+        let proxy = options.socks5_proxy.expect("socks5_proxy must be set");
+        assert_eq!(proxy.host, "127.0.0.1");
+        assert_eq!(proxy.port, Some(51234));
+        assert_eq!(options.direct_connection, Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_build_client_options_no_socks5_no_proxy() {
+        let options = build_client_options(&json!({
+            "host": "127.0.0.1", "port": 27018,
+        }))
+        .await
+        .expect("options should build");
+        assert!(options.socks5_proxy.is_none());
+        assert!(options.direct_connection.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_build_client_options_uri_auth_with_socks5() {
+        let options = build_client_options(&json!({
+            "authKind": "uri",
+            "uri": "mongodb://u:p@mongo.example.com:27018/app",
+            "socks5Proxy": "127.0.0.1:51234",
+        }))
+        .await
+        .expect("options should build");
+        let proxy = options.socks5_proxy.expect("socks5_proxy must be set");
+        assert_eq!(proxy.host, "127.0.0.1");
+        assert_eq!(proxy.port, Some(51234));
+        assert_eq!(options.direct_connection, Some(true));
+    }
+
+    #[tokio::test]
+    async fn test_create_mongo_client_with_socks5_proxy() {
+        let result = create_mongo_client_from_config(&json!({
+            "host": "ssh-mongo-test", "port": 27017, "database": "testdb",
+            "socks5Proxy": "127.0.0.1:51234",
+        }))
+        .await;
+        assert!(result.is_ok(), "should build client: {:?}", result.err());
+        let (_client, db) = result.unwrap();
+        assert_eq!(db, "testdb");
+    }
+
+    #[tokio::test]
+    async fn test_create_mongo_client_socks5_malformed_returns_err() {
+        let result = create_mongo_client_from_config(&json!({
+            "host": "ssh-mongo-test", "port": 27017,
+            "socks5Proxy": "invalid",
+        }))
+        .await;
+        let err = result.unwrap_err();
+        assert!(err.contains("no port separator"), "got: {}", err);
     }
 }
