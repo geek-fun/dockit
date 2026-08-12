@@ -193,10 +193,9 @@
           </p>
         </div>
         <textarea
+          v-model="systemPrompt"
           class="textarea-input mt-2 w-full resize-y"
-          :model-value="systemPrompt"
           :placeholder="$t('setting.ai.chat.systemPromptLabel')"
-          @update:model-value="setSystemPrompt"
         />
       </div>
     </section>
@@ -449,7 +448,12 @@ const autoCompactEnabled = computed(() => chatConfig.value.autoCompact);
 const maxIterations = computed(() => chatConfig.value.maxIterations);
 const wallClockBudgetMin = computed(() => chatConfig.value.wallClockBudgetMin);
 const tokenBudget = computed(() => chatConfig.value.tokenBudget);
-const systemPrompt = computed(() => chatConfig.value.systemPrompt);
+const systemPrompt = computed<string>({
+  get: () => chatConfig.value.systemPrompt,
+  set: (value: string) => {
+    void setSystemPrompt(value);
+  },
+});
 
 const setAutoCompact = async (value: boolean) => {
   const result = await appStore.saveChatSettings({ autoCompact: value });
