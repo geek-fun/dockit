@@ -80,31 +80,22 @@ fn build_mongo_uri(config: &Value) -> Result<String, String> {
     }
 }
 
-fn parse_socks5_proxy(socks5_proxy: Option<&str>) -> Result<Option<(String, u16)>, String> {
-    let Some(proxy) = socks5_proxy.filter(|s| !s.is_empty()) else {
-        return Ok(None);
-    };
-    let (host, port_str) = proxy
-        .rsplit_once(':')
-        .ok_or_else(|| format!("Invalid socks5Proxy (no port separator): {}", proxy))?;
-    let port: u16 = port_str
-        .parse()
-        .map_err(|e| format!("Invalid socks5Proxy port '{}': {}", port_str, e))?;
-    Ok(Some((host.to_string(), port)))
+pub(crate) fn wire_socks5_proxy(client_options: &mut ClientOptions, host: &str, port: u16) {
+    client_options.socks5_proxy = Some(
+        mongodb::options::Socks5Proxy::builder()
+            .host(host)
+            .port(Some(port))
+            .build(),
+    );
+    client_options.direct_connection = Some(true);
 }
 
 fn apply_socks5_proxy_from_config(
     client_options: &mut ClientOptions,
     socks5_proxy: Option<&str>,
 ) -> Result<(), String> {
-    if let Some((host, port)) = parse_socks5_proxy(socks5_proxy)? {
-        client_options.socks5_proxy = Some(
-            mongodb::options::Socks5Proxy::builder()
-                .host(host)
-                .port(Some(port))
-                .build(),
-        );
-        client_options.direct_connection = Some(true);
+    if let Some((host, port)) = crate::common::ssh_bridge::parse_socks5_proxy(socks5_proxy)? {
+        wire_socks5_proxy(client_options, &host, port);
     }
     Ok(())
 }
@@ -239,49 +230,6 @@ mod tests {
         assert!(result.is_ok(), "URI auth should parse: {:?}", result.err());
         let (_client, db) = result.unwrap();
         assert_eq!(db, "test");
-    }
-
-    #[test]
-    fn test_parse_socks5_proxy_none() {
-        assert_eq!(parse_socks5_proxy(None).unwrap(), None);
-    }
-
-    #[test]
-    fn test_parse_socks5_proxy_empty() {
-        assert_eq!(parse_socks5_proxy(Some("")).unwrap(), None);
-    }
-
-    #[test]
-    fn test_parse_socks5_proxy_default_localhost() {
-        assert_eq!(
-            parse_socks5_proxy(Some("127.0.0.1:51234")).unwrap(),
-            Some(("127.0.0.1".to_string(), 51234))
-        );
-    }
-
-    #[test]
-    fn test_parse_socks5_proxy_custom_host() {
-        assert_eq!(
-            parse_socks5_proxy(Some("10.0.0.5:1080")).unwrap(),
-            Some(("10.0.0.5".to_string(), 1080))
-        );
-    }
-
-    #[test]
-    fn test_parse_socks5_proxy_no_colon() {
-        let err = parse_socks5_proxy(Some("invalid")).unwrap_err();
-        assert!(err.contains("no port separator"), "got: {}", err);
-    }
-
-    #[test]
-    fn test_parse_socks5_proxy_bad_port() {
-        let err = parse_socks5_proxy(Some("127.0.0.1:abc")).unwrap_err();
-        assert!(err.contains("Invalid socks5Proxy port"), "got: {}", err);
-    }
-
-    #[test]
-    fn test_parse_socks5_proxy_empty_port() {
-        assert!(parse_socks5_proxy(Some("127.0.0.1:")).is_err());
     }
 
     #[tokio::test]
