@@ -184,20 +184,83 @@
       </div>
 
       <div
-        class="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/70 px-5 py-4 shadow-sm md:flex-col md:items-stretch"
+        class="flex flex-col gap-3 rounded-3xl border border-border/70 bg-card/70 px-5 py-4 shadow-sm"
       >
-        <div class="min-w-0 space-y-1">
-          <p class="text-base font-semibold">{{ $t('setting.ai.chat.systemPromptLabel') }}</p>
-          <p class="text-sm text-muted-foreground">
-            {{ $t('setting.ai.chat.systemPromptDescription') }}
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0 space-y-1">
+            <p class="text-base font-semibold">{{ $t('setting.ai.chat.systemPromptLabel') }}</p>
+            <p class="text-sm text-muted-foreground">
+              {{ $t('setting.ai.chat.systemPromptDescription') }}
+            </p>
+          </div>
+
+          <!-- View mode: add / edit / delete actions -->
+          <div v-if="!isEditingPrompt" class="flex shrink-0 items-center gap-1">
+            <template v-if="!systemPrompt">
+              <Button
+                variant="outline"
+                size="sm"
+                class="gap-1.5"
+                :title="$t('setting.ai.chat.systemPromptAdd')"
+                @click="startEditPrompt"
+              >
+                <span class="i-carbon-add h-4 w-4" />
+                {{ $t('setting.ai.chat.systemPromptAdd') }}
+              </Button>
+            </template>
+            <template v-else>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8"
+                :title="$t('setting.ai.chat.systemPromptEdit')"
+                @click="startEditPrompt"
+              >
+                <span class="i-carbon-edit h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                class="h-8 w-8 text-destructive hover:text-destructive"
+                :title="$t('setting.ai.chat.systemPromptDelete')"
+                @click="deletePrompt"
+              >
+                <span class="i-carbon-trash-can h-4 w-4" />
+              </Button>
+            </template>
+          </div>
+        </div>
+
+        <!-- Readonly preview of the saved prompt -->
+        <div v-if="!isEditingPrompt" class="min-w-0">
+          <p
+            v-if="systemPrompt"
+            class="line-clamp-3 whitespace-pre-wrap rounded-lg bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+            :title="systemPrompt"
+          >
+            {{ systemPrompt }}
+          </p>
+          <p v-else class="text-sm text-muted-foreground/60">
+            {{ $t('setting.ai.chat.systemPromptEmpty') }}
           </p>
         </div>
-        <textarea
-          class="textarea-input mt-2 w-full resize-y"
-          :model-value="systemPrompt"
-          :placeholder="$t('setting.ai.chat.systemPromptLabel')"
-          @update:model-value="setSystemPrompt"
-        />
+
+        <!-- Edit mode: textarea + cancel/save -->
+        <div v-else class="flex flex-col gap-3">
+          <textarea
+            v-model="draftPrompt"
+            class="textarea-input min-h-[120px] w-full resize-y"
+            :placeholder="$t('setting.ai.chat.systemPromptLabel')"
+          />
+          <div class="flex justify-end gap-2">
+            <Button variant="outline" size="sm" @click="cancelEditPrompt">
+              {{ $t('setting.ai.chat.systemPromptCancel') }}
+            </Button>
+            <Button size="sm" :disabled="!hasPromptChanges" @click="savePrompt">
+              {{ $t('setting.ai.chat.systemPromptSave') }}
+            </Button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -449,7 +512,46 @@ const autoCompactEnabled = computed(() => chatConfig.value.autoCompact);
 const maxIterations = computed(() => chatConfig.value.maxIterations);
 const wallClockBudgetMin = computed(() => chatConfig.value.wallClockBudgetMin);
 const tokenBudget = computed(() => chatConfig.value.tokenBudget);
-const systemPrompt = computed(() => chatConfig.value.systemPrompt);
+const systemPrompt = computed<string>({
+  get: () => chatConfig.value.systemPrompt,
+  set: (value: string) => {
+    void setSystemPrompt(value);
+  },
+});
+
+const isEditingPrompt = ref(false);
+const draftPrompt = ref('');
+const hasPromptChanges = computed(() => draftPrompt.value !== systemPrompt.value);
+
+const startEditPrompt = () => {
+  draftPrompt.value = systemPrompt.value;
+  isEditingPrompt.value = true;
+};
+
+const cancelEditPrompt = () => {
+  draftPrompt.value = '';
+  isEditingPrompt.value = false;
+};
+
+const savePrompt = async () => {
+  if (!hasPromptChanges.value) return;
+  const result = await appStore.saveChatSettings({ systemPrompt: draftPrompt.value });
+  if (!result.success) {
+    message.error(`Failed to persist: ${result.error}`, { closable: true, keepAliveOnHover: true });
+    return;
+  }
+  isEditingPrompt.value = false;
+};
+
+const deletePrompt = async () => {
+  const result = await appStore.saveChatSettings({ systemPrompt: '' });
+  if (!result.success) {
+    message.error(`Failed to persist: ${result.error}`, { closable: true, keepAliveOnHover: true });
+    return;
+  }
+  isEditingPrompt.value = false;
+  draftPrompt.value = '';
+};
 
 const setAutoCompact = async (value: boolean) => {
   const result = await appStore.saveChatSettings({ autoCompact: value });

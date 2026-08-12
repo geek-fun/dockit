@@ -197,6 +197,12 @@ export const zhCN = {
         systemPromptLabel: '系统提示词',
         systemPromptDescription:
           '每次对话都会发送给 LLM 的全局系统提示词，位于任何连接级上下文之前。可用于描述你的整体用法、术语或业务上下文。',
+        systemPromptAdd: '添加系统提示词',
+        systemPromptEdit: '编辑系统提示词',
+        systemPromptDelete: '删除系统提示词',
+        systemPromptEmpty: '尚未配置系统提示词。',
+        systemPromptSave: '保存',
+        systemPromptCancel: '取消',
       },
 
       models: {

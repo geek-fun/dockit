@@ -206,6 +206,12 @@ export const enUS = {
         systemPromptLabel: 'System Prompt',
         systemPromptDescription:
           'Global system prompt sent to the LLM on every chat, before any connection-specific context. Use it to describe your overall usage, terminology, or business context.',
+        systemPromptAdd: 'Add system prompt',
+        systemPromptEdit: 'Edit system prompt',
+        systemPromptDelete: 'Delete system prompt',
+        systemPromptEmpty: 'No system prompt configured.',
+        systemPromptSave: 'Save',
+        systemPromptCancel: 'Cancel',
       },
 
       models: {

@@ -15,10 +15,9 @@
       <div class="space-y-4">
         <p class="text-sm text-muted-foreground">{{ $t('connection.prompt.description') }}</p>
         <textarea
+          v-model="draft"
           class="prompt-textarea"
-          :model-value="draft"
           :placeholder="$t('connection.prompt.placeholder')"
-          @update:model-value="draft = $event"
         />
       </div>
 
