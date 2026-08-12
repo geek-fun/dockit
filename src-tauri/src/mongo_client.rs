@@ -55,15 +55,7 @@ fn tunnel_port(ssh_enabled: bool, endpoint_host: &str, endpoint_port: u16) -> Op
 /// The URI keeps the real host, so no certificate-validation skip is needed.
 fn apply_socks5_proxy(client_options: &mut ClientOptions, socks5_port: Option<u16>) {
     if let Some(port) = socks5_port {
-        client_options.socks5_proxy = Some(
-            mongodb::options::Socks5Proxy::builder()
-                .host("127.0.0.1")
-                .port(Some(port))
-                .build(),
-        );
-        // Replica-set discovery would hand back internal IPs unreachable
-        // through the tunnel; force direct connection (same as dbx).
-        client_options.direct_connection = Some(true);
+        crate::common::mongo::wire_socks5_proxy(client_options, "127.0.0.1", port);
     }
 }
 
